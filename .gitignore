@@ -5,3 +5,8 @@ __pycache__/
 .venv/
 venv/
 output/
+
+# PyInstaller / flet pack build artifacts
+build/
+dist/
+*.spec
