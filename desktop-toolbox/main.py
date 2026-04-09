@@ -32,7 +32,7 @@ def run_app(page: ft.Page) -> None:
 
     page.on_route_change = on_route_change
     page.on_view_pop = on_view_pop
-    page.go(page.route or "/")
+    page.go("/frame-extractor")
 
 
 if __name__ == "__main__":

@@ -1,11 +1,15 @@
-"""Root shell view: NavigationRail on the left, content slot on the right."""
+"""Root shell view: NavigationRail on the left, empty content slot on the right.
+
+The right-hand area is intentionally blank — when the user navigates to a
+module route, that module's view is pushed on top of this shell view (Flet's
+view stack model), so the shell only shows when nothing else is selected.
+"""
 
 from typing import Sequence
 
 import flet as ft
 
 from app.module import ModuleSpec
-from app.theme import APP_TITLE
 
 
 def build_shell_view(page: ft.Page, modules: Sequence[ModuleSpec]) -> ft.View:
@@ -22,29 +26,12 @@ def build_shell_view(page: ft.Page, modules: Sequence[ModuleSpec]) -> ft.View:
         on_change=on_rail_change,
     )
 
-    welcome = ft.Container(
-        expand=True,
-        alignment=ft.alignment.center,
-        content=ft.Column(
-            alignment=ft.MainAxisAlignment.CENTER,
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            controls=[
-                ft.Text(APP_TITLE, size=32, weight=ft.FontWeight.BOLD),
-                ft.Text(
-                    "Soldaki menüden bir araç seçin.",
-                    size=14,
-                    color=ft.Colors.ON_SURFACE_VARIANT,
-                ),
-            ],
-        ),
-    )
-
     return ft.View(
         route="/",
         controls=[
             ft.Row(
                 expand=True,
-                controls=[rail, ft.VerticalDivider(width=1), welcome],
+                controls=[rail, ft.VerticalDivider(width=1), ft.Container(expand=True)],
             )
         ],
         padding=0,

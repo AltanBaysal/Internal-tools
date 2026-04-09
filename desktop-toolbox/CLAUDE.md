@@ -36,7 +36,7 @@ desktop-toolbox/
 │       ├── controller.py        # State + event handlers + page.run_task
 │       └── service.py           # Async wrapper around core; the only place asyncio lives
 ├── core/                        # Framework-agnostic libraries shared by modules
-│   └── extractor.py             # OpenCV frame extraction (find_videos, extract_first_frame, ...)
+│   └── extractor.py             # OpenCV frame extraction (find_videos, extract_first_frame_bytes)
 └── cli/                         # Command-line entry points (kept as fallbacks)
     └── frame_extractor.py
 ```
@@ -60,6 +60,7 @@ The shell (`app/shell.py`, `app/routes.py`) is the only place that knows the ful
 - **No third-party Flet framework.** We use Flet's built-in `page.on_route_change` + `page.views` stack. Community frameworks (FletX, Flet-Easy, Fletched) are single-maintainer hobby projects — KISS says no.
 - **Long-running work uses `page.run_task` + `asyncio.to_thread`.** `threading.Thread` is documented to deadlock after `flet build` — the official async path is the safe choice.
 - **Core stays framework-agnostic.** `core/extractor.py` has zero `import flet` and zero `import asyncio`. This keeps it CLI-friendly, test-friendly, and reusable.
+- **Frame Extractor is two-phase:** `service.extract_all(...)` returns frames in memory as `list[ExtractedFrame]`; `service.save_frames(...)` writes them to disk later. The UI is a single morphing button that walks through stages (`Başla → Yükleniyor → Kaydet → Kaydediliyor → Kaydedildi`); the controller exposes a derived `stage` property that the view reads. Save destination is hardcoded to `~/Downloads/extractor-photos/<input-folder-name>/` with no picker — the `extractor-photos` namespace avoids any collision with user-managed `~/Downloads/photos/`. Core only exposes the in-memory variant; on-disk writing is each caller's responsibility.
 - **Per-module state lives in the controller.** No global state store. If/when a second module needs to share state with the first, we'll add it then.
 - **The CLI is a feature, not a leftover.** It validates the service path end-to-end without involving Flet, which makes debugging much easier.
 - Videos are read directly from the user's filesystem — never copied. Avoids storage overhead for large videos.

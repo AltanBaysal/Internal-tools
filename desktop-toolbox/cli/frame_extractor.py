@@ -8,9 +8,18 @@ import argparse
 import sys
 from pathlib import Path
 
-from core.extractor import find_videos, extract_first_frame
+from core.extractor import find_videos, extract_first_frame_bytes
 
 OUTPUT_DIR = Path(__file__).resolve().parent.parent / "output"
+
+
+def _save_frame(video: Path, out_path: Path, fmt: str) -> bool:
+    data = extract_first_frame_bytes(video, fmt)
+    if data is None:
+        return False
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_bytes(data)
+    return True
 
 
 def process(input_path: Path, fmt: str) -> None:
@@ -32,7 +41,7 @@ def process(input_path: Path, fmt: str) -> None:
         out_name = rel.with_suffix(f".{fmt}")
         out_path = OUTPUT_DIR / out_name
 
-        if extract_first_frame(video, out_path, fmt):
+        if _save_frame(video, out_path, fmt):
             succeeded += 1
             print(f"  OK  {rel}")
         else:
