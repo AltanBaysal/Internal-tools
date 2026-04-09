@@ -1,63 +1,39 @@
-"""Video First Frame Extractor — CLI entry point.
+"""Desktop Toolbox — Flet entry point.
 
-Usage:
-    python main.py <folder_or_file_path> [--format png]
+Run from the desktop-toolbox/ folder:
+    python main.py
 """
 
-import argparse
-import sys
-from pathlib import Path
+import flet as ft
 
-from extractor import find_videos, extract_first_frame
-
-OUTPUT_DIR = Path(__file__).parent / "output"
+from app.routes import MODULES, ROUTES
+from app.shell import build_shell_view
+from app.theme import APP_TITLE, WINDOW_HEIGHT, WINDOW_WIDTH
 
 
-def process(input_path: Path, fmt: str) -> None:
-    videos = find_videos(input_path)
-    if not videos:
-        print(f"No video files found in: {input_path}")
-        return
+def run_app(page: ft.Page) -> None:
+    page.title = APP_TITLE
+    page.window_width = WINDOW_WIDTH
+    page.window_height = WINDOW_HEIGHT
+    page.padding = 0
 
-    print(f"Found {len(videos)} video(s)")
+    def on_route_change(_: ft.RouteChangeEvent) -> None:
+        page.views.clear()
+        page.views.append(build_shell_view(page, MODULES))
+        spec = ROUTES.get(page.route)
+        if spec is not None:
+            page.views.append(spec.view_factory(page))
+        page.update()
 
-    # Determine the base for relative paths
-    base = input_path if input_path.is_dir() else input_path.parent
+    def on_view_pop(_: ft.ViewPopEvent) -> None:
+        if len(page.views) > 1:
+            page.views.pop()
+            page.go(page.views[-1].route)
 
-    succeeded = 0
-    failed = 0
-
-    for video in videos:
-        rel = video.relative_to(base)
-        out_name = rel.with_suffix(f".{fmt}")
-        out_path = OUTPUT_DIR / out_name
-
-        if extract_first_frame(video, out_path, fmt):
-            succeeded += 1
-            print(f"  OK  {rel}")
-        else:
-            failed += 1
-            print(f"  FAIL  {rel}")
-
-    print(f"\nDone — {succeeded} extracted, {failed} failed")
-    print(f"Output: {OUTPUT_DIR.resolve()}")
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Extract first frame from videos.")
-    parser.add_argument("path", help="Path to a video file or folder of videos")
-    parser.add_argument("--format", choices=["jpg", "png"], default="jpg",
-                        help="Output image format (default: jpg)")
-    args = parser.parse_args()
-
-    input_path = Path(args.path).resolve()
-    if not input_path.exists():
-        print(f"Path not found: {input_path}", file=sys.stderr)
-        sys.exit(1)
-
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    process(input_path, args.format)
+    page.on_route_change = on_route_change
+    page.on_view_pop = on_view_pop
+    page.go(page.route or "/")
 
 
 if __name__ == "__main__":
-    main()
+    ft.app(target=run_app)
