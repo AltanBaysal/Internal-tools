@@ -10,11 +10,9 @@ Internal tools monorepo. Each tool lives in its own subfolder with its own `CLAU
 
 ```
 internal-tools/
-├── colab-tutorial/           # Google Colab tutorial notebook
+├── desktop-toolbox/          # Desktop app bundling multiple internal tools (first module: video frame extraction)
 │   └── CLAUDE.md             # Tool-specific docs
 ├── mmaudio-generate/         # Text-to-audio generation with MMAudio
-│   └── CLAUDE.md             # Tool-specific docs
-├── video-frame-extractor/    # First frame extraction from video files
 │   └── CLAUDE.md             # Tool-specific docs
 ├── .gitignore
 └── CLAUDE.md                 # This file (root index)
@@ -22,9 +20,8 @@ internal-tools/
 
 ## Tools
 
-- **[colab-tutorial](colab-tutorial/CLAUDE.md)** — Google Colab'ı öğrenmek için basit bir Jupyter notebook (GPU kontrolü, toplama, dosya indirme).
+- **[desktop-toolbox](desktop-toolbox/CLAUDE.md)** — Masaüstü uygulaması; birden fazla iç aracı modül olarak barındırır. İlk modül: video frame extraction (ilk kare çıkarma).
 - **[mmaudio-generate](mmaudio-generate/CLAUDE.md)** — MMAudio modeli ile metin açıklamasından ses dosyası üretme (text-to-audio).
-- **[video-frame-extractor](video-frame-extractor/CLAUDE.md)** — Extracts the first frame from video files (MP4, AVI, MOV, MKV, WEBM) as JPG/PNG.
 
 ## Adding a New Tool
 
