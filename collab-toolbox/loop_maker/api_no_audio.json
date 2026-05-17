@@ -1,0 +1,558 @@
+{
+  "297": {
+    "inputs": {
+      "shift": 8.000000000000002,
+      "model": [
+        "325",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingSD3",
+    "_meta": {
+      "title": "ModelSamplingSD3"
+    }
+  },
+  "298": {
+    "inputs": {
+      "shift": 8.000000000000002,
+      "model": [
+        "324",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingSD3",
+    "_meta": {
+      "title": "ModelSamplingSD3"
+    }
+  },
+  "301": {
+    "inputs": {
+      "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "type": "wan",
+      "device": "cpu"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "Load CLIP"
+    }
+  },
+  "304": {
+    "inputs": {
+      "text": [
+        "305",
+        0
+      ],
+      "clip": [
+        "301",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive encode"
+    }
+  },
+  "305": {
+    "inputs": {
+      "string_a": [
+        "333:291",
+        0
+      ],
+      "string_b": "",
+      "delimiter": ""
+    },
+    "class_type": "StringConcatenate",
+    "_meta": {
+      "title": "Text Concatenate"
+    }
+  },
+  "312": {
+    "inputs": {
+      "text": "噪点过多、色彩鲜艳、过曝、静态、细节模糊、字幕、风格、艺术作品、绘画、图像、静止图像、整体灰暗、质量极差、低质量、JPEG压缩残留、丑陋、不完整、多余手指、手部绘制粗糙、面部绘制粗糙、变形、毁容、肢体变形、手指粘连、静态图像、杂乱背景、三条腿、背景中人多、倒退行走、肤色不自然、眼睑变色、眼睑发红、上眼睑发红、红色眼影、浓密睫毛、已审查、马赛克审查、条形审查、像素化",
+      "clip": [
+        "301",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative"
+    }
+  },
+  "315": {
+    "inputs": {
+      "unet_name": "SmoothMix_I2V_v2_High.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model - HIGH"
+    }
+  },
+  "316": {
+    "inputs": {
+      "unet_name": "SmoothMix_I2V_v2_Low.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model - LOW"
+    }
+  },
+  "320": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 2.0000000000000004,
+      "image": [
+        "384",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "Upscale Image By"
+    }
+  },
+  "321": {
+    "inputs": {
+      "expression": "a*16+1",
+      "values.a": [
+        "335",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Math Expression"
+    }
+  },
+  "322": {
+    "inputs": {
+      "_float": [
+        "321",
+        0
+      ]
+    },
+    "class_type": "CR Float To Integer",
+    "_meta": {
+      "title": "🔧 CR Float To Integer"
+    }
+  },
+  "324": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": true,
+        "lora": "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
+        "strength": 1
+      },
+      "lora_2": {
+        "on": true,
+        "lora": "WAN_General_NSFW_LOW.safetensors",
+        "strength": 1
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "316",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "LOW LORA LOADER"
+    }
+  },
+  "325": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "lora_1": {
+        "on": true,
+        "lora": "wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors",
+        "strength": 1
+      },
+      "lora_2": {
+        "on": true,
+        "lora": "WAN_General_NSFW_HIGH.safetensors",
+        "strength": 1
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "315",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "HIGH LORA LOADER"
+    }
+  },
+  "327": {
+    "inputs": {
+      "seed": -1
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": "Seed (rgthree)"
+    }
+  },
+  "328": {
+    "inputs": {
+      "Xi": 480,
+      "Xf": 480,
+      "Yi": 720,
+      "Yf": 720,
+      "isfloatX": 0,
+      "isfloatY": 0
+    },
+    "class_type": "mxSlider2D",
+    "_meta": {
+      "title": "VIDEO Width x Height"
+    }
+  },
+  "332": {
+    "inputs": {
+      "frame_rate": 32,
+      "loop_count": 0,
+      "filename_prefix": "Video/2026-05-17/161741",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "381",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  },
+  "335": {
+    "inputs": {
+      "value": 5
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Duration (Seconds)"
+    }
+  },
+  "338": {
+    "inputs": {
+      "image": "7f306922-8617-47ea-9aaf-c89131bbfe62.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "341": {
+    "inputs": {
+      "vae_name": "Wan2_1_VAE_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "Load VAE"
+    }
+  },
+  "342": {
+    "inputs": {
+      "image": "7f306922-8617-47ea-9aaf-c89131bbfe62.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "343": {
+    "inputs": {
+      "width": [
+        "328",
+        0
+      ],
+      "height": [
+        "328",
+        1
+      ],
+      "length": [
+        "322",
+        0
+      ],
+      "batch_size": 1,
+      "positive": [
+        "304",
+        0
+      ],
+      "negative": [
+        "312",
+        0
+      ],
+      "vae": [
+        "341",
+        0
+      ],
+      "clip_vision_start_image": [
+        "352",
+        0
+      ],
+      "clip_vision_end_image": [
+        "350",
+        0
+      ],
+      "start_image": [
+        "338",
+        0
+      ],
+      "end_image": [
+        "342",
+        0
+      ]
+    },
+    "class_type": "WanFirstLastFrameToVideo",
+    "_meta": {
+      "title": "WanFirstLastFrameToVideo"
+    }
+  },
+  "350": {
+    "inputs": {
+      "crop": "none",
+      "clip_vision": [
+        "351",
+        0
+      ],
+      "image": [
+        "342",
+        0
+      ]
+    },
+    "class_type": "CLIPVisionEncode",
+    "_meta": {
+      "title": "CLIP Vision Encode"
+    }
+  },
+  "351": {
+    "inputs": {
+      "clip_name": "clip_vision_h.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "Load CLIP Vision"
+    }
+  },
+  "352": {
+    "inputs": {
+      "crop": "none",
+      "clip_vision": [
+        "351",
+        0
+      ],
+      "image": [
+        "338",
+        0
+      ]
+    },
+    "class_type": "CLIPVisionEncode",
+    "_meta": {
+      "title": "CLIP Vision Encode"
+    }
+  },
+  "358": {
+    "inputs": {
+      "unet_name": null
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Load GGUF MODEL - HIGH"
+    }
+  },
+  "359": {
+    "inputs": {
+      "unet_name": null
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Load GGUF MODEL - LOW"
+    }
+  },
+  "381": {
+    "inputs": {
+      "source_fps": 16,
+      "target_fps": 32,
+      "scale": 1,
+      "model_name": "flownet.pkl",
+      "batch_size": 8,
+      "use_fp16": true,
+      "images": [
+        "382",
+        0
+      ]
+    },
+    "class_type": "RIFEInterpolation",
+    "_meta": {
+      "title": "RIFE Frame Interpolation"
+    }
+  },
+  "382": {
+    "inputs": {
+      "batch_index": 3,
+      "length": [
+        "322",
+        0
+      ],
+      "image": [
+        "385",
+        0
+      ]
+    },
+    "class_type": "ImageFromBatch",
+    "_meta": {
+      "title": "ImageFromBatch"
+    }
+  },
+  "383": {
+    "inputs": {
+      "anything": [
+        "330:290",
+        0
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "Clean VRAM Used"
+    }
+  },
+  "384": {
+    "inputs": {
+      "samples": [
+        "383",
+        0
+      ],
+      "vae": [
+        "341",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "385": {
+    "inputs": {
+      "anything": [
+        "320",
+        0
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "Clean VRAM Used"
+    }
+  },
+  "333:292": {
+    "inputs": {
+      "source": [
+        "333:291",
+        0
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "Preview as Text"
+    }
+  },
+  "333:291": {
+    "inputs": {
+      "prompt": "The turquoise-haired girl in orange dress bends over against the tree, moaning with a naughty smile as she pushes her ass back rhythmically to meet the man's deep thrusts into her wet pussy from behind. Her pigtails sway with each thrust, body jiggling, cum dripping down her ass and thighs while she grips the tree and looks back seductively. The man's hand holds her hair firmly as he pounds her steadily. Camera slowly pushes in closer on their intense outdoor fucking. Bright sunny park daylight with warm natural highlights glistening on her sweaty skin and cum, creating a raw sensual atmosphere.",
+      "seed": 870569050947259
+    },
+    "class_type": "PromptGenerator",
+    "_meta": {
+      "title": "Prompt Generator 💡"
+    }
+  },
+  "329:289": {
+    "inputs": {
+      "add_noise": "enable",
+      "noise_seed": [
+        "327",
+        0
+      ],
+      "steps": 6,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "start_at_step": 0,
+      "end_at_step": 3,
+      "return_with_leftover_noise": "enable",
+      "model": [
+        "297",
+        0
+      ],
+      "positive": [
+        "343",
+        0
+      ],
+      "negative": [
+        "343",
+        1
+      ],
+      "latent_image": [
+        "343",
+        2
+      ]
+    },
+    "class_type": "KSamplerAdvanced",
+    "_meta": {
+      "title": "KSampler (Advanced)"
+    }
+  },
+  "330:290": {
+    "inputs": {
+      "add_noise": "disable",
+      "noise_seed": 0,
+      "steps": 6,
+      "cfg": 1,
+      "nag_scale": 30,
+      "nag_tau": 2.5,
+      "nag_alpha": 0.25,
+      "nag_sigma_end": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "start_at_step": 3,
+      "end_at_step": 10000,
+      "return_with_leftover_noise": "disable",
+      "model": [
+        "298",
+        0
+      ],
+      "positive": [
+        "343",
+        0
+      ],
+      "negative": [
+        "343",
+        1
+      ],
+      "nag_negative": [
+        "343",
+        1
+      ],
+      "latent_image": [
+        "329:289",
+        0
+      ]
+    },
+    "class_type": "KSamplerWithNAG (Advanced)",
+    "_meta": {
+      "title": "KSamplerWithNAG (Advanced)"
+    }
+  }
+}
