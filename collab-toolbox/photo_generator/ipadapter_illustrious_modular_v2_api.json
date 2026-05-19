@@ -1,0 +1,266 @@
+{
+  "3": {
+    "inputs": {
+      "seed": 0,
+      "steps": 28,
+      "cfg": 5.5,
+      "sampler_name": "euler_ancestral",
+      "scheduler": "normal",
+      "denoise": 1,
+      "model": [
+        "14",
+        0
+      ],
+      "positive": [
+        "23",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "sdxl/waiIllustrious.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "masterpiece, best quality, very aesthetic, absurdres, newest, highres,\nultra detailed, extremely detailed, sharp focus, intricate details,\nperfect anatomy, perfect proportions, perfect hands, detailed face, detailed eyes, beautiful lighting, cinematic lighting, professional artwork, 8k, high resolution, Adult",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "✨ 1) KALİTE (sabit)"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "worst quality, low quality, normal quality, lowres, jpeg artifacts,\nbad anatomy, bad hands, bad proportions, extra fingers, missing fingers,\ndeformed, ugly, blurry, distorted, malformed, watermark, signature, text,\namateur, sketch, unfinished",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "❌ NEGATIVE"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "IPAdapter_Illustrious",
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "12": {
+    "inputs": {
+      "image": "7f306922-8617-47ea-9aaf-c89131bbfe62.png"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "14": {
+    "inputs": {
+      "weight": 0.6,
+      "weight_type": "ease in-out",
+      "combine_embeds": "concat",
+      "start_at": 0,
+      "end_at": 0.7,
+      "embeds_scaling": "K+V",
+      "model": [
+        "4",
+        0
+      ],
+      "ipadapter": [
+        "15",
+        0
+      ],
+      "image": [
+        "17",
+        0
+      ],
+      "clip_vision": [
+        "16",
+        0
+      ]
+    },
+    "class_type": "IPAdapterAdvanced",
+    "_meta": {
+      "title": "IPAdapter Advanced"
+    }
+  },
+  "15": {
+    "inputs": {
+      "ipadapter_file": "ip-adapter-plus_sdxl_vit-h.safetensors"
+    },
+    "class_type": "IPAdapterModelLoader",
+    "_meta": {
+      "title": "IPAdapter Model Loader"
+    }
+  },
+  "16": {
+    "inputs": {
+      "clip_name": "CLIP-ViT-H-14-laion2B-s32B-b79K.safetensors"
+    },
+    "class_type": "CLIPVisionLoader",
+    "_meta": {
+      "title": "Load CLIP Vision"
+    }
+  },
+  "17": {
+    "inputs": {
+      "interpolation": "LANCZOS",
+      "crop_position": "top",
+      "sharpening": 0.15,
+      "image": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "PrepImageForClipVision",
+    "_meta": {
+      "title": "Prep Image For ClipVision"
+    }
+  },
+  "18": {
+    "inputs": {
+      "text": "solo, 1girl, teal hair, long hair, twintails, green eyes, fair skin, slim, large breasts, smile",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "👤 2) KARAKTER (sabit)"
+    }
+  },
+  "19": {
+    "inputs": {
+      "text": "all fours, doggy style, bent over, vaginal penetration, sex, pov, from behind, nude, ass focus, looking back, open mouth, pleasure expression, back view, upper body, cowboy shot",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "🎭 3) AKSİYON (sık değişir)"
+    }
+  },
+  "20": {
+    "inputs": {
+      "conditioning_to": [
+        "6",
+        0
+      ],
+      "conditioning_from": [
+        "18",
+        0
+      ]
+    },
+    "class_type": "ConditioningConcat",
+    "_meta": {
+      "title": "➕ KALİTE + KARAKTER"
+    }
+  },
+  "21": {
+    "inputs": {
+      "conditioning_to": [
+        "20",
+        0
+      ],
+      "conditioning_from": [
+        "19",
+        0
+      ]
+    },
+    "class_type": "ConditioningConcat",
+    "_meta": {
+      "title": "➕ + AKSİYON"
+    }
+  },
+  "22": {
+    "inputs": {
+      "text": "bedroom, white bedsheets, wrinkled bedsheets, large window, pink curtains, wooden furniture, wooden dresser, potted plant, indoor plant, sunny day, golden hour, warm sunlight, sunlight rays, soft shadows, cozy atmosphere, depth of field, blurry background, bokeh",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "🏞️ 4) ARKA PLAN (sahne geçişi)"
+    }
+  },
+  "23": {
+    "inputs": {
+      "conditioning_to": [
+        "21",
+        0
+      ],
+      "conditioning_from": [
+        "22",
+        0
+      ]
+    },
+    "class_type": "ConditioningConcat",
+    "_meta": {
+      "title": "➕ + ARKA PLAN = FINAL"
+    }
+  }
+}
