@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Internal tools monorepo. Each tool lives in its own subfolder with its own `CLAUDE.md`, `requirements.txt`, and entry points.
 
+## Çalışma Kuralları
+
+**Gerekmedikçe shell/terminal komutu (Bash, PowerShell, git CLI) çalıştırma.** Keşif, okuma, arama ve düzenleme için özel araçları kullan: Read, Grep, Glob, Edit, Write, NotebookEdit. Dosya okuyarak veya bu araçlarla yapılabilecek bir işi komuta dökme.
+
+**Komut gerçekten gerekiyorsa, önce KESİNLİKLE nedenini açıkça yaz** — hangi işi hangi araçla yapamadığını ve o komutun neyi sağladığını tek cümleyle belirt, sonra çalıştır.
+
 ## Repository Structure
 
 ```
