@@ -57,7 +57,7 @@ Notebook'lar arası tekrar eden, korunması gereken kalıplar:
 - **Tek CONFIG hücresi** — tüm ayarlar (token, Drive yolu, prompt, render parametreleri) ilk hücrede; gerisi dokunulmadan "Run all".
 - **Fail-loud** — bozuk/eksik model indirmesi veya başlamayan ComfyUI sessizce geçmez, `RuntimeError` fırlatır (örn. `imageToVideo` `is_valid_safetensors` + 90s sunucu bekleme). Eski `UNETLoader → JSONDecodeError` hatası bu yüzden gizleniyordu.
 - **Resume / idempotent** — çıktı Drive'da zaten varsa atlanır; oturum koparsa tekrar çalıştırmak sadece eksikleri tamamlar. (Resume sıra-bağımlı olan yerlerde — `photo_generator` `NN.png`, `imageToVideo` dosya-adı eşlemesi — ACTIONS/prompt listesini yeniden sıralamak eski çıktıları yanlış eşleştirir.)
-- **Model indirme** — HuggingFace büyük dosyalar `aria2c -x16` ile paralel; Civitai (NSFW checkpoint/LoRA) `curl` + `__Secure-civitai-token` cookie + API key ile (bkz. `imageToVideo` CONFIG; cookie civitai.red F12 → Application → Cookies'ten alınır).
+- **Model indirme** — HuggingFace büyük dosyalar `aria2c -x16` ile paralel; Civitai (login-gated NSFW checkpoint/LoRA) `curl` + **SADECE `__Secure-civitai-token` cookie** ile, **`?token=` API key OLMADAN** (bkz. `imageToVideo` model hücresindeki `fetch`/`civitai_url`/`cookie_header`). `?token=` koyarsan civitai.com isteği o key'in hesabı olarak doğrular → gated asset **401 "requires you to be logged in"**; token'sız cookie = login olmuş kullanıcı → iner (probe ile doğrulandı: cookie-only 200, token-only & both 401). Host **`civitai.com`** kalır (`.red` farkı değil); cookie **civitai.red** F12 → Cookies'ten alınır (süresi dolarsa yenile + CONFIG hücresini tekrar çalıştır). İndirme bozuksa `is_valid_safetensors` HTML/JSON hata gövdesini header'dan ayırıp `RuntimeError` atar — eski sessiz `UNETLoader → JSONDecodeError` böyle önlenir.
 - **Drive ↔ Colab kopyalama** — ComfyUI lokal diskte (hız), sadece veri Drive'da; her video işlendikten sonra Colab kopyası temizlenir (disk dolmasın).
 
 ## MMAudio notları (`mmaudio_generate.ipynb`)
@@ -69,4 +69,4 @@ Notebook'lar arası tekrar eden, korunması gereken kalıplar:
 
 ## Yorum & dokümantasyon standardı
 
-Tüm notebook'lar kök [../CLAUDE.md](../CLAUDE.md)'deki **Notebook Comment Conventions** bölümüne tabidir (Türkçe metin, üst başlık hücresi `# <Araç> — <amaç>` + `Input/Output`, bölüm başlıkları `## N) Başlık`, `# === ... ===` divider, yorumlar NE değil NEDEN anlatır, drift yasağı: yorum koda uydurulur, kod yoruma değil).
+Tüm notebook'lar kök [../CLAUDE.md](../CLAUDE.md)'deki **Notebook Comment Conventions** bölümüne tabidir. Özet: dil okuyucuya göre ayrılır — markdown/başlık + runtime mesajları (`print`/`log`/`assert`) **Türkçe**, kod yorumları (`#`) + docstring'ler **İngilizce**; üst başlık `# <Araç> — <amaç>` + `Input/Output`, bölüm başlıkları `## N) Başlık`, `# === ... ===` divider, yorum NE değil NEDEN anlatır, drift yasağı (yorum koda uydurulur, kod yoruma değil).
