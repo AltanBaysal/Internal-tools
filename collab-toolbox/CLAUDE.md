@@ -1,62 +1,72 @@
-# mmaudio-generate
+# collab-toolbox
 
-MMAudio modeli ile video ve/veya metin girdisinden ses dosyası üreten Colab notebook'u.
+Google Colab'da çalışan AI medya üretim/temizleme araçlarının notebook koleksiyonu (`.ipynb`). Her notebook bağımsız çalışır; ortak girdi/çıktı kanalı **Google Drive** (`MyDrive/...`). Çoğu araç ComfyUI'yi arka planda API olarak ayağa kaldırıp Drive'daki dosyaları toplu (batch) işler.
 
-## File
+## Notebook'lar
 
-- `mmaudio_generate.ipynb` — Video/text-to-audio generation (NSFW fine-tuned MMAudio large_44k)
+| Notebook | Amaç | Donanım |
+|---|---|---|
+| [photo_generator/PhotoGenerator_API.ipynb](photo_generator/PhotoGenerator_API.ipynb) | Referans görsel + IPAdapter ile SDXL foto üretimi (ComfyUI API, loop + resume) | GPU |
+| [video_generator/imageToVideo.ipynb](video_generator/imageToVideo.ipynb) | Image-to-video — WAN 2.2 Smooth Workflow v5.0; `input/` görsellerini videoya çevirir (batch + resume) | A100 (Colab Pro) |
+| [loop_maker/comfy_ui.ipynb](loop_maker/comfy_ui.ipynb) | Wan 2.1 VACE ile batch video işleme (loop/döngü), Cloudflared tüneli | GPU |
+| [mmaudio_generate.ipynb](mmaudio_generate.ipynb) | Video ve/veya metinden ses üretimi (NSFW fine-tuned MMAudio large_44k), videoya birleştirir | T4 GPU |
+| [mp4_converter.ipynb](mp4_converter.ipynb) | Bağımsız video → H.264 mp4 dönüştürücü (idempotent) | CPU |
+| [frame_extractor.ipynb](frame_extractor.ipynb) | Videolardan ilk kareyi çıkarır (JPG/PNG) | CPU |
+| [watermark/watermark_detection.ipynb](watermark/watermark_detection.ipynb) | YOLOv11 + corzent konsensüs ile watermark tespiti → `results.json` | GPU |
+| [watermark/watermark_remove.ipynb](watermark/watermark_remove.ipynb) | `results.json`'a göre ProPainter ile watermark silme (composite inpaint) | GPU |
 
-## Usage
+## Genel kullanım
 
-1. [Google Colab](https://colab.research.google.com/) açın
-2. **File → Upload notebook** ile `mmaudio_generate.ipynb` dosyasını yükleyin
-3. **Runtime → Change runtime type → T4 GPU** seçin
-4. Hücreleri sırayla çalıştırın (Shift + Enter)
-5. Konfigürasyon hücresindeki parametreleri değiştirip tekrar çalıştırabilirsiniz
+1. [Google Colab](https://colab.research.google.com/) → **File → Upload notebook** ile ilgili `.ipynb` yükle
+2. **Runtime → Change runtime type** ile tabloda belirtilen donanımı seç
+3. İlk **CONFIG** hücresindeki değişkenleri doldur (token, Drive yolu, prompt vb.)
+4. **Runtime → Run all** — diğer hücrelere dokunma
 
-## Modes
-
-- **Video + Text → Audio** — Video yükleyip metin ile yönlendirme (en iyi kalite)
-- **Video → Audio** — Sadece video, model sesi otomatik üretir
-- **Text → Audio** — Sadece metin açıklaması ile ses üretimi
-
-## Drive Structure
+## Drive yapısı (notebook başına)
 
 ```
-Google Drive/My Drive/
-├── mmaudio-videos/     # Girdi videoları (DRIVE_VIDEO_FOLDER)
-├── mmaudio-outputs/    # Çıktı videoları (DRIVE_OUTPUT_FOLDER)
-└── mmaudio-models/     # Model cache (DRIVE_MODEL_FOLDER)
-    ├── vae.pth
-    ├── synchformer.pth
-    ├── bigvgan_16k.pth
-    ├── mmaudio_large_44k_nsfw_...safetensors
-    └── .cache_complete
+MyDrive/
+├── photo_generator/        # workflow.json + outputs/        (PhotoGenerator_API)
+├── ImageToVideo/           # imageToVideo.json + input/ + output/   (video_generator)
+├── wan_batch/              # workflow.json + input_videos/ + output_videos/ + batch_log.txt  (loop_maker)
+├── mmaudio-videos/         # girdi videoları                 (mmaudio_generate)
+├── mmaudio-outputs/        # ses eklenmiş videolar → photos/ (mmaudio + frame_extractor)
+│   └── photos/             # frame_extractor çıktısı
+├── mmaudio-models/         # MMAudio model cache (~2 GB)
+├── mp4_converter/          # input/ + output/                (mp4_converter)
+├── Watermark-Input/        # tespit girdisi                  (watermark_detection)
+└── Watermark-Output/       # results.json + temizlenmiş videolar  (watermark detection + remove)
 ```
 
-## Model Cache
+## Pipeline zinciri
 
-- `CACHE_MODELS_ON_DRIVE = True` açıkken model dosyaları (~2 GB) ilk çalıştırmada Drive'a kaydedilir
-- Sonraki çalıştırmalarda Drive'dan local'e kopyalanır, HuggingFace indirmesi atlanır
-- `.cache_complete` marker dosyası cache'in tamamlandığını gösterir
-- Cache'i sıfırlamak için `mmaudio-models/` klasörünü silmek yeterli
+Araçlar Drive üzerinden birbirini besleyebilir (tipik akış):
 
-## RAM & VRAM Verimli Kullanım
+```
+photo_generator → (görseller) → video_generator/input/ → mmaudio (ses) → frame_extractor (kare)
+mp4_converter → watermark_detection → results.json → watermark_remove
+```
 
-Notebook, T4 GPU'nun sınırlı VRAM'i (~15 GB) ve Colab'ın sınırlı RAM'i (~12 GB) ile çalışmak üzere optimize edilmiştir:
+- **watermark**: detection `Watermark-Output/results.json` yazar; removal aynı JSON'u `source_path` üzerinden okuyup işler. JSON `videos` key'i `INPUT_FOLDER`'a göre **göreli yoldur** (`subfolder/video.mp4`), alt klasör yapısı tüm stage'lerde korunur.
+- **mp4_converter** bağımsızdır; çıktısını başka pipeline'a `INPUT_FOLDER` olarak verebilirsin.
 
-- **float16 precision** — T4 bfloat16 desteklemez, float16 kullanılır (VRAM yarıya iner)
-- **Doğrudan GPU'ya yükleme** — Model ağırlıkları CPU RAM'e uğramadan direkt GPU'ya yüklenir (`load_file(..., device=device)`)
-- **Adım adım temizlik** — Her video işlendikten sonra `del` + `torch.cuda.empty_cache()` + `gc.collect()` ile bellek serbest bırakılır
-- **720p resize** — Videolar işlenmeden önce 720p'ye küçültülür (MMAudio 224x224 frame çıkarır, 4K gereksiz RAM harcar)
-- **pip cache purge** — Kurulumdan sonra pip cache temizlenir
-- **`mem_status()` fonksiyonu** — Her kritik adımda RAM ve VRAM kullanımı loglanır, sızıntılar erken tespit edilir
-- Yeni kod eklerken büyük tensorleri kullanımdan sonra `del` ile silip `torch.cuda.empty_cache()` çağırmaya dikkat edin
-- CPU RAM'de büyük ara veriler tutmaktan kaçının; mümkünse streaming/chunk yaklaşımı kullanın
+## Ortak tasarım kalıpları
 
-## Notes
+Notebook'lar arası tekrar eden, korunması gereken kalıplar:
 
-- Model: NSFW fine-tuned FP16 safetensors (`phazei/NSFW_MMaudio`)
-- Ses süresi otomatik olarak video süresine göre ayarlanır
-- Çıktı formatı: `.flac` (44kHz) → ffmpeg ile video'ya birleştirilir (`.mp4`)
-- Model lisansı: CC-BY-NC 4.0 (yalnızca ticari olmayan kullanım)
+- **Tek CONFIG hücresi** — tüm ayarlar (token, Drive yolu, prompt, render parametreleri) ilk hücrede; gerisi dokunulmadan "Run all".
+- **Fail-loud** — bozuk/eksik model indirmesi veya başlamayan ComfyUI sessizce geçmez, `RuntimeError` fırlatır (örn. `imageToVideo` `is_valid_safetensors` + 90s sunucu bekleme). Eski `UNETLoader → JSONDecodeError` hatası bu yüzden gizleniyordu.
+- **Resume / idempotent** — çıktı Drive'da zaten varsa atlanır; oturum koparsa tekrar çalıştırmak sadece eksikleri tamamlar. (Resume sıra-bağımlı olan yerlerde — `photo_generator` `NN.png`, `imageToVideo` dosya-adı eşlemesi — ACTIONS/prompt listesini yeniden sıralamak eski çıktıları yanlış eşleştirir.)
+- **Model indirme** — HuggingFace büyük dosyalar `aria2c -x16` ile paralel; Civitai (NSFW checkpoint/LoRA) `curl` + `__Secure-civitai-token` cookie + API key ile (bkz. `imageToVideo` CONFIG; cookie civitai.red F12 → Application → Cookies'ten alınır).
+- **Drive ↔ Colab kopyalama** — ComfyUI lokal diskte (hız), sadece veri Drive'da; her video işlendikten sonra Colab kopyası temizlenir (disk dolmasın).
+
+## MMAudio notları (`mmaudio_generate.ipynb`)
+
+- Model: NSFW fine-tuned FP16 safetensors (`phazei/NSFW_MMaudio`), large_44k. T4 için **float16** (bfloat16 desteklenmez), doğrudan GPU'ya yükleme, adım adım `del`+`empty_cache`+`gc.collect`, 720p resize.
+- `CACHE_MODELS_ON_DRIVE=True` → modeller (~2 GB) ilk çalıştırmada `mmaudio-models/`'a kaydedilir; `.cache_complete` marker'ı cache'i işaretler. Sıfırlamak için klasörü sil.
+- Çıktı: `.flac` (44kHz) → ffmpeg ile video'ya birleştirilir (`.mp4`).
+- Lisans: CC-BY-NC 4.0 (yalnızca ticari olmayan kullanım).
+
+## Yorum & dokümantasyon standardı
+
+Tüm notebook'lar kök [../CLAUDE.md](../CLAUDE.md)'deki **Notebook Comment Conventions** bölümüne tabidir (Türkçe metin, üst başlık hücresi `# <Araç> — <amaç>` + `Input/Output`, bölüm başlıkları `## N) Başlık`, `# === ... ===` divider, yorumlar NE değil NEDEN anlatır, drift yasağı: yorum koda uydurulur, kod yoruma değil).

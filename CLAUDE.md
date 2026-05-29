@@ -16,9 +16,9 @@ Internal tools monorepo. Each tool lives in its own subfolder with its own `CLAU
 
 ```
 internal-tools/
-├── desktop-toolbox/          # Desktop app bundling multiple internal tools (first module: video frame extraction)
+├── collab-toolbox/           # Colab notebook koleksiyonu (AI medya üretim/temizleme araçları)
 │   └── CLAUDE.md             # Tool-specific docs
-├── mmaudio-generate/         # Text-to-audio generation with MMAudio
+├── desktop-toolbox/          # Desktop app bundling multiple internal tools (first module: video frame extraction)
 │   └── CLAUDE.md             # Tool-specific docs
 ├── .gitignore
 └── CLAUDE.md                 # This file (root index)
@@ -26,8 +26,8 @@ internal-tools/
 
 ## Tools
 
+- **[collab-toolbox](collab-toolbox/CLAUDE.md)** — Google Colab notebook koleksiyonu: foto/video/ses üretimi (ComfyUI + WAN/SDXL/MMAudio), video dönüştürme, kare çıkarma, watermark tespit & silme. Ortak girdi/çıktı kanalı Google Drive.
 - **[desktop-toolbox](desktop-toolbox/CLAUDE.md)** — Masaüstü uygulaması; birden fazla iç aracı modül olarak barındırır. İlk modül: video frame extraction (ilk kare çıkarma).
-- **[mmaudio-generate](mmaudio-generate/CLAUDE.md)** — MMAudio modeli ile metin açıklamasından ses dosyası üretme (text-to-audio).
 
 ## Adding a New Tool
 
