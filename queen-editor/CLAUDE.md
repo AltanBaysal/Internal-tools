@@ -20,6 +20,17 @@ npm run build      # tsc + vite build → dist/
 npm run preview
 ```
 
+## Colab Hosting
+
+ComfyUI gibi Colab'da çalıştırıp cloudflared tüneliyle tarayıcıdan açılır. İlke: **repo = nasıl yapılır (fonksiyonlar), notebook = çağır + canlı izle.** Notebook ince (sadece import + çağrı); loglar/URL hücrede akar.
+
+- `colab/host.py` — fonksiyonlar: `ensure_cloudflared()`, `build(force=False)` (dist yoksa `npm ci && npm run build`), `serve_with_tunnel(port=8080)` (`dist/`'i `http.server` ile sun + cloudflared tünel, **ham logları + `🌐 trycloudflare.com` URL'sini canlı basar**, foreground/block).
+- `host.ipynb` — 1 md + 3 kod hücresi: **bootstrap** (Secrets'tan `GITHUB_TOKEN` → `prod` clone/pull) · **kurulum** (`import host; host.ensure_cloudflared(); host.build()`) · **çalıştır** (`host.serve_with_tunnel()` — canlı, hücre açık kaldıkça tünel yaşar).
+
+**Çalıştırma:** Colab'a `host.ipynb` yükle (bir kez) → 🔑 Secrets'a `GITHUB_TOKEN` → Run all → kurulum/tünel logları + çıkan URL hücrede; URL'yi aç.
+
+> Üretim hâlâ **mock** (gerçek görsel yok). Bu aşama UI'ı tünelle açar; gerçek üretim için FastAPI + ComfyUI köprüsü sonraki adım (o zaman `http.server` → FastAPI `/api`).
+
 ## Mimari — separation of concerns
 
 ```
