@@ -85,16 +85,48 @@ def _tunnel_thread(port):
             print("\n" + "=" * 60 + f"\n🌐 Queen Editor: {url}\n" + "=" * 60 + "\n", flush=True)
 
 
+# Reference to the running server so re-running the cell can free the port first.
+_httpd = None
+
+
+def _cleanup():
+    """Make the run cell re-runnable: drop a server/tunnel left by a previous run."""
+    global _httpd
+    if _httpd is not None:
+        try:
+            _httpd.server_close()   # release the port held by the previous run
+        except Exception:
+            pass
+        _httpd = None
+    # Stray cloudflared from a previous run is a separate process — safe to kill.
+    subprocess.run(["pkill", "-f", "cloudflared tunnel"], capture_output=True)
+
+
 def serve_with_tunnel(port=PORT):
     """Open the cloudflared tunnel (background) and serve dist/ in the foreground.
-    Blocks — keep this cell running to keep the tunnel alive."""
+    Blocks — keep this cell running to keep the tunnel alive. Re-runnable."""
+    global _httpd
     if not (DIST / "index.html").exists():
         raise RuntimeError("❌ dist/ yok — önce build() çağır")
-    threading.Thread(target=_tunnel_thread, args=(port,), daemon=True).start()
+
+    _cleanup()
     handler = partial(http.server.SimpleHTTPRequestHandler, directory=str(DIST))
-    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+    try:
+        _httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+    except OSError as e:
+        raise RuntimeError(
+            f"❌ Port {port} dolu ({e}). Çözüm: Runtime → Restart, sonra Run all."
+        )
+
+    threading.Thread(target=_tunnel_thread, args=(port,), daemon=True).start()
     print(f"▶ Statik sunucu: http://127.0.0.1:{port}  (dist: {DIST})")
-    httpd.serve_forever()
+    try:
+        _httpd.serve_forever()
+    except KeyboardInterrupt:
+        print("\n⏹ Durduruldu")
+    finally:
+        _httpd.server_close()   # free the port on stop, so the next run binds cleanly
+        _httpd = None
 
 
 if __name__ == "__main__":
