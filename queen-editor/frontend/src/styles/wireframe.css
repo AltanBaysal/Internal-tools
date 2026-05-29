@@ -1,0 +1,388 @@
+/* Queen Editor — Dark Minimal v2
+   Ported verbatim from the Claude Design handoff (project/styles.css).
+   Neutral charcoal foundation (no warm/brown tint), restrained UI.
+   Type: IBM Plex Sans (UI) + IBM Plex Mono (labels/numbers/code).
+*/
+
+:root {
+  --bg:        #0f0f10;
+  --bg-2:      #17171a;   /* cards, panels */
+  --bg-3:      #202024;   /* active card, composer */
+  --bg-hover:  #1c1c1f;
+
+  --border:        #2b2b2f;
+  --border-strong: #45454c;
+  --border-active: #a78bfa;
+
+  --ink:    #ececee;
+  --ink-2:  #9a9aa0;
+  --ink-3:  #6a6a70;
+  --ink-4:  #45454c;
+
+  --accent:    #a78bfa;   /* violet, used sparingly */
+  --accent-dim:#7c6aa6;
+  --danger:    #c97064;
+  --danger-bg: rgba(201,112,100,.10);
+
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+}
+
+body {
+  background: var(--bg);
+  margin: 0;
+  font-family: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  color: var(--ink);
+}
+
+/* ====== WIREFRAME PRIMITIVES ====== */
+
+.wf {
+  font-family: "IBM Plex Sans", -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.wf--paper-grid {
+  background-image:
+    radial-gradient(rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Component-level type tokens — kept names so layout JSX doesn't churn,
+   but visually we're firmly in minimal product-UI territory now. */
+.wf-hand {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.wf-note {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-weight: 400;
+}
+.wf-mono {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Cards / strokes ------------------------------------------------------- */
+
+.wf-stroke {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--bg-2);
+}
+.wf-stroke--dashed { border-style: dashed; border-color: var(--border-strong); }
+.wf-stroke--thin   { border-width: 1px; }
+.wf-stroke--soft   { border-color: var(--border); background: var(--bg-2); }
+
+.wf-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  position: relative;
+}
+.wf-card--shadow {
+  box-shadow: 0 1px 0 rgba(255,255,255,.02);
+}
+.wf-card--soft {
+  border-color: var(--border);
+}
+
+/* Drop sketchy rotations entirely in v2 */
+.wf-skew-1, .wf-skew-2, .wf-skew-3 { transform: none; }
+
+/* No highlighter pen — emphasis becomes an accent color */
+.wf-hl {
+  background: transparent;
+  color: var(--accent);
+  padding: 0;
+}
+.wf-hl-block {
+  background: var(--bg-3);
+  color: var(--accent);
+  padding: 0 6px;
+  border-radius: 3px;
+  display: inline-block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: .85em;
+}
+
+/* Buttons --------------------------------------------------------------- */
+
+.wf-btn {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-2);
+  color: var(--ink);
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1;
+  transition: background .12s, border-color .12s, color .12s;
+}
+.wf-btn:hover {
+  background: var(--bg-3);
+  border-color: var(--border-active);
+}
+.wf-btn--primary {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+.wf-btn--primary:hover {
+  background: #fff;
+  border-color: #fff;
+}
+.wf-btn--hl {
+  /* accent variant — used for the Üret call to action */
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.wf-btn--hl:hover { background: #c4b5fd; border-color: #c4b5fd; }
+.wf-btn--ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-2);
+}
+.wf-btn--ghost:hover {
+  background: var(--bg-3);
+  color: var(--ink);
+}
+.wf-btn--sm { font-size: 11.5px; padding: 4px 9px; }
+.wf-btn--icon { padding: 5px 7px; }
+
+.wf-btn:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+/* Segment / tab --------------------------------------------------------- */
+
+.wf-segment {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 2px;
+  background: var(--bg-2);
+  gap: 0;
+}
+.wf-segment > button {
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--ink-2);
+  line-height: 1.2;
+  transition: background .12s, color .12s;
+}
+.wf-segment > button:hover { color: var(--ink); }
+.wf-segment > button.is-on {
+  background: var(--bg-3);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.wf-segment--hl > button.is-on {
+  /* same shape; accent flavor reserved for primary-action segments */
+  color: var(--accent);
+}
+
+/* Input / textarea ------------------------------------------------------ */
+
+.wf-input {
+  width: 100%;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  color: var(--ink);
+  resize: none;
+  line-height: 1.5;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color .12s, background .12s;
+}
+.wf-input:hover  { border-color: var(--border-strong); }
+.wf-input:focus  { border-color: var(--border-active); background: var(--bg-2); }
+.wf-input::placeholder { color: var(--ink-3); }
+.wf-input--ghost { border-style: dashed; background: transparent; }
+
+/* Image placeholder ----------------------------------------------------- */
+
+.wf-img {
+  position: relative;
+  background-color: var(--bg-2);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(255,255,255,.025) 0 6px,
+    transparent 6px 14px
+  );
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wf-img > .wf-img-x {
+  position: absolute; inset: 0;
+}
+.wf-img > .wf-img-x::before,
+.wf-img > .wf-img-x::after {
+  content: ""; position: absolute; inset: 0;
+  border-top: 1px solid rgba(255,255,255,.05);
+}
+.wf-img > .wf-img-x::before { transform: rotate(28deg); transform-origin: top left; width: 200%; }
+.wf-img > .wf-img-x::after  { transform: rotate(-28deg); transform-origin: top right; width: 200%; right: 0; }
+
+.wf-img-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--ink-3);
+  background: transparent;
+  padding: 2px 6px;
+  border-radius: 3px;
+  position: relative; z-index: 1;
+}
+
+/* Sequence number ------------------------------------------------------- */
+
+.wf-seq {
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: .05em;
+  display: inline-block;
+  padding: 2px 6px;
+  background: transparent;
+  color: var(--ink-2);
+  border-radius: 3px;
+  border: 1px solid var(--border-strong);
+}
+.wf-seq--hl {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(167,139,250,.08);
+}
+.wf-seq--big { font-size: 13px; padding: 3px 8px; }
+.wf-seq--xl  { font-size: 20px; padding: 4px 10px; font-weight: 500; }
+
+/* Drag handle ----------------------------------------------------------- */
+
+.wf-grip {
+  display: inline-grid;
+  grid-template-columns: repeat(2, 2px);
+  gap: 3px;
+  padding: 4px 5px;
+  cursor: grab;
+  opacity: .5;
+  transition: opacity .12s;
+}
+.wf-grip:hover { opacity: 1; }
+.wf-grip > i {
+  width: 2px; height: 2px;
+  background: var(--ink-2);
+  border-radius: 50%;
+  display: block;
+}
+
+/* Dividers -------------------------------------------------------------- */
+
+.wf-divider        { height: 1px; background: var(--border); }
+.wf-divider--dashed{ height: 0; border-top: 1px dashed var(--border); }
+
+/* Status / pills -------------------------------------------------------- */
+
+.wf-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "IBM Plex Sans", sans-serif;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-2);
+  color: var(--ink-2);
+}
+.wf-status--hl  { color: var(--accent); border-color: var(--accent); background: rgba(167,139,250,.08); }
+.wf-status--err { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+.wf-status .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  animation: wfPulse 1.4s infinite;
+}
+@keyframes wfPulse {
+  0%,100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.6); opacity: .3; }
+}
+
+.wf-pill {
+  display: inline-block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--ink-2);
+}
+.wf-pill--hl  { border-color: var(--accent); color: var(--accent); background: rgba(167,139,250,.08); }
+.wf-pill--err { background: var(--danger-bg); border-color: var(--danger); color: var(--danger); }
+
+/* Loading ---------------------------------------------------------------- */
+
+.wf-img--loading {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(167,139,250,.06) 0 6px,
+    transparent 6px 14px
+  );
+  position: relative;
+  overflow: hidden;
+}
+
+/* Circular indeterminate spinner */
+.wf-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  animation: wfSpin 0.8s linear infinite;
+}
+@keyframes wfSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Modal scrim ----------------------------------------------------------- */
+
+.wf-scrim {
+  position: absolute; inset: 0;
+  background: rgba(10,8,7,.65);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(3px);
+}
