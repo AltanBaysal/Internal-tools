@@ -61,11 +61,15 @@ Her deneme kendi alt klasöründe; notebook + kullanıcının koyacağı `workfl
 - **Tünel:** `cloudflared`, `--listen 0.0.0.0`.
 - **Dil:** markdown + `print` mesajları Türkçe; kod yorumları + docstring İngilizce.
 
-## Workflow talimatları (implementasyon ÖNCESİ)
+## Workflow talimatları + JSON kaynağı
 
-Her workflow notebook'unu yazmadan **önce**, o workflow'un Civitai sayfasındaki kullanım talimatlarını (gerekli modeller, node'lar, ayar/önerileri, adım adım kullanım) ilgili klasöre bir md'ye geçiririz: `video_experiments/<deneme>/instructions.md`. Notebook'un indirme/kurulum hücreleri bu md'ye göre doldurulur.
+**Durum:** 4 `workflow.json` ilgili klasörlere kondu (`ltx23-eros`, `wan22-painter`, `wan22-allinone`, `wan22-dasiwa`). Her klasörde Civitai sayfasından alınan `instructions.md` hazır.
 
-Sayfalar Civitai'de gated olduğundan talimat içeriği kullanıcıdan gelir (login'li kullanıcı sayfadan kopyalar) — notebook'tan önce bu md hazır olur.
+Notebook'un indirme/kurulum hücreleri iki kaynaktan kesinleştirilir:
+1. `instructions.md` — Civitai sayfası özeti (custom node listesi, kullanım notları).
+2. **`workflow.json` içindeki gömülü "Model Links" / guide MarkdownNote node'u** — kesin dosya adları + indirme URL'leri (HF/Civitai/GitHub). LTX'te doğrulandı (örn. checkpoint Civitai `models/2892069`, distilled/VAE/CLIP/upscaler HuggingFace, `taeltx2_3` GitHub). Büyük JSON'lar **Grep** ile okunur (Read uzun satırda keser).
+
+Model/node listeleri JSON'lardan çıkarılıp her notebook'un indirme hücrelerine yazılır.
 
 ## Bağımlılıklar / sıra
 
