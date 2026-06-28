@@ -19,9 +19,13 @@ Farklı video üretim workflow'larını/modellerini Colab Pro'da **görsel olara
 
 **Hedef referanslar** (çıktı hedefi — ayrı notebook değil): Civitai video #133122787, #132599076. Eşleşen model ailesinin notebook'unda, Civitai görseli ComfyUI'a sürüklenip workflow alınarak denenir.
 
+## Base notebook
+
+Temel: [collab-toolbox/video_experiments/comfyui_colab_with_manager.ipynb](../../../collab-toolbox/video_experiments/comfyui_colab_with_manager.ipynb) — ComfyUI'nin resmi Manager'lı Colab notebook'u (ltdrdata/ComfyUI-Manager), örnek/referans olarak repoya indirildi. Her deneme notebook'u bunu base alır.
+
 ## Kapsam dışı (YAGNI)
 
-- Google Drive yok — mount yok, Drive'dan indirme yok.
+- Google Drive **kullanılmaz** — base notebook'taki Drive kodu **silinmez**, sadece `USE_GOOGLE_DRIVE=False` bırakılır. Modeller `/content`'e (ephemeral) iner.
 - Batch/headless API üretimi yok; UI interaktif.
 - Otomatik prompt/üretim yok; kullanıcı UI'da elle çalıştırır.
 - Workflow JSON'larını notebook **indirmez**; kullanıcı Civitai'den indirip ilgili klasöre koyar, UI'a elle yükler.
@@ -51,16 +55,22 @@ Her deneme kendi alt klasöründe; notebook + kullanıcının koyacağı `workfl
 
 ## Kurallar / kısıtlar (repo standartları)
 
-- **Drive YOK** — modeller her oturumda kaynaktan taze iner (Colab ephemeral disk).
+- **Drive kapalı** — base notebook'taki Drive kodu durur, `USE_GOOGLE_DRIVE=False`; modeller her oturumda kaynaktan taze iner (Colab ephemeral disk).
 - **Civitai:** sadece `__Secure-civitai-token` cookie; API key `?token=` **yok** (gated asset 401 verir — repo'da kanıtlı kalıp).
 - **Fail-loud:** bozuk indirme `is_valid_safetensors` → `RuntimeError`; sunucu 90s'de kalkmazsa `RuntimeError`.
 - **Tünel:** `cloudflared`, `--listen 0.0.0.0`.
 - **Dil:** markdown + `print` mesajları Türkçe; kod yorumları + docstring İngilizce.
 
+## Workflow talimatları (implementasyon ÖNCESİ)
+
+Her workflow notebook'unu yazmadan **önce**, o workflow'un Civitai sayfasındaki kullanım talimatlarını (gerekli modeller, node'lar, ayar/önerileri, adım adım kullanım) ilgili klasöre bir md'ye geçiririz: `video_experiments/<deneme>/instructions.md`. Notebook'un indirme/kurulum hücreleri bu md'ye göre doldurulur.
+
+Sayfalar Civitai'de gated olduğundan talimat içeriği kullanıcıdan gelir (login'li kullanıcı sayfadan kopyalar) — notebook'tan önce bu md hazır olur.
+
 ## Bağımlılıklar / sıra
 
 - Her notebook'un **model + custom node listesi, kullanıcının koyacağı `workflow.json`'dan** çıkarılır. Yani JSON'lar klasörlere konduktan sonra notebook'lar doldurulur.
-- Mevcut notebook'lar (`imageToVideo.ipynb`, `loop_maker/comfy_ui.ipynb`) şablon olarak kullanılır.
+- Base: indirilen `comfyui_colab_with_manager.ipynb`. Civitai cookie indirme + `aria2c` kalıbı için repo'daki `imageToVideo.ipynb` referans alınır.
 - Bitince kök `CLAUDE.md` + `collab-toolbox/CLAUDE.md` tablosu güncellenir.
 
 ## Açık riskler
