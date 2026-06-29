@@ -73,6 +73,11 @@ Farklı video workflow'larını Colab Pro'da **görsel** denemek için bağıms�
 
 Her klasörde `<deneme>.ipynb` + `workflow.json` + `instructions.md`. Kullanım: A100 runtime → CONFIG'e Civitai cookie → Run all → `trycloudflare` linkinden `workflow.json`'u yükle. Civitai gated indirme, fail-loud ve tek-CONFIG kalıpları yukarıdaki **Ortak tasarım kalıpları** ile aynı (gated modeller önce probe edilip indirilir). NSFW concept LoRA'lar (Painter, DaSiWa) URL'siz; kullanıcı kendi koleksiyonundan ekler.
 
+**Başlatma hücresi (ComfyUI + cloudflared) kalıpları:**
+- **`--enable-manager` HER ZAMAN açık** — `python main.py ... --enable-manager`. Yeni ComfyUI'da Manager bu flag olmadan KAPALI; bu olmadan UI'daki **Manager → Install Missing Custom Nodes** çalışmaz. Workflow'lar elle yüklendiği için eksik node çok olası → Manager hep erişilebilir olmalı.
+- **Hücre ön planda bloklu kalır** — ComfyUI arka planda başlar (fail-loud `/system_stats` kontrolü), link basılır, sonra hücre `tail -f /content/comfyui.log` ile **bilerek açık tutulur**. Hücre biterse Colab runtime'ı 'idle' sayıp bağlantıyı keser → ComfyUI + tünel ölür. (Orijinal `comfyui_colab_with_manager.ipynb` da son satırda `!python main.py` ile ön planda bloklar.)
+- **cloudflared çıktısı dosyaya** yazılır (pipe dolup süreci bloklamasın), link dosyadan regex'le okunur (alınamazsa fail-loud).
+
 ## MMAudio notları (`mmaudio_generate.ipynb`)
 
 - Model: NSFW fine-tuned FP16 safetensors (`phazei/NSFW_MMaudio`), large_44k. T4 için **float16** (bfloat16 desteklenmez), doğrudan GPU'ya yükleme, adım adım `del`+`empty_cache`+`gc.collect`, 720p resize.
