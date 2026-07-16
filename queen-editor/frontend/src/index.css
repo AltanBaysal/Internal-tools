@@ -1,0 +1,25 @@
+@import "./styles/wireframe.css";
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Timeline strip scrolls natively but hides the OS scrollbar — the faux
+   scrollbar below the strip is the only visible one (design intent). */
+.qe-strip {
+  scrollbar-width: none;
+}
+.qe-strip::-webkit-scrollbar {
+  display: none;
+}

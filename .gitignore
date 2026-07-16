@@ -10,3 +10,9 @@ output/
 build/
 dist/
 *.spec
+
+# node
+node_modules/
+
+# Claude Design handoff bundle (reference only, not source)
+.design-handoff/

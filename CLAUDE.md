@@ -1,31 +1,31 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Internal tools monorepo. Her araç kendi alt klasöründe yaşar; kendi `CLAUDE.md`, `requirements.txt` ve giriş noktalarıyla. Yeni araç eklerken: alt klasör + kendi `CLAUDE.md` + `requirements.txt` aç, alttaki **Tools** listesine ekle.
 
-## Project Overview
+## Çalışma Kuralları
 
-Internal tools monorepo. Each tool lives in its own subfolder with its own `CLAUDE.md`, `requirements.txt`, and entry points.
+**Gerekmedikçe shell/terminal komutu (Bash, PowerShell, git CLI) çalıştırma.** Keşif, okuma, arama ve düzenleme için özel araçları kullan: Read, Grep, Glob, Edit, Write, NotebookEdit. Dosya okuyarak veya bu araçlarla yapılabilecek bir işi komuta dökme.
 
-## Repository Structure
-
-```
-internal-tools/
-├── desktop-toolbox/          # Desktop app bundling multiple internal tools (first module: video frame extraction)
-│   └── CLAUDE.md             # Tool-specific docs
-├── mmaudio-generate/         # Text-to-audio generation with MMAudio
-│   └── CLAUDE.md             # Tool-specific docs
-├── .gitignore
-└── CLAUDE.md                 # This file (root index)
-```
+**Komut gerçekten gerekiyorsa, önce KESİNLİKLE nedenini açıkça yaz** — hangi işi hangi araçla yapamadığını ve o komutun neyi sağladığını tek cümleyle belirt, sonra çalıştır.
 
 ## Tools
 
+- **[collab-toolbox](collab-toolbox/CLAUDE.md)** — Google Colab notebook koleksiyonu: foto/video/ses üretimi (ComfyUI + WAN/SDXL/MMAudio), video dönüştürme, kare çıkarma, watermark tespit & silme. Ortak girdi/çıktı kanalı Google Drive.
 - **[desktop-toolbox](desktop-toolbox/CLAUDE.md)** — Masaüstü uygulaması; birden fazla iç aracı modül olarak barındırır. İlk modül: video frame extraction (ilk kare çıkarma).
-- **[mmaudio-generate](mmaudio-generate/CLAUDE.md)** — MMAudio modeli ile metin açıklamasından ses dosyası üretme (text-to-audio).
 
-## Adding a New Tool
+## Notebook Comment Conventions
 
-1. Create a new subfolder: `my-tool/`
-2. Add a `CLAUDE.md` inside it with commands, architecture, and design decisions
-3. Add a `requirements.txt` for its dependencies
-4. Add the tool to the **Tools** list above
+Bütün Colab/Jupyter notebook'ları (`.ipynb`) için ortak standart. Amaç: yorumlar kodun **şu an** yaptığını anlatsın, notebook'lar tutarlı olsun.
+
+- **Kapsam:** Yalnızca markdown hücreleri, kod yorumları (`#`) ve docstring'leri yönetir. Sadece yorum güncellenirken **kod değişmez** (print ifadeleri, değerler, fonksiyon mantığı, hücre sırası aynı kalır).
+- **Dil — okuyucuya göre ayrılır:**
+  - **Türkçe** = insana görünen metin: markdown hücreleri, bölüm başlıkları ve runtime'da basılan string'ler (`print` / `log` / `assert` / `RuntimeError` mesajları).
+  - **İngilizce** = koda bakan metin: kod yorumları (`#`) ve docstring'ler.
+  - Zaten İngilizce: değişken/fonksiyon adları, kütüphane adları, sözdizimi, URL'ler, kısaltmalar (API, GPU, SRP, NSFW).
+- **Üst başlık hücresi** (ilk markdown): `# <Araç> — <amaç>`, ardından `**Input:** … **Output:** …`, sonra numaralı "Sıra" listesi.
+- **Bölüm başlıkları:** markdown `## N) Başlık — kısa açıklama` (numaralar ardışık, "Sıra" ile eşleşir). Colab cell-title'da `# @title N) Başlık`.
+- **Hücre içi divider:** tek stil `# === sub-section ===`.
+- **Yorum NEDEN'i anlatır, NE'yi değil** — kısa, İngilizce. Örn: `MAX_CHUNK_DURATION = 10  # model trained on 8s — large drift hurts quality`.
+- **Drift yasağı (en önemli):** yorum/markdown kodun ŞU ANDA halini anlatır; `# ESKI:`/`# YENI:` izleri, eski davranış iddiaları yasak. Çelişkide **yorum koda uydurulur**, kod yoruma değil.
+- **Durum-print + fail-loud:** `✓`/`✅` ok, `❌` hata, `⚠️` uyarı, `⏭️` atlama. Ortak `log(msg, level)` helper'ı ve bozuk indirme / başlamayan servis için `RuntimeError` (fail-loud) yerleşik kalıptır (bkz. [collab-toolbox/CLAUDE.md](collab-toolbox/CLAUDE.md)).
+- **Hata mesajında sebep uydurma:** hata fırlatırken nedeni tahmin etme — komutun/servisin **gerçek çıktısını** bas (HTTP kodu + yanıt gövdesi, `stderr`/log tail). Tek sabit sebebi hardcode etme (örn. Civitai 401 = "cookie expired" değil; yanlış selector da 401 verir).
