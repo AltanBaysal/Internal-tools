@@ -52,7 +52,7 @@ Kalan iki `UnetLoaderGGUF` (`354`/`355`, `unet_name: null`) **zararsız**: outpu
 
 ## Mimari
 
-**Yeni dosya:** `collab-toolbox/video_generator/wan22-smooth-t2v/textToVideo.ipynb`
+**Yeni dosya:** `collab-toolbox/video_generator/wan22-smooth-t2v/api.ipynb`
 
 | # | Hücre | İçerik |
 |---|---|---|
@@ -115,7 +115,7 @@ Tek video üretildiği için `loop_maker`'ın batch'e özel mantığı (ardış�
 Sıfır-LoRA bulgusu, mevcut dokümanları yanlış duruma düşürdü. **9 yerde** "Power Lora Loader 109/110'a lightx2v ekle, yoksa çıktı çöp olur" yazıyor; T2V v3 için bu yanlış:
 
 - `instructions.md` — satır 8 (üstteki uyarı blockquote'u), satır 23 (Kullanım adım 6)
-- `wan22-smooth-t2v.ipynb` — hücre 0 markdown ×2, hücre 8 `HF_MODELS` yorumu + 2 indirme satırı, hücre 10 runtime `print`
+- `manual.ipynb` — hücre 0 markdown ×2, hücre 8 `HF_MODELS` yorumu + 2 indirme satırı, hücre 10 runtime `print`
 - `indirilecekler.md` — satır 47-48 (manifest satırları), satır 52 (blockquote), satır 74 (grup envanteri)
 
 Ayrıca `indirilecekler.md` satır 47'de HF yolunun ortasına yanlışlıkla bir `vscode-webview://` adresi yapışmış — o satırdaki repo adresi şu an bozuk.
