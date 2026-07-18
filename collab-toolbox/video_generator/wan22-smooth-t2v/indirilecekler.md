@@ -1,6 +1,8 @@
-# WAN 2.2 Smooth T2V — Colab'da indirilecekler (workflow.json'dan çıkarıldı)
+# WAN 2.2 Smooth T2V — Colab'da indirilecekler (workflow_manual.json'dan çıkarıldı)
 
-Etiketler: **✅** API'den doğrulandı · **📌** workflow.json'a gömülü (yazar verdi) · **📚** kanonik repo (yaygın, ping'lenmedi) · **⚠️** bilinen risk.
+Etiketler: **✅** API'den doğrulandı · **📌** grafiğe gömülü (yazar verdi) · **📚** kanonik repo (yaygın, ping'lenmedi) · **⚠️** bilinen risk.
+
+Bu liste `manual.ipynb` içindir. `api.ipynb` aynı listeden **NSFW LoRA'ları indirmez** (API grafiğinde LoRA loader'ları boş, yerleri yok) — orada ~33.5 GiB iner.
 
 > Grafiğin **TEXT2VIDEO** grubunun ihtiyacı iner. Diğer 3 grup (IMAGE2VIDEO / FIRST2LASTFRAME / AUDIO2VIDEO) grafikte durur ama modelleri **inmez** — açarsan model bulunamaz hatası verir (bkz. §6).
 
@@ -44,12 +46,10 @@ Etiketler: **✅** API'den doğrulandı · **📌** workflow.json'a gömülü (y
 
 | Hedef | Kaydedilecek ad | Kaynak | Boyut | Durum |
 |---|---|---|---|---|
-| loras | `wan2.2_t2v_lightx2v_4steps_lora_v1.1_high_noise.safetensors` | Comfy-Org/Wan_2.2_ComfyUI_Repackaged → `split_files/loras/` | 1.14 GiB | ✅ HF API (1,226,977,424 B) |
-| loras | `wan2.2_t2v_lightx2v_4steps_lora_v1.1_low_noise.safetensors` | Comfy-Org/Wan_2.2_ComfyUI_Repackaged → `split_files/loras/` | 1.14 GiB | ✅ HF API (1,226,977,424 B) |
 | text_encoders | `umt5_xxl_fp8_e4m3fn_scaled.safetensors` | Comfy-Org/Wan_2.1_ComfyUI_repackaged → `split_files/text_encoders/` | ~6.3 GiB | 📚 imageToVideo'da çalışan indirme |
 | vae | **`Wan2_1_VAE_fp32.safetensors`** ← `wan_2.1_vae.safetensors` | Comfy-Org/Wan_2.1_ComfyUI_repackaged → `split_files/vae/` | ~250 MB | 📚 imageToVideo deseni (indir + rename) |
 
-> **lightx2v T2V LoRA'ları grafikte YOK.** Yazar Power Lora Loader **109**/**110**'u boş bırakmış ama sampler 6 step / cfg 1 — distill LoRA olmadan çalışmaz. I2V çiftimizin (`wan2.2_i2v_lightx2v_4steps_lora_v1_*`) T2V karşılığı olarak **aynı repodan** seçildi. Kullanıcı UI'da loader'a elle ekler.
+> **lightx2v LoRA'sı gerekmiyor — inmez.** Yazar Power Lora Loader **109**/**110**'u boş bırakmış ve sampler 6 step / cfg 1; bu bir çelişki değil: T2V v3'te distill LoRA checkpoint'e **merge edilmiş** (model sayfası: *"Just as T2V v2.0 it has light2xv baked in it"*). Elle eklemek iki kez uygular ve çıktıyı bozar. 18 Tem 2026'da UI'da doğrulandı — sıfır LoRA en iyi sonucu veriyor; `wan2.2_t2v_lightx2v_4steps_lora_v1.1_*` (2×1.14 GiB) manifestten çıkarıldı.
 
 ## 4) Upscale modeli — YOK
 
