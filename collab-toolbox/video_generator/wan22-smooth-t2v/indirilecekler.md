@@ -59,7 +59,7 @@ Yazarın "Upscale by 2"si `ImageScaleBy` (lanczos) — algoritmik, dosya inmez. 
 
 | Dosya | Not |
 |---|---|
-| `flownet.pkl` | `RIFEInterpolation` (comfy_mtb) ilk kullanımda indirir. ⚠️ **Doğrulanmadı** — Colab run'da teyit edilecek; inmezse bu satır güncellenir ve notebook'un model listesine eklenir. |
+| `flownet.pkl` | `RIFEInterpolation` (comfy_mtb) ilk kullanımda indirir. ✅ Notebook'un model listesine **eklenmesi gerekmiyor**: kurulum log'unda hiç geçmiyor (setup'ta inmiyor), ama RIFE node **160** TEXT2VIDEO zincirinde ve üretim sorunsuz çalıştı → dosyayı node kendi indirmiş. |
 
 ## 6) İnmeyen (diğer gruplar için — bilerek atlandı)
 
