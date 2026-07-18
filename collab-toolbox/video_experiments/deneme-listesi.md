@@ -54,9 +54,9 @@ Branch: `video-generation`. Her madde test edildikçe durumu işaretle ve notunu
   - Durum: bekliyor
   - Not: —
 
-- [ ] **WAN 2.2 T2V — "Smooth Workflow v5.0" TEXT2VIDEO grubu (Digital Pastel)** → [wan22-smooth-t2v/](wan22-smooth-t2v/)
+- [x] **WAN 2.2 T2V — "Smooth Workflow v5.0" TEXT2VIDEO grubu (Digital Pastel)** → [video_generator/wan22-smooth-t2v/](../video_generator/wan22-smooth-t2v/)
   - Kaynak: https://civitai.red/models/1995784/smooth-mix-wan-22-14b-i2vt2v
   - Model ailesi: WAN 2.2 **T2V**-A14B (SmoothMix T2V v3 High+Low — version 2768924 / 2768944)
   - Neden: listedeki ilk text-to-video denemesi — mevcut her şey I2V. `video_generator/imageToVideo.json` zaten bu grafiğin FIRST2LASTFRAME grubunun API export'u (node ID'leri birebir tutuyor); T2V grubu hep vardı, hiç açılmadı. Sampler/çözünürlük/süre/RIFE ayarları I2V ile aynı → kıyas temiz, değişen tek eksen I2V→T2V.
-  - Durum: bekliyor
-  - Not: —
+  - Durum: **çalışıyor** — Colab A100'de uçtan uca çalıştırıldı, hata alınmadı, çıktı beğenildi. Deneme aşamasından çıktı: klasör `video_experiments/`'ten `video_generator/` altına taşındı.
+  - Not: `flownet.pkl`'in (RIFE) otomatik indiği **teyit edilmedi** — run hata vermedi, ama bu indiğinin kanıtı değil (RIFE bypass'lıysa hiç çalışmamış olabilir). `indirilecekler.md` §5 hâlâ ⚠️.

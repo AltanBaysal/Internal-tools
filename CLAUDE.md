@@ -18,6 +18,7 @@ AI media generation/cleanup notebooks (`.ipynb`) that run on Google Colab. Each 
 |---|---|---|
 | [photo_generator/PhotoGenerator_API.ipynb](collab-toolbox/photo_generator/PhotoGenerator_API.ipynb) | Photo generation (SDXL + IPAdapter) | GPU |
 | [video_generator/imageToVideo.ipynb](collab-toolbox/video_generator/imageToVideo.ipynb) | Image-to-video (WAN 2.2) | A100 (Colab Pro) |
+| [video_generator/wan22-smooth-t2v/](collab-toolbox/video_generator/wan22-smooth-t2v/) | Text-to-video (WAN 2.2 SmoothMix) — brings ComfyUI up behind a tunnel; the graph is driven by hand in the UI, not batched | A100 (Colab Pro) |
 | [loop_maker/comfy_ui.ipynb](collab-toolbox/loop_maker/comfy_ui.ipynb) | Batch video loop (Wan 2.1 VACE) | GPU |
 | [mmaudio_generate.ipynb](collab-toolbox/mmaudio_generate.ipynb) | Audio for video (MMAudio, NSFW fine-tune) | T4 GPU |
 | [mp4_converter.ipynb](collab-toolbox/mp4_converter.ipynb) | Video → H.264 mp4 | CPU |
