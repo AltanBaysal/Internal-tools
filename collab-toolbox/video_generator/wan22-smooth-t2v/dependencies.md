@@ -1,8 +1,12 @@
-# WAN 2.2 Smooth T2V — Colab'da indirilecekler (workflow_manual.json'dan çıkarıldı)
+# WAN 2.2 Smooth T2V — Bağımlılıklar (workflow_manual.json'dan çıkarıldı)
+
+Bu klasördeki iki notebook'un Colab'da neye ihtiyaç duyduğu: custom node'lar, modeller, otomatik inenler ve **bilerek inmeyenler**. Notebook'ların nasıl kullanılacağı [instructions.md](instructions.md)'de.
 
 Etiketler: **✅** API'den doğrulandı · **📌** grafiğe gömülü (yazar verdi) · **📚** kanonik repo (yaygın, ping'lenmedi) · **⚠️** bilinen risk.
 
-Bu liste `manual.ipynb` içindir. `api.ipynb` aynı listeden **NSFW LoRA'ları indirmez** (API grafiğinde LoRA loader'ları boş, yerleri yok) — orada ~33.5 GiB iner.
+**Hangi notebook neyi indirir:** ikisi de **aynı seti**, ~35.3 GiB. Bu bilinçli bir kural — listeler hizalı tutulur ki UI'da LoRA'lı bir graf export edildiğinde `api.ipynb` notebook'a dokunmadan çalışsın.
+
+> `api.ipynb` LoRA'ları indirir ama **kullanmaz**: API grafiğinin Power Lora Loader'ları boş. Etki etmeleri için `manual.ipynb`'de UI'da takılıp **Workflow → Export (API)** ile Drive'daki graf güncellenmeli.
 
 > Grafiğin **TEXT2VIDEO** grubunun ihtiyacı iner. Diğer 3 grup (IMAGE2VIDEO / FIRST2LASTFRAME / AUDIO2VIDEO) grafikte durur ama modelleri **inmez** — açarsan model bulunamaz hatası verir (bkz. §6).
 
@@ -29,18 +33,30 @@ Bu liste `manual.ipynb` içindir. `api.ipynb` aynı listeden **NSFW LoRA'ları i
 | 15 | ComfyUI-NAG | https://github.com/scottmudge/ComfyUI-NAG.git | KSamplerWithNAG (Advanced) |
 | 16 | comfyui-adaptiveprompts | https://github.com/Alectriciti/comfyui-adaptiveprompts.git | PromptGenerator |
 
-## 2) Modeller — gated Civitai (model 1995784, version ID'ler API ile doğrulandı ✅)
+## 2) Modeller — gated Civitai (version ID'ler API ile doğrulandı ✅)
+
+İki ayrı Civitai modelinden geliyor, ikisi de aynı yazarın: checkpoint'ler **1995784**'ten (SmoothMix WAN 2.2), LoRA'lar **2040641**'den (SmoothMix Animations WAN 2.2).
 
 | Hedef | Kaydedilecek ad | Version ID | Civitai'nin verdiği ad | Boyut | Durum |
 |---|---|---|---|---|---|
 | diffusion_models | `SmoothMix_T2V_High_v3.safetensors` | **2768924** | smoothMixWan2214BI2V_t2vHighV30.safetensors | ~13.5 GiB | ✅ "T2V High v3.0", base `Wan Video 2.2 T2V-A14B` |
 | diffusion_models | `SmoothMix_T2V_Low_v3.safetensors` | **2768944** | smoothMixWan2214BI2V_t2vLowV30.safetensors | ~13.5 GiB | ✅ "T2V Low v3.0", aynı base |
-| loras | `WAN_General_NSFW_HIGH.safetensors` | **2073605** | NSFW-22-H-e8.safetensors | ~0.57 GiB | ⚠️ base `Wan Video 2.2 **I2V**-A14B` |
-| loras | `WAN_General_NSFW_LOW.safetensors` | **2083303** | (2.2 LOW v0.08a nightly) | ~0.57 GiB | ⚠️ base `Wan Video 2.2 **I2V**-A14B` |
+| loras | `SmoothMix_Style_High.safetensors` | **2318650** | (sürüm: Style High) | ~0.3 GiB | ✅ base `Wan Video 2.2 T2V-A14B` |
+| loras | `SmoothMix_Style_Low.safetensors` | **2318707** | SmoothMixStyle_Low.safetensors | ~0.3 GiB | ✅ base `Wan Video 2.2 T2V-A14B` |
+| loras | `SmoothMix_Animation_High.safetensors` | **2309690** | (sürüm: Animation High) | ~0.3 GiB | ✅ base `Wan Video 2.2 T2V-A14B` |
+| loras | `SmoothMix_Animation_Low.safetensors` | **2309689** | (sürüm: Animation Low) | ~0.3 GiB | ✅ base `Wan Video 2.2 T2V-A14B` |
+| loras | `SmoothMix_Futanari_High.safetensors` | **2476982** | (sürüm: Futanaris and Males High) | ~0.3 GiB | ✅ base `Wan Video 2.2 T2V-A14B` |
+| loras | `SmoothMix_Futanari_Low.safetensors` | **2474616** | (sürüm: Futanaris and Males Low) | ~0.3 GiB | ✅ base `Wan Video 2.2 T2V-A14B` |
 
-> **Ad değişimi şart.** Civitai dosyayı `smoothMixWan2214BI2V_t2v*V30.safetensors` olarak veriyor; grafiğin UNETLoader **37**/**56**'sı `SmoothMix_T2V_*_v3.safetensors` istiyor. `fetch()` hedef adla kaydeder — yapılmazsa dropdown'da model görünmez.
+> **Ad değişimi şart (checkpoint'ler).** Civitai dosyayı `smoothMixWan2214BI2V_t2v*V30.safetensors` olarak veriyor; grafiğin UNETLoader **37**/**56**'sı `SmoothMix_T2V_*_v3.safetensors` istiyor. `fetch()` hedef adla kaydeder — yapılmazsa dropdown'da model görünmez. LoRA'larda böyle bir zorunluluk yok (loader'lar boş gelir), adlar okunabilirlik için seçildi.
+>
+> Parantezli hücreler Civitai'nin sürüm adı: yalnız **2318707**'nin gerçek dosya adı API'den teyit edildi, diğerleri indirme anında görülür.
 
-> **NSFW LoRA riski.** Model 1307155'in dört sürümü de I2V-A14B; T2V sürümü **yok**. Kullanıcı isteğiyle iniyor. Çıktı bozuksa **önce bunu bypass et** — yoksa "T2V mi kötü, LoRA mı uyumsuz" ayrışmaz.
+> **LoRA kullanımı.** Altısı da T2V-A14B tabanlı, yani grafiğin base'iyle uyumlu — I2V tuzağı bu sette yok. Ama **takmak yetmez, trigger word şart**: Style ve Animation için prompt'ta `SmoothMixAnime` ya da `SmoothMixRealism` geçmeli, Futanari çifti kendi kelimeleriyle (`futanari`, `flaccid`, `erect`, …). Yazarın önerdiği strength **0.5–1.0**; High → Power Lora Loader **109**, Low → **110**, hep aynı setten çift olarak.
+>
+> **Setin XXX Animations çifti (2376136 / 2376143) bilerek inmiyor:** koleksiyondaki tek I2V-A14B tabanlı çift, yani aşağıda ayıklanan uyumsuzluğun aynısı.
+>
+> Önceki `WAN_General_NSFW` çifti (model 1307155, I2V tabanlı) 2026-07-21'de bu listeden çıkarıldı. `video_generator/imageToVideo.ipynb`'de **duruyor** — o araç I2V, LoRA orada base'iyle uyumlu.
 
 ## 3) Modeller — HuggingFace
 
@@ -63,7 +79,15 @@ Yazarın "Upscale by 2"si `ImageScaleBy` (lanczos) — algoritmik, dosya inmez. 
 
 ## 6) İnmeyen (diğer gruplar için — bilerek atlandı)
 
-`SmoothMix_I2V_v2_High/Low` (2513182 / 2513186), `clip_vision_h.safetensors`, MMAudio 4 dosya (`mmaudio_large_44k_v2_fp16`, `mmaudio_vae_44k_fp16`, `mmaudio_synchformer_fp16`, `apple_DFN5B-CLIP-ViT-H-14-384_fp16`). IMAGE2VIDEO / FIRST2LASTFRAME / AUDIO2VIDEO gruplarını açarsan bunlar eksik olur.
+Hangi grubu açarsan onun satırındakiler eksik olur. Dağılım §7'deki loader taramasından geliyor — her dosya her gruba gerekmiyor:
+
+| Grup | Eksik olan |
+|---|---|
+| IMAGE2VIDEO | `SmoothMix_I2V_v2_High/Low` (2513182 / 2513186) |
+| FIRST2LASTFRAME | yukarıdaki I2V çifti **+** `clip_vision_h.safetensors` |
+| AUDIO2VIDEO | MMAudio 4 dosya: `mmaudio_large_44k_v2_fp16`, `mmaudio_vae_44k_fp16`, `mmaudio_synchformer_fp16`, `apple_DFN5B-CLIP-ViT-H-14-384_fp16` |
+
+`clip_vision_h.safetensors` **yalnız FIRST2LASTFRAME'in** ihtiyacı: grafikteki tek `CLIPVisionLoader` (id **351**) o kutunun içinde. IMAGE2VIDEO'yu açmak onu gerektirmez.
 
 ## 7) Doğrulama (tam tarama)
 

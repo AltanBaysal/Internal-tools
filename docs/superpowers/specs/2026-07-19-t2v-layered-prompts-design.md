@@ -1,12 +1,18 @@
 # WAN 2.2 T2V — Katmanlı prompt + aksiyon listesi (tasarım)
 
-**Tarih:** 2026-07-19 · **Durum:** onaylandı, implementasyon planı bekliyor
+**Tarih:** 2026-07-19 · **Durum:** ⛔ **katmanlama geri alındı** — aksiyon listesi + resume ayakta
+
+> **Sonuç (2026-07-20).** Bu tasarım uygulandı ve A100'de koşuldu. **Katmanlama başarısız: çıktı kötü çıktı.** Alanları `". "` ile birleştirmek modele bağlaçsız öbekler dizisi veriyor, oysa WAN'ın UMT5 encoder'ı akan cümlelerle eğitildi — yani katmanlama, bu spec'in kendi savunduğu ilkeyi ihlal ediyordu. Katmanlamanın zaten kalite iddiası yoktu (bkz. *"Katmanlama kaliteyi artırmaz"*), o yüzden kaliteye zarar verdiği anda gerekçesi tamamen düştü.
+>
+> **Ayakta kalan yarı:** aksiyon listesi, `NN.mp4` çıktı adlandırması, resume ve hata politikası. Bunlar katmanlamadan bağımsızdı ve korundu.
+>
+> Yürürlükteki tasarım: **[2026-07-20-t2v-prompt-list-design.md](2026-07-20-t2v-prompt-list-design.md)**. Aşağısı ne denendiği ve neden bırakıldığının kaydıdır; uygulama rehberi olarak okuma.
 
 ## Amaç
 
-Karakteri, mekânı ve kamerayı **bir kez** tanımlayıp bir aksiyon listesi vermek; notebook listeyi gezip her aksiyon için bir video üretsin, üretilmiş olanları atlasın.
+Stili, kamerayı, mekânı, karakteri ve kaliteyi **bir kez** tanımlayıp bir aksiyon listesi vermek; notebook listeyi gezip her aksiyon için bir video üretsin, üretilmiş olanları atlasın.
 
-Kullanım döngüsü: PROMPTS hücresinde `CHARACTER` / `SCENE` / `CAMERA` sabit durur, `ACTIONS` listesine yeni satır eklenir, render hücresi çalıştırılır — sadece eksik olanlar üretilir.
+Kullanım döngüsü: PROMPTS hücresinde `STYLE` / `CAMERA` / `SCENE` / `CHARACTER` / `QUALITY` sabit durur, `ACTIONS` listesine yeni satır eklenir, render hücresi çalıştırılır — sadece eksik olanlar üretilir.
 
 ## Bağlam
 
@@ -50,8 +56,8 @@ Bu beklenti spec'e yazıldı ki "katmanladık ama video daha iyi olmadı" sürpr
 | **Grafik değişmez** | UMT5 tek `CLIPTextEncode`'dan beslenmeye devam eder. `manual.ipynb` ile `api.ipynb` aynı grafı paylaşır, node id'leri kaymaz, UI'da açınca hiçbir şey değişmemiştir. |
 | **Yeni notebook yok, `api.ipynb` evrilir** | Tek elemanlı liste zaten bugünkü "tek video" davranışıdır. Ayrı bir batch notebook'u, aynı kurulumun (16 custom node, ~33.5 GiB model, ComfyUI başlatma) ikinci kopyasını bakımda tutmak demektir. |
 | **PROMPTS ayrı hücre** | Teknik ayar (mount, cookie, yollar, timeout) ile sürekli düzenlenen içerik aynı hücrede karışır. `photo_generator` da aynı ayrımı yapıyor: *1) CONFIG* / *2) PROMPTS*. |
-| **Dört katman: `CHARACTER` · `SCENE` · `ACTION` · `CAMERA`** | Kamera ayrı, çünkü videoda kamera hareketi zamanla değişen bağımsız bir eksen ("kamera yavaşça yaklaşır"), fotoğraftaki gibi sadece bir açı değil. Kullanıcı ayrı kalmasını istedi. |
-| **`STYLE` katmanı yok** | SmoothMix kendi estetiğini getiriyor; WAN'da kalite tag'leri SDXL'deki kadar iş görmüyor. Sabit bir stil cümlesi `SCENE` içine yazılabilir. YAGNI. |
+| **Altı katman: `STYLE` · `CAMERA` · `SCENE` · `CHARACTER` · `ACTION` · `QUALITY`** | Kamera ayrı, çünkü videoda kamera hareketi zamanla değişen bağımsız bir eksen ("kamera yavaşça yaklaşır"), fotoğraftaki gibi sadece bir açı değil. Kullanıcı ayrı kalmasını istedi. Sıra da kullanıcı seçimi. |
+| **`STYLE` ve `QUALITY` var** (2026-07-20'de eklendi) | İlk tasarımda ikisi de elenmişti: *"SmoothMix kendi estetiğini getiriyor; WAN'da kalite tag'leri SDXL'deki kadar iş görmüyor. Sabit bir stil cümlesi `SCENE` içine yazılabilir. YAGNI."* Kullanım bu varsayımı çürüttü — **SmoothMix kendi görünüşünü sanıldığı kadar dayatmıyor**, dolayısıyla stil kontrol edilebilir bir eksen olmalı. "`SCENE` içine yaz" çözümü de mekân ile görünümü aynı alanda birleştiriyordu: aynı odayı başka bir görünümle denemek `SCENE`'i baştan yazmayı gerektiriyordu. `QUALITY`, `photo_generator`'daki aynı adlı katmanın rolünü üstlenir. Elenme gerekçesinin **hâlâ geçerli olan kısmı**: UMT5 Danbooru tag'lerine CLIP kadar tepki vermiyor, o yüzden iki katman da betimleyici öbeklerle yazılır, `masterpiece, best quality, 8k` ile değil. |
 | **Katmanlar CONFIG'de değil, notebook'ta (Drive JSON yok)** | Kullanıcı notebook'un kendi Colab kopyasını kullanıyor ve listeye zaman içinde ekliyor. Ayrı bir `prompts.json` fazladan yönetilecek bir dosya olurdu. |
 | **Tek sabit seed, tüm listeye** | Kullanıcı seçimi. Aynı liste yarın aynı videoları verir; aksiyonlar aynı gürültüden başladığı için görsel his de birbirine yakın durur. |
 | **Bayatlık kontrolü yok** | Sidecar prompt dosyası, hash karşılaştırması yok. Kullanıcı: *"bayat çıktılar sorun değil, o kullananın görevi kontrol etmek."* Döngü ne ürettiğini ve ne atladığını satır satır bastığı için durum ekranda görünür. |
@@ -79,14 +85,17 @@ Kurulum tarafına (3–6) hiç dokunulmaz; o zincir Colab'da A100 ile doğruland
 PROMPTS hücresinin şekli:
 
 ```python
-# Kim — sabit, karakter kimliği
-CHARACTER = "a young woman with long teal hair in twintails, green eyes, fair skin"
+# Nasıl görünüyor — sabit, animasyon/film tarzı. Boş bırakılabilir.
+STYLE = "anime style, 2D cel shading, clean linework"
+
+# Kamera — sabit, kadraj + hareket
+CAMERA = "medium shot, the camera slowly pushes in, shallow depth of field"
 
 # Nerede — sabit, mekân + ışık + atmosfer
 SCENE = "a sunlit bedroom with white wrinkled bedsheets and pink curtains, golden hour light streaming through a large window, warm cozy atmosphere"
 
-# Kamera — sabit, kadraj + hareket
-CAMERA = "medium shot, the camera slowly pushes in, shallow depth of field"
+# Kim — sabit, karakter kimliği
+CHARACTER = "a young woman with long teal hair in twintails, green eyes, fair skin"
 
 # Ne oluyor — değişen tek şey. SONA EKLE.
 ACTIONS = [
@@ -94,19 +103,24 @@ ACTIONS = [
     "she sits on the edge of the bed and looks out the window",
 ]
 
+# Kalite — sabit. Boş bırakılabilir.
+QUALITY = "highly detailed, sharp focus, smooth natural motion"
+
 SEED = 42
 ```
 
+Değişkenler **birleşme sırasında** tanımlanır, dolayısıyla hücreyi yukarıdan aşağı okumak modele giden metni okumakla aynı şeydir.
+
 Hücre çalıştığında **ilk aksiyonla birleşmiş prompt'u ekrana basar.** Katmanları düzenlerken modele gidecek metnin tamamı anında görünür; noktalama ve boşluk hataları render beklemeden fark edilir. Ayrıca `ACTIONS` boşsa `assert` ile durur — üretecek bir şey olmadan render hücresine geçilmez.
 
-**Birleştirme sırası:** `CHARACTER. SCENE. ACTION. CAMERA.`
+**Birleştirme sırası:** `STYLE. CAMERA. SCENE. CHARACTER. ACTION. QUALITY.`
 
-Sıra bir konvansiyon: WAN altyazılarının doğal akışının özne → ortam → eylem → çekim tarifi olduğu varsayımına dayanıyor. **Doğrulanmadı.** Değiştirmesi tek satır; birkaç video üretip kamerayı başa alarak denenebilir.
+Sıra kullanıcı seçimi: stil en başta çünkü çerçeveyi baştan kuruyor, kalite en sonda. `photo_generator` da aynı iskeleti kullanıyor — `workflow.json`'daki `ConditioningConcat` zinciri `QUALITY → +CHARACTER → +ACTION → +BACKGROUND` diye ilerliyor, yani kalite/stil ekseni zincirin başında. **Doğrulanmadı.** Değiştirmesi `build_prompt` içindeki tek demet satırı.
 
 Birleştirici iki normalizasyon yapar, ikisi de sessiz bozulmayı engellemek için:
 
 - **Sondaki noktalama ve boşluk kırpılır**, sonra `. ` ile eklenir. Katmanın sonuna nokta konsa da konmasa da çıktı aynıdır; `..` oluşmaz.
-- **Boş katman atlanır.** `CAMERA = ""` bırakılırsa araya `. .` girmez.
+- **Boş katman atlanır.** `STYLE = ""` bırakılırsa metin baştan `. ` ile başlamaz, `QUALITY = ""` sonda `. .` bırakmaz.
 
 Birleşmiş metin bugünkü gibi `PromptGenerator` (`230:229`) düğümünün `prompt` girdisine basılır. Düğüm yerinde kaldığı için **wildcard sözdizimi çalışmaya devam eder** — aksiyon içinde `{ kneeling | sitting | squatting }` yazılabilir. Seed sabit olduğundan seçimler her koşuda aynı çıkar, tekrarlanabilirlik bozulmaz.
 
@@ -159,4 +173,4 @@ Notebook'lar birim testle doğrulanmıyor; doğrulama Colab koşusudur:
 1. İki aksiyonluk liste ile çalıştır → `01.mp4` ve `02.mp4` Drive'a düşer, ikisinde de aynı karakter ve aynı mekân görünür.
 2. Aynı hücreyi tekrar çalıştır → ikisi de "zaten var" diye atlanır, yeni üretim olmaz.
 3. Listeye üçüncü aksiyonu **sona** ekle, tekrar çalıştır → sadece `03.mp4` üretilir.
-4. `CAMERA = ""` ile bir üretim → prompt'ta `. .` oluşmaz (birleşmiş metin ekrana basıldığı için gözle doğrulanır).
+4. `STYLE = ""` ile PROMPTS hücresini çalıştır → metin doğrudan kamerayla başlar, başta `. ` artığı olmaz (birleşmiş metin ekrana basıldığı için gözle doğrulanır).

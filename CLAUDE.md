@@ -18,7 +18,7 @@ AI media generation/cleanup notebooks (`.ipynb`) that run on Google Colab. Each 
 |---|---|---|
 | [photo_generator/PhotoGenerator_API.ipynb](collab-toolbox/photo_generator/PhotoGenerator_API.ipynb) | Photo generation (SDXL + IPAdapter) | GPU |
 | [video_generator/imageToVideo.ipynb](collab-toolbox/video_generator/imageToVideo.ipynb) | Image-to-video (WAN 2.2) | A100 (Colab Pro) |
-| [video_generator/wan22-smooth-t2v/api.ipynb](collab-toolbox/video_generator/wan22-smooth-t2v/api.ipynb) | Text-to-video (WAN 2.2 SmoothMix) — prompt in CONFIG, video out to Drive, one per run | A100 (Colab Pro) |
+| [video_generator/wan22-smooth-t2v/api.ipynb](collab-toolbox/video_generator/wan22-smooth-t2v/api.ipynb) | Text-to-video (WAN 2.2 SmoothMix) — prompt list, one video per prompt, resumable | A100 (Colab Pro) |
 | [video_generator/wan22-smooth-t2v/manual.ipynb](collab-toolbox/video_generator/wan22-smooth-t2v/manual.ipynb) | Same graph behind a cloudflared tunnel, driven by hand in the ComfyUI UI — for finding settings to export into `api.ipynb` | A100 (Colab Pro) |
 | [loop_maker/comfy_ui.ipynb](collab-toolbox/loop_maker/comfy_ui.ipynb) | Batch video loop (Wan 2.1 VACE) | GPU |
 | [mmaudio_generate.ipynb](collab-toolbox/mmaudio_generate.ipynb) | Audio for video (MMAudio, NSFW fine-tune) | T4 GPU |
