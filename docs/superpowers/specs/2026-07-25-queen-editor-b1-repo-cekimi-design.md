@@ -13,7 +13,7 @@ Yol haritasının en riskli görünmez altyapı parçasını tek başına kanıt
 
 Bu bölüm bittiğinde çalışan şey:
 
-1. `queen-editor/app.ipynb` Colab'a yüklenir, GitHub token yapıştırılır, Run all yapılır.
+1. `queen-editor/app.ipynb` Colab'a yüklenir, GitHub token Colab Secrets'a bir kez eklenir, Run all yapılır.
 2. Notebook private repoyu `feat/queen-editor-v1` dalından `--depth 1` ile klonlar.
 3. Hücre çıktısı `queen-editor/` içeriğini + klonlanan kısa commit hash'ini + dal adını basar.
 4. Token hiçbir çıktıda görünmez.
@@ -29,7 +29,7 @@ Sunucu, frontend derleme, cloudflared tünel, Drive mount, ComfyUI, model indirm
 | Klon = **tüm repo, `--depth 1`** | Kullanıcı kararı. Tek komut, geçmişsiz, birkaç MB. Bölüm 1'in tek işi klonun çalıştığını kanıtlamak; sparse-checkout'un ek komutları ve hata yüzeyi bu aşamada değmez. collab-toolbox da iner ama sorun değil. |
 | Bölüm 1 repoda **yalnız `queen-editor/app.ipynb` + `queen-editor/README.md`** oluşturur | Kullanıcı kararı. `backend/`, `frontend/` Bölüm 2'de içi doldurulacağı zaman açılır — boş klasör "burada bir şey var" yanılsaması üretmez. |
 | Doğrulama çıktısı: **dosya listesi + kısa commit hash + dal adı** | Kullanıcı kararı. "Doğru dal, doğru commit indi" gözle doğrulanır; yanlış dalı fark etmek kolaylaşır. |
-| `GITHUB_TOKEN` **boş placeholder**, hücreye yapıştırılır (Civitai deseni) — notebook'a **commit'lenmez** | Kullanıcı kararı. getpass (çalışma anında maskeli kutu, kaynağa hiç yazılmaz) önerildi ama alışık yöntem tercih edildi. Token yalnız klon URL'inde kullanılır, hiçbir çıktıya basılmaz. Sızıntı engeli disiplin: placeholder boş kalmalı. |
+| `GITHUB_TOKEN` **Colab Secrets**'ta saklanır; notebook `userdata.get("GITHUB_TOKEN")` ile okur | Kullanıcı kararı — "her oturumda yapıştırmak" itirazı üzerine yapıştır/getpass yerine bu seçildi. Token bir kez, Google hesabına bağlı girilir; her oturum/notebook'ta hazır, **notebook kaynağına ve repoya hiç girmez** → sızıntı engeli disipline değil yapıya bağlanır. Token yalnız klon URL'inde kullanılır, hiçbir çıktıya basılmaz. |
 | Token = **fine-grained, yalnız bu repo, `Contents: read`** | Kullanıcı kararı. En dar yetki: token sızsa bile yalnız Internal-tools'u okur, başka hiçbir şeye dokunamaz. README kurulum adımları bu türe göre yazılır. |
 | `README.md` **İngilizce** | Kullanıcı kararı. Diğer repo dokümanlarıyla (CLAUDE.md, NOTEBOOK-STANDARD.md) türdeş — geliştirici-yüzü doküman. Notebook markdown'ı ise Türkçe kalır (insan-yüzü). |
 | `BRANCH` CONFIG'de değişken; şimdilik varsayılan `feat/queen-editor-v1` | Geliştirme bu dalda; merge sonrası `main` yapılır. Notebook'a gömülü sabit dal, yanlış dalı sessizce çekerdi. |
@@ -52,8 +52,8 @@ Bu bölümde geçmeyen maddeler (§3 model indirme, §4 Civitai, §5 batch, §6 
 
 | Hücre | İçerik |
 |---|---|
-| 0) Markdown | Ne yapar + kullanım: `app.ipynb`'yi Colab'a yükle → token yapıştır → Run all. |
-| 1) CONFIG | `GITHUB_TOKEN = ""` (yapıştır), `BRANCH = "feat/queen-editor-v1"`, `REPO = "AltanBaysal/Internal-tools"`, `CLONE_DIR = "/content/Internal-tools"`. `assert GITHUB_TOKEN` boşsa Türkçe fail-loud. |
+| 0) Markdown | Ne yapar + kullanım: `app.ipynb`'yi Colab'a yükle → 🔑 Secrets'a `GITHUB_TOKEN` ekle (bir kez) → Run all. |
+| 1) CONFIG | `GITHUB_TOKEN = userdata.get("GITHUB_TOKEN")` (Colab Secrets), `BRANCH = "feat/queen-editor-v1"`, `REPO = "AltanBaysal/Internal-tools"`, `CLONE_DIR = "/content/Internal-tools"`. Secret yoksa/erişim kapalıysa `assert` Türkçe fail-loud (🔑 Secrets'a ekle der). |
 | 2) Klon | `CLONE_DIR` varsa `shutil.rmtree`; `git clone --branch <BRANCH> --depth 1 https://<token>@github.com/<REPO>.git <CLONE_DIR>`. Non-zero exit → git stderr, token `<token>` ile maskelenmiş, `RuntimeError`. |
 | 3) Doğrula | `queen-editor/` içeriğini listele; `git -C <CLONE_DIR> rev-parse --short HEAD` ve dal adını bas. `queen-editor/app.ipynb` yoksa fail-loud (yanlış dal / eksik dosya). |
 
@@ -61,7 +61,7 @@ Klon için `subprocess.run` (shell değil, argüman listesi) — token'ın shell
 
 ## README.md (İngilizce)
 
-Geliştirici/operatör kılavuzu, kısa: (1) fine-grained token oluşturma — GitHub → Settings → Developer settings → Fine-grained tokens → yalnız `Internal-tools`, `Repository permissions → Contents: Read-only`; (2) `queen-editor/app.ipynb`'yi Colab'a yükleme; (3) token'ı CONFIG'e yapıştırıp Run all; (4) çıktıda ne görüleceği. Token'ın commit'lenmemesi gerektiği uyarısı burada da yer alır.
+Geliştirici/operatör kılavuzu, kısa: (1) fine-grained token oluşturma — GitHub → Settings → Developer settings → Fine-grained tokens → yalnız `Internal-tools`, `Repository permissions → Contents: Read-only`; (2) `queen-editor/app.ipynb`'yi Colab'a yükleme; (3) token'ı 🔑 Secrets'a `GITHUB_TOKEN` adıyla ekleyip (notebook erişimi açık) Run all; (4) çıktıda ne görüleceği. Token'ın Secrets'ta durup notebook'a hiç girmediği burada da belirtilir.
 
 ## Bootstrap ikiliği (bilinçli)
 
@@ -70,13 +70,14 @@ Colab'da çalışan `app.ipynb` = kullanıcının yüklediği kopya. Klon, diske
 ## Doğrulama (kullanıcı, Colab)
 
 1. `queen-editor/app.ipynb`'yi GitHub'dan indir → Colab **File → Upload notebook**.
-2. CONFIG'e GitHub token yapıştır → **Run all**.
+2. 🔑 Secrets panelinden `GITHUB_TOKEN` ekle (fine-grained, yalnız bu repo, Contents: read), notebook erişimini aç — **bir kez** → **Run all**.
 3. Hücre çıktısında `queen-editor/` içeriği (`app.ipynb`, `README.md`), kısa commit hash ve `feat/queen-editor-v1` görünür.
 4. Çıktının hiçbir yerinde token yok.
-5. Token'ı boş bırakıp çalıştır → Türkçe "token gerekli" hatası, klon denenmez.
+5. Secret yok/erişim kapalı iken çalıştır → Türkçe "GITHUB_TOKEN yok" hatası, klon denenmez.
 6. (Negatif) Yanlış/expired token → git'in kendi hata mesajı (401/403), token maskeli.
+7. Sonraki oturumlarda token tekrar girilmez — Secrets'tan gelir.
 
 ## Riskler
 
 - **Colab'da `git clone` private repoya token'la erişemezse** — bu bölümün asıl sınadığı şey. Hata git'in kendi çıktısıyla görünür; sebep uydurulmaz.
-- **Kullanıcı token'ı yanlışlıkla notebook'a kaydedip commit'lerse** — placeholder boş bırakılır ve markdown'da uyarı verilir; teknik bir engel değil, konvansiyon.
+- **Token artık notebook'a hiç girmez** (Colab Secrets'ta durur) — "yanlışlıkla commit'leme" riski yapısal olarak kalkar.

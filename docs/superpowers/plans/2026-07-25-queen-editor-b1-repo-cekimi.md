@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Dil ayrımı:** `README.md` ve kod yorumları/docstring **İngilizce**; notebook markdown'ı ve `print`/`assert` çıktısı **Türkçe**.
-- **Token güvenliği:** `GITHUB_TOKEN` boş placeholder (`""`), hücreye yapıştırılır, **commit'lenmez**. Token yalnız klon URL'inde kullanılır; hiçbir `print`/hata/URL çıktısına düşmez. Klon başarısızlığında git stderr'i basılır ama token `<token>` ile maskelenir.
+- **Token güvenliği:** `GITHUB_TOKEN` **Colab Secrets**'tan okunur (`from google.colab import userdata; userdata.get("GITHUB_TOKEN")`) — notebook kaynağına ve repoya hiç girmez. Token yalnız klon URL'inde kullanılır; hiçbir `print`/hata/URL çıktısına düşmez. Klon başarısızlığında git stderr'i basılır ama token `<token>` ile maskelenir.
 - **Token türü:** fine-grained, yalnız `Internal-tools`, `Contents: Read-only`.
 - **Gür hata (NOTEBOOK-STANDARD §2):** klon/doğrulama başarısızlığı sessiz geçmez — `RuntimeError`/`assert`, mesaj ham (git'in kendi çıktısı), sebep uydurulmaz.
 - **Sil-yeniden klon:** `CLONE_DIR` varsa silinip yeniden klonlanır — `git pull`/merge senaryosu yok, tek davranış.
@@ -63,15 +63,20 @@ A fine-grained token scoped to this repo only, read-only:
 
 If the token leaks, it can only *read* this one repo — nothing else.
 
-### 2. Run on Colab
+### 2. Store the token in Colab (once)
 
 1. Download `queen-editor/app.ipynb` from GitHub and upload it to Colab (**File → Upload notebook**).
-2. Paste the token into the `GITHUB_TOKEN` line of the CONFIG cell.
-3. **Runtime → Run all.**
-4. The last cell prints the cloned commit and the contents of `queen-editor/`. The token never
-   appears in any output.
+2. Open the **Secrets** panel (🔑 icon, left sidebar) → **Add new secret**:
+   - **Name:** `GITHUB_TOKEN`
+   - **Value:** the token from step 1
+   - Toggle **Notebook access** on.
+3. That's it. The token lives in your Colab account, not in the notebook. Set it once; every
+   session and every notebook can read it. Nothing to paste again, nothing to commit.
 
-> **Never commit the notebook with your token in it.** Leave `GITHUB_TOKEN = ""` before saving.
+### 3. Run
+
+**Runtime → Run all.** The last cell prints the cloned commit and the contents of `queen-editor/`.
+The token is read from Secrets and never appears in any output or in the notebook source.
 ````
 
 - [ ] **Step 2: Gözden geçir**
@@ -86,7 +91,7 @@ Kontrol: token adımları fine-grained + `Contents: Read-only`'ye birebir uyuyor
 - Create: `queen-editor/app.ipynb`
 
 **Interfaces:**
-- Consumes: README'de tarif edilen fine-grained token (kullanıcı CONFIG'e yapıştırır).
+- Consumes: README'de tarif edilen fine-grained token (kullanıcı Colab Secrets'a `GITHUB_TOKEN` olarak ekler).
 - Produces: Colab'da `CLONE_DIR = /content/Internal-tools` altına klonlanmış repo; sonraki bölümlerde sunucu bu klonun `queen-editor/`'ından başlar.
 
 Notebook 4 hücreden oluşur: 1 markdown başlık + 3 kod (CONFIG, klon, doğrula). `.ipynb`'yi NotebookEdit aracıyla ya da geçerli bir Jupyter JSON'u yazarak oluştur; her hücre içeriği birebir aşağıdadır.
@@ -101,30 +106,39 @@ Bu notebook private `Internal-tools` reposunu Colab'a klonlar — Queen Editor'�
 
 ## Kullanım
 1. Bu `app.ipynb`'yi Colab'a yükle (**File → Upload notebook**).
-2. Aşağıdaki **CONFIG** hücresine GitHub token'ını yapıştır (fine-grained, yalnız bu repo,
-   `Contents: read` — kurulum için `README.md`).
+2. Colab'ın **🔑 Secrets** panelinden (sol kenar) `GITHUB_TOKEN` adıyla token'ını ekle ve bu
+   notebook'a erişimi aç — **bir kez**; sonra her oturumda hazır. Token fine-grained, yalnız bu
+   repo, `Contents: read` (kurulum için `README.md`).
 3. **Runtime → Run all.**
 4. En alttaki çıktıda `queen-editor/` içeriği + commit hash görünmeli; **token görünmemeli**.
 
-> Token'ı yapıştırdıktan sonra notebook'u bu haliyle **kaydedip commit'leme** — token sızar.
-> `GITHUB_TOKEN`'ı boş bırak.
+> Token Colab Secrets'ta durur; notebook kaynağına hiç girmez, bu yüzden commit'lense de sızmaz.
 ```
 
 - [ ] **Step 2: CONFIG kod hücresi**
 
 ```python
 # === CONFIG ===
-# Fine-grained GitHub token, this repo only, "Contents: read" (see README for setup).
-# Paste it here at runtime; leave it empty ("") before saving/committing -- the token grants
-# repo access and must never land in git history.
-GITHUB_TOKEN = ""
+# The GitHub token comes from Colab's Secrets store (🔑 in the left sidebar), NOT this cell
+# -- set once per Google account, never pasted again, never in the notebook source or git.
+# Add a secret named GITHUB_TOKEN (fine-grained, this repo, "Contents: read") and grant this
+# notebook access. See README for the token setup.
+from google.colab import userdata
+
+try:
+    GITHUB_TOKEN = userdata.get("GITHUB_TOKEN")
+except Exception:
+    GITHUB_TOKEN = ""   # secret missing or access not granted -> the assert below explains the fix
 
 BRANCH    = "feat/queen-editor-v1"       # dev branch for now; switch to "main" after merge
 REPO      = "AltanBaysal/Internal-tools" # <owner>/<repo>
 CLONE_DIR = "/content/Internal-tools"    # clone target on Colab's local disk
 
-assert GITHUB_TOKEN, "❌ GITHUB_TOKEN boş — CONFIG hücresine fine-grained token'ını yapıştır (README'ye bak)"
-print("✓ CONFIG hazır")
+assert GITHUB_TOKEN, (
+    "❌ GITHUB_TOKEN yok — Colab solundaki 🔑 Secrets panelinden 'GITHUB_TOKEN' adıyla ekle "
+    "ve bu notebook'a erişimi aç (fine-grained, yalnız bu repo, Contents: read)."
+)
+print("✓ CONFIG hazır (token Colab Secrets'tan okundu)")
 print(f"✓ Dal: {BRANCH}  |  Repo: {REPO}  |  Hedef: {CLONE_DIR}")
 ```
 
@@ -192,10 +206,10 @@ Bu task kod üretmez; Bölüm 1'i kullanıcının Colab'da denemesi ve onayıyla
 
 - [ ] **Step 1: Kullanıcı Colab doğrulaması**
 
-Kullanıcı, `queen-editor/app.ipynb`'yi Colab'a yükler, fine-grained token'ını CONFIG'e yapıştırır, **Run all** yapar. Beklenen:
+Kullanıcı, `queen-editor/app.ipynb`'yi Colab'a yükler, 🔑 Secrets'a `GITHUB_TOKEN`'ı bir kez ekler (notebook erişimi açık), **Run all** yapar. Beklenen:
 - Çıktıda `queen-editor/` içeriği (`app.ipynb`, `README.md`), kısa commit hash ve `feat/queen-editor-v1`.
 - Token hiçbir çıktıda görünmez.
-- (Negatif) `GITHUB_TOKEN = ""` iken: Türkçe "token gerekli" hatası, klon denenmez.
+- (Negatif) Secret yok/erişim kapalı iken: Türkçe "GITHUB_TOKEN yok" hatası, klon denenmez.
 - (Negatif) Yanlış/expired token: git'in kendi 401/403 mesajı, token maskeli.
 
 - [ ] **Step 2: Kullanıcı onayıyla commit**
