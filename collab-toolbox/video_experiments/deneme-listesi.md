@@ -53,3 +53,10 @@ Branch: `video-generation`. Her madde test edildikçe durumu işaretle ve notunu
   - Neden: mevcut SmoothMix_I2V_v2'ye alternatif WAN 2.2 I2V finetune; "Lightspeed" hız odaklı
   - Durum: bekliyor
   - Not: —
+
+- [x] **WAN 2.2 T2V — "Smooth Workflow v5.0" TEXT2VIDEO grubu (Digital Pastel)** → [video_generator/wan22-smooth-t2v/](../video_generator/wan22-smooth-t2v/)
+  - Kaynak: https://civitai.red/models/1995784/smooth-mix-wan-22-14b-i2vt2v
+  - Model ailesi: WAN 2.2 **T2V**-A14B (SmoothMix T2V v3 High+Low — version 2768924 / 2768944)
+  - Neden: listedeki ilk text-to-video denemesi — mevcut her şey I2V. `video_generator/imageToVideo.json` zaten bu grafiğin FIRST2LASTFRAME grubunun API export'u (node ID'leri birebir tutuyor); T2V grubu hep vardı, hiç açılmadı. Sampler/çözünürlük/süre/RIFE ayarları I2V ile aynı → kıyas temiz, değişen tek eksen I2V→T2V.
+  - Durum: **çalışıyor** — Colab A100'de uçtan uca çalıştırıldı, hata alınmadı, çıktı beğenildi. Deneme aşamasından çıktı: klasör `video_experiments/`'ten `video_generator/` altına taşındı.
+  - Not: ~36 GiB 6 dk 19 sn'de indi, 8 dosyanın hepsi doğrulandı; checkpoint'ler 2101 tensor çıktı — Civitai model sayfasının verdiği sayıyla birebir, yani rename doğru dosyaya yapılmış. `flownet.pkl` kurulumda inmiyor, RIFE ilk çalıştığında kendi indiriyor.

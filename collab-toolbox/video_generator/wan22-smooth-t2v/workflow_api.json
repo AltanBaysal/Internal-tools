@@ -1,0 +1,483 @@
+{
+  "7": {
+    "inputs": {
+      "text": "噪点过多、色彩鲜艳、过曝、静态、细节模糊、字幕、风格、艺术作品、绘画、图像、静止图像、整体灰暗、质量极差、低质量、JPEG压缩残留、丑陋、不完整、多余手指、手部绘制粗糙、面部绘制粗糙、变形、毁容、肢体变形、手指粘连、静态图像、杂乱背景、三条腿、背景中人多、倒退行走、肤色不自然、眼睑变色、眼睑发红、上眼睑发红、红色眼影、浓密睫毛、已审查、马赛克审查、条形审查、像素化",
+      "clip": [
+        "38",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Negative"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "73",
+        0
+      ],
+      "vae": [
+        "39",
+        0
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Kod Çözme"
+    }
+  },
+  "37": {
+    "inputs": {
+      "unet_name": "SmoothMix_T2V_High_v3.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model - HIGH"
+    }
+  },
+  "38": {
+    "inputs": {
+      "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "type": "wan",
+      "device": "cpu"
+    },
+    "class_type": "CLIPLoader",
+    "_meta": {
+      "title": "CLIP Yükle"
+    }
+  },
+  "39": {
+    "inputs": {
+      "vae_name": "Wan2_1_VAE_fp32.safetensors"
+    },
+    "class_type": "VAELoader",
+    "_meta": {
+      "title": "VAE Yükle"
+    }
+  },
+  "50": {
+    "inputs": {
+      "width": [
+        "97",
+        0
+      ],
+      "height": [
+        "97",
+        1
+      ],
+      "length": [
+        "134",
+        0
+      ],
+      "batch_size": 1,
+      "positive": [
+        "90",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "vae": [
+        "39",
+        0
+      ]
+    },
+    "class_type": "WanImageToVideo",
+    "_meta": {
+      "title": "WanGörüntüdenVideoya"
+    }
+  },
+  "54": {
+    "inputs": {
+      "shift": 8,
+      "model": [
+        "109",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingSD3",
+    "_meta": {
+      "title": "ModelÖrneklemeSD3"
+    }
+  },
+  "55": {
+    "inputs": {
+      "shift": 8,
+      "model": [
+        "110",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingSD3",
+    "_meta": {
+      "title": "ModelÖrneklemeSD3"
+    }
+  },
+  "56": {
+    "inputs": {
+      "unet_name": "SmoothMix_T2V_Low_v3.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader",
+    "_meta": {
+      "title": "Load Diffusion Model - LOW"
+    }
+  },
+  "73": {
+    "inputs": {
+      "anything": [
+        "234:228",
+        0
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "easy cleanGpuUsed"
+    }
+  },
+  "74": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 2.0000000000000004,
+      "image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "Görüntüyü Oranla Büyüt"
+    }
+  },
+  "76": {
+    "inputs": {
+      "anything": [
+        "74",
+        0
+      ]
+    },
+    "class_type": "easy cleanGpuUsed",
+    "_meta": {
+      "title": "easy cleanGpuUsed"
+    }
+  },
+  "77": {
+    "inputs": {
+      "frame_rate": 32,
+      "loop_count": 0,
+      "filename_prefix": "Video/2026-07-18/230528",
+      "format": "video/h264-mp4",
+      "pix_fmt": "yuv420p",
+      "crf": 19,
+      "save_metadata": true,
+      "trim_to_audio": false,
+      "pingpong": false,
+      "save_output": true,
+      "images": [
+        "160",
+        0
+      ]
+    },
+    "class_type": "VHS_VideoCombine",
+    "_meta": {
+      "title": "Video Combine 🎥🅥🅗🅢"
+    }
+  },
+  "78": {
+    "inputs": {
+      "from_direction": "end",
+      "count": 1,
+      "image": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "Pick From Batch (mtb)",
+    "_meta": {
+      "title": "Pick From Batch (mtb)"
+    }
+  },
+  "79": {
+    "inputs": {
+      "upscale_method": "lanczos",
+      "scale_by": 2.0000000000000004,
+      "image": [
+        "78",
+        0
+      ]
+    },
+    "class_type": "ImageScaleBy",
+    "_meta": {
+      "title": "Görüntüyü Oranla Büyüt"
+    }
+  },
+  "81": {
+    "inputs": {
+      "filename_prefix": "Video/2026-07-18/230528LASTFRAME",
+      "images": [
+        "79",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Görüntüyü Kaydet"
+    }
+  },
+  "82": {
+    "inputs": {
+      "seed": -1
+    },
+    "class_type": "Seed (rgthree)",
+    "_meta": {
+      "title": "Seed (rgthree)"
+    }
+  },
+  "90": {
+    "inputs": {
+      "text": [
+        "230:229",
+        0
+      ],
+      "clip": [
+        "38",
+        0
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "Positive encode"
+    }
+  },
+  "97": {
+    "inputs": {
+      "Xi": 480,
+      "Xf": 480,
+      "Yi": 720,
+      "Yf": 720,
+      "isfloatX": 0,
+      "isfloatY": 0
+    },
+    "class_type": "mxSlider2D",
+    "_meta": {
+      "title": "VIDEO Width x Height"
+    }
+  },
+  "109": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "37",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "HIGH LORA LOADER"
+    }
+  },
+  "110": {
+    "inputs": {
+      "PowerLoraLoaderHeaderWidget": {
+        "type": "PowerLoraLoaderHeaderWidget"
+      },
+      "➕ Add Lora": "",
+      "model": [
+        "56",
+        0
+      ]
+    },
+    "class_type": "Power Lora Loader (rgthree)",
+    "_meta": {
+      "title": "LOW LORA LOADER"
+    }
+  },
+  "130": {
+    "inputs": {
+      "value": 5
+    },
+    "class_type": "PrimitiveFloat",
+    "_meta": {
+      "title": "Duration (Seconds)"
+    }
+  },
+  "134": {
+    "inputs": {
+      "_float": [
+        "220",
+        0
+      ]
+    },
+    "class_type": "CR Float To Integer",
+    "_meta": {
+      "title": "🔧 CR Float To Integer"
+    }
+  },
+  "160": {
+    "inputs": {
+      "source_fps": 16,
+      "target_fps": 32,
+      "scale": 1,
+      "model_name": "flownet.pkl",
+      "batch_size": 8,
+      "use_fp16": true,
+      "images": [
+        "76",
+        0
+      ]
+    },
+    "class_type": "RIFEInterpolation",
+    "_meta": {
+      "title": "RIFE Frame Interpolation"
+    }
+  },
+  "220": {
+    "inputs": {
+      "expression": "a*16+1",
+      "values.a": [
+        "130",
+        0
+      ]
+    },
+    "class_type": "ComfyMathExpression",
+    "_meta": {
+      "title": "Matematiksel İfade"
+    }
+  },
+  "286": {
+    "inputs": {
+      "images": [
+        "79",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Last Frame Preview"
+    }
+  },
+  "354": {
+    "inputs": {
+      "unet_name": null
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Load GGUF MODEL - HIGH"
+    }
+  },
+  "355": {
+    "inputs": {
+      "unet_name": null
+    },
+    "class_type": "UnetLoaderGGUF",
+    "_meta": {
+      "title": "Load GGUF MODEL - LOW"
+    }
+  },
+  "230:238": {
+    "inputs": {
+      "source": [
+        "230:229",
+        0
+      ]
+    },
+    "class_type": "PreviewAny",
+    "_meta": {
+      "title": "Herhangi Bir Şeyi Önizle"
+    }
+  },
+  "230:229": {
+    "inputs": {
+      "prompt": "",
+      "seed": 673245168247972
+    },
+    "class_type": "PromptGenerator",
+    "_meta": {
+      "title": "💡 Prompt Generator 💡"
+    }
+  },
+  "235:57": {
+    "inputs": {
+      "add_noise": "enable",
+      "noise_seed": [
+        "82",
+        0
+      ],
+      "steps": 6,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "start_at_step": 0,
+      "end_at_step": 3,
+      "return_with_leftover_noise": "enable",
+      "model": [
+        "54",
+        0
+      ],
+      "positive": [
+        "50",
+        0
+      ],
+      "negative": [
+        "50",
+        1
+      ],
+      "latent_image": [
+        "50",
+        2
+      ]
+    },
+    "class_type": "KSamplerAdvanced",
+    "_meta": {
+      "title": "KSampler (Gelişmiş)"
+    }
+  },
+  "234:228": {
+    "inputs": {
+      "add_noise": "disable",
+      "noise_seed": 0,
+      "steps": 6,
+      "cfg": 1,
+      "nag_scale": 30,
+      "nag_tau": 2.5,
+      "nag_alpha": 0.25,
+      "nag_sigma_end": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "start_at_step": 3,
+      "end_at_step": 10000,
+      "return_with_leftover_noise": "disable",
+      "model": [
+        "55",
+        0
+      ],
+      "positive": [
+        "50",
+        0
+      ],
+      "negative": [
+        "50",
+        1
+      ],
+      "nag_negative": [
+        "50",
+        1
+      ],
+      "latent_image": [
+        "235:57",
+        0
+      ]
+    },
+    "class_type": "KSamplerWithNAG (Advanced)",
+    "_meta": {
+      "title": "KSamplerWithNAG (Advanced)"
+    }
+  }
+}
