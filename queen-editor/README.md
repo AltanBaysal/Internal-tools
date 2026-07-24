@@ -23,12 +23,17 @@ A fine-grained token scoped to this repo only, read-only:
 
 If the token leaks, it can only *read* this one repo — nothing else.
 
-### 2. Run on Colab
+### 2. Store the token in Colab (once)
 
 1. Download `queen-editor/app.ipynb` from GitHub and upload it to Colab (**File → Upload notebook**).
-2. Paste the token into the `GITHUB_TOKEN` line of the CONFIG cell.
-3. **Runtime → Run all.**
-4. The last cell prints the cloned commit and the contents of `queen-editor/`. The token never
-   appears in any output.
+2. Open the **Secrets** panel (🔑 icon, left sidebar) → **Add new secret**:
+   - **Name:** `GITHUB_TOKEN`
+   - **Value:** the token from step 1
+   - Toggle **Notebook access** on.
+3. That's it. The token lives in your Colab account, not in the notebook. Set it once; every
+   session and every notebook can read it. Nothing to paste again, nothing to commit.
 
-> **Never commit the notebook with your token in it.** Leave `GITHUB_TOKEN = ""` before saving.
+### 3. Run
+
+**Runtime → Run all.** The last cell prints the cloned commit and the contents of `queen-editor/`.
+The token is read from Secrets and never appears in any output or in the notebook source.
