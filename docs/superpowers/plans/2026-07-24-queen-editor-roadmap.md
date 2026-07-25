@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası
 
-**Tarih:** 2026-07-24 · **Durum:** yol haritası onay bekliyor
+**Tarih:** 2026-07-24 · **Durum:** Bölüm 1-4 bitti (her biri Colab'da doğrulandı) · sırada Bölüm 5
 **Şemsiye tasarım (kararların tamamı):** [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md)
 
 Tek kaynak: bütün bölümlerin dökümü burada. İlke **önce çalıştır, sonra sağlamlaştır** — en riskli/en belirsiz parçalar önce, tek tek kanıtlanır; her bölüm bir öncekinin üstüne birikir, hiçbirinin çıktısı çöpe gitmez. Bölümler küçük tutuldu; her biri Colab'da "evet oldu" denerek kapanır. Sırası gelen bölümün detaylı planı o an yazılır.
@@ -44,7 +44,7 @@ ComfyUI devreye girer: tek prompt → tek foto. En küçük gerçek üretim.
 
 ## Bölüm 5 — Çoklu foto (tam ekran, mutlu yol)
 
-Tasarımın asıl proje ekranı: solda prompt **listesi** (Python list) + negatif + varyant + Üret, sağda 5 sütunlu galeri, en yeni üstte, foto tıklanınca yeni sekme.
+Tasarımın asıl proje ekranı: sağda prompt **listesi** (Python list) + negatif + varyant + Üret, solda 5 sütunlu galeri, en yeni üstte, foto tıklanınca yeni sekme. (Sol/sağ şemsiye spec'ten — bu satır tersini yazıyordu, düzeltildi.)
 
 - **Ne çalışır:** listeyi yapıştır, varyant seç, Üret → 12×4 = 48 foto galeride belirir.
 - **Nasıl görülür:** galeri dolar; foto tıkla → yeni sekme; tekrar Üret → numaralar sona eklenir, üstüne yazma yok.
