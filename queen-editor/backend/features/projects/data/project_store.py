@@ -1,5 +1,5 @@
-"""ProjectStore over DriveStorage -- the only place that knows a project IS a folder under the
-Drive root (photoGenV2/<name>/). The domain never learns where a project lives."""
+"""ProjectStore over DriveStorage -- the only place that knows a project IS one folder directly
+under the Drive root. The root itself comes from config; the domain never learns where it is."""
 from backend.features.projects.domain.project import Project
 
 

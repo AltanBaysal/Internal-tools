@@ -7,7 +7,7 @@ Built in cumulative parts — see
 [`docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md`](../docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md).
 So far: **Part 1** proved the private repo clones on Colab; **Part 2** serves the pre-built frontend
 with Flask and opens a tunnel; **Part 3** adds the projects screen — create a project, get a folder
-under `MyDrive/photoGenV2/`. No ComfyUI, no photo generation yet.
+under `MyDrive/queenEditor/`. No ComfyUI, no photo generation yet.
 
 ## Run on Colab
 
@@ -40,7 +40,7 @@ If the token leaks, it can only *read* this one repo — nothing else.
 **Runtime → Run all.** The notebook mounts Drive (**grant access in the popup** — projects are Drive
 folders, so this must succeed), clones the repo, starts Flask (which serves the pre-built
 `frontend/dist/`), and prints a cloudflared link. Open it — the projects screen appears; **+ Yeni
-proje** creates a folder under `MyDrive/photoGenV2/`. The token is read from Secrets and never
+proje** creates a folder under `MyDrive/queenEditor/`. The token is read from Secrets and never
 appears in any output or in the notebook source.
 
 Developer note: the frontend ships pre-built — after changing `frontend/src/`, run `npm run build`

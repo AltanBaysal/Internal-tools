@@ -41,10 +41,18 @@ Usage: [Colab](https://colab.research.google.com/) → **File → Upload noteboo
 
 ## queen-editor — Queen Editor (web UI)
 
-A two-screen web UI over the `nova-3dcg` ComfyUI photo pipeline, running on Colab. Structure and
-framework choices live in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the build
-order is the roadmap
+A two-screen web UI over the same ComfyUI photo pipeline as `nova-3dcg`, running on Colab. Structure
+and framework choices live in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the
+build order is the roadmap
 [docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md](docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md).
+
+**Same engine, separate tool.** Queen Editor depends on nothing under `collab-toolbox/` at runtime —
+no imported cell, no shared file, no shared Drive folder — it gets its own Drive root, named in one
+place (`app.ipynb`'s CONFIG cell). It
+inherits the graph, the injection node ids and the proven behaviour as knowledge, and writes its own
+code for them. The boundary is spelled out in
+[queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md) — read it before wiring the two
+together.
 
 **Build before commit.** The frontend ships pre-built — `frontend/dist/` is committed and Colab
 serves it as-is (it never runs npm/build). After any change under `queen-editor/frontend/src/`, run

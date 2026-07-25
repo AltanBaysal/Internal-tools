@@ -19,6 +19,28 @@ repo; Colab only clones and serves, it never runs npm/build. We deliberately do 
 Matching ComfyUI's frameworks without its reasons would be cargo-culting: it chose them for its
 needs, ours differ. Revisit only if we ever embed the UI *inside* ComfyUI as a custom node.
 
+## Independence from collab-toolbox
+Queen Editor wraps the same ComfyUI photo pipeline as `collab-toolbox/photo_generator/nova-3dcg/`,
+but it depends on nothing there at runtime — no imported cell, no shared file, no shared Drive
+folder. What we inherit is knowledge, not code:
+
+| Inherited (knowledge) | Never (dependency) |
+|---|---|
+| The ComfyUI graph — copied into `queen-editor/` as our own file (lands in Part 4, with generation) | Reading `collab-toolbox/photo_generator/nova-3dcg/workflow_api.json`, or Drive's copy of it |
+| Injection node ids (`PROMPT_NODE` `"3"`, `NEGATIVE_NODE` `"4"`, `SEED_NODE` `"40"`) | `api.ipynb`'s CONFIG cell |
+| Setup facts (7 custom-node packages, 5 models, headless ComfyUI) as our own cells in `app.ipynb` | Running or referencing the notebook's cells |
+| Proven behaviour: `/prompt` → `/history` → `/view`, infra-vs-frame error split, stop after 3 in a row | Copying those functions — we write them into our own layers |
+
+Every direct subfolder of our Drive root is a project, so the root must be ours alone: point it at
+the notebook's folder and its `output/` shows up as a phantom project card. The root is never
+hardcoded — the server reads `QE_DRIVE_ROOT`, and `app.ipynb`'s CONFIG cell is the one place that
+names the folder (`DRIVE_FOLDER`, currently `queenEditor`). Renaming it is a one-line change there,
+so do not repeat the name in comments, docstrings or here.
+
+The batch behaviour is the notebook's, the code is ours: same rules, written into
+`services/comfy/` (graph injection) and `features/generation/` (plan, queue, policy), where they can
+be tested. Rule of thumb: **graph and reasoning shared, code and folders separate.**
+
 ## Services (`backend/services/`)
 A service does one job, lives in its own folder, and knows **no feature**. Examples (land later):
 `comfy/` (photo generator: prompt+negative+seed → bytes), `drive/` (read/write/list files).
