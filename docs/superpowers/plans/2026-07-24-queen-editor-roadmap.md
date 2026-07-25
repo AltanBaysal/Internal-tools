@@ -29,7 +29,7 @@ Sunucu ayağa kalkıyor mu, tünel açılıyor mu, ve sayfa sunucuya gerçekten 
 
 İlk gerçek özellik: Drive'a yazıp okumak. Proje = Drive klasörü.
 
-- **Ne çalışır:** "Yeni proje" → ad gir → `photoGenV2/<ad>/` klasörü oluşur → kart listede belirir.
+- **Ne çalışır:** "Yeni proje" → ad gir → `queenEditor/<ad>/` klasörü oluşur → kart listede belirir.
 - **Nasıl görülür:** kart ekranda; Drive'da klasör; aynı ad / geçersiz karakter → kırmızı uyarı; sayfa yenile → projeler duruyor.
 - **Yok:** proje ekranı (kart tıklanamaz), ayar/prompt kaydı.
 

@@ -5,7 +5,7 @@
 
 ## Amaç
 
-İlk gerçek özellik: **proje oluştur ve listele**. Proje = Drive klasörü `MyDrive/photoGenV2/<ad>/`.
+İlk gerçek özellik: **proje oluştur ve listele**. Proje = Drive klasörü `MyDrive/queenEditor/<ad>/`.
 Bölüm 2 sunucunun ayakta olduğunu kanıtladı (`/api/health`); bu bölüm Drive'a yazıp okuduğunu ve
 tasarımın Projeler ekranını (artboard 01 / 01a / 02) kanıtlar.
 
@@ -44,7 +44,7 @@ Sonraki bölümler bu sınırlara yerleşir.
 | Tasarımın **sahte kaydırma çubuğu ve alt gradient kararması** ürüne alınmaz | Artboard'da "bu liste kayar" demek için konulmuş wireframe işaretleri; canlı üründe tarayıcının kendi kaydırması bu işi zaten yapıyor. |
 | `vendor/kit.jsx` tasarımdan birebir kopyalanır, **yalnız ihracat sınırında** uyarlanır: `Object.assign(window, {…})` → `export {…}` | Vendor dokunulmazlığının amacı gövdelerin korunması (tasarımdan yeniden çekilebilir kalması); ESM ihracatı olmadan dosya Vite'a hiç giremez. Kural `CODE-STANDARD.md`'ye yazılır: **gövdeler birebir, dönüşüm yalnız son satırda**. Kullanılmayan primitifler (`ImgPH`, `Status`, `Pill`, `Arrow` …) dosyada kalır — Bölüm 5 kullanacak, Vite kullanılmayan ihracatları eler. |
 | `create_app(dist_dir, blueprints=())` — feature blueprint'i **dışarıdan enjekte** edilir | `web/` altyapı katı; hiçbir feature'ı import etmemeli. Bağlama `main.py`'de (composition root). Testler kendi blueprint'ini `tmp_path` üstünde kurar — Drive'sız route testi. |
-| Drive kökü `config.DRIVE_ROOT`, `QE_DRIVE_ROOT` ortam değişkeniyle geçersiz kılınır; notebook CONFIG'inde `DRIVE_FOLDER = "photoGenV2"` | Colab'da kök `/content/drive/MyDrive/photoGenV2`; geliştiricide lokal bir klasör, testte `tmp_path`. Klasör adının CONFIG'de durması repo'nun notebook deseni (`DRIVE_VIDEO_FOLDER`, `DRIVE_MODEL_FOLDER`). |
+| Drive kökü `config.DRIVE_ROOT`, `QE_DRIVE_ROOT` ortam değişkeniyle geçersiz kılınır; notebook CONFIG'inde `DRIVE_FOLDER = "queenEditor"` | Colab'da kök `/content/drive/MyDrive/queenEditor`; geliştiricide lokal bir klasör, testte `tmp_path`. Klasör adının CONFIG'de durması repo'nun notebook deseni (`DRIVE_VIDEO_FOLDER`, `DRIVE_MODEL_FOLDER`). Kök Queen Editor'ün kendi klasörü — nova-3dcg'nin `photoGenV2`'si değil; sebep [bağımsızlık spec'inde](2026-07-25-queen-editor-bagimsizlik-design.md) (yabancı alt klasör hayalet proje kartı üretir). Ad tek düğme: CONFIG'deki `DRIVE_FOLDER`; kod, yorum ve docstring adı tekrar etmez, yalnız "Drive kökü" der. |
 | Kök klasörü **notebook** oluşturur (`makedirs(exist_ok=True)`) ve fail-loud doğrular; backend oluşturmaz | Backend'in eksik kökü sessizce yaratması, mount edilmemiş Drive'da `/content/drive/...` altına **yerel diske** klasör açar — fotolar Colab kapanınca buharlaşır. Kök yoksa bu bir kurulum hatasıdır, hücrede patlar. |
 | Yeni proje 201'de modal kapanır ve **liste yeniden çekilir** (iyimser ekleme yok) | Tek gerçek kaynak Drive; tarih de sunucudan gelir. Kartın ekranda görünmesi "Drive'da gerçekten var" demektir — bölümün kanıtı bu. |
 | Modal **Escape**, **scrim tıklaması** ve **Vazgeç** ile kapanır | Standart davranış; tasarımda gösterilmemiş ama yokluğu hata gibi görünür. |
@@ -67,7 +67,7 @@ queen-editor/backend/
 │   │   └── usecases/
 │   │       ├── list_projects.py     store.list() → modified_at azalan
 │   │       └── create_project.py    doğrula → store.create() → çakışma kararı
-│   ├── data/project_store.py        drive üstünde; photoGenV2/<ad>/ düzenini bilen TEK yer
+│   ├── data/project_store.py        drive üstünde; queenEditor/<ad>/ düzenini bilen TEK yer
 │   └── presentation/routes.py       make_projects_blueprint(list_projects, create_project)
 ├── web/app.py                       create_app(dist_dir, blueprints=())
 └── main.py                          storage → store → use case → blueprint → create_app
@@ -87,12 +87,12 @@ class DriveStorage:
 
 `modifiedAt` uca çıkarken tam saniyeye indirilir (`int(mtime)`) — presentation'ın işi.
 
-`photoGenV2` adını, proje kavramını, `prompts.json`'u bilmez. `data/project_store.py` bu servisi
+`queenEditor` adını, proje kavramını, `prompts.json`'u bilmez. `data/project_store.py` bu servisi
 `Project` nesnelerine çevirir — düzeni bilen tek yer.
 
 **Hata yolu.** Kök yoksa veya okunamazsa `list_projects` istisnayı yukarı geçirir; route bunu
 `500 {"error": "<istisnanın kendi metni>"}` yapar. Metin uydurulmaz, `str(exc)` gönderilir
-(örn. `[Errno 2] No such file or directory: '/content/drive/MyDrive/photoGenV2'`) — UI onu
+(örn. `[Errno 2] No such file or directory: '/content/drive/MyDrive/queenEditor'`) — UI onu
 olduğu gibi mono kutuda gösterir.
 
 ### Uç sözleşmesi
@@ -158,7 +158,7 @@ yazar; başarıda listeyi yeniden çeker, hatada mesajı modala geri verir (moda
 
 `app.ipynb` iki yerden değişir:
 
-1. **CONFIG hücresi:** `DRIVE_FOLDER = "photoGenV2"` eklenir.
+1. **CONFIG hücresi:** `DRIVE_FOLDER = "queenEditor"` eklenir.
 2. **Yeni mount hücresi** (CONFIG'den sonra, klon hücresinden önce): `drive.mount('/content/drive')`
    → `MyDrive/<DRIVE_FOLDER>` yoksa oluştur → `DRIVE_ROOT` yazdır. Mount başarısızsa hücre patlar
    (mount edilmemiş Drive'a yazmak sessizce yerel diske yazmaktır).
@@ -185,11 +185,11 @@ Frontend'in testi yok (v1 kararı) — doğrulama Colab'da gözle.
 
 ## Doğrulama (kullanıcı, Colab)
 
-1. `app.ipynb` → Run all: Drive mount yetkisi verilir, `photoGenV2` kökü hazır, klon + Flask +
+1. `app.ipynb` → Run all: Drive mount yetkisi verilir, `queenEditor` kökü hazır, klon + Flask +
    tünel linki basılır.
 2. Linke gir → **Projeler** ekranı, `henüz proje yok` metni.
 3. **+ Yeni proje** → `kapak çekimi` → **Oluştur** → modal kapanır, kart ızgarada belirir (ad sol
-   üstte, tarih sağ altta). Drive'da `MyDrive/photoGenV2/kapak çekimi/` klasörü görünür.
+   üstte, tarih sağ altta). Drive'da `MyDrive/queenEditor/kapak çekimi/` klasörü görünür.
 4. Aynı adı tekrar dene → modal açık kalır, kutu kırmızı, altında `Bu ad zaten kullanılıyor.
    Başka bir ad dene.`
 5. `foto/deneme` gibi geçersiz ad → yasak karakter mesajı aynı yerde.

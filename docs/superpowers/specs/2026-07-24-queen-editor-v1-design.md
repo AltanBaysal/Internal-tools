@@ -1,6 +1,7 @@
 # Queen Editor — Basit v1 (tasarım)
 
 **Tarih:** 2026-07-24 · **Durum:** onaylandı, implementasyon planı bekliyor
+**Revizyon:** Drive kökü `photoGenV2` değil, Queen Editor'ün kendi klasörü — bkz. [collab-toolbox'tan bağımsızlık](2026-07-25-queen-editor-bagimsizlik-design.md) (2026-07-25).
 
 ## Amaç
 
@@ -32,7 +33,7 @@ Proje zamanla büyüyecek (katmanlı prompt, motor seçimi, video köprüsü ada
 | Backend **Flask** | Colab'da kurulu, ek indirme yok. Flask yalnız `presentation/` ve composition root'ta görünür; domain/data onu bilmez — ileride değiştirmek presentation'ı değiştirmektir. |
 | Tasarımın `styles.css`'i ve kit primitifleri **`vendor/` altında birebir**, elle düzenlenmez | Bitmiş tasarım; ileride claude.ai/design'dan yeniden çekilebilir kalmalı. Uygulamanın kendi stilleri ayrı dosyada — drift olmaz. Sınıf adları (`wf-*`) wireframe döneminden kalma ama görünüm ürün UI'ı; yeniden adlandırma sadece drift üretir. |
 | Erişim **cloudflared tüneli** → yeni sekme | Repoda kanıtlı desen; 1440px'lik layout tam ekran sığar, fotoğrafı yeni sekmede açmak çalışır. |
-| Proje = Drive klasörü `photoGenV2/<ad>/`; ad Türkçe ve boşluk serbest | Tasarımın brief'i + kullanıcı kararı. Sadece dosya sisteminde geçersiz karakterler (`/ \ : * ? " < > |`), baş/son boşluk ve nokta engellenir; 1–64 karakter. Tasarımdaki örnek adlar (`kapak çekimi`, `lookbook-mayıs`) aynen çalışır. |
+| Proje = Drive klasörü `queenEditor/<ad>/`; ad Türkçe ve boşluk serbest | Tasarımın brief'i + kullanıcı kararı. Kök Queen Editor'ün kendisi: `photoGenV2` nova-3dcg notebook'unun klasörü ve içinde `output/` var — her alt klasör proje sayıldığı için orada hayalet kart çıkardı ([bağımsızlık spec'i](2026-07-25-queen-editor-bagimsizlik-design.md)). Klasör adı tek düğme: `app.ipynb` CONFIG'indeki `DRIVE_FOLDER`. Sadece dosya sisteminde geçersiz karakterler (`/ \ : * ? " < > |`), baş/son boşluk ve nokta engellenir; 1–64 karakter. Tasarımdaki örnek adlar (`kapak çekimi`, `lookbook-mayıs`) aynen çalışır. |
 | Ayarlar **Drive'da** (brief'teki yalnız-localStorage kararından sapma) | Kullanıcı kararı. Brief "Drive'a yazılan tek şey fotolar" diyordu; bunun iki bedeli vardı — proje başka cihazdan açılınca prompt'lar boş gelir, ve `12_a.png`'nin hangi prompt'tan üretildiği hiçbir yerde yazmaz. İki küçük JSON ikisini de çözer, ayrıca oturum ölümünden devam etmenin ön şartı. |
 | Numaralandırma: klasördeki **en büyük numara + 1**'den başla, prompt *i* → `base+i` | Tasarımın brief'i. Üstüne yazma imkânsız; ikinci kez **Üret** = aynı prompt'lardan bir tur daha. `api.ipynb`'nin "zaten var, atla" resume'u burada **yok** — kullanıcı onayladı. |
 | Seed varyant başına rastgele, loglanır | `api.ipynb` ile aynı. Varyant = aynı prompt, farklı seed. |
@@ -139,7 +140,7 @@ Frontend aynı feature-first düzeni izler: hook = data erişimi, bileşen = pre
 ### Drive düzeni
 
 ```
-MyDrive/photoGenV2/
+MyDrive/queenEditor/
 └── <proje adı>/
     ├── prompts.json     ayarlar: prompt listesi · negatif · varyant  (sahibi: projects)
     ├── runs.json        üretim geçmişi + aktif plan                 (sahibi: generation)
@@ -187,7 +188,7 @@ Durum güncelleme yöntemi (polling aralığı vs. akış) implementasyonda kara
 
 1. T4 runtime'da `app.ipynb` → Run all: custom node'lar kurulur, 5 model iner, ComfyUI kalkar, repo klonlanır (derlenmiş dist dahil), backend başlar, tünel URL'i basılır.
 2. URL yeni sekmede açılır → Projeler ekranı, henüz proje yok mesajı.
-3. **Yeni proje** → `kapak çekimi` → Drive'da `photoGenV2/kapak çekimi/` oluşur. Aynı adı tekrar denemek kırmızı uyarı verir.
+3. **Yeni proje** → `kapak çekimi` → Drive'da `queenEditor/kapak çekimi/` oluşur. Aynı adı tekrar denemek kırmızı uyarı verir.
 4. Projeye gir → prompt listesini yapıştır (Python list), negatif yaz, varyant 4 → **Üret**. Sayaç `12 prompt × 4 varyant = 48 foto` gösterir.
 5. Üretim ilerler; fotolar galeride belirir, Drive'da `0_a.png` … dizisi oluşur. Fotoğrafa tıklamak yeni sekmede açar.
 6. Sekme kapatılıp URL yeniden açılır → üretim sürüyor, ilerleme doğru yerden görünür.

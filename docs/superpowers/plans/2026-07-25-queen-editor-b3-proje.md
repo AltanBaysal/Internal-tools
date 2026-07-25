@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Projeler ekranı çalışsın: Drive'da `MyDrive/photoGenV2/<ad>/` klasörü oluşturulsun, kartlar listelensin (en son değişen üstte), geçersiz/çakışan adda sunucunun Türkçe mesajı modalda görünsün.
+**Goal:** Projeler ekranı çalışsın: Drive'da `MyDrive/queenEditor/<ad>/` klasörü oluşturulsun, kartlar listelensin (en son değişen üstte), geçersiz/çakışan adda sunucunun Türkçe mesajı modalda görünsün.
 
 **Architecture:** İlk gerçek feature iskeleti. `services/drive/storage.py` yalnız dosya sistemi konuşur; `features/projects` üç katman (`domain` saf kural + port + use case, `data` port gerçeklemesi, `presentation` Flask route). Bağlama yalnız `main.py`'de (`functools.partial` ile use case'ler store'a bağlanır, blueprint `create_app`'e enjekte edilir) — `web/` hiçbir feature'ı import etmez. Frontend aynı düzende: `vendor/kit.jsx` tasarımdan kopya, `features/projects` bileşenleri + `useProjects` hook'u, `shared/` fetch sarmalayıcı ve tarih biçimleyici.
 
@@ -125,7 +125,7 @@ class DriveStorage:
 ```python
 # Every project is a folder under this root. Colab mounts Drive and passes the real path in
 # QE_DRIVE_ROOT (app.ipynb); the default is only a sane guess for a Colab runtime.
-DRIVE_ROOT = os.environ.get("QE_DRIVE_ROOT", "/content/drive/MyDrive/photoGenV2")
+DRIVE_ROOT = os.environ.get("QE_DRIVE_ROOT", "/content/drive/MyDrive/queenEditor")
 ```
 
 - [ ] **Step 6: Testi çalıştır, geçsin**
@@ -448,7 +448,7 @@ Expected: FAIL — `ModuleNotFoundError: ...data.project_store`.
 
 ```python
 """ProjectStore over DriveStorage -- the only place that knows a project IS a folder under the
-Drive root (photoGenV2/<name>/). The domain never learns where a project lives."""
+Drive root (queenEditor/<name>/). The domain never learns where a project lives."""
 from backend.features.projects.domain.project import Project
 
 
@@ -1099,7 +1099,7 @@ Expected: PASS (42 test) — frontend değişikliği backend'i etkilemez, bu bir
 
 **Interfaces:**
 - Consumes: `config.DRIVE_ROOT`'un `QE_DRIVE_ROOT` ile geçersiz kılınması (Task 1) · `python -m backend.main` (Task 5)
-- Produces: Colab'da mount edilmiş Drive + `MyDrive/photoGenV2` kökü + doğru kökle çalışan Flask.
+- Produces: Colab'da mount edilmiş Drive + `MyDrive/queenEditor` kökü + doğru kökle çalışan Flask.
 
 - [ ] **Step 1: Başlık markdown hücresini güncelle** (`cell-0`)
 
@@ -1108,7 +1108,7 @@ Expected: PASS (42 test) — frontend değişikliği backend'i etkilemez, bu bir
 
 Drive'ı bağlar → repoyu klonlar → **Flask** derlenmiş arayüzü ve `/api/projects` ucunu servis eder
 → **cloudflared** linki basar. Açılan sayfada **Projeler** ekranı: **+ Yeni proje** ile
-`MyDrive/photoGenV2/<ad>/` klasörü oluşur, kartlar en son değişen en üstte listelenir.
+`MyDrive/queenEditor/<ad>/` klasörü oluşur, kartlar en son değişen en üstte listelenir.
 ComfyUI ve foto üretimi bu bölümde yok.
 
 Arayüz repoya **derlenmiş** gelir (ComfyUI deseni); Colab'da npm/build çalışmaz.
@@ -1125,7 +1125,7 @@ Arayüz repoya **derlenmiş** gelir (ComfyUI deseni); Colab'da npm/build çalı�
 `APP_PORT  = 8000` satırının altına:
 
 ```python
-DRIVE_FOLDER = "photoGenV2"               # MyDrive altındaki proje kökü (Drive klasörü)
+DRIVE_FOLDER = "queenEditor"               # MyDrive altındaki proje kökü (Drive klasörü)
 ```
 
 - [ ] **Step 3: CONFIG'in son çıktı satırını genişlet** (`cell-1`)
@@ -1180,7 +1180,7 @@ print("⬆️  Linke gir → Projeler ekranı açılır, '+ Yeni proje' ile proj
 ```markdown
 So far: **Part 1** proved the private repo clones on Colab; **Part 2** serves the pre-built frontend
 with Flask and opens a tunnel; **Part 3** adds the projects screen — create a project, get a folder
-under `MyDrive/photoGenV2/`. No ComfyUI, no photo generation yet.
+under `MyDrive/queenEditor/`. No ComfyUI, no photo generation yet.
 ```
 
 `## Run on Colab` altındaki ilk paragrafı (satır 13-15) şununla değiştir:
@@ -1196,7 +1196,7 @@ the Flask server, and prints a cloudflared link. Colab never builds — it only 
 **Runtime → Run all.** The notebook mounts Drive (**grant access in the popup** — projects are Drive
 folders, so this must succeed), clones the repo, starts Flask (which serves the pre-built
 `frontend/dist/`), and prints a cloudflared link. Open it — the projects screen appears; **+ Yeni
-proje** creates a folder under `MyDrive/photoGenV2/`. The token is read from Secrets and never
+proje** creates a folder under `MyDrive/queenEditor/`. The token is read from Secrets and never
 appears in any output or in the notebook source.
 ```
 
@@ -1227,10 +1227,10 @@ Expected: hata yok, `dist/` güncel (kaynak değiştiyse yeniden derlenmiş olma
 
 Kullanıcı `app.ipynb`'yi Colab'a yükler, **Run all**. Beklenen (spec'in doğrulama listesi):
 
-1. Drive izni verilir → `✓ Drive bağlı — proje kökü: /content/drive/MyDrive/photoGenV2`.
+1. Drive izni verilir → `✓ Drive bağlı — proje kökü: /content/drive/MyDrive/queenEditor`.
 2. Klon + Flask + cloudflared linki basılır.
 3. Linke gir → **Projeler** ekranı, `henüz proje yok`.
-4. **+ Yeni proje** → `kapak çekimi` → **Oluştur** → modal kapanır, kart belirir (sol üst ad, sağ alt tarih); Drive'da `MyDrive/photoGenV2/kapak çekimi/` görünür.
+4. **+ Yeni proje** → `kapak çekimi` → **Oluştur** → modal kapanır, kart belirir (sol üst ad, sağ alt tarih); Drive'da `MyDrive/queenEditor/kapak çekimi/` görünür.
 5. Aynı adı tekrar dene → kutu kırmızı, altında `Bu ad zaten kullanılıyor. Başka bir ad dene.`
 6. `foto/deneme` → yasak karakter mesajı aynı yerde.
 7. İkinci proje → yeni kart **en üstte**.
