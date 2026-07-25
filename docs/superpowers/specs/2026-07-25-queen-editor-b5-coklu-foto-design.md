@@ -38,8 +38,8 @@ yazıyordu; bu commit'le düzeltildi — şemsiye spec kararların tek kaynağı
 
 | Durum | Görünen | Artboard |
 |---|---|---|
-| boşta | Solda galeri (5 sütun, en yeni numara üstte; boşsa "henüz foto yok" notu). Sağda form: prompt listesi kutusu · negatif kutusu · varyant `Segment` (1/2/3/4) · **Üret** (liste boşken pasif) | 03 |
-| üretiliyor | Sağ panel durum bloğuna döner: `7/48` + ilerleme çubuğu + şu anki `numara_harf` + prompt'un ilk satırı (kısaltılmış) + başarısız sayısı (varsa) + **Durdur**. Galeri her yoklamada tazelenir | 04 |
+| boşta | Başlık: sol **Queen Editor** · orta proje adı · sağ **Projeden çık** (kırmızı, ghost). Solda galeri (5 sütun, en yeni numara üstte; boşsa ortalanmış "henüz fotoğraf yok" + yönlendirme). Sağda 320px panel: prompt listesi · **Negatif prompt** (tek satır) · **Varyant** (etiketle aynı satırda, 56px ortalı sayı kutusu) · **Üret** + altında `N prompt × M varyant = K foto` | 03 |
+| üretiliyor | Form **ekranda kalır**; panelin yalnız alt bloğu `wf-stroke` kutuya döner: `7 / 48` + **Durdur** yan yana, 5px ilerleme çubuğu, `şimdi: "…"`, başarısız sayısı. Galeri her yoklamada tazelenir; üretilen kare spinner'lı tile olarak en başta durur | 04 |
 | bitti / durduruldu | Özet satırı (`bitti — 48/48` · `durduruldu — 17/48`) + form geri gelir | 03 |
 | hata (batch durdu) | Özet + ham hata metni mono kutuda (B4'ün deseni) + form geri gelir | (06'nın hata satırı; kart B7'de) |
 | başka projede üretim | "Üretim sürüyor: <proje>" notu, Üret pasif | — |
@@ -112,11 +112,14 @@ notları B4 deseni) · `ProgressPanel.jsx` (sayaç, çubuk, şu anki prompt, Dur
 `useGeneration.js` (2 sn yoklama; koşarken foto listesini de tazeler) · `shared/api.js`'e
 `generateBatch` / `stopGeneration` / `listPhotos`.
 
-Varyant seçici **kendi bileşenimiz** (`VariantPicker.jsx`), kit'in `Segment`'i değil: o bir
-wireframe — butonlarında `onClick` yok, tıklanamaz. Tasarımın görünümünü CSS sınıfını
-(`wf-segment` + `is-on`) kullanarak alırız, davranışı kendimiz yazarız. Vendor değişmez (B3'ün
-`wf-input`'u doğrudan kullanması gibi). Kit'ten `Status` devreye girer; ilerleme çubuğu ve galeri
-ızgarası için kit'te sınıf yok — yerleşim stilleri B3/B4 gibi inline.
+Ölçüler ve metinler tasarımın `simple-screens.jsx`'inden birebir alınır (panel 320, galeri 5×gap 12,
+varyant kutusu 56px ortalı, prompt textarea `rows 11`/11.5px, negatif tek satır `input`). Kit'in
+`Segment`'i kullanılmaz — wireframe olduğu için butonlarında `onClick` yok ve tasarım zaten sayı
+kutusu gösteriyor. Girilen varyant metin olarak tutulur (alan yazarken boşaltılabilsin diye) ve tam
+sayı değilse sunucuya `null` gider: aralık kuralı tek yerde, domain'de. Üret'in altındaki sayaç
+yalnız bir **önizleme**: metni güvenle sayamazsak satır görünmez, çünkü parse ve hata mesajları
+backend'in. Tek sapma galerinin `overflowY: auto` olması — artboard sabit yükseklikli çerçeve,
+canlı sayfa kaymak zorunda. Vendor değişmez.
 
 ## Testler
 

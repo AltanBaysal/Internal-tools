@@ -1,32 +1,59 @@
 import { photoUrl } from "../../shared/api.js";
-import { Mono, Note } from "../../vendor/kit.jsx";
+import { ImgPH, Mono, Note } from "../../vendor/kit.jsx";
 
-const GRID = {
-  display: "grid",
-  gridTemplateColumns: "repeat(5, 1fr)",
-  gap: 10,
+const PAD = { padding: 16 };
+const GRID = { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 };
+const EMPTY = {
+  minHeight: "60vh",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
 };
 
-// Five columns, newest number first (the server sorts). New tab on click.
-export default function Gallery({ project, photos }) {
-  if (!photos.length) {
+function Tile({ name, muted, children }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      {children}
+      <Mono size={10} style={{ color: muted ? "var(--ink-4)" : "var(--ink-3)" }}>{name}</Mono>
+    </div>
+  );
+}
+
+// Artboard 03/04: five columns, newest number first (the server sorts). The frame being rendered
+// sits at the front as a spinner tile, so the grid shows what is happening, not just what landed.
+export default function Gallery({ project, photos, current }) {
+  if (!photos.length && !current) {
     return (
-      <Note size={13} style={{ color: "var(--ink-3)" }}>
-        Henüz foto yok — sağdaki listeyi doldur, Üret'e bas.
-      </Note>
+      <div style={{ ...PAD, ...EMPTY }}>
+        <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz fotoğraf yok</Mono>
+        <Note size={13} style={{ color: "var(--ink-3)" }}>
+          Prompt'ları yaz, Üret'e bas — fotoğraflar burada belirecek
+        </Note>
+      </div>
     );
   }
+
   return (
-    <div style={GRID}>
-      {photos.map((file) => (
-        <a key={file} href={photoUrl(project, file)} target="_blank" rel="noreferrer"
-           style={{ display: "flex", flexDirection: "column", gap: 4, textDecoration: "none" }}>
-          <img src={photoUrl(project, file)} alt={file}
-               style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
-                        border: "1px solid var(--border)", borderRadius: 3 }} />
-          <Mono size={10} style={{ color: "var(--ink-3)" }}>{file}</Mono>
-        </a>
-      ))}
+    <div style={PAD}>
+      <div style={GRID}>
+        {current && (
+          <Tile name={`${current.number}_${current.letter}.png`} muted>
+            <ImgPH loading style={{ aspectRatio: "1/1" }} />
+          </Tile>
+        )}
+        {photos.map((file) => (
+          <Tile key={file} name={file}>
+            {/* New tab on click -- the gesture the design gives every tile. */}
+            <a href={photoUrl(project, file)} target="_blank" rel="noreferrer">
+              <img src={photoUrl(project, file)} alt={file}
+                   style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
+                            border: "1px solid var(--border)", borderRadius: 3, display: "block" }} />
+            </a>
+          </Tile>
+        ))}
+      </div>
     </div>
   );
 }

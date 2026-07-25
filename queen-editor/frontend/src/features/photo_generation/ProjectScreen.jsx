@@ -2,7 +2,6 @@ import { navigate } from "../../shared/router.js";
 import { Btn, Hand } from "../../vendor/kit.jsx";
 import Gallery from "./Gallery.jsx";
 import GeneratePanel from "./GeneratePanel.jsx";
-import ProgressPanel from "./ProgressPanel.jsx";
 import { useGeneration } from "./useGeneration.js";
 
 const HEADER = {
@@ -14,31 +13,31 @@ const HEADER = {
   borderBottom: "1px solid var(--border)",
 };
 
-// Artboard 03/04: gallery on the LEFT (the content), panel on the RIGHT (the controls).
+// Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
+// The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project }) {
   const { job, photos, error, generate, stop } = useGeneration(project);
-  const running = job.status === "running";
   // The worker is global: a batch started from another project blocks this one (the server 409s).
-  const busyElsewhere = running && job.project !== project;
+  const busyElsewhere = job.status === "running" && job.project !== project;
+  const running = job.status === "running" && !busyElsewhere;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={HEADER}>
-        <Btn ghost onClick={() => navigate("/")}>← Projeler</Btn>
+        <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
         <Hand size={20}>{project}</Hand>
-        <span />
+        <Btn ghost style={{ color: "var(--danger)", justifySelf: "end" }}
+             onClick={() => navigate("/")}>Projeden çık</Btn>
       </div>
 
-      <div style={{ flex: 1, display: "flex", gap: 32, padding: "24px 32px", alignItems: "flex-start" }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <Gallery project={project} photos={photos} />
+      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
+            has to scroll, otherwise most of a 48-photo run is unreachable. */}
+        <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+          <Gallery project={project} photos={photos} current={running ? job.current : null} />
         </div>
-        <div style={{ width: 380, flexShrink: 0 }}>
-          {running && !busyElsewhere
-            ? <ProgressPanel job={job} onStop={stop} />
-            : <GeneratePanel job={job} error={error} busyElsewhere={busyElsewhere}
-                             onGenerate={generate} />}
-        </div>
+        <GeneratePanel job={job} error={error} busyElsewhere={busyElsewhere}
+                       onGenerate={generate} onStop={stop} />
       </div>
     </div>
   );

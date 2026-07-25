@@ -1,40 +1,38 @@
 import { Btn, Mono, Note } from "../../vendor/kit.jsx";
 
-const BAR = {
-  height: 6,
-  background: "var(--bg)",
-  border: "1px solid var(--border)",
-  borderRadius: 3,
-  overflow: "hidden",
-};
+const BOX = { padding: 12, display: "flex", flexDirection: "column", gap: 8 };
+const TRACK = { height: 5, background: "var(--bg-3)", borderRadius: 3, overflow: "hidden" };
 
-// Artboard 04: counter, progress bar, the frame being rendered, Stop.
+// Artboard 04: the panel's bottom block while a batch runs. The form above it stays on screen,
+// so this shows progress only -- it never repeats what the fields already say.
 export default function ProgressPanel({ job, onStop }) {
   const { done = 0, failed = 0, total = 0, current } = job;
-  // total is 0 for the first poll after 202 (the server has not planned the frames yet).
-  const percent = total ? Math.round(((done + failed) / total) * 100) : 0;
+  const finished = done + failed;
+  // total is 0 on the first poll after the 202: the server has not planned the frames yet.
+  const percent = total ? Math.round((finished / total) * 100) : 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      <Mono size={12} style={{ color: "var(--accent)" }}>
-        üretiliyor — {done + failed}/{total || "…"}
-      </Mono>
-      <div style={BAR}>
+    <div className="wf-stroke" style={BOX}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <Mono size={13} style={{ color: "var(--accent)" }}>{finished} / {total || "…"}</Mono>
+        <Btn sm onClick={onStop}>Durdur</Btn>
+      </div>
+
+      <div style={TRACK}>
         <div style={{ width: `${percent}%`, height: "100%", background: "var(--accent)" }} />
       </div>
+
       {current && (
-        <Mono size={11} style={{ color: "var(--ink-3)", whiteSpace: "nowrap",
+        <Note size={12} style={{ color: "var(--ink-2)", whiteSpace: "nowrap",
                                  overflow: "hidden", textOverflow: "ellipsis" }}>
-          {current.number}_{current.letter} · {current.prompt}
-        </Mono>
+          şimdi: "{current.prompt}"
+        </Note>
       )}
       {failed > 0 && (
-        <Note size={12} style={{ color: "var(--danger)" }}>{failed} kare başarısız — atlandı</Note>
+        <Note size={12} style={{ color: "var(--danger)" }}>
+          {failed} fotoğraf üretilemedi — diğerleri devam ediyor
+        </Note>
       )}
-      <Btn onClick={onStop} style={{ justifyContent: "center", padding: "8px 12px" }}>Durdur</Btn>
-      <Note size={11} style={{ color: "var(--ink-3)" }}>
-        Durdurunca süren kare tamamlanır, sıradaki başlamaz.
-      </Note>
     </div>
   );
 }
