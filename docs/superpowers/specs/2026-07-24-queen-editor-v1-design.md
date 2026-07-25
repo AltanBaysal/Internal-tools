@@ -24,7 +24,7 @@ Proje zamanla büyüyecek (katmanlı prompt, motor seçimi, video köprüsü ada
 | **Use case = dosya başına bir** (`domain/usecases/` altında) | Kullanıcı kararı. 15-40 satırlık tek işli dosyalar; test ve büyüme kolay, bedeli dosya sayısı. |
 | Drive'da proje başına **iki JSON**: `prompts.json` (ayarlar — sahibi projects) ve `runs.json` (üretim geçmişi + aktif plan — sahibi generation) | Feature izolasyonunun zorunlu sonucu: tek dosyayı iki feature yazsaydı şema iki feature'a sızardı. Her dosyanın tek sahibi var; foto↔prompt izi `runs.json`'da. Ekran açılışında birleştirmeyi frontend yapar (iki uç çağrılır) — sunucuda feature sınırı delinmez. |
 | Standartlar **`queen-editor/CODE-STANDARD.md`**'de yazılı, `CLAUDE.md`'den link | Kullanıcı kararı ("standartlar bir yerde yazmalı, her yerde aynı davranılsın"). `NOTEBOOK-STANDARD.md` deseninin koda uyarlanmışı. İkinci web uygulaması gelirse repo köküne terfi eder. |
-| Frontend **Vite + React**, build **Colab'da** (`npm ci && npm run build`); `dist/` repoya girmez | Kullanıcı kararı — önceki "build'süz UMD+Babel" kararını bilinçli tersine çevirir: build'süz modülerlik ya çalışma anında dosya-başı Babel derlemesi (yavaş, kırılgan) ya elle sıralanan script listesi (bakımı patlar) demekti. Tasarımın JSX'i Vite'a değişmeden girer. Build Colab'da olunca "push'tan önce build almayı unuttum, eski UI yayında" hata sınıfı hiç doğmaz; bedeli kuruluma ~40 sn npm adımı (10-15 dk'lık model indirmesinin yanında ihmal edilebilir). |
+| Frontend **Vite + React**; geliştirici derler, `frontend/dist/` **commit'lenir**, Colab yalnız klonlar+servis eder (build Colab'da çalışmaz) | Kullanıcı kararı — önceki "build'süz UMD+Babel" kararını bilinçli tersine çevirir (build'süz modülerlik ya yavaş dosya-başı Babel ya bakımı patlayan script listesi demekti; tasarımın JSX'i Vite'a değişmeden girer). CI olmadığından build kontrollü ortamda (geliştirici) bir kez alınır, Colab runtime'da kırılacak bir şey kalmaz. Gerekçenin tamamı + reddedilen "Colab derler" alternatifi: [frontend build/dağıtım karar spec'i](2026-07-25-queen-editor-frontend-build-delivery-design.md). |
 | Prompt kutusu **tek**, içerik **tam Python list** — başka format kabul edilmez | Kullanıcı kararı ("tam python listesi başkasını kabul etmesin şuanlık"). Notebook'tan kopyala-yapıştır doğrudan çalışır. Bozuk girdide kutunun altında hata + **Üret** pasif. Çözümleyici `generation/domain/prompt_list.py` — saf fonksiyon, tek başına test edilir. |
 | **Tek negatif prompt**, tüm prompt'lara uygulanır | Tasarımdaki tek satırlık kutu. `api.ipynb`'nin paralel `NEGATIVES` listesi v1'de yok — iki listeyi senkron tutma hatası doğmasın. |
 | Kod Colab'a **`git clone` ile** gelir; repo private olduğu için CONFIG'de GitHub token alanı | Kullanıcı kararı: "kod notebookta olmasın, direkt repodan çekilsin". UI değişikliği = push + notebook'u yeniden çalıştır; notebook hiç değişmez. Token notebook'a yazılmaz; Colab Secrets'ta saklanıp `userdata.get` ile okunur (Bölüm 1 kararı). |
@@ -65,7 +65,7 @@ Somut sınıflar tek yerde bağlanır: `main.py` (composition root) servisleri k
 ```
 queen-editor/
 ├── app.ipynb                 Colab: custom node'lar + modeller + ComfyUI headless
-│                             + repo klonu + npm ci && npm run build + backend + tünel
+│                             + repo klonu (derlenmiş dist dahil) + backend + tünel
 ├── workflow_api.json         ComfyUI Export (API) grafiği (nova-3dcg'den kopya)
 ├── CODE-STANDARD.md          yapı kuralı · servis/feature sınırları · adlandırma
 │                             · yeni kod nereye gider · vendor/ dokunulmazlığı
@@ -185,7 +185,7 @@ Durum güncelleme yöntemi (polling aralığı vs. akış) implementasyonda kara
 
 ## Doğrulama (kullanıcı, Colab)
 
-1. T4 runtime'da `app.ipynb` → Run all: custom node'lar kurulur, 5 model iner, ComfyUI kalkar, repo klonlanır, `npm ci && npm run build` geçer, backend başlar, tünel URL'i basılır.
+1. T4 runtime'da `app.ipynb` → Run all: custom node'lar kurulur, 5 model iner, ComfyUI kalkar, repo klonlanır (derlenmiş dist dahil), backend başlar, tünel URL'i basılır.
 2. URL yeni sekmede açılır → Projeler ekranı, henüz proje yok mesajı.
 3. **Yeni proje** → `kapak çekimi` → Drive'da `photoGenV2/kapak çekimi/` oluşur. Aynı adı tekrar denemek kırmızı uyarı verir.
 4. Projeye gir → prompt listesini yapıştır (Python list), negatif yaz, varyant 4 → **Üret**. Sayaç `12 prompt × 4 varyant = 48 foto` gösterir.
@@ -205,4 +205,4 @@ Durum güncelleme yöntemi (polling aralığı vs. akış) implementasyonda kara
 
 ## Kapsam dışı (v1)
 
-Proje silme ve yeniden adlandırma · foto sayısı / kapak görseli · referans görsel · bağlantı durumu çubuğu · prompt başına ayrı negatif · katmanlı prompt (kalite/karakter/aksiyon/arka plan) · motor seçimi · kimlik doğrulama · çoklu kullanıcı · TypeScript'e geçiş · `CLAUDE.md` araç tablosu satırı (notebook Colab'da kanıtlanınca eklenir).
+Proje silme ve yeniden adlandırma · foto sayısı / kapak görseli · referans görsel · bağlantı durumu çubuğu · prompt başına ayrı negatif · katmanlı prompt (kalite/karakter/aksiyon/arka plan) · motor seçimi · kimlik doğrulama · çoklu kullanıcı · TypeScript'e geçiş.

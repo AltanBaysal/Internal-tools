@@ -19,9 +19,9 @@ En riskli bilinmeyen tek başına: private repo + token ile klon Colab'da çalı
 
 ## Bölüm 2 — Bağlantı (backend ↔ frontend)
 
-Arayüz derleniyor mu, tünel açılıyor mu, ve sayfa sunucuya gerçekten **konuşuyor mu**.
+Sunucu ayağa kalkıyor mu, tünel açılıyor mu, ve sayfa sunucuya gerçekten **konuşuyor mu**.
 
-- **Ne çalışır:** notebook repoyu çeker → arayüzü derler → sunucu servis eder → tünel linki basar. Sayfa açılınca sunucuya bir istek atıp cevabı gösterir.
+- **Ne çalışır:** notebook repoyu çeker (derlenmiş arayüz dahil) → sunucu servis eder → tünel linki basar. Sayfa açılınca sunucuya bir istek atıp cevabı gösterir.
 - **Nasıl görülür:** linke gir → koyu temalı sayfa, üstünde sunucudan gelen işaret ("sunucuya bağlı ✓"). Scroll/tıklama akıcı, donma yok.
 - **Yok:** Drive, proje, gerçek özellik. Tek "Queen Editor" başlığı + bağlantı kanıtı.
 
@@ -73,7 +73,7 @@ Mutlu yolu üretime hazırlar. Yeni ekran yok; altına dayanıklılık girer.
 | Bölüm | Görülür çıktı | Yeni risk kanıtı |
 |---|---|---|
 | 1 · Repo çekimi | Colab'da repo dosyaları | private klon + token |
-| 2 · Bağlantı | Sayfa açılır, "sunucuya bağlı ✓" | derleme · tünel · front↔back · akıcılık |
+| 2 · Bağlantı | Sayfa açılır, "sunucuya bağlı ✓" | servis · tünel · front↔back · akıcılık |
 | 3 · Proje | Proje oluştur, Drive'da klasör | Drive yaz/oku |
 | 4 · Tek foto | Bir foto üretilir, görünür | ComfyUI + enjeksiyon |
 | 5 · Çoklu foto | 48 foto, tam ekran + galeri | toplu üretim + numaralandırma |
