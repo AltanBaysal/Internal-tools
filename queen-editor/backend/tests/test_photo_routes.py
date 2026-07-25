@@ -2,7 +2,9 @@ from functools import partial
 
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.domain.usecases.get_status import get_status
-from backend.features.photo_generation.domain.usecases.start_generation import start_generation
+from backend.features.photo_generation.domain.usecases.list_photos import list_photos
+from backend.features.photo_generation.domain.usecases.start_batch import start_batch
+from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.services.drive.storage import DriveStorage
@@ -10,7 +12,7 @@ from backend.web.app import create_app
 
 
 class FakeGenerator:
-    def generate(self, prompt, seed):
+    def generate(self, prompt, negative, seed):
         return b"PNGDATA"
 
 
@@ -24,27 +26,34 @@ def make_client(tmp_path, generator=None, runner=None):
     store = DrivePhotoStore(DriveStorage(str(drive)))
     runner = runner or PhotoRunner(spawn=lambda fn: fn())
     blueprint = make_photo_generation_blueprint(
-        start_generation=partial(start_generation, runner, store,
-                                 generator or FakeGenerator(), lambda: 42),
+        start_batch=partial(start_batch, runner, store, generator or FakeGenerator(), lambda: 42),
         get_status=partial(get_status, runner),
+        stop_generation=partial(stop_generation, runner),
+        list_photos=partial(list_photos, store),
         photo_dir=store.photo_dir,
     )
     app = create_app(dist_dir=str(dist), blueprints=[blueprint])
     return app.test_client(), drive
 
 
-def test_generate_returns_202_and_writes_the_photo(tmp_path):
+def generate(client, project="düğün", **body):
+    payload = {"prompts": '["kraliçe tahtta"]', "negative": "blurry", "variants": 1, **body}
+    return client.post(f"/api/projects/{project}/generate", json=payload)
+
+
+def test_generate_returns_202_and_writes_every_frame(tmp_path):
     client, drive = make_client(tmp_path)
-    resp = client.post("/api/projects/düğün/generate", json={"prompt": "kraliçe tahtta"})
+    resp = generate(client, prompts='["a", "b"]', variants=2)
     assert resp.status_code == 202
-    assert (drive / "düğün" / "0_a.png").read_bytes() == b"PNGDATA"
+    assert sorted(p.name for p in (drive / "düğün").iterdir()) == [
+        "0_a.png", "0_b.png", "1_a.png", "1_b.png"]
 
 
-def test_status_reports_done_with_the_file(tmp_path):
+def test_status_reports_the_counts(tmp_path):
     client, _ = make_client(tmp_path)
-    client.post("/api/projects/düğün/generate", json={"prompt": "kraliçe"})
+    generate(client, prompts='["a", "b"]', variants=2)
     assert client.get("/api/status").get_json() == {
-        "status": "done", "project": "düğün", "file": "0_a.png"}
+        "status": "done", "project": "düğün", "done": 4, "failed": 0, "total": 4}
 
 
 def test_status_is_idle_before_anything_runs(tmp_path):
@@ -52,37 +61,78 @@ def test_status_is_idle_before_anything_runs(tmp_path):
     assert client.get("/api/status").get_json() == {"status": "idle"}
 
 
-def test_empty_prompt_returns_400(tmp_path):
+def test_unreadable_prompt_list_returns_400(tmp_path):
     client, _ = make_client(tmp_path)
-    resp = client.post("/api/projects/düğün/generate", json={"prompt": "  "})
+    resp = generate(client, prompts="tek prompt")
     assert resp.status_code == 400
-    assert resp.get_json()["error"] == "Prompt boş olamaz."
+    assert "liste" in resp.get_json()["error"].lower()
+
+
+def test_bad_variants_return_400(tmp_path):
+    client, _ = make_client(tmp_path)
+    resp = generate(client, variants=0)
+    assert resp.status_code == 400
+    assert "Varyant" in resp.get_json()["error"]
+
+
+def test_missing_variants_return_400(tmp_path):
+    client, _ = make_client(tmp_path)
+    resp = client.post("/api/projects/düğün/generate", json={"prompts": '["a"]'})
+    assert resp.status_code == 400
+
+
+def test_missing_negative_generates_without_one(tmp_path):
+    client, drive = make_client(tmp_path)
+    resp = client.post("/api/projects/düğün/generate",
+                       json={"prompts": '["a"]', "variants": 1})
+    assert resp.status_code == 202
+    assert (drive / "düğün" / "0_a.png").exists()
 
 
 def test_unknown_project_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
-    resp = client.post("/api/projects/yok/generate", json={"prompt": "kraliçe"})
+    resp = generate(client, project="yok")
     assert resp.status_code == 404
     assert "yok" in resp.get_json()["error"]
 
 
 def test_busy_runner_returns_409(tmp_path):
     client, _ = make_client(tmp_path, runner=PhotoRunner(spawn=lambda fn: None))
-    client.post("/api/projects/düğün/generate", json={"prompt": "kraliçe"})
-    resp = client.post("/api/projects/düğün/generate", json={"prompt": "kraliçe"})
+    generate(client)
+    resp = generate(client)
     assert resp.status_code == 409
     assert resp.get_json()["error"] == "Zaten bir üretim sürüyor."
 
 
-def test_failed_generation_shows_the_real_error_in_status(tmp_path):
+def test_failed_batch_shows_the_real_error_in_status(tmp_path):
     class Broken:
-        def generate(self, prompt, seed):
+        def generate(self, prompt, negative, seed):
             raise RuntimeError("node 9 (CheckpointLoaderSimple): dosya yok")
 
     client, _ = make_client(tmp_path, generator=Broken())
-    client.post("/api/projects/düğün/generate", json={"prompt": "kraliçe"})
+    generate(client, prompts='["a", "b", "c"]', variants=1)
     state = client.get("/api/status").get_json()
     assert state["status"] == "error" and "CheckpointLoaderSimple" in state["error"]
+
+
+def test_stop_returns_the_current_status(tmp_path):
+    client, _ = make_client(tmp_path, runner=PhotoRunner(spawn=lambda fn: None))
+    generate(client)
+    resp = client.post("/api/stop")
+    assert resp.status_code == 200 and resp.get_json()["status"] == "running"
+
+
+def test_photos_are_listed_newest_first(tmp_path):
+    client, drive = make_client(tmp_path)
+    for name in ("0_a.png", "2_a.png", "notlar.txt"):
+        (drive / "düğün" / name).write_bytes(b"x")
+    assert client.get("/api/projects/düğün/photos").get_json() == {
+        "photos": ["2_a.png", "0_a.png"]}
+
+
+def test_photos_of_an_unknown_project_return_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.get("/api/projects/yok/photos").status_code == 404
 
 
 def test_photo_is_served_from_the_project_folder(tmp_path):

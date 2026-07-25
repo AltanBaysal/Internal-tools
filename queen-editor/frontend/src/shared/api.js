@@ -26,12 +26,21 @@ export async function createProject(name) {
   });
 }
 
-export async function generatePhoto(project, prompt) {
+export async function generateBatch(project, { prompts, negative, variants }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompts, negative, variants }),
   });
+}
+
+export async function stopGeneration() {
+  return request("/api/stop", { method: "POST" });
+}
+
+export async function listPhotos(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/photos`);
+  return body.photos;
 }
 
 export async function getStatus() {

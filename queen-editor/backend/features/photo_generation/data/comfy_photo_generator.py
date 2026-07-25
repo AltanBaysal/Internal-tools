@@ -2,14 +2,15 @@
 
 Node ids come from our own export (queen-editor/workflow_api.json):
   "3"  ImpactWildcardProcessor, _meta.title "POSITIVE"
+  "4"  ImpactWildcardProcessor, _meta.title "NEGATIVE"
   "40" Seed (rgthree) -> KSampler, FaceDetailer and both wildcard processors read it
 
-A new export can renumber these; then this file changes and nothing else does. Node "4" (NEGATIVE)
-is deliberately untouched in Part 4 -- the export's own negative applies until Part 5 adds the box.
+A new export can renumber these; then this file changes and nothing else does.
 """
 import json
 
 PROMPT_NODE = "3"
+NEGATIVE_NODE = "4"
 SEED_NODE = "40"
 
 
@@ -19,9 +20,12 @@ class ComfyPhotoGenerator:
         self._workflow_path = workflow_path
         self._timeout = timeout
 
-    def generate(self, prompt, seed):
+    def generate(self, prompt, negative, seed):
         workflow = self._load()
         self._set_text(workflow, PROMPT_NODE, prompt)
+        # An empty negative is written through as empty: leaving the export's own text in place
+        # would mean "no negative" silently kept a negative.
+        self._set_text(workflow, NEGATIVE_NODE, negative or "")
         # The export ships seed -1: rgthree randomises that in the frontend widget, which does not
         # exist in API mode, so sending it through would pin every render to the same noise.
         workflow[SEED_NODE]["inputs"]["seed"] = seed
@@ -37,7 +41,7 @@ class ComfyPhotoGenerator:
         if "nodes" in workflow:
             raise RuntimeError("workflow_api.json UI formatında — ComfyUI'de "
                                "'Workflow → Export (API)' ile kaydet")
-        for node_id in (PROMPT_NODE, SEED_NODE):
+        for node_id in (PROMPT_NODE, NEGATIVE_NODE, SEED_NODE):
             if node_id not in workflow:
                 raise RuntimeError(f"Workflow'da {node_id} node yok — graf değişmiş, "
                                    "node id'lerini güncelle")

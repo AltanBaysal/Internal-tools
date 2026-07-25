@@ -29,6 +29,19 @@ class DrivePhotoStore:
                    if n is not None]
         return max(numbers) + 1 if numbers else 0
 
+    def list_photos(self, project):
+        """Photo file names, newest number first, letters ascending inside a number.
+
+        Sorted here rather than in the UI: the order is part of what the file names mean, and this
+        is the only place that understands them.
+        """
+        numbered = [(number, name)
+                    for number, name in ((_number_of(name), name)
+                                         for name in self._storage.list_files(project))
+                    if number is not None]
+        numbered.sort(key=lambda item: (-item[0], item[1]))
+        return [name for _number, name in numbered]
+
     def save(self, project, number, letter, data):
         filename = f"{number}_{letter}.png"
         self._storage.write_bytes(project, filename, data)

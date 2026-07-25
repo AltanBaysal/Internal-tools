@@ -7,7 +7,9 @@ from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.domain.usecases.get_status import get_status
-from backend.features.photo_generation.domain.usecases.start_generation import start_generation
+from backend.features.photo_generation.domain.usecases.list_photos import list_photos
+from backend.features.photo_generation.domain.usecases.start_batch import start_batch
+from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
@@ -33,9 +35,11 @@ _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, conf
 _photo_runner = PhotoRunner()
 
 _photo_bp = make_photo_generation_blueprint(
-    start_generation=partial(start_generation, _photo_runner, _photo_store, _photo_generator,
-                             lambda: random.randint(0, 2**31 - 1)),
+    start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_generator,
+                        lambda: random.randint(0, 2**31 - 1)),
     get_status=partial(get_status, _photo_runner),
+    stop_generation=partial(stop_generation, _photo_runner),
+    list_photos=partial(list_photos, _photo_store),
     photo_dir=_photo_store.photo_dir,
 )
 
