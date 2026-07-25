@@ -26,9 +26,9 @@ folder. What we inherit is knowledge, not code:
 
 | Inherited (knowledge) | Never (dependency) |
 |---|---|
-| The ComfyUI graph — copied into `queen-editor/` as our own file (lands in Part 4, with generation) | Reading `collab-toolbox/photo_generator/nova-3dcg/workflow_api.json`, or Drive's copy of it |
+| The ComfyUI graph — copied into `queen-editor/workflow_api.json` as our own file | Reading `collab-toolbox/photo_generator/nova-3dcg/workflow_api.json`, or Drive's copy of it |
 | Injection node ids (`PROMPT_NODE` `"3"`, `NEGATIVE_NODE` `"4"`, `SEED_NODE` `"40"`) | `api.ipynb`'s CONFIG cell |
-| Setup facts (7 custom-node packages, 5 models, headless ComfyUI) as our own cells in `app.ipynb` | Running or referencing the notebook's cells |
+| Setup cells (custom nodes, the 5 models, download/verify/401 handling, headless ComfyUI) — copied **verbatim** into `app.ipynb`, because that machinery is proven | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
 | Proven behaviour: `/prompt` → `/history` → `/view`, infra-vs-frame error split, stop after 3 in a row | Copying those functions — we write them into our own layers |
 
 Every direct subfolder of our Drive root is a project, so the root must be ours alone: point it at
@@ -37,13 +37,14 @@ hardcoded — the server reads `QE_DRIVE_ROOT`, and `app.ipynb`'s CONFIG cell is
 names the folder (`DRIVE_FOLDER`, currently `queenEditor`). Renaming it is a one-line change there,
 so do not repeat the name in comments, docstrings or here.
 
-The batch behaviour is the notebook's, the code is ours: same rules, written into
-`services/comfy/` (graph injection) and `features/generation/` (plan, queue, policy), where they can
+The batch behaviour is the notebook's, the code is ours: same rules, written into `services/comfy/`
+(HTTP transport) and `features/photo_generation/` (node ids, file names, the worker), where they can
 be tested. Rule of thumb: **graph and reasoning shared, code and folders separate.**
 
 ## Services (`backend/services/`)
-A service does one job, lives in its own folder, and knows **no feature**. Examples (land later):
-`comfy/` (photo generator: prompt+negative+seed → bytes), `drive/` (read/write/list files).
+A service does one job, lives in its own folder, and knows **no feature**: `comfy/` (ComfyUI HTTP
+transport — submit a graph, wait for it, fetch the produced file; no node id, no prompt, no media
+concept), `drive/` (read/write/list files under one root).
 A service never imports a feature and never imports another service.
 
 ## Features (`backend/features/<name>/`)

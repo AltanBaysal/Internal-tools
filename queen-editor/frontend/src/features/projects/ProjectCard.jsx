@@ -1,15 +1,17 @@
 import { formatModified } from "../../shared/date.js";
+import { navigate } from "../../shared/router.js";
 import { Hand, Mono } from "../../vendor/kit.jsx";
 
-// Deliberately NOT clickable: the project screen lands in Part 4, so nothing here promises a
-// click (no pointer cursor, no hover lift). Part 4 adds one onClick.
+// The card opens the project screen.
 export default function ProjectCard({ name, modifiedAt }) {
   return (
     <div
       className="wf-card"
+      onClick={() => navigate(`/projects/${encodeURIComponent(name)}`)}
       style={{
         aspectRatio: "4/3",
         padding: 14,
+        cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",

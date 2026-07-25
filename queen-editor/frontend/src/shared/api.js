@@ -25,3 +25,20 @@ export async function createProject(name) {
     body: JSON.stringify({ name }),
   });
 }
+
+export async function generatePhoto(project, prompt) {
+  return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export async function getStatus() {
+  return request("/api/status");
+}
+
+// Plain URL, not a fetch: the browser loads it into an <img>.
+export function photoUrl(project, file) {
+  return `/photos/${encodeURIComponent(project)}/${encodeURIComponent(file)}`;
+}

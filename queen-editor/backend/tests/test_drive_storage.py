@@ -33,3 +33,35 @@ def test_list_dirs_skips_files(tmp_path):
 def test_list_dirs_raises_when_root_missing(tmp_path):
     with pytest.raises(FileNotFoundError):
         DriveStorage(str(tmp_path / "yok")).list_dirs()
+
+
+def test_dir_exists(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.make_dir("düğün")
+    assert storage.dir_exists("düğün") is True
+    assert storage.dir_exists("yok") is False
+
+
+def test_write_bytes_then_list_files(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.make_dir("düğün")
+    storage.write_bytes("düğün", "0_a.png", b"PNG")
+    assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
+    assert storage.list_files("düğün") == ["0_a.png"]
+
+
+def test_list_files_skips_directories(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.make_dir("düğün")
+    storage.make_dir("düğün/altklasör")
+    storage.write_bytes("düğün", "0_a.png", b"PNG")
+    assert storage.list_files("düğün") == ["0_a.png"]
+
+
+def test_list_files_returns_empty_for_missing_dir(tmp_path):
+    assert DriveStorage(str(tmp_path)).list_files("yok") == []
+
+
+def test_dir_path_joins_root_and_subdir(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    assert storage.dir_path("düğün") == str(tmp_path / "düğün")

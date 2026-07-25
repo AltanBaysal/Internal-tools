@@ -1,6 +1,8 @@
 import ProjectsScreen from "./features/projects/ProjectsScreen.jsx";
+import ProjectScreen from "./features/photo_generation/ProjectScreen.jsx";
+import { projectFromPath, useRoute } from "./shared/router.js";
 
-// Part 3 has one screen; routing to the project screen lands in Part 4.
 export default function App() {
-  return <ProjectsScreen />;
+  const project = projectFromPath(useRoute());
+  return project ? <ProjectScreen project={project} /> : <ProjectsScreen />;
 }

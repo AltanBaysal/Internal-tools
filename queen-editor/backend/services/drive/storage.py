@@ -24,3 +24,27 @@ class DriveStorage:
         except FileExistsError:
             return None
         return os.stat(path).st_mtime
+
+    def dir_exists(self, subdir):
+        return os.path.isdir(os.path.join(self.root, subdir))
+
+    def dir_path(self, subdir):
+        """Absolute path of root/subdir -- for callers that hand a directory to someone else
+        (Flask serves files straight from disk)."""
+        return os.path.join(self.root, subdir)
+
+    def list_files(self, subdir):
+        """File names directly under root/subdir. A missing folder lists as empty: 'no files yet'
+        and 'no folder yet' are the same answer to the caller, and the folder is created on write."""
+        path = os.path.join(self.root, subdir)
+        if not os.path.isdir(path):
+            return []
+        with os.scandir(path) as entries:
+            return [e.name for e in entries if e.is_file()]
+
+    def write_bytes(self, subdir, name, data):
+        """Write root/subdir/name, creating the folder if needed."""
+        path = os.path.join(self.root, subdir)
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, name), "wb") as f:
+            f.write(data)
