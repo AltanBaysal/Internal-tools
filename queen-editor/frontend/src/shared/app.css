@@ -1,0 +1,7 @@
+/* The app's own styles. vendor/styles.css is never edited -- corrections land here. */
+
+/* The design copy scrims an artboard, which is a positioned frame; our modal must cover the
+   whole viewport. */
+.wf-scrim {
+  position: fixed;
+}

@@ -7,10 +7,14 @@ from backend.web.health import health_bp
 from backend import config
 
 
-def create_app(dist_dir=config.DIST_DIR):
+def create_app(dist_dir=config.DIST_DIR, blueprints=()):
     app = Flask(__name__, static_folder=None)  # dist is served by our own routes
     app.config["DIST_DIR"] = dist_dir
     app.register_blueprint(health_bp)
+    # Features are injected by the composition root: this infrastructure layer must not import
+    # any feature (CODE-STANDARD.md).
+    for blueprint in blueprints:
+        app.register_blueprint(blueprint)
 
     @app.get("/")
     def index():

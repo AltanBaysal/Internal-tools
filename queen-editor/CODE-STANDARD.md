@@ -42,7 +42,13 @@ like `health.py`. No `features/` folder is created until a real feature exists (
 ## Frontend (`frontend/src/`)
 Same feature-first shape: `features/<name>/` with components + hooks (data access);
 `shared/` for the fetch wrapper and app CSS; `vendor/` for verbatim design files.
-- **vendor/** is copied from the claude.ai/design project and never hand-edited.
+- **vendor/** is copied from the claude.ai/design project and never hand-edited. One exception,
+  mechanical and reviewable: a file may be adapted **at its export boundary only** — the design
+  project writes to globals (`Object.assign(window, {…})`), which no ES module can import, so that
+  last block becomes `export {…}`. Component bodies, styles and comments stay verbatim, and
+  re-pulling a file is still a one-line change. Anything the design copy gets wrong for our app
+  (e.g. `.wf-scrim` being `position: absolute` because artboards are framed) is fixed in
+  `shared/app.css`, never in `vendor/`.
 
 ## Language
 Code comments, docstrings, this file, and commit messages: **English**.
