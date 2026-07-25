@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+
+# The built frontend ships in the repo (ComfyUI pattern) -- override the root-level `dist/` ignore.
+!frontend/dist/

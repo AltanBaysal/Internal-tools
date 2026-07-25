@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Internal tools monorepo. Each tool lives in its own subfolder; currently one tool: **collab-toolbox**. Tool documentation lives in this file — when adding a tool, create a subfolder and add a section here.
+Internal tools monorepo. Each tool lives in its own subfolder; currently two tools: **collab-toolbox** and **queen-editor**. Tool documentation lives in this file — when adding a tool, create a subfolder and add a section here.
 
 ## Working Rules
 
@@ -38,3 +38,15 @@ Usage: [Colab](https://colab.research.google.com/) → **File → Upload noteboo
 - **No drift (most important):** a comment describes what the code does RIGHT NOW; `# OLD:` / `# NEW:` traces and claims about past behaviour are banned. On a conflict **the comment is fixed to match the code**, never the reverse.
 - **Never invent a cause in an error message:** print the command's or service's **actual output** (HTTP code + response body, `stderr` tail). Don't hardcode one fixed cause (e.g. a Civitai 401 is not "cookie expired" — a wrong selector returns 401 too).
 - When only comments are being updated, **the code doesn't change** (prints, values, function logic and cell order stay as they are).
+
+## queen-editor — Queen Editor (web UI)
+
+A two-screen web UI over the `nova-3dcg` ComfyUI photo pipeline, running on Colab. Structure and
+framework choices live in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the build
+order is the roadmap
+[docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md](docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md).
+
+**Build before commit.** The frontend ships pre-built — `frontend/dist/` is committed and Colab
+serves it as-is (it never runs npm/build). After any change under `queen-editor/frontend/src/`, run
+`npm run build` in `queen-editor/frontend/` and commit the regenerated `dist/` in the SAME commit,
+or Colab serves a stale UI.

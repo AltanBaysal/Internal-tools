@@ -5,12 +5,14 @@ list, generate photos into a Google Drive folder. Runs on Google Colab.
 
 Built in cumulative parts — see
 [`docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md`](../docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md).
-**Part 1** is only this: prove the private repo clones on Colab.
+So far: **Part 1** proved the private repo clones on Colab; **Part 2** serves the pre-built
+frontend with Flask and opens a tunnel — the page shows "sunucuya bağlı ✓". No Drive, no ComfyUI yet.
 
-## Part 1 — Repo checkout
+## Run on Colab
 
-`app.ipynb` clones this private repo onto Colab and prints what it fetched. No server, no UI, no
-Drive, no ComfyUI yet.
+`app.ipynb` clones this repo (the built `frontend/dist/` ships with it), starts the Flask server,
+and prints a cloudflared link. Open it to see the app connect to the server. Colab never builds —
+it only serves.
 
 ### 1. Create a GitHub token (once)
 
@@ -35,5 +37,10 @@ If the token leaks, it can only *read* this one repo — nothing else.
 
 ### 3. Run
 
-**Runtime → Run all.** The last cell prints the cloned commit and the contents of `queen-editor/`.
+**Runtime → Run all.** The notebook clones the repo, starts Flask (which serves the pre-built
+`frontend/dist/`), and prints a cloudflared link. Open it — the page should show **"sunucuya bağlı ✓"**.
 The token is read from Secrets and never appears in any output or in the notebook source.
+
+Developer note: the frontend ships pre-built — after changing `frontend/src/`, run `npm run build`
+in `frontend/` and commit the regenerated `dist/` (Colab never builds). Run the backend tests
+locally with `pytest` from `queen-editor/`.
