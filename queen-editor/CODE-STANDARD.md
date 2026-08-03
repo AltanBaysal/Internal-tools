@@ -1,6 +1,7 @@
 # Queen Editor — Code Standard
 
 Two building blocks, feature-first. Read this before adding code.
+The principles and stack decisions these rules serve: [FOUNDATION.md](FOUNDATION.md).
 
 ## Stack
 Backend **Flask** (sync) + frontend **React 18** (JSX, built with Vite). We follow ComfyUI's
@@ -41,6 +42,28 @@ The batch behaviour is the notebook's, the code is ours: same rules, written int
 (HTTP transport) and `features/photo_generation/` (node ids, file names, the worker), where they can
 be tested. Rule of thumb: **graph and reasoning shared, code and folders separate.**
 
+## Separation of concerns
+The service/feature split below is one instance of a rule that also governs the **files we write to
+Drive**. One artifact, one job: keep two things apart when they answer different questions, are
+written at different moments, or have different lifetimes — even when their contents overlap.
+Overlap is not the smell; a single file each reader has to filter differently is.
+
+That is why a project folder holds three files rather than one, although the same prompt text can
+appear in all three:
+
+| File | The question it answers | Lifetime |
+|---|---|---|
+| settings | what should the panel show when the project opens | overwritten when a batch is submitted |
+| run plan | which frames this run was asked to produce, in order | overwritten per run; the queue the worker reads |
+| photo record | which photos exist, and what produced each one | appended as each photo lands; permanent |
+
+Each has one writer and one moment of writing. Before adding a field to an existing file, ask which
+of these questions it answers — a field that answers a fourth question wants a fourth file.
+
+No file repeats another's answer as a flag. The plan is never marked frame by frame: a frame is done
+exactly when the photo record has its row, and that row is appended only after the photo itself is
+written. Reading two places to decide one thing is what this rule exists to prevent.
+
 ## Services (`backend/services/`)
 A service does one job, lives in its own folder, and knows **no feature**: `comfy/` (ComfyUI HTTP
 transport — submit a graph, wait for it, fetch the produced file; no node id, no prompt, no media
@@ -60,7 +83,7 @@ Concrete classes are wired only in the composition root (`backend/main.py`).
 
 ## Infrastructure (`backend/web/`)
 Cross-cutting HTTP plumbing that is not a domain feature: the app factory (`app.py`) and probes
-like `health.py`. No `features/` folder is created until a real feature exists (Part 3: projects).
+like `health.py`. No `features/` folder is created until a real feature exists.
 
 ## Frontend (`frontend/src/`)
 Same feature-first shape: `features/<name>/` with components + hooks (data access);

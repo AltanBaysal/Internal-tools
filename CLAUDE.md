@@ -41,10 +41,11 @@ Usage: [Colab](https://colab.research.google.com/) → **File → Upload noteboo
 
 ## queen-editor — Queen Editor (web UI)
 
-A two-screen web UI over the same ComfyUI photo pipeline as `nova-3dcg`, running on Colab. Structure
-and framework choices live in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the
+A web UI over the same ComfyUI photo pipeline as `nova-3dcg`, running on Colab. Engineering
+principles and stack decisions live in [queen-editor/FOUNDATION.md](queen-editor/FOUNDATION.md);
+structure and layering rules in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the
 build order is the roadmap
-[docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md](docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md).
+[docs/superpowers/plans/2026-08-03-queen-editor-v2-roadmap.md](docs/superpowers/plans/2026-08-03-queen-editor-v2-roadmap.md).
 
 **Same engine, separate tool.** Queen Editor depends on nothing under `collab-toolbox/` at runtime —
 no imported cell, no shared file, no shared Drive folder — it gets its own Drive root, named in one
