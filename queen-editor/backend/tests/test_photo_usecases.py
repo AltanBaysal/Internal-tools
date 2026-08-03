@@ -254,7 +254,7 @@ def test_the_plan_is_written_before_the_first_frame_renders():
 
     class ChecksThePlan:
         def generate(self, prompt, negative, seed):
-            assert plan_store.written is not None, "plan yazılmadan üretim başladı"
+            assert plan_store.written is not None, "the batch started before the plan was written"
             return b"PNG"
 
     run_batch(runner, FakeStore(), ChecksThePlan(), text='["a"]', variants=2,
