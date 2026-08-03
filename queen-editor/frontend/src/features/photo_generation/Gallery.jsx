@@ -21,7 +21,7 @@ function Tile({ name, muted, children }) {
   );
 }
 
-// Artboard 03/04: five columns, newest number first (the server sorts). The frame being rendered
+// Artboard 03/04: five columns, newest first (the record's own order). The frame being rendered
 // sits at the front as a spinner tile, so the grid shows what is happening, not just what landed.
 export default function Gallery({ project, photos, current }) {
   if (!photos.length && !current) {
@@ -43,11 +43,11 @@ export default function Gallery({ project, photos, current }) {
             <ImgPH loading style={{ aspectRatio: "1/1" }} />
           </Tile>
         )}
-        {photos.map((file) => (
-          <Tile key={file} name={file}>
+        {photos.map((photo) => (
+          <Tile key={photo.file} name={photo.file}>
             {/* New tab on click -- the gesture the design gives every tile. */}
-            <a href={photoUrl(project, file)} target="_blank" rel="noreferrer">
-              <img src={photoUrl(project, file)} alt={file}
+            <a href={photoUrl(project, photo.file)} target="_blank" rel="noreferrer">
+              <img src={photoUrl(project, photo.file)} alt={photo.file}
                    style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
                             border: "1px solid var(--border)", borderRadius: 3, display: "block" }} />
             </a>

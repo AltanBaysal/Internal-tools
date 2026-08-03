@@ -20,10 +20,26 @@ class PhotoStore(Protocol):
         """Persist the photo; returns the file name it was stored under."""
         ...
 
-    def list_photos(self, project: str) -> list:
-        """Photo file names for the gallery, newest first."""
-        ...
-
     def photo_dir(self, project: str) -> str:
         """Absolute folder the photos live in -- presentation serves files from it."""
+        ...
+
+
+class PlanStore(Protocol):
+    def write(self, project: str, negative: str, frames: list) -> None:
+        """Replace the project's plan with this run's frames, in render order."""
+        ...
+
+    def max_number(self, project: str) -> int | None:
+        """Highest number the stored plan reserved; None when there is no plan."""
+        ...
+
+
+class PhotoRecord(Protocol):
+    def append(self, project: str, entry: dict) -> None:
+        """Add one produced photo's row."""
+        ...
+
+    def list(self, project: str) -> list:
+        """Every recorded photo, newest first."""
         ...

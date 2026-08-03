@@ -12,3 +12,16 @@ class ProjectStore(Protocol):
     def create(self, name: str) -> Project | None:
         """Create the project; None means the name is already taken."""
         ...
+
+
+class SettingsStore(Protocol):
+    def project_exists(self, project: str) -> bool:
+        ...
+
+    def read(self, project: str) -> dict:
+        """{"prompts": str, "negative": str, "variants": int | None} -- empty when never saved."""
+        ...
+
+    def write(self, project: str, settings: dict) -> None:
+        """Replace the stored settings with this dict."""
+        ...

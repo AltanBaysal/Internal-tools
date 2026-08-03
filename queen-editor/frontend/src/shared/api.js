@@ -26,6 +26,18 @@ export async function createProject(name) {
   });
 }
 
+export async function getSettings(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/settings`);
+}
+
+export async function saveSettings(project, { prompts, negative, variants }) {
+  return request(`/api/projects/${encodeURIComponent(project)}/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompts, negative, variants }),
+  });
+}
+
 export async function generateBatch(project, { prompts, negative, variants }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",

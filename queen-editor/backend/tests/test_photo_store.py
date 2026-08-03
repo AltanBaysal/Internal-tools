@@ -34,32 +34,3 @@ def test_save_writes_the_file_and_returns_its_name(tmp_path):
 
 def test_photo_dir_is_the_project_folder(tmp_path):
     assert store_at(tmp_path).photo_dir("düğün") == str(tmp_path / "düğün")
-
-
-def test_list_photos_newest_number_first(tmp_path):
-    project = tmp_path / "düğün"
-    project.mkdir()
-    for name in ("0_a.png", "10_a.png", "2_a.png"):
-        (project / name).write_bytes(b"x")
-    assert store_at(tmp_path).list_photos("düğün") == ["10_a.png", "2_a.png", "0_a.png"]
-
-
-def test_list_photos_letters_ascend_within_a_number(tmp_path):
-    project = tmp_path / "düğün"
-    project.mkdir()
-    for name in ("3_c.png", "3_a.png", "3_b.png"):
-        (project / name).write_bytes(b"x")
-    assert store_at(tmp_path).list_photos("düğün") == ["3_a.png", "3_b.png", "3_c.png"]
-
-
-def test_list_photos_ignores_files_outside_the_scheme(tmp_path):
-    project = tmp_path / "düğün"
-    project.mkdir()
-    for name in ("0_a.png", "notlar.txt", "prompts.json", "_bozuk.png"):
-        (project / name).write_bytes(b"x")
-    assert store_at(tmp_path).list_photos("düğün") == ["0_a.png"]
-
-
-def test_list_photos_is_empty_for_a_project_without_photos(tmp_path):
-    (tmp_path / "düğün").mkdir()
-    assert store_at(tmp_path).list_photos("düğün") == []

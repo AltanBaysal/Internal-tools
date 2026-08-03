@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { navigate } from "../../shared/router.js";
 import { Btn, Hand } from "../../vendor/kit.jsx";
 import Gallery from "./Gallery.jsx";
@@ -15,11 +17,28 @@ const HEADER = {
 
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
-export default function ProjectScreen({ project }) {
+export default function ProjectScreen({ project, settings, settingsError, onSaveSettings }) {
   const { job, photos, error, generate, stop } = useGeneration(project);
+  const [saveError, setSaveError] = useState(settingsError);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
   const busyElsewhere = job.status === "running" && job.project !== project;
   const running = job.status === "running" && !busyElsewhere;
+
+  // Pressing Üret persists the panel first, whether or not the batch is accepted -- text the
+  // server rejects is still what the user typed. Both writes land in the same folder, so settings
+  // that cannot be written mean the photos could not be either: say so and do not start.
+  async function handleGenerate(form) {
+    setSaveError(null);
+    try {
+      await onSaveSettings({
+        prompts: form.prompts, negative: form.negative, variants: form.variants,
+      });
+    } catch (err) {
+      setSaveError(err.message);
+      return;
+    }
+    await generate(form);
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
@@ -36,8 +55,8 @@ export default function ProjectScreen({ project }) {
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
           <Gallery project={project} photos={photos} current={running ? job.current : null} />
         </div>
-        <GeneratePanel job={job} error={error} busyElsewhere={busyElsewhere}
-                       onGenerate={generate} onStop={stop} />
+        <GeneratePanel job={job} error={saveError || error} busyElsewhere={busyElsewhere}
+                       settings={settings} onGenerate={handleGenerate} onStop={stop} />
       </div>
     </div>
   );

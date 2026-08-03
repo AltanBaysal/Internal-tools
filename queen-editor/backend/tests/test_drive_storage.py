@@ -65,3 +65,38 @@ def test_list_files_returns_empty_for_missing_dir(tmp_path):
 def test_dir_path_joins_root_and_subdir(tmp_path):
     storage = DriveStorage(str(tmp_path))
     assert storage.dir_path("düğün") == str(tmp_path / "düğün")
+
+
+def test_read_text_returns_none_when_the_file_is_not_there(tmp_path):
+    assert DriveStorage(str(tmp_path)).read_text("düğün", "settings.json") is None
+
+
+def test_write_text_creates_the_folder_and_round_trips(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.write_text("düğün", "settings.json", '{"negatif": "bulanık"}')
+    assert storage.read_text("düğün", "settings.json") == '{"negatif": "bulanık"}'
+
+
+def test_write_text_replaces_what_was_there(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.write_text("düğün", "settings.json", "eski")
+    storage.write_text("düğün", "settings.json", "yeni")
+    assert storage.read_text("düğün", "settings.json") == "yeni"
+
+
+def test_append_line_creates_the_file_and_keeps_earlier_lines(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.append_line("düğün", "photos.jsonl", '{"file": "0_a.png"}')
+    storage.append_line("düğün", "photos.jsonl", '{"file": "0_b.png"}')
+    assert storage.read_lines("düğün", "photos.jsonl") == [
+        '{"file": "0_a.png"}', '{"file": "0_b.png"}']
+
+
+def test_read_lines_is_empty_when_the_file_is_not_there(tmp_path):
+    assert DriveStorage(str(tmp_path)).read_lines("düğün", "photos.jsonl") == []
+
+
+def test_read_lines_skips_blank_lines(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.write_text("düğün", "photos.jsonl", "ilk\n\n   \nikinci\n")
+    assert storage.read_lines("düğün", "photos.jsonl") == ["ilk", "ikinci"]

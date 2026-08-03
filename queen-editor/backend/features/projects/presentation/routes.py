@@ -2,10 +2,11 @@
 from flask import Blueprint, jsonify, request
 
 from backend.features.projects.domain.usecases.create_project import InvalidName, NameTaken
+from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
-def make_projects_blueprint(list_projects, create_project):
-    """Both arguments are use cases already bound to a store (see main.py)."""
+def make_projects_blueprint(list_projects, create_project, get_settings, save_settings):
+    """Every argument is a use case already bound to a store (see main.py)."""
     bp = Blueprint("projects", __name__)
 
     def payload(project):
@@ -34,5 +35,34 @@ def make_projects_blueprint(list_projects, create_project):
         except OSError as exc:
             return jsonify({"error": str(exc)}), 500
         return jsonify(payload(project)), 201
+
+    @bp.get("/api/projects/<project>/settings")
+    def get_project_settings(project):
+        try:
+            return jsonify(get_settings(project))
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+
+    @bp.put("/api/projects/<project>/settings")
+    def put_project_settings(project):
+        body = request.get_json(silent=True) or {}
+        prompts, negative, variants = (body.get("prompts"), body.get("negative"),
+                                       body.get("variants"))
+        try:
+            save_settings(
+                project,
+                prompts if isinstance(prompts, str) else "",
+                negative if isinstance(negative, str) else "",
+                # bool is an int in Python, and True would silently mean "1 variant".
+                variants if isinstance(variants, int) and not isinstance(variants, bool) else None,
+            )
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        # 204: the client already has what it sent; there is nothing to send back.
+        return "", 204
 
     return bp

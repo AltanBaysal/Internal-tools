@@ -48,3 +48,40 @@ class DriveStorage:
         os.makedirs(path, exist_ok=True)
         with open(os.path.join(path, name), "wb") as f:
             f.write(data)
+
+    def read_text(self, subdir, name):
+        """Contents of root/subdir/name, or None when it is not there.
+
+        Missing is not an error: a project that was never saved and one whose file was removed are
+        the same answer to the caller -- there is nothing to read.
+        """
+        path = os.path.join(self.root, subdir, name)
+        if not os.path.isfile(path):
+            return None
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+
+    def write_text(self, subdir, name, text):
+        """Write root/subdir/name, creating the folder if needed. Replaces the whole file."""
+        path = os.path.join(self.root, subdir)
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, name), "w", encoding="utf-8") as f:
+            f.write(text)
+
+    def append_line(self, subdir, name, line):
+        """Add one line to the end of root/subdir/name, creating it if needed.
+
+        Nothing already written is rewritten, so a session that dies mid-write can lose at most the
+        line it was adding.
+        """
+        path = os.path.join(self.root, subdir)
+        os.makedirs(path, exist_ok=True)
+        with open(os.path.join(path, name), "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+
+    def read_lines(self, subdir, name):
+        """Non-blank lines of root/subdir/name; [] when it is not there."""
+        text = self.read_text(subdir, name)
+        if text is None:
+            return []
+        return [line for line in text.splitlines() if line.strip()]

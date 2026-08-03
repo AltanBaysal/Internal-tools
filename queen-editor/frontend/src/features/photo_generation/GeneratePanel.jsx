@@ -49,12 +49,16 @@ function countPrompts(text) {
 
 // Artboard 03: prompt list, one shared negative, variant count, Üret. Artboard 04 keeps all three
 // fields on screen and swaps only the block underneath them.
-export default function GeneratePanel({ job, error, busyElsewhere, onGenerate, onStop }) {
-  const [prompts, setPrompts] = useState("");
-  const [negative, setNegative] = useState("");
+export default function GeneratePanel({ job, error, busyElsewhere, settings, onGenerate, onStop }) {
+  // Initial values only: the screen mounts after the settings have loaded, so there is nothing to
+  // sync afterwards and typing is never overwritten.
+  const [prompts, setPrompts] = useState(settings.prompts);
+  const [negative, setNegative] = useState(settings.negative);
   // Text, not a number: the field has to survive being cleared while typing. Whatever is not a
   // whole number goes to the server as null and comes back with the server's own message.
-  const [variants, setVariants] = useState("4");
+  const [variants, setVariants] = useState(
+    settings.variants === null ? "4" : String(settings.variants),
+  );
 
   const running = job.status === "running" && !busyElsewhere;
   const count = countPrompts(prompts);

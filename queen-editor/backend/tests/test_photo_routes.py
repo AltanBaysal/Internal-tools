@@ -1,6 +1,8 @@
 from functools import partial
 
+from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
+from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
@@ -23,13 +25,18 @@ def make_client(tmp_path, generator=None, runner=None):
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
 
-    store = DrivePhotoStore(DriveStorage(str(drive)))
+    storage = DriveStorage(str(drive))
+    store = DrivePhotoStore(storage)
+    record = DrivePhotoRecord(storage)
+    plan_store = DrivePlanStore(storage)
     runner = runner or PhotoRunner(spawn=lambda fn: fn())
     blueprint = make_photo_generation_blueprint(
-        start_batch=partial(start_batch, runner, store, generator or FakeGenerator(), lambda: 42),
+        start_batch=partial(start_batch, runner, store, record, plan_store,
+                            generator or FakeGenerator(), lambda: 42,
+                            lambda: "2026-08-03T14:32:11+00:00"),
         get_status=partial(get_status, runner),
         stop_generation=partial(stop_generation, runner),
-        list_photos=partial(list_photos, store),
+        list_photos=partial(list_photos, record, store),
         photo_dir=store.photo_dir,
     )
     app = create_app(dist_dir=str(dist), blueprints=[blueprint])
@@ -45,7 +52,7 @@ def test_generate_returns_202_and_writes_every_frame(tmp_path):
     client, drive = make_client(tmp_path)
     resp = generate(client, prompts='["a", "b"]', variants=2)
     assert resp.status_code == 202
-    assert sorted(p.name for p in (drive / "düğün").iterdir()) == [
+    assert sorted(p.name for p in (drive / "düğün").glob("*.png")) == [
         "0_a.png", "0_b.png", "1_a.png", "1_b.png"]
 
 
@@ -123,11 +130,25 @@ def test_stop_returns_the_current_status(tmp_path):
 
 
 def test_photos_are_listed_newest_first(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+    files = [row["file"] for row in
+             client.get("/api/projects/düğün/photos").get_json()["photos"]]
+    assert files == ["1_a.png", "0_a.png"]
+
+
+def test_files_without_a_record_row_are_not_listed(tmp_path):
+    # The record is the gallery's list: a file no run produced is not part of the project.
     client, drive = make_client(tmp_path)
-    for name in ("0_a.png", "2_a.png", "notlar.txt"):
-        (drive / "düğün" / name).write_bytes(b"x")
-    assert client.get("/api/projects/düğün/photos").get_json() == {
-        "photos": ["2_a.png", "0_a.png"]}
+    (drive / "düğün" / "9_a.png").write_bytes(b"x")
+    assert client.get("/api/projects/düğün/photos").get_json() == {"photos": []}
+
+
+def test_a_listed_photo_carries_the_prompt_that_made_it(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["kraliçe tahtta"]', variants=1)
+    row = client.get("/api/projects/düğün/photos").get_json()["photos"][0]
+    assert row["file"] == "0_a.png" and row["prompt"] == "kraliçe tahtta"
 
 
 def test_photos_of_an_unknown_project_return_404(tmp_path):

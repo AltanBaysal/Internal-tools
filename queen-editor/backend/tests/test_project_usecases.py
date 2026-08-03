@@ -6,7 +6,9 @@ from backend.features.projects.domain.usecases.create_project import (
     NameTaken,
     create_project,
 )
+from backend.features.projects.domain.usecases.get_settings import ProjectMissing, get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
+from backend.features.projects.domain.usecases.save_settings import save_settings
 
 
 class FakeStore:
@@ -55,3 +57,51 @@ def test_create_project_raises_when_name_taken():
     with pytest.raises(NameTaken) as exc:
         create_project(store, "düğün")
     assert str(exc.value) == "Bu ad zaten kullanılıyor. Başka bir ad dene."
+
+
+class FakeSettingsStore:
+    def __init__(self, projects=("düğün",)):
+        self.projects = list(projects)
+        self.saved = {}
+
+    def project_exists(self, project):
+        return project in self.projects
+
+    def read(self, project):
+        return self.saved.get(project, {"prompts": "", "negative": "", "variants": None})
+
+    def write(self, project, settings):
+        self.saved[project] = settings
+
+
+def test_get_settings_passes_the_store_through():
+    store = FakeSettingsStore()
+    store.saved["düğün"] = {"prompts": '["a"]', "negative": "neg", "variants": 4}
+    assert get_settings(store, "düğün") == {"prompts": '["a"]', "negative": "neg", "variants": 4}
+
+
+def test_get_settings_rejects_a_missing_project():
+    with pytest.raises(ProjectMissing) as exc:
+        get_settings(FakeSettingsStore(), "yok")
+    assert str(exc.value) == "Proje yok: yok"
+
+
+def test_save_settings_stores_what_it_was_given():
+    store = FakeSettingsStore()
+    save_settings(store, "düğün", '["a"]', "neg", 4)
+    assert store.saved["düğün"] == {"prompts": '["a"]', "negative": "neg", "variants": 4}
+
+
+def test_save_settings_keeps_text_the_server_would_reject():
+    # A list that fails to parse is still what the user typed; losing it would punish the mistake
+    # twice.
+    store = FakeSettingsStore()
+    save_settings(store, "düğün", "[ yarım", "", None)
+    assert store.saved["düğün"]["prompts"] == "[ yarım"
+
+
+def test_save_settings_rejects_a_missing_project():
+    store = FakeSettingsStore()
+    with pytest.raises(ProjectMissing):
+        save_settings(store, "yok", '["a"]', "", 4)
+    assert store.saved == {}
