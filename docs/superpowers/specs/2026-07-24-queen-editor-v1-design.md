@@ -2,6 +2,7 @@
 
 **Tarih:** 2026-07-24 · **Durum:** onaylandı, implementasyon planı bekliyor
 **Revizyon:** Drive kökü `photoGenV2` değil, Queen Editor'ün kendi klasörü — bkz. [collab-toolbox'tan bağımsızlık](2026-07-25-queen-editor-bagimsizlik-design.md) (2026-07-25).
+**Revizyon:** Tasarım güncellendi — ekran davranışları için [v2 şemsiye spec](2026-08-03-queen-editor-v2-design.md) geçerli (2026-08-03): foto detay sayfası, sıralama, silme, export, duraklat, çoklu model; buradaki "kapsam dışı" listesinin bir kısmı kapsama girdi. Mimari kararlar burada geçerli kalır.
 
 ## Amaç
 

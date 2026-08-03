@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-03 · **Durum:** onay bekliyor · sırada Bölüm 6
 **Tasarım kaynağı:** claude.ai/design projesi `Queen Editor` → `Queen Editor Basit v1.html` + `HANDOFF.md` (kullanıcının güncellediği hâli — davranış kararlarının tamamı orada)
-**Şemsiye tasarım:** [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md)
+**Şemsiye tasarım:** [2026-08-03-queen-editor-v2-design.md](../specs/2026-08-03-queen-editor-v2-design.md) (davranış kararları) · [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md) (mimari kararlar)
 **Yerini aldığı doküman:** [2026-07-24-queen-editor-roadmap.md](2026-07-24-queen-editor-roadmap.md) — oradaki Bölüm 6 buradaki Bölüm 6'ya, Bölüm 7 buradaki Bölüm 11+12'ye eridi.
 
 Tek kaynak: bütün bölümlerin dökümü burada. İlke aynı — **önce çalıştır, sonra sağlamlaştır**; her bölüm bir öncekinin üstüne birikir, hiçbirinin çıktısı çöpe gitmez. Her bölüm çıktı odaklı (**ne çalışır** + **nasıl görülür**) ve Colab'da tek başına "evet oldu" denerek kapanır. Sırası gelen bölümün detaylı planı ve o bölümü ilgilendiren kararlar o an netleşir.
