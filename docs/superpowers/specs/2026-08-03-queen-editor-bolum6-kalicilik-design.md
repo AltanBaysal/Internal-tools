@@ -48,11 +48,15 @@ doldurmaktır.
 {
   "negative": "bulanık, deforme el, düşük kalite",
   "frames": [
-    { "file": "0_a.png", "prompt": "kraliçe tahtta oturuyor, altın taç", "seed": 812634 },
-    { "file": "0_b.png", "prompt": "kraliçe tahtta oturuyor, altın taç", "seed": 991204 }
+    { "number": 0, "letter": "a", "prompt": "kraliçe tahtta oturuyor, altın taç", "seed": 812634 },
+    { "number": 0, "letter": "b", "prompt": "kraliçe tahtta oturuyor, altın taç", "seed": 991204 }
   ]
 }
 ```
+
+Karede dosya adı değil **numara + harf** durur: `<numara>_<harf>.png` şemasını bilen tek yer foto
+deposudur, plan onu tekrarlamaz. Dosya adı ancak foto yazıldıktan sonra, deponun döndürdüğü hâliyle
+kayda geçer.
 
 Bu dosya ölü bir kayıt değil, **üretimin kendi kuyruğudur**: işçi kareleri buradan sırayla okur.
 Bellekte ayrı bir kuyruk tutulmaz — tek liste var ve o da diskte, dolayısıyla ikisi birbirinden
@@ -103,12 +107,16 @@ bir JSON dizisi olsaydı her fotoğrafta dosyanın tamamı yeniden yazılırdı 
 
 ## Numaralandırma
 
-Bir sonraki üretim, **kayıttaki en büyük numara ile plandaki en büyük numaranın büyüğünden** devam
-eder.
+Bir numarayı iki şey talep edebilir: **diskteki bir dosya** ve **bir planın ayırdığı ama henüz
+üretilmemiş kare**. Bir sonraki üretim ikisinin de üstünden başlar.
 
-Plandaki numaraların sayılması şart: yarıda kalan bir üretimde numaralar planlanmış ama fotolar
-üretilmemiş olur. Yalnız kayda bakılsaydı sonraki üretim aynı numaraları yeniden kullanır ve bir
-dosya adı iki farklı prompt'a bağlanırdı — yani bu bölümün kurduğu izin kendisi bozulurdu.
+Plandaki numaraların sayılması şart: yarıda kalan bir üretimde numaralar ayrılmış ama fotolar
+üretilmemiş olur. Sayılmasaydı sonraki üretim aynı numaraları yeniden kullanır ve bir dosya adı iki
+farklı prompt'a bağlanırdı — bu bölümün kurduğu izin kendisi bozulurdu.
+
+Kayda ayrıca bakmaya gerek yok: bir satır ancak fotoğrafı yazıldıktan sonra eklendiği için kayıt,
+diskte olmayan bir numarayı içeremez. Diski saymak aynı zamanda **hiçbir dosyanın üstüne
+yazılmamasını** garanti eder — `FOUNDATION.md`'nin 1. ilkesi.
 
 ## Backend yüzeyi
 
