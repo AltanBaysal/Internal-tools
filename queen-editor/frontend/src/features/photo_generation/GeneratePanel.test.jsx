@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import GeneratePanel from "./GeneratePanel.jsx";
 
@@ -18,6 +18,9 @@ function renderPanel(props) {
       stopping={false}
       onGenerate={() => Promise.resolve()}
       onStop={() => {}}
+      onResume={() => {}}
+      onCancel={() => {}}
+      onClearError={() => {}}
       {...props}
     />,
   );
@@ -31,6 +34,53 @@ function isDimmed(element) {
   }
   return false;
 }
+
+describe("GeneratePanel — duraklatılmış üretim", () => {
+  const PAUSED = { status: "paused", project: "düğün", done: 7, failed: 0, total: 48 };
+
+  it("devam et, durum kartı ve iptal et sunar", () => {
+    renderPanel({ job: PAUSED });
+
+    expect(screen.getByText("Devam et")).toBeTruthy();
+    expect(screen.getByText("Üretim duraklatıldı — 7/48 tamamlandı")).toBeTruthy();
+    expect(screen.getByText("İptal et")).toBeTruthy();
+    expect(screen.queryByText("Üret")).toBeNull();
+  });
+
+  it("düğmeler kendi işlerini çağırır", () => {
+    const onResume = vi.fn();
+    const onCancel = vi.fn();
+    renderPanel({ job: PAUSED, onResume, onCancel });
+
+    fireEvent.click(screen.getByText("Devam et"));
+    fireEvent.click(screen.getByText("İptal et"));
+
+    expect(onResume).toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe("GeneratePanel — alan hatası", () => {
+  const IDLE = { status: "idle" };
+
+  it("sunucunun işaret ettiği kutuyu kızartır ve metnini altına yazar", () => {
+    renderPanel({ job: IDLE, error: "Prompt listesi boş.", errorField: "prompts" });
+
+    expect(screen.getByText("Prompt listesi boş.")).toBeTruthy();
+    expect(screen.getByPlaceholderText('["ilk prompt", "ikinci prompt"]').style.borderColor)
+      .toBe("var(--danger)");
+  });
+
+  it("yazmaya başlayınca hatayı temizler", () => {
+    const onClearError = vi.fn();
+    renderPanel({ job: IDLE, error: "Prompt listesi boş.", errorField: "prompts", onClearError });
+
+    fireEvent.change(screen.getByPlaceholderText('["ilk prompt", "ikinci prompt"]'),
+                     { target: { value: '["a"]' } });
+
+    expect(onClearError).toHaveBeenCalled();
+  });
+});
 
 describe("GeneratePanel — üretim sürerken bağlantı", () => {
   it("bağlantı koptuğunda son bilinen ilerlemeyi söyler ve çubuğu soluklaştırır", () => {

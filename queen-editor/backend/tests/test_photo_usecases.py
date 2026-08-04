@@ -16,7 +16,12 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     plan_frames,
     start_batch,
 )
+from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.export_project import export_project
+from backend.features.photo_generation.domain.usecases.resume_batch import (
+    NothingToResume,
+    resume_batch,
+)
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder, save_order
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.runner import PhotoRunner
@@ -58,12 +63,22 @@ class FakeGenerator:
 
 
 class FakePlanStore:
-    def __init__(self, reserved=None):
+    def __init__(self, reserved=None, frames=None, negative=""):
         self.reserved = reserved          # highest number an earlier plan reserved, or None
         self.written = None               # (negative, frames) of the last write
+        self.frames = list(frames or [])
+        self.negative = negative
 
     def write(self, project, negative, frames):
         self.written = (negative, frames)
+        self.frames = list(frames)
+        self.negative = negative
+
+    def read(self, project):
+        return {"negative": self.negative, "frames": list(self.frames)}
+
+    def clear(self, project):
+        self.write(project, "", [])
 
     def max_number(self, project):
         return self.reserved
@@ -228,7 +243,7 @@ def test_stop_request_ends_the_batch_between_frames():
     generator = StopsAfterFirst()
     run_batch(runner, store, generator, text='["a", "b"]', variants=2)
     state = runner.status()
-    assert (state["status"], state["done"], state["total"]) == ("stopped", 1, 4)
+    assert (state["status"], state["done"], state["total"]) == ("paused", 1, 4)
     assert generator.calls == 1
 
 
@@ -243,7 +258,7 @@ def test_frame_killed_by_user_stop_is_not_a_failure():
 
     run_batch(runner, store, StoppingGenerator(), text='["a", "b", "c"]', variants=1)
     state = runner.status()
-    assert state["status"] == "stopped"
+    assert state["status"] == "paused"
     assert state["failed"] == 0
 
 
@@ -379,6 +394,56 @@ def test_export_carries_the_folder_and_the_gallery_order():
 def test_export_of_an_empty_project_still_names_the_folder():
     assert export_project(FakeRecord(), FakeStore(), FakeOrderStore(), "düğün") == {
         "folder": "/fake/düğün", "photos": []}
+
+
+def frame(number, letter="a", prompt="p", seed=1):
+    return {"number": number, "letter": letter, "prompt": prompt, "seed": seed}
+
+
+def test_progress_reports_name_the_frames_still_waiting():
+    runner, reports = sync_runner(), []
+    original = runner.report
+    runner.report = lambda patch: (reports.append(patch), original(patch))[1]
+
+    run_batch(runner, FakeStore(), FakeGenerator(), text='["a", "b"]', variants=1)
+
+    # The first frame's report lists the one behind it; the last report has an empty queue.
+    assert reports[0]["pending"] == ["1_a.png"]
+    assert reports[-1]["pending"] == []
+
+
+def test_resume_only_produces_the_frames_the_record_is_missing():
+    store, record, generator = FakeStore(), FakeRecord(), FakeGenerator()
+    plan_store = FakePlanStore(frames=[frame(0, "a", "ilk"), frame(1, "a", "ikinci")],
+                               negative="neg")
+    record.append("düğün", {"file": "0_a.png"})
+
+    resume_batch(sync_runner(), store, record, plan_store, generator,
+                 lambda: "2026-08-05T10:00:00+00:00", "düğün")
+
+    assert generator.calls == [("ikinci", "neg", 1)]
+    assert [n for n, _letter, _d in store.saved] == [1]
+
+
+def test_resume_refuses_when_nothing_is_left():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png"})
+    plan_store = FakePlanStore(frames=[frame(0)])
+
+    with pytest.raises(NothingToResume):
+        resume_batch(sync_runner(), FakeStore(), record, plan_store, FakeGenerator(),
+                     lambda: "t", "düğün")
+
+
+def test_cancel_empties_the_queue_and_returns_to_idle():
+    runner, plan_store = sync_runner(), FakePlanStore(frames=[frame(0), frame(1)])
+    runner.request_stop()
+    run_batch(runner, FakeStore(), FakeGenerator(), plan_store=plan_store)
+
+    cancel_generation(runner, FakeStore(), plan_store, "düğün")
+
+    assert plan_store.read("düğün")["frames"] == []
+    assert runner.status() == {"status": "idle"}
 
 
 def test_a_deleted_number_is_never_used_again():

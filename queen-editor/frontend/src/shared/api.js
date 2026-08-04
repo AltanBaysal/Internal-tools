@@ -26,7 +26,12 @@ async function request(path, options) {
   } catch {
     body = null; // empty or non-JSON body (e.g. a tunnel error page)
   }
-  if (!resp.ok) throw new Error(body?.error || `${resp.status} ${resp.statusText}`);
+  if (!resp.ok) {
+    const err = new Error(body?.error || `${resp.status} ${resp.statusText}`);
+    // Which input the server blamed, when it says so -- the panel marks that box (spec §4).
+    if (body?.field) err.field = body.field;
+    throw err;
+  }
   return body;
 }
 
@@ -65,6 +70,14 @@ export async function generateBatch(project, { prompts, negative, variants }) {
 
 export async function stopGeneration() {
   return request("/api/stop", { method: "POST" });
+}
+
+export async function resumeBatch(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/resume`, { method: "POST" });
+}
+
+export async function cancelGeneration(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/cancel`, { method: "POST" });
 }
 
 export async function saveOrder(project, order) {

@@ -9,7 +9,7 @@ number -- that claim is the record's to keep (see usecases/start_batch.next_numb
 Listing the folder is deliberately not offered: which photos a project has is the photo record's
 answer, and two ways to ask it would be two ways to disagree.
 """
-from backend.features.photo_generation.domain.photo_name import number_of
+from backend.features.photo_generation.domain.photo_name import file_name, number_of
 
 
 class DrivePhotoStore:
@@ -25,7 +25,7 @@ class DrivePhotoStore:
         return max(numbers) + 1 if numbers else 0
 
     def save(self, project, number, letter, data):
-        filename = f"{number}_{letter}.png"
+        filename = file_name(number, letter)
         self._storage.write_bytes(project, filename, data)
         return filename
 

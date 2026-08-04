@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  cancelGeneration,
   deletePhotos,
   generateBatch,
   getStatus,
   listPhotos,
+  resumeBatch,
   saveOrder,
   stopGeneration,
 } from "../../shared/api.js";
@@ -18,6 +20,8 @@ export function useGeneration(project) {
   // null = not known yet (first fetch still flying), [] = the project truly has no photos.
   const [photos, setPhotos] = useState(null);
   const [error, setError] = useState(null);   // rejected request or unreachable server
+  // Which input the server blamed, when it named one: "prompts" | "variants" | null.
+  const [errorField, setErrorField] = useState(null);
   const [stopPressed, setStopPressed] = useState(false);
   const timer = useRef(null);
   // Flips false on unmount so an in-flight promise that resolves afterwards cannot setState or
@@ -73,9 +77,15 @@ export function useGeneration(project) {
     };
   }, [poll]);
 
+  const clearError = useCallback(() => {
+    setError(null);
+    setErrorField(null);
+  }, []);
+
   const generate = useCallback(
     (form) => {
       setError(null);
+      setErrorField(null);
       return generateBatch(project, form)
         .then(() => {
           if (!alive.current) return;
@@ -84,10 +94,35 @@ export function useGeneration(project) {
           clearTimeout(timer.current);        // drop any chain already ticking, avoid a parallel one
           timer.current = setTimeout(poll, POLL_MS);
         })
-        .catch((err) => { if (alive.current) setError(err.message); });
+        .catch((err) => {
+          if (!alive.current) return;
+          setError(err.message);
+          setErrorField(err.field || null);
+        });
     },
     [project, poll],
   );
+
+  // Resuming and cancelling are the paused view's two ways out. Both re-arm the poll: after a
+  // resume the run is alive again, and after a cancel the screen has to see "idle" once.
+  const resume = useCallback(() => {
+    clearError();
+    return resumeBatch(project)
+      .then(() => {
+        if (!alive.current) return;
+        setJob({ status: "running", project, done: 0, failed: 0, total: 0 });
+        wasRunning.current = true;
+        clearTimeout(timer.current);
+        timer.current = setTimeout(poll, POLL_MS);
+      })
+      .catch((err) => { if (alive.current) setError(err.message); });
+  }, [project, poll, clearError]);
+
+  const cancel = useCallback(() => (
+    cancelGeneration(project)
+      .then(() => { if (alive.current) poll(); })
+      .catch((err) => { if (alive.current) setError(err.message); })
+  ), [project, poll]);
 
   const stop = useCallback(() => {
     setStopPressed(true);                     // instant feedback; the server confirms via polls
@@ -138,5 +173,6 @@ export function useGeneration(project) {
   // The server also reports "stopping" (survives a reload); either source disables the button.
   const stopping = stopPressed || Boolean(job.stopping);
 
-  return { job, photos, error, stopping, generate, stop, reorder, removePhotos };
+  return { job, photos, error, errorField, stopping, generate, stop, resume, cancel, clearError,
+           reorder, removePhotos };
 }

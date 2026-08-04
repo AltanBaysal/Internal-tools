@@ -11,6 +11,7 @@ from flask import Blueprint, jsonify, request, send_file, send_from_directory
 
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.usecases.delete_photos import InvalidFiles
+from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
 from backend.features.photo_generation.domain.usecases.start_batch import (
     Busy,
@@ -19,8 +20,9 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 )
 
 
-def make_photo_generation_blueprint(start_batch, get_status, stop_generation, list_photos,
-                                    save_order, export_project, delete_photos, photo_dir):
+def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
+                                    cancel_generation, list_photos, save_order, export_project,
+                                    delete_photos, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -35,8 +37,12 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, li
         negative = negative if isinstance(negative, str) else ""
         try:
             start_batch(project, prompts, negative, body.get("variants"))
-        except (InvalidPrompts, InvalidVariants) as exc:
-            return jsonify({"error": str(exc)}), 400
+        # Which box was wrong travels with the message: the screen marks that field instead of
+        # guessing from the wording.
+        except InvalidPrompts as exc:
+            return jsonify({"error": str(exc), "field": "prompts"}), 400
+        except InvalidVariants as exc:
+            return jsonify({"error": str(exc), "field": "variants"}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except Busy as exc:
@@ -51,6 +57,26 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, li
     @bp.post("/api/stop")
     def stop():
         return jsonify(stop_generation())
+
+    @bp.post("/api/projects/<project>/resume")
+    def resume(project):
+        try:
+            resume_batch(project)
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except (NothingToResume, Busy) as exc:
+            return jsonify({"error": str(exc)}), 409
+        return jsonify({"job": "running"}), 202
+
+    @bp.post("/api/projects/<project>/cancel")
+    def cancel(project):
+        try:
+            cancel_generation(project)
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except Busy as exc:
+            return jsonify({"error": str(exc)}), 409
+        return "", 204
 
     @bp.get("/api/projects/<project>/photos")
     def photos(project):

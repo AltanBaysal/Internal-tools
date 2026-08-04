@@ -61,7 +61,7 @@ function Tile({ name, muted, badge, selected, onCheck, children }) {
 // Artboard 03/04/05: five columns, in the order the user dragged them into. The frame being
 // rendered sits at the front as a spinner tile, so the grid shows what is happening, not just what
 // landed -- it carries no badge because it has no place in the record yet.
-export default function Gallery({ project, photos, current, onReorder, onDelete }) {
+export default function Gallery({ project, photos, current, pending, onReorder, onDelete }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -110,7 +110,8 @@ export default function Gallery({ project, photos, current, onReorder, onDelete 
       </div>
     );
   }
-  if (!photos.length && !current) {
+  const queued = pending || [];
+  if (!photos.length && !current && !queued.length) {
     return (
       <div style={{ ...PAD, ...EMPTY }}>
         <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz fotoğraf yok</Mono>
@@ -143,6 +144,17 @@ export default function Gallery({ project, photos, current, onReorder, onDelete 
             <ImgPH loading style={{ aspectRatio: "1/1" }} />
           </Tile>
         )}
+        {/* The queue, drawn before it exists: the run's remaining frames as faded dashed tiles, so
+            the gallery shows what is coming and not only what has landed. They carry no order
+            badge and cannot be dragged or selected -- there is no photo behind them yet. */}
+        {queued.map((file) => (
+          <Tile key={file} name={file} muted>
+            <div className="wf-img" style={{ aspectRatio: "1/1", borderStyle: "dashed",
+                                             opacity: 0.35 }}>
+              <Mono size={10} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
+            </div>
+          </Tile>
+        ))}
         {photos.map((photo, index) => {
           const dragging = index === dragIndex;
           const isSlot = index === overIndex && dragIndex !== null && !dragging;

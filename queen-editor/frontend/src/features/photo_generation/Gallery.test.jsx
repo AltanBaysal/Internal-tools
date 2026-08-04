@@ -90,6 +90,30 @@ describe("Gallery sıralama", () => {
   });
 });
 
+describe("Gallery kuyruk", () => {
+  it("bekleyen kareleri fotoğrafların önüne dizer", () => {
+    renderGallery({ pending: ["3_a.png", "3_b.png"] });
+
+    expect(screen.getAllByText("bekliyor")).toHaveLength(2);
+    expect(screen.getByText("3_a.png")).toBeTruthy();
+  });
+
+  it("bekleyen kare rozet almaz ve sürüklenemez", () => {
+    renderGallery({ pending: ["3_a.png"] });
+
+    const tile = screen.getByText("3_a.png").closest("[data-tile]");
+    expect(tile).toBeNull();          // queued tiles are not part of the reorderable grid
+    expect(screen.queryByText("4")).toBeNull();
+  });
+
+  it("hiç fotoğraf yokken kuyruk varsa boş ekran demez", () => {
+    renderGallery({ photos: [], pending: ["0_a.png"] });
+
+    expect(screen.queryByText("henüz fotoğraf yok")).toBeNull();
+    expect(screen.getByText("bekliyor")).toBeTruthy();
+  });
+});
+
 describe("Gallery seçim modu", () => {
   it("halkaya tıklayınca mod açılır ve o kare seçilir", () => {
     renderGallery();

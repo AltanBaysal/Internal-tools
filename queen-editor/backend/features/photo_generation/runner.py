@@ -49,6 +49,13 @@ class PhotoRunner:
             if self._state.get("status") == "running":
                 self._state = {**self._state, **patch}
 
+    def reset(self):
+        """Back to idle. Refused while a job runs -- only a finished or paused run can be cleared."""
+        with self._lock:
+            if self._state.get("status") != "running":
+                self._state = {"status": "idle"}
+                self._stop = False
+
     def request_stop(self):
         with self._lock:
             self._stop = True

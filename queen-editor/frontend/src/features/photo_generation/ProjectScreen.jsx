@@ -20,13 +20,15 @@ const HEADER = {
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, photos, error, stopping, generate, stop, reorder,
-          removePhotos } = useGeneration(project);
+  const { job, photos, error, errorField, stopping, generate, stop, resume, cancel, clearError,
+          reorder, removePhotos } = useGeneration(project);
   const [saveError, setSaveError] = useState(null);
   const [leaving, setLeaving] = useState(false);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
   const busyElsewhere = job.status === "running" && job.project !== project;
   const running = job.status === "running" && !busyElsewhere;
+  // Whose run the status describes: another project's queue must not draw tiles into this gallery.
+  const mine = job.project === project;
 
   // Pressing Üret persists the panel first, whether or not the batch is accepted -- text the
   // server rejects is still what the user typed. Both writes land in the same folder, so settings
@@ -63,11 +65,13 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
           <Gallery project={project} photos={photos} current={running ? job.current : null}
+                   pending={mine ? job.pending : null}
                    onReorder={reorder} onDelete={removePhotos} />
         </div>
-        <GeneratePanel job={job} error={saveError || error} busyElsewhere={busyElsewhere}
-                       settings={settings} project={project} stopping={stopping}
-                       onGenerate={handleGenerate} onStop={stop} />
+        <GeneratePanel job={job} error={saveError || error} errorField={errorField}
+                       busyElsewhere={busyElsewhere} settings={settings} project={project}
+                       stopping={stopping} onGenerate={handleGenerate} onStop={stop}
+                       onResume={resume} onCancel={cancel} onClearError={clearError} />
       </div>
 
       {leaving && (

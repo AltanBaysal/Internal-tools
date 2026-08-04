@@ -41,6 +41,11 @@ class DrivePlanStore:
                 "frames": [f for f in data["frames"]
                            if isinstance(f, dict) and isinstance(f.get("number"), int)]}
 
+    def clear(self, project):
+        """Forget the queue. Written as an empty plan rather than deleted: a project folder that
+        once had a plan keeps a readable one, and "no frames left" is a plain answer to read."""
+        self.write(project, "", [])
+
     def max_number(self, project):
         """Highest number this plan reserved, or None when there is no plan to honour."""
         numbers = [frame["number"] for frame in self.read(project)["frames"]]

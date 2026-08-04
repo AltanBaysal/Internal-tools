@@ -7,7 +7,7 @@ Pure: the seed comes from an injected `new_seed`, and runner/store/generator are
 exception messages are the user-facing Turkish text; presentation maps them to status codes and
 forwards them untouched.
 """
-from backend.features.photo_generation.domain import policy
+from backend.features.photo_generation.domain.run_loop import make_job
 from backend.features.photo_generation.domain.prompt_list import parse_prompts
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz"
@@ -73,36 +73,7 @@ def start_batch(runner, store, record, plan_store, generator, new_seed, now,
                          new_seed)
     # Written before the first render, so a run that dies leaves behind what it meant to make.
     plan_store.write(project, negative, frames)
-    total = len(frames)
 
-    def job():
-        done = failed = consecutive = 0
-        for frame in frames:
-            if runner.stop_requested():
-                return {"status": "stopped", "done": done, "failed": failed, "total": total}
-            runner.report({"done": done, "failed": failed, "total": total, "current": frame})
-            try:
-                data = generator.generate(frame["prompt"], negative, frame["seed"])
-            except Exception as exc:
-                if runner.stop_requested():
-                    # The user's own stop killed this render -- that is not a failure.
-                    return {"status": "stopped", "done": done, "failed": failed, "total": total}
-                failed += 1
-                consecutive += 1
-                # getattr, not isinstance: domain must not import the ComfyUI service.
-                reason = policy.stop_reason(consecutive, getattr(exc, "infra", False))
-                if reason:
-                    return {"status": "error", "error": f"{reason}\n{exc}",
-                            "done": done, "failed": failed, "total": total}
-                continue
-            filename = store.save(project, frame["number"], frame["letter"], data)
-            # Only after the photo exists: the row is what "this photo is here" means.
-            record.append(project, {"file": filename, "prompt": frame["prompt"],
-                                    "negative": negative, "seed": frame["seed"],
-                                    "createdAt": now()})
-            done += 1
-            consecutive = 0
-        return {"status": "done", "done": done, "failed": failed, "total": total}
-
+    job = make_job(runner, store, record, generator, now, project, negative, frames)
     if not runner.start(project, job):
         raise Busy("Zaten bir üretim sürüyor.")
