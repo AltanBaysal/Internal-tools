@@ -50,7 +50,7 @@ _photo_bp = make_photo_generation_blueprint(
                         _photo_generator, lambda: random.randint(0, 2**31 - 1),
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     get_status=partial(get_status, _photo_runner),
-    stop_generation=partial(stop_generation, _photo_runner),
+    stop_generation=partial(stop_generation, _photo_runner, _comfy_client.interrupt),
     list_photos=partial(list_photos, _photo_record, _photo_store),
     photo_dir=_photo_store.photo_dir,
 )

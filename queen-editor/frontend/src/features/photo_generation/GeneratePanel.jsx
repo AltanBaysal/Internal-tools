@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
+import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import ProgressPanel from "./ProgressPanel.jsx";
 
 const PANEL = {
@@ -17,17 +18,20 @@ const PANEL = {
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 
-const RAW_ERROR = {
-  color: "var(--ink-3)",
-  background: "var(--bg)",
-  border: "1px solid var(--border)",
-  borderRadius: 3,
-  padding: "6px 8px",
-  whiteSpace: "pre-wrap",
-  wordBreak: "break-word",
-};
-
 const PLACEHOLDER = '["ilk prompt", "ikinci prompt"]';
+
+/** api.js prefixes an unreachable-server message with "Sunucuya ulaşılamadı" (see shared/api.js);
+ * anything else is a request the server itself rejected. The headline names which one happened so
+ * a dead tunnel doesn't read as a bad request, and the raw line drops the now-redundant Turkish
+ * prefix so it shows the underlying browser detail instead of repeating the headline.
+ */
+function describeError(text) {
+  if (text.startsWith("Sunucuya ulaşılamadı")) {
+    const nl = text.indexOf("\n");
+    return { headline: "Sunucuya ulaşılamıyor", raw: nl >= 0 ? text.slice(nl + 1) : text };
+  }
+  return { headline: "İstek reddedildi", raw: text };
+}
 
 /** Count for the "12 prompt × 4 varyant = 48 foto" line -- a preview, not a rule.
  *
@@ -49,7 +53,8 @@ function countPrompts(text) {
 
 // Artboard 03: prompt list, one shared negative, variant count, Üret. Artboard 04 keeps all three
 // fields on screen and swaps only the block underneath them.
-export default function GeneratePanel({ job, error, busyElsewhere, settings, onGenerate, onStop }) {
+export default function GeneratePanel({ job, error, busyElsewhere, settings, project, stopping,
+                                        onGenerate, onStop }) {
   // Initial values only: the screen mounts after the settings have loaded, so there is nothing to
   // sync afterwards and typing is never overwritten.
   const [prompts, setPrompts] = useState(settings.prompts);
@@ -59,20 +64,31 @@ export default function GeneratePanel({ job, error, busyElsewhere, settings, onG
   const [variants, setVariants] = useState(
     settings.variants === null ? "4" : String(settings.variants),
   );
+  const [submitting, setSubmitting] = useState(false);
 
   const running = job.status === "running" && !busyElsewhere;
+  const locked = running || submitting;
+  // Another project's finished batch must not talk into this panel (state leaks across projects
+  // otherwise -- the worker is global but the words on screen are this project's).
+  const mine = job.project === project;
   const count = countPrompts(prompts);
   const perPrompt = Number(variants);
   const planned = count !== null && Number.isInteger(perPrompt) && perPrompt > 0
     ? count * perPrompt
     : null;
-  const summary = {
-    done: `bitti — ${job.done}/${job.total}`,
-    stopped: `durduruldu — ${job.done}/${job.total}`,
-  }[job.status];
+  const errorInfo = error ? describeError(error) : null;
+
+  function handleGenerate() {
+    setSubmitting(true);
+    onGenerate({
+      prompts,
+      negative,
+      variants: Number.isInteger(perPrompt) && variants.trim() !== "" ? perPrompt : null,
+    }).finally(() => setSubmitting(false));
+  }
 
   return (
-    <div style={PANEL}>
+    <div className={locked ? "wf-panel wf-panel--locked" : "wf-panel"} style={PANEL}>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
         <Mono size={11} style={LABEL}>Prompt listesi</Mono>
         <textarea
@@ -80,6 +96,7 @@ export default function GeneratePanel({ job, error, busyElsewhere, settings, onG
           rows={11}
           value={prompts}
           placeholder={PLACEHOLDER}
+          disabled={locked}
           onChange={(e) => setPrompts(e.target.value)}
           style={{ fontSize: 11.5, flex: 1, fontFamily: "IBM Plex Mono, monospace" }}
         />
@@ -90,6 +107,7 @@ export default function GeneratePanel({ job, error, busyElsewhere, settings, onG
         <input
           className="wf-input"
           value={negative}
+          disabled={locked}
           onChange={(e) => setNegative(e.target.value)}
           style={{ fontSize: 12.5 }}
         />
@@ -103,56 +121,54 @@ export default function GeneratePanel({ job, error, busyElsewhere, settings, onG
           min={1}
           max={26}
           value={variants}
+          disabled={locked}
           onChange={(e) => setVariants(e.target.value)}
           style={{ width: 56, textAlign: "center", fontSize: 13 }}
         />
       </div>
 
       {running ? (
-        <ProgressPanel job={job} onStop={onStop} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <ProgressPanel job={job} stopping={stopping} onStop={onStop} />
+          {errorInfo && <StatusErrorCard text={errorInfo.headline} raw={errorInfo.raw} />}
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <Btn hl disabled={!prompts.trim() || busyElsewhere}
-               onClick={() => onGenerate({
-                 prompts,
-                 negative,
-                 variants: Number.isInteger(perPrompt) && variants.trim() !== ""
-                   ? perPrompt
-                   : null,
-               })}
+          <Btn hl disabled={!prompts.trim() || busyElsewhere || submitting}
+               onClick={handleGenerate}
                style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}>
-            <Icon.Sparkle /> Üret
+            {submitting ? "Başlatılıyor…" : <><Icon.Sparkle /> Üret</>}
           </Btn>
 
-          {planned !== null && (
-            <Mono size={11} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-              {count} prompt × {perPrompt} varyant = <span style={{ color: "var(--accent)" }}>{planned} foto</span>
-            </Mono>
-          )}
-          {summary && (
-            <Mono size={11} style={{ color: "var(--ink-2)", textAlign: "center" }}>{summary}</Mono>
-          )}
-          {busyElsewhere && (
+          {errorInfo ? (
+            <StatusErrorCard text={errorInfo.headline} raw={errorInfo.raw} />
+          ) : mine && job.status === "error" ? (
+            <StatusErrorCard text={`Üretim durdu — ${job.done}/${job.total} tamamlandı`}
+                             raw={job.error} />
+          ) : mine && job.status === "done" ? (
+            <div className="wf-stroke"
+                 style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: 8,
+                          borderColor: "var(--ok)", background: "var(--ok-bg)" }}>
+              <Mono size={13} style={{ color: "var(--ok)" }}>✓</Mono>
+              <Note size={12} style={{ color: "var(--ok)" }}>
+                {job.done} / {job.total} üretildi — tamamlandı
+              </Note>
+            </div>
+          ) : mine && job.status === "stopped" ? (
+            <div className="wf-stroke" style={{ padding: "8px 10px" }}>
+              <Note size={12} style={{ color: "var(--ink-2)", display: "block" }}>
+                Üretim durduruldu — {job.done}/{job.total} tamamlandı
+              </Note>
+            </div>
+          ) : busyElsewhere ? (
             <Note size={12} style={{ color: "var(--ink-3)" }}>
               Üretim sürüyor: {job.project} — bitmesini bekle.
             </Note>
-          )}
-          {error && <Note size={12} style={{ color: "var(--danger)" }}>{error}</Note>}
-          {job.status === "error" && (
-            <div className="wf-stroke" style={{ padding: 12, display: "flex",
-                                                flexDirection: "column", gap: 8,
-                                                borderColor: "var(--danger)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--danger)" }}>
-                <Icon.Warn />
-                <Note size={13} style={{ color: "var(--danger)", fontWeight: 500 }}>Üretim durdu</Note>
-              </div>
-              <Note size={12} style={{ color: "var(--ink-2)" }}>
-                {job.done}/{job.total} tamamlandı — üretilenler kaydedildi.
-              </Note>
-              {/* The server's own error text -- we never guess the cause. */}
-              <Mono size={10} style={RAW_ERROR}>{job.error}</Mono>
-            </div>
-          )}
+          ) : planned !== null ? (
+            <Mono size={11} style={{ color: "var(--ink-3)", textAlign: "center" }}>
+              {count} prompt × {perPrompt} varyant = <span style={{ color: "var(--accent)" }}>{planned} foto</span>
+            </Mono>
+          ) : null}
         </div>
       )}
     </div>

@@ -22,6 +22,8 @@
   --accent-dim:#7c6aa6;
   --danger:    #c97064;
   --danger-bg: rgba(201,112,100,.10);
+  --ok:        #7ec9a0;
+  --ok-bg:     rgba(126,201,160,.10);
 
   --r-sm: 4px;
   --r-md: 8px;
@@ -391,10 +393,14 @@ body {
   to { transform: rotate(360deg); }
 }
 
+/* Panel lock during generation: first 4 blocks = model, prompt list, negative, variant */
+.wf-panel--locked > div:nth-child(-n+4) { opacity: .45; pointer-events: none; }
+
 /* Modal scrim ----------------------------------------------------------- */
 
 .wf-scrim {
   position: absolute; inset: 0;
+  z-index: 20;
   background: rgba(10,8,7,.65);
   display: flex; align-items: center; justify-content: center;
   backdrop-filter: blur(3px);

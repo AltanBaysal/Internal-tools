@@ -57,6 +57,9 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, li
     @bp.get("/photos/<project>/<filename>")
     def serve_photo(project, filename):
         # send_from_directory rejects paths that escape the folder.
-        return send_from_directory(photo_dir(project), filename)
+        resp = send_from_directory(photo_dir(project), filename)
+        # next_number never reuses a number, so a photo URL's bytes can never change.
+        resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        return resp
 
     return bp

@@ -73,3 +73,8 @@ class ComfyClient:
         })
         resp.raise_for_status()
         return resp.content
+
+    def interrupt(self):
+        """Cut whatever ComfyUI is rendering right now; harmless when nothing runs."""
+        resp = self._http.post(f"{self.base}/interrupt", timeout=30)
+        resp.raise_for_status()

@@ -17,9 +17,9 @@ const HEADER = {
 
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
-export default function ProjectScreen({ project, settings, settingsError, onSaveSettings }) {
-  const { job, photos, error, generate, stop } = useGeneration(project);
-  const [saveError, setSaveError] = useState(settingsError);
+export default function ProjectScreen({ project, settings, onSaveSettings }) {
+  const { job, photos, error, stopping, generate, stop } = useGeneration(project);
+  const [saveError, setSaveError] = useState(null);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
   const busyElsewhere = job.status === "running" && job.project !== project;
   const running = job.status === "running" && !busyElsewhere;
@@ -45,8 +45,7 @@ export default function ProjectScreen({ project, settings, settingsError, onSave
       <div style={HEADER}>
         <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
         <Hand size={20}>{project}</Hand>
-        <Btn ghost style={{ color: "var(--danger)", justifySelf: "end" }}
-             onClick={() => navigate("/")}>Projeden çık</Btn>
+        <Btn ghost style={{ justifySelf: "end" }} onClick={() => navigate("/")}>Projeden çık</Btn>
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
@@ -56,7 +55,8 @@ export default function ProjectScreen({ project, settings, settingsError, onSave
           <Gallery project={project} photos={photos} current={running ? job.current : null} />
         </div>
         <GeneratePanel job={job} error={saveError || error} busyElsewhere={busyElsewhere}
-                       settings={settings} onGenerate={handleGenerate} onStop={stop} />
+                       settings={settings} project={project} stopping={stopping}
+                       onGenerate={handleGenerate} onStop={stop} />
       </div>
     </div>
   );

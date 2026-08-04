@@ -35,7 +35,7 @@ def make_client(tmp_path, generator=None, runner=None):
                             generator or FakeGenerator(), lambda: 42,
                             lambda: "2026-08-03T14:32:11+00:00"),
         get_status=partial(get_status, runner),
-        stop_generation=partial(stop_generation, runner),
+        stop_generation=partial(stop_generation, runner, lambda: None),
         list_photos=partial(list_photos, record, store),
         photo_dir=store.photo_dir,
     )
@@ -161,3 +161,11 @@ def test_photo_is_served_from_the_project_folder(tmp_path):
     (drive / "düğün" / "0_a.png").write_bytes(b"PNGDATA")
     assert client.get("/photos/düğün/0_a.png").data == b"PNGDATA"
     assert client.get("/photos/düğün/yok.png").status_code == 404
+
+
+def test_photo_response_is_immutably_cacheable(tmp_path):
+    client, drive = make_client(tmp_path)
+    (drive / "düğün" / "0_a.png").write_bytes(b"PNGDATA")
+    resp = client.get("/photos/düğün/0_a.png")
+    assert resp.status_code == 200
+    assert resp.headers["Cache-Control"] == "public, max-age=31536000, immutable"

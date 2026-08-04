@@ -23,7 +23,10 @@ class PhotoRunner:
 
     def status(self):
         with self._lock:
-            return dict(self._state)
+            state = dict(self._state)
+            if state.get("status") == "running" and self._stop:
+                state["stopping"] = True
+            return state
 
     def start(self, project, job):
         """Claim the worker and run `job` in the background. False means one is already running.

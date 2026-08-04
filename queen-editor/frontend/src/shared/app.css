@@ -5,3 +5,10 @@
 .wf-scrim {
   position: fixed;
 }
+
+/* The design's panel lock dims its first four blocks (Model + three fields). Our panel has no
+   Model block yet (Part 14), so the fourth child here is the action block -- undim it. */
+.wf-panel--locked > div:nth-child(4) {
+  opacity: 1;
+  pointer-events: auto;
+}

@@ -1,18 +1,19 @@
 import { useState } from "react";
 
 import { createProject } from "../../shared/api.js";
+import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import NewProjectModal from "./NewProjectModal.jsx";
 import ProjectCard from "./ProjectCard.jsx";
 import { useProjects } from "./useProjects.js";
 
 const CENTERED = {
-  minHeight: "60vh",
+  minHeight: "70vh",     // the design centres the empty state in ~70% of the body
   display: "flex",
   flexDirection: "column",
   alignItems: "center",
   justifyContent: "center",
-  gap: 10,
+  gap: 8,
 };
 
 export default function ProjectsScreen() {
@@ -49,35 +50,23 @@ export default function ProjectsScreen() {
       <div style={{ flex: 1, padding: "24px 32px" }}>
         {status === "error" ? (
           <div style={CENTERED}>
-            <span style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--danger)" }}>
-              <Icon.Warn />
-              <Note size={14} style={{ color: "var(--danger)", fontWeight: 500 }}>
-                Projeler yüklenemedi
-              </Note>
-            </span>
-            {/* The server's raw message -- we never guess the cause. */}
-            <Mono
-              size={11}
-              style={{
-                color: "var(--ink-3)",
-                background: "var(--bg)",
-                border: "1px solid var(--border)",
-                borderRadius: 3,
-                padding: "6px 8px",
-                maxWidth: 640,
-                wordBreak: "break-word",
-              }}
-            >
-              {error}
-            </Mono>
-            <Btn onClick={reload}><Icon.Regen /> Tekrar dene</Btn>
+            <StatusErrorCard text="Projeler yüklenemedi" raw={error} onRetry={reload} />
           </div>
-        ) : status === "loading" ? null : projects.length === 0 ? (
+        ) : status === "loading" ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+            {Array.from({ length: 8 }, (_, i) => (
+              <div key={i} className="wf-stroke wf-stroke--dashed" style={{ aspectRatio: "4/3" }} />
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
           <div style={CENTERED}>
             <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz proje yok</Mono>
             <Note size={13} style={{ color: "var(--ink-3)" }}>
               İlk projeni oluştur, fotoğrafların burada toplansın
             </Note>
+            <Btn hl style={{ marginTop: 8 }} onClick={() => setModalOpen(true)}>
+              <Icon.Plus /> İlk projeyi oluştur
+            </Btn>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>

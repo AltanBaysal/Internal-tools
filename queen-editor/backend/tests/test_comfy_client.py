@@ -103,3 +103,16 @@ def test_fetch_output_refuses_when_not_exactly_one_output():
     with pytest.raises(RuntimeError) as exc:
         client_with(FakeHttp()).fetch_output(entry)
     assert "Batch Size" in str(exc.value)
+
+
+def test_interrupt_posts_to_comfy():
+    http = FakeHttp()
+    client_with(http).interrupt()
+    url, _body = http.posted
+    assert url == "http://comfy:8188/interrupt"
+
+
+def test_interrupt_raises_on_http_error():
+    http = FakeHttp(post=FakeResponse(status_code=500))
+    with pytest.raises(RuntimeError):
+        client_with(http).interrupt()

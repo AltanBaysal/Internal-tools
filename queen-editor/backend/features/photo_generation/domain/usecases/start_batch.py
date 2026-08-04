@@ -77,6 +77,9 @@ def start_batch(runner, store, record, plan_store, generator, new_seed, now,
             try:
                 data = generator.generate(frame["prompt"], negative, frame["seed"])
             except Exception as exc:
+                if runner.stop_requested():
+                    # The user's own stop killed this render -- that is not a failure.
+                    return {"status": "stopped", "done": done, "failed": failed, "total": total}
                 failed += 1
                 consecutive += 1
                 # getattr, not isinstance: domain must not import the ComfyUI service.

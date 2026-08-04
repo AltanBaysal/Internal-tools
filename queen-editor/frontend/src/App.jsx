@@ -1,25 +1,22 @@
 import ProjectScreen from "./features/photo_generation/ProjectScreen.jsx";
+import ProjectSkeleton from "./features/photo_generation/ProjectSkeleton.jsx";
 import ProjectsScreen from "./features/projects/ProjectsScreen.jsx";
 import { useProjectSettings } from "./features/projects/useProjectSettings.js";
 import { projectFromPath, useRoute } from "./shared/router.js";
+import { StatusErrorCard } from "./shared/StatusErrorCard.jsx";
 
-const EMPTY_SETTINGS = { prompts: "", negative: "", variants: null };
-
-// The join lives here: settings belong to the projects feature, the gallery and the batch to
-// photo_generation, and neither imports the other.
-// Rendering waits for the settings so the panel's fields can start from them -- mounting empty and
-// filling in afterwards would overwrite whatever the user had begun typing.
 function ProjectRoute({ project }) {
-  const { status, settings, error, save } = useProjectSettings(project);
-  if (status === "loading") return null;
-  return (
-    <ProjectScreen
-      project={project}
-      settings={settings || EMPTY_SETTINGS}
-      settingsError={error}
-      onSaveSettings={save}
-    />
-  );
+  const { status, settings, error, save, reload } = useProjectSettings(project);
+  if (status === "loading") return <ProjectSkeleton project={project} />;
+  if (status === "error") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center",
+                    justifyContent: "center", padding: 32 }}>
+        <StatusErrorCard text="Proje ayarları yüklenemedi" raw={error} onRetry={reload} />
+      </div>
+    );
+  }
+  return <ProjectScreen project={project} settings={settings} onSaveSettings={save} />;
 }
 
 export default function App() {

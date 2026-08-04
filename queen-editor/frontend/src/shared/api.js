@@ -2,7 +2,14 @@
 // On failure it throws the server's own message: the rules (and their Turkish wording) live in the
 // backend, and the UI prints whatever comes back.
 async function request(path, options) {
-  const resp = await fetch(path, options);
+  let resp;
+  try {
+    resp = await fetch(path, options);
+  } catch (err) {
+    // fetch rejects with a browser-English TypeError when the tunnel is unreachable; say it in
+    // Turkish and keep the raw text underneath (we never guess the cause).
+    throw new Error(`Sunucuya ulaşılamadı — bağlantıyı kontrol et.\n${err.message}`);
+  }
   let body = null;
   try {
     body = await resp.json();

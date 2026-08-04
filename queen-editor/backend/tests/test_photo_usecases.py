@@ -193,6 +193,21 @@ def test_stop_request_ends_the_batch_between_frames():
     assert generator.calls == 1
 
 
+def test_frame_killed_by_user_stop_is_not_a_failure():
+    """A render that dies because the user pressed Durdur is 'stopped', never a failure."""
+    store, runner = FakeStore(), sync_runner()
+
+    class StoppingGenerator:
+        def generate(self, prompt, negative, seed):
+            runner.request_stop()          # the user's stop lands mid-render
+            raise RuntimeError("interrupted")
+
+    run_batch(runner, store, StoppingGenerator(), text='["a", "b", "c"]', variants=1)
+    state = runner.status()
+    assert state["status"] == "stopped"
+    assert state["failed"] == 0
+
+
 def test_bad_prompt_text_is_rejected_before_anything_runs():
     store, generator = FakeStore(), FakeGenerator()
     with pytest.raises(InvalidPrompts):
@@ -224,12 +239,33 @@ def test_busy_runner_is_rejected():
 def test_stop_generation_sets_the_flag_and_returns_the_state():
     runner = PhotoRunner(spawn=lambda fn: None)
     runner.start("düğün", lambda: {"status": "done"})
-    state = stop_generation(runner)
+    state = stop_generation(runner, interrupt=lambda: None)
     assert state["status"] == "running" and runner.stop_requested() is True
 
 
 def test_stop_generation_when_idle_is_a_no_op():
-    assert stop_generation(PhotoRunner()) == {"status": "idle"}
+    assert stop_generation(PhotoRunner(), interrupt=lambda: None) == {"status": "idle"}
+
+
+def test_stop_generation_interrupts_and_reports_stopping():
+    runner = PhotoRunner(spawn=lambda fn: None)     # claimed but never runs the job
+    runner.start("p", lambda: {"status": "done"})
+    calls = []
+    state = stop_generation(runner, interrupt=lambda: calls.append("interrupt"))
+    assert calls == ["interrupt"]
+    assert state["status"] == "running" and state["stopping"] is True
+
+
+def test_stop_generation_survives_interrupt_failure():
+    """A dead ComfyUI must not turn Durdur into a 500 -- the flag alone already stops the batch."""
+    runner = PhotoRunner(spawn=lambda fn: None)
+    runner.start("p", lambda: {"status": "done"})
+
+    def broken_interrupt():
+        raise RuntimeError("connection refused")
+
+    state = stop_generation(runner, interrupt=broken_interrupt)
+    assert state["stopping"] is True
 
 
 def test_list_photos_comes_from_the_record():

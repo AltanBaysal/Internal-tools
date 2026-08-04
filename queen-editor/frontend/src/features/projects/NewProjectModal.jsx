@@ -12,11 +12,13 @@ export default function NewProjectModal({ onCancel, onCreate }) {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === "Escape") onCancel();
+      // While the create request is in flight the modal must not pretend to cancel -- the
+      // server is still creating the project (spec §1B).
+      if (e.key === "Escape" && !busy) onCancel();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  }, [onCancel, busy]);
 
   function submit() {
     setBusy(true);
@@ -28,7 +30,7 @@ export default function NewProjectModal({ onCancel, onCreate }) {
   }
 
   return (
-    <div className="wf-scrim" onClick={onCancel}>
+    <div className="wf-scrim" onClick={busy ? undefined : onCancel}>
       <div
         className="wf-card wf-card--shadow"
         onClick={(e) => e.stopPropagation()}
@@ -57,7 +59,7 @@ export default function NewProjectModal({ onCancel, onCreate }) {
         {error && <Note size={12} style={{ color: "var(--danger)" }}>{error}</Note>}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
           <Btn ghost onClick={onCancel} disabled={busy}>Vazgeç</Btn>
-          <Btn hl onClick={submit} disabled={!name || busy}>
+          <Btn hl onClick={submit} disabled={!name || busy || Boolean(error)}>
             {busy ? "Oluşturuluyor…" : "Oluştur"}
           </Btn>
         </div>
