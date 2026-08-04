@@ -1,9 +1,11 @@
+import json
 from functools import partial
 
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
+from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
 from backend.features.photo_generation.domain.usecases.save_order import save_order
@@ -41,6 +43,7 @@ def make_client(tmp_path, generator=None, runner=None):
         stop_generation=partial(stop_generation, runner, lambda: None),
         list_photos=partial(list_photos, record, store, order_store),
         save_order=partial(save_order, record, store, order_store),
+        export_project=partial(export_project, record, store, order_store),
         photo_dir=store.photo_dir,
     )
     app = create_app(dist_dir=str(dist), blueprints=[blueprint])
@@ -217,6 +220,34 @@ def test_order_that_is_not_a_list_of_names_returns_400(tmp_path):
 def test_order_of_an_unknown_project_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
     assert client.put("/api/projects/yok/order", json={"order": []}).status_code == 404
+
+
+def test_export_downloads_a_json_file_in_gallery_order(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+    client.put("/api/projects/düğün/order", json={"order": ["0_a.png", "1_a.png"]})
+
+    resp = client.get("/api/projects/düğün/export")
+
+    assert resp.status_code == 200
+    assert resp.mimetype == "application/json"
+    assert "attachment" in resp.headers["Content-Disposition"]
+    body = json.loads(resp.data)
+    assert body["photos"] == [{"file": "0_a.png", "prompt": "a"},
+                              {"file": "1_a.png", "prompt": "b"}]
+    assert body["folder"].endswith("düğün")
+
+
+def test_export_of_an_empty_project_is_still_a_file(tmp_path):
+    client, _ = make_client(tmp_path)
+    resp = client.get("/api/projects/düğün/export")
+    assert resp.status_code == 200
+    assert json.loads(resp.data)["photos"] == []
+
+
+def test_export_of_an_unknown_project_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.get("/api/projects/yok/export").status_code == 404
 
 
 def test_a_broken_order_file_does_not_hide_the_gallery(tmp_path):

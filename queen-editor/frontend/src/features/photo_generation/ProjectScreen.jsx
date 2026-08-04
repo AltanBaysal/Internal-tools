@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { exportUrl } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import { Btn, Hand } from "../../vendor/kit.jsx";
 import Gallery from "./Gallery.jsx";
@@ -45,7 +46,13 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
       <div style={HEADER}>
         <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
         <Hand size={20}>{project}</Hand>
-        <Btn ghost style={{ justifySelf: "end" }} onClick={() => navigate("/")}>Projeden çık</Btn>
+        <div style={{ display: "flex", gap: 8, justifySelf: "end" }}>
+          {/* A link, not a Btn: its whole job is downloading a file, which the browser does by
+              itself -- no JavaScript, and "save link as" keeps working. The look is the design's
+              ghost button; app.css drops the anchor's underline. */}
+          <a className="wf-btn wf-btn--ghost" href={exportUrl(project)} download>Export</a>
+          <Btn ghost onClick={() => navigate("/")}>Projeden çık</Btn>
+        </div>
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>

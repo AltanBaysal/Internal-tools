@@ -10,6 +10,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     plan_frames,
     start_batch,
 )
+from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder, save_order
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.runner import PhotoRunner
@@ -334,6 +335,29 @@ def test_save_order_rejects_a_non_string_entry():
 def test_save_order_rejects_a_missing_project():
     with pytest.raises(ProjectMissing):
         save_order(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), "yok", [])
+
+
+def test_export_carries_the_folder_and_the_gallery_order():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "prompt": "ilk", "seed": 7})
+    record.append("düğün", {"file": "1_a.png", "prompt": "ikinci", "seed": 8})
+    order = FakeOrderStore(["0_a.png", "1_a.png"])
+
+    assert export_project(record, FakeStore(), order, "düğün") == {
+        "folder": "/fake/düğün",
+        "photos": [{"file": "0_a.png", "prompt": "ilk"},
+                   {"file": "1_a.png", "prompt": "ikinci"}],
+    }
+
+
+def test_export_of_an_empty_project_still_names_the_folder():
+    assert export_project(FakeRecord(), FakeStore(), FakeOrderStore(), "düğün") == {
+        "folder": "/fake/düğün", "photos": []}
+
+
+def test_export_rejects_a_missing_project():
+    with pytest.raises(ProjectMissing):
+        export_project(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), "yok")
 
 
 def test_get_status_passes_the_runner_state_through():

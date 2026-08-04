@@ -88,3 +88,8 @@ export async function getStatus() {
 export function photoUrl(project, file) {
   return `/photos/${encodeURIComponent(project)}/${encodeURIComponent(file)}`;
 }
+
+// Also a plain URL: the browser downloads it straight from the link (see ProjectScreen).
+export function exportUrl(project) {
+  return `/api/projects/${encodeURIComponent(project)}/export`;
+}
