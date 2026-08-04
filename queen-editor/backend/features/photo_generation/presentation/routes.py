@@ -10,7 +10,7 @@ import json
 from flask import Blueprint, jsonify, request, send_file, send_from_directory
 
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.delete_photo import PhotoMissing
+from backend.features.photo_generation.domain.usecases.delete_photos import InvalidFiles
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
 from backend.features.photo_generation.domain.usecases.start_batch import (
     Busy,
@@ -20,7 +20,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, list_photos,
-                                    save_order, export_project, delete_photo, photo_dir):
+                                    save_order, export_project, delete_photos, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -82,17 +82,21 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, li
         return send_file(io.BytesIO(payload), mimetype="application/json", as_attachment=True,
                          download_name=f"{project}-export.json")
 
-    @bp.delete("/api/projects/<project>/photos/<filename>")
-    def remove_photo(project, filename):
+    # POST, not DELETE: the request carries a list of names, and a body on DELETE is a corner of
+    # HTTP that proxies and clients disagree about.
+    @bp.post("/api/projects/<project>/photos/delete")
+    def remove_photos(project):
+        body = request.get_json(silent=True) or {}
         try:
-            delete_photo(project, filename)
-        except (ProjectMissing, PhotoMissing) as exc:
+            # What was really deleted goes back: names that had already gone are not an error.
+            return jsonify({"deleted": delete_photos(project, body.get("files"))})
+        except InvalidFiles as exc:
+            return jsonify({"error": str(exc)}), 400
+        except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except OSError as exc:
             # The operating system's own words -- never guess the cause.
             return jsonify({"error": str(exc)}), 500
-        # 204: the client already knows the gallery order, so it opens the next photo itself.
-        return "", 204
 
     @bp.get("/photos/<project>/<filename>")
     def serve_photo(project, filename):

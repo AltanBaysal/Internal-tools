@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deletePhoto, listPhotos } from "../../shared/api.js";
+import { deletePhotos, listPhotos } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import PhotoDetail from "./PhotoDetail.jsx";
 
 vi.mock("../../shared/api.js", () => ({
-  deletePhoto: vi.fn(),
+  deletePhotos: vi.fn(),
   listPhotos: vi.fn(),
   photoUrl: (project, file) => `/photos/${project}/${file}`,
 }));
@@ -75,21 +75,21 @@ describe("PhotoDetail", () => {
   });
 
   it("silme önce onay ister, sonra sonraki fotoğrafı açar", async () => {
-    deletePhoto.mockResolvedValue(null);
+    deletePhotos.mockResolvedValue({ deleted: [] });
     await open("1_a.png");
 
     fireEvent.click(screen.getByText("Sil"));
     expect(screen.getByText("Bu fotoğraf silinsin mi?")).toBeTruthy();
-    expect(deletePhoto).not.toHaveBeenCalled();
+    expect(deletePhotos).not.toHaveBeenCalled();
 
     await act(async () => { fireEvent.click(confirmButton()); });
 
-    expect(deletePhoto).toHaveBeenCalledWith("düğün", "1_a.png");
+    expect(deletePhotos).toHaveBeenCalledWith("düğün", ["1_a.png"]);
     expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/0_a.png");
   });
 
   it("son fotoğraf silinince öncekine döner", async () => {
-    deletePhoto.mockResolvedValue(null);
+    deletePhotos.mockResolvedValue({ deleted: [] });
     await open("0_a.png");
 
     fireEvent.click(screen.getByText("Sil"));

@@ -2,7 +2,10 @@ import pytest
 
 from backend.features.photo_generation.domain.photo_name import number_of
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.delete_photo import PhotoMissing, delete_photo
+from backend.features.photo_generation.domain.usecases.delete_photos import (
+    InvalidFiles,
+    delete_photos,
+)
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
 from backend.features.photo_generation.domain.usecases.start_batch import (
@@ -386,28 +389,44 @@ def test_a_deleted_number_is_never_used_again():
     assert next_number(store, plan_store, record, "düğün") == 1
 
 
-def test_delete_removes_the_file_records_it_and_prunes_the_order():
+def stamped():
+    return "2026-08-05T10:00:00+00:00"
+
+
+def test_delete_removes_the_files_records_them_and_prunes_the_order():
     store, record = FakeStore(), FakeRecord()
-    record.append("düğün", {"file": "0_a.png"})
-    record.append("düğün", {"file": "1_a.png"})
-    order = FakeOrderStore(["0_a.png", "1_a.png"])
+    for file in ("0_a.png", "1_a.png", "2_a.png"):
+        record.append("düğün", {"file": file})
+    order = FakeOrderStore(["0_a.png", "1_a.png", "2_a.png"])
 
-    delete_photo(record, store, order, lambda: "2026-08-05T10:00:00+00:00", "düğün", "0_a.png")
+    deleted = delete_photos(record, store, order, stamped, "düğün", ["0_a.png", "2_a.png"])
 
-    assert store.deleted == ["0_a.png"]
+    assert deleted == ["0_a.png", "2_a.png"]
+    assert store.deleted == ["0_a.png", "2_a.png"]
     assert [row["file"] for row in record.list("düğün")] == ["1_a.png"]
     assert order.order == ["1_a.png"]
 
 
-def test_deleting_an_unknown_photo_is_rejected():
-    with pytest.raises(PhotoMissing):
-        delete_photo(FakeRecord(), FakeStore(), FakeOrderStore(), lambda: "t", "düğün", "yok.png")
+def test_a_name_the_record_does_not_know_is_skipped_not_refused():
+    store, record = FakeStore(), FakeRecord()
+    record.append("düğün", {"file": "0_a.png"})
+
+    deleted = delete_photos(record, store, FakeOrderStore(), stamped, "düğün",
+                            ["hayalet.png", "0_a.png"])
+
+    assert deleted == ["0_a.png"]
+    assert store.deleted == ["0_a.png"]
+
+
+def test_a_body_that_is_not_a_list_of_names_is_rejected():
+    with pytest.raises(InvalidFiles):
+        delete_photos(FakeRecord(), FakeStore(), FakeOrderStore(), stamped, "düğün", "0_a.png")
 
 
 def test_deleting_in_a_missing_project_is_rejected():
     with pytest.raises(ProjectMissing):
-        delete_photo(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), lambda: "t",
-                     "yok", "0_a.png")
+        delete_photos(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), stamped,
+                      "yok", ["0_a.png"])
 
 
 def test_export_rejects_a_missing_project():

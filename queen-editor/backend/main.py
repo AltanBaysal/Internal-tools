@@ -10,7 +10,7 @@ from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
-from backend.features.photo_generation.domain.usecases.delete_photo import delete_photo
+from backend.features.photo_generation.domain.usecases.delete_photos import delete_photos
 from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
@@ -22,6 +22,7 @@ from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
 from backend.features.projects.domain.usecases.create_project import create_project
+from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.save_settings import save_settings
@@ -38,6 +39,7 @@ _settings_store = DriveSettingsStore(_storage)
 _projects_bp = make_projects_blueprint(
     list_projects=partial(list_projects, _project_store),
     create_project=partial(create_project, _project_store),
+    delete_project=partial(delete_project, _project_store),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
 )
@@ -59,8 +61,8 @@ _photo_bp = make_photo_generation_blueprint(
     list_photos=partial(list_photos, _photo_record, _photo_store, _order_store),
     save_order=partial(save_order, _photo_record, _photo_store, _order_store),
     export_project=partial(export_project, _photo_record, _photo_store, _order_store),
-    delete_photo=partial(delete_photo, _photo_record, _photo_store, _order_store,
-                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+    delete_photos=partial(delete_photos, _photo_record, _photo_store, _order_store,
+                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     photo_dir=_photo_store.photo_dir,
 )
 

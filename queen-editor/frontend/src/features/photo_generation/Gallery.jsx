@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { photoUrl } from "../../shared/api.js";
+import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
-import { ImgPH, Mono, Note } from "../../vendor/kit.jsx";
+import { Btn, Icon, ImgPH, Mono, Note } from "../../vendor/kit.jsx";
 
 const PAD = { padding: 16 };
 const GRID = { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12,
@@ -23,13 +24,34 @@ const DRAGGED = { transform: "rotate(-3deg) scale(1.04) translate(14px, -10px)",
                   position: "relative" };
 const SLOT = { aspectRatio: "1/1", border: "2px dashed var(--accent)", borderRadius: 4,
                background: "var(--bg-3)", boxSizing: "border-box" };
+// The ✓ ring sits opposite the order badge. Its visibility is CSS's job (see app.css): it appears
+// on hover while browsing, and stays on for every tile once the mode is open.
+const CHECK = { position: "absolute", top: 6, left: 6, width: 18, height: 18, borderRadius: "50%",
+                boxSizing: "border-box", display: "flex", alignItems: "center",
+                justifyContent: "center", cursor: "pointer", zIndex: 2 };
+const CHECK_ON = { background: "var(--accent)", color: "#1a1625", fontSize: 11, fontWeight: 700 };
+const CHECK_OFF = { border: "2px solid var(--ink-3)", background: "rgba(0,0,0,.35)" };
+const TINT = { position: "absolute", inset: 0, background: "rgba(167,139,250,.18)",
+               borderRadius: 4 };
+const BAR = { position: "absolute", left: "50%", bottom: 20, transform: "translateX(-50%)",
+              display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
+              borderColor: "var(--accent)", zIndex: 10 };
 
-function Tile({ name, muted, badge, children }) {
+function Tile({ name, muted, badge, selected, onCheck, children }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ position: "relative" }}>
+      <div style={{ position: "relative",
+                    ...(selected ? { outline: "2px solid var(--accent)", borderRadius: 4 } : {}) }}>
         {children}
         {badge != null && <Mono size={10} style={BADGE}>{badge}</Mono>}
+        {selected && <div style={TINT} />}
+        {onCheck && (
+          <div data-check className={selected ? "qe-check qe-check--on" : "qe-check"}
+               style={{ ...CHECK, ...(selected ? CHECK_ON : CHECK_OFF) }}
+               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCheck(); }}>
+            {selected ? "✓" : ""}
+          </div>
+        )}
       </div>
       <Mono size={10} style={{ color: muted ? "var(--ink-4)" : "var(--ink-3)" }}>{name}</Mono>
     </div>
@@ -39,11 +61,45 @@ function Tile({ name, muted, badge, children }) {
 // Artboard 03/04/05: five columns, in the order the user dragged them into. The frame being
 // rendered sits at the front as a spinner tile, so the grid shows what is happening, not just what
 // landed -- it carries no badge because it has no place in the record yet.
-export default function Gallery({ project, photos, current, onReorder }) {
+export default function Gallery({ project, photos, current, onReorder, onDelete }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
+  // Selection is by file name, not index: a batch can land while the mode is open and shift every
+  // position, but a name still means the same photo.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState([]);
+  const [confirming, setConfirming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!selecting) return undefined;
+    const onKey = (e) => { if (e.key === "Escape" && !confirming) closeSelection(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  function closeSelection() {
+    setSelecting(false);
+    setSelected([]);
+  }
+
+  function toggle(file) {
+    setSelecting(true);
+    setSelected((current) => (current.includes(file)
+      ? current.filter((name) => name !== file)
+      : [...current, file]));
+  }
+
+  function handleDelete() {
+    setDeleting(true);
+    onDelete(selected).then(() => {
+      setDeleting(false);
+      setConfirming(false);
+      closeSelection();
+    });
+  }
 
   if (photos === null) {
     // First fetch still flying: "empty" is not known yet, so spin instead of a false
@@ -78,7 +134,9 @@ export default function Gallery({ project, photos, current, onReorder }) {
   }
 
   return (
-    <div style={PAD}>
+    // The floating bar is positioned against this box, and the extra bottom room is what lets the
+    // last row scroll clear of it (the design asks for exactly that).
+    <div style={{ ...PAD, position: "relative", paddingBottom: selecting ? 84 : PAD.padding }}>
       <div style={GRID}>
         {current && (
           <Tile name={`${current.number}_${current.letter}.png`} muted>
@@ -91,11 +149,16 @@ export default function Gallery({ project, photos, current, onReorder }) {
           return (
             <div
               key={photo.file}
-              draggable
+              data-tile
+              className={selecting ? "qe-tile qe-tile--selecting" : "qe-tile"}
+              // While selecting, a press is a selection, not a drag: one gesture cannot mean two
+              // things.
+              draggable={!selecting}
               onDragStart={() => setDragIndex(index)}
               onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
               onDrop={handleDrop}
               onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
+              onClick={selecting ? () => toggle(photo.file) : undefined}
               style={dragging ? DRAGGED : undefined}
             >
               {isSlot ? (
@@ -105,7 +168,8 @@ export default function Gallery({ project, photos, current, onReorder }) {
                   <Mono size={10} style={{ visibility: "hidden" }}>{photo.file}</Mono>
                 </div>
               ) : (
-                <Tile name={photo.file} badge={index + 1}>
+                <Tile name={photo.file} badge={index + 1} onCheck={() => toggle(photo.file)}
+                      selected={selected.includes(photo.file)}>
                   {/* A real link so middle-click still opens a tab, but a plain click stays in the
                       app instead of reloading the whole page. A drag never ends in a click, so the
                       two gestures do not collide. The link and image are not draggable themselves
@@ -113,7 +177,7 @@ export default function Gallery({ project, photos, current, onReorder }) {
                   <a href={photoPath(project, photo.file)} draggable={false}
                      onClick={(e) => {
                        e.preventDefault();
-                       navigate(photoPath(project, photo.file));
+                       if (!selecting) navigate(photoPath(project, photo.file));
                      }}>
                     <img src={photoUrl(project, photo.file)} alt={photo.file}
                          loading="lazy" decoding="async" draggable={false}
@@ -127,6 +191,30 @@ export default function Gallery({ project, photos, current, onReorder }) {
           );
         })}
       </div>
+
+      {selecting && (
+        <div className="wf-card wf-card--shadow" style={BAR}>
+          <Mono size={12} style={{ color: "var(--accent)" }}>{selected.length} seçili</Mono>
+          <Btn sm ghost
+               onClick={() => setSelected(selected.length === photos.length
+                 ? []
+                 : photos.map((photo) => photo.file))}>
+            Tümünü seç
+          </Btn>
+          <Btn sm disabled={!selected.length} onClick={() => setConfirming(true)}
+               style={{ color: "var(--danger)", borderColor: "var(--danger)" }}>
+            <Icon.Trash /> Sil
+          </Btn>
+          <Btn sm ghost onClick={closeSelection}>Vazgeç</Btn>
+        </div>
+      )}
+
+      {confirming && (
+        <ConfirmModal title={`${selected.length} fotoğraf silinsin mi?`}
+                      body="Bu işlem geri alınamaz." confirmLabel="Sil" busyLabel="Siliniyor…"
+                      danger busy={deleting} onCancel={() => setConfirming(false)}
+                      onConfirm={handleDelete} />
+      )}
     </div>
   );
 }

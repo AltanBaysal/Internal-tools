@@ -15,3 +15,7 @@ class DriveProjectStore:
         if mtime is None:
             return None
         return Project(name, mtime)
+
+    def delete(self, name):
+        """Remove the project folder with everything in it; False when there was nothing to remove."""
+        return self.storage.delete_dir(name)

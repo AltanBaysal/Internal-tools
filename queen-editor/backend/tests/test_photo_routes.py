@@ -5,7 +5,7 @@ from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
-from backend.features.photo_generation.domain.usecases.delete_photo import delete_photo
+from backend.features.photo_generation.domain.usecases.delete_photos import delete_photos
 from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
@@ -45,8 +45,8 @@ def make_client(tmp_path, generator=None, runner=None):
         list_photos=partial(list_photos, record, store, order_store),
         save_order=partial(save_order, record, store, order_store),
         export_project=partial(export_project, record, store, order_store),
-        delete_photo=partial(delete_photo, record, store, order_store,
-                             lambda: "2026-08-05T10:00:00+00:00"),
+        delete_photos=partial(delete_photos, record, store, order_store,
+                              lambda: "2026-08-05T10:00:00+00:00"),
         photo_dir=store.photo_dir,
     )
     app = create_app(dist_dir=str(dist), blueprints=[blueprint])
@@ -225,13 +225,18 @@ def test_order_of_an_unknown_project_returns_404(tmp_path):
     assert client.put("/api/projects/yok/order", json={"order": []}).status_code == 404
 
 
-def test_deleting_a_photo_removes_it_from_the_gallery_and_the_folder(tmp_path):
+def delete_photos_request(client, files, project="düğün"):
+    return client.post(f"/api/projects/{project}/photos/delete", json={"files": files})
+
+
+def test_deleting_photos_removes_them_from_the_gallery_and_the_folder(tmp_path):
     client, drive = make_client(tmp_path)
-    generate(client, prompts='["a", "b"]', variants=1)
+    generate(client, prompts='["a", "b", "c"]', variants=1)
 
-    resp = client.delete("/api/projects/düğün/photos/0_a.png")
+    resp = delete_photos_request(client, ["0_a.png", "2_a.png"])
 
-    assert resp.status_code == 204
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": ["0_a.png", "2_a.png"]}
     assert files_of(client) == ["1_a.png"]
     assert not (drive / "düğün" / "0_a.png").exists()
 
@@ -239,7 +244,7 @@ def test_deleting_a_photo_removes_it_from_the_gallery_and_the_folder(tmp_path):
 def test_a_photo_produced_after_a_delete_does_not_reuse_the_number(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
-    client.delete("/api/projects/düğün/photos/0_a.png")
+    delete_photos_request(client, ["0_a.png"])
 
     generate(client, prompts='["b"]', variants=1)
 
@@ -251,14 +256,26 @@ def test_deleting_a_photo_drops_it_from_the_saved_order(tmp_path):
     generate(client, prompts='["a", "b"]', variants=1)
     client.put("/api/projects/düğün/order", json={"order": ["0_a.png", "1_a.png"]})
 
-    client.delete("/api/projects/düğün/photos/0_a.png")
+    delete_photos_request(client, ["0_a.png"])
 
     assert files_of(client) == ["1_a.png"]
 
 
-def test_deleting_an_unknown_photo_returns_404(tmp_path):
+def test_deleting_an_unknown_photo_reports_nothing_deleted(tmp_path):
     client, _ = make_client(tmp_path)
-    assert client.delete("/api/projects/düğün/photos/yok.png").status_code == 404
+    resp = delete_photos_request(client, ["yok.png"])
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": []}
+
+
+def test_a_delete_body_that_is_not_a_list_returns_400(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert delete_photos_request(client, "0_a.png").status_code == 400
+
+
+def test_deleting_photos_of_an_unknown_project_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert delete_photos_request(client, ["0_a.png"], project="yok").status_code == 404
 
 
 def test_export_downloads_a_json_file_in_gallery_order(tmp_path):

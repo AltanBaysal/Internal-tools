@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { deletePhoto, listPhotos } from "../../shared/api.js";
+import { deletePhotos, listPhotos } from "../../shared/api.js";
 
 // The detail page's own view of the gallery: the same list in the same order, without the polling
 // the project screen needs. Deleting is the only thing that changes it, so there is nothing to
@@ -23,10 +23,10 @@ export function usePhotos(project) {
     return () => { alive.current = false; };
   }, [reload]);
 
-  // The server answers 204 and says nothing else, so the list is trimmed here rather than re-read:
-  // one photo left the set, and the order of the rest cannot have changed.
+  // The server says which files it really deleted, but the list is trimmed here rather than
+  // re-read: one photo left the set, and the order of the rest cannot have changed.
   const remove = useCallback((file) => (
-    deletePhoto(project, file)
+    deletePhotos(project, [file])
       .then(() => {
         if (!alive.current) return;
         setPhotos((current) => (current ? current.filter((photo) => photo.file !== file) : current));

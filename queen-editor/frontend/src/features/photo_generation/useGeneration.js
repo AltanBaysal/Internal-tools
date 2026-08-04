@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { generateBatch, getStatus, listPhotos, saveOrder, stopGeneration } from "../../shared/api.js";
+import {
+  deletePhotos,
+  generateBatch,
+  getStatus,
+  listPhotos,
+  saveOrder,
+  stopGeneration,
+} from "../../shared/api.js";
 
 const POLL_MS = 2000;
 
@@ -112,8 +119,24 @@ export function useGeneration(project) {
     [project, refreshPhotos],
   );
 
+  // Only what the server says it deleted leaves the screen: a name that was already gone changes
+  // nothing here, and the gallery keeps matching Drive.
+  const removePhotos = useCallback((files) => (
+    deletePhotos(project, files)
+      .then((body) => {
+        if (!alive.current) return;
+        const gone = new Set(body?.deleted || []);
+        setPhotos((current) => (current
+          ? current.filter((photo) => !gone.has(photo.file))
+          : current));
+      })
+      .catch((err) => {
+        if (alive.current) setError(`Fotoğraflar silinemedi.\n${err.message}`);
+      })
+  ), [project]);
+
   // The server also reports "stopping" (survives a reload); either source disables the button.
   const stopping = stopPressed || Boolean(job.stopping);
 
-  return { job, photos, error, stopping, generate, stop, reorder };
+  return { job, photos, error, stopping, generate, stop, reorder, removePhotos };
 }

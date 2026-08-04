@@ -1,6 +1,7 @@
 import { useState } from "react";
 
-import { createProject } from "../../shared/api.js";
+import { createProject, deleteProject } from "../../shared/api.js";
+import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import NewProjectModal from "./NewProjectModal.jsx";
@@ -19,6 +20,23 @@ const CENTERED = {
 export default function ProjectsScreen() {
   const { status, projects, error, reload } = useProjects();
   const [modalOpen, setModalOpen] = useState(false);
+  // The name being confirmed for deletion, or null. The name is the whole state: it is what the
+  // question on screen has to say and what the request needs.
+  const [deletingName, setDeletingName] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handleDelete() {
+    setBusy(true);
+    try {
+      await deleteProject(deletingName);
+    } finally {
+      setBusy(false);
+      setDeletingName(null);
+    }
+    // Drive is the single source of truth here too: re-read the list rather than guess which card
+    // disappeared.
+    await reload();
+  }
 
   // Drive is the single source of truth: after a create we re-read the list instead of guessing
   // the new card, so the date on screen is the folder's own.
@@ -69,7 +87,8 @@ export default function ProjectsScreen() {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
             {projects.map((p) => (
-              <ProjectCard key={p.name} name={p.name} modifiedAt={p.modifiedAt} />
+              <ProjectCard key={p.name} name={p.name} modifiedAt={p.modifiedAt}
+                           onDelete={() => setDeletingName(p.name)} />
             ))}
           </div>
         )}
@@ -77,6 +96,16 @@ export default function ProjectsScreen() {
 
       {modalOpen && (
         <NewProjectModal onCancel={() => setModalOpen(false)} onCreate={handleCreate} />
+      )}
+
+      {deletingName && (
+        <ConfirmModal
+          width={340}
+          title={`"${deletingName}" projesi silinsin mi?`}
+          body="İçindeki tüm fotoğraflar kalıcı olarak silinir. Bu işlem geri alınamaz."
+          confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={busy}
+          onCancel={() => setDeletingName(null)} onConfirm={handleDelete}
+        />
       )}
     </div>
   );

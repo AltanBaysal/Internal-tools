@@ -6,6 +6,19 @@
   position: fixed;
 }
 
+/* The gallery's select affordance: a ✓ ring that only shows up under the pointer while browsing,
+   and stays visible on every tile once selection mode is open (the design describes the hover, the
+   mode makes it permanent). Ours, not the design system's -- hence the qe- prefix. */
+.qe-check {
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.qe-tile:hover .qe-check,
+.qe-tile--selecting .qe-check,
+.qe-check--on {
+  opacity: 1;
+}
+
 /* A download link wearing the design's button clothes: everything else comes from .wf-btn, only
    the anchor's default underline has to go. */
 a.wf-btn {

@@ -1,7 +1,13 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { navigate } from "../../shared/router.js";
 import ProjectScreen from "./ProjectScreen.jsx";
+
+vi.mock("../../shared/router.js", () => ({
+  navigate: vi.fn(),
+  photoPath: (project, file) => `/projects/${encodeURIComponent(project)}/photos/${file}`,
+}));
 
 vi.mock("../../shared/api.js", () => ({
   exportUrl: (project) => `/api/projects/${encodeURIComponent(project)}/export`,
@@ -33,6 +39,27 @@ describe("ProjectScreen app bar", () => {
     expect(link.getAttribute("href")).toBe(
       `/api/projects/${encodeURIComponent("düğün")}/export`);
     expect(link.hasAttribute("download")).toBe(true);
+  });
+
+  it("Projeden çık önce sorar, Vazgeç ekranda tutar", () => {
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Projeden çık"));
+    expect(screen.getByText("Projeden çıkılsın mı?")).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Vazgeç"));
+    expect(screen.queryByText("Projeden çıkılsın mı?")).toBeNull();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("Çık'a basınca projelerden çıkar", () => {
+    renderScreen();
+
+    fireEvent.click(screen.getByText("Projeden çık"));
+    fireEvent.click(screen.getByText("Çık"));
+
+    expect(navigate).toHaveBeenCalledWith("/");
   });
 
   it("Export'u Projeden çık'ın soluna koyar", () => {

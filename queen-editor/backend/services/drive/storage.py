@@ -5,6 +5,7 @@ A missing root is NOT created here: that would silently write to Colab's local d
 Drive mount failed, so the error must reach the caller.
 """
 import os
+import shutil
 
 
 class DriveStorage:
@@ -24,6 +25,15 @@ class DriveStorage:
         except FileExistsError:
             return None
         return os.stat(path).st_mtime
+
+    def delete_dir(self, subdir):
+        """Remove root/subdir and everything in it. Returns False when it was not there -- the
+        caller decides whether a missing folder is an error, this layer only reports."""
+        try:
+            shutil.rmtree(os.path.join(self.root, subdir))
+        except FileNotFoundError:
+            return False
+        return True
 
     def dir_exists(self, subdir):
         return os.path.isdir(os.path.join(self.root, subdir))

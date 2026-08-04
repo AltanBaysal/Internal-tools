@@ -5,7 +5,8 @@ from backend.features.projects.domain.usecases.create_project import InvalidName
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
-def make_projects_blueprint(list_projects, create_project, get_settings, save_settings):
+def make_projects_blueprint(list_projects, create_project, delete_project, get_settings,
+                            save_settings):
     """Every argument is a use case already bound to a store (see main.py)."""
     bp = Blueprint("projects", __name__)
 
@@ -35,6 +36,17 @@ def make_projects_blueprint(list_projects, create_project, get_settings, save_se
         except OSError as exc:
             return jsonify({"error": str(exc)}), 500
         return jsonify(payload(project)), 201
+
+    @bp.delete("/api/projects/<project>")
+    def delete_one_project(project):
+        try:
+            delete_project(project)
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        # 204: the client reloads the list, which is the only thing that changed.
+        return "", 204
 
     @bp.get("/api/projects/<project>/settings")
     def get_project_settings(project):

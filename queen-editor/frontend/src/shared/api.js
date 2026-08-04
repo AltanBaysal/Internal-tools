@@ -80,12 +80,18 @@ export async function listPhotos(project) {
   return body.photos;
 }
 
+// One call for one photo and for many -- the detail page sends a list of one.
+export async function deletePhotos(project, files) {
+  return request(`/api/projects/${encodeURIComponent(project)}/photos/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ files }),
+  });
+}
+
 // 204 with no body: request() reads nothing back and answers null, which is the whole result.
-export async function deletePhoto(project, file) {
-  return request(
-    `/api/projects/${encodeURIComponent(project)}/photos/${encodeURIComponent(file)}`,
-    { method: "DELETE" },
-  );
+export async function deleteProject(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}`, { method: "DELETE" });
 }
 
 export async function getStatus() {

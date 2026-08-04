@@ -4,6 +4,7 @@ from functools import partial
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
 from backend.features.projects.domain.usecases.create_project import create_project
+from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.save_settings import save_settings
@@ -20,6 +21,7 @@ def client_for(drive_root, dist_dir):
     blueprint = make_projects_blueprint(
         list_projects=partial(list_projects, store),
         create_project=partial(create_project, store),
+        delete_project=partial(delete_project, store),
         get_settings=partial(get_settings, settings_store),
         save_settings=partial(save_settings, settings_store),
     )
@@ -33,6 +35,23 @@ def make_client(tmp_path):
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
     return client_for(drive, dist), drive
+
+
+def test_deleting_a_project_removes_the_folder_with_everything_in_it(tmp_path):
+    client, drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    (drive / "düğün" / "0_a.png").write_bytes(b"PNG")
+
+    resp = client.delete("/api/projects/düğün")
+
+    assert resp.status_code == 204
+    assert not (drive / "düğün").exists()
+    assert client.get("/api/projects").get_json()["projects"] == []
+
+
+def test_deleting_an_unknown_project_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.delete("/api/projects/yok").status_code == 404
 
 
 def test_get_projects_empty(tmp_path):

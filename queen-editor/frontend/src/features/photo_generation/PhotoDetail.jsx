@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 
 import { photoUrl } from "../../shared/api.js";
 import { navigate, photoPath, projectPath } from "../../shared/router.js";
+import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import PhotoDeleteModal from "./PhotoDeleteModal.jsx";
 import { usePhotos } from "./usePhotos.js";
 
 const HEADER = {
@@ -143,8 +143,9 @@ export default function PhotoDetail({ project, file }) {
       )}
 
       {confirming && (
-        <PhotoDeleteModal busy={busy} onCancel={() => setConfirming(false)}
-                          onConfirm={handleDelete} />
+        <ConfirmModal title="Bu fotoğraf silinsin mi?" body="Bu işlem geri alınamaz."
+                      confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={busy}
+                      onCancel={() => setConfirming(false)} onConfirm={handleDelete} />
       )}
     </div>
   );

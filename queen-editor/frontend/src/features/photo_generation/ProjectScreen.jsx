@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { exportUrl } from "../../shared/api.js";
+import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate } from "../../shared/router.js";
 import { Btn, Hand } from "../../vendor/kit.jsx";
 import Gallery from "./Gallery.jsx";
@@ -19,8 +20,10 @@ const HEADER = {
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, photos, error, stopping, generate, stop, reorder } = useGeneration(project);
+  const { job, photos, error, stopping, generate, stop, reorder,
+          removePhotos } = useGeneration(project);
   const [saveError, setSaveError] = useState(null);
+  const [leaving, setLeaving] = useState(false);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
   const busyElsewhere = job.status === "running" && job.project !== project;
   const running = job.status === "running" && !busyElsewhere;
@@ -51,7 +54,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
               itself -- no JavaScript, and "save link as" keeps working. The look is the design's
               ghost button; app.css drops the anchor's underline. */}
           <a className="wf-btn wf-btn--ghost" href={exportUrl(project)} download>Export</a>
-          <Btn ghost onClick={() => navigate("/")}>Projeden çık</Btn>
+          <Btn ghost onClick={() => setLeaving(true)}>Projeden çık</Btn>
         </div>
       </div>
 
@@ -60,12 +63,17 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
           <Gallery project={project} photos={photos} current={running ? job.current : null}
-                   onReorder={reorder} />
+                   onReorder={reorder} onDelete={removePhotos} />
         </div>
         <GeneratePanel job={job} error={saveError || error} busyElsewhere={busyElsewhere}
                        settings={settings} project={project} stopping={stopping}
                        onGenerate={handleGenerate} onStop={stop} />
       </div>
+
+      {leaving && (
+        <ConfirmModal title="Projeden çıkılsın mı?" confirmLabel="Çık"
+                      onCancel={() => setLeaving(false)} onConfirm={() => navigate("/")} />
+      )}
     </div>
   );
 }
