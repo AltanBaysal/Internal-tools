@@ -3,6 +3,17 @@ import pytest
 from backend.services.drive.storage import DriveStorage
 
 
+def test_deleting_a_file_removes_it(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.write_bytes("düğün", "0_a.png", b"PNG")
+    storage.delete_file("düğün", "0_a.png")
+    assert storage.list_files("düğün") == []
+
+
+def test_deleting_a_file_that_is_already_gone_is_not_an_error(tmp_path):
+    DriveStorage(str(tmp_path)).delete_file("düğün", "yok.png")
+
+
 def test_make_dir_creates_folder_and_returns_mtime(tmp_path):
     storage = DriveStorage(str(tmp_path))
     mtime = storage.make_dir("düğün")

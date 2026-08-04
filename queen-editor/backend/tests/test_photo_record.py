@@ -43,6 +43,31 @@ def test_a_half_written_last_line_does_not_hide_the_rest(tmp_path):
     assert [row["file"] for row in record.list("düğün")] == ["0_a.png"]
 
 
+def test_a_deleted_photo_leaves_the_list_but_not_the_file(tmp_path):
+    record = record_at(tmp_path)
+    record.append("düğün", entry("0_a.png"))
+    record.append("düğün", entry("0_b.png"))
+
+    record.mark_deleted("düğün", "0_a.png", "2026-08-05T10:00:00+00:00")
+
+    assert [row["file"] for row in record.list("düğün")] == ["0_b.png"]
+    # The log is only ever appended to: the original row is still in the file.
+    lines = (tmp_path / "düğün" / "photos.jsonl").read_text(encoding="utf-8").splitlines()
+    assert len(lines) == 3
+
+
+def test_the_record_remembers_the_numbers_of_deleted_photos(tmp_path):
+    record = record_at(tmp_path)
+    record.append("düğün", entry("7_a.png"))
+    record.mark_deleted("düğün", "7_a.png", "2026-08-05T10:00:00+00:00")
+
+    assert record.max_number("düğün") == 7
+
+
+def test_an_empty_record_claims_no_number(tmp_path):
+    assert record_at(tmp_path).max_number("düğün") is None
+
+
 def test_rows_without_a_file_name_are_skipped(tmp_path):
     record = record_at(tmp_path)
     record.append("düğün", {"prompt": "adı yok"})

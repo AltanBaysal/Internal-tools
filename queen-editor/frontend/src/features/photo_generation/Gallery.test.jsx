@@ -44,6 +44,14 @@ describe("Gallery sıralama", () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
+  it("kareye tıklayınca detay sayfasına gider", () => {
+    render(<Gallery project="düğün" photos={PHOTOS} current={null} onReorder={() => {}} />);
+
+    const link = screen.getByText("2_a.png").closest("[draggable]").querySelector("a");
+    expect(link.getAttribute("href")).toBe(
+      `/projects/${encodeURIComponent("düğün")}/photos/2_a.png`);
+  });
+
   it("üretilen kare rozet almaz", () => {
     render(<Gallery project="düğün" photos={PHOTOS} onReorder={() => {}}
                     current={{ number: 3, letter: "a", prompt: "p" }} />);

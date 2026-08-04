@@ -2,7 +2,8 @@ import ProjectLoading from "./features/photo_generation/ProjectLoading.jsx";
 import ProjectScreen from "./features/photo_generation/ProjectScreen.jsx";
 import ProjectsScreen from "./features/projects/ProjectsScreen.jsx";
 import { useProjectSettings } from "./features/projects/useProjectSettings.js";
-import { projectFromPath, useRoute } from "./shared/router.js";
+import PhotoDetail from "./features/photo_generation/PhotoDetail.jsx";
+import { routeFromPath, useRoute } from "./shared/router.js";
 import { StatusErrorCard } from "./shared/StatusErrorCard.jsx";
 
 function ProjectRoute({ project }) {
@@ -20,6 +21,9 @@ function ProjectRoute({ project }) {
 }
 
 export default function App() {
-  const project = projectFromPath(useRoute());
-  return project ? <ProjectRoute project={project} /> : <ProjectsScreen />;
+  const { project, photo } = routeFromPath(useRoute());
+  if (!project) return <ProjectsScreen />;
+  // The detail page reads the photo list itself, so it does not wait for the project's settings.
+  if (photo) return <PhotoDetail project={project} file={photo} />;
+  return <ProjectRoute project={project} />;
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { photoUrl } from "../../shared/api.js";
+import { navigate, photoPath } from "../../shared/router.js";
 import { ImgPH, Mono, Note } from "../../vendor/kit.jsx";
 
 const PAD = { padding: 16 };
@@ -105,11 +106,15 @@ export default function Gallery({ project, photos, current, onReorder }) {
                 </div>
               ) : (
                 <Tile name={photo.file} badge={index + 1}>
-                  {/* Placeholder until the detail page (Part 11): open the raw file in a new tab.
-                      The link and image are not draggable themselves -- otherwise the browser drags
-                      the URL instead of letting the tile reorder. */}
-                  <a href={photoUrl(project, photo.file)} target="_blank" rel="noreferrer"
-                     draggable={false}>
+                  {/* A real link so middle-click still opens a tab, but a plain click stays in the
+                      app instead of reloading the whole page. A drag never ends in a click, so the
+                      two gestures do not collide. The link and image are not draggable themselves
+                      -- otherwise the browser drags the URL instead of letting the tile reorder. */}
+                  <a href={photoPath(project, photo.file)} draggable={false}
+                     onClick={(e) => {
+                       e.preventDefault();
+                       navigate(photoPath(project, photo.file));
+                     }}>
                     <img src={photoUrl(project, photo.file)} alt={photo.file}
                          loading="lazy" decoding="async" draggable={false}
                          style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",

@@ -49,6 +49,14 @@ class DriveStorage:
         with open(os.path.join(path, name), "wb") as f:
             f.write(data)
 
+    def delete_file(self, subdir, name):
+        """Remove root/subdir/name. A file that is already gone is not an error: deleting twice has
+        to end where deleting once ends, so a retried request is safe."""
+        try:
+            os.remove(os.path.join(self.root, subdir, name))
+        except FileNotFoundError:
+            pass
+
     def read_text(self, subdir, name):
         """Contents of root/subdir/name, or None when it is not there.
 

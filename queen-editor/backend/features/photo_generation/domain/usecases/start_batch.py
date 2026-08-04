@@ -40,17 +40,23 @@ def plan_frames(start, prompts, variants, new_seed):
             for variant in range(variants)]
 
 
-def next_number(store, plan_store, project):
+def next_number(store, plan_store, record, project):
     """The first number a new run may use.
 
-    Two things can claim a number: a file already on disk, and a frame an earlier plan reserved but
-    never produced. Both are honoured -- reusing a number would bind one file name to two prompts
-    and break what the record means. The record needs no separate check: a row is appended only
-    after its photo is written, so it can hold no number disk does not.
+    Three things can claim a number: a file already on disk, a frame an earlier plan reserved but
+    never produced, and a photo that has since been deleted -- the record remembers those even
+    though disk no longer does. All are honoured: reusing a number would bind one file name to two
+    prompts, and a browser holding the deleted photo under an immutable cache header would keep
+    showing the old image.
     """
-    on_disk = store.next_number(project)
+    claims = [store.next_number(project)]
     reserved = plan_store.max_number(project)
-    return on_disk if reserved is None else max(on_disk, reserved + 1)
+    if reserved is not None:
+        claims.append(reserved + 1)
+    seen = record.max_number(project)
+    if seen is not None:
+        claims.append(seen + 1)
+    return max(claims)
 
 
 def start_batch(runner, store, record, plan_store, generator, new_seed, now,
@@ -63,7 +69,8 @@ def start_batch(runner, store, record, plan_store, generator, new_seed, now,
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
 
-    frames = plan_frames(next_number(store, plan_store, project), prompts, variants, new_seed)
+    frames = plan_frames(next_number(store, plan_store, record, project), prompts, variants,
+                         new_seed)
     # Written before the first render, so a run that dies leaves behind what it meant to make.
     plan_store.write(project, negative, frames)
     total = len(frames)

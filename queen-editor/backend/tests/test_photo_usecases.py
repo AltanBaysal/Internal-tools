@@ -1,12 +1,15 @@
 import pytest
 
+from backend.features.photo_generation.domain.photo_name import number_of
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
+from backend.features.photo_generation.domain.usecases.delete_photo import PhotoMissing, delete_photo
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
 from backend.features.photo_generation.domain.usecases.start_batch import (
     Busy,
     InvalidVariants,
     ProjectMissing,
+    next_number,
     plan_frames,
     start_batch,
 )
@@ -21,6 +24,7 @@ class FakeStore:
         self.projects = list(projects)
         self.next_no = next_no
         self.saved = []
+        self.deleted = []
 
     def project_exists(self, project):
         return project in self.projects
@@ -31,6 +35,9 @@ class FakeStore:
     def save(self, project, number, letter, data):
         self.saved.append((number, letter, data))
         return f"{number}_{letter}.png"
+
+    def delete(self, project, filename):
+        self.deleted.append(filename)
 
     def photo_dir(self, project):
         return f"/fake/{project}"
@@ -60,14 +67,30 @@ class FakePlanStore:
 
 
 class FakeRecord:
+    """Folds the log the way DrivePhotoRecord does: a deletion row ends its file's life."""
+
     def __init__(self):
         self.rows = []
 
     def append(self, project, entry):
         self.rows.append(entry)
 
+    def mark_deleted(self, project, file, at):
+        self.rows.append({"file": file, "deletedAt": at})
+
     def list(self, project):
-        return list(reversed(self.rows))
+        live = {}
+        for row in self.rows:
+            if row.get("deletedAt"):
+                live.pop(row["file"], None)
+            else:
+                live[row["file"]] = row
+        return list(reversed(list(live.values())))
+
+    def max_number(self, project):
+        numbers = [number_of(row["file"]) for row in self.rows]
+        numbers = [n for n in numbers if n is not None]
+        return max(numbers) if numbers else None
 
 
 class FakeOrderStore:
@@ -353,6 +376,38 @@ def test_export_carries_the_folder_and_the_gallery_order():
 def test_export_of_an_empty_project_still_names_the_folder():
     assert export_project(FakeRecord(), FakeStore(), FakeOrderStore(), "düğün") == {
         "folder": "/fake/düğün", "photos": []}
+
+
+def test_a_deleted_number_is_never_used_again():
+    store, record, plan_store = FakeStore(next_no=0), FakeRecord(), FakePlanStore()
+    record.append("düğün", {"file": "0_a.png"})
+    record.mark_deleted("düğün", "0_a.png", "2026-08-05T10:00:00+00:00")
+
+    assert next_number(store, plan_store, record, "düğün") == 1
+
+
+def test_delete_removes_the_file_records_it_and_prunes_the_order():
+    store, record = FakeStore(), FakeRecord()
+    record.append("düğün", {"file": "0_a.png"})
+    record.append("düğün", {"file": "1_a.png"})
+    order = FakeOrderStore(["0_a.png", "1_a.png"])
+
+    delete_photo(record, store, order, lambda: "2026-08-05T10:00:00+00:00", "düğün", "0_a.png")
+
+    assert store.deleted == ["0_a.png"]
+    assert [row["file"] for row in record.list("düğün")] == ["1_a.png"]
+    assert order.order == ["1_a.png"]
+
+
+def test_deleting_an_unknown_photo_is_rejected():
+    with pytest.raises(PhotoMissing):
+        delete_photo(FakeRecord(), FakeStore(), FakeOrderStore(), lambda: "t", "düğün", "yok.png")
+
+
+def test_deleting_in_a_missing_project_is_rejected():
+    with pytest.raises(ProjectMissing):
+        delete_photo(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), lambda: "t",
+                     "yok", "0_a.png")
 
 
 def test_export_rejects_a_missing_project():

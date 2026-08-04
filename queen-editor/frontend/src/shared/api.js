@@ -80,6 +80,14 @@ export async function listPhotos(project) {
   return body.photos;
 }
 
+// 204 with no body: request() reads nothing back and answers null, which is the whole result.
+export async function deletePhoto(project, file) {
+  return request(
+    `/api/projects/${encodeURIComponent(project)}/photos/${encodeURIComponent(file)}`,
+    { method: "DELETE" },
+  );
+}
+
 export async function getStatus() {
   return request("/api/status");
 }

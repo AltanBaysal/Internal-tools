@@ -18,6 +18,16 @@ def test_next_number_starts_at_zero(tmp_path):
     assert store_at(tmp_path).next_number("düğün") == 0
 
 
+def test_delete_removes_the_photo_from_the_project_folder(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    store = DrivePhotoStore(storage)
+    store.save("düğün", 0, "a", b"PNG")
+
+    store.delete("düğün", "0_a.png")
+
+    assert storage.list_files("düğün") == []
+
+
 def test_next_number_is_highest_plus_one(tmp_path):
     project = tmp_path / "düğün"
     project.mkdir()

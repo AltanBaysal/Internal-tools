@@ -20,6 +20,10 @@ class PhotoStore(Protocol):
         """Persist the photo; returns the file name it was stored under."""
         ...
 
+    def delete(self, project: str, filename: str) -> None:
+        """Remove the photo from the project folder; a missing file is not an error."""
+        ...
+
     def photo_dir(self, project: str) -> str:
         """Absolute folder the photos live in -- presentation serves files from it."""
         ...
@@ -41,7 +45,15 @@ class PhotoRecord(Protocol):
         ...
 
     def list(self, project: str) -> list:
-        """Every recorded photo, newest first."""
+        """Every photo that still exists, newest first."""
+        ...
+
+    def mark_deleted(self, project: str, file: str, at: str) -> None:
+        """Append the row that says this photo is gone."""
+        ...
+
+    def max_number(self, project: str) -> int | None:
+        """Highest number the record has ever seen, deleted photos included."""
         ...
 
 
