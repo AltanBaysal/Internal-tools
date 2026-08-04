@@ -67,6 +67,14 @@ export async function stopGeneration() {
   return request("/api/stop", { method: "POST" });
 }
 
+export async function saveOrder(project, order) {
+  return request(`/api/projects/${encodeURIComponent(project)}/order`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order }),
+  });
+}
+
 export async function listPhotos(project) {
   const body = await request(`/api/projects/${encodeURIComponent(project)}/photos`);
   return body.photos;

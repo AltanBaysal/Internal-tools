@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { getSettings, getStatus, listPhotos, listProjects } from "./api.js";
+import { getSettings, getStatus, listPhotos, listProjects, saveOrder } from "./api.js";
 
 function okResponse(body) {
   return { ok: true, status: 200, statusText: "OK", json: async () => body };
@@ -65,6 +65,18 @@ describe("api.request", () => {
     );
     await vi.advanceTimersByTimeAsync(10_000);
     await assertion;
+  });
+
+  it("sırayı PUT ile gönderir", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ order: ["1_a.png"] }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await saveOrder("düğün", ["1_a.png"]);
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/order`);
+    expect(options.method).toBe("PUT");
+    expect(JSON.parse(options.body)).toEqual({ order: ["1_a.png"] });
   });
 
   it("cevap gelen isteği sonradan iptal etmez", async () => {

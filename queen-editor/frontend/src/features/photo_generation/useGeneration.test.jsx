@@ -1,13 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateBatch, getStatus, listPhotos, stopGeneration } from "../../shared/api.js";
+import { generateBatch, getStatus, listPhotos, saveOrder, stopGeneration } from "../../shared/api.js";
 import { useGeneration } from "./useGeneration.js";
 
 vi.mock("../../shared/api.js", () => ({
   generateBatch: vi.fn(),
   getStatus: vi.fn(),
   listPhotos: vi.fn(),
+  saveOrder: vi.fn(),
   stopGeneration: vi.fn(),
 }));
 
@@ -142,6 +143,52 @@ describe("useGeneration", () => {
 
     await act(async () => { resolveStop({ ...RUNNING, stopping: true }); });
     expect(result.current.stopping).toBe(true);
+  });
+
+  it("sürükleme sonrası yeni sırayı beklemeden gösterir ve sunucuya yazar", async () => {
+    getStatus.mockResolvedValue({ status: "idle" });
+    listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
+    saveOrder.mockResolvedValue({ order: ["0_a.png", "1_a.png"] });
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    await act(async () => { await result.current.reorder(["0_a.png", "1_a.png"]); });
+
+    expect(result.current.photos.map((p) => p.file)).toEqual(["0_a.png", "1_a.png"]);
+    expect(saveOrder).toHaveBeenCalledWith("düğün", ["0_a.png", "1_a.png"]);
+  });
+
+  it("sıra kaydedilemezse hatayı gösterir ve sunucunun sırasına döner", async () => {
+    getStatus.mockResolvedValue({ status: "idle" });
+    listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
+    saveOrder.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nkopuk"));
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    await act(async () => { await result.current.reorder(["0_a.png", "1_a.png"]); });
+    await settle();
+
+    expect(result.current.error).toContain("Sıra kaydedilemedi");
+    expect(result.current.photos.map((p) => p.file)).toEqual(["1_a.png", "0_a.png"]);
+  });
+
+  it("sıra kaydedilirken gelen poll cevabı sırayı geri sektirmez", async () => {
+    getStatus.mockResolvedValue(RUNNING);
+    listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
+    let finishSave;
+    saveOrder.mockReturnValue(new Promise((resolve) => { finishSave = resolve; }));
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    act(() => { result.current.reorder(["0_a.png", "1_a.png"]); });
+    await settle(2000);   // a poll lands mid-save carrying the server's older order
+
+    expect(result.current.photos.map((p) => p.file)).toEqual(["0_a.png", "1_a.png"]);
+
+    await act(async () => { finishSave({ order: ["0_a.png", "1_a.png"] }); });
   });
 
   it("sunucunun bildirdiği durduruluyor bilgisi de butonu pasif tutar", async () => {

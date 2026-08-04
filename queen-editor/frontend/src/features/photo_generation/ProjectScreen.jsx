@@ -18,7 +18,7 @@ const HEADER = {
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, photos, error, stopping, generate, stop } = useGeneration(project);
+  const { job, photos, error, stopping, generate, stop, reorder } = useGeneration(project);
   const [saveError, setSaveError] = useState(null);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
   const busyElsewhere = job.status === "running" && job.project !== project;
@@ -52,7 +52,8 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
-          <Gallery project={project} photos={photos} current={running ? job.current : null} />
+          <Gallery project={project} photos={photos} current={running ? job.current : null}
+                   onReorder={reorder} />
         </div>
         <GeneratePanel job={job} error={saveError || error} busyElsewhere={busyElsewhere}
                        settings={settings} project={project} stopping={stopping}

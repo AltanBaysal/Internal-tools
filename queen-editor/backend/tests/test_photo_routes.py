@@ -1,10 +1,12 @@
 from functools import partial
 
+from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
+from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
@@ -29,6 +31,7 @@ def make_client(tmp_path, generator=None, runner=None):
     store = DrivePhotoStore(storage)
     record = DrivePhotoRecord(storage)
     plan_store = DrivePlanStore(storage)
+    order_store = DriveOrderStore(storage)
     runner = runner or PhotoRunner(spawn=lambda fn: fn())
     blueprint = make_photo_generation_blueprint(
         start_batch=partial(start_batch, runner, store, record, plan_store,
@@ -36,7 +39,8 @@ def make_client(tmp_path, generator=None, runner=None):
                             lambda: "2026-08-03T14:32:11+00:00"),
         get_status=partial(get_status, runner),
         stop_generation=partial(stop_generation, runner, lambda: None),
-        list_photos=partial(list_photos, record, store),
+        list_photos=partial(list_photos, record, store, order_store),
+        save_order=partial(save_order, record, store, order_store),
         photo_dir=store.photo_dir,
     )
     app = create_app(dist_dir=str(dist), blueprints=[blueprint])
@@ -169,3 +173,54 @@ def test_photo_response_is_immutably_cacheable(tmp_path):
     resp = client.get("/photos/düğün/0_a.png")
     assert resp.status_code == 200
     assert resp.headers["Cache-Control"] == "public, max-age=31536000, immutable"
+
+
+def files_of(client, project="düğün"):
+    return [row["file"] for row in client.get(f"/api/projects/{project}/photos").get_json()["photos"]]
+
+
+def test_saved_order_decides_how_photos_are_listed(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+    assert files_of(client) == ["1_a.png", "0_a.png"]
+
+    resp = client.put("/api/projects/düğün/order", json={"order": ["0_a.png", "1_a.png"]})
+    assert resp.status_code == 200
+    assert resp.get_json() == {"order": ["0_a.png", "1_a.png"]}
+    assert files_of(client) == ["0_a.png", "1_a.png"]
+
+
+def test_photos_produced_after_a_sort_land_on_top(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+    client.put("/api/projects/düğün/order", json={"order": ["0_a.png", "1_a.png"]})
+
+    generate(client, prompts='["c"]', variants=1)
+
+    assert files_of(client) == ["2_a.png", "0_a.png", "1_a.png"]
+
+
+def test_order_keeps_only_the_names_the_record_knows(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    resp = client.put("/api/projects/düğün/order", json={"order": ["hayalet.png", "0_a.png"]})
+    assert resp.get_json() == {"order": ["0_a.png"]}
+
+
+def test_order_that_is_not_a_list_of_names_returns_400(tmp_path):
+    client, _ = make_client(tmp_path)
+    resp = client.put("/api/projects/düğün/order", json={"order": "0_a.png"})
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "Sıra listesi metin dizisi olmalı."
+
+
+def test_order_of_an_unknown_project_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.put("/api/projects/yok/order", json={"order": []}).status_code == 404
+
+
+def test_a_broken_order_file_does_not_hide_the_gallery(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    (drive / "düğün" / "order.json").write_text("{yarım", encoding="utf-8")
+    assert files_of(client) == ["0_a.png"]

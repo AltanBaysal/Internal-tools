@@ -6,11 +6,13 @@ from functools import partial
 
 from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
+from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
+from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
@@ -44,6 +46,7 @@ _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, conf
 _photo_runner = PhotoRunner()
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
+_order_store = DriveOrderStore(_storage)
 
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
@@ -51,7 +54,8 @@ _photo_bp = make_photo_generation_blueprint(
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     get_status=partial(get_status, _photo_runner),
     stop_generation=partial(stop_generation, _photo_runner, _comfy_client.interrupt),
-    list_photos=partial(list_photos, _photo_record, _photo_store),
+    list_photos=partial(list_photos, _photo_record, _photo_store, _order_store),
+    save_order=partial(save_order, _photo_record, _photo_store, _order_store),
     photo_dir=_photo_store.photo_dir,
 )
 

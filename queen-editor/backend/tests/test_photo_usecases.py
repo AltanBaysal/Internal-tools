@@ -10,6 +10,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     plan_frames,
     start_batch,
 )
+from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder, save_order
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.runner import PhotoRunner
 
@@ -66,6 +67,17 @@ class FakeRecord:
 
     def list(self, project):
         return list(reversed(self.rows))
+
+
+class FakeOrderStore:
+    def __init__(self, order=()):
+        self.order = list(order)
+
+    def read(self, project):
+        return list(self.order)
+
+    def write(self, project, order):
+        self.order = list(order)
 
 
 class Infra(RuntimeError):
@@ -272,13 +284,56 @@ def test_list_photos_comes_from_the_record():
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png", "prompt": "a"})
     record.append("düğün", {"file": "0_b.png", "prompt": "a"})
-    assert list_photos(record, FakeStore(), "düğün") == [
+    assert list_photos(record, FakeStore(), FakeOrderStore(), "düğün") == [
         {"file": "0_b.png", "prompt": "a"}, {"file": "0_a.png", "prompt": "a"}]
 
 
 def test_list_photos_rejects_a_missing_project():
     with pytest.raises(ProjectMissing):
-        list_photos(FakeRecord(), FakeStore(), "yok")
+        list_photos(FakeRecord(), FakeStore(), FakeOrderStore(), "yok")
+
+
+def test_list_photos_follows_the_stored_order():
+    record = FakeRecord()
+    for file in ("0_a.png", "1_a.png", "2_a.png"):
+        record.append("düğün", {"file": file})
+    order = FakeOrderStore(["1_a.png", "0_a.png", "2_a.png"])
+    assert [row["file"] for row in list_photos(record, FakeStore(), order, "düğün")] == [
+        "1_a.png", "0_a.png", "2_a.png"]
+
+
+def test_save_order_stores_and_returns_the_kept_list():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png"})
+    record.append("düğün", {"file": "1_a.png"})
+    order = FakeOrderStore()
+    assert save_order(record, FakeStore(), order, "düğün", ["1_a.png", "0_a.png"]) == [
+        "1_a.png", "0_a.png"]
+    assert order.order == ["1_a.png", "0_a.png"]
+
+
+def test_save_order_drops_names_the_record_does_not_know():
+    record = FakeRecord()
+    record.append("düğün", {"file": "1_a.png"})
+    order = FakeOrderStore()
+    assert save_order(record, FakeStore(), order, "düğün", ["hayalet.png", "1_a.png"]) == [
+        "1_a.png"]
+    assert order.order == ["1_a.png"]
+
+
+def test_save_order_rejects_a_body_that_is_not_a_list():
+    with pytest.raises(InvalidOrder):
+        save_order(FakeRecord(), FakeStore(), FakeOrderStore(), "düğün", "1_a.png")
+
+
+def test_save_order_rejects_a_non_string_entry():
+    with pytest.raises(InvalidOrder):
+        save_order(FakeRecord(), FakeStore(), FakeOrderStore(), "düğün", ["1_a.png", 7])
+
+
+def test_save_order_rejects_a_missing_project():
+    with pytest.raises(ProjectMissing):
+        save_order(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), "yok", [])
 
 
 def test_get_status_passes_the_runner_state_through():

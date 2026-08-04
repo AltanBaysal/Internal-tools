@@ -48,14 +48,15 @@ Drive**. One artifact, one job: keep two things apart when they answer different
 written at different moments, or have different lifetimes — even when their contents overlap.
 Overlap is not the smell; a single file each reader has to filter differently is.
 
-That is why a project folder holds three files rather than one, although the same prompt text can
-appear in all three:
+That is why a project folder holds four files rather than one, although the same prompt text can
+appear in several of them:
 
 | File | The question it answers | Lifetime |
 |---|---|---|
 | settings | what should the panel show when the project opens | overwritten when a batch is submitted |
 | run plan | which frames this run was asked to produce, in order | overwritten per run; the queue the worker reads |
 | photo record | which photos exist, and what produced each one | appended as each photo lands; permanent |
+| gallery order | in what order should the gallery show them | rewritten on every drop |
 
 Each has one writer and one moment of writing. Before adding a field to an existing file, ask which
 of these questions it answers — a field that answers a fourth question wants a fourth file.

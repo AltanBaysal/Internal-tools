@@ -43,3 +43,13 @@ class PhotoRecord(Protocol):
     def list(self, project: str) -> list:
         """Every recorded photo, newest first."""
         ...
+
+
+class OrderStore(Protocol):
+    def read(self, project: str) -> list:
+        """The stored gallery order as file names; empty when there is none."""
+        ...
+
+    def write(self, project: str, order: list) -> None:
+        """Replace the project's gallery order."""
+        ...

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { generateBatch, getStatus, listPhotos, stopGeneration } from "../../shared/api.js";
+import { generateBatch, getStatus, listPhotos, saveOrder, stopGeneration } from "../../shared/api.js";
 
 const POLL_MS = 2000;
 
@@ -20,10 +20,13 @@ export function useGeneration(project) {
   // once more, so the batch's last photo (still landing on Drive when status flips) isn't stranded
   // until a manual reload.
   const wasRunning = useRef(false);
+  // While a drag is being saved the gallery on screen is ahead of the server: a poll's older list
+  // would snap the tiles back for one frame and then forward again.
+  const savingOrder = useRef(false);
 
   const refreshPhotos = useCallback(() => {
     listPhotos(project)
-      .then((data) => { if (alive.current) setPhotos(data); })
+      .then((data) => { if (alive.current && !savingOrder.current) setPhotos(data); })
       .catch((err) => { if (alive.current) setError(err.message); });
   }, [project]);
 
@@ -86,8 +89,31 @@ export function useGeneration(project) {
       .catch((err) => { if (alive.current) setError(err.message); });
   }, []);
 
+  // Optimistic: the tiles move the moment they are dropped, because the drag already showed the
+  // user where they land. If the write fails we say so and put the server's own order back --
+  // the screen never keeps an order the server does not have.
+  const reorder = useCallback(
+    (files) => {
+      savingOrder.current = true;
+      setPhotos((current) => {
+        if (!current) return current;
+        const byFile = new Map(current.map((photo) => [photo.file, photo]));
+        return files.map((file) => byFile.get(file)).filter(Boolean);
+      });
+      return saveOrder(project, files)
+        .then(() => { savingOrder.current = false; })
+        .catch((err) => {
+          savingOrder.current = false;
+          if (!alive.current) return;
+          setError(`Sıra kaydedilemedi.\n${err.message}`);
+          refreshPhotos();
+        });
+    },
+    [project, refreshPhotos],
+  );
+
   // The server also reports "stopping" (survives a reload); either source disables the button.
   const stopping = stopPressed || Boolean(job.stopping);
 
-  return { job, photos, error, stopping, generate, stop };
+  return { job, photos, error, stopping, generate, stop, reorder };
 }

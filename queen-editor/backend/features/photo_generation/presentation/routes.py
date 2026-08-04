@@ -7,6 +7,7 @@ lives in exactly one place (the domain).
 from flask import Blueprint, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
+from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
 from backend.features.photo_generation.domain.usecases.start_batch import (
     Busy,
     InvalidVariants,
@@ -15,7 +16,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, list_photos,
-                                    photo_dir):
+                                    save_order, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -51,6 +52,17 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, li
     def photos(project):
         try:
             return jsonify({"photos": list_photos(project)})
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+
+    @bp.put("/api/projects/<project>/order")
+    def put_order(project):
+        body = request.get_json(silent=True) or {}
+        try:
+            # The stored list goes back so the client sees what was kept, not what it guessed.
+            return jsonify({"order": save_order(project, body.get("order"))})
+        except InvalidOrder as exc:
+            return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
 
