@@ -14,12 +14,16 @@ def make_job(runner, store, record, generator, now, project, negative, frames):
 
     def job():
         done = failed = consecutive = 0
+        failures = []
         for index, frame in enumerate(frames):
             if runner.stop_requested():
-                return {"status": "paused", "done": done, "failed": failed, "total": total}
+                return {"status": "paused", "done": done, "failed": failed, "total": total,
+                        "failures": failures}
             # pending is what the gallery draws as "bekliyor": the queue behind the frame being
             # rendered, so the screen shows what is coming instead of only what has landed.
+            # failures names the tiles it draws red, each with its own Tekrar dene.
             runner.report({"done": done, "failed": failed, "total": total, "current": frame,
+                           "failures": failures,
                            "pending": [file_name(f["number"], f["letter"])
                                        for f in frames[index + 1:]]})
             try:
@@ -28,14 +32,16 @@ def make_job(runner, store, record, generator, now, project, negative, frames):
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The frame
                     # keeps its reserved number and is produced again on resume.
-                    return {"status": "paused", "done": done, "failed": failed, "total": total}
+                    return {"status": "paused", "done": done, "failed": failed, "total": total,
+                            "failures": failures}
                 failed += 1
                 consecutive += 1
+                failures.append(file_name(frame["number"], frame["letter"]))
                 # getattr, not isinstance: domain must not import the ComfyUI service.
                 reason = policy.stop_reason(consecutive, getattr(exc, "infra", False))
                 if reason:
                     return {"status": "error", "error": f"{reason}\n{exc}",
-                            "done": done, "failed": failed, "total": total}
+                            "done": done, "failed": failed, "total": total, "failures": failures}
                 continue
             filename = store.save(project, frame["number"], frame["letter"], data)
             # Only after the photo exists: the row is what "this photo is here" means.
@@ -44,6 +50,7 @@ def make_job(runner, store, record, generator, now, project, negative, frames):
                                     "createdAt": now()})
             done += 1
             consecutive = 0
-        return {"status": "done", "done": done, "failed": failed, "total": total}
+        return {"status": "done", "done": done, "failed": failed, "total": total,
+                "failures": failures}
 
     return job

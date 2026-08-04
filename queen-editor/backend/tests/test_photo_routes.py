@@ -8,7 +8,9 @@ from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain.usecases.delete_photos import delete_photos
 from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
+from backend.features.photo_generation.domain.usecases.get_queue import get_queue
 from backend.features.photo_generation.domain.usecases.get_status import get_status
+from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
 from backend.features.photo_generation.domain.usecases.save_order import save_order
@@ -48,6 +50,9 @@ def make_client(tmp_path, generator=None, runner=None):
                              generator or FakeGenerator(),
                              lambda: "2026-08-03T14:32:11+00:00"),
         cancel_generation=partial(cancel_generation, runner, store, plan_store),
+        retry_frame=partial(retry_frame, runner, store, record, plan_store,
+                            generator or FakeGenerator(), lambda: "2026-08-03T14:32:11+00:00"),
+        get_queue=partial(get_queue, record, store, plan_store),
         list_photos=partial(list_photos, record, store, order_store),
         save_order=partial(save_order, record, store, order_store),
         export_project=partial(export_project, record, store, order_store),
@@ -76,7 +81,7 @@ def test_status_reports_the_counts(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=2)
     assert client.get("/api/status").get_json() == {
-        "status": "done", "project": "düğün", "done": 4, "failed": 0, "total": 4}
+        "status": "done", "project": "düğün", "done": 4, "failed": 0, "total": 4, "failures": []}
 
 
 def test_status_is_idle_before_anything_runs(tmp_path):
@@ -229,6 +234,44 @@ def test_order_that_is_not_a_list_of_names_returns_400(tmp_path):
 def test_order_of_an_unknown_project_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
     assert client.put("/api/projects/yok/order", json={"order": []}).status_code == 404
+
+
+def test_queue_reports_what_a_dead_session_left_behind(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+    # A photo that never landed is exactly what a killed session leaves: plan has it, record does not.
+    delete_photos_request(client, ["1_a.png"])
+
+    assert client.get("/api/projects/düğün/queue").get_json() == {
+        "pending": ["1_a.png"], "total": 2}
+
+
+def test_queue_of_a_project_without_a_plan_is_empty(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.get("/api/projects/düğün/queue").get_json() == {"pending": [], "total": 0}
+
+
+def test_queue_of_an_unknown_project_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.get("/api/projects/yok/queue").status_code == 404
+
+
+def test_retry_produces_only_the_named_frame(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+    delete_photos_request(client, ["0_a.png"])
+
+    resp = client.post("/api/projects/düğün/retry", json={"file": "0_a.png"})
+
+    assert resp.status_code == 202
+    assert (drive / "düğün" / "0_a.png").exists()
+    assert files_of(client) == ["0_a.png", "1_a.png"]
+
+
+def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    assert client.post("/api/projects/düğün/retry", json={"file": "9_z.png"}).status_code == 404
 
 
 def test_resume_produces_only_what_the_run_never_got_to(tmp_path):

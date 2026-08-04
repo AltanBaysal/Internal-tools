@@ -4,9 +4,11 @@ import {
   cancelGeneration,
   deletePhotos,
   generateBatch,
+  getQueue,
   getStatus,
   listPhotos,
   resumeBatch,
+  retryFrame,
   saveOrder,
   stopGeneration,
 } from "../../shared/api.js";
@@ -23,6 +25,9 @@ export function useGeneration(project) {
   // Which input the server blamed, when it named one: "prompts" | "variants" | null.
   const [errorField, setErrorField] = useState(null);
   const [stopPressed, setStopPressed] = useState(false);
+  // What the plan still owes, read from Drive rather than from this session's memory: a run that
+  // died with the tab (or with Colab) is only visible here.
+  const [queue, setQueue] = useState({ pending: [], total: 0 });
   const timer = useRef(null);
   // Flips false on unmount so an in-flight promise that resolves afterwards cannot setState or
   // re-arm the timer -- without this the catch branch's retry makes the chain immortal.
@@ -41,6 +46,12 @@ export function useGeneration(project) {
       .catch((err) => { if (alive.current) setError(err.message); });
   }, [project]);
 
+  const refreshQueue = useCallback(() => {
+    getQueue(project)
+      .then((data) => { if (alive.current) setQueue(data); })
+      .catch(() => {});   // the queue is extra knowledge; its absence is not worth an error card
+  }, [project]);
+
   const poll = useCallback(() => {
     // Photos are asked for regardless of the status call's fate -- a dead status endpoint must
     // not leave the gallery lying about what exists.
@@ -51,7 +62,10 @@ export function useGeneration(project) {
         setJob(state);
         setError(null);                       // a successful poll clears a stale connection error
         if (state.status !== "running") setStopPressed(false);
-        if (wasRunning.current && state.status !== "running") refreshPhotos();
+        if (wasRunning.current && state.status !== "running") {
+          refreshPhotos();
+          refreshQueue();     // a run that just ended changes what is still owed
+        }
         wasRunning.current = state.status === "running";
         clearTimeout(timer.current);          // never let two chains tick at once
         if (state.status === "running") {
@@ -66,16 +80,17 @@ export function useGeneration(project) {
         clearTimeout(timer.current);
         timer.current = setTimeout(poll, POLL_MS);
       });
-  }, [refreshPhotos]);
+  }, [refreshPhotos, refreshQueue]);
 
   useEffect(() => {
     alive.current = true;
     poll();
+    refreshQueue();
     return () => {
       alive.current = false;
       clearTimeout(timer.current);
     };
-  }, [poll]);
+  }, [poll, refreshQueue]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -120,7 +135,24 @@ export function useGeneration(project) {
 
   const cancel = useCallback(() => (
     cancelGeneration(project)
-      .then(() => { if (alive.current) poll(); })
+      .then(() => {
+        if (!alive.current) return;
+        poll();
+        refreshQueue();
+      })
+      .catch((err) => { if (alive.current) setError(err.message); })
+  ), [project, poll, refreshQueue]);
+
+  // One frame, produced again with the prompt and seed the plan gave it.
+  const retry = useCallback((file) => (
+    retryFrame(project, file)
+      .then(() => {
+        if (!alive.current) return;
+        setJob({ status: "running", project, done: 0, failed: 0, total: 1 });
+        wasRunning.current = true;
+        clearTimeout(timer.current);
+        timer.current = setTimeout(poll, POLL_MS);
+      })
       .catch((err) => { if (alive.current) setError(err.message); })
   ), [project, poll]);
 
@@ -173,6 +205,12 @@ export function useGeneration(project) {
   // The server also reports "stopping" (survives a reload); either source disables the button.
   const stopping = stopPressed || Boolean(job.stopping);
 
-  return { job, photos, error, errorField, stopping, generate, stop, resume, cancel, clearError,
-           reorder, removePhotos };
+  // While the run is alive the worker's own queue is the fresher answer; otherwise Drive's is the
+  // only one -- and after a dead session, the only one there has ever been.
+  const mine = job.project === project;
+  const pending = mine && job.status === "running" ? (job.pending || []) : queue.pending;
+  const failures = mine ? (job.failures || []) : [];
+
+  return { job, photos, error, errorField, stopping, queue, pending, failures,
+           generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

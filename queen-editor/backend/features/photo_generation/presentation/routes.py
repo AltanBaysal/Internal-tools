@@ -12,6 +12,7 @@ from flask import Blueprint, jsonify, request, send_file, send_from_directory
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.usecases.delete_photos import InvalidFiles
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
+from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
 from backend.features.photo_generation.domain.usecases.start_batch import (
     Busy,
@@ -21,8 +22,8 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
-                                    cancel_generation, list_photos, save_order, export_project,
-                                    delete_photos, photo_dir):
+                                    cancel_generation, retry_frame, get_queue, list_photos,
+                                    save_order, export_project, delete_photos, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -77,6 +78,26 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
         return "", 204
+
+    @bp.post("/api/projects/<project>/retry")
+    def retry(project):
+        body = request.get_json(silent=True) or {}
+        try:
+            retry_frame(project, body.get("file"))
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except FrameMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except Busy as exc:
+            return jsonify({"error": str(exc)}), 409
+        return jsonify({"job": "running"}), 202
+
+    @bp.get("/api/projects/<project>/queue")
+    def queue(project):
+        try:
+            return jsonify(get_queue(project))
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
 
     @bp.get("/api/projects/<project>/photos")
     def photos(project):

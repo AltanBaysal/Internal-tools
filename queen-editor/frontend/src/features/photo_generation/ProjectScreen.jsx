@@ -20,7 +20,8 @@ const HEADER = {
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, photos, error, errorField, stopping, generate, stop, resume, cancel, clearError,
+  const { job, photos, error, errorField, stopping, queue, pending, failures,
+          generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
   const [saveError, setSaveError] = useState(null);
   const [leaving, setLeaving] = useState(false);
@@ -65,12 +66,12 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
           <Gallery project={project} photos={photos} current={running ? job.current : null}
-                   pending={mine ? job.pending : null}
-                   onReorder={reorder} onDelete={removePhotos} />
+                   pending={pending} failures={failures}
+                   onReorder={reorder} onDelete={removePhotos} onRetry={retry} />
         </div>
         <GeneratePanel job={job} error={saveError || error} errorField={errorField}
                        busyElsewhere={busyElsewhere} settings={settings} project={project}
-                       stopping={stopping} onGenerate={handleGenerate} onStop={stop}
+                       stopping={stopping} queue={queue} onGenerate={handleGenerate} onStop={stop}
                        onResume={resume} onCancel={cancel} onClearError={clearError} />
       </div>
 

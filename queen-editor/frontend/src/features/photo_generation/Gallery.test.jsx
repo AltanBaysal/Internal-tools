@@ -114,6 +114,18 @@ describe("Gallery kuyruk", () => {
   });
 });
 
+describe("Gallery hatalı kareler", () => {
+  it("patlayan kareyi kendi Tekrar dene düğmesiyle gösterir", () => {
+    const onRetry = vi.fn();
+    renderGallery({ failures: ["3_a.png"], onRetry });
+
+    expect(screen.getByText("3_a.png")).toBeTruthy();
+    fireEvent.click(screen.getByText("Tekrar dene"));
+
+    expect(onRetry).toHaveBeenCalledWith("3_a.png");
+  });
+});
+
 describe("Gallery seçim modu", () => {
   it("halkaya tıklayınca mod açılır ve o kare seçilir", () => {
     renderGallery();

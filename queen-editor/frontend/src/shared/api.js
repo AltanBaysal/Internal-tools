@@ -76,6 +76,19 @@ export async function resumeBatch(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/resume`, { method: "POST" });
 }
 
+// What the plan still owes, read from Drive -- this is what survives a dead session.
+export async function getQueue(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/queue`);
+}
+
+export async function retryFrame(project, file) {
+  return request(`/api/projects/${encodeURIComponent(project)}/retry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file }),
+  });
+}
+
 export async function cancelGeneration(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/cancel`, { method: "POST" });
 }

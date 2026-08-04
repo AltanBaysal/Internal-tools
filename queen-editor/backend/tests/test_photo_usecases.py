@@ -166,7 +166,7 @@ def test_finished_batch_reports_its_counts():
     store, generator, runner = FakeStore(), FakeGenerator(), sync_runner()
     run_batch(runner, store, generator)
     assert runner.status() == {"status": "done", "project": "düğün",
-                               "done": 4, "failed": 0, "total": 4}
+                               "done": 4, "failed": 0, "total": 4, "failures": []}
 
 
 def test_progress_is_reported_before_each_frame():

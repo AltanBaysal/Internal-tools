@@ -10,11 +10,16 @@ vi.mock("../../shared/router.js", () => ({
 }));
 
 vi.mock("../../shared/api.js", () => ({
+  cancelGeneration: vi.fn(),
+  deletePhotos: vi.fn(),
   exportUrl: (project) => `/api/projects/${encodeURIComponent(project)}/export`,
   generateBatch: vi.fn(),
+  getQueue: vi.fn().mockResolvedValue({ pending: [], total: 0 }),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   listPhotos: vi.fn().mockResolvedValue([]),
   photoUrl: (project, file) => `/photos/${project}/${file}`,
+  resumeBatch: vi.fn(),
+  retryFrame: vi.fn(),
   saveOrder: vi.fn(),
   stopGeneration: vi.fn(),
 }));

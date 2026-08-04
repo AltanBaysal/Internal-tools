@@ -37,7 +37,8 @@ const BAR = { position: "absolute", left: "50%", bottom: 20, transform: "transla
               display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
               borderColor: "var(--accent)", zIndex: 10 };
 
-function Tile({ name, muted, badge, selected, onCheck, children }) {
+function Tile({ name, muted, danger, badge, selected, onCheck, children }) {
+  const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ position: "relative",
@@ -53,7 +54,7 @@ function Tile({ name, muted, badge, selected, onCheck, children }) {
           </div>
         )}
       </div>
-      <Mono size={10} style={{ color: muted ? "var(--ink-4)" : "var(--ink-3)" }}>{name}</Mono>
+      <Mono size={10} style={{ color: nameColor }}>{name}</Mono>
     </div>
   );
 }
@@ -61,7 +62,8 @@ function Tile({ name, muted, badge, selected, onCheck, children }) {
 // Artboard 03/04/05: five columns, in the order the user dragged them into. The frame being
 // rendered sits at the front as a spinner tile, so the grid shows what is happening, not just what
 // landed -- it carries no badge because it has no place in the record yet.
-export default function Gallery({ project, photos, current, pending, onReorder, onDelete }) {
+export default function Gallery({ project, photos, current, pending, failures, onReorder, onDelete,
+                                  onRetry }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -111,7 +113,8 @@ export default function Gallery({ project, photos, current, pending, onReorder, 
     );
   }
   const queued = pending || [];
-  if (!photos.length && !current && !queued.length) {
+  const broken = failures || [];
+  if (!photos.length && !current && !queued.length && !broken.length) {
     return (
       <div style={{ ...PAD, ...EMPTY }}>
         <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz fotoğraf yok</Mono>
@@ -144,6 +147,23 @@ export default function Gallery({ project, photos, current, pending, onReorder, 
             <ImgPH loading style={{ aspectRatio: "1/1" }} />
           </Tile>
         )}
+        {/* A frame that blew up stays on screen with its own way back: the run went on without it,
+            and Tekrar dene produces just this one, from the plan it was planned with. */}
+        {broken.map((file) => (
+          <Tile key={file} name={file} danger>
+            <div className="wf-img"
+                 style={{ aspectRatio: "1/1", borderColor: "var(--danger)",
+                          background: "var(--danger-bg)", backgroundImage: "none",
+                          display: "flex", flexDirection: "column", gap: 6 }}>
+              <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
+              <Btn sm onClick={() => onRetry(file)}
+                   style={{ color: "var(--danger)", borderColor: "var(--danger)",
+                            background: "transparent" }}>
+                <Icon.Regen /> Tekrar dene
+              </Btn>
+            </div>
+          </Tile>
+        ))}
         {/* The queue, drawn before it exists: the run's remaining frames as faded dashed tiles, so
             the gallery shows what is coming and not only what has landed. They carry no order
             badge and cannot be dragged or selected -- there is no photo behind them yet. */}

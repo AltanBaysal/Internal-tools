@@ -18,6 +18,7 @@ function renderPanel(props) {
       stopping={false}
       onGenerate={() => Promise.resolve()}
       onStop={() => {}}
+      queue={{ pending: [], total: 0 }}
       onResume={() => {}}
       onCancel={() => {}}
       onClearError={() => {}}
@@ -34,6 +35,36 @@ function isDimmed(element) {
   }
   return false;
 }
+
+describe("GeneratePanel — yarım kalan üretim", () => {
+  it("ölümcül durmada sebebi de gösterir", () => {
+    renderPanel({
+      job: { status: "error", project: "düğün", done: 7, total: 48,
+             error: "Üst üste 3 hata\nComfyUI 500" },
+    });
+
+    expect(screen.getByText("Kaldığı yerden devam et")).toBeTruthy();
+    expect(screen.getByText("Üretim durdu — 7/48 tamamlandı")).toBeTruthy();
+    expect(screen.getByText(/ComfyUI 500/)).toBeTruthy();
+  });
+
+  it("oturum ölmüşse sebep uydurmaz, yalnız kaç kare kaldığını söyler", () => {
+    renderPanel({
+      job: { status: "idle" },
+      queue: { pending: ["7_a.png", "7_b.png"], total: 10 },
+    });
+
+    expect(screen.getByText("Üretim yarım kaldı — 8/10 tamamlandı")).toBeTruthy();
+    expect(screen.getByText("Kaldığı yerden devam et")).toBeTruthy();
+  });
+
+  it("yarım iş yoksa normal Üret'i gösterir", () => {
+    renderPanel({ job: { status: "idle" } });
+
+    expect(screen.getByText("Üret")).toBeTruthy();
+    expect(screen.queryByText("Kaldığı yerden devam et")).toBeNull();
+  });
+});
 
 describe("GeneratePanel — duraklatılmış üretim", () => {
   const PAUSED = { status: "paused", project: "düğün", done: 7, failed: 0, total: 48 };

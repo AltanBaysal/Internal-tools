@@ -5,9 +5,14 @@ import { generateBatch, getStatus, listPhotos, saveOrder, stopGeneration } from 
 import { useGeneration } from "./useGeneration.js";
 
 vi.mock("../../shared/api.js", () => ({
+  cancelGeneration: vi.fn(),
+  deletePhotos: vi.fn(),
   generateBatch: vi.fn(),
+  getQueue: vi.fn(() => Promise.resolve({ pending: [], total: 0 })),
   getStatus: vi.fn(),
   listPhotos: vi.fn(),
+  resumeBatch: vi.fn(),
+  retryFrame: vi.fn(),
   saveOrder: vi.fn(),
   stopGeneration: vi.fn(),
 }));

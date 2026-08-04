@@ -54,7 +54,7 @@ function countPrompts(text) {
 // Artboard 03: prompt list, one shared negative, variant count, Üret. Artboard 04 keeps all three
 // fields on screen and swaps only the block underneath them.
 export default function GeneratePanel({ job, error, errorField, busyElsewhere, settings, project,
-                                        stopping, onGenerate, onStop, onResume, onCancel,
+                                        stopping, queue, onGenerate, onStop, onResume, onCancel,
                                         onClearError }) {
   // Initial values only: the screen mounts after the settings have loaded, so there is nothing to
   // sync afterwards and typing is never overwritten.
@@ -82,6 +82,12 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const fieldError = errorField ? error : null;
   const errorInfo = error && !errorField ? describeError(error) : null;
   const paused = mine && job.status === "paused";
+  const owed = queue?.pending?.length || 0;
+  // Two ways a run can be left unfinished: it died in front of us (the server still knows why), or
+  // it died with the session (Drive remembers the queue, nobody remembers the reason).
+  const halted = mine && job.status === "error";
+  const abandoned = !halted && !paused && job.status !== "running" && owed > 0;
+  const unfinished = halted || abandoned;
 
   function edit(setter) {
     return (e) => {
@@ -149,7 +155,32 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
         )}
       </div>
 
-      {paused ? (
+      {unfinished ? (
+        // Artboard 13: the same shape as the finished card -- big button, status card under it.
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Btn hl onClick={onResume}
+               style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}>
+            <Icon.Regen /> Kaldığı yerden devam et
+          </Btn>
+          <div className="wf-stroke"
+               style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 6,
+                        borderColor: "var(--danger)", background: "var(--danger-bg)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--danger)" }}>
+              <Icon.Warn />
+              <Note size={12} style={{ color: "var(--danger)", fontWeight: 500 }}>
+                {halted
+                  ? `Üretim durdu — ${job.done}/${job.total} tamamlandı`
+                  : `Üretim yarım kaldı — ${queue.total - owed}/${queue.total} tamamlandı`}
+              </Note>
+            </div>
+            {/* Only when the reason is known. A run that died with the session left no reason
+                behind, and inventing one is worse than saying nothing. */}
+            {halted && job.error && (
+              <Mono size={10} style={{ color: "var(--ink-3)" }}>{job.error}</Mono>
+            )}
+          </div>
+        </div>
+      ) : paused ? (
         // Artboard 12: the way back on top, what happened under it, and the way out at the bottom.
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Btn hl onClick={onResume}
