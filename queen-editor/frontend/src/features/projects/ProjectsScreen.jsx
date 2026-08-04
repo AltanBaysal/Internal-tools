@@ -53,10 +53,8 @@ export default function ProjectsScreen() {
             <StatusErrorCard text="Projeler yüklenemedi" raw={error} onRetry={reload} />
           </div>
         ) : status === "loading" ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="wf-stroke wf-stroke--dashed" style={{ aspectRatio: "4/3" }} />
-            ))}
+          <div style={CENTERED}>
+            <span className="wf-spinner" />
           </div>
         ) : projects.length === 0 ? (
           <div style={CENTERED}>

@@ -26,15 +26,11 @@ function Tile({ name, muted, children }) {
 // sits at the front as a spinner tile, so the grid shows what is happening, not just what landed.
 export default function Gallery({ project, photos, current }) {
   if (photos === null) {
-    // First fetch still flying: "empty" is not known yet, so show shape instead of a false
+    // First fetch still flying: "empty" is not known yet, so spin instead of a false
     // "henüz fotoğraf yok" (spec §2.3).
     return (
-      <div style={PAD}>
-        <div style={GRID}>
-          {Array.from({ length: 10 }, (_, i) => (
-            <div key={i} className="wf-stroke wf-stroke--dashed" style={{ aspectRatio: "1/1" }} />
-          ))}
-        </div>
+      <div style={{ ...PAD, ...EMPTY }}>
+        <span className="wf-spinner" />
       </div>
     );
   }
