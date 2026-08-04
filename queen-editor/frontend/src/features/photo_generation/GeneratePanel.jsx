@@ -129,8 +129,18 @@ export default function GeneratePanel({ job, error, busyElsewhere, settings, pro
 
       {running ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <ProgressPanel job={job} stopping={stopping} onStop={onStop} />
-          {errorInfo && <StatusErrorCard text={errorInfo.headline} raw={errorInfo.raw} />}
+          {/* While polls fail, the bar shows the LAST KNOWN state, not the present — dim it so a
+              frozen counter cannot read as live progress, and let the card carry the last-known
+              numbers ("the screen never claims what it does not know"). */}
+          <div style={errorInfo ? { opacity: 0.45 } : undefined}>
+            <ProgressPanel job={job} stopping={stopping} onStop={onStop} />
+          </div>
+          {errorInfo && (
+            <StatusErrorCard
+              text={`${errorInfo.headline} — son bilinen: ${job.done ?? 0}/${job.total || "?"}`}
+              raw={errorInfo.raw}
+            />
+          )}
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
