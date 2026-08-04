@@ -101,4 +101,11 @@ Code comments, docstrings, this file, and commit messages: **English**.
 User-facing UI text and notebook markdown / `print` / `assert`: **Turkish**.
 
 ## Tests
-Run `pytest` from `queen-editor/`. Domain and use cases test with fake ports — no ComfyUI, no Drive.
+Backend: run `pytest` from `queen-editor/`. Domain and use cases test with fake ports — no ComfyUI,
+no Drive.
+
+Frontend: run `npm test` from `queen-editor/frontend/` (vitest + jsdom). Test files sit next to
+their source as `<name>.test.js(x)`; they are never imported, so they stay out of `dist/`. Network
+and clock are faked (`vi.stubGlobal("fetch", …)`, `vi.useFakeTimers()`) — no test waits a real
+second, and none of them needs a browser, a tunnel or a GPU. Testing Library's `waitFor` does not
+understand vitest's fake clock: advance it inside `act()` instead.

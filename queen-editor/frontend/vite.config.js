@@ -9,4 +9,10 @@ export default defineConfig({
   plugins: [react()],
   base: "/",
   build: { outDir: "dist" },
+  // Vitest reuses this config, so tests get the same JSX transform and module resolution as the
+  // build. Test files live next to their source and are never imported, so they stay out of dist/.
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test-setup.js",
+  },
 });
