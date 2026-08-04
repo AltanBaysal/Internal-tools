@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v2 (tasarım güncellemesi)
 
-**Tarih:** 2026-08-03 · **Durum:** Bölüm 7 uygulandı, Colab doğrulaması sürüyor · sırada Bölüm 8
+**Tarih:** 2026-08-03 · **Durum:** Bölüm 7-14 uygulandı ve push'landı, **toplu Colab doğrulaması bekliyor** · açık: Bölüm 15 (çoklu model — model listesi kararı kullanıcıda)
 **Tasarım kaynağı:** claude.ai/design projesi `Queen Editor` → `Queen Editor Basit v1.html` + `HANDOFF.md` (kullanıcının güncellediği hâli — davranış kararlarının tamamı orada). Proje linki: <https://claude.ai/design/p/efad1f83-69d3-4e07-89fa-3783839c81c3> — dosyalar repo'ya kopyalanmaz, her ihtiyaçta buradan taze çekilir (DesignSync `get_file`, proje kimliğiyle).
 **Şemsiye tasarım:** [2026-08-03-queen-editor-v2-design.md](../specs/2026-08-03-queen-editor-v2-design.md) (davranış kararları) · [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md) (mimari kararlar)
 **Yerini aldığı doküman:** [2026-07-24-queen-editor-roadmap.md](2026-07-24-queen-editor-roadmap.md) — oradaki Bölüm 6 buradaki Bölüm 6'ya, Bölüm 7 buradaki Bölüm 13+14'e eridi.
@@ -137,4 +137,6 @@ Bağımsız en büyük iş; hiçbir bölüm buna bağımlı değil, istenirse ö
 
 ## Sıradaki adım
 
-**Bölüm 7** Colab doğrulama listesiyle kapanır (bağlantı-kopması düzeltmesi dahil). Ardından **Bölüm 8** (frontend test altyapısı): vitest + jsdom kurulumu, ilk testler `api.js` zaman aşımı ve `useGeneration` poll/hata akışı.
+**Bölüm 8-14 tek turda uygulandı** (2026-08-05, kullanıcı kararı: bölüm aralarında test yok, hepsi TDD ile yazılıp sonda toplu test edilecek). Backend 245, frontend 71 test yeşil; her bölüm kendi commit'iyle push'lu.
+
+Sırada **kullanıcının Colab doğrulaması**: bulunan hatalar liste hâlinde gelir, tek fix dalgasıyla kapatılır. Ondan sonra **Bölüm 15** (çoklu model) — ilk kararı model listesidir, kullanıcı verecek.
