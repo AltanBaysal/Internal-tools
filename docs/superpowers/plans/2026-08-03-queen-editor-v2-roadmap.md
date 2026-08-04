@@ -1,7 +1,7 @@
 # Queen Editor — Yol Haritası v2 (tasarım güncellemesi)
 
 **Tarih:** 2026-08-03 · **Durum:** Bölüm 6 tamam · sırada Bölüm 7
-**Tasarım kaynağı:** claude.ai/design projesi `Queen Editor` → `Queen Editor Basit v1.html` + `HANDOFF.md` (kullanıcının güncellediği hâli — davranış kararlarının tamamı orada)
+**Tasarım kaynağı:** claude.ai/design projesi `Queen Editor` → `Queen Editor Basit v1.html` + `HANDOFF.md` (kullanıcının güncellediği hâli — davranış kararlarının tamamı orada). Proje linki: <https://claude.ai/design/p/efad1f83-69d3-4e07-89fa-3783839c81c3> — dosyalar repo'ya kopyalanmaz, her ihtiyaçta buradan taze çekilir (DesignSync `get_file`, proje kimliğiyle).
 **Şemsiye tasarım:** [2026-08-03-queen-editor-v2-design.md](../specs/2026-08-03-queen-editor-v2-design.md) (davranış kararları) · [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md) (mimari kararlar)
 **Yerini aldığı doküman:** [2026-07-24-queen-editor-roadmap.md](2026-07-24-queen-editor-roadmap.md) — oradaki Bölüm 6 buradaki Bölüm 6'ya, Bölüm 7 buradaki Bölüm 12+13'e eridi.
 
@@ -77,7 +77,7 @@ Yıkıcı işlemlerin tamamı, hepsi onaylı.
 
 - **Ne çalışır:** **Durdur = duraklat** — üstte Devam et (kaldığı yerden), altta İptal et (kalan kuyruk atılır, üretilenler kalır); üretim başlayınca galeriye planlanan tüm kareler düşer — gelmemişler kesikli "bekliyor", o an üretilen "yükleniyor"; format kontrolü Üret'e basınca — bozuk listede kırmızı çerçeve + "Format hatası", yazmaya başlayınca temizlenir, boş listede Üret pasif.
 - **Nasıl görülür:** Durdur → Devam et → kaldığı yerden sürer; İptal → üretilenler durur, panel hazıra döner; bozuk liste yapıştır → kırmızı uyarı, üretim başlamaz.
-- **Açık soru (bu bölümde karara bağlanır):** varyant üst sınırı — tasarım "sınır yok" diyor, harf tabanlı adlandırma 26'da tıkanıyor.
+- **Karar (2026-08-04, Bölüm 7 denetiminde bağlandı):** varyant üst sınırı 26 kalır — harf tabanlı adlandırma backend gerçeği; kutu `max=26` ile sınırlar, HANDOFF'un "sınır yok" cümlesinden bilinçli sapma.
 - **Yok:** panel kilidi, anında Durdur ve bitiş kartı (Bölüm 7); tekil kare hatası ve ölümcül durma (Bölüm 13).
 
 ## Bölüm 13 — Sağlamlık
@@ -120,8 +120,8 @@ Bağımsız en büyük iş; hiçbir bölüm buna bağımlı değil, istenirse ö
 
 ## Açık sorular (ilgili bölümün planında karara bağlanır)
 
-- **Varyant üst sınırı** (Bölüm 12): tasarım sınırsız diyor, harf tabanlı adlandırma 26'yla sınırlı.
 - **Model listesi** (Bölüm 14): hangi modeller kurulacak.
+- ~~Varyant üst sınırı~~ — 2026-08-04'te karara bağlandı: 26 kalır (Bölüm 12'deki karar notu).
 
 ## Sıradaki adım
 
