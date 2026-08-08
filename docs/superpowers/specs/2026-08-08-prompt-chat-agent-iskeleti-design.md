@@ -7,6 +7,23 @@ eder, bu belge üstüne kurar. İkisinin hiçbir kararını geri almaz.
 **Devamı:** hikâye / sahne / prompt skill'lerinin **metni** ayrı bir spec. Bu belge onların
 çalışacağı zemini tarif eder, içeriklerini değil.
 
+> ⚠️ **Bu belge bekliyor ve iki yeri devredildi.** Yazıldıktan sonra iş üçe bölündü ve ilk ikisi
+> önce yapıldı:
+>
+> | Ne | Nerede |
+> |---|---|
+> | Skill'ler — `/ad` ile çağırma, `SKILL.md` biçimi | [skill'ler spec'i](2026-08-08-prompt-chat-skills-design.md) — **yapıldı** |
+> | Projeler, dosyalar, dosya ağacı, düzenleyici, `@dosya` | [çalışma alanı spec'i](2026-08-08-prompt-chat-calisma-alani-design.md) |
+> | Döngü, araçlar, modlar, geri alma, durdurma, tur tavanı | **bu belge** |
+>
+> Yani aşağıdaki "Ekran", "Veri" ve "Silme" bölümleri artık çalışma alanı spec'inin işi; buradaki
+> hâlleri tarihsel kayıttır. Sırası gelince bu belge yalnız döngüye indirilecek ve şu üç düzeltme
+> işlenecek: skill'ler klasör oldu (`skills/<ad>/SKILL.md`), `parallel_tool_calls: false` gerekiyor,
+> `arguments` JSON **string** olarak geliyor ve ayrıştırma hatası modele dönen bir araç hatası olmalı.
+>
+> Bir de yeniden düşünülecek bir soru var: `/ad` artık çalıştığına göre agent'a ayrıca bir
+> `load_skill` aracı gerekiyor mu, yoksa skill'i kullanıcının çağırması yeter mi?
+
 ## Amaç
 
 Bugün prompt-chat düz bir sohbet: yazarsın, cevap gelir, kopyalarsın. Hedef aynı uygulamanın
