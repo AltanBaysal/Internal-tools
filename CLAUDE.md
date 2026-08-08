@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Internal tools monorepo. Each tool lives in its own subfolder; currently three tools: **collab-toolbox**, **queen-editor** and **prompt-chat**. Tool documentation lives in this file — when adding a tool, create a subfolder and add a section here.
+Internal tools monorepo. Each tool lives in its own subfolder; currently two tools: **collab-toolbox** and **queen-editor**. Tool documentation lives in this file — when adding a tool, create a subfolder and add a section here.
 
 ## Working Rules
 
@@ -61,17 +61,3 @@ in full: [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md).
 serves it as-is (it never runs npm/build). After any change under `queen-editor/frontend/src/`, run
 `npm run build` in `queen-editor/frontend/` and commit the regenerated `dist/` in the SAME commit,
 or Colab serves a stale UI.
-
-## prompt-chat — AI chat (web UI)
-
-The team's chat client — a React app talking to Grok, general purpose. Engineering principles and
-stack decisions live in [prompt-chat/FOUNDATION.md](prompt-chat/FOUNDATION.md); layering and
-structure rules in [prompt-chat/CODE-STANDARD.md](prompt-chat/CODE-STANDARD.md); the behaviour it
-ships today is recorded in
-[the first spec](docs/superpowers/specs/2026-08-08-prompt-chat-design.md) and
-[the chat list that superseded two of its decisions](docs/superpowers/specs/2026-08-08-prompt-chat-sohbet-listesi-design.md).
-Usage: `npm install` once, then `npm run dev` → `http://localhost:5173`.
-
-**The key is typed on the page, never in the repo** — not in the source and not in `.env`, since
-Vite inlines `VITE_` variables into the build. Everything else — no backend, no shared instance, no
-committed `dist/`, no runtime dependency on `queen-editor/` — is in `FOUNDATION.md`.
