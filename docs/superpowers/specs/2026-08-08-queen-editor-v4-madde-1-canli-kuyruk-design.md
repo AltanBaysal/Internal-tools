@@ -182,6 +182,14 @@ hatası). Tasarımın "aynı iş 3 kez denenir" kuralına geçiş Madde 8'de.
 | `POST …/photos/delete` | `deletedAt` satırı yerine `status: "deleted"` satırı yazar |
 | `GET /api/status` | Alan listesi aynı |
 
+**Durum alanları artık sayaçtan değil, plandan ve günlükten hesaplanıyor.** Bugün `done`, `failed` ve
+`total` döngünün kendi sayaçları — döngü listeyi taşımadığı için o sayaçların dayanağı kalmıyor. Her
+turun başında plan ve günlük zaten okunduğu için alanlar oradan doluyor: `total` = plandaki kare
+sayısı, `done` = `done` satırlı kare sayısı, `failed` = `failed` satırlı kare sayısı, `failures` =
+o karelerin adları, `pending` = çalışan kareden sonraki açık karelerin adları, `current` = render
+edilen kare. Alan listesi ve anlamları aynı kalıyor, yalnız kaynakları değişiyor — bir koşunun
+hafızası yerine diskin kendisi. Yan faydası: sunucu yeniden başladıktan sonra da doğru sayılar.
+
 **Geçici tuhaflık, bilerek bırakılıyor.** `total` artık "planda şimdiye kadar istenmiş her kare"
 anlamına geliyor, dolayısıyla arayüzdeki "17 / 48" sayacı büyümeye devam eder. Payda Madde 4'te
 zaten kalkıyor ("N kare bekliyor"); şimdi düzeltmek aynı kartı iki kez elden geçirmek olur.
