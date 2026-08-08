@@ -1,0 +1,61 @@
+:root {
+  --bg: #16181c;
+  --panel: #1e2126;
+  --line: #2c3038;
+  --ink: #e6e8ea;
+  --ink-dim: #9aa0a6;
+  --accent: #7aa2f7;
+  --danger: #f7768e;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.6 ui-sans-serif, system-ui, sans-serif;
+}
+
+.app { height: 100vh; display: flex; flex-direction: column; }
+
+header { display: flex; gap: 8px; padding: 10px; border-bottom: 1px solid var(--line); }
+header input { flex: 1; }
+header .model { max-width: 180px; }
+
+input, textarea, button {
+  font: inherit;
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+input:focus, textarea:focus { outline: 1px solid var(--accent); }
+
+.chat { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.msg { width: 100%; max-width: 760px; margin: 0 auto; }
+.role { font-size: 11px; color: var(--ink-dim); margin-bottom: 4px; }
+
+/* Raw text: the copied prompt must match what the model wrote, line breaks included. */
+.body { white-space: pre-wrap; word-wrap: break-word; padding: 10px 12px; border-radius: 8px; }
+.user .body { background: var(--panel); border: 1px solid var(--line); }
+.assistant .body { background: transparent; }
+.error .body { color: var(--danger); border: 1px solid var(--danger); }
+
+footer { display: flex; gap: 8px; padding: 10px; border-top: 1px solid var(--line); }
+footer textarea { flex: 1; resize: none; height: 76px; }
+footer button { min-width: 92px; cursor: pointer; }
+footer button:disabled { opacity: .5; cursor: default; }
+
+/* Overrides the shared button styling above — this is a quiet link, not a control. */
+.copy {
+  margin-top: 6px;
+  padding: 3px 8px;
+  font-size: 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.copy:hover { color: var(--ink); border-color: var(--line); }

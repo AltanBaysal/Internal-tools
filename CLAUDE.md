@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Internal tools monorepo. Each tool lives in its own subfolder; currently two tools: **collab-toolbox** and **queen-editor**. Tool documentation lives in this file — when adding a tool, create a subfolder and add a section here.
+Internal tools monorepo. Each tool lives in its own subfolder; currently three tools: **collab-toolbox**, **queen-editor** and **prompt-chat**. Tool documentation lives in this file — when adding a tool, create a subfolder and add a section here.
 
 ## Working Rules
 
@@ -61,3 +61,29 @@ together.
 serves it as-is (it never runs npm/build). After any change under `queen-editor/frontend/src/`, run
 `npm run build` in `queen-editor/frontend/` and commit the regenerated `dist/` in the SAME commit,
 or Colab serves a stale UI.
+
+## prompt-chat — Grok sohbet tezgâhı
+
+A small React chat UI for drafting WAN 2.2 T2V prompts with Grok: [prompt-chat/](prompt-chat/).
+`npm run dev`, then `http://localhost:5173`. It calls `api.x.ai` straight from the browser, which
+works because xAI allows cross-origin requests — there is no backend and adding one would solve
+nothing.
+
+**A bench, not a product.** One user, `localhost`, nothing persisted, never deployed. It shares no
+code or folder with any other tool here. If Grok's output proves good enough, the same logic gets
+written into Queen Editor and this tool goes away — which is why it uses Queen Editor's exact
+frontend stack and versions (React 18.3 / Vite 5.4 / Vitest 3.2): that move should be a copy, not a
+rewrite.
+
+**`dist/` is not committed here.** Queen Editor commits its build because Colab never runs npm; this
+tool never reaches Colab, so the rule does not carry over.
+
+The API key and the model name live in the browser's `localStorage`, entered through fields on the
+page — never in the source, and never in `.env` (Vite inlines `VITE_` variables into the build, so
+that would not hide anything). Keep it that way: a key committed into the source stays in git
+history and has to be revoked.
+
+Layering: `chat.js` is pure (no network, no React), `api.js` holds the only `fetch`, `App.jsx` and
+`Message.jsx` only render. `npm test` runs Vitest against jsdom with `fetch` stubbed. Design
+decisions:
+[docs/superpowers/specs/2026-08-08-prompt-chat-design.md](docs/superpowers/specs/2026-08-08-prompt-chat-design.md).
