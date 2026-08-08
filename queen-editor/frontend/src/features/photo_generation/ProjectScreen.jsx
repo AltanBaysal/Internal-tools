@@ -5,7 +5,7 @@ import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate } from "../../shared/router.js";
 import { Btn, Hand } from "../../vendor/kit.jsx";
 import Gallery from "./Gallery.jsx";
-import GeneratePanel from "./GeneratePanel.jsx";
+import SidePanel from "./SidePanel.jsx";
 import { useGeneration } from "./useGeneration.js";
 
 const HEADER = {
@@ -69,10 +69,10 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
                    pending={pending} failures={failures}
                    onReorder={reorder} onDelete={removePhotos} onRetry={retry} />
         </div>
-        <GeneratePanel job={job} error={saveError || error} errorField={errorField}
-                       busyElsewhere={busyElsewhere} settings={settings} project={project}
-                       stopping={stopping} queue={queue} onGenerate={handleGenerate} onStop={stop}
-                       onResume={resume} onCancel={cancel} onClearError={clearError} />
+        <SidePanel job={job} error={saveError || error} errorField={errorField}
+                   busyElsewhere={busyElsewhere} settings={settings} project={project}
+                   stopping={stopping} queue={queue} onGenerate={handleGenerate} onStop={stop}
+                   onResume={resume} onCancel={cancel} onClearError={clearError} />
       </div>
 
       {leaving && (
