@@ -1,7 +1,10 @@
 # Queen Editor v4 · Madde 1 — Canlı kuyruk (arka uç) Uygulama Planı
 
-> **Ajan işçiler için:** bu plan bu oturumda **inline** koşulur (kullanıcı kararı). Adımlar
-> `- [ ]` kutucuklarıyla takip edilir.
+> **Durum: tamamlandı** (2026-08-08). Dört görevin dördü de koştu, `pytest` 278 test yeşil.
+> Uygulama sırasında plandan sapılan iki nokta belgenin sonundaki **Uygulama notları** bölümünde.
+
+> **Ajan işçiler için:** bu plan bu oturumda **inline** koşuldu (kullanıcı kararı). Adımlar
+> `- [ ]` kutucuklarıyla yazıldı; koşu tamamlandığı için ayrıca işaretlenmedi.
 
 **Hedef:** Kuyruk, bir koşuya ait dondurulmuş listeden çıkıp sürekli açık bir sıraya döner; hatalı
 kare kalıcı olur.
@@ -1075,3 +1078,22 @@ Arayüz değişmediği için `npm run build` **koşulmaz** ve `dist/` commit edi
 Bu madde "üretim sürerken Tekrar dene çalışmıyor" sapmasını yan etki olarak kapatıyor: `run_queue`
 aynı projenin akan kuyruğunu reddetmediği için tekrar denenen kare artık 409 yemiyor. Madde 8'e
 kalan tek parça, o karenin planın kendi sırasında değil **kuyruğun sonunda** üretilmesi.
+
+---
+
+## Uygulama notları
+
+Planın öngörmediği iki nokta çıktı; ikisi de test tarafında.
+
+**1. Uç nokta testleri "ölmüş oturum"u silmeyle taklit ediyordu.** `test_photo_routes.py`'deki üç
+test, yarım kalmış bir koşuyu *bir fotoğrafı silerek* kuruyordu — çünkü bugüne kadar silinen kare
+kuyruğa geri düşüyordu. Madde 1 tam olarak bunu kapattığı için taklit çalışmaz oldu. Yerine
+gerçek olan kondu: `StopsAfter` üreteci ilk N kareyi üretip sonra koşuyu duraklatıyor, yani kalan
+kareler günlükte satırsız kalıyor. Hem daha dürüst hem de duraklatma yolunu da test ediyor. Aynı
+dosyaya ayrıca `test_a_deleted_photo_does_not_come_back_as_pending` eklendi — kapanan hatanın
+uç nokta seviyesindeki bekçisi.
+
+**2. `FakePlanStore.max_number` gerçeğe yaklaştırıldı.** Sahte depo eskiden yalnız `reserved`
+alanını döndürüyordu; eklenen kareleri saymıyordu. Kuyruk artık büyüdüğü için aynı sahte iki ardışık
+partide yanlış numara üretiyordu. Şimdi `reserved` verilmediyse eklenmiş karelerin en büyüğünü
+döndürüyor — `DrivePlanStore` ne yapıyorsa o.

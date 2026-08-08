@@ -30,8 +30,12 @@ class PhotoStore(Protocol):
 
 
 class PlanStore(Protocol):
-    def write(self, project: str, negative: str, frames: list) -> None:
-        """Replace the project's plan with this run's frames, in render order."""
+    def read(self, project: str) -> dict:
+        """{"negative", "frames"} -- the queue as stored, every frame carrying its negative."""
+        ...
+
+    def append(self, project: str, frames: list) -> None:
+        """Put frames at the end of the queue, in render order."""
         ...
 
     def max_number(self, project: str) -> int | None:

@@ -1,14 +1,14 @@
-"""Start a batch: validate, plan the frames, hand ONE job to the runner.
+"""Submit a batch: validate, plan the frames, put them at the end of the queue, run the queue.
 
-The loop lives here rather than in the runner: it is business behaviour (order, numbering, what a
-failure costs), and here it is testable with a synchronous spawn -- no threads in a test.
+Adding work and running it are separate acts (see run_queue), which is what lets a batch be sent
+while another one renders.
 
 Pure: the seed comes from an injected `new_seed`, and runner/store/generator are ports. The
 exception messages are the user-facing Turkish text; presentation maps them to status codes and
 forwards them untouched.
 """
-from backend.features.photo_generation.domain.run_loop import make_job
 from backend.features.photo_generation.domain.prompt_list import parse_prompts
+from backend.features.photo_generation.domain.usecases.run_queue import Busy, run_queue  # noqa: F401
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz"
 
@@ -21,33 +21,32 @@ class ProjectMissing(Exception):
     """No such project folder."""
 
 
-class Busy(Exception):
-    """A generation is already running."""
-
-
-def plan_frames(start, prompts, variants, new_seed):
-    """[{"number", "letter", "prompt", "seed"}] in prompt-major order: 0_a 0_b … 1_a.
+def plan_frames(start, prompts, negative, variants, new_seed):
+    """[{"number", "letter", "prompt", "negative", "seed"}] in prompt-major order: 0_a 0_b … 1_a.
 
     Number = prompt, letter = variant -- nova-3dcg's meaning, kept so a photo's name still says
     which prompt produced it.
 
-    Seeds are drawn here, when the run is planned, rather than when a frame renders: the plan is
+    The negative rides on the frame rather than on the plan: a live queue holds batches submitted
+    with different negatives, and a frame has to render with the one it was submitted under.
+
+    Seeds are drawn here, when the frames are planned, rather than when a frame renders: the plan is
     what a resumed run reads back, so a frame has to produce the image it was planned to produce.
     """
     return [{"number": start + index, "letter": LETTERS[variant], "prompt": prompt,
-             "seed": new_seed()}
+             "negative": negative, "seed": new_seed()}
             for index, prompt in enumerate(prompts)
             for variant in range(variants)]
 
 
 def next_number(store, plan_store, record, project):
-    """The first number a new run may use.
+    """The first number a new batch may use.
 
-    Three things can claim a number: a file already on disk, a frame an earlier plan reserved but
-    never produced, and a photo that has since been deleted -- the record remembers those even
-    though disk no longer does. All are honoured: reusing a number would bind one file name to two
-    prompts, and a browser holding the deleted photo under an immutable cache header would keep
-    showing the old image.
+    Three things can claim a number: a file already on disk, a frame the plan reserved but never
+    produced, and a name the record has seen -- deleted photos and frames pulled out of the queue
+    included, which disk no longer remembers. All are honoured: reusing a number would bind one file
+    name to two prompts, and a browser holding the old photo under an immutable cache header would
+    keep showing the old image.
     """
     claims = [store.next_number(project)]
     reserved = plan_store.max_number(project)
@@ -69,11 +68,9 @@ def start_batch(runner, store, record, plan_store, generator, new_seed, now,
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
 
-    frames = plan_frames(next_number(store, plan_store, record, project), prompts, variants,
-                         new_seed)
-    # Written before the first render, so a run that dies leaves behind what it meant to make.
-    plan_store.write(project, negative, frames)
-
-    job = make_job(runner, store, record, generator, now, project, negative, frames)
-    if not runner.start(project, job):
-        raise Busy("Zaten bir üretim sürüyor.")
+    frames = plan_frames(next_number(store, plan_store, record, project), prompts, negative,
+                         variants, new_seed)
+    # Appended before the worker is asked to run: a run that dies leaves behind what it meant to
+    # make, and a loop already in flight finds the frames on its next turn.
+    plan_store.append(project, frames)
+    run_queue(runner, store, record, plan_store, generator, now, project)

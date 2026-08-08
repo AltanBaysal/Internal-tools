@@ -6,10 +6,12 @@ from backend.features.photo_generation.domain.usecases.delete_photos import (
     InvalidFiles,
     delete_photos,
 )
+from backend.features.photo_generation.domain.usecases.get_queue import get_queue
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_photos import list_photos
+from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
+from backend.features.photo_generation.domain.usecases.run_queue import Busy
 from backend.features.photo_generation.domain.usecases.start_batch import (
-    Busy,
     InvalidVariants,
     ProjectMissing,
     next_number,
@@ -52,36 +54,40 @@ class FakeStore:
 
 
 class FakeGenerator:
-    """Records what each frame asked for. Failure cases use their own purpose-built fakes."""
+    """Records what each frame asked for; `fail_on` names the prompts that blow up."""
 
-    def __init__(self):
+    def __init__(self, fail_on=()):
         self.calls = []
+        self.fail_on = list(fail_on)
 
     def generate(self, prompt, negative, seed):
         self.calls.append((prompt, negative, seed))
+        if prompt in self.fail_on:
+            raise RuntimeError(f"node 41: {prompt}")
         return b"PNG"
 
 
 class FakePlanStore:
     def __init__(self, reserved=None, frames=None, negative=""):
         self.reserved = reserved          # highest number an earlier plan reserved, or None
-        self.written = None               # (negative, frames) of the last write
+        self.appended = []                # each append call's frames, in order
         self.frames = list(frames or [])
-        self.negative = negative
+        self.negative = negative          # the pre-per-frame field older plans still carry
 
-    def write(self, project, negative, frames):
-        self.written = (negative, frames)
-        self.frames = list(frames)
-        self.negative = negative
+    def append(self, project, frames):
+        self.appended.append(frames)
+        self.frames = self.frames + list(frames)
 
     def read(self, project):
-        return {"negative": self.negative, "frames": list(self.frames)}
-
-    def clear(self, project):
-        self.write(project, "", [])
+        # Mirrors DrivePlanStore: a frame without its own negative falls back to the old field.
+        return {"negative": self.negative,
+                "frames": [{**f, "negative": f.get("negative", self.negative)}
+                           for f in self.frames]}
 
     def max_number(self, project):
-        return self.reserved
+        if self.reserved is not None:
+            return self.reserved
+        return max((f["number"] for f in self.frames), default=None)
 
 
 class FakeRecord:
@@ -145,11 +151,11 @@ def run_batch(runner, store, generator, project="düğün", text='["a", "b"]', n
 
 def test_plan_frames_is_prompt_major():
     seeds = iter([11, 22, 33, 44])
-    assert plan_frames(3, ["ilk", "ikinci"], 2, lambda: next(seeds)) == [
-        {"number": 3, "letter": "a", "prompt": "ilk", "seed": 11},
-        {"number": 3, "letter": "b", "prompt": "ilk", "seed": 22},
-        {"number": 4, "letter": "a", "prompt": "ikinci", "seed": 33},
-        {"number": 4, "letter": "b", "prompt": "ikinci", "seed": 44},
+    assert plan_frames(3, ["ilk", "ikinci"], "neg", 2, lambda: next(seeds)) == [
+        {"number": 3, "letter": "a", "prompt": "ilk", "negative": "neg", "seed": 11},
+        {"number": 3, "letter": "b", "prompt": "ilk", "negative": "neg", "seed": 22},
+        {"number": 4, "letter": "a", "prompt": "ikinci", "negative": "neg", "seed": 33},
+        {"number": 4, "letter": "b", "prompt": "ikinci", "negative": "neg", "seed": 44},
     ]
 
 
@@ -186,7 +192,8 @@ def test_progress_is_reported_before_each_frame():
 
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
-    assert seen[0]["current"] == {"number": 0, "letter": "a", "prompt": "a", "seed": 42}
+    assert seen[0]["current"] == {"number": 0, "letter": "a", "prompt": "a", "negative": "neg",
+                                  "seed": 42}
     assert (seen[0]["done"], seen[0]["total"]) == (0, 2)
     assert (seen[1]["done"], seen[1]["total"]) == (1, 2)
 
@@ -288,9 +295,9 @@ def test_missing_project_is_rejected():
     assert str(exc.value) == "Proje yok: yok"
 
 
-def test_busy_runner_is_rejected():
+def test_a_worker_held_by_another_project_is_rejected():
     runner = PhotoRunner(spawn=lambda fn: None)   # stays "running"
-    run_batch(runner, FakeStore(), FakeGenerator())
+    run_batch(runner, FakeStore(projects=("başka",)), FakeGenerator(), project="başka")
     with pytest.raises(Busy) as exc:
         run_batch(runner, FakeStore(), FakeGenerator())
     assert str(exc.value) == "Zaten bir üretim sürüyor."
@@ -442,14 +449,24 @@ def test_resume_refuses_when_nothing_is_left():
 
 
 def test_cancel_empties_the_queue_and_returns_to_idle():
-    runner, plan_store = sync_runner(), FakePlanStore(frames=[frame(0), frame(1)])
+    runner, record = sync_runner(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0), frame(1)])
     runner.request_stop()
-    run_batch(runner, FakeStore(), FakeGenerator(), plan_store=plan_store)
+    run_batch(runner, FakeStore(), FakeGenerator(), record=record, plan_store=plan_store)
 
-    cancel_generation(runner, FakeStore(), plan_store, "düğün")
+    cancel_generation(runner, FakeStore(), record, plan_store, lambda: "t1", "düğün")
 
-    assert plan_store.read("düğün")["frames"] == []
+    # The plan keeps what was asked for; the log is what says those frames are not coming.
+    assert get_queue(record, FakeStore(), plan_store, "düğün")["pending"] == []
     assert runner.status() == {"status": "idle"}
+
+
+def test_cancel_is_refused_while_the_queue_flows():
+    runner = PhotoRunner(spawn=lambda fn: None)
+    runner.start("düğün", lambda: None)
+    with pytest.raises(Busy):
+        cancel_generation(runner, FakeStore(), FakeRecord(), FakePlanStore(), lambda: "t1",
+                          "düğün")
 
 
 def test_a_deleted_number_is_never_used_again():
@@ -509,48 +526,41 @@ def test_get_status_passes_the_runner_state_through():
     assert get_status(PhotoRunner()) == {"status": "idle"}
 
 
-def test_the_plan_is_written_before_the_first_frame_renders():
+def test_the_plan_is_appended_before_the_first_frame_renders():
     plan_store, runner = FakePlanStore(), sync_runner()
 
     class ChecksThePlan:
         def generate(self, prompt, negative, seed):
-            assert plan_store.written is not None, "the batch started before the plan was written"
+            assert plan_store.appended, "the batch started before the plan was appended to"
             return b"PNG"
 
     run_batch(runner, FakeStore(), ChecksThePlan(), text='["a"]', variants=2,
               plan_store=plan_store)
-    negative, frames = plan_store.written
-    assert negative == "neg"
-    assert frames == [{"number": 0, "letter": "a", "prompt": "a", "seed": 42},
-                      {"number": 0, "letter": "b", "prompt": "a", "seed": 42}]
+    assert plan_store.appended == [
+        [{"number": 0, "letter": "a", "prompt": "a", "negative": "neg", "seed": 42},
+         {"number": 0, "letter": "b", "prompt": "a", "negative": "neg", "seed": 42}]]
 
 
 def test_each_produced_photo_gets_a_record_row():
     record = FakeRecord()
     run_batch(sync_runner(), FakeStore(), FakeGenerator(), text='["a"]', variants=2, record=record)
     assert record.rows == [
-        {"file": "0_a.png", "prompt": "a", "negative": "neg", "seed": 42,
+        {"file": "0_a.png", "status": "done", "prompt": "a", "negative": "neg", "seed": 42,
          "createdAt": "2026-08-03T14:32:11+00:00"},
-        {"file": "0_b.png", "prompt": "a", "negative": "neg", "seed": 42,
+        {"file": "0_b.png", "status": "done", "prompt": "a", "negative": "neg", "seed": 42,
          "createdAt": "2026-08-03T14:32:11+00:00"},
     ]
 
 
-def test_a_failed_frame_leaves_no_record_row():
-    class FailsFirstFrame:
-        def __init__(self):
-            self.calls = 0
-
-        def generate(self, prompt, negative, seed):
-            self.calls += 1
-            if self.calls == 1:
-                raise RuntimeError("node 41: OOM")
-            return b"PNG"
-
+def test_a_failed_frame_gets_a_failure_row_not_a_photo_row():
     record = FakeRecord()
-    run_batch(sync_runner(), FakeStore(), FailsFirstFrame(), text='["a"]', variants=2,
-              record=record)
-    assert [row["file"] for row in record.rows] == ["0_b.png"]
+    run_batch(sync_runner(), FakeStore(), FakeGenerator(fail_on=["patlak"]),
+              text='["patlak", "tutan"]', variants=1, record=record)
+
+    assert record.statuses("düğün") == {"0_a.png": "failed", "1_a.png": "done"}
+    assert [row["file"] for row in record.list("düğün")] == ["1_a.png"]
+    # The server's own words travel with the line -- never a guessed cause.
+    assert "node 41: patlak" in record.rows[0]["error"]
 
 
 def test_numbering_skips_what_an_unfinished_plan_reserved():
@@ -572,4 +582,104 @@ def test_a_rejected_batch_writes_no_plan():
     plan_store = FakePlanStore()
     with pytest.raises(InvalidPrompts):
         run_batch(sync_runner(), FakeStore(), FakeGenerator(), text="42", plan_store=plan_store)
-    assert plan_store.written is None
+    assert plan_store.appended == []
+
+
+def test_frames_added_while_the_loop_runs_are_produced_in_the_same_run():
+    """The whole point of a live queue: the loop asks the plan again on every turn."""
+    plan_store, record, generator, seen = FakePlanStore(), FakeRecord(), FakeGenerator(), []
+    rendering = generator.generate
+
+    def spy(prompt, negative, seed):
+        seen.append(prompt)
+        if prompt == "ilk":
+            plan_store.append("düğün", [{"number": 9, "letter": "a", "prompt": "sonradan",
+                                         "negative": "", "seed": 7}])
+        return rendering(prompt, negative, seed)
+
+    generator.generate = spy
+    run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,
+              record=record, plan_store=plan_store)
+
+    assert seen == ["ilk", "sonradan"]
+
+
+def test_the_loop_stops_by_itself_when_the_queue_empties():
+    runner = sync_runner()
+    run_batch(runner, FakeStore(), FakeGenerator(), text='["tek"]', variants=1)
+    assert runner.status()["status"] == "done"
+
+
+def test_adding_to_the_queue_of_the_running_project_is_not_busy():
+    runner = PhotoRunner(spawn=lambda fn: None)     # claims the worker, never runs the job
+    runner.start("düğün", lambda: None)
+    run_batch(runner, FakeStore(), FakeGenerator(), text='["ikinci parti"]', variants=1)
+
+
+def test_adding_while_another_project_runs_is_busy():
+    runner = PhotoRunner(spawn=lambda fn: None)
+    runner.start("başka", lambda: None)
+    with pytest.raises(Busy) as exc:
+        run_batch(runner, FakeStore(), FakeGenerator(), text='["ilk"]', variants=1)
+    assert str(exc.value) == "Zaten bir üretim sürüyor."
+
+
+def test_a_failed_frame_is_written_to_the_log():
+    record = FakeRecord()
+    run_batch(sync_runner(), FakeStore(), FakeGenerator(fail_on=["patlak"]), text='["patlak"]',
+              variants=1, record=record)
+    assert record.statuses("düğün") == {"0_a.png": "failed"}
+
+
+def test_the_queue_endpoint_reports_failures_after_a_restart():
+    record, plan_store = FakeRecord(), FakePlanStore()
+    run_batch(sync_runner(), FakeStore(), FakeGenerator(fail_on=["patlak"]),
+              text='["patlak", "tutan"]', variants=1, record=record, plan_store=plan_store)
+
+    # A restarted server holds nothing: this answer comes from the plan and the log alone.
+    assert get_queue(record, FakeStore(), plan_store, "düğün") == {
+        "pending": [], "failed": ["0_a.png"], "total": 2}
+
+
+def test_a_deleted_photo_does_not_come_back_as_pending():
+    record, plan_store = FakeRecord(), FakePlanStore()
+    run_batch(sync_runner(), FakeStore(), FakeGenerator(), text='["tek"]', variants=1,
+              record=record, plan_store=plan_store)
+
+    record.mark("düğün", "0_a.png", "deleted", "t9")
+
+    assert get_queue(record, FakeStore(), plan_store, "düğün")["pending"] == []
+
+
+def test_retry_puts_the_frame_back_in_line():
+    record, plan_store = FakeRecord(), FakePlanStore()
+    generator = FakeGenerator(fail_on=["patlak"])
+    run_batch(sync_runner(), FakeStore(), generator, text='["patlak"]', variants=1,
+              record=record, plan_store=plan_store)
+
+    generator.fail_on = []
+    retry_frame(sync_runner(), FakeStore(), record, plan_store, generator, lambda: "t2",
+                "düğün", "0_a.png")
+
+    assert record.statuses("düğün") == {"0_a.png": "done"}
+
+
+def test_clearing_the_queue_keeps_the_numbers_dead():
+    store, record, plan_store = FakeStore(next_no=0), FakeRecord(), FakePlanStore()
+    plan_store.append("düğün", [{"number": 0, "letter": "a", "prompt": "p", "negative": "",
+                                 "seed": 1}])
+
+    cancel_generation(sync_runner(), store, record, plan_store, lambda: "t1", "düğün")
+
+    assert record.statuses("düğün") == {"0_a.png": "removed"}
+    assert next_number(store, plan_store, record, "düğün") == 1
+
+
+def test_a_second_batch_renders_with_its_own_negative():
+    plan_store, record, generator = FakePlanStore(), FakeRecord(), FakeGenerator()
+    run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', negative="n1", variants=1,
+              record=record, plan_store=plan_store)
+    run_batch(sync_runner(), FakeStore(), generator, text='["ikinci"]', negative="n2", variants=1,
+              record=record, plan_store=plan_store)
+
+    assert [negative for _prompt, negative, _seed in generator.calls] == ["n1", "n2"]

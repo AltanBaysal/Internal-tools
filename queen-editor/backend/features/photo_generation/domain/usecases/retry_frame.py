@@ -1,11 +1,13 @@
-"""Produce one frame again -- the one whose tile is red.
+"""Put a frame back in line -- the one whose tile is red.
 
-The frame comes from the plan, so it is rendered with the prompt and seed it was planned with: a
-retry has to be the same frame, not a new one that happens to take its name.
+Retrying re-plans nothing: the frame is already in the plan with the prompt, negative and seed it
+was submitted under, so putting it back in line is one line in the record. It renders in the plan's
+own order.
 """
+from backend.features.photo_generation.domain import queue
 from backend.features.photo_generation.domain.photo_name import file_name
-from backend.features.photo_generation.domain.run_loop import make_job
-from backend.features.photo_generation.domain.usecases.start_batch import Busy, ProjectMissing
+from backend.features.photo_generation.domain.usecases.run_queue import run_queue
+from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 
 class FrameMissing(Exception):
@@ -15,11 +17,8 @@ class FrameMissing(Exception):
 def retry_frame(runner, store, record, plan_store, generator, now, project, file):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
-    plan = plan_store.read(project)
-    frames = [f for f in plan["frames"] if file_name(f["number"], f["letter"]) == file]
-    if not frames:
+    frames = plan_store.read(project)["frames"]
+    if not any(file_name(f["number"], f["letter"]) == file for f in frames):
         raise FrameMissing(f"Bu kare planda yok: {file}")
-
-    job = make_job(runner, store, record, generator, now, project, plan["negative"], frames)
-    if not runner.start(project, job):
-        raise Busy("Zaten bir üretim sürüyor.")
+    record.mark(project, file, queue.QUEUED, now())
+    run_queue(runner, store, record, plan_store, generator, now, project)

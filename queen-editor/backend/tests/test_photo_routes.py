@@ -27,6 +27,23 @@ class FakeGenerator:
         return b"PNGDATA"
 
 
+class StopsAfter:
+    """Renders `count` frames, then acts like the session that died: the run pauses and the rest of
+    the queue stays owed, with no line in the log. Raise `count` to bring the machine back."""
+
+    def __init__(self, runner, count):
+        self.runner = runner
+        self.count = count
+        self.calls = 0
+
+    def generate(self, prompt, negative, seed):
+        self.calls += 1
+        if self.calls > self.count:
+            self.runner.request_stop()
+            raise RuntimeError("kesildi")
+        return b"PNGDATA"
+
+
 def make_client(tmp_path, generator=None, runner=None):
     drive = tmp_path / "drive"
     (drive / "düğün").mkdir(parents=True)
@@ -49,7 +66,8 @@ def make_client(tmp_path, generator=None, runner=None):
         resume_batch=partial(resume_batch, runner, store, record, plan_store,
                              generator or FakeGenerator(),
                              lambda: "2026-08-03T14:32:11+00:00"),
-        cancel_generation=partial(cancel_generation, runner, store, plan_store),
+        cancel_generation=partial(cancel_generation, runner, store, record, plan_store,
+                                  lambda: "2026-08-05T10:00:00+00:00"),
         retry_frame=partial(retry_frame, runner, store, record, plan_store,
                             generator or FakeGenerator(), lambda: "2026-08-03T14:32:11+00:00"),
         get_queue=partial(get_queue, record, store, plan_store),
@@ -124,12 +142,21 @@ def test_unknown_project_returns_404(tmp_path):
     assert "yok" in resp.get_json()["error"]
 
 
-def test_busy_runner_returns_409(tmp_path):
-    client, _ = make_client(tmp_path, runner=PhotoRunner(spawn=lambda fn: None))
-    generate(client)
+def test_a_worker_held_by_another_project_returns_409(tmp_path):
+    runner = PhotoRunner(spawn=lambda fn: None)
+    client, _ = make_client(tmp_path, runner=runner)
+    runner.start("başka", lambda: None)
+
     resp = generate(client)
+
     assert resp.status_code == 409
     assert resp.get_json()["error"] == "Zaten bir üretim sürüyor."
+
+
+def test_adding_to_the_running_projects_own_queue_is_accepted(tmp_path):
+    client, _ = make_client(tmp_path, runner=PhotoRunner(spawn=lambda fn: None))
+    generate(client)
+    assert generate(client).status_code == 202
 
 
 def test_failed_batch_shows_the_real_error_in_status(tmp_path):
@@ -237,18 +264,46 @@ def test_order_of_an_unknown_project_returns_404(tmp_path):
 
 
 def test_queue_reports_what_a_dead_session_left_behind(tmp_path):
-    client, _ = make_client(tmp_path)
+    runner = PhotoRunner(spawn=lambda fn: fn())
+    client, _ = make_client(tmp_path, generator=StopsAfter(runner, 1), runner=runner)
     generate(client, prompts='["a", "b"]', variants=1)
-    # A photo that never landed is exactly what a killed session leaves: plan has it, record does not.
-    delete_photos_request(client, ["1_a.png"])
 
     assert client.get("/api/projects/düğün/queue").get_json() == {
-        "pending": ["1_a.png"], "total": 2}
+        "pending": ["1_a.png"], "failed": [], "total": 2}
+
+
+def test_queue_reports_a_red_frame_after_the_worker_is_gone(tmp_path):
+    class BlowsUpOnce:
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, prompt, negative, seed):
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("node 41: OOM")
+            return b"PNGDATA"
+
+    client, _ = make_client(tmp_path, generator=BlowsUpOnce())
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    # Nothing is left in memory: this answer is the plan and the log alone.
+    assert client.get("/api/projects/düğün/queue").get_json() == {
+        "pending": [], "failed": ["0_a.png"], "total": 2}
 
 
 def test_queue_of_a_project_without_a_plan_is_empty(tmp_path):
     client, _ = make_client(tmp_path)
-    assert client.get("/api/projects/düğün/queue").get_json() == {"pending": [], "total": 0}
+    assert client.get("/api/projects/düğün/queue").get_json() == {
+        "pending": [], "failed": [], "total": 0}
+
+
+def test_a_deleted_photo_does_not_come_back_as_pending(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    delete_photos_request(client, ["1_a.png"])
+
+    assert client.get("/api/projects/düğün/queue").get_json()["pending"] == []
 
 
 def test_queue_of_an_unknown_project_returns_404(tmp_path):
@@ -275,11 +330,13 @@ def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):
 
 
 def test_resume_produces_only_what_the_run_never_got_to(tmp_path):
-    client, drive = make_client(tmp_path)
+    runner = PhotoRunner(spawn=lambda fn: fn())
+    generator = StopsAfter(runner, 1)
+    client, drive = make_client(tmp_path, generator=generator, runner=runner)
     generate(client, prompts='["a", "b"]', variants=1)
-    # What a paused run leaves behind: the plan still holds both frames, one photo is on disk.
-    delete_photos_request(client, ["1_a.png"])
+    assert not (drive / "düğün" / "1_a.png").exists()
 
+    generator.count = 10                       # the machine is back
     resp = client.post("/api/projects/düğün/resume")
 
     assert resp.status_code == 202
