@@ -45,7 +45,9 @@ A web UI over the same ComfyUI photo pipeline as `nova-3dcg`, running on Colab. 
 principles and stack decisions live in [queen-editor/FOUNDATION.md](queen-editor/FOUNDATION.md);
 structure and layering rules in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the
 build order is the roadmap
-[docs/superpowers/plans/2026-08-03-queen-editor-v2-roadmap.md](docs/superpowers/plans/2026-08-03-queen-editor-v2-roadmap.md).
+[docs/superpowers/plans/2026-08-08-queen-editor-v3-roadmap.md](docs/superpowers/plans/2026-08-08-queen-editor-v3-roadmap.md)
+(v2 is closed — its chapters 1-14 are done and archived in
+[the v2 roadmap](docs/superpowers/plans/2026-08-03-queen-editor-v2-roadmap.md)).
 
 **Same engine, separate tool.** Queen Editor depends on nothing under `collab-toolbox/` at runtime —
 no imported cell, no shared file, no shared Drive folder — it gets its own Drive root, named in one
