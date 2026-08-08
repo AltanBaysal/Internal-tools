@@ -46,14 +46,18 @@ class DrivePlanStore:
             if not isinstance(frame, dict) or not isinstance(frame.get("number"), int):
                 continue
             negative = frame.get("negative")
+            model = frame.get("model")
+            # A frame planned before models could be chosen carries none, and empty means "the
+            # graph's own checkpoint" -- so those frames render exactly as they always did.
             frames.append({**frame,
-                           "negative": negative if isinstance(negative, str) else legacy})
+                           "negative": negative if isinstance(negative, str) else legacy,
+                           "model": model if isinstance(model, str) else ""})
         return {"negative": legacy, "frames": frames}
 
     def append(self, project, frames):
         """Put frames at the end of the queue.
 
-        frames: [{"number", "letter", "prompt", "negative", "seed"}] in render order.
+        frames: [{"number", "letter", "prompt", "negative", "seed", "model"}] in render order.
         """
         self._write(project, self.read(project)["frames"] + frames)
 

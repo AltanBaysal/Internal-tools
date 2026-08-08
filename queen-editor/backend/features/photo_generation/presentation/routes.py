@@ -22,7 +22,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
-                                    cancel_generation, retry_frame, list_frames,
+                                    cancel_generation, retry_frame, list_frames, list_models,
                                     save_order, export_project, remove_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
@@ -36,8 +36,11 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         negative = body.get("negative")
         # No negative is legitimate (the batch renders without one); a non-string counts as none.
         negative = negative if isinstance(negative, str) else ""
+        model = body.get("model")
+        # No model is legitimate too: the graph renders with its own checkpoint.
+        model = model if isinstance(model, str) else ""
         try:
-            added = start_batch(project, prompts, negative, body.get("variants"))
+            added = start_batch(project, prompts, negative, body.get("variants"), model)
         # Which box was wrong travels with the message: the screen marks that field instead of
         # guessing from the wording.
         except InvalidPrompts as exc:
@@ -51,6 +54,15 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # 202: a batch runs for minutes, so the request only reports that the work was accepted.
         # "added" is how many frames the queue took -- the panel quotes it back to the user.
         return jsonify({"job": "running", "added": added}), 202
+
+    @bp.get("/api/models")
+    def models():
+        try:
+            return jsonify({"models": list_models()})
+        except Exception as exc:
+            # Whatever the renderer said or failed to say, verbatim -- the panel prints it under
+            # the model field and generating stays possible without a choice.
+            return jsonify({"error": str(exc)}), 502
 
     @bp.get("/api/status")
     def status():

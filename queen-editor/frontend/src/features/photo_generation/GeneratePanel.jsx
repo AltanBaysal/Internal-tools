@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Icon, Mono, Note } from "../../vendor/kit.jsx";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
@@ -27,11 +28,13 @@ function acceptsVariants(text) {
 // puts them at the end of the queue. What the run has to say is not here: progress, pauses,
 // failures and the finish card all live in the queue panel (QueuePanel.jsx).
 export default function GeneratePanel({ job, error, errorField, busyElsewhere, settings,
+                                        models = null, modelsError = null,
                                         onGenerate, onClearError }) {
   // Initial values only: the screen mounts after the settings have loaded, so there is nothing to
   // sync afterwards and typing is never overwritten.
   const [prompts, setPrompts] = useState(settings.prompts);
   const [negative, setNegative] = useState(settings.negative);
+  const [model, setModel] = useState(settings.model || "");
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState(
     settings.variants === null ? "4" : String(settings.variants),
@@ -43,6 +46,18 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const fade = useRef(null);
 
   useEffect(() => () => clearTimeout(fade.current), []);
+
+  // Nothing saved yet: the field has to show a real choice rather than a blank, so the first model
+  // the renderer lists is taken. Only ever fills an empty box -- a saved choice is never moved.
+  useEffect(() => {
+    if (!model && models && models.length) setModel(models[0]);
+  }, [models, model]);
+
+  const loadingModels = models === null;
+  // A saved model the renderer no longer lists stays selected: quietly sliding the user onto
+  // another model would mean the next batch renders with one they never picked.
+  const gone = Boolean(model) && Boolean(models) && models.length > 0 && !models.includes(model);
+  const options = gone ? [model, ...models] : (models || []);
 
   const perPrompt = Number(variants);
   // Only the prompt box has an error state; the variant box has none by design, and anything else
@@ -71,6 +86,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
       prompts,
       negative,
       variants: Number.isInteger(perPrompt) && variants.trim() !== "" ? perPrompt : null,
+      model,
     })
       .then((result) => {
         if (result && typeof result.added === "number") {
@@ -87,6 +103,28 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
+      {/* The panel's first field, as it has been in the design since v1. The list is the
+          renderer's answer, so what can be picked is exactly what the graph can load. */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <Mono size={11} style={LABEL}>Model</Mono>
+        <select className="wf-input" value={model} disabled={loadingModels || !options.length}
+                onChange={(e) => setModel(e.target.value)}
+                style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
+          {loadingModels ? (
+            <option value="">yükleniyor…</option>
+          ) : options.length ? (
+            options.map((name) => <option key={name} value={name}>{name}</option>)
+          ) : (
+            <option value="">model bulunamadı</option>
+          )}
+        </select>
+        {gone && (
+          <Note size={12} style={{ color: "var(--danger)" }}>Bu model artık kurulu değil.</Note>
+        )}
+        {/* Not a separate screen and not a blocker: the list failed, the queue has not. */}
+        {modelsError && <StatusErrorCard text="Model listesi okunamadı" raw={modelsError} />}
+      </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
         <Mono size={11} style={LABEL}>Prompt listesi</Mono>
         <textarea

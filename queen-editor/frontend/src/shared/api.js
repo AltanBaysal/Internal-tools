@@ -58,20 +58,27 @@ export async function getSettings(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/settings`);
 }
 
-export async function saveSettings(project, { prompts, negative, variants }) {
+export async function saveSettings(project, { prompts, negative, variants, model }) {
   return request(`/api/projects/${encodeURIComponent(project)}/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompts, negative, variants }),
+    body: JSON.stringify({ prompts, negative, variants, model }),
   });
 }
 
-export async function generateBatch(project, { prompts, negative, variants }) {
+export async function generateBatch(project, { prompts, negative, variants, model }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompts, negative, variants }),
+    body: JSON.stringify({ prompts, negative, variants, model }),
   });
+}
+
+// Which models can render right now. Not a project's question: the renderer answers it, and the
+// app keeps no list of its own (the notebook decides what is installed).
+export async function listModels() {
+  const body = await request("/api/models");
+  return body.models;
 }
 
 export async function stopGeneration() {

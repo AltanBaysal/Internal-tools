@@ -10,6 +10,7 @@ from backend.features.photo_generation.domain.usecases.export_project import exp
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
+from backend.features.photo_generation.domain.usecases.list_models import list_models
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
 from backend.features.photo_generation.domain.usecases.save_order import save_order
@@ -22,7 +23,15 @@ from backend.web.app import create_app
 
 
 class FakeGenerator:
-    def generate(self, prompt, negative, seed):
+    def __init__(self, installed=("nova.safetensors",)):
+        self.installed = list(installed)
+        self.calls = []
+
+    def models(self):
+        return list(self.installed)
+
+    def generate(self, prompt, negative, seed, model=""):
+        self.calls.append((prompt, negative, seed, model))
         return b"PNGDATA"
 
 
@@ -35,7 +44,7 @@ class StopsAfter:
         self.count = count
         self.calls = 0
 
-    def generate(self, prompt, negative, seed):
+    def generate(self, prompt, negative, seed, model=""):
         self.calls += 1
         if self.calls > self.count:
             self.runner.request_stop()
@@ -56,20 +65,21 @@ def make_client(tmp_path, generator=None, runner=None):
     plan_store = DrivePlanStore(storage)
     order_store = DriveOrderStore(storage)
     runner = runner or PhotoRunner(spawn=lambda fn: fn())
+    generator = generator or FakeGenerator()
     blueprint = make_photo_generation_blueprint(
         start_batch=partial(start_batch, runner, store, record, plan_store,
-                            generator or FakeGenerator(), lambda: 42,
+                            generator, lambda: 42,
                             lambda: "2026-08-03T14:32:11+00:00"),
         get_status=partial(get_status, runner),
         stop_generation=partial(stop_generation, runner, lambda: None),
-        resume_batch=partial(resume_batch, runner, store, record, plan_store,
-                             generator or FakeGenerator(),
+        resume_batch=partial(resume_batch, runner, store, record, plan_store, generator,
                              lambda: "2026-08-03T14:32:11+00:00"),
         cancel_generation=partial(cancel_generation, runner, store, record, plan_store,
                                   lambda: "2026-08-05T10:00:00+00:00"),
         retry_frame=partial(retry_frame, runner, store, record, plan_store,
-                            generator or FakeGenerator(), lambda: "2026-08-03T14:32:11+00:00"),
+                            generator, lambda: "2026-08-03T14:32:11+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
+        list_models=partial(list_models, generator),
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_project=partial(export_project, record, store, plan_store, order_store),
         remove_frames=partial(remove_frames, record, store, plan_store, order_store,
@@ -168,7 +178,7 @@ def test_adding_to_the_running_projects_own_queue_is_accepted(tmp_path):
 
 def test_failed_batch_shows_the_real_error_in_status(tmp_path):
     class Broken:
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             raise RuntimeError("node 9 (CheckpointLoaderSimple): dosya yok")
 
     client, _ = make_client(tmp_path, generator=Broken())
@@ -295,7 +305,7 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             self.calls += 1
             if self.calls == 1:
                 raise RenderFailed("node 41: OOM")
@@ -307,6 +317,49 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     # Nothing is left in memory: this answer is the plan and the log alone. And the failed frame is
     # drawn once, in its own place -- not as a red tile and a dashed one at the same time.
     assert statuses_of(client) == [("1_a.png", "done"), ("0_a.png", "failed")]
+
+
+def test_the_models_endpoint_lists_what_the_renderer_has(tmp_path):
+    client, _ = make_client(tmp_path,
+                            generator=FakeGenerator(installed=["nova.safetensors", "b.safetensors"]))
+
+    resp = client.get("/api/models")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"models": ["nova.safetensors", "b.safetensors"]}
+
+
+def test_an_unreachable_renderer_answers_with_its_own_words(tmp_path):
+    class Unreachable(FakeGenerator):
+        def models(self):
+            raise RuntimeError("Connection refused: 127.0.0.1:8188")
+
+    client, _ = make_client(tmp_path, generator=Unreachable())
+
+    resp = client.get("/api/models")
+
+    assert resp.status_code == 502
+    assert resp.get_json()["error"] == "Connection refused: 127.0.0.1:8188"
+
+
+def test_every_frame_of_a_batch_carries_the_chosen_model(tmp_path):
+    generator = FakeGenerator()
+    client, drive = make_client(tmp_path, generator=generator)
+
+    generate(client, prompts='["a", "b"]', variants=2, model="başka.safetensors")
+
+    assert [model for _p, _n, _s, model in generator.calls] == ["başka.safetensors"] * 4
+    plan = json.loads((drive / "düğün" / "plan.json").read_text(encoding="utf-8"))
+    assert {frame["model"] for frame in plan["frames"]} == {"başka.safetensors"}
+
+
+def test_a_batch_sent_without_a_model_renders_with_the_graphs_own(tmp_path):
+    generator = FakeGenerator()
+    client, _ = make_client(tmp_path, generator=generator)
+
+    generate(client, prompts='["a"]', variants=1)
+
+    assert generator.calls == [("a", "blurry", 42, "")]
 
 
 def test_a_project_without_a_plan_has_an_empty_gallery(tmp_path):

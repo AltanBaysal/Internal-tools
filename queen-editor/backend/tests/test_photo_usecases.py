@@ -9,6 +9,7 @@ from backend.features.photo_generation.domain.usecases.remove_frames import (
 )
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
+from backend.features.photo_generation.domain.usecases.list_models import list_models
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
 from backend.features.photo_generation.domain.usecases.start_batch import (
@@ -67,12 +68,18 @@ class FrameFault(RuntimeError):
 class FakeGenerator:
     """Records what each frame asked for; `fail_on` names the prompts whose render fails."""
 
-    def __init__(self, fail_on=()):
+    def __init__(self, fail_on=(), installed=("nova.safetensors",)):
         self.calls = []
+        self.models_called = 0
         self.fail_on = list(fail_on)
+        self.installed = list(installed)
 
-    def generate(self, prompt, negative, seed):
-        self.calls.append((prompt, negative, seed))
+    def models(self):
+        self.models_called += 1
+        return list(self.installed)
+
+    def generate(self, prompt, negative, seed, model=""):
+        self.calls.append((prompt, negative, seed, model))
         if prompt in self.fail_on:
             raise FrameFault(f"node 41: {prompt}")
         return b"PNG"
@@ -90,9 +97,11 @@ class FakePlanStore:
         self.frames = self.frames + list(frames)
 
     def read(self, project):
-        # Mirrors DrivePlanStore: a frame without its own negative falls back to the old field.
+        # Mirrors DrivePlanStore: a frame without its own negative falls back to the old field, and
+        # one planned before models could be chosen carries none at all.
         return {"negative": self.negative,
-                "frames": [{**f, "negative": f.get("negative", self.negative)}
+                "frames": [{**f, "negative": f.get("negative", self.negative),
+                            "model": f.get("model", "")}
                            for f in self.frames]}
 
     def max_number(self, project):
@@ -150,19 +159,23 @@ def sync_runner():
 
 
 def run_batch(runner, store, generator, project="düğün", text='["a", "b"]', negative="neg",
-              variants=2, seed=42, record=None, plan_store=None):
+              variants=2, seed=42, record=None, plan_store=None, model=""):
     return start_batch(runner, store, record or FakeRecord(), plan_store or FakePlanStore(),
                        generator, lambda: seed, lambda: "2026-08-03T14:32:11+00:00",
-                       project, text, negative, variants)
+                       project, text, negative, variants, model)
 
 
 def test_plan_frames_is_prompt_major():
     seeds = iter([11, 22, 33, 44])
-    assert plan_frames(3, ["ilk", "ikinci"], "neg", 2, lambda: next(seeds)) == [
-        {"number": 3, "letter": "a", "prompt": "ilk", "negative": "neg", "seed": 11},
-        {"number": 3, "letter": "b", "prompt": "ilk", "negative": "neg", "seed": 22},
-        {"number": 4, "letter": "a", "prompt": "ikinci", "negative": "neg", "seed": 33},
-        {"number": 4, "letter": "b", "prompt": "ikinci", "negative": "neg", "seed": 44},
+    assert plan_frames(3, ["ilk", "ikinci"], "neg", 2, lambda: next(seeds), "nova.safetensors") == [
+        {"number": 3, "letter": "a", "prompt": "ilk", "negative": "neg", "seed": 11,
+         "model": "nova.safetensors"},
+        {"number": 3, "letter": "b", "prompt": "ilk", "negative": "neg", "seed": 22,
+         "model": "nova.safetensors"},
+        {"number": 4, "letter": "a", "prompt": "ikinci", "negative": "neg", "seed": 33,
+         "model": "nova.safetensors"},
+        {"number": 4, "letter": "b", "prompt": "ikinci", "negative": "neg", "seed": 44,
+         "model": "nova.safetensors"},
     ]
 
 
@@ -177,8 +190,8 @@ def test_every_frame_gets_prompt_negative_and_a_fresh_seed():
     seeds = iter([11, 22, 33, 44])
     start_batch(runner, store, FakeRecord(), FakePlanStore(), generator, lambda: next(seeds),
                 lambda: "2026-08-03T14:32:11+00:00", "düğün", '["a", "b"]', "neg", 2)
-    assert generator.calls == [("a", "neg", 11), ("a", "neg", 22),
-                               ("b", "neg", 33), ("b", "neg", 44)]
+    assert generator.calls == [("a", "neg", 11, ""), ("a", "neg", 22, ""),
+                               ("b", "neg", 33, ""), ("b", "neg", 44, "")]
 
 
 def test_finished_batch_reports_its_counts():
@@ -193,14 +206,14 @@ def test_progress_is_reported_before_each_frame():
     seen = []
     original = generator.generate
 
-    def spy(prompt, negative, seed):
+    def spy(prompt, negative, seed, model=""):
         seen.append(runner.status())
-        return original(prompt, negative, seed)
+        return original(prompt, negative, seed, model)
 
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
     assert seen[0]["current"] == {"number": 0, "letter": "a", "prompt": "a", "negative": "neg",
-                                  "seed": 42}
+                                  "seed": 42, "model": ""}
     assert (seen[0]["done"], seen[0]["total"]) == (0, 2)
     assert (seen[1]["done"], seen[1]["total"]) == (1, 2)
 
@@ -210,7 +223,7 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             self.calls += 1
             if self.calls == 1:
                 raise FrameFault("node 41: OOM")
@@ -227,7 +240,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
     """The old rule counted three failed frames in a row; the new one counts attempts on ONE frame,
     so a queue of bad prompts turns red to the end instead of stopping partway."""
     class AlwaysBroken:
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             raise FrameFault("node 41: OOM")
 
     store, runner = FakeStore(), sync_runner()
@@ -240,7 +253,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
 def test_a_loader_failure_is_no_longer_special():
     """It used to stop the run on the first frame. ComfyUI answered, so it is now the frame's."""
     class BrokenLoader:
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             raise FrameFault("node 9 (CheckpointLoaderSimple): dosya yok")
 
     runner = sync_runner()
@@ -254,7 +267,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
         def __init__(self):
             self.calls = []
 
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             self.calls.append(prompt)
             raise RuntimeError("Connection refused")
 
@@ -273,7 +286,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
 
 def test_a_frame_the_run_gave_up_on_is_still_owed():
     class Unreachable:
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             raise RuntimeError("Connection refused")
 
     record, plan_store = FakeRecord(), FakePlanStore()
@@ -289,7 +302,7 @@ def test_an_attempt_that_lands_costs_the_frame_nothing():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             self.calls += 1
             if self.calls <= 2:
                 raise RuntimeError("Connection refused")
@@ -309,7 +322,7 @@ def test_every_frame_gets_its_own_three_attempts():
             self.failed = set()
             self.calls = []
 
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             self.calls.append(prompt)
             if prompt not in self.failed:
                 self.failed.add(prompt)
@@ -331,7 +344,7 @@ def test_stop_request_ends_the_batch_between_frames():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             self.calls += 1
             runner.request_stop()
             return b"PNG"
@@ -348,7 +361,7 @@ def test_frame_killed_by_user_stop_is_not_a_failure():
     store, runner = FakeStore(), sync_runner()
 
     class StoppingGenerator:
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             runner.request_stop()          # the user's stop lands mid-render
             raise RuntimeError("interrupted")
 
@@ -588,7 +601,7 @@ def test_resume_only_produces_the_frames_the_record_is_missing():
     resume_batch(sync_runner(), store, record, plan_store, generator,
                  lambda: "2026-08-05T10:00:00+00:00", "düğün")
 
-    assert generator.calls == [("ikinci", "neg", 1)]
+    assert generator.calls == [("ikinci", "neg", 1, "")]
     assert [n for n, _letter, _d in store.saved] == [1]
 
 
@@ -722,15 +735,15 @@ def test_the_plan_is_appended_before_the_first_frame_renders():
     plan_store, runner = FakePlanStore(), sync_runner()
 
     class ChecksThePlan:
-        def generate(self, prompt, negative, seed):
+        def generate(self, prompt, negative, seed, model=""):
             assert plan_store.appended, "the batch started before the plan was appended to"
             return b"PNG"
 
     run_batch(runner, FakeStore(), ChecksThePlan(), text='["a"]', variants=2,
               plan_store=plan_store)
     assert plan_store.appended == [
-        [{"number": 0, "letter": "a", "prompt": "a", "negative": "neg", "seed": 42},
-         {"number": 0, "letter": "b", "prompt": "a", "negative": "neg", "seed": 42}]]
+        [{"number": 0, "letter": "a", "prompt": "a", "negative": "neg", "seed": 42, "model": ""},
+         {"number": 0, "letter": "b", "prompt": "a", "negative": "neg", "seed": 42, "model": ""}]]
 
 
 def test_each_produced_photo_gets_a_record_row():
@@ -782,12 +795,12 @@ def test_frames_added_while_the_loop_runs_are_produced_in_the_same_run():
     plan_store, record, generator, seen = FakePlanStore(), FakeRecord(), FakeGenerator(), []
     rendering = generator.generate
 
-    def spy(prompt, negative, seed):
+    def spy(prompt, negative, seed, model=""):
         seen.append(prompt)
         if prompt == "ilk":
             plan_store.append("düğün", [{"number": 9, "letter": "a", "prompt": "sonradan",
-                                         "negative": "", "seed": 7}])
-        return rendering(prompt, negative, seed)
+                                         "negative": "", "seed": 7, "model": ""}])
+        return rendering(prompt, negative, seed, model)
 
     generator.generate = spy
     run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,
@@ -908,4 +921,34 @@ def test_a_second_batch_renders_with_its_own_negative():
     run_batch(sync_runner(), FakeStore(), generator, text='["ikinci"]', negative="n2", variants=1,
               record=record, plan_store=plan_store)
 
-    assert [negative for _prompt, negative, _seed in generator.calls] == ["n1", "n2"]
+    assert [negative for _prompt, negative, _seed, _model in generator.calls] == ["n1", "n2"]
+
+
+def test_a_second_batch_renders_with_its_own_model():
+    """Same reason as the negative: a live queue holds batches sent under different settings."""
+    plan_store, record, generator = FakePlanStore(), FakeRecord(), FakeGenerator()
+    run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,
+              record=record, plan_store=plan_store, model="nova.safetensors")
+    run_batch(sync_runner(), FakeStore(), generator, text='["ikinci"]', variants=1,
+              record=record, plan_store=plan_store, model="başka.safetensors")
+
+    assert [model for _p, _n, _s, model in generator.calls] == ["nova.safetensors",
+                                                                "başka.safetensors"]
+
+
+def test_a_frame_planned_before_models_renders_with_the_graphs_own():
+    plan_store, generator = FakePlanStore(), FakeGenerator()
+    # No "model" key at all -- exactly what an older plan file holds.
+    plan_store.frames = [{"number": 0, "letter": "a", "prompt": "eski", "negative": "", "seed": 1}]
+
+    resume_batch(sync_runner(), FakeStore(), FakeRecord(), plan_store, generator,
+                 lambda: "t1", "düğün")
+
+    assert generator.calls == [("eski", "", 1, "")]
+
+
+def test_the_model_list_is_whatever_the_renderer_reports():
+    generator = FakeGenerator(installed=["nova.safetensors", "başka.safetensors"])
+
+    assert list_models(generator) == ["nova.safetensors", "başka.safetensors"]
+    assert generator.models_called == 1

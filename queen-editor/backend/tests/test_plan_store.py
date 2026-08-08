@@ -4,8 +4,10 @@ from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.services.drive.storage import DriveStorage
 
 FRAMES = [
-    {"number": 3, "letter": "a", "prompt": "kraliçe tahtta", "negative": "bulanık", "seed": 11},
-    {"number": 4, "letter": "a", "prompt": "kraliçe balkonda", "negative": "bulanık", "seed": 22},
+    {"number": 3, "letter": "a", "prompt": "kraliçe tahtta", "negative": "bulanık", "seed": 11,
+     "model": "nova.safetensors"},
+    {"number": 4, "letter": "a", "prompt": "kraliçe balkonda", "negative": "bulanık", "seed": 22,
+     "model": "nova.safetensors"},
 ]
 
 
@@ -17,6 +19,16 @@ def test_append_then_read_round_trips(tmp_path):
     store = store_at(tmp_path)
     store.append("düğün", FRAMES)
     assert store.read("düğün")["frames"] == FRAMES
+
+
+def test_a_frame_planned_before_models_reads_back_without_one(tmp_path):
+    # Empty means "the graph's own checkpoint" -- those frames render exactly as they always did.
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "plan.json").write_text(json.dumps({"frames": [
+        {"number": 0, "letter": "a", "prompt": "eski", "negative": "n", "seed": 1}]}),
+        encoding="utf-8")
+
+    assert store_at(tmp_path).read("düğün")["frames"][0]["model"] == ""
 
 
 def test_reading_a_project_without_a_plan_gives_no_frames(tmp_path):

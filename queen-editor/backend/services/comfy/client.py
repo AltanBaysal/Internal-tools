@@ -22,6 +22,22 @@ class ComfyClient:
         self._sleep = sleep
         self._now = now
 
+    def checkpoints(self):
+        """Every checkpoint the loader node can see, in the order the server lists them.
+
+        Asked rather than configured: the notebook decides what gets installed, and a second list
+        living in the app would disagree with it the first time a model is added.
+        """
+        resp = self._http.get(f"{self.base}/object_info/CheckpointLoaderSimple", timeout=30)
+        info = resp.json()
+        try:
+            names = info["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][0]
+        except (KeyError, IndexError, TypeError):
+            # The server's own answer, printed whole -- an unrecognised shape must stay visible.
+            raise RuntimeError("GET /object_info/CheckpointLoaderSimple -> beklenmeyen yanıt\n"
+                               + json.dumps(info, ensure_ascii=False)[:2000]) from None
+        return [name for name in names if isinstance(name, str)]
+
     def submit(self, workflow):
         """Queue the graph; returns ComfyUI's prompt_id."""
         resp = self._http.post(f"{self.base}/prompt",

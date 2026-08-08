@@ -39,7 +39,8 @@ def make_job(runner, store, record, plan_store, generator, now, project):
             runner.report({**queue.counts(frames, statuses), "current": frame,
                            "pending": [file_name(f["number"], f["letter"]) for f in owed[1:]]})
             try:
-                data = generator.generate(frame["prompt"], frame["negative"], frame["seed"])
+                data = generator.generate(frame["prompt"], frame["negative"], frame["seed"],
+                                          frame["model"])
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The frame

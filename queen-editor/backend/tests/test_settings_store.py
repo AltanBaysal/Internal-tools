@@ -1,7 +1,7 @@
 from backend.features.projects.data.settings_store import DriveSettingsStore
 from backend.services.drive.storage import DriveStorage
 
-EMPTY = {"prompts": "", "negative": "", "variants": None}
+EMPTY = {"prompts": "", "negative": "", "variants": None, "model": ""}
 
 
 def store_at(path):
@@ -16,7 +16,8 @@ def test_reading_a_project_that_never_saved_gives_empty_settings(tmp_path):
 def test_write_then_read_round_trips(tmp_path):
     (tmp_path / "düğün").mkdir()
     store = store_at(tmp_path)
-    settings = {"prompts": '["kraliçe tahtta"]', "negative": "bulanık", "variants": 4}
+    settings = {"prompts": '["kraliçe tahtta"]', "negative": "bulanık", "variants": 4,
+                "model": "nova.safetensors"}
     store.write("düğün", settings)
     assert store.read("düğün") == settings
 

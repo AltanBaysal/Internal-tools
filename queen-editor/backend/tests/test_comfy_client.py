@@ -63,6 +63,27 @@ def test_submit_raises_on_node_errors():
     assert "node_errors" in str(exc.value)
 
 
+def _object_info(names):
+    """The shape ComfyUI answers /object_info/<node> with: the widget's values are the enum."""
+    return {"CheckpointLoaderSimple": {"input": {"required": {"ckpt_name": [names, {}]}}}}
+
+
+def test_checkpoints_lists_what_the_loader_can_see():
+    http = FakeHttp(gets=[FakeResponse(_object_info(["nova.safetensors", "başka.safetensors"]))])
+
+    assert client_with(http).checkpoints() == ["nova.safetensors", "başka.safetensors"]
+    assert http.get_calls[0][0] == "http://comfy:8188/object_info/CheckpointLoaderSimple"
+
+
+def test_checkpoints_says_what_it_got_when_the_answer_makes_no_sense():
+    http = FakeHttp(gets=[FakeResponse({"CheckpointLoaderSimple": {"input": {}}})])
+
+    with pytest.raises(RuntimeError) as exc:
+        client_with(http).checkpoints()
+    # The server's own answer, not a guess about why it looked like that.
+    assert "CheckpointLoaderSimple" in str(exc.value)
+
+
 def test_wait_returns_entry_when_history_appears():
     entry = {"outputs": {}, "status": {"status_str": "success"}}
     http = FakeHttp(gets=[FakeResponse({}), FakeResponse({"p1": entry})])

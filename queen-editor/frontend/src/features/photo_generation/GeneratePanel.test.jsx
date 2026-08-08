@@ -3,9 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import GeneratePanel from "./GeneratePanel.jsx";
 
-const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4 };
+const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4, model: "" };
 const PROMPT_BOX = '["ilk prompt", "ikinci prompt"]';
 const RUNNING = { status: "running", project: "düğün", done: 7, failed: 0, total: 48 };
+const MODELS = ["nova.safetensors", "başka.safetensors"];
 
 function renderPanel(props) {
   return render(
@@ -14,6 +15,8 @@ function renderPanel(props) {
       error={null}
       busyElsewhere={false}
       settings={SETTINGS}
+      models={MODELS}
+      modelsError={null}
       onGenerate={() => Promise.resolve({ added: 4 })}
       onClearError={() => {}}
       {...props}
@@ -23,6 +26,7 @@ function renderPanel(props) {
 
 const promptBox = () => screen.getByPlaceholderText(PROMPT_BOX);
 const variantBox = () => screen.getByRole("spinbutton");
+const modelBox = () => screen.getByRole("combobox");
 
 describe("GeneratePanel — the button", () => {
   it("adds to the queue instead of starting a run", () => {
@@ -69,6 +73,65 @@ describe("GeneratePanel — the button", () => {
     renderPanel({ settings: { ...SETTINGS, prompts: '["a", "b"]', variants: 3 } });
 
     expect(screen.queryByText(/varyant =/)).toBeNull();
+  });
+});
+
+describe("GeneratePanel — the model field", () => {
+  it("is the first field, and offers what the renderer reported", () => {
+    renderPanel();
+
+    expect(screen.getByText("Model")).toBeTruthy();
+    expect([...modelBox().options].map((o) => o.value)).toEqual(MODELS);
+    // First in the document: the design has put it at the top of the panel since v1.
+    expect(screen.getByText("Model").compareDocumentPosition(screen.getByText("Prompt listesi"))
+      & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("opens on the saved model rather than the first one", () => {
+    renderPanel({ settings: { ...SETTINGS, model: "başka.safetensors" } });
+
+    expect(modelBox().value).toBe("başka.safetensors");
+  });
+
+  it("falls back to the first model when nothing was saved", () => {
+    renderPanel();
+
+    expect(modelBox().value).toBe("nova.safetensors");
+  });
+
+  it("sends the chosen model with the batch", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate });
+
+    fireEvent.change(modelBox(), { target: { value: "başka.safetensors" } });
+    await act(async () => { fireEvent.click(screen.getByText("Üretime ekle")); });
+
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "başka.safetensors",
+    }));
+  });
+
+  it("keeps a saved model that is no longer installed, and says so", () => {
+    renderPanel({ settings: { ...SETTINGS, model: "gitmiş.safetensors" } });
+
+    expect(modelBox().value).toBe("gitmiş.safetensors");
+    expect(screen.getByText("Bu model artık kurulu değil.")).toBeTruthy();
+  });
+
+  it("says the list could not be read without standing in the way", () => {
+    renderPanel({ models: [], modelsError: "Sunucuya ulaşılamadı — bağlantıyı kontrol et." });
+
+    expect(screen.getByText("Model listesi okunamadı")).toBeTruthy();
+    expect(screen.getByText("model bulunamadı")).toBeTruthy();
+    // The queue did not fail -- only the listing did.
+    expect(screen.getByText("Üretime ekle").closest("button").disabled).toBe(false);
+  });
+
+  it("waits rather than claiming there is nothing while the list is still coming", () => {
+    renderPanel({ models: null });
+
+    expect(screen.getByText("yükleniyor…")).toBeTruthy();
+    expect(screen.queryByText("model bulunamadı")).toBeNull();
   });
 });
 

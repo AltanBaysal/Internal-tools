@@ -6,9 +6,13 @@ from backend.features.photo_generation.data.comfy_photo_generator import ComfyPh
 
 
 class FakeClient:
-    def __init__(self):
+    def __init__(self, checkpoints=()):
         self.submitted = None
         self.waited = None
+        self._checkpoints = list(checkpoints)
+
+    def checkpoints(self):
+        return list(self._checkpoints)
 
     def submit(self, workflow):
         self.submitted = workflow
@@ -30,6 +34,8 @@ def write_graph(tmp_path, graph=None):
         "4": {"inputs": {"wildcard_text": "eski negatif", "populated_text": "eski negatif"},
               "class_type": "ImpactWildcardProcessor"},
         "40": {"inputs": {"seed": -1}, "class_type": "Seed (rgthree)"},
+        "45": {"inputs": {"ckpt_name": "export.safetensors"},
+               "class_type": "CheckpointLoaderSimple"},
     }), encoding="utf-8")
     return str(path)
 
@@ -78,12 +84,38 @@ def test_ui_format_export_is_rejected(tmp_path):
     assert "Export (API)" in str(exc.value)
 
 
-@pytest.mark.parametrize("missing", ["3", "4", "40"])
+def test_the_chosen_model_is_written_to_the_checkpoint_node(tmp_path):
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, "başka.safetensors")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == "başka.safetensors"
+
+
+def test_no_model_leaves_the_graphs_own_checkpoint_alone(tmp_path):
+    # Frames planned before models were a thing, and every frame when the list cannot be read:
+    # the export's own default is what renders them, exactly as before.
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, "")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == "export.safetensors"
+
+
+def test_the_installed_models_come_from_the_server(tmp_path):
+    client = FakeClient(checkpoints=["nova.safetensors", "başka.safetensors"])
+    generator = ComfyPhotoGenerator(client, write_graph(tmp_path), timeout=60)
+
+    assert generator.models() == ["nova.safetensors", "başka.safetensors"]
+
+
+@pytest.mark.parametrize("missing", ["3", "4", "40", "45"])
 def test_missing_node_is_reported(tmp_path, missing):
     graph = {
         "3": {"inputs": {"wildcard_text": "", "populated_text": ""}},
         "4": {"inputs": {"wildcard_text": "", "populated_text": ""}},
         "40": {"inputs": {"seed": -1}},
+        "45": {"inputs": {"ckpt_name": "export.safetensors"}},
     }
     del graph[missing]
     _client, generator = generator_at(tmp_path, graph)

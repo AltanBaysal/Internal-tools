@@ -97,7 +97,8 @@ function RailButton({ panel, active, onSelect }) {
 // single surface -- submitting work, watching the queue, and the agent that has not been designed
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
 export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
-                                    stopping, pending, failures, onGenerate, onStop, onResume,
+                                    stopping, pending, failures, models, modelsError,
+                                    onGenerate, onStop, onResume,
                                     onCancel, onClearError, onShowFailures }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it.
@@ -113,6 +114,7 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         {open === "add" && (
           <GeneratePanel job={job} error={error} errorField={errorField}
                          busyElsewhere={busyElsewhere} settings={settings}
+                         models={models} modelsError={modelsError}
                          onGenerate={onGenerate} onClearError={onClearError} />
         )}
         {open === "queue" && (

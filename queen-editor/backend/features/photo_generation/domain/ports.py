@@ -3,8 +3,12 @@ from typing import Protocol
 
 
 class PhotoGenerator(Protocol):
-    def generate(self, prompt: str, negative: str, seed: int) -> bytes:
-        """Render one photo and return its bytes."""
+    def generate(self, prompt: str, negative: str, seed: int, model: str = "") -> bytes:
+        """Render one photo and return its bytes. An empty model means the graph's own default."""
+        ...
+
+    def models(self) -> list:
+        """Which models can render right now -- asked of the renderer, never kept here."""
         ...
 
 

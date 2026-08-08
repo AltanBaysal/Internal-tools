@@ -7,6 +7,7 @@ import { Btn, Hand } from "../../vendor/kit.jsx";
 import Gallery from "./Gallery.jsx";
 import SidePanel from "./SidePanel.jsx";
 import { useGeneration } from "./useGeneration.js";
+import { useModels } from "./useModels.js";
 
 const HEADER = {
   display: "grid",
@@ -23,6 +24,8 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   const { job, frames, error, errorField, stopping, pending, failures, current,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
+  // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
+  const { models, error: modelsError } = useModels();
   const [saveError, setSaveError] = useState(null);
   const [leaving, setLeaving] = useState(false);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
@@ -60,6 +63,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
     try {
       await onSaveSettings({
         prompts: form.prompts, negative: form.negative, variants: form.variants,
+        model: form.model,
       });
     } catch (err) {
       setSaveError(err.message);
@@ -92,6 +96,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
         <SidePanel job={job} error={saveError || error} errorField={errorField}
                    busyElsewhere={busyElsewhere} settings={settings} project={project}
                    stopping={stopping} pending={pending} failures={failures}
+                   models={models} modelsError={modelsError}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onShowFailures={showFirstFailure} />
       </div>

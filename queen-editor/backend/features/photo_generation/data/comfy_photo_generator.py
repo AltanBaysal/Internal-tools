@@ -4,6 +4,7 @@ Node ids come from our own export (queen-editor/workflow_api.json):
   "3"  ImpactWildcardProcessor, _meta.title "POSITIVE"
   "4"  ImpactWildcardProcessor, _meta.title "NEGATIVE"
   "40" Seed (rgthree) -> KSampler, FaceDetailer and both wildcard processors read it
+  "45" CheckpointLoaderSimple -> which model renders the frame
 
 A new export can renumber these; then this file changes and nothing else does.
 """
@@ -12,6 +13,7 @@ import json
 PROMPT_NODE = "3"
 NEGATIVE_NODE = "4"
 SEED_NODE = "40"
+MODEL_NODE = "45"
 
 
 class ComfyPhotoGenerator:
@@ -20,7 +22,11 @@ class ComfyPhotoGenerator:
         self._workflow_path = workflow_path
         self._timeout = timeout
 
-    def generate(self, prompt, negative, seed):
+    def models(self):
+        """Which checkpoints are installed -- asked of the server, never listed here."""
+        return self._client.checkpoints()
+
+    def generate(self, prompt, negative, seed, model=""):
         workflow = self._load()
         self._set_text(workflow, PROMPT_NODE, prompt)
         # An empty negative is written through as empty: leaving the export's own text in place
@@ -29,6 +35,10 @@ class ComfyPhotoGenerator:
         # The export ships seed -1: rgthree randomises that in the frontend widget, which does not
         # exist in API mode, so sending it through would pin every render to the same noise.
         workflow[SEED_NODE]["inputs"]["seed"] = seed
+        # No model means the export's own checkpoint: frames planned before models could be chosen
+        # render exactly as they used to, and so does every frame when the list cannot be read.
+        if model:
+            workflow[MODEL_NODE]["inputs"]["ckpt_name"] = model
 
         prompt_id = self._client.submit(workflow)
         history = self._client.wait(prompt_id, self._timeout)
@@ -41,7 +51,7 @@ class ComfyPhotoGenerator:
         if "nodes" in workflow:
             raise RuntimeError("workflow_api.json UI formatında — ComfyUI'de "
                                "'Workflow → Export (API)' ile kaydet")
-        for node_id in (PROMPT_NODE, NEGATIVE_NODE, SEED_NODE):
+        for node_id in (PROMPT_NODE, NEGATIVE_NODE, SEED_NODE, MODEL_NODE):
             if node_id not in workflow:
                 raise RuntimeError(f"Workflow'da {node_id} node yok — graf değişmiş, "
                                    "node id'lerini güncelle")

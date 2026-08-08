@@ -17,6 +17,7 @@ vi.mock("../../shared/api.js", () => ({
   generateBatch: vi.fn(),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   listFrames: vi.fn().mockResolvedValue([]),
+  listModels: vi.fn().mockResolvedValue(["nova.safetensors"]),
   photoUrl: (project, file) => `/photos/${project}/${file}`,
   resumeBatch: vi.fn(),
   retryFrame: vi.fn(),
