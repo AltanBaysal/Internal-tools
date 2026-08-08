@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { deletePhotos, listFrames } from "../../shared/api.js";
+import { removeFrames, listFrames } from "../../shared/api.js";
 
 // The detail page's own view of the gallery: the same sequence in the same order, without the
 // polling the project screen needs. Deleting is the only thing that changes it, so there is nothing
@@ -26,7 +26,7 @@ export function usePhotos(project) {
   // The server says which files it really deleted, but the list is trimmed here rather than
   // re-read: one frame left the set, and the order of the rest cannot have changed.
   const remove = useCallback((file) => (
-    deletePhotos(project, [file])
+    removeFrames(project, [file])
       .then(() => {
         if (!alive.current) return;
         setPhotos((current) => (current ? current.filter((photo) => photo.file !== file) : current));

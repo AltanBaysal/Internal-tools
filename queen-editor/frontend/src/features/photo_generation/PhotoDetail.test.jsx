@@ -1,12 +1,12 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deletePhotos, listFrames } from "../../shared/api.js";
+import { removeFrames, listFrames } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import PhotoDetail from "./PhotoDetail.jsx";
 
 vi.mock("../../shared/api.js", () => ({
-  deletePhotos: vi.fn(),
+  removeFrames: vi.fn(),
   listFrames: vi.fn(),
   photoUrl: (project, file) => `/photos/${project}/${file}`,
 }));
@@ -75,21 +75,21 @@ describe("PhotoDetail", () => {
   });
 
   it("asks before deleting, then opens the next photo", async () => {
-    deletePhotos.mockResolvedValue({ deleted: [] });
+    removeFrames.mockResolvedValue({ deleted: [] });
     await open("1_a.png");
 
     fireEvent.click(screen.getByText("Sil"));
     expect(screen.getByText("Bu fotoğraf silinsin mi?")).toBeTruthy();
-    expect(deletePhotos).not.toHaveBeenCalled();
+    expect(removeFrames).not.toHaveBeenCalled();
 
     await act(async () => { fireEvent.click(confirmButton()); });
 
-    expect(deletePhotos).toHaveBeenCalledWith("düğün", ["1_a.png"]);
+    expect(removeFrames).toHaveBeenCalledWith("düğün", ["1_a.png"]);
     expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/0_a.png");
   });
 
   it("falls back to the previous photo when the last one is deleted", async () => {
-    deletePhotos.mockResolvedValue({ deleted: [] });
+    removeFrames.mockResolvedValue({ deleted: [] });
     await open("0_a.png");
 
     fireEvent.click(screen.getByText("Sil"));

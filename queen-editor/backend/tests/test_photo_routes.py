@@ -5,7 +5,7 @@ from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
-from backend.features.photo_generation.domain.usecases.delete_photos import delete_photos
+from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
@@ -72,7 +72,7 @@ def make_client(tmp_path, generator=None, runner=None):
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_project=partial(export_project, record, store, plan_store, order_store),
-        delete_photos=partial(delete_photos, record, store, order_store,
+        remove_frames=partial(remove_frames, record, store, plan_store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),
         photo_dir=store.photo_dir,
     )
@@ -378,7 +378,7 @@ def test_cancel_empties_the_queue_and_leaves_the_photos(tmp_path):
 
 
 def delete_photos_request(client, files, project="düğün"):
-    return client.post(f"/api/projects/{project}/photos/delete", json={"files": files})
+    return client.post(f"/api/projects/{project}/frames/delete", json={"files": files})
 
 
 def test_deleting_photos_removes_them_from_the_gallery_and_the_folder(tmp_path):
@@ -388,9 +388,21 @@ def test_deleting_photos_removes_them_from_the_gallery_and_the_folder(tmp_path):
     resp = delete_photos_request(client, ["0_a.png", "2_a.png"])
 
     assert resp.status_code == 200
-    assert resp.get_json() == {"deleted": ["0_a.png", "2_a.png"]}
+    assert resp.get_json() == {"deleted": ["0_a.png", "2_a.png"], "removed": []}
     assert files_of(client) == ["1_a.png"]
     assert not (drive / "düğün" / "0_a.png").exists()
+
+
+def test_pulling_pending_frames_out_leaves_the_photos_alone(tmp_path):
+    runner = PhotoRunner(spawn=lambda fn: fn())
+    client, drive = make_client(tmp_path, generator=StopsAfter(runner, 1), runner=runner)
+    generate(client, prompts='["a", "b", "c"]', variants=1)
+
+    resp = delete_photos_request(client, ["2_a.png", "1_a.png"])
+
+    assert resp.get_json() == {"deleted": [], "removed": ["2_a.png", "1_a.png"]}
+    assert statuses_of(client) == [("0_a.png", "done")]
+    assert (drive / "düğün" / "0_a.png").exists()
 
 
 def test_a_photo_produced_after_a_delete_does_not_reuse_the_number(tmp_path):
@@ -417,7 +429,7 @@ def test_deleting_an_unknown_photo_reports_nothing_deleted(tmp_path):
     client, _ = make_client(tmp_path)
     resp = delete_photos_request(client, ["yok.png"])
     assert resp.status_code == 200
-    assert resp.get_json() == {"deleted": []}
+    assert resp.get_json() == {"deleted": [], "removed": []}
 
 
 def test_a_delete_body_that_is_not_a_list_returns_400(tmp_path):

@@ -3,9 +3,9 @@ import pytest
 from backend.features.photo_generation.domain import queue
 from backend.features.photo_generation.domain.photo_name import file_name, number_of
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.delete_photos import (
+from backend.features.photo_generation.domain.usecases.remove_frames import (
     InvalidFiles,
-    delete_photos,
+    remove_frames,
 )
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
@@ -552,40 +552,77 @@ def stamped():
     return "2026-08-05T10:00:00+00:00"
 
 
-def test_delete_removes_the_files_records_them_and_prunes_the_order():
+def test_a_photo_leaves_the_disk_and_the_log_says_so():
     store, record = FakeStore(), FakeRecord()
     for file in ("0_a.png", "1_a.png", "2_a.png"):
-        record.append("düğün", {"file": file})
+        record.append("düğün", {"file": file, "status": "done"})
+    plan_store = planned((0, "a", "a"), (1, "a", "b"), (2, "a", "c"))
     order = FakeOrderStore(["0_a.png", "1_a.png", "2_a.png"])
 
-    deleted = delete_photos(record, store, order, stamped, "düğün", ["0_a.png", "2_a.png"])
+    result = remove_frames(record, store, plan_store, order, stamped, "düğün",
+                           ["0_a.png", "2_a.png"])
 
-    assert deleted == ["0_a.png", "2_a.png"]
+    assert result == {"deleted": ["0_a.png", "2_a.png"], "removed": []}
     assert store.deleted == ["0_a.png", "2_a.png"]
     assert [row["file"] for row in record.list("düğün")] == ["1_a.png"]
     assert order.order == ["1_a.png"]
 
 
-def test_a_name_the_record_does_not_know_is_skipped_not_refused():
+def test_a_frame_that_was_never_produced_only_leaves_the_queue():
     store, record = FakeStore(), FakeRecord()
-    record.append("düğün", {"file": "0_a.png"})
+    plan_store = planned((0, "a", "a"), (1, "a", "b"))
 
-    deleted = delete_photos(record, store, FakeOrderStore(), stamped, "düğün",
-                            ["hayalet.png", "0_a.png"])
+    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                           ["1_a.png"])
 
-    assert deleted == ["0_a.png"]
+    assert result == {"deleted": [], "removed": ["1_a.png"]}
+    assert store.deleted == []                       # there is no file to delete yet
+    assert owed_files(record, plan_store) == ["0_a.png"]
+
+
+def test_a_failed_frame_leaves_the_gallery_the_same_way():
+    store, record = FakeStore(), FakeRecord()
+    record.mark("düğün", "1_a.png", "failed", "t1")
+    plan_store = planned((0, "a", "a"), (1, "a", "b"))
+
+    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
+                           ["1_a.png"])
+
+    assert result == {"deleted": [], "removed": ["1_a.png"]}
+    assert [f["file"] for f in
+            list_frames(record, store, plan_store, FakeOrderStore(), "düğün")] == ["0_a.png"]
+
+
+def test_a_frame_pulled_out_never_gets_its_number_back():
+    store, record = FakeStore(next_no=0), FakeRecord()
+    plan_store = planned((0, "a", "a"))
+
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a.png"])
+
+    assert next_number(store, plan_store, record, "düğün") == 1
+
+
+def test_a_name_the_gallery_does_not_know_is_skipped_not_refused():
+    store, record = FakeStore(), FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+
+    result = remove_frames(record, store, FakePlanStore(), FakeOrderStore(), stamped, "düğün",
+                           ["hayalet.png", "0_a.png"])
+
+    assert result == {"deleted": ["0_a.png"], "removed": []}
     assert store.deleted == ["0_a.png"]
 
 
 def test_a_body_that_is_not_a_list_of_names_is_rejected():
     with pytest.raises(InvalidFiles):
-        delete_photos(FakeRecord(), FakeStore(), FakeOrderStore(), stamped, "düğün", "0_a.png")
+        remove_frames(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(), stamped,
+                      "düğün", "0_a.png")
 
 
-def test_deleting_in_a_missing_project_is_rejected():
+def test_removing_in_a_missing_project_is_rejected():
     with pytest.raises(ProjectMissing):
-        delete_photos(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), stamped,
-                      "yok", ["0_a.png"])
+        remove_frames(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
+                      stamped, "yok", ["0_a.png"])
 
 
 def test_export_rejects_a_missing_project():

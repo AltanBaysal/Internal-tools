@@ -1,11 +1,11 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deletePhotos, listFrames } from "../../shared/api.js";
+import { removeFrames, listFrames } from "../../shared/api.js";
 import { usePhotos } from "./usePhotos.js";
 
 vi.mock("../../shared/api.js", () => ({
-  deletePhotos: vi.fn(),
+  removeFrames: vi.fn(),
   listFrames: vi.fn(),
 }));
 
@@ -30,19 +30,19 @@ describe("usePhotos", () => {
 
   it("drops a deleted photo from the list", async () => {
     listFrames.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
-    deletePhotos.mockResolvedValue({ deleted: ["1_a.png"] });
+    removeFrames.mockResolvedValue({ deleted: ["1_a.png"] });
 
     const { result } = renderHook(() => usePhotos("düğün"));
     await settle();
     await act(async () => { await result.current.remove("1_a.png"); });
 
-    expect(deletePhotos).toHaveBeenCalledWith("düğün", ["1_a.png"]);
+    expect(removeFrames).toHaveBeenCalledWith("düğün", ["1_a.png"]);
     expect(result.current.photos.map((p) => p.file)).toEqual(["0_a.png"]);
   });
 
   it("leaves the list alone and reports the error when a delete fails", async () => {
     listFrames.mockResolvedValue([{ file: "0_a.png" }]);
-    deletePhotos.mockRejectedValue(new Error("Fotoğraf yok: 0_a.png"));
+    removeFrames.mockRejectedValue(new Error("Fotoğraf yok: 0_a.png"));
 
     const { result } = renderHook(() => usePhotos("düğün"));
     await settle();

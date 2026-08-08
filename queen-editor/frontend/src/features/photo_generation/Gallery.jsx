@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { photoUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
@@ -33,11 +33,20 @@ const CHECK_ON = { background: "var(--accent)", color: "#1a1625", fontSize: 11, 
 const CHECK_OFF = { border: "2px solid var(--ink-3)", background: "rgba(0,0,0,.35)" };
 const TINT = { position: "absolute", inset: 0, background: "rgba(167,139,250,.18)",
                borderRadius: 4 };
-const BAR = { position: "absolute", left: "50%", bottom: 20, transform: "translateX(-50%)",
-              display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
-              borderColor: "var(--accent)", zIndex: 10 };
+// Sticky, not absolute: the gallery scrolls, and a bar anchored to the content only shows up once
+// the user has scrolled all the way down -- which is exactly when they no longer need it.
+const BAR_RAIL = { position: "sticky", bottom: 20, display: "flex", justifyContent: "center",
+                   pointerEvents: "none", zIndex: 10, marginTop: -64 };
+const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
+              borderColor: "var(--accent)", pointerEvents: "auto" };
+// Long enough that a press-and-slide does not become a drag, short enough that a deliberate hold
+// does not feel stuck. The design asks for a hold; the number is ours.
+const HOLD_MS = 250;
+const HINT = { position: "absolute", inset: 0, display: "flex", alignItems: "center",
+               justifyContent: "center", background: "rgba(10,8,7,.8)", borderRadius: 4,
+               zIndex: 3, textAlign: "center", padding: 6 };
 
-function Tile({ name, muted, danger, badge, selected, onCheck, children }) {
+function Tile({ name, muted, danger, badge, selected, onCheck, hint, children }) {
   const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -55,6 +64,12 @@ function Tile({ name, muted, danger, badge, selected, onCheck, children }) {
                style={{ ...CHECK, ...(selected ? CHECK_ON : CHECK_OFF) }}
                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCheck(); }}>
             {selected ? "✓" : ""}
+          </div>
+        )}
+        {/* Held down but not liftable: the card does not rise, it explains why instead. */}
+        {hint && (
+          <div style={HINT}>
+            <Mono size={10} style={{ color: "var(--ink-2)" }}>{hint}</Mono>
           </div>
         )}
       </div>
@@ -77,6 +92,24 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
   const [selected, setSelected] = useState([]);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // A tile can only be picked up after it has been held: which one is armed, and which one is
+  // showing the "not yet" tip instead.
+  const [armed, setArmed] = useState(null);
+  const [hint, setHint] = useState(null);
+  const hold = useRef(null);
+
+  useEffect(() => () => clearTimeout(hold.current), []);
+
+  function press(file, produced) {
+    clearTimeout(hold.current);
+    hold.current = setTimeout(() => (produced ? setArmed(file) : setHint(file)), HOLD_MS);
+  }
+
+  function release() {
+    clearTimeout(hold.current);
+    setArmed(null);
+    setHint(null);
+  }
 
   useEffect(() => {
     if (!selecting) return undefined;
@@ -126,7 +159,28 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
     );
   }
 
-  const done = frames.filter((frame) => frame.status === "done");
+  // Everything but the frame the worker is holding can be selected: a disabled ring would raise
+  // "why can I not select this?", and a ring that is simply not there raises nothing.
+  const selectable = frames.filter((frame) => frame.file !== current);
+  const byFile = new Map(frames.map((frame) => [frame.file, frame]));
+  const chosenPhotos = selected.filter((file) => byFile.get(file)?.status === "done");
+  const chosenQueued = selected.filter((file) => byFile.get(file)?.status !== "done");
+  // Three sentences, because a pending frame is not a photo: telling someone that 5 photos will be
+  // deleted when 3 of them do not exist yet would be a lie, and "cannot be undone" is only true of
+  // the ones that do.
+  const confirm = chosenPhotos.length && chosenQueued.length
+    ? { title: `${chosenPhotos.length} fotoğraf silinsin, `
+               + `${chosenQueued.length} bekleyen kare kuyruktan çıkarılsın mı?`,
+        body: "Fotoğraflar kalıcı olarak silinir — bu geri alınamaz. "
+              + "Bekleyen kareler üretilmeden kuyruktan çıkar.",
+        label: "Sil" }
+    : chosenQueued.length
+      ? { title: `${chosenQueued.length} kare kuyruktan çıkarılsın mı?`,
+          body: "Bu kareler üretilmeyecek. Galerideki fotoğraflara dokunulmaz.",
+          label: "Çıkar" }
+      : { title: `${chosenPhotos.length} fotoğraf silinsin mi?`,
+          body: "Bu işlem geri alınamaz.",
+          label: "Sil" };
 
   function handleDrop() {
     const from = dragIndex;
@@ -167,12 +221,15 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
               // Only a produced frame can be picked up: sorting is a visual decision, and there is
               // nothing to look at yet on the others. While selecting, a press is a selection, not
               // a drag -- one gesture cannot mean two things.
-              draggable={produced && !selecting}
-              onDragStart={() => produced && setDragIndex(index)}
+              draggable={armed === frame.file && !selecting}
+              onMouseDown={() => !selecting && press(frame.file, produced)}
+              onMouseUp={release}
+              onMouseLeave={release}
+              onDragStart={() => setDragIndex(index)}
               onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
               onDrop={handleDrop}
-              onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
-              onClick={selecting && produced ? () => toggle(frame.file) : undefined}
+              onDragEnd={() => { setDragIndex(null); setOverIndex(null); release(); }}
+              onClick={selecting && state !== "running" ? () => toggle(frame.file) : undefined}
               style={dragging ? DRAGGED : undefined}
             >
               {isSlot ? (
@@ -184,8 +241,9 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
               ) : (
                 <Tile name={frame.file} badge={badge} muted={!produced}
                       danger={state === "failed"}
-                      onCheck={produced ? () => toggle(frame.file) : undefined}
-                      selected={selected.includes(frame.file)}>
+                      onCheck={state === "running" ? undefined : () => toggle(frame.file)}
+                      selected={selected.includes(frame.file)}
+                      hint={hint === frame.file ? "üretilince sıralanabilir" : null}>
                   {state === "done" ? (
                     /* A real link so middle-click still opens a tab, but a plain click stays in
                        the app instead of reloading the whole page. A drag never ends in a click,
@@ -231,28 +289,33 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
         })}
       </div>
 
-      {selecting && (
-        <div className="wf-card wf-card--shadow" style={BAR}>
-          <Mono size={12} style={{ color: "var(--accent)" }}>{selected.length} seçili</Mono>
-          <Btn sm ghost
-               onClick={() => setSelected(selected.length === done.length
-                 ? []
-                 : done.map((frame) => frame.file))}>
-            Tümünü seç
-          </Btn>
-          <Btn sm disabled={!selected.length} onClick={() => setConfirming(true)}
-               style={{ color: "var(--danger)", borderColor: "var(--danger)" }}>
-            <Icon.Trash /> Sil
-          </Btn>
-          <Btn sm ghost onClick={closeSelection}>Vazgeç</Btn>
+      {/* The bar belongs to a selection, not to the mode: with nothing selected it has nothing to
+          say, so it goes away rather than sitting there reading "0 seçili". */}
+      {selecting && selected.length > 0 && (
+        <div style={BAR_RAIL}>
+          <div className="wf-card wf-card--shadow" style={BAR}>
+            {/* One number, never split by kind: what is selected is frames. */}
+            <Mono size={12} style={{ color: "var(--accent)" }}>{selected.length} seçili</Mono>
+            <Btn sm ghost
+                 onClick={() => setSelected(selected.length === selectable.length
+                   ? []
+                   : selectable.map((frame) => frame.file))}>
+              Tümünü seç
+            </Btn>
+            <Btn sm onClick={() => setConfirming(true)}
+                 style={{ color: "var(--danger)", borderColor: "var(--danger)",
+                          background: "none" }}>
+              <Icon.Trash /> {chosenPhotos.length ? "Sil" : "Çıkar"}
+            </Btn>
+            <Btn sm ghost onClick={closeSelection}>Vazgeç</Btn>
+          </div>
         </div>
       )}
 
       {confirming && (
-        <ConfirmModal title={`${selected.length} fotoğraf silinsin mi?`}
-                      body="Bu işlem geri alınamaz." confirmLabel="Sil" busyLabel="Siliniyor…"
-                      danger busy={deleting} onCancel={() => setConfirming(false)}
-                      onConfirm={handleDelete} />
+        <ConfirmModal title={confirm.title} body={confirm.body} confirmLabel={confirm.label}
+                      busyLabel="Siliniyor…" danger busy={deleting}
+                      onCancel={() => setConfirming(false)} onConfirm={handleDelete} />
       )}
     </div>
   );

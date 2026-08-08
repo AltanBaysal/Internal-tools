@@ -104,9 +104,11 @@ export async function listFrames(project) {
   return body.frames;
 }
 
-// One call for one photo and for many -- the detail page sends a list of one.
-export async function deletePhotos(project, files) {
-  return request(`/api/projects/${encodeURIComponent(project)}/photos/delete`, {
+// One call for one frame and for many, and for photos and pending frames alike -- the confirm box
+// is a single window over a mixed selection. The answer splits what really happened:
+// {deleted: [...], removed: [...]}.
+export async function removeFrames(project, files) {
+  return request(`/api/projects/${encodeURIComponent(project)}/frames/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ files }),

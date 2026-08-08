@@ -10,7 +10,7 @@ import json
 from flask import Blueprint, jsonify, request, send_file, send_from_directory
 
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.delete_photos import InvalidFiles
+from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
@@ -23,7 +23,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, list_frames,
-                                    save_order, export_project, delete_photos, photo_dir):
+                                    save_order, export_project, remove_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -126,12 +126,13 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
 
     # POST, not DELETE: the request carries a list of names, and a body on DELETE is a corner of
     # HTTP that proxies and clients disagree about.
-    @bp.post("/api/projects/<project>/photos/delete")
-    def remove_photos(project):
+    @bp.post("/api/projects/<project>/frames/delete")
+    def remove(project):
         body = request.get_json(silent=True) or {}
         try:
-            # What was really deleted goes back: names that had already gone are not an error.
-            return jsonify({"deleted": delete_photos(project, body.get("files"))})
+            # What really happened goes back, split in two: a photo left the disk, a frame that was
+            # never produced only left the queue. Names that had already gone are not an error.
+            return jsonify(remove_frames(project, body.get("files")))
         except InvalidFiles as exc:
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:

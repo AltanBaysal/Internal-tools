@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   cancelGeneration,
-  deletePhotos,
   generateBatch,
   getStatus,
   listFrames,
+  removeFrames,
   resumeBatch,
   retryFrame,
   saveOrder,
@@ -168,19 +168,20 @@ export function useGeneration(project) {
     [project, refreshFrames],
   );
 
-  // Only what the server says it deleted leaves the screen: a name that was already gone changes
-  // nothing here, and the gallery keeps matching Drive.
+  // Only what the server says really went leaves the screen: a name that was already gone changes
+  // nothing here, and the gallery keeps matching Drive. Both lists count -- a photo that left the
+  // disk and a frame that only left the queue are equally out of the gallery.
   const removePhotos = useCallback((files) => (
-    deletePhotos(project, files)
+    removeFrames(project, files)
       .then((body) => {
         if (!alive.current) return;
-        const gone = new Set(body?.deleted || []);
+        const gone = new Set([...(body?.deleted || []), ...(body?.removed || [])]);
         setFrames((current) => (current
           ? current.filter((frame) => !gone.has(frame.file))
           : current));
       })
       .catch((err) => {
-        if (alive.current) setError(`Fotoğraflar silinemedi.\n${err.message}`);
+        if (alive.current) setError(`Kareler kaldırılamadı.\n${err.message}`);
       })
   ), [project]);
 

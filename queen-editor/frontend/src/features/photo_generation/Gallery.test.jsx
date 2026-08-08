@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { navigate } from "../../shared/router.js";
 import Gallery from "./Gallery.jsx";
@@ -129,14 +129,6 @@ describe("Gallery — one sequence, four states", () => {
     expect(tileOf("3_a.png").textContent).toContain("4");
   });
 
-  it("lets only a produced frame be picked up", () => {
-    renderGallery({ frames: MIXED, current: null });
-
-    expect(tileOf("1_a.png").draggable).toBe(true);
-    expect(tileOf("4_a.png").draggable).toBe(false);
-    expect(tileOf("2_a.png").draggable).toBe(false);
-  });
-
   it("does not claim the gallery is empty when only waiting frames are in it", () => {
     renderGallery({ frames: [{ file: "0_a.png", status: "pending" }] });
 
@@ -175,7 +167,9 @@ describe("Gallery selection mode", () => {
     expect(screen.getByText("3 seçili")).toBeTruthy();
 
     fireEvent.click(screen.getByText("Tümünü seç"));
-    expect(screen.getByText("0 seçili")).toBeTruthy();
+    // The bar belongs to a selection: with nothing selected it has nothing to say.
+    expect(screen.queryByText("0 seçili")).toBeNull();
+    expect(screen.queryByText("Tümünü seç")).toBeNull();
   });
 
   it("closes the mode on cancel and on Esc", () => {
@@ -208,12 +202,128 @@ describe("Gallery selection mode", () => {
     expect(onDelete).toHaveBeenCalledWith(["1_a.png", "0_a.png"]);
   });
 
-  it("disables delete while nothing is selected", () => {
+  it("takes the bar away when the selection is emptied", () => {
     renderGallery();
     fireEvent.click(checkOf("1_a.png"));
-    fireEvent.click(photoOf("1_a.png"));  // deselect: the mode stays open, the button goes dead
+    fireEvent.click(photoOf("1_a.png"));  // deselect: the mode stays open, the bar goes
 
-    expect(screen.getByText("0 seçili")).toBeTruthy();
-    expect(screen.getByText("Sil").closest("button").disabled).toBe(true);
+    expect(screen.queryByText(/seçili/)).toBeNull();
+  });
+});
+
+describe("Gallery — selecting frames that are not photos yet", () => {
+  const MIXED = [
+    { file: "4_a.png", status: "pending" },
+    { file: "3_a.png", status: "pending" },   // the live worker is holding this one
+    { file: "2_a.png", status: "failed" },
+    done("1_a.png"),
+    done("0_a.png"),
+  ];
+
+  function renderMixed(props) {
+    return renderGallery({ frames: MIXED, current: "3_a.png", ...props });
+  }
+
+  it("puts a ring on a waiting frame and none on the one being rendered", () => {
+    renderMixed();
+
+    expect(checkOf("4_a.png")).toBeTruthy();
+    expect(checkOf("2_a.png")).toBeTruthy();
+    expect(checkOf("3_a.png")).toBeNull();
+  });
+
+  it("counts a mixed selection as one number", () => {
+    renderMixed();
+
+    fireEvent.click(checkOf("4_a.png"));
+    fireEvent.click(checkOf("1_a.png"));
+
+    expect(screen.getByText("2 seçili")).toBeTruthy();
+  });
+
+  it("skips the frame being rendered when everything is selected", () => {
+    renderMixed();
+    fireEvent.click(checkOf("4_a.png"));
+
+    fireEvent.click(screen.getByText("Tümünü seç"));
+
+    expect(screen.getByText("4 seçili")).toBeTruthy();   // five frames, one is the worker's
+  });
+
+  it("asks about waiting frames without claiming anything is unrecoverable", () => {
+    renderMixed();
+    fireEvent.click(checkOf("4_a.png"));
+
+    fireEvent.click(screen.getByText("Çıkar"));
+
+    expect(screen.getByText("1 kare kuyruktan çıkarılsın mı?")).toBeTruthy();
+    expect(screen.getByText(/Galerideki fotoğraflara dokunulmaz/)).toBeTruthy();
+    expect(screen.queryByText(/geri alınamaz/)).toBeNull();
+  });
+
+  it("splits the sentence in two when the selection is mixed", () => {
+    renderMixed();
+    fireEvent.click(checkOf("4_a.png"));
+    fireEvent.click(checkOf("1_a.png"));
+
+    fireEvent.click(screen.getByText("Sil"));
+
+    expect(screen.getByText(
+      "1 fotoğraf silinsin, 1 bekleyen kare kuyruktan çıkarılsın mı?")).toBeTruthy();
+    expect(screen.getByText(/Bekleyen kareler üretilmeden kuyruktan çıkar/)).toBeTruthy();
+  });
+
+  it("sends photos and waiting frames in the same request", async () => {
+    const onDelete = vi.fn().mockResolvedValue(null);
+    renderMixed({ onDelete });
+    fireEvent.click(checkOf("4_a.png"));
+    fireEvent.click(checkOf("1_a.png"));
+    fireEvent.click(screen.getByText("Sil"));
+
+    await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
+
+    expect(onDelete).toHaveBeenCalledWith(["4_a.png", "1_a.png"]);
+  });
+});
+
+describe("Gallery — picking a tile up", () => {
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+  afterEach(() => vi.useRealTimers());
+
+  it("does not let go of a tile that was only tapped", () => {
+    renderGallery();
+
+    fireEvent.mouseDown(tileOf("1_a.png"));
+
+    expect(tileOf("1_a.png").draggable).toBe(false);
+  });
+
+  it("arms the tile once it has been held", () => {
+    renderGallery();
+
+    fireEvent.mouseDown(tileOf("1_a.png"));
+    act(() => { vi.advanceTimersByTime(250); });
+
+    expect(tileOf("1_a.png").draggable).toBe(true);
+  });
+
+  it("tells a waiting frame why it cannot be moved instead of lifting it", () => {
+    renderGallery({ frames: [{ file: "9_a.png", status: "pending" }, done("0_a.png")] });
+
+    fireEvent.mouseDown(tileOf("9_a.png"));
+    act(() => { vi.advanceTimersByTime(250); });
+
+    expect(screen.getByText("üretilince sıralanabilir")).toBeTruthy();
+    expect(tileOf("9_a.png").draggable).toBe(false);
+  });
+
+  it("says the same to a failed frame -- there is still nothing to look at", () => {
+    renderGallery({ frames: [{ file: "9_a.png", status: "failed" }, done("0_a.png")] });
+
+    fireEvent.mouseDown(tileOf("9_a.png"));
+    act(() => { vi.advanceTimersByTime(250); });
+
+    expect(screen.getByText("üretilince sıralanabilir")).toBeTruthy();
+    expect(tileOf("9_a.png").draggable).toBe(false);
   });
 });
