@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 
-import { Btn, Note } from "../vendor/kit.jsx";
+import { Btn, Icon, Note } from "../vendor/kit.jsx";
 
 // The design writes its three confirms out three times; here they are one component, because the
 // only things that differ are the words, the width and whether the action destroys something.
-// Destructive confirms get the filled red button, everything else the accent one.
+// A destructive confirm wears the app-wide destructive standard: no filled red anywhere, so the
+// last button is an outline with red text and a trash icon. Everything else gets the accent one.
 export default function ConfirmModal({ title, body, confirmLabel, busyLabel, danger, busy,
                                        width = 320, onCancel, onConfirm }) {
   useEffect(() => {
@@ -25,8 +26,9 @@ export default function ConfirmModal({ title, body, confirmLabel, busyLabel, dan
           <Btn sm ghost onClick={onCancel} disabled={busy}>Vazgeç</Btn>
           <Btn sm hl={!danger} onClick={onConfirm} disabled={busy}
                style={danger
-                 ? { background: "var(--danger)", borderColor: "var(--danger)", color: "#fff" }
+                 ? { background: "none", borderColor: "var(--danger)", color: "var(--danger)" }
                  : undefined}>
+            {danger && <Icon.Trash />}
             {busy && busyLabel ? busyLabel : confirmLabel}
           </Btn>
         </div>

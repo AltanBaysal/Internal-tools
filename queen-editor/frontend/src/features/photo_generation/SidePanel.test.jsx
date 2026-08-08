@@ -42,16 +42,16 @@ describe("SidePanel — the icon rail", () => {
     fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
 
     expect(screen.queryByPlaceholderText(PROMPT_BOX)).toBeNull();
-    expect(screen.getByText("7 / 48")).toBeTruthy();
+    expect(screen.getByText("Üretiliyor")).toBeTruthy();
     expect(screen.getByLabelText("Kuyruğu takip et").getAttribute("aria-current")).toBe("page");
   });
 
   it("keeps the run's own words out of the form panel", () => {
     renderColumn({ job: RUNNING });
 
-    // The form panel is open: the progress card belongs to the queue panel, not here.
-    expect(screen.queryByText("7 / 48")).toBeNull();
-    expect(screen.queryByText("Durdur")).toBeNull();
+    // The form panel is open: the status card belongs to the queue panel, not here.
+    expect(screen.queryByText("Üretiliyor")).toBeNull();
+    expect(screen.queryByText("Duraklat")).toBeNull();
   });
 
   it("opens the agent panel and leaves it deliberately empty", () => {

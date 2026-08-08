@@ -97,8 +97,8 @@ function RailButton({ panel, active, onSelect }) {
 // single surface -- submitting work, watching the queue, and the agent that has not been designed
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
 export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
-                                    stopping, queue, onGenerate, onStop, onResume, onCancel,
-                                    onClearError }) {
+                                    stopping, pending, failures, onGenerate, onStop, onResume,
+                                    onCancel, onClearError, onShowFailures }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it.
   const [open, setOpen] = useState("add");
@@ -118,7 +118,8 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         {open === "queue" && (
           <QueuePanel job={job} error={error} errorField={errorField}
                       busyElsewhere={busyElsewhere} project={project} stopping={stopping}
-                      queue={queue} onStop={onStop} onResume={onResume} onCancel={onCancel} />
+                      pending={pending} failures={failures} onStop={onStop} onResume={onResume}
+                      onCancel={onCancel} onShowFailures={onShowFailures} />
         )}
         {open === "agent" && <AgentPanel />}
       </div>

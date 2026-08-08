@@ -40,7 +40,9 @@ const BAR = { position: "absolute", left: "50%", bottom: 20, transform: "transla
 function Tile({ name, muted, danger, badge, selected, onCheck, children }) {
   const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    // The id is the only handle anything outside the gallery has on a single frame: the queue
+    // panel's "galeride göster" link scrolls to it without knowing how the grid is built.
+    <div id={`tile-${name}`} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ position: "relative",
                     ...(selected ? { outline: "2px solid var(--accent)", borderRadius: 4 } : {}) }}>
         {children}

@@ -25,9 +25,13 @@ describe("ConfirmModal", () => {
     expect(screen.getByText("Çık")).toBeTruthy();
   });
 
-  it("colours a destructive confirm red and a plain one accent", () => {
+  it("dresses a destructive confirm in the outline standard and a plain one in accent", () => {
+    // The app-wide rule: no filled red button anywhere -- outline, red text, trash icon.
     const { unmount } = renderModal({ danger: true });
-    expect(screen.getByText("Sil").style.background).toBe("var(--danger)");
+    const destructive = screen.getByRole("button", { name: "Sil" });
+    expect(destructive.style.background).toBe("none");
+    expect(destructive.style.color).toBe("var(--danger)");
+    expect(destructive.querySelector("svg")).toBeTruthy();
     unmount();
 
     renderModal({ confirmLabel: "Çık" });

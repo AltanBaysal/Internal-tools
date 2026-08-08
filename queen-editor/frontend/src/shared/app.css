@@ -25,6 +25,24 @@ a.wf-btn {
   text-decoration: none;
 }
 
+/* The queue panel's state dot. Colour is set inline (it changes with the state); only the size and
+   the pulse live here. It breathes just while work is in flight, so a still dot always means the
+   engine is not turning. */
+.qe-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.qe-dot--alive {
+  animation: qe-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes qe-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+
 /* The "Ekleniyor…" indicator inside the add button: a ring with one quarter cut out, turning.
    Ours, not the design system's -- hence the qe- prefix. */
 .qe-spinner {

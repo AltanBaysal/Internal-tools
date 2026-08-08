@@ -31,6 +31,13 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   // Whose run the status describes: another project's queue must not draw tiles into this gallery.
   const mine = job.project === project;
 
+  // The queue panel says "3 kare üretilemedi — galeride göster" and stops there; finding the tile
+  // is the screen's job, because the panel has no business knowing how the gallery is built.
+  function showFirstFailure() {
+    const tile = failures.length && document.getElementById(`tile-${failures[0]}`);
+    if (tile) tile.scrollIntoView({ block: "center" });
+  }
+
   // Pressing Üretime ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
   // settings that cannot be written mean the photos could not be either: say so and do not send.
@@ -72,8 +79,9 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
         </div>
         <SidePanel job={job} error={saveError || error} errorField={errorField}
                    busyElsewhere={busyElsewhere} settings={settings} project={project}
-                   stopping={stopping} queue={queue} onGenerate={handleGenerate} onStop={stop}
-                   onResume={resume} onCancel={cancel} onClearError={clearError} />
+                   stopping={stopping} pending={pending} failures={failures}
+                   onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
+                   onClearError={clearError} onShowFailures={showFirstFailure} />
       </div>
 
       {leaving && (
