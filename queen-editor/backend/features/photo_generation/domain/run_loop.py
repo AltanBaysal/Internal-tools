@@ -5,12 +5,20 @@ mechanism behind a live queue: frames appended while the loop runs are picked up
 and a frame that settled meanwhile is simply never reached. One loop, so the rules about failures,
 pauses and what "done" means exist in exactly one place.
 """
+import time
+
 from backend.features.photo_generation.domain import policy, queue
 from backend.features.photo_generation.domain.photo_name import file_name
 
 
-def make_job(runner, store, record, plan_store, generator, now, project):
-    """Returns the callable PhotoRunner.start expects: it drains this project's queue."""
+def make_job(runner, store, record, plan_store, generator, now, project,
+             clock=time.monotonic, log=None):
+    """Returns the callable PhotoRunner.start expects: it drains this project's queue.
+
+    `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
+    says is decided here; where it lands is main.py's to choose, so the loop can be tested without
+    capturing output and the clock can be faked instead of waited on.
+    """
 
     def snapshot():
         return plan_store.read(project)["frames"], record.statuses(project)
@@ -38,6 +46,7 @@ def make_job(runner, store, record, plan_store, generator, now, project):
             # rendered. failures names the tiles it draws red, each with its own Tekrar dene.
             runner.report({**queue.counts(frames, statuses), "current": frame,
                            "pending": [file_name(f["number"], f["letter"]) for f in owed[1:]]})
+            started = clock()
             try:
                 data = generator.generate(frame["prompt"], frame["negative"], frame["seed"],
                                           frame["model"])
@@ -58,11 +67,18 @@ def make_job(runner, store, record, plan_store, generator, now, project):
                     # rather than leaving a red tile the user has to rescue by hand.
                     return summary("error", error=f"{reason}\n{exc}")
                 continue
+            rendered = clock()
             filename = store.save(project, frame["number"], frame["letter"], data)
             # Only after the photo exists: the line is what "this photo is here" means.
             record.append(project, {"file": filename, "status": queue.DONE,
                                     "prompt": frame["prompt"], "negative": frame["negative"],
                                     "seed": frame["seed"], "createdAt": now()})
-            consecutive = 0
+            if log:
+                # Two numbers, never one: the render is the GPU's share and the writes are the
+                # pipeline's, and speed decisions need to tell them apart.
+                log(f"⏱ {filename} · render {rendered - started:.1f} sn"
+                    f" · drive {clock() - rendered:.1f} sn")
+            # No attempt counter to clear here: the next turn holds a different frame, and that is
+            # the one place the count resets.
 
     return job

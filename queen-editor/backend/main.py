@@ -58,21 +58,31 @@ _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
 _order_store = DriveOrderStore(_storage)
 
+def _timing(line):
+    """Where the loop's per-frame timing line lands: this process's own output, which in Colab is
+    the cell left open on the server. flush=True because Python block-buffers a redirected stdout,
+    and a line that sits in the buffer is a line the watching cell does not show."""
+    print(line, flush=True)
+
+
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _photo_generator, lambda: random.randint(0, 2**31 - 1),
-                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        log=_timing),
     get_status=partial(get_status, _photo_runner),
     stop_generation=partial(stop_generation, _photo_runner, _comfy_client.interrupt),
     resume_batch=partial(resume_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _photo_generator,
-                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                         log=_timing),
     cancel_generation=partial(cancel_generation, _photo_runner, _photo_store, _photo_record,
                               _plan_store,
                               lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     retry_frame=partial(retry_frame, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _photo_generator,
-                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        log=_timing),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
     list_models=partial(list_models, _photo_generator),
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),

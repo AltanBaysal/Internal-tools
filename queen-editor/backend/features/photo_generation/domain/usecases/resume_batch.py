@@ -13,10 +13,10 @@ class NothingToResume(Exception):
     """The queue has no frame left to produce."""
 
 
-def resume_batch(runner, store, record, plan_store, generator, now, project):
+def resume_batch(runner, store, record, plan_store, generator, now, project, log=None):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     frames = plan_store.read(project)["frames"]
     if not queue.open_frames(frames, record.statuses(project)):
         raise NothingToResume("Devam edilecek kare yok.")
-    run_queue(runner, store, record, plan_store, generator, now, project)
+    run_queue(runner, store, record, plan_store, generator, now, project, log)

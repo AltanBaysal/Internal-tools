@@ -14,11 +14,11 @@ class FrameMissing(Exception):
     """The plan has no frame under that name."""
 
 
-def retry_frame(runner, store, record, plan_store, generator, now, project, file):
+def retry_frame(runner, store, record, plan_store, generator, now, project, file, log=None):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     frames = plan_store.read(project)["frames"]
     if not any(file_name(f["number"], f["letter"]) == file for f in frames):
         raise FrameMissing(f"Bu kare planda yok: {file}")
     record.mark(project, file, queue.QUEUED, now())
-    run_queue(runner, store, record, plan_store, generator, now, project)
+    run_queue(runner, store, record, plan_store, generator, now, project, log)

@@ -3,6 +3,7 @@ import pytest
 from backend.features.photo_generation.domain import queue
 from backend.features.photo_generation.domain.photo_name import file_name, number_of
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
+from backend.features.photo_generation.domain.run_loop import make_job
 from backend.features.photo_generation.domain.usecases.remove_frames import (
     InvalidFiles,
     remove_frames,
@@ -159,10 +160,10 @@ def sync_runner():
 
 
 def run_batch(runner, store, generator, project="düğün", text='["a", "b"]', negative="neg",
-              variants=2, seed=42, record=None, plan_store=None, model=""):
+              variants=2, seed=42, record=None, plan_store=None, model="", log=None):
     return start_batch(runner, store, record or FakeRecord(), plan_store or FakePlanStore(),
                        generator, lambda: seed, lambda: "2026-08-03T14:32:11+00:00",
-                       project, text, negative, variants, model)
+                       project, text, negative, variants, model, log)
 
 
 def test_plan_frames_is_prompt_major():
@@ -945,6 +946,53 @@ def test_a_frame_planned_before_models_renders_with_the_graphs_own():
                  lambda: "t1", "düğün")
 
     assert generator.calls == [("eski", "", 1, "")]
+
+
+def timed_job(lines, ticks, frames, generator=None):
+    """A loop whose clock is a list of readings, so no test ever waits on a real second."""
+    plan_store = FakePlanStore()
+    plan_store.append("düğün", frames)
+    clock = iter(ticks)
+    return make_job(sync_runner(), FakeStore(), FakeRecord(), plan_store,
+                    generator or FakeGenerator(), lambda: "t1", "düğün",
+                    clock=lambda: next(clock), log=lines.append)
+
+
+def test_the_render_and_the_writes_are_measured_apart():
+    lines = []
+    # Readings in the order the loop asks for them: start -> rendered -> written.
+    timed_job(lines, [100.0, 142.0, 143.5],
+              [{"number": 0, "letter": "a", "prompt": "a", "negative": "", "seed": 1,
+                "model": ""}])()
+
+    assert lines == ["⏱ 0_a.png · render 42.0 sn · drive 1.5 sn"]
+
+
+def test_every_produced_frame_gets_its_own_line():
+    lines = []
+    timed_job(lines, [0.0, 10.0, 10.5, 20.0, 25.0, 25.5],
+              [{"number": 0, "letter": "a", "prompt": "a", "negative": "", "seed": 1, "model": ""},
+               {"number": 1, "letter": "a", "prompt": "b", "negative": "", "seed": 2,
+                "model": ""}])()
+
+    assert lines == ["⏱ 0_a.png · render 10.0 sn · drive 0.5 sn",
+                     "⏱ 1_a.png · render 5.0 sn · drive 0.5 sn"]
+
+
+def test_a_frame_that_blew_up_writes_no_timing_line():
+    lines = []
+    run_batch(sync_runner(), FakeStore(), FakeGenerator(fail_on=["patlak"]), text='["patlak"]',
+              variants=1, log=lines.append)
+
+    assert lines == []
+
+
+def test_nothing_is_written_when_nobody_asked_for_timings():
+    # The default: the loop runs exactly as it did before and reports to nowhere.
+    runner = sync_runner()
+    run_batch(runner, FakeStore(), FakeGenerator(), text='["a"]', variants=1)
+
+    assert runner.status()["status"] == "done"
 
 
 def test_the_model_list_is_whatever_the_renderer_reports():
