@@ -29,8 +29,16 @@ def _name(frame):
 
 
 def open_frames(frames, statuses):
-    """The plan frames still owed, in the plan's own order."""
-    return [f for f in frames if is_open(statuses.get(_name(f)))]
+    """The plan frames still owed: the untouched ones in plan order, then the ones put back in line.
+
+    Tekrar dene must not jump the queue (design v2, G10). A frame the user sent back has already had
+    its turn, so it waits behind everything that has not had one; among themselves the re-queued
+    frames keep plan order, which is all the design asks for. Where a frame sits in the GALLERY does
+    not change -- that is Madde 5's rule, and this is only the order it is rendered in.
+    """
+    fresh = [f for f in frames if statuses.get(_name(f)) is None]
+    requeued = [f for f in frames if statuses.get(_name(f)) == QUEUED]
+    return fresh + requeued
 
 
 def next_frame(frames, statuses):

@@ -53,8 +53,19 @@ class FakeStore:
         return f"/fake/{project}"
 
 
+class FrameFault(RuntimeError):
+    """The shape ComfyUI raises when it ran the graph and the graph itself failed.
+
+    The renderer answered, so only this frame is in trouble. Anything without the flag -- a refused
+    connection, an HTTP error, a timeout -- means no answer came at all, and that is the run's
+    problem rather than the frame's.
+    """
+
+    frame_level = True
+
+
 class FakeGenerator:
-    """Records what each frame asked for; `fail_on` names the prompts that blow up."""
+    """Records what each frame asked for; `fail_on` names the prompts whose render fails."""
 
     def __init__(self, fail_on=()):
         self.calls = []
@@ -63,7 +74,7 @@ class FakeGenerator:
     def generate(self, prompt, negative, seed):
         self.calls.append((prompt, negative, seed))
         if prompt in self.fail_on:
-            raise RuntimeError(f"node 41: {prompt}")
+            raise FrameFault(f"node 41: {prompt}")
         return b"PNG"
 
 
@@ -134,10 +145,6 @@ class FakeOrderStore:
         self.order = list(order)
 
 
-class Infra(RuntimeError):
-    infra = True
-
-
 def sync_runner():
     return PhotoRunner(spawn=lambda fn: fn())
 
@@ -206,7 +213,7 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
         def generate(self, prompt, negative, seed):
             self.calls += 1
             if self.calls == 1:
-                raise RuntimeError("node 41: OOM")
+                raise FrameFault("node 41: OOM")
             return b"PNG"
 
     store, runner = FakeStore(), sync_runner()
@@ -216,29 +223,105 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
     assert [(n, letter) for n, letter, _d in store.saved] == [(0, "b")]
 
 
-def test_three_consecutive_failures_stop_the_batch():
+def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
+    """The old rule counted three failed frames in a row; the new one counts attempts on ONE frame,
+    so a queue of bad prompts turns red to the end instead of stopping partway."""
     class AlwaysBroken:
         def generate(self, prompt, negative, seed):
-            raise RuntimeError("node 41: OOM")
+            raise FrameFault("node 41: OOM")
 
     store, runner = FakeStore(), sync_runner()
     run_batch(runner, store, AlwaysBroken(), text='["a", "b"]', variants=2)
     state = runner.status()
-    assert state["status"] == "error"
-    assert "Üst üste 3" in state["error"] and "OOM" in state["error"]
-    assert (state["done"], state["failed"], state["total"]) == (0, 3, 4)
+    assert state["status"] == "done"
+    assert (state["done"], state["failed"], state["total"]) == (0, 4, 4)
 
 
-def test_infra_failure_stops_on_the_first_frame():
-    class Broken:
+def test_a_loader_failure_is_no_longer_special():
+    """It used to stop the run on the first frame. ComfyUI answered, so it is now the frame's."""
+    class BrokenLoader:
         def generate(self, prompt, negative, seed):
-            raise Infra("node 9 (CheckpointLoaderSimple): dosya yok")
+            raise FrameFault("node 9 (CheckpointLoaderSimple): dosya yok")
 
-    store, runner = FakeStore(), sync_runner()
-    run_batch(runner, store, Broken(), text='["a", "b"]', variants=2)
+    runner = sync_runner()
+    run_batch(runner, FakeStore(), BrokenLoader(), text='["a"]', variants=2)
     state = runner.status()
-    assert state["status"] == "error" and "Altyapı" in state["error"]
-    assert (state["failed"], state["total"]) == (1, 4)
+    assert (state["status"], state["failed"]) == ("done", 2)
+
+
+def test_the_same_frame_is_tried_three_times_when_nothing_answers():
+    class Unreachable:
+        def __init__(self):
+            self.calls = []
+
+        def generate(self, prompt, negative, seed):
+            self.calls.append(prompt)
+            raise RuntimeError("Connection refused")
+
+    generator, record, runner = Unreachable(), FakeRecord(), sync_runner()
+    run_batch(runner, FakeStore(), generator, text='["ilk", "ikinci"]', variants=1, record=record)
+
+    # Three attempts, all on the FIRST frame: a dead server no longer costs three frames.
+    assert generator.calls == ["ilk", "ilk", "ilk"]
+    state = runner.status()
+    assert state["status"] == "error"
+    assert "3 kez" in state["error"] and "Connection refused" in state["error"]
+    # And no red tile: the frame never got a line, so it is still owed.
+    assert record.statuses("düğün") == {}
+    assert state["failed"] == 0
+
+
+def test_a_frame_the_run_gave_up_on_is_still_owed():
+    class Unreachable:
+        def generate(self, prompt, negative, seed):
+            raise RuntimeError("Connection refused")
+
+    record, plan_store = FakeRecord(), FakePlanStore()
+    run_batch(sync_runner(), FakeStore(), Unreachable(), text='["ilk"]', variants=1,
+              record=record, plan_store=plan_store)
+
+    # Kaldığı yerden devam et starts from the very frame that could not be reached.
+    assert owed_files(record, plan_store) == ["0_a.png"]
+
+
+def test_an_attempt_that_lands_costs_the_frame_nothing():
+    class FlakyTwice:
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, prompt, negative, seed):
+            self.calls += 1
+            if self.calls <= 2:
+                raise RuntimeError("Connection refused")
+            return b"PNG"
+
+    store, record, runner = FakeStore(), FakeRecord(), sync_runner()
+    run_batch(runner, store, FlakyTwice(), text='["ilk"]', variants=1, record=record)
+
+    assert [(n, letter) for n, letter, _d in store.saved] == [(0, "a")]
+    assert record.statuses("düğün") == {"0_a.png": "done"}
+    assert runner.status()["status"] == "done"
+
+
+def test_every_frame_gets_its_own_three_attempts():
+    class FailsOncePerFrame:
+        def __init__(self):
+            self.failed = set()
+            self.calls = []
+
+        def generate(self, prompt, negative, seed):
+            self.calls.append(prompt)
+            if prompt not in self.failed:
+                self.failed.add(prompt)
+                raise RuntimeError("Connection refused")
+            return b"PNG"
+
+    generator, runner = FailsOncePerFrame(), sync_runner()
+    run_batch(runner, FakeStore(), generator, text='["ilk", "ikinci"]', variants=1)
+
+    # The second frame's stumble does not land on a counter the first frame left behind.
+    assert generator.calls == ["ilk", "ilk", "ikinci", "ikinci"]
+    assert runner.status()["status"] == "done"
 
 
 def test_stop_request_ends_the_batch_between_frames():
@@ -772,6 +855,39 @@ def test_retry_puts_the_frame_back_in_line():
                 "düğün", "0_a.png")
 
     assert record.statuses("düğün") == {"0_a.png": "done"}
+
+
+def test_a_retried_frame_waits_behind_the_frames_that_never_had_a_turn():
+    record, plan_store = FakeRecord(), FakePlanStore()
+    generator = FakeGenerator(fail_on=["patlak"])
+    # The first batch leaves 0_a.png red; the second one queues two frames that have never run.
+    run_batch(sync_runner(), FakeStore(), generator, text='["patlak"]', variants=1,
+              record=record, plan_store=plan_store)
+    plan_store.append("düğün", [{"number": 1, "letter": "a", "prompt": "yeni", "negative": "",
+                                 "seed": 1},
+                                {"number": 2, "letter": "a", "prompt": "yeni", "negative": "",
+                                 "seed": 2}])
+
+    record.mark("düğün", "0_a.png", queue.QUEUED, "t2")
+
+    # Plan order would have put 0_a.png first; Tekrar dene does not jump the queue.
+    assert owed_files(record, plan_store) == ["1_a.png", "2_a.png", "0_a.png"]
+
+
+def test_retrying_does_not_interrupt_a_run_that_is_already_going():
+    record, plan_store = FakeRecord(), FakePlanStore()
+    plan_store.append("düğün", [{"number": 0, "letter": "a", "prompt": "p", "negative": "",
+                                 "seed": 1}])
+    record.mark("düğün", "0_a.png", queue.FAILED, "t1", error="node 41: OOM")
+    runner = PhotoRunner(spawn=lambda fn: None)     # claims the worker, never runs the job
+    runner.start("düğün", lambda: None)
+
+    # No refusal, and no second worker: the live loop reads the record again on its next turn.
+    retry_frame(runner, FakeStore(), record, plan_store, FakeGenerator(), lambda: "t2",
+                "düğün", "0_a.png")
+
+    assert record.statuses("düğün") == {"0_a.png": queue.QUEUED}
+    assert runner.status()["status"] == "running"
 
 
 def test_clearing_the_queue_keeps_the_numbers_dead():

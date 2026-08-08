@@ -109,7 +109,11 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
         {/* Only when the server knows why. A run that died with the session left no reason behind,
             and inventing one is worse than saying nothing. */}
         {halted && job.error && (
-          <Mono size={10} style={{ color: "var(--ink-3)" }}>{job.error}</Mono>
+          // Two lines: the rule's own sentence, then the server's raw output underneath it. Without
+          // pre-wrap they run together and the technical line reads as part of the sentence.
+          <Mono size={10} style={{ color: "var(--ink-3)", whiteSpace: "pre-wrap" }}>
+            {job.error}
+          </Mono>
         )}
 
         {failed > 0 && (

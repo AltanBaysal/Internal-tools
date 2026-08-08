@@ -284,6 +284,12 @@ def test_the_gallery_keeps_a_dead_sessions_frames_in_place(tmp_path):
     assert statuses_of(client) == [("1_a.png", "pending"), ("0_a.png", "done")]
 
 
+class RenderFailed(RuntimeError):
+    """ComfyUI answered and said the graph failed -- the frame's problem, not the run's."""
+
+    frame_level = True
+
+
 def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     class BlowsUpOnce:
         def __init__(self):
@@ -292,7 +298,7 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
         def generate(self, prompt, negative, seed):
             self.calls += 1
             if self.calls == 1:
-                raise RuntimeError("node 41: OOM")
+                raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
 
     client, _ = make_client(tmp_path, generator=BlowsUpOnce())

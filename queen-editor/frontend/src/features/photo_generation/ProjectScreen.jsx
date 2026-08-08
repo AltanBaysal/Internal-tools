@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { exportUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
@@ -30,6 +30,19 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   const running = job.status === "running" && !busyElsewhere;
   // Whose run the status describes: another project's queue must not draw tiles into this gallery.
   const mine = job.project === project;
+
+  // Opening a project carries its queue on by itself -- a session that died mid-run leaves frames
+  // owed and nobody who remembers them. Only the two states that have a button of their own wait
+  // for the user: a queue the user paused, and one a fatal error stopped. Asked once per project,
+  // not once per poll; the server decides whether there is anything to do.
+  const asked = useRef(null);
+  useEffect(() => {
+    const waitingForUser = mine && (job.status === "paused" || job.status === "error");
+    if (asked.current === project || job.status === "running" || waitingForUser) return;
+    if (!pending.length) return;
+    asked.current = project;
+    resume();
+  }, [project, mine, job.status, pending.length, resume]);
 
   // The queue panel says "3 kare üretilemedi — galeride göster" and stops there; finding the tile
   // is the screen's job, because the panel has no business knowing how the gallery is built.

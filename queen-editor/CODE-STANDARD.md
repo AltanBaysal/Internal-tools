@@ -30,7 +30,7 @@ folder. What we inherit is knowledge, not code:
 | The ComfyUI graph — copied into `queen-editor/workflow_api.json` as our own file | Reading `collab-toolbox/photo_generator/nova-3dcg/workflow_api.json`, or Drive's copy of it |
 | Injection node ids (`PROMPT_NODE` `"3"`, `NEGATIVE_NODE` `"4"`, `SEED_NODE` `"40"`) | `api.ipynb`'s CONFIG cell |
 | Setup cells (custom nodes, the 5 models, download/verify/401 handling, headless ComfyUI) — copied **verbatim** into `app.ipynb`, because that machinery is proven | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
-| Proven behaviour: `/prompt` → `/history` → `/view`, infra-vs-frame error split, stop after 3 in a row | Copying those functions — we write them into our own layers |
+| Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is **ours**: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/superpowers/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
 
 Every direct subfolder of our Drive root is a project, so the root must be ours alone: point it at
 the notebook's folder and its `output/` shows up as a phantom project card. The root is never

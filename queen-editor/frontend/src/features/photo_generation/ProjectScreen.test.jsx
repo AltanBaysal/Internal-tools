@@ -1,6 +1,7 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getStatus, listFrames, resumeBatch } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import ProjectScreen from "./ProjectScreen.jsx";
 
@@ -74,5 +75,80 @@ describe("ProjectScreen app bar", () => {
     // compareDocumentPosition's FOLLOWING bit: the exit button comes later in document order.
     expect(exportEl.compareDocumentPosition(exitEl) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
+  });
+});
+
+describe("ProjectScreen — an open project carries its queue on", () => {
+  const OWED = [{ file: "0_a.png", status: "pending" }];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    resumeBatch.mockResolvedValue({});
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function settle(ms = 0) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  }
+
+  it("asks the server to go on when frames are owed and nobody is working", async () => {
+    listFrames.mockResolvedValue(OWED);
+    getStatus.mockResolvedValue({ status: "idle" });
+
+    renderScreen();
+    await settle();
+
+    expect(resumeBatch).toHaveBeenCalledWith("düğün");
+  });
+
+  it("asks once, not on every poll", async () => {
+    listFrames.mockResolvedValue(OWED);
+    getStatus.mockResolvedValue({ status: "idle" });
+
+    renderScreen();
+    await settle();
+    await settle(10_000);
+
+    expect(resumeBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves a paused queue alone -- it has its own Devam et", async () => {
+    listFrames.mockResolvedValue(OWED);
+    getStatus.mockResolvedValue({ status: "paused", project: "düğün" });
+
+    renderScreen();
+    await settle();
+
+    expect(resumeBatch).not.toHaveBeenCalled();
+  });
+
+  it("leaves a queue a fatal error stopped alone", async () => {
+    listFrames.mockResolvedValue(OWED);
+    getStatus.mockResolvedValue({ status: "error", project: "düğün", error: "boom" });
+
+    renderScreen();
+    await settle();
+
+    expect(resumeBatch).not.toHaveBeenCalled();
+  });
+
+  it("says nothing when the queue is empty", async () => {
+    listFrames.mockResolvedValue([{ file: "0_a.png", status: "done" }]);
+    getStatus.mockResolvedValue({ status: "idle" });
+
+    renderScreen();
+    await settle();
+
+    expect(resumeBatch).not.toHaveBeenCalled();
+  });
+
+  it("does not touch a queue that is already going", async () => {
+    listFrames.mockResolvedValue(OWED);
+    getStatus.mockResolvedValue({ status: "running", project: "düğün" });
+
+    renderScreen();
+    await settle();
+
+    expect(resumeBatch).not.toHaveBeenCalled();
   });
 });

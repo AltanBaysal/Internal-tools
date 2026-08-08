@@ -76,7 +76,7 @@ def test_wait_raises_comfy_error_on_failed_status():
     http = FakeHttp(gets=[FakeResponse({"p1": entry})])
     with pytest.raises(ComfyExecutionError) as exc:
         client_with(http).wait("p1", timeout=100)
-    assert exc.value.infra is True
+    assert "CheckpointLoaderSimple" in exc.value.text
 
 
 def test_wait_times_out():

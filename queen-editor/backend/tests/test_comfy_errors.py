@@ -19,30 +19,30 @@ def _status(node_type, message="boom"):
 
 
 def test_describe_reports_node_and_message():
-    text, tb, infra = describe(_status("KSampler"))
+    text, tb = describe(_status("KSampler"))
     assert "node 41 (KSampler)" in text
     assert "RuntimeError: boom" in text
     assert tb == "line 1\nline 2\n"
-    assert infra is False
 
 
-def test_loader_node_is_infra():
-    _text, _tb, infra = describe(_status("CheckpointLoaderSimple"))
-    assert infra is True
-
-
-def test_loader_is_recognised_mid_name():
-    # A real node in our graph: the name ends in "(rgthree)", not in "loader".
-    _text, _tb, infra = describe(_status("Power Lora Loader (rgthree)"))
-    assert infra is True
+def test_no_node_is_treated_differently_from_another():
+    # The loader used to be singled out and stopped the whole run on its first failure. Design v2
+    # dropped that: whatever node failed, ComfyUI answered, so it is this frame's failure.
+    text, _tb = describe(_status("CheckpointLoaderSimple"))
+    assert "CheckpointLoaderSimple" in text
 
 
 def test_status_without_execution_error_is_dumped_raw():
-    text, tb, infra = describe({"status_str": "error", "messages": [["execution_cached", {}]]})
+    text, tb = describe({"status_str": "error", "messages": [["execution_cached", {}]]})
     assert "execution_cached" in text          # the raw status, not an invented cause
-    assert (tb, infra) == ("", False)
+    assert tb == ""
 
 
 def test_error_carries_its_parts():
-    err = ComfyExecutionError("t", "tb", True)
-    assert (str(err), err.text, err.traceback_text, err.infra) == ("t", "t", "tb", True)
+    err = ComfyExecutionError("t", "tb")
+    assert (str(err), err.text, err.traceback_text) == ("t", "t", "tb")
+
+
+def test_the_error_says_the_failure_belongs_to_the_frame():
+    # The one flag the domain reads (it must not import this module to ask).
+    assert ComfyExecutionError("t", "tb").frame_level is True

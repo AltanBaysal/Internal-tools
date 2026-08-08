@@ -1,24 +1,28 @@
-"""ComfyUI error shapes -- classify, never invent a cause.
+"""ComfyUI error shapes -- report, never invent a cause.
 
-The classifier answers one question: did a model loader fail? A loader failure means the model is
-broken or missing, so every following render would hit the identical error; anything else is
-specific to this render. Everything else in the message is passed through verbatim.
+There is one thing this module says beyond passing the server's words through verbatim: reaching
+this exception at all means ComfyUI ran the graph and answered that the render failed. That makes it
+the frame's failure rather than the run's, which is the only split the queue's stop rule needs
+(backend/features/photo_generation/domain/policy.py). Everything else -- an unreachable server, an
+HTTP error, a timeout -- leaves this exception unraised and travels up as itself.
 """
 import json
 
 
 class ComfyExecutionError(RuntimeError):
-    """A prompt failed inside ComfyUI. Carries the raw error plus the infra flag."""
+    """A prompt failed inside ComfyUI. Carries the raw error the server reported."""
 
-    def __init__(self, text, traceback_text, infra):
+    # Read by the domain through getattr, so it never has to import this service.
+    frame_level = True
+
+    def __init__(self, text, traceback_text):
         super().__init__(text)
         self.text = text
         self.traceback_text = traceback_text
-        self.infra = infra
 
 
 def describe(status):
-    """ComfyUI history status -> (text, traceback_text, infra).
+    """ComfyUI history status -> (text, traceback_text).
 
     Falls back to dumping the raw status: an unrecognised shape must stay visible, not be
     summarised into a guess.
@@ -29,14 +33,8 @@ def describe(status):
         kind, data = entry
         if kind != "execution_error" or not isinstance(data, dict):
             continue
-        node_type = str(data.get("node_type", "?"))
-        text = (f"node {data.get('node_id')} ({node_type})\n"
+        text = (f"node {data.get('node_id')} ({data.get('node_type', '?')})\n"
                 f"{data.get('exception_type')}: {str(data.get('exception_message', '')).strip()}\n"
                 f"inputs: {data.get('current_inputs')}")
-        tb = "".join(data.get("traceback", []) or [])
-        # Substring, not suffix: our graph's loaders include CheckpointLoaderSimple and
-        # "Power Lora Loader (rgthree)". Matching only the end would let the checkpoint -- the
-        # model likeliest to be missing, since it is the gated Civitai one -- pass as a
-        # render-specific error, so every following render would repeat the same failure.
-        return text, tb, "loader" in node_type.lower()
-    return f"status: {json.dumps(status, ensure_ascii=False)}", "", False
+        return text, "".join(data.get("traceback", []) or [])
+    return f"status: {json.dumps(status, ensure_ascii=False)}", ""

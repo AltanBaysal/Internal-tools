@@ -20,7 +20,9 @@ def make_job(runner, store, record, plan_store, generator, now, project):
         return {"status": status, **queue.counts(frames, statuses), **extra}
 
     def job():
-        consecutive = 0
+        # Attempts spent on the frame in hand, and which frame they belong to. Memory only: a dead
+        # process must leave no count behind, and a restarted run deserves three fresh tries.
+        attempts, holding = 0, None
         while True:
             if runner.stop_requested():
                 return summary("paused")
@@ -30,6 +32,8 @@ def make_job(runner, store, record, plan_store, generator, now, project):
                 return summary("done")
             frame = owed[0]
             name = file_name(frame["number"], frame["letter"])
+            if name != holding:
+                holding, attempts = name, 0
             # pending is what the gallery draws as "bekliyor": the queue behind the frame being
             # rendered. failures names the tiles it draws red, each with its own Tekrar dene.
             runner.report({**queue.counts(frames, statuses), "current": frame,
@@ -41,11 +45,16 @@ def make_job(runner, store, record, plan_store, generator, now, project):
                     # The user's own pause killed this render -- that is not a failure. The frame
                     # writes no line, so it stays owed and is produced again on resume.
                     return summary("paused")
-                record.mark(project, name, queue.FAILED, now(), error=str(exc))
-                consecutive += 1
-                # getattr, not isinstance: domain must not import the ComfyUI service.
-                reason = policy.stop_reason(consecutive, getattr(exc, "infra", False))
+                if policy.is_frame_fault(exc):
+                    # The renderer answered: this one frame is what failed, the queue owes the rest
+                    # nothing, and the tile turns red where it stands.
+                    record.mark(project, name, queue.FAILED, now(), error=str(exc))
+                    continue
+                attempts += 1
+                reason = policy.stop_reason(attempts)
                 if reason:
+                    # Deliberately no line for the frame: it stays owed, so resuming starts from it
+                    # rather than leaving a red tile the user has to rescue by hand.
                     return summary("error", error=f"{reason}\n{exc}")
                 continue
             filename = store.save(project, frame["number"], frame["letter"], data)
