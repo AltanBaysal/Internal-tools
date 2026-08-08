@@ -6,6 +6,7 @@ import { navigate } from "../../shared/router.js";
 import ProjectsScreen from "./ProjectsScreen.jsx";
 
 vi.mock("../../shared/api.js", () => ({
+  checkProjectName: vi.fn().mockResolvedValue({ error: null }),
   createProject: vi.fn(),
   deleteProject: vi.fn(),
   listProjects: vi.fn(),
@@ -51,6 +52,15 @@ describe("ProjectsScreen deleting a project", () => {
     expect(deleteProject).toHaveBeenCalledWith("düğün");
     expect(listProjects).toHaveBeenCalledTimes(2);
     expect(screen.queryByText("düğün")).toBeNull();
+  });
+
+  it("draws the bin by the destructive standard: outlined and red, never filled", async () => {
+    await openScreen();
+
+    const bin = screen.getByLabelText("Projeyi sil");
+    expect(bin.style.borderColor).toBe("var(--danger)");
+    expect(bin.style.color).toBe("var(--danger)");
+    expect(bin.style.background).toBe("none");
   });
 
   it("opens the project when the card is clicked", async () => {

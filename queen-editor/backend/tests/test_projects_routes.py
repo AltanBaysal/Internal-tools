@@ -3,6 +3,8 @@ from functools import partial
 
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
+from backend.features.projects.domain import name_rules
+from backend.features.projects.domain.usecases.check_name import check_name
 from backend.features.projects.domain.usecases.create_project import create_project
 from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import get_settings
@@ -21,6 +23,7 @@ def client_for(drive_root, dist_dir):
     blueprint = make_projects_blueprint(
         list_projects=partial(list_projects, store),
         create_project=partial(create_project, store),
+        check_name=check_name,
         delete_project=partial(delete_project, store),
         get_settings=partial(get_settings, settings_store),
         save_settings=partial(save_settings, settings_store),
@@ -52,6 +55,29 @@ def test_deleting_a_project_removes_the_folder_with_everything_in_it(tmp_path):
 def test_deleting_an_unknown_project_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
     assert client.delete("/api/projects/yok").status_code == 404
+
+
+def test_a_usable_name_checks_out_clean(tmp_path):
+    client, _ = make_client(tmp_path)
+    resp = client.get("/api/projects/name-check?name=kapak çekimi")
+    assert resp.status_code == 200
+    assert resp.get_json() == {"error": None}
+
+
+def test_the_check_answers_with_the_rules_own_sentence(tmp_path):
+    client, _ = make_client(tmp_path)
+    # Not a second wording of the rule: whatever name_rules says is what the box prints.
+    assert client.get("/api/projects/name-check?name=a:b").get_json()["error"] == (
+        name_rules.validate("a:b"))
+    assert client.get("/api/projects/name-check?name=").get_json()["error"] == (
+        name_rules.validate(""))
+
+
+def test_checking_a_name_creates_nothing(tmp_path):
+    client, drive = make_client(tmp_path)
+    client.get("/api/projects/name-check?name=düğün")
+    assert client.get("/api/projects").get_json()["projects"] == []
+    assert not (drive / "düğün").exists()
 
 
 def test_get_projects_empty(tmp_path):

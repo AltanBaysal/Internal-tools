@@ -48,6 +48,12 @@ export async function createProject(name) {
   });
 }
 
+// Would this name be accepted? Asked while it is being typed, so the box can warn without keeping
+// a copy of the rules -- the answer is the server's own sentence, or null.
+export async function checkProjectName(name) {
+  return request(`/api/projects/name-check?name=${encodeURIComponent(name)}`);
+}
+
 export async function getSettings(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/settings`);
 }

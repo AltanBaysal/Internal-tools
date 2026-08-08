@@ -5,7 +5,7 @@ from backend.features.projects.domain.usecases.create_project import InvalidName
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
-def make_projects_blueprint(list_projects, create_project, delete_project, get_settings,
+def make_projects_blueprint(list_projects, create_project, check_name, delete_project, get_settings,
                             save_settings):
     """Every argument is a use case already bound to a store (see main.py)."""
     bp = Blueprint("projects", __name__)
@@ -36,6 +36,12 @@ def make_projects_blueprint(list_projects, create_project, delete_project, get_s
         except OSError as exc:
             return jsonify({"error": str(exc)}), 500
         return jsonify(payload(project)), 201
+
+    # A GET because it changes nothing: the modal asks it while the name is being typed, and the
+    # answer is the rules' own sentence rather than a code the frontend would have to translate.
+    @bp.get("/api/projects/name-check")
+    def get_name_check():
+        return jsonify({"error": check_name(request.args.get("name", ""))})
 
     @bp.delete("/api/projects/<project>")
     def delete_one_project(project):

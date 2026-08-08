@@ -24,6 +24,7 @@ from backend.features.photo_generation.presentation.routes import make_photo_gen
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
+from backend.features.projects.domain.usecases.check_name import check_name
 from backend.features.projects.domain.usecases.create_project import create_project
 from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import get_settings
@@ -42,6 +43,7 @@ _settings_store = DriveSettingsStore(_storage)
 _projects_bp = make_projects_blueprint(
     list_projects=partial(list_projects, _project_store),
     create_project=partial(create_project, _project_store),
+    check_name=check_name,
     delete_project=partial(delete_project, _project_store),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
