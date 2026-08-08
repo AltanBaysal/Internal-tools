@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { getSettings, getStatus, listPhotos, listProjects, saveOrder } from "./api.js";
+import { getSettings, getStatus, listFrames, listProjects, saveOrder } from "./api.js";
 
 function okResponse(body) {
   return { ok: true, status: 200, statusText: "OK", json: async () => body };
@@ -8,13 +8,13 @@ function okResponse(body) {
 
 describe("api.request", () => {
   it("percent-encodes the project name in the URL", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(okResponse({ photos: [] }));
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ frames: [] }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await listPhotos("düğün fotoğrafları");
+    await listFrames("düğün fotoğrafları");
 
     const url = fetchMock.mock.calls[0][0];
-    expect(url).toBe(`/api/projects/${encodeURIComponent("düğün fotoğrafları")}/photos`);
+    expect(url).toBe(`/api/projects/${encodeURIComponent("düğün fotoğrafları")}/frames`);
     expect(url).not.toContain("düğün");
   });
 

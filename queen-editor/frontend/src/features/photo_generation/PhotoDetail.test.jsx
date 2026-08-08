@@ -1,13 +1,13 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deletePhotos, listPhotos } from "../../shared/api.js";
+import { deletePhotos, listFrames } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import PhotoDetail from "./PhotoDetail.jsx";
 
 vi.mock("../../shared/api.js", () => ({
   deletePhotos: vi.fn(),
-  listPhotos: vi.fn(),
+  listFrames: vi.fn(),
   photoUrl: (project, file) => `/photos/${project}/${file}`,
 }));
 vi.mock("../../shared/router.js", () => ({
@@ -25,7 +25,7 @@ async function settle() {
 }
 
 async function open(file) {
-  listPhotos.mockResolvedValue(PHOTOS);
+  listFrames.mockResolvedValue(PHOTOS);
   render(<PhotoDetail project="düğün" file={file} />);
   await settle();
 }

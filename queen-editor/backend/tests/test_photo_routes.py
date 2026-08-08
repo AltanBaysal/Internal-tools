@@ -8,11 +8,10 @@ from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain.usecases.delete_photos import delete_photos
 from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
-from backend.features.photo_generation.domain.usecases.get_queue import get_queue
 from backend.features.photo_generation.domain.usecases.get_status import get_status
+from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
-from backend.features.photo_generation.domain.usecases.list_photos import list_photos
 from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
@@ -70,10 +69,9 @@ def make_client(tmp_path, generator=None, runner=None):
                                   lambda: "2026-08-05T10:00:00+00:00"),
         retry_frame=partial(retry_frame, runner, store, record, plan_store,
                             generator or FakeGenerator(), lambda: "2026-08-03T14:32:11+00:00"),
-        get_queue=partial(get_queue, record, store, plan_store),
-        list_photos=partial(list_photos, record, store, order_store),
-        save_order=partial(save_order, record, store, order_store),
-        export_project=partial(export_project, record, store, order_store),
+        list_frames=partial(list_frames, record, store, plan_store, order_store),
+        save_order=partial(save_order, record, store, plan_store, order_store),
+        export_project=partial(export_project, record, store, plan_store, order_store),
         delete_photos=partial(delete_photos, record, store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),
         photo_dir=store.photo_dir,
@@ -186,31 +184,32 @@ def test_stop_returns_the_current_status(tmp_path):
     assert resp.status_code == 200 and resp.get_json()["status"] == "running"
 
 
-def test_photos_are_listed_newest_first(tmp_path):
+def test_frames_are_listed_newest_first(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=1)
     files = [row["file"] for row in
-             client.get("/api/projects/düğün/photos").get_json()["photos"]]
+             client.get("/api/projects/düğün/frames").get_json()["frames"]]
     assert files == ["1_a.png", "0_a.png"]
 
 
 def test_files_without_a_record_row_are_not_listed(tmp_path):
-    # The record is the gallery's list: a file no run produced is not part of the project.
+    # The plan and the record are the gallery's list: a file no run produced is not part of it.
     client, drive = make_client(tmp_path)
     (drive / "düğün" / "9_a.png").write_bytes(b"x")
-    assert client.get("/api/projects/düğün/photos").get_json() == {"photos": []}
+    assert client.get("/api/projects/düğün/frames").get_json() == {"frames": []}
 
 
-def test_a_listed_photo_carries_the_prompt_that_made_it(tmp_path):
+def test_a_listed_frame_carries_the_prompt_behind_it(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["kraliçe tahtta"]', variants=1)
-    row = client.get("/api/projects/düğün/photos").get_json()["photos"][0]
+    row = client.get("/api/projects/düğün/frames").get_json()["frames"][0]
     assert row["file"] == "0_a.png" and row["prompt"] == "kraliçe tahtta"
+    assert row["status"] == "done"
 
 
-def test_photos_of_an_unknown_project_return_404(tmp_path):
+def test_frames_of_an_unknown_project_return_404(tmp_path):
     client, _ = make_client(tmp_path)
-    assert client.get("/api/projects/yok/photos").status_code == 404
+    assert client.get("/api/projects/yok/frames").status_code == 404
 
 
 def test_photo_is_served_from_the_project_folder(tmp_path):
@@ -229,7 +228,7 @@ def test_photo_response_is_immutably_cacheable(tmp_path):
 
 
 def files_of(client, project="düğün"):
-    return [row["file"] for row in client.get(f"/api/projects/{project}/photos").get_json()["photos"]]
+    return [row["file"] for row in client.get(f"/api/projects/{project}/frames").get_json()["frames"]]
 
 
 def test_saved_order_decides_how_photos_are_listed(tmp_path):
@@ -272,16 +271,20 @@ def test_order_of_an_unknown_project_returns_404(tmp_path):
     assert client.put("/api/projects/yok/order", json={"order": []}).status_code == 404
 
 
-def test_queue_reports_what_a_dead_session_left_behind(tmp_path):
+def statuses_of(client, project="düğün"):
+    return [(row["file"], row["status"])
+            for row in client.get(f"/api/projects/{project}/frames").get_json()["frames"]]
+
+
+def test_the_gallery_keeps_a_dead_sessions_frames_in_place(tmp_path):
     runner = PhotoRunner(spawn=lambda fn: fn())
     client, _ = make_client(tmp_path, generator=StopsAfter(runner, 1), runner=runner)
     generate(client, prompts='["a", "b"]', variants=1)
 
-    assert client.get("/api/projects/düğün/queue").get_json() == {
-        "pending": ["1_a.png"], "failed": [], "total": 2}
+    assert statuses_of(client) == [("1_a.png", "pending"), ("0_a.png", "done")]
 
 
-def test_queue_reports_a_red_frame_after_the_worker_is_gone(tmp_path):
+def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     class BlowsUpOnce:
         def __init__(self):
             self.calls = 0
@@ -295,29 +298,23 @@ def test_queue_reports_a_red_frame_after_the_worker_is_gone(tmp_path):
     client, _ = make_client(tmp_path, generator=BlowsUpOnce())
     generate(client, prompts='["a", "b"]', variants=1)
 
-    # Nothing is left in memory: this answer is the plan and the log alone.
-    assert client.get("/api/projects/düğün/queue").get_json() == {
-        "pending": [], "failed": ["0_a.png"], "total": 2}
+    # Nothing is left in memory: this answer is the plan and the log alone. And the failed frame is
+    # drawn once, in its own place -- not as a red tile and a dashed one at the same time.
+    assert statuses_of(client) == [("1_a.png", "done"), ("0_a.png", "failed")]
 
 
-def test_queue_of_a_project_without_a_plan_is_empty(tmp_path):
+def test_a_project_without_a_plan_has_an_empty_gallery(tmp_path):
     client, _ = make_client(tmp_path)
-    assert client.get("/api/projects/düğün/queue").get_json() == {
-        "pending": [], "failed": [], "total": 0}
+    assert client.get("/api/projects/düğün/frames").get_json() == {"frames": []}
 
 
-def test_a_deleted_photo_does_not_come_back_as_pending(tmp_path):
+def test_a_deleted_photo_leaves_the_gallery_for_good(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=1)
 
     delete_photos_request(client, ["1_a.png"])
 
-    assert client.get("/api/projects/düğün/queue").get_json()["pending"] == []
-
-
-def test_queue_of_an_unknown_project_returns_404(tmp_path):
-    client, _ = make_client(tmp_path)
-    assert client.get("/api/projects/yok/queue").status_code == 404
+    assert statuses_of(client) == [("0_a.png", "done")]
 
 
 def test_retry_produces_only_the_named_frame(tmp_path):
@@ -329,7 +326,8 @@ def test_retry_produces_only_the_named_frame(tmp_path):
 
     assert resp.status_code == 202
     assert (drive / "düğün" / "0_a.png").exists()
-    assert files_of(client) == ["0_a.png", "1_a.png"]
+    # It comes back where it was, not on top: a frame's place in the gallery is its own.
+    assert files_of(client) == ["1_a.png", "0_a.png"]
 
 
 def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):
@@ -432,7 +430,7 @@ def test_deleting_photos_of_an_unknown_project_returns_404(tmp_path):
     assert delete_photos_request(client, ["0_a.png"], project="yok").status_code == 404
 
 
-def test_export_downloads_a_json_file_in_gallery_order(tmp_path):
+def test_export_reads_the_gallery_from_the_bottom_up(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=1)
     client.put("/api/projects/düğün/order", json={"order": ["0_a.png", "1_a.png"]})
@@ -443,8 +441,9 @@ def test_export_downloads_a_json_file_in_gallery_order(tmp_path):
     assert resp.mimetype == "application/json"
     assert "attachment" in resp.headers["Content-Disposition"]
     body = json.loads(resp.data)
-    assert body["photos"] == [{"file": "0_a.png", "prompt": "a"},
-                              {"file": "1_a.png", "prompt": "b"}]
+    # The gallery reads 0_a above 1_a; the video starts at the bottom one.
+    assert body["photos"] == [{"file": "1_a.png", "prompt": "b"},
+                              {"file": "0_a.png", "prompt": "a"}]
     assert body["folder"].endswith("düğün")
 
 

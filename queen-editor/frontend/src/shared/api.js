@@ -76,10 +76,6 @@ export async function resumeBatch(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/resume`, { method: "POST" });
 }
 
-// What the plan still owes, read from Drive -- this is what survives a dead session.
-export async function getQueue(project) {
-  return request(`/api/projects/${encodeURIComponent(project)}/queue`);
-}
 
 export async function retryFrame(project, file) {
   return request(`/api/projects/${encodeURIComponent(project)}/retry`, {
@@ -101,9 +97,11 @@ export async function saveOrder(project, order) {
   });
 }
 
-export async function listPhotos(project) {
-  const body = await request(`/api/projects/${encodeURIComponent(project)}/photos`);
-  return body.photos;
+// The whole gallery in one answer: produced photos, pending frames and failed ones alike, in the
+// order they are shown. This is what survives a dead session -- it is read from Drive, not memory.
+export async function listFrames(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/frames`);
+  return body.frames;
 }
 
 // One call for one photo and for many -- the detail page sends a list of one.

@@ -6,7 +6,7 @@ function downloadHref(content) {
   return `data:text/markdown;charset=utf-8,${encodeURIComponent(content)}`;
 }
 
-export default function FileView({ file, onChange, onClose }) {
+export default function FileView({ file, onChange, onBack }) {
   const [label, setLabel] = useState("Kopyala");
 
   async function copy() {
@@ -22,8 +22,11 @@ export default function FileView({ file, onChange, onClose }) {
   }
 
   return (
-    <aside className="file-view">
+    <div className="file-view">
       <header>
+        <button type="button" className="back" aria-label="Dosya listesine dön" onClick={onBack}>
+          ‹
+        </button>
         <span className="file-name">{file.name}</span>
         <a href={downloadHref(file.content)} download={file.name}>
           İndir
@@ -31,13 +34,10 @@ export default function FileView({ file, onChange, onClose }) {
         <button type="button" onClick={copy}>
           {label}
         </button>
-        <button type="button" aria-label="Dosyayı kapat" onClick={onClose}>
-          ×
-        </button>
       </header>
       {/* Raw text, never rendered markdown: rendering means a markdown library, and this app has no
           dependencies to spend. You see what you wrote. */}
       <textarea value={file.content} onChange={(e) => onChange(e.target.value)} />
-    </aside>
+    </div>
   );
 }

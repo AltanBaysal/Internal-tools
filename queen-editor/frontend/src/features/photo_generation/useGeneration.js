@@ -4,9 +4,8 @@ import {
   cancelGeneration,
   deletePhotos,
   generateBatch,
-  getQueue,
   getStatus,
-  listPhotos,
+  listFrames,
   resumeBatch,
   retryFrame,
   saveOrder,
@@ -16,18 +15,16 @@ import {
 const POLL_MS = 2000;
 
 // A batch runs for minutes, so the server answers 202 and we ask /api/status until it settles.
-// The gallery refreshes on every poll: Drive is the truth about what exists.
+// The gallery refreshes on every poll: Drive is the truth about what exists and what is owed.
 export function useGeneration(project) {
   const [job, setJob] = useState({ status: "idle" });
-  // null = not known yet (first fetch still flying), [] = the project truly has no photos.
-  const [photos, setPhotos] = useState(null);
+  // The whole gallery sequence -- produced, pending and failed frames in display order.
+  // null = not known yet (first fetch still flying), [] = the project truly has nothing.
+  const [frames, setFrames] = useState(null);
   const [error, setError] = useState(null);   // rejected request or unreachable server
   // Which input the server blamed, when it named one: "prompts" | "variants" | null.
   const [errorField, setErrorField] = useState(null);
   const [stopPressed, setStopPressed] = useState(false);
-  // What the plan still owes, read from Drive rather than from this session's memory: a run that
-  // died with the tab (or with Colab) is only visible here.
-  const [queue, setQueue] = useState({ pending: [], total: 0 });
   const timer = useRef(null);
   // Flips false on unmount so an in-flight promise that resolves afterwards cannot setState or
   // re-arm the timer -- without this the catch branch's retry makes the chain immortal.
@@ -40,32 +37,23 @@ export function useGeneration(project) {
   // would snap the tiles back for one frame and then forward again.
   const savingOrder = useRef(false);
 
-  const refreshPhotos = useCallback(() => {
-    listPhotos(project)
-      .then((data) => { if (alive.current && !savingOrder.current) setPhotos(data); })
+  const refreshFrames = useCallback(() => {
+    listFrames(project)
+      .then((data) => { if (alive.current && !savingOrder.current) setFrames(data); })
       .catch((err) => { if (alive.current) setError(err.message); });
   }, [project]);
 
-  const refreshQueue = useCallback(() => {
-    getQueue(project)
-      .then((data) => { if (alive.current) setQueue(data); })
-      .catch(() => {});   // the queue is extra knowledge; its absence is not worth an error card
-  }, [project]);
-
   const poll = useCallback(() => {
-    // Photos are asked for regardless of the status call's fate -- a dead status endpoint must
-    // not leave the gallery lying about what exists.
-    refreshPhotos();
+    // The gallery is asked for regardless of the status call's fate -- a dead status endpoint must
+    // not leave it lying about what exists.
+    refreshFrames();
     getStatus()
       .then((state) => {
         if (!alive.current) return;
         setJob(state);
         setError(null);                       // a successful poll clears a stale connection error
         if (state.status !== "running") setStopPressed(false);
-        if (wasRunning.current && state.status !== "running") {
-          refreshPhotos();
-          refreshQueue();     // a run that just ended changes what is still owed
-        }
+        if (wasRunning.current && state.status !== "running") refreshFrames();
         wasRunning.current = state.status === "running";
         clearTimeout(timer.current);          // never let two chains tick at once
         if (state.status === "running") {
@@ -75,42 +63,47 @@ export function useGeneration(project) {
       .catch((err) => {
         if (!alive.current) return;
         setError(err.message);
-        // One bad poll must not kill the chain -- otherwise the bar freezes as "fake alive"
-        // and the screen never notices the tunnel coming back.
+        // One bad poll must not kill the chain -- otherwise the screen freezes as "fake alive"
+        // and never notices the tunnel coming back.
         clearTimeout(timer.current);
         timer.current = setTimeout(poll, POLL_MS);
       });
-  }, [refreshPhotos, refreshQueue]);
+  }, [refreshFrames]);
 
   useEffect(() => {
     alive.current = true;
     poll();
-    refreshQueue();
     return () => {
       alive.current = false;
       clearTimeout(timer.current);
     };
-  }, [poll, refreshQueue]);
+  }, [poll]);
 
   const clearError = useCallback(() => {
     setError(null);
     setErrorField(null);
   }, []);
 
+  // Every way of putting the worker back to work ends the same: believe it is running, re-arm the
+  // poll, and read the gallery again. Written once so the three callers cannot drift apart.
+  const startPolling = useCallback(() => {
+    setJob({ status: "running", project });
+    wasRunning.current = true;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(poll, POLL_MS);
+    refreshFrames();
+  }, [project, poll, refreshFrames]);
+
   const generate = useCallback(
     (form) => {
       setError(null);
       setErrorField(null);
-      // Resolves with the server's answer (it carries how many frames the queue took) or null
-      // when the queue refused it -- the panel needs to tell those two apart.
+      // Resolves with the server's answer (it carries how many frames the queue took) or null when
+      // the queue refused it -- the panel needs to tell those two apart.
       return generateBatch(project, form)
         .then((body) => {
           if (!alive.current) return null;
-          setJob({ status: "running", project, done: 0, failed: 0, total: 0 });
-          wasRunning.current = true;
-          clearTimeout(timer.current);        // drop any chain already ticking, avoid a parallel one
-          timer.current = setTimeout(poll, POLL_MS);
-          refreshQueue();                     // the new frames are owed from this moment on
+          startPolling();
           return body;
         })
         .catch((err) => {
@@ -120,46 +113,30 @@ export function useGeneration(project) {
           return null;
         });
     },
-    [project, poll, refreshQueue],
+    [project, startPolling],
   );
 
-  // Resuming and cancelling are the paused view's two ways out. Both re-arm the poll: after a
-  // resume the run is alive again, and after a cancel the screen has to see "idle" once.
   const resume = useCallback(() => {
     clearError();
     return resumeBatch(project)
-      .then(() => {
-        if (!alive.current) return;
-        setJob({ status: "running", project, done: 0, failed: 0, total: 0 });
-        wasRunning.current = true;
-        clearTimeout(timer.current);
-        timer.current = setTimeout(poll, POLL_MS);
-      })
+      .then(() => { if (alive.current) startPolling(); })
       .catch((err) => { if (alive.current) setError(err.message); });
-  }, [project, poll, clearError]);
+  }, [project, startPolling, clearError]);
 
+  // Emptying the queue does not start anything: it only changes what is owed, so the screen has to
+  // see "idle" once and read the gallery again.
   const cancel = useCallback(() => (
     cancelGeneration(project)
-      .then(() => {
-        if (!alive.current) return;
-        poll();
-        refreshQueue();
-      })
-      .catch((err) => { if (alive.current) setError(err.message); })
-  ), [project, poll, refreshQueue]);
-
-  // One frame, produced again with the prompt and seed the plan gave it.
-  const retry = useCallback((file) => (
-    retryFrame(project, file)
-      .then(() => {
-        if (!alive.current) return;
-        setJob({ status: "running", project, done: 0, failed: 0, total: 1 });
-        wasRunning.current = true;
-        clearTimeout(timer.current);
-        timer.current = setTimeout(poll, POLL_MS);
-      })
+      .then(() => { if (alive.current) poll(); })
       .catch((err) => { if (alive.current) setError(err.message); })
   ), [project, poll]);
+
+  // One frame, put back in line with the prompt and seed the plan gave it.
+  const retry = useCallback((file) => (
+    retryFrame(project, file)
+      .then(() => { if (alive.current) startPolling(); })
+      .catch((err) => { if (alive.current) setError(err.message); })
+  ), [project, startPolling]);
 
   const stop = useCallback(() => {
     setStopPressed(true);                     // instant feedback; the server confirms via polls
@@ -174,9 +151,9 @@ export function useGeneration(project) {
   const reorder = useCallback(
     (files) => {
       savingOrder.current = true;
-      setPhotos((current) => {
+      setFrames((current) => {
         if (!current) return current;
-        const byFile = new Map(current.map((photo) => [photo.file, photo]));
+        const byFile = new Map(current.map((frame) => [frame.file, frame]));
         return files.map((file) => byFile.get(file)).filter(Boolean);
       });
       return saveOrder(project, files)
@@ -185,10 +162,10 @@ export function useGeneration(project) {
           savingOrder.current = false;
           if (!alive.current) return;
           setError(`Sıra kaydedilemedi.\n${err.message}`);
-          refreshPhotos();
+          refreshFrames();
         });
     },
-    [project, refreshPhotos],
+    [project, refreshFrames],
   );
 
   // Only what the server says it deleted leaves the screen: a name that was already gone changes
@@ -198,8 +175,8 @@ export function useGeneration(project) {
       .then((body) => {
         if (!alive.current) return;
         const gone = new Set(body?.deleted || []);
-        setPhotos((current) => (current
-          ? current.filter((photo) => !gone.has(photo.file))
+        setFrames((current) => (current
+          ? current.filter((frame) => !gone.has(frame.file))
           : current));
       })
       .catch((err) => {
@@ -210,12 +187,17 @@ export function useGeneration(project) {
   // The server also reports "stopping" (survives a reload); either source disables the button.
   const stopping = stopPressed || Boolean(job.stopping);
 
-  // While the run is alive the worker's own queue is the fresher answer; otherwise Drive's is the
-  // only one -- and after a dead session, the only one there has ever been.
-  const mine = job.project === project;
-  const pending = mine && job.status === "running" ? (job.pending || []) : queue.pending;
-  const failures = mine ? (job.failures || []) : [];
+  // One list, one answer: what is owed and what blew up are read off the gallery rather than kept
+  // in a second place that could disagree with it.
+  const shown = frames || [];
+  const pending = shown.filter((frame) => frame.status === "pending").map((f) => f.file);
+  const failures = shown.filter((frame) => frame.status === "failed").map((f) => f.file);
+  // The frame being rendered has no status on disk; only the live worker knows it, and only while
+  // it is this project's run.
+  const current = job.project === project && job.status === "running" && job.current
+    ? `${job.current.number}_${job.current.letter}.png`
+    : null;
 
-  return { job, photos, error, errorField, stopping, queue, pending, failures,
+  return { job, frames, error, errorField, stopping, pending, failures, current,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

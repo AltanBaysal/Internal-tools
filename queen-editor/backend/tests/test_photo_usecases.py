@@ -1,14 +1,14 @@
 import pytest
 
-from backend.features.photo_generation.domain.photo_name import number_of
+from backend.features.photo_generation.domain import queue
+from backend.features.photo_generation.domain.photo_name import file_name, number_of
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.usecases.delete_photos import (
     InvalidFiles,
     delete_photos,
 )
-from backend.features.photo_generation.domain.usecases.get_queue import get_queue
 from backend.features.photo_generation.domain.usecases.get_status import get_status
-from backend.features.photo_generation.domain.usecases.list_photos import list_photos
+from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
 from backend.features.photo_generation.domain.usecases.start_batch import (
@@ -335,78 +335,149 @@ def test_stop_generation_survives_interrupt_failure():
     assert state["stopping"] is True
 
 
-def test_list_photos_comes_from_the_record():
+def planned(*frames):
+    """A plan store holding these frames, in the order they were queued."""
+    return FakePlanStore(frames=[frame(n, letter, prompt) for n, letter, prompt in frames])
+
+
+def owed_files(record, plan_store, project="düğün"):
+    """The frames the queue still has to render -- what the worker reads on its next turn."""
+    return [file_name(f["number"], f["letter"])
+            for f in queue.open_frames(plan_store.read(project)["frames"],
+                                       record.statuses(project))]
+
+
+def test_the_gallery_holds_every_frame_the_plan_asked_for():
     record = FakeRecord()
-    record.append("düğün", {"file": "0_a.png", "prompt": "a"})
-    record.append("düğün", {"file": "0_b.png", "prompt": "a"})
-    assert list_photos(record, FakeStore(), FakeOrderStore(), "düğün") == [
-        {"file": "0_b.png", "prompt": "a"}, {"file": "0_a.png", "prompt": "a"}]
+    record.append("düğün", {"file": "0_a.png", "status": "done", "prompt": "ilk"})
+    plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    # Newest on top, and the frame nobody has produced yet keeps its place in the sequence.
+    assert [(f["file"], f["status"]) for f in frames] == [
+        ("1_a.png", "pending"), ("0_a.png", "done")]
 
 
-def test_list_photos_rejects_a_missing_project():
-    with pytest.raises(ProjectMissing):
-        list_photos(FakeRecord(), FakeStore(), FakeOrderStore(), "yok")
-
-
-def test_list_photos_follows_the_stored_order():
+def test_a_removed_or_deleted_frame_leaves_the_gallery():
     record = FakeRecord()
-    for file in ("0_a.png", "1_a.png", "2_a.png"):
-        record.append("düğün", {"file": file})
+    record.mark("düğün", "0_a.png", "removed", "t1")
+    record.mark("düğün", "1_a.png", "deleted", "t2")
+    plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"), (2, "a", "üçüncü"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [f["file"] for f in frames] == ["2_a.png"]
+
+
+def test_a_failed_frame_stays_in_its_own_place():
+    record = FakeRecord()
+    record.mark("düğün", "1_a.png", "failed", "t1")
+    plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"), (2, "a", "üçüncü"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [(f["file"], f["status"]) for f in frames] == [
+        ("2_a.png", "pending"), ("1_a.png", "failed"), ("0_a.png", "pending")]
+
+
+def test_the_gallery_follows_the_stored_order():
+    plan_store = planned((0, "a", "a"), (1, "a", "b"), (2, "a", "c"))
     order = FakeOrderStore(["1_a.png", "0_a.png", "2_a.png"])
-    assert [row["file"] for row in list_photos(record, FakeStore(), order, "düğün")] == [
-        "1_a.png", "0_a.png", "2_a.png"]
+
+    frames = list_frames(FakeRecord(), FakeStore(), plan_store, order, "düğün")
+
+    assert [f["file"] for f in frames] == ["1_a.png", "0_a.png", "2_a.png"]
+
+
+def test_a_photo_the_plan_forgot_is_still_the_gallerys():
+    # Projects made before the plan became permanent kept only their last batch.
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done", "prompt": "eski"})
+
+    frames = list_frames(record, FakeStore(), FakePlanStore(), FakeOrderStore(), "düğün")
+
+    assert [f["file"] for f in frames] == ["0_a.png"]
+
+
+def test_the_gallery_rejects_a_missing_project():
+    with pytest.raises(ProjectMissing):
+        list_frames(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(), "yok")
 
 
 def test_save_order_stores_and_returns_the_kept_list():
-    record = FakeRecord()
-    record.append("düğün", {"file": "0_a.png"})
-    record.append("düğün", {"file": "1_a.png"})
+    plan_store = planned((0, "a", "a"), (1, "a", "b"))
     order = FakeOrderStore()
-    assert save_order(record, FakeStore(), order, "düğün", ["1_a.png", "0_a.png"]) == [
-        "1_a.png", "0_a.png"]
+
+    assert save_order(FakeRecord(), FakeStore(), plan_store, order, "düğün",
+                      ["1_a.png", "0_a.png"]) == ["1_a.png", "0_a.png"]
     assert order.order == ["1_a.png", "0_a.png"]
 
 
-def test_save_order_drops_names_the_record_does_not_know():
+def test_save_order_keeps_pending_frames_in_the_sequence():
+    # A pending frame has a place in the gallery, so a drag that moved a photo past one is storable.
     record = FakeRecord()
-    record.append("düğün", {"file": "1_a.png"})
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    plan_store = planned((0, "a", "a"), (1, "a", "b"))
+
+    assert save_order(record, FakeStore(), plan_store, FakeOrderStore(), "düğün",
+                      ["0_a.png", "1_a.png"]) == ["0_a.png", "1_a.png"]
+
+
+def test_save_order_drops_names_the_gallery_does_not_know():
+    plan_store = planned((1, "a", "b"))
     order = FakeOrderStore()
-    assert save_order(record, FakeStore(), order, "düğün", ["hayalet.png", "1_a.png"]) == [
-        "1_a.png"]
+
+    assert save_order(FakeRecord(), FakeStore(), plan_store, order, "düğün",
+                      ["hayalet.png", "1_a.png"]) == ["1_a.png"]
     assert order.order == ["1_a.png"]
 
 
 def test_save_order_rejects_a_body_that_is_not_a_list():
     with pytest.raises(InvalidOrder):
-        save_order(FakeRecord(), FakeStore(), FakeOrderStore(), "düğün", "1_a.png")
+        save_order(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(), "düğün", "1_a.png")
 
 
 def test_save_order_rejects_a_non_string_entry():
     with pytest.raises(InvalidOrder):
-        save_order(FakeRecord(), FakeStore(), FakeOrderStore(), "düğün", ["1_a.png", 7])
+        save_order(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(), "düğün",
+                   ["1_a.png", 7])
 
 
 def test_save_order_rejects_a_missing_project():
     with pytest.raises(ProjectMissing):
-        save_order(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), "yok", [])
+        save_order(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
+                   "yok", [])
 
 
-def test_export_carries_the_folder_and_the_gallery_order():
+def test_export_reverses_the_gallery_so_the_bottom_frame_comes_first():
     record = FakeRecord()
-    record.append("düğün", {"file": "0_a.png", "prompt": "ilk", "seed": 7})
-    record.append("düğün", {"file": "1_a.png", "prompt": "ikinci", "seed": 8})
-    order = FakeOrderStore(["0_a.png", "1_a.png"])
+    record.append("düğün", {"file": "0_a.png", "status": "done", "prompt": "ilk"})
+    record.append("düğün", {"file": "1_a.png", "status": "done", "prompt": "ikinci"})
+    plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"))
 
-    assert export_project(record, FakeStore(), order, "düğün") == {
+    assert export_project(record, FakeStore(), plan_store, FakeOrderStore(), "düğün") == {
         "folder": "/fake/düğün",
+        # The gallery reads 1_a above 0_a; the video starts at the bottom.
         "photos": [{"file": "0_a.png", "prompt": "ilk"},
                    {"file": "1_a.png", "prompt": "ikinci"}],
     }
 
 
+def test_export_leaves_out_frames_that_never_became_photos():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done", "prompt": "ilk"})
+    record.mark("düğün", "1_a.png", "failed", "t1")
+    plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"), (2, "a", "üçüncü"))
+
+    exported = export_project(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [row["file"] for row in exported["photos"]] == ["0_a.png"]
+
+
 def test_export_of_an_empty_project_still_names_the_folder():
-    assert export_project(FakeRecord(), FakeStore(), FakeOrderStore(), "düğün") == {
-        "folder": "/fake/düğün", "photos": []}
+    assert export_project(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(),
+                          "düğün") == {"folder": "/fake/düğün", "photos": []}
 
 
 def frame(number, letter="a", prompt="p", seed=1):
@@ -457,7 +528,7 @@ def test_cancel_empties_the_queue_and_returns_to_idle():
     cancel_generation(runner, FakeStore(), record, plan_store, lambda: "t1", "düğün")
 
     # The plan keeps what was asked for; the log is what says those frames are not coming.
-    assert get_queue(record, FakeStore(), plan_store, "düğün")["pending"] == []
+    assert owed_files(record, plan_store) == []
     assert runner.status() == {"status": "idle"}
 
 
@@ -519,7 +590,8 @@ def test_deleting_in_a_missing_project_is_rejected():
 
 def test_export_rejects_a_missing_project():
     with pytest.raises(ProjectMissing):
-        export_project(FakeRecord(), FakeStore(projects=()), FakeOrderStore(), "yok")
+        export_project(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
+                       "yok")
 
 
 def test_get_status_passes_the_runner_state_through():
@@ -631,14 +703,15 @@ def test_a_failed_frame_is_written_to_the_log():
     assert record.statuses("düğün") == {"0_a.png": "failed"}
 
 
-def test_the_queue_endpoint_reports_failures_after_a_restart():
+def test_the_gallery_still_shows_a_red_frame_after_a_restart():
     record, plan_store = FakeRecord(), FakePlanStore()
     run_batch(sync_runner(), FakeStore(), FakeGenerator(fail_on=["patlak"]),
               text='["patlak", "tutan"]', variants=1, record=record, plan_store=plan_store)
 
     # A restarted server holds nothing: this answer comes from the plan and the log alone.
-    assert get_queue(record, FakeStore(), plan_store, "düğün") == {
-        "pending": [], "failed": ["0_a.png"], "total": 2}
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+    assert [(f["file"], f["status"]) for f in frames] == [
+        ("1_a.png", "done"), ("0_a.png", "failed")]
 
 
 def test_a_deleted_photo_does_not_come_back_as_pending():
@@ -648,7 +721,7 @@ def test_a_deleted_photo_does_not_come_back_as_pending():
 
     record.mark("düğün", "0_a.png", "deleted", "t9")
 
-    assert get_queue(record, FakeStore(), plan_store, "düğün")["pending"] == []
+    assert owed_files(record, plan_store) == []
 
 
 def test_retry_puts_the_frame_back_in_line():

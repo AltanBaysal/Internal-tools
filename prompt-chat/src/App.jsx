@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import Sidebar from "./Sidebar.jsx";
 import Message from "./Message.jsx";
 import MentionPicker from "./MentionPicker.jsx";
-import FileView from "./FileView.jsx";
+import FilePane from "./FilePane.jsx";
 import { sendChat } from "./api.js";
 import { usePersisted } from "./usePersisted.js";
 import { useWorkspace } from "./useWorkspace.js";
@@ -147,7 +147,7 @@ export default function App() {
         projects={ws.projects}
         files={ws.files}
         chats={ws.chats}
-        active={{ projectId, chatId: chat.id, fileId: ws.file?.id ?? null }}
+        active={{ projectId, chatId: chat.id }}
         on={{
           openProject: (id) => {
             ws.setProject(id);
@@ -155,9 +155,6 @@ export default function App() {
           },
           newProject,
           deleteProject: removeProject,
-          openFile: ws.setFile,
-          newFile,
-          deleteFile: removeFile,
           openChat: ws.setChat,
           newChat,
           deleteChat: removeChat,
@@ -208,13 +205,18 @@ export default function App() {
         </footer>
       </main>
 
-      {ws.file && (
-        <FileView
-          file={ws.file}
-          onChange={(content) => ws.setFiles(writeFile(ws.files, ws.file.id, content))}
-          onClose={() => ws.setFile(null)}
-        />
-      )}
+      <FilePane
+        files={ws.files}
+        projectId={projectId}
+        file={ws.file}
+        on={{
+          openFile: ws.setFile,
+          newFile,
+          deleteFile: removeFile,
+          closeFile: () => ws.setFile(null),
+        }}
+        onChange={(content) => ws.setFiles(writeFile(ws.files, ws.file.id, content))}
+      />
     </div>
   );
 }

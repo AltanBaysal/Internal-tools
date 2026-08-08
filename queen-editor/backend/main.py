@@ -13,11 +13,10 @@ from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain.usecases.delete_photos import delete_photos
 from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
-from backend.features.photo_generation.domain.usecases.get_queue import get_queue
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
-from backend.features.photo_generation.domain.usecases.list_photos import list_photos
+from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
@@ -71,10 +70,9 @@ _photo_bp = make_photo_generation_blueprint(
     retry_frame=partial(retry_frame, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _photo_generator,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
-    get_queue=partial(get_queue, _photo_record, _photo_store, _plan_store),
-    list_photos=partial(list_photos, _photo_record, _photo_store, _order_store),
-    save_order=partial(save_order, _photo_record, _photo_store, _order_store),
-    export_project=partial(export_project, _photo_record, _photo_store, _order_store),
+    list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
+    save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
+    export_project=partial(export_project, _photo_record, _photo_store, _plan_store, _order_store),
     delete_photos=partial(delete_photos, _photo_record, _photo_store, _order_store,
                           lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     photo_dir=_photo_store.photo_dir,

@@ -1,16 +1,15 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateBatch, getStatus, listPhotos, saveOrder, stopGeneration } from "../../shared/api.js";
+import { generateBatch, getStatus, listFrames, saveOrder, stopGeneration } from "../../shared/api.js";
 import { useGeneration } from "./useGeneration.js";
 
 vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
   deletePhotos: vi.fn(),
   generateBatch: vi.fn(),
-  getQueue: vi.fn(() => Promise.resolve({ pending: [], total: 0 })),
   getStatus: vi.fn(),
-  listPhotos: vi.fn(),
+  listFrames: vi.fn(),
   resumeBatch: vi.fn(),
   retryFrame: vi.fn(),
   saveOrder: vi.fn(),
@@ -35,21 +34,21 @@ beforeEach(() => {
 describe("useGeneration", () => {
   it("treats the photos as unknown at first and asks for both status and photos on the first poll", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
-    listPhotos.mockResolvedValue([]);
+    listFrames.mockResolvedValue([]);
 
     const { result } = renderHook(() => useGeneration("düğün"));
-    expect(result.current.photos).toBeNull();
+    expect(result.current.frames).toBeNull();
 
     await settle();
 
-    expect(result.current.photos).toEqual([]);
+    expect(result.current.frames).toEqual([]);
     expect(getStatus).toHaveBeenCalledTimes(1);
-    expect(listPhotos).toHaveBeenCalledWith("düğün");
+    expect(listFrames).toHaveBeenCalledWith("düğün");
   });
 
   it("asks every 2 seconds while a run is going and stops the chain when it ends", async () => {
     getStatus.mockResolvedValue(RUNNING);
-    listPhotos.mockResolvedValue([]);
+    listFrames.mockResolvedValue([]);
 
     renderHook(() => useGeneration("düğün"));
     await settle();
@@ -69,7 +68,7 @@ describe("useGeneration", () => {
   it("shows the error when a poll fails, keeps trying, and clears it once the connection returns", async () => {
     const dead = new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nZaman aşımı (10 sn)");
     getStatus.mockRejectedValue(dead);
-    listPhotos.mockRejectedValue(dead);
+    listFrames.mockRejectedValue(dead);
 
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();
@@ -79,24 +78,24 @@ describe("useGeneration", () => {
     expect(getStatus).toHaveBeenCalledTimes(2);
 
     getStatus.mockResolvedValue({ status: "idle" });
-    listPhotos.mockResolvedValue([]);
+    listFrames.mockResolvedValue([]);
     await settle(2000);
     expect(result.current.error).toBeNull();
   });
 
   it("asks for the photos once more as the run finishes", async () => {
     getStatus.mockResolvedValue(RUNNING);
-    listPhotos.mockResolvedValue([]);
+    listFrames.mockResolvedValue([]);
 
     renderHook(() => useGeneration("düğün"));
     await settle();
-    const afterFirstPoll = listPhotos.mock.calls.length;
+    const afterFirstPoll = listFrames.mock.calls.length;
 
     getStatus.mockResolvedValue(DONE);
     await settle(2000);
 
     // The poll's own refresh plus one extra for the frame still landing on Drive.
-    expect(listPhotos.mock.calls.length).toBe(afterFirstPoll + 2);
+    expect(listFrames.mock.calls.length).toBe(afterFirstPoll + 2);
   });
 
   it("does not revive the chain when the screen is left before an answer arrives", async () => {
@@ -105,7 +104,7 @@ describe("useGeneration", () => {
     // would arm a brand new one that nobody owns.
     let rejectStatus;
     getStatus.mockReturnValue(new Promise((_, reject) => { rejectStatus = reject; }));
-    listPhotos.mockRejectedValue(new Error("kopuk"));
+    listFrames.mockRejectedValue(new Error("kopuk"));
 
     const { unmount } = renderHook(() => useGeneration("düğün"));
     const callsBefore = getStatus.mock.calls.length;
@@ -119,7 +118,7 @@ describe("useGeneration", () => {
 
   it("puts the panel into the running state without waiting for the server", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
-    listPhotos.mockResolvedValue([]);
+    listFrames.mockResolvedValue([]);
     generateBatch.mockResolvedValue({ started: true });
 
     const { result } = renderHook(() => useGeneration("düğün"));
@@ -129,14 +128,12 @@ describe("useGeneration", () => {
       await result.current.generate({ prompts: '["a"]', negative: "", variants: 4 });
     });
 
-    expect(result.current.job).toEqual({
-      status: "running", project: "düğün", done: 0, failed: 0, total: 0,
-    });
+    expect(result.current.job).toEqual({ status: "running", project: "düğün" });
   });
 
   it("disables the button the moment stop is pressed, without waiting for the server", async () => {
     getStatus.mockResolvedValue(RUNNING);
-    listPhotos.mockResolvedValue([]);
+    listFrames.mockResolvedValue([]);
     let resolveStop;
     stopGeneration.mockReturnValue(new Promise((resolve) => { resolveStop = resolve; }));
 
@@ -152,7 +149,7 @@ describe("useGeneration", () => {
 
   it("shows the new order straight after a drag and writes it to the server", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
-    listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
+    listFrames.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
     saveOrder.mockResolvedValue({ order: ["0_a.png", "1_a.png"] });
 
     const { result } = renderHook(() => useGeneration("düğün"));
@@ -160,13 +157,13 @@ describe("useGeneration", () => {
 
     await act(async () => { await result.current.reorder(["0_a.png", "1_a.png"]); });
 
-    expect(result.current.photos.map((p) => p.file)).toEqual(["0_a.png", "1_a.png"]);
+    expect(result.current.frames.map((p) => p.file)).toEqual(["0_a.png", "1_a.png"]);
     expect(saveOrder).toHaveBeenCalledWith("düğün", ["0_a.png", "1_a.png"]);
   });
 
   it("shows the error and falls back to the server's order when the ordering cannot be saved", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
-    listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
+    listFrames.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
     saveOrder.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nkopuk"));
 
     const { result } = renderHook(() => useGeneration("düğün"));
@@ -176,12 +173,12 @@ describe("useGeneration", () => {
     await settle();
 
     expect(result.current.error).toContain("Sıra kaydedilemedi");
-    expect(result.current.photos.map((p) => p.file)).toEqual(["1_a.png", "0_a.png"]);
+    expect(result.current.frames.map((p) => p.file)).toEqual(["1_a.png", "0_a.png"]);
   });
 
   it("does not let a poll answer during a save bounce the order back", async () => {
     getStatus.mockResolvedValue(RUNNING);
-    listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
+    listFrames.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
     let finishSave;
     saveOrder.mockReturnValue(new Promise((resolve) => { finishSave = resolve; }));
 
@@ -191,14 +188,14 @@ describe("useGeneration", () => {
     act(() => { result.current.reorder(["0_a.png", "1_a.png"]); });
     await settle(2000);   // a poll lands mid-save carrying the server's older order
 
-    expect(result.current.photos.map((p) => p.file)).toEqual(["0_a.png", "1_a.png"]);
+    expect(result.current.frames.map((p) => p.file)).toEqual(["0_a.png", "1_a.png"]);
 
     await act(async () => { finishSave({ order: ["0_a.png", "1_a.png"] }); });
   });
 
   it("keeps the button disabled while the server reports it is stopping", async () => {
     getStatus.mockResolvedValue({ ...RUNNING, stopping: true });
-    listPhotos.mockResolvedValue([]);
+    listFrames.mockResolvedValue([]);
 
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();

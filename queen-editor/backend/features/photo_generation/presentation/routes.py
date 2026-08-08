@@ -1,5 +1,5 @@
 """/api/projects/<project>/generate · /api/status · /api/stop
-/api/projects/<project>/photos · /photos/<project>/<file>
+/api/projects/<project>/frames · /photos/<project>/<file>
 
 Translation only: no rules here. The use case's exception messages go out verbatim, so the wording
 lives in exactly one place (the domain).
@@ -22,7 +22,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
-                                    cancel_generation, retry_frame, get_queue, list_photos,
+                                    cancel_generation, retry_frame, list_frames,
                                     save_order, export_project, delete_photos, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
@@ -93,17 +93,11 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 409
         return jsonify({"job": "running"}), 202
 
-    @bp.get("/api/projects/<project>/queue")
-    def queue(project):
+    @bp.get("/api/projects/<project>/frames")
+    def frames(project):
+        # The gallery's whole sequence in one answer -- produced, pending and failed alike.
         try:
-            return jsonify(get_queue(project))
-        except ProjectMissing as exc:
-            return jsonify({"error": str(exc)}), 404
-
-    @bp.get("/api/projects/<project>/photos")
-    def photos(project):
-        try:
-            return jsonify({"photos": list_photos(project)})
+            return jsonify({"frames": list_frames(project)})
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
 

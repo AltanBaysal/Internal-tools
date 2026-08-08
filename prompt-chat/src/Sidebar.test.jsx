@@ -2,17 +2,19 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import Sidebar from "./Sidebar.jsx";
 
-// The tree itself is covered in ProjectTree.test.jsx; what is left here is the settings panel,
-// which is the only thing Sidebar still owns.
+// The lists themselves are covered in ProjectList.test.jsx and ChatList.test.jsx; what is left here
+// is what the sidebar itself owns — the settings panel and which of the two lists is showing.
 function show(extra = {}) {
   const props = {
-    projects: [{ id: 1, name: "Genel" }],
+    projects: [
+      { id: 1, name: "Genel" },
+      { id: 2, name: "Kampanya" },
+    ],
     files: [],
     chats: [{ id: 1, projectId: 1, messages: [], draft: "" }],
-    active: { projectId: 1, chatId: 1, fileId: null },
+    active: { projectId: 1, chatId: 1 },
     on: {
       openProject: vi.fn(), newProject: vi.fn(), deleteProject: vi.fn(),
-      openFile: vi.fn(), newFile: vi.fn(), deleteFile: vi.fn(),
       openChat: vi.fn(), newChat: vi.fn(), deleteChat: vi.fn(),
     },
     apiKey: "xai-123",
@@ -65,10 +67,42 @@ describe("the settings panel", () => {
   });
 });
 
-describe("the tree", () => {
-  it("is handed the workspace so the sidebar itself holds no list state", () => {
+describe("the two lists", () => {
+  it("starts on the open project's chats, under its name", () => {
     show();
-    expect(screen.getByText(/Genel/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "+ Yeni dosya" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "‹ Genel" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "+ Yeni sohbet" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "+ Yeni proje" })).toBeNull();
+  });
+
+  it("swaps to the project list when the name is clicked", () => {
+    show();
+    fireEvent.click(screen.getByRole("button", { name: "‹ Genel" }));
+    expect(screen.getByRole("button", { name: "+ Yeni proje" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "+ Yeni sohbet" })).toBeNull();
+  });
+
+  it("comes back to the chats once a project is picked", () => {
+    const props = show();
+    fireEvent.click(screen.getByRole("button", { name: "‹ Genel" }));
+    fireEvent.click(screen.getByText("Kampanya"));
+    expect(props.on.openProject).toHaveBeenCalledWith(2);
+    expect(screen.getByRole("button", { name: "+ Yeni sohbet" })).toBeTruthy();
+  });
+
+  it("comes back to the chats after adding a project", () => {
+    const props = show();
+    fireEvent.click(screen.getByRole("button", { name: "‹ Genel" }));
+    fireEvent.click(screen.getByRole("button", { name: "+ Yeni proje" }));
+    expect(props.on.newProject).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "+ Yeni sohbet" })).toBeTruthy();
+  });
+
+  it("stays on the project list after a delete, so more can follow", () => {
+    const props = show();
+    fireEvent.click(screen.getByRole("button", { name: "‹ Genel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Kampanya projesini sil" }));
+    expect(props.on.deleteProject).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "+ Yeni proje" })).toBeTruthy();
   });
 });

@@ -40,13 +40,15 @@ const BAR = { position: "absolute", left: "50%", bottom: 20, transform: "transla
 function Tile({ name, muted, danger, badge, selected, onCheck, children }) {
   const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
-    // The id is the only handle anything outside the gallery has on a single frame: the queue
-    // panel's "galeride göster" link scrolls to it without knowing how the grid is built.
-    <div id={`tile-${name}`} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ position: "relative",
                     ...(selected ? { outline: "2px solid var(--accent)", borderRadius: 4 } : {}) }}>
         {children}
-        {badge != null && <Mono size={10} style={BADGE}>{badge}</Mono>}
+        {/* A frame that is not a photo yet carries the same badge from the same sequence, only in
+            a fainter tone -- 20 pending becomes 20 produced. */}
+        {badge != null && (
+          <Mono size={10} style={muted ? { ...BADGE, opacity: 0.5 } : BADGE}>{badge}</Mono>
+        )}
         {selected && <div style={TINT} />}
         {onCheck && (
           <div data-check className={selected ? "qe-check qe-check--on" : "qe-check"}
@@ -61,11 +63,10 @@ function Tile({ name, muted, danger, badge, selected, onCheck, children }) {
   );
 }
 
-// Artboard 03/04/05: five columns, in the order the user dragged them into. The frame being
-// rendered sits at the front as a spinner tile, so the grid shows what is happening, not just what
-// landed -- it carries no badge because it has no place in the record yet.
-export default function Gallery({ project, photos, current, pending, failures, onReorder, onDelete,
-                                  onRetry }) {
+// Artboard 03/04/05: five columns, one sequence. Every frame stands in its own place whatever
+// became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
+// moving. Its state changes how it looks, never where it is.
+export default function Gallery({ project, frames, current, onReorder, onDelete, onRetry }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -105,7 +106,7 @@ export default function Gallery({ project, photos, current, pending, failures, o
     });
   }
 
-  if (photos === null) {
+  if (frames === null) {
     // First fetch still flying: "empty" is not known yet, so spin instead of a false
     // "henüz fotoğraf yok" (spec §2.3).
     return (
@@ -114,9 +115,7 @@ export default function Gallery({ project, photos, current, pending, failures, o
       </div>
     );
   }
-  const queued = pending || [];
-  const broken = failures || [];
-  if (!photos.length && !current && !queued.length && !broken.length) {
+  if (!frames.length) {
     return (
       <div style={{ ...PAD, ...EMPTY }}>
         <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz fotoğraf yok</Mono>
@@ -127,13 +126,16 @@ export default function Gallery({ project, photos, current, pending, failures, o
     );
   }
 
+  const done = frames.filter((frame) => frame.status === "done");
+
   function handleDrop() {
     const from = dragIndex;
     const to = overIndex;
     setDragIndex(null);
     setOverIndex(null);
     if (from === null || to === null || from === to) return;
-    const next = photos.map((photo) => photo.file);
+    // The whole sequence is sent, pending frames included: the order covers them too now.
+    const next = frames.map((frame) => frame.file);
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     onReorder(next);
@@ -144,81 +146,84 @@ export default function Gallery({ project, photos, current, pending, failures, o
     // last row scroll clear of it (the design asks for exactly that).
     <div style={{ ...PAD, position: "relative", paddingBottom: selecting ? 84 : PAD.padding }}>
       <div style={GRID}>
-        {current && (
-          <Tile name={`${current.number}_${current.letter}.png`} muted>
-            <ImgPH loading style={{ aspectRatio: "1/1" }} />
-          </Tile>
-        )}
-        {/* A frame that blew up stays on screen with its own way back: the run went on without it,
-            and Tekrar dene produces just this one, from the plan it was planned with. */}
-        {broken.map((file) => (
-          <Tile key={file} name={file} danger>
-            <div className="wf-img"
-                 style={{ aspectRatio: "1/1", borderColor: "var(--danger)",
-                          background: "var(--danger-bg)", backgroundImage: "none",
-                          display: "flex", flexDirection: "column", gap: 6 }}>
-              <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
-              <Btn sm onClick={() => onRetry(file)}
-                   style={{ color: "var(--danger)", borderColor: "var(--danger)",
-                            background: "transparent" }}>
-                <Icon.Regen /> Tekrar dene
-              </Btn>
-            </div>
-          </Tile>
-        ))}
-        {/* The queue, drawn before it exists: the run's remaining frames as faded dashed tiles, so
-            the gallery shows what is coming and not only what has landed. They carry no order
-            badge and cannot be dragged or selected -- there is no photo behind them yet. */}
-        {queued.map((file) => (
-          <Tile key={file} name={file} muted>
-            <div className="wf-img" style={{ aspectRatio: "1/1", borderStyle: "dashed",
-                                             opacity: 0.35 }}>
-              <Mono size={10} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
-            </div>
-          </Tile>
-        ))}
-        {photos.map((photo, index) => {
+        {frames.map((frame, index) => {
+          // The frame being rendered is a pending one the live worker happens to be holding: it
+          // has no state on disk, so the list cannot say so and the running file name does.
+          const state = frame.file === current ? "running" : frame.status;
+          const produced = state === "done";
+          // The badge counts up from the bottom: the oldest frame is 1, the newest is N, and a new
+          // frame on top never renumbers the ones below it.
+          const badge = frames.length - index;
           const dragging = index === dragIndex;
           const isSlot = index === overIndex && dragIndex !== null && !dragging;
           return (
             <div
-              key={photo.file}
+              key={frame.file}
               data-tile
+              // The id is the only handle anything outside the gallery has on a single frame: the
+              // queue panel's "galeride göster" link scrolls to it without knowing this grid.
+              id={`tile-${frame.file}`}
               className={selecting ? "qe-tile qe-tile--selecting" : "qe-tile"}
-              // While selecting, a press is a selection, not a drag: one gesture cannot mean two
-              // things.
-              draggable={!selecting}
-              onDragStart={() => setDragIndex(index)}
+              // Only a produced frame can be picked up: sorting is a visual decision, and there is
+              // nothing to look at yet on the others. While selecting, a press is a selection, not
+              // a drag -- one gesture cannot mean two things.
+              draggable={produced && !selecting}
+              onDragStart={() => produced && setDragIndex(index)}
               onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
               onDrop={handleDrop}
               onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
-              onClick={selecting ? () => toggle(photo.file) : undefined}
+              onClick={selecting && produced ? () => toggle(frame.file) : undefined}
               style={dragging ? DRAGGED : undefined}
             >
               {isSlot ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <div style={SLOT} />
                   {/* Keeps the row's height while the caption is hidden, so the grid does not jump. */}
-                  <Mono size={10} style={{ visibility: "hidden" }}>{photo.file}</Mono>
+                  <Mono size={10} style={{ visibility: "hidden" }}>{frame.file}</Mono>
                 </div>
               ) : (
-                <Tile name={photo.file} badge={index + 1} onCheck={() => toggle(photo.file)}
-                      selected={selected.includes(photo.file)}>
-                  {/* A real link so middle-click still opens a tab, but a plain click stays in the
-                      app instead of reloading the whole page. A drag never ends in a click, so the
-                      two gestures do not collide. The link and image are not draggable themselves
-                      -- otherwise the browser drags the URL instead of letting the tile reorder. */}
-                  <a href={photoPath(project, photo.file)} draggable={false}
-                     onClick={(e) => {
-                       e.preventDefault();
-                       if (!selecting) navigate(photoPath(project, photo.file));
-                     }}>
-                    <img src={photoUrl(project, photo.file)} alt={photo.file}
-                         loading="lazy" decoding="async" draggable={false}
-                         style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
-                                  border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
-                                  display: "block" }} />
-                  </a>
+                <Tile name={frame.file} badge={badge} muted={!produced}
+                      danger={state === "failed"}
+                      onCheck={produced ? () => toggle(frame.file) : undefined}
+                      selected={selected.includes(frame.file)}>
+                  {state === "done" ? (
+                    /* A real link so middle-click still opens a tab, but a plain click stays in
+                       the app instead of reloading the whole page. A drag never ends in a click,
+                       so the two gestures do not collide. The link and image are not draggable
+                       themselves -- otherwise the browser drags the URL instead of the tile. */
+                    <a href={photoPath(project, frame.file)} draggable={false}
+                       onClick={(e) => {
+                         e.preventDefault();
+                         if (!selecting) navigate(photoPath(project, frame.file));
+                       }}>
+                      <img src={photoUrl(project, frame.file)} alt={frame.file}
+                           loading="lazy" decoding="async" draggable={false}
+                           style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
+                                    border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
+                                    display: "block" }} />
+                    </a>
+                  ) : state === "running" ? (
+                    <ImgPH loading style={{ aspectRatio: "1/1" }} />
+                  ) : state === "failed" ? (
+                    /* A frame that blew up stays where it is with its own way back: the run went
+                       on without it, and Tekrar dene produces just this one. */
+                    <div className="wf-img"
+                         style={{ aspectRatio: "1/1", borderColor: "var(--danger)",
+                                  background: "var(--danger-bg)", backgroundImage: "none",
+                                  display: "flex", flexDirection: "column", gap: 6 }}>
+                      <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
+                      <Btn sm onClick={() => onRetry(frame.file)}
+                           style={{ color: "var(--danger)", borderColor: "var(--danger)",
+                                    background: "transparent" }}>
+                        <Icon.Regen /> Tekrar dene
+                      </Btn>
+                    </div>
+                  ) : (
+                    <div className="wf-img" style={{ aspectRatio: "1/1", borderStyle: "dashed",
+                                                     opacity: 0.35 }}>
+                      <Mono size={10} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
+                    </div>
+                  )}
                 </Tile>
               )}
             </div>
@@ -230,9 +235,9 @@ export default function Gallery({ project, photos, current, pending, failures, o
         <div className="wf-card wf-card--shadow" style={BAR}>
           <Mono size={12} style={{ color: "var(--accent)" }}>{selected.length} seçili</Mono>
           <Btn sm ghost
-               onClick={() => setSelected(selected.length === photos.length
+               onClick={() => setSelected(selected.length === done.length
                  ? []
-                 : photos.map((photo) => photo.file))}>
+                 : done.map((frame) => frame.file))}>
             Tümünü seç
           </Btn>
           <Btn sm disabled={!selected.length} onClick={() => setConfirming(true)}

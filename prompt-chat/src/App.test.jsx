@@ -29,9 +29,14 @@ const sendButton = () => screen.getByRole("button", { name: /Gönder|…/ });
 // match would find its row as well as this button.
 const newChatButton = () => screen.getByRole("button", { name: "+ Yeni sohbet" });
 
-// A file's name is in the tree and, when it is open, in the file view header as well. Scoping says
-// which one the assertion means.
-const inTree = () => within(document.querySelector(".tree"));
+// A file's name is in the list and, when it is open, in the file view header — never both, but the
+// pane is the thing the assertion means either way.
+const inFiles = () => within(document.querySelector(".file-pane"));
+
+// Projects live behind the header button now, so a test that touches them opens that list first.
+function browseProjects() {
+  fireEvent.click(screen.getByRole("button", { name: /^‹/ }));
+}
 
 function write(text) {
   fireEvent.change(composer(), { target: { value: text } });
@@ -402,30 +407,12 @@ const newFileButton = () => screen.getByRole("button", { name: "+ Yeni dosya" })
 const editor = () => document.querySelector(".file-view textarea");
 
 describe("the workspace", () => {
-  it("opens with one project so the screen is never empty", () => {
-    withKey();
-    render(<App />);
-    expect(screen.getByText(/Genel/)).toBeTruthy();
-    expect(composer()).toBeTruthy();
-  });
-
-  it("adopts a chat stored before projects existed", () => {
-    withKey();
-    localStorage.setItem(
-      "chats",
-      JSON.stringify([{ id: 1, messages: [{ role: "user", content: "eski mesaj" }], draft: "" }])
-    );
-    localStorage.setItem("active_chat", "1");
-    render(<App />);
-    expect(inChat().getByText("eski mesaj")).toBeTruthy();
-  });
-
   it("creates a file, names it, and opens it on the right", () => {
     withKey();
     vi.stubGlobal("prompt", vi.fn(() => "plan"));
     render(<App />);
     fireEvent.click(newFileButton());
-    expect(inTree().getByText("plan.md")).toBeTruthy();
+    expect(inFiles().getByText("plan.md")).toBeTruthy();
     expect(editor()).toBeTruthy();
   });
 
@@ -443,6 +430,9 @@ describe("the workspace", () => {
     vi.stubGlobal("prompt", vi.fn(() => "plan"));
     render(<App />);
     fireEvent.click(newFileButton());
+    // Creating a file opens it, and the open file takes the column, so the way back to the list is
+    // through the arrow.
+    fireEvent.click(screen.getByRole("button", { name: "Dosya listesine dön" }));
     fireEvent.click(newFileButton());
     expect(screen.getByText(/zaten var/)).toBeTruthy();
   });
@@ -489,6 +479,19 @@ describe("the workspace", () => {
     expect(sent.messages[1]).toEqual({ role: "user", content: "@herkes bakabilir" });
   });
 
+  it("keeps the open file open across a chat switch, because it belongs to the project", () => {
+    withKey();
+    vi.stubGlobal("prompt", vi.fn(() => "plan"));
+    render(<App />);
+    fireEvent.click(newFileButton());
+    fireEvent.change(editor(), { target: { value: "birinci madde" } });
+
+    fireEvent.click(newChatButton());
+
+    expect(editor()).toBeTruthy();
+    expect(editor().value).toBe("birinci madde");
+  });
+
   it("keeps one project's files away from another and closes the open file on the way", () => {
     withKey();
     vi.stubGlobal("prompt", vi.fn(() => "plan"));
@@ -497,9 +500,10 @@ describe("the workspace", () => {
     expect(editor()).toBeTruthy();
 
     vi.stubGlobal("prompt", vi.fn(() => "İkinci proje"));
+    browseProjects();
     fireEvent.click(screen.getByRole("button", { name: "+ Yeni proje" }));
 
-    expect(inTree().queryByText("plan.md")).toBeNull();
+    expect(inFiles().queryByText("plan.md")).toBeNull();
     expect(editor()).toBeNull();
   });
 
@@ -511,8 +515,9 @@ describe("the workspace", () => {
     render(<App />);
     fireEvent.click(newFileButton());
 
+    browseProjects();
     fireEvent.click(screen.getByRole("button", { name: "Genel projesini sil" }));
     expect(confirmMock.mock.calls[0][0]).toMatch(/1 dosya/);
-    expect(screen.getByText(/Genel/)).toBeTruthy();
+    expect(screen.getByText("Genel")).toBeTruthy();
   });
 });

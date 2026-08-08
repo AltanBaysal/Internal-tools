@@ -12,7 +12,8 @@ vi.mock("../../shared/router.js", () => ({
   photoPath: (project, file) => `/projects/${encodeURIComponent(project)}/photos/${file}`,
 }));
 
-const PHOTOS = [{ file: "2_a.png" }, { file: "1_a.png" }, { file: "0_a.png" }];
+const done = (file) => ({ file, status: "done" });
+const FRAMES = [done("2_a.png"), done("1_a.png"), done("0_a.png")];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -21,7 +22,7 @@ beforeEach(() => {
 // jsdom has no DataTransfer, so the component must not depend on one: it tracks the dragged tile
 // in its own state, which is also what makes the drop slot possible.
 function tileOf(name) {
-  return screen.getByText(name).closest("[data-tile]");
+  return document.getElementById(`tile-${name}`);
 }
 
 function checkOf(name) {
@@ -36,7 +37,7 @@ function photoOf(name) {
 
 function renderGallery(props) {
   return render(
-    <Gallery project="düğün" photos={PHOTOS} current={null} onReorder={() => {}}
+    <Gallery project="düğün" frames={FRAMES} current={null} onReorder={() => {}}
              onDelete={() => Promise.resolve()} {...props} />,
   );
 }
@@ -48,12 +49,12 @@ function dragTile(fromName, toName) {
 }
 
 describe("Gallery ordering", () => {
-  it("stamps the order badge on every frame", () => {
+  it("counts the badge up from the bottom, so the newest frame carries the largest number", () => {
     renderGallery();
 
-    expect(screen.getByText("1")).toBeTruthy();
-    expect(screen.getByText("2")).toBeTruthy();
-    expect(screen.getByText("3")).toBeTruthy();
+    expect(tileOf("2_a.png").textContent).toContain("3");
+    expect(tileOf("1_a.png").textContent).toContain("2");
+    expect(tileOf("0_a.png").textContent).toContain("1");
   });
 
   it("reports the new order when a frame is dropped", () => {
@@ -82,47 +83,65 @@ describe("Gallery ordering", () => {
       `/projects/${encodeURIComponent("düğün")}/photos/2_a.png`);
   });
 
-  it("gives no badge to a frame still being generated", () => {
-    renderGallery({ current: { number: 3, letter: "a", prompt: "p" } });
-
-    // Three photos, three badges -- the spinner tile is not in the record and has no place yet.
-    expect(screen.queryByText("4")).toBeNull();
-  });
 });
 
-describe("Gallery queue", () => {
-  it("lines pending frames up ahead of the photos", () => {
-    renderGallery({ pending: ["3_a.png", "3_b.png"] });
+describe("Gallery — one sequence, four states", () => {
+  const MIXED = [
+    { file: "4_a.png", status: "pending" },
+    { file: "3_a.png", status: "pending" },   // this one is the live worker's
+    { file: "2_a.png", status: "failed" },
+    done("1_a.png"),
+    done("0_a.png"),
+  ];
 
+  it("keeps every frame in its own place whatever became of it", () => {
+    renderGallery({ frames: MIXED, current: "3_a.png" });
+
+    const files = [...document.querySelectorAll("[data-tile]")]
+      .map((tile) => tile.id.slice("tile-".length));
+    expect(files).toEqual(["4_a.png", "3_a.png", "2_a.png", "1_a.png", "0_a.png"]);
+  });
+
+  it("badges the waiting and failed frames too, from the same sequence", () => {
+    renderGallery({ frames: MIXED, current: "3_a.png" });
+
+    expect(tileOf("4_a.png").textContent).toContain("5");
+    expect(tileOf("2_a.png").textContent).toContain("3");
+    expect(tileOf("0_a.png").textContent).toContain("1");
+  });
+
+  it("draws a failed frame once, red, with its own way back", () => {
+    const onRetry = vi.fn();
+    renderGallery({ frames: MIXED, current: null, onRetry });
+
+    // Once: not a red tile and a dashed one at the same time.
     expect(screen.getAllByText("bekliyor")).toHaveLength(2);
-    expect(screen.getByText("3_a.png")).toBeTruthy();
+    fireEvent.click(screen.getByText("Tekrar dene"));
+
+    expect(onRetry).toHaveBeenCalledWith("2_a.png");
   });
 
-  it("gives a pending frame no badge and no drag handle", () => {
-    renderGallery({ pending: ["3_a.png"] });
+  it("turns the frame the worker is holding into a spinner without moving it", () => {
+    renderGallery({ frames: MIXED, current: "3_a.png" });
 
-    const tile = screen.getByText("3_a.png").closest("[data-tile]");
-    expect(tile).toBeNull();          // queued tiles are not part of the reorderable grid
-    expect(screen.queryByText("4")).toBeNull();
+    // Four of the five are not photos; only the one the worker holds stops saying "bekliyor".
+    expect(screen.getAllByText("bekliyor")).toHaveLength(1);
+    expect(tileOf("3_a.png").textContent).toContain("4");
   });
 
-  it("does not claim the gallery is empty when a queue is waiting", () => {
-    renderGallery({ photos: [], pending: ["0_a.png"] });
+  it("lets only a produced frame be picked up", () => {
+    renderGallery({ frames: MIXED, current: null });
+
+    expect(tileOf("1_a.png").draggable).toBe(true);
+    expect(tileOf("4_a.png").draggable).toBe(false);
+    expect(tileOf("2_a.png").draggable).toBe(false);
+  });
+
+  it("does not claim the gallery is empty when only waiting frames are in it", () => {
+    renderGallery({ frames: [{ file: "0_a.png", status: "pending" }] });
 
     expect(screen.queryByText("henüz fotoğraf yok")).toBeNull();
     expect(screen.getByText("bekliyor")).toBeTruthy();
-  });
-});
-
-describe("Gallery failed frames", () => {
-  it("shows a failed frame with its own retry button", () => {
-    const onRetry = vi.fn();
-    renderGallery({ failures: ["3_a.png"], onRetry });
-
-    expect(screen.getByText("3_a.png")).toBeTruthy();
-    fireEvent.click(screen.getByText("Tekrar dene"));
-
-    expect(onRetry).toHaveBeenCalledWith("3_a.png");
   });
 });
 
