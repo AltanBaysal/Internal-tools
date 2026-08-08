@@ -4,6 +4,12 @@
 **Amaç:** Grok'un WAN 2.2 T2V prompt'u üretmedeki gücünü rahat denemek. Tek kullanıcı (geliştirici),
 kendi makinesinde, `localhost`.
 
+> **İki kararı sonradan değişti.** "Sohbetin kalıcılığı yok" ve "Queen Editor'ın tasarım dili
+> taşınmaz" maddelerinin yerini
+> [2026-08-08-prompt-chat-sohbet-listesi-design.md](2026-08-08-prompt-chat-sohbet-listesi-design.md)
+> alır: sohbetler `localStorage`'da saklanır ve palet/tipografi Queen Editor'a yaklaşır. Bu
+> dokümanın geri kalan kararları geçerlidir.
+
 Bu araç **Queen Editor değildir ve ona bağlı değildir** — kendi klasöründe durur, onun hiçbir
 dosyasını okumaz, kendi `package.json`'ı vardır. Bir deney tezgâhı: Grok'un çıktısı yeterince iyiyse
 aynı mantık ileride Queen Editor'ın içine yazılır ve bu araç düşer.
