@@ -244,44 +244,50 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
                       onCheck={state === "running" ? undefined : () => toggle(frame.file)}
                       selected={selected.includes(frame.file)}
                       hint={hint === frame.file ? "üretilince sıralanabilir" : null}>
-                  {state === "done" ? (
-                    /* A real link so middle-click still opens a tab, but a plain click stays in
-                       the app instead of reloading the whole page. A drag never ends in a click,
-                       so the two gestures do not collide. The link and image are not draggable
-                       themselves -- otherwise the browser drags the URL instead of the tile. */
-                    <a href={photoPath(project, frame.file)} draggable={false}
-                       onClick={(e) => {
-                         e.preventDefault();
-                         if (!selecting) navigate(photoPath(project, frame.file));
-                       }}>
+                  {/* Every frame opens its own page, produced or not -- the detail page knows all
+                      four states, and a waiting frame's prompt is only readable there. A real link
+                      so middle-click still opens a tab, but a plain click stays in the app instead
+                      of reloading the whole page. A drag never ends in a click, so the two gestures
+                      do not collide. The link is not draggable itself -- otherwise the browser
+                      drags the URL instead of the tile. */}
+                  <a href={photoPath(project, frame.file)} draggable={false}
+                     style={{ display: "block" }}
+                     onClick={(e) => {
+                       e.preventDefault();
+                       if (!selecting) navigate(photoPath(project, frame.file));
+                     }}>
+                    {state === "done" ? (
                       <img src={photoUrl(project, frame.file)} alt={frame.file}
                            loading="lazy" decoding="async" draggable={false}
                            style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
                                     border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
                                     display: "block" }} />
-                    </a>
-                  ) : state === "running" ? (
-                    <ImgPH loading style={{ aspectRatio: "1/1" }} />
-                  ) : state === "failed" ? (
-                    /* A frame that blew up stays where it is with its own way back: the run went
-                       on without it, and Tekrar dene produces just this one. */
-                    <div className="wf-img"
-                         style={{ aspectRatio: "1/1", borderColor: "var(--danger)",
-                                  background: "var(--danger-bg)", backgroundImage: "none",
-                                  display: "flex", flexDirection: "column", gap: 6 }}>
-                      <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
-                      <Btn sm onClick={() => onRetry(frame.file)}
-                           style={{ color: "var(--danger)", borderColor: "var(--danger)",
-                                    background: "transparent" }}>
-                        <Icon.Regen /> Tekrar dene
-                      </Btn>
-                    </div>
-                  ) : (
-                    <div className="wf-img" style={{ aspectRatio: "1/1", borderStyle: "dashed",
-                                                     opacity: 0.35 }}>
-                      <Mono size={10} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
-                    </div>
-                  )}
+                    ) : state === "running" ? (
+                      <ImgPH loading style={{ aspectRatio: "1/1" }} />
+                    ) : state === "failed" ? (
+                      /* A frame that blew up stays where it is with its own way back: the run went
+                         on without it, and Tekrar dene produces just this one. */
+                      <div className="wf-img"
+                           style={{ aspectRatio: "1/1", borderColor: "var(--danger)",
+                                    background: "var(--danger-bg)", backgroundImage: "none",
+                                    display: "flex", flexDirection: "column", gap: 6 }}>
+                        <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
+                        {/* Inside the link now, so it has to keep the click to itself: pressing
+                            Tekrar dene means retry, never "open this frame". */}
+                        <Btn sm onClick={(e) => { e.preventDefault(); e.stopPropagation();
+                                                  onRetry(frame.file); }}
+                             style={{ color: "var(--danger)", borderColor: "var(--danger)",
+                                      background: "transparent" }}>
+                          <Icon.Regen /> Tekrar dene
+                        </Btn>
+                      </div>
+                    ) : (
+                      <div className="wf-img" style={{ aspectRatio: "1/1", borderStyle: "dashed",
+                                                       opacity: 0.35 }}>
+                        <Mono size={10} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
+                      </div>
+                    )}
+                  </a>
                 </Tile>
               )}
             </div>

@@ -171,17 +171,23 @@ export function useGeneration(project) {
   // Only what the server says really went leaves the screen: a name that was already gone changes
   // nothing here, and the gallery keeps matching Drive. Both lists count -- a photo that left the
   // disk and a frame that only left the queue are equally out of the gallery.
+  // Resolves with the server's answer, or null when the request was refused: the detail page must
+  // not walk away from a frame that is still sitting in the queue.
   const removePhotos = useCallback((files) => (
     removeFrames(project, files)
       .then((body) => {
-        if (!alive.current) return;
+        if (!alive.current) return null;
         const gone = new Set([...(body?.deleted || []), ...(body?.removed || [])]);
         setFrames((current) => (current
           ? current.filter((frame) => !gone.has(frame.file))
           : current));
+        return body;
       })
       .catch((err) => {
-        if (alive.current) setError(`Kareler kaldırılamadı.\n${err.message}`);
+        // The server's own sentence, with no framing of ours wrapped around it -- the card that
+        // shows it supplies the heading, and it is the only side that knows what was attempted.
+        if (alive.current) setError(err.message);
+        return null;
       })
   ), [project]);
 

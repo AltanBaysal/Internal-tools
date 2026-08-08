@@ -4,8 +4,8 @@ import { photoUrl } from "../../shared/api.js";
 import { navigate, photoPath, projectPath } from "../../shared/router.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
-import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import { usePhotos } from "./usePhotos.js";
+import { Btn, Hand, Icon, ImgPH, Mono, Note } from "../../vendor/kit.jsx";
+import { useGeneration } from "./useGeneration.js";
 
 const HEADER = {
   display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
@@ -27,6 +27,12 @@ const SIDE = {
   display: "flex", flexDirection: "column", gap: 14, boxSizing: "border-box", minHeight: 0,
 };
 const LABEL = { color: "var(--ink-3)", letterSpacing: ".08em", textTransform: "uppercase" };
+// A frame with no photo yet still has to hold the stage: a square the height of the area, inside
+// the same 120px arrow gutter the photo keeps clear.
+const HOLDER = {
+  height: "100%", aspectRatio: "1/1", maxWidth: "calc(100% - 120px)", boxSizing: "border-box",
+  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8,
+};
 
 function Arrow({ glyph, side, onClick }) {
   // No handler means there is nowhere to go: the design says the ends do not wrap around, so the
@@ -41,17 +47,62 @@ function Arrow({ glyph, side, onClick }) {
   );
 }
 
-// Artboard 10: the photo as large as it fits at its own aspect ratio, between two arrows; the
-// 300px column on the right says where it sits, what it is called and what made it.
+function Field({ label, value, muted }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+      <Mono size={10} style={LABEL}>{label}</Mono>
+      <Mono size={13} style={{ color: muted ? "var(--ink-4)" : "var(--ink)" }}>{value}</Mono>
+    </div>
+  );
+}
+
+// Prompt and negative are the same block twice: both take an equal share of whatever the two small
+// fields leave behind, and each scrolls inside itself so a long negative cannot squeeze the prompt.
+function TextBlock({ label, text }) {
+  const empty = !text;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
+      <Mono size={10} style={LABEL}>{label}</Mono>
+      <div className="wf-stroke" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 10 }}>
+        {/* The box is drawn even with nothing in it: an empty negative is an answer, and a box that
+            came and went with the frame would make the column jump between frames. */}
+        <Note size={12} style={{ color: empty ? "var(--ink-4)" : "var(--ink-2)", display: "block",
+                                 lineHeight: 1.6 }}>
+          {empty ? "—" : text}
+        </Note>
+      </div>
+    </div>
+  );
+}
+
+// Artboard 10: the frame as large as it fits, between two arrows; the 300px column on the right
+// says where it sits, what it is called and what it was asked to be. Every frame in the gallery
+// opens here -- produced, waiting, being rendered or failed -- and the page is live, so the one the
+// worker is holding turns into its photo without a reload.
 export default function PhotoDetail({ project, file }) {
-  const { photos, error, remove } = usePhotos(project);
+  const { frames, current, error, removePhotos } = useGeneration(project);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Only a removal of ours puts the card on screen: the hook's error is also where a failed poll
+  // lands, and that one has nothing to do with this frame.
+  const [refused, setRefused] = useState(false);
 
-  const index = photos ? photos.findIndex((photo) => photo.file === file) : -1;
-  const current = index >= 0 ? photos[index] : null;
-  const previous = index > 0 ? photos[index - 1] : null;
-  const next = photos && index >= 0 && index < photos.length - 1 ? photos[index + 1] : null;
+  const index = frames ? frames.findIndex((frame) => frame.file === file) : -1;
+  const frame = index >= 0 ? frames[index] : null;
+  const previous = index > 0 ? frames[index - 1] : null;
+  const next = frames && index >= 0 && index < frames.length - 1 ? frames[index + 1] : null;
+  // The frame being rendered has no state on disk -- the live worker's file name is what says so,
+  // exactly as in the gallery.
+  const state = frame && frame.file === current ? "running" : frame?.status;
+  const produced = state === "done";
+
+  // The arrows swap the frame under a page that stays mounted, so anything said about the old one
+  // has to go with it -- a refusal card from the previous frame would read as this one's.
+  useEffect(() => {
+    setRefused(false);
+    setConfirming(false);
+    setBusy(false);
+  }, [file]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -64,14 +115,18 @@ export default function PhotoDetail({ project, file }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [project, previous, next, confirming]);
 
-  function handleDelete() {
+  // One button, two meanings: a photo is deleted from Drive and asks first, a frame only leaves the
+  // queue and does not. Where to go afterwards is decided before the list changes -- the next frame,
+  // the one before it when this was the last, or the gallery when nothing is left.
+  function handleRemove() {
     setBusy(true);
-    // Where to go afterwards is decided before the list changes: the next photo, the one before it
-    // when this was the last, or the gallery when nothing is left.
+    setRefused(false);
     const after = next || previous;
-    remove(file).then(() => {
+    return removePhotos([file]).then((body) => {
       setBusy(false);
       setConfirming(false);
+      // Refused: the frame is still there, so staying on it is the only honest thing to do.
+      if (!body) return setRefused(true);
       navigate(after ? photoPath(project, after.file) : projectPath(project));
     });
   }
@@ -86,9 +141,11 @@ export default function PhotoDetail({ project, file }) {
         </Btn>
       </div>
 
-      {photos === null ? (
+      {frames === null ? (
         <div style={STAGE}><span className="wf-spinner" /></div>
-      ) : !current ? (
+      ) : !frame ? (
+        // Not one of the three states the design draws, but a fourth thing: an address that names
+        // no frame at all -- a deleted one's old link, or a hand-typed URL.
         <div style={{ ...STAGE, flexDirection: "column", gap: 12 }}>
           <StatusErrorCard text="Fotoğraf bulunamadı" raw={error || file} />
         </div>
@@ -101,42 +158,54 @@ export default function PhotoDetail({ project, file }) {
                      : undefined} />
             <Arrow glyph="›" side="right"
                    onClick={next ? () => navigate(photoPath(project, next.file)) : undefined} />
-            {/* contain, not a fixed ratio: the server does not know the photo's shape, and the
-                design's rule is that it is never cropped. 120px is the design's own arrow gutter. */}
-            <img src={photoUrl(project, current.file)} alt={current.file}
-                 style={{ maxWidth: "calc(100% - 120px)", maxHeight: "100%", width: "auto",
-                          height: "auto", objectFit: "contain", display: "block" }} />
+            {produced ? (
+              /* contain, not a fixed ratio: the server does not know the photo's shape, and the
+                 design's rule is that it is never cropped. 120px is the design's own arrow gutter. */
+              <img src={photoUrl(project, frame.file)} alt={frame.file}
+                   style={{ maxWidth: "calc(100% - 120px)", maxHeight: "100%", width: "auto",
+                            height: "auto", objectFit: "contain", display: "block" }} />
+            ) : state === "running" ? (
+              <ImgPH loading style={HOLDER} />
+            ) : state === "failed" ? (
+              <div className="wf-img" style={{ ...HOLDER, borderStyle: "dashed",
+                                               borderColor: "var(--danger)",
+                                               background: "var(--danger-bg)",
+                                               backgroundImage: "none" }}>
+                <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
+                <Mono size={12} style={{ color: "var(--danger)" }}>üretilemedi</Mono>
+              </div>
+            ) : (
+              <div className="wf-img" style={{ ...HOLDER, borderStyle: "dashed", opacity: 0.5 }}>
+                <Mono size={12} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
+                <Note size={12} style={{ color: "var(--ink-3)" }}>henüz üretilmedi</Note>
+              </div>
+            )}
           </div>
 
           <div style={SIDE}>
             <div style={{ display: "flex", gap: 24 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <Mono size={10} style={LABEL}>Sıra</Mono>
-                <Mono size={13} style={{ color: "var(--ink)" }}>{index + 1} / {photos.length}</Mono>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                <Mono size={10} style={LABEL}>Dosya adı</Mono>
-                <Mono size={13} style={{ color: "var(--ink)" }}>{current.file}</Mono>
-              </div>
+              {/* The same number the tile carries: the badge counts up from the bottom, so walking
+                  down the gallery with › walks the counter down with it. */}
+              <Field label="Sıra" value={`${frames.length - index} / ${frames.length}`} />
+              {/* Nothing is on disk until the render lands, so every state but "produced" calls the
+                  name what it is: a plan. */}
+              <Field label={produced ? "Dosya adı" : "Dosya adı (planlanan)"} value={frame.file}
+                     muted={!produced} />
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
-              <Mono size={10} style={LABEL}>Prompt</Mono>
-              <div className="wf-stroke"
-                   style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 10 }}>
-                <Note size={12} style={{ color: "var(--ink-2)", display: "block",
-                                         lineHeight: 1.6 }}>
-                  {current.prompt}
-                </Note>
-              </div>
-            </div>
+            <TextBlock label="Prompt" text={frame.prompt} />
+            <TextBlock label="Negatif" text={frame.negative} />
 
-            {error && <StatusErrorCard text="Fotoğraf silinemedi" raw={error} />}
+            {refused && (
+              <StatusErrorCard text={produced ? "Fotoğraf silinemedi" : "Kare kuyruktan çıkarılamadı"}
+                               raw={error} />
+            )}
 
-            <Btn sm onClick={() => setConfirming(true)}
+            <Btn sm disabled={busy || state === "running"}
+                 onClick={produced ? () => setConfirming(true) : handleRemove}
                  style={{ color: "var(--danger)", borderColor: "var(--danger)",
                           justifyContent: "center" }}>
-              <Icon.Trash /> Sil
+              <Icon.Trash /> {produced ? "Sil" : "Kuyruktan çıkar"}
             </Btn>
           </div>
         </div>
@@ -145,7 +214,7 @@ export default function PhotoDetail({ project, file }) {
       {confirming && (
         <ConfirmModal title="Bu fotoğraf silinsin mi?" body="Bu işlem geri alınamaz."
                       confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={busy}
-                      onCancel={() => setConfirming(false)} onConfirm={handleDelete} />
+                      onCancel={() => setConfirming(false)} onConfirm={handleRemove} />
       )}
     </div>
   );

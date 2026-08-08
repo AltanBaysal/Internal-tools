@@ -286,6 +286,62 @@ describe("Gallery — selecting frames that are not photos yet", () => {
   });
 });
 
+describe("Gallery — every frame opens its own detail page", () => {
+  const MIXED = [
+    { file: "3_a.png", status: "pending" },
+    { file: "2_a.png", status: "pending" },   // the live worker is holding this one
+    { file: "1_a.png", status: "failed" },
+    done("0_a.png"),
+  ];
+
+  function renderMixed(props) {
+    return renderGallery({ frames: MIXED, current: "2_a.png", ...props });
+  }
+
+  it("links a waiting frame to the same address a photo would have", () => {
+    renderMixed();
+
+    expect(photoOf("3_a.png").getAttribute("href")).toBe(
+      `/projects/${encodeURIComponent("düğün")}/photos/3_a.png`);
+    fireEvent.click(photoOf("3_a.png"));
+
+    expect(navigate).toHaveBeenCalledWith(
+      `/projects/${encodeURIComponent("düğün")}/photos/3_a.png`);
+  });
+
+  it("links the frame being rendered and the failed one too", () => {
+    renderMixed();
+
+    fireEvent.click(photoOf("2_a.png"));
+    expect(navigate).toHaveBeenCalledWith(
+      `/projects/${encodeURIComponent("düğün")}/photos/2_a.png`);
+
+    fireEvent.click(photoOf("1_a.png"));
+    expect(navigate).toHaveBeenCalledWith(
+      `/projects/${encodeURIComponent("düğün")}/photos/1_a.png`);
+  });
+
+  it("selects a waiting frame instead of opening it while the mode is on", () => {
+    renderMixed();
+    fireEvent.click(checkOf("0_a.png"));
+
+    fireEvent.click(photoOf("3_a.png"));
+
+    expect(screen.getByText("2 seçili")).toBeTruthy();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed frame without opening its page", () => {
+    const onRetry = vi.fn();
+    renderMixed({ onRetry });
+
+    fireEvent.click(screen.getByText("Tekrar dene"));
+
+    expect(onRetry).toHaveBeenCalledWith("1_a.png");
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
 describe("Gallery — picking a tile up", () => {
   beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
   afterEach(() => vi.useRealTimers());
