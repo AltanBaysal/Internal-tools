@@ -1,10 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import GeneratePanel from "./GeneratePanel.jsx";
 
 const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4 };
 const PROMPT_BOX = '["ilk prompt", "ikinci prompt"]';
+const RUNNING = { status: "running", project: "düğün", done: 7, failed: 0, total: 48 };
 
 function renderPanel(props) {
   return render(
@@ -13,55 +14,135 @@ function renderPanel(props) {
       error={null}
       busyElsewhere={false}
       settings={SETTINGS}
-      onGenerate={() => Promise.resolve()}
+      onGenerate={() => Promise.resolve({ added: 4 })}
       onClearError={() => {}}
       {...props}
     />,
   );
 }
 
-describe("GeneratePanel — the form", () => {
-  it("offers the generate button with the fields", () => {
+const promptBox = () => screen.getByPlaceholderText(PROMPT_BOX);
+const variantBox = () => screen.getByRole("spinbutton");
+
+describe("GeneratePanel — the button", () => {
+  it("adds to the queue instead of starting a run", () => {
     renderPanel();
 
-    expect(screen.getByText("Üret")).toBeTruthy();
-    expect(screen.getByPlaceholderText(PROMPT_BOX)).toBeTruthy();
+    expect(screen.getByText("Üretime ekle")).toBeTruthy();
+    expect(screen.queryByText("Üret")).toBeNull();
   });
 
-  it("previews how many photos the list would make", () => {
-    renderPanel({ settings: { ...SETTINGS, prompts: '["a", "b"]', variants: 3 } });
+  it("stays open while the queue flows", () => {
+    renderPanel({ job: RUNNING });
 
-    expect(screen.getByText(/2 prompt × 3 varyant/)).toBeTruthy();
+    expect(promptBox().disabled).toBe(false);
+    expect(variantBox().disabled).toBe(false);
+    expect(screen.getByText("Üretime ekle").closest("button").disabled).toBe(false);
   });
 
-  it("keeps the run's own status out of the form", () => {
-    renderPanel({ job: { status: "running", project: "düğün", done: 7, total: 48 } });
+  it("is disabled on an empty list", () => {
+    renderPanel({ settings: { ...SETTINGS, prompts: "   " } });
 
-    expect(screen.queryByText("7 / 48")).toBeNull();
-    expect(screen.queryByText("Durdur")).toBeNull();
+    expect(screen.getByText("Üretime ekle").closest("button").disabled).toBe(true);
   });
 
-  it("says whose run is blocking when another project holds the worker", () => {
+  it("is disabled while another project holds the worker", () => {
     renderPanel({ job: { status: "running", project: "balo" }, busyElsewhere: true });
 
+    expect(screen.getByText("Üretime ekle").closest("button").disabled).toBe(true);
     expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
-    expect(screen.getByText("Üret").closest("button").disabled).toBe(true);
+  });
+
+  it("holds only the button while the request is in flight, never the fields", async () => {
+    let release;
+    renderPanel({ onGenerate: () => new Promise((resolve) => { release = resolve; }) });
+
+    fireEvent.click(screen.getByText("Üretime ekle"));
+
+    expect(screen.getByText("Ekleniyor…").closest("button").disabled).toBe(true);
+    expect(promptBox().disabled).toBe(false);
+
+    await act(async () => { release({ added: 4 }); });
+  });
+
+  it("never shows the prompt times variant preview", () => {
+    renderPanel({ settings: { ...SETTINGS, prompts: '["a", "b"]', variants: 3 } });
+
+    expect(screen.queryByText(/varyant =/)).toBeNull();
   });
 });
 
-describe("GeneratePanel — a field error", () => {
-  it("reddens the field the server named and writes its text underneath", () => {
-    renderPanel({ error: "Prompt listesi boş.", errorField: "prompts" });
+describe("GeneratePanel — the confirmation", () => {
+  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
+  afterEach(() => vi.useRealTimers());
 
-    expect(screen.getByText("Prompt listesi boş.")).toBeTruthy();
-    expect(screen.getByPlaceholderText(PROMPT_BOX).style.borderColor).toBe("var(--danger)");
+  it("quotes the number of frames the server took, then clears itself", async () => {
+    renderPanel({ onGenerate: () => Promise.resolve({ added: 48 }) });
+
+    fireEvent.click(screen.getByText("Üretime ekle"));
+
+    await waitFor(() => expect(screen.getByText("✓ 48 kare kuyruğa eklendi")).toBeTruthy());
+
+    await act(async () => { vi.advanceTimersByTime(4000); });
+
+    expect(screen.queryByText("✓ 48 kare kuyruğa eklendi")).toBeNull();
+  });
+
+  it("says one line when the queue would not take the frames", async () => {
+    renderPanel({ onGenerate: () => Promise.resolve(null) });
+
+    fireEvent.click(screen.getByText("Üretime ekle"));
+
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
+    expect(screen.queryByText(/kuyruğa eklendi/)).toBeNull();
+  });
+});
+
+describe("GeneratePanel — the variant box", () => {
+  it("refuses a value outside 1-26", () => {
+    renderPanel();
+
+    fireEvent.change(variantBox(), { target: { value: "27" } });
+    expect(variantBox().value).toBe("4");
+
+    fireEvent.change(variantBox(), { target: { value: "0" } });
+    expect(variantBox().value).toBe("4");
+
+    fireEvent.change(variantBox(), { target: { value: "26" } });
+    expect(variantBox().value).toBe("26");
+  });
+
+  it("snaps an emptied box back to 1 when it loses focus", () => {
+    renderPanel();
+
+    fireEvent.change(variantBox(), { target: { value: "" } });
+    expect(variantBox().value).toBe("");        // clearing has to be possible while typing
+
+    fireEvent.blur(variantBox());
+    expect(variantBox().value).toBe("1");
+  });
+
+  it("has no error state of its own", () => {
+    renderPanel({ error: "Varyant sayısı 1-26 arası bir tam sayı olmalı.", errorField: "variants" });
+
+    expect(variantBox().style.borderColor).toBe("");
+    expect(screen.queryByText("Varyant sayısı 1-26 arası bir tam sayı olmalı.")).toBeNull();
+  });
+});
+
+describe("GeneratePanel — a format error", () => {
+  it("reddens the prompt box and writes the server's one line underneath", () => {
+    renderPanel({ error: "Format hatası — liste okunamadı", errorField: "prompts" });
+
+    expect(screen.getByText("Format hatası — liste okunamadı")).toBeTruthy();
+    expect(promptBox().style.borderColor).toBe("var(--danger)");
   });
 
   it("clears the error once typing starts", () => {
     const onClearError = vi.fn();
-    renderPanel({ error: "Prompt listesi boş.", errorField: "prompts", onClearError });
+    renderPanel({ error: "Format hatası — liste okunamadı", errorField: "prompts", onClearError });
 
-    fireEvent.change(screen.getByPlaceholderText(PROMPT_BOX), { target: { value: '["a"]' } });
+    fireEvent.change(promptBox(), { target: { value: '["a"]' } });
 
     expect(onClearError).toHaveBeenCalled();
   });

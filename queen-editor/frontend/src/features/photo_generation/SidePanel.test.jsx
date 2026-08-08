@@ -65,10 +65,10 @@ describe("SidePanel — the icon rail", () => {
   it("names the open panel above it", () => {
     renderColumn();
 
-    expect(screen.getByText("Üretime ekle")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Üretime ekle" })).toBeTruthy();
 
     fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
 
-    expect(screen.getByText("Kuyruğu takip et")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Kuyruğu takip et" })).toBeTruthy();
   });
 });

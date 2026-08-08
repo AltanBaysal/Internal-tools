@@ -25,9 +25,18 @@ a.wf-btn {
   text-decoration: none;
 }
 
-/* The design's panel lock dims its first four blocks (Model + three fields). Our panel has no
-   Model block yet (Part 15), so the fourth child here is the action block -- undim it. */
-.wf-panel--locked > div:nth-child(4) {
-  opacity: 1;
-  pointer-events: auto;
+/* The "Ekleniyor…" indicator inside the add button: a ring with one quarter cut out, turning.
+   Ours, not the design system's -- hence the qe- prefix. */
+.qe-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: qe-spin 0.7s linear infinite;
+}
+
+@keyframes qe-spin {
+  to { transform: rotate(360deg); }
 }

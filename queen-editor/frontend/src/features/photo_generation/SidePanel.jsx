@@ -107,7 +107,9 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
   return (
     <div style={COLUMN}>
       <div className="wf-panel" style={PANEL}>
-        <Mono size={11} style={LABEL}>{current.title}</Mono>
+        {/* A real heading: the open panel's name is also the only thing on screen that says which
+            of the three you are looking at. */}
+        <h2 style={{ margin: 0 }}><Mono size={11} style={LABEL}>{current.title}</Mono></h2>
         {open === "add" && (
           <GeneratePanel job={job} error={error} errorField={errorField}
                          busyElsewhere={busyElsewhere} settings={settings}

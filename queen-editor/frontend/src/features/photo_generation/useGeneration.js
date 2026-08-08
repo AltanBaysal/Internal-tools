@@ -101,21 +101,26 @@ export function useGeneration(project) {
     (form) => {
       setError(null);
       setErrorField(null);
+      // Resolves with the server's answer (it carries how many frames the queue took) or null
+      // when the queue refused it -- the panel needs to tell those two apart.
       return generateBatch(project, form)
-        .then(() => {
-          if (!alive.current) return;
+        .then((body) => {
+          if (!alive.current) return null;
           setJob({ status: "running", project, done: 0, failed: 0, total: 0 });
           wasRunning.current = true;
           clearTimeout(timer.current);        // drop any chain already ticking, avoid a parallel one
           timer.current = setTimeout(poll, POLL_MS);
+          refreshQueue();                     // the new frames are owed from this moment on
+          return body;
         })
         .catch((err) => {
-          if (!alive.current) return;
+          if (!alive.current) return null;
           setError(err.message);
           setErrorField(err.field || null);
+          return null;
         });
     },
-    [project, poll],
+    [project, poll, refreshQueue],
   );
 
   // Resuming and cancelling are the paused view's two ways out. Both re-arm the poll: after a

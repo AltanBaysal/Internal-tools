@@ -74,3 +74,6 @@ def start_batch(runner, store, record, plan_store, generator, new_seed, now,
     # make, and a loop already in flight finds the frames on its next turn.
     plan_store.append(project, frames)
     run_queue(runner, store, record, plan_store, generator, now, project)
+    # How many frames the queue really took. The panel's own "12 prompt × 4 varyant" line is a
+    # preview it is not allowed to enforce, so the confirmation card quotes this instead.
+    return len(frames)

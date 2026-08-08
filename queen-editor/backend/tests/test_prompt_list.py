@@ -27,32 +27,24 @@ def test_empty_text_is_rejected():
     assert str(exc.value) == "Prompt listesi boş."
 
 
-def test_unreadable_text_reports_pythons_own_error():
+@pytest.mark.parametrize("text", ['["a", ', '"tek prompt"', "42", '["a", 3]', "{'a': 1}"])
+def test_every_unreadable_shape_gets_the_same_one_line(text):
+    with pytest.raises(InvalidPrompts) as exc:
+        parse_prompts(text)
+    assert str(exc.value) == "Format hatası — liste okunamadı"
+
+
+def test_the_format_error_gives_no_detail():
+    # The design's rule: no expected shape, no example, no line or column, no Python message.
     with pytest.raises(InvalidPrompts) as exc:
         parse_prompts('["a", ')
-    assert "Python listesi bekleniyor" in str(exc.value)
-    assert "[\"ilk prompt\"" in str(exc.value)      # shows an example
+    message = str(exc.value)
+    assert "örnek" not in message.lower()
+    assert "ilk prompt" not in message
+    assert "\n" not in message
 
 
-def test_bare_string_is_rejected():
-    with pytest.raises(InvalidPrompts) as exc:
-        parse_prompts('"tek prompt"')
-    assert "köşeli parantez" in str(exc.value)
-
-
-def test_non_list_is_rejected_with_its_type():
-    with pytest.raises(InvalidPrompts) as exc:
-        parse_prompts("42")
-    assert "int" in str(exc.value)
-
-
-def test_non_string_item_is_rejected():
-    with pytest.raises(InvalidPrompts) as exc:
-        parse_prompts('["a", 3]')
-    assert "metin" in str(exc.value)
-
-
-def test_list_of_only_empty_items_is_rejected():
+def test_a_list_of_only_empty_items_reads_as_an_empty_list():
     with pytest.raises(InvalidPrompts) as exc:
         parse_prompts('["", "   "]')
-    assert str(exc.value) == "Listede dolu prompt yok."
+    assert str(exc.value) == "Prompt listesi boş."

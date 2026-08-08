@@ -1,55 +1,53 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
+import { Icon, Mono, Note } from "../../vendor/kit.jsx";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 
 const PLACEHOLDER = '["ilk prompt", "ikinci prompt"]';
 
-/** Count for the "12 prompt × 4 varyant = 48 foto" line -- a preview, not a rule.
+const MAX_VARIANTS = 26;
+// Long enough to read, short enough to be out of the way before the next batch is typed.
+const CONFIRM_MS = 4000;
+
+/** What the box may hold while it is being typed in.
  *
- * The real parse and every error message live in the backend (domain/prompt_list.py). This only
- * decides whether we can show a number at all: anything it cannot read confidently hides the line,
- * so a wrong count can never be displayed. Trailing commas are stripped because a list pasted out
- * of a notebook usually has one and JSON does not allow it.
+ * The design's rule: a value outside the range cannot be written at all -- the keystroke is simply
+ * not taken, so there is no error state to design. Empty is allowed while the field has focus,
+ * because otherwise the number could never be replaced; leaving it empty is settled on blur.
  */
-function countPrompts(text) {
-  const body = text.trim().replace(/^[A-Za-z_]\w*\s*=\s*/, "").replace(/,(\s*\])/g, "$1");
-  try {
-    const value = JSON.parse(body);
-    if (!Array.isArray(value)) return null;
-    return value.filter((item) => typeof item === "string" && item.trim()).length;
-  } catch {
-    return null;
-  }
+function acceptsVariants(text) {
+  if (text === "") return true;
+  if (!/^\d+$/.test(text)) return false;
+  const value = Number(text);
+  return value >= 1 && value <= MAX_VARIANTS;
 }
 
 // Artboard 04: a pure form -- prompt list, one shared negative, variant count, and the button that
-// sends them. What the run has to say is not here: progress, pauses, failures and the finish card
-// all live in the queue panel (QueuePanel.jsx), which is what the icon rail is for.
+// puts them at the end of the queue. What the run has to say is not here: progress, pauses,
+// failures and the finish card all live in the queue panel (QueuePanel.jsx).
 export default function GeneratePanel({ job, error, errorField, busyElsewhere, settings,
                                         onGenerate, onClearError }) {
   // Initial values only: the screen mounts after the settings have loaded, so there is nothing to
   // sync afterwards and typing is never overwritten.
   const [prompts, setPrompts] = useState(settings.prompts);
   const [negative, setNegative] = useState(settings.negative);
-  // Text, not a number: the field has to survive being cleared while typing. Whatever is not a
-  // whole number goes to the server as null and comes back with the server's own message.
+  // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState(
     settings.variants === null ? "4" : String(settings.variants),
   );
   const [submitting, setSubmitting] = useState(false);
+  // How many frames the last submission added, straight from the server; null once it has faded.
+  const [added, setAdded] = useState(null);
+  const [refused, setRefused] = useState(false);
+  const fade = useRef(null);
 
-  const running = job.status === "running" && !busyElsewhere;
-  const locked = running || submitting;
-  const count = countPrompts(prompts);
+  useEffect(() => () => clearTimeout(fade.current), []);
+
   const perPrompt = Number(variants);
-  const planned = count !== null && Number.isInteger(perPrompt) && perPrompt > 0
-    ? count * perPrompt
-    : null;
-  // A field error belongs under its own box; anything else is the run's business and shows up in
-  // the queue panel instead (spec Part 7 §4).
-  const fieldError = errorField ? error : null;
+  // Only the prompt box has an error state; the variant box has none by design, and anything else
+  // the server refuses is reported as "Kuyruğa eklenemedi".
+  const promptError = errorField === "prompts" ? error : null;
 
   function edit(setter) {
     return (e) => {
@@ -58,20 +56,37 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
     };
   }
 
-  function handleGenerate() {
+  function editVariants(e) {
+    if (!acceptsVariants(e.target.value)) return;
+    setVariants(e.target.value);
+    if (errorField) onClearError();
+  }
+
+  function handleAdd() {
     setSubmitting(true);
+    setAdded(null);
+    setRefused(false);
+    clearTimeout(fade.current);
     onGenerate({
       prompts,
       negative,
       variants: Number.isInteger(perPrompt) && variants.trim() !== "" ? perPrompt : null,
-    }).finally(() => setSubmitting(false));
+    })
+      .then((result) => {
+        if (result && typeof result.added === "number") {
+          setAdded(result.added);
+          fade.current = setTimeout(() => setAdded(null), CONFIRM_MS);
+        } else {
+          setRefused(true);
+        }
+      })
+      // The list is deliberately not cleared: what the user typed must not disappear beyond
+      // recall, and the green card is what makes a second accidental add visible.
+      .finally(() => setSubmitting(false));
   }
 
   return (
-    // The lock dims the first four blocks (styles.css); app.css undims the fourth, which is the
-    // action block -- so the button keeps working while the fields are held.
-    <div className={locked ? "wf-panel--locked" : undefined}
-         style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
         <Mono size={11} style={LABEL}>Prompt listesi</Mono>
         <textarea
@@ -79,62 +94,59 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
           rows={11}
           value={prompts}
           placeholder={PLACEHOLDER}
-          disabled={locked}
           onChange={edit(setPrompts)}
           style={{ fontSize: 11.5, flex: 1, fontFamily: "IBM Plex Mono, monospace",
-                   ...(errorField === "prompts" ? { borderColor: "var(--danger)" } : {}) }}
+                   ...(promptError ? { borderColor: "var(--danger)" } : {}) }}
         />
-        {errorField === "prompts" && (
-          <Note size={12} style={{ color: "var(--danger)" }}>{fieldError}</Note>
-        )}
+        {promptError && <Note size={12} style={{ color: "var(--danger)" }}>{promptError}</Note>}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <Mono size={11} style={LABEL}>Negatif prompt</Mono>
+        <input className="wf-input" value={negative} onChange={edit(setNegative)}
+               style={{ fontSize: 12.5 }} />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <Mono size={11} style={{ ...LABEL, flex: 1 }}>Varyant</Mono>
         <input
           className="wf-input"
-          value={negative}
-          disabled={locked}
-          onChange={edit(setNegative)}
-          style={{ fontSize: 12.5 }}
+          type="number"
+          min={1}
+          max={MAX_VARIANTS}
+          value={variants}
+          onChange={editVariants}
+          onBlur={() => { if (variants === "") setVariants("1"); }}
+          style={{ width: 56, textAlign: "center", fontSize: 13 }}
         />
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Mono size={11} style={{ ...LABEL, flex: 1 }}>Varyant</Mono>
-          <input
-            className="wf-input"
-            type="number"
-            min={1}
-            max={26}
-            value={variants}
-            disabled={locked}
-            onChange={edit(setVariants)}
-            style={{ width: 56, textAlign: "center", fontSize: 13,
-                     ...(errorField === "variants" ? { borderColor: "var(--danger)" } : {}) }}
-          />
-        </div>
-        {errorField === "variants" && (
-          <Note size={12} style={{ color: "var(--danger)" }}>{fieldError}</Note>
-        )}
-      </div>
+        {/* Not the kit's Btn: the spinner has to sit inside the button while it is held. */}
+        <button
+          type="button"
+          className="wf-btn wf-btn--hl"
+          disabled={!prompts.trim() || busyElsewhere || submitting}
+          onClick={handleAdd}
+          style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}
+        >
+          {submitting
+            ? <><span className="qe-spinner" aria-hidden="true" /> Ekleniyor…</>
+            : <><Icon.Plus /> Üretime ekle</>}
+        </button>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <Btn hl disabled={!prompts.trim() || busyElsewhere || locked}
-             onClick={handleGenerate}
-             style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}>
-          {submitting ? "Başlatılıyor…" : <><Icon.Sparkle /> Üret</>}
-        </Btn>
-
-        {busyElsewhere ? (
+        {added !== null ? (
+          <div className="wf-stroke"
+               style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: 8,
+                        borderColor: "var(--ok)", background: "var(--ok-bg)" }}>
+            <Note size={12} style={{ color: "var(--ok)" }}>✓ {added} kare kuyruğa eklendi</Note>
+          </div>
+        ) : refused ? (
+          <Note size={12} style={{ color: "var(--danger)" }}>Kuyruğa eklenemedi</Note>
+        ) : busyElsewhere ? (
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Üretim sürüyor: {job.project} — bitmesini bekle.
           </Note>
-        ) : planned !== null ? (
-          <Mono size={11} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-            {count} prompt × {perPrompt} varyant = <span style={{ color: "var(--accent)" }}>{planned} foto</span>
-          </Mono>
         ) : null}
       </div>
     </div>

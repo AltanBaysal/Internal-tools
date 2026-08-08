@@ -31,9 +31,10 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   // Whose run the status describes: another project's queue must not draw tiles into this gallery.
   const mine = job.project === project;
 
-  // Pressing Üret persists the panel first, whether or not the batch is accepted -- text the
-  // server rejects is still what the user typed. Both writes land in the same folder, so settings
-  // that cannot be written mean the photos could not be either: say so and do not start.
+  // Pressing Üretime ekle persists the panel first, whether or not the frames are accepted -- text
+  // the server rejects is still what the user typed. Both writes land in the same folder, so
+  // settings that cannot be written mean the photos could not be either: say so and do not send.
+  // Answers with the server's body so the panel can quote how many frames the queue took.
   async function handleGenerate(form) {
     setSaveError(null);
     try {
@@ -42,9 +43,9 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
       });
     } catch (err) {
       setSaveError(err.message);
-      return;
+      return null;
     }
-    await generate(form);
+    return generate(form);
   }
 
   return (

@@ -142,6 +142,15 @@ def test_unknown_project_returns_404(tmp_path):
     assert "yok" in resp.get_json()["error"]
 
 
+def test_generate_reports_how_many_frames_the_queue_took(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    resp = generate(client, prompts='["a", "b"]', variants=3)
+
+    assert resp.status_code == 202
+    assert resp.get_json() == {"job": "running", "added": 6}
+
+
 def test_a_worker_held_by_another_project_returns_409(tmp_path):
     runner = PhotoRunner(spawn=lambda fn: None)
     client, _ = make_client(tmp_path, runner=runner)

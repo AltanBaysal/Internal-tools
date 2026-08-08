@@ -37,7 +37,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # No negative is legitimate (the batch renders without one); a non-string counts as none.
         negative = negative if isinstance(negative, str) else ""
         try:
-            start_batch(project, prompts, negative, body.get("variants"))
+            added = start_batch(project, prompts, negative, body.get("variants"))
         # Which box was wrong travels with the message: the screen marks that field instead of
         # guessing from the wording.
         except InvalidPrompts as exc:
@@ -48,8 +48,9 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 404
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
-        # 202: a batch runs for minutes, so the request only reports that the job was accepted.
-        return jsonify({"job": "running"}), 202
+        # 202: a batch runs for minutes, so the request only reports that the work was accepted.
+        # "added" is how many frames the queue took -- the panel quotes it back to the user.
+        return jsonify({"job": "running", "added": added}), 202
 
     @bp.get("/api/status")
     def status():

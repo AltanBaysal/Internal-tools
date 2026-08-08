@@ -8,7 +8,12 @@ import ast
 import re
 
 _ASSIGNMENT = re.compile(r"^[A-Za-z_]\w*\s*=\s*")
-_EXAMPLE = '["ilk prompt", "ikinci prompt"]'
+
+# One line, no detail. The design's rule: the box turns red and says only that the list could not
+# be read -- no expected shape, no example, no line or column, no Python message. What went wrong
+# is answered by looking at the text, and a long explanation under a small box was never read.
+UNREADABLE = "Format hatası — liste okunamadı"
+EMPTY = "Prompt listesi boş."
 
 
 class InvalidPrompts(Exception):
@@ -17,24 +22,21 @@ class InvalidPrompts(Exception):
 
 def parse_prompts(text):
     if not text or not text.strip():
-        raise InvalidPrompts("Prompt listesi boş.")
+        raise InvalidPrompts(EMPTY)
 
     body = _ASSIGNMENT.sub("", text.strip(), count=1)
     try:
         value = ast.literal_eval(body)
-    except (ValueError, SyntaxError, MemoryError, RecursionError) as exc:
-        # Python's own message, not a guess about what the user meant.
-        raise InvalidPrompts(f"Prompt listesi okunamadı — Python listesi bekleniyor, örnek: "
-                             f"{_EXAMPLE}. Python hatası: {exc}") from None
+    except (ValueError, SyntaxError, MemoryError, RecursionError):
+        raise InvalidPrompts(UNREADABLE) from None
 
-    if isinstance(value, str):
-        raise InvalidPrompts(f"Tek metin geldi — köşeli parantezli liste bekleniyor: {_EXAMPLE}")
-    if not isinstance(value, (list, tuple)):
-        raise InvalidPrompts(f"Liste bekleniyordu, {type(value).__name__} geldi. Örnek: {_EXAMPLE}")
-    if not all(isinstance(item, str) for item in value):
-        raise InvalidPrompts(f"Listenin her öğesi metin olmalı. Örnek: {_EXAMPLE}")
+    # A bare string, a number, a dict, a list holding anything but strings -- all the same answer.
+    if isinstance(value, str) or not isinstance(value, (list, tuple)) \
+            or not all(isinstance(item, str) for item in value):
+        raise InvalidPrompts(UNREADABLE)
 
     prompts = [item.strip() for item in value if item.strip()]
     if not prompts:
-        raise InvalidPrompts("Listede dolu prompt yok.")
+        # A list of blanks is an empty list, not a broken one.
+        raise InvalidPrompts(EMPTY)
     return prompts
