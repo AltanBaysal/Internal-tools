@@ -24,10 +24,16 @@ düzelt — kod değiştirmen gerekmez. Başka bir modele geçmek de aynı kutu.
 Enter gönderir, Shift+Enter alt satıra geçer. Her cevabın altındaki **Kopyala** metnin
 tamamını panoya alır; oradan `api.ipynb`'nin `PROMPTS` listesine yapıştırırsın.
 
-Sohbet bellekte durur: sayfayı yenilersen sıfırlanır. Anahtar ve model adı kalır.
+Solda sohbet listesi var: **+ Yeni sohbet** bir tane açar, satırın üstüne gelince çıkan `×`
+onay sorup siler. Sohbetler, hangisinde olduğun ve yarım bıraktığın metinler tarayıcının
+`localStorage`'ında durur — sekmeyi kapatıp yarın açsan kaldığın yerdesin.
 
-System prompt yoktur — talimatını ilk mesaj olarak sen yapıştırırsın. Böylece talimatı
-değiştirmek için kodu açman gerekmez; denenen şey modelin yanı sıra talimatın kendisi de.
+System prompt yoktur — talimatını ilk mesaj olarak sen yapıştırırsın. Talimatı bir kez
+yazdığın sohbet durduğu için her denemede yeniden yapıştırman gerekmez: o sohbete dönüp
+devam edersin. Denenen şey modelin yanı sıra talimatın kendisi de.
+
+Anahtar ve model adı sol alttaki **⚙ Ayarlar** içinde. Anahtar kayıtlıyken kapalı gelir,
+kayıtlı değilken kendiliğinden açılır.
 
 ## Test
 
@@ -39,6 +45,10 @@ Vitest, jsdom ortamında koşar: tarayıcı açılmaz, ağa çıkılmaz, `fetch`
 
 ## Sınırlar
 
-Bu bir tezgâh, ürün değil: tek kullanıcı, `localhost`, kalıcılık yok, deploy yok.
-`dist/` repo'ya girmez. Grok'un çıktısı yeterince iyiyse aynı mantık Queen Editor'ın içine
-yazılır ve bu araç düşer.
+Bu bir tezgâh, ürün değil: tek kullanıcı, `localhost`, deploy yok. `dist/` repo'ya girmez.
+
+Kalıcılık tek tarayıcının `localStorage`'ıdır — sunucu yok, yedek yok, senkron yok. Tarayıcı
+verisini silersen sohbetler gider. Silmenin geri alması da yok, onun için silme onay ister.
+Cevap beklerken sayfayı kapatırsan mesajın kalır, cevap gelmez; tekrar gönderirsin.
+
+Grok'un çıktısı yeterince iyiyse aynı mantık Queen Editor'ın içine yazılır ve bu araç düşer.

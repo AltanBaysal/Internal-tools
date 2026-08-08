@@ -69,11 +69,16 @@ A small React chat UI for drafting WAN 2.2 T2V prompts with Grok: [prompt-chat/]
 works because xAI allows cross-origin requests — there is no backend and adding one would solve
 nothing.
 
-**A bench, not a product.** One user, `localhost`, nothing persisted, never deployed. It shares no
-code or folder with any other tool here. If Grok's output proves good enough, the same logic gets
-written into Queen Editor and this tool goes away — which is why it uses Queen Editor's exact
-frontend stack and versions (React 18.3 / Vite 5.4 / Vitest 3.2): that move should be a copy, not a
-rewrite.
+**A bench, not a product.** One user, `localhost`, never deployed. It shares no code or folder with
+any other tool here. If Grok's output proves good enough, the same logic gets written into Queen
+Editor and this tool goes away — which is why it borrows Queen Editor's exact frontend stack and
+versions (React 18.3 / Vite 5.4 / Vitest 3.2) and its colour and type tokens: that move should be a
+copy, not a rewrite. Only the tokens are borrowed — `vendor/kit` is not.
+
+**The browser is the whole store.** Chats, which one is open, each chat's half-typed draft, the key
+and the model all live in `localStorage` — no server, no backup, no sync. Clearing browser data
+loses the chats, which is why deleting one asks for confirmation. A reply in flight when the page
+closes is simply lost; nothing tries to resume it.
 
 **`dist/` is not committed here.** Queen Editor commits its build because Colab never runs npm; this
 tool never reaches Colab, so the rule does not carry over.
@@ -83,7 +88,9 @@ page — never in the source, and never in `.env` (Vite inlines `VITE_` variable
 that would not hide anything). Keep it that way: a key committed into the source stays in git
 history and has to be revoked.
 
-Layering: `chat.js` is pure (no network, no React), `api.js` holds the only `fetch`, `App.jsx` and
-`Message.jsx` only render. `npm test` runs Vitest against jsdom with `fetch` stubbed. Design
-decisions:
-[docs/superpowers/specs/2026-08-08-prompt-chat-design.md](docs/superpowers/specs/2026-08-08-prompt-chat-design.md).
+Layering: `chat.js` and `storage.js` are pure (no network, no React, no `localStorage`), `api.js`
+holds the only `fetch`, `usePersisted.js` holds the only storage access, and `App.jsx` /
+`Sidebar.jsx` / `Message.jsx` only render. `npm test` runs Vitest against jsdom with `fetch`
+stubbed. Design decisions:
+[the first spec](docs/superpowers/specs/2026-08-08-prompt-chat-design.md) and
+[the chat list that superseded two of its decisions](docs/superpowers/specs/2026-08-08-prompt-chat-sohbet-listesi-design.md).
