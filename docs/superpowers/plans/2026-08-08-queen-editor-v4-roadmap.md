@@ -1,6 +1,10 @@
 # Queen Editor — Yol Haritası v4
 
-**Tarih:** 2026-08-08 · **Branch:** `feat/queen-editor-v2` · **Durum:** açık — tek aktif yol haritası
+**Tarih:** 2026-08-08 · **Branch:** `feat/queen-editor-v2` · **Durum:** **Madde 1-11 bitti ve push
+edildi (2026-08-09); geriye yalnız Madde 12 — kullanıcının Colab turu — kaldı.** Kapanış anındaki
+sayılar: arka uç **317** test, ön yüz **148** test, hepsi yeşil; `dist/` her maddede yeniden üretilip
+aynı commit'te gitti. Maddelerin altındaki **Spec** satırları o maddenin kararlarının yazılı olduğu
+yerdir.
 **Yerini aldığı doküman:** [2026-08-08-queen-editor-v3-roadmap.md](2026-08-08-queen-editor-v3-roadmap.md)
 — v3'ün Madde 1'i (tasarım) tamamlandı; Madde 2-6 tasarımdan **önce** yazıldığı için tasarımla sekiz
 yerde çelişiyordu ve bu belgede yenilendi; Madde 7-9 aynen taşındı.
@@ -188,6 +192,7 @@ Kuyruktan toplu çıkarmanın yolu ve uygulama geneli silme dili.
   galerideki fotoğraflara dokunulmaz.
 - **Kodlar:** G6, G7, G8, G11, N1 · **sapmalar:** seçim çubuğunun 0 seçiliyken durması · seçim
   çubuğunun yüzmemesi · sıralamanın basılı tutma eşiği olmadan başlaması
+- **Spec:** [Madde 6 — Seçim modu](../specs/2026-08-08-queen-editor-v4-madde-6-secim-modu-design.md)
 
 ## Madde 7 — Bekleyen ve çalışan karenin detayı
 
@@ -203,6 +208,7 @@ Detay sayfası üç hâli de tanır.
 - **Yok:** seed alanı (tasarım hiçbir ekranda istemiyor); prompt düzenleme ve **Yeniden üret**
   (kapsam dışı).
 - **Kodlar:** F1-F5
+- **Spec:** [Madde 7 — Bekleyen kare detayı](../specs/2026-08-09-queen-editor-v4-madde-7-bekleyen-kare-detayi-design.md)
 
 ## Madde 8 — Durma kuralı ve hata
 
@@ -217,6 +223,9 @@ Ne zaman durulur, ne zaman devam edilir.
   satırı; düzelt → kuyruk kaldığı yerden akar. Bir kare patlasın → üretim sürer, kırmızı karede
   Tekrar dene basılabilir ve kare sonda yeniden üretilir.
 - **Kodlar:** P26, G10 · **sapma:** üretim sürerken Tekrar dene'nin çalışmaması
+- **Spec:** [Madde 8 — Durma kuralı](../specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)
+  — "ölümcül"ün mekanik tanımı, denemeler arası beklemenin reddi ve proje açılınca otomatik devam
+  orada karara bağlandı.
 
 ## Madde 9 — Projeler ekranı
 
@@ -229,6 +238,9 @@ Hiçbir maddenin uğramadığı tek ekran; sapmaları burada toplanıyor.
   kendi içinde kayar.
 - **Kodlar:** N3, N4 · **sapmalar:** boş proje adında uyarı çıkmaması · uyarının yazarken değil
   basınca çıkması
+- **Spec:** [Madde 9 — Projeler ekranı](../specs/2026-08-09-queen-editor-v4-madde-9-projeler-ekrani-design.md)
+  — iki açık soru kullanıcı kararıyla kapandı: silme butonu **kırmızı çerçeveli çöp ikonu**, uzun
+  listede **sayfa kayar** (ızgaranın kendi kaydırması yok, bu yüzden N3'te kod değişmedi).
 
 ## Madde 10 — Çoklu model
 
@@ -240,6 +252,9 @@ v3'ten devreden bağımsız en büyük iş; hiçbir madde buna bağımlı değil
 - **Nasıl görülür:** modeli değiştir, üret → görünür şekilde farklı sonuç; projeyi yeniden aç →
   seçim durur.
 - **Kodlar:** P12 · **sapma:** model alanının hiç olmaması
+- **Spec:** [Madde 10 — Çoklu model](../specs/2026-08-09-queen-editor-v4-madde-10-coklu-model-design.md)
+  — "hangi modeller kurulacak" sorusu uygulamadan çıktı: liste ComfyUI'ye sorulur, model eklemek
+  notebook CONFIG'inde bir satırdır.
 
 ## Madde 11 — Üretim süresi ölçümü
 
@@ -252,8 +267,9 @@ tahminle değil ölçümle verilmesi için.
 - **Nasıl görülür:** üretim sürerken hücre her kare bittiğinde bir satır basar; GPU'yu değiştirip
   aynı grafı koşunca fark rakamla görünür.
 - **Yok:** ortalama/özet paneli, grafik, GPU model tespiti.
-- **Açık soru:** süre foto detay sayfasında da görünsün mü — tasarımın çizdiği yan sütunda süre alanı
-  yok, v3 ise oraya koymayı istiyordu. Bu maddenin planında karara bağlanır.
+- **Spec:** [Madde 11 — Üretim süresi](../specs/2026-08-09-queen-editor-v4-madde-11-uretim-suresi-design.md)
+  — açık soru kapandı: süre **detay sayfasında görünmeyecek** (tasarımın yan sütununda süre alanı
+  yok, seed alanının olmadığı gerekçenin aynısı).
 
 ## Madde 12 — Colab doğrulaması (toplu)
 
@@ -269,6 +285,27 @@ En sonda, tek dalgada.
   bağlantı kartı; kuyruğa iş atılır, biri çıkarılır, sekme kapatılıp açılır → kuyruk kaldığı yerden
   akar ve galeri aynı sırada durur.
 - **Yok:** v3'ün F2-F5 maddeleri yerine artık tasarımın duraklat/devam/boşalt akışı denenir.
+
+**Deneme listesi (sırayla):**
+
+| # | Ne yapılır | Beklenen |
+|---|---|---|
+| 1 | Proje aç, prompt yaz, **Üretime ekle** | Yeşil "N kare kuyruğa eklendi", kareler galerinin üstünde kesikli kutu olarak belirir |
+| 2 | Üretim akarken **ikinci parti** at | Panel kilitlenmez, yeni kareler kuyruğun sonuna girer, çalışan kare kesilmez |
+| 3 | Kuyruk akarken galeriye bak | Galeri hiç oynamaz; tek değişen, bir karenin kesikli kutudan fotoğrafa dönmesi |
+| 4 | Bekleyen bir kareye tıkla | Detay açılır: kesikli "henüz üretilmedi", prompt + negatif, **Kuyruktan çıkar** (onay sormaz) |
+| 5 | Çalışan kareyi detayda aç, bekle | Dönen gösterge fotoğrafa döner, **sayfa yenilenmeden** |
+| 6 | Oklarla galeri boyunca gez | Sayaç rozetle aynı sayıyı yazar; `›` aşağı gider, uçlarda ok pasifleşir |
+| 7 | Bekleyen kareleri seç → **Çıkar** | "N kare kuyruktan çıkarılsın mı?" — üretilmezler, fotoğraflara dokunulmaz |
+| 8 | **Duraklat** → **Devam et** → **Kuyruğu boşalt** | Duraklat çalışan kareyi keser ve kare kuyruğa döner; boşalt onay ister, sonra "Kuyruk boş" |
+| 9 | Modeli değiştir, üret *(ikinci model kuruluysa)* | Görünür şekilde farklı sonuç; projeyi kapatıp açınca seçim durur |
+| 10 | ComfyUI'ı öldür (`pkill -f 'python main.py'`) | **Aynı kare** üç kez denenir, sonra kırmızı "Üretim durdu" + sunucunun teknik satırı; **kırmızı kare oluşmaz** |
+| 11 | ComfyUI'ı geri başlat → **Kaldığı yerden devam et** | Kuyruk aynı kareden akar |
+| 12 | Tek kare patlasın (bozuk prompt) | Üretim sürer, kare kırmızı kalır, **Tekrar dene** basılabilir ve kare **sonda** yeniden üretilir |
+| 13 | Sayfayı yenile | Kırmızı kare yerinde durur, kuyruk kaldığı yerden akar |
+| 14 | Colab runtime'ı kapat | ~12 sn içinde bağlantı kartı; runtime dönünce toparlanır |
+| 15 | Sunucu hücresinin çıktısına bak | Her üretilen kare için `⏱ 3_a.png · render … sn · drive … sn` satırı |
+| 16 | Projeler ekranında ad kutusuna geçersiz karakter yaz | Uyarı **yazarken** çıkar, **Oluştur** pasif kalır |
 
 ---
 
@@ -352,17 +389,24 @@ hiç söz etmediği için listelenmişti. Kaldıran bir karar yok; hepsi kalır.
 biriyle çakışırsa kararı orada verir — Madde 4'ün bağlantı kartı metnini yeni sayaç diline çevirmesi
 gibi.
 
-## Açık sorular (ilgili maddenin planında karara bağlanır)
+## Açık sorular — hepsi kapandı
 
-- **Varyant kutusunun davranışı** (Madde 3): geçersiz değer kutuya hiç girilemesin mi, boş bırakılınca
-  kendiliğinden 1'e mi dönsün? Üst sınır 26'da karara bağlandı, kalanı açık.
-- **Proje kartının silme butonu** (Madde 9): tasarım kendi içinde çelişiyor — genel kuralı çerçeveli
-  ve yazılı buton istiyor, kendi proje kartı çiziminde yalnız kırmızı çöp ikonu var (fark belgesi 8.4).
-- **Uzun proje listesi** (Madde 9): yazılı anlatı "ızgaranın kendi içinde kaydırma alanı yok" diyor,
-  çizim kaydırma çubuğu ve solma perdesi koyuyor (fark belgesi 8.7).
-- **Üretim süresi detayda görünsün mü** (Madde 11).
-- **Model listesi** (Madde 10): hangi modeller kurulacak.
+| Soru | Karar | Nerede |
+|---|---|---|
+| Varyant kutusunun davranışı (Madde 3) | Geçersiz değer kutuya **hiç girilemez**; boş bırakılan kutu odak kaybında **1'e döner**. Üst sınır 26. | Madde 3 |
+| Proje kartının silme butonu (8.4) | **Kırmızı çerçeve + kırmızı çöp ikonu**, yazısız — *kullanıcı kararı* | Madde 9 |
+| Uzun proje listesi (8.7) | **Sayfa kayar**, ızgaranın kendi kaydırma alanı yok — *kullanıcı kararı*; bugünkü davranış, kod değişmedi | Madde 9 |
+| Üretim süresi detayda görünsün mü | **Hayır** — tasarımın yan sütununda süre alanı yok | Madde 11 |
+| Hangi modeller kurulacak | Uygulamanın sorusu değil: liste ComfyUI'ye sorulur, kurulacaklar notebook CONFIG'inde | Madde 10 |
 
 ## Sıradaki adım
 
-**Madde 1** — tasarım dokümanı (spec) → uygulama planı → TDD ile uygulama.
+**Madde 12 — Colab doğrulaması, kullanıcı koşar.** Kod tarafı bitti: Madde 1-11 uygulandı, testler
+yeşil, `dist/` güncel ve her şey `feat/queen-editor-v2` dalına push edildi. Notebook artık bu dalı
+klonluyor (önce `feat/queen-editor-v1`'i klonluyordu, yani bir Colab turu eski kodu denerdi).
+
+Denemeden önce **iki elle yapılacak iş** var:
+- **İkinci bir model kur** ki model seçimi görünür şekilde denenebilsin: `app.ipynb`'nin model
+  hücresindeki `CIVITAI_MODELS` (ya da `OPEN_MODELS`) listesine bir satır eklemek yeter. Tek modelle
+  de her şey çalışır, yalnız "modeli değiştir → farklı sonuç" adımı denenemez.
+- Colab **Secrets**'ta `GITHUB_TOKEN` ve `CIVITAI_COOKIE` güncel olmalı (cookie ~30 günde bir ölür).
