@@ -8,6 +8,8 @@ Internal tools monorepo. Each tool lives in its own subfolder; currently three t
 
 **If a command really is needed, state the reason explicitly first** — one sentence on which job you couldn't do with which tool and what the command gives you, then run it.
 
+**Don't spawn subagents or run workflows unless explicitly asked for them.** Research, reading and multi-file work happen inline, with the ordinary tools. A subagent run is expensive and returns nothing at all when it is interrupted before finishing — the output is lost whole, not partially, so the cost is paid for zero.
+
 ## collab-toolbox — Colab notebooks
 
 AI media generation/cleanup notebooks (`.ipynb`) that run on Google Colab. Each notebook is self-contained; the shared input/output channel is **Google Drive** (`MyDrive/...`). Most tools bring ComfyUI up in the background as an API and batch-process files from Drive.
@@ -45,9 +47,11 @@ A web UI over the same ComfyUI photo pipeline as `nova-3dcg`, running on Colab. 
 principles and stack decisions live in [queen-editor/FOUNDATION.md](queen-editor/FOUNDATION.md);
 structure and layering rules in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the
 build order is the roadmap
-[docs/superpowers/plans/2026-08-08-queen-editor-v3-roadmap.md](docs/superpowers/plans/2026-08-08-queen-editor-v3-roadmap.md)
-(v2 is closed — its chapters 1-14 are done and archived in
-[the v2 roadmap](docs/superpowers/plans/2026-08-03-queen-editor-v2-roadmap.md)).
+[docs/superpowers/plans/2026-08-08-queen-editor-v4-roadmap.md](docs/superpowers/plans/2026-08-08-queen-editor-v4-roadmap.md),
+whose items are grounded in
+[the design v2 difference report](docs/superpowers/research/2026-08-08-queen-editor-tasarim-v2-farklari.md)
+(the [v3](docs/superpowers/plans/2026-08-08-queen-editor-v3-roadmap.md) and
+[v2](docs/superpowers/plans/2026-08-03-queen-editor-v2-roadmap.md) roadmaps are closed).
 
 **Same engine, separate tool.** Queen Editor depends on nothing under `collab-toolbox/` at runtime;
 it inherits the graph and the node ids as knowledge and writes its own code for them. The boundary,

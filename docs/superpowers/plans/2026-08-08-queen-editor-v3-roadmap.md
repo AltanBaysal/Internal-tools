@@ -1,6 +1,9 @@
 # Queen Editor — Yol Haritası v3
 
-**Tarih:** 2026-08-08 · **Branch:** `feat/queen-editor-v1` · **Durum:** açık — tek aktif yol haritası
+**Tarih:** 2026-08-08 · **Branch:** `feat/queen-editor-v1` · **Durum:** **kapandı**
+**Yerini alan doküman:** [2026-08-08-queen-editor-v4-roadmap.md](2026-08-08-queen-editor-v4-roadmap.md)
+— Madde 1 (tasarım) tamamlandı; Madde 2-6 tasarımdan önce yazıldığı için tasarımla çelişiyordu ve
+orada yenilendi; Madde 7-9 oraya taşındı. Bu belge kayıt olarak duruyor, artık takip edilmiyor.
 **Yerini aldığı doküman:** [2026-08-03-queen-editor-v2-roadmap.md](2026-08-03-queen-editor-v2-roadmap.md)
 — Bölüm 1-14 orada tamamlandı ve kapandı; o belgeden kalan iki iş (Colab doğrulamasının G/H
 maddeleri ve çoklu model) buraya taşındı.

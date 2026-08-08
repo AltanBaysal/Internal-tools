@@ -38,6 +38,15 @@ Bunların yanında iki uygulama geneli karar var: **yıkıcı eylem butonu** her
 (dolgusuz kırmızı + çöp ikonu, dolu kırmızı hiçbir yerde yok) ve **silme onayının dili** seçimin
 içeriğine göre üçe ayrılıyor — bekleyen kareye "fotoğraf silinsin mi?" demek yanlış olurdu.
 
+Analiz tamamlandıktan **sonra** tasarıma bir adım daha eklendi: **Yeniden üret** — beğenilmeyen
+fotoğrafın prompt'u detay sayfasında değiştirilip kare yerinde yenileniyor.
+
+> **Karar (2026-08-08): Yeniden üret kapsam dışı — uygulanmayacak.** Gerekçe: getirdiği karmaşıklık
+> kazandırdığına değmiyor. Belgede silinmedi, **kapsam dışı** olarak işaretli kaldı (F6-F10 satırları
+> ve 3. bölümün sonundaki alt başlık): tasarım projesinde bu adım duruyor, dolayısıyla tasarımla
+> uygulamayı bir dahaki karşılaştıran onu "atlanmış bir fark" sanmasın. Bu maddeler zaten üç yollu
+> çakıştırmadan da geçmemişti.
+
 ---
 
 ## 2 · Doğrulama tablosu
@@ -60,9 +69,9 @@ içeriğine göre üçe ayrılıyor — bekleyen kareye "fotoğraf silinsin mi?"
 | P10 | Format hatası tek satıra iniyor, detay verilmiyor | davranış | ● | ● | ● | 3/3 |
 | P11 | Format hatası akan kuyruğu etkilemiyor | davranış | — | ● | ● | 2/3 |
 | P12 | Model açılır listesi geliyor | davranış | ● | ● | ● | 3/3 |
-| P13 | Varyant 1–8'e iniyor, hata durumu kalkıyor | davranış | ● | — | ● | 2/3 |
+| P13 | Varyant 1–8'e iniyor, hata durumu kalkıyor — **sınır reddedildi, 26 kalıyor; gerisi açık** | davranış | ● | — | ● | 2/3 |
 | P14 | **Durdur** → **Duraklat** + "Duraklatılıyor…" ara durumu | davranış | ● | ● | ● | 3/3 |
-| P15 | Duraklatınca çalışan karenin akıbeti | davranış | ● | ● | ● | **çelişki** |
+| ~~P15~~ | Duraklatınca çalışan karenin akıbeti — **bugünkü davranış kalıyor, kare kesilecek** | davranış | ● | ● | ● | **karara bağlandı** |
 | P16 | Sayaç paydayı bırakıyor → "N kare bekliyor" | görsel | ● | ● | ● | 3/3 |
 | P17 | İlerleme çubuğu ve yüzde kalkıyor | görsel | ● | ● | ● | 3/3 |
 | P18 | "şimdi: …" satırı kalkıyor | görsel | ● | ● | ● | 3/3 |
@@ -73,7 +82,7 @@ içeriğine göre üçe ayrılıyor — bekleyen kareye "fotoğraf silinsin mi?"
 | P23 | Bitiş kartı "N kare üretildi" + hatalı aynı cümlede | davranış | ● | ● | ● | 3/3 |
 | P24 | "Kuyruk boş" diye ayrı bir hâl geliyor | davranış | ● | ● | ● | 3/3 |
 | P25 | Hatalı kare satırı tıklanabilir: "galeride göster" | davranış | ● | ● | ● | 3/3 |
-| P26 | Durma kuralı: "3 ardışık başarısız kare" mi, "3 deneme" mi | davranış | ● | ● | ● | **çelişki** |
+| P26 | Durma kuralı — **tasarımın kuralı alınıyor: aynı iş 3 kez denenir, sonra durulur** | davranış | ● | ● | ● | **karara bağlandı** |
 | P27 | Kalan kare sayısı 26 puntoya büyüyor | görsel | — | ✎ | — | 1/3 |
 | P28 | Sağ sütun 320 → 368 piksele çıkıyor | görsel | — | ✎ | — | 1/3 |
 | P29 | AI agent paneli açılıyor (içi boş) | görsel | ● | ● | ● | 3/3 |
@@ -86,7 +95,7 @@ içeriğine göre üçe ayrılıyor — bekleyen kareye "fotoğraf silinsin mi?"
 | G2 | Bekleyen ve çalışan karede de rozet (soluk tonda) | görsel | ● | ● | ● | 3/3 |
 | G3 | Dört kova tek diziye iniyor; kare yerinde fotoğrafa dönüşüyor | davranış | ● | ● | ● | 3/3 |
 | G4 | Çalışan kare bekleyenlerin **altına** iniyor | görsel | — | ● | ● | 2/3 |
-| G5 | Hatalı karenin ızgaradaki yeri | görsel | ● | ● | — | **çelişki** |
+| G5 | Hatalı karenin ızgaradaki yeri — **o da kendi sırasında; istisna yok** | görsel | ● | ● | — | **karara bağlandı** |
 | G6 | Bekleyen kareler de seçilebiliyor; çalışanda daire hiç yok | davranış | ● | ● | ● | 3/3 |
 | G7 | Bekleyen karta basılı tutunca "üretilince sıralanabilir" ipucu | davranış | ● | ● | ● | 3/3 |
 | G8 | Silme onayı seçimin içeriğine göre üç metne bölünüyor | davranış | ● | ● | ● | 3/3 |
@@ -104,6 +113,18 @@ içeriğine göre üçe ayrılıyor — bekleyen kareye "fotoğraf silinsin mi?"
 | F3 | Sıra sayacı ve oklar bekleyen + çalışan kareleri de sayıyor | davranış | ● | ● | ● | 3/3 |
 | F4 | Bekleyende buton **Kuyruktan çıkar**, onay sormuyor | davranış | ● | ● | ● | 3/3 |
 | F5 | Bekleyende "Dosya adı (planlanan)", soluk tonda | görsel | — | ● | ● | 2/3 |
+| ~~F6~~ | Prompt ve negatif kutuları **düzenlenebilir** oluyor | davranış | ↺ | ↺ | ↺ | **kapsam dışı** |
+| ~~F7~~ | **Yeniden üret** butonu geliyor (üretilmiş karede) | davranış | ↺ | ↺ | ↺ | **kapsam dışı** |
+| ~~F8~~ | Yeniden üretilecek karede canlı "kuyrukta" rozeti | görsel | ↺ | ↺ | ↺ | **kapsam dışı** |
+| ~~F9~~ | Düzenleme **geçici** — butona basılana kadar kaydedilmiyor | davranış | ↺ | ↺ | ↺ | **kapsam dışı** |
+| ~~F10~~ | **Tekrar dene** ile **Yeniden üret** aynı mekanizma oluyor | davranış | ↺ | ↺ | ↺ | **kapsam dışı** |
+
+**F6-F10 uygulanmayacak** — bkz. 1. bölümdeki karar. Tasarımda varlar, bizde olmayacaklar.
+
+`↺` = **bu tur çakıştırmadan geçmedi.** Bu beş madde, üç yol koştuktan **sonra** tasarıma eklendi
+(detay bölümüne iki yeni ekran + yazılı anlatıya yeni bir bölüm). Tek elden çıkarıldılar, ama iki
+bağımsız kaynakta birden doğrulandılar: hem **ekranların kendisi** hem **yazılı anlatı**. Yalnız
+anlatıda olup çizilmeyen tek kural F9'dur — bu tam da Yol 1'in yakaladığı sınıftandır.
 
 ### Projeler ve genel
 
@@ -153,6 +174,9 @@ bu ayrı bir ekran değildir, kuyruk panelindeki ölümcül hata kartıyla aynı
 **Varyant.** *Bugün:* kutu 1–26 arasını kabul eder; boş bırakılıp gönderilirse üretim başlamaz, kutu
 kırmızıya döner ve hata yazısı çıkar. *Tasarım v2'de:* alan 1–8 kabul eder, dışına çıkan değer
 yazılamaz, boşaltılırsa kendiliğinden 1'e döner ve hiçbir hata durumu doğmaz.
+
+> **Karar (2026-08-08): 1–8 sınırı reddedildi, üst sınır 26 kalıyor.** Maddenin geri kalanı —
+> geçersiz değerin kutuya hiç girmemesi ve boş bırakılınca 1'e dönmesi — hâlâ karar bekliyor.
 
 ### Panel · Kuyruğu takip et
 
@@ -205,6 +229,11 @@ kırmızı hatalı kareler, sonra kesikli bekleyenler, sonra fotoğraflar. Bir k
 *Tasarım v2'de:* her kare kendi sırasında durur ve üretilince **aynı yerde** fotoğrafa dönüşür; sıra
 hiç oynamaz.
 
+> **Karar (2026-08-08): kural istisnasız uygulanır.** Dört kovanın dördü de kalkar — çalışan kare de,
+> hatalı kare de kendi sırasında durur. Karenin durumu görünümünü değiştirir, yerini değiştirmez.
+> Böylece galeri üretim akarken bile hiç oynamaz; tek değişen, bir karenin kesikli kutudan fotoğrafa
+> dönüşmesidir. (Aynı karar 8.2'deki çelişkiyi de kapatıyor.)
+
 **Bekleyen kare seçilebilir oluyor.** *Bugün:* seçim halkası yalnız üretilmiş fotoğraflarda belirir;
 bekleyen kare seçilemez, kuyruktan çıkarılamaz. *Tasarım v2'de:* seçim modu tektir — bekleyen ve
 üretilmiş kareler birlikte seçilir, halka ikisinde de aynı görünür, farkı kartın kesikli görünümü
@@ -240,6 +269,40 @@ sonraki kare açılır; çalışan karede buton pasiftir.
 oklar ve klavye yalnız onların arasında gezer. *Tasarım v2'de:* rozet dizisi = sıra sayacı = ok
 sırası; oklar bekleyen ve çalışan kareler dahil tüm galeri sırasında gezer. Uçlarda pasifleşme ve
 sarmama kuralı aynı kalır.
+
+### Foto detay · Yeniden üret — **KAPSAM DIŞI, uygulanmayacak**
+
+> Bu alt bölüm kayıt olsun diye duruyor. Tasarım projesinde bu adım var; **biz yapmama kararı
+> verdik** (1. bölüm). Silmedik ki bir dahaki karşılaştırmada "atlanmış fark" sanılmasın.
+
+Beğenilmeyen bir fotoğrafın **prompt'u detayda değiştirilip kare yeniden üretilebiliyor.** Bugün
+böyle bir yol yok: detaydaki prompt salt okunur bir kutudur, beğenilmeyen kare ancak silinip
+panelden yeni bir parti gönderilerek yenilenir — o zaman da yeni kare galerinin başına düşer ve sıra
+bozulur.
+
+**Kutular düzenlenebilir oluyor.** *Bugün:* prompt kutusu salt okunur, yalnız kaydırılır; negatif
+zaten hiç gösterilmiyor. *Tasarım v2'de:* prompt ve negatif kutularının ikisi de yazılabilir; içerik
+değişince kutunun çerçevesi vurgu rengine döner ve **Yeniden üret** butonu öne çıkar (mor olur).
+
+**Düzenleme geçicidir.** *Bugün:* karşılığı yok. *Tasarım v2'de:* butona basılana kadar **hiçbir şey
+kaydedilmez** — sayfadan çıkılırsa değişiklik atılır ve kayıtlı prompt eskisi kalır; kayıt ancak
+butona basınca olur, o andan itibaren karenin prompt'u yenisidir.
+
+**Basınca ne oluyor.** *Bugün:* karşılığı yok. *Tasarım v2'de:* kare kuyruğun **sonuna** iş olarak
+girer; önce onay sorulur — "Mevcut fotoğrafın yerine geçecek." Buton pasifleşip "Kuyruğa eklendi"
+der.
+
+**Numara ve konum değişmez.** *Bugün:* karşılığı yok. *Tasarım v2'de:* 18. kare 18. kare olarak
+yenilenir — galeri konumu ve video sırası bozulmaz. Bu, yeniden üretmeyi "sil + yeniden gönder"den
+ayıran asıl fark.
+
+**Üretim bitene kadar eski fotoğraf duruyor.** *Bugün:* karşılığı yok. *Tasarım v2'de:* eski
+fotoğraf görünür kalır, üstünde canlı "yeniden üretilecek — kuyrukta" rozeti taşır (galerideki
+kartta da aynı rozet); üretim bitince yenisi aynı yerde eskisinin yerine geçer ve eski dosya silinir.
+
+**Tekrar dene ile birleşiyor.** *Bugün:* hatalı karedeki **Tekrar dene** kareyi kayıtlı prompt'uyla
+aynen yeniden üretir; prompt'a dokunulamaz. *Tasarım v2'de:* ikisi **aynı mekanizmadır** — hata
+detayından prompt düzeltilip yeniden üretilebilir.
 
 ### Genel
 
@@ -316,6 +379,7 @@ söylemez.
 | **Elle devam** | "Kaldığı yerden devam et kartı **yalnızca ölümcül hatadan sonra** kalır" | Duraklatılmış kuyruk da elle **Devam et** ister |
 | **Üretim süresi** (Madde 8) | Süre "fotoğrafın kaydında, oradan da foto detay sayfasında" görünecek | Detayın sağ sütununda süre alanı **yok**: yalnız Sıra, Dosya adı, Prompt, Negatif |
 | **Üç panelli şerit** | Hiç geçmiyor — roadmap tek panel varsayıyor | Panel üçe ayrılıyor, üçüncüsü boş **AI agent** paneli |
+| ~~**Yeniden üret**~~ | Hiç geçmiyor | Detayda prompt düzenlenip kare yerinde yeniden üretilebiliyor — **kapsam dışı bırakıldı, çelişki kalmadı** |
 
 **Roadmap'in açık sorusu karara bağlanmış.** Roadmap "bitiş kartı kalsın mı, yoksa sessizce mi
 bitsin?" diye soruyordu. Tasarım v2 cevap veriyor: kart **kalır** ("Kuyruk tamamlandı", yeşil) ama
@@ -361,7 +425,7 @@ kararı, hangisinin uygulama hatası olduğu okunamaz hâle gelir.
 | **Hatalı kareyle biten koşu yeşil kartı göstermiyor** | Kırmızı "Üretim yarım kaldı" + Kaldığı yerden devam et çıkıyor | Kısmi bitişte ayrı tasarım yok — yeşil bildirim yine gelir, hatalı kareler kırmızı kalır | 1/3 ✎ |
 | **Seçim çubuğu 0 seçiliyken de duruyor** | Mod açıldıktan sonra tüm seçim kalksa bile çubuk "0 seçili" diyor | Çubuk "en az bir kare seçiliyken" görünür | 1/3 ✎ |
 | **Seçim çubuğu yüzmüyor** | Çubuk kaydırılan içeriğe yapışık; ancak en aşağı kaydırınca görünüyor | Galerinin altında ortada **yüzen** şerit; liste sonuna ekstra boşluk bırakılır | 1/3 ✎ |
-| **Varyant üst sınırı uydurulmuş** | En fazla 26 kabul ediliyor | v1: "üst sınır yok" · tasarım v2: "1–8" — bugünkü 26 ikisine de uymuyor | 1/3 ✎ |
+| ~~**Varyant üst sınırı uydurulmuş**~~ → **kapandı** | En fazla 26 kabul ediliyor | v1: "üst sınır yok" · tasarım v2: "1–8" — bugünkü 26 ikisine de uymuyordu. **Karar (2026-08-08): 26 doğru sayıdır, sapma değil** | 1/3 ✎ |
 | **Boş proje adında uyarı çıkmıyor** | Kutu boşken buton pasif, hiçbir uyarı yazılmıyor | "Geçersiz karakter **veya boş ad** girildiğinde aynı yerde uyarı çıkar" | 1/3 ✎ |
 | **Yeni proje uyarısı yazarken değil, basınca çıkıyor** | Uyarı ancak gönderdikten sonra beliriyor | Uyarı girildiğinde çıkar ve uyarı varken buton pasif kalır | 2/3 |
 | **Sıralama basılı tutma eşiği olmadan başlıyor** | Basıp hafifçe kaydırınca sürükleme hemen başlıyor | "Basılı tut + sürükle" | 1/3 ✎ |
@@ -383,17 +447,41 @@ Tek yolla çalışılsaydı hiçbiri görünmezdi.
 düşüyor diyor. Bugünkü uygulama ikincisine yakın — render anında kesiliyor, kesilen kare
 başarısızlık sayılmıyor ve numarasını koruyor.
 
-### 8.2 · Hatalı kare galeride nerede duruyor? *(iki artboard aynı şeyi söylemiyor)*
+> **Karar (2026-08-08): bugünkü davranış kalıyor — Duraklat'a basınca çalışan kare kesilir.**
+> Tasarımın "kare bitirilir, sonra durulur" ifadesi alınmıyor; bu yüzden P15 bir değişiklik maddesi
+> olmaktan çıktı. Tasarımın 7 → 8 sayısı bu seçimle zaten tutarlı: kesilen kare kuyruğa geri
+> düştüğü için bekleyen sayısı bir artar.
+
+### 8.2 · Hatalı kare galeride nerede duruyor? *(iki ekran çizimi aynı şeyi söylemiyor)*
 
 Üretim sürerken çizilen ekranda hatalı kare **kendi sırasında**, üretilmişlerin arasında kırmızı
 duruyor. Bitmiş galeri çiziminde ise hatalı kareler **en üstte blok hâlinde**. Bugünkü uygulama
 ikincisini yapıyor.
+
+> **Karar (2026-08-08): kural istisnasız — her kare her zaman kendi sırasında durur.** Çalışan,
+> bekleyen, hatalı ya da üretilmiş; hiçbiri öbeklenmez, hiçbiri sırasından koparılmaz. Karenin
+> durumu yalnız **görünümünü** değiştirir (kesikli kutu, dönen gösterge, kırmızı çerçeve, fotoğraf),
+> **yerini değil**. Tasarımın bitmiş galeri çizimindeki "hatalılar en üstte blok" hâli alınmıyor.
 
 ### 8.3 · "3 deneme" neyi sayıyor?
 
 Tasarım *"ölümcül hatada otomatik 3 deneme yapılır"* ve *"3 kez denendi"* diyor. Bugünkü uygulama
 *"üst üste 3 başarısız kare"* sayıyor — yani biri **aynı işin** üç kez denenmesini, diğeri **üç ayrı
 karenin** peş peşe patlamasını anlatıyor. Aynı sayı, farklı kural.
+
+> **Karar (2026-08-08): tasarımın kuralı alınıyor** — ölümcül hatada aynı iş otomatik 3 kez denenir,
+> olmazsa durulur. Bugünkü "üst üste 3 başarısız kare" sayımı kalkar.
+> **Kazanç:** bir bağlantı kesintisi artık üç kareyi harcamıyor. Bugün sunucu çökünce sıradaki üç
+> kare peş peşe patlıyor, üçü de galeride kırmızı kalıyor ve sorun düzelince tek tek kurtarılması
+> gerekiyor. Yeni kuralda aynı kare üç kez denendiği için kırmızı kare hiç oluşmuyor; kuyruk
+> "Kaldığı yerden devam et" ile kaldığı yerden akıyor.
+> Değişmeyen: **tek karenin patlaması üretimi durdurmuyor** — kare kırmızı olur, sıradakiyle devam
+> edilir. 3 deneme kuralı yalnız ölümcül hatalar için.
+>
+> **Ek karar: hata türüne göre ayrım yapılmıyor.** Bugün model yükleyici hatası özel olarak
+> tanınıyor ve ilk hatada durduruyor; bu ayrım kalkar. Her ölümcül hata aynı yoldan geçer — üç kez
+> denenir, olmazsa durulur. Sebep yine tek satır teknik dille yazılır ama uygulama onu sınıflamaya
+> çalışmaz. Gerekçe: sadeliği korumak; hata türü tahmin etmek kolayca yanlış tahmine dönüşüyor.
 
 ### 8.4 · Proje kartının silme butonu kendi standardına uymuyor
 
@@ -407,7 +495,17 @@ Tasarımın bir cümlesi *"gövdeden daha **koyu** bir şeritle ayrılır"* diyo
 *"gövde en koyu, app bar ve kartlar bir ton **açık**"* diyor. Çizilmiş ekranlar ve bugünkü uygulama
 ikincisini kullanıyor.
 
-### 8.6 · Uzun proje listesi kayar mı, kendi içinde mi kayar?
+### 8.6 · "Değişmeyenler" listesi artık kendi kendini yalanlıyor
+
+Tasarımın *"v2'de yeniden tasarlanmadı"* listesinde **"üretilmiş fotoğrafın detay sayfası"** ve
+**"tekil kare hatası + Tekrar dene"** sayılı duruyor. Ama sonradan eklenen *Yeniden üret* adımı
+ikisini de yeniden tasarlıyor: detayın kutuları düzenlenebilir oldu, yeni bir buton geldi ve Tekrar
+dene başka bir mekanizmaya bağlandı. Liste güncellenmemiş.
+
+*Bizim için pratik sonucu yok* — o adımı yapmıyoruz (1. bölüm), yani detay sayfası ve Tekrar dene
+gerçekten "değişmeyenler" tarafında kalıyor. Çelişki tasarım tarafında duruyor.
+
+### 8.7 · Uzun proje listesi kayar mı, kendi içinde mi kayar?
 
 Yazılı anlatı *"ızgaranın kendi içinde ayrı bir kaydırma alanı yok"* diyor; ekran çizimi ise sekiz
 projeden sonra ızgaranın sağına kaydırma çubuğu ve alta solma perdesi koyuyor.
@@ -449,3 +547,17 @@ Bunlar fark değil, tasarım v2'de karar verilmemiş noktalar.
 - **"Tümünü seç"in ikinci basışı** tanımlı değil.
 - **Durum tazeleme sıklığı** için bir karar yok.
 - **Sıralama ya da silme yazılamazsa** ne olacağı çizilmemiş.
+
+**Yeniden üret adımının açık soruları — düştü.** Adım kapsam dışı bırakıldığı için (1. bölüm)
+aşağıdakilerin hiçbirine karar vermek gerekmiyor. Kayıt olsun diye duruyorlar; adım bir gün geri
+gelirse bunlar hâlâ cevapsız:
+
+- **Yeni dosyanın adı.** Kapsam dışına çıkmadan önce karara bağlanmıştı: sonuna sürüm eki
+  (`11_b.png` → `11_b_v2.png`), eski dosya silinir. Gerekçesi hâlâ geçerli — fotoğraflar tarayıcıya
+  "bu adres asla değişmez" sözüyle veriliyor; aynı ad yeniden kullanılsaydı tarayıcı eski kopyayı
+  göstermeye devam ederdi.
+- **Onay butonu yıkıcı eylem standardına giriyor mu?** "Mevcut fotoğrafın yerine geçecek" onayı bir
+  dosyayı kalıcı olarak siliyor, ama standardın kapsam listesinde sayılmamış.
+- **Kuyrukta yeniden üretim beklerken o fotoğrafla ne yapılabilir?** Silinebilir/sürüklenebilir/
+  seçilebilir mi — çalışan kare için bu üç yasak açıkça yazılı, bunun için hiçbiri söylenmemiş.
+- **Kuyruk sayacına dahil mi?** "N kare bekliyor" sayısının onu da sayıp saymadığı yazılmamış.
