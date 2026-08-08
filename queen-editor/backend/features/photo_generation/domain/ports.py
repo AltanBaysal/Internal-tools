@@ -48,12 +48,17 @@ class PhotoRecord(Protocol):
         """Every photo that still exists, newest first."""
         ...
 
-    def mark_deleted(self, project: str, file: str, at: str) -> None:
-        """Append the row that says this photo is gone."""
+    def mark(self, project: str, file: str, status: str, at: str,
+             error: str | None = None) -> None:
+        """Append a line for an event that produced no photo."""
+        ...
+
+    def statuses(self, project: str) -> dict:
+        """{file name: latest status} for every frame the log has seen."""
         ...
 
     def max_number(self, project: str) -> int | None:
-        """Highest number the record has ever seen, deleted photos included."""
+        """Highest number the record has ever seen, whatever became of the frame."""
         ...
 
 

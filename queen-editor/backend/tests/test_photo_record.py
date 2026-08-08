@@ -1,3 +1,5 @@
+import json
+
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.services.drive.storage import DriveStorage
 
@@ -48,7 +50,7 @@ def test_a_deleted_photo_leaves_the_list_but_not_the_file(tmp_path):
     record.append("düğün", entry("0_a.png"))
     record.append("düğün", entry("0_b.png"))
 
-    record.mark_deleted("düğün", "0_a.png", "2026-08-05T10:00:00+00:00")
+    record.mark("düğün", "0_a.png", "deleted", "2026-08-05T10:00:00+00:00")
 
     assert [row["file"] for row in record.list("düğün")] == ["0_b.png"]
     # The log is only ever appended to: the original row is still in the file.
@@ -59,7 +61,7 @@ def test_a_deleted_photo_leaves_the_list_but_not_the_file(tmp_path):
 def test_the_record_remembers_the_numbers_of_deleted_photos(tmp_path):
     record = record_at(tmp_path)
     record.append("düğün", entry("7_a.png"))
-    record.mark_deleted("düğün", "7_a.png", "2026-08-05T10:00:00+00:00")
+    record.mark("düğün", "7_a.png", "deleted", "2026-08-05T10:00:00+00:00")
 
     assert record.max_number("düğün") == 7
 
@@ -73,3 +75,55 @@ def test_rows_without_a_file_name_are_skipped(tmp_path):
     record.append("düğün", {"prompt": "adı yok"})
     record.append("düğün", entry("0_a.png"))
     assert [row["file"] for row in record.list("düğün")] == ["0_a.png"]
+
+
+def test_statuses_reads_the_latest_line_per_file(tmp_path):
+    record = record_at(tmp_path)
+    record.append("düğün", {**entry("0_a.png"), "status": "done"})
+    record.mark("düğün", "1_a.png", "failed", "t2", error="ComfyUI 500")
+    record.mark("düğün", "0_a.png", "deleted", "t3")
+
+    assert record.statuses("düğün") == {"0_a.png": "deleted", "1_a.png": "failed"}
+
+
+def test_a_failure_line_carries_the_servers_own_words(tmp_path):
+    record = record_at(tmp_path)
+    record.mark("düğün", "1_a.png", "failed", "t2", error="ComfyUI 500: out of memory")
+
+    line = (tmp_path / "düğün" / "photos.jsonl").read_text(encoding="utf-8").splitlines()[0]
+    assert json.loads(line)["error"] == "ComfyUI 500: out of memory"
+
+
+def test_a_line_without_an_error_carries_no_error_field(tmp_path):
+    record = record_at(tmp_path)
+    record.mark("düğün", "1_a.png", "removed", "t2")
+
+    line = (tmp_path / "düğün" / "photos.jsonl").read_text(encoding="utf-8").splitlines()[0]
+    assert "error" not in json.loads(line)
+
+
+def test_lines_written_before_the_status_field_still_read(tmp_path):
+    # What the projects already on Drive look like: a photo row and a deletion row, no status.
+    record = record_at(tmp_path)
+    record.append("düğün", entry("0_a.png"))
+    record.append("düğün", entry("1_a.png"))
+    record.append("düğün", {"file": "1_a.png", "deletedAt": "t3"})
+
+    assert record.statuses("düğün") == {"0_a.png": "done", "1_a.png": "deleted"}
+    assert [row["file"] for row in record.list("düğün")] == ["0_a.png"]
+
+
+def test_only_produced_frames_are_photos(tmp_path):
+    record = record_at(tmp_path)
+    record.append("düğün", {**entry("0_a.png"), "status": "done"})
+    record.mark("düğün", "1_a.png", "removed", "t2")
+    record.mark("düğün", "2_a.png", "failed", "t3")
+
+    assert [row["file"] for row in record.list("düğün")] == ["0_a.png"]
+
+
+def test_a_frame_pulled_out_of_the_queue_still_claims_its_number(tmp_path):
+    record = record_at(tmp_path)
+    record.mark("düğün", "7_a.png", "removed", "t1")
+
+    assert record.max_number("düğün") == 7

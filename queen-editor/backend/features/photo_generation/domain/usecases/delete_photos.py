@@ -12,6 +12,7 @@ A name the record does not know is skipped, not refused. The confirm box can sit
 tab deletes the same photo, and refusing the whole batch over a photo that is already gone would
 leave the rest standing against the user's own decision. The answer says what was really deleted.
 """
+from backend.features.photo_generation.domain import queue
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 
@@ -31,7 +32,7 @@ def delete_photos(record, store, order_store, now, project, files):
         if file not in known:
             continue
         store.delete(project, file)
-        record.mark_deleted(project, file, now())
+        record.mark(project, file, queue.DELETED, now())
         deleted.append(file)
 
     if deleted:

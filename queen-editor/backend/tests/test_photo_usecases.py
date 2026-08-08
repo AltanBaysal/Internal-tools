@@ -85,7 +85,7 @@ class FakePlanStore:
 
 
 class FakeRecord:
-    """Folds the log the way DrivePhotoRecord does: a deletion row ends its file's life."""
+    """Folds the log the way DrivePhotoRecord does: the latest line about a file wins."""
 
     def __init__(self):
         self.rows = []
@@ -93,16 +93,22 @@ class FakeRecord:
     def append(self, project, entry):
         self.rows.append(entry)
 
-    def mark_deleted(self, project, file, at):
-        self.rows.append({"file": file, "deletedAt": at})
+    def mark(self, project, file, status, at, error=None):
+        entry = {"file": file, "status": status, "at": at}
+        if error is not None:
+            entry["error"] = error
+        self.rows.append(entry)
+
+    def statuses(self, project):
+        return {row["file"]: row.get("status", "done") for row in self.rows}
 
     def list(self, project):
         live = {}
         for row in self.rows:
-            if row.get("deletedAt"):
-                live.pop(row["file"], None)
-            else:
+            if row.get("status", "done") == "done":
                 live[row["file"]] = row
+            else:
+                live.pop(row["file"], None)
         return list(reversed(list(live.values())))
 
     def max_number(self, project):
@@ -449,7 +455,7 @@ def test_cancel_empties_the_queue_and_returns_to_idle():
 def test_a_deleted_number_is_never_used_again():
     store, record, plan_store = FakeStore(next_no=0), FakeRecord(), FakePlanStore()
     record.append("düğün", {"file": "0_a.png"})
-    record.mark_deleted("düğün", "0_a.png", "2026-08-05T10:00:00+00:00")
+    record.mark("düğün", "0_a.png", "deleted", "2026-08-05T10:00:00+00:00")
 
     assert next_number(store, plan_store, record, "düğün") == 1
 
