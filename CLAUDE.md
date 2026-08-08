@@ -49,48 +49,25 @@ build order is the roadmap
 (v2 is closed — its chapters 1-14 are done and archived in
 [the v2 roadmap](docs/superpowers/plans/2026-08-03-queen-editor-v2-roadmap.md)).
 
-**Same engine, separate tool.** Queen Editor depends on nothing under `collab-toolbox/` at runtime —
-no imported cell, no shared file, no shared Drive folder — it gets its own Drive root, named in one
-place (`app.ipynb`'s CONFIG cell). It
-inherits the graph, the injection node ids and the proven behaviour as knowledge, and writes its own
-code for them. The boundary is spelled out in
-[queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md) — read it before wiring the two
-together.
+**Same engine, separate tool.** Queen Editor depends on nothing under `collab-toolbox/` at runtime;
+it inherits the graph and the node ids as knowledge and writes its own code for them. The boundary,
+in full: [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md).
 
 **Build before commit.** The frontend ships pre-built — `frontend/dist/` is committed and Colab
 serves it as-is (it never runs npm/build). After any change under `queen-editor/frontend/src/`, run
 `npm run build` in `queen-editor/frontend/` and commit the regenerated `dist/` in the SAME commit,
 or Colab serves a stale UI.
 
-## prompt-chat — Grok sohbet tezgâhı
+## prompt-chat — AI chat (web UI)
 
-A small React chat UI for drafting WAN 2.2 T2V prompts with Grok: [prompt-chat/](prompt-chat/).
-`npm run dev`, then `http://localhost:5173`. It calls `api.x.ai` straight from the browser, which
-works because xAI allows cross-origin requests — there is no backend and adding one would solve
-nothing.
-
-**A bench, not a product.** One user, `localhost`, never deployed. It shares no code or folder with
-any other tool here. If Grok's output proves good enough, the same logic gets written into Queen
-Editor and this tool goes away — which is why it borrows Queen Editor's exact frontend stack and
-versions (React 18.3 / Vite 5.4 / Vitest 3.2) and its colour and type tokens: that move should be a
-copy, not a rewrite. Only the tokens are borrowed — `vendor/kit` is not.
-
-**The browser is the whole store.** Chats, which one is open, each chat's half-typed draft, the key
-and the model all live in `localStorage` — no server, no backup, no sync. Clearing browser data
-loses the chats, which is why deleting one asks for confirmation. A reply in flight when the page
-closes is simply lost; nothing tries to resume it.
-
-**`dist/` is not committed here.** Queen Editor commits its build because Colab never runs npm; this
-tool never reaches Colab, so the rule does not carry over.
-
-The API key and the model name live in the browser's `localStorage`, entered through fields on the
-page — never in the source, and never in `.env` (Vite inlines `VITE_` variables into the build, so
-that would not hide anything). Keep it that way: a key committed into the source stays in git
-history and has to be revoked.
-
-Layering: `chat.js` and `storage.js` are pure (no network, no React, no `localStorage`), `api.js`
-holds the only `fetch`, `usePersisted.js` holds the only storage access, and `App.jsx` /
-`Sidebar.jsx` / `Message.jsx` only render. `npm test` runs Vitest against jsdom with `fetch`
-stubbed. Design decisions:
+The team's chat client — a React app talking to Grok, general purpose. Engineering principles and
+stack decisions live in [prompt-chat/FOUNDATION.md](prompt-chat/FOUNDATION.md); layering and
+structure rules in [prompt-chat/CODE-STANDARD.md](prompt-chat/CODE-STANDARD.md); the behaviour it
+ships today is recorded in
 [the first spec](docs/superpowers/specs/2026-08-08-prompt-chat-design.md) and
 [the chat list that superseded two of its decisions](docs/superpowers/specs/2026-08-08-prompt-chat-sohbet-listesi-design.md).
+Usage: `npm install` once, then `npm run dev` → `http://localhost:5173`.
+
+**The key is typed on the page, never in the repo** — not in the source and not in `.env`, since
+Vite inlines `VITE_` variables into the build. Everything else — no backend, no shared instance, no
+committed `dist/`, no runtime dependency on `queen-editor/` — is in `FOUNDATION.md`.

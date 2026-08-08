@@ -1,39 +1,40 @@
 # prompt-chat
 
-Grok ile düz sohbet eden bir deney tezgâhı. Amaç: WAN 2.2 T2V prompt'larını üretirken
-modelin ne kadar işe yaradığını rahat denemek.
+Our own chat window onto Grok. What you use it for is up to you — asking questions, drafting text,
+working a prompt into shape. Everyone on the team runs their own copy; there is no shared instance
+and nothing is deployed.
 
-## Çalıştırma
+## Run
 
 ```bash
 cd prompt-chat
-npm install     # bir kez
+npm install     # once
 npm run dev     # http://localhost:5173
 ```
 
-İlk açılışta üstteki alana [console.x.ai](https://console.x.ai)'dan aldığın API anahtarını
-yapıştır. Anahtar tarayıcının `localStorage`'ında kalır, kaynağa yazılmaz; bu yüzden kod
-rahatça commit edilebilir. (`.env` de kullanılmaz — Vite `VITE_` ile başlayan değişkenleri
-derlenmiş çıktıya gömer, yani saklamış olmazdın.)
+On the first load, paste an API key from [console.x.ai](https://console.x.ai) into the field in the
+settings panel. It is kept in the browser's `localStorage`, never written into the source — which is
+why the code can be committed freely. (`.env` is not an option either: Vite inlines every `VITE_`
+variable into the build, so it would hide nothing.)
 
-Yanındaki alan model adıdır (varsayılan `grok-4.3`). Konsolda görünen id farklıysa buradan
-düzelt — kod değiştirmen gerekmez. Başka bir modele geçmek de aynı kutu.
+Next to it is the model name, `grok-4.3` by default. If the console shows a different id, fix it
+here — no code change needed. Switching to another model is the same field.
 
-## Kullanım
+## Use
 
-Enter gönderir, Shift+Enter alt satıra geçer. Her cevabın altındaki **Kopyala** metnin
-tamamını panoya alır; oradan `api.ipynb`'nin `PROMPTS` listesine yapıştırırsın.
+Enter sends, Shift+Enter starts a new line. **Kopyala** under each reply puts the whole text on the
+clipboard, line breaks included.
 
-Solda sohbet listesi var: **+ Yeni sohbet** bir tane açar, satırın üstüne gelince çıkan `×`
-onay sorup siler. Sohbetler, hangisinde olduğun ve yarım bıraktığın metinler tarayıcının
-`localStorage`'ında durur — sekmeyi kapatıp yarın açsan kaldığın yerdesin.
+The left column lists your chats. **+ Yeni sohbet** starts one; hovering a row reveals a `×` that
+asks before it deletes. Chats, the one you had open, and whatever you left half-typed in each of
+them are all kept in `localStorage` — close the tab, come back tomorrow, and you are where you left
+off.
 
-System prompt yoktur — talimatını ilk mesaj olarak sen yapıştırırsın. Talimatı bir kez
-yazdığın sohbet durduğu için her denemede yeniden yapıştırman gerekmez: o sohbete dönüp
-devam edersin. Denenen şey modelin yanı sıra talimatın kendisi de.
+There is no system prompt. If you want the model working under a fixed instruction, write it as the
+first message; the chat keeps it, so you go back to that chat rather than retyping it.
 
-Anahtar ve model adı sol alttaki **⚙ Ayarlar** içinde. Anahtar kayıtlıyken kapalı gelir,
-kayıtlı değilken kendiliğinden açılır.
+The key and the model name live under **⚙ Ayarlar** at the bottom left. It stays closed once a key
+is stored, and opens itself when there is none.
 
 ## Test
 
@@ -41,14 +42,22 @@ kayıtlı değilken kendiliğinden açılır.
 npm test
 ```
 
-Vitest, jsdom ortamında koşar: tarayıcı açılmaz, ağa çıkılmaz, `fetch` sahtelenir.
+Vitest against jsdom: no browser opens, nothing reaches the network, `fetch` is stubbed.
 
-## Sınırlar
+## Three things worth knowing
 
-Bu bir tezgâh, ürün değil: tek kullanıcı, `localhost`, deploy yok. `dist/` repo'ya girmez.
+**Your chats are yours and this browser's.** There is no server behind any of it. Nobody sees your
+chats and you cannot open anyone else's — what moves between people is text you copy out. Clearing
+browser data loses them.
 
-Kalıcılık tek tarayıcının `localStorage`'ıdır — sunucu yok, yedek yok, senkron yok. Tarayıcı
-verisini silersen sohbetler gider. Silmenin geri alması da yok, onun için silme onay ister.
-Cevap beklerken sayfayı kapatırsan mesajın kalır, cevap gelmez; tekrar gönderirsin.
+**Deleting cannot be undone.** That is why it asks first: a chat may hold something you spent real
+time on.
 
-Grok'un çıktısı yeterince iyiyse aynı mantık Queen Editor'ın içine yazılır ve bu araç düşer.
+**A reply in flight is lost if you close the page.** Your message stays, the answer never arrives;
+send it again when you come back. Nothing tries to resume it.
+
+## Where the decisions live
+
+Why there is no backend, why the key is typed on the page, why `dist/` is not committed —
+[FOUNDATION.md](FOUNDATION.md).
+Layers, file layout and the testing idiom — [CODE-STANDARD.md](CODE-STANDARD.md).

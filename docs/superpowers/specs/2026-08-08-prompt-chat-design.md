@@ -1,8 +1,8 @@
-# prompt-chat — Grok sohbet tezgâhı
+# prompt-chat — Grok sohbet arayüzü
 
 **Tarih:** 2026-08-08 · **Branch:** `feat/queen-editor-v2`
-**Amaç:** Grok'un WAN 2.2 T2V prompt'u üretmedeki gücünü rahat denemek. Tek kullanıcı (geliştirici),
-kendi makinesinde, `localhost`.
+**Amaç:** Grok'la sohbet edebileceğimiz kendi arayüzümüz. Genel amaçlı — ne için kullanıldığı
+kullanana kalmış. Ekip aracı; her kullanan kendi makinesinde çalıştırır, ortak örnek yoktur.
 
 > **İki kararı sonradan değişti.** "Sohbetin kalıcılığı yok" ve "Queen Editor'ın tasarım dili
 > taşınmaz" maddelerinin yerini
@@ -11,8 +11,8 @@ kendi makinesinde, `localhost`.
 > dokümanın geri kalan kararları geçerlidir.
 
 Bu araç **Queen Editor değildir ve ona bağlı değildir** — kendi klasöründe durur, onun hiçbir
-dosyasını okumaz, kendi `package.json`'ı vardır. Bir deney tezgâhı: Grok'un çıktısı yeterince iyiyse
-aynı mantık ileride Queen Editor'ın içine yazılır ve bu araç düşer.
+dosyasını okumaz, kendi `package.json`'ı vardır. İkisini ileride birleştirmek bir **seçenek**, karar
+değil; o güne kadar bağımsızlar.
 
 ## Ne çalışır
 
@@ -24,11 +24,11 @@ Tarayıcıda düz bir sohbet penceresi açılır ve doğrudan xAI API'siyle konu
    yazılabilsin diye) → istek doğrudan `api.x.ai`'a gider → cevap sohbete düşer.
 4. Cevap beklenirken gönderme kapalıdır ve yerinde "…" durur; cevap gelince açılır. Aynı anda iki
    istek uçmaz.
-5. Her cevabın altında **Kopyala** durur — tek tıkla metnin tamamı panoya gider. Asıl döngü bu:
-   üret → kopyala → `api.ipynb`'nin `PROMPTS` listesine yapıştır.
+5. Her cevabın altında **Kopyala** durur — tek tıkla metnin tamamı, satır sonlarıyla birlikte
+   panoya gider.
 6. Sayfa yenilenirse sohbet sıfırlanır; anahtar ve model adı kalır.
 
-Görünüş koyu ve sade, tek sütun: bir deney tezgâhı, ürün değil.
+Görünüş koyu ve sade, tek sütun.
 
 ## Kapsam dışı
 
@@ -38,12 +38,12 @@ Görünüş koyu ve sade, tek sütun: bir deney tezgâhı, ürün değil.
 - **Yayına alma** — `vite build` çalıştırılabilir ama `dist/` repo'ya girmez ve hiçbir yere
   deploy edilmez. Queen Editor'ın "derlenmişi commit et" kuralı **buraya uğramaz**: o kural Colab
   npm çalıştırmadığı için vardır, bu araç Colab'a hiç gitmez.
-- **System prompt** — düz sohbet. WAN talimatı istendiğinde ilk mesaj olarak elle yapıştırılır.
-  Talimatı denemek için kod değiştirmek gerekmez, bu yüzden tezgâh olarak daha esnek.
+- **System prompt** — düz sohbet. Sabit bir talimat gerekiyorsa ilk mesaj olarak elle yazılır.
+  Talimatı değiştirmek için kod açmak gerekmez, bu yüzden daha esnek.
 - **Streaming** — gönder, bekle, cevabı bütün olarak gör.
 - **Sohbetin kalıcılığı** — dosya yok, veritabanı yok, sunucu yok. Yenile → temiz sayfa.
-- **Kullanıcı yönetimi, kullanım limiti** — tek kullanıcı, `localhost`.
-- **`api.ipynb`'nin `PROMPTS` listesine yazma** — çıktı panoya kopyalanır, yapıştırmak elle.
+- **Kullanıcı yönetimi, kullanım limiti** — herkes kendi kopyasını ve kendi anahtarını kullanır.
+- **Çıktıyı bir yere göndermek ya da kaydetmek** — cevap panoya kopyalanır, gerisi kullananın işi.
   Sınır burası.
 - **Markdown render** — cevap ham metin olarak, boşlukları korunarak basılır. Kopyalanan şeyin
   modelin yazdığının aynısı olması gerekiyor; ayrıca render kütüphanesi eklemek bu kadar küçük bir
@@ -53,9 +53,10 @@ Görünüş koyu ve sade, tek sütun: bir deney tezgâhı, ürün değil.
 
 ## 1. Stack ve dosya yapısı
 
-**React 18 + Vite + Vitest** — Queen Editor'ın frontend'iyle **birebir aynı sürümler**. Sebep tek
-bir cümlede: spec'in kendisi "işe yararsa mantık Queen Editor'a taşınır" diyor; aynı stack'te
-yazılırsa o taşıma kopyala-yapıştır olur, başka bir şeyde yazılırsa arayüz baştan yazılır.
+**React 18 + Vite + Vitest** — Queen Editor'ın frontend'iyle **birebir aynı sürümler**. İki sebep:
+repoda tek bir alet takımı olur (aynı komutlar, aynı test kalıbı, öğrenilecek ikinci bir şey yok),
+ve ileride birleştirmeye karar verilirse o iş kopyalama olur, baştan yazma değil. İkincisi bir
+ihtimal; birincisi bugünden geçerli.
 
 ```
 prompt-chat/
@@ -143,27 +144,29 @@ Testlerin göremediği şeyler — gerçek ağ, gerçek pano, gerçek model:
 3. Model alanına saçma bir değer yaz, gönder → xAI'ın kendi hata metni ekranda görünür (uydurma
    sebep yok).
 4. Anahtarı boz, gönder → yine xAI'ın kendi 401 gövdesi görünür.
-5. Uzun bir WAN talimatını ilk mesaj olarak yapıştır (Shift+Enter ile çok satırlı), ardından bir
-   sahne özeti gönder → talimata uygun prompt gelir; üçüncü mesajda "daha kısa yaz" de → bağlamı
-   koruduğu görülür.
+5. Uzun ve çok satırlı bir talimatı ilk mesaj olarak yaz (Shift+Enter ile), ardından kısa bir istek
+   gönder → talimata uyan bir cevap gelir; üçüncü mesajda "daha kısa yaz" de → bağlamı koruduğu
+   görülür.
 6. Bir cevabın **Kopyala**'sına bas, boş bir dosyaya yapıştır → metin birebir aynı, satır sonları
    dahil.
 
-5. madde aracın asıl sınavı: "Grok bu iş için yeterli mi" sorusunun ilk gerçek cevabı.
+5. madde aracın asıl işi: çok turlu, bağlamı korunan bir sohbet.
 
 ## Kararlar
 
 - **Backend yok** — xAI CORS'a izin verdiği için gereksiz.
-- **Queen Editor'la aynı stack ve aynı sürümler** — kodun oraya taşınması kopyala-yapıştır olsun diye.
+- **Queen Editor'la aynı stack ve aynı sürümler** — repoda tek bir alet takımı olsun diye.
 - **Saf mantık `chat.js`'te ayrı durur** — testin tarayıcıya ve ağa ihtiyaç duymaması bu ayrımdan gelir.
 - **Anahtar ve model ekranda, `localStorage`'da** — kaynak commit edilebilir kalsın ve yanlış model
   id'si kod değişikliği gerektirmesin diye. `.env` çözüm değil: Vite onu çıktıya gömer.
 - **`dist/` commit edilmez** — Colab kuralı buraya işlemez, bu araç Colab'a gitmez.
 - **Hata metni ham geçer** — sebep uydurulmaz.
 - **System prompt yok** — talimatın kendisi de denenen şeyin parçası; onu mesaj olarak yazmak
-  tezgâhı esnetir.
-- **Her cevapta Kopyala butonu** — aracın varlık sebebi olan döngünün son adımı.
+  aracı esnetir.
+- **Her cevapta Kopyala butonu** — uzun bir cevabı fareyle seçmeden almak için.
 - **Koyu ve sade görünüm, tek sütun** — tasarım dili taşınmaz.
-- **Bu araç geçici** — Queen Editor'a taşınacak olan koddur, dosya değil.
+- **Queen Editor'la birleştirmek açık bir seçenek, karar değil** — o güne kadar iki araç bağımsız
+  kalır. Aynı stack'i kullanmasının sebebi taşınacak olması değil, iki projede tek bir alet takımı
+  olması.
 - **`CLAUDE.md`'ye üçüncü araç olarak bir bölüm eklenir** (repo kuralı: her araç kendi klasöründe ve
   orada belgelenir).

@@ -6,7 +6,7 @@
 bu doküman değiştirir. Geri kalan her kararı (backend yok, system prompt yok, streaming yok, ham
 hata metni, Kopyala) aynen geçerlidir.
 
-Tek sohbetlik tezgâh, sohbetleri saklayan ve aralarında gezilen bir araca dönüşür. Yerleşim Claude
+Tek sohbetlik araç, sohbetleri saklayan ve aralarında gezilen bir araca dönüşür. Yerleşim Claude
 arayüzünün düzeni: solda liste, sağda sohbet.
 
 ## Ne çalışır
@@ -19,8 +19,8 @@ arayüzünün düzeni: solda liste, sağda sohbet.
    **anahtar yoksa kendiliğinden açık gelir**, yoksa ilk açılışta ne yapılacağı belli olmaz.
 6. Görünüş Queen Editor'ın paletine ve tipografisine yaklaşır.
 
-Asıl kazanım: WAN talimatını bir kez yazdığın sohbet duruyor. Her denemede yeniden yapıştırmıyorsun,
-o sohbete dönüp devam ediyorsun.
+Asıl kazanım: bir konuyu bir kez kurduğun sohbet duruyor. Uzun bir talimatı ya da bağlamı her
+seferinde yeniden yazmıyorsun, o sohbete dönüp devam ediyorsun.
 
 ## Kapsam dışı
 
@@ -66,8 +66,8 @@ mesajlar, yazma kutusu, **Kopyala** hepsi olduğu gibi kalır.
 ilk mesaj değişirse ad kendiliğinden doğrudur.
 
 **`id` üretimi deterministiktir:** mevcut en büyük `id` + 1. Rastgelelik yok, `crypto` yok — bu
-sayede sohbet mantığı saf kalır ve testi tarayıcısız koşar. Tek tarayıcıda tek kullanıcı olduğu için
-çakışma diye bir sorun yok.
+sayede sohbet mantığı saf kalır ve testi tarayıcısız koşar. Her kopya tek bir tarayıcıya ait olduğu
+için çakışma diye bir sorun yok.
 
 **Uygulamada her zaman açık bir sohbet vardır.** Üç durumda yenisi kurulur: hiç sohbet yokken,
 aktif sohbet silindiğinde ve hepsi silindiğinde. Aktif olan silinirse listede kalanların **ilki**
@@ -82,7 +82,7 @@ yazıldı), uygulama boş bir sohbetle açılır — beyaz ekran vermez.
 saklanır; başka sohbete geçip döndüğünde kaldığın yerde durur, ve sekmeyi kapatsan bile durur —
 `chats` ile birlikte `localStorage`'a yazılır. Mesaj gönderilince o sohbetin taslağı boşalır.
 
-Sebebi: uzun bir WAN talimatı yazarken yanlışlıkla başka bir sohbete tıklamak yazdığını götürmemeli.
+Sebebi: uzun bir metin yazarken yanlışlıkla başka bir sohbete tıklamak yazdığını götürmemeli.
 Taslağı ortak tek bir kutuda tutmak da olurdu ama o zaman metin yanlış sohbete taşınırdı.
 
 ### Uçmakta olan cevap
@@ -97,8 +97,8 @@ senin emeğin; kaybolan yalnız gelmemiş cevaptır. Yarım kalan isteği sürd�
 **yok**: `localStorage` bir kuyruk değil.
 
 **Aynı anda tek istek uçar.** Bir cevap beklenirken hangi sohbette olursan ol gönderme kapalıdır.
-Sohbet başına ayrı bekleme durumu tutmak mümkün ama üç kişilik bir tezgâh için kazandırdığından
-fazla karmaşıklık getirir.
+Sohbet başına ayrı bekleme durumu tutmak mümkün ama bu ölçekte kazandırdığından fazla karmaşıklık
+getirir.
 
 ## 3. Sohbetin adı
 
@@ -106,16 +106,16 @@ fazla karmaşıklık getirir.
 Mesaj 40'tan uzunsa bu 40 karakterin **sonuna** `…` eklenir (yani en fazla 41 karakter döner).
 Hiç kullanıcı mesajı yoksa **"Yeni sohbet"**.
 
-İlk mesajın seçilmesinin sebebi: bu araçta ilk mesaj çoğu zaman WAN talimatının kendisi ya da sahne
-özeti — yani sohbeti gerçekten ayırt eden şey.
+İlk mesajın seçilmesinin sebebi: sohbeti başlatan soru ya da talimat odur — sonrası hep onun
+devamı. Sohbeti gerçekten ayırt eden şey ilk mesaj.
 
 ## 4. Silme
 
 Satırın üstüne gelince sağında `×` belirir. Basınca **onay sorulur** — `window.confirm` ile,
 "Bu sohbet silinecek. Emin misin?".
 
-Onay isteğe bağlı değil: bir sohbette uğraşarak yazılmış uzun bir WAN talimatı olabilir ve silmenin
-geri alması yok. Yanlış bir tıkla o emeğin gitmesi kabul edilebilir değil.
+Onay isteğe bağlı değil: bir sohbette saatlerce uğraşılmış bir metin olabilir ve silmenin geri
+alması yok. Yanlış bir tıkla o emeğin gitmesi kabul edilebilir değil.
 
 ## 5. Ayarlar
 
@@ -208,7 +208,7 @@ etkilenmez; `App.test.jsx`'in sohbet testleri yeni yerleşime göre seçicilerin
 ## Kararlar
 
 - **Sohbetler `localStorage`'da saklanır** — önceki spec'in "kalıcılık yok" kararı kalkar. Sebebi
-  WAN talimatını her denemede yeniden yapıştırmaktan kurtulmak.
+  bir konuyu kurduğun sohbete geri dönebilmek, bağlamı her seferinde yeniden yazmamak.
 - **Ad saklanmaz, ilk mesajdan türetilir** — iki yerde tutulan tek bir gerçek olmasın diye.
 - **Taslak sohbete aittir ve saklanır** — yanlış tıklama ya da kapanan sekme yazdığını götürmesin.
 - **Aynı anda tek istek uçar** — sohbet başına bekleme durumu, kazandırdığından fazla karmaşıklık.

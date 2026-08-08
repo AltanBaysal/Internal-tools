@@ -1,5 +1,11 @@
 # prompt-chat Sohbet Listesi Uygulama Planı
 
+> **Uygulandı ve kapandı.** Bu belge yapılan işin kaydıdır; içindeki metin blokları o gün yazılan
+> hâlleridir, bugünkü dosyalar değil. **Aracın tanımı sonradan düzeldi:** burada geçen "tezgâh" ve
+> "bu araç düşer" ifadeleri yanlıştır. prompt-chat kullanılan ve kalan bir araçtır; Queen Editor'la
+> birleştirmek bir seçenek, karar değil. Güncel tanım:
+> [spec](../specs/2026-08-08-prompt-chat-sohbet-listesi-design.md).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Tek sohbetlik tezgâhı, sohbetleri saklayan ve aralarında gezilen bir araca çevirmek; görünüşü Queen Editor'a yaklaştırmak.

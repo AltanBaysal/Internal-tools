@@ -25,8 +25,8 @@ export function setDraft(chats, id, draft) {
 
 const TITLE_MAX = 40;
 
-// The first user message is what actually tells two chats apart in this tool: it is either the WAN
-// instruction or the scene brief.
+// The first user message is what actually tells two chats apart: it is where the question or the
+// instruction lands, and everything after it is a follow-up.
 export function titleOf(messages) {
   const first = messages.find((m) => m.role === "user");
   const line = first ? first.content.replace(/\s+/g, " ").trim() : "";
