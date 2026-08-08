@@ -11,13 +11,13 @@ const ok = (content) => ({
 const fail = (status, body) => ({ ok: false, status, text: async () => body });
 
 describe("sendChat", () => {
-  it("cevabın metnini döndürür", async () => {
+  it("returns the reply text", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok("merhaba")));
     const text = await sendChat({ key: "k", model: "grok-4.3", messages: [] });
     expect(text).toBe("merhaba");
   });
 
-  it("anahtarı Authorization başlığına koyar, boşlukları kırpar", async () => {
+  it("puts the trimmed key in the Authorization header", async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok("ok"));
     vi.stubGlobal("fetch", fetchMock);
     await sendChat({ key: "  xai-123  ", model: "grok-4.3", messages: [] });
@@ -25,7 +25,7 @@ describe("sendChat", () => {
     expect(init.headers.Authorization).toBe("Bearer xai-123");
   });
 
-  it("model ve mesajları gövdeye koyar", async () => {
+  it("puts the model and the messages in the body", async () => {
     const fetchMock = vi.fn().mockResolvedValue(ok("ok"));
     vi.stubGlobal("fetch", fetchMock);
     await sendChat({
@@ -40,14 +40,14 @@ describe("sendChat", () => {
     });
   });
 
-  it("200 dışında gövdeyi olduğu gibi hataya taşır", async () => {
+  it("carries a non-200 body into the error verbatim", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(fail(404, '{"error":"model yok"}')));
     await expect(sendChat({ key: "k", model: "yok", messages: [] })).rejects.toThrow(
       'HTTP 404 — {"error":"model yok"}'
     );
   });
 
-  it("ağ hatasını yutmaz", async () => {
+  it("does not swallow a network failure", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
     await expect(sendChat({ key: "k", model: "m", messages: [] })).rejects.toThrow(
       "Failed to fetch"

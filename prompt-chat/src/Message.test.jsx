@@ -10,8 +10,8 @@ function stubClipboard(writeText) {
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
 }
 
-describe("Kopyala", () => {
-  it("yalnız cevaplarda görünür", () => {
+describe("the copy button", () => {
+  it("appears only on replies", () => {
     const { rerender } = render(<Message role="user" content="selam" />);
     expect(screen.queryByRole("button")).toBeNull();
 
@@ -22,7 +22,7 @@ describe("Kopyala", () => {
     expect(copyButton()).toBeTruthy();
   });
 
-  it("metnin tamamını, satır sonlarıyla birlikte panoya yazar", async () => {
+  it("writes the whole text to the clipboard, line breaks included", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     stubClipboard(writeText);
 
@@ -34,7 +34,7 @@ describe("Kopyala", () => {
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(iki));
   });
 
-  it("kopyalayınca geri bildirim verir", async () => {
+  it("acknowledges a successful copy", async () => {
     stubClipboard(vi.fn().mockResolvedValue(undefined));
 
     render(<Message role="assistant" content="merhaba" />);
@@ -43,7 +43,7 @@ describe("Kopyala", () => {
     expect(await screen.findByRole("button", { name: "Kopyalandı" })).toBeTruthy();
   });
 
-  it("pano reddederse tarayıcının kendi metnini gösterir", async () => {
+  it("shows the browser's own reason when the clipboard refuses", async () => {
     stubClipboard(vi.fn().mockRejectedValue(new Error("izin yok")));
 
     render(<Message role="assistant" content="merhaba" />);

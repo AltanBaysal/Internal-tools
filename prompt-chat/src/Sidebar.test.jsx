@@ -26,47 +26,47 @@ function show(extra = {}) {
   return props;
 }
 
-describe("sohbet listesi", () => {
-  it("sohbetleri adlarıyla çizer", () => {
+describe("the chat list", () => {
+  it("draws the chats with their titles", () => {
     show();
     expect(screen.getByText("kanlı dövüş sahnesi")).toBeTruthy();
     expect(screen.getByText("Yeni sohbet")).toBeTruthy();
   });
 
-  it("bir sohbete tıklayınca id'siyle haber verir", () => {
+  it("reports the id when a chat is clicked", () => {
     const props = show();
     fireEvent.click(screen.getByText("Yeni sohbet"));
     expect(props.onSelect).toHaveBeenCalledWith(2);
   });
 
-  it("Yeni sohbet düğmesi haber verir", () => {
+  it("reports a click on the new-chat button", () => {
     const props = show();
     fireEvent.click(screen.getByRole("button", { name: /Yeni sohbet ekle/ }));
     expect(props.onNew).toHaveBeenCalled();
   });
 });
 
-describe("silme", () => {
+describe("deleting", () => {
   // Every row has its own delete button, so the label has to name the chat -- a bare
   // /sohbetini sil/ would match both rows and the query would throw.
   const deleteFirst = () =>
     screen.getByRole("button", { name: "kanlı dövüş sahnesi sohbetini sil" });
 
-  it("onaylanırsa siler", () => {
+  it("deletes when confirmed", () => {
     vi.stubGlobal("confirm", vi.fn(() => true));
     const props = show();
     fireEvent.click(deleteFirst());
     expect(props.onDelete).toHaveBeenCalledWith(1);
   });
 
-  it("iptal edilirse silmez", () => {
+  it("does not delete when cancelled", () => {
     vi.stubGlobal("confirm", vi.fn(() => false));
     const props = show();
     fireEvent.click(deleteFirst());
     expect(props.onDelete).not.toHaveBeenCalled();
   });
 
-  it("silmeden önce sorar", () => {
+  it("asks before deleting", () => {
     const ask = vi.fn(() => false);
     vi.stubGlobal("confirm", ask);
     show();
@@ -75,18 +75,18 @@ describe("silme", () => {
   });
 });
 
-describe("ayarlar", () => {
-  it("anahtar kayıtlıysa kapalı gelir", () => {
+describe("the settings panel", () => {
+  it("starts closed when a key is stored", () => {
     show();
     expect(screen.queryByPlaceholderText("xAI API anahtarı")).toBeNull();
   });
 
-  it("anahtar yoksa açık gelir", () => {
+  it("starts open when there is no key", () => {
     show({ apiKey: "" });
     expect(screen.getByPlaceholderText("xAI API anahtarı")).toBeTruthy();
   });
 
-  it("düğme açıp kapatır", () => {
+  it("toggles open and shut", () => {
     show();
     fireEvent.click(screen.getByRole("button", { name: /Ayarlar/ }));
     expect(screen.getByPlaceholderText("xAI API anahtarı")).toBeTruthy();
@@ -95,7 +95,7 @@ describe("ayarlar", () => {
     expect(screen.queryByPlaceholderText("xAI API anahtarı")).toBeNull();
   });
 
-  it("anahtar yazılınca haber verir", () => {
+  it("reports a typed key", () => {
     const props = show({ apiKey: "" });
     fireEvent.change(screen.getByPlaceholderText("xAI API anahtarı"), {
       target: { value: "xai-yeni" },
@@ -103,13 +103,13 @@ describe("ayarlar", () => {
     expect(props.onApiKey).toHaveBeenCalledWith("xai-yeni");
   });
 
-  it("model yazılınca haber verir", () => {
+  it("reports a typed model name", () => {
     const props = show({ apiKey: "" });
     fireEvent.change(screen.getByPlaceholderText("model"), { target: { value: "grok-5" } });
     expect(props.onModel).toHaveBeenCalledWith("grok-5");
   });
 
-  it("anahtar ekranda okunmaz", () => {
+  it("keeps the key unreadable on screen", () => {
     show({ apiKey: "" });
     expect(screen.getByPlaceholderText("xAI API anahtarı").type).toBe("password");
   });

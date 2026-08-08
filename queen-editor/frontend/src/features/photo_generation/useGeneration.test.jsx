@@ -33,7 +33,7 @@ beforeEach(() => {
 });
 
 describe("useGeneration", () => {
-  it("açılışta fotoğrafları bilinmez sayar ve ilk poll'da hem durumu hem fotoğrafları ister", async () => {
+  it("treats the photos as unknown at first and asks for both status and photos on the first poll", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
     listPhotos.mockResolvedValue([]);
 
@@ -47,7 +47,7 @@ describe("useGeneration", () => {
     expect(listPhotos).toHaveBeenCalledWith("düğün");
   });
 
-  it("üretim sürerken 2 saniyede bir sorar, bitince zinciri durdurur", async () => {
+  it("asks every 2 seconds while a run is going and stops the chain when it ends", async () => {
     getStatus.mockResolvedValue(RUNNING);
     listPhotos.mockResolvedValue([]);
 
@@ -66,7 +66,7 @@ describe("useGeneration", () => {
     expect(getStatus).toHaveBeenCalledTimes(3);
   });
 
-  it("poll patlarsa hatayı gösterir, denemeyi sürdürür ve bağlantı dönünce hatayı siler", async () => {
+  it("shows the error when a poll fails, keeps trying, and clears it once the connection returns", async () => {
     const dead = new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nZaman aşımı (10 sn)");
     getStatus.mockRejectedValue(dead);
     listPhotos.mockRejectedValue(dead);
@@ -84,7 +84,7 @@ describe("useGeneration", () => {
     expect(result.current.error).toBeNull();
   });
 
-  it("üretim biterken fotoğrafları bir kez daha ister", async () => {
+  it("asks for the photos once more as the run finishes", async () => {
     getStatus.mockResolvedValue(RUNNING);
     listPhotos.mockResolvedValue([]);
 
@@ -99,7 +99,7 @@ describe("useGeneration", () => {
     expect(listPhotos.mock.calls.length).toBe(afterFirstPoll + 2);
   });
 
-  it("cevap gelmeden ekrandan çıkılırsa zincir kendini diriltmez", async () => {
+  it("does not revive the chain when the screen is left before an answer arrives", async () => {
     // Unmounting while a poll is still in flight is the only way the chain can outlive the screen:
     // the effect's cleanup clears the pending timer, but the failing request that lands afterwards
     // would arm a brand new one that nobody owns.
@@ -117,7 +117,7 @@ describe("useGeneration", () => {
     expect(getStatus.mock.calls.length).toBe(callsBefore);
   });
 
-  it("üretim başlayınca panel beklemeden üretim durumuna geçer", async () => {
+  it("puts the panel into the running state without waiting for the server", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
     listPhotos.mockResolvedValue([]);
     generateBatch.mockResolvedValue({ started: true });
@@ -134,7 +134,7 @@ describe("useGeneration", () => {
     });
   });
 
-  it("durdura basıldığı an butonu pasifler, sunucu cevabını beklemez", async () => {
+  it("disables the button the moment stop is pressed, without waiting for the server", async () => {
     getStatus.mockResolvedValue(RUNNING);
     listPhotos.mockResolvedValue([]);
     let resolveStop;
@@ -150,7 +150,7 @@ describe("useGeneration", () => {
     expect(result.current.stopping).toBe(true);
   });
 
-  it("sürükleme sonrası yeni sırayı beklemeden gösterir ve sunucuya yazar", async () => {
+  it("shows the new order straight after a drag and writes it to the server", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
     listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
     saveOrder.mockResolvedValue({ order: ["0_a.png", "1_a.png"] });
@@ -164,7 +164,7 @@ describe("useGeneration", () => {
     expect(saveOrder).toHaveBeenCalledWith("düğün", ["0_a.png", "1_a.png"]);
   });
 
-  it("sıra kaydedilemezse hatayı gösterir ve sunucunun sırasına döner", async () => {
+  it("shows the error and falls back to the server's order when the ordering cannot be saved", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
     listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
     saveOrder.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nkopuk"));
@@ -179,7 +179,7 @@ describe("useGeneration", () => {
     expect(result.current.photos.map((p) => p.file)).toEqual(["1_a.png", "0_a.png"]);
   });
 
-  it("sıra kaydedilirken gelen poll cevabı sırayı geri sektirmez", async () => {
+  it("does not let a poll answer during a save bounce the order back", async () => {
     getStatus.mockResolvedValue(RUNNING);
     listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
     let finishSave;
@@ -196,7 +196,7 @@ describe("useGeneration", () => {
     await act(async () => { finishSave({ order: ["0_a.png", "1_a.png"] }); });
   });
 
-  it("sunucunun bildirdiği durduruluyor bilgisi de butonu pasif tutar", async () => {
+  it("keeps the button disabled while the server reports it is stopping", async () => {
     getStatus.mockResolvedValue({ ...RUNNING, stopping: true });
     listPhotos.mockResolvedValue([]);
 

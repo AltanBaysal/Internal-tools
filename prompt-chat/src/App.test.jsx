@@ -26,31 +26,31 @@ function withKey() {
   localStorage.setItem("xai_key", "xai-kayitli");
 }
 
-describe("açılış", () => {
-  it("hiç sohbet yokken boş bir sohbetle açılır", () => {
+describe("startup", () => {
+  it("opens with an empty chat when none are stored", () => {
     render(<App />);
     expect(composer().value).toBe("");
     expect(screen.getByText("Yeni sohbet")).toBeTruthy();
   });
 
-  it("anahtar yoksa ayarlar açık gelir", () => {
+  it("opens the settings panel when there is no key", () => {
     render(<App />);
     expect(screen.getByPlaceholderText("xAI API anahtarı")).toBeTruthy();
   });
 
-  it("anahtar varsa ayarlar kapalı gelir", () => {
+  it("leaves the settings panel closed when a key is stored", () => {
     withKey();
     render(<App />);
     expect(screen.queryByPlaceholderText("xAI API anahtarı")).toBeNull();
   });
 
-  it("bozuk kayıt beyaz ekran vermez", () => {
+  it("does not go blank on a corrupt stored list", () => {
     localStorage.setItem("chats", "{yarim");
     render(<App />);
     expect(composer()).toBeTruthy();
   });
 
-  it("kayıtlı sohbetler geri gelir", () => {
+  it("brings stored chats back", () => {
     localStorage.setItem(
       "chats",
       JSON.stringify([{ id: 1, messages: [{ role: "user", content: "eski mesaj" }], draft: "" }])
@@ -61,8 +61,8 @@ describe("açılış", () => {
   });
 });
 
-describe("sohbet gönderme", () => {
-  it("mesaj açık sohbete yazılır ve cevap düşer", async () => {
+describe("sending", () => {
+  it("writes the message into the open chat and lands the reply", async () => {
     withKey();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok("merhaba")));
     render(<App />);
@@ -73,7 +73,7 @@ describe("sohbet gönderme", () => {
     expect(inChat().getByText("selam")).toBeTruthy();
   });
 
-  it("hata, servisin kendi metniyle görünür", async () => {
+  it("shows an error in the service's own words", async () => {
     withKey();
     vi.stubGlobal(
       "fetch",
@@ -86,7 +86,7 @@ describe("sohbet gönderme", () => {
     expect(await screen.findByText("HTTP 401 — kim bu")).toBeTruthy();
   });
 
-  it("cevap beklenirken gönderme kapalıdır", async () => {
+  it("disables sending while a reply is pending", async () => {
     withKey();
     let release;
     const held = new Promise((resolve) => {
@@ -105,7 +105,7 @@ describe("sohbet gönderme", () => {
     expect(sendButton().disabled).toBe(false);
   });
 
-  it("boş mesaj gönderilmez", () => {
+  it("does not send an empty message", () => {
     withKey();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
@@ -115,7 +115,7 @@ describe("sohbet gönderme", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("Enter gönderir, Shift+Enter göndermez", async () => {
+  it("sends on Enter but not on Shift+Enter", async () => {
     withKey();
     const fetchMock = vi.fn().mockResolvedValue(ok("merhaba"));
     vi.stubGlobal("fetch", fetchMock);
@@ -130,7 +130,7 @@ describe("sohbet gönderme", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("hatadan sonra sohbet çalışmaya devam eder", async () => {
+  it("keeps working after an error", async () => {
     withKey();
     vi.stubGlobal(
       "fetch",
@@ -150,7 +150,7 @@ describe("sohbet gönderme", () => {
     expect(await screen.findByText("yine buradayım")).toBeTruthy();
   });
 
-  it("kayıtlı anahtar isteğe gider", async () => {
+  it("sends the stored key with the request", async () => {
     withKey();
     const fetchMock = vi.fn().mockResolvedValue(ok("merhaba"));
     vi.stubGlobal("fetch", fetchMock);
@@ -164,8 +164,8 @@ describe("sohbet gönderme", () => {
   });
 });
 
-describe("sohbetler arasında gezinme", () => {
-  it("yeni sohbet boş açılır, eski listede kalır", async () => {
+describe("moving between chats", () => {
+  it("opens a new chat empty and keeps the old one listed", async () => {
     withKey();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok("merhaba")));
     render(<App />);
@@ -178,7 +178,7 @@ describe("sohbetler arasında gezinme", () => {
     expect(screen.getByText("kanlı dövüş")).toBeTruthy(); // listedeki başlık
   });
 
-  it("eski sohbete dönünce mesajları geri gelir", async () => {
+  it("brings the messages back when returning to a chat", async () => {
     withKey();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok("merhaba")));
     render(<App />);
@@ -191,7 +191,7 @@ describe("sohbetler arasında gezinme", () => {
     expect(screen.getByText("merhaba")).toBeTruthy();
   });
 
-  it("her sohbet kendi taslağını taşır", async () => {
+  it("gives every chat its own draft", async () => {
     withKey();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok("merhaba")));
     render(<App />);
@@ -210,7 +210,7 @@ describe("sohbetler arasında gezinme", () => {
     expect(composer().value).toBe("yarım kalan metin");
   });
 
-  it("gönderince o sohbetin taslağı boşalır", async () => {
+  it("clears that chat's draft on send", async () => {
     withKey();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok("merhaba")));
     render(<App />);
@@ -221,7 +221,7 @@ describe("sohbetler arasında gezinme", () => {
     expect(composer().value).toBe("");
   });
 
-  it("beklerken sohbet değişse bile cevap isteyen sohbete düşer", async () => {
+  it("lands the reply in the chat that asked, even after switching away", async () => {
     withKey();
     let release;
     const held = new Promise((resolve) => {
@@ -245,8 +245,8 @@ describe("sohbetler arasında gezinme", () => {
   });
 });
 
-describe("silme", () => {
-  it("silinen sohbet listeden gider", async () => {
+describe("deleting", () => {
+  it("removes a deleted chat from the list", async () => {
     withKey();
     vi.stubGlobal("confirm", vi.fn(() => true));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok("merhaba")));
@@ -260,7 +260,7 @@ describe("silme", () => {
     expect(screen.queryByText("silinecek")).toBeNull();
   });
 
-  it("açık sohbet silinince ekran boş kalmaz", () => {
+  it("does not leave the screen empty when the open chat is deleted", () => {
     withKey();
     vi.stubGlobal("confirm", vi.fn(() => true));
     render(<App />);

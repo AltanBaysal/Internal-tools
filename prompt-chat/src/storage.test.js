@@ -4,24 +4,24 @@ import { nextId, createChat, deleteChat, replaceMessages, setDraft, titleOf } fr
 const chat = (id, messages = [], draft = "") => ({ id, messages, draft });
 
 describe("nextId", () => {
-  it("boş listede 1 verir", () => {
+  it("gives 1 for an empty list", () => {
     expect(nextId([])).toBe(1);
   });
 
-  it("en büyüğün bir fazlasını verir", () => {
+  it("gives one more than the largest", () => {
     expect(nextId([chat(1), chat(4), chat(2)])).toBe(5);
   });
 });
 
 describe("createChat", () => {
-  it("sonuna boş sohbet ekler ve id'sini söyler", () => {
+  it("appends an empty chat and reports its id", () => {
     const { chats, id } = createChat([chat(1)]);
     expect(id).toBe(2);
     expect(chats).toHaveLength(2);
     expect(chats[1]).toEqual({ id: 2, messages: [], draft: "" });
   });
 
-  it("verilen listeyi değiştirmez", () => {
+  it("does not mutate the list it was given", () => {
     const before = [chat(1)];
     createChat(before);
     expect(before).toHaveLength(1);
@@ -29,12 +29,12 @@ describe("createChat", () => {
 });
 
 describe("deleteChat", () => {
-  it("yalnız o sohbeti çıkarır", () => {
+  it("removes only that chat", () => {
     const after = deleteChat([chat(1), chat(2), chat(3)], 2);
     expect(after.map((c) => c.id)).toEqual([1, 3]);
   });
 
-  it("verilen listeyi değiştirmez", () => {
+  it("does not mutate the list it was given", () => {
     const before = [chat(1), chat(2)];
     deleteChat(before, 1);
     expect(before).toHaveLength(2);
@@ -42,26 +42,26 @@ describe("deleteChat", () => {
 });
 
 describe("replaceMessages", () => {
-  it("yalnız hedef sohbetin mesajlarını değiştirir", () => {
+  it("changes only the target chat's messages", () => {
     const after = replaceMessages([chat(1), chat(2)], 2, [{ role: "user", content: "selam" }]);
     expect(after[0].messages).toEqual([]);
     expect(after[1].messages).toEqual([{ role: "user", content: "selam" }]);
   });
 
-  it("taslağa dokunmaz", () => {
+  it("leaves the draft alone", () => {
     const after = replaceMessages([chat(1, [], "yarım")], 1, [{ role: "user", content: "a" }]);
     expect(after[0].draft).toBe("yarım");
   });
 });
 
 describe("setDraft", () => {
-  it("yalnız hedef sohbetin taslağını değiştirir", () => {
+  it("changes only the target chat's draft", () => {
     const after = setDraft([chat(1, [], "a"), chat(2, [], "b")], 2, "yeni");
     expect(after[0].draft).toBe("a");
     expect(after[1].draft).toBe("yeni");
   });
 
-  it("mesajlara dokunmaz", () => {
+  it("leaves the messages alone", () => {
     const msgs = [{ role: "user", content: "selam" }];
     const after = setDraft([chat(1, msgs)], 1, "yarım");
     expect(after[0].messages).toBe(msgs);
@@ -69,29 +69,29 @@ describe("setDraft", () => {
 });
 
 describe("titleOf", () => {
-  it("hiç mesaj yoksa Yeni sohbet der", () => {
+  it("says Yeni sohbet when there are no messages", () => {
     expect(titleOf([])).toBe("Yeni sohbet");
   });
 
-  it("yalnız cevap varsa da Yeni sohbet der", () => {
+  it("says Yeni sohbet when only a reply exists", () => {
     expect(titleOf([{ role: "assistant", content: "merhaba" }])).toBe("Yeni sohbet");
   });
 
-  it("kısa mesajı olduğu gibi verir", () => {
+  it("returns a short message unchanged", () => {
     expect(titleOf([{ role: "user", content: "kanlı dövüş" }])).toBe("kanlı dövüş");
   });
 
-  it("uzun mesajı 40 karakterde kırpar ve … ekler", () => {
+  it("cuts a long message at 40 characters and appends …", () => {
     const uzun = "a".repeat(60);
     const title = titleOf([{ role: "user", content: uzun }]);
     expect(title).toBe("a".repeat(40) + "…");
   });
 
-  it("satır sonlarını boşluğa çevirir", () => {
+  it("turns line breaks into spaces", () => {
     expect(titleOf([{ role: "user", content: "birinci\nikinci" }])).toBe("birinci ikinci");
   });
 
-  it("ilk kullanıcı mesajını alır, sonrakini değil", () => {
+  it("takes the first user message, not a later one", () => {
     const title = titleOf([
       { role: "user", content: "ilk" },
       { role: "assistant", content: "cevap" },

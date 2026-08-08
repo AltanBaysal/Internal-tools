@@ -29,8 +29,8 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("ProjectsScreen proje silme", () => {
-  it("çöpe basmak projeyi açmaz, önce onay sorar", async () => {
+describe("ProjectsScreen deleting a project", () => {
+  it("does not open the project when the bin is pressed, it asks first", async () => {
     await openScreen();
 
     fireEvent.click(screen.getByLabelText("Projeyi sil"));
@@ -40,7 +40,7 @@ describe("ProjectsScreen proje silme", () => {
     expect(deleteProject).not.toHaveBeenCalled();
   });
 
-  it("onaylayınca projeyi siler ve listeyi tazeler", async () => {
+  it("deletes the project and refreshes the list once confirmed", async () => {
     await openScreen();
     deleteProject.mockResolvedValue(null);
     listProjects.mockResolvedValue([]);
@@ -53,7 +53,7 @@ describe("ProjectsScreen proje silme", () => {
     expect(screen.queryByText("düğün")).toBeNull();
   });
 
-  it("karta tıklamak projeyi açar", async () => {
+  it("opens the project when the card is clicked", async () => {
     await openScreen();
 
     fireEvent.click(screen.getByText("düğün"));

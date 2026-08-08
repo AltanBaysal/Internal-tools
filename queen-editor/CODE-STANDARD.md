@@ -98,7 +98,7 @@ Same feature-first shape: `features/<name>/` with components + hooks (data acces
   `shared/app.css`, never in `vendor/`.
 
 ## Language
-Code comments, docstrings, this file, and commit messages: **English**.
+Code comments, docstrings, **test names**, this file, and commit messages: **English**.
 User-facing UI text and notebook markdown / `print` / `assert`: **Turkish**.
 
 ## Tests

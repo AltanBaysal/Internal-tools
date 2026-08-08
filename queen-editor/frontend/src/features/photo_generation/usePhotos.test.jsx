@@ -18,7 +18,7 @@ beforeEach(() => {
 });
 
 describe("usePhotos", () => {
-  it("listeyi galeri sırasıyla okur", async () => {
+  it("reads the list in gallery order", async () => {
     listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
 
     const { result } = renderHook(() => usePhotos("düğün"));
@@ -28,7 +28,7 @@ describe("usePhotos", () => {
     expect(result.current.photos.map((p) => p.file)).toEqual(["1_a.png", "0_a.png"]);
   });
 
-  it("silinen fotoğrafı listeden çıkarır", async () => {
+  it("drops a deleted photo from the list", async () => {
     listPhotos.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
     deletePhotos.mockResolvedValue({ deleted: ["1_a.png"] });
 
@@ -40,7 +40,7 @@ describe("usePhotos", () => {
     expect(result.current.photos.map((p) => p.file)).toEqual(["0_a.png"]);
   });
 
-  it("silme başarısızsa listeyi olduğu gibi bırakır ve hatayı söyler", async () => {
+  it("leaves the list alone and reports the error when a delete fails", async () => {
     listPhotos.mockResolvedValue([{ file: "0_a.png" }]);
     deletePhotos.mockRejectedValue(new Error("Fotoğraf yok: 0_a.png"));
 

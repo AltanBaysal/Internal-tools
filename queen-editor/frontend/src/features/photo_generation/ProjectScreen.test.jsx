@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 describe("ProjectScreen app bar", () => {
-  it("Export'u indirme bağlantısı olarak sunar", () => {
+  it("offers Export as a download link", () => {
     renderScreen();
 
     const link = screen.getByText("Export").closest("a");
@@ -46,7 +46,7 @@ describe("ProjectScreen app bar", () => {
     expect(link.hasAttribute("download")).toBe(true);
   });
 
-  it("Projeden çık önce sorar, Vazgeç ekranda tutar", () => {
+  it("asks before leaving the project, and cancel keeps you on the screen", () => {
     renderScreen();
 
     fireEvent.click(screen.getByText("Projeden çık"));
@@ -58,7 +58,7 @@ describe("ProjectScreen app bar", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("Çık'a basınca projelerden çıkar", () => {
+  it("leaves for the projects screen when leave is pressed", () => {
     renderScreen();
 
     fireEvent.click(screen.getByText("Projeden çık"));
@@ -67,7 +67,7 @@ describe("ProjectScreen app bar", () => {
     expect(navigate).toHaveBeenCalledWith("/");
   });
 
-  it("Export'u Projeden çık'ın soluna koyar", () => {
+  it("places Export to the left of the leave button", () => {
     renderScreen();
 
     const exportEl = screen.getByText("Export");

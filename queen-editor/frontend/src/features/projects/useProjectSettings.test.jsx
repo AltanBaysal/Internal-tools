@@ -18,7 +18,7 @@ beforeEach(() => {
 });
 
 describe("useProjectSettings", () => {
-  it("ayarlar gelince hazır duruma geçer", async () => {
+  it("becomes ready once the settings arrive", async () => {
     getSettings.mockResolvedValue({ prompts: '["a"]', negative: "kötü", variants: 4 });
 
     const { result } = renderHook(() => useProjectSettings("düğün"));
@@ -30,7 +30,7 @@ describe("useProjectSettings", () => {
     expect(result.current.settings.negative).toBe("kötü");
   });
 
-  it("hata durumunda sunucunun metnini taşır", async () => {
+  it("carries the server's text on failure", async () => {
     getSettings.mockRejectedValue(new Error("Proje bulunamadı: düğün"));
 
     const { result } = renderHook(() => useProjectSettings("düğün"));
@@ -40,7 +40,7 @@ describe("useProjectSettings", () => {
     expect(result.current.error).toBe("Proje bulunamadı: düğün");
   });
 
-  it("proje hızlı değişirse eski projenin geç gelen cevabını yutar", async () => {
+  it("swallows a late answer for the previous project after a quick switch", async () => {
     let resolveFirst;
     getSettings
       .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))

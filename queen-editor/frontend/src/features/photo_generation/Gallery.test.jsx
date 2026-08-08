@@ -47,8 +47,8 @@ function dragTile(fromName, toName) {
   fireEvent.drop(tileOf(toName));
 }
 
-describe("Gallery sıralama", () => {
-  it("her kareye sıra rozetini basar", () => {
+describe("Gallery ordering", () => {
+  it("stamps the order badge on every frame", () => {
     renderGallery();
 
     expect(screen.getByText("1")).toBeTruthy();
@@ -56,7 +56,7 @@ describe("Gallery sıralama", () => {
     expect(screen.getByText("3")).toBeTruthy();
   });
 
-  it("kare bırakıldığında yeni sırayı bildirir", () => {
+  it("reports the new order when a frame is dropped", () => {
     const onReorder = vi.fn();
     renderGallery({ onReorder });
 
@@ -65,7 +65,7 @@ describe("Gallery sıralama", () => {
     expect(onReorder).toHaveBeenCalledWith(["0_a.png", "2_a.png", "1_a.png"]);
   });
 
-  it("aynı yere bırakılan kare için sunucuya gitmez", () => {
+  it("does not go to the server for a frame dropped where it already was", () => {
     const onReorder = vi.fn();
     renderGallery({ onReorder });
 
@@ -74,7 +74,7 @@ describe("Gallery sıralama", () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
-  it("kareye tıklayınca detay sayfasına gider", () => {
+  it("goes to the detail page when a frame is clicked", () => {
     renderGallery();
 
     const link = tileOf("2_a.png").querySelector("a");
@@ -82,7 +82,7 @@ describe("Gallery sıralama", () => {
       `/projects/${encodeURIComponent("düğün")}/photos/2_a.png`);
   });
 
-  it("üretilen kare rozet almaz", () => {
+  it("gives no badge to a frame still being generated", () => {
     renderGallery({ current: { number: 3, letter: "a", prompt: "p" } });
 
     // Three photos, three badges -- the spinner tile is not in the record and has no place yet.
@@ -90,15 +90,15 @@ describe("Gallery sıralama", () => {
   });
 });
 
-describe("Gallery kuyruk", () => {
-  it("bekleyen kareleri fotoğrafların önüne dizer", () => {
+describe("Gallery queue", () => {
+  it("lines pending frames up ahead of the photos", () => {
     renderGallery({ pending: ["3_a.png", "3_b.png"] });
 
     expect(screen.getAllByText("bekliyor")).toHaveLength(2);
     expect(screen.getByText("3_a.png")).toBeTruthy();
   });
 
-  it("bekleyen kare rozet almaz ve sürüklenemez", () => {
+  it("gives a pending frame no badge and no drag handle", () => {
     renderGallery({ pending: ["3_a.png"] });
 
     const tile = screen.getByText("3_a.png").closest("[data-tile]");
@@ -106,7 +106,7 @@ describe("Gallery kuyruk", () => {
     expect(screen.queryByText("4")).toBeNull();
   });
 
-  it("hiç fotoğraf yokken kuyruk varsa boş ekran demez", () => {
+  it("does not claim the gallery is empty when a queue is waiting", () => {
     renderGallery({ photos: [], pending: ["0_a.png"] });
 
     expect(screen.queryByText("henüz fotoğraf yok")).toBeNull();
@@ -114,8 +114,8 @@ describe("Gallery kuyruk", () => {
   });
 });
 
-describe("Gallery hatalı kareler", () => {
-  it("patlayan kareyi kendi Tekrar dene düğmesiyle gösterir", () => {
+describe("Gallery failed frames", () => {
+  it("shows a failed frame with its own retry button", () => {
     const onRetry = vi.fn();
     renderGallery({ failures: ["3_a.png"], onRetry });
 
@@ -126,8 +126,8 @@ describe("Gallery hatalı kareler", () => {
   });
 });
 
-describe("Gallery seçim modu", () => {
-  it("halkaya tıklayınca mod açılır ve o kare seçilir", () => {
+describe("Gallery selection mode", () => {
+  it("opens the mode and selects that frame when the ring is clicked", () => {
     renderGallery();
 
     fireEvent.click(checkOf("1_a.png"));
@@ -136,7 +136,7 @@ describe("Gallery seçim modu", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("modda kareye tıklamak seçer, kaldırır ve detaya gitmez", () => {
+  it("selects and deselects in the mode without opening the detail page", () => {
     renderGallery();
     fireEvent.click(checkOf("1_a.png"));
 
@@ -148,7 +148,7 @@ describe("Gallery seçim modu", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("Tümünü seç hepsini seçer, ikinci basış temizler", () => {
+  it("selects everything, and clears the selection on a second press", () => {
     renderGallery();
     fireEvent.click(checkOf("1_a.png"));
 
@@ -159,7 +159,7 @@ describe("Gallery seçim modu", () => {
     expect(screen.getByText("0 seçili")).toBeTruthy();
   });
 
-  it("Vazgeç ve Esc modu kapatır", () => {
+  it("closes the mode on cancel and on Esc", () => {
     const { unmount } = renderGallery();
     fireEvent.click(checkOf("1_a.png"));
 
@@ -173,7 +173,7 @@ describe("Gallery seçim modu", () => {
     expect(screen.queryByText("1 seçili")).toBeNull();
   });
 
-  it("Sil önce onay ister, onayda seçilenleri bildirir", async () => {
+  it("asks before deleting, then reports what was selected", async () => {
     const onDelete = vi.fn().mockResolvedValue(null);
     renderGallery({ onDelete });
     fireEvent.click(checkOf("1_a.png"));
@@ -189,7 +189,7 @@ describe("Gallery seçim modu", () => {
     expect(onDelete).toHaveBeenCalledWith(["1_a.png", "0_a.png"]);
   });
 
-  it("seçim yokken Sil pasiftir", () => {
+  it("disables delete while nothing is selected", () => {
     renderGallery();
     fireEvent.click(checkOf("1_a.png"));
     fireEvent.click(photoOf("1_a.png"));  // deselect: the mode stays open, the button goes dead

@@ -36,8 +36,8 @@ function isDimmed(element) {
   return false;
 }
 
-describe("GeneratePanel — yarım kalan üretim", () => {
-  it("ölümcül durmada sebebi de gösterir", () => {
+describe("GeneratePanel — an unfinished run", () => {
+  it("shows the reason after a fatal stop", () => {
     renderPanel({
       job: { status: "error", project: "düğün", done: 7, total: 48,
              error: "Üst üste 3 hata\nComfyUI 500" },
@@ -48,7 +48,7 @@ describe("GeneratePanel — yarım kalan üretim", () => {
     expect(screen.getByText(/ComfyUI 500/)).toBeTruthy();
   });
 
-  it("oturum ölmüşse sebep uydurmaz, yalnız kaç kare kaldığını söyler", () => {
+  it("invents no reason after a dead session, it only says how many frames are left", () => {
     renderPanel({
       job: { status: "idle" },
       queue: { pending: ["7_a.png", "7_b.png"], total: 10 },
@@ -58,7 +58,7 @@ describe("GeneratePanel — yarım kalan üretim", () => {
     expect(screen.getByText("Kaldığı yerden devam et")).toBeTruthy();
   });
 
-  it("yarım iş yoksa normal Üret'i gösterir", () => {
+  it("shows the ordinary generate button when nothing is half done", () => {
     renderPanel({ job: { status: "idle" } });
 
     expect(screen.getByText("Üret")).toBeTruthy();
@@ -66,10 +66,10 @@ describe("GeneratePanel — yarım kalan üretim", () => {
   });
 });
 
-describe("GeneratePanel — duraklatılmış üretim", () => {
+describe("GeneratePanel — a paused run", () => {
   const PAUSED = { status: "paused", project: "düğün", done: 7, failed: 0, total: 48 };
 
-  it("devam et, durum kartı ve iptal et sunar", () => {
+  it("offers resume, a status card and cancel", () => {
     renderPanel({ job: PAUSED });
 
     expect(screen.getByText("Devam et")).toBeTruthy();
@@ -78,7 +78,7 @@ describe("GeneratePanel — duraklatılmış üretim", () => {
     expect(screen.queryByText("Üret")).toBeNull();
   });
 
-  it("düğmeler kendi işlerini çağırır", () => {
+  it("wires each button to its own action", () => {
     const onResume = vi.fn();
     const onCancel = vi.fn();
     renderPanel({ job: PAUSED, onResume, onCancel });
@@ -91,10 +91,10 @@ describe("GeneratePanel — duraklatılmış üretim", () => {
   });
 });
 
-describe("GeneratePanel — alan hatası", () => {
+describe("GeneratePanel — a field error", () => {
   const IDLE = { status: "idle" };
 
-  it("sunucunun işaret ettiği kutuyu kızartır ve metnini altına yazar", () => {
+  it("reddens the field the server named and writes its text underneath", () => {
     renderPanel({ job: IDLE, error: "Prompt listesi boş.", errorField: "prompts" });
 
     expect(screen.getByText("Prompt listesi boş.")).toBeTruthy();
@@ -102,7 +102,7 @@ describe("GeneratePanel — alan hatası", () => {
       .toBe("var(--danger)");
   });
 
-  it("yazmaya başlayınca hatayı temizler", () => {
+  it("clears the error once typing starts", () => {
     const onClearError = vi.fn();
     renderPanel({ job: IDLE, error: "Prompt listesi boş.", errorField: "prompts", onClearError });
 
@@ -113,15 +113,15 @@ describe("GeneratePanel — alan hatası", () => {
   });
 });
 
-describe("GeneratePanel — üretim sürerken bağlantı", () => {
-  it("bağlantı koptuğunda son bilinen ilerlemeyi söyler ve çubuğu soluklaştırır", () => {
+describe("GeneratePanel — the connection during a run", () => {
+  it("reports the last known progress and dims the bar when the connection drops", () => {
     renderPanel({ error: DEAD });
 
     expect(screen.getByText("Sunucuya ulaşılamıyor — son bilinen: 7/48")).toBeTruthy();
     expect(isDimmed(screen.getByText("7 / 48"))).toBe(true);
   });
 
-  it("bağlantı sağlamken ne uyarı yazar ne çubuğu soluklaştırır", () => {
+  it("neither warns nor dims while the connection holds", () => {
     renderPanel();
 
     expect(screen.queryByText(/son bilinen/)).toBeNull();

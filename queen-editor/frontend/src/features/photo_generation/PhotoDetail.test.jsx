@@ -40,7 +40,7 @@ beforeEach(() => {
 });
 
 describe("PhotoDetail", () => {
-  it("sırayı, dosya adını ve prompt'u gösterir", async () => {
+  it("shows the position, the file name and the prompt", async () => {
     await open("1_a.png");
 
     expect(screen.getByText("2 / 3")).toBeTruthy();
@@ -48,7 +48,7 @@ describe("PhotoDetail", () => {
     expect(screen.getByText(/ikinci/)).toBeTruthy();
   });
 
-  it("ok ile sonraki fotoğrafa geçer", async () => {
+  it("moves to the next photo with the arrow", async () => {
     await open("1_a.png");
 
     fireEvent.click(screen.getByText("›"));
@@ -56,7 +56,7 @@ describe("PhotoDetail", () => {
     expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/0_a.png");
   });
 
-  it("ilk fotoğrafta geri oku çalışmaz", async () => {
+  it("leaves the back arrow dead on the first photo", async () => {
     await open("2_a.png");
 
     fireEvent.click(screen.getByText("‹"));
@@ -64,7 +64,7 @@ describe("PhotoDetail", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("klavye okları ve Esc çalışır", async () => {
+  it("responds to the arrow keys and Esc", async () => {
     await open("1_a.png");
 
     fireEvent.keyDown(window, { key: "ArrowLeft" });
@@ -74,7 +74,7 @@ describe("PhotoDetail", () => {
     expect(navigate).toHaveBeenCalledWith("/projects/düğün");
   });
 
-  it("silme önce onay ister, sonra sonraki fotoğrafı açar", async () => {
+  it("asks before deleting, then opens the next photo", async () => {
     deletePhotos.mockResolvedValue({ deleted: [] });
     await open("1_a.png");
 
@@ -88,7 +88,7 @@ describe("PhotoDetail", () => {
     expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/0_a.png");
   });
 
-  it("son fotoğraf silinince öncekine döner", async () => {
+  it("falls back to the previous photo when the last one is deleted", async () => {
     deletePhotos.mockResolvedValue({ deleted: [] });
     await open("0_a.png");
 
@@ -98,7 +98,7 @@ describe("PhotoDetail", () => {
     expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/1_a.png");
   });
 
-  it("listede olmayan dosya için hata kartı gösterir", async () => {
+  it("shows an error card for a file that is not in the list", async () => {
     await open("yok.png");
 
     expect(screen.getByText("Fotoğraf bulunamadı")).toBeTruthy();

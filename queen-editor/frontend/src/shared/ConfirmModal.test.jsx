@@ -11,21 +11,21 @@ function renderModal(props) {
 }
 
 describe("ConfirmModal", () => {
-  it("başlığı ve gövdeyi basar", () => {
+  it("renders the title and the body", () => {
     renderModal({ body: "Bu işlem geri alınamaz." });
 
     expect(screen.getByText("Bu fotoğraf silinsin mi?")).toBeTruthy();
     expect(screen.getByText("Bu işlem geri alınamaz.")).toBeTruthy();
   });
 
-  it("gövdesiz de çizilir", () => {
+  it("renders without a body too", () => {
     renderModal({ title: "Projeden çıkılsın mı?", confirmLabel: "Çık" });
 
     expect(screen.getByText("Projeden çıkılsın mı?")).toBeTruthy();
     expect(screen.getByText("Çık")).toBeTruthy();
   });
 
-  it("yıkıcı onay kırmızı, yıkıcı olmayan accent görünür", () => {
+  it("colours a destructive confirm red and a plain one accent", () => {
     const { unmount } = renderModal({ danger: true });
     expect(screen.getByText("Sil").style.background).toBe("var(--danger)");
     unmount();
@@ -34,7 +34,7 @@ describe("ConfirmModal", () => {
     expect(screen.getByText("Çık").className).toContain("wf-btn--hl");
   });
 
-  it("Esc iptal eder, iş sürerken etmez", () => {
+  it("cancels on Esc, but not while the work is running", () => {
     const onCancel = vi.fn();
     const { unmount } = renderModal({ onCancel });
 
@@ -47,7 +47,7 @@ describe("ConfirmModal", () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it("onaya basınca onConfirm çağrılır", () => {
+  it("calls onConfirm when the confirm button is pressed", () => {
     const onConfirm = vi.fn();
     renderModal({ onConfirm });
 

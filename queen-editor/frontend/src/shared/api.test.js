@@ -7,7 +7,7 @@ function okResponse(body) {
 }
 
 describe("api.request", () => {
-  it("proje adını URL'de kodlar", async () => {
+  it("percent-encodes the project name in the URL", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ photos: [] }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -18,7 +18,7 @@ describe("api.request", () => {
     expect(url).not.toContain("düğün");
   });
 
-  it("sunucunun reddettiği istekte sunucunun kendi metnini fırlatır", async () => {
+  it("throws the server's own text when the server rejects a request", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
       status: 404,
@@ -29,7 +29,7 @@ describe("api.request", () => {
     await expect(getSettings("düğün")).rejects.toThrow("Proje bulunamadı: düğün");
   });
 
-  it("JSON olmayan hata gövdesinde kodu ve durum metnini gösterir", async () => {
+  it("shows the status and its text when the error body is not JSON", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
       ok: false,
       status: 502,
@@ -40,7 +40,7 @@ describe("api.request", () => {
     await expect(getSettings("düğün")).rejects.toThrow("502 Bad Gateway");
   });
 
-  it("ağ reddini Türkçe önekle sarar ve ham metni altında tutar", async () => {
+  it("wraps a network refusal in a Turkish prefix and keeps the raw text under it", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     await expect(listProjects()).rejects.toThrow(
@@ -48,7 +48,7 @@ describe("api.request", () => {
     );
   });
 
-  it("10 saniye cevapsız kalan isteği iptal eder", async () => {
+  it("aborts a request that goes 10 seconds without an answer", async () => {
     vi.useFakeTimers();
     // A dead tunnel answers nothing at all: this fetch settles only if the abort signal fires.
     vi.stubGlobal("fetch", vi.fn((path, options) => new Promise((_, reject) => {
@@ -67,7 +67,7 @@ describe("api.request", () => {
     await assertion;
   });
 
-  it("sırayı PUT ile gönderir", async () => {
+  it("sends the ordering with PUT", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ order: ["1_a.png"] }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -79,7 +79,7 @@ describe("api.request", () => {
     expect(JSON.parse(options.body)).toEqual({ order: ["1_a.png"] });
   });
 
-  it("cevap gelen isteği sonradan iptal etmez", async () => {
+  it("does not abort a request after its answer has arrived", async () => {
     vi.useFakeTimers();
     let signal;
     vi.stubGlobal("fetch", vi.fn((path, options) => {
