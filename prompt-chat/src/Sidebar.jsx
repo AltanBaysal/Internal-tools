@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { titleOf } from "./storage.js";
+import ProjectTree from "./ProjectTree.jsx";
+import { errors } from "./skillSource.js";
 
 export default function Sidebar({
+  projects,
+  files,
   chats,
-  activeId,
-  onSelect,
-  onNew,
-  onDelete,
+  active,
+  on,
   apiKey,
   onApiKey,
   model,
@@ -16,35 +17,9 @@ export default function Sidebar({
   // and stays out of the way afterwards.
   const [settingsOpen, setSettingsOpen] = useState(() => apiKey === "");
 
-  function remove(id) {
-    if (window.confirm("Bu sohbet silinecek. Emin misin?")) onDelete(id);
-  }
-
   return (
     <aside className="sidebar">
-      <button className="new-chat" aria-label="Yeni sohbet ekle" onClick={onNew}>
-        + Yeni sohbet
-      </button>
-
-      <ul className="chat-list">
-        {chats.map((c) => {
-          const title = titleOf(c.messages);
-          return (
-            <li key={c.id} className={c.id === activeId ? "chat-row active" : "chat-row"}>
-              <button className="chat-open" onClick={() => onSelect(c.id)}>
-                {title}
-              </button>
-              <button
-                className="chat-delete"
-                aria-label={`${title} sohbetini sil`}
-                onClick={() => remove(c.id)}
-              >
-                ×
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+      <ProjectTree projects={projects} files={files} chats={chats} active={active} on={on} />
 
       <div className="settings">
         {settingsOpen && (
@@ -62,6 +37,17 @@ export default function Sidebar({
               value={model}
               onChange={(e) => onModel(e.target.value)}
             />
+            {/* A skill that failed to load is invisible everywhere else — it simply is not in the
+                list — so the one place a user could go looking is where it says why. */}
+            {errors.length > 0 && (
+              <ul className="skill-errors">
+                {errors.map((e) => (
+                  <li key={e.path}>
+                    {e.path} — {e.reason}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
         <button className="settings-toggle" onClick={() => setSettingsOpen((v) => !v)}>

@@ -2,20 +2,19 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
 import Sidebar from "./Sidebar.jsx";
 
-const msg = (content) => ({ role: "user", content });
-
-const chats = [
-  { id: 1, messages: [msg("kanlı dövüş sahnesi")], draft: "" },
-  { id: 2, messages: [], draft: "" },
-];
-
+// The tree itself is covered in ProjectTree.test.jsx; what is left here is the settings panel,
+// which is the only thing Sidebar still owns.
 function show(extra = {}) {
   const props = {
-    chats,
-    activeId: 1,
-    onSelect: vi.fn(),
-    onNew: vi.fn(),
-    onDelete: vi.fn(),
+    projects: [{ id: 1, name: "Genel" }],
+    files: [],
+    chats: [{ id: 1, projectId: 1, messages: [], draft: "" }],
+    active: { projectId: 1, chatId: 1, fileId: null },
+    on: {
+      openProject: vi.fn(), newProject: vi.fn(), deleteProject: vi.fn(),
+      openFile: vi.fn(), newFile: vi.fn(), deleteFile: vi.fn(),
+      openChat: vi.fn(), newChat: vi.fn(), deleteChat: vi.fn(),
+    },
     apiKey: "xai-123",
     onApiKey: vi.fn(),
     model: "grok-4.3",
@@ -25,55 +24,6 @@ function show(extra = {}) {
   render(<Sidebar {...props} />);
   return props;
 }
-
-describe("the chat list", () => {
-  it("draws the chats with their titles", () => {
-    show();
-    expect(screen.getByText("kanlı dövüş sahnesi")).toBeTruthy();
-    expect(screen.getByText("Yeni sohbet")).toBeTruthy();
-  });
-
-  it("reports the id when a chat is clicked", () => {
-    const props = show();
-    fireEvent.click(screen.getByText("Yeni sohbet"));
-    expect(props.onSelect).toHaveBeenCalledWith(2);
-  });
-
-  it("reports a click on the new-chat button", () => {
-    const props = show();
-    fireEvent.click(screen.getByRole("button", { name: /Yeni sohbet ekle/ }));
-    expect(props.onNew).toHaveBeenCalled();
-  });
-});
-
-describe("deleting", () => {
-  // Every row has its own delete button, so the label has to name the chat -- a bare
-  // /sohbetini sil/ would match both rows and the query would throw.
-  const deleteFirst = () =>
-    screen.getByRole("button", { name: "kanlı dövüş sahnesi sohbetini sil" });
-
-  it("deletes when confirmed", () => {
-    vi.stubGlobal("confirm", vi.fn(() => true));
-    const props = show();
-    fireEvent.click(deleteFirst());
-    expect(props.onDelete).toHaveBeenCalledWith(1);
-  });
-
-  it("does not delete when cancelled", () => {
-    vi.stubGlobal("confirm", vi.fn(() => false));
-    const props = show();
-    fireEvent.click(deleteFirst());
-    expect(props.onDelete).not.toHaveBeenCalled();
-  });
-
-  it("asks before deleting", () => {
-    const ask = vi.fn(() => false);
-    vi.stubGlobal("confirm", ask);
-    show();
-    fireEvent.click(deleteFirst());
-    expect(ask).toHaveBeenCalled();
-  });
-});
 
 describe("the settings panel", () => {
   it("starts closed when a key is stored", () => {
@@ -112,5 +62,13 @@ describe("the settings panel", () => {
   it("keeps the key unreadable on screen", () => {
     show({ apiKey: "" });
     expect(screen.getByPlaceholderText("xAI API anahtarı").type).toBe("password");
+  });
+});
+
+describe("the tree", () => {
+  it("is handed the workspace so the sidebar itself holds no list state", () => {
+    show();
+    expect(screen.getByText(/Genel/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "+ Yeni dosya" })).toBeTruthy();
   });
 });

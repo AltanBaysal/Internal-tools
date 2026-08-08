@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const ROLE_LABEL = { user: "Sen", assistant: "Grok", error: "Hata" };
 
-export default function Message({ role, content }) {
+export default function Message({ role, content, skill }) {
   const [label, setLabel] = useState("Kopyala");
 
   async function copy() {
@@ -20,6 +20,9 @@ export default function Message({ role, content }) {
   return (
     <div className={`msg ${role}`}>
       <div className="role">{ROLE_LABEL[role]}</div>
+      {/* The instruction itself is folded in on the way out, so the screen shows only its name:
+          three thousand words of skill text would bury the sentence the user actually wrote. */}
+      {skill && <div className="skill-tag">/{skill}</div>}
       {/* A JSX child, never dangerouslySetInnerHTML: the reply is text to be copied, not markup. */}
       <div className="body">{content}</div>
       {role === "assistant" && (

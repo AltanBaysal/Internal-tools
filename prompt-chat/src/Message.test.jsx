@@ -52,3 +52,20 @@ describe("the copy button", () => {
     expect(await screen.findByRole("button", { name: /izin yok/ })).toBeTruthy();
   });
 });
+
+describe("the skill tag", () => {
+  it("shows the call name on a message that used a skill", () => {
+    render(<Message role="user" content="taşınacağım" skill="plan-yazma" />);
+    expect(screen.getByText("/plan-yazma")).toBeTruthy();
+  });
+
+  it("shows nothing on a message that did not", () => {
+    render(<Message role="user" content="taşınacağım" />);
+    expect(screen.queryByText(/^\//)).toBeNull();
+  });
+
+  it("shows what the user typed, never the instruction behind it", () => {
+    render(<Message role="user" content="taşınacağım" skill="plan-yazma" />);
+    expect(screen.getByText("taşınacağım")).toBeTruthy();
+  });
+});

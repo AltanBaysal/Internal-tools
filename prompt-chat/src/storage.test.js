@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { nextId, createChat, deleteChat, replaceMessages, setDraft, titleOf } from "./storage.js";
+import {
+  adoptOrphanChats,
+  chatsOf,
+  createChat,
+  deleteChat,
+  nextId,
+  replaceMessages,
+  setDraft,
+  titleOf,
+} from "./storage.js";
 
 const chat = (id, messages = [], draft = "") => ({ id, messages, draft });
 
@@ -14,17 +23,51 @@ describe("nextId", () => {
 });
 
 describe("createChat", () => {
-  it("appends an empty chat and reports its id", () => {
-    const { chats, id } = createChat([chat(1)]);
+  it("appends an empty chat inside the given project and reports its id", () => {
+    const { chats, id } = createChat([chat(1)], 7);
     expect(id).toBe(2);
     expect(chats).toHaveLength(2);
-    expect(chats[1]).toEqual({ id: 2, messages: [], draft: "" });
+    expect(chats[1]).toEqual({ id: 2, projectId: 7, messages: [], draft: "" });
   });
 
   it("does not mutate the list it was given", () => {
     const before = [chat(1)];
-    createChat(before);
+    createChat(before, 1);
     expect(before).toHaveLength(1);
+  });
+});
+
+describe("chatsOf", () => {
+  it("keeps one project's chats out of another's", () => {
+    const chats = [
+      { id: 1, projectId: 1, messages: [], draft: "" },
+      { id: 2, projectId: 2, messages: [], draft: "" },
+    ];
+    expect(chatsOf(chats, 1).map((c) => c.id)).toEqual([1]);
+  });
+
+  it("gives an empty list for a project with no chats", () => {
+    expect(chatsOf([], 3)).toEqual([]);
+  });
+});
+
+describe("adoptOrphanChats", () => {
+  // Chats stored before projects existed have no projectId. They are adopted rather than dropped:
+  // nothing a person typed disappears without them asking.
+  it("attaches a chat with no project to the given one", () => {
+    const chats = [{ id: 1, messages: [], draft: "" }];
+    expect(adoptOrphanChats(chats, 5)[0].projectId).toBe(5);
+  });
+
+  it("leaves a chat that already belongs somewhere alone", () => {
+    const chats = [{ id: 1, projectId: 2, messages: [], draft: "" }];
+    expect(adoptOrphanChats(chats, 5)[0].projectId).toBe(2);
+  });
+
+  it("returns the very same array when there is nothing to adopt", () => {
+    const chats = [{ id: 1, projectId: 2, messages: [], draft: "" }];
+    // Identity matters: a new array every render would restart the effect that calls this.
+    expect(adoptOrphanChats(chats, 5)).toBe(chats);
   });
 });
 

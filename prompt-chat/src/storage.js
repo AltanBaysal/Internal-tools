@@ -6,9 +6,21 @@ export function nextId(chats) {
   return chats.reduce((max, c) => Math.max(max, c.id), 0) + 1;
 }
 
-export function createChat(chats) {
+export function createChat(chats, projectId) {
   const id = nextId(chats);
-  return { chats: [...chats, { id, messages: [], draft: "" }], id };
+  return { chats: [...chats, { id, projectId, messages: [], draft: "" }], id };
+}
+
+export function chatsOf(chats, projectId) {
+  return chats.filter((chat) => chat.projectId === projectId);
+}
+
+// Chats stored before projects existed carry no projectId. They are adopted, never dropped. The
+// untouched array is returned as-is on purpose: the effect that calls this writes its result back
+// to storage, and a fresh array every render would loop.
+export function adoptOrphanChats(chats, projectId) {
+  if (chats.every((chat) => chat.projectId !== undefined)) return chats;
+  return chats.map((chat) => (chat.projectId === undefined ? { ...chat, projectId } : chat));
 }
 
 export function deleteChat(chats, id) {
