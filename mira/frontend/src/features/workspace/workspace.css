@@ -452,25 +452,38 @@
 
 /* Present in the row at all times so nothing shifts, and only visible once the row is under the
    pointer. No filled red button anywhere in the app. */
-.row-x {
+.row-x,
+.row-act {
   flex: none;
   border: none;
   background: none;
   padding: 0 2px;
-  font-size: 15px;
   line-height: 1;
   color: #a79e93;
   cursor: pointer;
   opacity: 0;
 }
 
+.row-x {
+  font-size: 15px;
+}
+
+.row-act {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
 .file-row:hover .row-x,
+.file-row:hover .row-act,
 .chat-row:hover .row-x,
-.row-x:focus-visible {
+.chat-row:hover .row-act,
+.row-x:focus-visible,
+.row-act:focus-visible {
   opacity: 1;
 }
 
-.row-x:hover {
+.row-x:hover,
+.row-act:hover {
   color: #8a5237;
 }
 

@@ -336,6 +336,65 @@ test("deleting the file that is open closes the panel", async () => {
   expect(screen.getByText("File deleted.")).toBeTruthy();
 });
 
+test("renaming the open file keeps the panel on it", async () => {
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  let onDisk = [file];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (options?.method === "PATCH") {
+      onDisk = [{ ...file, name: "outline.md" }];
+      return Promise.resolve({ ok: true, status: 200, json: async () => onDisk[0] });
+    }
+    if (path.endsWith("/files/plan.md")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...file, size: 4, text: "body" }),
+      });
+    }
+    if (path.endsWith("/files/outline.md")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...onDisk[0], size: 4, text: "body" }),
+      });
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  vi.stubGlobal("prompt", vi.fn().mockReturnValue("outline.md"));
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Rename plan.md" }));
+  // The file is still there under another name, so the panel follows it rather than closing.
+  await waitFor(() => expect(screen.getAllByText("outline.md").length).toBe(2));
+});
+
+test("an empty answer to the rename prompt sends nothing", async () => {
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  vi.stubGlobal("prompt", vi.fn().mockReturnValue(""));
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "Rename plan.md" }));
+  expect(fetch.mock.calls.every(([, options]) => options?.method !== "PATCH")).toBe(true);
+});
+
 test("an empty prompt sends nothing", async () => {
   const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [PROJECT] });
   vi.stubGlobal("fetch", fetch);

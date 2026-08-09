@@ -55,6 +55,15 @@ test("the × deletes the row without opening it", () => {
   expect(open).not.toHaveBeenCalled();
 });
 
+test("the name button asks to rename that row", () => {
+  const onRenameFile = vi.fn();
+  const open = vi.fn();
+  render(<FileRail files={FILES} reading={{ open }} onRenameFile={onRenameFile} />);
+  fireEvent.click(screen.getByRole("button", { name: "Rename outline.md" }));
+  expect(onRenameFile).toHaveBeenCalledWith("outline.md");
+  expect(open).not.toHaveBeenCalled();
+});
+
 test("the strip sits above the list once something was deleted", () => {
   const deleting = { deleted: { name: "gone.md", trashed: "gone.md" }, remove: vi.fn() };
   render(<FileRail files={FILES} deleting={deleting} />);

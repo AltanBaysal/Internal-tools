@@ -4,6 +4,7 @@ import { expect, test, vi } from "vitest";
 import ChatScreen from "./ChatScreen.jsx";
 
 const PROJECT = { id: "p1", name: "Thesis research" };
+const NOW = new Date().toISOString();
 const CHAT = {
   id: "c1",
   title: "Write the intro",
@@ -97,6 +98,10 @@ test("a file that lands mid-answer becomes a card straight away", () => {
   expect(screen.getByText("✓ saved to project")).toBeTruthy();
 });
 
+function withFiles(...names) {
+  return names.map((name) => ({ name, ext: name.split(".").pop(), modifiedAt: NOW }));
+}
+
 test("the file a stored reply produced is drawn under that reply", () => {
   const chat = {
     ...CHAT,
@@ -105,16 +110,29 @@ test("the file a stored reply produced is drawn under that reply", () => {
       { ...CHAT.messages[1], files: ["outline.md", "sources.txt"] },
     ],
   };
-  render(<ChatScreen project={PROJECT} chat={chat} />);
+  render(
+    <ChatScreen project={PROJECT} chat={chat} files={withFiles("outline.md", "sources.txt")} />,
+  );
   // Two files can be born in one turn, so the card is not a single slot.
-  expect(screen.getByText("outline.md")).toBeTruthy();
-  expect(screen.getByText("sources.txt")).toBeTruthy();
+  expect(screen.getByText("outline.md", { selector: ".file-card__name" })).toBeTruthy();
+  expect(screen.getByText("sources.txt", { selector: ".file-card__name" })).toBeTruthy();
 });
 
 test("the chip on a card comes from the name the reply remembers", () => {
   const chat = { ...CHAT, messages: [CHAT.messages[0], { ...CHAT.messages[1], files: ["a.txt"] }] };
-  render(<ChatScreen project={PROJECT} chat={chat} />);
-  expect(screen.getByText("txt")).toBeTruthy();
+  render(<ChatScreen project={PROJECT} chat={chat} files={withFiles("a.txt")} />);
+  expect(screen.getByText("txt", { selector: ".file-card .file-chip" })).toBeTruthy();
+});
+
+test("a card is not drawn for a file the project no longer holds", () => {
+  const chat = {
+    ...CHAT,
+    messages: [CHAT.messages[0], { ...CHAT.messages[1], files: ["renamed-away.md"] }],
+  };
+  // The message remembers what it produced and is never rewritten; the card is that memory crossed
+  // with what exists now, so a renamed or deleted file simply stops having one.
+  render(<ChatScreen project={PROJECT} chat={chat} files={withFiles("outline.md")} />);
+  expect(screen.queryByText("renamed-away.md")).toBeNull();
 });
 
 test("the rail lists the project's files beside the conversation", () => {

@@ -52,6 +52,19 @@ class FileFileStore:
         self._store.write_text(f"{project_id}/{FILES_DIR}/{name}", content)
         return name
 
+    def rename(self, project_id, name, wanted):
+        path = f"{project_id}/{FILES_DIR}/{name}"
+        if not self._store.exists(path):
+            return None
+        # Numbering a file against itself would turn plan.md into plan-2.md for no reason.
+        taken = name if wanted == name else unique_name(self.list_names(project_id), wanted)
+        self._store.move(path, f"{project_id}/{FILES_DIR}/{taken}")
+        return File(
+            name=taken,
+            ext=extension_of(taken),
+            modified_at=_iso(self._store.mtime(f"{project_id}/{FILES_DIR}/{taken}")),
+        )
+
     def delete(self, project_id, name):
         if not self._store.exists(f"{project_id}/{FILES_DIR}/{name}"):
             return None

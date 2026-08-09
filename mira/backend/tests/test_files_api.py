@@ -100,6 +100,23 @@ def test_reading_a_file_that_is_gone_is_a_404(tmp_path):
     assert "not found" in resp.get_json()["error"]
 
 
+def test_renaming_over_http_answers_with_the_name_used(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    files = _files(tmp_path)
+    files.write(pid, "plan.md", "body")
+    files.write(pid, "outline.md", "other")
+    body = client.patch(f"/api/projects/{pid}/files/plan.md", json={"name": "outline.md"}).get_json()
+    assert body == {"name": "outline-2.md", "ext": "md", "modifiedAt": body["modifiedAt"]}
+    assert client.get(f"/api/projects/{pid}/files/outline-2.md").get_json()["text"] == "body"
+
+
+def test_renaming_a_file_that_is_gone_is_a_404(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    assert client.patch(f"/api/projects/{pid}/files/ghost.md", json={"name": "x"}).status_code == 404
+
+
 def test_deleting_over_http_answers_with_the_trash_name(tmp_path):
     client = _client(tmp_path)
     pid = client.post("/api/projects").get_json()["id"]

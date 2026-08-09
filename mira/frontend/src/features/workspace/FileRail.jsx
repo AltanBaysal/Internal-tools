@@ -1,10 +1,10 @@
-import DeletedStrip from "./DeletedStrip.jsx";
+import FileStrip from "./FileStrip.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
 
 // Always open, never a toggle: the rail sits beside the composer so the user can see what already
 // exists while they are asking for more. Reading a file widens it rather than covering the chat.
-export default function FileRail({ files = [], reading, deleting }) {
+export default function FileRail({ files = [], reading, deleting, onRenameFile }) {
   return (
     <aside className={reading?.name ? "rail rail--open" : "rail"} data-testid="file-rail">
       {reading?.name ? (
@@ -19,7 +19,7 @@ export default function FileRail({ files = [], reading, deleting }) {
       ) : (
         <>
           <h2 className="column__title">Project files</h2>
-          <DeletedStrip
+          <FileStrip
             deleted={deleting?.deleted}
             error={deleting?.error}
             onUndo={deleting?.undo}
@@ -31,6 +31,7 @@ export default function FileRail({ files = [], reading, deleting }) {
                   key={file.name}
                   file={file}
                   onOpen={reading?.open}
+                  onRename={onRenameFile}
                   onDelete={deleting?.remove}
                 />
               ))

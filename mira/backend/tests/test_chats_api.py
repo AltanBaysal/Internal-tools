@@ -67,6 +67,23 @@ def test_an_unknown_project_is_404(tmp_path):
     assert client.post("/api/projects/nope/chats", json={"text": "hi"}).status_code == 404
 
 
+def test_a_chat_can_be_renamed_over_http(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).get_json()["id"]
+    resp = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": "The introduction"})
+    assert resp.status_code == 200
+    assert resp.get_json()["title"] == "The introduction"
+    assert client.get(f"/api/projects/{pid}/chats").get_json()[0]["title"] == "The introduction"
+
+
+def test_an_empty_title_is_refused_over_http(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).get_json()["id"]
+    assert client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": " "}).status_code == 400
+
+
 def test_a_chat_can_be_deleted_and_stops_being_listed(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)

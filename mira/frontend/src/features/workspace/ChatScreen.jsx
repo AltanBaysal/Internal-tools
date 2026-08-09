@@ -27,6 +27,7 @@ export default function ChatScreen({
   files = [],
   reading,
   deleting,
+  onRenameFile,
   error,
   missing,
   thinking,
@@ -50,6 +51,11 @@ export default function ChatScreen({
       </div>
     ) : null;
   }
+
+  // A message remembers what it produced and is never rewritten -- that sentence was true when it
+  // was said. The card claims something else, that the file exists and is called this, so it is
+  // drawn from the crossing of the two: renamed or deleted, the file simply stops having a card.
+  const onDisk = new Set(files.map((file) => file.name));
 
   return (
     <div className="chat-layout">
@@ -76,11 +82,13 @@ export default function ChatScreen({
                   {message.text}
                 </div>
                 {/* One turn can produce more than one file, so the card is not a single slot. */}
-                {message.files?.length ? (
+                {message.files?.some((name) => onDisk.has(name)) ? (
                   <div className="file-cards">
-                    {message.files.map((name) => (
-                      <FileCard key={name} name={name} />
-                    ))}
+                    {message.files
+                      .filter((name) => onDisk.has(name))
+                      .map((name) => (
+                        <FileCard key={name} name={name} />
+                      ))}
                   </div>
                 ) : null}
               </div>
@@ -151,7 +159,12 @@ export default function ChatScreen({
         </div>
       </div>
 
-      <FileRail files={files} reading={reading} deleting={deleting} />
+      <FileRail
+        files={files}
+        reading={reading}
+        deleting={deleting}
+        onRenameFile={onRenameFile}
+      />
     </div>
   );
 }

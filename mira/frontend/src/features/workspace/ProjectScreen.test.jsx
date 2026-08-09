@@ -66,6 +66,23 @@ test("a chat row can be asked to go, and asking is all the row does", () => {
   expect(onOpenChat).not.toHaveBeenCalled();
 });
 
+test("a chat row can be asked for a new title", () => {
+  const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
+  const onRenameChat = vi.fn();
+  const onOpenChat = vi.fn();
+  render(
+    <ProjectScreen
+      project={PROJECT}
+      chats={chats}
+      onRenameChat={onRenameChat}
+      onOpenChat={onOpenChat}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Rename Write the intro" }));
+  expect(onRenameChat).toHaveBeenCalledWith("c1");
+  expect(onOpenChat).not.toHaveBeenCalled();
+});
+
 test("a project that does not exist says so instead of crashing", () => {
   // The address bar is something a person can type into, so a wrong id has to be survivable.
   render(<ProjectScreen project={null} />);

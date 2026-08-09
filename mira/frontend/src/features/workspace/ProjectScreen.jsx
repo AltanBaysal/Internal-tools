@@ -1,8 +1,8 @@
 import { relativeTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
-import DeletedStrip from "./DeletedStrip.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
+import FileStrip from "./FileStrip.jsx";
 
 export default function ProjectScreen({
   project,
@@ -15,7 +15,9 @@ export default function ProjectScreen({
   onDescribe,
   onSend,
   onOpenChat,
+  onRenameChat,
   onDeleteChat,
+  onRenameFile,
 }) {
   if (!project) {
     // The address bar is something a person can type into, so a wrong id has to be survivable.
@@ -78,6 +80,19 @@ export default function ProjectScreen({
                   >
                     <span className="chat-row__title">{chat.title}</span>
                     <span className="chat-row__when">{relativeTime(chat.lastActivity)}</span>
+                    {onRenameChat ? (
+                      <button
+                        type="button"
+                        className="row-act"
+                        aria-label={`Rename ${chat.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onRenameChat(chat.id);
+                        }}
+                      >
+                        name
+                      </button>
+                    ) : null}
                     {onDeleteChat ? (
                       <button
                         type="button"
@@ -97,7 +112,7 @@ export default function ProjectScreen({
             </div>
             <div>
               <h2 className="column__title">Files Mira created</h2>
-              <DeletedStrip
+              <FileStrip
                 deleted={deleting?.deleted}
                 error={deleting?.error}
                 onUndo={deleting?.undo}
@@ -109,6 +124,7 @@ export default function ProjectScreen({
                       key={file.name}
                       file={file}
                       onOpen={reading?.open}
+                      onRename={onRenameFile}
                       onDelete={deleting?.remove}
                     />
                   ))
