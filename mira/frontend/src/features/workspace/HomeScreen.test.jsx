@@ -3,6 +3,16 @@ import { expect, test, vi } from "vitest";
 
 import HomeScreen from "./HomeScreen.jsx";
 
+test("blocks stand where the cards will be until the list arrives", () => {
+  render(<HomeScreen projects={[]} loading />);
+  expect(screen.getByTestId("skeleton")).toBeTruthy();
+});
+
+test("the blocks go once the list has arrived", () => {
+  render(<HomeScreen projects={[]} />);
+  expect(screen.queryByTestId("skeleton")).toBeNull();
+});
+
 const ONE = [{ id: "p1", name: "Thesis", desc: "Summaries.", hue: 45, chats: 1, files: 1 }];
 const MANY = [{ id: "p2", name: "Notes", desc: "Records.", hue: 150, chats: 2, files: 0 }];
 

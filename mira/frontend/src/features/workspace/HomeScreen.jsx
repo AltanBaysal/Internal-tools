@@ -1,5 +1,6 @@
 import Composer from "./Composer.jsx";
 import ProjectCard from "./ProjectCard.jsx";
+import Skeleton from "./Skeleton.jsx";
 
 // The design's three prompts. They only fill the draft; they never send.
 const SUGGESTIONS = [
@@ -8,7 +9,14 @@ const SUGGESTIONS = [
   "Turn my sources into a table",
 ];
 
-export default function HomeScreen({ projects, error, onNewProject, onOpenProject, onSend }) {
+export default function HomeScreen({
+  projects,
+  error,
+  loading,
+  onNewProject,
+  onOpenProject,
+  onSend,
+}) {
   return (
     <div className="home">
       <div className="home__column">
@@ -34,13 +42,17 @@ export default function HomeScreen({ projects, error, onNewProject, onOpenProjec
         {error ? <p className="home__error">{error}</p> : null}
 
         <div className="home__grid">
-          {projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              onOpen={() => onOpenProject(project.id)}
-            />
-          ))}
+          {loading ? (
+            <Skeleton rows={4} variant="card" />
+          ) : (
+            projects.map((project) => (
+              <ProjectCard
+                key={project.id}
+                project={project}
+                onOpen={() => onOpenProject(project.id)}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>

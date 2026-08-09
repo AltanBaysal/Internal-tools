@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import ChatScreen from "./features/workspace/ChatScreen.jsx";
 import HomeScreen from "./features/workspace/HomeScreen.jsx";
+import OfflineStrip from "./features/workspace/OfflineStrip.jsx";
 import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
 import SearchPanel from "./features/workspace/SearchPanel.jsx";
 import Sidebar from "./features/workspace/Sidebar.jsx";
@@ -21,21 +22,29 @@ import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { useSearch } from "./features/workspace/useSearch.js";
+import { useOnline } from "./shared/useOnline.js";
 import { useRoute } from "./shared/useRoute.js";
 
 export default function App() {
   const { route, navigate } = useRoute();
-  const { projects, error, createProject, editProject, reloadProjects } = useProjects();
+  const online = useOnline();
+  const { projects, error, loading, createProject, editProject, reloadProjects } = useProjects();
   const { recentChats, reloadRecentChats } = useRecentChats();
-  const { projectChats, reloadProjectChats } = useProjectChats(route.projectId);
-  const { files, reloadFiles, rename, deleting } = useFiles(route.projectId, reloadProjects);
+  const { projectChats, reloadProjectChats, loadingChats } = useProjectChats(route.projectId);
+  const { files, reloadFiles, loadingFiles, rename, deleting } = useFiles(
+    route.projectId,
+    reloadProjects,
+  );
   // One reader for both screens: the chat widens its rail into it, the project screen opens it as a
   // panel. What is being read belongs to the project, so it survives moving between the two.
   const reading = useFile(route.projectId);
   // A file that has just been born changes two answers at once: the list itself, and the count on
   // the project's card.
-  const chat = useChat(route.projectId, route.chatId, () =>
-    Promise.all([reloadFiles(), reloadProjects()]),
+  const chat = useChat(
+    route.projectId,
+    route.chatId,
+    () => Promise.all([reloadFiles(), reloadProjects()]),
+    online,
   );
 
   const [searching, setSearching] = useState(false);
@@ -145,12 +154,16 @@ export default function App() {
         onSearch={() => setSearching(true)}
       />
       <main className="main">
+        {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
+        <OfflineStrip online={online} />
+
         {/* Creating a project keeps the user on home: what this item has to show is the project
             appearing in both lists at once. */}
         {route.view === "home" ? (
           <HomeScreen
             projects={projects}
             error={error}
+            loading={loading}
             onNewProject={createProject}
             onOpenProject={openProject}
             onSend={sendFromHome}
@@ -162,6 +175,8 @@ export default function App() {
             project={project}
             chats={projectChats}
             files={files}
+            loadingChats={loadingChats}
+            loadingFiles={loadingFiles}
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
             onBack={goHome}
@@ -180,6 +195,7 @@ export default function App() {
             project={project}
             chat={chat.chat}
             files={files}
+            loadingFiles={loadingFiles}
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
             onRenameFile={renameFile}

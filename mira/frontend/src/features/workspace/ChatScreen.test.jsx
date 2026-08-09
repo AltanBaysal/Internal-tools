@@ -39,6 +39,12 @@ test("both messages are drawn", () => {
 test("a chat that does not exist says so instead of crashing", () => {
   render(<ChatScreen project={PROJECT} chat={null} missing />);
   expect(screen.getByText("That chat does not exist.")).toBeTruthy();
+  expect(screen.queryByTestId("skeleton")).toBeNull();
+});
+
+test("a chat still on its way draws blocks", () => {
+  render(<ChatScreen project={PROJECT} chat={null} />);
+  expect(screen.getByTestId("skeleton")).toBeTruthy();
 });
 
 test("waiting for an answer draws three dots and no fake text", () => {

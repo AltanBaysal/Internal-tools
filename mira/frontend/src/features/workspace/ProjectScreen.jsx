@@ -3,11 +3,14 @@ import Composer from "./Composer.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
 import FileStrip from "./FileStrip.jsx";
+import Skeleton from "./Skeleton.jsx";
 
 export default function ProjectScreen({
   project,
   chats = [],
   files = [],
+  loadingChats,
+  loadingFiles,
   reading,
   deleting,
   onBack,
@@ -71,6 +74,7 @@ export default function ProjectScreen({
                   themselves. */}
               <h2 className="column__title">Chats</h2>
               <div className="chat-list">
+                {loadingChats ? <Skeleton rows={3} /> : null}
                 {chats.map((chat) => (
                   <div
                     key={chat.id}
@@ -118,21 +122,25 @@ export default function ProjectScreen({
                 onUndo={deleting?.undo}
               />
               <div className="file-list">
-                {files.length ? (
-                  files.map((file) => (
-                    <FileRow
-                      key={file.name}
-                      file={file}
-                      onOpen={reading?.open}
-                      onRename={onRenameFile}
-                      onDelete={deleting?.remove}
-                    />
-                  ))
-                ) : (
+                {/* The teaching line waits for the answer: until the list has arrived, "no files
+                    yet" is a guess and not a fact. */}
+                {loadingFiles ? <Skeleton rows={3} /> : null}
+                {!loadingFiles && files.length
+                  ? files.map((file) => (
+                      <FileRow
+                        key={file.name}
+                        file={file}
+                        onOpen={reading?.open}
+                        onRename={onRenameFile}
+                        onDelete={deleting?.remove}
+                      />
+                    ))
+                  : null}
+                {!loadingFiles && !files.length ? (
                   <p className="file-list__empty">
                     No files yet — start a chat and Mira will create one.
                   </p>
-                )}
+                ) : null}
               </div>
               <p className="file-list__note">
                 Chats create the files; you just open and read them.

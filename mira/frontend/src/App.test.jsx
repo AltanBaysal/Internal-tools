@@ -7,6 +7,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   // jsdom shares one document across tests, so a pushed address has to be put back.
   window.history.pushState(null, "", "/");
+  Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
 });
 
 const PROJECT = { id: "p1", name: "Old", desc: "Notes.", hue: 45, chats: 0, files: 0 };
@@ -481,6 +482,57 @@ test("a file found by search opens its project with the file in the panel", asyn
   // The navigation and the opening happen together, so the file must not be lost on the way.
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   await waitFor(() => expect(screen.getByText("read me")).toBeTruthy());
+});
+
+function goOffline(offline) {
+  Object.defineProperty(window.navigator, "onLine", { value: !offline, configurable: true });
+  window.dispatchEvent(new Event(offline ? "offline" : "online"));
+}
+
+test("offline, the strip shows and the composer stays open", async () => {
+  goOffline(true);
+  stubProjects([]);
+  render(<App />);
+  await waitFor(() => expect(screen.getByTestId("offline")).toBeTruthy());
+  // The composer is not taken away: what is offline is the engine, not the machine.
+  expect(screen.getByPlaceholderText(/Ask anything/)).toBeTruthy();
+  goOffline(false);
+  await waitFor(() => expect(screen.queryByTestId("offline")).toBeNull());
+});
+
+test("offline, no answer is asked for; back online, one is", async () => {
+  const owed = {
+    id: "c1",
+    title: "hello",
+    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
+  };
+  const answered = {
+    ...owed,
+    messages: [...owed.messages, { role: "ai", at: new Date().toISOString(), text: "Done." }],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/answer") && options?.method === "POST") {
+      return Promise.resolve(
+        sseResponse(`event: done\ndata: ${JSON.stringify(answered)}\n\n`),
+      );
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  goOffline(true);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  // The title says "hello" too, so the bubble is asked for by name.
+  await waitFor(() => expect(screen.getByText("hello", { selector: ".msg__bubble" })).toBeTruthy());
+  expect(fetch.mock.calls.some(([path]) => path.endsWith("/answer"))).toBe(false);
+
+  // The chat is still owed an answer, so the connection coming back is the whole mechanism.
+  goOffline(false);
+  await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
 });
 
 test("an empty prompt sends nothing", async () => {

@@ -10,8 +10,12 @@ export function useRecentChats() {
 }
 
 export function useProjectChats(projectId) {
-  const { items, reload } = useList(`/api/projects/${projectId}/chats`, Boolean(projectId));
-  return { projectChats: projectId ? items : [], reloadProjectChats: reload };
+  const { items, reload, loading } = useList(`/api/projects/${projectId}/chats`, Boolean(projectId));
+  return {
+    projectChats: projectId ? items : [],
+    reloadProjectChats: reload,
+    loadingChats: loading,
+  };
 }
 
 export function startChatInNewProject(text) {

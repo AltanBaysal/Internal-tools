@@ -7,12 +7,15 @@ import { getJson, patchJson, postJson } from "../../shared/api.js";
 export function useProjects() {
   const [projects, setProjects] = useState([]);
   const [error, setError] = useState(null);
+  // An empty array cannot tell "not here yet" from "there is none".
+  const [loading, setLoading] = useState(true);
 
   const reload = useCallback(
     () =>
       getJson("/api/projects")
         .then(setProjects)
-        .catch((failure) => setError(failure.message)),
+        .catch((failure) => setError(failure.message))
+        .finally(() => setLoading(false)),
     [],
   );
 
@@ -43,5 +46,5 @@ export function useProjects() {
     }
   }, []);
 
-  return { projects, error, createProject, editProject, reloadProjects: reload };
+  return { projects, error, loading, createProject, editProject, reloadProjects: reload };
 }

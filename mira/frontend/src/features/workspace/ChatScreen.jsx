@@ -1,6 +1,7 @@
 import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FileRail from "./FileRail.jsx";
+import Skeleton from "./Skeleton.jsx";
 
 const CHIP_LENGTH = 3;
 
@@ -25,6 +26,7 @@ export default function ChatScreen({
   project,
   chat,
   files = [],
+  loadingFiles,
   reading,
   deleting,
   onRenameFile,
@@ -39,17 +41,20 @@ export default function ChatScreen({
   onRetry,
 }) {
   if (!chat) {
-    // Nothing is drawn while the chat is still on its way; only a real absence speaks up.
-    return missing ? (
+    return (
       <div className="screen">
         <div className="screen__column">
           <button type="button" className="back" onClick={onBack}>
             ← back
           </button>
-          <p className="screen__missing">That chat does not exist.</p>
+          {missing ? (
+            <p className="screen__missing">That chat does not exist.</p>
+          ) : (
+            <Skeleton rows={2} variant="message" />
+          )}
         </div>
       </div>
-    ) : null;
+    );
   }
 
   // A message remembers what it produced and is never rewritten -- that sentence was true when it
@@ -161,6 +166,7 @@ export default function ChatScreen({
 
       <FileRail
         files={files}
+        loading={loadingFiles}
         reading={reading}
         deleting={deleting}
         onRenameFile={onRenameFile}

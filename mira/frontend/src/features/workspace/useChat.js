@@ -12,7 +12,7 @@ function isOwedAnAnswer(chat) {
   return Boolean(last) && last.role === "user" && !last.pending;
 }
 
-export function useChat(projectId, chatId, onFileCreated) {
+export function useChat(projectId, chatId, onFileCreated, online = true) {
   const [chat, setChat] = useState(null);
   const [error, setError] = useState(null);
   const [missing, setMissing] = useState(false);
@@ -81,10 +81,11 @@ export function useChat(projectId, chatId, onFileCreated) {
 
   useEffect(() => {
     // Not while one is already running, and not after a failure -- otherwise a broken engine would
-    // be asked again forever.
-    if (thinking || error || !isOwedAnAnswer(chat)) return;
+    // be asked again forever. Not while the connection is gone either: the chat stays owed an
+    // answer, so this effect asks for it by itself the moment the connection is back.
+    if (!online || thinking || error || !isOwedAnAnswer(chat)) return;
     ask();
-  }, [chat, thinking, error, ask]);
+  }, [chat, thinking, error, online, ask]);
 
   const send = useCallback(
     async (text) => {

@@ -25,6 +25,13 @@ test("an empty file column teaches instead of sitting blank", () => {
   expect(screen.getByText(/No files yet/)).toBeTruthy();
 });
 
+test("while the lists load there are blocks and no teaching line", () => {
+  render(<ProjectScreen project={PROJECT} loadingChats loadingFiles />);
+  expect(screen.getAllByTestId("skeleton").length).toBe(2);
+  // "No files yet" before the answer arrives would be a guess stated as a fact.
+  expect(screen.queryByText(/No files yet/)).toBeNull();
+});
+
 test("the file column lists what the project holds", () => {
   const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
   render(<ProjectScreen project={PROJECT} files={files} />);

@@ -7,7 +7,7 @@ import { useList } from "../../shared/useList.js";
 // than an insert, because the order and the times are the server's answer, not ours to guess.
 export function useFiles(projectId, onChanged) {
   const base = `/api/projects/${projectId}`;
-  const { items, reload } = useList(`${base}/files`, Boolean(projectId));
+  const { items, reload, loading } = useList(`${base}/files`, Boolean(projectId));
   // What was deleted lives here and nowhere else: the trash name is the only handle on the file,
   // and it is never written to disk. When this goes, the offer goes with it.
   const [deleted, setDeleted] = useState(null);
@@ -70,6 +70,7 @@ export function useFiles(projectId, onChanged) {
   return {
     files: projectId ? items : [],
     reloadFiles: reload,
+    loadingFiles: loading,
     rename,
     deleting: { deleted, error, remove, undo },
   };
