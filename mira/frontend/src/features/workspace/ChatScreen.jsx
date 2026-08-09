@@ -1,7 +1,17 @@
 import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 
-export default function ChatScreen({ project, chat, error, missing, thinking, onBack, onSend }) {
+export default function ChatScreen({
+  project,
+  chat,
+  error,
+  missing,
+  thinking,
+  streamingText,
+  onBack,
+  onSend,
+  onRetry,
+}) {
   if (!chat) {
     // Nothing is drawn while the chat is still on its way; only a real absence speaks up.
     return missing ? (
@@ -41,8 +51,16 @@ export default function ChatScreen({ project, chat, error, missing, thinking, on
               </div>
             </div>
           ))}
-          {thinking ? (
-            // Three blinking dots and nothing else: the design refuses a fake partial answer.
+          {streamingText ? (
+            <div className="msg msg--ai" data-testid="streaming">
+              <div className="msg__label">Mira</div>
+              <div className="msg__text">{streamingText}</div>
+            </div>
+          ) : null}
+
+          {thinking && !streamingText ? (
+            // Three blinking dots and nothing else, and only until the first piece lands: the
+            // design refuses a fake partial answer.
             <div className="msg msg--ai" data-testid="thinking">
               <div className="msg__label">Mira</div>
               <div className="dots">
@@ -53,7 +71,22 @@ export default function ChatScreen({ project, chat, error, missing, thinking, on
             </div>
           ) : null}
 
-          {error ? <p className="chat__error">{error}</p> : null}
+          {error ? (
+            <div className="failure">
+              <div className="failure__body">
+                {/* The design also said "The connection dropped." That is a guessed cause -- a bad
+                    key and a wrong model name raise this same card -- so the card states what
+                    happened and the server's own words sit underneath. */}
+                <span className="failure__line">Couldn&apos;t get a response.</span>
+                <span className="failure__detail">{error}</span>
+              </div>
+              {onRetry ? (
+                <button type="button" className="failure__retry" onClick={onRetry}>
+                  Try again
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 

@@ -11,11 +11,14 @@ class XaiEngine:
         self._client = client
 
     def complete(self, messages, tools=None):
-        return self._client.complete(
-            [{"role": "system", "content": SYSTEM_PROMPT}]
-            + [
-                {"role": ROLE_FOR_XAI[message["role"]], "content": message["content"]}
-                for message in messages
-            ],
-            tools=tools,
-        )
+        return self._client.complete(self._for_xai(messages), tools=tools)
+
+    def stream(self, messages, tools=None):
+        return self._client.stream(self._for_xai(messages), tools=tools)
+
+    @staticmethod
+    def _for_xai(messages):
+        return [{"role": "system", "content": SYSTEM_PROMPT}] + [
+            {"role": ROLE_FOR_XAI[message["role"]], "content": message["content"]}
+            for message in messages
+        ]

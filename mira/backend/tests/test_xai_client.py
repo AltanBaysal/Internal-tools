@@ -81,6 +81,50 @@ def test_an_http_error_carries_the_services_own_words():
     assert "bad key" in str(failure.value)
 
 
+class _Lines:
+    def __init__(self, lines):
+        self._lines = lines
+
+    def __iter__(self):
+        return iter(self._lines)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_):
+        return False
+
+
+def _delta_line(text):
+    return json.dumps({"choices": [{"delta": {"content": text}}]}).encode("utf-8")
+
+
+def test_a_stream_becomes_text_pieces():
+    lines = [b"data: " + _delta_line("He"), b"data: " + _delta_line("llo"), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == ["He", "llo"]
+
+
+def test_the_stream_stops_at_done_even_if_more_follows():
+    lines = [b"data: " + _delta_line("a"), b"data: [DONE]", b"data: " + _delta_line("b")]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == ["a"]
+
+
+def test_a_broken_frame_is_skipped_rather_than_dropping_the_stream():
+    lines = [b"data: {oops", b": keep-alive", b"", b"data: " + _delta_line("a"), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == ["a"]
+
+
+def test_streaming_asks_for_a_stream():
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return _Lines([b"data: [DONE]"])
+
+    list(_client(opener).stream(MESSAGES))
+    assert seen["body"]["stream"] is True
+
+
 def test_a_dead_connection_is_reported_too():
     def opener(request):
         raise urllib.error.URLError("connection refused")

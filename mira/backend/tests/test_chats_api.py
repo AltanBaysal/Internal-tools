@@ -17,6 +17,11 @@ class FakeEngine:
             raise RuntimeError(self.blow_up)
         return {"role": "assistant", "content": self.answer}
 
+    def stream(self, messages, tools=None):
+        if self.blow_up:
+            raise RuntimeError(self.blow_up)
+        yield self.answer
+
 
 def _client(tmp_path, engine=None):
     store = Store(str(tmp_path))
@@ -138,25 +143,28 @@ def test_recent_chats_span_every_project_and_name_theirs(tmp_path):
     ]
 
 
-def test_the_answer_endpoint_appends_the_reply(tmp_path):
+def test_the_answer_arrives_as_a_stream_of_events(tmp_path):
     client = _client(tmp_path)
     started = client.post("/api/chats", json={"text": "hello"}).get_json()
     pid, cid = started["project"]["id"], started["chat"]["id"]
-    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_json()
-    assert [(m["role"], m["text"]) for m in body["messages"]] == [
-        ("user", "hello"),
-        ("ai", "Done."),
-    ]
+    resp = client.post(f"/api/projects/{pid}/chats/{cid}/answer")
+    assert resp.mimetype == "text/event-stream"
+    body = resp.get_data(as_text=True)
+    assert body.index("event: chunk") < body.index("event: done")
+    assert '"text": "Done."' in body
+    # The record the browser ends up trusting is the one the server wrote.
+    kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
+    assert [m["text"] for m in kept["messages"]] == ["hello", "Done."]
 
 
-def test_a_broken_engine_answers_502_with_its_own_words(tmp_path):
+def test_a_broken_engine_speaks_inside_the_stream(tmp_path):
     client = _client(tmp_path, engine=FakeEngine(blow_up="401 bad key"))
     started = client.post("/api/chats", json={"text": "hello"}).get_json()
     pid, cid = started["project"]["id"], started["chat"]["id"]
-    resp = client.post(f"/api/projects/{pid}/chats/{cid}/answer")
-    assert resp.status_code == 502
-    assert "401 bad key" in resp.get_json()["error"]
-    # The user's message is still on disk: only the answer is missing.
+    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    # The status code was settled when the first byte left, so the fault travels as an event.
+    assert "event: error" in body
+    assert "401 bad key" in body
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     assert [m["text"] for m in kept["messages"]] == ["hello"]
 

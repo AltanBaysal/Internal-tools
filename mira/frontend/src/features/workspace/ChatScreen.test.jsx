@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import ChatScreen from "./ChatScreen.jsx";
 
@@ -50,7 +50,24 @@ test("nothing blinks when nothing is pending", () => {
   expect(screen.queryByTestId("thinking")).toBeNull();
 });
 
-test("a failure is shown above the composer", () => {
+test("text that is still arriving is drawn as Mira's turn", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it" />);
+  expect(screen.getByTestId("streaming").textContent).toContain("Here it");
+  // The dots are only for the wait before the first piece.
+  expect(screen.queryByTestId("thinking")).toBeNull();
+});
+
+test("a failure states what happened and repeats the server's words", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} error="POST failed with 500" />);
+  expect(screen.getByText("Couldn't get a response.")).toBeTruthy();
+  // No guessed cause: a bad key and a wrong model raise this same card.
+  expect(screen.queryByText(/connection dropped/)).toBeNull();
   expect(screen.getByText(/failed with 500/)).toBeTruthy();
+});
+
+test("Try again asks again", () => {
+  const onRetry = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={CHAT} error="boom" onRetry={onRetry} />);
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(onRetry).toHaveBeenCalled();
 });

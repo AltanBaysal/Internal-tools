@@ -39,3 +39,6 @@ class ChatStore(Protocol):
 class Engine(Protocol):
     def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
         """Answer a conversation. Messages carry the domain's own roles: user and ai."""
+
+    def stream(self, messages: list[dict], tools: list[dict] | None = None):
+        """Answer a conversation piece by piece, yielding text as it arrives."""

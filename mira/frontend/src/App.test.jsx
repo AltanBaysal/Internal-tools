@@ -114,7 +114,25 @@ test("the user bubble shows before the server answers, and leaves if it refuses"
   expect(screen.getByText(/failed with 500/)).toBeTruthy();
 });
 
-test("a chat that is owed an answer asks for one and shows it", async () => {
+function sseResponse(text) {
+  const encoded = new TextEncoder().encode(text);
+  let sent = false;
+  return {
+    ok: true,
+    status: 200,
+    body: {
+      getReader: () => ({
+        read: async () => {
+          if (sent) return { done: true };
+          sent = true;
+          return { done: false, value: encoded };
+        },
+      }),
+    },
+  };
+}
+
+test("a chat that is owed an answer streams one and keeps the server's record", async () => {
   const owed = {
     id: "c1",
     title: "hello",
@@ -126,7 +144,11 @@ test("a chat that is owed an answer asks for one and shows it", async () => {
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/answer") && options?.method === "POST") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => answered });
+      return Promise.resolve(
+        sseResponse(
+          `event: chunk\ndata: {"text":"Do"}\n\nevent: done\ndata: ${JSON.stringify(answered)}\n\n`,
+        ),
+      );
     }
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => owed });
@@ -138,6 +160,38 @@ test("a chat that is owed an answer asks for one and shows it", async () => {
 
   render(<App />);
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
+});
+
+test("a fault inside the stream shows the card and Try again asks again", async () => {
+  const owed = {
+    id: "c1",
+    title: "hello",
+    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/answer") && options?.method === "POST") {
+      return Promise.resolve(
+        sseResponse('event: error\ndata: {"error":"401 bad key"}\n\n'),
+      );
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("401 bad key")).toBeTruthy());
+  const before = fetch.mock.calls.filter(([path]) => path.endsWith("/answer")).length;
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() =>
+    expect(fetch.mock.calls.filter(([path]) => path.endsWith("/answer")).length).toBe(before + 1),
+  );
+  // Try again never re-sends the message: the chat is still owed an answer.
+  expect(fetch.mock.calls.some(([path]) => path.endsWith("/messages"))).toBe(false);
 });
 
 test("a broken engine is reported once and not asked again", async () => {

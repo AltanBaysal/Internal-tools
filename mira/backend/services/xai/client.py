@@ -17,6 +17,26 @@ class XaiFailed(Exception):
     """The service answered with an error. Carries its own words, never a guessed cause."""
 
 
+_DATA = b"data: "
+_DONE = object()
+
+
+def _delta(raw):
+    """One SSE line -> a text piece, the done sentinel, or None for anything unusable."""
+    line = raw.strip()
+    if not line.startswith(_DATA):
+        return None  # keep-alives, blank separators and comments carry no content
+    payload = line[len(_DATA) :]
+    if payload == b"[DONE]":
+        return _DONE
+    try:
+        frame = json.loads(payload)
+    except json.JSONDecodeError:
+        # One malformed frame must not bring the whole answer down.
+        return None
+    return frame.get("choices", [{}])[0].get("delta", {}).get("content")
+
+
 class XaiClient:
     def __init__(self, api_key, model, base_url, opener=urllib.request.urlopen):
         self._api_key = api_key
@@ -38,6 +58,22 @@ class XaiClient:
         except urllib.error.URLError as failure:
             raise XaiFailed(str(failure.reason)) from failure
         return payload["choices"][0]["message"]
+
+    def stream(self, messages, tools=None):
+        request = self._request({"messages": messages, "stream": True}, tools)
+        try:
+            with self._opener(request) as response:
+                for raw in response:
+                    piece = _delta(raw)
+                    if piece is _DONE:
+                        return
+                    if piece:
+                        yield piece
+        except urllib.error.HTTPError as failure:
+            body = failure.read().decode("utf-8", "replace")
+            raise XaiFailed(f"{failure.code} {body}") from failure
+        except urllib.error.URLError as failure:
+            raise XaiFailed(str(failure.reason)) from failure
 
     def _request(self, body, tools):
         if not self._api_key:

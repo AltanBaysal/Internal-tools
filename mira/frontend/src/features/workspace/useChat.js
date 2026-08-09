@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { getJson, postJson } from "../../shared/api.js";
+import { streamEvents } from "../../shared/sse.js";
 
 // A chat whose last message is the user's is owed an answer. Stating it that way means a chat
 // started from home and a follow-up inside a chat travel the same road: send, then ask.
@@ -16,6 +17,7 @@ export function useChat(projectId, chatId) {
   const [error, setError] = useState(null);
   const [missing, setMissing] = useState(false);
   const [thinking, setThinking] = useState(false);
+  const [streamingText, setStreamingText] = useState("");
 
   useEffect(() => {
     if (!projectId || !chatId) return undefined;
@@ -39,11 +41,20 @@ export function useChat(projectId, chatId) {
 
   const ask = useCallback(async () => {
     setThinking(true);
+    setError(null);
+    setStreamingText("");
     try {
-      setChat(await postJson(`/api/projects/${projectId}/chats/${chatId}/answer`));
+      await streamEvents(`/api/projects/${projectId}/chats/${chatId}/answer`, (frame) => {
+        if (frame.event === "chunk") setStreamingText((text) => text + frame.data.text);
+        // What the browser piled up is a guess; what the server wrote is the record, so the record
+        // replaces it rather than being reconciled with it.
+        else if (frame.event === "done") setChat(frame.data);
+        else if (frame.event === "error") setError(frame.data.error);
+      });
     } catch (failure) {
       setError(failure.message);
     } finally {
+      setStreamingText("");
       setThinking(false);
     }
   }, [projectId, chatId]);
@@ -86,5 +97,7 @@ export function useChat(projectId, chatId) {
     [projectId, chatId],
   );
 
-  return { chat, error, missing, thinking, send };
+  // Try again asks for the answer once more; it never re-sends the message, because the chat is
+  // still owed one and the user's sentence must not be written twice.
+  return { chat, error, missing, thinking, streamingText, send, retry: ask };
 }

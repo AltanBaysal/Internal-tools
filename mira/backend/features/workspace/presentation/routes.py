@@ -1,8 +1,9 @@
 """Workspace HTTP routes -- request/response translation only, no business rules."""
+import json
 import uuid
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, Response, jsonify, request
 
 from backend.features.workspace.domain.errors import (
     ChatNotFound,
@@ -11,7 +12,6 @@ from backend.features.workspace.domain.errors import (
     InvalidProjectName,
     ProjectNotFound,
 )
-from backend.features.workspace.domain.usecases.answer_in_chat import answer_in_chat
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.edit_project import edit_project
@@ -22,6 +22,7 @@ from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
     start_chat_in_new_project,
 )
+from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
 
 def make_workspace_bp(project_store, chat_store, engine):
@@ -100,13 +101,13 @@ def make_workspace_bp(project_store, chat_store, engine):
     def post_answer(project_id, chat_id):
         # No body: the chat as it stands is the question. Both a first message and a follow-up
         # arrive here, so there is one answering path rather than two.
-        try:
-            chat = answer_in_chat(chat_store, engine, project_id, chat_id, now=_now())
-        except ChatNotFound:
+        if chat_store.get(project_id, chat_id) is None:
+            # The only failure that can still be a status code: nothing has gone out yet.
             return jsonify({"error": "chat not found"}), 404
-        except EngineFailed as failure:
-            return jsonify({"error": str(failure)}), 502
-        return jsonify(_chat_json(chat))
+        return Response(
+            _sse(stream_answer(chat_store, engine, project_id, chat_id, now=_now())),
+            mimetype="text/event-stream",
+        )
 
     @workspace_bp.post("/api/chats")
     def post_chat_anywhere():
@@ -136,6 +137,24 @@ def make_workspace_bp(project_store, chat_store, engine):
         )
 
     return workspace_bp
+
+
+def _sse(pieces):
+    """Wrap the use case's output as events. A Chat means the answer is complete."""
+    try:
+        for piece in pieces:
+            if isinstance(piece, str):
+                yield _frame("chunk", {"text": piece})
+            else:
+                yield _frame("done", _chat_json(piece))
+    except EngineFailed as failure:
+        # The status code was settled the moment the first byte left, so a fault after that can
+        # only travel inside the stream.
+        yield _frame("error", {"error": str(failure)})
+
+
+def _frame(event, data):
+    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 def _new_id(prefix):

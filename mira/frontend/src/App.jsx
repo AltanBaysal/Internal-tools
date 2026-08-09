@@ -98,8 +98,10 @@ export default function App() {
             error={chat.error}
             missing={chat.missing}
             thinking={chat.thinking}
+            streamingText={chat.streamingText}
             onBack={() => openProject(route.projectId)}
             onSend={chat.send}
+            onRetry={chat.retry}
           />
         ) : null}
       </main>
