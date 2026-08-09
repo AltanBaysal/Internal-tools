@@ -40,20 +40,8 @@ test("← closes the panel", () => {
   expect(onClose).toHaveBeenCalled();
 });
 
-test("Escape closes the panel", () => {
-  const onClose = vi.fn();
-  render(<FilePanel name="plan.md" file={FILE} onClose={onClose} />);
-  fireEvent.keyDown(window, { key: "Escape" });
-  expect(onClose).toHaveBeenCalled();
-});
-
-test("a closed panel is not listening for Escape", () => {
-  const onClose = vi.fn();
-  const { unmount } = render(<FilePanel name="plan.md" file={FILE} onClose={onClose} />);
-  unmount();
-  fireEvent.keyDown(window, { key: "Escape" });
-  expect(onClose).not.toHaveBeenCalled();
-});
+// Escape is not this component's key any more: search takes it first, so one owner decides.
+// The behaviour is tested in App.test.jsx.
 
 test("a file that is gone says so instead of showing an empty page", () => {
   render(<FilePanel name="plan.md" file={null} missing />);

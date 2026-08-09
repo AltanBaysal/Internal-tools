@@ -100,6 +100,27 @@ def test_reading_a_file_that_is_gone_is_a_404(tmp_path):
     assert "not found" in resp.get_json()["error"]
 
 
+def test_search_over_http_finds_a_word_inside_a_file(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    _files(tmp_path).write(pid, "outline.md", "a word about quantum things")
+    hits = client.get("/api/search?q=quantum").get_json()
+    assert hits == [
+        {
+            "kind": "file",
+            "label": "outline.md",
+            "projectId": pid,
+            "projectName": "New project",
+            "chatId": "",
+            "fileName": "outline.md",
+        }
+    ]
+
+
+def test_search_with_no_query_answers_an_empty_list(tmp_path):
+    assert _client(tmp_path).get("/api/search").get_json() == []
+
+
 def test_renaming_over_http_answers_with_the_name_used(tmp_path):
     client = _client(tmp_path)
     pid = client.post("/api/projects").get_json()["id"]

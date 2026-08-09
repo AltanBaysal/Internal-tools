@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { relativeTime } from "../../shared/time.js";
 
@@ -13,15 +13,6 @@ function formatSize(bytes) {
 export default function FilePanel({ name, file, missing, error, onClose, onDownload }) {
   const [preparing, setPreparing] = useState(false);
   const [failed, setFailed] = useState(null);
-
-  useEffect(() => {
-    // Only while the panel is open: closed, nothing of ours is listening for the key.
-    const onKey = (event) => {
-      if (event.key === "Escape") onClose?.();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   const download = async () => {
     setPreparing(true);

@@ -9,6 +9,7 @@ export default function Sidebar({
   onNewProject,
   onOpenProject,
   onOpenChat,
+  onSearch,
 }) {
   return (
     <aside className="sidebar">
@@ -17,8 +18,7 @@ export default function Sidebar({
         <span className="sidebar__wordmark">Mira</span>
       </div>
 
-      {/* Opens nothing yet -- the search panel is Madde 28. */}
-      <button type="button" className="sidebar__search">
+      <button type="button" className="sidebar__search" onClick={onSearch}>
         <span className="sidebar__search-label">Search</span>
         <span className="sidebar__shortcut">⌘K</span>
       </button>

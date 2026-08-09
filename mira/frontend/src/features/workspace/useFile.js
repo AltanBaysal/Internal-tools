@@ -16,17 +16,17 @@ function save(name, text) {
 // Which file is open is a question about the project, not about the address bar: the design gives a
 // file no URL of its own.
 export function useFile(projectId) {
-  const [name, setName] = useState(null);
+  // The file is held together with the project it belongs to, and read back only while that is
+  // still the project on screen. As a rule that holds by construction it beats an effect that
+  // clears the name later -- an effect would also undo a file opened from another project by a
+  // search hit, in the same breath as the navigation that took us there.
+  const [opened, setOpened] = useState(null);
   const [file, setFile] = useState(null);
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState(null);
 
+  const name = opened && opened.projectId === projectId ? opened.name : null;
   const path = name ? `/api/projects/${projectId}/files/${encodeURIComponent(name)}` : null;
-
-  useEffect(() => {
-    // Another project is another set of files, so whatever was being read is not open any more.
-    setName(null);
-  }, [projectId]);
 
   useEffect(() => {
     if (!path) return undefined;
@@ -55,7 +55,13 @@ export function useFile(projectId) {
     save(fresh.name, fresh.text);
   }, [path]);
 
-  const close = useCallback(() => setName(null), []);
+  // A search hit can open a file that lives in another project, so where it lives travels with it.
+  const open = useCallback(
+    (fileName, inProject) => setOpened({ projectId: inProject ?? projectId, name: fileName }),
+    [projectId],
+  );
 
-  return { name, file, missing, error, open: setName, close, download };
+  const close = useCallback(() => setOpened(null), []);
+
+  return { name, file, missing, error, open, close, download };
 }
