@@ -100,6 +100,51 @@ def test_reading_a_file_that_is_gone_is_a_404(tmp_path):
     assert "not found" in resp.get_json()["error"]
 
 
+def test_deleting_over_http_answers_with_the_trash_name(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    _files(tmp_path).write(pid, "plan.md", "body")
+    resp = client.delete(f"/api/projects/{pid}/files/plan.md")
+    assert resp.status_code == 200
+    assert resp.get_json() == {"trashed": "plan.md"}
+    assert client.get(f"/api/projects/{pid}/files").get_json() == []
+
+
+def test_deleting_a_file_that_is_gone_is_a_404(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    assert client.delete(f"/api/projects/{pid}/files/ghost.md").status_code == 404
+
+
+def test_undo_over_http_puts_the_file_back(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    _files(tmp_path).write(pid, "plan.md", "body")
+    trashed = client.delete(f"/api/projects/{pid}/files/plan.md").get_json()["trashed"]
+    resp = client.post(f"/api/projects/{pid}/trash/{trashed}/restore", json={"name": "plan.md"})
+    assert resp.status_code == 200
+    assert client.get(f"/api/projects/{pid}/files/plan.md").get_json()["text"] == "body"
+
+
+def test_undo_onto_a_taken_name_is_a_409_with_words(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    files = _files(tmp_path)
+    files.write(pid, "plan.md", "first")
+    trashed = client.delete(f"/api/projects/{pid}/files/plan.md").get_json()["trashed"]
+    files.write(pid, "plan.md", "second")
+    resp = client.post(f"/api/projects/{pid}/trash/{trashed}/restore", json={"name": "plan.md"})
+    assert resp.status_code == 409
+    assert resp.get_json()["error"]
+
+
+def test_undo_of_something_the_trash_never_held_is_a_404(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    resp = client.post(f"/api/projects/{pid}/trash/ghost.md/restore", json={"name": "ghost.md"})
+    assert resp.status_code == 404
+
+
 def test_the_list_and_one_file_are_different_addresses(tmp_path):
     # Same prefix, two routes: the list must not swallow a name.
     client = _client(tmp_path)

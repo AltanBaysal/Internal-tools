@@ -48,6 +48,24 @@ test("clicking a file opens it beside the grid, which drops to one column", () =
   expect(container.querySelector(".project-grid").className).toContain("project-grid--reading");
 });
 
+test("a chat row can be asked to go, and asking is all the row does", () => {
+  const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
+  const onDeleteChat = vi.fn();
+  const onOpenChat = vi.fn();
+  render(
+    <ProjectScreen
+      project={PROJECT}
+      chats={chats}
+      onDeleteChat={onDeleteChat}
+      onOpenChat={onOpenChat}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
+  expect(onDeleteChat).toHaveBeenCalledWith("c1");
+  // The confirmation is App's to ask; the row does not open the chat on its way out.
+  expect(onOpenChat).not.toHaveBeenCalled();
+});
+
 test("a project that does not exist says so instead of crashing", () => {
   // The address bar is something a person can type into, so a wrong id has to be survivable.
   render(<ProjectScreen project={null} />);

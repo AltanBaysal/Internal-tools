@@ -26,6 +26,7 @@ export default function ChatScreen({
   chat,
   files = [],
   reading,
+  deleting,
   error,
   missing,
   thinking,
@@ -150,7 +151,7 @@ export default function ChatScreen({
         </div>
       </div>
 
-      <FileRail files={files} reading={reading} />
+      <FileRail files={files} reading={reading} deleting={deleting} />
     </div>
   );
 }

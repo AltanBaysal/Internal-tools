@@ -36,6 +36,9 @@ class ChatStore(Protocol):
     def list_all(self) -> list[tuple[str, Chat]]:
         """Every chat in the workspace as (project_id, chat), in no particular order."""
 
+    def delete(self, project_id: str, chat_id: str) -> None:
+        """Remove a chat for good. The files it produced are not touched."""
+
 
 class Engine(Protocol):
     def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
@@ -63,3 +66,9 @@ class FileStore(Protocol):
 
     def write(self, project_id: str, name: str, content: str) -> str:
         """Write a file and answer with the name actually used."""
+
+    def delete(self, project_id: str, name: str) -> str | None:
+        """Move a file to the trash and answer with the name it took there, or None if it is gone."""
+
+    def restore(self, project_id: str, trashed: str, name: str) -> bool | None:
+        """Move it back: None if the trash has no such name, False if the name is taken again."""

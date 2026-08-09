@@ -1,5 +1,6 @@
 import { relativeTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
+import DeletedStrip from "./DeletedStrip.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
 
@@ -8,11 +9,13 @@ export default function ProjectScreen({
   chats = [],
   files = [],
   reading,
+  deleting,
   onBack,
   onRename,
   onDescribe,
   onSend,
   onOpenChat,
+  onDeleteChat,
 }) {
   if (!project) {
     // The address bar is something a person can type into, so a wrong id has to be survivable.
@@ -75,16 +78,39 @@ export default function ProjectScreen({
                   >
                     <span className="chat-row__title">{chat.title}</span>
                     <span className="chat-row__when">{relativeTime(chat.lastActivity)}</span>
+                    {onDeleteChat ? (
+                      <button
+                        type="button"
+                        className="row-x"
+                        aria-label={`Delete ${chat.title}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDeleteChat(chat.id);
+                        }}
+                      >
+                        ×
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </div>
             </div>
             <div>
               <h2 className="column__title">Files Mira created</h2>
+              <DeletedStrip
+                deleted={deleting?.deleted}
+                error={deleting?.error}
+                onUndo={deleting?.undo}
+              />
               <div className="file-list">
                 {files.length ? (
                   files.map((file) => (
-                    <FileRow key={file.name} file={file} onOpen={reading?.open} />
+                    <FileRow
+                      key={file.name}
+                      file={file}
+                      onOpen={reading?.open}
+                      onDelete={deleting?.remove}
+                    />
                   ))
                 ) : (
                   <p className="file-list__empty">

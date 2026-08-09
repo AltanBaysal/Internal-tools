@@ -260,6 +260,82 @@ test("a broken engine is reported once and not asked again", async () => {
   expect(asked).toBe(1);
 });
 
+test("deleting a chat asks first, and a no sends nothing", async () => {
+  const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (path === `/api/projects/p1/chats`) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chats });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  vi.stubGlobal("confirm", vi.fn().mockReturnValue(false));
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Write the intro")).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
+
+  expect(window.confirm).toHaveBeenCalled();
+  expect(fetch.mock.calls.every(([, options]) => options?.method !== "DELETE")).toBe(true);
+});
+
+test("a chat the user confirms is deleted and leaves both lists", async () => {
+  let chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (options?.method === "DELETE") {
+      chats = [];
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }
+    if (path === "/api/projects/p1/chats" || path === "/api/chats") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chats });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getAllByText("Write the intro").length).toBeGreaterThan(0));
+  fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
+  await waitFor(() => expect(screen.queryByText("Write the intro")).toBeNull());
+});
+
+test("deleting the file that is open closes the panel", async () => {
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  let onDisk = [file];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (options?.method === "DELETE") {
+      onDisk = [];
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ trashed: "plan.md" }) });
+    }
+    if (path.endsWith("/files/plan.md")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...file, size: 4, text: "body" }),
+      });
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete plan.md" }));
+  // Reading something that is no longer there is not reading.
+  await waitFor(() => expect(screen.queryByText("body")).toBeNull());
+  expect(screen.getByText("File deleted.")).toBeTruthy();
+});
+
 test("an empty prompt sends nothing", async () => {
   const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [PROJECT] });
   vi.stubGlobal("fetch", fetch);

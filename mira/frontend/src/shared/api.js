@@ -31,3 +31,9 @@ export function postJson(path, body) {
 export function patchJson(path, body) {
   return sendJson("PATCH", path, body);
 }
+
+// Deleting answers with a body like everything else -- 204 would need an exception here, and this
+// is the one place that decides what a response means.
+export function deleteJson(path) {
+  return sendJson("DELETE", path);
+}

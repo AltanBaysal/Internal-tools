@@ -67,6 +67,31 @@ def test_an_unknown_project_is_404(tmp_path):
     assert client.post("/api/projects/nope/chats", json={"text": "hi"}).status_code == 404
 
 
+def test_a_chat_can_be_deleted_and_stops_being_listed(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).get_json()["id"]
+    assert client.delete(f"/api/projects/{pid}/chats/{cid}").status_code == 200
+    assert client.get(f"/api/projects/{pid}/chats").get_json() == []
+    assert client.get(f"/api/projects/{pid}/chats/{cid}").status_code == 404
+
+
+def test_deleting_a_chat_leaves_the_project_its_files(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).get_json()["id"]
+    FileFileStore(Store(str(tmp_path))).write(pid, "plan.md", "body")
+    client.delete(f"/api/projects/{pid}/chats/{cid}")
+    # A file belongs to the project; the chat that produced it going away changes nothing.
+    assert [f["name"] for f in client.get(f"/api/projects/{pid}/files").get_json()] == ["plan.md"]
+
+
+def test_deleting_a_chat_that_is_not_there_is_a_404(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    assert client.delete(f"/api/projects/{pid}/chats/nope").status_code == 404
+
+
 def test_the_list_comes_newest_first_and_carries_no_messages(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)

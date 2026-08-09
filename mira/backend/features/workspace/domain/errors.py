@@ -23,3 +23,7 @@ class EngineFailed(Exception):
 
 class FileNotFound(Exception):
     """The project holds no file by this name."""
+
+
+class NameTaken(Exception):
+    """Something already answers to that name, and nothing is ever overwritten."""

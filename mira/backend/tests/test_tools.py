@@ -3,12 +3,12 @@ import json
 import pytest
 
 from backend.features.workspace.data.file_file_store import FileFileStore
+from backend.features.workspace.domain.naming import unique_name
 from backend.features.workspace.domain.tools import (
     DEFAULT_NAME,
     TOOL_SPECS,
     run_tool,
     safe_name,
-    unique_name,
 )
 from backend.services.store.store import Store
 

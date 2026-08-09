@@ -45,6 +45,23 @@ test("clicking a row opens that file", () => {
   expect(open).toHaveBeenCalledWith("outline.md");
 });
 
+test("the × deletes the row without opening it", () => {
+  const open = vi.fn();
+  const remove = vi.fn();
+  render(<FileRail files={FILES} reading={{ open }} deleting={{ remove }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Delete outline.md" }));
+  expect(remove).toHaveBeenCalledWith("outline.md");
+  // The × sits inside the row, so it has to stop the click from reaching it.
+  expect(open).not.toHaveBeenCalled();
+});
+
+test("the strip sits above the list once something was deleted", () => {
+  const deleting = { deleted: { name: "gone.md", trashed: "gone.md" }, remove: vi.fn() };
+  render(<FileRail files={FILES} deleting={deleting} />);
+  expect(screen.getByText("File deleted.")).toBeTruthy();
+  expect(screen.getByText("outline.md")).toBeTruthy();
+});
+
 test("an open file takes the rail over and widens it", () => {
   const file = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
   render(<FileRail files={FILES} reading={{ name: "outline.md", file }} />);

@@ -8,6 +8,8 @@ import re
 from collections import namedtuple
 from dataclasses import dataclass
 
+from backend.features.workspace.domain.naming import unique_name
+
 # What the model is told, and separately whether a file was born. Parsing the sentence back out
 # would be fragile.
 ToolResult = namedtuple("ToolResult", "text created")
@@ -79,17 +81,6 @@ def safe_name(raw):
     if not name:
         return DEFAULT_NAME
     return name if "." in name else f"{name}.md"
-
-
-def unique_name(existing, name):
-    """Nothing is ever overwritten: plan.md becomes plan-2.md."""
-    if name not in existing:
-        return name
-    stem, _, extension = name.rpartition(".")
-    number = 2
-    while f"{stem}-{number}.{extension}" in existing:
-        number += 1
-    return f"{stem}-{number}.{extension}"
 
 
 def run_tool(file_store, project_id, name, arguments):

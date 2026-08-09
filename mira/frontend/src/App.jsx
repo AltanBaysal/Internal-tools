@@ -7,6 +7,7 @@ import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
 import Sidebar from "./features/workspace/Sidebar.jsx";
 import { useChat } from "./features/workspace/useChat.js";
 import {
+  deleteChat,
   startChatInNewProject,
   startChatInProject,
   useProjectChats,
@@ -22,7 +23,7 @@ export default function App() {
   const { projects, error, createProject, editProject, reloadProjects } = useProjects();
   const { recentChats, reloadRecentChats } = useRecentChats();
   const { projectChats, reloadProjectChats } = useProjectChats(route.projectId);
-  const { files, reloadFiles } = useFiles(route.projectId);
+  const { files, reloadFiles, deleting } = useFiles(route.projectId, reloadProjects);
   // One reader for both screens: the chat widens its rail into it, the project screen opens it as a
   // panel. What is being read belongs to the project, so it survives moving between the two.
   const reading = useFile(route.projectId);
@@ -56,6 +57,20 @@ export default function App() {
   const sendFromHome = async (text) => {
     const started = await startChatInNewProject(text);
     await afterStart({ projectId: started.project.id, chatId: started.chat.id });
+  };
+
+  const removeFile = (name) => {
+    // Reading something that is no longer there is not reading, so the panel goes first.
+    if (reading.name === name) reading.close();
+    return deleting.remove(name);
+  };
+
+  const removeChat = async (chatId) => {
+    // The browser's own dialog, as with Rename: a second dialog language is not something the
+    // design asks for. The sentence says what goes and what stays.
+    if (!window.confirm("Delete this chat? Its files stay in the project.")) return;
+    await deleteChat(route.projectId, chatId);
+    await Promise.all([reloadProjectChats(), reloadRecentChats(), reloadProjects()]);
   };
 
   const sendFromProject = async (text) => {
@@ -95,11 +110,13 @@ export default function App() {
             chats={projectChats}
             files={files}
             reading={reading}
+            deleting={{ ...deleting, remove: removeFile }}
             onBack={goHome}
             onRename={() => ask("Project name", project?.name, "name")}
             onDescribe={() => ask("Project description", project?.desc, "desc")}
             onSend={sendFromProject}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
+            onDeleteChat={removeChat}
           />
         ) : null}
 
@@ -109,6 +126,7 @@ export default function App() {
             chat={chat.chat}
             files={files}
             reading={reading}
+            deleting={{ ...deleting, remove: removeFile }}
             error={chat.error}
             missing={chat.missing}
             thinking={chat.thinking}

@@ -5,8 +5,10 @@ It takes the name it is given: what a file may be called is decided in the domai
 from datetime import datetime, timezone
 
 from backend.features.workspace.domain.file import File, FileBody, extension_of
+from backend.features.workspace.domain.naming import unique_name
 
 FILES_DIR = "files"
+TRASH_DIR = "trash"
 
 
 class FileFileStore:
@@ -49,6 +51,28 @@ class FileFileStore:
     def write(self, project_id, name, content):
         self._store.write_text(f"{project_id}/{FILES_DIR}/{name}", content)
         return name
+
+    def delete(self, project_id, name):
+        if not self._store.exists(f"{project_id}/{FILES_DIR}/{name}"):
+            return None
+        # The trash keeps everything it is handed: a name already in there is not written over, so
+        # deleting plan.md twice leaves two files rather than one.
+        trashed = unique_name(self._store.list_dir(f"{project_id}/{TRASH_DIR}"), name)
+        self._store.move(
+            f"{project_id}/{FILES_DIR}/{name}", f"{project_id}/{TRASH_DIR}/{trashed}"
+        )
+        return trashed
+
+    def restore(self, project_id, trashed, name):
+        if not self._store.exists(f"{project_id}/{TRASH_DIR}/{trashed}"):
+            return None
+        # Three answers, not two: gone, in the way, or done. The use case turns them into words.
+        if self._store.exists(f"{project_id}/{FILES_DIR}/{name}"):
+            return False
+        self._store.move(
+            f"{project_id}/{TRASH_DIR}/{trashed}", f"{project_id}/{FILES_DIR}/{name}"
+        )
+        return True
 
 
 def _iso(timestamp):

@@ -39,6 +39,10 @@ class FileChatStore:
             for chat in self.list_for(project_id)
         ]
 
+    def delete(self, project_id, chat_id):
+        # Really gone, not moved: the design gives Undo to files and a confirmation to chats.
+        self._store.remove(self._path(project_id, chat_id))
+
     def _write(self, project_id, chat):
         # The id is the file name, so it is not written inside: no artifact repeats an answer
         # another one already gives.

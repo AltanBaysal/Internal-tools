@@ -450,6 +450,76 @@
   color: #a79e93;
 }
 
+/* Present in the row at all times so nothing shifts, and only visible once the row is under the
+   pointer. No filled red button anywhere in the app. */
+.row-x {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font-size: 15px;
+  line-height: 1;
+  color: #a79e93;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.file-row:hover .row-x,
+.chat-row:hover .row-x,
+.row-x:focus-visible {
+  opacity: 1;
+}
+
+.row-x:hover {
+  color: #8a5237;
+}
+
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 9px 12px;
+  margin-bottom: 8px;
+  animation: slideIn 0.2s ease both;
+}
+
+.strip__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.strip__line {
+  flex: 1;
+  font-size: 13px;
+  color: #6b6259;
+}
+
+.strip__undo {
+  flex: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.strip__undo:hover {
+  color: var(--accent-strong);
+}
+
+.strip__detail {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #a4735a;
+  overflow-wrap: anywhere;
+}
+
 .file-cards {
   display: flex;
   flex-direction: column;

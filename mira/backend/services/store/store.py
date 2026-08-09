@@ -46,6 +46,11 @@ class Store:
         return os.path.getmtime(self._full(rel))
 
     def move(self, src_rel, dst_rel):
+        # A rename, not a copy: the file keeps its mtime, which is what puts a restored file back in
+        # its old place rather than at the top of the list.
         destination = self._full(dst_rel)
         os.makedirs(os.path.dirname(destination), exist_ok=True)
         os.replace(self._full(src_rel), destination)
+
+    def remove(self, rel):
+        os.remove(self._full(rel))

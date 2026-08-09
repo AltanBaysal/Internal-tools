@@ -11,17 +11,21 @@ from backend.features.workspace.domain.errors import (
     EngineFailed,
     FileNotFound,
     InvalidProjectName,
+    NameTaken,
     ProjectNotFound,
 )
 from backend.features.workspace.domain.tools import FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
+from backend.features.workspace.domain.usecases.delete_chat import delete_chat
+from backend.features.workspace.domain.usecases.delete_file import delete_file
 from backend.features.workspace.domain.usecases.edit_project import edit_project
 from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.list_recent_chats import list_recent_chats
 from backend.features.workspace.domain.usecases.read_file import read_file
+from backend.features.workspace.domain.usecases.restore_file import restore_file
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
     start_chat_in_new_project,
@@ -159,6 +163,35 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
                 "text": body.text,
             }
         )
+
+    @workspace_bp.delete("/api/projects/<project_id>/files/<name>")
+    def delete_project_file(project_id, name):
+        try:
+            trashed = delete_file(file_store, project_id, name)
+        except FileNotFound:
+            return jsonify({"error": "file not found"}), 404
+        # The trash name is the only handle on a deleted file, and it is not written down anywhere:
+        # the browser holds it for exactly as long as it offers to undo.
+        return jsonify({"trashed": trashed})
+
+    @workspace_bp.post("/api/projects/<project_id>/trash/<trashed>/restore")
+    def restore_project_file(project_id, trashed):
+        payload = request.get_json(silent=True) or {}
+        try:
+            restore_file(file_store, project_id, trashed, payload.get("name", trashed))
+        except FileNotFound:
+            return jsonify({"error": "the trash has no such file"}), 404
+        except NameTaken:
+            return jsonify({"error": "a file by that name is back in the project"}), 409
+        return jsonify({})
+
+    @workspace_bp.delete("/api/projects/<project_id>/chats/<chat_id>")
+    def delete_project_chat(project_id, chat_id):
+        try:
+            delete_chat(chat_store, project_id, chat_id)
+        except ChatNotFound:
+            return jsonify({"error": "chat not found"}), 404
+        return jsonify({})
 
     @workspace_bp.get("/api/chats")
     def get_recent_chats():
