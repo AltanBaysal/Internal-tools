@@ -1,4 +1,5 @@
 from backend.features.workspace.data.file_chat_store import FileChatStore
+from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -20,7 +21,7 @@ class FakeEngine:
     def stream(self, messages, tools=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
-        yield self.answer
+        yield {"text": self.answer}
 
 
 def _client(tmp_path, engine=None):
@@ -29,7 +30,10 @@ def _client(tmp_path, engine=None):
         dist_dir=str(tmp_path),
         blueprints=(
             make_workspace_bp(
-                FileProjectStore(store), FileChatStore(store), engine or FakeEngine()
+                FileProjectStore(store),
+                FileChatStore(store),
+                FileFileStore(store),
+                engine or FakeEngine(),
             ),
         ),
     )

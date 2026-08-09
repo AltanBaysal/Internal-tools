@@ -41,4 +41,18 @@ class Engine(Protocol):
         """Answer a conversation. Messages carry the domain's own roles: user and ai."""
 
     def stream(self, messages: list[dict], tools: list[dict] | None = None):
-        """Answer a conversation piece by piece, yielding text as it arrives."""
+        """Answer a conversation piece by piece.
+
+        Yields {"text": str} as words arrive and {"tool_calls": [...]} when the model asks for one.
+        """
+
+
+class FileStore(Protocol):
+    def list_names(self, project_id: str) -> list[str]:
+        """The names of the files a project holds."""
+
+    def read(self, project_id: str, name: str) -> str | None:
+        """A file's contents, or None if there is no such file."""
+
+    def write(self, project_id: str, name: str, content: str) -> str:
+        """Write a file and answer with the name actually used."""

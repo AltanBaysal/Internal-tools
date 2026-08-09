@@ -101,17 +101,31 @@ def _delta_line(text):
 
 def test_a_stream_becomes_text_pieces():
     lines = [b"data: " + _delta_line("He"), b"data: " + _delta_line("llo"), b"data: [DONE]"]
-    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == ["He", "llo"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"text": "He"},
+        {"text": "llo"},
+    ]
 
 
 def test_the_stream_stops_at_done_even_if_more_follows():
     lines = [b"data: " + _delta_line("a"), b"data: [DONE]", b"data: " + _delta_line("b")]
-    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == ["a"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [{"text": "a"}]
 
 
 def test_a_broken_frame_is_skipped_rather_than_dropping_the_stream():
     lines = [b"data: {oops", b": keep-alive", b"", b"data: " + _delta_line("a"), b"data: [DONE]"]
-    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == ["a"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [{"text": "a"}]
+
+
+def test_a_tool_call_arrives_whole_in_one_frame():
+    # xAI documents it plainly: a function call is returned in whole in a single chunk, so there is
+    # nothing to stitch back together here.
+    call = {"id": "t1", "function": {"name": "list_files", "arguments": "{}"}}
+    frame = json.dumps({"choices": [{"delta": {"tool_calls": [call]}}]}).encode("utf-8")
+    lines = [b"data: " + frame, b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"tool_calls": [call]}
+    ]
 
 
 def test_streaming_asks_for_a_stream():

@@ -18,7 +18,11 @@ class XaiEngine:
 
     @staticmethod
     def _for_xai(messages):
-        return [{"role": "system", "content": SYSTEM_PROMPT}] + [
-            {"role": ROLE_FOR_XAI[message["role"]], "content": message["content"]}
-            for message in messages
-        ]
+        prepared = [{"role": "system", "content": SYSTEM_PROMPT}]
+        for message in messages:
+            # Copied whole so tool_calls and tool_call_id ride along; only the role is translated,
+            # and a role xAI already understands (assistant, tool) passes through untouched.
+            translated = dict(message)
+            translated["role"] = ROLE_FOR_XAI.get(message["role"], message["role"])
+            prepared.append(translated)
+        return prepared

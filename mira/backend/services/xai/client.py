@@ -22,7 +22,11 @@ _DONE = object()
 
 
 def _delta(raw):
-    """One SSE line -> a text piece, the done sentinel, or None for anything unusable."""
+    """One SSE line -> {"text": ...} or {"tool_calls": [...]}, the done sentinel, or None.
+
+    Two kinds of thing come down the same wire, so each piece names which it is rather than leaving
+    the reader to guess from its type.
+    """
     line = raw.strip()
     if not line.startswith(_DATA):
         return None  # keep-alives, blank separators and comments carry no content
@@ -34,7 +38,14 @@ def _delta(raw):
     except json.JSONDecodeError:
         # One malformed frame must not bring the whole answer down.
         return None
-    return frame.get("choices", [{}])[0].get("delta", {}).get("content")
+    delta = frame.get("choices", [{}])[0].get("delta", {})
+    # A function call is documented to arrive whole in a single chunk, so there is nothing to
+    # stitch together here.
+    if delta.get("tool_calls"):
+        return {"tool_calls": delta["tool_calls"]}
+    if delta.get("content"):
+        return {"text": delta["content"]}
+    return None
 
 
 class XaiClient:

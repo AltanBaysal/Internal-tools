@@ -1,4 +1,5 @@
 from backend.features.workspace.data.file_chat_store import FileChatStore
+from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -6,8 +7,8 @@ from backend.web.app import create_app
 
 
 class FakeEngine:
-    def complete(self, messages, tools=None):
-        return {"role": "assistant", "content": "Done."}
+    def stream(self, messages, tools=None):
+        yield {"text": "Done."}
 
 
 def _client(tmp_path):
@@ -15,7 +16,12 @@ def _client(tmp_path):
     app = create_app(
         dist_dir=str(tmp_path),
         blueprints=(
-            make_workspace_bp(FileProjectStore(store), FileChatStore(store), FakeEngine()),
+            make_workspace_bp(
+                FileProjectStore(store),
+                FileChatStore(store),
+                FileFileStore(store),
+                FakeEngine(),
+            ),
         ),
     )
     return app.test_client()

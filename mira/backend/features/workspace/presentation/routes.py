@@ -25,7 +25,7 @@ from backend.features.workspace.domain.usecases.start_chat_in_new_project import
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
 
-def make_workspace_bp(project_store, chat_store, engine):
+def make_workspace_bp(project_store, chat_store, file_store, engine):
     workspace_bp = Blueprint("workspace", __name__)
 
     @workspace_bp.get("/api/projects")
@@ -105,7 +105,9 @@ def make_workspace_bp(project_store, chat_store, engine):
             # The only failure that can still be a status code: nothing has gone out yet.
             return jsonify({"error": "chat not found"}), 404
         return Response(
-            _sse(stream_answer(chat_store, engine, project_id, chat_id, now=_now())),
+            _sse(
+                stream_answer(chat_store, file_store, engine, project_id, chat_id, now=_now())
+            ),
             mimetype="text/event-stream",
         )
 
