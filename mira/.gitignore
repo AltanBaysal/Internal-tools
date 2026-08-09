@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+
+# The frontend is built on the machine that runs it -- unlike queen-editor, nothing here ships
+# pre-built.
+frontend/dist/

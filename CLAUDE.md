@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Internal tools monorepo. Each tool lives in its own subfolder; currently two tools: **collab-toolbox** and **queen-editor**. Tool documentation lives in this file — when adding a tool, create a subfolder and add a section here.
+Internal tools monorepo. Each tool lives in its own subfolder; currently three tools: **collab-toolbox**, **queen-editor** and **mira**. Tool documentation lives in this file — when adding a tool, create a subfolder and add a section here.
 
 ## Working Rules
 
@@ -69,3 +69,26 @@ in full: [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md).
 serves it as-is (it never runs npm/build). After any change under `queen-editor/frontend/src/`, run
 `npm run build` in `queen-editor/frontend/` and commit the regenerated `dist/` in the SAME commit,
 or Colab serves a stale UI.
+
+## mira — Mira (web UI)
+
+A small AI workspace: a **project** holds two sibling collections, **chats** and **files**. Chats
+produce files; a file belongs to the project, never to a chat, and the user reads files rather than
+uploading them. The engine is xAI Grok, driven by an agent loop with three tools (`list_files`,
+`read_file`, `create_file`) — the model decides whether a reply becomes a file.
+
+Engineering principles and stack decisions: [mira/FOUNDATION.md](mira/FOUNDATION.md); structure and
+layering rules: [mira/CODE-STANDARD.md](mira/CODE-STANDARD.md); the build order is the roadmap
+[docs/superpowers/plans/2026-08-09-mira-v1-roadmap.md](docs/superpowers/plans/2026-08-09-mira-v1-roadmap.md),
+grounded in the [design document](docs/superpowers/specs/2026-08-09-mira-v1-design.md).
+
+**Two rules differ from queen-editor — do not carry that tool's habits over:**
+- **Everything is English**, UI text included. queen-editor's UI is Turkish; Mira's design was
+  written in English and translating it would stop the design from being the source. (The
+  superpowers specs and plans under `docs/` stay Turkish for both tools.)
+- **`dist/` is not committed** and there is no notebook. Mira runs locally — `python mira/main.py`
+  on port 8100 — so whoever runs it also builds it.
+
+**Same shape, separate tool.** Mira depends on nothing under `collab-toolbox/` or `queen-editor/`
+at runtime. What it inherits from queen-editor is documents, not code: the layering rules, the
+language split and the test discipline.
