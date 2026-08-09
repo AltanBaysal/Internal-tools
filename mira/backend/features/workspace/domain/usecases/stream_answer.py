@@ -4,7 +4,13 @@ The generator yields text pieces and finally the updated Chat. Telling them apar
 simpler than carrying a separate "this one is the last" flag.
 """
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
-from backend.features.workspace.domain.tools import MAX_ROUNDS, TOOL_SPECS, run_tool
+from backend.features.workspace.domain.tools import (
+    MAX_ROUNDS,
+    TOOL_SPECS,
+    FileStarted,
+    FileWritten,
+    run_tool,
+)
 from backend.features.workspace.domain.usecases.append_message import append_message
 
 
@@ -17,6 +23,7 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
     # model's own bookkeeping, and the design has nowhere to draw them.
     conversation = [{"role": message.role, "content": message.text} for message in chat.messages]
     said = []
+    born = []
 
     try:
         for _ in range(MAX_ROUNDS):
@@ -36,17 +43,17 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
                 {"role": "assistant", "content": "".join(spoken), "tool_calls": calls}
             )
             for call in calls:
+                tool = call["function"]["name"]
+                # The dashed card goes up before the tool runs: the name is not settled until it
+                # has, and the design's card carries no name anyway.
+                if tool == "create_file":
+                    yield FileStarted()
+                result = run_tool(file_store, project_id, tool, call["function"]["arguments"])
+                if result.created:
+                    born.append(result.created)
+                    yield FileWritten(result.created)
                 conversation.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": call["id"],
-                        "content": run_tool(
-                            file_store,
-                            project_id,
-                            call["function"]["name"],
-                            call["function"]["arguments"],
-                        ),
-                    }
+                    {"role": "tool", "tool_call_id": call["id"], "content": result.text}
                 )
     except Exception as failure:
         # Half an answer is never kept: the design's line is that an answer either exists or does
@@ -54,4 +61,6 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
         raise EngineFailed(str(failure)) from failure
 
     # Everything said across the rounds becomes one message: the user read one answer.
-    yield append_message(chat_store, project_id, chat_id, "".join(said), now, role="ai")
+    yield append_message(
+        chat_store, project_id, chat_id, "".join(said), now, role="ai", files=born
+    )

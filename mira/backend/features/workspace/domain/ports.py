@@ -2,6 +2,7 @@
 from typing import Protocol
 
 from backend.features.workspace.domain.chat import Chat
+from backend.features.workspace.domain.file import File
 from backend.features.workspace.domain.project import Project
 
 
@@ -50,6 +51,9 @@ class Engine(Protocol):
 class FileStore(Protocol):
     def list_names(self, project_id: str) -> list[str]:
         """The names of the files a project holds."""
+
+    def list_files(self, project_id: str) -> list[File]:
+        """The project's files with the chip and the time the screens show."""
 
     def read(self, project_id: str, name: str) -> str | None:
         """A file's contents, or None if there is no such file."""

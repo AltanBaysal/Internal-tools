@@ -7,7 +7,7 @@ from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.domain.chat import Chat
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
-from backend.features.workspace.domain.tools import MAX_ROUNDS
+from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
     start_chat_in_new_project,
 )
@@ -118,6 +118,37 @@ def test_a_file_the_model_asks_for_reaches_the_disk(tmp_path):
     _, files, _, _ = _run(tmp_path, rounds)
     assert files.list_names("p1") == ["Chapter-2.md"]
     assert files.read("p1", "Chapter-2.md") == "# Intro"
+
+
+def test_a_created_file_announces_itself_twice(tmp_path):
+    rounds = [
+        [{"tool_calls": [call("create_file", name="plan.md", content="x")]}],
+        [{"text": "Saved."}],
+    ]
+    _, _, _, produced = _run(tmp_path, rounds)
+    # The dashed card goes up before the tool runs, the filled one after it.
+    assert isinstance(produced[0], FileStarted)
+    assert produced[1] == FileWritten("plan.md")
+
+
+def test_the_reply_remembers_the_file_it_produced(tmp_path):
+    rounds = [
+        [{"tool_calls": [call("create_file", name="plan.md", content="x")]}],
+        [{"text": "Saved."}],
+    ]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    assert chats.get("p1", "c1").messages[-1].files == ("plan.md",)
+
+
+def test_a_reply_without_a_file_remembers_none(tmp_path):
+    chats, _, _, _ = _run(tmp_path, [[{"text": "just talking"}]])
+    assert chats.get("p1", "c1").messages[-1].files == ()
+
+
+def test_reading_a_file_announces_nothing(tmp_path):
+    rounds = [[{"tool_calls": [call("read_file", name="ghost.md")]}], [{"text": "Not there."}]]
+    _, _, _, produced = _run(tmp_path, rounds)
+    assert not any(isinstance(piece, (FileStarted, FileWritten)) for piece in produced)
 
 
 def test_a_stream_that_breaks_writes_nothing(tmp_path):

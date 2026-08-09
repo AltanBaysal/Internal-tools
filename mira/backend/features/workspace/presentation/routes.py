@@ -12,10 +12,12 @@ from backend.features.workspace.domain.errors import (
     InvalidProjectName,
     ProjectNotFound,
 )
+from backend.features.workspace.domain.tools import FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.edit_project import edit_project
 from backend.features.workspace.domain.usecases.list_chats import list_chats
+from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.list_recent_chats import list_recent_chats
 from backend.features.workspace.domain.usecases.start_chat import start_chat
@@ -129,6 +131,15 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
             return jsonify({"error": "a message needs text"}), 400
         return jsonify({"project": _project_json(project), "chat": _chat_json(chat)}), 201
 
+    @workspace_bp.get("/api/projects/<project_id>/files")
+    def get_files(project_id):
+        return jsonify(
+            [
+                {"name": file.name, "ext": file.ext, "modifiedAt": file.modified_at}
+                for file in list_files(file_store, project_id)
+            ]
+        )
+
     @workspace_bp.get("/api/chats")
     def get_recent_chats():
         return jsonify(
@@ -142,11 +153,15 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
 
 
 def _sse(pieces):
-    """Wrap the use case's output as events. A Chat means the answer is complete."""
+    """Wrap the use case's output as events, telling them apart by type."""
     try:
         for piece in pieces:
             if isinstance(piece, str):
                 yield _frame("chunk", {"text": piece})
+            elif isinstance(piece, FileStarted):
+                yield _frame("file-start", {})
+            elif isinstance(piece, FileWritten):
+                yield _frame("file", {"name": piece.name})
             else:
                 yield _frame("done", _chat_json(piece))
     except EngineFailed as failure:
@@ -195,7 +210,12 @@ def _chat_json(chat):
     return {
         **_chat_summary(chat),
         "messages": [
-            {"role": message.role, "at": message.at, "text": message.text}
+            {
+                "role": message.role,
+                "at": message.at,
+                "text": message.text,
+                "files": list(message.files),
+            }
             for message in chat.messages
         ],
     }

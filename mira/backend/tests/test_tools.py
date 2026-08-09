@@ -18,7 +18,7 @@ def _files(tmp_path):
 
 
 def _call(files, tool, **arguments):
-    return run_tool(files, "p1", tool, json.dumps(arguments))
+    return run_tool(files, "p1", tool, json.dumps(arguments)).text
 
 
 @pytest.mark.parametrize(
@@ -71,11 +71,20 @@ def test_creating_reports_the_name_actually_used(tmp_path):
 
 
 def test_an_unknown_tool_does_not_bring_the_loop_down(tmp_path):
-    assert "no tool called" in run_tool(_files(tmp_path), "p1", "delete_everything", "{}")
+    assert "no tool called" in run_tool(_files(tmp_path), "p1", "delete_everything", "{}").text
 
 
 def test_broken_arguments_are_answered_not_raised(tmp_path):
-    assert "not valid JSON" in run_tool(_files(tmp_path), "p1", "list_files", "{oops")
+    assert "not valid JSON" in run_tool(_files(tmp_path), "p1", "list_files", "{oops").text
+
+
+def test_only_creating_reports_a_born_file(tmp_path):
+    files = _files(tmp_path)
+    created = run_tool(files, "p1", "create_file", json.dumps({"name": "a", "content": "x"}))
+    listed = run_tool(files, "p1", "list_files", "{}")
+    # What the model is told and whether a file was born are two questions, so they travel apart.
+    assert created.created == "a.md"
+    assert listed.created is None
 
 
 def test_every_tool_is_declared_to_the_model():

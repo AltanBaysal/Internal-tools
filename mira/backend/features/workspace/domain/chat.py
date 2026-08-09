@@ -9,6 +9,9 @@ class Message:
     role: str  # "user" or "ai"
     at: str  # ISO 8601; the browser is what turns it into 11:04
     text: str
+    # The files this reply produced. The design draws a card under the answer, so the message has
+    # to remember them; a reload must find the card still there.
+    files: tuple = ()
 
 
 @dataclass(frozen=True)

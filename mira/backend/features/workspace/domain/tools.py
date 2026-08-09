@@ -5,6 +5,23 @@ not a detail of how a directory works.
 """
 import json
 import re
+from collections import namedtuple
+from dataclasses import dataclass
+
+# What the model is told, and separately whether a file was born. Parsing the sentence back out
+# would be fragile.
+ToolResult = namedtuple("ToolResult", "text created")
+
+
+@dataclass(frozen=True)
+class FileStarted:
+    """The model asked for a file. Its name is not settled until the tool has run."""
+
+
+@dataclass(frozen=True)
+class FileWritten:
+    name: str
+
 
 # Eight rounds carry the longest sensible chain -- list, read, read, write, explain -- while an
 # unbounded loop would burn both money and time. Reaching the limit is a stop, not a failure.
@@ -80,19 +97,21 @@ def run_tool(file_store, project_id, name, arguments):
     try:
         args = json.loads(arguments or "{}")
     except json.JSONDecodeError:
-        return "Those arguments were not valid JSON."
+        return ToolResult("Those arguments were not valid JSON.", None)
 
     if name == "list_files":
         names = file_store.list_names(project_id)
-        return "\n".join(names) if names else "This project has no files yet."
+        return ToolResult("\n".join(names) if names else "This project has no files yet.", None)
 
     if name == "read_file":
         content = file_store.read(project_id, safe_name(args.get("name")))
-        return content if content is not None else "There is no file by that name."
+        return ToolResult(
+            content if content is not None else "There is no file by that name.", None
+        )
 
     if name == "create_file":
         wanted = unique_name(file_store.list_names(project_id), safe_name(args.get("name")))
         written = file_store.write(project_id, wanted, args.get("content", ""))
-        return f"Saved as {written}."
+        return ToolResult(f"Saved as {written}.", written)
 
-    return f"There is no tool called {name}."
+    return ToolResult(f"There is no tool called {name}.", None)
