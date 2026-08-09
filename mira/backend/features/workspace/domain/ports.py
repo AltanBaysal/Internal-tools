@@ -34,3 +34,8 @@ class ChatStore(Protocol):
 
     def list_all(self) -> list[tuple[str, Chat]]:
         """Every chat in the workspace as (project_id, chat), in no particular order."""
+
+
+class Engine(Protocol):
+    def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
+        """Answer a conversation. Messages carry the domain's own roles: user and ai."""

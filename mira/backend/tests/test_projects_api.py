@@ -5,11 +5,18 @@ from backend.services.store.store import Store
 from backend.web.app import create_app
 
 
+class FakeEngine:
+    def complete(self, messages, tools=None):
+        return {"role": "assistant", "content": "Done."}
+
+
 def _client(tmp_path):
     store = Store(str(tmp_path))
     app = create_app(
         dist_dir=str(tmp_path),
-        blueprints=(make_workspace_bp(FileProjectStore(store), FileChatStore(store)),),
+        blueprints=(
+            make_workspace_bp(FileProjectStore(store), FileChatStore(store), FakeEngine()),
+        ),
     )
     return app.test_client()
 

@@ -40,6 +40,16 @@ test("a chat that does not exist says so instead of crashing", () => {
   expect(screen.getByText("That chat does not exist.")).toBeTruthy();
 });
 
+test("waiting for an answer draws three dots and no fake text", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  expect(screen.getByTestId("thinking")).toBeTruthy();
+});
+
+test("nothing blinks when nothing is pending", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(screen.queryByTestId("thinking")).toBeNull();
+});
+
 test("a failure is shown above the composer", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} error="POST failed with 500" />);
   expect(screen.getByText(/failed with 500/)).toBeTruthy();

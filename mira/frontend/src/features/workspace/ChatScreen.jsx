@@ -1,7 +1,7 @@
 import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 
-export default function ChatScreen({ project, chat, error, missing, onBack, onSend }) {
+export default function ChatScreen({ project, chat, error, missing, thinking, onBack, onSend }) {
   if (!chat) {
     // Nothing is drawn while the chat is still on its way; only a real absence speaks up.
     return missing ? (
@@ -41,6 +41,18 @@ export default function ChatScreen({ project, chat, error, missing, onBack, onSe
               </div>
             </div>
           ))}
+          {thinking ? (
+            // Three blinking dots and nothing else: the design refuses a fake partial answer.
+            <div className="msg msg--ai" data-testid="thinking">
+              <div className="msg__label">Mira</div>
+              <div className="dots">
+                <span className="dots__dot" />
+                <span className="dots__dot" />
+                <span className="dots__dot" />
+              </div>
+            </div>
+          ) : null}
+
           {error ? <p className="chat__error">{error}</p> : null}
         </div>
       </div>

@@ -7,9 +7,11 @@ from flask import Blueprint, jsonify, request
 from backend.features.workspace.domain.errors import (
     ChatNotFound,
     EmptyMessage,
+    EngineFailed,
     InvalidProjectName,
     ProjectNotFound,
 )
+from backend.features.workspace.domain.usecases.answer_in_chat import answer_in_chat
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.edit_project import edit_project
@@ -22,7 +24,7 @@ from backend.features.workspace.domain.usecases.start_chat_in_new_project import
 )
 
 
-def make_workspace_bp(project_store, chat_store):
+def make_workspace_bp(project_store, chat_store, engine):
     workspace_bp = Blueprint("workspace", __name__)
 
     @workspace_bp.get("/api/projects")
@@ -92,6 +94,18 @@ def make_workspace_bp(project_store, chat_store):
             return jsonify({"error": "chat not found"}), 404
         except EmptyMessage:
             return jsonify({"error": "a message needs text"}), 400
+        return jsonify(_chat_json(chat))
+
+    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/answer")
+    def post_answer(project_id, chat_id):
+        # No body: the chat as it stands is the question. Both a first message and a follow-up
+        # arrive here, so there is one answering path rather than two.
+        try:
+            chat = answer_in_chat(chat_store, engine, project_id, chat_id, now=_now())
+        except ChatNotFound:
+            return jsonify({"error": "chat not found"}), 404
+        except EngineFailed as failure:
+            return jsonify({"error": str(failure)}), 502
         return jsonify(_chat_json(chat))
 
     @workspace_bp.post("/api/chats")

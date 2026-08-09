@@ -15,3 +15,7 @@ class EmptyMessage(Exception):
 
 class ChatNotFound(Exception):
     """No chat carries this id inside that project."""
+
+
+class EngineFailed(Exception):
+    """The engine could not answer. Carries the engine's own words."""

@@ -97,6 +97,7 @@ export default function App() {
             chat={chat.chat}
             error={chat.error}
             missing={chat.missing}
+            thinking={chat.thinking}
             onBack={() => openProject(route.projectId)}
             onSend={chat.send}
           />

@@ -114,6 +114,57 @@ test("the user bubble shows before the server answers, and leaves if it refuses"
   expect(screen.getByText(/failed with 500/)).toBeTruthy();
 });
 
+test("a chat that is owed an answer asks for one and shows it", async () => {
+  const owed = {
+    id: "c1",
+    title: "hello",
+    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
+  };
+  const answered = {
+    ...owed,
+    messages: [...owed.messages, { role: "ai", at: new Date().toISOString(), text: "Done." }],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/answer") && options?.method === "POST") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => answered });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
+});
+
+test("a broken engine is reported once and not asked again", async () => {
+  const owed = {
+    id: "c1",
+    title: "hello",
+    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/answer") && options?.method === "POST") {
+      return Promise.resolve({ ok: false, status: 502, json: async () => ({}) });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText(/failed with 502/)).toBeTruthy());
+  const asked = fetch.mock.calls.filter(([path]) => path.endsWith("/answer")).length;
+  // A chat that is owed an answer must not turn a broken engine into an endless retry.
+  expect(asked).toBe(1);
+});
+
 test("an empty prompt sends nothing", async () => {
   const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [PROJECT] });
   vi.stubGlobal("fetch", fetch);

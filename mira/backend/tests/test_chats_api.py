@@ -5,11 +5,28 @@ from backend.services.store.store import Store
 from backend.web.app import create_app
 
 
-def _client(tmp_path):
+class FakeEngine:
+    """No network in a test: the answer is whatever this says it is."""
+
+    def __init__(self, answer="Done.", blow_up=None):
+        self.answer = answer
+        self.blow_up = blow_up
+
+    def complete(self, messages, tools=None):
+        if self.blow_up:
+            raise RuntimeError(self.blow_up)
+        return {"role": "assistant", "content": self.answer}
+
+
+def _client(tmp_path, engine=None):
     store = Store(str(tmp_path))
     app = create_app(
         dist_dir=str(tmp_path),
-        blueprints=(make_workspace_bp(FileProjectStore(store), FileChatStore(store)),),
+        blueprints=(
+            make_workspace_bp(
+                FileProjectStore(store), FileChatStore(store), engine or FakeEngine()
+            ),
+        ),
     )
     return app.test_client()
 
@@ -119,6 +136,35 @@ def test_recent_chats_span_every_project_and_name_theirs(tmp_path):
         second["project"]["id"],
         first["project"]["id"],
     ]
+
+
+def test_the_answer_endpoint_appends_the_reply(tmp_path):
+    client = _client(tmp_path)
+    started = client.post("/api/chats", json={"text": "hello"}).get_json()
+    pid, cid = started["project"]["id"], started["chat"]["id"]
+    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_json()
+    assert [(m["role"], m["text"]) for m in body["messages"]] == [
+        ("user", "hello"),
+        ("ai", "Done."),
+    ]
+
+
+def test_a_broken_engine_answers_502_with_its_own_words(tmp_path):
+    client = _client(tmp_path, engine=FakeEngine(blow_up="401 bad key"))
+    started = client.post("/api/chats", json={"text": "hello"}).get_json()
+    pid, cid = started["project"]["id"], started["chat"]["id"]
+    resp = client.post(f"/api/projects/{pid}/chats/{cid}/answer")
+    assert resp.status_code == 502
+    assert "401 bad key" in resp.get_json()["error"]
+    # The user's message is still on disk: only the answer is missing.
+    kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
+    assert [m["text"] for m in kept["messages"]] == ["hello"]
+
+
+def test_answering_an_unknown_chat_is_404(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    assert client.post(f"/api/projects/{pid}/chats/nope/answer").status_code == 404
 
 
 def test_a_new_chat_shows_up_in_the_project_count(tmp_path):

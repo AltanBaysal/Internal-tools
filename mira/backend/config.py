@@ -12,5 +12,8 @@ PORT = 8100  # queen-editor owns 8000 and both can run on this machine at the sa
 # the source tree and `git status` never sees it.
 ROOT = os.environ.get("MIRA_ROOT", os.path.join(os.path.expanduser("~"), "Mira"))
 
-# Read here so the whole app has one source for it; the engine that uses it arrives in Faz 6.
+# The engine is reached over the network; the key has no default, so an unset one is visible.
 XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
+# Verified against xAI's documentation on 2026-08-09. Swapping the model is this one line.
+XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4.5")
+XAI_BASE_URL = os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1")
