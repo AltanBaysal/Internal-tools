@@ -28,7 +28,7 @@ Traps that cost real time — don't rediscover them:
 - **Host `civitai.red`** — same-origin with the cookie. Sending to `.com` is cross-domain → returns the login+turnstile page.
 - **Cookie name `__Secure-civ-token`** — auth moved to `auth.civitai.com` (2026-06); NOT the old `__Secure-civitai-token`. The value is a short ES256 JWT (~420 chars).
 - **How to get it:** log in at `civitai.red` → F12 → Application → Cookies → **double-click the value → Ctrl+A → Ctrl+C**. Single-clicking the table cell truncates the token: `assert len>200` still passes but the token is invalid — a silent failure.
-- **The cookie lives in CONFIG and is committed with the notebook** — accepted practice here; don't try to strip it. `exp` ~30 days; log in again to refresh once it expires.
+- **The cookie lives in CONFIG and is committed with the notebook** — accepted practice here; don't try to strip it. `exp` ~30 days; log in again to refresh once it expires. One exception, by owner's decision: `queen-tools/photo_to_video.ipynb` reads it from Colab Secrets (`CIVITAI_COOKIE`), because that notebook already reads a secret and a half-and-half CONFIG read badly.
 - **Never use a `?token=` API key** — the request then authenticates as that key's account → gated asset returns 401.
 - **Probe first** — range-fetch the first 1 KB to verify access before any heavy download. The probe needs the **bare URL**; a file selector (`?fp=fp8`) returns 401 on probe but works on download.
 - **B2 vs R2** — files redirected to `b2.civitai.com` get **403** from aria2c (it forwards the cookie to the store) but pass with curl → `curl_first=True`. R2 works with both. (A browser UA alone did not fix it.)

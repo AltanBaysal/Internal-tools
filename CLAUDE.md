@@ -28,6 +28,14 @@ AI media generation/cleanup notebooks (`.ipynb`) that run on Google Colab. Each 
 | [frame_extractor.ipynb](collab-toolbox/frame_extractor.ipynb) | First frame from video (JPG/PNG) | CPU |
 | [watermark/watermark_detection.ipynb](collab-toolbox/watermark/watermark_detection.ipynb) | Watermark detection (YOLOv11) → `results.json` | GPU |
 | [watermark/watermark_remove.ipynb](collab-toolbox/watermark/watermark_remove.ipynb) | Watermark removal (ProPainter), driven by `results.json` | GPU |
+| [queen-tools/prompt_converter.ipynb](collab-toolbox/queen-tools/prompt_converter.ipynb) | Queen Editor export → motion prompts (Grok), one request per frame | CPU |
+| [queen-tools/photo_to_video.ipynb](collab-toolbox/queen-tools/photo_to_video.ipynb) | That plan file → video, photo by photo (WAN 2.2 I2V) | A100 (Colab Pro) |
+
+**queen-tools is one chain, not two tools.** Queen Editor's Export file is turned into motion prompts
+by `prompt_converter`, and `photo_to_video` reads the result and writes the videos under
+`MyDrive/queen-tools/<project>/`. Queen Editor's own folder is only ever read — the design and its
+reasoning: [docs/superpowers/specs/2026-08-09-queen-tools-design.md](docs/superpowers/specs/2026-08-09-queen-tools-design.md).
+Both notebooks take their work order from a file you upload, so nothing is picked from Drive by name.
 
 Usage: [Colab](https://colab.research.google.com/) → **File → Upload notebook** → **Runtime → Change runtime type** and pick the hardware from the table → fill in the first **CONFIG** cell → **Run all**.
 
