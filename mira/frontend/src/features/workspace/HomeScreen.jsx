@@ -1,3 +1,4 @@
+import ComposerShell from "./ComposerShell.jsx";
 import ProjectCard from "./ProjectCard.jsx";
 
 // The design's three prompts. They only fill the draft, and that wiring is Madde 8.
@@ -13,21 +14,13 @@ export default function HomeScreen({ projects, error, onNewProject, onOpenProjec
       <div className="home__column">
         <h1 className="home__greeting">Hi</h1>
 
-        <div className="composer">
-          <textarea
-            className="composer__input"
-            rows={3}
-            placeholder="Ask anything — Mira saves the answer to your project as a file."
-          />
-          <div className="composer__foot">
-            {/* Permanently disabled here: "an empty draft disables Send" is a rule and its home is
-                Madde 8. The mono target label is missing for the same reason -- what a message from
-                home is aimed at is decided in Madde 11. */}
-            <button type="button" className="composer__send" disabled>
-              Send
-            </button>
-          </div>
-        </div>
+        {/* No mono target label here: what a message from home is aimed at is decided in Madde 11,
+            and naming a target before that decision would be answering it from the wrong place. */}
+        <ComposerShell
+          rows={3}
+          placeholder="Ask anything — Mira saves the answer to your project as a file."
+          action="Send"
+        />
 
         <div className="home__suggestions">
           {SUGGESTIONS.map((label) => (

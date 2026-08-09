@@ -43,3 +43,30 @@ def test_two_projects_get_different_ids_and_hues(tmp_path):
     second = client.post("/api/projects").get_json()
     assert first["id"] != second["id"]
     assert first["hue"] != second["hue"]
+
+
+def test_patch_renames_a_project(tmp_path):
+    client = _client(tmp_path)
+    created = client.post("/api/projects").get_json()
+    resp = client.patch(f"/api/projects/{created['id']}", json={"name": "Thesis"})
+    assert resp.status_code == 200
+    assert resp.get_json()["name"] == "Thesis"
+    assert client.get("/api/projects").get_json()[0]["name"] == "Thesis"
+
+
+def test_patch_rejects_an_empty_name(tmp_path):
+    client = _client(tmp_path)
+    created = client.post("/api/projects").get_json()
+    assert client.patch(f"/api/projects/{created['id']}", json={"name": "  "}).status_code == 400
+
+
+def test_patch_on_an_unknown_project_is_404(tmp_path):
+    assert _client(tmp_path).patch("/api/projects/nope", json={"name": "x"}).status_code == 404
+
+
+def test_patch_keeps_the_counts_in_the_answer(tmp_path):
+    client = _client(tmp_path)
+    created = client.post("/api/projects").get_json()
+    body = client.patch(f"/api/projects/{created['id']}", json={"desc": "Notes."}).get_json()
+    assert body["chats"] == 0
+    assert body["files"] == 0

@@ -2,9 +2,14 @@
 import uuid
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 
 from backend.features.workspace.domain.usecases.create_project import create_project
+from backend.features.workspace.domain.usecases.edit_project import (
+    InvalidProjectName,
+    ProjectNotFound,
+    edit_project,
+)
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 
 
@@ -20,6 +25,23 @@ def make_workspace_bp(project_store):
         # Creating takes no input: the design never asks for a name up front.
         project = create_project(project_store, new_id=_new_id(), now=_now())
         return jsonify(_as_json(project)), 201
+
+    @workspace_bp.patch("/api/projects/<project_id>")
+    def patch_project(project_id):
+        payload = request.get_json(silent=True) or {}
+        try:
+            edit_project(
+                project_store,
+                project_id,
+                name=payload.get("name"),
+                desc=payload.get("desc"),
+            )
+        except ProjectNotFound:
+            return jsonify({"error": "project not found"}), 404
+        except InvalidProjectName:
+            return jsonify({"error": "a project needs a name"}), 400
+        # Re-read so the counts in the answer come from the directories, exactly like the list does.
+        return jsonify(_as_json(project_store.get(project_id)))
 
     return workspace_bp
 

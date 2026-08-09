@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getJson, postJson } from "../../shared/api.js";
+import { getJson, patchJson, postJson } from "../../shared/api.js";
 
 // One array feeds both lists on screen -- the sidebar and the home cards -- so a new project shows
 // up in both without a second round trip and without them ever disagreeing.
@@ -34,5 +34,16 @@ export function useProjects() {
     }
   }, []);
 
-  return { projects, error, createProject };
+  const editProject = useCallback(async (id, changes) => {
+    try {
+      const edited = await patchJson(`/api/projects/${id}`, changes);
+      setProjects((current) => current.map((p) => (p.id === id ? edited : p)));
+      return edited;
+    } catch (failure) {
+      setError(failure.message);
+      return null;
+    }
+  }, []);
+
+  return { projects, error, createProject, editProject };
 }

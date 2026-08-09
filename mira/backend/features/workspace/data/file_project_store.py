@@ -17,24 +17,18 @@ class FileProjectStore:
         self._store = store
 
     def add(self, project):
-        path = f"{project.id}/{PROJECT_FILE}"
-        if self._store.exists(path):
+        if self._store.exists(f"{project.id}/{PROJECT_FILE}"):
             raise ProjectIdTaken(project.id)
-        # The id is the directory name, so it is not written into the file: no artifact repeats an
-        # answer another one already gives.
-        self._store.write_text(
-            path,
-            json.dumps(
-                {
-                    "name": project.name,
-                    "desc": project.desc,
-                    "hue": project.hue,
-                    "createdAt": project.created_at,
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
-        )
+        self._write(project)
+
+    def replace(self, project):
+        self._write(project)
+
+    def get(self, project_id):
+        for project in self.list_all():
+            if project.id == project_id:
+                return project
+        return None
 
     def list_all(self):
         projects = []
@@ -55,3 +49,20 @@ class FileProjectStore:
                 )
             )
         return projects
+
+    def _write(self, project):
+        # The id is the directory name and the counts come from the directories, so neither is
+        # written here: no artifact repeats an answer another one already gives.
+        self._store.write_text(
+            f"{project.id}/{PROJECT_FILE}",
+            json.dumps(
+                {
+                    "name": project.name,
+                    "desc": project.desc,
+                    "hue": project.hue,
+                    "createdAt": project.created_at,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+        )

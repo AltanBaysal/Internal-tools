@@ -8,15 +8,23 @@ async function request(path, options) {
   return response.json();
 }
 
-export function getJson(path) {
-  return request(path);
-}
-
-export function postJson(path, body) {
-  const options = { method: "POST" };
+function sendJson(method, path, body) {
+  const options = { method };
   if (body !== undefined) {
     options.headers = { "Content-Type": "application/json" };
     options.body = JSON.stringify(body);
   }
   return request(path, options);
+}
+
+export function getJson(path) {
+  return request(path);
+}
+
+export function postJson(path, body) {
+  return sendJson("POST", path, body);
+}
+
+export function patchJson(path, body) {
+  return sendJson("PATCH", path, body);
 }
