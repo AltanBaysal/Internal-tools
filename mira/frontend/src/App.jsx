@@ -12,6 +12,7 @@ import {
   useProjectChats,
   useRecentChats,
 } from "./features/workspace/useChatLists.js";
+import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { useRoute } from "./shared/useRoute.js";
@@ -22,6 +23,9 @@ export default function App() {
   const { recentChats, reloadRecentChats } = useRecentChats();
   const { projectChats, reloadProjectChats } = useProjectChats(route.projectId);
   const { files, reloadFiles } = useFiles(route.projectId);
+  // One reader for both screens: the chat widens its rail into it, the project screen opens it as a
+  // panel. What is being read belongs to the project, so it survives moving between the two.
+  const reading = useFile(route.projectId);
   // A file that has just been born changes two answers at once: the list itself, and the count on
   // the project's card.
   const chat = useChat(route.projectId, route.chatId, () =>
@@ -90,6 +94,7 @@ export default function App() {
             project={project}
             chats={projectChats}
             files={files}
+            reading={reading}
             onBack={goHome}
             onRename={() => ask("Project name", project?.name, "name")}
             onDescribe={() => ask("Project description", project?.desc, "desc")}
@@ -103,6 +108,7 @@ export default function App() {
             project={project}
             chat={chat.chat}
             files={files}
+            reading={reading}
             error={chat.error}
             missing={chat.missing}
             thinking={chat.thinking}

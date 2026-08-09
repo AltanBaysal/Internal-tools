@@ -33,6 +33,21 @@ test("the file column lists what the project holds", () => {
   expect(screen.queryByText(/No files yet/)).toBeNull();
 });
 
+test("clicking a file opens it beside the grid, which drops to one column", () => {
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  const open = vi.fn();
+  const { container, rerender } = render(
+    <ProjectScreen project={PROJECT} files={files} reading={{ open }} />,
+  );
+  fireEvent.click(screen.getByText("outline.md"));
+  expect(open).toHaveBeenCalledWith("outline.md");
+
+  const reading = { name: "outline.md", file: { ...files[0], size: 7, text: "read me" } };
+  rerender(<ProjectScreen project={PROJECT} files={files} reading={reading} />);
+  expect(screen.getByText("read me")).toBeTruthy();
+  expect(container.querySelector(".project-grid").className).toContain("project-grid--reading");
+});
+
 test("a project that does not exist says so instead of crashing", () => {
   // The address bar is something a person can type into, so a wrong id has to be survivable.
   render(<ProjectScreen project={null} />);

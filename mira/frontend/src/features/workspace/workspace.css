@@ -385,9 +385,23 @@
 /* --- files: rows, cards and the rail ------------------------------------ */
 
 /* Always open rather than a toggle: what already exists stays in view while the user asks for
-   more. */
+   more. Width is the one thing the design lets move. */
 .rail {
   width: 320px;
+  flex: none;
+  border-left: 1px solid var(--line);
+  padding: 20px 18px;
+  overflow-y: auto;
+  transition: width 220ms ease;
+}
+
+.rail--open {
+  width: 560px;
+}
+
+/* The project screen's reader: the same panel, in a container of its own. */
+.panel {
+  width: 560px;
   flex: none;
   border-left: 1px solid var(--line);
   padding: 20px 18px;
@@ -400,6 +414,7 @@
   gap: 10px;
   padding: 10px 8px;
   border-radius: var(--radius-control);
+  cursor: pointer;
 }
 
 .file-row:hover {
@@ -474,6 +489,83 @@
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--muted);
+}
+
+/* --- reading a file ----------------------------------------------------- */
+
+.reader {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: slideIn 0.2s ease both;
+}
+
+.reader__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reader__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Fixed width so "preparing…" can replace the label without moving the button. */
+.reader__download {
+  flex: none;
+  min-width: 116px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.spinner {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid #cfc7bc;
+  border-top-color: #6b6259;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.reader__body {
+  font-size: 14px;
+  line-height: 1.75;
+  color: #2c2823;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reader__meta {
+  margin: 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #a79e93;
+}
+
+.reader__error {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #a4735a;
+  overflow-wrap: anywhere;
+}
+
+/* The project screen and its panel side by side, the same shape the chat uses. */
+.screen-layout {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
 }
 
 /* --- chat rows on the project screen ------------------------------------ */
@@ -582,6 +674,11 @@
   gap: 40px;
   align-items: start;
   margin-top: 36px;
+}
+
+/* The panel took the room the second column had, so the two columns stack instead. */
+.project-grid--reading {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .column__title {

@@ -1,12 +1,13 @@
-import { render, screen } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { expect, test, vi } from "vitest";
 
 import FileRail from "./FileRail.jsx";
 
 const NOW = Date.now();
+const NOW_ISO = new Date(NOW).toISOString();
 const FILES = [
   { name: "outline.md", ext: "md", modifiedAt: new Date(NOW - 2 * 3600_000).toISOString() },
-  { name: "sources.txt", ext: "txt", modifiedAt: new Date(NOW).toISOString() },
+  { name: "sources.txt", ext: "txt", modifiedAt: NOW_ISO },
 ];
 
 test("the rail is headed Project files", () => {
@@ -35,4 +36,20 @@ test("a rail with nothing to draw yet is still a rail", () => {
   // The list arrives after the screen does, so the first render has no prop at all.
   render(<FileRail />);
   expect(screen.getByTestId("file-rail")).toBeTruthy();
+});
+
+test("clicking a row opens that file", () => {
+  const open = vi.fn();
+  render(<FileRail files={FILES} reading={{ open }} />);
+  fireEvent.click(screen.getByText("outline.md"));
+  expect(open).toHaveBeenCalledWith("outline.md");
+});
+
+test("an open file takes the rail over and widens it", () => {
+  const file = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file }} />);
+  expect(screen.getByText("read me")).toBeTruthy();
+  // The list is behind the panel, not beside it: the rail is 320px wide until it is 560.
+  expect(screen.queryByText("sources.txt")).toBeNull();
+  expect(screen.getByTestId("file-rail").className).toContain("rail--open");
 });

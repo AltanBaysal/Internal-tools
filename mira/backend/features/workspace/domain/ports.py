@@ -2,7 +2,7 @@
 from typing import Protocol
 
 from backend.features.workspace.domain.chat import Chat
-from backend.features.workspace.domain.file import File
+from backend.features.workspace.domain.file import File, FileBody
 from backend.features.workspace.domain.project import Project
 
 
@@ -57,6 +57,9 @@ class FileStore(Protocol):
 
     def read(self, project_id: str, name: str) -> str | None:
         """A file's contents, or None if there is no such file."""
+
+    def read_body(self, project_id: str, name: str) -> FileBody | None:
+        """A file with its contents, or None if there is no such file."""
 
     def write(self, project_id: str, name: str, content: str) -> str:
         """Write a file and answer with the name actually used."""

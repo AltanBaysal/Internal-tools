@@ -19,3 +19,7 @@ class ChatNotFound(Exception):
 
 class EngineFailed(Exception):
     """The engine could not answer. Carries the engine's own words."""
+
+
+class FileNotFound(Exception):
+    """The project holds no file by this name."""

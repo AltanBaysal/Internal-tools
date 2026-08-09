@@ -78,3 +78,32 @@ def test_the_endpoint_lists_what_the_model_wrote(tmp_path):
     assert listed[0]["name"] == "plan.md"
     assert listed[0]["ext"] == "md"
     assert "modifiedAt" in listed[0]
+
+
+def test_one_file_comes_back_whole(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    _files(tmp_path).write(pid, "plan.md", "the body")
+    body = client.get(f"/api/projects/{pid}/files/plan.md").get_json()
+    assert body["name"] == "plan.md"
+    assert body["ext"] == "md"
+    assert body["size"] == 8
+    assert body["text"] == "the body"
+    assert "modifiedAt" in body
+
+
+def test_reading_a_file_that_is_gone_is_a_404(tmp_path):
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    resp = client.get(f"/api/projects/{pid}/files/ghost.md")
+    assert resp.status_code == 404
+    assert "not found" in resp.get_json()["error"]
+
+
+def test_the_list_and_one_file_are_different_addresses(tmp_path):
+    # Same prefix, two routes: the list must not swallow a name.
+    client = _client(tmp_path)
+    pid = client.post("/api/projects").get_json()["id"]
+    _files(tmp_path).write(pid, "plan.md", "x")
+    assert isinstance(client.get(f"/api/projects/{pid}/files").get_json(), list)
+    assert isinstance(client.get(f"/api/projects/{pid}/files/plan.md").get_json(), dict)

@@ -9,6 +9,7 @@ from backend.features.workspace.domain.errors import (
     ChatNotFound,
     EmptyMessage,
     EngineFailed,
+    FileNotFound,
     InvalidProjectName,
     ProjectNotFound,
 )
@@ -20,6 +21,7 @@ from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.list_recent_chats import list_recent_chats
+from backend.features.workspace.domain.usecases.read_file import read_file
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
     start_chat_in_new_project,
@@ -138,6 +140,24 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
                 {"name": file.name, "ext": file.ext, "modifiedAt": file.modified_at}
                 for file in list_files(file_store, project_id)
             ]
+        )
+
+    @workspace_bp.get("/api/projects/<project_id>/files/<name>")
+    def get_file(project_id, name):
+        # A name cannot carry a slash -- Flask's default converter stops at one, and the store's
+        # root is the second lock.
+        try:
+            body = read_file(file_store, project_id, name)
+        except FileNotFound:
+            return jsonify({"error": "file not found"}), 404
+        return jsonify(
+            {
+                "name": body.file.name,
+                "ext": body.file.ext,
+                "modifiedAt": body.file.modified_at,
+                "size": body.size,
+                "text": body.text,
+            }
         )
 
     @workspace_bp.get("/api/chats")

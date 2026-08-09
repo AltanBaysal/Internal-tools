@@ -4,7 +4,7 @@ It takes the name it is given: what a file may be called is decided in the domai
 """
 from datetime import datetime, timezone
 
-from backend.features.workspace.domain.file import File, extension_of
+from backend.features.workspace.domain.file import File, FileBody, extension_of
 
 FILES_DIR = "files"
 
@@ -30,6 +30,21 @@ class FileFileStore:
     def read(self, project_id, name):
         path = f"{project_id}/{FILES_DIR}/{name}"
         return self._store.read_text(path) if self._store.exists(path) else None
+
+    def read_body(self, project_id, name):
+        # The stat and the text in one call: asked separately, a file deleted in between would
+        # answer one question and not the other.
+        path = f"{project_id}/{FILES_DIR}/{name}"
+        if not self._store.exists(path):
+            return None
+        return FileBody(
+            File(
+                name=name,
+                ext=extension_of(name),
+                modified_at=_iso(self._store.mtime(path)),
+            ),
+            self._store.read_text(path),
+        )
 
     def write(self, project_id, name, content):
         self._store.write_text(f"{project_id}/{FILES_DIR}/{name}", content)
