@@ -31,6 +31,12 @@ def test_projects_survive_a_fresh_app(tmp_path):
     assert len(_client(tmp_path).get("/api/projects").get_json()) == 1
 
 
+def test_project_payload_carries_zero_counts_before_anything_exists(tmp_path):
+    body = _client(tmp_path).post("/api/projects").get_json()
+    assert body["chats"] == 0
+    assert body["files"] == 0
+
+
 def test_two_projects_get_different_ids_and_hues(tmp_path):
     client = _client(tmp_path)
     first = client.post("/api/projects").get_json()

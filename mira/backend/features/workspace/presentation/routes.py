@@ -40,4 +40,6 @@ def _as_json(project):
         "desc": project.desc,
         "hue": project.hue,
         "createdAt": project.created_at,
+        "chats": project.chat_count,
+        "files": project.file_count,
     }

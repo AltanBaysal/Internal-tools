@@ -4,6 +4,8 @@ import json
 from backend.features.workspace.domain.project import Project
 
 PROJECT_FILE = "project.json"
+CHATS_DIR = "chats"
+FILES_DIR = "files"
 
 
 class ProjectIdTaken(Exception):
@@ -48,6 +50,8 @@ class FileProjectStore:
                     desc=raw["desc"],
                     hue=raw["hue"],
                     created_at=raw["createdAt"],
+                    chat_count=len(self._store.list_dir(f"{entry}/{CHATS_DIR}")),
+                    file_count=len(self._store.list_dir(f"{entry}/{FILES_DIR}")),
                 )
             )
         return projects
