@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getJson, postJson } from "../../shared/api.js";
 import { streamEvents } from "../../shared/sse.js";
@@ -12,12 +12,19 @@ function isOwedAnAnswer(chat) {
   return Boolean(last) && last.role === "user" && !last.pending;
 }
 
-export function useChat(projectId, chatId) {
+export function useChat(projectId, chatId, onFileCreated) {
   const [chat, setChat] = useState(null);
   const [error, setError] = useState(null);
   const [missing, setMissing] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [streamingText, setStreamingText] = useState("");
+  const [creatingFile, setCreatingFile] = useState(false);
+  const [createdFiles, setCreatedFiles] = useState([]);
+
+  // Kept in a ref rather than a dependency: the caller may hand over a fresh function on every
+  // render, and that must not rebuild `ask` and restart the effect below.
+  const announce = useRef(onFileCreated);
+  announce.current = onFileCreated;
 
   useEffect(() => {
     if (!projectId || !chatId) return undefined;
@@ -43,9 +50,18 @@ export function useChat(projectId, chatId) {
     setThinking(true);
     setError(null);
     setStreamingText("");
+    setCreatingFile(false);
+    setCreatedFiles([]);
     try {
       await streamEvents(`/api/projects/${projectId}/chats/${chatId}/answer`, (frame) => {
         if (frame.event === "chunk") setStreamingText((text) => text + frame.data.text);
+        else if (frame.event === "file-start") setCreatingFile(true);
+        else if (frame.event === "file") {
+          setCreatedFiles((names) => [...names, frame.data.name]);
+          setCreatingFile(false);
+          // The file exists on disk this instant, so every list that shows it is now out of date.
+          announce.current?.();
+        }
         // What the browser piled up is a guess; what the server wrote is the record, so the record
         // replaces it rather than being reconciled with it.
         else if (frame.event === "done") setChat(frame.data);
@@ -54,7 +70,11 @@ export function useChat(projectId, chatId) {
     } catch (failure) {
       setError(failure.message);
     } finally {
+      // The cards drawn from the stream go too: the stored answer carries the same names, and a
+      // stream that broke wrote no answer at all.
       setStreamingText("");
+      setCreatingFile(false);
+      setCreatedFiles([]);
       setThinking(false);
     }
   }, [projectId, chatId]);
@@ -99,5 +119,15 @@ export function useChat(projectId, chatId) {
 
   // Try again asks for the answer once more; it never re-sends the message, because the chat is
   // still owed one and the user's sentence must not be written twice.
-  return { chat, error, missing, thinking, streamingText, send, retry: ask };
+  return {
+    chat,
+    error,
+    missing,
+    thinking,
+    streamingText,
+    creatingFile,
+    createdFiles,
+    send,
+    retry: ask,
+  };
 }

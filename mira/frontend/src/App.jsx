@@ -12,6 +12,7 @@ import {
   useProjectChats,
   useRecentChats,
 } from "./features/workspace/useChatLists.js";
+import { useFiles } from "./features/workspace/useFiles.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { useRoute } from "./shared/useRoute.js";
 
@@ -20,7 +21,12 @@ export default function App() {
   const { projects, error, createProject, editProject, reloadProjects } = useProjects();
   const { recentChats, reloadRecentChats } = useRecentChats();
   const { projectChats, reloadProjectChats } = useProjectChats(route.projectId);
-  const chat = useChat(route.projectId, route.chatId);
+  const { files, reloadFiles } = useFiles(route.projectId);
+  // A file that has just been born changes two answers at once: the list itself, and the count on
+  // the project's card.
+  const chat = useChat(route.projectId, route.chatId, () =>
+    Promise.all([reloadFiles(), reloadProjects()]),
+  );
 
   const goHome = () => navigate("/");
   const openProject = (id) => navigate(`/p/${id}`);
@@ -83,6 +89,7 @@ export default function App() {
           <ProjectScreen
             project={project}
             chats={projectChats}
+            files={files}
             onBack={goHome}
             onRename={() => ask("Project name", project?.name, "name")}
             onDescribe={() => ask("Project description", project?.desc, "desc")}
@@ -95,10 +102,13 @@ export default function App() {
           <ChatScreen
             project={project}
             chat={chat.chat}
+            files={files}
             error={chat.error}
             missing={chat.missing}
             thinking={chat.thinking}
             streamingText={chat.streamingText}
+            creatingFile={chat.creatingFile}
+            createdFiles={chat.createdFiles}
             onBack={() => openProject(route.projectId)}
             onSend={chat.send}
             onRetry={chat.retry}

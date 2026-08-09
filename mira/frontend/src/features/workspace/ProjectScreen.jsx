@@ -1,9 +1,11 @@
 import { relativeTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
+import FileRow from "./FileRow.jsx";
 
 export default function ProjectScreen({
   project,
   chats = [],
+  files = [],
   onBack,
   onRename,
   onDescribe,
@@ -74,9 +76,13 @@ export default function ProjectScreen({
           <div>
             <h2 className="column__title">Files Mira created</h2>
             <div className="file-list">
-              <p className="file-list__empty">
-                No files yet — start a chat and Mira will create one.
-              </p>
+              {files.length ? (
+                files.map((file) => <FileRow key={file.name} file={file} />)
+              ) : (
+                <p className="file-list__empty">
+                  No files yet — start a chat and Mira will create one.
+                </p>
+              )}
             </div>
             <p className="file-list__note">Chats create the files; you just open and read them.</p>
           </div>

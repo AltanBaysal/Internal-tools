@@ -25,6 +25,14 @@ test("an empty file column teaches instead of sitting blank", () => {
   expect(screen.getByText(/No files yet/)).toBeTruthy();
 });
 
+test("the file column lists what the project holds", () => {
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  render(<ProjectScreen project={PROJECT} files={files} />);
+  expect(screen.getByText("outline.md")).toBeTruthy();
+  // The teaching line is for an empty project; a full one has better things to say.
+  expect(screen.queryByText(/No files yet/)).toBeNull();
+});
+
 test("a project that does not exist says so instead of crashing", () => {
   // The address bar is something a person can type into, so a wrong id has to be survivable.
   render(<ProjectScreen project={null} />);

@@ -71,3 +71,54 @@ test("Try again asks again", () => {
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   expect(onRetry).toHaveBeenCalled();
 });
+
+test("a file on its way shows a dashed card with no name on it", () => {
+  // No name yet: the model's wish still has to be cleaned and a clash still has to be resolved.
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking creatingFile />);
+  expect(screen.getByText("creating file…")).toBeTruthy();
+});
+
+test("nothing dashed is drawn when no file is being written", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  expect(screen.queryByText("creating file…")).toBeNull();
+});
+
+test("a file that lands mid-answer becomes a card straight away", () => {
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      thinking
+      streamingText="Saved it."
+      createdFiles={["outline.md"]}
+    />,
+  );
+  expect(screen.getByText("outline.md")).toBeTruthy();
+  expect(screen.getByText("✓ saved to project")).toBeTruthy();
+});
+
+test("the file a stored reply produced is drawn under that reply", () => {
+  const chat = {
+    ...CHAT,
+    messages: [
+      CHAT.messages[0],
+      { ...CHAT.messages[1], files: ["outline.md", "sources.txt"] },
+    ],
+  };
+  render(<ChatScreen project={PROJECT} chat={chat} />);
+  // Two files can be born in one turn, so the card is not a single slot.
+  expect(screen.getByText("outline.md")).toBeTruthy();
+  expect(screen.getByText("sources.txt")).toBeTruthy();
+});
+
+test("the chip on a card comes from the name the reply remembers", () => {
+  const chat = { ...CHAT, messages: [CHAT.messages[0], { ...CHAT.messages[1], files: ["a.txt"] }] };
+  render(<ChatScreen project={PROJECT} chat={chat} />);
+  expect(screen.getByText("txt")).toBeTruthy();
+});
+
+test("the rail lists the project's files beside the conversation", () => {
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  render(<ChatScreen project={PROJECT} chat={CHAT} files={files} />);
+  expect(screen.getByTestId("file-rail").textContent).toContain("outline.md");
+});

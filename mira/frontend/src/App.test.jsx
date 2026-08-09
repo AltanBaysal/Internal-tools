@@ -162,6 +162,47 @@ test("a chat that is owed an answer streams one and keeps the server's record", 
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
 });
 
+test("a file born mid-answer reaches the rail without a reload", async () => {
+  const owed = {
+    id: "c1",
+    title: "hello",
+    messages: [{ role: "user", at: new Date().toISOString(), text: "write the outline" }],
+  };
+  const answered = {
+    ...owed,
+    messages: [
+      ...owed.messages,
+      { role: "ai", at: new Date().toISOString(), text: "Saved.", files: ["outline.md"] },
+    ],
+  };
+  // The directory is the list, so the stub answers differently once the file has been written.
+  let onDisk = [];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/answer") && options?.method === "POST") {
+      onDisk = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+      return Promise.resolve(
+        sseResponse(
+          'event: file-start\ndata: {}\n\n' +
+            'event: file\ndata: {"name":"outline.md"}\n\n' +
+            `event: done\ndata: ${JSON.stringify(answered)}\n\n`,
+        ),
+      );
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("outline.md"));
+});
+
 test("a fault inside the stream shows the card and Try again asks again", async () => {
   const owed = {
     id: "c1",

@@ -1,23 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-
-import { getJson, postJson } from "../../shared/api.js";
-
-function useList(path, enabled = true) {
-  const [items, setItems] = useState([]);
-
-  const reload = useCallback(() => {
-    if (!enabled) return Promise.resolve();
-    return getJson(path)
-      .then(setItems)
-      .catch(() => setItems([]));
-  }, [path, enabled]);
-
-  useEffect(() => {
-    reload();
-  }, [reload]);
-
-  return { items, reload };
-}
+import { postJson } from "../../shared/api.js";
+import { useList } from "../../shared/useList.js";
 
 // Two lists, two questions. The sidebar asks what was touched recently across the whole workspace;
 // the project screen asks what this project holds. Filtering one out of the other works today, but

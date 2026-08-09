@@ -210,6 +210,13 @@
 
 /* --- chat screen -------------------------------------------------------- */
 
+.chat-layout {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+}
+
 .chat {
   flex: 1;
   min-width: 0;
@@ -373,6 +380,100 @@
 .chat__composer .composer {
   max-width: 720px;
   margin: 0 auto;
+}
+
+/* --- files: rows, cards and the rail ------------------------------------ */
+
+/* Always open rather than a toggle: what already exists stays in view while the user asks for
+   more. */
+.rail {
+  width: 320px;
+  flex: none;
+  border-left: 1px solid var(--line);
+  padding: 20px 18px;
+  overflow-y: auto;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  border-radius: var(--radius-control);
+}
+
+.file-row:hover {
+  background: #f0ece5;
+}
+
+.file-chip {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #96795f;
+  background: #f0ece5;
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+
+.file-row__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-row__when {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #a79e93;
+}
+
+.file-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.file-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 11px 14px;
+  animation: slideIn 0.25s ease both;
+}
+
+.file-card__name {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.file-card__saved {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #6f8a5f;
+}
+
+.creating {
+  align-self: flex-start;
+  background: #fbf8f3;
+  border: 1px dashed #ded5c9;
+  border-radius: var(--radius-card);
+  padding: 11px 14px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
 }
 
 /* --- chat rows on the project screen ------------------------------------ */
