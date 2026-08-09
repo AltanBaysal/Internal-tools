@@ -38,7 +38,8 @@ istiyor — üstelik foto prompt'ları Türkçe, video modeli İngilizce bekliyo
 | Çeviri **Export butonuna girmez** | Export bugün anlık çalışan bir indirme bağlantısı ([Bölüm 10 spec'i](2026-08-05-queen-editor-bolum10-export-design.md)); araya ağ çağrısı koymak onu yavaş, patlayabilir ve yükleme durumu isteyen bir şeye çevirirdi. Queen Editor'ün kodunda tek satır değişmez |
 | Queen Editor'ün proje klasörü **yalnız okunur** | Bağımsızlık. Fotoğraflar `folder` yolundan okunur; oraya video, JSON, geçici dosya — hiçbir şey yazılmaz |
 | Notebook grafı **Drive'dan okur**; repodaki kopya kaynaktır | Colab'a repo klonlanmıyor (bu notebook'lar tek dosya olarak yükleniyor), o yüzden okuyabileceği tek kalıcı yer Drive. Graf zaten repoda commit'li: `wan22-arbuzai/workflow_api.json` — arbuzai ailesiyle paylaşılan aynı dosya, Drive'a oradan kopyalanır. Grafı değiştirmek yine `manual.ipynb` → Export (API) |
-| Çıktı adı `N_<harf>.mp4` kalır | Foto numarası izlenebilir kalır; sonraki araçlar dosya adındaki numaradan prompt eşliyor |
+| Çıktı adı **sıra numarasıdır**: `001.mp4`, `002.mp4` | Kullanıcı kararı. Plan dosyasındaki `photos` sırası zaten videonun sırası; ad da onu taşıyınca klasörü alfabetik listeleyen her araç doğru sırayı görür. Hangi fotoğraf ve prompt olduğu `photos[n]` satırında duruyor, dosya adına ikinci kez yazılmaz. **Kabul edilen takas:** numara konumdan geldiği için, projeye foto eklenip yeniden export edilirse sonraki numaralar kayar ve "çıktı zaten var" kontrolü eski dosyaları bulamaz |
+| Atlanan kare **numarasını harcar** (`001, 002, 004`) | Boşluk kaydırılırsa dosya ile plan satırı arasındaki tek eşleşme bozulur; boşluk ayrıca "orada bir şey atlandı" der |
 | **Her iki sır da Colab Secrets'ta**: `XAI_API_KEY` ve `CIVITAI_COOKIE` | Kullanıcı kararı. NOTEBOOK-STANDARD §4 cookie'yi CONFIG'de tutmayı kabul ediyor, ama bu ailede anahtarın zaten Secrets'ta olması onu tutarsız bırakıyordu. `CIVITAI_COOKIE` adı Queen Editor'ünkiyle aynı — tek yapıştırma iki aracı da besler. Diğer notebook'lar değişmedi |
 | `VARIANTS = 1` | Kullanıcı kararı. Ayar `api_from_photos`'tan devralınır ama 1'de kalır |
 | `XAI_MODEL = "grok-4.3"` | Kullanıcı `grok-3` kullanıyordu; o model 15 Mayıs 2026'da deprecate edildi, **15 Ağustos 2026'da kapanıyor** ve istekleri zaten `grok-4.3`'e yönlendirilip o fiyattan faturalanıyor ([xAI retirement](https://docs.x.ai/developers/migration/may-15-retirement)). Yani davranış aynı, ad doğru |
@@ -54,7 +55,7 @@ Queen Editor ──Export──> dugun-export.json  (bilgisayara iner)
                               │  Colab'a yükle
                     photo_to_video.ipynb   (A100 + Drive)
                               ↓
-              MyDrive/queen-tools/dugun/1_a.mp4 …
+              MyDrive/queen-tools/dugun/001.mp4 …
 ```
 
 ## Drive düzeni
@@ -64,7 +65,7 @@ MyDrive/queen-tools/
 ├── workflow_api.json     ← bir kez elle konur: repodaki wan22-arbuzai/workflow_api.json'un kopyası
 └── <proje>/              ← notebook açar
     ├── video.json        ← çevirici yazar (ilerleme + sonuç)
-    └── 1_a.mp4 …         ← video notebook'u yazar
+    └── 001.mp4 …         ← video notebook'u yazar
 ```
 
 `<proje>` = export'taki `folder` yolunun son parçası. Kullanıcı proje adını hiçbir yere yazmaz.
@@ -154,8 +155,8 @@ adlandırması. Civitai cookie'si tek farkla taşınır: değeri CONFIG'e gömü
 okunur** — kopyalama yok. Aynı Drive aynı yola mount olduğu için yol çözülür; klasör yoksa hücre
 yolu basıp durur.
 
-**Çıktı:** `MyDrive/queen-tools/<proje>/N_<harf>.mp4`. `VARIANTS > 1` ise `N_<harf>_<v>.mp4`
-(v 1'den). Klasörü notebook açar.
+**Çıktı:** `MyDrive/queen-tools/<proje>/001.mp4` — ad, karenin plan dosyasındaki 1-tabanlı
+konumudur (üç hane). `VARIANTS > 1` ise `001_<v>.mp4` (v 1'den). Klasörü notebook açar.
 
 **Plan tablosu** modeller inmeden basılır: `çıktı · ÜRET/ATLA · fotoğraf · sebep`. Atlama sebepleri:
 prompt boş · çıktı zaten var · **JSON'da yazan dosya `folder`'da yok** (dosya bayatlamış, uyarı
@@ -184,7 +185,8 @@ satır). Donanım sütunu: çevirici **CPU**, video **A100 (Colab Pro)**.
 6. CONFIG'deki çeviri talimatını boşalt, çalıştır → istek atılmadan `RuntimeError`.
 7. `photo_to_video.ipynb` → `video.json`'u yükle → plan tablosu **modeller inmeden** basılır, her
    satırda gerçek fotoğraf adı görünür.
-8. Koşu biter → `MyDrive/queen-tools/dugun/1_a.mp4 …` Drive'da; Queen Editor'ün proje klasöründe
+8. Koşu biter → `MyDrive/queen-tools/dugun/001.mp4, 002.mp4 …` Drive'da ve dosya sırası videonun
+   sırasıyla aynı; Queen Editor'ün proje klasöründe
    **yeni hiçbir dosya yok**.
 9. Notebook'u tekrar çalıştır → hepsi "zaten var" ile atlanır.
 10. JSON'a olmayan bir dosya adı yaz, tekrar çalıştır → o satır ATLA + "dosya yok" ile görünür, koşu

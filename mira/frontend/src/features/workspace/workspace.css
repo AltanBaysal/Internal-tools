@@ -359,7 +359,18 @@
   cursor: not-allowed;
 }
 
-.home__suggestions {
+/* The accent marks the primary action, so it only appears once the draft can actually be sent. */
+.composer__send--ready {
+  background: var(--accent);
+  color: #fdfbf8;
+  cursor: pointer;
+}
+
+.composer__send--ready:hover {
+  background: var(--accent-strong);
+}
+
+.composer__suggestions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;

@@ -1,6 +1,6 @@
-import ComposerShell from "./ComposerShell.jsx";
+import Composer from "./Composer.jsx";
 
-export default function ProjectScreen({ project, onBack, onRename, onDescribe }) {
+export default function ProjectScreen({ project, onBack, onRename, onDescribe, onSend }) {
   if (!project) {
     // The address bar is something a person can type into, so a wrong id has to be survivable.
     return (
@@ -35,11 +35,12 @@ export default function ProjectScreen({ project, onBack, onRename, onDescribe })
           {project.desc}
         </p>
 
-        <ComposerShell
+        <Composer
           rows={2}
           placeholder="Start a new chat in this project..."
           note="the answer is saved as a file"
           action="Start"
+          onSubmit={onSend}
         />
 
         <div className="project-grid">

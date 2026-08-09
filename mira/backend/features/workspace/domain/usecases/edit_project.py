@@ -1,15 +1,8 @@
 """Edit a project -- a partial update: whatever is not sent stays as it is."""
 from dataclasses import replace
 
+from backend.features.workspace.domain.errors import InvalidProjectName, ProjectNotFound
 from backend.features.workspace.domain.project import Project
-
-
-class ProjectNotFound(Exception):
-    """No project carries this id."""
-
-
-class InvalidProjectName(Exception):
-    """A project cannot be left without a name."""
 
 
 def edit_project(store, project_id, name=None, desc=None) -> Project:

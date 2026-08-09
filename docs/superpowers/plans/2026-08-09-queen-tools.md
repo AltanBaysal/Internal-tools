@@ -421,7 +421,7 @@ git commit -m "feat(queen-tools): turn export prompts into motion prompts"
 
 **Interfaces:**
 - Consumes: Task 1'in ürettiği `video.json` — `{"folder": str, "photos": [{"file": str, "prompt": str, "photo_prompt": str}]}`. `photo_prompt` **okunmaz**; notebook yalnız `prompt` alanını kullanır, bu yüzden ham export dosyası da aynı şekilde çalışır.
-- Produces: `/content/drive/MyDrive/queen-tools/<proje>/<stem>.mp4` (`VARIANTS > 1` ise `<stem>_<v>.mp4`).
+- Produces: `/content/drive/MyDrive/queen-tools/<proje>/001.mp4` — ad, karenin `photos` dizisindeki 1-tabanlı konumu (üç hane); `VARIANTS > 1` ise `001_<v>.mp4`.
 
 - [ ] **Step 1: Kaynağı kopyala**
 
@@ -442,7 +442,7 @@ fotoğrafları o dosyadaki hareket prompt'larıyla videoya çevirir. ComfyUI ark
 çalışır; **UI açılmaz, tünel yok.**
 
 ```
-video.json  ──yükle──>  [ bu notebook ]  ──>  MyDrive/queen-tools/<proje>/1_a.mp4 …
+video.json  ──yükle──>  [ bu notebook ]  ──>  MyDrive/queen-tools/<proje>/001.mp4 …
                               │
                     fotoğrafları Queen Editor'ün
                     klasöründen OKUR (oraya yazmaz)
@@ -450,6 +450,11 @@ video.json  ──yükle──>  [ bu notebook ]  ──>  MyDrive/queen-tools/<
 
 **Fotoğraflar kopyalanmaz.** Yol JSON'un içindeki `folder` alanından gelir; notebook o klasörü
 yalnız okur, içine hiçbir şey yazmaz.
+
+**Video adı sıradır, fotoğrafın adı değil.** `001.mp4` dosyadaki **birinci** karedir; klasörü
+alfabetik sıralayınca videonun sırası çıkar. Hangi fotoğraftan ve hangi prompt'tan geldiğini
+`video.json`'daki aynı sıradaki satır söyler (`001.mp4` → `photos[0]`). Atlanan kare de numarasını
+harcar, yani boşluk "orada bir şey atlandı" demektir.
 
 **Ham export dosyası da verilebilir** — iki dosyanın şekli aynı. O zaman videolar foto prompt'uyla
 üretilir.
@@ -459,7 +464,7 @@ MyDrive/queen-tools/
 ├── workflow_api.json   ← grafın kopyası (bir kez konur)
 └── <proje>/
     ├── video.json      ← prompt_converter yazar
-    └── 1_a.mp4 …       ← bu notebook yazar
+    └── 001.mp4 …       ← bu notebook yazar
 ```
 
 > **Graf nereden gelir:** repodaki `collab-toolbox/video_generator/wan22-arbuzai/workflow_api.json`'u
@@ -644,45 +649,55 @@ Eski `scan_photos` / `find_photo` / `photos_without_prompt` tamamen çıkar — 
 # log()/human() belong to the next section and are not defined yet, so this cell prints plainly.
 import os
 
-def out_path(stem, v):
-    """Output path for photo <stem>, seed-variant v (0-indexed).
-    VARIANTS==1 -> no variant suffix (1_a.mp4); else 1-indexed suffix (1_a_1.mp4, 1_a_2.mp4).
-    The stem comes from the photo's own file name, so 1_a.png lands as 1_a.mp4 and the frame
-    stays traceable back to the photo that produced it."""
+def out_path(seq, v):
+    """Output path for the seq-th frame of the plan (1-based), seed-variant v (0-indexed).
+    VARIANTS==1 -> 001.mp4; else a 1-indexed variant suffix (001_1.mp4, 001_2.mp4).
+
+    The name is the frame's POSITION, not the photo's file name, so listing the folder
+    alphabetically gives the video order. Which photo and prompt produced 003.mp4 is answered by
+    photos[2] of the plan file -- that is where the pairing already lives, and repeating it in the
+    file name would be a second copy to keep in agreement.
+
+    Three digits assume fewer than 1000 frames; past that the alphabetical order breaks, which this
+    pipeline will not reach."""
+    stem = f"{seq:03d}"
     return f"{OUTPUT_DIR}/{stem}.mp4" if VARIANTS == 1 else f"{OUTPUT_DIR}/{stem}_{v + 1}.mp4"
 
 def build_plan(photos, folder):
-    """One row per (photo, seed-variant) -> (stem, v, action, image_path, prompt, reason).
-    Each photo carries its own prompt: the pairing was done upstream, nothing is matched here."""
+    """One row per (photo, seed-variant) -> (seq, v, action, image_path, prompt, reason).
+    Each photo carries its own prompt: the pairing was done upstream, nothing is matched here.
+
+    A skipped photo still consumes its position (001, 002, 004 when the third is skipped): the gap
+    keeps every file lined up with its row in the plan file, which closing it would break."""
     rows = []
-    for photo in photos:
-        stem   = os.path.splitext(photo["file"])[0]
+    for seq, photo in enumerate(photos, start=1):
         image  = os.path.join(folder, photo["file"])
         prompt = photo["prompt"]
         for v in range(VARIANTS):
-            out = out_path(stem, v)
+            out = out_path(seq, v)
             if not prompt.strip():
-                rows.append((stem, v, "ATLA", None, "", "prompt boş"))
+                rows.append((seq, v, "ATLA", None, "", "prompt boş"))
             elif not os.path.exists(image):
-                rows.append((stem, v, "ATLA", None, prompt, "fotoğraf klasörde yok"))
+                # The plan file lists a photo the project no longer has -- it went stale.
+                rows.append((seq, v, "ATLA", None, prompt, "fotoğraf klasörde yok"))
             elif os.path.exists(out) and os.path.getsize(out) > 0:
-                rows.append((stem, v, "ATLA", image, prompt, "çıktı zaten var"))
+                rows.append((seq, v, "ATLA", image, prompt, "çıktı zaten var"))
             else:
-                rows.append((stem, v, "ÜRET", image, prompt, ""))
+                rows.append((seq, v, "ÜRET", image, prompt, ""))
     return rows
 
 PLAN = build_plan(PLAN_JSON["photos"], PHOTO_DIR)
 
-print(f"\n{'ÇIKTI':>11}  {'KARAR':<6}  {'FOTOĞRAF':<16}  AÇIKLAMA")
-print("-" * 80)
-for stem, v, action, image, prompt, reason in PLAN:
-    disp = stem if VARIANTS == 1 else f"{stem}_{v + 1}"
+print(f"\n{'ÇIKTI':>9}  {'KARAR':<6}  {'FOTOĞRAF':<16}  AÇIKLAMA")
+print("-" * 78)
+for seq, v, action, image, prompt, reason in PLAN:
+    disp = f"{seq:03d}" if VARIANTS == 1 else f"{seq:03d}_{v + 1}"
     name = os.path.basename(image) if image else "—"
     detail = reason if reason else prompt.strip().replace("\n", " ")[:34]
-    print(f"{disp:>11}  {action:<6}  {name:<16}  {detail}")
+    print(f"{disp:>9}  {action:<6}  {name:<16}  {detail}")
 
 _to_render = sum(1 for r in PLAN if r[2] == "ÜRET")
-print("-" * 80)
+print("-" * 78)
 print(f"Üretilecek: {_to_render}  |  Atlanacak: {len(PLAN) - _to_render}")
 
 if _to_render == 0:
@@ -710,8 +725,8 @@ Hücrenin geri kalanı (yarıda kalma, hata, seed notları) aynen kalır; yalnı
 
 ```markdown
 Plan tablosunda **ÜRET** yazan her çıktı sırayla işlenir: fotoğraf Queen Editor'ün klasöründen
-okunup ComfyUI'ya yüklenir, render edilir, `queen-tools/<proje>/` altına yazılır (`N_<harf>.mp4`
-veya `N_<harf>_<v>.mp4`), ComfyUI'daki kopyalar silinir.
+okunup ComfyUI'ya yüklenir, render edilir, `queen-tools/<proje>/` altına yazılır (`001.mp4`,
+`VARIANTS > 1` ise `001_<v>.mp4`), ComfyUI'daki kopyalar silinir.
 ```
 
 - [ ] **Step 9: Render döngüsündeki satır açılımını güncelle (son kod hücresi)**
@@ -719,8 +734,8 @@ veya `N_<harf>_<v>.mp4`), ComfyUI'daki kopyalar silinir.
 `process_all` içinde **yalnız** iki satır değişir; fonksiyonun geri kalanı (upload cache, seed, hata sınıflandırması, sayaçlar, loglar) aynen kalır:
 
 ```python
-    for stem, v, _action, image_path, prompt, _reason in todo:
-        save_path = out_path(stem, v)
+    for seq, v, _action, image_path, prompt, _reason in todo:
+        save_path = out_path(seq, v)
 ```
 
 (Eski hâli `for number, letter, v, _action, image_path, prompt, _reason in todo:` ve
@@ -811,7 +826,7 @@ Kod tarafı bittikten sonra. **Önce iki şey:**
 | 5 | Drive'daki `video.json`'da bir satırın `photo_prompt`'unu sil, export'u tekrar yükle | **Yalnız o kare** çevrilir |
 | 6 | Çeviri sürerken runtime'ı kapat, yeniden aç, export'u yükle | Kalınan yerden devam eder |
 | 7 | `photo_to_video` → `video.json`'u yükle | Plan tablosu **modeller inmeden** basılır, her satırda gerçek fotoğraf adı |
-| 8 | Koşu biter | `MyDrive/queen-tools/<proje>/1_a.mp4 …`; Queen Editor'ün proje klasöründe **yeni hiçbir dosya yok** |
+| 8 | Koşu biter | `MyDrive/queen-tools/<proje>/001.mp4, 002.mp4 …` — alfabetik sıra videonun sırası; Queen Editor'ün proje klasöründe **yeni hiçbir dosya yok** |
 | 9 | Notebook'u tekrar çalıştır | Hepsi "çıktı zaten var" ile atlanır |
 | 10 | JSON'a olmayan bir dosya adı yaz, tekrar çalıştır | O satır ATLA + "fotoğraf klasörde yok"; koşu diğerlerini üretir |
 | 11 | `queen-tools/workflow_api.json`'u geçici olarak kaldır | CONFIG hücresi yolu yazarak durur |

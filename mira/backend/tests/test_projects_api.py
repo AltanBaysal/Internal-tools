@@ -1,3 +1,4 @@
+from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -5,8 +6,11 @@ from backend.web.app import create_app
 
 
 def _client(tmp_path):
-    project_store = FileProjectStore(Store(str(tmp_path)))
-    app = create_app(dist_dir=str(tmp_path), blueprints=(make_workspace_bp(project_store),))
+    store = Store(str(tmp_path))
+    app = create_app(
+        dist_dir=str(tmp_path),
+        blueprints=(make_workspace_bp(FileProjectStore(store), FileChatStore(store)),),
+    )
     return app.test_client()
 
 
