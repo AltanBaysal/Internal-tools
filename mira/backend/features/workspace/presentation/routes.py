@@ -5,15 +5,21 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 
 from backend.features.workspace.domain.errors import (
+    ChatNotFound,
     EmptyMessage,
     InvalidProjectName,
     ProjectNotFound,
 )
+from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.edit_project import edit_project
 from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_projects import list_projects
+from backend.features.workspace.domain.usecases.list_recent_chats import list_recent_chats
 from backend.features.workspace.domain.usecases.start_chat import start_chat
+from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
+    start_chat_in_new_project,
+)
 
 
 def make_workspace_bp(project_store, chat_store):
@@ -74,6 +80,46 @@ def make_workspace_bp(project_store, chat_store):
         if chat is None:
             return jsonify({"error": "chat not found"}), 404
         return jsonify(_chat_json(chat))
+
+    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/messages")
+    def post_message(project_id, chat_id):
+        payload = request.get_json(silent=True) or {}
+        try:
+            chat = append_message(
+                chat_store, project_id, chat_id, payload.get("text", ""), now=_now()
+            )
+        except ChatNotFound:
+            return jsonify({"error": "chat not found"}), 404
+        except EmptyMessage:
+            return jsonify({"error": "a message needs text"}), 400
+        return jsonify(_chat_json(chat))
+
+    @workspace_bp.post("/api/chats")
+    def post_chat_anywhere():
+        # A message from home has no target, so the rule that opens a project and a chat together
+        # lives here rather than in two browser calls that could stop half-way.
+        payload = request.get_json(silent=True) or {}
+        try:
+            project, chat = start_chat_in_new_project(
+                project_store,
+                chat_store,
+                payload.get("text", ""),
+                new_project_id=_new_id("p"),
+                new_chat_id=_new_id("c"),
+                now=_now(),
+            )
+        except EmptyMessage:
+            return jsonify({"error": "a message needs text"}), 400
+        return jsonify({"project": _project_json(project), "chat": _chat_json(chat)}), 201
+
+    @workspace_bp.get("/api/chats")
+    def get_recent_chats():
+        return jsonify(
+            [
+                {**_chat_summary(chat), "projectId": project_id}
+                for project_id, chat in list_recent_chats(chat_store)
+            ]
+        )
 
     return workspace_bp
 

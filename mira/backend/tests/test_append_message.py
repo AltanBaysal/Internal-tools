@@ -1,0 +1,103 @@
+import pytest
+
+from backend.features.workspace.data.file_chat_store import FileChatStore
+from backend.features.workspace.data.file_project_store import FileProjectStore
+from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage
+from backend.features.workspace.domain.usecases.append_message import append_message
+from backend.features.workspace.domain.usecases.list_recent_chats import list_recent_chats
+from backend.features.workspace.domain.usecases.start_chat import start_chat
+from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
+    start_chat_in_new_project,
+)
+from backend.services.store.store import Store
+
+
+def _stores(tmp_path):
+    store = Store(str(tmp_path))
+    return FileProjectStore(store), FileChatStore(store)
+
+
+def _seeded(tmp_path):
+    projects, chats = _stores(tmp_path)
+    start_chat_in_new_project(
+        projects, chats, "Write the intro", "p1", "c1", "2026-08-09T11:04:00.000+00:00"
+    )
+    return projects, chats
+
+
+def test_a_message_lands_at_the_end_and_the_title_stays(tmp_path):
+    _, chats = _seeded(tmp_path)
+    chat = append_message(chats, "p1", "c1", "and a second one", "2026-08-09T11:06:00.000+00:00")
+    assert [m.text for m in chat.messages] == ["Write the intro", "and a second one"]
+    assert chat.title == "Write the intro"
+
+
+def test_the_role_can_be_the_answer(tmp_path):
+    # Faz 6 appends the reply through this very call.
+    _, chats = _seeded(tmp_path)
+    chat = append_message(chats, "p1", "c1", "Done.", "2026-08-09T11:06:00.000+00:00", role="ai")
+    assert chat.messages[-1].role == "ai"
+
+
+@pytest.mark.parametrize("blank", ["", "  "])
+def test_an_empty_message_is_refused_and_the_chat_is_untouched(tmp_path, blank):
+    _, chats = _seeded(tmp_path)
+    with pytest.raises(EmptyMessage):
+        append_message(chats, "p1", "c1", blank, "2026-08-09T11:06:00.000+00:00")
+    assert len(chats.get("p1", "c1").messages) == 1
+
+
+def test_an_unknown_chat_is_reported(tmp_path):
+    _, chats = _seeded(tmp_path)
+    with pytest.raises(ChatNotFound):
+        append_message(chats, "p1", "nope", "hi", "2026-08-09T11:06:00.000+00:00")
+
+
+def test_a_message_from_home_opens_a_project_and_a_chat_with_the_same_name(tmp_path):
+    projects, chats = _stores(tmp_path)
+    project, chat = start_chat_in_new_project(
+        projects, chats, "Write the intro", "p1", "c1", "2026-08-09T11:04:00.000+00:00"
+    )
+    assert project.name == "Write the intro"
+    assert chat.title == "Write the intro"
+    assert projects.get("p1") is not None
+    assert chats.get("p1", "c1") is not None
+
+
+def test_a_new_project_keeps_the_default_description(tmp_path):
+    projects, chats = _stores(tmp_path)
+    project, _ = start_chat_in_new_project(
+        projects, chats, "hello", "p1", "c1", "2026-08-09T11:04:00.000+00:00"
+    )
+    assert project.desc == "Click to add a description."
+
+
+def test_an_empty_message_from_home_opens_nothing(tmp_path):
+    projects, chats = _stores(tmp_path)
+    with pytest.raises(EmptyMessage):
+        start_chat_in_new_project(
+            projects, chats, "   ", "p1", "c1", "2026-08-09T11:04:00.000+00:00"
+        )
+    assert projects.list_all() == []
+
+
+def test_recent_chats_cross_projects_and_come_newest_first(tmp_path):
+    projects, chats = _stores(tmp_path)
+    start_chat_in_new_project(projects, chats, "older", "p1", "c1", "2026-08-09T10:00:00.000+00:00")
+    start_chat_in_new_project(projects, chats, "newer", "p2", "c2", "2026-08-09T12:00:00.000+00:00")
+    recent = list_recent_chats(chats)
+    assert [(pid, chat.id) for pid, chat in recent] == [("p2", "c2"), ("p1", "c1")]
+
+
+def test_a_later_message_lifts_its_chat_to_the_top(tmp_path):
+    projects, chats = _stores(tmp_path)
+    start_chat_in_new_project(projects, chats, "older", "p1", "c1", "2026-08-09T10:00:00.000+00:00")
+    start_chat_in_new_project(projects, chats, "newer", "p2", "c2", "2026-08-09T12:00:00.000+00:00")
+    append_message(chats, "p1", "c1", "still here", "2026-08-09T13:00:00.000+00:00")
+    assert [chat.id for _, chat in list_recent_chats(chats)] == ["c1", "c2"]
+
+
+def test_starting_a_chat_needs_its_project_to_exist(tmp_path):
+    projects, chats = _stores(tmp_path)
+    with pytest.raises(Exception):
+        start_chat(chats, projects, "ghost", "hi", "c1", "2026-08-09T11:04:00.000+00:00")

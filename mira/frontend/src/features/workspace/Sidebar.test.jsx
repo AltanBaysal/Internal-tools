@@ -34,6 +34,24 @@ test("the open project is the marked row", () => {
   expect(marked.className).toContain("sidebar__row--active");
 });
 
+test("recent chats are listed and the open one is marked", () => {
+  const recentChats = [
+    { id: "c1", title: "Write the intro", projectId: "p1" },
+    { id: "c2", title: "Missing values", projectId: "p2" },
+  ];
+  render(<Sidebar projects={[]} recentChats={recentChats} activeChatId="c2" />);
+  expect(screen.getByText("Write the intro")).toBeTruthy();
+  expect(screen.getByText("Missing values").className).toContain("sidebar__chat--active");
+});
+
+test("clicking a recent chat carries its project along", () => {
+  const onOpenChat = vi.fn();
+  const recentChats = [{ id: "c1", title: "Write the intro", projectId: "p1" }];
+  render(<Sidebar projects={[]} recentChats={recentChats} onOpenChat={onOpenChat} />);
+  fireEvent.click(screen.getByText("Write the intro"));
+  expect(onOpenChat).toHaveBeenCalledWith("p1", "c1");
+});
+
 test("New chat goes home rather than creating anything", () => {
   const onNewChat = vi.fn();
   render(<Sidebar projects={[]} activeProjectId={null} onNewChat={onNewChat} />);

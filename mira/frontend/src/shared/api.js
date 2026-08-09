@@ -3,7 +3,10 @@
 async function request(path, options) {
   const response = await fetch(path, options);
   if (!response.ok) {
-    throw new Error(`${options?.method ?? "GET"} ${path} failed with ${response.status}`);
+    const failure = new Error(`${options?.method ?? "GET"} ${path} failed with ${response.status}`);
+    // The code is carried separately: "this does not exist" is a screen, not an error line.
+    failure.status = response.status;
+    throw failure;
   }
   return response.json();
 }

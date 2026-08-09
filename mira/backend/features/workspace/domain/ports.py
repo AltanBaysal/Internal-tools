@@ -26,5 +26,11 @@ class ChatStore(Protocol):
     def get(self, project_id: str, chat_id: str) -> Chat | None:
         """The chat carrying this id inside that project, or None."""
 
+    def replace(self, project_id: str, chat: Chat) -> None:
+        """Overwrite an existing chat."""
+
     def list_for(self, project_id: str) -> list[Chat]:
         """Every chat of the project, in no particular order."""
+
+    def list_all(self) -> list[tuple[str, Chat]]:
+        """Every chat in the workspace as (project_id, chat), in no particular order."""

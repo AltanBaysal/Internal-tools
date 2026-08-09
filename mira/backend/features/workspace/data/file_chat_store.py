@@ -14,6 +14,9 @@ class FileChatStore:
     def add(self, project_id, chat):
         self._write(project_id, chat)
 
+    def replace(self, project_id, chat):
+        self._write(project_id, chat)
+
     def get(self, project_id, chat_id):
         path = self._path(project_id, chat_id)
         if not self._store.exists(path):
@@ -27,6 +30,14 @@ class FileChatStore:
                 continue  # anything else in the folder is not ours to read
             chats.append(self.get(project_id, entry[: -len(SUFFIX)]))
         return chats
+
+    def list_all(self):
+        # Every top-level directory is a project; the ones without chats simply contribute nothing.
+        return [
+            (project_id, chat)
+            for project_id in self._store.list_dir("")
+            for chat in self.list_for(project_id)
+        ]
 
     def _write(self, project_id, chat):
         # The id is the file name, so it is not written inside: no artifact repeats an answer

@@ -59,6 +59,61 @@ test("a renamed project shows the new name in both places at once", async () => 
   await waitFor(() => expect(screen.getAllByText("New").length).toBe(2));
 });
 
+test("a message from home opens a project and a chat and goes there", async () => {
+  const chat = { id: "c1", title: "Write the intro", messages: [], lastActivity: "x" };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path === "/api/chats" && options?.method === "POST") {
+      return Promise.resolve({
+        ok: true,
+        status: 201,
+        json: async () => ({ project: { ...PROJECT, name: "Write the intro" }, chat }),
+      });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+
+  render(<App />);
+  fireEvent.change(screen.getByPlaceholderText(/Ask anything/), {
+    target: { value: "Write the intro" },
+  });
+  fireEvent.keyDown(screen.getByPlaceholderText(/Ask anything/), { key: "Enter" });
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+});
+
+test("the user bubble shows before the server answers, and leaves if it refuses", async () => {
+  const chat = { id: "c1", title: "Hi", messages: [], lastActivity: "x" };
+  let refuse;
+  const pending = new Promise((resolve) => {
+    refuse = () => resolve({ ok: false, status: 500, json: async () => ({}) });
+  });
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") return pending;
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByPlaceholderText("Reply...")).toBeTruthy());
+  fireEvent.change(screen.getByPlaceholderText("Reply..."), { target: { value: "hello" } });
+  fireEvent.keyDown(screen.getByPlaceholderText("Reply..."), { key: "Enter" });
+
+  // The design says the bubble appears immediately -- before the request has come back.
+  await waitFor(() => expect(screen.getByText("hello")).toBeTruthy());
+
+  refuse();
+  await waitFor(() => expect(screen.queryByText("hello")).toBeNull());
+  expect(screen.getByText(/failed with 500/)).toBeTruthy();
+});
+
 test("an empty prompt sends nothing", async () => {
   const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [PROJECT] });
   vi.stubGlobal("fetch", fetch);

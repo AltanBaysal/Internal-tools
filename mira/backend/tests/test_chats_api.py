@@ -66,6 +66,61 @@ def test_an_unknown_chat_is_404(tmp_path):
     assert client.get(f"/api/projects/{pid}/chats/nope").status_code == 404
 
 
+def test_a_message_from_home_opens_a_project_and_a_chat(tmp_path):
+    client = _client(tmp_path)
+    resp = client.post("/api/chats", json={"text": "Write the intro"})
+    assert resp.status_code == 201
+    body = resp.get_json()
+    assert body["project"]["name"] == "Write the intro"
+    assert body["chat"]["title"] == "Write the intro"
+    assert client.get("/api/projects").get_json()[0]["id"] == body["project"]["id"]
+
+
+def test_an_empty_message_from_home_leaves_no_project_behind(tmp_path):
+    client = _client(tmp_path)
+    assert client.post("/api/chats", json={"text": "  "}).status_code == 400
+    assert client.get("/api/projects").get_json() == []
+
+
+def test_a_message_is_appended_to_an_existing_chat(tmp_path):
+    client = _client(tmp_path)
+    started = client.post("/api/chats", json={"text": "first"}).get_json()
+    pid, cid = started["project"]["id"], started["chat"]["id"]
+    body = client.post(f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "second"}).get_json()
+    assert [m["text"] for m in body["messages"]] == ["first", "second"]
+
+
+def test_appending_to_an_unknown_chat_is_404(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    assert (
+        client.post(f"/api/projects/{pid}/chats/nope/messages", json={"text": "hi"}).status_code
+        == 404
+    )
+
+
+def test_appending_nothing_is_400(tmp_path):
+    client = _client(tmp_path)
+    started = client.post("/api/chats", json={"text": "first"}).get_json()
+    pid, cid = started["project"]["id"], started["chat"]["id"]
+    assert (
+        client.post(f"/api/projects/{pid}/chats/{cid}/messages", json={"text": " "}).status_code
+        == 400
+    )
+
+
+def test_recent_chats_span_every_project_and_name_theirs(tmp_path):
+    client = _client(tmp_path)
+    first = client.post("/api/chats", json={"text": "older"}).get_json()
+    second = client.post("/api/chats", json={"text": "newer"}).get_json()
+    recent = client.get("/api/chats").get_json()
+    assert [row["title"] for row in recent] == ["newer", "older"]
+    assert [row["projectId"] for row in recent] == [
+        second["project"]["id"],
+        first["project"]["id"],
+    ]
+
+
 def test_a_new_chat_shows_up_in_the_project_count(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)

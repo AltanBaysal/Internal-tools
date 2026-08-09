@@ -1,18 +1,30 @@
 import "./shared/app.css";
 import "./features/workspace/workspace.css";
 
+import ChatScreen from "./features/workspace/ChatScreen.jsx";
 import HomeScreen from "./features/workspace/HomeScreen.jsx";
 import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
 import Sidebar from "./features/workspace/Sidebar.jsx";
+import { useChat } from "./features/workspace/useChat.js";
+import {
+  startChatInNewProject,
+  startChatInProject,
+  useProjectChats,
+  useRecentChats,
+} from "./features/workspace/useChatLists.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { useRoute } from "./shared/useRoute.js";
 
 export default function App() {
   const { route, navigate } = useRoute();
-  const { projects, error, createProject, editProject } = useProjects();
+  const { projects, error, createProject, editProject, reloadProjects } = useProjects();
+  const { recentChats, reloadRecentChats } = useRecentChats();
+  const { projectChats, reloadProjectChats } = useProjectChats(route.projectId);
+  const chat = useChat(route.projectId, route.chatId);
 
-  const openProject = (id) => navigate(`/p/${id}`);
   const goHome = () => navigate("/");
+  const openProject = (id) => navigate(`/p/${id}`);
+  const openChat = (projectId, chatId) => navigate(`/p/${projectId}/c/${chatId}`);
 
   // The screen reads its project out of the list the app already holds; asking the server a second
   // time would be asking for an answer we have.
@@ -25,33 +37,68 @@ export default function App() {
     if (answer && answer.trim()) editProject(route.projectId, { [field]: answer });
   };
 
+  const afterStart = async (started) => {
+    // The counts on the cards and both chat lists have all moved, so they are read again.
+    await Promise.all([reloadProjects(), reloadRecentChats()]);
+    openChat(started.projectId, started.chatId);
+  };
+
+  const sendFromHome = async (text) => {
+    const started = await startChatInNewProject(text);
+    await afterStart({ projectId: started.project.id, chatId: started.chat.id });
+  };
+
+  const sendFromProject = async (text) => {
+    const started = await startChatInProject(route.projectId, text);
+    await reloadProjectChats();
+    await afterStart({ projectId: route.projectId, chatId: started.id });
+  };
+
   return (
     <div className="app-shell" data-testid="app-shell">
       <Sidebar
         projects={projects}
+        recentChats={recentChats}
         activeProjectId={route.projectId}
+        activeChatId={route.chatId}
         onNewChat={goHome}
         onNewProject={createProject}
         onOpenProject={openProject}
+        onOpenChat={openChat}
       />
       <main className="main">
-        {/* Creating a project keeps the user on home: its own screen is Madde 6, and what this item
-            has to show is the project appearing in both lists at once. */}
+        {/* Creating a project keeps the user on home: what this item has to show is the project
+            appearing in both lists at once. */}
         {route.view === "home" ? (
           <HomeScreen
             projects={projects}
             error={error}
             onNewProject={createProject}
             onOpenProject={openProject}
+            onSend={sendFromHome}
           />
         ) : null}
 
         {route.view === "project" ? (
           <ProjectScreen
             project={project}
+            chats={projectChats}
             onBack={goHome}
             onRename={() => ask("Project name", project?.name, "name")}
             onDescribe={() => ask("Project description", project?.desc, "desc")}
+            onSend={sendFromProject}
+            onOpenChat={(chatId) => openChat(route.projectId, chatId)}
+          />
+        ) : null}
+
+        {route.view === "chat" ? (
+          <ChatScreen
+            project={project}
+            chat={chat.chat}
+            error={chat.error}
+            missing={chat.missing}
+            onBack={() => openProject(route.projectId)}
+            onSend={chat.send}
           />
         ) : null}
       </main>

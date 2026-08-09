@@ -1,6 +1,15 @@
+import { relativeTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 
-export default function ProjectScreen({ project, onBack, onRename, onDescribe, onSend }) {
+export default function ProjectScreen({
+  project,
+  chats = [],
+  onBack,
+  onRename,
+  onDescribe,
+  onSend,
+  onOpenChat,
+}) {
   if (!project) {
     // The address bar is something a person can type into, so a wrong id has to be survivable.
     return (
@@ -48,6 +57,19 @@ export default function ProjectScreen({ project, onBack, onRename, onDescribe, o
             {/* No empty-state line here on purpose: the composer sits right above and already says
                 what to do. The file column gets one because the user cannot fill it themselves. */}
             <h2 className="column__title">Chats</h2>
+            <div className="chat-list">
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className="chat-row"
+                  onClick={() => onOpenChat(chat.id)}
+                  title={chat.title}
+                >
+                  <span className="chat-row__title">{chat.title}</span>
+                  <span className="chat-row__when">{relativeTime(chat.lastActivity)}</span>
+                </div>
+              ))}
+            </div>
           </div>
           <div>
             <h2 className="column__title">Files Mira created</h2>

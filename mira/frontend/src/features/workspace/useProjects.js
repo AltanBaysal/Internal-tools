@@ -8,19 +8,17 @@ export function useProjects() {
   const [projects, setProjects] = useState([]);
   const [error, setError] = useState(null);
 
+  const reload = useCallback(
+    () =>
+      getJson("/api/projects")
+        .then(setProjects)
+        .catch((failure) => setError(failure.message)),
+    [],
+  );
+
   useEffect(() => {
-    let cancelled = false;
-    getJson("/api/projects")
-      .then((loaded) => {
-        if (!cancelled) setProjects(loaded);
-      })
-      .catch((failure) => {
-        if (!cancelled) setError(failure.message);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    reload();
+  }, [reload]);
 
   const createProject = useCallback(async () => {
     try {
@@ -45,5 +43,5 @@ export function useProjects() {
     }
   }, []);
 
-  return { projects, error, createProject, editProject };
+  return { projects, error, createProject, editProject, reloadProjects: reload };
 }

@@ -2,10 +2,13 @@ import ProjectDot from "./ProjectDot.jsx";
 
 export default function Sidebar({
   projects,
+  recentChats = [],
   activeProjectId,
+  activeChatId,
   onNewChat,
   onNewProject,
   onOpenProject,
+  onOpenChat,
 }) {
   return (
     <aside className="sidebar">
@@ -55,6 +58,19 @@ export default function Sidebar({
 
       <div className="sidebar__chats">
         <span className="sidebar__label">Recent chats</span>
+        {recentChats.map((chat) => (
+          <button
+            key={chat.id}
+            type="button"
+            className={
+              chat.id === activeChatId ? "sidebar__chat sidebar__chat--active" : "sidebar__chat"
+            }
+            onClick={() => onOpenChat(chat.projectId, chat.id)}
+            title={chat.title}
+          >
+            {chat.title}
+          </button>
+        ))}
       </div>
     </aside>
   );
