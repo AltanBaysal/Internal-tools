@@ -1,6 +1,8 @@
 # Mira — Yol Haritası v1
 
-**Tarih:** 2026-08-09 · **Branch:** `feat/queen-editor-v2` · **Durum:** Faz 0 başlamayı bekliyor
+**Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1` (`feat/queen-editor-v2` üzerinden açıldı) ·
+**Durum:** **Kod tarafı kapandı** — 15 fazın 15'i yazıldı (Faz 0-14), `pytest` 190 / `npm test` 140
+yeşil. Geriye **Madde 32**'nin on yedi adımlık elle turu kalıyor; onu kullanıcı koşar.
 **Kaynak:** [Mira tasarım dokümanı v1](../specs/2026-08-09-mira-v1-design.md) — ürün kararları,
 katmanlar, disk düzeni ve cevap akışı orada. Bu belge yalnız **hangi işin hangi sırayla** yapılacağını
 söyler.
