@@ -67,9 +67,9 @@ describe("Gallery — the empty project", () => {
   it("points at the button by the name the button actually carries", () => {
     renderGallery({ frames: [] });
 
-    expect(screen.getByText("henüz fotoğraf yok")).toBeTruthy();
+    expect(screen.getByText("henüz kare yok")).toBeTruthy();
     expect(screen.getByText(
-      "Prompt'ları yaz, Kuyruğa ekle'ye bas — fotoğraflar burada belirecek",
+      "Prompt'ları yaz, Kuyruğa ekle'ye bas — kareler burada belirecek",
     )).toBeTruthy();
   });
 });
@@ -182,7 +182,7 @@ describe("Gallery — one sequence, four states", () => {
   it("does not claim the gallery is empty when only waiting frames are in it", () => {
     renderGallery({ frames: [pending("0_a.png")] });
 
-    expect(screen.queryByText("henüz fotoğraf yok")).toBeNull();
+    expect(screen.queryByText("henüz kare yok")).toBeNull();
     expect(screen.getByText("foto kuyrukta")).toBeTruthy();
   });
 
@@ -256,13 +256,59 @@ describe("Gallery selection mode", () => {
     fireEvent.click(photoOf("0_a.png"));
 
     fireEvent.click(screen.getByText("Sil"));
-    expect(screen.getByText("2 fotoğraf silinsin mi?")).toBeTruthy();
+    expect(screen.getByText("2 kare silinsin mi?")).toBeTruthy();
     expect(onDelete).not.toHaveBeenCalled();
 
     // The modal's confirm is the second Sil on screen; the bar's is the first.
     await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
 
     expect(onDelete).toHaveBeenCalledWith(["1_a", "0_a"]);
+  });
+
+  it("promises the layers that would go with the frames", () => {
+    renderGallery({ frames: [withVideo("2_a.png"), withVideo("1_a.png",
+      { layers: { photo: "1_a.png", video: "1_a_V1_0.mp4", audio: "1_a_V1_0_S1_0.wav" } }),
+      done("0_a.png")] });
+    fireEvent.click(checkOf("2_a.png"));
+    fireEvent.click(photoOf("1_a.png"));
+
+    fireEvent.click(screen.getByText("Sil"));
+
+    expect(screen.getByText(
+      "Karelerin videosu ve sesi de birlikte silinir (2 video · 1 ses). "
+      + "Bu işlem geri alınamaz.")).toBeTruthy();
+  });
+
+  it("leaves out a layer nobody in the selection has", () => {
+    renderGallery({ frames: [withVideo("2_a.png"), done("1_a.png"), done("0_a.png")] });
+    fireEvent.click(checkOf("2_a.png"));
+
+    fireEvent.click(screen.getByText("Sil"));
+
+    // One frame, one kind: singular subject, and no "ses" clause for a sound nobody has.
+    expect(screen.getByText(
+      "Karenin videosu da birlikte silinir (1 video). Bu işlem geri alınamaz.")).toBeTruthy();
+  });
+
+  it("promises nothing extra when the frames are pictures and nothing else", () => {
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+
+    fireEvent.click(screen.getByText("Sil"));
+
+    expect(screen.getByText("Bu işlem geri alınamaz.")).toBeTruthy();
+    expect(screen.queryByText(/birlikte silinir/)).toBeNull();
+  });
+
+  it("does not count a layer that blew up", () => {
+    renderGallery({ frames: [withVideo("2_a.png", { failed: ["video"] }), done("1_a.png"),
+                             done("0_a.png")] });
+    fireEvent.click(checkOf("2_a.png"));
+
+    fireEvent.click(screen.getByText("Sil"));
+
+    // The tile shows no video badge for it, so the window must not promise one either.
+    expect(screen.queryByText(/birlikte silinir/)).toBeNull();
   });
 
   it("takes the bar away when the selection is emptied", () => {
@@ -317,14 +363,18 @@ describe("Gallery — selecting frames that are not photos yet", () => {
     renderMixed();
     fireEvent.click(checkOf("4_a.png"));
 
-    fireEvent.click(screen.getByText("Çıkar"));
+    // The bar says "Sil" here too (madde 65); only the window that opens knows the difference.
+    fireEvent.click(screen.getByText("Sil"));
 
     expect(screen.getByText("1 kare kuyruktan çıkarılsın mı?")).toBeTruthy();
-    expect(screen.getByText(/Galerideki fotoğraflara dokunulmaz/)).toBeTruthy();
+    expect(screen.getByText(
+      "Bu kareler üretilmeyecek. Üretilmiş karelere ve dosyalarına dokunulmaz.")).toBeTruthy();
     expect(screen.queryByText(/geri alınamaz/)).toBeNull();
+    // What it does is still "Çıkar" -- nothing is deleted.
+    expect(screen.getByText("Çıkar")).toBeTruthy();
   });
 
-  it("splits the sentence in two when the selection is mixed", () => {
+  it("says both halves in the title and leaves the window at that", () => {
     renderMixed();
     fireEvent.click(checkOf("4_a.png"));
     fireEvent.click(checkOf("1_a.png"));
@@ -332,8 +382,10 @@ describe("Gallery — selecting frames that are not photos yet", () => {
     fireEvent.click(screen.getByText("Sil"));
 
     expect(screen.getByText(
-      "1 fotoğraf silinsin, 1 bekleyen kare kuyruktan çıkarılsın mı?")).toBeTruthy();
-    expect(screen.getByText(/Bekleyen kareler üretilmeden kuyruktan çıkar/)).toBeTruthy();
+      "1 kare silinsin, 1 bekleyen kare kuyruktan çıkarılsın mı?")).toBeTruthy();
+    // No explaining line at all in this one (karar 64): title and buttons, nothing else.
+    expect(screen.queryByText(/kuyruktan çıkar\./)).toBeNull();
+    expect(screen.queryByText(/geri alınamaz/)).toBeNull();
   });
 
   it("sends photos and waiting frames in the same request", async () => {

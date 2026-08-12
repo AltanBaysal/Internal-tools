@@ -6,6 +6,7 @@ import { navigate, photoPath } from "../../shared/router.js";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Rendering, StatusPill } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
+import { lostLayers, owned } from "./layer_words.js";
 
 const PAD = { padding: 16 };
 const GRID = { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12,
@@ -26,10 +27,9 @@ const BADGE = { position: "absolute", top: 6, right: 6, background: "rgba(10,8,7
 const OWNS = { position: "absolute", bottom: 6, right: 6, display: "flex", alignItems: "center",
                gap: 6, background: "rgba(10,8,7,.75)", color: "var(--ink-2)", padding: "2px 5px",
                borderRadius: 3, zIndex: 1, pointerEvents: "none" };
-// What a frame can own, in layer order. A layer that blew up holds its slot but is not something
-// the frame owns -- that one is the pill's to name.
-const OWNED = [{ layer: "video", word: "video", Glyph: PlayGlyph },
-               { layer: "audio", word: "ses", Glyph: SoundGlyph }];
+// The badge's own drawing of each layer. The layers themselves and their words live next door, in
+// the module the delete confirms count with -- the tile and the window say the same thing.
+const GLYPH = { video: PlayGlyph, audio: SoundGlyph };
 const DRAGGED = { transform: "rotate(-3deg) scale(1.04) translate(14px, -10px)",
                   filter: "drop-shadow(0 12px 24px rgba(0,0,0,.55))", zIndex: 5,
                   position: "relative" };
@@ -106,12 +106,15 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
         {pill}
         {owns.length > 0 && (
           <span style={OWNS}>
-            {owns.map(({ layer, word, Glyph }) => (
-              <span key={layer} style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                <Glyph size={9} />
-                <Mono size={9}>{word}</Mono>
-              </span>
-            ))}
+            {owns.map(({ layer, word }) => {
+              const Glyph = GLYPH[layer];
+              return (
+                <span key={layer} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                  <Glyph size={9} />
+                  <Mono size={9}>{word}</Mono>
+                </span>
+              );
+            })}
           </span>
         )}
         {selected && <div style={TINT} />}
@@ -206,7 +209,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
 
   if (frames === null) {
     // First fetch still flying: "empty" is not known yet, so spin instead of a false
-    // "henüz fotoğraf yok" (spec §2.3).
+    // "henüz kare yok" (spec §2.3).
     return (
       <div style={{ ...PAD, ...EMPTY }}>
         <span className="wf-spinner" />
@@ -216,9 +219,9 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
   if (!frames.length) {
     return (
       <div style={{ ...PAD, ...EMPTY }}>
-        <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz fotoğraf yok</Mono>
+        <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz kare yok</Mono>
         <Note size={13} style={{ color: "var(--ink-3)" }}>
-          Prompt'ları yaz, Kuyruğa ekle'ye bas — fotoğraflar burada belirecek
+          Prompt'ları yaz, Kuyruğa ekle'ye bas — kareler burada belirecek
         </Note>
       </div>
     );
@@ -230,21 +233,22 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
   const byId = new Map(frames.map((frame) => [frame.id, frame]));
   const chosenPhotos = selected.filter((fid) => byId.get(fid)?.status === "done");
   const chosenQueued = selected.filter((fid) => byId.get(fid)?.status !== "done");
-  // Three sentences, because a pending frame is not a photo: telling someone that 5 photos will be
-  // deleted when 3 of them do not exist yet would be a lie, and "cannot be undone" is only true of
-  // the ones that do.
+  // Three windows, because a pending frame is not a produced one: telling someone that 5 frames
+  // will be deleted when 3 of them do not exist yet would be a lie, and "cannot be undone" is only
+  // true of the ones that do. The mixed one is the title alone -- with both halves named there, a
+  // line under it could only repeat itself (karar 64).
   const confirm = chosenPhotos.length && chosenQueued.length
-    ? { title: `${chosenPhotos.length} fotoğraf silinsin, `
+    ? { title: `${chosenPhotos.length} kare silinsin, `
                + `${chosenQueued.length} bekleyen kare kuyruktan çıkarılsın mı?`,
-        body: "Fotoğraflar kalıcı olarak silinir — bu geri alınamaz. "
-              + "Bekleyen kareler üretilmeden kuyruktan çıkar.",
         label: "Sil" }
     : chosenQueued.length
       ? { title: `${chosenQueued.length} kare kuyruktan çıkarılsın mı?`,
-          body: "Bu kareler üretilmeyecek. Galerideki fotoğraflara dokunulmaz.",
+          body: "Bu kareler üretilmeyecek. Üretilmiş karelere ve dosyalarına dokunulmaz.",
           label: "Çıkar" }
-      : { title: `${chosenPhotos.length} fotoğraf silinsin mi?`,
-          body: "Bu işlem geri alınamaz.",
+      : { title: `${chosenPhotos.length} kare silinsin mi?`,
+          // What goes with the frames is named before the warning: a frame is its layers too.
+          body: lostLayers(chosenPhotos.map((fid) => byId.get(fid)))
+                + "Bu işlem geri alınamaz.",
           label: "Sil" };
 
   function handleDrop() {
@@ -273,8 +277,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
           const running = frame.id === current ? (currentLayer || "photo") : null;
           const state = running === "photo" ? "running" : frame.status;
           const produced = state === "done";
-          const owns = OWNED.filter(({ layer }) => (frame.layers || {})[layer]
-            && !(frame.failed || []).includes(layer));
+          const owns = owned(frame);
           // A layer failed on a frame that still has its picture: the card stays as it is and the
           // way back comes down over it under the pointer.
           const brokenLayer = produced && (frame.failed || []).length > 0;
@@ -386,7 +389,9 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
             <Btn sm onClick={() => setConfirming(true)}
                  style={{ color: "var(--danger)", borderColor: "var(--danger)",
                           background: "none" }}>
-              <Icon.Trash /> {chosenPhotos.length ? "Sil" : "Çıkar"}
+              {/* One word in all three cases (madde 65): what really happens is the opening
+                  window's to say, and it says it differently every time. */}
+              <Icon.Trash /> Sil
             </Btn>
             <Btn sm ghost onClick={closeSelection}>Vazgeç</Btn>
           </div>

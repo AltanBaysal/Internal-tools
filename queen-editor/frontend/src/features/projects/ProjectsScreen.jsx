@@ -78,7 +78,7 @@ export default function ProjectsScreen() {
           <div style={CENTERED}>
             <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz proje yok</Mono>
             <Note size={13} style={{ color: "var(--ink-3)" }}>
-              İlk projeni oluştur, fotoğrafların burada toplansın
+              İlk projeni oluştur, karelerin burada toplansın
             </Note>
             <Btn hl style={{ marginTop: 8 }} onClick={() => setModalOpen(true)}>
               <Icon.Plus /> İlk projeyi oluştur

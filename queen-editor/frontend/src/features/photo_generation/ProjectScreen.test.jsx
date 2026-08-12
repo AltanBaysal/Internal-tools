@@ -81,7 +81,7 @@ describe("ProjectScreen app bar", () => {
 });
 
 describe("ProjectScreen — an open project carries its queue on", () => {
-  const OWED = [{ file: "0_a.png", status: "pending", owed: ["photo"], failed: [] }];
+  const OWED = [{ id: "0_a", file: "0_a.png", status: "pending", owed: ["photo"], failed: [] }];
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -159,7 +159,7 @@ describe("ProjectScreen — an open project carries its queue on", () => {
   });
 
   it("says nothing when the queue is empty", async () => {
-    listFrames.mockResolvedValue([{ file: "0_a.png", status: "done" }]);
+    listFrames.mockResolvedValue([{ id: "0_a", file: "0_a.png", status: "done" }]);
     getStatus.mockResolvedValue({ status: "idle" });
 
     renderScreen();

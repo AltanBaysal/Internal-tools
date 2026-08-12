@@ -280,7 +280,7 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
           title="Kuyruk boşaltılsın mı?"
           // No "geri alınamaz": nothing is deleted, the same prompts can be queued again.
           body={`Bekleyen ${owed} kare üretilmeden kuyruktan çıkar. `
-                + "Üretilmiş fotoğraflar galeride kalır."}
+                + "Üretilmiş kareler galeride kalır."}
           confirmLabel="Boşalt"
           danger
           onCancel={() => setClearing(false)}

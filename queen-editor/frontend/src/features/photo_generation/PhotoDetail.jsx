@@ -7,6 +7,7 @@ import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Pill, Rendering, StatusPill } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
+import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
 import { useGeneration } from "./useGeneration.js";
 
@@ -66,7 +67,7 @@ const STRIP = { position: "absolute", top: 16, left: "50%", transform: "translat
 
 // The one destructive thing a layer tab offers (madde 80): it takes its own layer and whatever
 // lies over it, and says what survives. The photo tab is not here -- deleting the base layer is
-// deleting the frame, and that button keeps its own words until Görev 31.
+// deleting the frame, and that window counts the frame's layers instead of naming one.
 const DESTRUCTIVE = {
   video: { label: "Videoyu sil — kare kalır", title: "Video silinsin mi?",
            body: "Bu video ve üzerindeki ses kalıcı olarak silinir — bu geri alınamaz. "
@@ -318,7 +319,7 @@ export default function PhotoDetail({ project, frame: fid }) {
         // Not one of the three states the design draws, but a fourth thing: an address that names
         // no frame at all -- a deleted one's old link, or a hand-typed URL.
         <div style={{ ...STAGE, flexDirection: "column", gap: 12 }}>
-          <StatusErrorCard text="Fotoğraf bulunamadı" raw={error || fid} />
+          <StatusErrorCard text="Kare bulunamadı" raw={error || fid} />
         </div>
       ) : (
         <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
@@ -444,7 +445,7 @@ export default function PhotoDetail({ project, frame: fid }) {
 
             {refusedAct && <StatusErrorCard text={refusedAct} raw={error} />}
             {refused && (
-              <StatusErrorCard text={produced ? "Fotoğraf silinemedi" : "Kare kuyruktan çıkarılamadı"}
+              <StatusErrorCard text={produced ? "Kare silinemedi" : "Kare kuyruktan çıkarılamadı"}
                                raw={error} />
             )}
 
@@ -467,7 +468,10 @@ export default function PhotoDetail({ project, frame: fid }) {
       )}
 
       {confirming && (open === "photo" ? (
-        <ConfirmModal title="Bu fotoğraf silinsin mi?" body="Bu işlem geri alınamaz."
+        <ConfirmModal title="Bu kare silinsin mi?"
+                      // A live list: the frame can vanish under an open window, and an empty
+                      // list is a sentence that promises nothing rather than a crash.
+                      body={lostLayers(frame ? [frame] : []) + "Bu işlem geri alınamaz."}
                       confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={busy}
                       onCancel={() => setConfirming(false)} onConfirm={handleRemove} />
       ) : (

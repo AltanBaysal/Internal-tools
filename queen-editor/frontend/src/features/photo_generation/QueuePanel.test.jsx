@@ -127,7 +127,9 @@ describe("QueuePanel — a paused queue", () => {
     fireEvent.click(screen.getByText("Kuyruğu boşalt"));
 
     expect(screen.getByText("Kuyruk boşaltılsın mı?")).toBeTruthy();
-    expect(screen.getByText(/Bekleyen 2 kare üretilmeden kuyruktan çıkar/)).toBeTruthy();
+    expect(screen.getByText(
+      "Bekleyen 2 kare üretilmeden kuyruktan çıkar. Üretilmiş kareler galeride kalır."))
+      .toBeTruthy();
     expect(screen.queryByText(/geri alınamaz/)).toBeNull();
   });
 

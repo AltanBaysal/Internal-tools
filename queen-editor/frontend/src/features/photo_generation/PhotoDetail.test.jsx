@@ -236,7 +236,9 @@ describe("PhotoDetail", () => {
     await open("1_a");
 
     fireEvent.click(screen.getByText("Sil"));
-    expect(screen.getByText("Bu fotoğraf silinsin mi?")).toBeTruthy();
+    expect(screen.getByText("Bu kare silinsin mi?")).toBeTruthy();
+    // Nothing but a picture on this one, so the window promises nothing beyond the frame.
+    expect(screen.getByText("Bu işlem geri alınamaz.")).toBeTruthy();
     expect(removeFrames).not.toHaveBeenCalled();
 
     await act(async () => { fireEvent.click(confirmButton()); });
@@ -255,10 +257,20 @@ describe("PhotoDetail", () => {
     expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/1_a");
   });
 
+  it("counts the frame's own layers before deleting it", async () => {
+    await open("1_a", { frames: [{ ...done("1_a.png", "ikinci"),
+                                   layers: { photo: "1_a.png", video: "1_a_V1_0.mp4" } }] });
+
+    fireEvent.click(screen.getByText("Sil"));
+
+    expect(screen.getByText(
+      "Karenin videosu da birlikte silinir (1 video). Bu işlem geri alınamaz.")).toBeTruthy();
+  });
+
   it("shows an error card for a file that is not in the list", async () => {
     await open("yok");
 
-    expect(screen.getByText("Fotoğraf bulunamadı")).toBeTruthy();
+    expect(screen.getByText("Kare bulunamadı")).toBeTruthy();
   });
 });
 
@@ -291,7 +303,7 @@ describe("PhotoDetail — a frame that is not a photo yet", () => {
   it("says the frame is not produced instead of claiming it is missing", async () => {
     await open("3_a", { frames: MIXED });
 
-    expect(screen.queryByText("Fotoğraf bulunamadı")).toBeNull();
+    expect(screen.queryByText("Kare bulunamadı")).toBeNull();
     expect(screen.getByText("henüz üretilmedi")).toBeTruthy();
     expect(screen.getByText(/dördüncü/)).toBeTruthy();
   });
@@ -613,7 +625,7 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
 
     // Its identity, not the picture it shares with its source.
     expect(removeFrames).toHaveBeenCalledWith("düğün", ["P0_1"]);
-    expect(screen.queryByText("Bu fotoğraf silinsin mi?")).toBeNull();
+    expect(screen.queryByText("Bu kare silinsin mi?")).toBeNull();
   });
 });
 

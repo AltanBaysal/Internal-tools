@@ -30,6 +30,16 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe("ProjectsScreen with nothing in it yet", () => {
+  it("says what a project would fill up with", async () => {
+    listProjects.mockResolvedValue([]);
+    render(<ProjectsScreen />);
+    await settle();
+
+    expect(screen.getByText("İlk projeni oluştur, karelerin burada toplansın")).toBeTruthy();
+  });
+});
+
 describe("ProjectsScreen deleting a project", () => {
   it("does not open the project when the bin is pressed, it asks first", async () => {
     await openScreen();
