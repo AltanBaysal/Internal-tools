@@ -30,7 +30,15 @@ def exportable(frames):
 
 def export_summary(record, store, plan_store, order_store, project):
     # Raises ProjectMissing when there is no such project.
-    videos = exportable(list_frames(record, store, plan_store, order_store, project))
+    frames = list_frames(record, store, plan_store, order_store, project)
+    videos = exportable(frames)
+    # A video whose sound blew up is silent too: what is not there cannot be laid over it.
+    silent = [frame for frame in videos
+              if not frame.get("layers", {}).get(layers.AUDIO)
+              or layers.AUDIO in frame.get("failed", [])]
     return {"videos": len(videos), "seconds": len(videos) * VIDEO_SECONDS,
+            "silent": len(silent),
+            # What the sequence will not hold: every frame with no video, produced or not.
+            "withoutVideo": len(frames) - len(videos),
             # Where an export lands is the store's answer: building a path is not the domain's job.
             "folder": store.export_dir(project)}
