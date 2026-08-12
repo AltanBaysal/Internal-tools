@@ -1,3 +1,4 @@
+from backend.features.photo_generation.domain.copy_frame import next_id
 from backend.features.photo_generation.domain.photo_name import (
     audio_file,
     frame_id,
@@ -5,6 +6,7 @@ from backend.features.photo_generation.domain.photo_name import (
     legacy_frame_id,
     number_of,
     photo_file,
+    variant_of,
     video_file,
 )
 
@@ -66,3 +68,35 @@ def test_a_name_outside_both_schemes_has_no_number():
     assert number_of("12.png") is None
     assert number_of("12_ab.png") is None
     assert number_of("x_a.png") is None
+
+
+def test_a_name_says_which_variant_it_is():
+    assert variant_of("P11_3.png") == 3
+    assert variant_of("P11_3_V1_0.mp4") == 3
+    # a=0, b=1: the letter scheme's variants are the same numbers written differently.
+    assert variant_of("11_d.png") == 3
+    assert variant_of("11_a.png") == 0
+
+
+def test_a_name_outside_both_schemes_has_no_variant():
+    assert variant_of("kapak.png") is None
+    assert variant_of("12.png") is None
+    assert variant_of("Px_3.png") is None
+
+
+def test_a_copy_takes_the_next_variant_of_its_source():
+    assert next_id({"P11_0", "P11_1", "P4_9"}, 11) == "P11_2"
+
+
+def test_a_copy_of_a_letter_named_frame_joins_the_same_family():
+    # 11_d is variant 3 written the old way: the copy is the family's next, not its second.
+    assert next_id({"11_a", "11_d"}, 11) == "P11_4"
+
+
+def test_a_gap_left_by_a_deleted_variant_is_not_reused():
+    # The deleted frame keeps its line in the record, so its name stays claimed.
+    assert next_id({"P11_0", "P11_2"}, 11) == "P11_3"
+
+
+def test_the_first_copy_of_an_untouched_number_is_variant_zero():
+    assert next_id({"P4_0"}, 11) == "P11_0"

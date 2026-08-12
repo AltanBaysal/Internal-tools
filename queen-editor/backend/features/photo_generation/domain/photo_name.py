@@ -59,16 +59,32 @@ def frame_id_of(name):
     return stem
 
 
+def _parts(name):
+    """The (number, variant) pair a name claims; (None, None) when it fits neither scheme.
+
+    Both schemes are read in this one place: they are two spellings of the same pair, and a second
+    copy of the parsing would let them drift apart.
+    """
+    stem = frame_id_of(name)
+    if stem.startswith("P"):
+        number, _, variant = stem[1:].partition("_")
+        if number.isdigit() and variant.isdigit():
+            return int(number), int(variant)
+        return None, None
+    number, _, letter = stem.partition("_")
+    if number.isdigit() and len(letter) == 1 and letter.isalpha():
+        return int(number), ord(letter) - ord("a")
+    return None, None
+
+
 def number_of(filename):
     """The prompt number a file's name claims; None when the name fits neither scheme.
 
     Both schemes claim numbers, because both name real files and a number may never be reused.
     """
-    stem = frame_id_of(filename)
-    if stem.startswith("P"):
-        number, _, variant = stem[1:].partition("_")
-        return int(number) if number.isdigit() and variant.isdigit() else None
-    number, _, letter = stem.partition("_")
-    if not number.isdigit() or len(letter) != 1 or not letter.isalpha():
-        return None
-    return int(number)
+    return _parts(filename)[0]
+
+
+def variant_of(filename):
+    """Which of its prompt's variants a file's name claims; None when it fits neither scheme."""
+    return _parts(filename)[1]

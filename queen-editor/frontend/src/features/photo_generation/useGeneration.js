@@ -146,8 +146,8 @@ export function useGeneration(project) {
 
   // Hang a video on every frame in scope. Resolves with the server's answer so the panel can quote
   // how many the queue took, or null when it was refused.
-  const queueVideo = useCallback((files) => (
-    queueVideos(project, files)
+  const queueVideo = useCallback((files, variants) => (
+    queueVideos(project, files, variants)
       .then((body) => {
         if (!alive.current) return null;
         startPolling();

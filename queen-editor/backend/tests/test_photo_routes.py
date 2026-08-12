@@ -421,6 +421,38 @@ def test_retry_without_a_file_puts_every_red_frame_back(tmp_path):
     assert (drive / "düğün" / "P1_0.png").exists()
 
 
+def test_the_videos_endpoint_carries_the_variant_count(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/videos", json={"variants": 2})
+
+    assert resp.status_code == 202
+    # One video on the frame itself and one on the copy it just gained.
+    assert resp.get_json()["added"] == 2
+
+
+def test_the_videos_endpoint_refuses_an_impossible_variant_count(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    resp = client.post("/api/projects/düğün/videos", json={"variants": 0})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "variants"
+
+
+def test_a_copy_frame_shares_its_sources_photo_file(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    client.post("/api/projects/düğün/videos", json={"variants": 3})
+
+    rows = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [row["id"] for row in rows] == ["P0_2", "P0_1", "P0_0"]
+    # Three frames, one picture on disk.
+    assert {row["file"] for row in rows} == {"P0_0.png"}
+
+
 def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)

@@ -17,7 +17,10 @@ from backend.features.photo_generation.domain.usecases.remove_frames import (
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
-from backend.features.photo_generation.domain.usecases.queue_videos import queue_videos
+from backend.features.photo_generation.domain.usecases.queue_videos import (
+    frames_in_scope,
+    queue_videos,
+)
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
@@ -613,6 +616,23 @@ def test_a_frames_taken_layers_are_published():
     assert frames[0]["layers"] == {"photo": "0_a.png", "video": "0_a_v0.mp4"}
 
 
+def test_a_frame_whose_video_is_queued_is_still_one_frame():
+    # The plan holds a job per layer; the gallery holds a row per frame.
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    plan_store = FakePlanStore(frames=[
+        frame(0),
+        {"id": "0_a", "type": "video", "number": 0, "prompt": "", "negative": "", "seed": None,
+         "model": ""},
+    ])
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [f["id"] for f in frames] == ["0_a"]
+    # The row comes from the photo job, so it still carries what the photo was asked for.
+    assert frames[0]["prompt"] == "p"
+
+
 def test_an_emptied_slot_names_no_file_and_keeps_the_frame():
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png", "status": "done"})
@@ -866,6 +886,25 @@ def test_a_selection_narrows_the_scope_to_itself():
     assert [job["id"] for job in plan_store.appended[-1]] == ["1_a"]
 
 
+def test_a_selected_frame_that_has_a_video_is_still_in_scope():
+    # "These ones" is the user's own word: madde 25's copies have no other way in.
+    gallery = [{"id": "0_a", "file": "0_a.png", "status": "done",
+                "layers": {"video": "0_a_V1_0.mp4"}},
+               {"id": "1_a", "file": "1_a.png", "status": "done", "layers": {}}]
+
+    assert [f["id"] for f in frames_in_scope(gallery, ["0_a.png"])] == ["0_a"]
+    # The panel's row is called "Videosu olmayanlar": with no selection it means exactly that.
+    assert [f["id"] for f in frames_in_scope(gallery)] == ["1_a"]
+
+
+def test_a_frame_whose_name_claims_no_number_takes_no_video():
+    # Its job could not be stored: the plan keeps a number per job and reads back only the jobs that
+    # have one, so the video would quietly vanish instead of being made.
+    gallery = [{"id": "kapak", "file": "kapak.png", "status": "done", "layers": {}}]
+
+    assert frames_in_scope(gallery, ["kapak.png"]) == []
+
+
 def test_a_frame_whose_photo_has_not_landed_is_skipped():
     # There is nothing to hang a video on yet.
     store, record = FakeStore(), FakeRecord()
@@ -875,6 +914,119 @@ def test_a_frame_whose_photo_has_not_landed_is_skipped():
                          {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün")
 
     assert added == 0
+    assert plan_store.appended == []
+
+
+def test_one_variant_hangs_the_video_on_the_frame_itself():
+    store, record, plan_store = video_project((0, "a"))
+
+    added = queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", variants=1)
+
+    assert added == 1
+    assert [job["id"] for job in plan_store.appended[-1]] == ["0_a"]
+    assert photo_statuses(record) == {"0_a": "done"}      # no copy was born
+
+
+def test_the_variants_past_the_first_are_born_as_copy_frames():
+    store, record, plan_store = video_project((0, "a"))
+
+    added = queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", variants=3)
+
+    assert added == 3
+    assert [job["id"] for job in plan_store.appended[-1]] == ["0_a", "P0_1", "P0_2"]
+
+
+def test_a_copy_points_at_its_sources_own_photo():
+    store, record, plan_store = video_project((0, "a"))
+
+    queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                 {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", variants=2)
+
+    copy = record.slots("düğün")["P0_1"]
+    assert copy["photo"] == {"status": "done", "file": "0_a.png"}
+    # Only a photo: a video variant carries no audio (madde 102), and its own video is still owed.
+    assert list(copy) == ["photo"]
+
+
+def test_every_variant_of_a_frame_that_has_a_video_is_a_copy():
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    added = queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün",
+                         files=["0_a.png"], variants=2)
+
+    assert added == 2
+    assert [job["id"] for job in plan_store.appended[-1]] == ["P0_1", "P0_2"]
+
+
+def test_a_copy_frame_carries_its_sources_prompt():
+    store, record, plan_store = video_project((0, "a"))
+
+    queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                 {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", variants=2)
+
+    born = [row for row in record.rows if row["frame"] == "P0_1"][0]
+    assert born["prompt"] == "p"                 # the source's own, from the plan's photo job
+    assert born["createdAt"] == "t"
+
+
+def test_a_video_job_says_which_number_and_variant_it_belongs_to():
+    # The plan drops a job whose number is not a number, so a copy's job has to carry its own.
+    store, record, plan_store = video_project((0, "a"))
+
+    queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                 {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", variants=2)
+
+    jobs = {job["id"]: job for job in plan_store.appended[-1]}
+    assert (jobs["0_a"]["number"], jobs["0_a"]["variant"]) == (0, 0)
+    assert (jobs["P0_1"]["number"], jobs["P0_1"]["variant"]) == (0, 1)
+
+
+def test_a_copy_takes_its_place_right_above_its_source():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+    order = FakeOrderStore()
+
+    queue_videos(sync_runner(), store, record, plan_store, order,
+                 {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün",
+                 files=["0_a.png"], variants=3)
+
+    # The whole gallery is written down, newest first, with the copies hanging above their source.
+    assert order.order == ["1_a", "P0_2", "P0_1", "0_a"]
+
+
+def test_the_gallery_draws_the_copy_next_to_its_source():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+    order = FakeOrderStore()
+
+    queue_videos(sync_runner(), store, record, plan_store, order,
+                 {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün",
+                 files=["0_a.png"], variants=2)
+
+    frames = list_frames(record, store, plan_store, order, "düğün")
+    assert [f["id"] for f in frames] == ["1_a", "P0_1", "0_a"]
+    assert [f["file"] for f in frames] == ["1_a.png", "0_a.png", "0_a.png"]
+
+
+def test_nothing_is_written_to_the_order_file_when_no_copy_is_born():
+    store, record, plan_store = video_project((0, "a"))
+    order = FakeOrderStore()
+
+    queue_videos(sync_runner(), store, record, plan_store, order,
+                 {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", variants=1)
+
+    assert order.order == []
+
+
+def test_the_video_variant_count_has_the_same_ceiling_as_a_photo_batch():
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(InvalidVariants):
+        queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                     {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", variants=27)
     assert plan_store.appended == []
 
 

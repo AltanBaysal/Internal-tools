@@ -39,6 +39,11 @@ def list_frames(record, store, plan_store, order_store, project):
     # Newest first, the same direction the record answers in, so an unordered gallery already reads
     # the way the design wants it.
     for frame in reversed(plan_store.read(project)["frames"]):
+        if queue.type_of(frame) != layers.PHOTO:
+            # A frame's row comes from its photo job alone. The plan holds one job per layer, and a
+            # video job is that frame's layer -- read as a row of its own it would draw the frame
+            # twice.
+            continue
         fid = frame["id"]
         cells = slots.get(fid, {})
         photo = cells.get(layers.PHOTO)

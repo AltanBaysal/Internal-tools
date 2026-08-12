@@ -12,6 +12,8 @@ const FRAMES = [
   { id: "3_a", file: "3_a.png", status: "pending", layers: {} },
 ];
 
+const variantBox = () => screen.getByRole("spinbutton");
+
 function renderPanel(props) {
   return render(
     <VideoPanel frames={FRAMES} selected={[]} producer={null}
@@ -55,6 +57,32 @@ describe("VideoPanel — the scope", () => {
   });
 });
 
+describe("VideoPanel — variants", () => {
+  it("multiplies the estimate by the variant count", () => {
+    renderPanel();
+
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    expect(screen.getByText("6 video üretilecek — her kare kendi videosunu alır.")).toBeTruthy();
+  });
+
+  it("refuses a count the server would refuse", () => {
+    renderPanel();
+
+    fireEvent.change(variantBox(), { target: { value: "27" } });
+
+    expect(variantBox().value).toBe("1");
+  });
+
+  it("counts a selected frame that already has a video", () => {
+    // Picking it by hand is how a second video is asked for -- it becomes a copy frame.
+    renderPanel({ selected: ["1_a.png"] });
+
+    expect(screen.getByText("Seçili kareler").closest("button").textContent).toContain("1");
+    expect(screen.getByText("1 video üretilecek — her kare kendi videosunu alır.")).toBeTruthy();
+  });
+});
+
 describe("VideoPanel — sending", () => {
   it("asks for every frame with no video when that is the scope", async () => {
     const onQueue = vi.fn().mockResolvedValue({ added: 2 });
@@ -62,7 +90,7 @@ describe("VideoPanel — sending", () => {
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null);
+    expect(onQueue).toHaveBeenCalledWith(null, 1);
     expect(screen.getByText("2 video kuyruğa eklendi")).toBeTruthy();
   });
 
@@ -72,7 +100,17 @@ describe("VideoPanel — sending", () => {
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(["0_a.png"]);
+    expect(onQueue).toHaveBeenCalledWith(["0_a.png"], 1);
+  });
+
+  it("sends the variant count along with the scope", async () => {
+    const onQueue = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onQueue });
+
+    fireEvent.change(variantBox(), { target: { value: "2" } });
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).toHaveBeenCalledWith(null, 2);
   });
 
   it("says the length is not a choice in this version", () => {

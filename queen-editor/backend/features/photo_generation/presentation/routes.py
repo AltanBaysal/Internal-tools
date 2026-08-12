@@ -119,11 +119,15 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # No "files" key at all means every frame that has no video; a list means that selection.
         files = body.get("files")
         try:
-            added = queue_videos(project, files=files)
+            # No "variants" key means one video per frame: a client older than the box asks for
+            # exactly what it always asked for.
+            added = queue_videos(project, files=files, variants=body.get("variants", 1))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except InvalidScope as exc:
             return jsonify({"error": str(exc), "field": "files"}), 400
+        except InvalidVariants as exc:
+            return jsonify({"error": str(exc), "field": "variants"}), 400
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
         return jsonify({"job": "running", "added": added}), 202
