@@ -4,6 +4,7 @@ import { exportUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate } from "../../shared/router.js";
 import { Btn, Hand } from "../../vendor/kit.jsx";
+import { useProducers } from "../producers/useProducers.js";
 import Gallery from "./Gallery.jsx";
 import SidePanel from "./SidePanel.jsx";
 import { useGeneration } from "./useGeneration.js";
@@ -26,6 +27,8 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
           reorder, removePhotos } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
   const { models, error: modelsError } = useModels();
+  // The machine's own question, not this project's: which producers are here.
+  const producers = useProducers();
   const [saveError, setSaveError] = useState(null);
   const [leaving, setLeaving] = useState(false);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
@@ -95,7 +98,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
         <SidePanel job={job} error={saveError || error} errorField={errorField}
                    busyElsewhere={busyElsewhere} settings={settings} project={project}
                    stopping={stopping} queue={queue} failures={failures}
-                   models={models} modelsError={modelsError}
+                   models={models} modelsError={modelsError} producers={producers}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onRetryAll={retryAll} resumed={resumed} />
       </div>

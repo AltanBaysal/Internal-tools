@@ -3,7 +3,8 @@ import { useState } from "react";
 import { Mono } from "../../vendor/kit.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import GeneratePanel from "./GeneratePanel.jsx";
-import { AgentGlyph, PhotoGlyph, QueueGlyph } from "./glyphs.jsx";
+import ProducersPanel from "../producers/ProducersPanel.jsx";
+import { AgentGlyph, PhotoGlyph, ProducersGlyph, QueueGlyph } from "./glyphs.jsx";
 import QueuePanel from "./QueuePanel.jsx";
 
 const COLUMN = { display: "flex", flexShrink: 0 };
@@ -23,10 +24,11 @@ const RAIL = {
   width: 48,
   flexShrink: 0,
   borderLeft: "1px solid var(--border)",
+  // The rail has a ground of its own now, and its cells span its full width.
+  background: "var(--bg-2)",
   display: "flex",
   flexDirection: "column",
-  alignItems: "center",
-  gap: 2,
+  alignItems: "stretch",
   paddingTop: 12,
   boxSizing: "border-box",
 };
@@ -35,7 +37,8 @@ const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "u
 
 // Which panel gets which icon. The drawings live in glyphs.jsx, because the photo one is also the
 // icon its own submit button carries.
-const GLYPH = { photo: PhotoGlyph, queue: QueueGlyph, agent: AgentGlyph };
+const GLYPH = { photo: PhotoGlyph, queue: QueueGlyph, agent: AgentGlyph,
+                producers: ProducersGlyph };
 
 // Adding a panel later means adding a row here -- the rail is drawn from this list, not from three
 // hard-coded buttons. The id is the layer's own word, so it matches both the glyph's name and what
@@ -46,12 +49,13 @@ const PANELS = [
   { id: "photo", title: "Fotoğraf üret" },
   { id: "queue", title: "Kuyruğu takip et", heading: "Kuyruk" },
   { id: "agent", title: "AI agent" },
+  { id: "producers", title: "Üreticiler", apart: true },
 ];
 
 const BUTTON = {
   position: "relative",
-  width: 40,
-  height: 40,
+  width: "100%",
+  height: 46,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -59,6 +63,12 @@ const BUTTON = {
   border: "none",
   padding: 0,
   cursor: "pointer",
+  // The open panel's mark is a full-height edge; the others carry the same width in nothing at
+  // all, so the icons do not shift when the selection moves. Written long-hand because the colour
+  // is the only part that changes, and mixing it with the shorthand confuses React's style diff.
+  borderRightWidth: 2,
+  borderRightStyle: "solid",
+  borderRightColor: "transparent",
 };
 
 function RailButton({ panel, active, onSelect }) {
@@ -66,14 +76,11 @@ function RailButton({ panel, active, onSelect }) {
   return (
     <button type="button" aria-label={panel.title} aria-current={active ? "page" : undefined}
             onClick={() => onSelect(panel.id)}
-            style={{ ...BUTTON, color: active ? "var(--accent)" : "var(--ink-3)" }}>
+            style={{ ...BUTTON, color: active ? "var(--accent)" : "var(--ink-3)",
+                     ...(active ? { borderRightColor: "var(--accent)" } : {}),
+                     // Set apart at the foot: it is about the machine, not this project's work.
+                     ...(panel.apart ? { marginTop: "auto", marginBottom: 12 } : {}) }}>
       <Glyph />
-      {/* The design's mark for the open panel: the icon takes the accent colour and a short
-          vertical line appears on its right, against the rail's outer edge. */}
-      {active && (
-        <span style={{ position: "absolute", right: -4, top: 8, bottom: 8, width: 2,
-                       background: "var(--accent)" }} />
-      )}
     </button>
   );
 }
@@ -82,7 +89,7 @@ function RailButton({ panel, active, onSelect }) {
 // single surface -- submitting work, watching the queue, and the agent that has not been designed
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
 export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
-                                    stopping, queue, failures, models, modelsError,
+                                    stopping, queue, failures, models, modelsError, producers,
                                     onGenerate, onStop, onResume,
                                     onCancel, onClearError, onRetryAll, resumed }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
@@ -111,6 +118,10 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
                       onCancel={onCancel} onRetryAll={onRetryAll} resumed={resumed} />
         )}
         {open === "agent" && <AgentPanel />}
+        {open === "producers" && (
+          <ProducersPanel producers={producers?.producers || null}
+                          error={producers?.error || null} />
+        )}
       </div>
       <div style={RAIL}>
         {PANELS.map((panel) => (

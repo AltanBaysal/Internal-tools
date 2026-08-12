@@ -26,6 +26,11 @@ class ComfyPhotoGenerator:
         """Which checkpoints are installed -- asked of the server, never listed here."""
         return self._client.checkpoints()
 
+    def installed(self):
+        """Is the photo model group on this machine? The renderer's own list is the answer -- a
+        producer is a graph plus the models it needs, so an empty list means nothing was set up."""
+        return bool(self._client.checkpoints())
+
     def generate(self, prompt, negative, seed, model=""):
         workflow = self._load()
         self._set_text(workflow, PROMPT_NODE, prompt)

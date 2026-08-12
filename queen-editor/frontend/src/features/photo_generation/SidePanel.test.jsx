@@ -69,6 +69,24 @@ describe("SidePanel — the icon rail", () => {
       .toBeTruthy();
   });
 
+  it("puts the producers panel at the foot of the rail", () => {
+    renderColumn();
+
+    const rail = [...document.querySelectorAll("button[aria-label]")]
+      .map((button) => button.getAttribute("aria-label"));
+    expect(rail.at(-1)).toBe("Üreticiler");
+  });
+
+  it("opens the producers panel with its own heading", () => {
+    renderColumn();
+
+    fireEvent.click(screen.getByLabelText("Üreticiler"));
+
+    expect(screen.getByRole("heading", { name: "Üreticiler" })).toBeTruthy();
+    expect(screen.getByText(
+      "Her üretici kendi model grubunu kurar. Kullanmadığın kurulmaz.")).toBeTruthy();
+  });
+
   it("names the open panel above it", () => {
     renderColumn();
 

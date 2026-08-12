@@ -81,6 +81,13 @@ export async function listModels() {
   return body.models;
 }
 
+// Which producers this machine has, and which of them are installed. Not a project's question --
+// the models live next to the renderer, not in a project folder.
+export async function listProducers() {
+  const body = await request("/api/producers");
+  return body.producers;
+}
+
 export async function stopGeneration() {
   return request("/api/stop", { method: "POST" });
 }

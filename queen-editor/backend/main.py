@@ -33,6 +33,8 @@ from backend.features.projects.domain.usecases.delete_project import delete_proj
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.save_settings import save_settings
+from backend.features.producers.domain.usecases.list_producers import list_producers
+from backend.features.producers.presentation.routes import make_producers_blueprint
 from backend.features.projects.presentation.routes import make_projects_blueprint
 from backend.services.comfy.client import ComfyClient
 from backend.services.drive.storage import DriveStorage
@@ -101,7 +103,10 @@ _photo_bp = make_photo_generation_blueprint(
     photo_dir=_photo_store.photo_dir,
 )
 
-app = create_app(blueprints=[_projects_bp, _photo_bp])
+# The same map the loop dispatches on: what can do a job is also what says whether it is installed.
+_producers_bp = make_producers_blueprint(list_producers=partial(list_producers, _producers))
+
+app = create_app(blueprints=[_projects_bp, _photo_bp, _producers_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

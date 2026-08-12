@@ -32,6 +32,16 @@ export const QueueGlyph = ({ size }) => (
   </Glyph>
 );
 
+// A crate: what a producer's model group arrives in.
+export const ProducersGlyph = ({ size }) => (
+  <Glyph name="producers" size={size}>
+    <path d="M7 1.9 12.1 4.4v5.2L7 12.1 1.9 9.6V4.4L7 1.9z" stroke="currentColor"
+          strokeWidth="1.3" strokeLinejoin="round" />
+    <path d="M1.9 4.4 7 6.9l5.1-2.5M7 6.9v5.2" stroke="currentColor" strokeWidth="1.3"
+          strokeLinejoin="round" />
+  </Glyph>
+);
+
 export const AgentGlyph = ({ size }) => (
   <Glyph name="agent" size={size}>
     <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h7A1.5 1.5 0 0 1 12 4.5v4A1.5 1.5 0 0 1 10.5 10H6l-3 2V10
