@@ -813,6 +813,45 @@ def test_deleting_a_frame_whose_video_failed_unlinks_what_is_there():
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4"]
 
 
+def test_a_frame_that_has_a_video_cannot_take_a_second_one():
+    # Acceptance 1: production writes into a free slot or not at all.
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    cells = record.slots("düğün")["0_a"]
+    assert layers.can_produce({slot: cell["status"] for slot, cell in cells.items()},
+                              layers.VIDEO) is False
+
+
+def test_deleting_a_frame_leaves_none_of_its_layer_files_behind():
+    # Acceptance 2: the record closes every slot and the disk loses every file.
+    store, record = FakeStore(), FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    plan_store = planned((0, "a", "a"))
+
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a.png"])
+
+    assert record.slots("düğün")["0_a"] == {
+        "photo": {"status": "deleted", "file": "0_a.png"},
+        "video": {"status": "deleted", "file": "0_a_v0.mp4"}}
+    assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4"]
+
+
+def test_a_deleted_photo_still_never_returns_to_the_queue():
+    # v4's guard: a free slot is not a debt. If the layer rule leaks into the queue, this goes red.
+    store, record = FakeStore(), FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    plan_store = planned((0, "a", "a"))
+
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a.png"])
+
+    assert owed_files(record, plan_store) == []
+
+
 def test_a_frame_pulled_out_never_gets_its_number_back():
     store, record = FakeStore(next_no=0), FakeRecord()
     plan_store = planned((0, "a", "a"))
