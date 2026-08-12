@@ -19,7 +19,9 @@ HF_WAN21 = "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/
 GROUPS = {
     "photo": [],
     "video": [
-        {"folder": "vae", "name": "wan_2.1_vae.safetensors",
+        # The name is what the graph's VAELoader asks for, which is not what the file is called at
+        # the source: ComfyUI looks the model up by its name on disk, so it lands under that one.
+        {"folder": "vae", "name": "Wan2_1_VAE_fp32.safetensors",
          "url": f"{HF_WAN21}/vae/wan_2.1_vae.safetensors"},
         {"folder": "text_encoders", "name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
          "url": f"{HF_WAN21}/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"},
@@ -27,9 +29,13 @@ GROUPS = {
          "url": f"{HF_WAN22}/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors"},
         {"folder": "loras", "name": "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
          "url": f"{HF_WAN22}/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors"},
-        # SmoothMix I2V comes from Civitai behind a token; the notebook fetches it.
+        # SmoothMix comes from Civitai behind a token; the notebook fetches it. The graph loads it
+        # twice over: the checkpoint pair as diffusion models, and the Animations pair as loras the
+        # Power Lora Loader has switched on.
         {"folder": "diffusion_models", "name": "SmoothMix_I2V_v2_High.safetensors", "url": None},
         {"folder": "diffusion_models", "name": "SmoothMix_I2V_v2_Low.safetensors", "url": None},
+        {"folder": "loras", "name": "SmoothMix_Animations_XXX_High.safetensors", "url": None},
+        {"folder": "loras", "name": "SmoothMix_Animations_XXX_Low.safetensors", "url": None},
     ],
     "audio": [
         # MMAudio's node downloads its own weights on first use; nothing here is ours to fetch.
