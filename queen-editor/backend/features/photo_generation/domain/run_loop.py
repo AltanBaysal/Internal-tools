@@ -7,8 +7,8 @@ pauses and what "done" means exist in exactly one place.
 """
 import time
 
-from backend.features.photo_generation.domain import policy, queue
-from backend.features.photo_generation.domain.photo_name import file_name
+from backend.features.photo_generation.domain import layers, policy, queue
+from backend.features.photo_generation.domain.photo_name import file_name, frame_id
 
 
 def make_job(runner, store, record, plan_store, generator, now, project,
@@ -39,6 +39,7 @@ def make_job(runner, store, record, plan_store, generator, now, project,
             if not owed:
                 return summary("done")
             frame = owed[0]
+            fid = frame_id(frame["number"], frame["letter"])
             name = file_name(frame["number"], frame["letter"])
             if name != holding:
                 holding, attempts = name, 0
@@ -58,7 +59,8 @@ def make_job(runner, store, record, plan_store, generator, now, project,
                 if policy.is_frame_fault(exc):
                     # The renderer answered: this one frame is what failed, the queue owes the rest
                     # nothing, and the tile turns red where it stands.
-                    record.mark(project, name, queue.FAILED, now(), error=str(exc))
+                    record.mark(project, fid, layers.PHOTO, name, queue.FAILED, now(),
+                                error=str(exc))
                     continue
                 attempts += 1
                 reason = policy.stop_reason(attempts)
@@ -70,7 +72,8 @@ def make_job(runner, store, record, plan_store, generator, now, project,
             rendered = clock()
             filename = store.save(project, frame["number"], frame["letter"], data)
             # Only after the photo exists: the line is what "this photo is here" means.
-            record.append(project, {"file": filename, "status": queue.DONE,
+            record.append(project, {"file": filename, "frame": fid, "layer": layers.PHOTO,
+                                    "status": queue.DONE,
                                     "prompt": frame["prompt"], "negative": frame["negative"],
                                     "seed": frame["seed"], "createdAt": now()})
             if log:

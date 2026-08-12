@@ -20,14 +20,14 @@ def test_dosya_yoksa_sira_bos():
 
 def test_yazilan_sira_geri_okunur():
     store = DriveOrderStore(FakeStorage())
-    store.write("düğün", ["1_a.png", "0_a.png"])
-    assert store.read("düğün") == ["1_a.png", "0_a.png"]
+    store.write("düğün", ["1_a", "0_a"])
+    assert store.read("düğün") == ["1_a", "0_a"]
 
 
 def test_dosya_sadece_sirayi_tutar():
     storage = FakeStorage()
-    DriveOrderStore(storage).write("düğün", ["0_a.png"])
-    assert json.loads(storage.texts[("düğün", FILE)]) == {"order": ["0_a.png"]}
+    DriveOrderStore(storage).write("düğün", ["0_a"])
+    assert json.loads(storage.texts[("düğün", FILE)]) == {"order": ["0_a"]}
 
 
 def test_bozuk_json_sirasiz_sayilir():
@@ -41,5 +41,11 @@ def test_beklenmedik_bicim_sirasiz_sayilir():
 
 
 def test_metin_olmayan_ogeler_atilir():
-    storage = FakeStorage({("düğün", FILE): json.dumps({"order": ["1_a.png", 5, None]})})
-    assert DriveOrderStore(storage).read("düğün") == ["1_a.png"]
+    storage = FakeStorage({("düğün", FILE): json.dumps({"order": ["1_a", 5, None]})})
+    assert DriveOrderStore(storage).read("düğün") == ["1_a"]
+
+
+def test_an_order_written_before_identities_reads_as_identities():
+    # Every project already on Drive holds photo names in this file.
+    storage = FakeStorage({("düğün", FILE): json.dumps({"order": ["1_a.png", "0_a.png"]})})
+    assert DriveOrderStore(storage).read("düğün") == ["1_a", "0_a"]

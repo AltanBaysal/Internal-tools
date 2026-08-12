@@ -8,7 +8,7 @@ deliberately absent from disk: a frame with no line at all is pending -- the pla
 was asked for, and repeating that as a flag would give one truth two writers -- and a running frame
 belongs to the live worker, because a dead process must never leave "running" behind.
 """
-from backend.features.photo_generation.domain.photo_name import file_name
+from backend.features.photo_generation.domain.photo_name import file_name, frame_id
 
 DONE = "done"           # the photo landed and its file is on disk
 FAILED = "failed"       # the render blew up; the tile stays red until Tekrar dene
@@ -24,8 +24,9 @@ def is_open(status):
     return status is None or status == QUEUED
 
 
-def _name(frame):
-    return file_name(frame["number"], frame["letter"])
+def _key(frame):
+    """A frame is looked up by identity, never by file name: a file can belong to two frames."""
+    return frame_id(frame["number"], frame["letter"])
 
 
 def open_frames(frames, statuses):
@@ -36,8 +37,8 @@ def open_frames(frames, statuses):
     frames keep plan order, which is all the design asks for. Where a frame sits in the GALLERY does
     not change -- that is Madde 5's rule, and this is only the order it is rendered in.
     """
-    fresh = [f for f in frames if statuses.get(_name(f)) is None]
-    requeued = [f for f in frames if statuses.get(_name(f)) == QUEUED]
+    fresh = [f for f in frames if statuses.get(_key(f)) is None]
+    requeued = [f for f in frames if statuses.get(_key(f)) == QUEUED]
     return fresh + requeued
 
 
@@ -49,10 +50,13 @@ def next_frame(frames, statuses):
 
 def counts(frames, statuses):
     """The numbers the status endpoint publishes -- read from disk rather than from a run's memory,
-    so they are still right after the server restarts."""
-    names = [_name(f) for f in frames]
-    failures = [name for name in names if statuses.get(name) == FAILED]
+    so they are still right after the server restarts.
+
+    Looked up by identity, published as file names: the screen marks its red tiles by file.
+    """
+    failures = [file_name(f["number"], f["letter"]) for f in frames
+                if statuses.get(_key(f)) == FAILED]
     return {"total": len(frames),
-            "done": sum(1 for name in names if statuses.get(name) == DONE),
+            "done": sum(1 for f in frames if statuses.get(_key(f)) == DONE),
             "failed": len(failures),
             "failures": failures}

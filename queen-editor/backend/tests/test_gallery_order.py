@@ -1,40 +1,37 @@
 from backend.features.photo_generation.domain.gallery_order import apply_order
 
 
-def rows(*files):
-    return [{"file": f, "prompt": "p"} for f in files]
+def rows(*frame_ids):
+    return [{"id": fid, "prompt": "p"} for fid in frame_ids]
 
 
-def files(result):
-    return [row["file"] for row in result]
+def ids(result):
+    return [row["id"] for row in result]
 
 
-def test_sirasiz_kayit_kendi_sirasinda_kalir():
-    assert files(apply_order(rows("2_a.png", "1_a.png"), [])) == ["2_a.png", "1_a.png"]
+def test_an_unordered_record_keeps_its_own_sequence():
+    assert ids(apply_order(rows("2_a", "1_a"), [])) == ["2_a", "1_a"]
 
 
-def test_saklanan_sira_uygulanir():
-    result = apply_order(rows("2_a.png", "1_a.png", "0_a.png"),
-                         ["0_a.png", "2_a.png", "1_a.png"])
-    assert files(result) == ["0_a.png", "2_a.png", "1_a.png"]
+def test_a_stored_order_is_applied():
+    result = apply_order(rows("2_a", "1_a", "0_a"), ["0_a", "2_a", "1_a"])
+    assert ids(result) == ["0_a", "2_a", "1_a"]
 
 
-def test_sirada_olmayan_yeni_fotograflar_en_uste_gelir():
+def test_frames_the_order_never_heard_of_go_on_top():
     # The record is newest-first, so 4_a is newer than 3_a and stays above it.
-    result = apply_order(rows("4_a.png", "3_a.png", "1_a.png", "0_a.png"),
-                         ["0_a.png", "1_a.png"])
-    assert files(result) == ["4_a.png", "3_a.png", "0_a.png", "1_a.png"]
+    result = apply_order(rows("4_a", "3_a", "1_a", "0_a"), ["0_a", "1_a"])
+    assert ids(result) == ["4_a", "3_a", "0_a", "1_a"]
 
 
-def test_kayitta_olmayan_ad_yok_sayilir():
-    result = apply_order(rows("1_a.png"), ["silinmis.png", "1_a.png"])
-    assert files(result) == ["1_a.png"]
+def test_a_frame_the_record_does_not_know_is_ignored():
+    assert ids(apply_order(rows("1_a"), ["silinmis", "1_a"])) == ["1_a"]
 
 
-def test_ayni_ad_iki_kez_gecerse_bir_kez_dizilir():
-    result = apply_order(rows("1_a.png", "0_a.png"), ["1_a.png", "1_a.png", "0_a.png"])
-    assert files(result) == ["1_a.png", "0_a.png"]
+def test_a_repeated_identity_is_placed_once():
+    result = apply_order(rows("1_a", "0_a"), ["1_a", "1_a", "0_a"])
+    assert ids(result) == ["1_a", "0_a"]
 
 
-def test_bos_kayit_bos_doner():
-    assert apply_order([], ["1_a.png"]) == []
+def test_an_empty_record_returns_empty():
+    assert apply_order([], ["1_a"]) == []

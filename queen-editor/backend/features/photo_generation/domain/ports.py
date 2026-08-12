@@ -49,20 +49,24 @@ class PlanStore(Protocol):
 
 class PhotoRecord(Protocol):
     def append(self, project: str, entry: dict) -> None:
-        """Add one produced photo's row."""
+        """Add one produced layer's row."""
         ...
 
     def list(self, project: str) -> list:
         """Every photo that still exists, newest first."""
         ...
 
-    def mark(self, project: str, file: str, status: str, at: str,
+    def mark(self, project: str, frame: str, layer: str, file: str, status: str, at: str,
              error: str | None = None) -> None:
-        """Append a line for an event that produced no photo."""
+        """Append a line for an event that produced no layer."""
+        ...
+
+    def slots(self, project: str) -> dict:
+        """{frame: {slot: {"status", "file"}}} -- the latest line per (frame, slot)."""
         ...
 
     def statuses(self, project: str) -> dict:
-        """{file name: latest status} for every frame the log has seen."""
+        """{frame: photo slot status} for every frame the log has seen."""
         ...
 
     def max_number(self, project: str) -> int | None:
@@ -72,7 +76,7 @@ class PhotoRecord(Protocol):
 
 class OrderStore(Protocol):
     def read(self, project: str) -> list:
-        """The stored gallery order as file names; empty when there is none."""
+        """The stored gallery order as frame identities; empty when there is none."""
         ...
 
     def write(self, project: str, order: list) -> None:

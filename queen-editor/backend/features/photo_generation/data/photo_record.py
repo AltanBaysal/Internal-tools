@@ -1,15 +1,18 @@
 """PhotoRecord over DriveStorage -- the only place that knows the record file's name and shape.
 
-This is the log of what happened to every planned frame: one JSON object per line, appended right
-after the event itself, never rewritten. Append-only is the point -- a session that dies mid-write
-loses at most the line it was adding, where rewriting the whole file could lose every earlier one.
-So a photo landing, a deletion, a failed render and a frame pulled out of the queue are all lines;
-reading folds them and the latest line about a file wins.
+This is the log of what happened to every layer of every planned frame: one JSON object per line,
+appended right after the event itself, never rewritten. Append-only is the point -- a session that
+dies mid-write loses at most the line it was adding, where rewriting the whole file could lose every
+earlier one. So a photo landing, a video landing, a deletion, a failed render and a frame pulled out
+of the queue are all lines; reading folds them and the latest line about a slot wins.
+
+Folded per (frame, layer) rather than per file, because a file can be shared: a copy frame points at
+its source's picture, and closing one of them must not close the other.
 """
 import json
 
-from backend.features.photo_generation.domain import queue
-from backend.features.photo_generation.domain.photo_name import number_of
+from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain.photo_name import frame_id_of, number_of
 
 FILE = "photos.jsonl"
 
@@ -26,18 +29,37 @@ def _status_of(row):
     return queue.DELETED if row.get("deletedAt") else queue.DONE
 
 
+def _frame_of(row):
+    """Which frame the row is about.
+
+    Rows written before frames had identities are one photo each, so the file name without its
+    extension is the frame they belong to -- exactly the shape frame_id gives new frames.
+    """
+    frame = row.get("frame")
+    if isinstance(frame, str):
+        return frame
+    return frame_id_of(row["file"])
+
+
+def _layer_of(row):
+    """Which slot the row is about; a row from before layers existed can only be a photo."""
+    layer = row.get("layer")
+    return layer if isinstance(layer, str) else layers.PHOTO
+
+
 class DrivePhotoRecord:
     def __init__(self, storage):
         self._storage = storage
 
     def append(self, project, entry):
-        """entry: {"file", "status", …} -- a produced photo also carries prompt, negative, seed."""
+        """entry: {"file", "frame", "layer", "status", …} -- a produced photo also carries prompt,
+        negative and seed."""
         self._storage.append_line(project, FILE, json.dumps(entry, ensure_ascii=False))
 
-    def mark(self, project, file, status, at, error=None):
-        """Write down an event that produced no photo: a failure, a deletion, a frame pulled out of
-        the queue, or a frame put back in line."""
-        entry = {"file": file, "status": status, "at": at}
+    def mark(self, project, frame, layer, file, status, at, error=None):
+        """Write down an event that produced no layer: a failure, a deletion, a frame pulled out of
+        the queue, or a slot put back in line."""
+        entry = {"frame": frame, "layer": layer, "file": file, "status": status, "at": at}
         if error is not None:
             # The server's own words, verbatim -- never a guessed cause.
             entry["error"] = error
@@ -59,19 +81,34 @@ class DrivePhotoRecord:
                 rows.append(row)
         return rows
 
+    def slots(self, project):
+        """{frame: {slot: {"status", "file"}}} -- the latest line per (frame, slot) wins."""
+        folded = {}
+        for row in self._rows(project):
+            folded.setdefault(_frame_of(row), {})[_layer_of(row)] = {
+                "status": _status_of(row), "file": row["file"]}
+        return folded
+
     def statuses(self, project):
-        """{file name: latest status} -- the fold every "what happened to this frame" question
-        reads, the queue rule included."""
-        return {row["file"]: _status_of(row) for row in self._rows(project)}
+        """{frame: photo slot status} -- the fold the queue reads.
+
+        Only the photo slot: the queue owes photos, and a video line must never answer for the frame
+        it hangs on.
+        """
+        return {frame: cells[layers.PHOTO]["status"]
+                for frame, cells in self.slots(project).items() if layers.PHOTO in cells}
 
     def list(self, project):
-        """Every photo that still exists, newest first."""
+        """Every photo that still exists, newest first -- one row per frame, not per file."""
         live = {}
         for row in self._rows(project):
+            if _layer_of(row) != layers.PHOTO:
+                continue
+            frame = _frame_of(row)
             if _status_of(row) == queue.DONE:
-                live[row["file"]] = row
+                live[frame] = {**row, "frame": frame}
             else:
-                live.pop(row["file"], None)
+                live.pop(frame, None)
         return list(reversed(list(live.values())))
 
     def max_number(self, project):

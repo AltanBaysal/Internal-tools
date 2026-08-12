@@ -248,7 +248,8 @@ def test_saved_order_decides_how_photos_are_listed(tmp_path):
 
     resp = client.put("/api/projects/düğün/order", json={"order": ["0_a.png", "1_a.png"]})
     assert resp.status_code == 200
-    assert resp.get_json() == {"order": ["0_a.png", "1_a.png"]}
+    # The screen sends file names; what is stored and echoed back is the frame's identity.
+    assert resp.get_json() == {"order": ["0_a", "1_a"]}
     assert files_of(client) == ["0_a.png", "1_a.png"]
 
 
@@ -266,7 +267,7 @@ def test_order_keeps_only_the_names_the_record_knows(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
     resp = client.put("/api/projects/düğün/order", json={"order": ["hayalet.png", "0_a.png"]})
-    assert resp.get_json() == {"order": ["0_a.png"]}
+    assert resp.get_json() == {"order": ["0_a"]}
 
 
 def test_order_that_is_not_a_list_of_names_returns_400(tmp_path):
