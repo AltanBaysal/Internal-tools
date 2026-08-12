@@ -87,18 +87,24 @@ class ComfyClient:
         output is the contract: silently picking one of N would hide a graph whose batch size is
         not 1, so the raw outputs are printed and the render stops.
 
-        `extensions` is how a caller says which medium it came for: a video graph publishes under
-        "gifs" and often carries an image node as well, so the file is chosen by its own name
-        rather than by which key it landed in. No extensions means the images a photo graph makes.
+        `extensions` is how a caller says which medium it came for: a video graph often carries an
+        image node as well, so the file is chosen by its own name rather than by which key it
+        landed in -- which key that is (images, gifs, videos, audio) is the node's own business.
+        No extensions means the images a photo graph makes.
         """
-        keys = ("gifs", "videos", "images") if extensions else ("images",)
-        outputs = [item
-                   for node_output in history_entry.get("outputs", {}).values()
-                   for key in keys
-                   for item in node_output.get(key, [])
-                   if item.get("type", "output") == "output"
-                   and (not extensions
-                        or item.get("filename", "").lower().endswith(tuple(extensions)))]
+        outputs = []
+        for node_output in history_entry.get("outputs", {}).values():
+            groups = node_output.values() if extensions else [node_output.get("images", [])]
+            for group in groups:
+                if not isinstance(group, list):
+                    continue
+                for item in group:
+                    if not isinstance(item, dict) or item.get("type", "output") != "output":
+                        continue
+                    if extensions and not item.get("filename", "").lower().endswith(
+                            tuple(extensions)):
+                        continue
+                    outputs.append(item)
         if len(outputs) != 1:
             raise RuntimeError(
                 f"1 çıktı bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n"

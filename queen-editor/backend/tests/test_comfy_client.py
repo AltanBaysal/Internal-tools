@@ -160,6 +160,15 @@ def test_fetch_output_finds_a_video_among_the_graphs_outputs():
     assert params["filename"] == "v.mp4"
 
 
+def test_fetch_output_finds_a_sound_wherever_the_node_published_it():
+    # ComfyUI publishes sound under its own key; the extension is what picks the file.
+    entry = {"outputs": {"90": {"audio": [{"filename": "s.wav", "subfolder": "",
+                                           "type": "output"}]}}}
+    http = FakeHttp(gets=[FakeResponse(content=b"WAVDATA")])
+
+    assert client_with(http).fetch_output(entry, extensions=(".wav",)) == b"WAVDATA"
+
+
 def test_fetch_output_says_what_came_when_no_output_has_the_wanted_extension():
     entry = {"outputs": {"81": {"gifs": [{"filename": "v.webm", "type": "output"}]}}}
 

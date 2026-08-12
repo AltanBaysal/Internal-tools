@@ -24,9 +24,12 @@ COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
 WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
 # The video graph the same way: our own WAN 2.2 I2V export, exported from ComfyUI and committed.
 VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_video_api.json")
+# And the sound graph: ComfyUI's MMAudio node, laid over a video the graph is handed.
+AUDIO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_audio_api.json")
 
 RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so this is a stall guard
 VIDEO_TIMEOUT = 30 * 60    # seconds for one video; 5s of WAN takes minutes, so this is a stall guard
+AUDIO_TIMEOUT = 15 * 60    # seconds for one sound; MMAudio is fast, so this is a stall guard
 POLL_INTERVAL = 5          # seconds between /history polls
 
 # The language model that writes a video's prompt (design v3, madde 27). The key comes from Colab

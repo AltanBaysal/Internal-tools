@@ -55,14 +55,17 @@ def audio_file(video, round_no, variant):
     return f"{video}_S{round_no}_{variant}.wav"
 
 
-def layer_file(kind, frame):
+def layer_file(kind, frame, video=None):
     """The file name one produced layer takes.
 
-    Photo and video are named from the frame's own identity. Audio grows the VIDEO's name rather
-    than the frame's, so it joins here when the audio producer does.
+    Photo and video are named from the frame's own identity; audio grows the VIDEO's name, because
+    a sound is mixed over one particular video and the name has to say which one. A frame with no
+    video cannot be given a sound at all, so that fallback is only there to keep a name a name.
     """
     if kind == layers.VIDEO:
         return video_file(frame, FIRST_ROUND, FIRST_VARIANT)
+    if kind == layers.AUDIO:
+        return audio_file(video.rsplit(".", 1)[0] if video else frame, FIRST_ROUND, FIRST_VARIANT)
     return photo_file(frame)
 
 

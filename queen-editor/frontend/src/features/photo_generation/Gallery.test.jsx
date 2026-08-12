@@ -497,6 +497,24 @@ describe("Gallery — what a frame owns", () => {
     expect(document.querySelector("[data-glyph=play]")).toBeTruthy();
   });
 
+  it("marks a frame that has a sound as well", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", {
+      layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" } })] });
+
+    expect(screen.getByText("video")).toBeTruthy();
+    expect(screen.getByText("ses")).toBeTruthy();
+    expect(document.querySelector("[data-glyph=sound]")).toBeTruthy();
+  });
+
+  it("does not call a failed sound something the frame owns", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", {
+      layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" },
+      failed: ["audio"] })] });
+
+    expect(screen.getByText("video")).toBeTruthy();
+    expect(screen.queryByText("ses")).toBeNull();
+  });
+
   it("leaves a frame with no video unmarked", () => {
     renderGallery({ frames: [done("P0_0.png")] });
 

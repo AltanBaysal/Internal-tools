@@ -959,6 +959,23 @@ def test_a_video_job_with_no_prompt_has_one_written_from_the_photos():
     assert video["prompt"] == "kadın başını yavaşça çeviriyor"
 
 
+def test_a_sound_is_made_from_the_frames_video_and_written_beside_it():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+    store.files["0_a_V1_0.mp4"] = b"MP4DATA"
+    plan_store.frames.append({"id": "0_a", "type": "audio", "number": 0, "variant": 0,
+                              "prompt": "sessiz oda", "negative": "", "seed": None, "model": ""})
+    generator = FakeGenerator()
+
+    resume_batch(sync_runner(), store, record, plan_store,
+                 {layers.VIDEO: FakeGenerator(), layers.AUDIO: generator},
+                 lambda: "t", "düğün")
+
+    assert generator.sources == [("0_a_V1_0.mp4", b"MP4DATA")]
+    assert [name for name, _d in store.saved] == ["0_a_V1_0_S1_0.wav"]
+
+
 def test_a_video_is_written_under_the_layers_own_name():
     store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
     generator = FakeGenerator()

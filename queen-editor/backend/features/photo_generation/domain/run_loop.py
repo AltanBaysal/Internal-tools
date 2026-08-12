@@ -27,19 +27,24 @@ def _prompts_of(record, project, fid):
     return record.prompts(project).get(fid, {})
 
 
-def _source_for(kind, store, slots, project, fid):
-    """The picture a layer is made from, as (name, bytes); None for a layer that needs none.
+# What a layer is made from: a video hangs on the frame's photo, a sound is laid over its video,
+# and a photo is made from its prompt alone.
+UNDER = {layers.VIDEO: layers.PHOTO, layers.AUDIO: layers.VIDEO}
 
-    A video hangs on the frame's photo, while a photo is made from its prompt alone. Read at the
-    job's turn rather than kept in memory: the file is on Drive and the run may have started hours
-    ago. `slots` is the turn's own snapshot, so nothing is asked of the record twice.
+
+def _source_for(kind, store, slots, project, fid):
+    """The file a layer is made from, as (name, bytes); None for a layer that needs none.
+
+    Read at the job's turn rather than kept in memory: the file is on Drive and the run may have
+    started hours ago. `slots` is the turn's own snapshot, so nothing is asked of the record twice.
     """
-    if kind == layers.PHOTO:
+    under = UNDER.get(kind)
+    if under is None:
         return None
-    photo = slots.get(fid, {}).get(layers.PHOTO)
-    if not photo:
+    cell = slots.get(fid, {}).get(under)
+    if not cell:
         return None
-    return (photo["file"], store.read(project, photo["file"]))
+    return (cell["file"], store.read(project, cell["file"]))
 
 
 def make_job(runner, store, record, plan_store, producers, now, project,
@@ -94,10 +99,12 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # in the gallery is the order things are made in.
                 return summary("waiting", waitingFor=kind)
             fid = current["id"]
-            # The layer's own name: what gets saved, and what a failure's line points at. The
+            # The layer's own name: what gets saved, and what a failure's line points at. A sound
+            # grows the name of the video it is laid over, so the frame's video is part of it. The
             # gallery still marks its tiles by the frame's photo name (see the report below) --
             # that is the screen's identifier for a frame, not the layer's.
-            name = layer_file(kind, fid)
+            name = layer_file(kind, fid, video=(slots.get(fid, {}).get(layers.VIDEO) or {}).get(
+                "file"))
             if name != holding:
                 # A different job: its predecessor's attempts and written prompt are not its own.
                 holding, attempts, written = name, 0, None

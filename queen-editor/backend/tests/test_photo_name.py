@@ -77,6 +77,15 @@ def test_a_layers_file_is_named_by_what_it_is():
     assert layer_file("video", "P11_3") == "P11_3_V1_0.mp4"
 
 
+def test_a_sounds_file_grows_the_videos_name():
+    assert layer_file("audio", "P11_3", video="P11_3_V1_0.mp4") == "P11_3_V1_0_S1_0.wav"
+
+
+def test_a_sound_with_no_video_falls_back_to_the_frames_own_name():
+    # Should not happen -- sound is never in scope without a video -- but a name is still a name.
+    assert layer_file("audio", "P11_3") == "P11_3_S1_0.wav"
+
+
 def test_a_name_says_which_variant_it_is():
     assert variant_of("P11_3.png") == 3
     assert variant_of("P11_3_V1_0.mp4") == 3

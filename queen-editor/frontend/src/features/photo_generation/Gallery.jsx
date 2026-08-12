@@ -5,7 +5,7 @@ import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Rendering, StatusPill } from "./frame_status.jsx";
-import { PlayGlyph } from "./glyphs.jsx";
+import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 
 const PAD = { padding: 16 };
 const GRID = { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12,
@@ -24,8 +24,12 @@ const BADGE = { position: "absolute", top: 6, right: 6, background: "rgba(10,8,7
 // Madde 57's third plane: the order badge top right, the state pill top left, and what the frame
 // owns bottom right. It says the layer is finished -- an unfinished one is the pill's to tell.
 const OWNS = { position: "absolute", bottom: 6, right: 6, display: "flex", alignItems: "center",
-               gap: 3, background: "rgba(10,8,7,.75)", color: "var(--ink-2)", padding: "2px 5px",
+               gap: 6, background: "rgba(10,8,7,.75)", color: "var(--ink-2)", padding: "2px 5px",
                borderRadius: 3, zIndex: 1, pointerEvents: "none" };
+// What a frame can own, in layer order. A layer that blew up holds its slot but is not something
+// the frame owns -- that one is the pill's to name.
+const OWNED = [{ layer: "video", word: "video", Glyph: PlayGlyph },
+               { layer: "audio", word: "ses", Glyph: SoundGlyph }];
 const DRAGGED = { transform: "rotate(-3deg) scale(1.04) translate(14px, -10px)",
                   filter: "drop-shadow(0 12px 24px rgba(0,0,0,.55))", zIndex: 5,
                   position: "relative" };
@@ -100,10 +104,14 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
           <Mono size={10} style={muted ? { ...BADGE, opacity: 0.5 } : BADGE}>{badge}</Mono>
         )}
         {pill}
-        {owns && (
+        {owns.length > 0 && (
           <span style={OWNS}>
-            <PlayGlyph size={9} />
-            <Mono size={9}>video</Mono>
+            {owns.map(({ layer, word, Glyph }) => (
+              <span key={layer} style={{ display: "flex", alignItems: "center", gap: 3 }}>
+                <Glyph size={9} />
+                <Mono size={9}>{word}</Mono>
+              </span>
+            ))}
           </span>
         )}
         {selected && <div style={TINT} />}
@@ -264,9 +272,8 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
           const running = frame.file === current ? (currentLayer || "photo") : null;
           const state = running === "photo" ? "running" : frame.status;
           const produced = state === "done";
-          // A layer that blew up holds its slot but is not something the frame owns.
-          const owns = Boolean((frame.layers || {}).video)
-            && !(frame.failed || []).includes("video");
+          const owns = OWNED.filter(({ layer }) => (frame.layers || {})[layer]
+            && !(frame.failed || []).includes(layer));
           // A layer failed on a frame that still has its picture: the card stays as it is and the
           // way back comes down over it under the pointer.
           const brokenLayer = produced && (frame.failed || []).length > 0;

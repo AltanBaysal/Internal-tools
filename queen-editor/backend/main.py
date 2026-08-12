@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from functools import partial
 
 from backend import config
+from backend.features.photo_generation.data.comfy_audio_generator import ComfyAudioGenerator
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.xai_prompt_writer import (
@@ -72,9 +73,12 @@ _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
 _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
                                        config.VIDEO_TIMEOUT)
-# What the loop dispatches on: one producer per job type. Audio joins this map when its producer
-# exists; until then an audio job waits for it instead of being skipped.
-_producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator}
+_audio_generator = ComfyAudioGenerator(_comfy_client, config.AUDIO_WORKFLOW_PATH,
+                                       config.AUDIO_TIMEOUT)
+# What the loop dispatches on: one producer per job type. All three are ComfyUI graphs; a type with
+# nobody to do it would make the queue wait rather than skip the work.
+_producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator,
+              layers.AUDIO: _audio_generator}
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
 _xai = XaiClient(config.XAI_API_KEY, config.XAI_MODEL, config.XAI_URL, timeout=config.XAI_TIMEOUT)
 _writers = {layers.VIDEO: VideoPromptWriter(_xai), layers.AUDIO: AudioPromptWriter(_xai)}
