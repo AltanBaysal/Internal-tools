@@ -6,8 +6,10 @@ from datetime import datetime, timezone
 from functools import partial
 
 from backend import config
-from backend.features.photo_generation.data.comfy_audio_generator import ComfyAudioGenerator
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
+from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
+from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
+from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.xai_prompt_writer import (
     AudioPromptWriter,
@@ -48,7 +50,7 @@ from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
-from backend.features.producers.domain.model_groups import GROUPS
+from backend.features.producers.domain.model_groups import GROUPS, audio_weights
 from backend.features.producers.domain.usecases.cancel_install import cancel_install
 from backend.features.producers.domain.usecases.install_producer import install_producer
 from backend.features.producers.domain.usecases.list_producers import list_producers
@@ -72,8 +74,11 @@ _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
 _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
                                        config.VIDEO_TIMEOUT)
-_audio_generator = ComfyAudioGenerator(_comfy_client, config.AUDIO_WORKFLOW_PATH,
-                                       config.AUDIO_TIMEOUT)
+# Sound is the one producer that is not a ComfyUI graph: MMAudio runs inside this process. Where
+# its weights live is the producers feature's answer, so the path is taken from the group it
+# installs rather than spelled out here a second time.
+_model_files = ComfyModelFiles(config.COMFY_ROOT)
+_audio_generator = MMAudioGenerator(MMAudioSampler(audio_weights(_model_files)), FfmpegAudio())
 # What the loop dispatches on: one producer per job type. All three are ComfyUI graphs; a type with
 # nobody to do it would make the queue wait rather than skip the work.
 _producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator,
@@ -172,7 +177,6 @@ _photo_bp = make_photo_generation_blueprint(
 # A producer with a declared model group is judged by its files; one without (the photo producer,
 # which the notebook sets up) answers for itself, so the same map the loop dispatches on is handed
 # over too.
-_model_files = ComfyModelFiles(config.COMFY_ROOT)
 _fetcher = HttpFetcher()
 _install_runner = InstallRunner()
 _producers_bp = make_producers_blueprint(
