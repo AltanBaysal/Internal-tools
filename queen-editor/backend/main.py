@@ -6,6 +6,7 @@ from functools import partial
 
 from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
+from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
@@ -53,6 +54,9 @@ _projects_bp = make_projects_blueprint(
 _photo_store = DrivePhotoStore(_storage)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
+# What the loop dispatches on: one producer per job type. Video and audio join this map when their
+# producers exist; until then a job of that type stops the run instead of being skipped.
+_producers = {layers.PHOTO: _photo_generator}
 _photo_runner = PhotoRunner()
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
@@ -67,20 +71,20 @@ def _timing(line):
 
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
-                        _photo_generator, lambda: random.randint(0, 2**31 - 1),
+                        _producers, lambda: random.randint(0, 2**31 - 1),
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing),
     get_status=partial(get_status, _photo_runner),
     stop_generation=partial(stop_generation, _photo_runner, _comfy_client.interrupt),
     resume_batch=partial(resume_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
-                         _photo_generator,
+                         _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                          log=_timing),
     cancel_generation=partial(cancel_generation, _photo_runner, _photo_store, _photo_record,
                               _plan_store,
                               lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     retry_frame=partial(retry_frame, _photo_runner, _photo_store, _photo_record, _plan_store,
-                        _photo_generator,
+                        _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),

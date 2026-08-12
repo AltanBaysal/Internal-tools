@@ -1,9 +1,9 @@
 """PlanStore over DriveStorage -- the only place that knows the plan file's name and shape.
 
-The plan is the queue: what was asked for, in the order it was asked for. It is only ever appended
-to. A frame is never taken out of it and never marked -- what became of a frame is the photo
+The plan is the queue: what work was asked for, in the order it was asked for. It is only ever
+appended to. A job is never taken out of it and never marked -- what became of a job is the photo
 record's answer, and a plan that repeated it would give one truth two writers. That is also why the
-whole file is rewritten once per submitted batch rather than once per frame: a Colab machine dying
+whole file is rewritten once per submitted batch rather than once per job: a Colab machine dying
 mid-write would otherwise take the entire queue with it.
 
 A frame carries its identity, not a file name: which file a layer lands in is the naming scheme's
@@ -11,6 +11,7 @@ answer, and repeating it here would give it a second owner.
 """
 import json
 
+from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.photo_name import legacy_frame_id
 
 FILE = "plan.json"
@@ -50,13 +51,16 @@ class DrivePlanStore:
             negative = frame.get("negative")
             model = frame.get("model")
             identity = frame.get("id")
+            kind = frame.get("type")
             # A frame planned before models could be chosen carries none, and empty means "the
-            # graph's own checkpoint" -- so those frames render exactly as they always did. A frame
+            # graph's own checkpoint" -- so those frames render exactly as they always did. One
             # planned before identities were written down keeps the one it was born with, or the
-            # gallery order pointing at it would stop finding it.
+            # gallery order pointing at it would stop finding it. One planned before the queue knew
+            # types can only be a photo job, because that was the only kind there was.
             frames.append({**frame,
                            "id": identity if isinstance(identity, str)
                            else legacy_frame_id(frame["number"], frame.get("letter", "a")),
+                           "type": kind if isinstance(kind, str) else layers.PHOTO,
                            "negative": negative if isinstance(negative, str) else legacy,
                            "model": model if isinstance(model, str) else ""})
         return {"negative": legacy, "frames": frames}

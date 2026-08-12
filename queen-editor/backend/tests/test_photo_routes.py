@@ -5,6 +5,7 @@ from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
+from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.export_project import export_project
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
@@ -66,18 +67,19 @@ def make_client(tmp_path, generator=None, runner=None):
     order_store = DriveOrderStore(storage)
     runner = runner or PhotoRunner(spawn=lambda fn: fn())
     generator = generator or FakeGenerator()
+    producers = {layers.PHOTO: generator}
     blueprint = make_photo_generation_blueprint(
         start_batch=partial(start_batch, runner, store, record, plan_store,
-                            generator, lambda: 42,
+                            producers, lambda: 42,
                             lambda: "2026-08-03T14:32:11+00:00"),
         get_status=partial(get_status, runner),
         stop_generation=partial(stop_generation, runner, lambda: None),
-        resume_batch=partial(resume_batch, runner, store, record, plan_store, generator,
+        resume_batch=partial(resume_batch, runner, store, record, plan_store, producers,
                              lambda: "2026-08-03T14:32:11+00:00"),
         cancel_generation=partial(cancel_generation, runner, store, record, plan_store,
                                   lambda: "2026-08-05T10:00:00+00:00"),
         retry_frame=partial(retry_frame, runner, store, record, plan_store,
-                            generator, lambda: "2026-08-03T14:32:11+00:00"),
+                            producers, lambda: "2026-08-03T14:32:11+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         list_models=partial(list_models, generator),
         save_order=partial(save_order, record, store, plan_store, order_store),

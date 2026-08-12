@@ -89,15 +89,6 @@ class DrivePhotoRecord:
                 "status": _status_of(row), "file": row["file"]}
         return folded
 
-    def statuses(self, project):
-        """{frame: photo slot status} -- the fold the queue reads.
-
-        Only the photo slot: the queue owes photos, and a video line must never answer for the frame
-        it hangs on.
-        """
-        return {frame: cells[layers.PHOTO]["status"]
-                for frame, cells in self.slots(project).items() if layers.PHOTO in cells}
-
     def list(self, project):
         """Every photo that still exists, newest first -- one row per frame, not per file."""
         live = {}

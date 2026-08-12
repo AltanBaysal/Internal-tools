@@ -188,24 +188,31 @@ def sync_runner():
     return PhotoRunner(spawn=lambda fn: fn())
 
 
+def photo_statuses(record, project="düğün"):
+    """{frame: photo slot status} -- the one slot most of these tests are about."""
+    return {frame: cells["photo"]["status"]
+            for frame, cells in record.slots(project).items() if "photo" in cells}
+
+
 def run_batch(runner, store, generator, project="düğün", text='["a", "b"]', negative="neg",
               variants=2, seed=42, record=None, plan_store=None, model="", log=None):
     return start_batch(runner, store, record or FakeRecord(), plan_store or FakePlanStore(),
-                       generator, lambda: seed, lambda: "2026-08-03T14:32:11+00:00",
+                       {layers.PHOTO: generator}, lambda: seed,
+                       lambda: "2026-08-03T14:32:11+00:00",
                        project, text, negative, variants, model, log)
 
 
 def test_plan_frames_is_prompt_major():
     seeds = iter([11, 22, 33, 44])
     assert plan_frames(3, ["ilk", "ikinci"], "neg", 2, lambda: next(seeds), "nova.safetensors") == [
-        {"id": "P3_0", "number": 3, "variant": 0, "prompt": "ilk", "negative": "neg", "seed": 11,
-         "model": "nova.safetensors"},
-        {"id": "P3_1", "number": 3, "variant": 1, "prompt": "ilk", "negative": "neg", "seed": 22,
-         "model": "nova.safetensors"},
-        {"id": "P4_0", "number": 4, "variant": 0, "prompt": "ikinci", "negative": "neg", "seed": 33,
-         "model": "nova.safetensors"},
-        {"id": "P4_1", "number": 4, "variant": 1, "prompt": "ikinci", "negative": "neg", "seed": 44,
-         "model": "nova.safetensors"},
+        {"id": "P3_0", "type": "photo", "number": 3, "variant": 0, "prompt": "ilk",
+         "negative": "neg", "seed": 11, "model": "nova.safetensors"},
+        {"id": "P3_1", "type": "photo", "number": 3, "variant": 1, "prompt": "ilk",
+         "negative": "neg", "seed": 22, "model": "nova.safetensors"},
+        {"id": "P4_0", "type": "photo", "number": 4, "variant": 0, "prompt": "ikinci",
+         "negative": "neg", "seed": 33, "model": "nova.safetensors"},
+        {"id": "P4_1", "type": "photo", "number": 4, "variant": 1, "prompt": "ikinci",
+         "negative": "neg", "seed": 44, "model": "nova.safetensors"},
     ]
 
 
@@ -218,7 +225,8 @@ def test_numbering_continues_from_the_store():
 def test_every_frame_gets_prompt_negative_and_a_fresh_seed():
     store, generator, runner = FakeStore(), FakeGenerator(), sync_runner()
     seeds = iter([11, 22, 33, 44])
-    start_batch(runner, store, FakeRecord(), FakePlanStore(), generator, lambda: next(seeds),
+    start_batch(runner, store, FakeRecord(), FakePlanStore(), {layers.PHOTO: generator},
+                lambda: next(seeds),
                 lambda: "2026-08-03T14:32:11+00:00", "düğün", '["a", "b"]', "neg", 2)
     assert generator.calls == [("a", "neg", 11, ""), ("a", "neg", 22, ""),
                                ("b", "neg", 33, ""), ("b", "neg", 44, "")]
@@ -242,8 +250,8 @@ def test_progress_is_reported_before_each_frame():
 
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
-    assert seen[0]["current"] == {"id": "P0_0", "number": 0, "variant": 0, "prompt": "a",
-                                  "negative": "neg", "seed": 42, "model": ""}
+    assert seen[0]["current"] == {"id": "P0_0", "type": "photo", "number": 0, "variant": 0,
+                                  "prompt": "a", "negative": "neg", "seed": 42, "model": ""}
     assert (seen[0]["done"], seen[0]["total"]) == (0, 2)
     assert (seen[1]["done"], seen[1]["total"]) == (1, 2)
 
@@ -467,10 +475,10 @@ def planned(*frames):
 
 
 def owed_files(record, plan_store, project="düğün"):
-    """The frames the queue still has to render -- what the worker reads on its next turn."""
-    return [photo_file(f["id"])
-            for f in queue.open_frames(plan_store.read(project)["frames"],
-                                       record.statuses(project))]
+    """The jobs the queue still has to do -- what the worker reads on its next turn."""
+    return [photo_file(j["id"])
+            for j in queue.open_jobs(plan_store.read(project)["frames"],
+                                     record.slots(project))]
 
 
 def test_the_gallery_holds_every_frame_the_plan_asked_for():
@@ -690,7 +698,7 @@ def test_resume_only_produces_the_frames_the_record_is_missing():
                                negative="neg")
     record.append("düğün", {"file": "0_a.png"})
 
-    resume_batch(sync_runner(), store, record, plan_store, generator,
+    resume_batch(sync_runner(), store, record, plan_store, {layers.PHOTO: generator},
                  lambda: "2026-08-05T10:00:00+00:00", "düğün")
 
     assert generator.calls == [("ikinci", "neg", 1, "")]
@@ -703,8 +711,8 @@ def test_resume_refuses_when_nothing_is_left():
     plan_store = FakePlanStore(frames=[frame(0)])
 
     with pytest.raises(NothingToResume):
-        resume_batch(sync_runner(), FakeStore(), record, plan_store, FakeGenerator(),
-                     lambda: "t", "düğün")
+        resume_batch(sync_runner(), FakeStore(), record, plan_store,
+                     {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün")
 
 
 def test_cancel_empties_the_queue_and_returns_to_idle():
@@ -932,10 +940,10 @@ def test_the_plan_is_appended_before_the_first_frame_renders():
     run_batch(runner, FakeStore(), ChecksThePlan(), text='["a"]', variants=2,
               plan_store=plan_store)
     assert plan_store.appended == [
-        [{"id": "P0_0", "number": 0, "variant": 0, "prompt": "a", "negative": "neg", "seed": 42,
-          "model": ""},
-         {"id": "P0_1", "number": 0, "variant": 1, "prompt": "a", "negative": "neg", "seed": 42,
-          "model": ""}]]
+        [{"id": "P0_0", "type": "photo", "number": 0, "variant": 0, "prompt": "a",
+          "negative": "neg", "seed": 42, "model": ""},
+         {"id": "P0_1", "type": "photo", "number": 0, "variant": 1, "prompt": "a",
+          "negative": "neg", "seed": 42, "model": ""}]]
 
 
 def test_each_produced_photo_gets_a_record_row():
@@ -1056,8 +1064,8 @@ def test_retry_puts_the_frame_back_in_line():
               record=record, plan_store=plan_store)
 
     generator.fail_on = []
-    retry_frame(sync_runner(), FakeStore(), record, plan_store, generator, lambda: "t2",
-                "düğün", "P0_0.png")
+    retry_frame(sync_runner(), FakeStore(), record, plan_store, {layers.PHOTO: generator},
+                lambda: "t2", "düğün", "P0_0.png")
 
     assert record.statuses("düğün") == {"P0_0": "done"}
 
@@ -1088,8 +1096,8 @@ def test_retrying_does_not_interrupt_a_run_that_is_already_going():
     runner.start("düğün", lambda: None)
 
     # No refusal, and no second worker: the live loop reads the record again on its next turn.
-    retry_frame(runner, FakeStore(), record, plan_store, FakeGenerator(), lambda: "t2",
-                "düğün", "0_a.png")
+    retry_frame(runner, FakeStore(), record, plan_store, {layers.PHOTO: FakeGenerator()},
+                lambda: "t2", "düğün", "0_a.png")
 
     assert record.statuses("düğün") == {"0_a": queue.QUEUED}
     assert runner.status()["status"] == "running"
@@ -1133,7 +1141,7 @@ def test_a_frame_planned_before_models_renders_with_the_graphs_own():
     # No "model" key at all -- exactly what an older plan file holds.
     plan_store.frames = [{"number": 0, "letter": "a", "prompt": "eski", "negative": "", "seed": 1}]
 
-    resume_batch(sync_runner(), FakeStore(), FakeRecord(), plan_store, generator,
+    resume_batch(sync_runner(), FakeStore(), FakeRecord(), plan_store, {layers.PHOTO: generator},
                  lambda: "t1", "düğün")
 
     assert generator.calls == [("eski", "", 1, "")]
@@ -1145,7 +1153,7 @@ def timed_job(lines, ticks, frames, generator=None):
     plan_store.append("düğün", frames)
     clock = iter(ticks)
     return make_job(sync_runner(), FakeStore(), FakeRecord(), plan_store,
-                    generator or FakeGenerator(), lambda: "t1", "düğün",
+                    {layers.PHOTO: generator or FakeGenerator()}, lambda: "t1", "düğün",
                     clock=lambda: next(clock), log=lines.append)
 
 
@@ -1168,6 +1176,40 @@ def test_every_produced_frame_gets_its_own_line():
 
     assert lines == ["⏱ 0_a.png · render 10.0 sn · drive 0.5 sn",
                      "⏱ 1_a.png · render 5.0 sn · drive 0.5 sn"]
+
+
+def test_a_job_whose_type_has_no_producer_stops_the_run():
+    # Never silently skipped: skipping would drop work the user asked for.
+    plan_store = FakePlanStore(frames=[{"id": "P0_0", "type": "video", "number": 0, "variant": 0,
+                                        "prompt": "", "seed": 1}])
+    state = make_job(sync_runner(), FakeStore(), FakeRecord(), plan_store,
+                     {layers.PHOTO: FakeGenerator()}, lambda: "t1", "düğün")()
+
+    assert state["status"] == "error" and "video" in state["error"]
+
+
+def test_the_loop_finishes_photos_before_it_starts_videos():
+    record, store = FakeRecord(), FakeStore()
+    plan_store = FakePlanStore(frames=[
+        {"id": "P0_0", "type": "video", "number": 0, "variant": 0, "prompt": "v", "seed": 1},
+        {"id": "P1_0", "type": "photo", "number": 1, "variant": 0, "prompt": "f", "seed": 2},
+    ])
+
+    class Records:
+        def __init__(self, kind):
+            self.kind = kind
+
+        def generate(self, prompt, negative, seed, model=""):
+            done.append(self.kind)
+            return b"X"
+
+    done = []
+    make_job(sync_runner(), store, record, plan_store,
+             {layers.PHOTO: Records("photo"), layers.VIDEO: Records("video")},
+             lambda: "t1", "düğün")()
+
+    # Plan order would have put the video first; the type order does not let it.
+    assert done == ["photo", "video"]
 
 
 def test_a_frame_that_blew_up_writes_no_timing_line():

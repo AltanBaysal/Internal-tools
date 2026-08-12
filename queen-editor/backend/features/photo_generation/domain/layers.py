@@ -12,16 +12,22 @@ This is not the queue's question. Whether a slot is free says what MAY be asked 
 still owes is queue.is_open's answer and it did not change. A deleted photo frees its slot without
 putting the frame back in line.
 """
-from backend.features.photo_generation.domain import queue
-
 PHOTO = "photo"
 VIDEO = "video"
 AUDIO = "audio"
 
+# What a written line can say about a layer. They live here rather than with the queue because they
+# describe what became of a LAYER; the queue only reads them to decide what it still owes.
+DONE = "done"           # the layer landed and its file is on disk
+FAILED = "failed"       # the render blew up; the tile stays red until Tekrar dene
+REMOVED = "removed"     # a pending job pulled out of the queue; never produced
+DELETED = "deleted"     # a produced layer the user deleted
+QUEUED = "queued"       # a settled job put back in line
+
 # A slot is taken while its latest line says a layer is there -- produced or blown up. A failed
 # layer counts as present deliberately: the frame stays out of the production panel's scope and is
 # rescued by Tekrar dene alone, so one frame never gets two ways to be produced at once.
-TAKEN = (queue.DONE, queue.FAILED)
+TAKEN = (DONE, FAILED)
 
 
 def is_taken(status):

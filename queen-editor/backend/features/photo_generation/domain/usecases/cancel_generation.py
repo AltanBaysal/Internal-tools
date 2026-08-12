@@ -18,8 +18,8 @@ def cancel_generation(runner, store, record, plan_store, now, project):
         raise ProjectMissing(f"Proje yok: {project}")
     if runner.status().get("status") == "running":
         raise Busy("Üretim sürüyor — önce durdur.")
-    frames = plan_store.read(project)["frames"]
-    for frame in queue.open_frames(frames, record.statuses(project)):
-        record.mark(project, frame["id"], layers.PHOTO, photo_file(frame["id"]),
+    jobs = plan_store.read(project)["frames"]
+    for owed in queue.open_jobs(jobs, record.slots(project)):
+        record.mark(project, owed["id"], queue.type_of(owed), photo_file(owed["id"]),
                     queue.REMOVED, now())
     runner.reset()

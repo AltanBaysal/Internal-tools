@@ -4,10 +4,10 @@ from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.services.drive.storage import DriveStorage
 
 FRAMES = [
-    {"id": "P3_0", "number": 3, "variant": 0, "prompt": "kraliçe tahtta", "negative": "bulanık",
-     "seed": 11, "model": "nova.safetensors"},
-    {"id": "P4_0", "number": 4, "variant": 0, "prompt": "kraliçe balkonda", "negative": "bulanık",
-     "seed": 22, "model": "nova.safetensors"},
+    {"id": "P3_0", "type": "photo", "number": 3, "variant": 0, "prompt": "kraliçe tahtta",
+     "negative": "bulanık", "seed": 11, "model": "nova.safetensors"},
+    {"id": "P4_0", "type": "photo", "number": 4, "variant": 0, "prompt": "kraliçe balkonda",
+     "negative": "bulanık", "seed": 22, "model": "nova.safetensors"},
 ]
 
 

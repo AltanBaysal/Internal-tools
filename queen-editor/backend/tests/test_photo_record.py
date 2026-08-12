@@ -79,13 +79,19 @@ def test_rows_without_a_file_name_are_skipped(tmp_path):
     assert [row["file"] for row in record.list("düğün")] == ["0_a.png"]
 
 
-def test_statuses_reads_the_latest_line_per_frame(tmp_path):
+def photo_statuses(record, project="düğün"):
+    """{frame: photo slot status} -- the one slot most of these tests are about."""
+    return {frame: cells["photo"]["status"]
+            for frame, cells in record.slots(project).items() if "photo" in cells}
+
+
+def test_the_latest_line_about_a_slot_wins(tmp_path):
     record = record_at(tmp_path)
     record.append("düğün", {**entry("0_a.png"), "status": "done"})
     record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t2", error="ComfyUI 500")
     record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t3")
 
-    assert record.statuses("düğün") == {"0_a": "deleted", "1_a": "failed"}
+    assert photo_statuses(record) == {"0_a": "deleted", "1_a": "failed"}
 
 
 def test_a_failure_line_carries_the_servers_own_words(tmp_path):
@@ -112,7 +118,7 @@ def test_lines_written_before_the_status_field_still_read(tmp_path):
     record.append("düğün", entry("1_a.png"))
     record.append("düğün", {"file": "1_a.png", "deletedAt": "t3"})
 
-    assert record.statuses("düğün") == {"0_a": "done", "1_a": "deleted"}
+    assert photo_statuses(record) == {"0_a": "done", "1_a": "deleted"}
     assert [row["file"] for row in record.list("düğün")] == ["0_a.png"]
 
 
@@ -139,7 +145,7 @@ def test_a_video_line_does_not_answer_for_its_frames_photo(tmp_path):
                             "status": "failed"})
 
     # The photo is still there; only the video blew up.
-    assert record.statuses("düğün") == {"0_a": "done"}
+    assert photo_statuses(record) == {"0_a": "done"}
 
 
 def test_slots_fold_the_latest_line_per_frame_and_layer(tmp_path):
