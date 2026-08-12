@@ -7,17 +7,6 @@ from backend.features.producers.domain.usecases.list_producers import list_produ
 from backend.features.producers.runner import InstallRunner
 
 
-class FakeProducer:
-    def __init__(self, installed=True, boom=None):
-        self._installed = installed
-        self._boom = boom
-
-    def installed(self):
-        if self._boom:
-            raise RuntimeError(self._boom)
-        return self._installed
-
-
 class FakeFiles:
     def __init__(self, present=()):
         self.present = set(present)
@@ -68,7 +57,7 @@ def gated_groups():
 
 
 def test_all_three_are_listed_in_the_order_the_engine_works_in():
-    rows = list_producers(GROUPS, FakeFiles(), {})
+    rows = list_producers(GROUPS, FakeFiles())
 
     assert [row["id"] for row in rows] == ["photo", "video", "audio"]
     assert [row["name"] for row in rows] == [
@@ -78,36 +67,21 @@ def test_all_three_are_listed_in_the_order_the_engine_works_in():
 def test_a_producer_with_a_group_is_installed_when_every_file_of_it_is_here():
     files = FakeFiles(present=[("vae", "wan_vae.safetensors"), ("loras", "high.safetensors")])
 
-    assert list_producers(GROUPS, files, {})[1]["installed"] is True
+    assert list_producers(GROUPS, files)[1]["installed"] is True
 
 
 def test_one_missing_file_means_not_installed():
     files = FakeFiles(present=[("vae", "wan_vae.safetensors")])
 
-    assert list_producers(GROUPS, files, {})[1]["installed"] is False
+    assert list_producers(GROUPS, files)[1]["installed"] is False
 
 
-def test_a_producer_with_no_group_answers_for_itself():
-    # The notebook sets the photo producer up, and which checkpoint it holds is the user's choice --
-    # so the renderer is asked instead of a list of file names we do not own.
-    rows = list_producers(GROUPS, FakeFiles(), {"photo": FakeProducer(installed=True)})
-
-    assert rows[0]["installed"] is True
-
-
-def test_a_kind_with_neither_a_group_nor_a_producer_is_not_installed():
-    assert list_producers(GROUPS, FakeFiles(), {})[0]["installed"] is False
-
-
-def test_a_producer_that_cannot_answer_is_not_quietly_called_missing():
-    # Saying "not installed" would invite a download nobody needs; the caller has to hear the
-    # renderer's own words instead.
-    with pytest.raises(RuntimeError):
-        list_producers(GROUPS, FakeFiles(), {"photo": FakeProducer(boom="Bağlantı yok")})
+def test_a_kind_with_no_group_is_not_installed():
+    assert list_producers(GROUPS, FakeFiles())[0]["installed"] is False
 
 
 def test_the_running_install_is_reported_on_its_own_row():
-    rows = list_producers(GROUPS, FakeFiles(), {},
+    rows = list_producers(GROUPS, FakeFiles(),
                           running={"kind": "video", "done": 5, "total": 10, "file": "wan"})
 
     assert rows[1]["installing"] == {"done": 5, "total": 10, "file": "wan"}
@@ -210,3 +184,23 @@ def test_every_gated_row_says_which_source_it_needs():
 
 def test_the_civitai_header_carries_the_cookie_under_its_own_name():
     assert model_groups.civitai_headers("abc") == {"Cookie": "__Secure-civ-token=abc"}
+
+
+def test_the_photo_group_carries_everything_the_graph_reads():
+    rows = model_groups.GROUPS["photo"]
+
+    assert [(row["folder"], row["name"]) for row in rows] == [
+        ("checkpoints", "nova3DCGXL_ilV90.safetensors"),
+        ("loras", "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"),
+        ("upscale_models", "4x_foolhardy_Remacri.pth"),
+        ("ultralytics/bbox", "face_yolov9c.pt"),
+        ("sams", "sam_vit_b_01ec64.pth"),
+    ]
+    assert all(row["url"] for row in rows)
+
+
+def test_only_the_civitai_rows_of_the_photo_group_need_a_key():
+    gated = [row["name"] for row in model_groups.GROUPS["photo"] if row.get("auth")]
+
+    assert gated == ["nova3DCGXL_ilV90.safetensors",
+                     "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"]

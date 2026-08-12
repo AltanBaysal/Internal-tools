@@ -45,19 +45,6 @@ def generator_at(tmp_path, graph=None):
     return client, ComfyPhotoGenerator(client, write_graph(tmp_path, graph), timeout=60)
 
 
-def test_the_photo_producer_is_installed_when_the_renderer_lists_a_model(tmp_path):
-    generator = ComfyPhotoGenerator(FakeClient(checkpoints=["nova.safetensors"]),
-                                    write_graph(tmp_path), timeout=60)
-
-    assert generator.installed() is True
-
-
-def test_the_photo_producer_is_not_installed_when_the_renderer_lists_none(tmp_path):
-    generator = ComfyPhotoGenerator(FakeClient(checkpoints=[]), write_graph(tmp_path), timeout=60)
-
-    assert generator.installed() is False
-
-
 def test_generate_patches_prompt_negative_and_seed(tmp_path):
     client, generator = generator_at(tmp_path)
 

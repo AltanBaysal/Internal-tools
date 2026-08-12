@@ -29,7 +29,7 @@ def make_client(tmp_path, runner=None):
     runner = runner or InstallRunner(spawn=lambda fn: fn())
     fetcher = FakeFetcher()
     blueprint = make_producers_blueprint(
-        list_producers=lambda: list_producers(GROUPS, files, {}, running=runner.status()),
+        list_producers=lambda: list_producers(GROUPS, files, running=runner.status()),
         install_producer=partial(install_producer, GROUPS, files, fetcher, runner, {}),
         cancel_install=partial(cancel_install, runner),
     )

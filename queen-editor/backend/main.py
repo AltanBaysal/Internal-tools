@@ -179,16 +179,14 @@ _photo_bp = make_photo_generation_blueprint(
     photo_dir=_photo_store.photo_dir,
 )
 
-# A producer with a declared model group is judged by its files; one without (the photo producer,
-# which the notebook sets up) answers for itself, so the same map the loop dispatches on is handed
-# over too.
+# Every producer is judged by its own model group: installed means those files are on this machine.
 _fetcher = HttpFetcher()
 _install_runner = InstallRunner()
 # The keys the installer may need, by source. Built here because a secret belongs in no other
 # layer; an empty map is a real answer -- the install then stops at a gated row and says so.
 _auth = {CIVITAI: civitai_headers(config.CIVITAI_COOKIE)} if config.CIVITAI_COOKIE else {}
 _producers_bp = make_producers_blueprint(
-    list_producers=lambda: list_producers(GROUPS, _model_files, _producers,
+    list_producers=lambda: list_producers(GROUPS, _model_files,
                                           running=_install_runner.status()),
     install_producer=partial(install_producer, GROUPS, _model_files, _fetcher, _install_runner,
                              _auth),

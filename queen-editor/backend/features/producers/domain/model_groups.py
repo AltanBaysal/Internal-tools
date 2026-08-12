@@ -14,9 +14,6 @@ Three kinds of entry appear here:
 
 Both stops are loud on purpose: a group half installed in silence would read as installed the next
 time anybody looked.
-
-An empty group means the producer does not answer for itself through files at all: the photo
-producer is set up by the notebook, and which checkpoint it holds is the user's own choice.
 """
 HF_WAN22 = "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files"
 HF_WAN21 = "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files"
@@ -35,7 +32,24 @@ def civitai_headers(cookie):
     return {"Cookie": f"{CIVITAI_COOKIE_NAME}={cookie}"}
 
 GROUPS = {
-    "photo": [],
+    # What the photo graph reads. The checkpoint and the lora are the render itself; the other
+    # three are branches of the same graph -- the default-on FaceDetailer loads the detector and
+    # SAM at startup, and the bypassed Ultimate SD Upscale reads Remacri the moment it is switched
+    # on. Two of five would make "the photo producer is installed" a lie.
+    "photo": [
+        {"folder": "checkpoints", "name": "nova3DCGXL_ilV90.safetensors",
+         "url": f"{CIVITAI_DOWNLOAD}/2744564", "auth": CIVITAI},
+        {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors",
+         "url": f"{CIVITAI_DOWNLOAD}/1552087", "auth": CIVITAI},
+        {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth",
+         "url": "https://huggingface.co/FacehugmanIII/4x_foolhardy_Remacri/resolve/main/"
+                "4x_foolhardy_Remacri.pth"},
+        # UltralyticsDetectorProvider lists this one as "bbox/<name>", so the folder is nested.
+        {"folder": "ultralytics/bbox", "name": "face_yolov9c.pt",
+         "url": "https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov9c.pt"},
+        {"folder": "sams", "name": "sam_vit_b_01ec64.pth",
+         "url": "https://dl.fbaipublicfiles.com/segment_anything/sam_vit_b_01ec64.pth"},
+    ],
     "video": [
         # The name is what the graph's VAELoader asks for, which is not what the file is called at
         # the source: ComfyUI looks the model up by its name on disk, so it lands under that one.
