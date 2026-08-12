@@ -12,9 +12,15 @@ to hang it on yet. A frame that already has this layer is never written over -- 
 the extra one becomes a frame of its own, sharing what is under it and taking the next variant of
 its source's number (madde 25, 102).
 """
-from backend.features.photo_generation.domain import layers, queue
-from backend.features.photo_generation.domain.copy_frame import next_id
-from backend.features.photo_generation.domain.photo_name import number_of, variant_of
+from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain.copy_frame import (
+    carry_layers,
+    family,
+    known_ids,
+    next_id,
+    placed,
+)
+from backend.features.photo_generation.domain.photo_name import variant_of
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.run_queue import run_queue
 from backend.features.photo_generation.domain.usecases.start_batch import (  # noqa: F401
@@ -26,18 +32,6 @@ from backend.features.photo_generation.domain.usecases.start_batch import (  # n
 
 class InvalidScope(Exception):
     """The selection was not a list of file names (message is user-facing)."""
-
-
-def _family(frame):
-    """The (number, variant) pair the frame's identity claims -- the plan's own fields as a fallback.
-
-    Read off the identity rather than the plan, because a copy frame has no photo job in the plan:
-    its row comes from the record, and its name is the only thing that says which prompt's family
-    it belongs to.
-    """
-    number, variant = number_of(frame["id"]), variant_of(frame["id"])
-    return (number if number is not None else frame.get("number"),
-            variant if variant is not None else frame.get("variant"))
 
 
 def frames_in_scope(gallery, kind, files=None):
@@ -56,7 +50,7 @@ def frames_in_scope(gallery, kind, files=None):
             continue
         # Only a produced photo can carry anything. A name that claims no number cannot be planned
         # at all: the plan keeps a number per job and reads back only the jobs that have one.
-        if frame["status"] != "done" or _family(frame)[0] is None:
+        if frame["status"] != "done" or family(frame)[0] is None:
             continue
         held, broken = frame.get("layers", {}), frame.get("failed", [])
         # Sound is mixed over a video, so a frame without one -- or whose video blew up -- is never
@@ -80,29 +74,6 @@ def _job(kind, fid, number, variant):
             "prompt": "", "negative": "", "seed": None, "model": ""}
 
 
-def _placed(gallery, born):
-    """The gallery's own sequence with each frame's new copies hanging directly above it.
-
-    Above rather than below for two reasons: the gallery's rule is newest on top and a copy is newer
-    than its source, and the engine reads the gallery from its foot up -- so the source's own layer
-    is made first and its copies follow.
-
-    The whole sequence is written, not just the copies: a project nobody has dragged has no order
-    file at all, and a file naming the copies alone would send every other frame to the top.
-    """
-    placed = []
-    for fid in gallery:
-        placed.extend(reversed(born.get(fid, [])))
-        placed.append(fid)
-    return placed
-
-
-def _known_ids(record, plan_store, project):
-    """Every identity the project has ever used -- deleted frames included, so no name is reused."""
-    return ({frame["id"] for frame in plan_store.read(project)["frames"]}
-            | set(record.slots(project)))
-
-
 def queue_layer(runner, store, record, plan_store, order_store, producers, now, project, kind,
                 files=None, variants=1, log=None, writers=None):
     """Returns how many jobs of this kind the queue took."""
@@ -119,17 +90,15 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         # Nothing owed and nothing started: an empty scope is a result, not a failure.
         return 0
 
-    taken = _known_ids(record, plan_store, project)
+    taken = known_ids(record, plan_store, project)
     jobs, born = [], {}
     # Written oldest first, the direction the engine works in: the gallery is newest-first and its
     # foot is what gets made first, so a plan written the way it reads would run backwards wherever
     # the gallery's own order file has nothing to say.
     for frame in reversed(scope):
         fid = frame["id"]
-        number, variant = _family(frame)
-        # What each layer under this one was made from: the gallery row already merged the record's
-        # answer with the plan's, so asking again here would be the same question in two places.
-        held, words = frame.get("layers", {}), frame.get("prompts", {})
+        number, variant = family(frame)
+        held = frame.get("layers", {})
         owed = variants
         if kind not in held:
             jobs.append(_job(kind, fid, number, variant))
@@ -137,22 +106,14 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         for _ in range(owed):
             copy = next_id(taken, number)
             taken.add(copy)
-            # A real frame, born holding everything below the layer being made: a video copy shares
-            # the picture, a sound copy shares the picture and the video (madde 102). No flag and
-            # no field -- the gallery draws it, deletes it and orders it by the rules it has.
-            for under in queue.ORDER[:queue.ORDER.index(kind)]:
-                file = held.get(under)
-                if not file:
-                    continue
-                record.append(project, {"file": file, "frame": copy, "layer": under,
-                                        "status": queue.DONE, "prompt": words.get(under, ""),
-                                        "negative": frame.get("negative", ""),
-                                        "seed": frame.get("seed"), "createdAt": now()})
+            # A real frame, born holding everything below the layer being made. No flag and no
+            # field -- the gallery draws it, deletes it and orders it by the rules it has.
+            carry_layers(record, project, copy, frame, kind, now)
             born.setdefault(fid, []).append(copy)
             jobs.append(_job(kind, copy, number, variant_of(copy)))
 
     if born:
-        order_store.write(project, _placed([frame["id"] for frame in gallery], born))
+        order_store.write(project, placed([frame["id"] for frame in gallery], born))
     plan_store.append(project, jobs)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers)

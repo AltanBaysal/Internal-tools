@@ -13,6 +13,7 @@ from backend.features.photo_generation.domain.usecases.get_status import get_sta
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
+from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
@@ -86,6 +87,8 @@ def make_client(tmp_path, generator=None, runner=None):
                              producers, lambda: "2026-08-03T14:32:11+00:00"),
         queue_layer=partial(queue_layer, runner, store, record, plan_store, order_store,
                             producers, lambda: "2026-08-03T14:32:11+00:00"),
+        regenerate=partial(regenerate, runner, store, record, plan_store, order_store,
+                           producers, lambda: 42, lambda: "2026-08-03T14:32:11+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         list_models=partial(list_models, generator),
         save_order=partial(save_order, record, store, plan_store, order_store),
@@ -457,6 +460,57 @@ def test_a_copy_frame_shares_its_sources_photo_file(tmp_path):
     assert [row["id"] for row in rows] == ["P0_2", "P0_1", "P0_0"]
     # Three frames, one picture on disk.
     assert {row["file"] for row in rows} == {"P0_0.png"}
+
+
+def regenerate_request(client, file, layer="photo", prompt="a", project="düğün"):
+    return client.post(f"/api/projects/{project}/regenerate",
+                       json={"file": file, "layer": layer, "prompt": prompt})
+
+
+def test_regenerate_answers_with_the_new_frames_name(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = regenerate_request(client, "P0_0.png")
+
+    assert resp.status_code == 202
+    assert resp.get_json() == {"job": "running", "frame": "P0_1"}
+
+
+def test_a_frame_made_again_joins_the_gallery_beside_its_source(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    regenerate_request(client, "P0_0.png", prompt="başka")
+
+    rows = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [(row["id"], row["file"]) for row in rows] == [("P1_0", "P1_0.png"),
+                                                          ("P0_0", "P0_0.png")]
+    assert (drive / "düğün" / "P1_0.png").exists()
+
+
+def test_regenerating_a_frame_the_gallery_does_not_know_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    assert regenerate_request(client, "9_z.png").status_code == 404
+
+
+def test_regenerating_a_layer_the_frame_cannot_carry_returns_400(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = regenerate_request(client, "P0_0.png", layer="audio", prompt="ses")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]
+
+
+def test_regenerating_a_layer_that_does_not_exist_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    assert regenerate_request(client, "P0_0.png", layer="foto").status_code == 404
 
 
 def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):

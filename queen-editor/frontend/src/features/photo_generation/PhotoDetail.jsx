@@ -5,7 +5,7 @@ import { navigate, photoPath, projectPath } from "../../shared/router.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import { Rendering } from "./frame_status.jsx";
+import { Pill, Rendering } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 import LayerPlayer from "./LayerPlayer.jsx";
 import { useGeneration } from "./useGeneration.js";
@@ -114,12 +114,32 @@ function TextBlock({ label, text }) {
   );
 }
 
+// The open layer's own prompt, in the user's hands. Only this one box is writable: what is sent is
+// the open layer's prompt alone, and a box under it that changed nothing would be a lie.
+//
+// Nothing is saved. The words live on screen until they are made into a frame or the frame is left
+// (madde 76) -- a stored draft is a concept the design never asked for.
+function PromptBox({ label, value, changed, onChange }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
+      <Mono size={10} style={LABEL}>{label}</Mono>
+      <textarea className="wf-stroke wf-note" value={value} onChange={(e) => onChange(e.target.value)}
+                style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 10, resize: "none",
+                         background: "transparent", color: "var(--ink-2)", fontSize: 12,
+                         lineHeight: 1.6,
+                         // The accent says one thing: pressing now makes a NEW prompt rather than
+                         // another variant of this one. Space around the words is not that.
+                         borderColor: changed ? "var(--accent)" : undefined }} />
+    </div>
+  );
+}
+
 // Artboard 10: the frame as large as it fits, between two arrows; the 300px column on the right
 // says where it sits, what it is called and what it was asked to be. Every frame in the gallery
 // opens here -- produced, waiting, being rendered or failed -- and the page is live, so the one the
 // worker is holding turns into its photo without a reload.
 export default function PhotoDetail({ project, file }) {
-  const { frames, current, currentLayer, error, removePhotos } = useGeneration(project);
+  const { frames, current, currentLayer, error, removePhotos, regenerate } = useGeneration(project);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   // Which layer is open. The photo to begin with: it is the frame itself, and the others are what
@@ -128,6 +148,13 @@ export default function PhotoDetail({ project, file }) {
   // Only a removal of ours puts the card on screen: the hook's error is also where a failed poll
   // lands, and that one has nothing to do with this frame.
   const [refused, setRefused] = useState(false);
+  // What the user has typed, per layer. An untouched layer is absent rather than empty: that is
+  // what lets the box fall back to the frame's own words as the poll refreshes them.
+  const [words, setWords] = useState({});
+  // The layers already sent off to be made again. Their result is a frame of its own, so this page
+  // will never see it land -- the button has to remember the press itself.
+  const [sent, setSent] = useState([]);
+  const [refusedLayer, setRefusedLayer] = useState(false);
 
   const index = frames ? frames.findIndex((frame) => frame.file === file) : -1;
   const frame = index >= 0 ? frames[index] : null;
@@ -150,6 +177,15 @@ export default function PhotoDetail({ project, file }) {
   // Every layer up to the open one: the column shows their file names, then the open layer's own
   // prompt, then the ones under it (madde 75).
   const shown = LAYER_ORDER.slice(0, LAYER_ORDER.indexOf(open) + 1);
+  // Is the open layer really there? The photo tab needs no answer from `layers`: a produced frame
+  // IS its photo. Only a layer that exists can be made again, and only it can be edited.
+  const holds = open === "photo" ? produced : has[open];
+  // What the layer was made from -- the frame's own words until the user types over them.
+  const said = (frame?.prompts || {})[open] ?? (open === "photo" ? frame?.prompt : "") ?? "";
+  const typed = words[open] ?? said;
+  // Compared trimmed, exactly as the server compares it: what the accent border promises and what
+  // the new frame's name turns out to be must be the same answer (madde 99).
+  const changed = typed.trim() !== said.trim();
 
   // The arrows swap the frame under a page that stays mounted, so anything said about the old one
   // has to go with it -- a refusal card from the previous frame would read as this one's, and a
@@ -159,6 +195,10 @@ export default function PhotoDetail({ project, file }) {
     setConfirming(false);
     setBusy(false);
     setOpen("photo");
+    // The editing belonged to that frame, and so did the presses: both go with it.
+    setWords({});
+    setSent([]);
+    setRefusedLayer(false);
   }, [file]);
 
   useEffect(() => {
@@ -188,6 +228,17 @@ export default function PhotoDetail({ project, file }) {
     });
   }
 
+  // No confirm box and nowhere to go: the frame on screen keeps everything it has, and what was
+  // asked for turns up in the gallery as a frame of its own (madde 77).
+  function handleRegenerate() {
+    setRefusedLayer(false);
+    const layer = open;
+    return regenerate(file, layer, typed).then((body) => {
+      if (!body) return setRefusedLayer(true);
+      setSent((layers) => [...layers, layer]);
+    });
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={HEADER}>
@@ -210,6 +261,11 @@ export default function PhotoDetail({ project, file }) {
         <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
           <div style={STAGE}>
             <LayerTabs open={open} has={has} onOpen={setOpen} />
+            {/* The corner label the gallery uses, with this page's own sentence: the queue took the
+                job, and what it makes will be a frame of its own rather than this one changing. */}
+            {sent.length > 0 && (
+              <Pill color="var(--accent)">yeniden üretilecek — kuyrukta</Pill>
+            )}
             <Arrow glyph="‹" side="left"
                    onClick={previous
                      ? () => navigate(photoPath(project, previous.file))
@@ -270,14 +326,32 @@ export default function PhotoDetail({ project, file }) {
             {/* The open layer's own prompt first, then the ones under it -- those are what it was
                 made from, and this page never asks them to be changed (madde 75). */}
             {[...shown].reverse().map((layer) => (
-              <TextBlock key={layer}
-                         label={layer === open ? "Prompt" : `${LAYER_WORD[layer]} prompt`}
-                         text={(frame.prompts || {})[layer]
-                               ?? (layer === "photo" ? frame.prompt : "")} />
+              layer === open && holds ? (
+                <PromptBox key={layer} label="Prompt" value={typed} changed={changed}
+                           onChange={(text) => setWords((kept) => ({ ...kept, [layer]: text }))} />
+              ) : (
+                <TextBlock key={layer}
+                           label={layer === open ? "Prompt" : `${LAYER_WORD[layer]} prompt`}
+                           text={(frame.prompts || {})[layer]
+                                 ?? (layer === "photo" ? frame.prompt : "")} />
+              )
             ))}
-            {/* The negative belongs to the photo alone: video and sound jobs carry none. */}
+            {/* The negative belongs to the photo alone: video and sound jobs carry none. It stays
+                read-only: the design gives the user the prompt, not the whole submission. */}
             {open === "photo" && <TextBlock label="Negatif" text={frame.negative} />}
 
+            {holds && (
+              /* Accent whether the prompt was touched or not (madde 78): making the frame again is
+                 what this page is for, and a changed prompt only decides the new frame's name. */
+              <Btn sm hl disabled={sent.includes(open)} onClick={handleRegenerate}
+                   style={{ justifyContent: "center" }}>
+                {sent.includes(open)
+                  ? "Kuyruğa eklendi"
+                  : <><Icon.Regen /> Yeniden üret — yeni kare</>}
+              </Btn>
+            )}
+
+            {refusedLayer && <StatusErrorCard text="Kare yeniden üretilemedi" raw={error} />}
             {refused && (
               <StatusErrorCard text={produced ? "Fotoğraf silinemedi" : "Kare kuyruktan çıkarılamadı"}
                                raw={error} />

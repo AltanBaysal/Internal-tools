@@ -19,6 +19,23 @@ const PILL = {
   pointerEvents: "none",
 };
 
+/** The corner label itself, with whatever words the caller has.
+ *
+ * Exported so a page that has its own sentence to put in that corner gets the same label rather
+ * than a second one that looks almost like it.
+ */
+export function Pill({ color, alive, children }) {
+  return (
+    <span data-pill className="qe-pill wf-mono" style={{ ...PILL, color }}>
+      {alive && (
+        <span aria-hidden="true" className="qe-dot qe-dot--alive"
+              style={{ background: "currentColor", width: 5, height: 5 }} />
+      )}
+      {children}
+    </span>
+  );
+}
+
 /** The state pill, or nothing at all.
  *
  * A produced frame has no pill: the photo itself is the answer, and what it owns is said by the
@@ -28,13 +45,7 @@ export function StatusPill({ layer, state }) {
   const shown = STATE[state];
   if (!shown) return null;
   return (
-    <span data-pill className="qe-pill wf-mono" style={{ ...PILL, color: shown.color }}>
-      {shown.alive && (
-        <span aria-hidden="true" className="qe-dot qe-dot--alive"
-              style={{ background: "currentColor", width: 5, height: 5 }} />
-      )}
-      {LAYER_WORD[layer]} {shown.word}
-    </span>
+    <Pill color={shown.color} alive={shown.alive}>{LAYER_WORD[layer]} {shown.word}</Pill>
   );
 }
 

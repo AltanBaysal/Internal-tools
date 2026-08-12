@@ -92,6 +92,16 @@ export async function queueLayer(project, kind, files, variants) {
   });
 }
 
+// Make one frame's layer again, with the words the user has in front of them. The answer names the
+// frame it will be made on -- a new one, never the frame it was asked from.
+export async function regenerateFrame(project, file, layer, prompt) {
+  return request(`/api/projects/${encodeURIComponent(project)}/regenerate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ file, layer, prompt }),
+  });
+}
+
 // Which producers this machine has, and which of them are installed. Not a project's question --
 // the models live next to the renderer, not in a project folder.
 export async function listProducers() {

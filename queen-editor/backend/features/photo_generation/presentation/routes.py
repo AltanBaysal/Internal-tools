@@ -9,9 +9,10 @@ import json
 
 from flask import Blueprint, jsonify, request, send_file, send_from_directory
 
-from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
+from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing
 from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
@@ -30,8 +31,8 @@ QUEUEABLE = (layers.VIDEO, layers.AUDIO)
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
-                                    list_frames, list_models, save_order, export_project,
-                                    remove_frames, photo_dir):
+                                    regenerate, list_frames, list_models, save_order,
+                                    export_project, remove_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -140,6 +141,30 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
         return jsonify({"job": "running", "added": added}), 202
+
+    @bp.post("/api/projects/<project>/regenerate")
+    def post_regenerate(project):
+        body = request.get_json(silent=True) or {}
+        layer = body.get("layer")
+        # Every layer can be made again, the photo included: what is asked for here is one named
+        # frame's own layer, not a batch.
+        if layer not in queue.ORDER:
+            return jsonify({"error": f"Böyle bir katman yok: {layer}"}), 404
+        prompt = body.get("prompt")
+        try:
+            # A non-string prompt counts as no words at all; the model is never asked for these,
+            # so what goes down is exactly what the user was shown.
+            frame = regenerate(project, body.get("file"), layer,
+                               prompt if isinstance(prompt, str) else "")
+        except (ProjectMissing, FrameMissing) as exc:
+            return jsonify({"error": str(exc)}), 404
+        except LayerMissing as exc:
+            return jsonify({"error": str(exc)}), 400
+        except Busy as exc:
+            return jsonify({"error": str(exc)}), 409
+        # The new frame's name goes back: the screen has just been told that its work landed
+        # somewhere else.
+        return jsonify({"job": "running", "frame": frame}), 202
 
     @bp.get("/api/projects/<project>/frames")
     def frames(project):

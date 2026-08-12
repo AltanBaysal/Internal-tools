@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getStatus, listFrames, removeFrames } from "../../shared/api.js";
+import { getStatus, listFrames, regenerateFrame, removeFrames } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import PhotoDetail from "./PhotoDetail.jsx";
 
@@ -10,6 +10,7 @@ vi.mock("../../shared/api.js", () => ({
   generateBatch: vi.fn(),
   getStatus: vi.fn(),
   listFrames: vi.fn(),
+  regenerateFrame: vi.fn(),
   removeFrames: vi.fn(),
   resumeBatch: vi.fn(),
   retryFrame: vi.fn(),
@@ -64,7 +65,13 @@ const LAYERED = {
   prompts: { photo: "kırmızı elbise", video: "kadın dönüyor", audio: "kumaş hışırtısı" },
 };
 
+// The frame the arrows move on to: its own words, so a box that kept the first frame's text shows.
+const SECOND = { file: "P1_0.png", status: "done", prompt: "mavi elbise", negative: "",
+                 layers: { photo: "P1_0.png" }, failed: [], owed: [],
+                 prompts: { photo: "mavi elbise" } };
+
 const tab = (name) => screen.getByRole("button", { name });
+const regenButton = () => screen.getByText("Yeniden üret — yeni kare").closest("button");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -102,7 +109,8 @@ describe("PhotoDetail — the layer tabs", () => {
 
     fireEvent.click(tab("Video"));
 
-    expect(screen.getByText("kadın dönüyor")).toBeTruthy();
+    // The open layer's prompt is the editable box; the ones under it are read-only (madde 75).
+    expect(screen.getByDisplayValue("kadın dönüyor")).toBeTruthy();
     expect(screen.getByText("kırmızı elbise")).toBeTruthy();
     expect(screen.getByText("P0_0_V1_0.mp4")).toBeTruthy();
     // The negative belongs to the photo alone: video and sound jobs carry none.
@@ -114,7 +122,7 @@ describe("PhotoDetail — the layer tabs", () => {
 
     fireEvent.click(tab("Ses"));
 
-    expect(screen.getByText("kumaş hışırtısı")).toBeTruthy();
+    expect(screen.getByDisplayValue("kumaş hışırtısı")).toBeTruthy();
     expect(screen.getByText("P0_0_V1_0_S1_0.wav")).toBeTruthy();
     expect(screen.getByText("kadın dönüyor")).toBeTruthy();
   });
@@ -160,7 +168,7 @@ describe("PhotoDetail", () => {
 
     expect(screen.getByText("2 / 3")).toBeTruthy();
     expect(screen.getByText("1_a.png")).toBeTruthy();
-    expect(screen.getByText(/ikinci/)).toBeTruthy();
+    expect(screen.getByDisplayValue("ikinci")).toBeTruthy();
   });
 
   it("moves to the next photo with the arrow", async () => {
@@ -337,6 +345,103 @@ describe("PhotoDetail — the frame the worker is holding", () => {
 
     expect(screen.getByAltText("2_a.png")).toBeTruthy();
     expect(screen.queryByText("Çalışıyor")).toBeNull();
+  });
+});
+
+describe("PhotoDetail — regenerating", () => {
+  it("lets the open layer's prompt be edited and marks the box as changed", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+    const box = screen.getByDisplayValue("kırmızı elbise");
+    expect(box.style.borderColor).not.toBe("var(--accent)");
+
+    fireEvent.change(box, { target: { value: "mavi elbise" } });
+
+    expect(screen.getByDisplayValue("mavi elbise").style.borderColor).toBe("var(--accent)");
+  });
+
+  it("leaves the box unmarked when only the space around the words changed", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+    // The same node all the way through: the box is queried before the edit, because a display
+    // value is matched with its whitespace collapsed and could not tell the two apart.
+    const box = screen.getByDisplayValue("kırmızı elbise");
+
+    fireEvent.change(box, { target: { value: "  kırmızı elbise\n" } });
+
+    expect(box.value).toBe("  kırmızı elbise\n");
+    expect(box.style.borderColor).not.toBe("var(--accent)");
+  });
+
+  it("keeps the button accent whether the prompt was touched or not", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    expect(regenButton().className).toContain("wf-btn--hl");
+    expect(regenButton().disabled).toBe(false);
+  });
+
+  it("sends the open layer and the edited text", async () => {
+    regenerateFrame.mockResolvedValue({ frame: "P0_1" });
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    fireEvent.change(screen.getByDisplayValue("kadın dönüyor"),
+                     { target: { value: "kadın yürüyor" } });
+    await act(async () => { fireEvent.click(regenButton()); });
+
+    expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0.png", "video", "kadın yürüyor");
+  });
+
+  it("says the job went into the queue and refuses a second press", async () => {
+    regenerateFrame.mockResolvedValue({ frame: "P0_1" });
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    await act(async () => { fireEvent.click(regenButton()); });
+
+    expect(screen.getByText("Kuyruğa eklendi").closest("button").disabled).toBe(true);
+    // And the frame says what is coming: the work landed on a frame of its own.
+    expect(screen.getByText("yeniden üretilecek — kuyrukta")).toBeTruthy();
+  });
+
+  it("keeps the other tabs pressable after one layer was sent", async () => {
+    regenerateFrame.mockResolvedValue({ frame: "P0_1" });
+    await open("P0_0.png", { frames: [LAYERED] });
+    await act(async () => { fireEvent.click(regenButton()); });
+
+    fireEvent.click(tab("Video"));
+
+    expect(regenButton().disabled).toBe(false);
+  });
+
+  it("stays on the frame and says so when the server refuses", async () => {
+    regenerateFrame.mockRejectedValue(new Error("Proje yok: düğün"));
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    await act(async () => { fireEvent.click(regenButton()); });
+
+    expect(screen.getByText("Kare yeniden üretilemedi")).toBeTruthy();
+    expect(screen.getByText(/Proje yok/)).toBeTruthy();
+    expect(regenButton().disabled).toBe(false);
+  });
+
+  it("forgets the editing when another frame is opened", async () => {
+    // The arrows swap the frame under a mounted page: the box belongs to the frame, not the page.
+    listFrames.mockResolvedValue([LAYERED, SECOND]);
+    getStatus.mockResolvedValue(IDLE);
+    const { rerender } = render(<PhotoDetail project="düğün" file="P0_0.png" />);
+    await settle();
+    fireEvent.change(screen.getByDisplayValue("kırmızı elbise"),
+                     { target: { value: "yeşil elbise" } });
+
+    rerender(<PhotoDetail project="düğün" file="P1_0.png" />);
+    await settle();
+
+    expect(screen.getByDisplayValue("mavi elbise")).toBeTruthy();
+    expect(screen.queryByDisplayValue("yeşil elbise")).toBeNull();
+  });
+
+  it("offers nothing to make again on a frame that was never produced", async () => {
+    await open("3_a.png", { frames: MIXED });
+
+    expect(screen.queryByText("Yeniden üret — yeni kare")).toBeNull();
   });
 });
 

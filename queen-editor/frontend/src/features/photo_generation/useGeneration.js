@@ -7,6 +7,7 @@ import {
   listFrames,
   removeFrames,
   queueLayer as postLayer,
+  regenerateFrame,
   resumeBatch,
   retryFailed,
   retryFrame,
@@ -160,6 +161,23 @@ export function useGeneration(project) {
       })
   ), [project, startPolling]);
 
+  // One layer of one frame, made again from the words on screen. Resolves with the server's answer
+  // -- it names the frame the result will land on, which is never this one -- or null when it was
+  // refused; the page has to tell those apart to know whether to say anything.
+  const regenerate = useCallback((file, kind, prompt) => (
+    regenerateFrame(project, file, kind, prompt)
+      .then((body) => {
+        if (!alive.current) return null;
+        startPolling();
+        return body;
+      })
+      .catch((err) => {
+        if (!alive.current) return null;
+        setError(err.message);
+        return null;
+      })
+  ), [project, startPolling]);
+
   // Every red job at once. Same endpoint as one frame's Tekrar dene, with no frame named.
   const retryAll = useCallback(() => (
     retryFailed(project)
@@ -257,6 +275,6 @@ export function useGeneration(project) {
     .filter((card) => card.count > 0);
 
   return { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
-           retryAll, queueLayer,
+           retryAll, queueLayer, regenerate,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

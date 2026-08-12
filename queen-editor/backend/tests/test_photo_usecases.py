@@ -21,6 +21,11 @@ from backend.features.photo_generation.domain.usecases.queue_layer import (
     frames_in_scope,
     queue_layer,
 )
+from backend.features.photo_generation.domain.usecases.regenerate import (
+    FrameMissing,
+    LayerMissing,
+    regenerate,
+)
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
@@ -1351,6 +1356,129 @@ def test_an_empty_scope_starts_nothing():
                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün",
                         layers.VIDEO) == 0
     assert runner.status()["status"] == "idle"
+
+
+def test_regenerating_with_the_same_prompt_stays_in_the_family():
+    store, record, plan_store = video_project((0, "a"))
+
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", "0_a.png", layers.PHOTO, "p")
+
+    assert born == "P0_1"
+    job = plan_store.appended[-1][0]
+    assert (job["type"], job["prompt"], job["seed"]) == ("photo", "p", 7)
+
+
+def test_a_changed_prompt_takes_the_next_prompt_number():
+    store, record, plan_store = video_project((0, "a"))
+
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", "0_a.png", layers.PHOTO, "başka bir şey")
+
+    assert born == "P1_0"
+
+
+def test_only_the_words_count_as_a_change():
+    # Space around the text is not an edit: it would name a whole new prompt for nothing.
+    store, record, plan_store = video_project((0, "a"))
+
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", "0_a.png", layers.PHOTO, "  p\n")
+
+    assert born == "P0_1"
+
+
+def test_the_new_frame_stands_next_to_its_source():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+    order = FakeOrderStore()
+
+    regenerate(sync_runner(), store, record, plan_store, order,
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a.png", layers.PHOTO, "p")
+
+    assert order.order == ["1_a", "P0_1", "0_a"]
+
+
+def test_a_frame_made_again_is_produced_under_its_own_name():
+    store, record, plan_store = video_project((0, "a"))
+
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", "0_a.png", layers.PHOTO, "p")
+
+    assert [name for name, _data in store.saved] == ["P0_1.png"]
+    # The source is left exactly as it was: "üret = ekle" holds here too (madde 77).
+    assert record.slots("düğün")["0_a"]["photo"] == {"status": "done", "file": "0_a.png"}
+    assert record.prompts("düğün")[born] == {"photo": "p"}
+
+
+def test_regenerating_a_video_gives_the_new_frame_the_sources_photo():
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", "0_a.png", layers.VIDEO, "kadın dönüyor")
+
+    assert record.slots("düğün")[born]["photo"]["file"] == "0_a.png"
+    # Nothing above the layer being made comes along, and the source keeps its own video.
+    assert list(record.slots("düğün")[born]) == ["photo"]
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
+
+
+def test_regenerating_a_sound_carries_the_photo_and_the_video():
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+    record.append("düğün", {"file": "0_a_V1_0_S1_0.wav", "frame": "0_a", "layer": "audio",
+                            "status": "done", "prompt": "kalabalık"})
+
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", "0_a.png", layers.AUDIO, "kalabalık")
+
+    copy = record.slots("düğün")[born]
+    assert copy["photo"]["file"] == "0_a.png"
+    assert copy["video"]["file"] == "0_a_V1_0.mp4"
+    assert "audio" not in copy               # the layer being made is the one it is missing
+
+
+def test_a_layer_made_again_is_planned_with_no_seed_of_its_own():
+    # Only a photo is made from a prompt and a seed; the others are made from what is under them.
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a.png", layers.VIDEO, "kadın yürüyor")
+
+    job = plan_store.appended[-1][0]
+    assert (job["type"], job["prompt"], job["seed"]) == ("video", "kadın yürüyor", None)
+    assert (job["number"], job["variant"]) == (1, 0)
+
+
+def test_a_layer_the_frame_cannot_carry_is_refused():
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(LayerMissing):
+        regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                   {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                   "düğün", "0_a.png", layers.AUDIO, "ses")
+    assert plan_store.appended == []
+
+
+def test_regenerating_a_frame_the_gallery_does_not_know_is_refused():
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(FrameMissing):
+        regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                   {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                   "düğün", "yok.png", layers.PHOTO, "p")
 
 
 def test_resume_refuses_when_nothing_is_left():
