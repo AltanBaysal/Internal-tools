@@ -88,6 +88,16 @@ export async function listProducers() {
   return body.producers;
 }
 
+// Fetch this producer's missing model files. 202: it takes minutes, and how far it has got is read
+// back from listProducers().
+export async function installProducer(kind) {
+  return request(`/api/producers/${encodeURIComponent(kind)}/install`, { method: "POST" });
+}
+
+export async function cancelInstall(kind) {
+  return request(`/api/producers/${encodeURIComponent(kind)}/install/cancel`, { method: "POST" });
+}
+
 export async function stopGeneration() {
   return request("/api/stop", { method: "POST" });
 }

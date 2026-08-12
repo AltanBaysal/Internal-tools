@@ -16,6 +16,10 @@ DRIVE_ROOT = os.environ.get("QE_DRIVE_ROOT", "/content/drive/MyDrive/queenEditor
 # ComfyUI runs on the same Colab machine; the notebook can point us elsewhere (tests do too).
 COMFY_URL = os.environ.get("QE_COMFY_URL", "http://127.0.0.1:8188")
 
+# ComfyUI's own folder on this machine -- where a producer's model group is installed. The notebook
+# passes it in; the literal below is only the fallback.
+COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
+
 # The graph ships in the repo (our own copy -- never read collab-toolbox's file).
 WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
 

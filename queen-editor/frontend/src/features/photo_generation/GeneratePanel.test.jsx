@@ -50,6 +50,20 @@ describe("GeneratePanel — the button", () => {
     expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(false);
   });
 
+  it("holds the queue button while the producer that would do the work is missing", () => {
+    renderPanel({ producer: { id: "photo", name: "Fotoğraf üreticisi", installed: false } });
+
+    expect(screen.getByText("Fotoğraf üreticisi kurulu değil.")).toBeTruthy();
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
+  });
+
+  it("lets go of it once the group has landed", () => {
+    renderPanel({ producer: { id: "photo", name: "Fotoğraf üreticisi", installed: true } });
+
+    expect(screen.queryByText(/kurulu değil/)).toBeNull();
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(false);
+  });
+
   it("is disabled on an empty list", () => {
     renderPanel({ settings: { ...SETTINGS, prompts: "   " } });
 

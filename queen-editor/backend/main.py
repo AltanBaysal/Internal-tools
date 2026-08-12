@@ -33,10 +33,16 @@ from backend.features.projects.domain.usecases.delete_project import delete_proj
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.save_settings import save_settings
+from backend.features.producers.data.comfy_models import ComfyModelFiles
+from backend.features.producers.domain.model_groups import GROUPS
+from backend.features.producers.domain.usecases.cancel_install import cancel_install
+from backend.features.producers.domain.usecases.install_producer import install_producer
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.presentation.routes import make_producers_blueprint
+from backend.features.producers.runner import InstallRunner
 from backend.features.projects.presentation.routes import make_projects_blueprint
 from backend.services.comfy.client import ComfyClient
+from backend.services.download.fetcher import HttpFetcher
 from backend.services.drive.storage import DriveStorage
 from backend.web.app import create_app
 
@@ -103,8 +109,18 @@ _photo_bp = make_photo_generation_blueprint(
     photo_dir=_photo_store.photo_dir,
 )
 
-# The same map the loop dispatches on: what can do a job is also what says whether it is installed.
-_producers_bp = make_producers_blueprint(list_producers=partial(list_producers, _producers))
+# A producer with a declared model group is judged by its files; one without (the photo producer,
+# which the notebook sets up) answers for itself, so the same map the loop dispatches on is handed
+# over too.
+_model_files = ComfyModelFiles(config.COMFY_ROOT)
+_fetcher = HttpFetcher()
+_install_runner = InstallRunner()
+_producers_bp = make_producers_blueprint(
+    list_producers=lambda: list_producers(GROUPS, _model_files, _producers,
+                                          running=_install_runner.status()),
+    install_producer=partial(install_producer, GROUPS, _model_files, _fetcher, _install_runner),
+    cancel_install=partial(cancel_install, _install_runner),
+)
 
 app = create_app(blueprints=[_projects_bp, _photo_bp, _producers_bp])
 

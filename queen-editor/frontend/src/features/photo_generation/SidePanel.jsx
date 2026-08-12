@@ -71,7 +71,7 @@ const BUTTON = {
   borderRightColor: "transparent",
 };
 
-function RailButton({ panel, active, onSelect }) {
+function RailButton({ panel, active, busy, onSelect }) {
   const Glyph = GLYPH[panel.id];
   return (
     <button type="button" aria-label={panel.title} aria-current={active ? "page" : undefined}
@@ -81,6 +81,11 @@ function RailButton({ panel, active, onSelect }) {
                      // Set apart at the foot: it is about the machine, not this project's work.
                      ...(panel.apart ? { marginTop: "auto", marginBottom: 12 } : {}) }}>
       <Glyph />
+      {/* Something is landing behind a closed panel: the rail is the only place that can say so. */}
+      {busy && (
+        <span aria-hidden="true" className="qe-dot qe-dot--alive"
+              style={{ position: "absolute", top: 8, right: 8, background: "var(--accent)" }} />
+      )}
     </button>
   );
 }
@@ -96,6 +101,7 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
   // has a reason to know it.
   const [open, setOpen] = useState("photo");
   const current = PANELS.find((panel) => panel.id === open);
+  const installing = (producers?.producers || []).some((producer) => producer.installing);
 
   return (
     <div style={COLUMN}>
@@ -109,7 +115,9 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
           <GeneratePanel job={job} error={error} errorField={errorField}
                          busyElsewhere={busyElsewhere} settings={settings}
                          models={models} modelsError={modelsError}
-                         onGenerate={onGenerate} onClearError={onClearError} />
+                         producer={(producers?.producers || []).find((p) => p.id === "photo")}
+                         onGenerate={onGenerate} onClearError={onClearError}
+                         onInstall={producers?.install} />
         )}
         {open === "queue" && (
           <QueuePanel job={job} error={error} errorField={errorField}
@@ -120,13 +128,14 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         {open === "agent" && <AgentPanel />}
         {open === "producers" && (
           <ProducersPanel producers={producers?.producers || null}
-                          error={producers?.error || null} />
+                          error={producers?.error || null}
+                          onInstall={producers?.install} onCancel={producers?.cancel} />
         )}
       </div>
       <div style={RAIL}>
         {PANELS.map((panel) => (
           <RailButton key={panel.id} panel={panel} active={panel.id === open}
-                      onSelect={setOpen} />
+                      busy={panel.id === "producers" && installing} onSelect={setOpen} />
         ))}
       </div>
     </div>

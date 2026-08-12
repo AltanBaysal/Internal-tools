@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono, Note } from "../../vendor/kit.jsx";
+import InstallCard from "../producers/InstallCard.jsx";
 import { PhotoGlyph } from "./glyphs.jsx";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
@@ -41,8 +42,8 @@ function boxLabel(message) {
 // puts them at the end of the queue. What the run has to say is not here: progress, pauses,
 // failures and the finish card all live in the queue panel (QueuePanel.jsx).
 export default function GeneratePanel({ job, error, errorField, busyElsewhere, settings,
-                                        models = null, modelsError = null,
-                                        onGenerate, onClearError }) {
+                                        models = null, modelsError = null, producer = null,
+                                        onGenerate, onClearError, onInstall }) {
   // Initial values only: the screen mounts after the settings have loaded, so there is nothing to
   // sync afterwards and typing is never overwritten.
   const [prompts, setPrompts] = useState(settings.prompts);
@@ -126,8 +127,14 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
       .finally(() => setSubmitting(false));
   }
 
+  // Nothing to queue while the engine that would do it is not here. The card says so and takes
+  // itself away once the group has landed.
+  const missing = Boolean(producer) && !producer.installed;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
+      <InstallCard producer={producer} onInstall={onInstall} />
+
       {/* The panel's first field, as it has been in the design since v1. The list is the
           renderer's answer, so what can be picked is exactly what the graph can load. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -189,7 +196,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
         <button
           type="button"
           className="wf-btn wf-btn--hl"
-          disabled={!prompts.trim() || busyElsewhere || submitting}
+          disabled={!prompts.trim() || busyElsewhere || submitting || missing}
           onClick={handleAdd}
           style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}
         >
