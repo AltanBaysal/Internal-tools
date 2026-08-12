@@ -991,6 +991,21 @@ def test_a_photo_is_made_from_its_prompt_alone():
     assert generator.sources == [None]
 
 
+def test_a_sound_job_is_written_from_the_frames_two_prompts():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın başını çeviriyor"})
+    plan_store.frames.append({"id": "0_a", "type": "audio", "number": 0, "variant": 0,
+                              "prompt": "", "negative": "", "seed": None, "model": ""})
+    writer = FakeWriter(answer="fabric rustling")
+
+    resume_batch(sync_runner(), store, record, plan_store,
+                 {layers.VIDEO: FakeGenerator(), layers.AUDIO: FakeGenerator()},
+                 lambda: "t", "düğün", writers={layers.AUDIO: writer})
+
+    assert writer.calls == [{"photo": "kırmızı elbiseli kadın", "video": "kadın başını çeviriyor"}]
+
+
 def test_a_job_that_carries_its_own_prompt_never_reaches_the_model():
     # An edited prompt is the user's own words: asking the model again would overwrite them.
     store, record, plan_store = video_job_project(job_prompt="elini kaldırıyor")

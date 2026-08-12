@@ -7,7 +7,10 @@ from functools import partial
 from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
-from backend.features.photo_generation.data.xai_prompt_writer import VideoPromptWriter
+from backend.features.photo_generation.data.xai_prompt_writer import (
+    AudioPromptWriter,
+    VideoPromptWriter,
+)
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
@@ -74,7 +77,7 @@ _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH
 _producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator}
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
 _xai = XaiClient(config.XAI_API_KEY, config.XAI_MODEL, config.XAI_URL, timeout=config.XAI_TIMEOUT)
-_writers = {layers.VIDEO: VideoPromptWriter(_xai)}
+_writers = {layers.VIDEO: VideoPromptWriter(_xai), layers.AUDIO: AudioPromptWriter(_xai)}
 _photo_runner = PhotoRunner()
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
