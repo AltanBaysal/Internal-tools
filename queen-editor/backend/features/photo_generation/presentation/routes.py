@@ -64,8 +64,10 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
         # 202: a batch runs for minutes, so the request only reports that the work was accepted.
-        # "added" is how many frames the queue took -- the panel quotes it back to the user.
-        return jsonify({"job": "running", "added": added}), 202
+        # "added" is how many frames the queue took -- the panel quotes it back to the user; and
+        # "frames" is the gallery they landed in, because the screen would ask for exactly that in
+        # a second round-trip, and until it lands the frames it was just told about are nowhere.
+        return jsonify({"job": "running", "added": added, "frames": list_frames(project)}), 202
 
     @bp.get("/api/models")
     def models():
@@ -143,7 +145,10 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc), "field": "variants"}), 400
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
-        return jsonify({"job": "running", "added": added}), 202
+        # The gallery comes back with the answer, the same as a photo batch: the button is the
+        # same button, and one of the two waiting a round-trip longer than the other would be an
+        # accident rather than a decision.
+        return jsonify({"job": "running", "added": added, "frames": list_frames(project)}), 202
 
     @bp.post("/api/projects/<project>/layers/<kind>/delete")
     def delete_layer(project, kind):

@@ -117,13 +117,17 @@ export function useGeneration(project) {
   }, []);
 
   // Every way of putting the worker back to work ends the same: believe it is running, re-arm the
-  // poll, and read the gallery again. Written once so the three callers cannot drift apart.
-  const startPolling = useCallback(() => {
+  // poll, and know what the gallery looks like. Written once so the callers cannot drift apart.
+  // A caller whose answer already carried the gallery passes it in: asking for it again would be a
+  // second round-trip for a list the screen is holding, and that is the wait the user sees between
+  // pressing Kuyruğa ekle and the frames appearing.
+  const startPolling = useCallback((gallery) => {
     setJob({ status: "running", project });
     wasRunning.current = true;
     clearTimeout(timer.current);
     timer.current = setTimeout(poll, POLL_MS);
-    refreshFrames();
+    if (gallery) setFrames(gallery);
+    else refreshFrames();
   }, [project, poll, refreshFrames]);
 
   const generate = useCallback(
@@ -135,7 +139,7 @@ export function useGeneration(project) {
       return generateBatch(project, form)
         .then((body) => {
           if (!alive.current) return null;
-          startPolling();
+          startPolling(body?.frames);
           return body;
         })
         .catch((err) => {
@@ -176,7 +180,7 @@ export function useGeneration(project) {
     postLayer(project, kind, files, variants)
       .then((body) => {
         if (!alive.current) return null;
-        startPolling();
+        startPolling(body?.frames);
         return body;
       })
       .catch((err) => {

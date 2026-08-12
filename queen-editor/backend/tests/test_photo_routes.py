@@ -138,6 +138,37 @@ def test_generate_returns_202_and_writes_every_frame(tmp_path):
         "P0_0.png", "P0_1.png", "P1_0.png", "P1_1.png"]
 
 
+def test_queueing_answers_with_the_gallery_it_just_made(tmp_path):
+    # Otherwise the screen has to ask for the gallery in a second round-trip, and the frames it was
+    # just told about are nowhere until that lands.
+    client, _ = make_client(tmp_path)
+
+    resp = generate(client, prompts='["a"]', variants=1)
+
+    body = resp.get_json()
+    assert body["added"] == 1
+    assert [frame["id"] for frame in body["frames"]] == ["P0_0"]
+
+
+def test_queueing_a_layer_answers_with_the_gallery_too(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={})
+
+    assert resp.status_code == 202
+    assert [frame["id"] for frame in resp.get_json()["frames"]] == ["P0_0"]
+
+
+def test_a_refused_batch_answers_with_the_error_alone(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    resp = generate(client, prompts="")
+
+    assert resp.status_code == 400
+    assert "frames" not in resp.get_json()
+
+
 def test_status_reports_the_counts(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=2)
@@ -191,7 +222,9 @@ def test_generate_reports_how_many_frames_the_queue_took(tmp_path):
     resp = generate(client, prompts='["a", "b"]', variants=3)
 
     assert resp.status_code == 202
-    assert resp.get_json() == {"job": "running", "added": 6}
+    body = resp.get_json()
+    # The count is its own answer, not something the screen derives by measuring the gallery.
+    assert body["job"] == "running" and body["added"] == 6
 
 
 def test_a_worker_held_by_another_project_returns_409(tmp_path):

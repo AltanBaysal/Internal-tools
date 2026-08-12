@@ -1,7 +1,14 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateBatch, getStatus, listFrames, saveOrder, stopGeneration } from "../../shared/api.js";
+import {
+  generateBatch,
+  getStatus,
+  listFrames,
+  resumeBatch,
+  saveOrder,
+  stopGeneration,
+} from "../../shared/api.js";
 import { useGeneration } from "./useGeneration.js";
 
 vi.mock("../../shared/api.js", () => ({
@@ -137,6 +144,36 @@ describe("useGeneration", () => {
     expect(result.current.frames).toEqual([]);
     expect(getStatus).toHaveBeenCalledTimes(1);
     expect(listFrames).toHaveBeenCalledWith("hiç görülmemiş");
+  });
+
+  it("puts the queued frames on screen without asking for the gallery again", async () => {
+    const rows = [{ id: "P0_0", file: "P0_0.png", status: "pending", owed: ["photo"], failed: [] }];
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockResolvedValue([]);
+    generateBatch.mockResolvedValue({ added: 1, frames: rows });
+
+    const { result } = renderHook(() => useGeneration("kuyruk"));
+    await settle();
+    listFrames.mockClear();
+
+    await act(async () => { await result.current.generate({ prompts: "a" }); });
+
+    expect(result.current.frames).toEqual(rows);
+    expect(listFrames).not.toHaveBeenCalled();
+  });
+
+  it("still asks for the gallery on a path that carries none", async () => {
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockResolvedValue([]);
+    resumeBatch.mockResolvedValue({});
+
+    const { result } = renderHook(() => useGeneration("devam"));
+    await settle();
+    listFrames.mockClear();
+
+    await act(async () => { await result.current.resume(); });
+
+    expect(listFrames).toHaveBeenCalled();
   });
 
   it("draws the gallery it already had the moment it is mounted again", async () => {
