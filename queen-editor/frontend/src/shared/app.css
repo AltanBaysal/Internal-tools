@@ -19,6 +19,15 @@
   opacity: 1;
 }
 
+/* The state pill and the select ring want the same corner. The ring wins it whenever it is on
+   screen -- under the pointer while browsing, and always while selection mode is open -- so the
+   pill drops to the corner below instead of sitting under it. */
+.qe-tile:hover .qe-pill,
+.qe-tile--selecting .qe-pill {
+  top: auto;
+  bottom: 6px;
+}
+
 /* A download link wearing the design's button clothes: everything else comes from .wf-btn, only
    the anchor's default underline has to go. */
 a.wf-btn {

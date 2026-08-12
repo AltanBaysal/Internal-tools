@@ -105,6 +105,30 @@ describe("Gallery — one sequence, four states", () => {
     done("0_a.png"),
   ];
 
+  const pillOf = (name) => tileOf(name).querySelector("[data-pill]");
+
+  it("says the layer and the state in one pill, in the corner", () => {
+    renderGallery({ frames: MIXED, current: "3_a.png" });
+
+    expect(pillOf("4_a.png").textContent).toBe("foto kuyrukta");
+    expect(pillOf("3_a.png").textContent).toBe("foto üretiliyor");
+    expect(pillOf("2_a.png").textContent).toBe("foto hata");
+  });
+
+  it("gives a produced frame no pill -- the photo is the answer", () => {
+    renderGallery({ frames: MIXED, current: "3_a.png" });
+
+    expect(pillOf("1_a.png")).toBeNull();
+  });
+
+  it("never puts two pills on one frame", () => {
+    renderGallery({ frames: MIXED, current: "3_a.png" });
+
+    for (const frame of MIXED) {
+      expect(tileOf(frame.file).querySelectorAll("[data-pill]").length).toBeLessThan(2);
+    }
+  });
+
   it("keeps every frame in its own place whatever became of it", () => {
     renderGallery({ frames: MIXED, current: "3_a.png" });
 
@@ -126,7 +150,7 @@ describe("Gallery — one sequence, four states", () => {
     renderGallery({ frames: MIXED, current: null, onRetry });
 
     // Once: not a red tile and a dashed one at the same time.
-    expect(screen.getAllByText("bekliyor")).toHaveLength(2);
+    expect(screen.getAllByText("foto kuyrukta")).toHaveLength(2);
     fireEvent.click(screen.getByText("Tekrar dene"));
 
     expect(onRetry).toHaveBeenCalledWith("2_a.png");
@@ -135,8 +159,8 @@ describe("Gallery — one sequence, four states", () => {
   it("turns the frame the worker is holding into a spinner without moving it", () => {
     renderGallery({ frames: MIXED, current: "3_a.png" });
 
-    // Four of the five are not photos; only the one the worker holds stops saying "bekliyor".
-    expect(screen.getAllByText("bekliyor")).toHaveLength(1);
+    // Four of the five are not photos; only the one the worker holds leaves the waiting pill.
+    expect(screen.getAllByText("foto kuyrukta")).toHaveLength(1);
     expect(tileOf("3_a.png").textContent).toContain("4");
   });
 
@@ -144,7 +168,20 @@ describe("Gallery — one sequence, four states", () => {
     renderGallery({ frames: [{ file: "0_a.png", status: "pending" }] });
 
     expect(screen.queryByText("henüz fotoğraf yok")).toBeNull();
-    expect(screen.getByText("bekliyor")).toBeTruthy();
+    expect(screen.getByText("foto kuyrukta")).toBeTruthy();
+  });
+
+  it("leaves the middle of a waiting card wordless -- the dashed border says it", () => {
+    renderGallery({ frames: MIXED, current: "3_a.png" });
+
+    expect(screen.queryByText("bekliyor")).toBeNull();
+  });
+
+  it("leaves the rendering card to the spinner alone", () => {
+    renderGallery({ frames: MIXED, current: "3_a.png" });
+
+    expect(screen.queryByText("Çalışıyor")).toBeNull();
+    expect(tileOf("3_a.png").querySelector(".wf-spinner")).toBeTruthy();
   });
 });
 

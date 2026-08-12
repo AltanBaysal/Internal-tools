@@ -226,7 +226,8 @@ describe("PhotoDetail — the frame the worker is holding", () => {
   it("spins instead of showing a photo, and lets nothing be pressed", async () => {
     await open("2_a.png", { frames: MIXED, status: RUNNING });
 
-    expect(screen.getByText("Çalışıyor")).toBeTruthy();
+    expect(document.querySelector(".wf-spinner")).toBeTruthy();
+    expect(screen.queryByText("Çalışıyor")).toBeNull();
     expect(screen.queryByText("henüz üretilmedi")).toBeNull();
     expect(screen.getByText("Kuyruktan çıkar").disabled).toBe(true);
   });

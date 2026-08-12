@@ -4,7 +4,8 @@ import { photoUrl } from "../../shared/api.js";
 import { navigate, photoPath, projectPath } from "../../shared/router.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
-import { Btn, Hand, Icon, ImgPH, Mono, Note } from "../../vendor/kit.jsx";
+import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
+import { Rendering } from "./frame_status.jsx";
 import { useGeneration } from "./useGeneration.js";
 
 const HEADER = {
@@ -165,7 +166,7 @@ export default function PhotoDetail({ project, file }) {
                    style={{ maxWidth: "calc(100% - 120px)", maxHeight: "100%", width: "auto",
                             height: "auto", objectFit: "contain", display: "block" }} />
             ) : state === "running" ? (
-              <ImgPH loading style={HOLDER} />
+              <Rendering style={HOLDER} />
             ) : state === "failed" ? (
               <div className="wf-img" style={{ ...HOLDER, borderStyle: "dashed",
                                                borderColor: "var(--danger)",

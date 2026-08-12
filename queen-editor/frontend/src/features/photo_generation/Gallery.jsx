@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { photoUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
-import { Btn, Icon, ImgPH, Mono, Note } from "../../vendor/kit.jsx";
+import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
+import { Rendering, StatusPill } from "./frame_status.jsx";
 
 const PAD = { padding: 16 };
 const GRID = { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12,
@@ -46,7 +47,7 @@ const HINT = { position: "absolute", inset: 0, display: "flex", alignItems: "cen
                justifyContent: "center", background: "rgba(10,8,7,.8)", borderRadius: 4,
                zIndex: 3, textAlign: "center", padding: 6 };
 
-function Tile({ name, muted, danger, badge, selected, onCheck, hint, children }) {
+function Tile({ name, muted, danger, badge, pill, selected, onCheck, hint, children }) {
   const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -58,6 +59,7 @@ function Tile({ name, muted, danger, badge, selected, onCheck, hint, children })
         {badge != null && (
           <Mono size={10} style={muted ? { ...BADGE, opacity: 0.5 } : BADGE}>{badge}</Mono>
         )}
+        {pill}
         {selected && <div style={TINT} />}
         {onCheck && (
           <div data-check className={selected ? "qe-check qe-check--on" : "qe-check"}
@@ -241,6 +243,7 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
               ) : (
                 <Tile name={frame.file} badge={badge} muted={!produced}
                       danger={state === "failed"}
+                      pill={<StatusPill layer="photo" state={state} />}
                       onCheck={state === "running" ? undefined : () => toggle(frame.file)}
                       selected={selected.includes(frame.file)}
                       hint={hint === frame.file ? "üretilince sıralanabilir" : null}>
@@ -263,7 +266,7 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
                                     border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
                                     display: "block" }} />
                     ) : state === "running" ? (
-                      <ImgPH loading style={{ aspectRatio: "1/1" }} />
+                      <Rendering style={{ aspectRatio: "1/1" }} />
                     ) : state === "failed" ? (
                       /* A frame that blew up stays where it is with its own way back: the run went
                          on without it, and Tekrar dene produces just this one. */
@@ -282,10 +285,10 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
                         </Btn>
                       </div>
                     ) : (
+                      /* Nothing in the middle: the dashed border already says there are no pixels,
+                         and the corner's pill says what the frame is waiting for. */
                       <div className="wf-img" style={{ aspectRatio: "1/1", borderStyle: "dashed",
-                                                       opacity: 0.35 }}>
-                        <Mono size={10} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
-                      </div>
+                                                       opacity: 0.35 }} />
                     )}
                   </a>
                 </Tile>
