@@ -7,6 +7,10 @@ pauses and what "done" means exist in exactly one place.
 
 Which producer does the work is decided by the job's type. The loop knows none of them by name: it
 is handed a {type: producer} map and looks the job's own type up in it.
+
+Some jobs are produced with a prompt nobody typed: a video's own is written by a language model when
+its turn comes. Which model that is the loop does not know either -- it looks the job's type up in a
+second map, exactly the way it finds the producer.
 """
 import time
 
@@ -14,13 +18,27 @@ from backend.features.photo_generation.domain import policy, queue
 from backend.features.photo_generation.domain.photo_name import photo_file
 
 
+def _prompts_of(record, project, fid):
+    """What the frame already says, layer by layer -- the material a prompt writer works from.
+
+    Read from the record rather than the plan: a copy frame has no photo job of its own, and its
+    photo row is where its prompt lives.
+    """
+    photo = next((row for row in record.list(project) if row["frame"] == fid), None)
+    return {"photo": (photo or {}).get("prompt", "")}
+
+
 def make_job(runner, store, record, plan_store, producers, now, project,
-             clock=time.monotonic, log=None, order_store=None):
+             clock=time.monotonic, log=None, order_store=None, writers=None):
     """Returns the callable PhotoRunner.start expects: it drains this project's queue.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
     nobody to do it stops the run and says so -- skipping it silently would drop work the user asked
     for.
+
+    `writers` maps a job type to the thing that writes its prompt when the job carries none (see
+    ports.PromptWriter). A type with no writer is produced with the prompt it has, which is what a
+    photo job -- whose prompt is the user's own -- always does.
 
     `order_store` is where the sequence comes from: the gallery's own order is the order work is
     done in, read from its foot up. Without one the plan's sequence stands, which is what a project
@@ -40,9 +58,10 @@ def make_job(runner, store, record, plan_store, producers, now, project,
         return {"status": status, **queue.counts(jobs, slots), **extra}
 
     def job():
-        # Attempts spent on the job in hand, and which job they belong to. Memory only: a dead
-        # process must leave no count behind, and a restarted run deserves three fresh tries.
-        attempts, holding = 0, None
+        # Attempts spent on the job in hand, which job they belong to, and the prompt written for
+        # it. Memory only: a dead process must leave no count behind, and a restarted run deserves
+        # three fresh tries.
+        attempts, holding, written = 0, None, None
         while True:
             if runner.stop_requested():
                 return summary("paused")
@@ -63,14 +82,29 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             fid = current["id"]
             name = photo_file(fid)
             if name != holding:
-                holding, attempts = name, 0
+                # A different job: its predecessor's attempts and written prompt are not its own.
+                holding, attempts, written = name, 0, None
             # pending is what the gallery draws as "bekliyor": the queue behind the job being done.
             # failures names the tiles it draws red, each with its own Tekrar dene.
             runner.report({**queue.counts(jobs, slots), "current": current,
                            "pending": [photo_file(j["id"]) for j in owed[1:]]})
             started = clock()
             try:
-                data = producer.generate(current["prompt"], current["negative"], current["seed"],
+                writer = (writers or {}).get(kind)
+                if writer and not current["prompt"] and written is None:
+                    # Asked here rather than when the job was queued: a job that waits hours would
+                    # otherwise be produced from a prompt written for a gallery that has changed,
+                    # and queueing 40 jobs would spend 40 requests before a single frame is made.
+                    # Inside the try on purpose -- a model that will not answer is a failure like
+                    # any other, and the three attempts and the frame-fault rule already say what
+                    # happens next.
+                    source = _prompts_of(record, project, fid)
+                    # Nothing to convert: asking would buy an invented prompt. I2V sees the picture
+                    # itself, so producing with an empty prompt is a real answer here.
+                    if any(source.values()):
+                        written = writer.write(source)
+                prompt = current["prompt"] or written or ""
+                data = producer.generate(prompt, current["negative"], current["seed"],
                                          current["model"])
             except Exception as exc:
                 if runner.stop_requested():
@@ -97,7 +131,7 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             # Only after the file exists: the line is what "this layer is here" means.
             record.append(project, {"file": filename, "frame": fid, "layer": kind,
                                     "status": queue.DONE,
-                                    "prompt": current["prompt"], "negative": current["negative"],
+                                    "prompt": prompt, "negative": current["negative"],
                                     "seed": current["seed"], "createdAt": now()})
             if log:
                 # Two numbers, never one: the render is the GPU's share and the writes are the

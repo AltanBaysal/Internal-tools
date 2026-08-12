@@ -10,7 +10,7 @@ from backend.features.photo_generation.domain.usecases.start_batch import Projec
 
 
 def retry_failed(runner, store, record, plan_store, producers, now, project, log=None,
-                 order_store=None):
+                 order_store=None, writers=None):
     """Returns how many jobs went back into the queue."""
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
@@ -22,5 +22,5 @@ def retry_failed(runner, store, record, plan_store, producers, now, project, log
             record.mark(project, fid, layer, cell["file"], queue.QUEUED, now())
             put_back += 1
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store)
+              order_store=order_store, writers=writers)
     return put_back

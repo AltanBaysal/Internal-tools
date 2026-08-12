@@ -95,7 +95,7 @@ def _known_ids(record, plan_store, project):
 
 
 def queue_videos(runner, store, record, plan_store, order_store, producers, now, project,
-                 files=None, variants=1, log=None):
+                 files=None, variants=1, log=None, writers=None):
     """Returns how many video jobs the queue took."""
     if files is not None and (not isinstance(files, list)
                               or any(not isinstance(name, str) for name in files)):
@@ -139,5 +139,5 @@ def queue_videos(runner, store, record, plan_store, order_store, producers, now,
         order_store.write(project, _placed([frame["id"] for frame in gallery], born))
     plan_store.append(project, jobs)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store)
+              order_store=order_store, writers=writers)
     return len(jobs)

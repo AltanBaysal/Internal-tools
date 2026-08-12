@@ -6,6 +6,7 @@ from functools import partial
 
 from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
+from backend.features.photo_generation.data.xai_prompt_writer import VideoPromptWriter
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
@@ -45,6 +46,7 @@ from backend.features.projects.presentation.routes import make_projects_blueprin
 from backend.services.comfy.client import ComfyClient
 from backend.services.download.fetcher import HttpFetcher
 from backend.services.drive.storage import DriveStorage
+from backend.services.xai.client import XaiClient
 from backend.web.app import create_app
 
 # One storage, shared by both features: they are separate features over the same Drive root.
@@ -67,6 +69,9 @@ _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, conf
 # What the loop dispatches on: one producer per job type. Video and audio join this map when their
 # producers exist; until then a job of that type stops the run instead of being skipped.
 _producers = {layers.PHOTO: _photo_generator}
+# Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
+_xai = XaiClient(config.XAI_API_KEY, config.XAI_MODEL, config.XAI_URL, timeout=config.XAI_TIMEOUT)
+_writers = {layers.VIDEO: VideoPromptWriter(_xai)}
 _photo_runner = PhotoRunner()
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
@@ -83,28 +88,28 @@ _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers, lambda: random.randint(0, 2**31 - 1),
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, order_store=_order_store),
+                        log=_timing, order_store=_order_store, writers=_writers),
     get_status=partial(get_status, _photo_runner),
     stop_generation=partial(stop_generation, _photo_runner, _comfy_client.interrupt),
     resume_batch=partial(resume_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing, order_store=_order_store),
+                         log=_timing, order_store=_order_store, writers=_writers),
     cancel_generation=partial(cancel_generation, _photo_runner, _photo_store, _photo_record,
                               _plan_store,
                               lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     retry_frame=partial(retry_frame, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, order_store=_order_store),
+                        log=_timing, order_store=_order_store, writers=_writers),
     retry_failed=partial(retry_failed, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing, order_store=_order_store),
+                         log=_timing, order_store=_order_store, writers=_writers),
     queue_videos=partial(queue_videos, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _order_store, _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing),
+                         log=_timing, writers=_writers),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
     list_models=partial(list_models, _photo_generator),
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),

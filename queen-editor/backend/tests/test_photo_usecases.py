@@ -842,6 +842,111 @@ def test_the_engine_does_not_skip_past_the_type_it_is_waiting_for():
     assert generator.calls == []
 
 
+class FakeWriter:
+    """The language model, without one: answers the same sentence and counts the asks."""
+
+    def __init__(self, answer="kadın başını yavaşça çeviriyor", blows_up=None):
+        self.answer = answer
+        self.blows_up = blows_up
+        self.calls = []
+
+    def write(self, prompts):
+        self.calls.append(prompts)
+        if self.blows_up:
+            raise self.blows_up
+        return self.answer
+
+
+class FailsTwice:
+    """Drops the first two attempts at the same job, then renders whatever is offered."""
+
+    def __init__(self):
+        self.calls = []
+
+    def generate(self, prompt, negative, seed, model=""):
+        self.calls.append((prompt, negative, seed, model))
+        if len(self.calls) < 3:
+            raise FrameFault(f"node 41: {prompt}")
+        return b"MP4"
+
+
+def video_job_project(prompt="p", job_prompt=""):
+    """A produced photo and one video job owed on it."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[
+        frame(0, prompt=prompt),
+        {"id": "0_a", "type": "video", "number": 0, "variant": 0, "prompt": job_prompt,
+         "negative": "", "seed": None, "model": ""},
+    ])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
+                            "prompt": prompt})
+    return store, record, plan_store
+
+
+def test_a_video_job_with_no_prompt_has_one_written_from_the_photos():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    generator, writer = FakeGenerator(), FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert writer.calls == [{"photo": "kırmızı elbiseli kadın"}]
+    # Produced with the written text, and the record says the layer was made with it.
+    assert generator.calls == [("kadın başını yavaşça çeviriyor", "", None, "")]
+    video = [row for row in record.rows if row.get("layer") == "video"][0]
+    assert video["prompt"] == "kadın başını yavaşça çeviriyor"
+
+
+def test_a_job_that_carries_its_own_prompt_never_reaches_the_model():
+    # An edited prompt is the user's own words: asking the model again would overwrite them.
+    store, record, plan_store = video_job_project(job_prompt="elini kaldırıyor")
+    generator, writer = FakeGenerator(), FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert writer.calls == []
+    assert generator.calls == [("elini kaldırıyor", "", None, "")]
+
+
+def test_a_frame_with_no_photo_prompt_is_not_worth_an_ask():
+    store, record, plan_store = video_job_project(prompt="")
+    generator, writer = FakeGenerator(), FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert writer.calls == []
+    assert generator.calls == [("", "", None, "")]
+
+
+def test_the_three_attempts_of_one_job_spend_a_single_ask():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    generator, writer = FailsTwice(), FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert len(generator.calls) == 3
+    assert len(writer.calls) == 1
+
+
+def test_a_model_that_will_not_answer_stops_the_run():
+    # No answer is not this frame's fault: the next job would fall exactly the same way.
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    runner = sync_runner()
+    writer = FakeWriter(blows_up=RuntimeError("xAI HTTP 401\ninvalid key"))
+
+    resume_batch(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    state = runner.status()
+    assert state["status"] == "error"
+    assert "401" in state["error"]
+    # Nothing written: the job is still owed once the key is fixed.
+    assert [row for row in record.rows if row.get("layer") == "video"] == []
+
+
 def video_project(*frames):
     """A plan and a record where every named frame has a produced photo."""
     store, record = FakeStore(), FakeRecord()

@@ -25,3 +25,11 @@ WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
 
 RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so this is a stall guard
 POLL_INTERVAL = 5          # seconds between /history polls
+
+# The language model that writes a video's prompt (design v3, madde 27). The key comes from Colab
+# Secrets through the notebook; without one the app still starts and photos still render -- only a
+# video job's turn stops the run, with the client's own sentence.
+XAI_API_KEY = os.environ.get("QE_XAI_API_KEY", "")
+XAI_MODEL = os.environ.get("QE_XAI_MODEL", "grok-4.3")
+XAI_URL = os.environ.get("QE_XAI_URL", "https://api.x.ai/v1/chat/completions")
+XAI_TIMEOUT = 120          # seconds per request; one prompt is a short answer

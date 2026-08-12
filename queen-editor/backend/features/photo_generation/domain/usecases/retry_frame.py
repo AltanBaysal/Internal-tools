@@ -15,7 +15,7 @@ class FrameMissing(Exception):
 
 
 def retry_frame(runner, store, record, plan_store, producers, now, project, file, log=None,
-                order_store=None):
+                order_store=None, writers=None):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     frames = plan_store.read(project)["frames"]
@@ -24,4 +24,4 @@ def retry_frame(runner, store, record, plan_store, producers, now, project, file
         raise FrameMissing(f"Bu kare planda yok: {file}")
     record.mark(project, target["id"], layers.PHOTO, file, queue.QUEUED, now())
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store)
+              order_store=order_store, writers=writers)
