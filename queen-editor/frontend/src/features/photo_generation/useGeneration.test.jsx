@@ -127,14 +127,68 @@ describe("useGeneration", () => {
     getStatus.mockResolvedValue({ status: "idle" });
     listFrames.mockResolvedValue([]);
 
-    const { result } = renderHook(() => useGeneration("düğün"));
+    // Its own project name: a gallery already answered for is remembered across mounts, so only a
+    // project nothing has seen still starts out unknown.
+    const { result } = renderHook(() => useGeneration("hiç görülmemiş"));
     expect(result.current.frames).toBeNull();
 
     await settle();
 
     expect(result.current.frames).toEqual([]);
     expect(getStatus).toHaveBeenCalledTimes(1);
-    expect(listFrames).toHaveBeenCalledWith("düğün");
+    expect(listFrames).toHaveBeenCalledWith("hiç görülmemiş");
+  });
+
+  it("draws the gallery it already had the moment it is mounted again", async () => {
+    const rows = [{ id: "P0_0", file: "P0_0.png", status: "done", owed: [], failed: [] }];
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockResolvedValue(rows);
+
+    const first = renderHook(() => useGeneration("hatırlanan"));
+    await settle();
+    first.unmount();
+
+    // Nothing has answered yet on this mount -- opening a frame's detail and coming back must not
+    // blank the screen and start over.
+    listFrames.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useGeneration("hatırlanan"));
+
+    expect(result.current.frames).toEqual(rows);
+  });
+
+  it("never hands one project's gallery to another", async () => {
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockResolvedValue([
+      { id: "P0_0", file: "P0_0.png", status: "done", owed: [], failed: [] }]);
+
+    const first = renderHook(() => useGeneration("birinci"));
+    await settle();
+    first.unmount();
+
+    listFrames.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useGeneration("ikinci"));
+
+    expect(result.current.frames).toBeNull();
+  });
+
+  it("remembers the order the tiles were dropped into, not the one before it", async () => {
+    const rows = [
+      { id: "P0_0", file: "P0_0.png", status: "done", owed: [], failed: [] },
+      { id: "P1_0", file: "P1_0.png", status: "done", owed: [], failed: [] },
+    ];
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockResolvedValue(rows);
+    saveOrder.mockResolvedValue({});
+
+    const first = renderHook(() => useGeneration("sıralı"));
+    await settle();
+    await act(async () => { await first.result.current.reorder(["P1_0", "P0_0"]); });
+    first.unmount();
+
+    listFrames.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useGeneration("sıralı"));
+
+    expect(result.current.frames.map((frame) => frame.id)).toEqual(["P1_0", "P0_0"]);
   });
 
   it("asks every 2 seconds while a run is going and stops the chain when it ends", async () => {

@@ -18,6 +18,12 @@ import {
 
 const POLL_MS = 2000;
 
+// The last gallery each project answered with. Opening a frame's detail replaces the whole project
+// screen, so this hook is torn down and built again on every step in and out; without this the
+// screen would blank and refetch each time, though the answer it had was still good. Keyed by
+// project: one project's gallery is never another's.
+const REMEMBERED = new Map();
+
 // The order the engine works in: it finishes one kind before it starts the next, so the queue
 // panel's cards stand in this sequence too. The words are the server's own layer names.
 const KINDS = ["photo", "video", "audio"];
@@ -26,9 +32,12 @@ const KINDS = ["photo", "video", "audio"];
 // The gallery refreshes on every poll: Drive is the truth about what exists and what is owed.
 export function useGeneration(project) {
   const [job, setJob] = useState({ status: "idle" });
+  // Has the server said anything about the worker yet? "idle" above is a placeholder, not an
+  // answer, and a screen that acts on it decides on a state nobody reported.
+  const [known, setKnown] = useState(false);
   // The whole gallery sequence -- produced, pending and failed frames in display order.
-  // null = not known yet (first fetch still flying), [] = the project truly has nothing.
-  const [frames, setFrames] = useState(null);
+  // null = not known yet (nothing has ever answered for this project), [] = it truly has nothing.
+  const [frames, setFrames] = useState(() => REMEMBERED.get(project) || null);
   const [error, setError] = useState(null);   // rejected request or unreachable server
   // Which input the server blamed, when it named one: "prompts" | "variants" | null.
   const [errorField, setErrorField] = useState(null);
@@ -44,6 +53,13 @@ export function useGeneration(project) {
   // While a drag is being saved the gallery on screen is ahead of the server: a poll's older list
   // would snap the tiles back for one frame and then forward again.
   const savingOrder = useRef(false);
+  // Which project the list on screen belongs to. The route can swap projects without unmounting,
+  // and the previous one's tiles must not stay up while the new answer flies.
+  const shownProject = useRef(project);
+  if (shownProject.current !== project) {
+    shownProject.current = project;
+    setFrames(REMEMBERED.get(project) || null);
+  }
 
   const refreshFrames = useCallback(() => {
     listFrames(project)
@@ -59,6 +75,7 @@ export function useGeneration(project) {
       .then((state) => {
         if (!alive.current) return;
         setJob(state);
+        setKnown(true);
         setError(null);                       // a successful poll clears a stale connection error
         if (state.status !== "running") setStopPressed(false);
         if (wasRunning.current && state.status !== "running") refreshFrames();
@@ -86,6 +103,13 @@ export function useGeneration(project) {
       clearTimeout(timer.current);
     };
   }, [poll]);
+
+  // Whatever the list becomes -- answered, reordered, a frame removed -- is what a later mount
+  // starts from. One effect rather than a write next to every setFrames: those are functional
+  // updates, and a cache written inside one would be a side effect where there must be none.
+  useEffect(() => {
+    if (frames) REMEMBERED.set(project, frames);
+  }, [project, frames]);
 
   const clearError = useCallback(() => {
     setError(null);
@@ -290,7 +314,7 @@ export function useGeneration(project) {
     .map((layer) => ({ layer, count: failedByKind[layer] }))
     .filter((card) => card.count > 0);
 
-  return { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+  return { job, known, frames, error, errorField, stopping, queue, failures, current, currentLayer,
            retryAll, queueLayer, regenerate, removeLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

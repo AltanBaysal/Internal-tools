@@ -29,9 +29,11 @@ vi.mock("../../shared/api.js", () => ({
 
 const SETTINGS = { prompts: "", negative: "", variants: 4 };
 
-function renderScreen() {
+// The gallery a project last answered with is remembered across mounts, so a test that must start
+// from nothing asks for a project name no other test has filled.
+function renderScreen(project = "düğün") {
   return render(
-    <ProjectScreen project="düğün" settings={SETTINGS} onSaveSettings={() => Promise.resolve()} />,
+    <ProjectScreen project={project} settings={SETTINGS} onSaveSettings={() => Promise.resolve()} />,
   );
 }
 
@@ -167,11 +169,24 @@ describe("ProjectScreen — an open project carries its queue on", () => {
 
   it("leaves a waiting queue where it is while its producer is still missing", async () => {
     listFrames.mockResolvedValue([]);
-    getStatus.mockResolvedValue({ status: "waiting", project: "düğün", waitingFor: "video" });
+    getStatus.mockResolvedValue({ status: "waiting", project: "boş 1", waitingFor: "video" });
     listProducers.mockResolvedValue([
       { id: "video", name: "Video üreticisi", installed: false }]);
 
-    renderScreen();
+    renderScreen("boş 1");
+    await settle();
+
+    expect(resumeBatch).not.toHaveBeenCalled();
+  });
+
+  it("waits for the server before it carries any queue on", async () => {
+    // The frames arrive first -- from the answer or from the gallery this screen already had --
+    // and until the status lands, "idle" is a placeholder rather than something the server said.
+    // Acting on it would resume a queue the user had paused.
+    listFrames.mockResolvedValue(OWED);
+    getStatus.mockReturnValue(new Promise(() => {}));
+
+    renderScreen("sunucu susuyor");
     await settle();
 
     expect(resumeBatch).not.toHaveBeenCalled();
@@ -189,9 +204,9 @@ describe("ProjectScreen — an open project carries its queue on", () => {
 
   it("leaves a queue a fatal error stopped alone", async () => {
     listFrames.mockResolvedValue(OWED);
-    getStatus.mockResolvedValue({ status: "error", project: "düğün", error: "boom" });
+    getStatus.mockResolvedValue({ status: "error", project: "boş 2", error: "boom" });
 
-    renderScreen();
+    renderScreen("boş 2");
     await settle();
 
     expect(resumeBatch).not.toHaveBeenCalled();
@@ -201,7 +216,7 @@ describe("ProjectScreen — an open project carries its queue on", () => {
     listFrames.mockResolvedValue([{ id: "0_a", file: "0_a.png", status: "done" }]);
     getStatus.mockResolvedValue({ status: "idle" });
 
-    renderScreen();
+    renderScreen("boş 3");
     await settle();
 
     expect(resumeBatch).not.toHaveBeenCalled();

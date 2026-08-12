@@ -24,7 +24,7 @@ const HINT = { position: "absolute", top: "calc(100% + 8px)", right: 0, width: 3
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+  const { job, known, frames, error, errorField, stopping, queue, failures, current, currentLayer,
           retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
@@ -55,13 +55,17 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
 
   const asked = useRef(null);
   useEffect(() => {
+    // Nothing is decided before the server has answered: the gallery can be on screen already --
+    // from this poll or from the one this screen kept -- while the status is still the placeholder
+    // "idle", and resuming on that would restart a queue the user had paused.
+    if (!known) return;
     const waitingForUser = mine && (job.status === "paused" || job.status === "error");
     if (asked.current === project || job.status === "running" || waitingForUser) return;
     if (!queue.length) return;
     asked.current = project;
     setResumed(true);
     resume();
-  }, [project, mine, job.status, queue.length, resume]);
+  }, [project, known, mine, job.status, queue.length, resume]);
 
   // "Kurulum bitince kuyruk kendiliğinden sürer": the queue stopped because the engine for the job
   // at its head was not on this machine, and now it is. Nobody has to press anything. Joined here
