@@ -4,11 +4,16 @@ Knowledge inherited from collab-toolbox, not a dependency on it: the names and a
 into our own file, so that folder can change without changing ours (CODE-STANDARD's independence
 rule).
 
-Two kinds of entry appear here:
+Three kinds of entry appear here:
   * a file with a `url` -- the app fetches it,
-  * a file with `url: None` -- it needs credentials the app has no place for, so the notebook's
-    setup cell installs it. The installer stops when it reaches one and says so, because a group
-    half installed in silence would read as installed the next time anybody looked.
+  * a file with a `url` and an `auth` word -- the source wants a key, and the composition root is
+    the only layer that holds one. The installer stops when it reaches a source it was given no
+    key for,
+  * a file with `url: None` -- nothing the app can fetch at all, so the notebook's setup cell
+    installs it. The installer stops there too.
+
+Both stops are loud on purpose: a group half installed in silence would read as installed the next
+time anybody looked.
 
 An empty group means the producer does not answer for itself through files at all: the photo
 producer is set up by the notebook, and which checkpoint it holds is the user's own choice.
@@ -16,6 +21,18 @@ producer is set up by the notebook, and which checkpoint it holds is the user's 
 HF_WAN22 = "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files"
 HF_WAN21 = "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files"
 HF_MMAUDIO_NSFW = "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
+
+# Civitai serves gated files by model version id, behind a login cookie. The address and the
+# cookie's name live together: if the source changes, one file changes.
+CIVITAI = "civitai"
+CIVITAI_DOWNLOAD = "https://civitai.red/api/download/models"
+CIVITAI_COOKIE_NAME = "__Secure-civ-token"
+
+
+def civitai_headers(cookie):
+    """What a Civitai download must carry. This file knows the cookie's name, never its value --
+    the secret is the composition root's to supply."""
+    return {"Cookie": f"{CIVITAI_COOKIE_NAME}={cookie}"}
 
 GROUPS = {
     "photo": [],
@@ -30,13 +47,17 @@ GROUPS = {
          "url": f"{HF_WAN22}/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors"},
         {"folder": "loras", "name": "wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors",
          "url": f"{HF_WAN22}/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors"},
-        # SmoothMix comes from Civitai behind a token; the notebook fetches it. The graph loads it
-        # twice over: the checkpoint pair as diffusion models, and the Animations pair as loras the
-        # Power Lora Loader has switched on.
-        {"folder": "diffusion_models", "name": "SmoothMix_I2V_v2_High.safetensors", "url": None},
-        {"folder": "diffusion_models", "name": "SmoothMix_I2V_v2_Low.safetensors", "url": None},
-        {"folder": "loras", "name": "SmoothMix_Animations_XXX_High.safetensors", "url": None},
-        {"folder": "loras", "name": "SmoothMix_Animations_XXX_Low.safetensors", "url": None},
+        # SmoothMix comes from Civitai behind a login cookie. The graph loads it twice over: the
+        # checkpoint pair as diffusion models, and the Animations pair as loras the Power Lora
+        # Loader has switched on.
+        {"folder": "diffusion_models", "name": "SmoothMix_I2V_v2_High.safetensors",
+         "url": f"{CIVITAI_DOWNLOAD}/2513182", "auth": CIVITAI},
+        {"folder": "diffusion_models", "name": "SmoothMix_I2V_v2_Low.safetensors",
+         "url": f"{CIVITAI_DOWNLOAD}/2513186", "auth": CIVITAI},
+        {"folder": "loras", "name": "SmoothMix_Animations_XXX_High.safetensors",
+         "url": f"{CIVITAI_DOWNLOAD}/2376136", "auth": CIVITAI},
+        {"folder": "loras", "name": "SmoothMix_Animations_XXX_Low.safetensors",
+         "url": f"{CIVITAI_DOWNLOAD}/2376143", "auth": CIVITAI},
     ],
     "audio": [
         # The fine-tune the sampler loads, and the only file that is ours to fetch: MMAudio's own

@@ -38,20 +38,23 @@ class _Streamed:
             yield chunk
 
 
-def _open(url):
-    return _Streamed(urllib.request.urlopen(url))
+def _open(url, headers):
+    return _Streamed(urllib.request.urlopen(urllib.request.Request(url, headers=headers)))
 
 
 class HttpFetcher:
     def __init__(self, open_url=None):
         self._open = open_url or _open
 
-    def fetch(self, url, path, on_progress=None, cancelled=None):
+    def fetch(self, url, path, headers=None, on_progress=None, cancelled=None):
+        """`headers` is sent as given. What they are and why is the caller's business: a service
+        knows no producer, no model and no source."""
         os.makedirs(os.path.dirname(path), exist_ok=True)
         partial = f"{path}.part"
         done = 0
         try:
-            with self._open(url) as response:
+            with self._open(url, headers or {}) as response:
+                self._refuse_a_page(response)
                 total = self._length(response)
                 with open(partial, "wb") as out:
                     for chunk in response.iter(CHUNK):
@@ -67,6 +70,17 @@ class HttpFetcher:
             if os.path.exists(partial):
                 os.remove(partial)
             raise
+
+    @staticmethod
+    def _refuse_a_page(response):
+        """A file is expected; a page is not one. A gated download can answer with a sign-in screen
+        -- 200, HTML, a couple of kilobytes -- and writing that under a model's name would leave
+        something that looks installed for good. Reported with the server's own words rather than
+        a guess at why it answered that way.
+        """
+        kind = (response.headers.get("Content-Type") or "").lower()
+        if kind.startswith("text/html"):
+            raise RuntimeError(f"İndirme dosya yerine sayfa döndü (Content-Type: {kind})")
 
     @staticmethod
     def _length(response):

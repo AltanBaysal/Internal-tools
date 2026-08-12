@@ -50,7 +50,12 @@ from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
-from backend.features.producers.domain.model_groups import GROUPS, audio_weights
+from backend.features.producers.domain.model_groups import (
+    CIVITAI,
+    GROUPS,
+    audio_weights,
+    civitai_headers,
+)
 from backend.features.producers.domain.usecases.cancel_install import cancel_install
 from backend.features.producers.domain.usecases.install_producer import install_producer
 from backend.features.producers.domain.usecases.list_producers import list_producers
@@ -179,10 +184,14 @@ _photo_bp = make_photo_generation_blueprint(
 # over too.
 _fetcher = HttpFetcher()
 _install_runner = InstallRunner()
+# The keys the installer may need, by source. Built here because a secret belongs in no other
+# layer; an empty map is a real answer -- the install then stops at a gated row and says so.
+_auth = {CIVITAI: civitai_headers(config.CIVITAI_COOKIE)} if config.CIVITAI_COOKIE else {}
 _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(GROUPS, _model_files, _producers,
                                           running=_install_runner.status()),
-    install_producer=partial(install_producer, GROUPS, _model_files, _fetcher, _install_runner),
+    install_producer=partial(install_producer, GROUPS, _model_files, _fetcher, _install_runner,
+                             _auth),
     cancel_install=partial(cancel_install, _install_runner),
 )
 

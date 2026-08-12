@@ -31,6 +31,10 @@ RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so th
 VIDEO_TIMEOUT = 30 * 60    # seconds for one video; 5s of WAN takes minutes, so this is a stall guard
 POLL_INTERVAL = 5          # seconds between /history polls
 
+# Civitai's login cookie: the gated model files sit behind it. Comes from Colab Secrets through the
+# notebook, like the xAI key; empty means those installs stop and say which source they wanted.
+CIVITAI_COOKIE = os.environ.get("QE_CIVITAI_COOKIE", "")
+
 # The language model that writes a video's prompt (design v3, madde 27). The key comes from Colab
 # Secrets through the notebook; without one the app still starts and photos still render -- only a
 # video job's turn stops the run, with the client's own sentence.

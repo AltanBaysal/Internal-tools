@@ -17,7 +17,7 @@ class FakeFetcher:
     def __init__(self):
         self.fetched = []
 
-    def fetch(self, url, path, on_progress=None, cancelled=None):
+    def fetch(self, url, path, headers=None, on_progress=None, cancelled=None):
         self.fetched.append(url)
 
 
@@ -30,7 +30,7 @@ def make_client(tmp_path, runner=None):
     fetcher = FakeFetcher()
     blueprint = make_producers_blueprint(
         list_producers=lambda: list_producers(GROUPS, files, {}, running=runner.status()),
-        install_producer=partial(install_producer, GROUPS, files, fetcher, runner),
+        install_producer=partial(install_producer, GROUPS, files, fetcher, runner, {}),
         cancel_install=partial(cancel_install, runner),
     )
     app = create_app(dist_dir=str(dist), blueprints=[blueprint])

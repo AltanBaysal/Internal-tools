@@ -38,11 +38,13 @@ class FakeFetcher:
     def __init__(self, fail=None):
         self.fetched = []
         self.fail = fail
+        self.headers = None
 
-    def fetch(self, url, path, on_progress=None, cancelled=None):
+    def fetch(self, url, path, headers=None, on_progress=None, cancelled=None):
         if self.fail and url == self.fail:
             raise RuntimeError("bağlantı yok")
         self.fetched.append((url, path))
+        self.headers = headers
         if on_progress:
             on_progress(10, 10)
 
@@ -57,6 +59,12 @@ GROUPS = {
 
 def sync_installer():
     return InstallRunner(spawn=lambda fn: fn())
+
+
+def gated_groups():
+    """The shipped video group's shape: one row that needs a source's key."""
+    return {**GROUPS, "video": GROUPS["video"] + [
+        {"folder": "loras", "name": "smooth.safetensors", "url": "u3", "auth": "civitai"}]}
 
 
 def test_all_three_are_listed_in_the_order_the_engine_works_in():
@@ -110,23 +118,23 @@ def test_it_fetches_only_what_is_missing():
     files = FakeFiles(present=[("vae", "wan_vae.safetensors")])
     fetcher = FakeFetcher()
 
-    install_producer(GROUPS, files, fetcher, sync_installer(), "video")
+    install_producer(GROUPS, files, fetcher, sync_installer(), {}, "video")
 
     assert [url for url, _path in fetcher.fetched] == ["u2"]
 
 
 def test_a_second_install_is_refused_while_one_runs():
     runner = InstallRunner(spawn=lambda fn: None)      # claimed, never finishes
-    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, "video")
+    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "video")
 
     with pytest.raises(Busy):
-        install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, "audio")
+        install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "audio")
 
 
 def test_a_file_the_app_cannot_fetch_stops_the_install_and_says_why():
     runner = sync_installer()
 
-    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, "audio")
+    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "audio")
 
     assert runner.status()["status"] == "error"
     assert "defter" in runner.status()["error"]
@@ -135,10 +143,29 @@ def test_a_file_the_app_cannot_fetch_stops_the_install_and_says_why():
 def test_a_producer_the_notebook_owns_cannot_be_installed_from_here():
     runner = sync_installer()
 
-    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, "photo")
+    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "photo")
 
     assert runner.status()["status"] == "error"
     assert "defter" in runner.status()["error"]
+
+
+def test_a_gated_row_is_fetched_with_its_sources_headers():
+    fetcher = FakeFetcher()
+
+    install_producer(gated_groups(), FakeFiles(), fetcher, sync_installer(),
+                     {"civitai": {"Cookie": "k=v"}}, "video")
+
+    assert fetcher.headers == {"Cookie": "k=v"}
+
+
+def test_a_gated_row_with_no_key_stops_the_install_and_names_the_source():
+    runner = sync_installer()
+
+    install_producer(gated_groups(), FakeFiles(), FakeFetcher(), runner, {}, "video")
+
+    assert runner.status()["status"] == "error"
+    assert "smooth.safetensors" in runner.status()["error"]
+    assert "civitai" in runner.status()["error"]
 
 
 # The shipped group, not the fixture above: what the panel really counts for sound has to be the
@@ -167,3 +194,19 @@ def test_the_weights_path_is_built_from_the_group_row():
 
     assert path == ("/root/models/mmaudio/"
                     "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors")
+
+
+def test_the_video_group_has_nothing_the_app_cannot_fetch():
+    assert all(row["url"] for row in model_groups.GROUPS["video"])
+
+
+def test_every_gated_row_says_which_source_it_needs():
+    gated = [row for row in model_groups.GROUPS["video"] if row.get("auth")]
+
+    assert len(gated) == 4                                   # the two SmoothMix pairs
+    assert all(row["auth"] == model_groups.CIVITAI for row in gated)
+    assert all(row["url"].startswith(model_groups.CIVITAI_DOWNLOAD) for row in gated)
+
+
+def test_the_civitai_header_carries_the_cookie_under_its_own_name():
+    assert model_groups.civitai_headers("abc") == {"Cookie": "__Secure-civ-token=abc"}
