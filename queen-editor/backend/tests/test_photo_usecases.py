@@ -17,6 +17,7 @@ from backend.features.photo_generation.domain.usecases.remove_frames import (
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
 from backend.features.photo_generation.domain.usecases.start_batch import (
@@ -771,6 +772,22 @@ def test_the_worker_starts_from_the_bottom_of_the_gallery():
                  lambda: "2026-08-05T10:00:00+00:00", "düğün", order_store=order_store)
 
     assert [name for name, _d in store.saved] == ["1_a.png", "0_a.png"]
+
+
+def test_retrying_them_all_puts_every_failed_job_back_in_line():
+    store, record, generator = FakeStore(), FakeRecord(), FakeGenerator()
+    plan_store = FakePlanStore(frames=[frame(0, "a", "ilk"), frame(1, "a", "ikinci"),
+                                       frame(2, "a", "üçüncü")])
+    record.mark("düğün", "0_a", "photo", "0_a.png", queue.FAILED, "t")
+    record.mark("düğün", "1_a", "photo", "1_a.png", queue.DONE, "t")
+    record.mark("düğün", "2_a", "photo", "2_a.png", queue.FAILED, "t")
+
+    put_back = retry_failed(sync_runner(), store, record, plan_store,
+                            {layers.PHOTO: generator}, lambda: "t2", "düğün")
+
+    assert put_back == 2
+    # The one that landed is not made again; the two red ones are.
+    assert sorted(name for name, _d in store.saved) == ["0_a.png", "2_a.png"]
 
 
 def test_resume_refuses_when_nothing_is_left():

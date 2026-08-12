@@ -19,7 +19,7 @@ function renderPanel(props) {
       onStop={() => {}}
       onResume={() => {}}
       onCancel={() => {}}
-      onShowFailures={() => {}}
+      onRetryAll={() => {}}
       {...props}
     />,
   );
@@ -173,15 +173,6 @@ describe("QueuePanel — a finished queue", () => {
     expect(screen.getByText("20 kare üretildi")).toBeTruthy();
   });
 
-  it("says the failures inside the same sentence, not in a red card of its own", () => {
-    renderPanel({ job: { status: "done", project: "düğün", done: 20, failed: 3, total: 23 },
-                  queue: [], failures: ["1_a.png", "2_a.png", "3_a.png"] });
-
-    expect(screen.getByText("Kuyruk tamamlandı")).toBeTruthy();
-    expect(screen.getByText("20 kare üretildi")).toBeTruthy();
-    expect(screen.getByText(", 3 hatalı")).toBeTruthy();
-    expect(screen.queryByText(/yarım kaldı/)).toBeNull();
-  });
 });
 
 describe("QueuePanel — an empty queue", () => {
@@ -200,20 +191,66 @@ describe("QueuePanel — an empty queue", () => {
   });
 });
 
-describe("QueuePanel — the failures line", () => {
-  it("takes the user to the frame in the gallery", () => {
-    const onShowFailures = vi.fn();
-    renderPanel({ failures: ["1_a.png", "2_a.png", "3_a.png"], onShowFailures });
+describe("QueuePanel — the failures card", () => {
+  it("keeps the good news to itself and gives the failures their own card", () => {
+    renderPanel({ job: { status: "done", project: "düğün", done: 20, failed: 3, total: 23 },
+                  queue: [], failures: [{ layer: "photo", count: 3 }] });
 
-    fireEvent.click(screen.getByText("3 kare üretilemedi — galeride göster"));
+    expect(screen.getByText("Kuyruk tamamlandı")).toBeTruthy();
+    expect(screen.getByText("20 kare üretildi")).toBeTruthy();
+    expect(screen.queryByText(", 3 hatalı")).toBeNull();
+    expect(screen.getByText("3 kare üretilemedi")).toBeTruthy();
+    expect(screen.getByText("Hepsini tekrar dene")).toBeTruthy();
+  });
 
-    expect(onShowFailures).toHaveBeenCalled();
+  it("breaks the total down only when more than one kind failed", () => {
+    renderPanel({ failures: [{ layer: "photo", count: 2 }, { layer: "video", count: 1 }] });
+
+    expect(screen.getByText("3 kare üretilemedi — 2 foto · 1 video")).toBeTruthy();
+  });
+
+  it("puts every red job back in line at once, instead of pointing at the gallery", () => {
+    const onRetryAll = vi.fn();
+    renderPanel({ failures: [{ layer: "photo", count: 3 }], onRetryAll });
+
+    fireEvent.click(screen.getByText("Hepsini tekrar dene"));
+
+    expect(onRetryAll).toHaveBeenCalled();
+    expect(screen.queryByText(/galeride göster/)).toBeNull();
   });
 
   it("stays away when nothing failed", () => {
     renderPanel();
 
     expect(screen.queryByText(/üretilemedi/)).toBeNull();
+  });
+
+  it("dresses the finished card in green and the stopped one in red", () => {
+    const finished = renderPanel({
+      job: { status: "done", project: "düğün", done: 20, failed: 0, total: 20 },
+      queue: [], failures: [] });
+    expect(finished.container.querySelector("[data-run-card]").style.borderColor)
+      .toBe("var(--ok)");
+    finished.unmount();
+
+    const stopped = renderPanel({ job: { status: "error", project: "düğün", done: 1, total: 3 },
+                                  queue: [{ layer: "photo", owed: 2 }] });
+    expect(stopped.container.querySelector("[data-run-card]").style.borderColor)
+      .toBe("var(--danger)");
+  });
+});
+
+describe("QueuePanel — a queue that picked itself up", () => {
+  it("says so when nobody pressed anything", () => {
+    renderPanel({ resumed: true });
+
+    expect(screen.getByText("uygulama açıldı — kuyruk kaldığı yerden sürüyor")).toBeTruthy();
+  });
+
+  it("stays quiet when the user pressed the button themselves", () => {
+    renderPanel();
+
+    expect(screen.queryByText(/kaldığı yerden sürüyor/)).toBeNull();
   });
 });
 

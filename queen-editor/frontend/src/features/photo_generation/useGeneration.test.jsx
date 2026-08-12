@@ -73,6 +73,20 @@ describe("useGeneration", () => {
     expect(result.current.queue).toEqual([{ layer: "photo", owed: 3 }]);
   });
 
+  it("counts what failed for each kind of job", async () => {
+    getStatus.mockResolvedValue({ status: "done", project: "düğün" });
+    listFrames.mockResolvedValue([
+      { id: "P0_0", file: "P0_0.png", status: "failed" },
+      { id: "P1_0", file: "P1_0.png", status: "failed" },
+      { id: "P2_0", file: "P2_0.png", status: "done" },
+    ]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.failures).toEqual([{ layer: "photo", count: 2 }]);
+  });
+
   it("leaves out a kind with nothing owed", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
     listFrames.mockResolvedValue([{ id: "P0_0", file: "P0_0.png", status: "done" }]);

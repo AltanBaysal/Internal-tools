@@ -98,6 +98,15 @@ export async function retryFrame(project, file) {
   });
 }
 
+// No frame named: the server reads that as "all of them" (see the retry endpoint).
+export async function retryFailed(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/retry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+}
+
 export async function cancelGeneration(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/cancel`, { method: "POST" });
 }

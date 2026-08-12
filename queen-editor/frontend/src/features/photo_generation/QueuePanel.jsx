@@ -56,6 +56,16 @@ const KINDS = {
 };
 const KIND_ORDER = ["photo", "video", "audio"];
 
+// The words the failure card breaks its total down with -- the same question asked about the other
+// end of the run.
+const LAYER_WORD = { photo: "foto", video: "video", audio: "ses" };
+
+// The run card wears what it is saying. Every other state stays neutral.
+const CARD_TONE = {
+  done: { borderColor: "var(--ok)", background: "var(--ok-bg)" },
+  stopped: { borderColor: "var(--danger)", background: "var(--danger-bg)" },
+};
+
 // One kind's share of the queue. The card the engine has in hand is the one worth looking at; the
 // rest wait their turn and step back rather than compete with it.
 function KindCard({ layer, owed, alive }) {
@@ -83,8 +93,8 @@ function KindCard({ layer, owed, alive }) {
 // Artboard 05: a card per kind of work, then whatever the run itself has to say. Everything the
 // run has to say lives here; the form panel next door only submits work.
 export default function QueuePanel({ job, error, errorField, busyElsewhere, project, stopping,
-                                     queue, failures, onStop, onResume, onCancel,
-                                     onShowFailures }) {
+                                     queue, failures, resumed, onStop, onResume, onCancel,
+                                     onRetryAll }) {
   const [clearing, setClearing] = useState(false);
 
   // Another project's finished batch must not talk into this panel (state leaks across projects
@@ -95,7 +105,12 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
     .map((layer) => (queue || []).find((card) => card.layer === layer))
     .filter(Boolean);
   const owed = cards.reduce((total, card) => total + card.owed, 0);
-  const failed = failures?.length || 0;
+  const failed = (failures || []).reduce((total, kind) => total + kind.count, 0);
+  // "3 kare üretilemedi — 2 foto · 1 video". With one kind the breakdown would only say the total
+  // again, so it is left out.
+  const breakdown = (failures || []).length > 1
+    ? ` — ${failures.map((k) => `${k.count} ${LAYER_WORD[k.layer]}`).join(" · ")}`
+    : "";
   // A field error belongs under its own box in the form panel, never here.
   const errorInfo = error && !errorField ? describeError(error) : null;
 
@@ -126,22 +141,29 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
                          && (job.current?.type || "photo") === card.layer} />
       ))}
 
+      {/* Only for a run nobody asked for. Its life is the run's own: no timer, and no invented
+          number of seconds -- the design does not give one. */}
+      {resumed && running && (
+        <Note size={12} style={{ color: "var(--ink-3)" }}>
+          uygulama açıldı — kuyruk kaldığı yerden sürüyor
+        </Note>
+      )}
+
       {/* Nothing of its own to say while work is simply flowing: what is happening is written on
           the card of the kind it is happening to. */}
       {state !== "running" && (
-      <div className="wf-stroke" style={{ padding: "10px 12px", display: "flex",
-                                          flexDirection: "column", gap: 8 }}>
+      <div data-run-card className="wf-stroke"
+           style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8,
+                    ...(CARD_TONE[state] || {}) }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Dot state={state} />
-          <Note size={12} style={{ color: state === "stopped" ? "var(--danger)"
-            : state === "done" ? "var(--ok)" : "var(--ink-2)" }}>{TITLE[state]}</Note>
+          <Mono size={12} style={{ color: state === "stopped" ? "var(--danger)"
+            : state === "done" ? "var(--ok)" : "var(--ink-2)" }}>{TITLE[state]}</Mono>
         </div>
 
         {state === "done" ? (
-          <Note size={12} style={{ color: "var(--ok)" }}>
-            {job.done} kare üretildi
-            {failed > 0 && <span style={{ color: "var(--danger)" }}>, {failed} hatalı</span>}
-          </Note>
+          // Good news only: what failed has a card of its own, and one sentence cannot carry both.
+          <Note size={12} style={{ color: "var(--ok)" }}>{job.done} kare üretildi</Note>
         ) : state === "empty" ? (
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Fotoğraf üret panelinden kare gönder.
@@ -166,15 +188,23 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
       </div>
       )}
 
-      {/* Outside the run's card on purpose: what failed is true whether the queue is flowing,
-          paused or finished, and the card it used to live in is not drawn during a run. */}
+      {/* Its own card, outside the run's: what failed is true whether the queue is flowing, paused
+          or finished, and the run's card is not drawn at all during a run. */}
       {failed > 0 && (
-        <button type="button" onClick={onShowFailures}
-                style={{ background: "none", border: "none", padding: 0, textAlign: "left",
-                         cursor: "pointer", color: "var(--danger)", font: "inherit",
-                         fontSize: 12, textDecoration: "underline" }}>
-          {failed} kare üretilemedi — galeride göster
-        </button>
+        <div className="wf-stroke"
+             style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8,
+                      borderColor: "var(--danger)", background: "var(--danger-bg)" }}>
+          <Note size={12} style={{ color: "var(--danger)" }}>
+            {failed} kare üretilemedi{breakdown}
+          </Note>
+          {/* The card does something rather than sending the user somewhere: the failed frames are
+              already red in the gallery, so pointing at them was never the useful half. */}
+          <Btn sm onClick={onRetryAll}
+               style={{ alignSelf: "flex-start", color: "var(--danger)",
+                        borderColor: "var(--danger)", background: "none" }}>
+            <Icon.Regen /> Hepsini tekrar dene
+          </Btn>
+        </div>
       )}
 
       {running && (

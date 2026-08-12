@@ -21,7 +21,7 @@ const HEADER = {
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, frames, error, errorField, stopping, queue, failures, current,
+  const { job, frames, error, errorField, stopping, queue, failures, current, retryAll,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
@@ -38,21 +38,20 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   // owed and nobody who remembers them. Only the two states that have a button of their own wait
   // for the user: a queue the user paused, and one a fatal error stopped. Asked once per project,
   // not once per poll; the server decides whether there is anything to do.
+  // Whether the queue on screen is one this screen picked up by itself. The panel says so while it
+  // flows, and only then -- a run the user asked for needs no announcing.
+  const [resumed, setResumed] = useState(false);
+  useEffect(() => { setResumed(false); }, [project]);
+
   const asked = useRef(null);
   useEffect(() => {
     const waitingForUser = mine && (job.status === "paused" || job.status === "error");
     if (asked.current === project || job.status === "running" || waitingForUser) return;
     if (!queue.length) return;
     asked.current = project;
+    setResumed(true);
     resume();
   }, [project, mine, job.status, queue.length, resume]);
-
-  // The queue panel says "3 kare üretilemedi — galeride göster" and stops there; finding the tile
-  // is the screen's job, because the panel has no business knowing how the gallery is built.
-  function showFirstFailure() {
-    const tile = failures.length && document.getElementById(`tile-${failures[0]}`);
-    if (tile) tile.scrollIntoView({ block: "center" });
-  }
 
   // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
@@ -98,7 +97,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
                    stopping={stopping} queue={queue} failures={failures}
                    models={models} modelsError={modelsError}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
-                   onClearError={clearError} onShowFailures={showFirstFailure} />
+                   onClearError={clearError} onRetryAll={retryAll} resumed={resumed} />
       </div>
 
       {leaving && (

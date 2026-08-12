@@ -22,8 +22,9 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
-                                    cancel_generation, retry_frame, list_frames, list_models,
-                                    save_order, export_project, remove_frames, photo_dir):
+                                    cancel_generation, retry_frame, retry_failed, list_frames,
+                                    list_models, save_order, export_project, remove_frames,
+                                    photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -95,8 +96,14 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
     @bp.post("/api/projects/<project>/retry")
     def retry(project):
         body = request.get_json(silent=True) or {}
+        file = body.get("file")
         try:
-            retry_frame(project, body.get("file"))
+            # No frame named means all of them: "retry this frame" and "retry" are the same verb
+            # with and without an object.
+            if file is None:
+                retry_failed(project)
+            else:
+                retry_frame(project, file)
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except FrameMissing as exc:

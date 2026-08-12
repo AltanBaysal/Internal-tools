@@ -7,6 +7,7 @@ import {
   listFrames,
   removeFrames,
   resumeBatch,
+  retryFailed,
   retryFrame,
   saveOrder,
   stopGeneration,
@@ -142,6 +143,13 @@ export function useGeneration(project) {
       .catch((err) => { if (alive.current) setError(err.message); })
   ), [project, startPolling]);
 
+  // Every red job at once. Same endpoint as one frame's Tekrar dene, with no frame named.
+  const retryAll = useCallback(() => (
+    retryFailed(project)
+      .then(() => { if (alive.current) startPolling(); })
+      .catch((err) => { if (alive.current) setError(err.message); })
+  ), [project, startPolling]);
+
   const stop = useCallback(() => {
     setStopPressed(true);                     // instant feedback; the server confirms via polls
     return stopGeneration()
@@ -201,7 +209,6 @@ export function useGeneration(project) {
   // One list, one answer: what is owed and what blew up are read off the gallery rather than kept
   // in a second place that could disagree with it.
   const shown = frames || [];
-  const failures = shown.filter((frame) => frame.status === "failed").map((f) => f.file);
   // The frame being rendered has no status on disk; only the live worker knows it, and only while
   // it is this project's run. Its name comes from the job's identity -- the one thing about a frame
   // that never changes.
@@ -225,6 +232,18 @@ export function useGeneration(project) {
     .map((layer) => ({ layer, owed: owedByKind[layer] }))
     .filter((card) => card.owed > 0);
 
-  return { job, frames, error, errorField, stopping, queue, failures, current,
+  // What failed, kind by kind, in the same shape as what is owed -- the same question asked about
+  // the other end of the run. Only photo jobs can fail today, for the same reason only photo jobs
+  // are owed: the gallery is where this is counted from.
+  const failedByKind = {
+    photo: shown.filter((frame) => frame.status === "failed").length,
+    video: 0,
+    audio: 0,
+  };
+  const failures = KINDS
+    .map((layer) => ({ layer, count: failedByKind[layer] }))
+    .filter((card) => card.count > 0);
+
+  return { job, frames, error, errorField, stopping, queue, failures, current, retryAll,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

@@ -12,6 +12,7 @@ from backend.features.photo_generation.domain.usecases.cancel_generation import 
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
 from backend.features.photo_generation.domain.usecases.save_order import save_order
@@ -80,6 +81,8 @@ def make_client(tmp_path, generator=None, runner=None):
                                   lambda: "2026-08-05T10:00:00+00:00"),
         retry_frame=partial(retry_frame, runner, store, record, plan_store,
                             producers, lambda: "2026-08-03T14:32:11+00:00"),
+        retry_failed=partial(retry_failed, runner, store, record, plan_store,
+                             producers, lambda: "2026-08-03T14:32:11+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         list_models=partial(list_models, generator),
         save_order=partial(save_order, record, store, plan_store, order_store),
@@ -388,6 +391,31 @@ def test_retry_produces_only_the_named_frame(tmp_path):
     assert (drive / "düğün" / "P0_0.png").exists()
     # It comes back where it was, not on top: a frame's place in the gallery is its own.
     assert files_of(client) == ["P1_0.png", "P0_0.png"]
+
+
+def test_retry_without_a_file_puts_every_red_frame_back(tmp_path):
+    class BlowsUpUntilItIsForgiven:
+        """Drops every job of the first batch, then renders whatever is offered again."""
+
+        def __init__(self):
+            self.forgiving = False
+
+        def generate(self, prompt, negative, seed, model=""):
+            if not self.forgiving:
+                raise RenderFailed("node 41: OOM")
+            return b"PNGDATA"
+
+    generator = BlowsUpUntilItIsForgiven()
+    client, drive = make_client(tmp_path, generator=generator)
+    generate(client, prompts='["a", "b"]', variants=1)
+    assert statuses_of(client) == [("P1_0.png", "failed"), ("P0_0.png", "failed")]
+    generator.forgiving = True
+
+    resp = client.post("/api/projects/düğün/retry", json={})
+
+    assert resp.status_code == 202
+    assert (drive / "düğün" / "P0_0.png").exists()
+    assert (drive / "düğün" / "P1_0.png").exists()
 
 
 def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):

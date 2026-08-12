@@ -84,7 +84,7 @@ function RailButton({ panel, active, onSelect }) {
 export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
                                     stopping, queue, failures, models, modelsError,
                                     onGenerate, onStop, onResume,
-                                    onCancel, onClearError, onShowFailures }) {
+                                    onCancel, onClearError, onRetryAll, resumed }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it.
   const [open, setOpen] = useState("photo");
@@ -108,7 +108,7 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
           <QueuePanel job={job} error={error} errorField={errorField}
                       busyElsewhere={busyElsewhere} project={project} stopping={stopping}
                       queue={queue} failures={failures} onStop={onStop} onResume={onResume}
-                      onCancel={onCancel} onShowFailures={onShowFailures} />
+                      onCancel={onCancel} onRetryAll={onRetryAll} resumed={resumed} />
         )}
         {open === "agent" && <AgentPanel />}
       </div>
