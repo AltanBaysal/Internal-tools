@@ -666,6 +666,29 @@ def test_a_frame_says_which_layers_the_queue_still_owes_it():
     assert rows["0_a"]["failed"] == []
 
 
+def test_a_frame_carries_the_prompt_of_every_layer_it_holds():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
+                            "prompt": "kırmızı elbise"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+    plan_store = FakePlanStore(frames=[frame(0)])
+
+    rows = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert rows[0]["prompts"] == {"photo": "kırmızı elbise", "video": "kadın dönüyor"}
+
+
+def test_a_frame_whose_record_kept_no_prompt_falls_back_to_the_plans():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    plan_store = FakePlanStore(frames=[frame(0)])
+
+    rows = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert rows[0]["prompts"] == {"photo": "p"}
+
+
 def test_a_produced_layer_leaves_the_owed_list():
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})

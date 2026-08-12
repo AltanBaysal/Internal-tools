@@ -39,6 +39,18 @@ def _owed_layers(jobs, slots):
     return owed
 
 
+def _words(said, planned):
+    """What each of the frame's layers was made from.
+
+    The record answers for every layer; the photo's own prompt can also come from the plan, which is
+    where a frame planned before the record carried prompts still keeps it.
+    """
+    words = dict(said)
+    if planned and not words.get(layers.PHOTO):
+        words[layers.PHOTO] = planned
+    return words
+
+
 def _failed_layers(cells):
     """The frame's layers whose latest line says the render blew up, in layer order."""
     return [slot for slot in queue.ORDER
@@ -53,6 +65,7 @@ def list_frames(record, store, plan_store, order_store, project):
     photos = {row["frame"]: row for row in record.list(project)}
     planned = plan_store.read(project)["frames"]
     owed = _owed_layers(planned, slots)
+    said = record.prompts(project)
 
     frames = []
     seen = set()
@@ -78,6 +91,7 @@ def list_frames(record, store, plan_store, order_store, project):
                        "file": photo["file"] if photo else photo_file(fid),
                        "layers": _taken_files(cells),
                        "owed": owed.get(fid, []), "failed": _failed_layers(cells),
+                       "prompts": _words(said.get(fid, {}), frame.get("prompt")),
                        "status": status if status in SHOWN else "pending"})
 
     # Photos the plan no longer knows about: projects generated before the plan became permanent
@@ -87,6 +101,7 @@ def list_frames(record, store, plan_store, order_store, project):
             cells = slots.get(fid, {})
             frames.append({**row, "id": fid, "layers": _taken_files(cells),
                            "owed": owed.get(fid, []), "failed": _failed_layers(cells),
+                           "prompts": _words(said.get(fid, {}), row.get("prompt")),
                            "status": queue.DONE})
 
     return apply_order(frames, order_store.read(project))

@@ -120,7 +120,6 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         return 0
 
     taken = _known_ids(record, plan_store, project)
-    said = record.prompts(project)
     jobs, born = [], {}
     # Written oldest first, the direction the engine works in: the gallery is newest-first and its
     # foot is what gets made first, so a plan written the way it reads would run backwards wherever
@@ -128,11 +127,9 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
     for frame in reversed(scope):
         fid = frame["id"]
         number, variant = _family(frame)
-        held = frame.get("layers", {})
-        # What each layer under this one was made from. The record answers for every layer; the
-        # photo's own prompt can also come from the plan, which is where a frame planned before the
-        # record carried prompts still keeps it -- and the gallery row already merged the two.
-        words = {layers.PHOTO: frame.get("prompt", ""), **said.get(fid, {})}
+        # What each layer under this one was made from: the gallery row already merged the record's
+        # answer with the plan's, so asking again here would be the same question in two places.
+        held, words = frame.get("layers", {}), frame.get("prompts", {})
         owed = variants
         if kind not in held:
             jobs.append(_job(kind, fid, number, variant))

@@ -6,6 +6,7 @@ import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Rendering } from "./frame_status.jsx";
+import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 import { useGeneration } from "./useGeneration.js";
 
 const HEADER = {
@@ -48,6 +49,42 @@ function Arrow({ glyph, side, onClick }) {
   );
 }
 
+// Madde 73's strip: three joined buttons over the stage. A layer the frame does not have stays
+// disabled rather than hidden -- the user sees what a frame could still become.
+const TABS = [
+  { id: "photo", label: "Foto" },
+  { id: "video", label: "Video", Glyph: PlayGlyph },
+  { id: "audio", label: "Ses", Glyph: SoundGlyph },
+];
+const LAYER_ORDER = TABS.map((row) => row.id);
+// What each layer's own file and prompt are called in the column.
+const LAYER_WORD = { photo: "Foto", video: "Video", audio: "Ses" };
+
+const STRIP = { position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
+                display: "flex", zIndex: 2 };
+
+function LayerTabs({ open, has, onOpen }) {
+  return (
+    <div style={STRIP}>
+      {TABS.map(({ id, label, Glyph }, index) => (
+        <button key={id} type="button" disabled={!has[id]}
+                aria-current={open === id ? "page" : undefined}
+                onClick={() => onOpen(id)} className="wf-stroke"
+                style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px",
+                         background: "var(--bg-2)", cursor: has[id] ? "pointer" : "default",
+                         opacity: has[id] ? 1 : 0.35,
+                         color: open === id ? "var(--accent)" : "var(--ink-3)",
+                         borderColor: open === id ? "var(--accent)" : "var(--border)",
+                         // Joined, not three separate pills: one control with three states.
+                         marginLeft: index ? -1 : 0 }}>
+          {Glyph && <Glyph size={10} />}
+          <Mono size={10}>{label}</Mono>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Field({ label, value, muted }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -84,6 +121,9 @@ export default function PhotoDetail({ project, file }) {
   const { frames, current, currentLayer, error, removePhotos } = useGeneration(project);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Which layer is open. The photo to begin with: it is the frame itself, and the others are what
+  // was laid over it.
+  const [open, setOpen] = useState("photo");
   // Only a removal of ours puts the card on screen: the hook's error is also where a failed poll
   // lands, and that one has nothing to do with this frame.
   const [refused, setRefused] = useState(false);
@@ -100,12 +140,24 @@ export default function PhotoDetail({ project, file }) {
     : frame?.status;
   const produced = state === "done";
 
+  // What the frame really holds: a layer that blew up occupies its slot but is not something the
+  // frame has, so its tab stays shut.
+  const has = Object.fromEntries(LAYER_ORDER.map((layer) => [
+    layer,
+    Boolean((frame?.layers || {})[layer]) && !(frame?.failed || []).includes(layer),
+  ]));
+  // Every layer up to the open one: the column shows their file names, then the open layer's own
+  // prompt, then the ones under it (madde 75).
+  const shown = LAYER_ORDER.slice(0, LAYER_ORDER.indexOf(open) + 1);
+
   // The arrows swap the frame under a page that stays mounted, so anything said about the old one
-  // has to go with it -- a refusal card from the previous frame would read as this one's.
+  // has to go with it -- a refusal card from the previous frame would read as this one's, and a
+  // tab it does not have would be open on a frame that never had that layer.
   useEffect(() => {
     setRefused(false);
     setConfirming(false);
     setBusy(false);
+    setOpen("photo");
   }, [file]);
 
   useEffect(() => {
@@ -156,6 +208,7 @@ export default function PhotoDetail({ project, file }) {
       ) : (
         <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
           <div style={STAGE}>
+            <LayerTabs open={open} has={has} onOpen={setOpen} />
             <Arrow glyph="‹" side="left"
                    onClick={previous
                      ? () => navigate(photoPath(project, previous.file))
@@ -179,7 +232,10 @@ export default function PhotoDetail({ project, file }) {
                 <Mono size={12} style={{ color: "var(--danger)" }}>üretilemedi</Mono>
               </div>
             ) : (
-              <div className="wf-img" style={{ ...HOLDER, borderStyle: "dashed", opacity: 0.5 }}>
+              /* Madde 82: the holder keeps the frame's own shape and its two lines are drawn
+                 faintly -- a frame with no pixels yet is not an error, only not here yet. */
+              <div data-holder className="wf-img"
+                   style={{ ...HOLDER, borderStyle: "dashed", opacity: 0.45 }}>
                 <Mono size={12} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
                 <Note size={12} style={{ color: "var(--ink-3)" }}>henüz üretilmedi</Note>
               </div>
@@ -187,18 +243,32 @@ export default function PhotoDetail({ project, file }) {
           </div>
 
           <div style={SIDE}>
-            <div style={{ display: "flex", gap: 24 }}>
+            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
               {/* The same number the tile carries: the badge counts up from the bottom, so walking
                   down the gallery with › walks the counter down with it. */}
               <Field label="Sıra" value={`${frames.length - index} / ${frames.length}`} />
-              {/* Nothing is on disk until the render lands, so every state but "produced" calls the
-                  name what it is: a plan. */}
-              <Field label={produced ? "Dosya adı" : "Dosya adı (planlanan)"} value={frame.file}
-                     muted={!produced} />
+              {/* One row per layer up to the open tab. With only the photo on screen the row keeps
+                  its old name -- and with nothing on disk yet it says the name is a plan. */}
+              {shown.map((layer) => (
+                <Field key={layer}
+                       label={shown.length === 1
+                         ? (produced ? "Dosya adı" : "Dosya adı (planlanan)")
+                         : LAYER_WORD[layer]}
+                       value={(frame.layers || {})[layer] || frame.file}
+                       muted={layer === "photo" && !produced} />
+              ))}
             </div>
 
-            <TextBlock label="Prompt" text={frame.prompt} />
-            <TextBlock label="Negatif" text={frame.negative} />
+            {/* The open layer's own prompt first, then the ones under it -- those are what it was
+                made from, and this page never asks them to be changed (madde 75). */}
+            {[...shown].reverse().map((layer) => (
+              <TextBlock key={layer}
+                         label={layer === open ? "Prompt" : `${LAYER_WORD[layer]} prompt`}
+                         text={(frame.prompts || {})[layer]
+                               ?? (layer === "photo" ? frame.prompt : "")} />
+            ))}
+            {/* The negative belongs to the photo alone: video and sound jobs carry none. */}
+            {open === "photo" && <TextBlock label="Negatif" text={frame.negative} />}
 
             {refused && (
               <StatusErrorCard text={produced ? "Fotoğraf silinemedi" : "Kare kuyruktan çıkarılamadı"}

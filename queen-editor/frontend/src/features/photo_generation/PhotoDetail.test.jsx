@@ -57,9 +57,71 @@ function confirmButton() {
   return screen.getAllByText("Sil").at(-1);
 }
 
+const LAYERED = {
+  file: "P0_0.png", status: "done", prompt: "kırmızı elbise", negative: "bulanık",
+  layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" },
+  failed: [], owed: [],
+  prompts: { photo: "kırmızı elbise", video: "kadın dönüyor", audio: "kumaş hışırtısı" },
+};
+
+const tab = (name) => screen.getByRole("button", { name });
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
+});
+
+describe("PhotoDetail — the layer tabs", () => {
+  it("opens on the photo and offers a tab per layer", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    expect(tab("Foto").getAttribute("aria-current")).toBe("page");
+    expect(tab("Video").disabled).toBe(false);
+    expect(tab("Ses").disabled).toBe(false);
+  });
+
+  it("leaves the tab of a layer the frame does not have disabled rather than hidden", async () => {
+    await open("P0_0.png", { frames: [{ ...LAYERED, layers: { photo: "P0_0.png" },
+                                        prompts: { photo: "kırmızı elbise" } }] });
+
+    expect(tab("Video").disabled).toBe(true);
+    expect(tab("Ses").disabled).toBe(true);
+  });
+
+  it("does not open a tab for a layer that blew up", async () => {
+    await open("P0_0.png", { frames: [{ ...LAYERED, failed: ["audio"] }] });
+
+    expect(tab("Ses").disabled).toBe(true);
+  });
+
+  it("shows the open layer's own prompt and the ones under it", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.getByText("kadın dönüyor")).toBeTruthy();
+    expect(screen.getByText("kırmızı elbise")).toBeTruthy();
+    expect(screen.getByText("P0_0_V1_0.mp4")).toBeTruthy();
+    // The negative belongs to the photo alone: video and sound jobs carry none.
+    expect(screen.queryByText("Negatif")).toBeNull();
+  });
+
+  it("repeats the skeleton for sound", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Ses"));
+
+    expect(screen.getByText("kumaş hışırtısı")).toBeTruthy();
+    expect(screen.getByText("P0_0_V1_0_S1_0.wav")).toBeTruthy();
+    expect(screen.getByText("kadın dönüyor")).toBeTruthy();
+  });
+
+  it("draws a waiting frame's two lines faintly", async () => {
+    await open("P0_0.png", { frames: [{ file: "P0_0.png", status: "pending", prompt: "p",
+                                        layers: {}, failed: [], owed: ["photo"], prompts: {} }] });
+
+    expect(screen.getByText("bekliyor").closest("[data-holder]").style.opacity).toBe("0.45");
+  });
 });
 
 describe("PhotoDetail", () => {
