@@ -258,6 +258,45 @@ def test_progress_is_reported_before_each_frame():
 
 def test_a_failed_frame_is_skipped_and_the_batch_continues():
     class FailsFirstFrame:
+        """Drops the first variant every time it is offered -- three attempts, then red."""
+
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, prompt, negative, seed, model=""):
+            self.calls += 1
+            if self.calls <= 3:
+                raise FrameFault("node 41: OOM")
+            return b"PNG"
+
+    store, runner = FakeStore(), sync_runner()
+    run_batch(runner, store, FailsFirstFrame(), text='["a"]', variants=2)
+    state = runner.status()
+    assert (state["status"], state["done"], state["failed"]) == ("done", 1, 1)
+    assert [name for name, _d in store.saved] == ["P0_1.png"]
+
+
+def test_a_job_the_producer_drops_is_tried_three_times_before_it_turns_red():
+    class DropsTheFirstJob:
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, prompt, negative, seed, model=""):
+            self.calls += 1
+            if prompt == "patlak":
+                raise FrameFault("node 41: OOM")
+            return b"PNG"
+
+    record, producer = FakeRecord(), DropsTheFirstJob()
+    run_batch(sync_runner(), FakeStore(), producer, text='["patlak"]', variants=1, record=record)
+
+    # Two attempts leave no line at all; the third writes the red one.
+    assert producer.calls == 3
+    assert photo_statuses(record) == {"P0_0": "failed"}
+
+
+def test_a_dropped_job_writes_nothing_until_its_attempts_run_out():
+    class DropsOnce:
         def __init__(self):
             self.calls = 0
 
@@ -267,11 +306,27 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
                 raise FrameFault("node 41: OOM")
             return b"PNG"
 
-    store, runner = FakeStore(), sync_runner()
-    run_batch(runner, store, FailsFirstFrame(), text='["a"]', variants=2)
-    state = runner.status()
-    assert (state["status"], state["done"], state["failed"]) == ("done", 1, 1)
-    assert [name for name, _d in store.saved] == ["P0_1.png"]
+    record = FakeRecord()
+    run_batch(sync_runner(), FakeStore(), DropsOnce(), text='["a"]', variants=1, record=record)
+
+    # The second attempt landed, so nothing was ever red.
+    assert photo_statuses(record) == {"P0_0": "done"}
+
+
+def test_each_job_gets_its_own_three_drops():
+    class AlwaysDrops:
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, prompt, negative, seed, model=""):
+            self.calls += 1
+            raise FrameFault("node 41: OOM")
+
+    record, producer = FakeRecord(), AlwaysDrops()
+    run_batch(sync_runner(), FakeStore(), producer, text='["a", "b"]', variants=1, record=record)
+
+    assert producer.calls == 6
+    assert photo_statuses(record) == {"P0_0": "failed", "P1_0": "failed"}
 
 
 def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():

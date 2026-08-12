@@ -304,17 +304,15 @@ class RenderFailed(RuntimeError):
 
 
 def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
-    class BlowsUpOnce:
-        def __init__(self):
-            self.calls = 0
+    class BlowsUpOnTheFirstPrompt:
+        """Drops the same job every time it is offered -- three attempts, then red."""
 
         def generate(self, prompt, negative, seed, model=""):
-            self.calls += 1
-            if self.calls == 1:
+            if prompt == "a":
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
 
-    client, _ = make_client(tmp_path, generator=BlowsUpOnce())
+    client, _ = make_client(tmp_path, generator=BlowsUpOnTheFirstPrompt())
     generate(client, prompts='["a", "b"]', variants=1)
 
     # Nothing is left in memory: this answer is the plan and the log alone. And the failed frame is

@@ -197,13 +197,19 @@ export function useGeneration(project) {
   // One list, one answer: what is owed and what blew up are read off the gallery rather than kept
   // in a second place that could disagree with it.
   const shown = frames || [];
-  const pending = shown.filter((frame) => frame.status === "pending").map((f) => f.file);
   const failures = shown.filter((frame) => frame.status === "failed").map((f) => f.file);
   // The frame being rendered has no status on disk; only the live worker knows it, and only while
-  // it is this project's run.
+  // it is this project's run. Its name comes from the job's identity -- the one thing about a frame
+  // that never changes.
   const current = job.project === project && job.status === "running" && job.current
-    ? `${job.current.number}_${job.current.letter}.png`
+    ? `${job.current.id}.png`
     : null;
+  // The frame being rendered has no line on disk either, so the gallery draws it as pending too.
+  // It is not waiting -- it is being made -- so it comes out of the count. Pause puts it back: the
+  // worker stops reporting it and the half-done job is owed again.
+  const pending = shown
+    .filter((frame) => frame.status === "pending" && frame.file !== current)
+    .map((f) => f.file);
 
   return { job, frames, error, errorField, stopping, pending, failures, current,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };

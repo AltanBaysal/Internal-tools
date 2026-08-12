@@ -37,7 +37,7 @@ const MIXED = [{ file: "3_a.png", status: "pending", prompt: "dördüncü", nega
                done("0_a.png", "ilk", "düşük çözünürlük")];
 
 const IDLE = { status: "idle" };
-const RUNNING = { status: "running", project: "düğün", current: { number: 2, letter: "a" } };
+const RUNNING = { status: "running", project: "düğün", current: { id: "2_a" } };
 
 // Advancing the fake clock inside act() flushes both the timers and the promises they unblock --
 // the detail page is live now, so a poll tick is what moves it forward.

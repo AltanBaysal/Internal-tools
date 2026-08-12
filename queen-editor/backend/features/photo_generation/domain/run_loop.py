@@ -67,18 +67,21 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     # The user's own pause killed this render -- that is not a failure. The job
                     # writes no line, so it stays owed and is done again on resume.
                     return summary("paused")
-                if policy.is_frame_fault(exc):
-                    # The renderer answered: this one job is what failed, the queue owes the rest
-                    # nothing, and the tile turns red where it stands.
-                    record.mark(project, fid, kind, name, queue.FAILED, now(), error=str(exc))
-                    continue
                 attempts += 1
-                reason = policy.stop_reason(attempts)
-                if reason:
-                    # Deliberately no line for the job: it stays owed, so resuming starts from it
-                    # rather than leaving a red tile the user has to rescue by hand.
-                    return summary("error", error=f"{reason}\n{exc}")
-                continue
+                if attempts < policy.MAX_ATTEMPTS:
+                    # Every failure gets the same three tries at the same job (design v3, madde 45);
+                    # what differs is what happens after the third.
+                    continue
+                if policy.is_frame_fault(exc):
+                    # The renderer answered three times that this one job is what failed. The queue
+                    # owes the rest nothing, so the tile turns red where it stands and work goes on.
+                    record.mark(project, fid, kind, name, queue.FAILED, now(), error=str(exc))
+                    attempts, holding = 0, None
+                    continue
+                # No answer came at all, three times: the next job would fall the same way, so the
+                # run stops. Deliberately no line for the job -- it stays owed, and resuming starts
+                # from it rather than leaving a red tile the user has to rescue by hand.
+                return summary("error", error=f"{policy.stop_reason(attempts)}\n{exc}")
             rendered = clock()
             filename = store.save(project, name, data)
             # Only after the file exists: the line is what "this layer is here" means.

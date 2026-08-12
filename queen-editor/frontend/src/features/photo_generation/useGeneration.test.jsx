@@ -32,6 +32,47 @@ beforeEach(() => {
 });
 
 describe("useGeneration", () => {
+  it("names the frame being rendered from the job's identity", async () => {
+    getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P11_3", prompt: "a" } });
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.current).toBe("P11_3.png");
+  });
+
+  it("leaves the frame being rendered out of the waiting count", async () => {
+    // Three frames with no line on disk; one of them is the one the worker is on right now.
+    getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P0_0" } });
+    listFrames.mockResolvedValue([
+      { id: "P0_0", file: "P0_0.png", status: "pending" },
+      { id: "P1_0", file: "P1_0.png", status: "pending" },
+      { id: "P2_0", file: "P2_0.png", status: "pending" },
+    ]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.pending).toEqual(["P1_0.png", "P2_0.png"]);
+  });
+
+  it("counts the half-done frame again once the queue is paused", async () => {
+    // Paused: the worker reports no current job, so the frame it cut is owed again -- 2 becomes 3.
+    getStatus.mockResolvedValue({ status: "paused", project: "düğün" });
+    listFrames.mockResolvedValue([
+      { id: "P0_0", file: "P0_0.png", status: "pending" },
+      { id: "P1_0", file: "P1_0.png", status: "pending" },
+      { id: "P2_0", file: "P2_0.png", status: "pending" },
+    ]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.current).toBeNull();
+    expect(result.current.pending).toHaveLength(3);
+  });
+
   it("treats the photos as unknown at first and asks for both status and photos on the first poll", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
     listFrames.mockResolvedValue([]);
