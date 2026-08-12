@@ -69,6 +69,42 @@ def test_a_requeued_job_waits_behind_the_ones_that_never_ran():
         ["P1_0", "P0_0"]
 
 
+def test_a_type_is_done_in_the_gallery_s_own_order_read_from_the_bottom():
+    # The gallery is newest-first, so its bottom is what gets produced first.
+    jobs = [job(0), job(1), job(2)]
+    order = ["P1_0", "P0_0", "P2_0"]          # what the user dragged, top first
+
+    owed = queue.open_jobs(jobs, {}, order)
+
+    assert [j["id"] for j in owed] == ["P2_0", "P0_0", "P1_0"]
+
+
+def test_a_job_the_order_file_never_heard_of_waits_at_the_end():
+    jobs = [job(0), job(1), job(2)]
+
+    owed = queue.open_jobs(jobs, {}, ["P1_0"])
+
+    # P1_0 is placed; the other two keep the plan's own sequence behind it.
+    assert [j["id"] for j in owed] == ["P1_0", "P0_0", "P2_0"]
+
+
+def test_a_requeued_job_stays_behind_fresh_work_wherever_the_gallery_puts_it():
+    jobs = [job(0), job(1)]
+    order = ["P1_0", "P0_0"]                  # P0_0 sits at the foot, so it would go first
+
+    owed = queue.open_jobs(jobs, slots(photo_P0_0="queued"), order)
+
+    assert [j["id"] for j in owed] == ["P1_0", "P0_0"]
+
+
+def test_the_gallery_cannot_pull_a_video_ahead_of_the_photos():
+    jobs = [job(0, layers.PHOTO), job(1, layers.VIDEO)]
+
+    owed = queue.open_jobs(jobs, {}, ["P0_0", "P1_0"])
+
+    assert [j["type"] for j in owed] == ["photo", "video"]
+
+
 def test_one_frames_slots_are_owed_separately():
     # The photo landed; the video that hangs on it is still owed.
     jobs = [{"id": "P0_0", "type": "photo"}, {"id": "P0_0", "type": "video"}]

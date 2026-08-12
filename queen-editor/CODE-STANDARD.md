@@ -54,9 +54,9 @@ appear in several of them:
 | File | The question it answers | Lifetime |
 |---|---|---|
 | settings | what should the panel show when the project opens | overwritten when a batch is submitted |
-| run plan | which frames this run was asked to produce, in order | overwritten per run; the queue the worker reads |
+| run plan | which frames were asked for, and with what prompt, seed and model | appended per batch; the queue the worker reads |
 | photo record | which photos exist, and what produced each one | appended as each photo lands; permanent |
-| gallery order | in what order should the gallery show them | rewritten on every drop |
+| gallery order | in what order the frames stand — which is both how the gallery shows them and the order they are produced in | rewritten on every drop |
 
 Each has one writer and one moment of writing. Before adding a field to an existing file, ask which
 of these questions it answers — a field that answers a fourth question wants a fourth file.

@@ -760,6 +760,19 @@ def test_resume_only_produces_the_frames_the_record_is_missing():
     assert [name for name, _d in store.saved] == ["1_a.png"]
 
 
+def test_the_worker_starts_from_the_bottom_of_the_gallery():
+    store, record, generator = FakeStore(), FakeRecord(), FakeGenerator()
+    plan_store = FakePlanStore(frames=[frame(0, "a", "ilk"), frame(1, "a", "ikinci")])
+    # Gallery order, top first: 0_a stands on top and 1_a at the foot -- and the foot is what gets
+    # produced first, which is the opposite of the plan's own sequence.
+    order_store = FakeOrderStore(["0_a.png", "1_a.png"])
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.PHOTO: generator},
+                 lambda: "2026-08-05T10:00:00+00:00", "düğün", order_store=order_store)
+
+    assert [name for name, _d in store.saved] == ["1_a.png", "0_a.png"]
+
+
 def test_resume_refuses_when_nothing_is_left():
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png"})

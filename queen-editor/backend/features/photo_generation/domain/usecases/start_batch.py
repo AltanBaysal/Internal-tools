@@ -71,7 +71,7 @@ def next_number(store, plan_store, record, project):
 
 
 def start_batch(runner, store, record, plan_store, producers, new_seed, now,
-                project, text, negative, variants, model="", log=None):
+                project, text, negative, variants, model="", log=None, order_store=None):
     prompts = parse_prompts(text)          # raises InvalidPrompts
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \
@@ -87,7 +87,8 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
     # Appended before the worker is asked to run: a run that dies leaves behind what it meant to
     # make, and a loop already in flight finds the frames on its next turn.
     plan_store.append(project, frames)
-    run_queue(runner, store, record, plan_store, producers, now, project, log)
+    run_queue(runner, store, record, plan_store, producers, now, project, log,
+              order_store=order_store)
     # How many frames the queue really took. The panel's own "12 prompt × 4 varyant" line is a
     # preview it is not allowed to enforce, so the confirmation card quotes this instead.
     return len(frames)

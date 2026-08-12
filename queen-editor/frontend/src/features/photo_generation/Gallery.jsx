@@ -43,11 +43,8 @@ const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18p
 // Long enough that a press-and-slide does not become a drag, short enough that a deliberate hold
 // does not feel stuck. The design asks for a hold; the number is ours.
 const HOLD_MS = 250;
-const HINT = { position: "absolute", inset: 0, display: "flex", alignItems: "center",
-               justifyContent: "center", background: "rgba(10,8,7,.8)", borderRadius: 4,
-               zIndex: 3, textAlign: "center", padding: 6 };
 
-function Tile({ name, muted, danger, badge, pill, selected, onCheck, hint, children }) {
+function Tile({ name, muted, danger, badge, pill, selected, onCheck, children }) {
   const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -66,12 +63,6 @@ function Tile({ name, muted, danger, badge, pill, selected, onCheck, hint, child
                style={{ ...CHECK, ...(selected ? CHECK_ON : CHECK_OFF) }}
                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCheck(); }}>
             {selected ? "✓" : ""}
-          </div>
-        )}
-        {/* Held down but not liftable: the card does not rise, it explains why instead. */}
-        {hint && (
-          <div style={HINT}>
-            <Mono size={10} style={{ color: "var(--ink-2)" }}>{hint}</Mono>
           </div>
         )}
       </div>
@@ -94,23 +85,22 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
   const [selected, setSelected] = useState([]);
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  // A tile can only be picked up after it has been held: which one is armed, and which one is
-  // showing the "not yet" tip instead.
+  // A tile can only be picked up after it has been held: this is the one that is armed.
   const [armed, setArmed] = useState(null);
-  const [hint, setHint] = useState(null);
   const hold = useRef(null);
 
   useEffect(() => () => clearTimeout(hold.current), []);
 
-  function press(file, produced) {
+  // Every card can be picked up, whatever became of it: the sequence a drag makes is the sequence
+  // the queue produces in, so a frame with no pixels yet is exactly the one worth moving.
+  function press(file) {
     clearTimeout(hold.current);
-    hold.current = setTimeout(() => (produced ? setArmed(file) : setHint(file)), HOLD_MS);
+    hold.current = setTimeout(() => setArmed(file), HOLD_MS);
   }
 
   function release() {
     clearTimeout(hold.current);
     setArmed(null);
-    setHint(null);
   }
 
   useEffect(() => {
@@ -220,11 +210,10 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
               // queue panel's "galeride göster" link scrolls to it without knowing this grid.
               id={`tile-${frame.file}`}
               className={selecting ? "qe-tile qe-tile--selecting" : "qe-tile"}
-              // Only a produced frame can be picked up: sorting is a visual decision, and there is
-              // nothing to look at yet on the others. While selecting, a press is a selection, not
-              // a drag -- one gesture cannot mean two things.
+              // While selecting, a press is a selection, not a drag -- one gesture cannot mean two
+              // things.
               draggable={armed === frame.file && !selecting}
-              onMouseDown={() => !selecting && press(frame.file, produced)}
+              onMouseDown={() => !selecting && press(frame.file)}
               onMouseUp={release}
               onMouseLeave={release}
               onDragStart={() => setDragIndex(index)}
@@ -245,8 +234,7 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
                       danger={state === "failed"}
                       pill={<StatusPill layer="photo" state={state} />}
                       onCheck={state === "running" ? undefined : () => toggle(frame.file)}
-                      selected={selected.includes(frame.file)}
-                      hint={hint === frame.file ? "üretilince sıralanabilir" : null}>
+                      selected={selected.includes(frame.file)}>
                   {/* Every frame opens its own page, produced or not -- the detail page knows all
                       four states, and a waiting frame's prompt is only readable there. A real link
                       so middle-click still opens a tab, but a plain click stays in the app instead

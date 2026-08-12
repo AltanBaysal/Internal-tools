@@ -47,20 +47,33 @@ def _status(slots, job):
     return cell["status"] if cell else None
 
 
-def open_jobs(jobs, slots):
+def open_jobs(jobs, slots, order=()):
     """The jobs still owed, in the order the engine will do them.
 
-    Type first, then the plan's own order. Inside a type, a job the user sent back with Tekrar dene
-    waits behind everything that has never had a turn (design v2, G10); among themselves the
-    re-queued ones keep plan order. Where a frame sits in the GALLERY does not change -- that is
-    Madde 5's rule, and this is only the order work is done in.
+    Type first, then where the frame stands in the gallery -- read from the bottom up, because the
+    gallery is newest-first and the frame at its foot is the one produced first. `order` is the
+    gallery's own stored sequence; a job it has never heard of waits at the end, and among
+    themselves those keep the plan's order. No stored order at all means plan order, which is what
+    a project nobody has dragged in has always done.
+
+    Inside a type, a job the user sent back with Tekrar dene waits behind everything that has never
+    had a turn (design v2, G10). The gallery's order applies within each of those two tiers rather
+    than across them: it decides sequence, not who is owed a turn first.
     """
+    # Rank by distance from the foot of the gallery. Everything unplaced shares the last rank, and
+    # sorted() is stable, so those keep the plan's own sequence behind the placed ones.
+    rank = {fid: index for index, fid in enumerate(reversed(list(order)))}
+    unplaced = len(rank)
+
+    def place(job):
+        return rank.get(job["id"], unplaced)
+
     owed = []
     for kind in ORDER:
         same = [j for j in jobs if type_of(j) == kind]
         fresh = [j for j in same if _status(slots, j) is None]
         requeued = [j for j in same if _status(slots, j) == QUEUED]
-        owed += fresh + requeued
+        owed += sorted(fresh, key=place) + sorted(requeued, key=place)
     return owed
 
 

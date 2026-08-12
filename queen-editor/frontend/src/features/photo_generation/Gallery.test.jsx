@@ -411,23 +411,32 @@ describe("Gallery — picking a tile up", () => {
     expect(tileOf("1_a.png").draggable).toBe(true);
   });
 
-  it("tells a waiting frame why it cannot be moved instead of lifting it", () => {
+  it("lifts a waiting frame too -- the drag is what decides when it is produced", () => {
     renderGallery({ frames: [{ file: "9_a.png", status: "pending" }, done("0_a.png")] });
 
     fireEvent.mouseDown(tileOf("9_a.png"));
     act(() => { vi.advanceTimersByTime(250); });
 
-    expect(screen.getByText("üretilince sıralanabilir")).toBeTruthy();
-    expect(tileOf("9_a.png").draggable).toBe(false);
+    expect(tileOf("9_a.png").draggable).toBe(true);
+    expect(screen.queryByText("üretilince sıralanabilir")).toBeNull();
   });
 
-  it("says the same to a failed frame -- there is still nothing to look at", () => {
+  it("lifts a failed frame too", () => {
     renderGallery({ frames: [{ file: "9_a.png", status: "failed" }, done("0_a.png")] });
 
     fireEvent.mouseDown(tileOf("9_a.png"));
     act(() => { vi.advanceTimersByTime(250); });
 
-    expect(screen.getByText("üretilince sıralanabilir")).toBeTruthy();
-    expect(tileOf("9_a.png").draggable).toBe(false);
+    expect(tileOf("9_a.png").draggable).toBe(true);
+  });
+
+  it("lifts the frame the worker is holding, without asking it to stop", () => {
+    renderGallery({ frames: [{ file: "9_a.png", status: "pending" }, done("0_a.png")],
+                    current: "9_a.png" });
+
+    fireEvent.mouseDown(tileOf("9_a.png"));
+    act(() => { vi.advanceTimersByTime(250); });
+
+    expect(tileOf("9_a.png").draggable).toBe(true);
   });
 });

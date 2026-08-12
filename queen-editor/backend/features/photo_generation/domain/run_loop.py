@@ -15,12 +15,16 @@ from backend.features.photo_generation.domain.photo_name import photo_file
 
 
 def make_job(runner, store, record, plan_store, producers, now, project,
-             clock=time.monotonic, log=None):
+             clock=time.monotonic, log=None, order_store=None):
     """Returns the callable PhotoRunner.start expects: it drains this project's queue.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
     nobody to do it stops the run and says so -- skipping it silently would drop work the user asked
     for.
+
+    `order_store` is where the sequence comes from: the gallery's own order is the order work is
+    done in, read from its foot up. Without one the plan's sequence stands, which is what a project
+    nobody has dragged in looks like anyway.
 
     `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
     says is decided here; where it lands is main.py's to choose, so the loop can be tested without
@@ -28,10 +32,11 @@ def make_job(runner, store, record, plan_store, producers, now, project,
     """
 
     def snapshot():
-        return plan_store.read(project)["frames"], record.slots(project)
+        return (plan_store.read(project)["frames"], record.slots(project),
+                order_store.read(project) if order_store else ())
 
     def summary(status, **extra):
-        jobs, slots = snapshot()
+        jobs, slots, _order = snapshot()
         return {"status": status, **queue.counts(jobs, slots), **extra}
 
     def job():
@@ -41,8 +46,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
         while True:
             if runner.stop_requested():
                 return summary("paused")
-            jobs, slots = snapshot()
-            owed = queue.open_jobs(jobs, slots)
+            jobs, slots, order = snapshot()
+            owed = queue.open_jobs(jobs, slots, order)
             if not owed:
                 return summary("done")
             current = owed[0]
