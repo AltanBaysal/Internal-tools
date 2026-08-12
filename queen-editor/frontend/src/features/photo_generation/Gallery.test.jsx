@@ -448,6 +448,47 @@ describe("Gallery — picking a tile up", () => {
   });
 });
 
+describe("Gallery — a layer that blew up", () => {
+  const brokenVideo = withVideo("P0_0.png", { failed: ["video"] });
+
+  it("offers the way back over the photo instead of covering it", () => {
+    renderGallery({ frames: [brokenVideo], onRetry: () => {} });
+
+    // The picture stays; the button rides an overlay that CSS only shows under the pointer.
+    expect(screen.getByAltText("P0_0.png")).toBeTruthy();
+    expect(tileOf("P0_0.png").querySelector("[data-veil]")).toBeTruthy();
+    expect(screen.getByText("Tekrar dene")).toBeTruthy();
+  });
+
+  it("keeps the middle of an empty red card for its own button", () => {
+    renderGallery({ frames: [broken("P0_0.png")], onRetry: () => {} });
+
+    expect(tileOf("P0_0.png").querySelector("[data-veil]")).toBeNull();
+    expect(screen.getByText("Tekrar dene")).toBeTruthy();
+  });
+
+  it("says the job went into the queue and refuses a second press", () => {
+    const onRetry = vi.fn();
+    renderGallery({ frames: [brokenVideo], onRetry });
+
+    fireEvent.click(screen.getByText("Tekrar dene"));
+
+    expect(onRetry).toHaveBeenCalledWith("P0_0.png");
+    expect(screen.getByText("Kuyruğa eklendi").closest("button").disabled).toBe(true);
+    fireEvent.click(screen.getByText("Kuyruğa eklendi"));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("says the same thing on an empty red card", () => {
+    const onRetry = vi.fn();
+    renderGallery({ frames: [broken("P0_0.png")], onRetry });
+
+    fireEvent.click(screen.getByText("Tekrar dene"));
+
+    expect(screen.getByText("Kuyruğa eklendi").closest("button").disabled).toBe(true);
+  });
+});
+
 describe("Gallery — what a frame owns", () => {
   it("marks a frame that has a video", () => {
     renderGallery({ frames: [withVideo("P0_0.png")] });

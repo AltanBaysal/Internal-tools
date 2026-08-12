@@ -28,6 +28,19 @@
   bottom: 6px;
 }
 
+/* A layer that failed on a frame that still has its photo: the way back rides an overlay that only
+   comes down under the pointer, so the picture is never hidden for good. Hidden it takes no clicks
+   either -- the photo underneath still opens the frame. */
+.qe-veil {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+.qe-tile:hover .qe-veil {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* A download link wearing the design's button clothes: everything else comes from .wf-btn, only
    the anchor's default underline has to go. */
 a.wf-btn {

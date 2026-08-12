@@ -1597,6 +1597,37 @@ def test_retry_puts_the_frame_back_in_line():
     assert record.statuses("düğün") == {"P0_0": "done"}
 
 
+def test_retry_puts_the_frames_failed_layer_back_rather_than_its_photo():
+    store, record = FakeStore(), FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", error="node 41")
+    plan_store = FakePlanStore(frames=[
+        frame(0),
+        {"id": "0_a", "type": "video", "number": 0, "prompt": "", "negative": "", "seed": None,
+         "model": ""},
+    ])
+
+    retry_frame(sync_runner(), store, record, plan_store, {}, lambda: "t", "düğün", "0_a.png")
+
+    cells = record.slots("düğün")["0_a"]
+    assert cells["video"] == {"status": "queued", "file": "0_a_V1_0.mp4"}
+    # The photo is untouched: retrying a layer does not re-render the picture under it.
+    assert cells["photo"]["status"] == "done"
+
+
+def test_retry_of_a_frame_with_nothing_red_still_asks_for_its_photo():
+    # A deleted photo the user wants back: no layer is failed, and the photo is what is missing.
+    store, record = FakeStore(), FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t")
+    plan_store = FakePlanStore(frames=[frame(0)])
+
+    retry_frame(sync_runner(), store, record, plan_store, {layers.PHOTO: FakeGenerator()},
+                lambda: "t", "düğün", "0_a.png")
+
+    assert record.slots("düğün")["0_a"]["photo"]["status"] == "done"   # produced again
+
+
 def test_a_retried_frame_waits_behind_the_frames_that_never_had_a_turn():
     record, plan_store = FakeRecord(), FakePlanStore()
     generator = FakeGenerator(fail_on=["patlak"])

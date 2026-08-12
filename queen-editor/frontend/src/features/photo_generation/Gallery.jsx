@@ -50,6 +50,27 @@ const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18p
 // does not feel stuck. The design asks for a hold; the number is ours.
 const HOLD_MS = 250;
 
+// A layer that blew up on a frame that still has its picture: the way back rides an overlay CSS
+// only brings down under the pointer, so the photo is never hidden for good (madde 67).
+const VEIL = { position: "absolute", inset: 0, display: "flex", alignItems: "center",
+               justifyContent: "center", background: "rgba(0,0,0,.55)",
+               borderRadius: "var(--r-sm)", zIndex: 3 };
+
+/** The way back from a failed render.
+ *
+ * Pressed once: the queue has taken it and the card only changes on the next poll, so the button
+ * says so itself rather than sitting there ready for a second press (madde 69).
+ */
+function RetryButton({ file, sent, onRetry }) {
+  return (
+    <Btn sm disabled={sent}
+         onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!sent) onRetry(file); }}
+         style={{ color: "var(--danger)", borderColor: "var(--danger)", background: "transparent" }}>
+      {sent ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene</>}
+    </Btn>
+  );
+}
+
 /** The one thing worth saying about a frame's state, or nothing at all.
  *
  * Running first, then what blew up, then what is still owed: a frame can be several of these at
@@ -65,13 +86,14 @@ function statusOf(frame, running) {
   return null;
 }
 
-function Tile({ name, muted, danger, badge, pill, owns, selected, onCheck, children }) {
+function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck, children }) {
   const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ position: "relative",
                     ...(selected ? { outline: "2px solid var(--accent)", borderRadius: 4 } : {}) }}>
         {children}
+        {veil}
         {/* A frame that is not a photo yet carries the same badge from the same sequence, only in
             a fainter tone -- 20 pending becomes 20 produced. */}
         {badge != null && (
@@ -115,6 +137,9 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
   const [deleting, setDeleting] = useState(false);
   // A tile can only be picked up after it has been held: this is the one that is armed.
   const [armed, setArmed] = useState(null);
+  // Which frames have just been sent back. The screen's own memory: the server keeps no "asked for"
+  // flag, and the next poll brings the frame back as a waiting one anyway.
+  const [retried, setRetried] = useState([]);
   const hold = useRef(null);
 
   useEffect(() => () => clearTimeout(hold.current), []);
@@ -147,6 +172,11 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
   function closeSelection() {
     setSelecting(false);
     setSelected([]);
+  }
+
+  function sendBack(file) {
+    setRetried((names) => [...names, file]);
+    onRetry(file);
   }
 
   function toggle(file) {
@@ -237,6 +267,9 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
           // A layer that blew up holds its slot but is not something the frame owns.
           const owns = Boolean((frame.layers || {}).video)
             && !(frame.failed || []).includes("video");
+          // A layer failed on a frame that still has its picture: the card stays as it is and the
+          // way back comes down over it under the pointer.
+          const brokenLayer = produced && (frame.failed || []).length > 0;
           // The badge counts up from the bottom: the oldest frame is 1, the newest is N, and a new
           // frame on top never renumbers the ones below it.
           const badge = frames.length - index;
@@ -274,6 +307,12 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
                       danger={state === "failed"}
                       pill={<StatusPill {...(statusOf(frame, running) || {})} />}
                       owns={owns}
+                      veil={brokenLayer && (
+                        <div data-veil className="qe-veil" style={VEIL}>
+                          <RetryButton file={frame.file} sent={retried.includes(frame.file)}
+                                       onRetry={sendBack} />
+                        </div>
+                      )}
                       onCheck={state === "running" ? undefined : () => toggle(frame.file)}
                       selected={selected.includes(frame.file)}>
                   {/* Every frame opens its own page, produced or not -- the detail page knows all
@@ -304,14 +343,10 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
                                     background: "var(--danger-bg)", backgroundImage: "none",
                                     display: "flex", flexDirection: "column", gap: 6 }}>
                         <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
-                        {/* Inside the link now, so it has to keep the click to itself: pressing
+                        {/* Inside the link, so it has to keep the click to itself: pressing
                             Tekrar dene means retry, never "open this frame". */}
-                        <Btn sm onClick={(e) => { e.preventDefault(); e.stopPropagation();
-                                                  onRetry(frame.file); }}
-                             style={{ color: "var(--danger)", borderColor: "var(--danger)",
-                                      background: "transparent" }}>
-                          <Icon.Regen /> Tekrar dene
-                        </Btn>
+                        <RetryButton file={frame.file} sent={retried.includes(frame.file)}
+                                     onRetry={sendBack} />
                       </div>
                     ) : (
                       /* Nothing in the middle: the dashed border already says there are no pixels,
