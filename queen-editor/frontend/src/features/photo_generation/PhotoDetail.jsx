@@ -5,7 +5,7 @@ import { navigate, photoPath, projectPath } from "../../shared/router.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import { Pill, Rendering } from "./frame_status.jsx";
+import { Pill, Rendering, StatusPill } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 import LayerPlayer from "./LayerPlayer.jsx";
 import { useGeneration } from "./useGeneration.js";
@@ -112,17 +112,21 @@ function Field({ label, value, muted }) {
 
 // Prompt and negative are the same block twice: both take an equal share of whatever the two small
 // fields leave behind, and each scrolls inside itself so a long negative cannot squeeze the prompt.
-function TextBlock({ label, text }) {
+//
+// `hint` is what an empty box says when the emptiness has a reason -- a layer nobody has written
+// the words for yet (madde 81). Without one an empty box says "—", because an empty negative is an
+// answer of its own.
+function TextBlock({ label, text, hint }) {
   const empty = !text;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
       <Mono size={10} style={LABEL}>{label}</Mono>
       <div className="wf-stroke" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 10 }}>
-        {/* The box is drawn even with nothing in it: an empty negative is an answer, and a box that
-            came and went with the frame would make the column jump between frames. */}
+        {/* The box is drawn even with nothing in it: a box that came and went with the frame would
+            make the column jump between frames. */}
         <Note size={12} style={{ color: empty ? "var(--ink-4)" : "var(--ink-2)", display: "block",
                                  lineHeight: 1.6 }}>
-          {empty ? "—" : text}
+          {empty ? (hint || "—") : text}
         </Note>
       </div>
     </div>
@@ -153,9 +157,9 @@ function PromptBox({ label, value, changed, onChange }) {
 // says where it sits, what it is called and what it was asked to be. Every frame in the gallery
 // opens here -- produced, waiting, being rendered or failed -- and the page is live, so the one the
 // worker is holding turns into its photo without a reload.
-export default function PhotoDetail({ project, file }) {
-  const { frames, current, currentLayer, error, removePhotos, removeLayer,
-          regenerate } = useGeneration(project);
+export default function PhotoDetail({ project, frame: fid }) {
+  const { frames, current, currentLayer, error, removePhotos, removeLayer, regenerate,
+          retry } = useGeneration(project);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   // Which layer is open. The photo to begin with: it is the frame itself, and the others are what
@@ -175,30 +179,47 @@ export default function PhotoDetail({ project, file }) {
   // card must not say the wrong one.
   const [refusedAct, setRefusedAct] = useState(null);
 
-  const index = frames ? frames.findIndex((frame) => frame.file === file) : -1;
+  // By identity, never by file: a copy frame shows its source's picture, and the two of them are
+  // different frames at different places in the sequence.
+  const index = frames ? frames.findIndex((row) => row.id === fid) : -1;
   const frame = index >= 0 ? frames[index] : null;
   const previous = index > 0 ? frames[index - 1] : null;
   const next = frames && index >= 0 && index < frames.length - 1 ? frames[index + 1] : null;
-  // The frame being rendered has no state on disk -- the live worker's file name is what says so,
-  // exactly as in the gallery. Only a photo render empties the page: a frame whose video is being
-  // made still has its picture.
-  const state = frame && frame.file === current && (currentLayer || "photo") === "photo"
-    ? "running"
-    : frame?.status;
+  // Which layer the worker is holding on THIS frame, if any -- the one thing about a frame that
+  // has no state on disk.
+  const running = frame && frame.id === current ? (currentLayer || "photo") : null;
+  // The photo layer's state is the frame's own: it is the frame.
+  const state = running === "photo" ? "running" : frame?.status;
   const produced = state === "done";
 
-  // What the frame really holds: a layer that blew up occupies its slot but is not something the
-  // frame has, so its tab stays shut.
-  const has = Object.fromEntries(LAYER_ORDER.map((layer) => [
-    layer,
-    Boolean((frame?.layers || {})[layer]) && !(frame?.failed || []).includes(layer),
-  ]));
+  // What one layer is doing, or null when the frame never asked for it. One rule for the tab strip
+  // and for what the open tab draws: a layer that blew up and one that is still coming both have
+  // something to show (madde 79, 81).
+  const stateOf = (layer) => {
+    if (layer === "photo") return state;
+    if (running === layer) return "running";
+    if ((frame?.failed || []).includes(layer)) return "failed";
+    if ((frame?.owed || []).includes(layer)) return "pending";
+    return (frame?.layers || {})[layer] ? "done" : null;
+  };
+  // A tab opens for every layer that is in the plan, whatever became of it; one the frame never
+  // asked for stays disabled rather than hidden -- what it could still become is worth seeing.
+  const has = Object.fromEntries(LAYER_ORDER.map((layer) => [layer, stateOf(layer) !== null]));
   // Every layer up to the open one: the column shows their file names, then the open layer's own
   // prompt, then the ones under it (madde 75).
   const shown = LAYER_ORDER.slice(0, LAYER_ORDER.indexOf(open) + 1);
-  // Is the open layer really there? The photo tab needs no answer from `layers`: a produced frame
-  // IS its photo. Only a layer that exists can be made again, and only it can be edited.
-  const holds = open === "photo" ? produced : has[open];
+  const openState = stateOf(open);
+  // Only a layer that is really there can be made again, and only it can be edited.
+  const holds = openState === "done";
+  // Does removing this frame take a file off the disk? Only when the picture is its own: a copy
+  // frame holds its source's, and a frame with nothing produced holds nothing at all (madde 101).
+  const ownsItsPhoto = produced && frame.file === `${frame.id}.png`;
+  // Is anything still coming for it? A frame in the queue is taken out of it; a red one is not in
+  // it at all, so saying "kuyruktan çıkar" there would be a lie.
+  const awaited = (frame?.owed || []).length > 0;
+  // Which layer that is: the one the worker is on, or the first one still owed. The frame's own
+  // answer rather than the open tab's, because it is the frame that is waiting.
+  const coming = running || (frame?.owed || [])[0] || null;
   // What the layer was made from -- the frame's own words until the user types over them.
   const said = (frame?.prompts || {})[open] ?? (open === "photo" ? frame?.prompt : "") ?? "";
   const typed = words[open] ?? said;
@@ -218,14 +239,14 @@ export default function PhotoDetail({ project, file }) {
     setWords({});
     setSent([]);
     setRefusedAct(null);
-  }, [file]);
+  }, [fid]);
 
   useEffect(() => {
     const onKey = (e) => {
       if (confirming) return;                    // the modal owns the keyboard while it is open
       if (e.key === "Escape") navigate(projectPath(project));
-      if (e.key === "ArrowLeft" && previous) navigate(photoPath(project, previous.file));
-      if (e.key === "ArrowRight" && next) navigate(photoPath(project, next.file));
+      if (e.key === "ArrowLeft" && previous) navigate(photoPath(project, previous.id));
+      if (e.key === "ArrowRight" && next) navigate(photoPath(project, next.id));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -238,12 +259,12 @@ export default function PhotoDetail({ project, file }) {
     setBusy(true);
     setRefused(false);
     const after = next || previous;
-    return removePhotos([file]).then((body) => {
+    return removePhotos([fid]).then((body) => {
       setBusy(false);
       setConfirming(false);
       // Refused: the frame is still there, so staying on it is the only honest thing to do.
       if (!body) return setRefused(true);
-      navigate(after ? photoPath(project, after.file) : projectPath(project));
+      navigate(after ? photoPath(project, after.id) : projectPath(project));
     });
   }
 
@@ -256,6 +277,15 @@ export default function PhotoDetail({ project, file }) {
       if (!body) return setRefusedAct("Kare yeniden üretilemedi");
       setSent((layers) => [...layers, layer]);
     });
+  }
+
+  // The red layer goes back into the queue on this very frame -- no copy, no new name (madde 68).
+  // The page keeps showing red until the poll brings the frame back as a waiting one, which is why
+  // the button remembers the press itself.
+  function handleRetry() {
+    const layer = open;
+    setSent((sentLayers) => [...sentLayers, layer]);
+    return retry(frame.id);
   }
 
   // The open tab's own layer, and whatever lies over it. The frame stays in the gallery, so the
@@ -288,7 +318,7 @@ export default function PhotoDetail({ project, file }) {
         // Not one of the three states the design draws, but a fourth thing: an address that names
         // no frame at all -- a deleted one's old link, or a hand-typed URL.
         <div style={{ ...STAGE, flexDirection: "column", gap: 12 }}>
-          <StatusErrorCard text="Fotoğraf bulunamadı" raw={error || file} />
+          <StatusErrorCard text="Fotoğraf bulunamadı" raw={error || fid} />
         </div>
       ) : (
         <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
@@ -296,39 +326,52 @@ export default function PhotoDetail({ project, file }) {
             <LayerTabs open={open} has={has} onOpen={setOpen} />
             {/* The corner label the gallery uses, with this page's own sentence: the queue took the
                 job, and what it makes will be a frame of its own rather than this one changing. */}
-            {sent.length > 0 && (
+            {sent.length > 0 ? (
               <Pill color="var(--accent)">yeniden üretilecek — kuyrukta</Pill>
-            )}
+            ) : coming ? (
+              /* What the frame is waiting for, in the gallery's own words. A copy frame's page is
+                 full of its source's picture, and this is the only thing that says the video is
+                 still coming (madde 81). A failed layer gets no pill: the stage says that across
+                 its whole width. */
+              <StatusPill layer={coming} state={running ? "running" : "pending"} />
+            ) : null}
             <Arrow glyph="‹" side="left"
                    onClick={previous
-                     ? () => navigate(photoPath(project, previous.file))
+                     ? () => navigate(photoPath(project, previous.id))
                      : undefined} />
             <Arrow glyph="›" side="right"
-                   onClick={next ? () => navigate(photoPath(project, next.file)) : undefined} />
-            {produced && open !== "photo" && holds ? (
+                   onClick={next ? () => navigate(photoPath(project, next.id)) : undefined} />
+            {holds && open !== "photo" ? (
               /* The layer's own tab plays it. The sound opens no player of its own: it rides the
-                 video, which is what "sesli oynar" means here (madde 74). `holds` guards the poll
-                 that lands while a layer is being deleted: no layer, no player. */
+                 video, which is what "sesli oynar" means here (madde 74). */
               <LayerPlayer videoUrl={fileUrl(project, frame.layers.video)}
                            audioUrl={open === "audio"
                              ? fileUrl(project, frame.layers.audio)
                              : null} />
+            ) : openState === "running" ? (
+              <Rendering style={HOLDER} />
+            ) : openState === "failed" ? (
+              /* Madde 79: red border, red ground, and the renderer's own sentence under the two
+                 words -- the one place the reason is readable. */
+              <div className="wf-img" style={{ ...HOLDER, borderColor: "var(--danger)",
+                                               background: "var(--danger-bg)",
+                                               backgroundImage: "none", padding: 24 }}>
+                <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
+                <Mono size={12} style={{ color: "var(--danger)" }}>Bu kare üretilemedi</Mono>
+                {(frame.errors || {})[open] && (
+                  <Note size={12} style={{ color: "var(--ink-2)", textAlign: "center",
+                                           lineHeight: 1.5 }}>
+                    {frame.errors[open]}
+                  </Note>
+                )}
+              </div>
             ) : produced ? (
-              /* contain, not a fixed ratio: the server does not know the photo's shape, and the
-                 design's rule is that it is never cropped. 120px is the design's own arrow gutter. */
+              /* The picture the frame holds -- its own, or its source's when this is a copy waiting
+                 for the layer above it (madde 81). contain, not a fixed ratio: the server does not
+                 know the photo's shape and it is never cropped. 120px is the arrow gutter. */
               <img src={fileUrl(project, frame.file)} alt={frame.file}
                    style={{ maxWidth: "calc(100% - 120px)", maxHeight: "100%", width: "auto",
                             height: "auto", objectFit: "contain", display: "block" }} />
-            ) : state === "running" ? (
-              <Rendering style={HOLDER} />
-            ) : state === "failed" ? (
-              <div className="wf-img" style={{ ...HOLDER, borderStyle: "dashed",
-                                               borderColor: "var(--danger)",
-                                               background: "var(--danger-bg)",
-                                               backgroundImage: "none" }}>
-                <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
-                <Mono size={12} style={{ color: "var(--danger)" }}>üretilemedi</Mono>
-              </div>
             ) : (
               /* Madde 82: the holder keeps the frame's own shape and its two lines are drawn
                  faintly -- a frame with no pixels yet is not an error, only not here yet. */
@@ -367,7 +410,12 @@ export default function PhotoDetail({ project, file }) {
                 <TextBlock key={layer}
                            label={layer === open ? "Prompt" : `${LAYER_WORD[layer]} prompt`}
                            text={(frame.prompts || {})[layer]
-                                 ?? (layer === "photo" ? frame.prompt : "")} />
+                                 ?? (layer === "photo" ? frame.prompt : "")}
+                           // A layer still in the queue has no words yet, and nobody typed the
+                           // missing ones: the box says who will (madde 81).
+                           hint={layer === open && openState === "pending" && layer !== "photo"
+                             ? "üretim sırası gelince LLM yazacak"
+                             : null} />
               )
             ))}
             {/* The negative belongs to the photo alone: video and sound jobs carry none. It stays
@@ -384,6 +432,15 @@ export default function PhotoDetail({ project, file }) {
                   : <><Icon.Regen /> Yeniden üret — yeni kare</>}
               </Btn>
             )}
+            {openState === "failed" && (
+              /* The way back from a red layer, on the page it is read (madde 79). Retrying makes no
+                 new frame -- it is the one exception to "üret = ekle" -- so it asks nothing and
+                 only says the queue took it. */
+              <Btn sm hl disabled={sent.includes(open)} onClick={handleRetry}
+                   style={{ justifyContent: "center" }}>
+                {sent.includes(open) ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene</>}
+              </Btn>
+            )}
 
             {refusedAct && <StatusErrorCard text={refusedAct} raw={error} />}
             {refused && (
@@ -392,11 +449,13 @@ export default function PhotoDetail({ project, file }) {
             )}
 
             {/* One destructive button per tab (madde 80): the frame on the photo tab, the layer on
-                the others. */}
+                the others. Only a frame whose picture is its own loses a file, and only that one
+                asks first; the other two say which of the frame's two ends it is at. */}
             {open === "photo" ? (
               <Btn sm disabled={busy || state === "running"}
-                   onClick={produced ? () => setConfirming(true) : handleRemove} style={DANGER}>
-                <Icon.Trash /> {produced ? "Sil" : "Kuyruktan çıkar"}
+                   onClick={ownsItsPhoto ? () => setConfirming(true) : handleRemove}
+                   style={DANGER}>
+                <Icon.Trash /> {ownsItsPhoto ? "Sil" : (awaited ? "Kuyruktan çıkar" : "Kareyi sil")}
               </Btn>
             ) : holds && (
               <Btn sm disabled={busy} onClick={() => setConfirming(true)} style={DANGER}>

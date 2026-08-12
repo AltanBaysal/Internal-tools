@@ -32,6 +32,9 @@ export function projectPath(project) {
   return `/projects/${encodeURIComponent(project)}`;
 }
 
-export function photoPath(project, file) {
-  return `${projectPath(project)}/photos/${encodeURIComponent(file)}`;
+// The segment is the frame's identity, not its file: a copy frame shares its source's picture, so
+// a file name would take two frames to one address. The word "photos" stays -- it is the area's
+// name, the same reason the server's file route keeps it.
+export function photoPath(project, frame) {
+  return `${projectPath(project)}/photos/${encodeURIComponent(frame)}`;
 }

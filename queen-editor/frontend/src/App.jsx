@@ -21,9 +21,10 @@ function ProjectRoute({ project }) {
 }
 
 export default function App() {
+  // The photo segment carries the frame's identity: one picture can stand under two frames.
   const { project, photo } = routeFromPath(useRoute());
   if (!project) return <ProjectsScreen />;
-  // The detail page reads the photo list itself, so it does not wait for the project's settings.
-  if (photo) return <PhotoDetail project={project} file={photo} />;
+  // The detail page reads the frame list itself, so it does not wait for the project's settings.
+  if (photo) return <PhotoDetail project={project} frame={photo} />;
   return <ProjectRoute project={project} />;
 }

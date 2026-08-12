@@ -14,9 +14,12 @@ to (never rewritten -- see data/photo_record.py). The order file is written once
 than per frame: it is a single small document, and one write is one chance to be interrupted
 instead of N.
 
-A name the gallery does not know is skipped, not refused. The confirm box can sit open while another
-tab removes the same frame, and refusing the whole batch over one that is already gone would leave
-the rest standing against the user's own decision. The answer says what really happened.
+Frames are named by their identities, not by their files: a copy frame shares its source's picture
+(madde 102), so one file name can belong to two frames and only one of them is being taken out.
+
+An identity the gallery does not know is skipped, not refused. The confirm box can sit open while
+another tab removes the same frame, and refusing the whole batch over one that is already gone would
+leave the rest standing against the user's own decision. The answer says what really happened.
 
 The frame being rendered needs no guard: it writes its own line when it lands, and the latest line
 about a slot wins, so a removal that raced it is undone by the photo itself.
@@ -26,39 +29,41 @@ from backend.features.photo_generation.domain.usecases.list_frames import list_f
 
 
 class InvalidFiles(Exception):
-    """The body was not a list of file names."""
+    """The body was not a list of frame identities."""
 
 
-def remove_frames(record, store, plan_store, order_store, now, project, files):
-    if not isinstance(files, list) or any(not isinstance(name, str) for name in files):
-        raise InvalidFiles("Silinecek dosya listesi metin dizisi olmalı.")
+def remove_frames(record, store, plan_store, order_store, now, project, frames):
+    if not isinstance(frames, list) or any(not isinstance(fid, str) for fid in frames):
+        raise InvalidFiles("Silinecek kare listesi metin dizisi olmalı.")
     # Raises ProjectMissing when there is no such project.
-    gallery = {frame["file"]: frame
+    gallery = {frame["id"]: frame
                for frame in list_frames(record, store, plan_store, order_store, project)}
     slots = record.slots(project)
 
     # The whole deletion is decided first: which slots close, and which files that leaves unheld.
     deleted, removed, closing = [], [], set()
-    for name in files:
-        frame = gallery.get(name)
+    for fid in frames:
+        frame = gallery.get(fid)
         if frame is None:
             continue
         if frame["status"] == queue.DONE:
-            cells = slots.get(frame["id"], {})
-            closing |= {(frame["id"], slot) for slot, cell in cells.items()
+            cells = slots.get(fid, {})
+            closing |= {(fid, slot) for slot, cell in cells.items()
                         if layers.is_taken(cell["status"])}
-            deleted.append(name)
+            deleted.append(fid)
         else:
-            removed.append(name)
+            removed.append(fid)
 
     for file in sorted(layers.files_to_unlink(slots, closing)):
         store.delete(project, file)
     for fid, slot in sorted(closing):
         record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
-    for name in removed:
-        record.mark(project, gallery[name]["id"], layers.PHOTO, name, queue.REMOVED, now())
+    for fid in removed:
+        # The name it was planned to take: nothing was ever produced under it, and a line still has
+        # to say which file the frame was about.
+        record.mark(project, fid, layers.PHOTO, gallery[fid]["file"], queue.REMOVED, now())
 
-    gone = {gallery[name]["id"] for name in deleted + removed}
+    gone = set(deleted + removed)
     if gone:
         order_store.write(project, [fid for fid in order_store.read(project) if fid not in gone])
     return {"deleted": deleted, "removed": removed}

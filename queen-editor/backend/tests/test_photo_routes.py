@@ -260,9 +260,9 @@ def test_saved_order_decides_how_photos_are_listed(tmp_path):
     generate(client, prompts='["a", "b"]', variants=1)
     assert files_of(client) == ["P1_0.png", "P0_0.png"]
 
-    resp = client.put("/api/projects/düğün/order", json={"order": ["P0_0.png", "P1_0.png"]})
+    resp = client.put("/api/projects/düğün/order", json={"order": ["P0_0", "P1_0"]})
     assert resp.status_code == 200
-    # The screen sends file names; what is stored and echoed back is the frame's identity.
+    # Identities in, identities out: one picture can stand under two frames.
     assert resp.get_json() == {"order": ["P0_0", "P1_0"]}
     assert files_of(client) == ["P0_0.png", "P1_0.png"]
 
@@ -270,7 +270,7 @@ def test_saved_order_decides_how_photos_are_listed(tmp_path):
 def test_photos_produced_after_a_sort_land_on_top(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=1)
-    client.put("/api/projects/düğün/order", json={"order": ["P0_0.png", "P1_0.png"]})
+    client.put("/api/projects/düğün/order", json={"order": ["P0_0", "P1_0"]})
 
     generate(client, prompts='["c"]', variants=1)
 
@@ -280,7 +280,7 @@ def test_photos_produced_after_a_sort_land_on_top(tmp_path):
 def test_order_keeps_only_the_names_the_record_knows(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
-    resp = client.put("/api/projects/düğün/order", json={"order": ["hayalet.png", "P0_0.png"]})
+    resp = client.put("/api/projects/düğün/order", json={"order": ["hayalet", "P0_0"]})
     assert resp.get_json() == {"order": ["P0_0"]}
 
 
@@ -384,7 +384,7 @@ def test_a_deleted_photo_leaves_the_gallery_for_good(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=1)
 
-    delete_photos_request(client, ["P1_0.png"])
+    delete_photos_request(client, ["P1_0"])
 
     assert statuses_of(client) == [("P0_0.png", "done")]
 
@@ -392,9 +392,9 @@ def test_a_deleted_photo_leaves_the_gallery_for_good(tmp_path):
 def test_retry_produces_only_the_named_frame(tmp_path):
     client, drive = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=1)
-    delete_photos_request(client, ["P0_0.png"])
+    delete_photos_request(client, ["P0_0"])
 
-    resp = client.post("/api/projects/düğün/retry", json={"file": "P0_0.png"})
+    resp = client.post("/api/projects/düğün/retry", json={"frame": "P0_0"})
 
     assert resp.status_code == 202
     assert (drive / "düğün" / "P0_0.png").exists()
@@ -565,7 +565,7 @@ def test_deleting_a_layer_of_an_unknown_frame_returns_404(tmp_path):
 def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
-    assert client.post("/api/projects/düğün/retry", json={"file": "9_z.png"}).status_code == 404
+    assert client.post("/api/projects/düğün/retry", json={"frame": "P9_9"}).status_code == 404
 
 
 def test_resume_produces_only_what_the_run_never_got_to(tmp_path):
@@ -609,18 +609,18 @@ def test_cancel_empties_the_queue_and_leaves_the_photos(tmp_path):
     assert client.post("/api/projects/düğün/resume").status_code == 409
 
 
-def delete_photos_request(client, files, project="düğün"):
-    return client.post(f"/api/projects/{project}/frames/delete", json={"files": files})
+def delete_photos_request(client, frames, project="düğün"):
+    return client.post(f"/api/projects/{project}/frames/delete", json={"frames": frames})
 
 
 def test_deleting_photos_removes_them_from_the_gallery_and_the_folder(tmp_path):
     client, drive = make_client(tmp_path)
     generate(client, prompts='["a", "b", "c"]', variants=1)
 
-    resp = delete_photos_request(client, ["P0_0.png", "P2_0.png"])
+    resp = delete_photos_request(client, ["P0_0", "P2_0"])
 
     assert resp.status_code == 200
-    assert resp.get_json() == {"deleted": ["P0_0.png", "P2_0.png"], "removed": []}
+    assert resp.get_json() == {"deleted": ["P0_0", "P2_0"], "removed": []}
     assert files_of(client) == ["P1_0.png"]
     assert not (drive / "düğün" / "P0_0.png").exists()
 
@@ -630,9 +630,9 @@ def test_pulling_pending_frames_out_leaves_the_photos_alone(tmp_path):
     client, drive = make_client(tmp_path, generator=StopsAfter(runner, 1), runner=runner)
     generate(client, prompts='["a", "b", "c"]', variants=1)
 
-    resp = delete_photos_request(client, ["P2_0.png", "P1_0.png"])
+    resp = delete_photos_request(client, ["P2_0", "P1_0"])
 
-    assert resp.get_json() == {"deleted": [], "removed": ["P2_0.png", "P1_0.png"]}
+    assert resp.get_json() == {"deleted": [], "removed": ["P2_0", "P1_0"]}
     assert statuses_of(client) == [("P0_0.png", "done")]
     assert (drive / "düğün" / "P0_0.png").exists()
 
@@ -640,7 +640,7 @@ def test_pulling_pending_frames_out_leaves_the_photos_alone(tmp_path):
 def test_a_photo_produced_after_a_delete_does_not_reuse_the_number(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
-    delete_photos_request(client, ["P0_0.png"])
+    delete_photos_request(client, ["P0_0"])
 
     generate(client, prompts='["b"]', variants=1)
 
@@ -650,34 +650,34 @@ def test_a_photo_produced_after_a_delete_does_not_reuse_the_number(tmp_path):
 def test_deleting_a_photo_drops_it_from_the_saved_order(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=1)
-    client.put("/api/projects/düğün/order", json={"order": ["P0_0.png", "P1_0.png"]})
+    client.put("/api/projects/düğün/order", json={"order": ["P0_0", "P1_0"]})
 
-    delete_photos_request(client, ["P0_0.png"])
+    delete_photos_request(client, ["P0_0"])
 
     assert files_of(client) == ["P1_0.png"]
 
 
 def test_deleting_an_unknown_photo_reports_nothing_deleted(tmp_path):
     client, _ = make_client(tmp_path)
-    resp = delete_photos_request(client, ["yok.png"])
+    resp = delete_photos_request(client, ["yok"])
     assert resp.status_code == 200
     assert resp.get_json() == {"deleted": [], "removed": []}
 
 
 def test_a_delete_body_that_is_not_a_list_returns_400(tmp_path):
     client, _ = make_client(tmp_path)
-    assert delete_photos_request(client, "P0_0.png").status_code == 400
+    assert delete_photos_request(client, "P0_0").status_code == 400
 
 
 def test_deleting_photos_of_an_unknown_project_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
-    assert delete_photos_request(client, ["P0_0.png"], project="yok").status_code == 404
+    assert delete_photos_request(client, ["P0_0"], project="yok").status_code == 404
 
 
 def test_export_reads_the_gallery_from_the_bottom_up(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a", "b"]', variants=1)
-    client.put("/api/projects/düğün/order", json={"order": ["P0_0.png", "P1_0.png"]})
+    client.put("/api/projects/düğün/order", json={"order": ["P0_0", "P1_0"]})
 
     resp = client.get("/api/projects/düğün/export")
 

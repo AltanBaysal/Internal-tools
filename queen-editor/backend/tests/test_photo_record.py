@@ -28,6 +28,22 @@ def test_prompts_are_folded_per_layer(tmp_path):
                                                 "video": "kadın dönüyor"}}
 
 
+def test_a_failure_line_keeps_its_reason(tmp_path):
+    # Why the slot is red travels with it: the detail page prints the renderer's own sentence.
+    record = record_at(tmp_path)
+    record.mark("düğün", "P0_0", "photo", "P0_0.png", "failed", "t", error="CUDA — 3 kez denendi")
+
+    assert record.slots("düğün")["P0_0"]["photo"] == {
+        "status": "failed", "file": "P0_0.png", "error": "CUDA — 3 kez denendi"}
+
+
+def test_a_line_with_no_reason_carries_none(tmp_path):
+    record = record_at(tmp_path)
+    record.append("düğün", entry("P0_0.png"))
+
+    assert record.slots("düğün")["P0_0"]["photo"] == {"status": "done", "file": "P0_0.png"}
+
+
 def test_appended_photos_come_back_newest_first(tmp_path):
     record = record_at(tmp_path)
     record.append("düğün", entry("0_a.png"))

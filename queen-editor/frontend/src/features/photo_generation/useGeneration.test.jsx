@@ -39,7 +39,7 @@ describe("useGeneration", () => {
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();
 
-    expect(result.current.current).toBe("P11_3.png");
+    expect(result.current.current).toBe("P11_3");
   });
 
   it("says which layer the worker is making, not just which frame", async () => {
@@ -49,7 +49,7 @@ describe("useGeneration", () => {
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();
 
-    expect(result.current.current).toBe("P0_0.png");
+    expect(result.current.current).toBe("P0_0");
     expect(result.current.currentLayer).toBe("video");
   });
 
@@ -240,48 +240,48 @@ describe("useGeneration", () => {
 
   it("shows the new order straight after a drag and writes it to the server", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
-    listFrames.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
-    saveOrder.mockResolvedValue({ order: ["0_a.png", "1_a.png"] });
+    listFrames.mockResolvedValue([{ id: "1_a", file: "1_a.png" }, { id: "0_a", file: "0_a.png" }]);
+    saveOrder.mockResolvedValue({ order: ["0_a", "1_a"] });
 
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();
 
-    await act(async () => { await result.current.reorder(["0_a.png", "1_a.png"]); });
+    await act(async () => { await result.current.reorder(["0_a", "1_a"]); });
 
-    expect(result.current.frames.map((p) => p.file)).toEqual(["0_a.png", "1_a.png"]);
-    expect(saveOrder).toHaveBeenCalledWith("düğün", ["0_a.png", "1_a.png"]);
+    expect(result.current.frames.map((p) => p.id)).toEqual(["0_a", "1_a"]);
+    expect(saveOrder).toHaveBeenCalledWith("düğün", ["0_a", "1_a"]);
   });
 
   it("shows the error and falls back to the server's order when the ordering cannot be saved", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
-    listFrames.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
+    listFrames.mockResolvedValue([{ id: "1_a", file: "1_a.png" }, { id: "0_a", file: "0_a.png" }]);
     saveOrder.mockRejectedValue(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nkopuk"));
 
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();
 
-    await act(async () => { await result.current.reorder(["0_a.png", "1_a.png"]); });
+    await act(async () => { await result.current.reorder(["0_a", "1_a"]); });
     await settle();
 
     expect(result.current.error).toContain("Sıra kaydedilemedi");
-    expect(result.current.frames.map((p) => p.file)).toEqual(["1_a.png", "0_a.png"]);
+    expect(result.current.frames.map((p) => p.id)).toEqual(["1_a", "0_a"]);
   });
 
   it("does not let a poll answer during a save bounce the order back", async () => {
     getStatus.mockResolvedValue(RUNNING);
-    listFrames.mockResolvedValue([{ file: "1_a.png" }, { file: "0_a.png" }]);
+    listFrames.mockResolvedValue([{ id: "1_a", file: "1_a.png" }, { id: "0_a", file: "0_a.png" }]);
     let finishSave;
     saveOrder.mockReturnValue(new Promise((resolve) => { finishSave = resolve; }));
 
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();
 
-    act(() => { result.current.reorder(["0_a.png", "1_a.png"]); });
+    act(() => { result.current.reorder(["0_a", "1_a"]); });
     await settle(2000);   // a poll lands mid-save carrying the server's older order
 
-    expect(result.current.frames.map((p) => p.file)).toEqual(["0_a.png", "1_a.png"]);
+    expect(result.current.frames.map((p) => p.id)).toEqual(["0_a", "1_a"]);
 
-    await act(async () => { finishSave({ order: ["0_a.png", "1_a.png"] }); });
+    await act(async () => { finishSave({ order: ["0_a", "1_a"] }); });
   });
 
   it("keeps the button disabled while the server reports it is stopping", async () => {

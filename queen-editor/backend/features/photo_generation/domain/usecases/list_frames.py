@@ -57,6 +57,16 @@ def _failed_layers(cells):
             if (cells.get(slot) or {}).get("status") == queue.FAILED]
 
 
+def _reasons(cells):
+    """{layer: why it blew up} -- the renderer's own sentence, for the layers that have one.
+
+    Only the detail page shows it. The gallery says a frame is red and no more (madde 79): a
+    technical line under every red tile would drown the grid it belongs to.
+    """
+    return {slot: cells[slot]["error"] for slot in _failed_layers(cells)
+            if cells[slot].get("error")}
+
+
 def list_frames(record, store, plan_store, order_store, project):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
@@ -91,6 +101,7 @@ def list_frames(record, store, plan_store, order_store, project):
                        "file": photo["file"] if photo else photo_file(fid),
                        "layers": _taken_files(cells),
                        "owed": owed.get(fid, []), "failed": _failed_layers(cells),
+                       "errors": _reasons(cells),
                        "prompts": _words(said.get(fid, {}), frame.get("prompt")),
                        "status": status if status in SHOWN else "pending"})
 
@@ -101,6 +112,7 @@ def list_frames(record, store, plan_store, order_store, project):
             cells = slots.get(fid, {})
             frames.append({**row, "id": fid, "layers": _taken_files(cells),
                            "owed": owed.get(fid, []), "failed": _failed_layers(cells),
+                           "errors": _reasons(cells),
                            "prompts": _words(said.get(fid, {}), row.get("prompt")),
                            "status": queue.DONE})
 

@@ -140,8 +140,8 @@ export function useGeneration(project) {
   ), [project, poll]);
 
   // One frame, put back in line with the prompt and seed the plan gave it.
-  const retry = useCallback((file) => (
-    retryFrame(project, file)
+  const retry = useCallback((frame) => (
+    retryFrame(project, frame)
       .then(() => { if (alive.current) startPolling(); })
       .catch((err) => { if (alive.current) setError(err.message); })
   ), [project, startPolling]);
@@ -213,14 +213,14 @@ export function useGeneration(project) {
   // user where they land. If the write fails we say so and put the server's own order back --
   // the screen never keeps an order the server does not have.
   const reorder = useCallback(
-    (files) => {
+    (order) => {
       savingOrder.current = true;
       setFrames((current) => {
         if (!current) return current;
-        const byFile = new Map(current.map((frame) => [frame.file, frame]));
-        return files.map((file) => byFile.get(file)).filter(Boolean);
+        const byId = new Map(current.map((frame) => [frame.id, frame]));
+        return order.map((fid) => byId.get(fid)).filter(Boolean);
       });
-      return saveOrder(project, files)
+      return saveOrder(project, order)
         .then(() => { savingOrder.current = false; })
         .catch((err) => {
           savingOrder.current = false;
@@ -237,13 +237,13 @@ export function useGeneration(project) {
   // disk and a frame that only left the queue are equally out of the gallery.
   // Resolves with the server's answer, or null when the request was refused: the detail page must
   // not walk away from a frame that is still sitting in the queue.
-  const removePhotos = useCallback((files) => (
-    removeFrames(project, files)
+  const removePhotos = useCallback((frames) => (
+    removeFrames(project, frames)
       .then((body) => {
         if (!alive.current) return null;
         const gone = new Set([...(body?.deleted || []), ...(body?.removed || [])]);
         setFrames((current) => (current
-          ? current.filter((frame) => !gone.has(frame.file))
+          ? current.filter((frame) => !gone.has(frame.id))
           : current));
         return body;
       })
@@ -262,10 +262,9 @@ export function useGeneration(project) {
   // in a second place that could disagree with it.
   const shown = frames || [];
   // The frame being rendered has no status on disk; only the live worker knows it, and only while
-  // it is this project's run. Its name comes from the job's identity -- the one thing about a frame
-  // that never changes.
+  // it is this project's run. Its identity, not its file: two frames can be showing one picture.
   const current = job.project === project && job.status === "running" && job.current
-    ? `${job.current.id}.png`
+    ? job.current.id
     : null;
   // Which layer of it is being made. A photo render empties the card while it runs; a video render
   // must not, because the frame's picture is still there -- so the screen needs the job's type as
@@ -279,7 +278,7 @@ export function useGeneration(project) {
   const failedByKind = { photo: 0, video: 0, audio: 0 };
   shown.forEach((frame) => {
     (frame.owed || []).forEach((layer) => {
-      if (frame.file === current && layer === currentLayer) return;
+      if (frame.id === current && layer === currentLayer) return;
       owedByKind[layer] += 1;
     });
     (frame.failed || []).forEach((layer) => { failedByKind[layer] += 1; });

@@ -163,8 +163,10 @@ class FakeRecord:
     def slots(self, project):
         folded = {}
         for row in self.rows:
-            folded.setdefault(self._frame_of(row), {})[self._layer_of(row)] = {
-                "status": row.get("status", "done"), "file": row["file"]}
+            cell = {"status": row.get("status", "done"), "file": row["file"]}
+            if isinstance(row.get("error"), str):
+                cell["error"] = row["error"]
+            folded.setdefault(self._frame_of(row), {})[self._layer_of(row)] = cell
         return folded
 
     def prompts(self, project):
@@ -772,10 +774,17 @@ def test_save_order_stores_and_returns_the_kept_list():
     plan_store = planned((0, "a", "a"), (1, "a", "b"))
     order = FakeOrderStore()
 
-    # The screen drags file names; what is stored and returned is the frame's identity.
+    # The screen drags frames; identities in, identities out.
     assert save_order(FakeRecord(), FakeStore(), plan_store, order, "düğün",
-                      ["1_a.png", "0_a.png"]) == ["1_a", "0_a"]
+                      ["1_a", "0_a"]) == ["1_a", "0_a"]
     assert order.order == ["1_a", "0_a"]
+
+
+def test_save_order_keeps_only_the_first_of_a_repeated_frame():
+    plan_store = planned((0, "a", "a"), (1, "a", "b"))
+
+    assert save_order(FakeRecord(), FakeStore(), plan_store, FakeOrderStore(), "düğün",
+                      ["1_a", "0_a", "1_a"]) == ["1_a", "0_a"]
 
 
 def test_save_order_keeps_pending_frames_in_the_sequence():
@@ -785,7 +794,7 @@ def test_save_order_keeps_pending_frames_in_the_sequence():
     plan_store = planned((0, "a", "a"), (1, "a", "b"))
 
     assert save_order(record, FakeStore(), plan_store, FakeOrderStore(), "düğün",
-                      ["0_a.png", "1_a.png"]) == ["0_a", "1_a"]
+                      ["0_a", "1_a"]) == ["0_a", "1_a"]
 
 
 def test_save_order_drops_names_the_gallery_does_not_know():
@@ -793,7 +802,7 @@ def test_save_order_drops_names_the_gallery_does_not_know():
     order = FakeOrderStore()
 
     assert save_order(FakeRecord(), FakeStore(), plan_store, order, "düğün",
-                      ["hayalet.png", "1_a.png"]) == ["1_a"]
+                      ["hayalet", "1_a"]) == ["1_a"]
     assert order.order == ["1_a"]
 
 
@@ -1656,9 +1665,9 @@ def test_a_photo_leaves_the_disk_and_the_log_says_so():
     order = FakeOrderStore(["0_a.png", "1_a.png", "2_a.png"])
 
     result = remove_frames(record, store, plan_store, order, stamped, "düğün",
-                           ["0_a.png", "2_a.png"])
+                           ["0_a", "2_a"])
 
-    assert result == {"deleted": ["0_a.png", "2_a.png"], "removed": []}
+    assert result == {"deleted": ["0_a", "2_a"], "removed": []}
     assert store.deleted == ["0_a.png", "2_a.png"]
     assert [row["file"] for row in record.list("düğün")] == ["1_a.png"]
     assert order.order == ["1_a"]
@@ -1669,9 +1678,9 @@ def test_a_frame_that_was_never_produced_only_leaves_the_queue():
     plan_store = planned((0, "a", "a"), (1, "a", "b"))
 
     result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["1_a.png"])
+                           ["1_a"])
 
-    assert result == {"deleted": [], "removed": ["1_a.png"]}
+    assert result == {"deleted": [], "removed": ["1_a"]}
     assert store.deleted == []                       # there is no file to delete yet
     assert owed_files(record, plan_store) == ["0_a.png"]
 
@@ -1682,9 +1691,9 @@ def test_a_failed_frame_leaves_the_gallery_the_same_way():
     plan_store = planned((0, "a", "a"), (1, "a", "b"))
 
     result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["1_a.png"])
+                           ["1_a"])
 
-    assert result == {"deleted": [], "removed": ["1_a.png"]}
+    assert result == {"deleted": [], "removed": ["1_a"]}
     assert [f["file"] for f in
             list_frames(record, store, plan_store, FakeOrderStore(), "düğün")] == ["0_a.png"]
 
@@ -1699,9 +1708,9 @@ def test_deleting_a_frame_takes_all_of_its_layer_files():
     plan_store = planned((0, "a", "a"))
 
     result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                           ["0_a.png"])
+                           ["0_a"])
 
-    assert result == {"deleted": ["0_a.png"], "removed": []}
+    assert result == {"deleted": ["0_a"], "removed": []}
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4", "0_a_v0_s0.wav"]
     assert list_frames(record, store, plan_store, FakeOrderStore(), "düğün") == []
 
@@ -1720,7 +1729,7 @@ def test_a_file_another_frame_still_holds_is_left_on_disk():
     store, record = FakeStore(), FakeRecord()
     plan_store = shared_video_pair(record)
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a.png"])
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
 
     # Its own picture goes; the video the other frame still plays stays.
     assert store.deleted == ["0_a.png"]
@@ -1731,7 +1740,7 @@ def test_the_last_holder_takes_the_shared_file_with_it():
     plan_store = shared_video_pair(record)
 
     remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün",
-                  ["0_a.png", "1_a.png"])
+                  ["0_a", "1_a"])
 
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4", "1_a.png"]
 
@@ -1742,7 +1751,7 @@ def test_deleting_a_frame_whose_video_failed_unlinks_what_is_there():
     record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "failed", "t2", error="ComfyUI 500")
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a.png"])
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
 
     # A failed layer holds its planned name; unlinking a file that never landed is not an error.
     assert sorted(store.deleted) == ["0_a.png", "0_a_v0.mp4"]
@@ -1768,7 +1777,7 @@ def test_deleting_a_frame_leaves_none_of_its_layer_files_behind():
                             "status": "done"})
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a.png"])
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
 
     assert record.slots("düğün")["0_a"] == {
         "photo": {"status": "deleted", "file": "0_a.png"},
@@ -1782,7 +1791,7 @@ def test_a_deleted_photo_still_never_returns_to_the_queue():
     record.append("düğün", {"file": "0_a.png", "status": "done"})
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a.png"])
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
 
     assert owed_files(record, plan_store) == []
 
@@ -1791,7 +1800,7 @@ def test_a_frame_pulled_out_never_gets_its_number_back():
     store, record = FakeStore(next_no=0), FakeRecord()
     plan_store = planned((0, "a", "a"))
 
-    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a.png"])
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
 
     assert next_number(store, plan_store, record, "düğün") == 1
 
@@ -1801,10 +1810,23 @@ def test_a_name_the_gallery_does_not_know_is_skipped_not_refused():
     record.append("düğün", {"file": "0_a.png", "status": "done"})
 
     result = remove_frames(record, store, FakePlanStore(), FakeOrderStore(), stamped, "düğün",
-                           ["hayalet.png", "0_a.png"])
+                           ["hayalet", "0_a"])
 
-    assert result == {"deleted": ["0_a.png"], "removed": []}
+    assert result == {"deleted": ["0_a"], "removed": []}
     assert store.deleted == ["0_a.png"]
+
+
+def test_removing_takes_the_named_frame_not_the_one_sharing_its_picture():
+    store, record, plan_store = layered_project(audio=False)
+    with_a_copy(record)
+
+    gone = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["P0_1"])
+
+    assert gone == {"deleted": ["P0_1"], "removed": []}
+    # Nothing left the disk: every file the copy held is its source's too (madde 101).
+    assert store.deleted == []
+    assert record.slots("düğün")["0_a"]["photo"]["status"] == "done"
+    assert record.slots("düğün")["P0_1"]["photo"]["status"] == "deleted"
 
 
 def test_a_body_that_is_not_a_list_of_names_is_rejected():
@@ -1816,7 +1838,7 @@ def test_a_body_that_is_not_a_list_of_names_is_rejected():
 def test_removing_in_a_missing_project_is_rejected():
     with pytest.raises(ProjectMissing):
         remove_frames(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
-                      stamped, "yok", ["0_a.png"])
+                      stamped, "yok", ["0_a"])
 
 
 def test_export_rejects_a_missing_project():
@@ -1855,6 +1877,35 @@ def test_each_produced_photo_gets_a_record_row():
         {"file": "P0_1.png", "frame": "P0_1", "layer": "photo", "status": "done", "prompt": "a",
          "negative": "neg", "seed": 42, "createdAt": "2026-08-03T14:32:11+00:00"},
     ]
+
+
+def test_a_failed_render_says_how_many_times_it_was_tried():
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+
+    run_batch(sync_runner(), store, FakeGenerator(fail_on=["p"]), record=record,
+              plan_store=plan_store, text='["p"]', variants=1)
+
+    row = [r for r in record.rows if r.get("status") == "failed"][0]
+    assert row["error"] == "node 41: p — 3 kez denendi"
+
+
+def test_a_frame_carries_the_reason_each_layer_failed():
+    record = FakeRecord()
+    record.mark("düğün", "0_a", "photo", "0_a.png", "failed", "t", error="CUDA — 3 kez denendi")
+
+    frames = list_frames(record, FakeStore(), FakePlanStore(frames=[frame(0)]),
+                         FakeOrderStore(), "düğün")
+
+    assert frames[0]["errors"] == {"photo": "CUDA — 3 kez denendi"}
+
+
+def test_a_frame_that_did_not_fail_carries_no_reason():
+    store, record, plan_store = video_project((0, "a"))
+
+    frames = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")
+
+    assert frames[0]["errors"] == {}
 
 
 def test_a_failed_frame_gets_a_failure_row_not_a_photo_row():
@@ -1965,7 +2016,7 @@ def test_retry_puts_the_frame_back_in_line():
 
     generator.fail_on = []
     retry_frame(sync_runner(), FakeStore(), record, plan_store, {layers.PHOTO: generator},
-                lambda: "t2", "düğün", "P0_0.png")
+                lambda: "t2", "düğün", "P0_0")
 
     assert record.statuses("düğün") == {"P0_0": "done"}
 
@@ -1980,7 +2031,7 @@ def test_retry_puts_the_frames_failed_layer_back_rather_than_its_photo():
          "model": ""},
     ])
 
-    retry_frame(sync_runner(), store, record, plan_store, {}, lambda: "t", "düğün", "0_a.png")
+    retry_frame(sync_runner(), store, record, plan_store, {}, lambda: "t", "düğün", "0_a")
 
     cells = record.slots("düğün")["0_a"]
     assert cells["video"] == {"status": "queued", "file": "0_a_V1_0.mp4"}
@@ -1996,7 +2047,7 @@ def test_retry_of_a_frame_with_nothing_red_still_asks_for_its_photo():
     plan_store = FakePlanStore(frames=[frame(0)])
 
     retry_frame(sync_runner(), store, record, plan_store, {layers.PHOTO: FakeGenerator()},
-                lambda: "t", "düğün", "0_a.png")
+                lambda: "t", "düğün", "0_a")
 
     assert record.slots("düğün")["0_a"]["photo"]["status"] == "done"   # produced again
 
@@ -2028,7 +2079,7 @@ def test_retrying_does_not_interrupt_a_run_that_is_already_going():
 
     # No refusal, and no second worker: the live loop reads the record again on its next turn.
     retry_frame(runner, FakeStore(), record, plan_store, {layers.PHOTO: FakeGenerator()},
-                lambda: "t2", "düğün", "0_a.png")
+                lambda: "t2", "düğün", "0_a")
 
     assert record.statuses("düğün") == {"0_a": queue.QUEUED}
     assert runner.status()["status"] == "running"

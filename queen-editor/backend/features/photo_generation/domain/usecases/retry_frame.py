@@ -18,23 +18,23 @@ class FrameMissing(Exception):
     """The plan has no frame under that name."""
 
 
-def retry_frame(runner, store, record, plan_store, producers, now, project, file, log=None,
+def retry_frame(runner, store, record, plan_store, producers, now, project, fid, log=None,
                 order_store=None, writers=None):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     frames = plan_store.read(project)["frames"]
-    target = next((f for f in frames if photo_file(f["id"]) == file), None)
+    target = next((f for f in frames if f["id"] == fid), None)
     if target is None:
-        raise FrameMissing(f"Bu kare planda yok: {file}")
-    cells = record.slots(project).get(target["id"], {})
+        raise FrameMissing(f"Bu kare planda yok: {fid}")
+    cells = record.slots(project).get(fid, {})
     red = [(layer, cell) for layer, cell in cells.items() if cell["status"] == queue.FAILED]
     for layer, cell in red:
         # The layer's own file, not the frame's photo: what goes back in line is the render that
         # blew up.
-        record.mark(project, target["id"], layer, cell["file"], queue.QUEUED, now())
+        record.mark(project, fid, layer, cell["file"], queue.QUEUED, now())
     if not red:
         # Nothing red: the frame is asking for a photo it no longer has (a deleted one), which is
         # what retry meant before a frame had layers.
-        record.mark(project, target["id"], layers.PHOTO, file, queue.QUEUED, now())
+        record.mark(project, fid, layers.PHOTO, photo_file(fid), queue.QUEUED, now())
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers)

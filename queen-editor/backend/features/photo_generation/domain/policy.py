@@ -28,3 +28,12 @@ def stop_reason(attempts):
     if attempts >= MAX_ATTEMPTS:
         return f"Aynı kare {MAX_ATTEMPTS} kez denendi — üretim durduruldu"
     return None
+
+
+def frame_reason(exc, attempts):
+    """Why one layer is red: the renderer's own words plus how many times it was tried.
+
+    Written on the failure line and printed under the red frame on the detail page. The cause is
+    never guessed -- only the text that came back and a number this loop counted itself.
+    """
+    return f"{exc} — {attempts} kez denendi"

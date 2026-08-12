@@ -12,11 +12,16 @@ vi.mock("../../shared/router.js", () => ({
   photoPath: (project, file) => `/projects/${encodeURIComponent(project)}/photos/${file}`,
 }));
 
-// What the server answers with: a frame's status, plus which of its layers are still owed and
-// which blew up.
-const done = (file, extra = {}) => ({ file, status: "done", ...extra });
-const pending = (file, extra = {}) => ({ file, status: "pending", owed: ["photo"], ...extra });
-const broken = (file, extra = {}) => ({ file, status: "failed", failed: ["photo"], ...extra });
+// What the server answers with: a frame's identity and status, plus which of its layers are still
+// owed and which blew up. The identity is what the gallery keys everything by; the file is only
+// what it shows. These fixtures name a frame after its own picture, which is the ordinary case --
+// the copy frames that break the tie have their own tests.
+const idOf = (file) => file.replace(".png", "");
+const done = (file, extra = {}) => ({ id: idOf(file), file, status: "done", ...extra });
+const pending = (file, extra = {}) => ({ id: idOf(file), file, status: "pending",
+                                         owed: ["photo"], ...extra });
+const broken = (file, extra = {}) => ({ id: idOf(file), file, status: "failed",
+                                        failed: ["photo"], ...extra });
 const FRAMES = [done("2_a.png"), done("1_a.png"), done("0_a.png")];
 const withVideo = (file, extra = {}) => done(file, {
   layers: { photo: file, video: file.replace(".png", "_V1_0.mp4") }, ...extra,
@@ -28,8 +33,11 @@ beforeEach(() => {
 
 // jsdom has no DataTransfer, so the component must not depend on one: it tracks the dragged tile
 // in its own state, which is also what makes the drop slot possible.
+//
+// Tiles are found by the file the test is talking about; the grid keys them by identity, and these
+// fixtures name a frame after its own picture.
 function tileOf(name) {
-  return document.getElementById(`tile-${name}`);
+  return document.getElementById(`tile-${idOf(name)}`);
 }
 
 function checkOf(name) {
@@ -81,7 +89,7 @@ describe("Gallery ordering", () => {
 
     dragTile("0_a.png", "2_a.png");
 
-    expect(onReorder).toHaveBeenCalledWith(["0_a.png", "2_a.png", "1_a.png"]);
+    expect(onReorder).toHaveBeenCalledWith(["0_a", "2_a", "1_a"]);
   });
 
   it("does not go to the server for a frame dropped where it already was", () => {
@@ -98,7 +106,7 @@ describe("Gallery ordering", () => {
 
     const link = tileOf("2_a.png").querySelector("a");
     expect(link.getAttribute("href")).toBe(
-      `/projects/${encodeURIComponent("düğün")}/photos/2_a.png`);
+      `/projects/${encodeURIComponent("düğün")}/photos/2_a`);
   });
 
 });
@@ -115,7 +123,7 @@ describe("Gallery — one sequence, four states", () => {
   const pillOf = (name) => tileOf(name).querySelector("[data-pill]");
 
   it("says the layer and the state in one pill, in the corner", () => {
-    renderGallery({ frames: MIXED, current: "3_a.png" });
+    renderGallery({ frames: MIXED, current: "3_a" });
 
     expect(pillOf("4_a.png").textContent).toBe("foto kuyrukta");
     expect(pillOf("3_a.png").textContent).toBe("foto üretiliyor");
@@ -123,13 +131,13 @@ describe("Gallery — one sequence, four states", () => {
   });
 
   it("gives a produced frame no pill -- the photo is the answer", () => {
-    renderGallery({ frames: MIXED, current: "3_a.png" });
+    renderGallery({ frames: MIXED, current: "3_a" });
 
     expect(pillOf("1_a.png")).toBeNull();
   });
 
   it("never puts two pills on one frame", () => {
-    renderGallery({ frames: MIXED, current: "3_a.png" });
+    renderGallery({ frames: MIXED, current: "3_a" });
 
     for (const frame of MIXED) {
       expect(tileOf(frame.file).querySelectorAll("[data-pill]").length).toBeLessThan(2);
@@ -137,15 +145,15 @@ describe("Gallery — one sequence, four states", () => {
   });
 
   it("keeps every frame in its own place whatever became of it", () => {
-    renderGallery({ frames: MIXED, current: "3_a.png" });
+    renderGallery({ frames: MIXED, current: "3_a" });
 
-    const files = [...document.querySelectorAll("[data-tile]")]
+    const sequence = [...document.querySelectorAll("[data-tile]")]
       .map((tile) => tile.id.slice("tile-".length));
-    expect(files).toEqual(["4_a.png", "3_a.png", "2_a.png", "1_a.png", "0_a.png"]);
+    expect(sequence).toEqual(["4_a", "3_a", "2_a", "1_a", "0_a"]);
   });
 
   it("badges the waiting and failed frames too, from the same sequence", () => {
-    renderGallery({ frames: MIXED, current: "3_a.png" });
+    renderGallery({ frames: MIXED, current: "3_a" });
 
     expect(tileOf("4_a.png").textContent).toContain("5");
     expect(tileOf("2_a.png").textContent).toContain("3");
@@ -160,11 +168,11 @@ describe("Gallery — one sequence, four states", () => {
     expect(screen.getAllByText("foto kuyrukta")).toHaveLength(2);
     fireEvent.click(screen.getByText("Tekrar dene"));
 
-    expect(onRetry).toHaveBeenCalledWith("2_a.png");
+    expect(onRetry).toHaveBeenCalledWith("2_a");
   });
 
   it("turns the frame the worker is holding into a spinner without moving it", () => {
-    renderGallery({ frames: MIXED, current: "3_a.png" });
+    renderGallery({ frames: MIXED, current: "3_a" });
 
     // Four of the five are not photos; only the one the worker holds leaves the waiting pill.
     expect(screen.getAllByText("foto kuyrukta")).toHaveLength(1);
@@ -179,13 +187,13 @@ describe("Gallery — one sequence, four states", () => {
   });
 
   it("leaves the middle of a waiting card wordless -- the dashed border says it", () => {
-    renderGallery({ frames: MIXED, current: "3_a.png" });
+    renderGallery({ frames: MIXED, current: "3_a" });
 
     expect(screen.queryByText("bekliyor")).toBeNull();
   });
 
   it("leaves the rendering card to the spinner alone", () => {
-    renderGallery({ frames: MIXED, current: "3_a.png" });
+    renderGallery({ frames: MIXED, current: "3_a" });
 
     expect(screen.queryByText("Çalışıyor")).toBeNull();
     expect(tileOf("3_a.png").querySelector(".wf-spinner")).toBeTruthy();
@@ -254,7 +262,7 @@ describe("Gallery selection mode", () => {
     // The modal's confirm is the second Sil on screen; the bar's is the first.
     await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
 
-    expect(onDelete).toHaveBeenCalledWith(["1_a.png", "0_a.png"]);
+    expect(onDelete).toHaveBeenCalledWith(["1_a", "0_a"]);
   });
 
   it("takes the bar away when the selection is emptied", () => {
@@ -276,7 +284,7 @@ describe("Gallery — selecting frames that are not photos yet", () => {
   ];
 
   function renderMixed(props) {
-    return renderGallery({ frames: MIXED, current: "3_a.png", ...props });
+    return renderGallery({ frames: MIXED, current: "3_a", ...props });
   }
 
   it("puts a ring on a waiting frame and none on the one being rendered", () => {
@@ -337,7 +345,7 @@ describe("Gallery — selecting frames that are not photos yet", () => {
 
     await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
 
-    expect(onDelete).toHaveBeenCalledWith(["4_a.png", "1_a.png"]);
+    expect(onDelete).toHaveBeenCalledWith(["4_a", "1_a"]);
   });
 });
 
@@ -350,18 +358,18 @@ describe("Gallery — every frame opens its own detail page", () => {
   ];
 
   function renderMixed(props) {
-    return renderGallery({ frames: MIXED, current: "2_a.png", ...props });
+    return renderGallery({ frames: MIXED, current: "2_a", ...props });
   }
 
   it("links a waiting frame to the same address a photo would have", () => {
     renderMixed();
 
     expect(photoOf("3_a.png").getAttribute("href")).toBe(
-      `/projects/${encodeURIComponent("düğün")}/photos/3_a.png`);
+      `/projects/${encodeURIComponent("düğün")}/photos/3_a`);
     fireEvent.click(photoOf("3_a.png"));
 
     expect(navigate).toHaveBeenCalledWith(
-      `/projects/${encodeURIComponent("düğün")}/photos/3_a.png`);
+      `/projects/${encodeURIComponent("düğün")}/photos/3_a`);
   });
 
   it("links the frame being rendered and the failed one too", () => {
@@ -369,11 +377,11 @@ describe("Gallery — every frame opens its own detail page", () => {
 
     fireEvent.click(photoOf("2_a.png"));
     expect(navigate).toHaveBeenCalledWith(
-      `/projects/${encodeURIComponent("düğün")}/photos/2_a.png`);
+      `/projects/${encodeURIComponent("düğün")}/photos/2_a`);
 
     fireEvent.click(photoOf("1_a.png"));
     expect(navigate).toHaveBeenCalledWith(
-      `/projects/${encodeURIComponent("düğün")}/photos/1_a.png`);
+      `/projects/${encodeURIComponent("düğün")}/photos/1_a`);
   });
 
   it("selects a waiting frame instead of opening it while the mode is on", () => {
@@ -392,7 +400,7 @@ describe("Gallery — every frame opens its own detail page", () => {
 
     fireEvent.click(screen.getByText("Tekrar dene"));
 
-    expect(onRetry).toHaveBeenCalledWith("1_a.png");
+    expect(onRetry).toHaveBeenCalledWith("1_a");
     expect(navigate).not.toHaveBeenCalled();
   });
 });
@@ -439,7 +447,7 @@ describe("Gallery — picking a tile up", () => {
 
   it("lifts the frame the worker is holding, without asking it to stop", () => {
     renderGallery({ frames: [pending("9_a.png"), done("0_a.png")],
-                    current: "9_a.png" });
+                    current: "9_a" });
 
     fireEvent.mouseDown(tileOf("9_a.png"));
     act(() => { vi.advanceTimersByTime(250); });
@@ -473,7 +481,7 @@ describe("Gallery — a layer that blew up", () => {
 
     fireEvent.click(screen.getByText("Tekrar dene"));
 
-    expect(onRetry).toHaveBeenCalledWith("P0_0.png");
+    expect(onRetry).toHaveBeenCalledWith("P0_0");
     expect(screen.getByText("Kuyruğa eklendi").closest("button").disabled).toBe(true);
     fireEvent.click(screen.getByText("Kuyruğa eklendi"));
     expect(onRetry).toHaveBeenCalledTimes(1);
@@ -537,7 +545,7 @@ describe("Gallery — what a frame owns", () => {
 
   it("keeps the photo on screen while the video is being made", () => {
     renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })],
-                    current: "P0_0.png", currentLayer: "video" });
+                    current: "P0_0", currentLayer: "video" });
 
     expect(screen.getByAltText("P0_0.png")).toBeTruthy();
     expect(screen.getByText("video üretiliyor")).toBeTruthy();
@@ -545,7 +553,7 @@ describe("Gallery — what a frame owns", () => {
 
   it("still draws the loading holder while the photo itself is being made", () => {
     renderGallery({ frames: [pending("P0_0.png")],
-                    current: "P0_0.png", currentLayer: "photo" });
+                    current: "P0_0", currentLayer: "photo" });
 
     expect(screen.queryByAltText("P0_0.png")).toBeNull();
     expect(screen.getByText("foto üretiliyor")).toBeTruthy();

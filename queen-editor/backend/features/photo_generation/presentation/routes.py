@@ -108,14 +108,14 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
     @bp.post("/api/projects/<project>/retry")
     def retry(project):
         body = request.get_json(silent=True) or {}
-        file = body.get("file")
+        frame = body.get("frame")
         try:
             # No frame named means all of them: "retry this frame" and "retry" are the same verb
             # with and without an object.
-            if file is None:
+            if frame is None:
                 retry_failed(project)
             else:
-                retry_frame(project, file)
+                retry_frame(project, frame)
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except FrameMissing as exc:
@@ -217,15 +217,15 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         return send_file(io.BytesIO(payload), mimetype="application/json", as_attachment=True,
                          download_name=f"{project}-export.json")
 
-    # POST, not DELETE: the request carries a list of names, and a body on DELETE is a corner of
+    # POST, not DELETE: the request carries a list of frames, and a body on DELETE is a corner of
     # HTTP that proxies and clients disagree about.
     @bp.post("/api/projects/<project>/frames/delete")
     def remove(project):
         body = request.get_json(silent=True) or {}
         try:
             # What really happened goes back, split in two: a photo left the disk, a frame that was
-            # never produced only left the queue. Names that had already gone are not an error.
-            return jsonify(remove_frames(project, body.get("files")))
+            # never produced only left the queue. Frames that had already gone are not an error.
+            return jsonify(remove_frames(project, body.get("frames")))
         except InvalidFiles as exc:
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:

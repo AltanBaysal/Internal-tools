@@ -141,11 +141,11 @@ export async function resumeBatch(project) {
 }
 
 
-export async function retryFrame(project, file) {
+export async function retryFrame(project, frame) {
   return request(`/api/projects/${encodeURIComponent(project)}/retry`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file }),
+    body: JSON.stringify({ frame }),
   });
 }
 
@@ -178,13 +178,13 @@ export async function listFrames(project) {
 }
 
 // One call for one frame and for many, and for photos and pending frames alike -- the confirm box
-// is a single window over a mixed selection. The answer splits what really happened:
-// {deleted: [...], removed: [...]}.
-export async function removeFrames(project, files) {
+// is a single window over a mixed selection. Frames are named by their identities, and the answer
+// splits what really happened in the same words: {deleted: [...], removed: [...]}.
+export async function removeFrames(project, frames) {
   return request(`/api/projects/${encodeURIComponent(project)}/frames/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ files }),
+    body: JSON.stringify({ frames }),
   });
 }
 

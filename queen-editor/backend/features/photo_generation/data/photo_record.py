@@ -82,11 +82,17 @@ class DrivePhotoRecord:
         return rows
 
     def slots(self, project):
-        """{frame: {slot: {"status", "file"}}} -- the latest line per (frame, slot) wins."""
+        """{frame: {slot: {"status", "file"[, "error"]}}} -- the latest line per (frame, slot) wins.
+
+        A failure line also carries why: the renderer's own sentence, which the detail page prints
+        under the red frame. Only a failure has one, so the key is there only when the line had it.
+        """
         folded = {}
         for row in self._rows(project):
-            folded.setdefault(_frame_of(row), {})[_layer_of(row)] = {
-                "status": _status_of(row), "file": row["file"]}
+            cell = {"status": _status_of(row), "file": row["file"]}
+            if isinstance(row.get("error"), str):
+                cell["error"] = row["error"]
+            folded.setdefault(_frame_of(row), {})[_layer_of(row)] = cell
         return folded
 
     def prompts(self, project):

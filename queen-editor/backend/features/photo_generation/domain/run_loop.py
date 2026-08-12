@@ -144,7 +144,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 if policy.is_frame_fault(exc):
                     # The renderer answered three times that this one job is what failed. The queue
                     # owes the rest nothing, so the tile turns red where it stands and work goes on.
-                    record.mark(project, fid, kind, name, queue.FAILED, now(), error=str(exc))
+                    record.mark(project, fid, kind, name, queue.FAILED, now(),
+                                error=policy.frame_reason(exc, attempts))
                     attempts, holding = 0, None
                     continue
                 # No answer came at all, three times: the next job would fall the same way, so the

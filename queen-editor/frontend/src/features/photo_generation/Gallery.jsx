@@ -65,10 +65,10 @@ const VEIL = { position: "absolute", inset: 0, display: "flex", alignItems: "cen
  * Pressed once: the queue has taken it and the card only changes on the next poll, so the button
  * says so itself rather than sitting there ready for a second press (madde 69).
  */
-function RetryButton({ file, sent, onRetry }) {
+function RetryButton({ frame, sent, onRetry }) {
   return (
     <Btn sm disabled={sent}
-         onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!sent) onRetry(file); }}
+         onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!sent) onRetry(frame); }}
          style={{ color: "var(--danger)", borderColor: "var(--danger)", background: "transparent" }}>
       {sent ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene</>}
     </Btn>
@@ -137,8 +137,9 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
   const [overIndex, setOverIndex] = useState(null);
-  // Selection is by file name, not index: a batch can land while the mode is open and shift every
-  // position, but a name still means the same photo.
+  // Selection is by identity, not index: a batch can land while the mode is open and shift every
+  // position, but an identity still means the same frame -- and two frames can be showing one
+  // picture, so a file name would not tell them apart.
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState([]);
   const [confirming, setConfirming] = useState(false);
@@ -160,9 +161,9 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
 
   // Every card can be picked up, whatever became of it: the sequence a drag makes is the sequence
   // the queue produces in, so a frame with no pixels yet is exactly the one worth moving.
-  function press(file) {
+  function press(fid) {
     clearTimeout(hold.current);
-    hold.current = setTimeout(() => setArmed(file), HOLD_MS);
+    hold.current = setTimeout(() => setArmed(fid), HOLD_MS);
   }
 
   function release() {
@@ -182,16 +183,16 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
     setSelected([]);
   }
 
-  function sendBack(file) {
-    setRetried((names) => [...names, file]);
-    onRetry(file);
+  function sendBack(fid) {
+    setRetried((frames) => [...frames, fid]);
+    onRetry(fid);
   }
 
-  function toggle(file) {
+  function toggle(fid) {
     setSelecting(true);
-    setSelected((current) => (current.includes(file)
-      ? current.filter((name) => name !== file)
-      : [...current, file]));
+    setSelected((current) => (current.includes(fid)
+      ? current.filter((chosen) => chosen !== fid)
+      : [...current, fid]));
   }
 
   function handleDelete() {
@@ -225,10 +226,10 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
 
   // Everything but the frame the worker is holding can be selected: a disabled ring would raise
   // "why can I not select this?", and a ring that is simply not there raises nothing.
-  const selectable = frames.filter((frame) => frame.file !== current);
-  const byFile = new Map(frames.map((frame) => [frame.file, frame]));
-  const chosenPhotos = selected.filter((file) => byFile.get(file)?.status === "done");
-  const chosenQueued = selected.filter((file) => byFile.get(file)?.status !== "done");
+  const selectable = frames.filter((frame) => frame.id !== current);
+  const byId = new Map(frames.map((frame) => [frame.id, frame]));
+  const chosenPhotos = selected.filter((fid) => byId.get(fid)?.status === "done");
+  const chosenQueued = selected.filter((fid) => byId.get(fid)?.status !== "done");
   // Three sentences, because a pending frame is not a photo: telling someone that 5 photos will be
   // deleted when 3 of them do not exist yet would be a lie, and "cannot be undone" is only true of
   // the ones that do.
@@ -253,7 +254,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
     setOverIndex(null);
     if (from === null || to === null || from === to) return;
     // The whole sequence is sent, pending frames included: the order covers them too now.
-    const next = frames.map((frame) => frame.file);
+    const next = frames.map((frame) => frame.id);
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     onReorder(next);
@@ -269,7 +270,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
           // on disk, so the list cannot say so and the running job does. Only a PHOTO render
           // empties the card -- a frame whose video is being made still has its picture, and
           // taking it away would say the photo went somewhere.
-          const running = frame.file === current ? (currentLayer || "photo") : null;
+          const running = frame.id === current ? (currentLayer || "photo") : null;
           const state = running === "photo" ? "running" : frame.status;
           const produced = state === "done";
           const owns = OWNED.filter(({ layer }) => (frame.layers || {})[layer]
@@ -284,23 +285,23 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
           const isSlot = index === overIndex && dragIndex !== null && !dragging;
           return (
             <div
-              key={frame.file}
+              key={frame.id}
               data-tile
               // The id is the only handle anything outside the gallery has on a single frame: the
               // queue panel's "galeride göster" link scrolls to it without knowing this grid.
-              id={`tile-${frame.file}`}
+              id={`tile-${frame.id}`}
               className={selecting ? "qe-tile qe-tile--selecting" : "qe-tile"}
               // While selecting, a press is a selection, not a drag -- one gesture cannot mean two
               // things.
-              draggable={armed === frame.file && !selecting}
-              onMouseDown={() => !selecting && press(frame.file)}
+              draggable={armed === frame.id && !selecting}
+              onMouseDown={() => !selecting && press(frame.id)}
               onMouseUp={release}
               onMouseLeave={release}
               onDragStart={() => setDragIndex(index)}
               onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
               onDrop={handleDrop}
               onDragEnd={() => { setDragIndex(null); setOverIndex(null); release(); }}
-              onClick={selecting && state !== "running" ? () => toggle(frame.file) : undefined}
+              onClick={selecting && state !== "running" ? () => toggle(frame.id) : undefined}
               style={dragging ? DRAGGED : undefined}
             >
               {isSlot ? (
@@ -316,23 +317,23 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
                       owns={owns}
                       veil={brokenLayer && (
                         <div data-veil className="qe-veil" style={VEIL}>
-                          <RetryButton file={frame.file} sent={retried.includes(frame.file)}
+                          <RetryButton frame={frame.id} sent={retried.includes(frame.id)}
                                        onRetry={sendBack} />
                         </div>
                       )}
-                      onCheck={state === "running" ? undefined : () => toggle(frame.file)}
-                      selected={selected.includes(frame.file)}>
+                      onCheck={state === "running" ? undefined : () => toggle(frame.id)}
+                      selected={selected.includes(frame.id)}>
                   {/* Every frame opens its own page, produced or not -- the detail page knows all
                       four states, and a waiting frame's prompt is only readable there. A real link
                       so middle-click still opens a tab, but a plain click stays in the app instead
                       of reloading the whole page. A drag never ends in a click, so the two gestures
                       do not collide. The link is not draggable itself -- otherwise the browser
                       drags the URL instead of the tile. */}
-                  <a href={photoPath(project, frame.file)} draggable={false}
+                  <a href={photoPath(project, frame.id)} draggable={false}
                      style={{ display: "block" }}
                      onClick={(e) => {
                        e.preventDefault();
-                       if (!selecting) navigate(photoPath(project, frame.file));
+                       if (!selecting) navigate(photoPath(project, frame.id));
                      }}>
                     {state === "done" ? (
                       <img src={fileUrl(project, frame.file)} alt={frame.file}
@@ -352,7 +353,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
                         <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
                         {/* Inside the link, so it has to keep the click to itself: pressing
                             Tekrar dene means retry, never "open this frame". */}
-                        <RetryButton file={frame.file} sent={retried.includes(frame.file)}
+                        <RetryButton frame={frame.id} sent={retried.includes(frame.id)}
                                      onRetry={sendBack} />
                       </div>
                     ) : (
@@ -379,7 +380,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
             <Btn sm ghost
                  onClick={() => setSelected(selected.length === selectable.length
                    ? []
-                   : selectable.map((frame) => frame.file))}>
+                   : selectable.map((frame) => frame.id))}>
               Tümünü seç
             </Btn>
             <Btn sm onClick={() => setConfirming(true)}
