@@ -74,7 +74,8 @@ function Tile({ name, muted, danger, badge, pill, selected, onCheck, children })
 // Artboard 03/04/05: five columns, one sequence. Every frame stands in its own place whatever
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
-export default function Gallery({ project, frames, current, onReorder, onDelete, onRetry }) {
+export default function Gallery({ project, frames, current, onReorder, onDelete, onRetry,
+                                  onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -90,6 +91,12 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
   const hold = useRef(null);
 
   useEffect(() => () => clearTimeout(hold.current), []);
+
+  // The gallery owns the selection; the video panel only needs to read it, so it hears about it
+  // rather than keeping a second copy that could drift.
+  useEffect(() => {
+    if (onSelectionChange) onSelectionChange(selected);
+  }, [selected, onSelectionChange]);
 
   // Every card can be picked up, whatever became of it: the sequence a drag makes is the sequence
   // the queue produces in, so a frame with no pixels yet is exactly the one worth moving.

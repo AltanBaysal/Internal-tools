@@ -83,6 +83,16 @@ export async function listModels() {
 
 // Which producers this machine has, and which of them are installed. Not a project's question --
 // the models live next to the renderer, not in a project folder.
+// Hang a video on every frame in scope. No "files" key means every frame that has none; a list
+// means that selection.
+export async function queueVideos(project, files) {
+  return request(`/api/projects/${encodeURIComponent(project)}/videos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(files === null ? {} : { files }),
+  });
+}
+
 export async function listProducers() {
   const body = await request("/api/producers");
   return body.producers;

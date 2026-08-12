@@ -4,8 +4,9 @@ import { Mono } from "../../vendor/kit.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import GeneratePanel from "./GeneratePanel.jsx";
 import ProducersPanel from "../producers/ProducersPanel.jsx";
-import { AgentGlyph, PhotoGlyph, ProducersGlyph, QueueGlyph } from "./glyphs.jsx";
+import { AgentGlyph, PhotoGlyph, ProducersGlyph, QueueGlyph, VideoGlyph } from "./glyphs.jsx";
 import QueuePanel from "./QueuePanel.jsx";
+import VideoPanel from "./VideoPanel.jsx";
 
 const COLUMN = { display: "flex", flexShrink: 0 };
 
@@ -37,7 +38,7 @@ const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "u
 
 // Which panel gets which icon. The drawings live in glyphs.jsx, because the photo one is also the
 // icon its own submit button carries.
-const GLYPH = { photo: PhotoGlyph, queue: QueueGlyph, agent: AgentGlyph,
+const GLYPH = { photo: PhotoGlyph, video: VideoGlyph, queue: QueueGlyph, agent: AgentGlyph,
                 producers: ProducersGlyph };
 
 // Adding a panel later means adding a row here -- the rail is drawn from this list, not from three
@@ -47,6 +48,7 @@ const GLYPH = { photo: PhotoGlyph, queue: QueueGlyph, agent: AgentGlyph,
 // words.
 const PANELS = [
   { id: "photo", title: "Fotoğraf üret" },
+  { id: "video", title: "Video üret" },
   { id: "queue", title: "Kuyruğu takip et", heading: "Kuyruk" },
   { id: "agent", title: "AI agent" },
   { id: "producers", title: "Üreticiler", apart: true },
@@ -95,6 +97,7 @@ function RailButton({ panel, active, busy, onSelect }) {
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
 export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
                                     stopping, queue, failures, models, modelsError, producers,
+                                    frames, selected, onQueueVideo,
                                     onGenerate, onStop, onResume,
                                     onCancel, onClearError, onRetryAll, resumed }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
@@ -118,6 +121,11 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
                          producer={(producers?.producers || []).find((p) => p.id === "photo")}
                          onGenerate={onGenerate} onClearError={onClearError}
                          onInstall={producers?.install} />
+        )}
+        {open === "video" && (
+          <VideoPanel frames={frames} selected={selected}
+                      producer={(producers?.producers || []).find((p) => p.id === "video")}
+                      onQueue={onQueueVideo} onInstall={producers?.install} />
         )}
         {open === "queue" && (
           <QueuePanel job={job} error={error} errorField={errorField}

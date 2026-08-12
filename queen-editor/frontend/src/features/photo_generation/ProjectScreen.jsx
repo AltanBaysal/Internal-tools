@@ -22,7 +22,7 @@ const HEADER = {
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, frames, error, errorField, stopping, queue, failures, current, retryAll,
+  const { job, frames, error, errorField, stopping, queue, failures, current, retryAll, queueVideo,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
@@ -45,6 +45,10 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   // flows, and only then -- a run the user asked for needs no announcing.
   const [resumed, setResumed] = useState(false);
   useEffect(() => { setResumed(false); }, [project]);
+
+  // The gallery's own selection, echoed here so the video panel can scope itself to it. Read-only:
+  // the gallery stays its owner.
+  const [selected, setSelected] = useState([]);
 
   const asked = useRef(null);
   useEffect(() => {
@@ -104,12 +108,14 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
           <Gallery project={project} frames={frames} current={current}
-                   onReorder={reorder} onDelete={removePhotos} onRetry={retry} />
+                   onReorder={reorder} onDelete={removePhotos} onRetry={retry}
+                   onSelectionChange={setSelected} />
         </div>
         <SidePanel job={job} error={saveError || error} errorField={errorField}
                    busyElsewhere={busyElsewhere} settings={settings} project={project}
                    stopping={stopping} queue={queue} failures={failures}
                    models={models} modelsError={modelsError} producers={producers}
+                   frames={frames} selected={selected} onQueueVideo={queueVideo}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onRetryAll={retryAll} resumed={resumed} />
       </div>

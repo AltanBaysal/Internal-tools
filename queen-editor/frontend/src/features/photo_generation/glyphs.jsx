@@ -32,6 +32,16 @@ export const QueueGlyph = ({ size }) => (
   </Glyph>
 );
 
+// A video camera: the body and the lens barrel the design asks for.
+export const VideoGlyph = ({ size }) => (
+  <Glyph name="video" size={size}>
+    <rect x="1.6" y="3.6" width="7.6" height="6.8" rx="1.4" stroke="currentColor"
+          strokeWidth="1.4" />
+    <path d="M9.2 6.5 12.4 4.7v4.6L9.2 7.5z" stroke="currentColor" strokeWidth="1.4"
+          strokeLinejoin="round" />
+  </Glyph>
+);
+
 // A crate: what a producer's model group arrives in.
 export const ProducersGlyph = ({ size }) => (
   <Glyph name="producers" size={size}>

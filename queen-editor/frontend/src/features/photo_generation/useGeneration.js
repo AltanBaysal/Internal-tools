@@ -6,6 +6,7 @@ import {
   getStatus,
   listFrames,
   removeFrames,
+  queueVideos,
   resumeBatch,
   retryFailed,
   retryFrame,
@@ -143,6 +144,22 @@ export function useGeneration(project) {
       .catch((err) => { if (alive.current) setError(err.message); })
   ), [project, startPolling]);
 
+  // Hang a video on every frame in scope. Resolves with the server's answer so the panel can quote
+  // how many the queue took, or null when it was refused.
+  const queueVideo = useCallback((files) => (
+    queueVideos(project, files)
+      .then((body) => {
+        if (!alive.current) return null;
+        startPolling();
+        return body;
+      })
+      .catch((err) => {
+        if (!alive.current) return null;
+        setError(err.message);
+        return null;
+      })
+  ), [project, startPolling]);
+
   // Every red job at once. Same endpoint as one frame's Tekrar dene, with no frame named.
   const retryAll = useCallback(() => (
     retryFailed(project)
@@ -244,6 +261,6 @@ export function useGeneration(project) {
     .map((layer) => ({ layer, count: failedByKind[layer] }))
     .filter((card) => card.count > 0);
 
-  return { job, frames, error, errorField, stopping, queue, failures, current, retryAll,
+  return { job, frames, error, errorField, stopping, queue, failures, current, retryAll, queueVideo,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

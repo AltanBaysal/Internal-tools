@@ -10,6 +10,7 @@ import json
 from flask import Blueprint, jsonify, request, send_file, send_from_directory
 
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
+from backend.features.photo_generation.domain.usecases.queue_videos import InvalidScope
 from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
@@ -22,9 +23,9 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
-                                    cancel_generation, retry_frame, retry_failed, list_frames,
-                                    list_models, save_order, export_project, remove_frames,
-                                    photo_dir):
+                                    cancel_generation, retry_frame, retry_failed, queue_videos,
+                                    list_frames, list_models, save_order, export_project,
+                                    remove_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -111,6 +112,21 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
         return jsonify({"job": "running"}), 202
+
+    @bp.post("/api/projects/<project>/videos")
+    def post_videos(project):
+        body = request.get_json(silent=True) or {}
+        # No "files" key at all means every frame that has no video; a list means that selection.
+        files = body.get("files")
+        try:
+            added = queue_videos(project, files=files)
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except InvalidScope as exc:
+            return jsonify({"error": str(exc), "field": "files"}), 400
+        except Busy as exc:
+            return jsonify({"error": str(exc)}), 409
+        return jsonify({"job": "running", "added": added}), 202
 
     @bp.get("/api/projects/<project>/frames")
     def frames(project):

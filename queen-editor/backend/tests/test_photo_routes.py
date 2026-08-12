@@ -12,6 +12,7 @@ from backend.features.photo_generation.domain.usecases.cancel_generation import 
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.usecases.queue_videos import queue_videos
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
@@ -82,6 +83,8 @@ def make_client(tmp_path, generator=None, runner=None):
         retry_frame=partial(retry_frame, runner, store, record, plan_store,
                             producers, lambda: "2026-08-03T14:32:11+00:00"),
         retry_failed=partial(retry_failed, runner, store, record, plan_store,
+                             producers, lambda: "2026-08-03T14:32:11+00:00"),
+        queue_videos=partial(queue_videos, runner, store, record, plan_store, order_store,
                              producers, lambda: "2026-08-03T14:32:11+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         list_models=partial(list_models, generator),

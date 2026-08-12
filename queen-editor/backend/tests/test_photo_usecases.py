@@ -17,6 +17,7 @@ from backend.features.photo_generation.domain.usecases.remove_frames import (
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.usecases.queue_videos import queue_videos
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
@@ -819,6 +820,73 @@ def test_the_engine_does_not_skip_past_the_type_it_is_waiting_for():
 
     assert runner.status()["waitingFor"] == "video"
     assert generator.calls == []
+
+
+def video_project(*frames):
+    """A plan and a record where every named frame has a produced photo."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(number) for number, _letter in frames])
+    for number, _letter in frames:
+        record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
+                                "layer": "photo", "status": "done"})
+    return store, record, plan_store
+
+
+def test_a_video_job_is_planned_for_every_frame_that_has_none():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+
+    added = queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün")
+
+    assert added == 2
+    planned = [(job["id"], job["type"]) for job in plan_store.appended[-1]]
+    assert planned == [("0_a", "video"), ("1_a", "video")]
+
+
+def test_a_frame_that_already_has_a_video_is_out_of_scope():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    added = queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün")
+
+    assert added == 1
+    assert [job["id"] for job in plan_store.appended[-1]] == ["1_a"]
+
+
+def test_a_selection_narrows_the_scope_to_itself():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+
+    added = queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün",
+                         files=["1_a.png"])
+
+    assert added == 1
+    assert [job["id"] for job in plan_store.appended[-1]] == ["1_a"]
+
+
+def test_a_frame_whose_photo_has_not_landed_is_skipped():
+    # There is nothing to hang a video on yet.
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+
+    added = queue_videos(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün")
+
+    assert added == 0
+    assert plan_store.appended == []
+
+
+def test_an_empty_scope_starts_nothing():
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    runner = sync_runner()
+
+    assert queue_videos(runner, store, record, plan_store, FakeOrderStore(),
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün") == 0
+    assert runner.status()["status"] == "idle"
 
 
 def test_resume_refuses_when_nothing_is_left():
