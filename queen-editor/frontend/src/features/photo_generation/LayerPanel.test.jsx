@@ -1,27 +1,28 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import VideoPanel from "./VideoPanel.jsx";
+import LayerPanel from "./LayerPanel.jsx";
 
-const done = (file, layers = {}) => ({ id: file.replace(".png", ""), file, status: "done", layers });
+const done = (file, layers = {}) => ({ id: file.replace(".png", ""), file, status: "done", layers,
+                                       failed: [] });
 
 const FRAMES = [
   done("2_a.png"),
   done("1_a.png", { video: "1_a_V1_0.mp4" }),
   done("0_a.png"),
-  { id: "3_a", file: "3_a.png", status: "pending", layers: {} },
+  { id: "3_a", file: "3_a.png", status: "pending", layers: {}, failed: [] },
 ];
 
 const variantBox = () => screen.getByRole("spinbutton");
 
 function renderPanel(props) {
   return render(
-    <VideoPanel frames={FRAMES} selected={[]} producer={null}
+    <LayerPanel layer="video" frames={FRAMES} selected={[]} producer={null}
                 onQueue={() => Promise.resolve({ added: 2 })} onInstall={() => {}} {...props} />,
   );
 }
 
-describe("VideoPanel — the scope", () => {
+describe("LayerPanel — the scope", () => {
   it("counts the frames a video can still be hung on", () => {
     renderPanel();
 
@@ -57,7 +58,7 @@ describe("VideoPanel — the scope", () => {
   });
 });
 
-describe("VideoPanel — variants", () => {
+describe("LayerPanel — variants", () => {
   it("multiplies the estimate by the variant count", () => {
     renderPanel();
 
@@ -83,7 +84,7 @@ describe("VideoPanel — variants", () => {
   });
 });
 
-describe("VideoPanel — sending", () => {
+describe("LayerPanel — sending", () => {
   it("asks for every frame with no video when that is the scope", async () => {
     const onQueue = vi.fn().mockResolvedValue({ added: 2 });
     renderPanel({ onQueue });
@@ -123,5 +124,57 @@ describe("VideoPanel — sending", () => {
     renderPanel();
 
     expect(screen.getByText(/LLM her fotonun kendi prompt'undan yazar/)).toBeTruthy();
+  });
+});
+
+describe("LayerPanel — sound", () => {
+  const SOUND_FRAMES = [
+    done("0_a.png"),
+    done("1_a.png", { video: "1_a_V1_0.mp4" }),
+  ];
+
+  function renderSound(props) {
+    return render(
+      <LayerPanel layer="audio" frames={SOUND_FRAMES} selected={[]} producer={null}
+                  onQueue={() => Promise.resolve({ added: 1 })} onInstall={() => {}} {...props} />,
+    );
+  }
+
+  it("counts only the frames that have a video and no sound", () => {
+    renderSound();
+
+    expect(screen.getByText("Videosu olup sesi olmayan kareler").closest("button").textContent)
+      .toContain("1");
+  });
+
+  it("leaves out a frame whose video blew up -- there is nothing to lay the sound over", () => {
+    renderSound({ frames: [done("1_a.png", { video: "1_a_V1_0.mp4" })].map(
+      (frame) => ({ ...frame, failed: ["video"] }))
+    });
+
+    expect(screen.getByText("Videosu olup sesi olmayan kareler").closest("button").textContent)
+      .toContain("0");
+  });
+
+  it("says what it would make, in its own words", () => {
+    renderSound();
+
+    expect(screen.getByText("MMAudio v2")).toBeTruthy();
+    expect(screen.getByText("1 ses üretilecek — her kare kendi sesini alır.")).toBeTruthy();
+  });
+
+  it("says there is nothing to do in its own words", () => {
+    renderSound({ frames: [done("0_a.png")] });
+
+    expect(screen.getByText("Videosu olup sesi olmayan kare yok — üretilecek bir şey yok."))
+      .toBeTruthy();
+  });
+
+  it("confirms in its own words", async () => {
+    renderSound();
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(screen.getByText("1 ses kuyruğa eklendi")).toBeTruthy();
   });
 });

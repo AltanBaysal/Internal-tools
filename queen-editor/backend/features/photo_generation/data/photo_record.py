@@ -89,6 +89,19 @@ class DrivePhotoRecord:
                 "status": _status_of(row), "file": row["file"]}
         return folded
 
+    def prompts(self, project):
+        """{frame: {layer: prompt}} -- what each layer was made from; the latest line wins.
+
+        Read by whoever needs a frame's own words: a copy frame carries them over, and the model
+        that writes a video's or a sound's prompt starts from them.
+        """
+        folded = {}
+        for row in self._rows(project):
+            prompt = row.get("prompt")
+            if isinstance(prompt, str):
+                folded.setdefault(_frame_of(row), {})[_layer_of(row)] = prompt
+        return folded
+
     def list(self, project):
         """Every photo that still exists, newest first -- one row per frame, not per file."""
         live = {}

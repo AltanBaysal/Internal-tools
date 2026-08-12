@@ -12,7 +12,7 @@ from backend.features.photo_generation.domain.usecases.cancel_generation import 
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
-from backend.features.photo_generation.domain.usecases.queue_videos import queue_videos
+from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
@@ -84,8 +84,8 @@ def make_client(tmp_path, generator=None, runner=None):
                             producers, lambda: "2026-08-03T14:32:11+00:00"),
         retry_failed=partial(retry_failed, runner, store, record, plan_store,
                              producers, lambda: "2026-08-03T14:32:11+00:00"),
-        queue_videos=partial(queue_videos, runner, store, record, plan_store, order_store,
-                             producers, lambda: "2026-08-03T14:32:11+00:00"),
+        queue_layer=partial(queue_layer, runner, store, record, plan_store, order_store,
+                            producers, lambda: "2026-08-03T14:32:11+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         list_models=partial(list_models, generator),
         save_order=partial(save_order, record, store, plan_store, order_store),
@@ -425,7 +425,7 @@ def test_the_videos_endpoint_carries_the_variant_count(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
 
-    resp = client.post("/api/projects/düğün/videos", json={"variants": 2})
+    resp = client.post("/api/projects/düğün/layers/video", json={"variants": 2})
 
     assert resp.status_code == 202
     # One video on the frame itself and one on the copy it just gained.
@@ -435,17 +435,23 @@ def test_the_videos_endpoint_carries_the_variant_count(tmp_path):
 def test_the_videos_endpoint_refuses_an_impossible_variant_count(tmp_path):
     client, _ = make_client(tmp_path)
 
-    resp = client.post("/api/projects/düğün/videos", json={"variants": 0})
+    resp = client.post("/api/projects/düğün/layers/video", json={"variants": 0})
 
     assert resp.status_code == 400
     assert resp.get_json()["field"] == "variants"
+
+
+def test_an_unknown_layer_is_not_a_place_to_queue_anything(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    assert client.post("/api/projects/düğün/layers/foto", json={}).status_code == 404
 
 
 def test_a_copy_frame_shares_its_sources_photo_file(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
 
-    client.post("/api/projects/düğün/videos", json={"variants": 3})
+    client.post("/api/projects/düğün/layers/video", json={"variants": 3})
 
     rows = client.get("/api/projects/düğün/frames").get_json()["frames"]
     assert [row["id"] for row in rows] == ["P0_2", "P0_1", "P0_0"]

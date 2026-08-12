@@ -4,9 +4,16 @@ import { Mono } from "../../vendor/kit.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import GeneratePanel from "./GeneratePanel.jsx";
 import ProducersPanel from "../producers/ProducersPanel.jsx";
-import { AgentGlyph, PhotoGlyph, ProducersGlyph, QueueGlyph, VideoGlyph } from "./glyphs.jsx";
+import {
+  AgentGlyph,
+  PhotoGlyph,
+  ProducersGlyph,
+  QueueGlyph,
+  SoundGlyph,
+  VideoGlyph,
+} from "./glyphs.jsx";
+import LayerPanel from "./LayerPanel.jsx";
 import QueuePanel from "./QueuePanel.jsx";
-import VideoPanel from "./VideoPanel.jsx";
 
 const COLUMN = { display: "flex", flexShrink: 0 };
 
@@ -38,8 +45,8 @@ const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "u
 
 // Which panel gets which icon. The drawings live in glyphs.jsx, because the photo one is also the
 // icon its own submit button carries.
-const GLYPH = { photo: PhotoGlyph, video: VideoGlyph, queue: QueueGlyph, agent: AgentGlyph,
-                producers: ProducersGlyph };
+const GLYPH = { photo: PhotoGlyph, video: VideoGlyph, audio: SoundGlyph, queue: QueueGlyph,
+                agent: AgentGlyph, producers: ProducersGlyph };
 
 // Adding a panel later means adding a row here -- the rail is drawn from this list, not from three
 // hard-coded buttons. The id is the layer's own word, so it matches both the glyph's name and what
@@ -49,6 +56,7 @@ const GLYPH = { photo: PhotoGlyph, video: VideoGlyph, queue: QueueGlyph, agent: 
 const PANELS = [
   { id: "photo", title: "Fotoğraf üret" },
   { id: "video", title: "Video üret" },
+  { id: "audio", title: "Ses üret" },
   { id: "queue", title: "Kuyruğu takip et", heading: "Kuyruk" },
   { id: "agent", title: "AI agent" },
   { id: "producers", title: "Üreticiler", apart: true },
@@ -97,7 +105,7 @@ function RailButton({ panel, active, busy, onSelect }) {
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
 export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
                                     stopping, queue, failures, models, modelsError, producers,
-                                    frames, selected, onQueueVideo,
+                                    frames, selected, onQueueLayer,
                                     onGenerate, onStop, onResume,
                                     onCancel, onClearError, onRetryAll, resumed }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
@@ -122,10 +130,13 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
                          onGenerate={onGenerate} onClearError={onClearError}
                          onInstall={producers?.install} />
         )}
-        {open === "video" && (
-          <VideoPanel frames={frames} selected={selected}
-                      producer={(producers?.producers || []).find((p) => p.id === "video")}
-                      onQueue={onQueueVideo} onInstall={producers?.install} />
+        {/* One panel, two layers: the design asks for the same screen twice, so only the words and
+            the scope rule differ (see LayerPanel). */}
+        {(open === "video" || open === "audio") && (
+          <LayerPanel layer={open} frames={frames} selected={selected}
+                      producer={(producers?.producers || []).find((p) => p.id === open)}
+                      onQueue={(files, variants) => onQueueLayer(open, files, variants)}
+                      onInstall={producers?.install} />
         )}
         {open === "queue" && (
           <QueuePanel job={job} error={error} errorField={errorField}

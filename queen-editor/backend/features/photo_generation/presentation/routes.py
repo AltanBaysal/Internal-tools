@@ -9,8 +9,9 @@ import json
 
 from flask import Blueprint, jsonify, request, send_file, send_from_directory
 
+from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.queue_videos import InvalidScope
+from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
 from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
@@ -22,8 +23,13 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 )
 
 
+# The layers a job can be asked for. A photo is not among them: it is asked for with its own
+# prompts, not by hanging a layer on a frame that already exists.
+QUEUEABLE = (layers.VIDEO, layers.AUDIO)
+
+
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
-                                    cancel_generation, retry_frame, retry_failed, queue_videos,
+                                    cancel_generation, retry_frame, retry_failed, queue_layer,
                                     list_frames, list_models, save_order, export_project,
                                     remove_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
@@ -113,15 +119,18 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 409
         return jsonify({"job": "running"}), 202
 
-    @bp.post("/api/projects/<project>/videos")
-    def post_videos(project):
+    @bp.post("/api/projects/<project>/layers/<kind>")
+    def post_layer(project, kind):
+        if kind not in QUEUEABLE:
+            return jsonify({"error": f"Böyle bir katman yok: {kind}"}), 404
         body = request.get_json(silent=True) or {}
-        # No "files" key at all means every frame that has no video; a list means that selection.
+        # No "files" key at all means every frame that does not hold this layer; a list means that
+        # selection.
         files = body.get("files")
         try:
-            # No "variants" key means one video per frame: a client older than the box asks for
-            # exactly what it always asked for.
-            added = queue_videos(project, files=files, variants=body.get("variants", 1))
+            # No "variants" key means one per frame: a client older than the box asks for exactly
+            # what it always asked for.
+            added = queue_layer(project, kind, files=files, variants=body.get("variants", 1))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except InvalidScope as exc:

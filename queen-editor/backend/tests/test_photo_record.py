@@ -17,6 +17,17 @@ def test_a_project_without_a_record_lists_nothing(tmp_path):
     assert record_at(tmp_path).list("düğün") == []
 
 
+def test_prompts_are_folded_per_layer(tmp_path):
+    record = record_at(tmp_path)
+    record.append("düğün", {"file": "P0_0.png", "frame": "P0_0", "layer": "photo",
+                            "status": "done", "prompt": "kırmızı elbise"})
+    record.append("düğün", {"file": "P0_0_V1_0.mp4", "frame": "P0_0", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+
+    assert record.prompts("düğün") == {"P0_0": {"photo": "kırmızı elbise",
+                                                "video": "kadın dönüyor"}}
+
+
 def test_appended_photos_come_back_newest_first(tmp_path):
     record = record_at(tmp_path)
     record.append("düğün", entry("0_a.png"))

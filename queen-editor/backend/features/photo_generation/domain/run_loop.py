@@ -22,10 +22,9 @@ def _prompts_of(record, project, fid):
     """What the frame already says, layer by layer -- the material a prompt writer works from.
 
     Read from the record rather than the plan: a copy frame has no photo job of its own, and its
-    photo row is where its prompt lives.
+    rows are where its words live.
     """
-    photo = next((row for row in record.list(project) if row["frame"] == fid), None)
-    return {"photo": (photo or {}).get("prompt", "")}
+    return record.prompts(project).get(fid, {})
 
 
 def _source_for(kind, store, slots, project, fid):

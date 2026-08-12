@@ -69,6 +69,16 @@ describe("SidePanel — the icon rail", () => {
       .toBeTruthy();
   });
 
+  it("opens the sound panel from its own wave on the rail", () => {
+    renderColumn();
+
+    expect(screen.getByLabelText("Ses üret").querySelector("[data-glyph='sound']")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Ses üret"));
+
+    expect(screen.getByRole("heading", { name: "Ses üret" })).toBeTruthy();
+    expect(screen.getByText("MMAudio v2")).toBeTruthy();
+  });
+
   it("puts the producers panel at the foot of the rail", () => {
     renderColumn();
 

@@ -81,6 +81,10 @@ class PhotoRecord(Protocol):
         """{frame: {slot: {"status", "file"}}} -- the latest line per (frame, slot)."""
         ...
 
+    def prompts(self, project: str) -> dict:
+        """{frame: {layer: prompt}} -- what each layer was made from; the latest line wins."""
+        ...
+
     def max_number(self, project: str) -> int | None:
         """Highest number the record has ever seen, whatever became of the frame."""
         ...

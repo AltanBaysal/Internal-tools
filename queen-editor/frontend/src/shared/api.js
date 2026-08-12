@@ -81,11 +81,11 @@ export async function listModels() {
   return body.models;
 }
 
-// Hang a video on every frame in scope. No "files" key means every frame that has none; a list
-// means that selection. `variants` is how many videos each of them gets: the ones past the first
-// are born as copy frames.
-export async function queueVideos(project, files, variants) {
-  return request(`/api/projects/${encodeURIComponent(project)}/videos`, {
+// Hang a layer on every frame in scope. No "files" key means every frame that does not hold it; a
+// list means that selection. `variants` is how many each of them gets: the ones past the first are
+// born as copy frames.
+export async function queueLayer(project, kind, files, variants) {
+  return request(`/api/projects/${encodeURIComponent(project)}/layers/${kind}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...(files === null ? {} : { files }), variants }),

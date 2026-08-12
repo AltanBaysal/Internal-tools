@@ -42,6 +42,14 @@ export const VideoGlyph = ({ size }) => (
   </Glyph>
 );
 
+// A wave: what the design puts on the sound panel's rail icon and in front of its button.
+export const SoundGlyph = ({ size }) => (
+  <Glyph name="sound" size={size}>
+    <path d="M1.8 7c.9-2.6 1.7-2.6 2.6 0s1.7 2.6 2.6 0 1.7-2.6 2.6 0 1.7 2.6 2.6 0"
+          stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </Glyph>
+);
+
 // The play triangle the design asks for on the ownership badge. Filled, not stroked: at 9px a
 // stroked triangle reads as a smudge.
 export const PlayGlyph = ({ size }) => (

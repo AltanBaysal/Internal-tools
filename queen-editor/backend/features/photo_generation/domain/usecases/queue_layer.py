@@ -1,12 +1,16 @@
-"""Put a video job on every frame in scope, and a copy frame under every variant past the first.
+"""Put a layer job on every frame in scope, and a copy frame under every variant past the first.
+
+One use case for video and for sound: what differs is which slot is being filled, which layer has to
+be under it, and what a copy carries -- all three are the same rule read at a different height of
+the stack.
 
 Scope is decided here rather than on screen: what a frame really holds is the record's answer, and a
 panel that decided it would be a second truth about the same question.
 
-A frame whose photo has not landed is skipped: a video hangs on a picture, and there is nothing to
-hang it on yet. A frame that already has a video is never written over -- "üret = ekle" means the
-extra video becomes a frame of its own, sharing the picture and taking the next variant of its
-source's number (madde 25).
+A frame whose photo has not landed is skipped: every layer hangs on a picture, and there is nothing
+to hang it on yet. A frame that already has this layer is never written over -- "üret = ekle" means
+the extra one becomes a frame of its own, sharing what is under it and taking the next variant of
+its source's number (madde 25, 102).
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.copy_frame import next_id
@@ -36,38 +40,43 @@ def _family(frame):
             variant if variant is not None else frame.get("variant"))
 
 
-def frames_in_scope(gallery, files=None):
-    """The frames a video job can be hung on, in gallery order.
+def frames_in_scope(gallery, kind, files=None):
+    """The frames a `kind` job can be hung on, in gallery order.
 
-    `files` is the gallery's own selection; None means every frame that has no video.
-
-    A frame that already has one is out of the None scope and inside a selection's: the panel's row
-    is called "Videosu olmayanlar", while picking a frame by hand says "this one" -- and that is the
-    only way madde 25's "every variant of a frame that already has a video" can be asked for.
+    `files` is the gallery's own selection; None means every frame that does not hold this layer
+    yet. A frame that already holds one is out of the None scope and inside a selection's: the
+    panel's row is called "Videosu olmayanlar", while picking a frame by hand says "this one" --
+    and that is the only way madde 25's "every variant of a frame that already has a video" can be
+    asked for.
     """
     chosen = None if files is None else set(files)
     scope = []
     for frame in gallery:
         if chosen is not None and frame["file"] not in chosen:
             continue
-        # Only a produced photo can carry a video; a frame still waiting for its own has nothing to
-        # hang one on. A name that claims no number cannot be planned at all: the plan keeps a
-        # number per job and reads back only the jobs that have one.
+        # Only a produced photo can carry anything. A name that claims no number cannot be planned
+        # at all: the plan keeps a number per job and reads back only the jobs that have one.
         if frame["status"] != "done" or _family(frame)[0] is None:
             continue
-        if chosen is None and layers.VIDEO in frame.get("layers", {}):
+        held, broken = frame.get("layers", {}), frame.get("failed", [])
+        # Sound is mixed over a video, so a frame without one -- or whose video blew up -- is never
+        # in its scope, however it was chosen (madde 31). The photo needs no check of its own: a
+        # frame whose status is done has one.
+        if kind == layers.AUDIO and (layers.VIDEO not in held or layers.VIDEO in broken):
+            continue
+        if chosen is None and kind in held:
             continue
         scope.append(frame)
     return scope
 
 
-def _video_job(fid, number, variant):
-    """The plan line for one video.
+def _job(kind, fid, number, variant):
+    """The plan line for one layer.
 
     The prompt is empty on purpose: a language model writes it when the job's turn comes, and a box
     the user was never shown must not pretend to hold their words.
     """
-    return {"id": fid, "type": layers.VIDEO, "number": number, "variant": variant,
+    return {"id": fid, "type": kind, "number": number, "variant": variant,
             "prompt": "", "negative": "", "seed": None, "model": ""}
 
 
@@ -75,7 +84,7 @@ def _placed(gallery, born):
     """The gallery's own sequence with each frame's new copies hanging directly above it.
 
     Above rather than below for two reasons: the gallery's rule is newest on top and a copy is newer
-    than its source, and the engine reads the gallery from its foot up -- so the source's own video
+    than its source, and the engine reads the gallery from its foot up -- so the source's own layer
     is made first and its copies follow.
 
     The whole sequence is written, not just the copies: a project nobody has dragged has no order
@@ -94,9 +103,9 @@ def _known_ids(record, plan_store, project):
             | set(record.slots(project)))
 
 
-def queue_videos(runner, store, record, plan_store, order_store, producers, now, project,
-                 files=None, variants=1, log=None, writers=None):
-    """Returns how many video jobs the queue took."""
+def queue_layer(runner, store, record, plan_store, order_store, producers, now, project, kind,
+                files=None, variants=1, log=None, writers=None):
+    """Returns how many jobs of this kind the queue took."""
     if files is not None and (not isinstance(files, list)
                               or any(not isinstance(name, str) for name in files)):
         raise InvalidScope("Seçim listesi metin dizisi olmalı.")
@@ -105,12 +114,13 @@ def queue_videos(runner, store, record, plan_store, order_store, producers, now,
             or not 1 <= variants <= MAX_VARIANTS:
         raise InvalidVariants(f"Varyant sayısı 1-{MAX_VARIANTS} arası bir tam sayı olmalı.")
     gallery = list_frames(record, store, plan_store, order_store, project)
-    scope = frames_in_scope(gallery, files)
+    scope = frames_in_scope(gallery, kind, files)
     if not scope:
         # Nothing owed and nothing started: an empty scope is a result, not a failure.
         return 0
 
     taken = _known_ids(record, plan_store, project)
+    said = record.prompts(project)
     jobs, born = [], {}
     # Written oldest first, the direction the engine works in: the gallery is newest-first and its
     # foot is what gets made first, so a plan written the way it reads would run backwards wherever
@@ -118,22 +128,31 @@ def queue_videos(runner, store, record, plan_store, order_store, producers, now,
     for frame in reversed(scope):
         fid = frame["id"]
         number, variant = _family(frame)
+        held = frame.get("layers", {})
+        # What each layer under this one was made from. The record answers for every layer; the
+        # photo's own prompt can also come from the plan, which is where a frame planned before the
+        # record carried prompts still keeps it -- and the gallery row already merged the two.
+        words = {layers.PHOTO: frame.get("prompt", ""), **said.get(fid, {})}
         owed = variants
-        if layers.VIDEO not in frame.get("layers", {}):
-            jobs.append(_video_job(fid, number, variant))
+        if kind not in held:
+            jobs.append(_job(kind, fid, number, variant))
             owed -= 1
         for _ in range(owed):
             copy = next_id(taken, number)
             taken.add(copy)
-            # A real frame, born with a photo row of its own that points at its source's picture:
-            # that is the whole of "kopya kare" -- no flag and no field, so the gallery draws it,
-            # deletes it and orders it by the rules it already has.
-            record.append(project, {"file": frame["file"], "frame": copy, "layer": layers.PHOTO,
-                                    "status": queue.DONE, "prompt": frame.get("prompt", ""),
-                                    "negative": frame.get("negative", ""),
-                                    "seed": frame.get("seed"), "createdAt": now()})
+            # A real frame, born holding everything below the layer being made: a video copy shares
+            # the picture, a sound copy shares the picture and the video (madde 102). No flag and
+            # no field -- the gallery draws it, deletes it and orders it by the rules it has.
+            for under in queue.ORDER[:queue.ORDER.index(kind)]:
+                file = held.get(under)
+                if not file:
+                    continue
+                record.append(project, {"file": file, "frame": copy, "layer": under,
+                                        "status": queue.DONE, "prompt": words.get(under, ""),
+                                        "negative": frame.get("negative", ""),
+                                        "seed": frame.get("seed"), "createdAt": now()})
             born.setdefault(fid, []).append(copy)
-            jobs.append(_video_job(copy, number, variant_of(copy)))
+            jobs.append(_job(kind, copy, number, variant_of(copy)))
 
     if born:
         order_store.write(project, _placed([frame["id"] for frame in gallery], born))

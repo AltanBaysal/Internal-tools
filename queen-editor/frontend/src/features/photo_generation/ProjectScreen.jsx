@@ -23,7 +23,7 @@ const HEADER = {
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
   const { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
-          retryAll, queueVideo,
+          retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
@@ -116,7 +116,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
                    busyElsewhere={busyElsewhere} settings={settings} project={project}
                    stopping={stopping} queue={queue} failures={failures}
                    models={models} modelsError={modelsError} producers={producers}
-                   frames={frames} selected={selected} onQueueVideo={queueVideo}
+                   frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onRetryAll={retryAll} resumed={resumed} />
       </div>

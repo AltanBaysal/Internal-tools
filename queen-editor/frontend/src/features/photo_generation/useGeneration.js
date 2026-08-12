@@ -6,7 +6,7 @@ import {
   getStatus,
   listFrames,
   removeFrames,
-  queueVideos,
+  queueLayer as postLayer,
   resumeBatch,
   retryFailed,
   retryFrame,
@@ -144,10 +144,10 @@ export function useGeneration(project) {
       .catch((err) => { if (alive.current) setError(err.message); })
   ), [project, startPolling]);
 
-  // Hang a video on every frame in scope. Resolves with the server's answer so the panel can quote
+  // Hang a layer on every frame in scope. Resolves with the server's answer so the panel can quote
   // how many the queue took, or null when it was refused.
-  const queueVideo = useCallback((files, variants) => (
-    queueVideos(project, files, variants)
+  const queueLayer = useCallback((kind, files, variants) => (
+    postLayer(project, kind, files, variants)
       .then((body) => {
         if (!alive.current) return null;
         startPolling();
@@ -257,6 +257,6 @@ export function useGeneration(project) {
     .filter((card) => card.count > 0);
 
   return { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
-           retryAll, queueVideo,
+           retryAll, queueLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }
