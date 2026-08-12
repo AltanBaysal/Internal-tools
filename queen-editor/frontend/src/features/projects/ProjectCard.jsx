@@ -32,13 +32,14 @@ export default function ProjectCard({ name, modifiedAt, onDelete }) {
           {formatModified(modifiedAt)}
         </Mono>
       </button>
-      {/* The destructive standard, at the size a card corner can carry: red outline, red trash,
-          never a filled red button. The label the standard also asks for lives on the confirm
-          window instead -- a word here would crowd the card without saying anything the icon and
-          the colour do not (Madde 9). */}
+      {/* The destructive standard says no filled red; inside a card it also means no box at all
+          (madde 3) -- the card's own line is already there, and a second one around the icon reads
+          as a button sitting on a button. The label the standard asks for lives on the confirm
+          window instead: a word here would crowd the card without saying anything the icon and the
+          colour do not (madde 9). */}
       <Btn sm aria-label="Projeyi sil" onClick={onDelete}
            style={{ position: "absolute", top: 10, right: 10, color: "var(--danger)",
-                    borderColor: "var(--danger)", background: "none", padding: "4px 8px" }}>
+                    border: "none", background: "none", padding: "4px 8px" }}>
         <Icon.Trash />
       </Btn>
     </div>

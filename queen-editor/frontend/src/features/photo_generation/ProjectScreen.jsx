@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { exportPath, navigate } from "../../shared/router.js";
-import { Btn, Hand } from "../../vendor/kit.jsx";
+import { Btn, Hand, Note } from "../../vendor/kit.jsx";
 import { useProducers } from "../producers/useProducers.js";
 import Gallery from "./Gallery.jsx";
 import SidePanel from "./SidePanel.jsx";
@@ -17,6 +16,10 @@ const HEADER = {
   background: "var(--bg-2)",
   borderBottom: "1px solid var(--border)",
 };
+// The design's own width, hanging under the button it explains and pinned to its right edge so a
+// 300px box never runs off the window.
+const HINT = { position: "absolute", top: "calc(100% + 8px)", right: 0, width: 300, padding: 14,
+               display: "flex", flexDirection: "column", gap: 6, textAlign: "left", zIndex: 20 };
 
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
@@ -30,7 +33,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   // The machine's own question, not this project's: which producers are here.
   const producers = useProducers();
   const [saveError, setSaveError] = useState(null);
-  const [leaving, setLeaving] = useState(false);
+  const [hinting, setHinting] = useState(false);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
   const busyElsewhere = job.status === "running" && job.project !== project;
   const running = job.status === "running" && !busyElsewhere;
@@ -98,7 +101,28 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
           {/* A button now, not a download link: Export opens the fourth screen and nothing leaves
               the machine until it is asked for there (madde 85). */}
           <Btn ghost onClick={() => navigate(exportPath(project))}>Export</Btn>
-          <Btn ghost onClick={() => setLeaving(true)}>Projeden çık</Btn>
+          {/* No confirm window (madde 10): leaving changes the address and nothing else. What the
+              user might not know is said instead of asked, and only while there is a queue to say
+              it about. */}
+          <div style={{ position: "relative" }}
+               onMouseEnter={() => setHinting(true)} onMouseLeave={() => setHinting(false)}>
+            <Btn ghost onClick={() => navigate("/")}>Projeden çık</Btn>
+            {hinting && running && (
+              <div className="wf-card wf-card--shadow" style={HINT}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span aria-hidden="true" className="qe-dot qe-dot--alive"
+                        style={{ background: "var(--accent)", width: 6, height: 6 }} />
+                  <Note size={13} style={{ color: "var(--accent)" }}>
+                    Üretim arka planda sürüyor
+                  </Note>
+                </div>
+                <Note size={12} style={{ color: "var(--ink-2)", lineHeight: 1.5 }}>
+                  Projeden çıksan da pencereyi kapatsan da kuyruk durmaz. Döndüğünde biten kareleri
+                  galeride bulursun.
+                </Note>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -119,10 +143,6 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
                    onClearError={clearError} onRetryAll={retryAll} resumed={resumed} />
       </div>
 
-      {leaving && (
-        <ConfirmModal title="Projeden çıkılsın mı?" confirmLabel="Çık"
-                      onCancel={() => setLeaving(false)} onConfirm={() => navigate("/")} />
-      )}
     </div>
   );
 }

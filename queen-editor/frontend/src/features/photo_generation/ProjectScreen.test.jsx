@@ -48,24 +48,13 @@ describe("ProjectScreen app bar", () => {
     expect(navigate).toHaveBeenCalledWith(`/projects/${encodeURIComponent("düğün")}/export`);
   });
 
-  it("asks before leaving the project, and cancel keeps you on the screen", () => {
+  it("leaves for the projects screen without asking first", () => {
     renderScreen();
 
     fireEvent.click(screen.getByText("Projeden çık"));
-    expect(screen.getByText("Projeden çıkılsın mı?")).toBeTruthy();
-    expect(navigate).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByText("Vazgeç"));
+    // Nothing is at risk: the queue is the server's and the frames are on disk (madde 10).
     expect(screen.queryByText("Projeden çıkılsın mı?")).toBeNull();
-    expect(navigate).not.toHaveBeenCalled();
-  });
-
-  it("leaves for the projects screen when leave is pressed", () => {
-    renderScreen();
-
-    fireEvent.click(screen.getByText("Projeden çık"));
-    fireEvent.click(screen.getByText("Çık"));
-
     expect(navigate).toHaveBeenCalledWith("/");
   });
 
@@ -77,6 +66,56 @@ describe("ProjectScreen app bar", () => {
     // compareDocumentPosition's FOLLOWING bit: the exit button comes later in document order.
     expect(exportEl.compareDocumentPosition(exitEl) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();
+  });
+});
+
+describe("ProjectScreen — what leaving says while the queue flows", () => {
+  const BUBBLE = "Projeden çıksan da pencereyi kapatsan da kuyruk durmaz. "
+                 + "Döndüğünde biten kareleri galeride bulursun.";
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function openWith(status) {
+    getStatus.mockResolvedValue(status);
+    renderScreen();
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  }
+
+  it("explains itself over the button while production runs", async () => {
+    await openWith({ status: "running", project: "düğün" });
+
+    fireEvent.mouseEnter(screen.getByText("Projeden çık"));
+
+    expect(screen.getByText("Üretim arka planda sürüyor")).toBeTruthy();
+    expect(screen.getByText(BUBBLE)).toBeTruthy();
+  });
+
+  it("takes the bubble away when the pointer leaves", async () => {
+    await openWith({ status: "running", project: "düğün" });
+    fireEvent.mouseEnter(screen.getByText("Projeden çık"));
+
+    fireEvent.mouseLeave(screen.getByText("Projeden çık"));
+
+    expect(screen.queryByText("Üretim arka planda sürüyor")).toBeNull();
+  });
+
+  it("says nothing when there is no production to speak of", async () => {
+    await openWith({ status: "idle" });
+
+    fireEvent.mouseEnter(screen.getByText("Projeden çık"));
+
+    expect(screen.queryByText("Üretim arka planda sürüyor")).toBeNull();
+  });
+
+  it("says nothing while the queue is paused: a stopped queue does not go on", async () => {
+    await openWith({ status: "paused", project: "düğün" });
+
+    fireEvent.mouseEnter(screen.getByText("Projeden çık"));
+
+    expect(screen.queryByText("Üretim arka planda sürüyor")).toBeNull();
   });
 });
 

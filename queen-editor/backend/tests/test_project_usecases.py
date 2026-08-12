@@ -6,6 +6,7 @@ from backend.features.projects.domain.usecases.create_project import (
     NameTaken,
     create_project,
 )
+from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing, get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.save_settings import save_settings
@@ -26,6 +27,38 @@ class FakeStore:
         project = Project(name, 100.0)
         self.projects.append(project)
         return project
+
+
+class RecordingStore(FakeStore):
+    """A store that writes down when it was asked to delete, so order can be asserted."""
+
+    def __init__(self, log, projects=("düğün",)):
+        super().__init__([Project(name, 100.0) for name in projects])
+        self.log = log
+
+    def delete(self, name):
+        self.log.append(f"delete:{name}")
+        gone = [p for p in self.projects if p.name == name]
+        self.projects = [p for p in self.projects if p.name != name]
+        return bool(gone)
+
+
+def test_deleting_a_project_stops_its_production_before_the_folder_goes():
+    """The other order is the bug: a worker writing into a folder that is being removed is exactly
+    the error the confirm promises the user will not see."""
+    log = []
+    store = RecordingStore(log)
+
+    delete_project(store, lambda project: log.append(f"halt:{project}"), "düğün")
+
+    assert log == ["halt:düğün", "delete:düğün"]
+
+
+def test_deleting_an_unknown_project_still_says_so():
+    log = []
+    with pytest.raises(ProjectMissing) as exc:
+        delete_project(RecordingStore(log), lambda project: log.append("halt"), "yok")
+    assert str(exc.value) == "Proje yok: yok"
 
 
 def test_list_projects_newest_change_first():

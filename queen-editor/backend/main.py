@@ -1,6 +1,7 @@
 """Composition root -- build services, wire them into features, start Flask.
 Run as: python -m backend.main"""
 import random
+import time
 from datetime import datetime, timezone
 from functools import partial
 
@@ -24,6 +25,7 @@ from backend.features.photo_generation.domain.usecases.run_export import start_e
 from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
+from backend.features.photo_generation.domain.usecases.halt_project import halt_project
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
@@ -64,14 +66,6 @@ _storage = DriveStorage(config.DRIVE_ROOT)
 
 _project_store = DriveProjectStore(_storage)
 _settings_store = DriveSettingsStore(_storage)
-_projects_bp = make_projects_blueprint(
-    list_projects=partial(list_projects, _project_store),
-    create_project=partial(create_project, _project_store),
-    check_name=check_name,
-    delete_project=partial(delete_project, _project_store),
-    get_settings=partial(get_settings, _settings_store),
-    save_settings=partial(save_settings, _settings_store),
-)
 
 _photo_store = DrivePhotoStore(_storage)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL)
@@ -94,6 +88,20 @@ _order_store = DriveOrderStore(_storage)
 
 _export_runner = ExportRunner()
 _video_exporter = FfmpegVideoExporter()
+
+# The one place the two features meet: deleting a project has to stop the production that project
+# owns, and the worker that owns it belongs to photo generation. The projects feature is handed the
+# ability, not the worker.
+_projects_bp = make_projects_blueprint(
+    list_projects=partial(list_projects, _project_store),
+    create_project=partial(create_project, _project_store),
+    check_name=check_name,
+    delete_project=partial(delete_project, _project_store,
+                           partial(halt_project, _photo_runner, _comfy_client.interrupt,
+                                   time.sleep)),
+    get_settings=partial(get_settings, _settings_store),
+    save_settings=partial(save_settings, _settings_store),
+)
 
 
 _start_export = partial(

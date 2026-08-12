@@ -47,6 +47,8 @@ from backend.features.photo_generation.domain.usecases.resume_batch import (
     NothingToResume,
     resume_batch,
 )
+from backend.features.photo_generation.domain.usecases import halt_project as halt_module
+from backend.features.photo_generation.domain.usecases.halt_project import halt_project
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder, save_order
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
 from backend.features.photo_generation.runner import PhotoRunner
@@ -545,6 +547,83 @@ def test_stop_generation_interrupts_and_reports_stopping():
     state = stop_generation(runner, interrupt=lambda: calls.append("interrupt"))
     assert calls == ["interrupt"]
     assert state["status"] == "running" and state["stopping"] is True
+
+
+def halting_runner(project="düğün"):
+    """A worker that has claimed `project` and never lets go on its own."""
+    runner = PhotoRunner(spawn=lambda fn: None)
+    runner.start(project, lambda: {"status": "done"})
+    return runner
+
+
+def test_halting_a_project_asks_its_run_to_stop_and_cuts_the_render():
+    runner = halting_runner()
+    calls = []
+
+    assert halt_project(runner, lambda: calls.append("interrupt"), lambda _: None, "düğün") is True
+
+    assert calls == ["interrupt"]
+    assert runner.stop_requested() is True
+    # This worker never comes back, so it is still the one holding the machine -- saying "idle"
+    # here would be the lie. It is left as it is and its own ending publishes the truth.
+    assert runner.status()["status"] == "running"
+
+
+def test_halting_leaves_a_run_that_belongs_to_another_project_alone():
+    """Deleting «düğün» must not cut «nişan» short -- one project's bin is not a global stop."""
+    runner = halting_runner("nişan")
+    calls = []
+
+    assert halt_project(runner, lambda: calls.append("interrupt"), lambda _: None, "düğün") is False
+
+    assert calls == []
+    assert runner.status()["status"] == "running"
+
+
+def test_halting_an_idle_worker_is_a_no_op_that_still_answers():
+    runner = PhotoRunner()
+
+    assert halt_project(runner, lambda: None, lambda _: None, "düğün") is False
+
+
+def test_halting_survives_a_dead_comfy():
+    """The renderer being unreachable cannot be what stops a project from being deleted."""
+    runner = halting_runner()
+
+    def broken_interrupt():
+        raise RuntimeError("connection refused")
+
+    assert halt_project(runner, broken_interrupt, lambda _: None, "düğün") is True
+    assert runner.stop_requested() is True
+
+
+def test_halting_gives_up_waiting_rather_than_holding_the_delete_forever():
+    """The worker never leaves "running": the wait ends on its own and the delete goes ahead."""
+    runner = halting_runner()
+    slept = []
+
+    halt_project(runner, lambda: None, lambda step: slept.append(step), "düğün")
+
+    assert len(slept) == halt_module.LIMIT
+    assert slept[0] == halt_module.STEP
+
+
+def test_halting_stops_waiting_the_moment_the_worker_leaves():
+    jobs = []
+    runner = PhotoRunner(spawn=jobs.append)      # the job waits here until a test runs it
+    runner.start("düğün", lambda: {"status": "stopped"})
+    slept = []
+
+    def step(seconds):
+        slept.append(seconds)
+        # The batch ends between frames: on the second tick this one reaches that point.
+        if len(slept) == 2:
+            jobs[0]()
+
+    halt_project(runner, lambda: None, step, "düğün")
+
+    assert len(slept) == 2
+    assert runner.status() == {"status": "idle"}
 
 
 def test_stop_generation_survives_interrupt_failure():

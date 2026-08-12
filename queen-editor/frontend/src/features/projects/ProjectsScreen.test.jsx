@@ -64,13 +64,25 @@ describe("ProjectsScreen deleting a project", () => {
     expect(screen.queryByText("düğün")).toBeNull();
   });
 
-  it("draws the bin by the destructive standard: outlined and red, never filled", async () => {
+  it("draws the bin as a red icon and nothing else: no box of its own", async () => {
     await openScreen();
 
     const bin = screen.getByLabelText("Projeyi sil");
-    expect(bin.style.borderColor).toBe("var(--danger)");
     expect(bin.style.color).toBe("var(--danger)");
+    // border:none expands, and the part that decides whether a line is drawn is the style.
+    expect(bin.style.borderStyle).toBe("none");
     expect(bin.style.background).toBe("none");
+  });
+
+  it("says what leaves with the project and what happens to the production", async () => {
+    await openScreen();
+
+    fireEvent.click(screen.getByLabelText("Projeyi sil"));
+
+    expect(screen.getByText(
+      "İçindeki tüm kareler — fotoğraf, video ve ses dosyalarıyla birlikte — kalıcı olarak "
+      + "silinir. Çalışan üretim durdurulur, kuyruktaki işler atılır. Bu işlem geri alınamaz."))
+      .toBeTruthy();
   });
 
   it("opens the project when the card is clicked", async () => {

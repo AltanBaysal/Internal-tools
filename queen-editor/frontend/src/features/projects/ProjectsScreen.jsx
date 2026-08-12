@@ -102,7 +102,11 @@ export default function ProjectsScreen() {
         <ConfirmModal
           width={340}
           title={`"${deletingName}" projesi silinsin mi?`}
-          body="İçindeki tüm fotoğraflar kalıcı olarak silinir. Bu işlem geri alınamaz."
+          // What goes is the frames and all three of their files, and the running production is
+          // part of the answer: the server really does stop it before the folder goes (madde 1).
+          body={"İçindeki tüm kareler — fotoğraf, video ve ses dosyalarıyla birlikte — kalıcı "
+                + "olarak silinir. Çalışan üretim durdurulur, kuyruktaki işler atılır. "
+                + "Bu işlem geri alınamaz."}
           confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={busy}
           onCancel={() => setDeletingName(null)} onConfirm={handleDelete}
         />

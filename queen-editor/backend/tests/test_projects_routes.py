@@ -15,8 +15,12 @@ from backend.services.drive.storage import DriveStorage
 from backend.web.app import create_app
 
 
-def client_for(drive_root, dist_dir):
-    """Wire the feature by hand -- the same wiring main.py does, but over a temp folder."""
+def client_for(drive_root, dist_dir, halted=None):
+    """Wire the feature by hand -- the same wiring main.py does, but over a temp folder.
+
+    The halt port stands in for the photo worker: this feature never knows what is behind it, so a
+    list that writes down the name is the whole of it here.
+    """
     storage = DriveStorage(str(drive_root))
     store = DriveProjectStore(storage)
     settings_store = DriveSettingsStore(storage)
@@ -24,20 +28,22 @@ def client_for(drive_root, dist_dir):
         list_projects=partial(list_projects, store),
         create_project=partial(create_project, store),
         check_name=check_name,
-        delete_project=partial(delete_project, store),
+        delete_project=partial(delete_project, store,
+                               lambda project: (halted if halted is not None else []).append(
+                                   project)),
         get_settings=partial(get_settings, settings_store),
         save_settings=partial(save_settings, settings_store),
     )
     return create_app(dist_dir=str(dist_dir), blueprints=[blueprint]).test_client()
 
 
-def make_client(tmp_path):
+def make_client(tmp_path, halted=None):
     drive = tmp_path / "drive"
     drive.mkdir()
     dist = tmp_path / "dist"
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
-    return client_for(drive, dist), drive
+    return client_for(drive, dist, halted), drive
 
 
 def test_deleting_a_project_removes_the_folder_with_everything_in_it(tmp_path):
@@ -50,6 +56,16 @@ def test_deleting_a_project_removes_the_folder_with_everything_in_it(tmp_path):
     assert resp.status_code == 204
     assert not (drive / "düğün").exists()
     assert client.get("/api/projects").get_json()["projects"] == []
+
+
+def test_deleting_a_project_asks_for_its_production_to_stop(tmp_path):
+    halted = []
+    client, _ = make_client(tmp_path, halted)
+    client.post("/api/projects", json={"name": "düğün"})
+
+    client.delete("/api/projects/düğün")
+
+    assert halted == ["düğün"]
 
 
 def test_deleting_an_unknown_project_returns_404(tmp_path):
