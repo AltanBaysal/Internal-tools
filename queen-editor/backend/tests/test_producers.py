@@ -1,6 +1,7 @@
 """Which producers this machine has, which of them are installed, and installing one."""
 import pytest
 
+from backend.features.producers.domain import model_groups
 from backend.features.producers.domain.usecases.install_producer import Busy, install_producer
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.runner import InstallRunner
@@ -138,3 +139,31 @@ def test_a_producer_the_notebook_owns_cannot_be_installed_from_here():
 
     assert runner.status()["status"] == "error"
     assert "defter" in runner.status()["error"]
+
+
+# The shipped group, not the fixture above: what the panel really counts for sound has to be the
+# one file the sampler really loads.
+
+
+def test_the_sound_group_names_the_weights_the_sampler_loads():
+    rows = model_groups.GROUPS["audio"]
+    assert len(rows) == 1, "Örnekleyici tek ağırlık dosyası yüklüyor"
+    assert rows[0]["name"] == "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
+
+
+def test_the_sound_weights_can_be_fetched_by_the_app_itself():
+    """No token stands in front of this one, unlike the Civitai rows -- so the panel's Kur button
+    is enough and the user is not sent off to download a file by hand."""
+    url = model_groups.GROUPS["audio"][0]["url"]
+    assert url and "phazei/NSFW_MMaudio" in url
+
+
+def test_the_weights_path_is_built_from_the_group_row():
+    class FakeFiles:
+        def path(self, folder, name):
+            return f"/root/models/{folder}/{name}"
+
+    path = model_groups.audio_weights(FakeFiles())
+
+    assert path == ("/root/models/mmaudio/"
+                    "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors")

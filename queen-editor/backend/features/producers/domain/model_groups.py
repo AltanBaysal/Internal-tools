@@ -15,6 +15,7 @@ producer is set up by the notebook, and which checkpoint it holds is the user's 
 """
 HF_WAN22 = "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files"
 HF_WAN21 = "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files"
+HF_MMAUDIO_NSFW = "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
 
 GROUPS = {
     "photo": [],
@@ -38,7 +39,19 @@ GROUPS = {
         {"folder": "loras", "name": "SmoothMix_Animations_XXX_Low.safetensors", "url": None},
     ],
     "audio": [
-        # MMAudio's node downloads its own weights on first use; nothing here is ours to fetch.
-        {"folder": "mmaudio", "name": "mmaudio_large_44k_v2.pth", "url": None},
+        # The fine-tune the sampler loads, and the only file that is ours to fetch: MMAudio's own
+        # vae, synchformer and vocoder come down with the library, which knows where it keeps them.
+        # It lands in ComfyUI's model tree although ComfyUI never reads it -- the installer, the
+        # panel and the "is it there" check all hang off that one root, and a second root for a
+        # single file would be the same machinery written twice.
+        {"folder": "mmaudio", "name": HF_MMAUDIO_NSFW,
+         "url": f"https://huggingface.co/phazei/NSFW_MMaudio/resolve/main/{HF_MMAUDIO_NSFW}"},
     ],
 }
+
+
+def audio_weights(files):
+    """Where the sound weights sit, built from the row above rather than spelled out a second time:
+    a renamed file then moves the panel and the sampler together."""
+    row = GROUPS["audio"][0]
+    return files.path(row["folder"], row["name"])
