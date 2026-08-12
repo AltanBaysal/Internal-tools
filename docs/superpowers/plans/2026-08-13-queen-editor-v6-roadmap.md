@@ -1,7 +1,8 @@
 # Queen Editor — Yol Haritası v6
 
-**Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` (v5 ile aynı dal, henüz doğrulanmadı) ·
-**Durum:** koşu başlamadı.
+**Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` ·
+**Durum:** 6 görevin 6'sı yazıldı ve commit edildi (`5839783`'e kadar); **kullanıcının elle Colab
+turu bekliyor** — aşağıdaki *Koşunun sonu*.
 **Yerini aldığı doküman:** yok — bu, [v5 roadmap](2026-08-12-queen-editor-v5-roadmap.md)'in
 kapanışında kullanıcıya kalan iki üretim dosyasının yerine geçen küçük bir koşu.
 **Kaynak:** kullanıcı kararı (2026-08-13) — fark belgesi yok, bulgu koşunun kendisinden çıktı.
@@ -152,7 +153,26 @@ Hiçbiri bu belgede verilmez; her biri kendi görevinin spec'inde karara bağlan
 | Negative prompt: defterin sabiti mi, işin kendi alanı mı | Görev 3 |
 | NSFW ağırlığı uygulama mı indirir, defter mi | Görev 4 |
 
-## Sıradaki adım
+## Koşunun sonu
 
-**Görev 1'in spec'i.** Dal aynı kalır (`feat/queen-editor-v3`); Görev 1 — *Video grafiği repoya
-girer* — spec → plan → full TDD döngüsüne girer.
+**6 görevin 6'sı bitti**, her biri kendi spec'i ve commit'iyle. Arka uç takımı **573 test**
+geçiyor; ön yüz bu koşuda hiç değişmedi.
+
+Koşu sırasında çıkan, roadmap'te olmayan üç bulgu — üçü de kapatıldı:
+
+| Bulgu | Nerede kapandı |
+|---|---|
+| VAE, grafiğin istediğinden başka adla listeleniyordu | Görev 2 |
+| Video grafiğinin 11 custom node'u defterde hiç kurulmuyordu | Görev 6 *(karar 2'de ayrıca yazıldı)* |
+| `ffmpeg` defterde kurulmuyordu — export ve ses kesme onu çağırıyor | Görev 6 |
+
+**Colab turunda bakılacaklar:**
+
+- **Ses gerçekten üretiyor mu** — MMAudio süreç içinde ilk kez koşacak; ağırlık panelden inecek.
+- **GPU sığıyor mu** — ComfyUI'ın WAN'ı ile MMAudio aynı kartta *(Görev 3 karar 4: A100'de sığar,
+  ölçülmedi)*.
+- **Video ilk kez uçtan uca** — graf, node'lar ve modeller bu koşuda ilk kez bir arada.
+- v5'in kendi listesi: yatay taşma, seçim barının boşluğu, export'un ffmpeg'i.
+
+**Kalan tek elle iş:** push. Defter repoyu klonluyor, dolayısıyla Colab turu push'tan sonra
+anlamlı.
