@@ -9,7 +9,7 @@ Refused while the queue flows, so the frame being rendered right now -- which ha
 therefore still reads as owed -- can never be marked removed underneath the worker.
 """
 from backend.features.photo_generation.domain import layers, queue
-from backend.features.photo_generation.domain.photo_name import file_name, frame_id
+from backend.features.photo_generation.domain.photo_name import photo_file
 from backend.features.photo_generation.domain.usecases.start_batch import Busy, ProjectMissing
 
 
@@ -20,6 +20,6 @@ def cancel_generation(runner, store, record, plan_store, now, project):
         raise Busy("Üretim sürüyor — önce durdur.")
     frames = plan_store.read(project)["frames"]
     for frame in queue.open_frames(frames, record.statuses(project)):
-        record.mark(project, frame_id(frame["number"], frame["letter"]), layers.PHOTO,
-                    file_name(frame["number"], frame["letter"]), queue.REMOVED, now())
+        record.mark(project, frame["id"], layers.PHOTO, photo_file(frame["id"]),
+                    queue.REMOVED, now())
     runner.reset()

@@ -4,10 +4,10 @@ from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.services.drive.storage import DriveStorage
 
 FRAMES = [
-    {"number": 3, "letter": "a", "prompt": "kraliçe tahtta", "negative": "bulanık", "seed": 11,
-     "model": "nova.safetensors"},
-    {"number": 4, "letter": "a", "prompt": "kraliçe balkonda", "negative": "bulanık", "seed": 22,
-     "model": "nova.safetensors"},
+    {"id": "P3_0", "number": 3, "variant": 0, "prompt": "kraliçe tahtta", "negative": "bulanık",
+     "seed": 11, "model": "nova.safetensors"},
+    {"id": "P4_0", "number": 4, "variant": 0, "prompt": "kraliçe balkonda", "negative": "bulanık",
+     "seed": 22, "model": "nova.safetensors"},
 ]
 
 
@@ -19,6 +19,16 @@ def test_append_then_read_round_trips(tmp_path):
     store = store_at(tmp_path)
     store.append("düğün", FRAMES)
     assert store.read("düğün")["frames"] == FRAMES
+
+
+def test_a_frame_planned_before_identities_keeps_the_one_it_was_born_with(tmp_path):
+    # Renaming is never done, so the gallery order pointing at "0_a" has to keep finding it.
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "plan.json").write_text(json.dumps({"frames": [
+        {"number": 0, "letter": "a", "prompt": "eski", "negative": "n", "seed": 1}]}),
+        encoding="utf-8")
+
+    assert store_at(tmp_path).read("düğün")["frames"][0]["id"] == "0_a"
 
 
 def test_a_frame_planned_before_models_reads_back_without_one(tmp_path):

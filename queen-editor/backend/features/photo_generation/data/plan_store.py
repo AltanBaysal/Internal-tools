@@ -6,10 +6,12 @@ record's answer, and a plan that repeated it would give one truth two writers. T
 whole file is rewritten once per submitted batch rather than once per frame: a Colab machine dying
 mid-write would otherwise take the entire queue with it.
 
-A frame carries its number and letter, not a file name: the "<number>_<letter>.png" scheme is
-photo_store's to know, and repeating it here would give it a second owner.
+A frame carries its identity, not a file name: which file a layer lands in is the naming scheme's
+answer, and repeating it here would give it a second owner.
 """
 import json
+
+from backend.features.photo_generation.domain.photo_name import legacy_frame_id
 
 FILE = "plan.json"
 
@@ -47,9 +49,14 @@ class DrivePlanStore:
                 continue
             negative = frame.get("negative")
             model = frame.get("model")
+            identity = frame.get("id")
             # A frame planned before models could be chosen carries none, and empty means "the
-            # graph's own checkpoint" -- so those frames render exactly as they always did.
+            # graph's own checkpoint" -- so those frames render exactly as they always did. A frame
+            # planned before identities were written down keeps the one it was born with, or the
+            # gallery order pointing at it would stop finding it.
             frames.append({**frame,
+                           "id": identity if isinstance(identity, str)
+                           else legacy_frame_id(frame["number"], frame.get("letter", "a")),
                            "negative": negative if isinstance(negative, str) else legacy,
                            "model": model if isinstance(model, str) else ""})
         return {"negative": legacy, "frames": frames}
@@ -57,7 +64,8 @@ class DrivePlanStore:
     def append(self, project, frames):
         """Put frames at the end of the queue.
 
-        frames: [{"number", "letter", "prompt", "negative", "seed", "model"}] in render order.
+        frames: [{"id", "number", "variant", "prompt", "negative", "seed", "model"}] in render
+        order.
         """
         self._write(project, self.read(project)["frames"] + frames)
 

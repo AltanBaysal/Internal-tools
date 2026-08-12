@@ -14,7 +14,7 @@ how a frame looks, never whether it exists.
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.gallery_order import apply_order
-from backend.features.photo_generation.domain.photo_name import file_name, frame_id
+from backend.features.photo_generation.domain.photo_name import photo_file
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 # What the gallery draws. A removed or deleted frame is gone from it entirely.
@@ -39,7 +39,7 @@ def list_frames(record, store, plan_store, order_store, project):
     # Newest first, the same direction the record answers in, so an unordered gallery already reads
     # the way the design wants it.
     for frame in reversed(plan_store.read(project)["frames"]):
-        fid = frame_id(frame["number"], frame["letter"])
+        fid = frame["id"]
         cells = slots.get(fid, {})
         photo = cells.get(layers.PHOTO)
         status = photo["status"] if photo else None
@@ -50,8 +50,7 @@ def list_frames(record, store, plan_store, order_store, project):
         # the name its own number would give. A frame with nothing produced yet is drawn under the
         # name it is planned to take.
         frames.append({**frame, "id": fid,
-                       "file": photo["file"] if photo
-                       else file_name(frame["number"], frame["letter"]),
+                       "file": photo["file"] if photo else photo_file(fid),
                        "layers": _taken_files(cells),
                        "status": status if status in SHOWN else "pending"})
 

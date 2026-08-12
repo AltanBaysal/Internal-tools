@@ -8,7 +8,7 @@ pauses and what "done" means exist in exactly one place.
 import time
 
 from backend.features.photo_generation.domain import layers, policy, queue
-from backend.features.photo_generation.domain.photo_name import file_name, frame_id
+from backend.features.photo_generation.domain.photo_name import photo_file
 
 
 def make_job(runner, store, record, plan_store, generator, now, project,
@@ -39,14 +39,14 @@ def make_job(runner, store, record, plan_store, generator, now, project,
             if not owed:
                 return summary("done")
             frame = owed[0]
-            fid = frame_id(frame["number"], frame["letter"])
-            name = file_name(frame["number"], frame["letter"])
+            fid = frame["id"]
+            name = photo_file(fid)
             if name != holding:
                 holding, attempts = name, 0
             # pending is what the gallery draws as "bekliyor": the queue behind the frame being
             # rendered. failures names the tiles it draws red, each with its own Tekrar dene.
             runner.report({**queue.counts(frames, statuses), "current": frame,
-                           "pending": [file_name(f["number"], f["letter"]) for f in owed[1:]]})
+                           "pending": [photo_file(f["id"]) for f in owed[1:]]})
             started = clock()
             try:
                 data = generator.generate(frame["prompt"], frame["negative"], frame["seed"],
@@ -70,7 +70,7 @@ def make_job(runner, store, record, plan_store, generator, now, project,
                     return summary("error", error=f"{reason}\n{exc}")
                 continue
             rendered = clock()
-            filename = store.save(project, frame["number"], frame["letter"], data)
+            filename = store.save(project, name, data)
             # Only after the photo exists: the line is what "this photo is here" means.
             record.append(project, {"file": filename, "frame": fid, "layer": layers.PHOTO,
                                     "status": queue.DONE,

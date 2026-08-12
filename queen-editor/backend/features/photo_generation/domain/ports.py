@@ -20,8 +20,8 @@ class PhotoStore(Protocol):
         """Highest existing number + 1, so nothing is ever overwritten."""
         ...
 
-    def save(self, project: str, number: int, letter: str, data: bytes) -> str:
-        """Persist the photo; returns the file name it was stored under."""
+    def save(self, project: str, filename: str, data: bytes) -> str:
+        """Persist the photo under the name the domain chose; returns that name."""
         ...
 
     def delete(self, project: str, filename: str) -> None:
@@ -35,7 +35,8 @@ class PhotoStore(Protocol):
 
 class PlanStore(Protocol):
     def read(self, project: str) -> dict:
-        """{"negative", "frames"} -- the queue as stored, every frame carrying its negative."""
+        """{"negative", "frames"} -- the queue as stored, every frame carrying its identity and its
+        negative."""
         ...
 
     def append(self, project: str, frames: list) -> None:

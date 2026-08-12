@@ -1,5 +1,5 @@
-"""PhotoStore over DriveStorage -- photos live inside the project folder, named by
-domain/photo_name.py.
+"""PhotoStore over DriveStorage -- photos live inside the project folder under the name the domain
+chose (see domain/photo_name.py).
 
 Numbering never reuses a number: the next one is the highest on disk plus one, so a second run
 appends instead of overwriting. Files that do not match the scheme (notes, the project's JSON
@@ -9,7 +9,7 @@ number -- that claim is the record's to keep (see usecases/start_batch.next_numb
 Listing the folder is deliberately not offered: which photos a project has is the photo record's
 answer, and two ways to ask it would be two ways to disagree.
 """
-from backend.features.photo_generation.domain.photo_name import file_name, number_of
+from backend.features.photo_generation.domain.photo_name import number_of
 
 
 class DrivePhotoStore:
@@ -24,8 +24,7 @@ class DrivePhotoStore:
                    if n is not None]
         return max(numbers) + 1 if numbers else 0
 
-    def save(self, project, number, letter, data):
-        filename = file_name(number, letter)
+    def save(self, project, filename, data):
         self._storage.write_bytes(project, filename, data)
         return filename
 

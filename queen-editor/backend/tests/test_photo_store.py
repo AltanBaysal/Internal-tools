@@ -21,9 +21,9 @@ def test_next_number_starts_at_zero(tmp_path):
 def test_delete_removes_the_photo_from_the_project_folder(tmp_path):
     storage = DriveStorage(str(tmp_path))
     store = DrivePhotoStore(storage)
-    store.save("düğün", 0, "a", b"PNG")
+    store.save("düğün", "P0_0.png", b"PNG")
 
-    store.delete("düğün", "0_a.png")
+    store.delete("düğün", "P0_0.png")
 
     assert storage.list_files("düğün") == []
 
@@ -31,15 +31,23 @@ def test_delete_removes_the_photo_from_the_project_folder(tmp_path):
 def test_next_number_is_highest_plus_one(tmp_path):
     project = tmp_path / "düğün"
     project.mkdir()
-    for name in ("0_a.png", "7_c.png", "3_b.png", "notlar.txt", "_bozuk.png"):
+    for name in ("0_a.png", "P7_2.png", "3_b.png", "notlar.txt", "_bozuk.png"):
         (project / name).write_bytes(b"x")
+    # Both naming schemes claim numbers: the folder can hold frames from before and after.
     assert store_at(tmp_path).next_number("düğün") == 8
+
+
+def test_a_layer_file_claims_its_frames_number(tmp_path):
+    project = tmp_path / "düğün"
+    project.mkdir()
+    (project / "P4_0_V1_0.mp4").write_bytes(b"x")
+    assert store_at(tmp_path).next_number("düğün") == 5
 
 
 def test_save_writes_the_file_and_returns_its_name(tmp_path):
     (tmp_path / "düğün").mkdir()
-    assert store_at(tmp_path).save("düğün", 4, "a", b"PNG") == "4_a.png"
-    assert (tmp_path / "düğün" / "4_a.png").read_bytes() == b"PNG"
+    assert store_at(tmp_path).save("düğün", "P4_0.png", b"PNG") == "P4_0.png"
+    assert (tmp_path / "düğün" / "P4_0.png").read_bytes() == b"PNG"
 
 
 def test_photo_dir_is_the_project_folder(tmp_path):
