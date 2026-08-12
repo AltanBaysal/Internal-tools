@@ -23,6 +23,7 @@ from backend.features.photo_generation.domain.usecases.cancel_generation import 
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
+from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
@@ -125,6 +126,8 @@ _photo_bp = make_photo_generation_blueprint(
                        _order_store, _producers, lambda: random.randint(0, 2**31 - 1),
                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                        log=_timing, writers=_writers),
+    remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
+                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
     list_models=partial(list_models, _photo_generator),
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),

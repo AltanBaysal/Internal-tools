@@ -64,6 +64,21 @@ const LAYER_WORD = { photo: "Foto", video: "Video", audio: "Ses" };
 const STRIP = { position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
                 display: "flex", zIndex: 2 };
 
+// The one destructive thing a layer tab offers (madde 80): it takes its own layer and whatever
+// lies over it, and says what survives. The photo tab is not here -- deleting the base layer is
+// deleting the frame, and that button keeps its own words until Görev 31.
+const DESTRUCTIVE = {
+  video: { label: "Videoyu sil — kare kalır", title: "Video silinsin mi?",
+           body: "Bu video ve üzerindeki ses kalıcı olarak silinir — bu geri alınamaz. "
+                 + "Kare ve fotoğrafı galeride kalır." },
+  audio: { label: "Sesi sil — video kalır", title: "Ses silinsin mi?",
+           body: "Bu ses kalıcı olarak silinir — bu geri alınamaz. Video ve kare kalır; "
+                 + "video sessiz oynar." },
+};
+// Red text, red border, no fill -- the app-wide destructive standard (madde 83).
+const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", background: "none",
+                 justifyContent: "center" };
+
 function LayerTabs({ open, has, onOpen }) {
   return (
     <div style={STRIP}>
@@ -139,7 +154,8 @@ function PromptBox({ label, value, changed, onChange }) {
 // opens here -- produced, waiting, being rendered or failed -- and the page is live, so the one the
 // worker is holding turns into its photo without a reload.
 export default function PhotoDetail({ project, file }) {
-  const { frames, current, currentLayer, error, removePhotos, regenerate } = useGeneration(project);
+  const { frames, current, currentLayer, error, removePhotos, removeLayer,
+          regenerate } = useGeneration(project);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   // Which layer is open. The photo to begin with: it is the frame itself, and the others are what
@@ -154,7 +170,10 @@ export default function PhotoDetail({ project, file }) {
   // The layers already sent off to be made again. Their result is a frame of its own, so this page
   // will never see it land -- the button has to remember the press itself.
   const [sent, setSent] = useState([]);
-  const [refusedLayer, setRefusedLayer] = useState(false);
+  // What a refused request of ours was trying to do, as the heading over the server's own words.
+  // Held as the sentence rather than a flag: the two actions on a layer fail differently and the
+  // card must not say the wrong one.
+  const [refusedAct, setRefusedAct] = useState(null);
 
   const index = frames ? frames.findIndex((frame) => frame.file === file) : -1;
   const frame = index >= 0 ? frames[index] : null;
@@ -198,7 +217,7 @@ export default function PhotoDetail({ project, file }) {
     // The editing belonged to that frame, and so did the presses: both go with it.
     setWords({});
     setSent([]);
-    setRefusedLayer(false);
+    setRefusedAct(null);
   }, [file]);
 
   useEffect(() => {
@@ -231,11 +250,25 @@ export default function PhotoDetail({ project, file }) {
   // No confirm box and nowhere to go: the frame on screen keeps everything it has, and what was
   // asked for turns up in the gallery as a frame of its own (madde 77).
   function handleRegenerate() {
-    setRefusedLayer(false);
+    setRefusedAct(null);
     const layer = open;
-    return regenerate(file, layer, typed).then((body) => {
-      if (!body) return setRefusedLayer(true);
+    return regenerate(frame.id, layer, typed).then((body) => {
+      if (!body) return setRefusedAct("Kare yeniden üretilemedi");
       setSent((layers) => [...layers, layer]);
+    });
+  }
+
+  // The open tab's own layer, and whatever lies over it. The frame stays in the gallery, so the
+  // page stays on it -- only the tab it was showing is gone, and the photo is always there.
+  function handleRemoveLayer() {
+    setBusy(true);
+    setRefusedAct(null);
+    const layer = open;
+    return removeLayer(frame.id, layer).then((body) => {
+      setBusy(false);
+      setConfirming(false);
+      if (!body) return setRefusedAct(`${LAYER_WORD[layer]} silinemedi`);
+      setOpen("photo");
     });
   }
 
@@ -272,9 +305,10 @@ export default function PhotoDetail({ project, file }) {
                      : undefined} />
             <Arrow glyph="›" side="right"
                    onClick={next ? () => navigate(photoPath(project, next.file)) : undefined} />
-            {produced && open !== "photo" ? (
+            {produced && open !== "photo" && holds ? (
               /* The layer's own tab plays it. The sound opens no player of its own: it rides the
-                 video, which is what "sesli oynar" means here (madde 74). */
+                 video, which is what "sesli oynar" means here (madde 74). `holds` guards the poll
+                 that lands while a layer is being deleted: no layer, no player. */
               <LayerPlayer videoUrl={fileUrl(project, frame.layers.video)}
                            audioUrl={open === "audio"
                              ? fileUrl(project, frame.layers.audio)
@@ -351,27 +385,39 @@ export default function PhotoDetail({ project, file }) {
               </Btn>
             )}
 
-            {refusedLayer && <StatusErrorCard text="Kare yeniden üretilemedi" raw={error} />}
+            {refusedAct && <StatusErrorCard text={refusedAct} raw={error} />}
             {refused && (
               <StatusErrorCard text={produced ? "Fotoğraf silinemedi" : "Kare kuyruktan çıkarılamadı"}
                                raw={error} />
             )}
 
-            <Btn sm disabled={busy || state === "running"}
-                 onClick={produced ? () => setConfirming(true) : handleRemove}
-                 style={{ color: "var(--danger)", borderColor: "var(--danger)",
-                          justifyContent: "center" }}>
-              <Icon.Trash /> {produced ? "Sil" : "Kuyruktan çıkar"}
-            </Btn>
+            {/* One destructive button per tab (madde 80): the frame on the photo tab, the layer on
+                the others. */}
+            {open === "photo" ? (
+              <Btn sm disabled={busy || state === "running"}
+                   onClick={produced ? () => setConfirming(true) : handleRemove} style={DANGER}>
+                <Icon.Trash /> {produced ? "Sil" : "Kuyruktan çıkar"}
+              </Btn>
+            ) : holds && (
+              <Btn sm disabled={busy} onClick={() => setConfirming(true)} style={DANGER}>
+                <Icon.Trash /> {DESTRUCTIVE[open].label}
+              </Btn>
+            )}
           </div>
         </div>
       )}
 
-      {confirming && (
+      {confirming && (open === "photo" ? (
         <ConfirmModal title="Bu fotoğraf silinsin mi?" body="Bu işlem geri alınamaz."
                       confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={busy}
                       onCancel={() => setConfirming(false)} onConfirm={handleRemove} />
-      )}
+      ) : (
+        // Wider than the frame's own window (madde 80): these two say what survives the deletion,
+        // and that sentence does not fit 320.
+        <ConfirmModal title={DESTRUCTIVE[open].title} body={DESTRUCTIVE[open].body} width={400}
+                      confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={busy}
+                      onCancel={() => setConfirming(false)} onConfirm={handleRemoveLayer} />
+      ))}
     </div>
   );
 }

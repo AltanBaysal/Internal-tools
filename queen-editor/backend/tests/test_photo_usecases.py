@@ -26,6 +26,7 @@ from backend.features.photo_generation.domain.usecases.regenerate import (
     LayerMissing,
     regenerate,
 )
+from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
 from backend.features.photo_generation.domain.usecases.retry_failed import retry_failed
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.run_queue import Busy
@@ -1363,7 +1364,7 @@ def test_regenerating_with_the_same_prompt_stays_in_the_family():
 
     born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                       {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-                      "düğün", "0_a.png", layers.PHOTO, "p")
+                      "düğün", "0_a", layers.PHOTO, "p")
 
     assert born == "P0_1"
     job = plan_store.appended[-1][0]
@@ -1375,7 +1376,7 @@ def test_a_changed_prompt_takes_the_next_prompt_number():
 
     born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                       {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-                      "düğün", "0_a.png", layers.PHOTO, "başka bir şey")
+                      "düğün", "0_a", layers.PHOTO, "başka bir şey")
 
     assert born == "P1_0"
 
@@ -1386,7 +1387,7 @@ def test_only_the_words_count_as_a_change():
 
     born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                       {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-                      "düğün", "0_a.png", layers.PHOTO, "  p\n")
+                      "düğün", "0_a", layers.PHOTO, "  p\n")
 
     assert born == "P0_1"
 
@@ -1397,7 +1398,7 @@ def test_the_new_frame_stands_next_to_its_source():
 
     regenerate(sync_runner(), store, record, plan_store, order,
                {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-               "düğün", "0_a.png", layers.PHOTO, "p")
+               "düğün", "0_a", layers.PHOTO, "p")
 
     assert order.order == ["1_a", "P0_1", "0_a"]
 
@@ -1407,7 +1408,7 @@ def test_a_frame_made_again_is_produced_under_its_own_name():
 
     born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                       {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-                      "düğün", "0_a.png", layers.PHOTO, "p")
+                      "düğün", "0_a", layers.PHOTO, "p")
 
     assert [name for name, _data in store.saved] == ["P0_1.png"]
     # The source is left exactly as it was: "üret = ekle" holds here too (madde 77).
@@ -1422,7 +1423,7 @@ def test_regenerating_a_video_gives_the_new_frame_the_sources_photo():
 
     born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                       {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-                      "düğün", "0_a.png", layers.VIDEO, "kadın dönüyor")
+                      "düğün", "0_a", layers.VIDEO, "kadın dönüyor")
 
     assert record.slots("düğün")[born]["photo"]["file"] == "0_a.png"
     # Nothing above the layer being made comes along, and the source keeps its own video.
@@ -1439,7 +1440,7 @@ def test_regenerating_a_sound_carries_the_photo_and_the_video():
 
     born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                       {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-                      "düğün", "0_a.png", layers.AUDIO, "kalabalık")
+                      "düğün", "0_a", layers.AUDIO, "kalabalık")
 
     copy = record.slots("düğün")[born]
     assert copy["photo"]["file"] == "0_a.png"
@@ -1455,7 +1456,7 @@ def test_a_layer_made_again_is_planned_with_no_seed_of_its_own():
 
     regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-               "düğün", "0_a.png", layers.VIDEO, "kadın yürüyor")
+               "düğün", "0_a", layers.VIDEO, "kadın yürüyor")
 
     job = plan_store.appended[-1][0]
     assert (job["type"], job["prompt"], job["seed"]) == ("video", "kadın yürüyor", None)
@@ -1468,8 +1469,26 @@ def test_a_layer_the_frame_cannot_carry_is_refused():
     with pytest.raises(LayerMissing):
         regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                    {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-                   "düğün", "0_a.png", layers.AUDIO, "ses")
+                   "düğün", "0_a", layers.AUDIO, "ses")
     assert plan_store.appended == []
+
+
+def test_a_copy_frame_is_made_again_from_its_own_layer():
+    # It shares its source's picture, so only the identity says which of the two was asked for.
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a.png", "frame": "P0_1", "layer": "photo", "status": "done",
+                            "prompt": "p"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "P0_1", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", "P0_1", layers.VIDEO, "kadın dönüyor")
+
+    assert born == "P0_2"
+    # Born from the copy: it carries the picture the copy holds, and the source keeps its video.
+    assert record.slots("düğün")[born]["photo"]["file"] == "0_a.png"
+    assert "video" not in record.slots("düğün")["0_a"]
 
 
 def test_regenerating_a_frame_the_gallery_does_not_know_is_refused():
@@ -1478,7 +1497,112 @@ def test_regenerating_a_frame_the_gallery_does_not_know_is_refused():
     with pytest.raises(FrameMissing):
         regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
                    {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
-                   "düğün", "yok.png", layers.PHOTO, "p")
+                   "düğün", "yok", layers.PHOTO, "p")
+
+
+def layered_project(audio=True):
+    """A produced frame that carries a photo, a video and (by default) a sound."""
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+    if audio:
+        record.append("düğün", {"file": "0_a_V1_0_S1_0.wav", "frame": "0_a", "layer": "audio",
+                                "status": "done", "prompt": "kumaş"})
+    return store, record, plan_store
+
+
+def test_deleting_a_video_takes_the_sound_over_it():
+    store, record, plan_store = layered_project()
+
+    gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", "0_a", layers.VIDEO)
+
+    assert gone == {"deleted": ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav"]}
+    assert sorted(store.deleted) == ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav"]
+    # The frame keeps its place and its picture.
+    assert record.slots("düğün")["0_a"]["photo"]["status"] == "done"
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "deleted"
+    assert record.slots("düğün")["0_a"]["audio"]["status"] == "deleted"
+
+
+def test_deleting_a_sound_leaves_the_video_alone():
+    store, record, plan_store = layered_project()
+
+    remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                 "düğün", "0_a", layers.AUDIO)
+
+    assert store.deleted == ["0_a_V1_0_S1_0.wav"]
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
+
+
+def test_a_layer_the_frame_does_not_carry_costs_nothing():
+    store, record, plan_store = layered_project(audio=False)
+
+    assert remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", "0_a", layers.AUDIO) == {"deleted": []}
+    assert store.deleted == []
+
+
+def with_a_copy(record):
+    """A second frame holding the same picture and the same video (madde 102)."""
+    record.append("düğün", {"file": "0_a.png", "frame": "P0_1", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "P0_1", "layer": "video",
+                            "status": "done"})
+
+
+def test_a_file_another_frame_still_holds_is_left_on_disk_when_a_layer_goes():
+    store, record, plan_store = layered_project(audio=False)
+    with_a_copy(record)
+
+    remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                 "düğün", "0_a", layers.VIDEO)
+
+    assert store.deleted == []
+    assert record.slots("düğün")["P0_1"]["video"]["status"] == "done"
+
+
+def test_the_copy_is_the_one_that_loses_its_layer_when_the_copy_is_named():
+    # One file name, two frames: only the identity says which of them is being asked about.
+    store, record, plan_store = layered_project(audio=False)
+    with_a_copy(record)
+
+    remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                 "düğün", "P0_1", layers.VIDEO)
+
+    assert record.slots("düğün")["P0_1"]["video"]["status"] == "deleted"
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
+
+
+def test_a_job_still_owed_above_the_deleted_layer_leaves_the_queue():
+    # Its video is gone, so the sound that was coming has nothing to lie over.
+    store, record, plan_store = layered_project(audio=False)
+    plan_store.append("düğün", [{"id": "0_a", "type": "audio", "number": 0, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": None, "model": ""}])
+
+    remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                 "düğün", "0_a", layers.VIDEO)
+
+    assert record.slots("düğün")["0_a"]["audio"]["status"] == "removed"
+    assert owed_files(record, plan_store) == []
+
+
+def test_deleting_a_layer_of_a_frame_the_gallery_does_not_know_is_refused():
+    store, record, plan_store = layered_project()
+
+    with pytest.raises(FrameMissing):
+        remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                     "düğün", "yok", layers.VIDEO)
+
+
+def test_the_gallery_stops_reporting_a_deleted_layer():
+    store, record, plan_store = layered_project()
+
+    remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                 "düğün", "0_a", layers.VIDEO)
+
+    frame = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+    assert frame["layers"] == {"photo": "0_a.png"}
+    assert frame["status"] == "done"
 
 
 def test_resume_refuses_when_nothing_is_left():

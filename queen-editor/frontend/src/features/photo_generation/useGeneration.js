@@ -6,6 +6,7 @@ import {
   getStatus,
   listFrames,
   removeFrames,
+  removeLayer as deleteLayer,
   queueLayer as postLayer,
   regenerateFrame,
   resumeBatch,
@@ -164,8 +165,8 @@ export function useGeneration(project) {
   // One layer of one frame, made again from the words on screen. Resolves with the server's answer
   // -- it names the frame the result will land on, which is never this one -- or null when it was
   // refused; the page has to tell those apart to know whether to say anything.
-  const regenerate = useCallback((file, kind, prompt) => (
-    regenerateFrame(project, file, kind, prompt)
+  const regenerate = useCallback((frame, kind, prompt) => (
+    regenerateFrame(project, frame, kind, prompt)
       .then((body) => {
         if (!alive.current) return null;
         startPolling();
@@ -177,6 +178,22 @@ export function useGeneration(project) {
         return null;
       })
   ), [project, startPolling]);
+
+  // One layer off one frame. Nothing starts running, so the screen only has to read the gallery
+  // again -- the frame stays where it is and comes back with one layer fewer.
+  const removeLayer = useCallback((frame, kind) => (
+    deleteLayer(project, frame, kind)
+      .then((body) => {
+        if (!alive.current) return null;
+        poll();
+        return body;
+      })
+      .catch((err) => {
+        if (!alive.current) return null;
+        setError(err.message);
+        return null;
+      })
+  ), [project, poll]);
 
   // Every red job at once. Same endpoint as one frame's Tekrar dene, with no frame named.
   const retryAll = useCallback(() => (
@@ -275,6 +292,6 @@ export function useGeneration(project) {
     .filter((card) => card.count > 0);
 
   return { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
-           retryAll, queueLayer, regenerate,
+           retryAll, queueLayer, regenerate, removeLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

@@ -94,11 +94,24 @@ export async function queueLayer(project, kind, files, variants) {
 
 // Make one frame's layer again, with the words the user has in front of them. The answer names the
 // frame it will be made on -- a new one, never the frame it was asked from.
-export async function regenerateFrame(project, file, layer, prompt) {
+//
+// The frame is named by its identity rather than by a file, here and in removeLayer: a copy frame
+// shares its source's picture, so one file name can belong to two frames.
+export async function regenerateFrame(project, frame, layer, prompt) {
   return request(`/api/projects/${encodeURIComponent(project)}/regenerate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ file, layer, prompt }),
+    body: JSON.stringify({ frame, layer, prompt }),
+  });
+}
+
+// Take one layer off a frame. The frame stays in the gallery: what goes is this layer and whatever
+// lies over it. The answer says which files really left the disk.
+export async function removeLayer(project, frame, kind) {
+  return request(`/api/projects/${encodeURIComponent(project)}/layers/${kind}/delete`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ frame }),
   });
 }
 

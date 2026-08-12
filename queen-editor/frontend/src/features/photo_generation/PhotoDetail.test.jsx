@@ -1,7 +1,13 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getStatus, listFrames, regenerateFrame, removeFrames } from "../../shared/api.js";
+import {
+  getStatus,
+  listFrames,
+  regenerateFrame,
+  removeFrames,
+  removeLayer,
+} from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import PhotoDetail from "./PhotoDetail.jsx";
 
@@ -12,6 +18,7 @@ vi.mock("../../shared/api.js", () => ({
   listFrames: vi.fn(),
   regenerateFrame: vi.fn(),
   removeFrames: vi.fn(),
+  removeLayer: vi.fn(),
   resumeBatch: vi.fn(),
   retryFrame: vi.fn(),
   saveOrder: vi.fn(),
@@ -59,14 +66,14 @@ function confirmButton() {
 }
 
 const LAYERED = {
-  file: "P0_0.png", status: "done", prompt: "kırmızı elbise", negative: "bulanık",
+  id: "P0_0", file: "P0_0.png", status: "done", prompt: "kırmızı elbise", negative: "bulanık",
   layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" },
   failed: [], owed: [],
   prompts: { photo: "kırmızı elbise", video: "kadın dönüyor", audio: "kumaş hışırtısı" },
 };
 
 // The frame the arrows move on to: its own words, so a box that kept the first frame's text shows.
-const SECOND = { file: "P1_0.png", status: "done", prompt: "mavi elbise", negative: "",
+const SECOND = { id: "P1_0", file: "P1_0.png", status: "done", prompt: "mavi elbise", negative: "",
                  layers: { photo: "P1_0.png" }, failed: [], owed: [],
                  prompts: { photo: "mavi elbise" } };
 
@@ -387,7 +394,8 @@ describe("PhotoDetail — regenerating", () => {
                      { target: { value: "kadın yürüyor" } });
     await act(async () => { fireEvent.click(regenButton()); });
 
-    expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0.png", "video", "kadın yürüyor");
+    // The frame's identity, not its file: a copy frame shares its source's picture.
+    expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın yürüyor");
   });
 
   it("says the job went into the queue and refuses a second press", async () => {
@@ -442,6 +450,77 @@ describe("PhotoDetail — regenerating", () => {
     await open("3_a.png", { frames: MIXED });
 
     expect(screen.queryByText("Yeniden üret — yeni kare")).toBeNull();
+  });
+});
+
+describe("PhotoDetail — one destructive action per tab", () => {
+  it("offers the frame on the photo tab and the layer on the others", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+    expect(screen.getByText("Sil")).toBeTruthy();
+
+    fireEvent.click(tab("Video"));
+    expect(screen.getByText("Videoyu sil — kare kalır")).toBeTruthy();
+    expect(screen.queryByText("Sil")).toBeNull();
+
+    fireEvent.click(tab("Ses"));
+    expect(screen.getByText("Sesi sil — video kalır")).toBeTruthy();
+    expect(screen.queryByText("Videoyu sil — kare kalır")).toBeNull();
+  });
+
+  it("asks with the design's own words before taking a video", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+
+    expect(screen.getByText("Video silinsin mi?")).toBeTruthy();
+    expect(screen.getByText(/üzerindeki ses kalıcı olarak silinir/)).toBeTruthy();
+    expect(removeLayer).not.toHaveBeenCalled();
+  });
+
+  it("says what a sound costs instead", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Ses"));
+    fireEvent.click(screen.getByText("Sesi sil — video kalır"));
+
+    expect(screen.getByText("Ses silinsin mi?")).toBeTruthy();
+    expect(screen.getByText(/video sessiz oynar/)).toBeTruthy();
+  });
+
+  it("deletes the open layer and comes back to the photo tab", async () => {
+    removeLayer.mockResolvedValue({ deleted: ["P0_0_V1_0.mp4"] });
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+    await act(async () => { fireEvent.click(confirmButton()); });
+
+    expect(removeLayer).toHaveBeenCalledWith("düğün", "P0_0", "video");
+    // The frame is still the gallery's, so the page stays on it.
+    expect(navigate).not.toHaveBeenCalled();
+    expect(tab("Foto").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("stays on the frame and says so when the server refuses", async () => {
+    removeLayer.mockRejectedValue(new Error("Proje yok: düğün"));
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+    await act(async () => { fireEvent.click(confirmButton()); });
+
+    expect(screen.getByText("Video silinemedi")).toBeTruthy();
+    expect(screen.getByText(/Proje yok/)).toBeTruthy();
+  });
+
+  it("leaves no fill under any of them (madde 83)", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+    expect(screen.getByText("Sil").closest("button").style.background).toBe("none");
+
+    fireEvent.click(tab("Video"));
+    expect(screen.getByText("Videoyu sil — kare kalır").closest("button").style.background)
+      .toBe("none");
   });
 });
 

@@ -35,12 +35,17 @@ class LayerMissing(Exception):
 
 
 def regenerate(runner, store, record, plan_store, order_store, producers, new_seed, now,
-               project, file, kind, prompt, log=None, writers=None):
-    """Returns the identity of the frame the new layer will be made on."""
+               project, fid, kind, prompt, log=None, writers=None):
+    """Returns the identity of the frame the new layer will be made on.
+
+    The source is named by its identity rather than by a file: a copy frame shares its source's
+    picture (madde 102), so one file name can belong to two frames and each of them has its own
+    layer to make again.
+    """
     gallery = list_frames(record, store, plan_store, order_store, project)
-    source = next((frame for frame in gallery if frame["file"] == file), None)
+    source = next((frame for frame in gallery if frame["id"] == fid), None)
     if source is None:
-        raise FrameMissing(f"Bu kare galeride yok: {file}")
+        raise FrameMissing(f"Bu kare galeride yok: {fid}")
     under = queue.ORDER[:queue.ORDER.index(kind)]
     if source["status"] != queue.DONE or any(slot not in source.get("layers", {})
                                              for slot in under):

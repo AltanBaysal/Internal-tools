@@ -28,10 +28,14 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 # prompts, not by hanging a layer on a frame that already exists.
 QUEUEABLE = (layers.VIDEO, layers.AUDIO)
 
+# The layers that can be taken off a frame on their own. The photo is not among them either: it is
+# the base layer, so removing it is removing the frame (POST …/frames/delete).
+REMOVABLE = (layers.VIDEO, layers.AUDIO)
+
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
-                                    regenerate, list_frames, list_models, save_order,
+                                    regenerate, remove_layer, list_frames, list_models, save_order,
                                     export_project, remove_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
@@ -142,6 +146,21 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 409
         return jsonify({"job": "running", "added": added}), 202
 
+    @bp.post("/api/projects/<project>/layers/<kind>/delete")
+    def delete_layer(project, kind):
+        if kind not in REMOVABLE:
+            return jsonify({"error": f"Silinebilir bir katman değil: {kind}"}), 404
+        body = request.get_json(silent=True) or {}
+        try:
+            # What really left the disk goes back: a layer the frame did not carry costs nothing
+            # and is not an error.
+            return jsonify(remove_layer(project, body.get("frame"), kind))
+        except (ProjectMissing, FrameMissing) as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            # The operating system's own words -- never guess the cause.
+            return jsonify({"error": str(exc)}), 500
+
     @bp.post("/api/projects/<project>/regenerate")
     def post_regenerate(project):
         body = request.get_json(silent=True) or {}
@@ -152,9 +171,10 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": f"Böyle bir katman yok: {layer}"}), 404
         prompt = body.get("prompt")
         try:
-            # A non-string prompt counts as no words at all; the model is never asked for these,
-            # so what goes down is exactly what the user was shown.
-            frame = regenerate(project, body.get("file"), layer,
+            # The frame is named by its identity: a copy frame shares its source's picture, so a
+            # file name would not say which of the two was asked for. A non-string prompt counts as
+            # no words at all -- what goes down is exactly what the user was shown.
+            frame = regenerate(project, body.get("frame"), layer,
                                prompt if isinstance(prompt, str) else "")
         except (ProjectMissing, FrameMissing) as exc:
             return jsonify({"error": str(exc)}), 404
