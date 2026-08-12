@@ -123,7 +123,8 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
           <QueuePanel job={job} error={error} errorField={errorField}
                       busyElsewhere={busyElsewhere} project={project} stopping={stopping}
                       queue={queue} failures={failures} onStop={onStop} onResume={onResume}
-                      onCancel={onCancel} onRetryAll={onRetryAll} resumed={resumed} />
+                      onCancel={onCancel} onRetryAll={onRetryAll} resumed={resumed}
+                      onInstall={producers?.install} />
         )}
         {open === "agent" && <AgentPanel />}
         {open === "producers" && (

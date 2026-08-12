@@ -54,7 +54,12 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             kind = queue.type_of(current)
             producer = producers.get(kind)
             if producer is None:
-                return summary("error", error=f"Bu iş türü için üretici yok: {kind}")
+                # Not a failure and not a pause: the work is fine, the engine for it is not here
+                # yet. No line is written, so the job stays owed -- installing the producer and
+                # starting the run again is all it takes, and cancelling that install throws
+                # nothing away. The next type is deliberately not started: the order the user sees
+                # in the gallery is the order things are made in.
+                return summary("waiting", waitingFor=kind)
             fid = current["id"]
             name = photo_file(fid)
             if name != holding:

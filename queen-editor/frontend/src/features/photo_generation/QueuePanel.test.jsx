@@ -240,6 +240,28 @@ describe("QueuePanel — the failures card", () => {
   });
 });
 
+describe("QueuePanel — a queue with nobody to do the work", () => {
+  const WAITING = { status: "waiting", project: "düğün", waitingFor: "video" };
+
+  it("says what it is waiting for rather than calling it a failure", () => {
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }] });
+
+    expect(screen.getByText("Bekliyor — üretici kurulu değil")).toBeTruthy();
+    expect(screen.getByText("5 video")).toBeTruthy();
+    expect(screen.getByText("Kurulum bitince kuyruk kendiliğinden sürer.")).toBeTruthy();
+    expect(screen.queryByText("Üretim durdu")).toBeNull();
+  });
+
+  it("offers the one button that would unblock it, by name", () => {
+    const onInstall = vi.fn();
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }], onInstall });
+
+    fireEvent.click(screen.getByText("Video üreticisini kur"));
+
+    expect(onInstall).toHaveBeenCalledWith("video");
+  });
+});
+
 describe("QueuePanel — a queue that picked itself up", () => {
   it("says so when nobody pressed anything", () => {
     renderPanel({ resumed: true });

@@ -790,6 +790,37 @@ def test_retrying_them_all_puts_every_failed_job_back_in_line():
     assert sorted(name for name, _d in store.saved) == ["0_a.png", "2_a.png"]
 
 
+def test_a_type_with_no_producer_makes_the_queue_wait_rather_than_fail():
+    runner, store, record = sync_runner(), FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[{"id": "P0_0", "type": "video", "prompt": "a",
+                                        "negative": "", "seed": 1, "model": "", "number": 0}])
+
+    resume_batch(runner, store, record, plan_store, {layers.PHOTO: FakeGenerator()},
+                 lambda: "t", "düğün")
+
+    assert runner.status()["status"] == "waiting"
+    assert runner.status()["waitingFor"] == "video"
+    # Nothing was written, so the job is still owed: installing the producer is all it takes.
+    assert queue.open_jobs(plan_store.read("düğün")["frames"], record.slots("düğün"))
+
+
+def test_the_engine_does_not_skip_past_the_type_it_is_waiting_for():
+    runner, store, record = sync_runner(), FakeStore(), FakeRecord()
+    generator = FakeGenerator()
+    # Audio could be done -- but video comes first, and video has nobody to do it.
+    plan_store = FakePlanStore(frames=[
+        {"id": "P0_0", "type": "video", "prompt": "a", "negative": "", "seed": 1, "model": "",
+         "number": 0},
+        {"id": "P0_0", "type": "audio", "prompt": "b", "negative": "", "seed": 2, "model": "",
+         "number": 0},
+    ])
+
+    resume_batch(runner, store, record, plan_store, {layers.AUDIO: generator}, lambda: "t", "düğün")
+
+    assert runner.status()["waitingFor"] == "video"
+    assert generator.calls == []
+
+
 def test_resume_refuses_when_nothing_is_left():
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png"})
@@ -1263,14 +1294,15 @@ def test_every_produced_frame_gets_its_own_line():
                      "⏱ 1_a.png · render 5.0 sn · drive 0.5 sn"]
 
 
-def test_a_job_whose_type_has_no_producer_stops_the_run():
-    # Never silently skipped: skipping would drop work the user asked for.
+def test_a_job_whose_type_has_no_producer_makes_the_run_wait():
+    # Never silently skipped: skipping would drop work the user asked for. And not an error either
+    # -- nothing failed, the engine for it is simply not installed yet.
     plan_store = FakePlanStore(frames=[{"id": "P0_0", "type": "video", "number": 0, "variant": 0,
                                         "prompt": "", "seed": 1}])
     state = make_job(sync_runner(), FakeStore(), FakeRecord(), plan_store,
                      {layers.PHOTO: FakeGenerator()}, lambda: "t1", "düğün")()
 
-    assert state["status"] == "error" and "video" in state["error"]
+    assert state["status"] == "waiting" and state["waitingFor"] == "video"
 
 
 def test_the_loop_finishes_photos_before_it_starts_videos():

@@ -56,6 +56,17 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
     resume();
   }, [project, mine, job.status, queue.length, resume]);
 
+  // "Kurulum bitince kuyruk kendiliğinden sürer": the queue stopped because the engine for the job
+  // at its head was not on this machine, and now it is. Nobody has to press anything. Joined here
+  // rather than in the server, because installing and generating are two features and neither may
+  // reach into the other.
+  const waitingFor = mine && job.status === "waiting" ? job.waitingFor : null;
+  const readyAgain = Boolean(waitingFor)
+    && (producers.producers || []).some((row) => row.id === waitingFor && row.installed);
+  useEffect(() => {
+    if (readyAgain) resume();
+  }, [readyAgain, resume]);
+
   // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
   // settings that cannot be written mean the photos could not be either: say so and do not send.

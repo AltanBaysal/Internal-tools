@@ -24,6 +24,7 @@ const DOT = {
   pausing: { color: "var(--accent)", alive: true },
   paused: { color: "var(--ink-3)", alive: false },
   stopped: { color: "var(--danger)", alive: false },
+  waiting: { color: "var(--ink-3)", alive: false },
   done: { color: "var(--ok)", alive: false },
   empty: { color: "var(--border)", alive: false },
 };
@@ -33,6 +34,7 @@ const TITLE = {
   pausing: "Duraklatılıyor…",
   paused: "Duraklatıldı",
   stopped: "Üretim durdu",
+  waiting: "Bekliyor — üretici kurulu değil",
   done: "Kuyruk tamamlandı",
   empty: "Kuyruk boş",
 };
@@ -59,6 +61,11 @@ const KIND_ORDER = ["photo", "video", "audio"];
 // The words the failure card breaks its total down with -- the same question asked about the other
 // end of the run.
 const LAYER_WORD = { photo: "foto", video: "video", audio: "ses" };
+
+// The button on the waiting card names the producer it would install, so pressing it is not a leap
+// of faith.
+const PRODUCER_NAME = { photo: "Fotoğraf üreticisini", video: "Video üreticisini",
+                        audio: "Ses üreticisini" };
 
 // The run card wears what it is saying. Every other state stays neutral.
 const CARD_TONE = {
@@ -94,7 +101,7 @@ function KindCard({ layer, owed, alive }) {
 // run has to say lives here; the form panel next door only submits work.
 export default function QueuePanel({ job, error, errorField, busyElsewhere, project, stopping,
                                      queue, failures, resumed, onStop, onResume, onCancel,
-                                     onRetryAll }) {
+                                     onRetryAll, onInstall }) {
   const [clearing, setClearing] = useState(false);
 
   // Another project's finished batch must not talk into this panel (state leaks across projects
@@ -117,12 +124,15 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
   const running = job.status === "running" && !busyElsewhere;
   const paused = mine && job.status === "paused";
   const halted = mine && job.status === "error";
+  // Nothing failed: the engine for the job at the head of the queue is simply not on this machine.
+  const waitingFor = mine && job.status === "waiting" ? job.waitingFor : null;
   // A run that died with its session leaves frames owed and nobody who remembers why.
-  const abandoned = !halted && !paused && !running && owed > 0;
+  const abandoned = !halted && !paused && !running && !waitingFor && owed > 0;
   const finished = mine && job.status === "done" && owed === 0;
 
   const state = running ? (stopping ? "pausing" : "running")
     : paused ? "paused"
+    : waitingFor ? "waiting"
     : halted || abandoned ? "stopped"
     : finished ? "done"
     : "empty";
@@ -168,6 +178,21 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Fotoğraf üret panelinden kare gönder.
           </Note>
+        ) : state === "waiting" ? (
+          <>
+            <Note size={12} style={{ color: "var(--ink-2)" }}>
+              {(cards.find((card) => card.layer === waitingFor) || {}).owed || 0}{" "}
+              {LAYER_WORD[waitingFor]}
+            </Note>
+            <Note size={12} style={{ color: "var(--ink-3)" }}>
+              Kurulum bitince kuyruk kendiliğinden sürer.
+            </Note>
+            {/* Straight into the install, with nothing asked: the user queued this work, so what
+                they want is not in question. */}
+            <Btn hl onClick={() => onInstall(waitingFor)} style={{ justifyContent: "center" }}>
+              {PRODUCER_NAME[waitingFor]} kur
+            </Btn>
+          </>
         ) : null}
 
         {/* Only when the server knows why. A run that died with the session left no reason behind,

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getStatus, listFrames, resumeBatch } from "../../shared/api.js";
+import { getStatus, listFrames, listProducers, resumeBatch } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import ProjectScreen from "./ProjectScreen.jsx";
 
@@ -113,6 +113,30 @@ describe("ProjectScreen — an open project carries its queue on", () => {
     await settle(10_000);
 
     expect(resumeBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries a waiting queue on by itself once its producer has landed", async () => {
+    listFrames.mockResolvedValue(OWED);
+    getStatus.mockResolvedValue({ status: "waiting", project: "düğün", waitingFor: "video" });
+    listProducers.mockResolvedValue([
+      { id: "video", name: "Video üreticisi", installed: true }]);
+
+    renderScreen();
+    await settle();
+
+    expect(resumeBatch).toHaveBeenCalledWith("düğün");
+  });
+
+  it("leaves a waiting queue where it is while its producer is still missing", async () => {
+    listFrames.mockResolvedValue([]);
+    getStatus.mockResolvedValue({ status: "waiting", project: "düğün", waitingFor: "video" });
+    listProducers.mockResolvedValue([
+      { id: "video", name: "Video üreticisi", installed: false }]);
+
+    renderScreen();
+    await settle();
+
+    expect(resumeBatch).not.toHaveBeenCalled();
   });
 
   it("leaves a paused queue alone -- it has its own Devam et", async () => {
