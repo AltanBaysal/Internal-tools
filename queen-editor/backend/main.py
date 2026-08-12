@@ -18,7 +18,7 @@ from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
-from backend.features.photo_generation.domain.usecases.export_project import export_project
+from backend.features.photo_generation.domain.usecases.export_summary import export_summary
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
@@ -131,7 +131,7 @@ _photo_bp = make_photo_generation_blueprint(
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
     list_models=partial(list_models, _photo_generator),
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
-    export_project=partial(export_project, _photo_record, _photo_store, _plan_store, _order_store),
+    export_summary=partial(export_summary, _photo_record, _photo_store, _plan_store, _order_store),
     remove_frames=partial(remove_frames, _photo_record, _photo_store, _plan_store, _order_store,
                           lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     photo_dir=_photo_store.photo_dir,

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import { exportUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
-import { navigate } from "../../shared/router.js";
+import { exportPath, navigate } from "../../shared/router.js";
 import { Btn, Hand } from "../../vendor/kit.jsx";
 import { useProducers } from "../producers/useProducers.js";
 import Gallery from "./Gallery.jsx";
@@ -96,10 +95,9 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
         <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
         <Hand size={20}>{project}</Hand>
         <div style={{ display: "flex", gap: 8, justifySelf: "end" }}>
-          {/* A link, not a Btn: its whole job is downloading a file, which the browser does by
-              itself -- no JavaScript, and "save link as" keeps working. The look is the design's
-              ghost button; app.css drops the anchor's underline. */}
-          <a className="wf-btn wf-btn--ghost" href={exportUrl(project)} download>Export</a>
+          {/* A button now, not a download link: Export opens the fourth screen and nothing leaves
+              the machine until it is asked for there (madde 85). */}
+          <Btn ghost onClick={() => navigate(exportPath(project))}>Export</Btn>
           <Btn ghost onClick={() => setLeaving(true)}>Projeden çık</Btn>
         </div>
       </div>

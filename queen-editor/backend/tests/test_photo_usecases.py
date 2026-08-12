@@ -38,7 +38,11 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     start_batch,
 )
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
-from backend.features.photo_generation.domain.usecases.export_project import export_project
+from backend.features.photo_generation.domain.usecases.export_summary import (
+    VIDEO_SECONDS,
+    export_summary,
+    exportable,
+)
 from backend.features.photo_generation.domain.usecases.resume_batch import (
     NothingToResume,
     resume_batch,
@@ -75,6 +79,9 @@ class FakeStore:
 
     def photo_dir(self, project):
         return f"/fake/{project}"
+
+    def export_dir(self, project):
+        return f"/fake/{project}/export"
 
 
 class FrameFault(RuntimeError):
@@ -823,34 +830,39 @@ def test_save_order_rejects_a_missing_project():
                    "yok", [])
 
 
-def test_export_reverses_the_gallery_so_the_bottom_frame_comes_first():
-    record = FakeRecord()
-    record.append("düğün", {"file": "0_a.png", "status": "done", "prompt": "ilk"})
-    record.append("düğün", {"file": "1_a.png", "status": "done", "prompt": "ikinci"})
-    plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"))
+def test_the_summary_counts_the_frames_that_have_a_video():
+    store, record, plan_store = layered_project(audio=False)
+    record.append("düğün", {"file": "1_a.png", "frame": "1_a", "layer": "photo", "status": "done"})
 
-    assert export_project(record, FakeStore(), plan_store, FakeOrderStore(), "düğün") == {
-        "folder": "/fake/düğün",
-        # The gallery reads 1_a above 0_a; the video starts at the bottom.
-        "photos": [{"file": "0_a.png", "prompt": "ilk"},
-                   {"file": "1_a.png", "prompt": "ikinci"}],
-    }
+    summary = export_summary(record, store, plan_store, FakeOrderStore(), "düğün")
+
+    assert summary == {"videos": 1, "seconds": VIDEO_SECONDS, "folder": "/fake/düğün/export"}
 
 
-def test_export_leaves_out_frames_that_never_became_photos():
-    record = FakeRecord()
-    record.append("düğün", {"file": "0_a.png", "status": "done", "prompt": "ilk"})
-    record.mark("düğün", "1_a", "photo", "1_a.png", "failed", "t1")
-    plan_store = planned((0, "a", "ilk"), (1, "a", "ikinci"), (2, "a", "üçüncü"))
+def test_a_project_with_no_video_exports_nothing():
+    store, record, plan_store = video_project((0, "a"))
 
-    exported = export_project(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
-
-    assert [row["file"] for row in exported["photos"]] == ["0_a.png"]
+    assert export_summary(record, store, plan_store, FakeOrderStore(), "düğün") == {
+        "videos": 0, "seconds": 0, "folder": "/fake/düğün/export"}
 
 
-def test_export_of_an_empty_project_still_names_the_folder():
-    assert export_project(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(),
-                          "düğün") == {"folder": "/fake/düğün", "photos": []}
+def test_a_video_that_blew_up_is_not_counted():
+    store, record, plan_store = video_project((0, "a"))
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t")
+
+    assert export_summary(record, store, plan_store, FakeOrderStore(), "düğün")["videos"] == 0
+
+
+def test_the_summary_reads_the_gallery_from_the_bottom_up():
+    # The video starts at the foot of the gallery: the badge counts up from there.
+    store, record, plan_store = layered_project(audio=False)
+    record.append("düğün", {"file": "1_a.png", "frame": "1_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "1_a_V1_0.mp4", "frame": "1_a", "layer": "video",
+                            "status": "done"})
+
+    frames = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")
+
+    assert [f["id"] for f in exportable(frames)] == ["1_a", "0_a"]
 
 
 def frame(number, letter="a", prompt="p", seed=1):
@@ -1841,9 +1853,9 @@ def test_removing_in_a_missing_project_is_rejected():
                       stamped, "yok", ["0_a"])
 
 
-def test_export_rejects_a_missing_project():
+def test_the_summary_rejects_a_missing_project():
     with pytest.raises(ProjectMissing):
-        export_project(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
+        export_summary(FakeRecord(), FakeStore(projects=()), FakePlanStore(), FakeOrderStore(),
                        "yok")
 
 

@@ -4,10 +4,7 @@
 Translation only: no rules here. The use case's exception messages go out verbatim, so the wording
 lives in exactly one place (the domain).
 """
-import io
-import json
-
-from flask import Blueprint, jsonify, request, send_file, send_from_directory
+from flask import Blueprint, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
@@ -36,7 +33,7 @@ REMOVABLE = (layers.VIDEO, layers.AUDIO)
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
                                     regenerate, remove_layer, list_frames, list_models, save_order,
-                                    export_project, remove_frames, photo_dir):
+                                    export_summary, remove_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -205,17 +202,14 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
 
-    @bp.get("/api/projects/<project>/export")
-    def export(project):
+    @bp.get("/api/projects/<project>/export/summary")
+    def export_summary_of(project):
+        # What an export would write, for the screen that asks before it runs. Nothing is created
+        # here: the folder in the answer is where a run would land.
         try:
-            data = export_project(project)
+            return jsonify(export_summary(project))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
-        # Written out here rather than in the domain: turning a value into bytes on the wire is
-        # this layer's job. ensure_ascii=False keeps Turkish prompts readable in the file.
-        payload = json.dumps(data, ensure_ascii=False, indent=2).encode("utf-8")
-        return send_file(io.BytesIO(payload), mimetype="application/json", as_attachment=True,
-                         download_name=f"{project}-export.json")
 
     # POST, not DELETE: the request carries a list of frames, and a body on DELETE is a corner of
     # HTTP that proxies and clients disagree about.

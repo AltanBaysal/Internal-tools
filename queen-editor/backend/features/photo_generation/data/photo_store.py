@@ -9,7 +9,12 @@ number -- that claim is the record's to keep (see usecases/start_batch.next_numb
 Listing the folder is deliberately not offered: which photos a project has is the photo record's
 answer, and two ways to ask it would be two ways to disagree.
 """
+import os
+
 from backend.features.photo_generation.domain.photo_name import number_of
+
+# The project folder's own export area; a run makes a dated folder inside it (design v3, madde 92).
+EXPORT_DIR = "export"
 
 
 class DrivePhotoStore:
@@ -37,3 +42,11 @@ class DrivePhotoStore:
 
     def photo_dir(self, project):
         return self._storage.dir_path(project)
+
+    def export_dir(self, project):
+        """Where an export lands: one folder inside the project, next to its photos.
+
+        Named here rather than in the domain, which knows nothing about paths. The folder is not
+        created -- an export run makes its own dated one inside it when it starts.
+        """
+        return os.path.join(self._storage.dir_path(project), EXPORT_DIR)

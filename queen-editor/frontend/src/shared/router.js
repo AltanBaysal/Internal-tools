@@ -22,10 +22,18 @@ export function useRoute() {
 export function routeFromPath(path) {
   const photo = path.match(/^\/projects\/([^/]+)\/photos\/([^/]+)$/);
   if (photo) {
-    return { project: decodeURIComponent(photo[1]), photo: decodeURIComponent(photo[2]) };
+    return { project: decodeURIComponent(photo[1]), photo: decodeURIComponent(photo[2]),
+             exporting: false };
+  }
+  // The export screen is a place of its own, so it has an address of its own: the back button
+  // returns to the gallery and a reload keeps the screen.
+  const exporting = path.match(/^\/projects\/([^/]+)\/export$/);
+  if (exporting) {
+    return { project: decodeURIComponent(exporting[1]), photo: null, exporting: true };
   }
   const project = path.match(/^\/projects\/([^/]+)$/);
-  return { project: project ? decodeURIComponent(project[1]) : null, photo: null };
+  return { project: project ? decodeURIComponent(project[1]) : null, photo: null,
+           exporting: false };
 }
 
 export function projectPath(project) {
@@ -37,4 +45,8 @@ export function projectPath(project) {
 // name, the same reason the server's file route keeps it.
 export function photoPath(project, frame) {
   return `${projectPath(project)}/photos/${encodeURIComponent(frame)}`;
+}
+
+export function exportPath(project) {
+  return `${projectPath(project)}/export`;
 }

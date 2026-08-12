@@ -204,7 +204,8 @@ export function fileUrl(project, file) {
   return `/photos/${encodeURIComponent(project)}/${encodeURIComponent(file)}`;
 }
 
-// Also a plain URL: the browser downloads it straight from the link (see ProjectScreen).
-export function exportUrl(project) {
-  return `/api/projects/${encodeURIComponent(project)}/export`;
+// What an export would write: how many videos, how long they run, and the folder they would land
+// in. Nothing is created by asking -- the export screen is the step that asks before it runs.
+export async function getExportSummary(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/export/summary`);
 }

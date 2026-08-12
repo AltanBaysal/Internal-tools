@@ -7,13 +7,13 @@ import ProjectScreen from "./ProjectScreen.jsx";
 
 vi.mock("../../shared/router.js", () => ({
   navigate: vi.fn(),
-  photoPath: (project, file) => `/projects/${encodeURIComponent(project)}/photos/${file}`,
+  photoPath: (project, frame) => `/projects/${encodeURIComponent(project)}/photos/${frame}`,
+  exportPath: (project) => `/projects/${encodeURIComponent(project)}/export`,
 }));
 
 vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
   deletePhotos: vi.fn(),
-  exportUrl: (project) => `/api/projects/${encodeURIComponent(project)}/export`,
   generateBatch: vi.fn(),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   listFrames: vi.fn().mockResolvedValue([]),
@@ -40,13 +40,12 @@ beforeEach(() => {
 });
 
 describe("ProjectScreen app bar", () => {
-  it("offers Export as a download link", () => {
+  it("opens the export screen instead of downloading a file", () => {
     renderScreen();
 
-    const link = screen.getByText("Export").closest("a");
-    expect(link.getAttribute("href")).toBe(
-      `/api/projects/${encodeURIComponent("düğün")}/export`);
-    expect(link.hasAttribute("download")).toBe(true);
+    fireEvent.click(screen.getByText("Export"));
+
+    expect(navigate).toHaveBeenCalledWith(`/projects/${encodeURIComponent("düğün")}/export`);
   });
 
   it("asks before leaving the project, and cancel keeps you on the screen", () => {

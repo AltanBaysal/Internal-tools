@@ -7,7 +7,7 @@ from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
-from backend.features.photo_generation.domain.usecases.export_project import export_project
+from backend.features.photo_generation.domain.usecases.export_summary import export_summary
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
@@ -95,7 +95,7 @@ def make_client(tmp_path, generator=None, runner=None):
         list_frames=partial(list_frames, record, store, plan_store, order_store),
         list_models=partial(list_models, generator),
         save_order=partial(save_order, record, store, plan_store, order_store),
-        export_project=partial(export_project, record, store, plan_store, order_store),
+        export_summary=partial(export_summary, record, store, plan_store, order_store),
         remove_frames=partial(remove_frames, record, store, plan_store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),
         photo_dir=store.photo_dir,
@@ -674,33 +674,40 @@ def test_deleting_photos_of_an_unknown_project_returns_404(tmp_path):
     assert delete_photos_request(client, ["P0_0"], project="yok").status_code == 404
 
 
-def test_export_reads_the_gallery_from_the_bottom_up(tmp_path):
+def test_the_export_summary_is_json_not_a_download(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    give_it_a_video(drive)
+
+    resp = client.get("/api/projects/düğün/export/summary")
+
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert (body["videos"], body["seconds"]) == (1, 5)
+    assert body["folder"].endswith("export")
+
+
+def test_the_summary_of_a_project_with_no_video_is_zero(tmp_path):
     client, _ = make_client(tmp_path)
-    generate(client, prompts='["a", "b"]', variants=1)
-    client.put("/api/projects/düğün/order", json={"order": ["P0_0", "P1_0"]})
+    generate(client, prompts='["a"]', variants=1)
+
+    assert client.get("/api/projects/düğün/export/summary").get_json()["videos"] == 0
+
+
+def test_the_old_export_download_is_gone(tmp_path):
+    client, _ = make_client(tmp_path)
 
     resp = client.get("/api/projects/düğün/export")
 
-    assert resp.status_code == 200
-    assert resp.mimetype == "application/json"
-    assert "attachment" in resp.headers["Content-Disposition"]
-    body = json.loads(resp.data)
-    # The gallery reads 0_a above 1_a; the video starts at the bottom one.
-    assert body["photos"] == [{"file": "P1_0.png", "prompt": "b"},
-                              {"file": "P0_0.png", "prompt": "a"}]
-    assert body["folder"].endswith("düğün")
+    # No rule answers that address any more, so the SPA fallback takes it: whatever comes back, it
+    # is not a data file.
+    assert resp.mimetype != "application/json"
+    assert "attachment" not in resp.headers.get("Content-Disposition", "")
 
 
-def test_export_of_an_empty_project_is_still_a_file(tmp_path):
+def test_the_summary_of_an_unknown_project_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
-    resp = client.get("/api/projects/düğün/export")
-    assert resp.status_code == 200
-    assert json.loads(resp.data)["photos"] == []
-
-
-def test_export_of_an_unknown_project_returns_404(tmp_path):
-    client, _ = make_client(tmp_path)
-    assert client.get("/api/projects/yok/export").status_code == 404
+    assert client.get("/api/projects/yok/export/summary").status_code == 404
 
 
 def test_a_broken_order_file_does_not_hide_the_gallery(tmp_path):
