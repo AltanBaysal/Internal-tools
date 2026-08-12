@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
-import { Icon, Mono, Note } from "../../vendor/kit.jsx";
+import { Mono, Note } from "../../vendor/kit.jsx";
+import { PhotoGlyph } from "./glyphs.jsx";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 
@@ -170,7 +171,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
         >
           {submitting
             ? <><span className="qe-spinner" aria-hidden="true" /> Ekleniyor…</>
-            : <><Icon.Plus /> Üretime ekle</>}
+            : <><PhotoGlyph size={14} /> Kuyruğa ekle</>}
         </button>
 
         {added !== null ? (

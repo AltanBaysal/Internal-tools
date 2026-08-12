@@ -153,7 +153,7 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
       <div style={{ ...PAD, ...EMPTY }}>
         <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz fotoğraf yok</Mono>
         <Note size={13} style={{ color: "var(--ink-3)" }}>
-          Prompt'ları yaz, Üretime ekle'ye bas — fotoğraflar burada belirecek
+          Prompt'ları yaz, Kuyruğa ekle'ye bas — fotoğraflar burada belirecek
         </Note>
       </div>
     );

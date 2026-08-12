@@ -149,7 +149,7 @@ describe("QueuePanel — an empty queue", () => {
     renderPanel({ job: { status: "idle" }, pending: [] });
 
     expect(screen.getByText("Kuyruk boş")).toBeTruthy();
-    expect(screen.getByText("Üretime ekle panelinden kare gönder.")).toBeTruthy();
+    expect(screen.getByText("Fotoğraf üret panelinden kare gönder.")).toBeTruthy();
     expect(screen.queryByText("Kuyruğu boşalt")).toBeNull();
   });
 

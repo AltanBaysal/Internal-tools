@@ -54,7 +54,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
     if (tile) tile.scrollIntoView({ block: "center" });
   }
 
-  // Pressing Üretime ekle persists the panel first, whether or not the frames are accepted -- text
+  // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
   // settings that cannot be written mean the photos could not be either: say so and do not send.
   // Answers with the server's body so the panel can quote how many frames the queue took.

@@ -32,8 +32,14 @@ describe("GeneratePanel — the button", () => {
   it("adds to the queue instead of starting a run", () => {
     renderPanel();
 
-    expect(screen.getByText("Üretime ekle")).toBeTruthy();
+    expect(screen.getByText("Kuyruğa ekle")).toBeTruthy();
     expect(screen.queryByText("Üret")).toBeNull();
+  });
+
+  it("carries the same glyph on the button as the rail carries for this panel", () => {
+    renderPanel();
+
+    expect(screen.getByText("Kuyruğa ekle").querySelector("[data-glyph='photo']")).toBeTruthy();
   });
 
   it("stays open while the queue flows", () => {
@@ -41,19 +47,19 @@ describe("GeneratePanel — the button", () => {
 
     expect(promptBox().disabled).toBe(false);
     expect(variantBox().disabled).toBe(false);
-    expect(screen.getByText("Üretime ekle").closest("button").disabled).toBe(false);
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(false);
   });
 
   it("is disabled on an empty list", () => {
     renderPanel({ settings: { ...SETTINGS, prompts: "   " } });
 
-    expect(screen.getByText("Üretime ekle").closest("button").disabled).toBe(true);
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
   });
 
   it("is disabled while another project holds the worker", () => {
     renderPanel({ job: { status: "running", project: "balo" }, busyElsewhere: true });
 
-    expect(screen.getByText("Üretime ekle").closest("button").disabled).toBe(true);
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
     expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
   });
 
@@ -61,7 +67,7 @@ describe("GeneratePanel — the button", () => {
     let release;
     renderPanel({ onGenerate: () => new Promise((resolve) => { release = resolve; }) });
 
-    fireEvent.click(screen.getByText("Üretime ekle"));
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
 
     expect(screen.getByText("Ekleniyor…").closest("button").disabled).toBe(true);
     expect(promptBox().disabled).toBe(false);
@@ -104,7 +110,7 @@ describe("GeneratePanel — the model field", () => {
     renderPanel({ onGenerate });
 
     fireEvent.change(modelBox(), { target: { value: "başka.safetensors" } });
-    await act(async () => { fireEvent.click(screen.getByText("Üretime ekle")); });
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
       model: "başka.safetensors",
@@ -124,7 +130,7 @@ describe("GeneratePanel — the model field", () => {
     expect(screen.getByText("Model listesi okunamadı")).toBeTruthy();
     expect(screen.getByText("model bulunamadı")).toBeTruthy();
     // The queue did not fail -- only the listing did.
-    expect(screen.getByText("Üretime ekle").closest("button").disabled).toBe(false);
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(false);
   });
 
   it("waits rather than claiming there is nothing while the list is still coming", () => {
@@ -142,7 +148,7 @@ describe("GeneratePanel — the confirmation", () => {
   it("quotes the number of frames the server took, then clears itself", async () => {
     renderPanel({ onGenerate: () => Promise.resolve({ added: 48 }) });
 
-    fireEvent.click(screen.getByText("Üretime ekle"));
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
 
     await waitFor(() => expect(screen.getByText("✓ 48 kare kuyruğa eklendi")).toBeTruthy());
 
@@ -154,7 +160,7 @@ describe("GeneratePanel — the confirmation", () => {
   it("says one line when the queue would not take the frames", async () => {
     renderPanel({ onGenerate: () => Promise.resolve(null) });
 
-    fireEvent.click(screen.getByText("Üretime ekle"));
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
 
     await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
     expect(screen.queryByText(/kuyruğa eklendi/)).toBeNull();

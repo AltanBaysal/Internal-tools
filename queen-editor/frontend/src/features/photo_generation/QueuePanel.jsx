@@ -95,7 +95,7 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
           </Note>
         ) : state === "empty" ? (
           <Note size={12} style={{ color: "var(--ink-3)" }}>
-            Üretime ekle panelinden kare gönder.
+            Fotoğraf üret panelinden kare gönder.
           </Note>
         ) : (
           <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>

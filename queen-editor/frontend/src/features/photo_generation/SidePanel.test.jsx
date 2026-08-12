@@ -32,7 +32,7 @@ describe("SidePanel — the icon rail", () => {
     renderColumn();
 
     expect(screen.getByPlaceholderText(PROMPT_BOX)).toBeTruthy();
-    expect(screen.getByLabelText("Üretime ekle").getAttribute("aria-current")).toBe("page");
+    expect(screen.getByLabelText("Fotoğraf üret").getAttribute("aria-current")).toBe("page");
     expect(screen.getByLabelText("Kuyruğu takip et").getAttribute("aria-current")).toBeNull();
   });
 
@@ -62,10 +62,17 @@ describe("SidePanel — the icon rail", () => {
     expect(screen.getByText("Agent buradan çalışacak.")).toBeTruthy();
   });
 
+  it("marks the photo panel with its own layer's glyph, not a plus", () => {
+    renderColumn();
+
+    expect(screen.getByLabelText("Fotoğraf üret").querySelector("[data-glyph='photo']"))
+      .toBeTruthy();
+  });
+
   it("names the open panel above it", () => {
     renderColumn();
 
-    expect(screen.getByRole("heading", { name: "Üretime ekle" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Fotoğraf üret" })).toBeTruthy();
 
     fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
 

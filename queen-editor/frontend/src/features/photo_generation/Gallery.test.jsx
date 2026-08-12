@@ -48,6 +48,17 @@ function dragTile(fromName, toName) {
   fireEvent.drop(tileOf(toName));
 }
 
+describe("Gallery — the empty project", () => {
+  it("points at the button by the name the button actually carries", () => {
+    renderGallery({ frames: [] });
+
+    expect(screen.getByText("henüz fotoğraf yok")).toBeTruthy();
+    expect(screen.getByText(
+      "Prompt'ları yaz, Kuyruğa ekle'ye bas — fotoğraflar burada belirecek",
+    )).toBeTruthy();
+  });
+});
+
 describe("Gallery ordering", () => {
   it("counts the badge up from the bottom, so the newest frame carries the largest number", () => {
     renderGallery();

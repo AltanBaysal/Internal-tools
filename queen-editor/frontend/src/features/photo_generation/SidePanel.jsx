@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Mono } from "../../vendor/kit.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import GeneratePanel from "./GeneratePanel.jsx";
+import { AgentGlyph, PhotoGlyph, QueueGlyph } from "./glyphs.jsx";
 import QueuePanel from "./QueuePanel.jsx";
 
 const COLUMN = { display: "flex", flexShrink: 0 };
@@ -32,33 +33,15 @@ const RAIL = {
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 
-// Ours, not the design's: the design gives the rail its width, its behaviour and the three panel
-// names, but not the glyphs. Drawn in the kit's own language -- 14x14 box, currentColor, 1.5
-// rounded stroke -- and kept here rather than in vendor/, which is a verbatim copy.
-const GLYPH = {
-  add: () => (
-    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  ),
-  queue: () => (
-    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M2 4h10M2 7h10M2 10h6" stroke="currentColor" strokeWidth="1.5"
-            strokeLinecap="round" />
-    </svg>
-  ),
-  agent: () => (
-    <svg width="16" height="16" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-      <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h7A1.5 1.5 0 0 1 12 4.5v4A1.5 1.5 0 0 1 10.5 10H6l-3 2V10
-               A1 1 0 0 1 2 9V4.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
-    </svg>
-  ),
-};
+// Which panel gets which icon. The drawings live in glyphs.jsx, because the photo one is also the
+// icon its own submit button carries.
+const GLYPH = { photo: PhotoGlyph, queue: QueueGlyph, agent: AgentGlyph };
 
 // Adding a panel later means adding a row here -- the rail is drawn from this list, not from three
-// hard-coded buttons.
+// hard-coded buttons. The id is the layer's own word, so it matches both the glyph's name and what
+// the server calls that kind of job.
 const PANELS = [
-  { id: "add", title: "Üretime ekle" },
+  { id: "photo", title: "Fotoğraf üret" },
   { id: "queue", title: "Kuyruğu takip et" },
   { id: "agent", title: "AI agent" },
 ];
@@ -102,7 +85,7 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
                                     onCancel, onClearError, onShowFailures }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it.
-  const [open, setOpen] = useState("add");
+  const [open, setOpen] = useState("photo");
   const current = PANELS.find((panel) => panel.id === open);
 
   return (
@@ -111,7 +94,7 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         {/* A real heading: the open panel's name is also the only thing on screen that says which
             of the three you are looking at. */}
         <h2 style={{ margin: 0 }}><Mono size={11} style={LABEL}>{current.title}</Mono></h2>
-        {open === "add" && (
+        {open === "photo" && (
           <GeneratePanel job={job} error={error} errorField={errorField}
                          busyElsewhere={busyElsewhere} settings={settings}
                          models={models} modelsError={modelsError}
