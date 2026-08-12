@@ -81,7 +81,7 @@ function TextBlock({ label, text }) {
 // opens here -- produced, waiting, being rendered or failed -- and the page is live, so the one the
 // worker is holding turns into its photo without a reload.
 export default function PhotoDetail({ project, file }) {
-  const { frames, current, error, removePhotos } = useGeneration(project);
+  const { frames, current, currentLayer, error, removePhotos } = useGeneration(project);
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   // Only a removal of ours puts the card on screen: the hook's error is also where a failed poll
@@ -93,8 +93,11 @@ export default function PhotoDetail({ project, file }) {
   const previous = index > 0 ? frames[index - 1] : null;
   const next = frames && index >= 0 && index < frames.length - 1 ? frames[index + 1] : null;
   // The frame being rendered has no state on disk -- the live worker's file name is what says so,
-  // exactly as in the gallery.
-  const state = frame && frame.file === current ? "running" : frame?.status;
+  // exactly as in the gallery. Only a photo render empties the page: a frame whose video is being
+  // made still has its picture.
+  const state = frame && frame.file === current && (currentLayer || "photo") === "photo"
+    ? "running"
+    : frame?.status;
   const produced = state === "done";
 
   // The arrows swap the frame under a page that stays mounted, so anything said about the old one

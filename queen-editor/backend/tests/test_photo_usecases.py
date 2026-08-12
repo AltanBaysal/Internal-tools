@@ -640,6 +640,53 @@ def test_a_frame_whose_video_is_queued_is_still_one_frame():
     assert frames[0]["prompt"] == "p"
 
 
+def test_a_frame_says_which_layers_the_queue_still_owes_it():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    plan_store = FakePlanStore(frames=[
+        frame(0),
+        {"id": "0_a", "type": "video", "number": 0, "prompt": "", "negative": "", "seed": None,
+         "model": ""},
+        frame(1),
+    ])
+
+    rows = {row["id"]: row for row in
+            list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")}
+
+    assert rows["0_a"]["owed"] == ["video"]     # its photo landed; the video is still coming
+    assert rows["1_a"]["owed"] == ["photo"]
+    assert rows["0_a"]["failed"] == []
+
+
+def test_a_produced_layer_leaves_the_owed_list():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    plan_store = FakePlanStore(frames=[
+        frame(0),
+        {"id": "0_a", "type": "video", "number": 0, "prompt": "", "negative": "", "seed": None,
+         "model": ""},
+    ])
+
+    rows = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert rows[0]["owed"] == []
+
+
+def test_a_layer_that_blew_up_is_named_as_such():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", "failed", "t", error="node 41")
+    plan_store = FakePlanStore(frames=[frame(0)])
+
+    rows = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    # A failed layer holds its slot -- it is not owed and it is not done.
+    assert rows[0]["failed"] == ["video"]
+    assert rows[0]["owed"] == []
+
+
 def test_an_emptied_slot_names_no_file_and_keeps_the_frame():
     record = FakeRecord()
     record.append("düğün", {"file": "0_a.png", "status": "done"})

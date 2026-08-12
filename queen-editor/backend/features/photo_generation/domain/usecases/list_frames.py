@@ -27,18 +27,38 @@ def _taken_files(cells):
             if layers.is_taken(cell["status"])}
 
 
+def _owed_layers(jobs, slots):
+    """{frame: [layer, ...]} -- what the queue still owes each frame, in the engine's own order.
+
+    The gallery's own question once a frame is a stack: its photo can be done while its video is
+    still coming, and one status field cannot say both.
+    """
+    owed = {}
+    for job in queue.open_jobs(jobs, slots):
+        owed.setdefault(job["id"], []).append(queue.type_of(job))
+    return owed
+
+
+def _failed_layers(cells):
+    """The frame's layers whose latest line says the render blew up, in layer order."""
+    return [slot for slot in queue.ORDER
+            if (cells.get(slot) or {}).get("status") == queue.FAILED]
+
+
 def list_frames(record, store, plan_store, order_store, project):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
 
     slots = record.slots(project)
     photos = {row["frame"]: row for row in record.list(project)}
+    planned = plan_store.read(project)["frames"]
+    owed = _owed_layers(planned, slots)
 
     frames = []
     seen = set()
     # Newest first, the same direction the record answers in, so an unordered gallery already reads
     # the way the design wants it.
-    for frame in reversed(plan_store.read(project)["frames"]):
+    for frame in reversed(planned):
         if queue.type_of(frame) != layers.PHOTO:
             # A frame's row comes from its photo job alone. The plan holds one job per layer, and a
             # video job is that frame's layer -- read as a row of its own it would draw the frame
@@ -57,13 +77,16 @@ def list_frames(record, store, plan_store, order_store, project):
         frames.append({**frame, "id": fid,
                        "file": photo["file"] if photo else photo_file(fid),
                        "layers": _taken_files(cells),
+                       "owed": owed.get(fid, []), "failed": _failed_layers(cells),
                        "status": status if status in SHOWN else "pending"})
 
     # Photos the plan no longer knows about: projects generated before the plan became permanent
     # kept only their last batch, and those photos are still the gallery's.
     for fid, row in photos.items():
         if fid not in seen:
-            frames.append({**row, "id": fid, "layers": _taken_files(slots.get(fid, {})),
+            cells = slots.get(fid, {})
+            frames.append({**row, "id": fid, "layers": _taken_files(cells),
+                           "owed": owed.get(fid, []), "failed": _failed_layers(cells),
                            "status": queue.DONE})
 
     return apply_order(frames, order_store.read(project))

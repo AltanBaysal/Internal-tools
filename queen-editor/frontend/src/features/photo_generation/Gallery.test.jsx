@@ -12,8 +12,15 @@ vi.mock("../../shared/router.js", () => ({
   photoPath: (project, file) => `/projects/${encodeURIComponent(project)}/photos/${file}`,
 }));
 
-const done = (file) => ({ file, status: "done" });
+// What the server answers with: a frame's status, plus which of its layers are still owed and
+// which blew up.
+const done = (file, extra = {}) => ({ file, status: "done", ...extra });
+const pending = (file, extra = {}) => ({ file, status: "pending", owed: ["photo"], ...extra });
+const broken = (file, extra = {}) => ({ file, status: "failed", failed: ["photo"], ...extra });
 const FRAMES = [done("2_a.png"), done("1_a.png"), done("0_a.png")];
+const withVideo = (file, extra = {}) => done(file, {
+  layers: { photo: file, video: file.replace(".png", "_V1_0.mp4") }, ...extra,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -98,9 +105,9 @@ describe("Gallery ordering", () => {
 
 describe("Gallery — one sequence, four states", () => {
   const MIXED = [
-    { file: "4_a.png", status: "pending" },
-    { file: "3_a.png", status: "pending" },   // this one is the live worker's
-    { file: "2_a.png", status: "failed" },
+    pending("4_a.png"),
+    pending("3_a.png"),                       // this one is the live worker's
+    broken("2_a.png"),
     done("1_a.png"),
     done("0_a.png"),
   ];
@@ -165,7 +172,7 @@ describe("Gallery — one sequence, four states", () => {
   });
 
   it("does not claim the gallery is empty when only waiting frames are in it", () => {
-    renderGallery({ frames: [{ file: "0_a.png", status: "pending" }] });
+    renderGallery({ frames: [pending("0_a.png")] });
 
     expect(screen.queryByText("henüz fotoğraf yok")).toBeNull();
     expect(screen.getByText("foto kuyrukta")).toBeTruthy();
@@ -261,9 +268,9 @@ describe("Gallery selection mode", () => {
 
 describe("Gallery — selecting frames that are not photos yet", () => {
   const MIXED = [
-    { file: "4_a.png", status: "pending" },
-    { file: "3_a.png", status: "pending" },   // the live worker is holding this one
-    { file: "2_a.png", status: "failed" },
+    pending("4_a.png"),
+    pending("3_a.png"),                       // the live worker is holding this one
+    broken("2_a.png"),
     done("1_a.png"),
     done("0_a.png"),
   ];
@@ -336,9 +343,9 @@ describe("Gallery — selecting frames that are not photos yet", () => {
 
 describe("Gallery — every frame opens its own detail page", () => {
   const MIXED = [
-    { file: "3_a.png", status: "pending" },
-    { file: "2_a.png", status: "pending" },   // the live worker is holding this one
-    { file: "1_a.png", status: "failed" },
+    pending("3_a.png"),
+    pending("2_a.png"),                       // the live worker is holding this one
+    broken("1_a.png"),
     done("0_a.png"),
   ];
 
@@ -412,7 +419,7 @@ describe("Gallery — picking a tile up", () => {
   });
 
   it("lifts a waiting frame too -- the drag is what decides when it is produced", () => {
-    renderGallery({ frames: [{ file: "9_a.png", status: "pending" }, done("0_a.png")] });
+    renderGallery({ frames: [pending("9_a.png"), done("0_a.png")] });
 
     fireEvent.mouseDown(tileOf("9_a.png"));
     act(() => { vi.advanceTimersByTime(250); });
@@ -422,7 +429,7 @@ describe("Gallery — picking a tile up", () => {
   });
 
   it("lifts a failed frame too", () => {
-    renderGallery({ frames: [{ file: "9_a.png", status: "failed" }, done("0_a.png")] });
+    renderGallery({ frames: [broken("9_a.png"), done("0_a.png")] });
 
     fireEvent.mouseDown(tileOf("9_a.png"));
     act(() => { vi.advanceTimersByTime(250); });
@@ -431,12 +438,57 @@ describe("Gallery — picking a tile up", () => {
   });
 
   it("lifts the frame the worker is holding, without asking it to stop", () => {
-    renderGallery({ frames: [{ file: "9_a.png", status: "pending" }, done("0_a.png")],
+    renderGallery({ frames: [pending("9_a.png"), done("0_a.png")],
                     current: "9_a.png" });
 
     fireEvent.mouseDown(tileOf("9_a.png"));
     act(() => { vi.advanceTimersByTime(250); });
 
     expect(tileOf("9_a.png").draggable).toBe(true);
+  });
+});
+
+describe("Gallery — what a frame owns", () => {
+  it("marks a frame that has a video", () => {
+    renderGallery({ frames: [withVideo("P0_0.png")] });
+
+    expect(screen.getByText("video")).toBeTruthy();
+    expect(document.querySelector("[data-glyph=play]")).toBeTruthy();
+  });
+
+  it("leaves a frame with no video unmarked", () => {
+    renderGallery({ frames: [done("P0_0.png")] });
+
+    expect(screen.queryByText("video")).toBeNull();
+  });
+
+  it("does not call a failed render a video the frame owns", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", { failed: ["video"] })] });
+
+    expect(screen.queryByText("video")).toBeNull();
+    expect(screen.getByText("video hata")).toBeTruthy();
+  });
+
+  it("keeps the photo on screen while the video is queued", () => {
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })] });
+
+    expect(screen.getByAltText("P0_0.png")).toBeTruthy();
+    expect(screen.getByText("video kuyrukta")).toBeTruthy();
+  });
+
+  it("keeps the photo on screen while the video is being made", () => {
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })],
+                    current: "P0_0.png", currentLayer: "video" });
+
+    expect(screen.getByAltText("P0_0.png")).toBeTruthy();
+    expect(screen.getByText("video üretiliyor")).toBeTruthy();
+  });
+
+  it("still draws the loading holder while the photo itself is being made", () => {
+    renderGallery({ frames: [pending("P0_0.png")],
+                    current: "P0_0.png", currentLayer: "photo" });
+
+    expect(screen.queryByAltText("P0_0.png")).toBeNull();
+    expect(screen.getByText("foto üretiliyor")).toBeTruthy();
   });
 });

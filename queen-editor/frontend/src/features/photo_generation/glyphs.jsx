@@ -42,6 +42,14 @@ export const VideoGlyph = ({ size }) => (
   </Glyph>
 );
 
+// The play triangle the design asks for on the ownership badge. Filled, not stroked: at 9px a
+// stroked triangle reads as a smudge.
+export const PlayGlyph = ({ size }) => (
+  <Glyph name="play" size={size}>
+    <path d="M4.4 2.9 11 7l-6.6 4.1z" fill="currentColor" />
+  </Glyph>
+);
+
 // A crate: what a producer's model group arrives in.
 export const ProducersGlyph = ({ size }) => (
   <Glyph name="producers" size={size}>

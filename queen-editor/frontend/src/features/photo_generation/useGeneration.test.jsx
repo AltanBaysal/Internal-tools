@@ -42,13 +42,24 @@ describe("useGeneration", () => {
     expect(result.current.current).toBe("P11_3.png");
   });
 
+  it("says which layer the worker is making, not just which frame", async () => {
+    getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P0_0", type: "video" } });
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.current).toBe("P0_0.png");
+    expect(result.current.currentLayer).toBe("video");
+  });
+
   it("counts what is owed for each kind of job, not one lump", async () => {
     // Three frames with no line on disk; one of them is the one the worker is on right now.
     getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P0_0" } });
     listFrames.mockResolvedValue([
-      { id: "P0_0", file: "P0_0.png", status: "pending" },
-      { id: "P1_0", file: "P1_0.png", status: "pending" },
-      { id: "P2_0", file: "P2_0.png", status: "pending" },
+      { id: "P0_0", file: "P0_0.png", status: "pending", owed: ["photo"], failed: [] },
+      { id: "P1_0", file: "P1_0.png", status: "pending", owed: ["photo"], failed: [] },
+      { id: "P2_0", file: "P2_0.png", status: "pending", owed: ["photo"], failed: [] },
     ]);
 
     const { result } = renderHook(() => useGeneration("düğün"));
@@ -61,9 +72,9 @@ describe("useGeneration", () => {
     // Paused: the worker reports no current job, so the frame it cut is owed again -- 2 becomes 3.
     getStatus.mockResolvedValue({ status: "paused", project: "düğün" });
     listFrames.mockResolvedValue([
-      { id: "P0_0", file: "P0_0.png", status: "pending" },
-      { id: "P1_0", file: "P1_0.png", status: "pending" },
-      { id: "P2_0", file: "P2_0.png", status: "pending" },
+      { id: "P0_0", file: "P0_0.png", status: "pending", owed: ["photo"], failed: [] },
+      { id: "P1_0", file: "P1_0.png", status: "pending", owed: ["photo"], failed: [] },
+      { id: "P2_0", file: "P2_0.png", status: "pending", owed: ["photo"], failed: [] },
     ]);
 
     const { result } = renderHook(() => useGeneration("düğün"));
@@ -76,9 +87,9 @@ describe("useGeneration", () => {
   it("counts what failed for each kind of job", async () => {
     getStatus.mockResolvedValue({ status: "done", project: "düğün" });
     listFrames.mockResolvedValue([
-      { id: "P0_0", file: "P0_0.png", status: "failed" },
-      { id: "P1_0", file: "P1_0.png", status: "failed" },
-      { id: "P2_0", file: "P2_0.png", status: "done" },
+      { id: "P0_0", file: "P0_0.png", status: "failed", owed: [], failed: ["photo"] },
+      { id: "P1_0", file: "P1_0.png", status: "failed", owed: [], failed: ["photo"] },
+      { id: "P2_0", file: "P2_0.png", status: "done", owed: [], failed: [] },
     ]);
 
     const { result } = renderHook(() => useGeneration("düğün"));
@@ -87,9 +98,24 @@ describe("useGeneration", () => {
     expect(result.current.failures).toEqual([{ layer: "photo", count: 2 }]);
   });
 
+  it("counts the video jobs the frames say they are owed", async () => {
+    getStatus.mockResolvedValue({ status: "done", project: "düğün" });
+    listFrames.mockResolvedValue([
+      { id: "P0_0", file: "P0_0.png", status: "done", layers: {}, owed: ["video"], failed: [] },
+      { id: "P1_0", file: "P1_0.png", status: "done", layers: {}, owed: [], failed: ["video"] },
+    ]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.queue).toEqual([{ layer: "video", owed: 1 }]);
+    expect(result.current.failures).toEqual([{ layer: "video", count: 1 }]);
+  });
+
   it("leaves out a kind with nothing owed", async () => {
     getStatus.mockResolvedValue({ status: "idle" });
-    listFrames.mockResolvedValue([{ id: "P0_0", file: "P0_0.png", status: "done" }]);
+    listFrames.mockResolvedValue([{ id: "P0_0", file: "P0_0.png", status: "done",
+                                    owed: [], failed: [] }]);
 
     const { result } = renderHook(() => useGeneration("düğün"));
     await settle();

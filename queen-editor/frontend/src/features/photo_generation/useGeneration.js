@@ -232,35 +232,31 @@ export function useGeneration(project) {
   const current = job.project === project && job.status === "running" && job.current
     ? `${job.current.id}.png`
     : null;
-  // What the queue still owes, kind by kind. The frame being rendered has no line on disk either,
-  // so the gallery draws it as pending too -- it is not waiting, it is being made, and it comes out
-  // of the count. Pause puts it back: the worker stops reporting it and the half-done job is owed
-  // again.
-  //
-  // Every owed job is a photo job today, because the gallery is the only place this can be counted
-  // from. When video and audio jobs join the queue the server will count them; the panel does not
-  // change, because a card is drawn from this list either way.
-  const owedByKind = {
-    photo: shown.filter((frame) => frame.status === "pending" && frame.file !== current).length,
-    video: 0,
-    audio: 0,
-  };
+  // Which layer of it is being made. A photo render empties the card while it runs; a video render
+  // must not, because the frame's picture is still there -- so the screen needs the job's type as
+  // well as its frame. A job planned before the queue knew types can only be a photo.
+  const currentLayer = current ? (job.current.type || "photo") : null;
+  // What the queue still owes and what blew up, layer by layer -- read off the gallery, because
+  // each frame already says which of its layers are still coming and which failed. The job being
+  // made comes out of the owed count: it is not waiting, it is being made. Pause puts it back --
+  // the worker stops reporting it and the half-done job is owed again.
+  const owedByKind = { photo: 0, video: 0, audio: 0 };
+  const failedByKind = { photo: 0, video: 0, audio: 0 };
+  shown.forEach((frame) => {
+    (frame.owed || []).forEach((layer) => {
+      if (frame.file === current && layer === currentLayer) return;
+      owedByKind[layer] += 1;
+    });
+    (frame.failed || []).forEach((layer) => { failedByKind[layer] += 1; });
+  });
   const queue = KINDS
     .map((layer) => ({ layer, owed: owedByKind[layer] }))
     .filter((card) => card.owed > 0);
-
-  // What failed, kind by kind, in the same shape as what is owed -- the same question asked about
-  // the other end of the run. Only photo jobs can fail today, for the same reason only photo jobs
-  // are owed: the gallery is where this is counted from.
-  const failedByKind = {
-    photo: shown.filter((frame) => frame.status === "failed").length,
-    video: 0,
-    audio: 0,
-  };
   const failures = KINDS
     .map((layer) => ({ layer, count: failedByKind[layer] }))
     .filter((card) => card.count > 0);
 
-  return { job, frames, error, errorField, stopping, queue, failures, current, retryAll, queueVideo,
+  return { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+           retryAll, queueVideo,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

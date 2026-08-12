@@ -82,7 +82,7 @@ describe("ProjectScreen app bar", () => {
 });
 
 describe("ProjectScreen — an open project carries its queue on", () => {
-  const OWED = [{ file: "0_a.png", status: "pending" }];
+  const OWED = [{ file: "0_a.png", status: "pending", owed: ["photo"], failed: [] }];
 
   beforeEach(() => {
     vi.useFakeTimers();

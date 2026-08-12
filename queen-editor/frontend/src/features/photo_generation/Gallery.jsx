@@ -5,6 +5,7 @@ import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Rendering, StatusPill } from "./frame_status.jsx";
+import { PlayGlyph } from "./glyphs.jsx";
 
 const PAD = { padding: 16 };
 const GRID = { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12,
@@ -20,6 +21,11 @@ const EMPTY = {
 // Artboard 05: the badge sits on the photo itself, always visible, never on the caption line.
 const BADGE = { position: "absolute", top: 6, right: 6, background: "rgba(10,8,7,.75)",
                 color: "var(--ink-2)", padding: "2px 6px", borderRadius: 3, zIndex: 1 };
+// Madde 57's third plane: the order badge top right, the state pill top left, and what the frame
+// owns bottom right. It says the layer is finished -- an unfinished one is the pill's to tell.
+const OWNS = { position: "absolute", bottom: 6, right: 6, display: "flex", alignItems: "center",
+               gap: 3, background: "rgba(10,8,7,.75)", color: "var(--ink-2)", padding: "2px 5px",
+               borderRadius: 3, zIndex: 1, pointerEvents: "none" };
 const DRAGGED = { transform: "rotate(-3deg) scale(1.04) translate(14px, -10px)",
                   filter: "drop-shadow(0 12px 24px rgba(0,0,0,.55))", zIndex: 5,
                   position: "relative" };
@@ -44,7 +50,22 @@ const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18p
 // does not feel stuck. The design asks for a hold; the number is ours.
 const HOLD_MS = 250;
 
-function Tile({ name, muted, danger, badge, pill, selected, onCheck, children }) {
+/** The one thing worth saying about a frame's state, or nothing at all.
+ *
+ * Running first, then what blew up, then what is still owed: a frame can be several of these at
+ * once -- its photo failed while its video waits -- and two pills in one corner make the card
+ * unreadable. The rest is the detail page's to show.
+ */
+function statusOf(frame, running) {
+  if (running) return { layer: running, state: "running" };
+  const failed = (frame.failed || [])[0];
+  if (failed) return { layer: failed, state: "failed" };
+  const owed = (frame.owed || [])[0];
+  if (owed) return { layer: owed, state: "pending" };
+  return null;
+}
+
+function Tile({ name, muted, danger, badge, pill, owns, selected, onCheck, children }) {
   const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -57,6 +78,12 @@ function Tile({ name, muted, danger, badge, pill, selected, onCheck, children })
           <Mono size={10} style={muted ? { ...BADGE, opacity: 0.5 } : BADGE}>{badge}</Mono>
         )}
         {pill}
+        {owns && (
+          <span style={OWNS}>
+            <PlayGlyph size={9} />
+            <Mono size={9}>video</Mono>
+          </span>
+        )}
         {selected && <div style={TINT} />}
         {onCheck && (
           <div data-check className={selected ? "qe-check qe-check--on" : "qe-check"}
@@ -74,8 +101,8 @@ function Tile({ name, muted, danger, badge, pill, selected, onCheck, children })
 // Artboard 03/04/05: five columns, one sequence. Every frame stands in its own place whatever
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
-export default function Gallery({ project, frames, current, onReorder, onDelete, onRetry,
-                                  onSelectionChange }) {
+export default function Gallery({ project, frames, current, currentLayer, onReorder, onDelete,
+                                  onRetry, onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -200,10 +227,16 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
     <div style={{ ...PAD, position: "relative", paddingBottom: selecting ? 84 : PAD.padding }}>
       <div style={GRID}>
         {frames.map((frame, index) => {
-          // The frame being rendered is a pending one the live worker happens to be holding: it
-          // has no state on disk, so the list cannot say so and the running file name does.
-          const state = frame.file === current ? "running" : frame.status;
+          // The frame being rendered is one the live worker happens to be holding: it has no state
+          // on disk, so the list cannot say so and the running job does. Only a PHOTO render
+          // empties the card -- a frame whose video is being made still has its picture, and
+          // taking it away would say the photo went somewhere.
+          const running = frame.file === current ? (currentLayer || "photo") : null;
+          const state = running === "photo" ? "running" : frame.status;
           const produced = state === "done";
+          // A layer that blew up holds its slot but is not something the frame owns.
+          const owns = Boolean((frame.layers || {}).video)
+            && !(frame.failed || []).includes("video");
           // The badge counts up from the bottom: the oldest frame is 1, the newest is N, and a new
           // frame on top never renumbers the ones below it.
           const badge = frames.length - index;
@@ -239,7 +272,8 @@ export default function Gallery({ project, frames, current, onReorder, onDelete,
               ) : (
                 <Tile name={frame.file} badge={badge} muted={!produced}
                       danger={state === "failed"}
-                      pill={<StatusPill layer="photo" state={state} />}
+                      pill={<StatusPill {...(statusOf(frame, running) || {})} />}
+                      owns={owns}
                       onCheck={state === "running" ? undefined : () => toggle(frame.file)}
                       selected={selected.includes(frame.file)}>
                   {/* Every frame opens its own page, produced or not -- the detail page knows all

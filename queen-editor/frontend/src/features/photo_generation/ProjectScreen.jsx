@@ -22,7 +22,8 @@ const HEADER = {
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, frames, error, errorField, stopping, queue, failures, current, retryAll, queueVideo,
+  const { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+          retryAll, queueVideo,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
@@ -107,7 +108,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
-          <Gallery project={project} frames={frames} current={current}
+          <Gallery project={project} frames={frames} current={current} currentLayer={currentLayer}
                    onReorder={reorder} onDelete={removePhotos} onRetry={retry}
                    onSelectionChange={setSelected} />
         </div>
