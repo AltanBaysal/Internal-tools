@@ -16,7 +16,7 @@ function renderColumn(props) {
       settings={SETTINGS}
       project="düğün"
       stopping={false}
-      queue={{ pending: [], total: 0 }}
+      queue={[]}
       onGenerate={() => Promise.resolve()}
       onStop={() => {}}
       onResume={() => {}}
@@ -37,12 +37,12 @@ describe("SidePanel — the icon rail", () => {
   });
 
   it("swaps the panel when another icon is pressed", () => {
-    renderColumn({ job: RUNNING });
+    renderColumn({ job: RUNNING, queue: [{ layer: "photo", owed: 2 }] });
 
     fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
 
     expect(screen.queryByPlaceholderText(PROMPT_BOX)).toBeNull();
-    expect(screen.getByText("Üretiliyor")).toBeTruthy();
+    expect(screen.getByText("Foto · üretiliyor")).toBeTruthy();
     expect(screen.getByLabelText("Kuyruğu takip et").getAttribute("aria-current")).toBe("page");
   });
 
@@ -76,6 +76,6 @@ describe("SidePanel — the icon rail", () => {
 
     fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
 
-    expect(screen.getByRole("heading", { name: "Kuyruğu takip et" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Kuyruk" })).toBeTruthy();
   });
 });

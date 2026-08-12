@@ -14,6 +14,10 @@ import {
 
 const POLL_MS = 2000;
 
+// The order the engine works in: it finishes one kind before it starts the next, so the queue
+// panel's cards stand in this sequence too. The words are the server's own layer names.
+const KINDS = ["photo", "video", "audio"];
+
 // A batch runs for minutes, so the server answers 202 and we ask /api/status until it settles.
 // The gallery refreshes on every poll: Drive is the truth about what exists and what is owed.
 export function useGeneration(project) {
@@ -204,13 +208,23 @@ export function useGeneration(project) {
   const current = job.project === project && job.status === "running" && job.current
     ? `${job.current.id}.png`
     : null;
-  // The frame being rendered has no line on disk either, so the gallery draws it as pending too.
-  // It is not waiting -- it is being made -- so it comes out of the count. Pause puts it back: the
-  // worker stops reporting it and the half-done job is owed again.
-  const pending = shown
-    .filter((frame) => frame.status === "pending" && frame.file !== current)
-    .map((f) => f.file);
+  // What the queue still owes, kind by kind. The frame being rendered has no line on disk either,
+  // so the gallery draws it as pending too -- it is not waiting, it is being made, and it comes out
+  // of the count. Pause puts it back: the worker stops reporting it and the half-done job is owed
+  // again.
+  //
+  // Every owed job is a photo job today, because the gallery is the only place this can be counted
+  // from. When video and audio jobs join the queue the server will count them; the panel does not
+  // change, because a card is drawn from this list either way.
+  const owedByKind = {
+    photo: shown.filter((frame) => frame.status === "pending" && frame.file !== current).length,
+    video: 0,
+    audio: 0,
+  };
+  const queue = KINDS
+    .map((layer) => ({ layer, owed: owedByKind[layer] }))
+    .filter((card) => card.owed > 0);
 
-  return { job, frames, error, errorField, stopping, pending, failures, current,
+  return { job, frames, error, errorField, stopping, queue, failures, current,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }

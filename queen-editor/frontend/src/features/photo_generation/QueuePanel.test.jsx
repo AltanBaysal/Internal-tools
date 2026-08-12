@@ -14,7 +14,7 @@ function renderPanel(props) {
       busyElsewhere={false}
       project="düğün"
       stopping={false}
-      pending={["8_a.png", "9_a.png"]}
+      queue={[{ layer: "photo", owed: 2 }]}
       failures={[]}
       onStop={() => {}}
       onResume={() => {}}
@@ -28,13 +28,38 @@ function renderPanel(props) {
 const button = (label) => screen.getByRole("button", { name: label });
 
 describe("QueuePanel — a flowing queue", () => {
-  it("shows one honest number and the pause button", () => {
+  it("draws the kind's own card and no run card of its own", () => {
     renderPanel();
 
-    expect(screen.getByText("Üretiliyor")).toBeTruthy();
+    expect(screen.getByText("Foto · üretiliyor")).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("kare bekliyor")).toBeTruthy();
     expect(screen.getByText("Duraklat")).toBeTruthy();
+    expect(screen.queryByText("Üretiliyor")).toBeNull();
+  });
+
+  it("draws one card per kind, in the order the engine works in", () => {
+    renderPanel({ queue: [{ layer: "video", owed: 3 }, { layer: "photo", owed: 1 }] });
+
+    const cards = [...document.querySelectorAll("[data-kind]")].map((c) => c.dataset.kind);
+    expect(cards).toEqual(["photo", "video"]);
+  });
+
+  it("counts jobs rather than frames for the layers that do not open one", () => {
+    renderPanel({ queue: [{ layer: "photo", owed: 1 }, { layer: "video", owed: 3 }] });
+
+    expect(screen.getByText("kare bekliyor")).toBeTruthy();
+    expect(screen.getByText("iş bekliyor")).toBeTruthy();
+  });
+
+  it("leaves only the kind the worker is on alive", () => {
+    renderPanel({ job: { ...RUNNING, current: { id: "P0_0", type: "photo" } },
+                  queue: [{ layer: "photo", owed: 1 }, { layer: "video", owed: 3 }] });
+
+    const alive = [...document.querySelectorAll("[data-kind]")]
+      .filter((card) => card.querySelector(".qe-dot--alive"))
+      .map((card) => card.dataset.kind);
+    expect(alive).toEqual(["photo"]);
   });
 
   it("drops the denominator, the percentage, the bar and the current prompt", () => {
@@ -73,7 +98,7 @@ describe("QueuePanel — a paused queue", () => {
   const PAUSED = { status: "paused", project: "düğün", done: 7, failed: 0, total: 48 };
 
   it("counts the cut frame back in and offers the way out", () => {
-    renderPanel({ job: PAUSED, pending: ["7_a.png", "8_a.png", "9_a.png"] });
+    renderPanel({ job: PAUSED, queue: [{ layer: "photo", owed: 3 }] });
 
     expect(screen.getByText("Duraklatıldı")).toBeTruthy();
     expect(screen.getByText("3")).toBeTruthy();
@@ -81,8 +106,23 @@ describe("QueuePanel — a paused queue", () => {
     expect(screen.getByText("Kuyruğu boşalt")).toBeTruthy();
   });
 
+  it("puts the queue's own card beside the run's, each answering its own question", () => {
+    renderPanel({ job: PAUSED, queue: [{ layer: "photo", owed: 3 }] });
+
+    expect(screen.getByText("Duraklatıldı")).toBeTruthy();
+    expect(screen.getByText("Foto · sırada")).toBeTruthy();
+  });
+
+  it("keeps the destructive button at the foot of the panel", () => {
+    renderPanel({ job: PAUSED, queue: [{ layer: "photo", owed: 2 }] });
+
+    const clear = screen.getByText("Kuyruğu boşalt");
+    const resume = screen.getByText("Devam et");
+    expect(resume.compareDocumentPosition(clear) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("asks before emptying the queue and never says it cannot be undone", () => {
-    renderPanel({ job: PAUSED, pending: ["7_a.png", "8_a.png"] });
+    renderPanel({ job: PAUSED, queue: [{ layer: "photo", owed: 2 }] });
 
     fireEvent.click(screen.getByText("Kuyruğu boşalt"));
 
@@ -116,7 +156,7 @@ describe("QueuePanel — a stopped queue", () => {
   });
 
   it("invents no reason for a run that died with its session", () => {
-    renderPanel({ job: { status: "idle" }, pending: ["7_a.png", "8_a.png"] });
+    renderPanel({ job: { status: "idle" }, queue: [{ layer: "photo", owed: 2 }] });
 
     expect(screen.getByText("Üretim durdu")).toBeTruthy();
     expect(screen.getByText("Kaldığı yerden devam et")).toBeTruthy();
@@ -127,7 +167,7 @@ describe("QueuePanel — a stopped queue", () => {
 describe("QueuePanel — a finished queue", () => {
   it("confirms in one sentence", () => {
     renderPanel({ job: { status: "done", project: "düğün", done: 20, failed: 0, total: 20 },
-                  pending: [] });
+                  queue: [] });
 
     expect(screen.getByText("Kuyruk tamamlandı")).toBeTruthy();
     expect(screen.getByText("20 kare üretildi")).toBeTruthy();
@@ -135,7 +175,7 @@ describe("QueuePanel — a finished queue", () => {
 
   it("says the failures inside the same sentence, not in a red card of its own", () => {
     renderPanel({ job: { status: "done", project: "düğün", done: 20, failed: 3, total: 23 },
-                  pending: [], failures: ["1_a.png", "2_a.png", "3_a.png"] });
+                  queue: [], failures: ["1_a.png", "2_a.png", "3_a.png"] });
 
     expect(screen.getByText("Kuyruk tamamlandı")).toBeTruthy();
     expect(screen.getByText("20 kare üretildi")).toBeTruthy();
@@ -146,7 +186,7 @@ describe("QueuePanel — a finished queue", () => {
 
 describe("QueuePanel — an empty queue", () => {
   it("points at the panel that fills it", () => {
-    renderPanel({ job: { status: "idle" }, pending: [] });
+    renderPanel({ job: { status: "idle" }, queue: [] });
 
     expect(screen.getByText("Kuyruk boş")).toBeTruthy();
     expect(screen.getByText("Fotoğraf üret panelinden kare gönder.")).toBeTruthy();
@@ -154,7 +194,7 @@ describe("QueuePanel — an empty queue", () => {
   });
 
   it("says whose run is holding the worker when it is another project's", () => {
-    renderPanel({ job: { status: "running", project: "balo" }, busyElsewhere: true, pending: [] });
+    renderPanel({ job: { status: "running", project: "balo" }, busyElsewhere: true, queue: [] });
 
     expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
   });
@@ -191,7 +231,7 @@ describe("QueuePanel — the connection", () => {
   });
 
   it("leaves a field error to the form panel", () => {
-    renderPanel({ job: { status: "idle" }, pending: [],
+    renderPanel({ job: { status: "idle" }, queue: [],
                   error: "Format hatası — liste okunamadı", errorField: "prompts" });
 
     expect(screen.queryByText("Format hatası — liste okunamadı")).toBeNull();

@@ -21,7 +21,7 @@ const HEADER = {
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, frames, error, errorField, stopping, pending, failures, current,
+  const { job, frames, error, errorField, stopping, queue, failures, current,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
@@ -42,10 +42,10 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   useEffect(() => {
     const waitingForUser = mine && (job.status === "paused" || job.status === "error");
     if (asked.current === project || job.status === "running" || waitingForUser) return;
-    if (!pending.length) return;
+    if (!queue.length) return;
     asked.current = project;
     resume();
-  }, [project, mine, job.status, pending.length, resume]);
+  }, [project, mine, job.status, queue.length, resume]);
 
   // The queue panel says "3 kare üretilemedi — galeride göster" and stops there; finding the tile
   // is the screen's job, because the panel has no business knowing how the gallery is built.
@@ -95,7 +95,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
         </div>
         <SidePanel job={job} error={saveError || error} errorField={errorField}
                    busyElsewhere={busyElsewhere} settings={settings} project={project}
-                   stopping={stopping} pending={pending} failures={failures}
+                   stopping={stopping} queue={queue} failures={failures}
                    models={models} modelsError={modelsError}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onShowFailures={showFirstFailure} />

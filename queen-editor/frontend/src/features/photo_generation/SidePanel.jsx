@@ -39,10 +39,12 @@ const GLYPH = { photo: PhotoGlyph, queue: QueueGlyph, agent: AgentGlyph };
 
 // Adding a panel later means adding a row here -- the rail is drawn from this list, not from three
 // hard-coded buttons. The id is the layer's own word, so it matches both the glyph's name and what
-// the server calls that kind of job.
+// the server calls that kind of job. `title` is what the rail's icon is called; `heading` is what
+// the open panel is called, and the queue is the one place the design gives those two different
+// words.
 const PANELS = [
   { id: "photo", title: "Fotoğraf üret" },
-  { id: "queue", title: "Kuyruğu takip et" },
+  { id: "queue", title: "Kuyruğu takip et", heading: "Kuyruk" },
   { id: "agent", title: "AI agent" },
 ];
 
@@ -80,7 +82,7 @@ function RailButton({ panel, active, onSelect }) {
 // single surface -- submitting work, watching the queue, and the agent that has not been designed
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
 export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
-                                    stopping, pending, failures, models, modelsError,
+                                    stopping, queue, failures, models, modelsError,
                                     onGenerate, onStop, onResume,
                                     onCancel, onClearError, onShowFailures }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
@@ -93,7 +95,9 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
       <div className="wf-panel" style={PANEL}>
         {/* A real heading: the open panel's name is also the only thing on screen that says which
             of the three you are looking at. */}
-        <h2 style={{ margin: 0 }}><Mono size={11} style={LABEL}>{current.title}</Mono></h2>
+        <h2 style={{ margin: 0 }}>
+          <Mono size={11} style={LABEL}>{current.heading || current.title}</Mono>
+        </h2>
         {open === "photo" && (
           <GeneratePanel job={job} error={error} errorField={errorField}
                          busyElsewhere={busyElsewhere} settings={settings}
@@ -103,7 +107,7 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         {open === "queue" && (
           <QueuePanel job={job} error={error} errorField={errorField}
                       busyElsewhere={busyElsewhere} project={project} stopping={stopping}
-                      pending={pending} failures={failures} onStop={onStop} onResume={onResume}
+                      queue={queue} failures={failures} onStop={onStop} onResume={onResume}
                       onCancel={onCancel} onShowFailures={onShowFailures} />
         )}
         {open === "agent" && <AgentPanel />}
