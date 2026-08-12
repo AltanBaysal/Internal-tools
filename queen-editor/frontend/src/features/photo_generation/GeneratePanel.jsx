@@ -9,8 +9,9 @@ const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "u
 const PLACEHOLDER = '["ilk prompt", "ikinci prompt"]';
 
 const MAX_VARIANTS = 26;
-// Long enough to read, short enough to be out of the way before the next batch is typed.
-const CONFIRM_MS = 4000;
+// Long enough to still be there when the eyes come back from the gallery, short enough to be gone
+// before the next batch is typed. The design named two different numbers; this one is the user's.
+const CONFIRM_MS = 10000;
 
 /** What the box may hold while it is being typed in.
  *
@@ -23,6 +24,17 @@ function acceptsVariants(text) {
   if (!/^\d+$/.test(text)) return false;
   const value = Number(text);
   return value >= 1 && value <= MAX_VARIANTS;
+}
+
+/** The label the red box needs: the head of the server's sentence, or nothing.
+ *
+ * The server writes a field's message as "<short> — <detail>", so the box takes the head and the
+ * full sentence goes under the button. A sentence with no dash has no shorter form: the box then
+ * says nothing and only turns red -- writing the same words twice adds nothing.
+ */
+function boxLabel(message) {
+  const cut = message.indexOf(" — ");
+  return cut === -1 ? null : message.slice(0, cut);
 }
 
 // Artboard 04: a pure form -- prompt list, one shared negative, variant count, and the button that
@@ -61,21 +73,33 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const options = gone ? [model, ...models] : (models || []);
 
   const perPrompt = Number(variants);
-  // Only the prompt box has an error state; the variant box has none by design, and anything else
-  // the server refuses is reported as "Kuyruğa eklenemedi".
+  // What the server blamed, if it blamed anything. A named field means the request never reached
+  // the queue: the answer is that field's own sentence, and saying "Kuyruğa eklenemedi" on top of
+  // it would tell one event twice with two different causes.
+  const fieldError = errorField ? error : null;
+  // Only the prompt box turns red; the variant box has no error state by design.
   const promptError = errorField === "prompts" ? error : null;
+  const promptLabel = promptError ? boxLabel(promptError) : null;
+
+  // Typing is the start of the next attempt: both the field's own error and the queue's refusal
+  // belong to the try that just ended, and leaving either behind would put a stale answer under a
+  // button that is about to be pressed again.
+  function clearAnswers() {
+    setRefused(false);
+    if (errorField) onClearError();
+  }
 
   function edit(setter) {
     return (e) => {
       setter(e.target.value);
-      if (errorField) onClearError();     // typing is the answer to "Format hatası"
+      clearAnswers();
     };
   }
 
   function editVariants(e) {
     if (!acceptsVariants(e.target.value)) return;
     setVariants(e.target.value);
-    if (errorField) onClearError();
+    clearAnswers();
   }
 
   function handleAdd() {
@@ -137,7 +161,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
           style={{ fontSize: 11.5, flex: 1, fontFamily: "IBM Plex Mono, monospace",
                    ...(promptError ? { borderColor: "var(--danger)" } : {}) }}
         />
-        {promptError && <Note size={12} style={{ color: "var(--danger)" }}>{promptError}</Note>}
+        {promptLabel && <Note size={12} style={{ color: "var(--danger)" }}>{promptLabel}</Note>}
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -178,10 +202,19 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
           <div className="wf-stroke"
                style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: 8,
                         borderColor: "var(--ok)", background: "var(--ok-bg)" }}>
-            <Note size={12} style={{ color: "var(--ok)" }}>✓ {added} kare kuyruğa eklendi</Note>
+            {/* Two parts, not one sentence: the mark carries the answer at a glance and does not
+                wrap onto the text's second line. */}
+            <Note size={12} style={{ color: "var(--ok)" }}>✓</Note>
+            <Note size={12} style={{ color: "var(--ok)" }}>{added} kare kuyruğa eklendi</Note>
           </div>
+        ) : fieldError ? (
+          <Note size={12} style={{ color: "var(--danger)", textAlign: "center" }}>
+            {fieldError}
+          </Note>
         ) : refused ? (
-          <Note size={12} style={{ color: "var(--danger)" }}>Kuyruğa eklenemedi</Note>
+          <Note size={12} style={{ color: "var(--danger)", textAlign: "center" }}>
+            Kuyruğa eklenemedi — tekrar dene
+          </Note>
         ) : busyElsewhere ? (
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Üretim sürüyor: {job.project} — bitmesini bekle.

@@ -145,16 +145,37 @@ describe("GeneratePanel — the confirmation", () => {
   beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
   afterEach(() => vi.useRealTimers());
 
-  it("quotes the number of frames the server took, then clears itself", async () => {
+  it("quotes the number of frames the server took in its own part of the card", async () => {
     renderPanel({ onGenerate: () => Promise.resolve({ added: 48 }) });
 
     fireEvent.click(screen.getByText("Kuyruğa ekle"));
 
-    await waitFor(() => expect(screen.getByText("✓ 48 kare kuyruğa eklendi")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("48 kare kuyruğa eklendi")).toBeTruthy());
+    expect(screen.getByText("✓")).toBeTruthy();
+  });
+
+  it("stays long enough to be read after the eyes have moved on", async () => {
+    renderPanel({ onGenerate: () => Promise.resolve({ added: 48 }) });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
+    await waitFor(() => expect(screen.getByText("48 kare kuyruğa eklendi")).toBeTruthy());
 
     await act(async () => { vi.advanceTimersByTime(4000); });
+    expect(screen.getByText("48 kare kuyruğa eklendi")).toBeTruthy();
 
-    expect(screen.queryByText("✓ 48 kare kuyruğa eklendi")).toBeNull();
+    await act(async () => { vi.advanceTimersByTime(6000); });
+    expect(screen.queryByText("48 kare kuyruğa eklendi")).toBeNull();
+  });
+
+  it("takes the refusal back the moment the user starts a new attempt", async () => {
+    renderPanel({ onGenerate: () => Promise.resolve(null) });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle"));
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi — tekrar dene")).toBeTruthy());
+
+    fireEvent.change(promptBox(), { target: { value: '["yeni"]' } });
+
+    expect(screen.queryByText("Kuyruğa eklenemedi — tekrar dene")).toBeNull();
   });
 
   it("says one line when the queue would not take the frames", async () => {
@@ -162,7 +183,7 @@ describe("GeneratePanel — the confirmation", () => {
 
     fireEvent.click(screen.getByText("Kuyruğa ekle"));
 
-    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Kuyruğa eklenemedi — tekrar dene")).toBeTruthy());
     expect(screen.queryByText(/kuyruğa eklendi/)).toBeNull();
   });
 });
@@ -191,20 +212,38 @@ describe("GeneratePanel — the variant box", () => {
     expect(variantBox().value).toBe("1");
   });
 
-  it("has no error state of its own", () => {
+  it("has no error state of its own, and answers under the button instead", () => {
     renderPanel({ error: "Varyant sayısı 1-26 arası bir tam sayı olmalı.", errorField: "variants" });
 
     expect(variantBox().style.borderColor).toBe("");
-    expect(screen.queryByText("Varyant sayısı 1-26 arası bir tam sayı olmalı.")).toBeNull();
+    expect(screen.getByText("Varyant sayısı 1-26 arası bir tam sayı olmalı.")).toBeTruthy();
   });
 });
 
 describe("GeneratePanel — a format error", () => {
-  it("reddens the prompt box and writes the server's one line underneath", () => {
+  it("reddens the prompt box and labels it short, with the sentence under the button", () => {
     renderPanel({ error: "Format hatası — liste okunamadı", errorField: "prompts" });
 
+    expect(screen.getByText("Format hatası")).toBeTruthy();
     expect(screen.getByText("Format hatası — liste okunamadı")).toBeTruthy();
     expect(promptBox().style.borderColor).toBe("var(--danger)");
+  });
+
+  it("leaves the box wordless when the sentence has no short form", () => {
+    renderPanel({ error: "Prompt listesi boş.", errorField: "prompts" });
+
+    expect(screen.getAllByText("Prompt listesi boş.")).toHaveLength(1);
+    expect(promptBox().style.borderColor).toBe("var(--danger)");
+  });
+
+  it("does not blame the queue for a request that never reached it", async () => {
+    renderPanel({ error: "Format hatası — liste okunamadı", errorField: "prompts",
+                  onGenerate: () => Promise.resolve(null) });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(screen.queryByText(/Kuyruğa eklenemedi/)).toBeNull();
+    expect(screen.getByText("Format hatası — liste okunamadı")).toBeTruthy();
   });
 
   it("clears the error once typing starts", () => {
