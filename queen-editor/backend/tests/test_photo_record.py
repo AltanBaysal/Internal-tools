@@ -13,8 +13,55 @@ def entry(file, prompt="kraliçe tahtta"):
             "createdAt": "2026-08-03T14:32:11+00:00"}
 
 
+class CountingStorage(DriveStorage):
+    """A real storage that says how many times the file was actually opened."""
+
+    def __init__(self, root):
+        super().__init__(root)
+        self.reads = 0
+
+    def read_lines(self, subdir, name):
+        self.reads += 1
+        return super().read_lines(subdir, name)
+
+
 def test_a_project_without_a_record_lists_nothing(tmp_path):
     assert record_at(tmp_path).list("düğün") == []
+
+
+def test_the_three_questions_cost_one_read(tmp_path):
+    # The gallery asks all three on every poll, and the file is the same file. Opening and parsing
+    # it once per question is what made a poll five Drive reads.
+    storage = CountingStorage(str(tmp_path))
+    record = DrivePhotoRecord(storage)
+    record.append("düğün", entry("P0_0.png"))
+    storage.reads = 0
+
+    record.slots("düğün")
+    record.list("düğün")
+    record.prompts("düğün")
+
+    assert storage.reads == 1
+
+
+def test_a_changed_record_is_read_again(tmp_path):
+    storage = CountingStorage(str(tmp_path))
+    record = DrivePhotoRecord(storage)
+    record.append("düğün", entry("P0_0.png"))
+    record.slots("düğün")
+
+    record.append("düğün", entry("P1_0.png"))
+
+    assert [row["file"] for row in record.list("düğün")] == ["P1_0.png", "P0_0.png"]
+
+
+def test_one_project_never_answers_for_another(tmp_path):
+    record = record_at(tmp_path)
+    record.append("düğün", entry("P0_0.png"))
+    record.append("nişan", entry("P9_0.png"))
+
+    assert [row["file"] for row in record.list("düğün")] == ["P0_0.png"]
+    assert [row["file"] for row in record.list("nişan")] == ["P9_0.png"]
 
 
 def test_prompts_are_folded_per_layer(tmp_path):

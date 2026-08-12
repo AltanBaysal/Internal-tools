@@ -3,6 +3,23 @@ import pytest
 from backend.services.drive.storage import DriveStorage
 
 
+def test_a_stamp_changes_when_the_file_does(tmp_path):
+    # What a caller holding a parsed copy checks before trusting it. Length as well as time: an
+    # append inside the same second still has to read as a change.
+    storage = DriveStorage(str(tmp_path))
+    storage.append_line("düğün", "photos.jsonl", "bir")
+    before = storage.stamp("düğün", "photos.jsonl")
+
+    storage.append_line("düğün", "photos.jsonl", "iki")
+
+    assert before is not None
+    assert storage.stamp("düğün", "photos.jsonl") != before
+
+
+def test_a_file_that_is_not_there_has_no_stamp(tmp_path):
+    assert DriveStorage(str(tmp_path)).stamp("düğün", "yok.jsonl") is None
+
+
 def test_deleting_a_file_removes_it(tmp_path):
     storage = DriveStorage(str(tmp_path))
     storage.write_bytes("düğün", "0_a.png", b"PNG")

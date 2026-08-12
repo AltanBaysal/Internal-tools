@@ -13,6 +13,10 @@ oldu.
 - **Video süresi iki yerde:** grafta node `178` = 5 sn, export'ta `VIDEO_SECONDS = 5`. Bugün
   tutuyor; graf değişirse export yanlış süre gösterir.
 
+- **Galeri karoları tam boy PNG çekiyor.** Bir kare ~1.5–2.5 MB; ilk açılışta ekrandaki 8 karo
+  tünelden ~15 MB indiriyor. Karolar için küçük önizleme üretmek gerek — v7 Görev 8'in
+  taşıyabileceğinden büyük iş, senin kararın.
+
 ## Sen
 
 - **Notebook hiç model indirmemeli.** Bütün indirmeler uygulama açıldıktan sonra kurulum

@@ -105,6 +105,19 @@ class DriveStorage:
         with open(os.path.join(path, name), "a", encoding="utf-8") as f:
             f.write(line + "\n")
 
+    def stamp(self, subdir, name):
+        """(mtime, size) of root/subdir/name, or None when it is not there.
+
+        What a caller holding a parsed copy checks before trusting it: asking a file's metadata is
+        not the same cost as opening, reading and parsing it. Both numbers, not just the clock --
+        an append inside the same second still changes the length.
+        """
+        try:
+            info = os.stat(os.path.join(self.root, subdir, name))
+        except OSError:
+            return None
+        return (info.st_mtime, info.st_size)
+
     def read_lines(self, subdir, name):
         """Non-blank lines of root/subdir/name; [] when it is not there."""
         text = self.read_text(subdir, name)

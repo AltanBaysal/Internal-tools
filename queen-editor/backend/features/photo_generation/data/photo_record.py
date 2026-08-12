@@ -11,6 +11,7 @@ its source's picture, and closing one of them must not close the other.
 """
 import json
 
+from backend.features.photo_generation.data.file_cache import FileCache
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.photo_name import frame_id_of, number_of
 
@@ -47,9 +48,29 @@ def _layer_of(row):
     return layer if isinstance(layer, str) else layers.PHOTO
 
 
+def _parse(lines):
+    """Every readable row, in the order it was written.
+
+    A line that will not parse is skipped rather than raised on: the last one can be half-written
+    after a session death, and one bad line must not hide the photos before it.
+    """
+    rows = []
+    for line in lines:
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict) and isinstance(row.get("file"), str):
+            rows.append(row)
+    return rows
+
+
 class DrivePhotoRecord:
     def __init__(self, storage):
         self._storage = storage
+        # Three of this class's answers come from the same file, and the gallery asks for all
+        # three on every poll. Parsed once, kept until the file itself changes.
+        self._cache = FileCache(storage)
 
     def append(self, project, entry):
         """entry: {"file", "frame", "layer", "status", …} -- a produced photo also carries prompt,
@@ -66,20 +87,8 @@ class DrivePhotoRecord:
         self.append(project, entry)
 
     def _rows(self, project):
-        """Every readable row, in the order it was written.
-
-        A line that will not parse is skipped rather than raised on: the last one can be
-        half-written after a session death, and one bad line must not hide the photos before it.
-        """
-        rows = []
-        for line in self._storage.read_lines(project, FILE):
-            try:
-                row = json.loads(line)
-            except ValueError:
-                continue
-            if isinstance(row, dict) and isinstance(row.get("file"), str):
-                rows.append(row)
-        return rows
+        """Every readable row, in the order it was written. Read from disk only once per change."""
+        return self._cache.parsed(project, FILE, _parse)
 
     def slots(self, project):
         """{frame: {slot: {"status", "file"[, "error"]}}} -- the latest line per (frame, slot) wins.
