@@ -199,6 +199,8 @@ describe("ExportScreen", () => {
 
     fireEvent.click(screen.getByText("Galeriye dön"));
     expect(screen.getByText("Export sürüyor — çıkılsın mı?")).toBeTruthy();
+    expect(screen.getByText("Export sürüyor — çıkılsın mı?").closest(".wf-card").style.width)
+      .toBe("380px");
     expect(navigate).not.toHaveBeenCalled();
 
     await act(async () => { fireEvent.click(screen.getByText("Çık")); });

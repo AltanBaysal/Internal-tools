@@ -20,7 +20,8 @@ const RUNNING = ["running", "merging"];
 const POLL_MS = 1000;
 
 const HEADER = {
-  display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
+  display: "grid", alignItems: "center",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr)",
   padding: "14px 32px", background: "var(--bg-2)", borderBottom: "1px solid var(--border)",
 };
 // The design's own width: one column, 560px, centred in whatever room the window has.
@@ -225,7 +226,7 @@ export default function ExportScreen({ project }) {
           title="Export sürüyor — çıkılsın mı?"
           body={"Çıkarsan export iptal olur, yarım kalan klasör silinir. "
                 + "Galerine ve karelerine dokunulmaz."}
-          confirmLabel="Çık" width={400}
+          confirmLabel="Çık" width={380}
           onCancel={() => setLeaving(false)} onConfirm={leaveAnyway} />
       )}
     </div>

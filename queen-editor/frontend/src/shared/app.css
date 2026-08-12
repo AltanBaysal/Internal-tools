@@ -1,5 +1,22 @@
 /* The app's own styles. vendor/styles.css is never edited -- corrections land here. */
 
+/* Madde 107: the window itself never scrolls sideways. Two rules, and both are needed. The first
+   stops long unbreakable text -- a model file name, a Drive path, an error line -- from pushing its
+   box wider than the screen; that is the push that made the scrollbar appear. The second is the
+   guarantee behind it, so a box added later cannot bring the scrollbar back. Nothing is lost to it:
+   what is too tall scrolls in its own pane, and what is too wide now wraps instead. */
+.wf-card,
+.wf-input,
+.wf-note,
+.wf-mono {
+  overflow-wrap: anywhere;
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
 /* The design copy scrims an artboard, which is a positioned frame; our modal must cover the
    whole viewport. */
 .wf-scrim {

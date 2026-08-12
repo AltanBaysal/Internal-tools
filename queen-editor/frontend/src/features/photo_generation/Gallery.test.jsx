@@ -257,6 +257,8 @@ describe("Gallery selection mode", () => {
 
     fireEvent.click(screen.getByText("Sil"));
     expect(screen.getByText("2 kare silinsin mi?")).toBeTruthy();
+    // The shortest of the three: it keeps the standard width (madde 105).
+    expect(screen.getByText("2 kare silinsin mi?").closest(".wf-card").style.width).toBe("320px");
     expect(onDelete).not.toHaveBeenCalled();
 
     // The modal's confirm is the second Sil on screen; the bar's is the first.
@@ -309,6 +311,14 @@ describe("Gallery selection mode", () => {
 
     // The tile shows no video badge for it, so the window must not promise one either.
     expect(screen.queryByText(/birlikte silinir/)).toBeNull();
+  });
+
+  it("floats the selection bar clear of the bottom edge", () => {
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+
+    // Its own rail, not the window's floor: the bar hangs above the last row (madde 108).
+    expect(screen.getByText("1 seçili").closest("[style*='sticky']").style.bottom).toBe("28px");
   });
 
   it("takes the bar away when the selection is emptied", () => {
@@ -367,6 +377,8 @@ describe("Gallery — selecting frames that are not photos yet", () => {
     fireEvent.click(screen.getByText("Sil"));
 
     expect(screen.getByText("1 kare kuyruktan çıkarılsın mı?")).toBeTruthy();
+    expect(screen.getByText("1 kare kuyruktan çıkarılsın mı?").closest(".wf-card").style.width)
+      .toBe("400px");
     expect(screen.getByText(
       "Bu kareler üretilmeyecek. Üretilmiş karelere ve dosyalarına dokunulmaz.")).toBeTruthy();
     expect(screen.queryByText(/geri alınamaz/)).toBeNull();
@@ -381,8 +393,10 @@ describe("Gallery — selecting frames that are not photos yet", () => {
 
     fireEvent.click(screen.getByText("Sil"));
 
-    expect(screen.getByText(
-      "1 kare silinsin, 1 bekleyen kare kuyruktan çıkarılsın mı?")).toBeTruthy();
+    const title = screen.getByText("1 kare silinsin, 1 bekleyen kare kuyruktan çıkarılsın mı?");
+    expect(title).toBeTruthy();
+    // The longest of the three titles gets the widest window (madde 105).
+    expect(title.closest(".wf-card").style.width).toBe("420px");
     // No explaining line at all in this one (karar 64): title and buttons, nothing else.
     expect(screen.queryByText(/kuyruktan çıkar\./)).toBeNull();
     expect(screen.queryByText(/geri alınamaz/)).toBeNull();

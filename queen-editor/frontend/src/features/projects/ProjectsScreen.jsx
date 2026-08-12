@@ -51,7 +51,7 @@ export default function ProjectsScreen() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr auto 1fr",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr)",
           alignItems: "center",
           padding: "14px 32px",
           background: "var(--bg-2)",

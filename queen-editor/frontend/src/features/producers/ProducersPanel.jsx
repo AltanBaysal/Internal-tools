@@ -61,6 +61,7 @@ export default function ProducersPanel({ producers, error, onInstall, onCancel }
           title={`${asking.producer.name} kurulsun mu?`}
           body="Kurulum uzun sürebilir. Üretimi engellemez, arkada sürer."
           confirmLabel="Kur"
+          width={360}
           onCancel={() => setAsking(null)}
           onConfirm={confirm}
         />
@@ -70,6 +71,7 @@ export default function ProducersPanel({ producers, error, onInstall, onCancel }
           body={"İnen kısım atılır, sonra baştan kurmak gerekir. Kuyruktaki video işleri atılmaz — "
                 + "kurulum yapılana kadar beklemede kalır."}
           confirmLabel="İptal et"
+          width={360}
           danger
           onCancel={() => setAsking(null)}
           onConfirm={confirm}

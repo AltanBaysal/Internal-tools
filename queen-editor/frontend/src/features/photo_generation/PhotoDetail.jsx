@@ -11,8 +11,11 @@ import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
 import { useGeneration } from "./useGeneration.js";
 
+// minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
+// bar past the window and take the whole page sideways with it (madde 107).
 const HEADER = {
-  display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
+  display: "grid", alignItems: "center",
+  gridTemplateColumns: "minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr)",
   padding: "14px 32px", background: "var(--bg-2)", borderBottom: "1px solid var(--border)",
 };
 const STAGE = {

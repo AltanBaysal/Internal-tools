@@ -41,6 +41,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("NewProjectModal", () => {
+  it("opens at the width its form asks for", () => {
+    open();
+
+    expect(createButton().closest(".wf-card").style.width).toBe("400px");
+  });
+
   it("greets an untouched box with nothing to complain about", async () => {
     open();
     await settle(1000);

@@ -52,6 +52,9 @@ describe("ProducersPanel", () => {
     fireEvent.click(screen.getAllByText("Kur")[0]);
 
     expect(screen.getByText("Video üreticisi kurulsun mu?")).toBeTruthy();
+    // Wide enough for the two-line body it carries (madde 105).
+    expect(screen.getByText("Video üreticisi kurulsun mu?").closest(".wf-card").style.width)
+      .toBe("360px");
     expect(screen.getByText("Kurulum uzun sürebilir. Üretimi engellemez, arkada sürer."))
       .toBeTruthy();
     expect(onInstall).not.toHaveBeenCalled();
@@ -75,6 +78,8 @@ describe("ProducersPanel", () => {
     fireEvent.click(screen.getByText("İptal"));
 
     expect(screen.getByText("Kurulum iptal edilsin mi?")).toBeTruthy();
+    expect(screen.getByText("Kurulum iptal edilsin mi?").closest(".wf-card").style.width)
+      .toBe("360px");
     expect(onCancel).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByText("İptal et"));

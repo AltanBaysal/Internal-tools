@@ -46,7 +46,9 @@ const TINT = { position: "absolute", inset: 0, background: "rgba(167,139,250,.18
                borderRadius: 4 };
 // Sticky, not absolute: the gallery scrolls, and a bar anchored to the content only shows up once
 // the user has scrolled all the way down -- which is exactly when they no longer need it.
-const BAR_RAIL = { position: "sticky", bottom: 20, display: "flex", justifyContent: "center",
+// 28, not 20: with the card's shadow under it, a smaller gap reads as stuck to the floor rather
+// than floating over the gallery (madde 108).
+const BAR_RAIL = { position: "sticky", bottom: 28, display: "flex", justifyContent: "center",
                    pointerEvents: "none", zIndex: 10, marginTop: -64 };
 const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
               borderColor: "var(--accent)", pointerEvents: "auto" };
@@ -237,19 +239,21 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
   // will be deleted when 3 of them do not exist yet would be a lie, and "cannot be undone" is only
   // true of the ones that do. The mixed one is the title alone -- with both halves named there, a
   // line under it could only repeat itself (karar 64).
+  // Each carries its own width beside its own words (madde 105): the longer the sentence, the wider
+  // the window it opens in.
   const confirm = chosenPhotos.length && chosenQueued.length
     ? { title: `${chosenPhotos.length} kare silinsin, `
                + `${chosenQueued.length} bekleyen kare kuyruktan çıkarılsın mı?`,
-        label: "Sil" }
+        label: "Sil", width: 420 }
     : chosenQueued.length
       ? { title: `${chosenQueued.length} kare kuyruktan çıkarılsın mı?`,
           body: "Bu kareler üretilmeyecek. Üretilmiş karelere ve dosyalarına dokunulmaz.",
-          label: "Çıkar" }
+          label: "Çıkar", width: 400 }
       : { title: `${chosenPhotos.length} kare silinsin mi?`,
           // What goes with the frames is named before the warning: a frame is its layers too.
           body: lostLayers(chosenPhotos.map((fid) => byId.get(fid)))
                 + "Bu işlem geri alınamaz.",
-          label: "Sil" };
+          label: "Sil", width: 320 };
 
   function handleDrop() {
     const from = dragIndex;
@@ -267,7 +271,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
   return (
     // The floating bar is positioned against this box, and the extra bottom room is what lets the
     // last row scroll clear of it (the design asks for exactly that).
-    <div style={{ ...PAD, position: "relative", paddingBottom: selecting ? 84 : PAD.padding }}>
+    <div style={{ ...PAD, position: "relative", paddingBottom: selecting ? 92 : PAD.padding }}>
       <div style={GRID}>
         {frames.map((frame, index) => {
           // The frame being rendered is one the live worker happens to be holding: it has no state
@@ -400,6 +404,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
 
       {confirming && (
         <ConfirmModal title={confirm.title} body={confirm.body} confirmLabel={confirm.label}
+                      width={confirm.width}
                       busyLabel="Siliniyor…" danger busy={deleting}
                       onCancel={() => setConfirming(false)} onConfirm={handleDelete} />
       )}

@@ -5,7 +5,8 @@ import { Hand } from "../../vendor/kit.jsx";
 export default function ProjectLoading({ project }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", alignItems: "center",
+      <div style={{ display: "grid", alignItems: "center",
+                    gridTemplateColumns: "minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr)",
                     padding: "14px 32px", background: "var(--bg-2)",
                     borderBottom: "1px solid var(--border)" }}>
         <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>

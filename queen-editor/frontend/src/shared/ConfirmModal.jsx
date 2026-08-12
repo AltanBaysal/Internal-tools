@@ -4,6 +4,8 @@ import { Btn, Icon, Note } from "../vendor/kit.jsx";
 
 // The design writes its three confirms out three times; here they are one component, because the
 // only things that differ are the words, the width and whether the action destroys something.
+// The width belongs to the words, so it is the caller's to give (madde 105); 320 is only what the
+// shortest window -- deleting one frame -- needs.
 // A destructive confirm wears the app-wide destructive standard: no filled red anywhere, so the
 // last button is an outline with red text and a trash icon. Everything else gets the accent one.
 export default function ConfirmModal({ title, body, confirmLabel, busyLabel, danger, busy,

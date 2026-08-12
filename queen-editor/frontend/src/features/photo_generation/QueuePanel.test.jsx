@@ -131,6 +131,9 @@ describe("QueuePanel — a paused queue", () => {
       "Bekleyen 2 kare üretilmeden kuyruktan çıkar. Üretilmiş kareler galeride kalır."))
       .toBeTruthy();
     expect(screen.queryByText(/geri alınamaz/)).toBeNull();
+    // Each window is as wide as its own sentence (madde 105).
+    expect(screen.getByText("Kuyruk boşaltılsın mı?").closest(".wf-card").style.width)
+      .toBe("380px");
   });
 
   it("empties the queue once the confirm is taken", () => {

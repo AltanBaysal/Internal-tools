@@ -282,6 +282,7 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
           body={`Bekleyen ${owed} kare üretilmeden kuyruktan çıkar. `
                 + "Üretilmiş kareler galeride kalır."}
           confirmLabel="Boşalt"
+          width={380}
           danger
           onCancel={() => setClearing(false)}
           onConfirm={() => { setClearing(false); onCancel(); }}

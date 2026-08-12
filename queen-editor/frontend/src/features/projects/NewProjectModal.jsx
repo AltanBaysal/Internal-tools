@@ -65,7 +65,9 @@ export default function NewProjectModal({ onCancel, onCreate }) {
       <div
         className="wf-card wf-card--shadow"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: 380, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
+        // 400: the widest of the plain windows, because the name box carries a rule line under it
+        // and a warning that must not wrap mid-word (madde 105).
+        style={{ width: 400, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
       >
         <Hand size={17}>Yeni proje</Hand>
         <Mono
