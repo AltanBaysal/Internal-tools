@@ -1,13 +1,29 @@
-"""How a photo file is named: "<number>_<letter>.png" -- number = prompt, letter = variant.
+"""How a frame is identified and how its photo file is named.
 
-Both the store (which files are on disk) and the record (which files ever existed) have to read a
-number out of a name, and two copies of that rule would be two chances to disagree.
+The two are not the same thing, and this is the file that keeps them apart. The identity says which
+frame; the name says which file. A photo file can belong to more than one frame -- a copy frame
+shares its source's picture -- and one frame can own three files, so a name can never stand in for
+an identity.
+
+The identity is given at birth and never rewritten: gallery order, the detail page's address and
+the selection all point at it, and an identity that grew as layers arrived would break every one of
+them the first time a video landed.
 """
+
+
+def frame_id(number, letter):
+    """The frame's identity: number = prompt, letter = variant."""
+    return f"{number}_{letter}"
+
+
+def frame_id_of(name):
+    """"12_a.png" -> "12_a"; a name that already is an identity comes back unchanged."""
+    return name[: -len(".png")] if name.endswith(".png") else name
 
 
 def file_name(number, letter):
     """The name a frame's photo is stored under."""
-    return f"{number}_{letter}.png"
+    return f"{frame_id(number, letter)}.png"
 
 
 def number_of(filename):
