@@ -4,16 +4,14 @@ Knowledge inherited from collab-toolbox, not a dependency on it: the names and a
 into our own file, so that folder can change without changing ours (CODE-STANDARD's independence
 rule).
 
-Three kinds of entry appear here:
+Two kinds of entry appear here:
   * a file with a `url` -- the app fetches it,
   * a file with a `url` and an `auth` word -- the source wants a key, and the composition root is
     the only layer that holds one. The installer stops when it reaches a source it was given no
-    key for,
-  * a file with `url: None` -- nothing the app can fetch at all, so the notebook's setup cell
-    installs it. The installer stops there too.
+    key for, loudly: a group half installed in silence would read as installed the next time
+    anybody looked.
 
-Both stops are loud on purpose: a group half installed in silence would read as installed the next
-time anybody looked.
+Every file is fetchable from here. The notebook installs code, never a model (FOUNDATION 9).
 """
 HF_WAN22 = "https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files"
 HF_WAN21 = "https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files"

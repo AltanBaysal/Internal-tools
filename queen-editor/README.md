@@ -34,20 +34,22 @@ If the token leaks, it can only *read* this one repo — nothing else.
    - **Value:** the token from step 1
    - Toggle **Notebook access** on.
 3. Add a second secret the same way — **Name:** `CIVITAI_COOKIE`, **Value:** the
-   `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). It
-   authorises the two gated model downloads and expires every ~30 days; re-paste it when the model
-   cell stops with Civitai's response.
+   `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). The
+   notebook hands it to the app, which uses it for the gated model downloads. It expires every
+   ~30 days; re-paste it when an install stops with Civitai's response.
 4. That's it. Both live in your Colab account, not in the notebook. Set them once; every
    session and every notebook can read them. Nothing to paste again, nothing to commit.
 
 ### 3. Run
 
 **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all.** The notebook mounts Drive
-(**grant access in the popup**), clones the repo, installs ComfyUI and downloads ~7.5 GiB of models
-(~10-15 min on the first run of a session), starts Flask and prints a cloudflared link. Open it —
-the projects screen appears; **+ Yeni proje** creates a folder under `MyDrive/queenEditor/`, and
-clicking a project opens the screen where a prompt produces one photo. The secrets are read from
-Colab and never appear in any output or in the notebook source.
+(**grant access in the popup**), clones the repo, installs ComfyUI, its custom nodes and the sound
+library (~5-10 min on the first run of a session), starts Flask and prints a cloudflared link.
+**No model comes down here** — open the link and install the producers you need from the
+**Üreticiler** panel, which is also where you can see what is already on the machine. Then
+**+ Yeni proje** creates a folder under `MyDrive/queenEditor/`, and clicking a project opens the
+screen where a prompt produces one photo. The secrets are read from Colab and never appear in any
+output or in the notebook source.
 
 Developer note: the frontend ships pre-built — after changing `frontend/src/`, run `npm run build`
 in `frontend/` and commit the regenerated `dist/` (Colab never builds). Run the backend tests

@@ -42,7 +42,7 @@ GROUPS = {
     "photo": [],
     "video": [{"folder": "vae", "name": "wan_vae.safetensors", "url": "u1"},
               {"folder": "loras", "name": "high.safetensors", "url": "u2"}],
-    "audio": [{"folder": "mmaudio", "name": "mm.pth", "url": None}],
+    "audio": [{"folder": "mmaudio", "name": "mm.pth", "url": "u4"}],
 }
 
 
@@ -105,22 +105,16 @@ def test_a_second_install_is_refused_while_one_runs():
         install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "audio")
 
 
-def test_a_file_the_app_cannot_fetch_stops_the_install_and_says_why():
-    runner = sync_installer()
-
-    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "audio")
-
-    assert runner.status()["status"] == "error"
-    assert "defter" in runner.status()["error"]
-
-
-def test_a_producer_the_notebook_owns_cannot_be_installed_from_here():
+def test_a_producer_with_no_files_declared_cannot_be_installed():
+    # Not silently "done": a kind whose group is empty has nothing to install, and saying it
+    # finished would leave the panel claiming an installed producer that has no files at all.
     runner = sync_installer()
 
     install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "photo")
 
     assert runner.status()["status"] == "error"
-    assert "defter" in runner.status()["error"]
+    assert "Fotoğraf üreticisi" in runner.status()["error"]
+    assert "defter" not in runner.status()["error"]
 
 
 def test_a_gated_row_is_fetched_with_its_sources_headers():

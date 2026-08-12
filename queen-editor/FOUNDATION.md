@@ -90,3 +90,13 @@ naming point makes renaming a one-line change.
 Knowledge and verbatim copies are inherited; no imported cell, no shared file, no shared
 Drive folder. Why: the tools must be able to evolve and break independently. The full rule
 and table: [CODE-STANDARD.md](CODE-STANDARD.md).
+
+**9. The app installs its own models; the notebook installs only code.**
+The notebook brings up ComfyUI, its custom nodes and the sound library, and stops there. Every
+model file is installed after the app opens, from its own producers panel, one producer at a time.
+Why: one place answers "is this producer ready?", and it is the same place that can fix the answer.
+Two installers meant the notebook decided what was on disk while the panel reported it, and they
+only disagreed on a fresh machine — where nobody was looking. Consequence: a new machine opens with
+nothing installed, and that is the expected state rather than a failure. A source that wants a
+credential is no exception: the key reaches the app through the environment, and the download stays
+the app's.

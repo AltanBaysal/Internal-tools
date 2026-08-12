@@ -1,9 +1,8 @@
 """Fetch whatever of a producer's group is missing, in the background.
 
-The rule is the queue's own: work already done is not done again. Three things stop the run and say
-so: a file the app cannot fetch at all, a source whose key this process was not given, and a
-producer with no group of its own. A group half installed in silence would read as installed the
-next time anybody looked.
+The rule is the queue's own: work already done is not done again. Two things stop the run and say
+so: a producer with no files declared, and a source whose key this process was not given. A group
+half installed in silence would read as installed the next time anybody looked.
 
 `auth` is {source word: headers} -- the keys, held by the composition root and passed in. This use
 case never learns what a key is made of, only which sources it has one for.
@@ -15,7 +14,9 @@ class Busy(Exception):
     """An install is already running (message is user-facing)."""
 
 
-NOTEBOOK_OWNS = "{name} uygulamadan indirilemiyor — bunu defterin kurulum hücresi kurar."
+# A kind whose group is empty: there is nothing to install, and saying it finished would leave the
+# panel claiming a producer that has no files at all.
+NO_FILES = "{name} için indirilecek dosya tanımlı değil."
 # A row whose source wants a key, on a process that was given none. Named rather than skipped: a
 # silently missing file reads as installed the next time anybody looks.
 NO_KEY = "{name} indirilemiyor — {source} anahtarı yok."
@@ -28,10 +29,8 @@ def install_producer(groups, files, fetcher, runner, auth, kind):
 
     def job():
         if not group:
-            return {"status": "error", "error": NOTEBOOK_OWNS.format(name=NAMES[kind])}
+            return {"status": "error", "error": NO_FILES.format(name=NAMES[kind])}
         for spec in missing:
-            if spec["url"] is None:
-                return {"status": "error", "error": NOTEBOOK_OWNS.format(name=spec["name"])}
             source = spec.get("auth")
             if source and source not in auth:
                 return {"status": "error",
