@@ -38,6 +38,20 @@ class ComfyClient:
                                + json.dumps(info, ensure_ascii=False)[:2000]) from None
         return [name for name in names if isinstance(name, str)]
 
+    def upload_image(self, name, data):
+        """Put an image in ComfyUI's input folder and return the name the server kept it under.
+
+        The graph runs on the server's own disk while the picture lives on Drive, so the bytes
+        travel over HTTP. overwrite=true because the name is the frame's own: uploading the same
+        frame again has to replace it, not become "P0_0 (1).png" that LoadImage never looks at.
+        """
+        resp = self._http.post(f"{self.base}/upload/image",
+                               files={"image": (name, data)},
+                               data={"overwrite": "true"}, timeout=120)
+        if resp.status_code >= 400:
+            raise RuntimeError(f"POST /upload/image -> HTTP {resp.status_code}\n{resp.text}")
+        return resp.json()["name"]
+
     def submit(self, workflow):
         """Queue the graph; returns ComfyUI's prompt_id."""
         resp = self._http.post(f"{self.base}/prompt",
@@ -66,20 +80,28 @@ class ComfyClient:
                 return entry
             self._sleep(self._poll_interval)
 
-    def fetch_output(self, history_entry):
+    def fetch_output(self, history_entry, extensions=None):
         """Download THE produced file over /view and return its bytes.
 
         type=="output" drops temp previews (a preview node registers temp files). Exactly one real
         output is the contract: silently picking one of N would hide a graph whose batch size is
         not 1, so the raw outputs are printed and the render stops.
+
+        `extensions` is how a caller says which medium it came for: a video graph publishes under
+        "gifs" and often carries an image node as well, so the file is chosen by its own name
+        rather than by which key it landed in. No extensions means the images a photo graph makes.
         """
+        keys = ("gifs", "videos", "images") if extensions else ("images",)
         outputs = [item
                    for node_output in history_entry.get("outputs", {}).values()
-                   for item in node_output.get("images", [])
-                   if item.get("type", "output") == "output"]
+                   for key in keys
+                   for item in node_output.get(key, [])
+                   if item.get("type", "output") == "output"
+                   and (not extensions
+                        or item.get("filename", "").lower().endswith(tuple(extensions)))]
         if len(outputs) != 1:
             raise RuntimeError(
-                f"1 çıktı görseli bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n"
+                f"1 çıktı bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n"
                 + json.dumps(history_entry.get("outputs", {}), indent=2, ensure_ascii=False))
         item = outputs[0]
         resp = self._http.get(f"{self.base}/view", timeout=300, params={

@@ -16,6 +16,13 @@ only new frames are named the new way.
 """
 
 
+from backend.features.photo_generation.domain import layers
+
+# The first video of a frame. A frame has at most one, and asking for a second makes a new frame
+# (madde 25), so the pair stays constant until "yeniden üret" starts new rounds (madde 98).
+FIRST_ROUND, FIRST_VARIANT = 1, 0
+
+
 def frame_id(number, variant):
     """A frame's identity: P + the prompt number + its photo variant.
 
@@ -46,6 +53,17 @@ def audio_file(video, round_no, variant):
     name has to say which one.
     """
     return f"{video}_S{round_no}_{variant}.wav"
+
+
+def layer_file(kind, frame):
+    """The file name one produced layer takes.
+
+    Photo and video are named from the frame's own identity. Audio grows the VIDEO's name rather
+    than the frame's, so it joins here when the audio producer does.
+    """
+    if kind == layers.VIDEO:
+        return video_file(frame, FIRST_ROUND, FIRST_VARIANT)
+    return photo_file(frame)
 
 
 def frame_id_of(name):

@@ -28,6 +28,10 @@ class DrivePhotoStore:
         self._storage.write_bytes(project, filename, data)
         return filename
 
+    def read(self, project, filename):
+        """The file's own bytes -- what an image-to-video render hangs on."""
+        return self._storage.read_bytes(project, filename)
+
     def delete(self, project, filename):
         self._storage.delete_file(project, filename)
 

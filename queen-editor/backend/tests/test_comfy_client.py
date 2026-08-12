@@ -26,10 +26,12 @@ class FakeHttp:
         self._post = post or FakeResponse({"prompt_id": "p1"})
         self._gets = list(gets)
         self.posted = None
+        self.post_calls = []
         self.get_calls = []
 
-    def post(self, url, json=None, timeout=None):
+    def post(self, url, json=None, timeout=None, files=None, data=None):
         self.posted = (url, json)
+        self.post_calls.append({"url": url, "json": json, "files": files, "data": data})
         return self._post
 
     def get(self, url, timeout=None, params=None):
@@ -124,6 +126,47 @@ def test_fetch_output_refuses_when_not_exactly_one_output():
     with pytest.raises(RuntimeError) as exc:
         client_with(FakeHttp()).fetch_output(entry)
     assert "Batch Size" in str(exc.value)
+
+
+def test_upload_image_sends_the_file_and_returns_the_servers_name():
+    http = FakeHttp(post=FakeResponse({"name": "P0_0.png"}))
+
+    assert client_with(http).upload_image("P0_0.png", b"PNGDATA") == "P0_0.png"
+    call = http.post_calls[0]
+    assert call["url"] == "http://comfy:8188/upload/image"
+    assert call["files"] == {"image": ("P0_0.png", b"PNGDATA")}
+    # Overwrite: the same frame uploaded twice must not become "P0_0 (1).png", or LoadImage would
+    # keep pointing at the first upload.
+    assert call["data"] == {"overwrite": "true"}
+
+
+def test_upload_image_raises_with_the_servers_own_body():
+    http = FakeHttp(post=FakeResponse(status_code=413))
+
+    with pytest.raises(RuntimeError) as blew_up:
+        client_with(http).upload_image("P0_0.png", b"PNGDATA")
+
+    assert "413" in str(blew_up.value) and "raw body" in str(blew_up.value)
+
+
+def test_fetch_output_finds_a_video_among_the_graphs_outputs():
+    # A video graph publishes under "gifs" and may carry a preview image node as well.
+    entry = {"outputs": {"55": {"images": [{"filename": "a.png", "type": "output"}]},
+                         "81": {"gifs": [{"filename": "v.mp4", "subfolder": "", "type": "output"}]}}}
+    http = FakeHttp(gets=[FakeResponse(content=b"MP4DATA")])
+
+    assert client_with(http).fetch_output(entry, extensions=(".mp4",)) == b"MP4DATA"
+    _url, params = http.get_calls[0]
+    assert params["filename"] == "v.mp4"
+
+
+def test_fetch_output_says_what_came_when_no_output_has_the_wanted_extension():
+    entry = {"outputs": {"81": {"gifs": [{"filename": "v.webm", "type": "output"}]}}}
+
+    with pytest.raises(RuntimeError) as blew_up:
+        client_with(FakeHttp()).fetch_output(entry, extensions=(".mp4",))
+
+    assert "v.webm" in str(blew_up.value)
 
 
 def test_interrupt_posts_to_comfy():

@@ -35,6 +35,10 @@ class PhotoStore(Protocol):
         """Persist the photo under the name the domain chose; returns that name."""
         ...
 
+    def read(self, project: str, filename: str) -> bytes | None:
+        """The file's bytes; None when it is not there."""
+        ...
+
     def delete(self, project: str, filename: str) -> None:
         """Remove the photo from the project folder; a missing file is not an error."""
         ...

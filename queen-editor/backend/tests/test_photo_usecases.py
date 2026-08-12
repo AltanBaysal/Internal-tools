@@ -48,6 +48,7 @@ class FakeStore:
         self.next_no = next_no
         self.saved = []
         self.deleted = []
+        self.files = {}                   # what read() answers with, by name
 
     def project_exists(self, project):
         return project in self.projects
@@ -57,7 +58,11 @@ class FakeStore:
 
     def save(self, project, filename, data):
         self.saved.append((filename, data))
+        self.files[filename] = data
         return filename
+
+    def read(self, project, filename):
+        return self.files.get(filename)
 
     def delete(self, project, filename):
         self.deleted.append(filename)
@@ -82,6 +87,7 @@ class FakeGenerator:
 
     def __init__(self, fail_on=(), installed=("nova.safetensors",)):
         self.calls = []
+        self.sources = []
         self.models_called = 0
         self.fail_on = list(fail_on)
         self.installed = list(installed)
@@ -90,8 +96,9 @@ class FakeGenerator:
         self.models_called += 1
         return list(self.installed)
 
-    def generate(self, prompt, negative, seed, model=""):
+    def generate(self, prompt, negative, seed, model="", source=None):
         self.calls.append((prompt, negative, seed, model))
+        self.sources.append(source)
         if prompt in self.fail_on:
             raise FrameFault(f"node 41: {prompt}")
         return b"PNG"
@@ -249,9 +256,9 @@ def test_progress_is_reported_before_each_frame():
     seen = []
     original = generator.generate
 
-    def spy(prompt, negative, seed, model=""):
+    def spy(prompt, negative, seed, model="", source=None):
         seen.append(runner.status())
-        return original(prompt, negative, seed, model)
+        return original(prompt, negative, seed, model, source)
 
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
@@ -268,7 +275,7 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             self.calls += 1
             if self.calls <= 3:
                 raise FrameFault("node 41: OOM")
@@ -286,7 +293,7 @@ def test_a_job_the_producer_drops_is_tried_three_times_before_it_turns_red():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             self.calls += 1
             if prompt == "patlak":
                 raise FrameFault("node 41: OOM")
@@ -305,7 +312,7 @@ def test_a_dropped_job_writes_nothing_until_its_attempts_run_out():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             self.calls += 1
             if self.calls == 1:
                 raise FrameFault("node 41: OOM")
@@ -323,7 +330,7 @@ def test_each_job_gets_its_own_three_drops():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             self.calls += 1
             raise FrameFault("node 41: OOM")
 
@@ -338,7 +345,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
     """The old rule counted three failed frames in a row; the new one counts attempts on ONE frame,
     so a queue of bad prompts turns red to the end instead of stopping partway."""
     class AlwaysBroken:
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             raise FrameFault("node 41: OOM")
 
     store, runner = FakeStore(), sync_runner()
@@ -351,7 +358,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
 def test_a_loader_failure_is_no_longer_special():
     """It used to stop the run on the first frame. ComfyUI answered, so it is now the frame's."""
     class BrokenLoader:
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             raise FrameFault("node 9 (CheckpointLoaderSimple): dosya yok")
 
     runner = sync_runner()
@@ -365,7 +372,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
         def __init__(self):
             self.calls = []
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             self.calls.append(prompt)
             raise RuntimeError("Connection refused")
 
@@ -384,7 +391,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
 
 def test_a_frame_the_run_gave_up_on_is_still_owed():
     class Unreachable:
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             raise RuntimeError("Connection refused")
 
     record, plan_store = FakeRecord(), FakePlanStore()
@@ -400,7 +407,7 @@ def test_an_attempt_that_lands_costs_the_frame_nothing():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             self.calls += 1
             if self.calls <= 2:
                 raise RuntimeError("Connection refused")
@@ -420,7 +427,7 @@ def test_every_frame_gets_its_own_three_attempts():
             self.failed = set()
             self.calls = []
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             self.calls.append(prompt)
             if prompt not in self.failed:
                 self.failed.add(prompt)
@@ -442,7 +449,7 @@ def test_stop_request_ends_the_batch_between_frames():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             self.calls += 1
             runner.request_stop()
             return b"PNG"
@@ -459,7 +466,7 @@ def test_frame_killed_by_user_stop_is_not_a_failure():
     store, runner = FakeStore(), sync_runner()
 
     class StoppingGenerator:
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             runner.request_stop()          # the user's stop lands mid-render
             raise RuntimeError("interrupted")
 
@@ -863,7 +870,7 @@ class FailsTwice:
     def __init__(self):
         self.calls = []
 
-    def generate(self, prompt, negative, seed, model=""):
+    def generate(self, prompt, negative, seed, model="", source=None):
         self.calls.append((prompt, negative, seed, model))
         if len(self.calls) < 3:
             raise FrameFault(f"node 41: {prompt}")
@@ -895,6 +902,38 @@ def test_a_video_job_with_no_prompt_has_one_written_from_the_photos():
     assert generator.calls == [("kadın başını yavaşça çeviriyor", "", None, "")]
     video = [row for row in record.rows if row.get("layer") == "video"][0]
     assert video["prompt"] == "kadın başını yavaşça çeviriyor"
+
+
+def test_a_video_is_written_under_the_layers_own_name():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    generator = FakeGenerator()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                 lambda: "t", "düğün", writers={layers.VIDEO: FakeWriter()})
+
+    assert [name for name, _data in store.saved] == ["0_a_V1_0.mp4"]
+    video = [row for row in record.rows if row.get("layer") == "video"][0]
+    assert video["file"] == "0_a_V1_0.mp4"
+
+
+def test_the_video_producer_is_handed_the_frames_own_photo():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    store.files["0_a.png"] = b"PNGDATA"
+    generator = FakeGenerator()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                 lambda: "t", "düğün", writers={layers.VIDEO: FakeWriter()})
+
+    assert generator.sources == [("0_a.png", b"PNGDATA")]
+
+
+def test_a_photo_is_made_from_its_prompt_alone():
+    runner, store, record = sync_runner(), FakeStore(), FakeRecord()
+    generator = FakeGenerator()
+
+    run_batch(runner, store, generator, text='["a"]', variants=1, record=record)
+
+    assert generator.sources == [None]
 
 
 def test_a_job_that_carries_its_own_prompt_never_reaches_the_model():
@@ -1374,7 +1413,7 @@ def test_the_plan_is_appended_before_the_first_frame_renders():
     plan_store, runner = FakePlanStore(), sync_runner()
 
     class ChecksThePlan:
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             assert plan_store.appended, "the batch started before the plan was appended to"
             return b"PNG"
 
@@ -1436,12 +1475,12 @@ def test_frames_added_while_the_loop_runs_are_produced_in_the_same_run():
     plan_store, record, generator, seen = FakePlanStore(), FakeRecord(), FakeGenerator(), []
     rendering = generator.generate
 
-    def spy(prompt, negative, seed, model=""):
+    def spy(prompt, negative, seed, model="", source=None):
         seen.append(prompt)
         if prompt == "ilk":
             plan_store.append("düğün", [{"number": 9, "letter": "a", "prompt": "sonradan",
                                          "negative": "", "seed": 7, "model": ""}])
-        return rendering(prompt, negative, seed, model)
+        return rendering(prompt, negative, seed, model, source)
 
     generator.generate = spy
     run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,
@@ -1641,7 +1680,7 @@ def test_the_loop_finishes_photos_before_it_starts_videos():
         def __init__(self, kind):
             self.kind = kind
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             done.append(self.kind)
             return b"X"
 

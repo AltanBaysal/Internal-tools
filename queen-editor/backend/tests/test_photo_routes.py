@@ -33,7 +33,7 @@ class FakeGenerator:
     def models(self):
         return list(self.installed)
 
-    def generate(self, prompt, negative, seed, model=""):
+    def generate(self, prompt, negative, seed, model="", source=None):
         self.calls.append((prompt, negative, seed, model))
         return b"PNGDATA"
 
@@ -47,7 +47,7 @@ class StopsAfter:
         self.count = count
         self.calls = 0
 
-    def generate(self, prompt, negative, seed, model=""):
+    def generate(self, prompt, negative, seed, model="", source=None):
         self.calls += 1
         if self.calls > self.count:
             self.runner.request_stop()
@@ -186,7 +186,7 @@ def test_adding_to_the_running_projects_own_queue_is_accepted(tmp_path):
 
 def test_failed_batch_shows_the_real_error_in_status(tmp_path):
     class Broken:
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             raise RuntimeError("node 9 (CheckpointLoaderSimple): dosya yok")
 
     client, _ = make_client(tmp_path, generator=Broken())
@@ -313,7 +313,7 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     class BlowsUpOnTheFirstPrompt:
         """Drops the same job every time it is offered -- three attempts, then red."""
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             if prompt == "a":
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
@@ -403,7 +403,7 @@ def test_retry_without_a_file_puts_every_red_frame_back(tmp_path):
         def __init__(self):
             self.forgiving = False
 
-        def generate(self, prompt, negative, seed, model=""):
+        def generate(self, prompt, negative, seed, model="", source=None):
             if not self.forgiving:
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"

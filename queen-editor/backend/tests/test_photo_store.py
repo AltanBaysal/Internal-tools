@@ -52,3 +52,12 @@ def test_save_writes_the_file_and_returns_its_name(tmp_path):
 
 def test_photo_dir_is_the_project_folder(tmp_path):
     assert store_at(tmp_path).photo_dir("düğün") == str(tmp_path / "düğün")
+
+
+def test_a_photos_bytes_can_be_read_back(tmp_path):
+    # What a video render hangs on: the picture itself, not its path.
+    store = store_at(tmp_path)
+    store.save("düğün", "P0_0.png", b"PNGDATA")
+
+    assert store.read("düğün", "P0_0.png") == b"PNGDATA"
+    assert store.read("düğün", "yok.png") is None

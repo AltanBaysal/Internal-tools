@@ -14,8 +14,8 @@ second map, exactly the way it finds the producer.
 """
 import time
 
-from backend.features.photo_generation.domain import policy, queue
-from backend.features.photo_generation.domain.photo_name import photo_file
+from backend.features.photo_generation.domain import layers, policy, queue
+from backend.features.photo_generation.domain.photo_name import layer_file, photo_file
 
 
 def _prompts_of(record, project, fid):
@@ -26,6 +26,21 @@ def _prompts_of(record, project, fid):
     """
     photo = next((row for row in record.list(project) if row["frame"] == fid), None)
     return {"photo": (photo or {}).get("prompt", "")}
+
+
+def _source_for(kind, store, slots, project, fid):
+    """The picture a layer is made from, as (name, bytes); None for a layer that needs none.
+
+    A video hangs on the frame's photo, while a photo is made from its prompt alone. Read at the
+    job's turn rather than kept in memory: the file is on Drive and the run may have started hours
+    ago. `slots` is the turn's own snapshot, so nothing is asked of the record twice.
+    """
+    if kind == layers.PHOTO:
+        return None
+    photo = slots.get(fid, {}).get(layers.PHOTO)
+    if not photo:
+        return None
+    return (photo["file"], store.read(project, photo["file"]))
 
 
 def make_job(runner, store, record, plan_store, producers, now, project,
@@ -80,7 +95,10 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # in the gallery is the order things are made in.
                 return summary("waiting", waitingFor=kind)
             fid = current["id"]
-            name = photo_file(fid)
+            # The layer's own name: what gets saved, and what a failure's line points at. The
+            # gallery still marks its tiles by the frame's photo name (see the report below) --
+            # that is the screen's identifier for a frame, not the layer's.
+            name = layer_file(kind, fid)
             if name != holding:
                 # A different job: its predecessor's attempts and written prompt are not its own.
                 holding, attempts, written = name, 0, None
@@ -105,7 +123,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                         written = writer.write(source)
                 prompt = current["prompt"] or written or ""
                 data = producer.generate(prompt, current["negative"], current["seed"],
-                                         current["model"])
+                                         current["model"],
+                                         source=_source_for(kind, store, slots, project, fid))
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job

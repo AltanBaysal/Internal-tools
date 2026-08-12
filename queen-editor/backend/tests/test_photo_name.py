@@ -3,6 +3,7 @@ from backend.features.photo_generation.domain.photo_name import (
     audio_file,
     frame_id,
     frame_id_of,
+    layer_file,
     legacy_frame_id,
     number_of,
     photo_file,
@@ -68,6 +69,12 @@ def test_a_name_outside_both_schemes_has_no_number():
     assert number_of("12.png") is None
     assert number_of("12_ab.png") is None
     assert number_of("x_a.png") is None
+
+
+def test_a_layers_file_is_named_by_what_it_is():
+    assert layer_file("photo", "P11_3") == "P11_3.png"
+    # The first (and only) video of a frame: round 1, variant 0 -- a second video is a new frame.
+    assert layer_file("video", "P11_3") == "P11_3_V1_0.mp4"
 
 
 def test_a_name_says_which_variant_it_is():

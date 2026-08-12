@@ -6,6 +6,7 @@ from functools import partial
 
 from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
+from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.xai_prompt_writer import VideoPromptWriter
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.data.order_store import DriveOrderStore
@@ -66,9 +67,11 @@ _projects_bp = make_projects_blueprint(
 _photo_store = DrivePhotoStore(_storage)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
-# What the loop dispatches on: one producer per job type. Video and audio join this map when their
-# producers exist; until then a job of that type stops the run instead of being skipped.
-_producers = {layers.PHOTO: _photo_generator}
+_video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
+                                       config.VIDEO_TIMEOUT)
+# What the loop dispatches on: one producer per job type. Audio joins this map when its producer
+# exists; until then an audio job waits for it instead of being skipped.
+_producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator}
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
 _xai = XaiClient(config.XAI_API_KEY, config.XAI_MODEL, config.XAI_URL, timeout=config.XAI_TIMEOUT)
 _writers = {layers.VIDEO: VideoPromptWriter(_xai)}
