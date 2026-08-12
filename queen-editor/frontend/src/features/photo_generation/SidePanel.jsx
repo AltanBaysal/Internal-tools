@@ -109,13 +109,18 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
                                     onGenerate, onStop, onResume,
                                     onCancel, onClearError, onRetryAll, resumed }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
-  // has a reason to know it.
+  // has a reason to know it. null means none of them -- pressing the open panel's own icon closes
+  // it and gives the width back to the gallery, the way a code editor's side bar behaves.
   const [open, setOpen] = useState("photo");
+  const toggle = (id) => setOpen((shown) => (shown === id ? null : id));
   const current = PANELS.find((panel) => panel.id === open);
   const installing = (producers?.producers || []).some((producer) => producer.installing);
 
   return (
     <div style={COLUMN}>
+      {/* Closed is not an empty panel but no panel: the column is not drawn at all, so its width
+          goes back to the gallery. */}
+      {current && (
       <div className="wf-panel" style={PANEL}>
         {/* A real heading: the open panel's name is also the only thing on screen that says which
             of the three you are looking at. */}
@@ -152,10 +157,11 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
                           onInstall={producers?.install} onCancel={producers?.cancel} />
         )}
       </div>
+      )}
       <div style={RAIL}>
         {PANELS.map((panel) => (
           <RailButton key={panel.id} panel={panel} active={panel.id === open}
-                      busy={panel.id === "producers" && installing} onSelect={setOpen} />
+                      busy={panel.id === "producers" && installing} onSelect={toggle} />
         ))}
       </div>
     </div>

@@ -36,6 +36,33 @@ describe("SidePanel — the icon rail", () => {
     expect(screen.getByLabelText("Kuyruğu takip et").getAttribute("aria-current")).toBeNull();
   });
 
+  it("closes the open panel when its own icon is pressed again", () => {
+    renderColumn();
+
+    fireEvent.click(screen.getByLabelText("Fotoğraf üret"));
+
+    expect(screen.queryByPlaceholderText(PROMPT_BOX)).toBeNull();
+    expect(screen.getByLabelText("Fotoğraf üret")).toBeTruthy();      // the rail stays
+  });
+
+  it("opens it again on the next press", () => {
+    renderColumn();
+
+    fireEvent.click(screen.getByLabelText("Fotoğraf üret"));
+    fireEvent.click(screen.getByLabelText("Fotoğraf üret"));
+
+    expect(screen.getByPlaceholderText(PROMPT_BOX)).toBeTruthy();
+    expect(screen.getByLabelText("Fotoğraf üret").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("marks no icon as open while the panel is closed", () => {
+    const { container } = renderColumn();
+
+    fireEvent.click(screen.getByLabelText("Fotoğraf üret"));
+
+    expect(container.querySelectorAll("[aria-current='page']")).toHaveLength(0);
+  });
+
   it("swaps the panel when another icon is pressed", () => {
     renderColumn({ job: RUNNING, queue: [{ layer: "photo", owed: 2 }] });
 
