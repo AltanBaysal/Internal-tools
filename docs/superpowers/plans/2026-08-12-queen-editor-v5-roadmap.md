@@ -1,7 +1,8 @@
 # Queen Editor — Yol Haritası v5
 
-**Tarih:** 2026-08-12 · **Koşu dalı:** `feat/queen-editor-v3` (koşu başlarken açılır) ·
-**Durum:** koşu başlamadı.
+**Tarih:** 2026-08-12 · **Koşu dalı:** `feat/queen-editor-v3` ·
+**Durum:** 33 görevin 33'ü yazıldı ve commit edildi (`a878d59`'a kadar); **kullanıcının elle Colab
+turu bekliyor** — aşağıdaki *Koşunun sonu* bölümü.
 **Yerini aldığı doküman:** [2026-08-08-queen-editor-v4-roadmap.md](2026-08-08-queen-editor-v4-roadmap.md)
 — Madde 1-11 bitti ve push edildi; Madde 12 (Colab turu) yalnız yüzeysel koşuldu, o borç bu koşuya
 devrolmaz — v5'in kendi doğrulaması kendi işini kapsar.
@@ -554,7 +555,23 @@ bu belgede verilmez:
 | Birleşik videonun birleştirilme yolu | Görev 30 spec'i |
 | Kuyruk kartlarında canlı noktanın davranışı (tasarım suskun) | Görev 9 spec'i |
 
-## Sıradaki adım
+## Koşunun sonu
 
-**Görev 1'in spec'i.** Koşu dalı açılır (`feat/queen-editor-v3`), Görev 1 — *Kare katman yığını
-olur* — spec → plan → full TDD döngüsüne girer.
+**33 görevin 33'ü bitti.** Her görev kendi spec'i, kendi planı ve kendi commit'iyle;
+`feat/queen-editor-v3` dalında, son commit `a878d59`. Takım durumu: **550 arka uç · 295 ön yüz
+testi geçiyor**, `dist/` her ön yüz commit'inde yeniden üretildi.
+
+**Elle doğrulamadan önce yapılacaklar** — ikisi de kullanıcının:
+
+| Ne | Neden |
+|---|---|
+| `queen-editor/workflow_video_api.json` ve `workflow_audio_api.json` repoya konmalı | ComfyUI → **Export (API)** ile dışa aktarılır; ikisi de repoda yok, onlarsız video ve ses üretilemez |
+| `queen-editor/app.ipynb` içindeki `BRANCH` `feat/queen-editor-v3` yapılmalı | Defter dalı klonluyor; bugün hâlâ `feat/queen-editor-v2` yazıyor |
+
+**Colab turunda özellikle bakılacaklar** — bu koşuda testle kapatılamayan üç yer:
+
+- **Yatay taşma** *(madde 107)*: jsdom yerleşim hesaplamıyor, düzeltme ancak gerçek pencerede
+  görülür.
+- **Seçim barının yüzmesi** *(madde 108)*: 28 piksel bir tercih, ölçülmüş bir sabit değil.
+- **Export'un ffmpeg'i** *(Görev 30)*: Colab'da kurulu gelir; yerel çalıştırmada yoksa export
+  ffmpeg'in kendi cümlesiyle durur.
