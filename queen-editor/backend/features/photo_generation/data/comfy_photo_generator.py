@@ -31,7 +31,11 @@ class ComfyPhotoGenerator:
         producer is a graph plus the models it needs, so an empty list means nothing was set up."""
         return bool(self._client.checkpoints())
 
-    def generate(self, prompt, negative, seed, model=""):
+    def generate(self, prompt, negative, seed, model="", source=None):
+        """`source` is nobody's business here: a picture is made from its words alone. The argument
+        is taken because the queue has one call shape for every producer -- see
+        ports.PhotoGenerator.
+        """
         workflow = self._load()
         self._set_text(workflow, PROMPT_NODE, prompt)
         # An empty negative is written through as empty: leaving the export's own text in place

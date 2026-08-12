@@ -113,11 +113,9 @@ def test_a_long_video_is_rendered_piece_by_piece_and_joined(tmp_path):
     assert fade_ms == 100
 
 
-def test_the_answer_is_a_wav_named_after_the_video(tmp_path):
-    name, data = make(tmp_path).generate("waves", "", 1, source=SOURCE)
-
-    assert name == "P0_0_V1_0.wav"
-    assert data == b"RIFFwav"
+def test_the_answer_is_the_sound_itself(tmp_path):
+    # Bytes and nothing else: the queue names the file, not the producer.
+    assert make(tmp_path).generate("waves", "", 1, source=SOURCE) == b"RIFFwav"
 
 
 def test_nothing_is_left_behind_on_disk(tmp_path):

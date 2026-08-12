@@ -31,21 +31,23 @@ class MMAudioGenerator:
         self._tmp_dir = tmp_dir
 
     def generate(self, prompt, negative, seed, model="", source=None):
-        """`source` is the frame's video as (name, bytes); the answer is its sound as (name, bytes).
+        """`source` is the frame's video as (name, bytes); the answer is its sound as bytes.
+
+        The name is not ours to give: the queue names every layer file from the domain's scheme
+        (photo_name.layer_file), and a second name written here drifts from it -- as it had.
 
         `model` belongs to the port rather than to this engine: which weights are used is the
         installation's answer, and a sound job carries no choice of its own.
         """
         if not source:
             raise RuntimeError("Ses için kaynak video verilmedi")
-        name, data = source
+        _name, data = source
         room = tempfile.mkdtemp(dir=self._tmp_dir)
         try:
             video = os.path.join(room, "source.mp4")
             with open(video, "wb") as handle:
                 handle.write(data)
-            wav = self._sound_for(room, video, prompt, negative or NEGATIVE, seed)
-            return f"{os.path.splitext(name)[0]}.wav", wav
+            return self._sound_for(room, video, prompt, negative or NEGATIVE, seed)
         finally:
             # Whatever happened, the room goes: a failed render must not leave a video on the disk.
             shutil.rmtree(room, ignore_errors=True)

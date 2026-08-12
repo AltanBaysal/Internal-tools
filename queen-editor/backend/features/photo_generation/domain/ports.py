@@ -3,8 +3,18 @@ from typing import Protocol
 
 
 class PhotoGenerator(Protocol):
-    def generate(self, prompt: str, negative: str, seed: int, model: str = "") -> bytes:
-        """Render one photo and return its bytes. An empty model means the graph's own default."""
+    def generate(self, prompt: str, negative: str, seed: int, model: str = "",
+                 source: tuple | None = None) -> bytes:
+        """Render one layer and return its bytes -- nothing else, and no name.
+
+        `source` is the file this layer is made from as (name, bytes): a video's photo, a sound's
+        video. A layer made from its words alone is given None, and every producer takes the
+        argument whether it uses it or not -- the queue has one call shape, not three.
+
+        The file's name is the domain's (photo_name.layer_file), never the producer's.
+
+        An empty model means the graph's own default.
+        """
         ...
 
     def models(self) -> list:
