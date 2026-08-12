@@ -18,7 +18,10 @@ from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
+from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
+from backend.features.photo_generation.domain.usecases.run_export import start_export
+from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
@@ -89,6 +92,24 @@ _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
 _order_store = DriveOrderStore(_storage)
 
+_export_runner = ExportRunner()
+_video_exporter = FfmpegVideoExporter()
+
+
+_start_export = partial(
+    start_export, _export_runner, _photo_store, _photo_record, _plan_store, _order_store,
+    _video_exporter,
+    # Local time and down to the minute: the folder's name is read by a person, and two exports of
+    # the same opening are meant to land together (madde 92).
+    lambda: datetime.now().strftime("%Y-%m-%d %H-%M"))
+
+
+def _cancel_export():
+    """Both modes: leaving the screen cancels whatever it started."""
+    for mode in MODES:
+        _export_runner.cancel(mode)
+
+
 def _timing(line):
     """Where the loop's per-frame timing line lands: this process's own output, which in Colab is
     the cell left open on the server. flush=True because Python block-buffers a redirected stdout,
@@ -132,6 +153,9 @@ _photo_bp = make_photo_generation_blueprint(
     list_models=partial(list_models, _photo_generator),
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
     export_summary=partial(export_summary, _photo_record, _photo_store, _plan_store, _order_store),
+    export_state=_export_runner.state,
+    run_export=_start_export,
+    cancel_export=_cancel_export,
     remove_frames=partial(remove_frames, _photo_record, _photo_store, _plan_store, _order_store,
                           lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     photo_dir=_photo_store.photo_dir,

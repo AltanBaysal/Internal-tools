@@ -7,6 +7,7 @@ lives in exactly one place (the domain).
 from flask import Blueprint, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.export_runner import MODES
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
 from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing
@@ -33,7 +34,8 @@ REMOVABLE = (layers.VIDEO, layers.AUDIO)
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
                                     regenerate, remove_layer, list_frames, list_models, save_order,
-                                    export_summary, remove_frames, photo_dir):
+                                    export_summary, export_state, run_export, cancel_export,
+                                    remove_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -201,6 +203,30 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
+
+    @bp.get("/api/projects/<project>/export/status")
+    def export_status(project):
+        # Per mode, so a screen with one export running and one idle reads both in one answer.
+        return jsonify(export_state())
+
+    @bp.post("/api/projects/<project>/export/<mode>")
+    def start_export(project, mode):
+        if mode not in MODES:
+            return jsonify({"error": f"Böyle bir export yok: {mode}"}), 404
+        try:
+            started = run_export(project, mode)
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        if not started:
+            return jsonify({"error": "Bu export zaten sürüyor."}), 409
+        # 202: writing the files takes minutes, and how far it has got is read from the status.
+        return jsonify({"job": "running"}), 202
+
+    @bp.post("/api/projects/<project>/export/cancel")
+    def cancel_export_route(project):
+        # Both modes: leaving the screen cancels whatever it started (madde 96).
+        cancel_export()
+        return jsonify({"job": "cancelling"}), 202
 
     @bp.get("/api/projects/<project>/export/summary")
     def export_summary_of(project):

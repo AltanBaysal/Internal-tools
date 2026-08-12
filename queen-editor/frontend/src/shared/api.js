@@ -209,3 +209,18 @@ export function fileUrl(project, file) {
 export async function getExportSummary(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/export/summary`);
 }
+
+// Start writing. 202: the files take minutes, and how far it has got is read from the state.
+export async function startExport(project, mode) {
+  return request(`/api/projects/${encodeURIComponent(project)}/export/${mode}`, { method: "POST" });
+}
+
+// Both modes in one answer: one can be running while the other is finished.
+export async function getExportState(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/export/status`);
+}
+
+// Leaving the screen cancels whatever it started -- an export is session-bound (madde 96).
+export async function cancelExport(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/export/cancel`, { method: "POST" });
+}

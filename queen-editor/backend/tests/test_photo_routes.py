@@ -8,6 +8,8 @@ from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
+from backend.features.photo_generation.domain.usecases.run_export import start_export
+from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
@@ -57,6 +59,19 @@ class StopsAfter:
         return b"PNGDATA"
 
 
+class RecordingExporter:
+    """Writes nothing: what the endpoint tests care about is that the run was started at all."""
+
+    def __init__(self):
+        self.pieces = []
+
+    def piece(self, video, audio, target):
+        self.pieces.append(target)
+
+    def merge(self, pieces, target):
+        self.pieces.append(target)
+
+
 def make_client(tmp_path, generator=None, runner=None):
     drive = tmp_path / "drive"
     (drive / "düğün").mkdir(parents=True)
@@ -70,6 +85,8 @@ def make_client(tmp_path, generator=None, runner=None):
     plan_store = DrivePlanStore(storage)
     order_store = DriveOrderStore(storage)
     runner = runner or PhotoRunner(spawn=lambda fn: fn())
+    export_runner = ExportRunner(spawn=lambda fn: fn())
+    exporter = RecordingExporter()
     generator = generator or FakeGenerator()
     producers = {layers.PHOTO: generator}
     blueprint = make_photo_generation_blueprint(
@@ -96,6 +113,10 @@ def make_client(tmp_path, generator=None, runner=None):
         list_models=partial(list_models, generator),
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_summary=partial(export_summary, record, store, plan_store, order_store),
+        export_state=export_runner.state,
+        run_export=partial(start_export, export_runner, store, record, plan_store, order_store,
+                           exporter, lambda: "2026-08-12 14-32"),
+        cancel_export=lambda: [export_runner.cancel(mode) for mode in MODES],
         remove_frames=partial(remove_frames, record, store, plan_store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),
         photo_dir=store.photo_dir,
@@ -708,6 +729,34 @@ def test_the_old_export_download_is_gone(tmp_path):
 def test_the_summary_of_an_unknown_project_returns_404(tmp_path):
     client, _ = make_client(tmp_path)
     assert client.get("/api/projects/yok/export/summary").status_code == 404
+
+
+def test_an_export_runs_and_says_where_it_wrote(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    give_it_a_video(drive)
+
+    resp = client.post("/api/projects/düğün/export/separate")
+
+    assert resp.status_code == 202
+    state = client.get("/api/projects/düğün/export/status").get_json()["separate"]
+    assert (state["state"], state["written"], state["total"]) == ("done", 1, 1)
+    assert state["target"].endswith("2026-08-12 14-32")
+
+
+def test_an_export_of_an_unknown_project_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.post("/api/projects/yok/export/separate").status_code == 404
+
+
+def test_an_export_mode_that_does_not_exist_returns_404(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.post("/api/projects/düğün/export/yarım").status_code == 404
+
+
+def test_cancelling_an_export_is_accepted(tmp_path):
+    client, _ = make_client(tmp_path)
+    assert client.post("/api/projects/düğün/export/cancel").status_code == 202
 
 
 def test_a_broken_order_file_does_not_hide_the_gallery(tmp_path):

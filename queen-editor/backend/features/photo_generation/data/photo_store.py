@@ -10,6 +10,7 @@ Listing the folder is deliberately not offered: which photos a project has is th
 answer, and two ways to ask it would be two ways to disagree.
 """
 import os
+import shutil
 
 from backend.features.photo_generation.domain.photo_name import number_of
 
@@ -42,6 +43,27 @@ class DrivePhotoStore:
 
     def photo_dir(self, project):
         return self._storage.dir_path(project)
+
+    def file_path(self, project, filename):
+        """One file's full path -- what a tool outside this process is handed."""
+        return os.path.join(self._storage.dir_path(project), filename)
+
+    def make_export_folder(self, project, stamp):
+        """A fresh folder for one export opening, named after the moment it started.
+
+        Down to the minute (design v3, madde 92), so two exports of the same opening land in one
+        folder and neither overwrites the other -- their file names never collide.
+        """
+        folder = os.path.join(self.export_dir(project), stamp)
+        os.makedirs(folder, exist_ok=True)
+        return folder
+
+    def export_path(self, folder, filename):
+        return os.path.join(folder, filename)
+
+    def remove_dir(self, path):
+        """Take a folder and everything in it. Used on a failed or cancelled export."""
+        shutil.rmtree(path, ignore_errors=True)
 
     def export_dir(self, project):
         """Where an export lands: one folder inside the project, next to its photos.
