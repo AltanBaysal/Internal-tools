@@ -82,10 +82,27 @@ def test_a_kind_with_no_group_is_not_installed():
 
 def test_the_running_install_is_reported_on_its_own_row():
     rows = list_producers(GROUPS, FakeFiles(),
-                          running={"kind": "video", "done": 5, "total": 10, "file": "wan"})
+                          running={"status": "running", "kind": "video",
+                                   "file": "wan.safetensors"})
 
-    assert rows[1]["installing"] == {"done": 5, "total": 10, "file": "wan"}
+    # The file being fetched, and nothing else: a percentage that restarts per file was movement
+    # rather than information.
+    assert rows[1]["installing"] == {"file": "wan.safetensors"}
     assert "installing" not in rows[0]
+
+
+def test_a_finished_install_leaves_no_row_claiming_to_be_running():
+    rows = list_producers(GROUPS, FakeFiles(), running={"status": "done", "kind": "video"})
+
+    assert all("installing" not in row for row in rows)
+
+
+def test_a_failed_install_shows_its_own_words_instead_of_running_forever():
+    rows = list_producers(GROUPS, FakeFiles(),
+                          running={"status": "error", "kind": "video", "error": "bağlantı yok"})
+
+    assert "installing" not in rows[1]
+    assert rows[1]["error"] == "bağlantı yok"
 
 
 def test_it_fetches_only_what_is_missing():

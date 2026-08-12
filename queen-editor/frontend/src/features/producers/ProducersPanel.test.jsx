@@ -10,7 +10,7 @@ const THREE = [
 ];
 
 const INSTALLING = THREE.map((producer) => (producer.id === "video"
-  ? { ...producer, installing: { done: 5, total: 10, file: "wan.safetensors" } }
+  ? { ...producer, installing: { file: "wan.safetensors" } }
   : producer));
 
 function renderPanel(props) {
@@ -64,11 +64,19 @@ describe("ProducersPanel", () => {
     expect(onInstall).toHaveBeenCalledWith("video");
   });
 
-  it("shows how far the running install has got, and offers a way out", () => {
+  it("names what the running install is fetching, and offers a way out", () => {
     renderPanel({ producers: INSTALLING });
 
-    expect(screen.getByText("kuruluyor… bitince bu kart kaybolur")).toBeTruthy();
+    expect(screen.getByText("kuruluyor… wan.safetensors")).toBeTruthy();
     expect(screen.getByText("İptal")).toBeTruthy();
+  });
+
+  it("shows a failed install with the server's own words and a way to try again", () => {
+    renderPanel({ producers: THREE.map((producer) => (producer.id === "video"
+      ? { ...producer, error: "bağlantı yok" } : producer)) });
+
+    expect(screen.getByText("bağlantı yok")).toBeTruthy();
+    expect(screen.getAllByText("Kur")).toHaveLength(2);
   });
 
   it("asks before it throws away what has come down so far", () => {

@@ -3,7 +3,7 @@ import { useState } from "react";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Note } from "../../vendor/kit.jsx";
-import { Bar } from "./InstallCard.jsx";
+import { Running } from "./InstallCard.jsx";
 
 const ROW = { padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 };
 
@@ -34,24 +34,24 @@ export default function ProducersPanel({ producers, error, onInstall, onCancel }
           <Note size={12} style={{ color: "var(--ink-2)" }}>{producer.name}</Note>
           {producer.installing ? (
             <>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span aria-hidden="true" className="qe-dot qe-dot--alive"
-                      style={{ background: "var(--accent)" }} />
-                <Note size={12} style={{ color: "var(--ink-2)" }}>
-                  kuruluyor… bitince bu kart kaybolur
-                </Note>
-              </div>
-              <Bar done={producer.installing.done} total={producer.installing.total} />
+              <Running file={producer.installing.file} />
               <Btn sm ghost onClick={() => setAsking({ producer, kind: "cancel" })}
                    style={{ alignSelf: "flex-start", color: "var(--danger)" }}>İptal</Btn>
             </>
           ) : producer.installed ? (
             <Note size={12} style={{ color: "var(--ok)" }}>✓ kurulu</Note>
           ) : (
-            // Unlike the card inside a generation panel, this one asks first: the user came here to
-            // do maintenance, and how long it may take is worth saying before it starts.
-            <Btn hl onClick={() => setAsking({ producer, kind: "install" })}
-                 style={{ justifyContent: "center" }}>Kur</Btn>
+            <>
+              {/* The last attempt's own sentence: an install that failed while the row kept
+                  saying "kuruluyor" is the whole reason this panel could not be trusted. */}
+              {producer.error && (
+                <Note size={12} style={{ color: "var(--danger)" }}>{producer.error}</Note>
+              )}
+              {/* Unlike the card inside a generation panel, this one asks first: the user came here
+                  to do maintenance, and how long it may take is worth saying before it starts. */}
+              <Btn hl onClick={() => setAsking({ producer, kind: "install" })}
+                   style={{ justifyContent: "center" }}>Kur</Btn>
+            </>
           )}
         </div>
       ))}

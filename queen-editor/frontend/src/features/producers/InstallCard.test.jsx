@@ -16,12 +16,27 @@ describe("InstallCard", () => {
     expect(onInstall).toHaveBeenCalledWith("video");
   });
 
-  it("turns into progress while the download runs", () => {
-    render(<InstallCard producer={{ ...MISSING, installing: { done: 5, total: 10, file: "wan" } }}
+  it("says what is coming down while the download runs", () => {
+    render(<InstallCard producer={{ ...MISSING, installing: { file: "wan.safetensors" } }}
                         onInstall={() => {}} />);
 
-    expect(screen.getByText("kuruluyor… bitince bu kart kaybolur")).toBeTruthy();
+    expect(screen.getByText("kuruluyor… wan.safetensors")).toBeTruthy();
     expect(screen.queryByText("Kur")).toBeNull();
+  });
+
+  it("draws no progress bar at all", () => {
+    const { container } = render(
+      <InstallCard producer={{ ...MISSING, installing: { file: "wan.safetensors" } }}
+                   onInstall={() => {}} />);
+
+    expect(container.querySelector("[data-bar]")).toBeNull();
+  });
+
+  it("shows the failure of the last attempt next to a fresh Kur", () => {
+    render(<InstallCard producer={{ ...MISSING, error: "bağlantı yok" }} onInstall={() => {}} />);
+
+    expect(screen.getByText("bağlantı yok")).toBeTruthy();
+    expect(screen.getByText("Kur")).toBeTruthy();
   });
 
   it("is nothing at all once the producer is installed", () => {

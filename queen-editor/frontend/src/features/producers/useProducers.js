@@ -34,13 +34,24 @@ export function useProducers() {
     };
   }, [refresh]);
 
-  // Believe it started right away, the way the queue does: the answer is 202 and the truth arrives
-  // with the next read.
-  const install = useCallback((kind) => (
-    installProducer(kind)
+  // Say it on screen before the server has answered. Otherwise two round-trips stand between the
+  // click and any change at all, and behind a tunnel that is long enough for the user to press Kur
+  // a second time. The first real read overwrites it either way; a refused request takes it back.
+  const said = useCallback((kind, installing) => {
+    setProducers((rows) => (rows || []).map((row) => (
+      row.id === kind ? { ...row, installing } : row)));
+  }, []);
+
+  const install = useCallback((kind) => {
+    said(kind, { file: null });
+    return installProducer(kind)
       .then(() => refresh())
-      .catch((err) => { if (alive.current) setError(err.message); })
-  ), [refresh]);
+      .catch((err) => {
+        if (!alive.current) return;
+        said(kind, undefined);
+        setError(err.message);
+      });
+  }, [refresh, said]);
 
   const cancel = useCallback((kind) => (
     cancelInstall(kind)
