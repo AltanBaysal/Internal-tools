@@ -21,14 +21,16 @@ Matching ComfyUI's frameworks without its reasons would be cargo-culting: it cho
 needs, ours differ. Revisit only if we ever embed the UI *inside* ComfyUI as a custom node.
 
 ## Independence from collab-toolbox
-Queen Editor wraps the same ComfyUI photo pipeline as `collab-toolbox/photo_generator/nova-3dcg/`,
-but it depends on nothing there at runtime — no imported cell, no shared file, no shared Drive
-folder. What we inherit is knowledge, not code:
+Queen Editor wraps the same pipelines as `collab-toolbox` — the photo one from
+`photo_generator/nova-3dcg/`, the video one from `video_generator/wan22-arbuzai/`, the sound one
+from `mmaudio_generate.ipynb` — but it depends on nothing there at runtime: no imported cell, no
+shared file, no shared Drive folder. What we inherit is knowledge, not code:
 
 | Inherited (knowledge) | Never (dependency) |
 |---|---|
-| The ComfyUI graph — copied into `queen-editor/workflow_api.json` as our own file | Reading `collab-toolbox/photo_generator/nova-3dcg/workflow_api.json`, or Drive's copy of it |
-| Injection node ids (`PROMPT_NODE` `"3"`, `NEGATIVE_NODE` `"4"`, `SEED_NODE` `"40"`) | `api.ipynb`'s CONFIG cell |
+| The ComfyUI graphs — copied into `queen-editor/workflow_api.json` and `workflow_video_api.json` as our own files | Reading `collab-toolbox`'s copies, or Drive's copy of either |
+| Injection node ids — photo (`"3"`, `"4"`, `"40"`, `"45"`), video (`"287"`, `"233:240"`, `"210"`) | `api.ipynb`'s or `photo_to_video.ipynb`'s CONFIG cell |
+| MMAudio's settings — architecture, fine-tune, steps, cfg, solver, negative, chunk lengths — written into our own files | Importing anything from `mmaudio_generate.ipynb`, or running it. Sound is the one engine we call as a library rather than through ComfyUI ([FOUNDATION 6](FOUNDATION.md)) |
 | Setup cells (custom nodes, the 5 models, download/verify/401 handling, headless ComfyUI) — copied **verbatim** into `app.ipynb`, because that machinery is proven | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
 | Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is **ours**: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/superpowers/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
 

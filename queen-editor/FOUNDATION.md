@@ -67,11 +67,18 @@ never enforced.
 **5. The browser reaches the server through a cloudflared tunnel.**
 Why: Colab has no public ingress; the tunnel gives a shareable URL with zero infrastructure.
 
-**6. ComfyUI is the generation engine, behind our own thin layer.**
-ComfyUI runs headless on the Colab machine as a local API; we write our own client and job
-handling on top. Why: the pipeline (models, custom nodes, graph) is proven and not worth
-rebuilding, while our own code stays testable and swappable. We never patch or embed ComfyUI
-itself.
+**6. ComfyUI is the engine for pictures and video; sound runs in our own process.**
+ComfyUI runs headless on the Colab machine as a local API, and we write our own client and job
+handling on top of it — for photos and for videos, each one a graph we ship. We never patch or
+embed ComfyUI itself. Sound is the exception: MMAudio is called as a library inside the Flask
+process, with no graph at all.
+
+Why one engine for two of the three: the picture and video pipelines (models, custom nodes, graph)
+are proven and not worth rebuilding, while our own code stays testable and swappable. Why not the
+third: the sound pipeline that is proven drives MMAudio directly, and reaching it through ComfyUI
+would have meant building a graph nobody has — a second way of doing something that already works.
+The cost is a second engine to install and a second model on the card; the alternative was untested
+work standing between us and a library call.
 
 **7. Google Drive is the only persistent store.**
 Everything that must survive the Colab session — outputs, project data — lives under one
