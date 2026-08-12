@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { photoUrl } from "../../shared/api.js";
+import { fileUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
@@ -335,7 +335,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
                        if (!selecting) navigate(photoPath(project, frame.file));
                      }}>
                     {state === "done" ? (
-                      <img src={photoUrl(project, frame.file)} alt={frame.file}
+                      <img src={fileUrl(project, frame.file)} alt={frame.file}
                            loading="lazy" decoding="async" draggable={false}
                            style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
                                     border: "1px solid var(--border)", borderRadius: "var(--r-sm)",

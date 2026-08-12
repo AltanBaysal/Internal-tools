@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 
-import { photoUrl } from "../../shared/api.js";
+import { fileUrl } from "../../shared/api.js";
 import { navigate, photoPath, projectPath } from "../../shared/router.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Rendering } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
+import LayerPlayer from "./LayerPlayer.jsx";
 import { useGeneration } from "./useGeneration.js";
 
 const HEADER = {
@@ -215,10 +216,17 @@ export default function PhotoDetail({ project, file }) {
                      : undefined} />
             <Arrow glyph="›" side="right"
                    onClick={next ? () => navigate(photoPath(project, next.file)) : undefined} />
-            {produced ? (
+            {produced && open !== "photo" ? (
+              /* The layer's own tab plays it. The sound opens no player of its own: it rides the
+                 video, which is what "sesli oynar" means here (madde 74). */
+              <LayerPlayer videoUrl={fileUrl(project, frame.layers.video)}
+                           audioUrl={open === "audio"
+                             ? fileUrl(project, frame.layers.audio)
+                             : null} />
+            ) : produced ? (
               /* contain, not a fixed ratio: the server does not know the photo's shape, and the
                  design's rule is that it is never cropped. 120px is the design's own arrow gutter. */
-              <img src={photoUrl(project, frame.file)} alt={frame.file}
+              <img src={fileUrl(project, frame.file)} alt={frame.file}
                    style={{ maxWidth: "calc(100% - 120px)", maxHeight: "100%", width: "auto",
                             height: "auto", objectFit: "contain", display: "block" }} />
             ) : state === "running" ? (

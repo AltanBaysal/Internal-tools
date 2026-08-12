@@ -15,7 +15,7 @@ vi.mock("../../shared/api.js", () => ({
   retryFrame: vi.fn(),
   saveOrder: vi.fn(),
   stopGeneration: vi.fn(),
-  photoUrl: (project, file) => `/photos/${project}/${file}`,
+  fileUrl: (project, file) => `/photos/${project}/${file}`,
 }));
 vi.mock("../../shared/router.js", () => ({
   navigate: vi.fn(),
@@ -69,6 +69,9 @@ const tab = (name) => screen.getByRole("button", { name });
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
+  // jsdom has no media pipeline: the player's own calls are stubbed so a tab can be opened.
+  vi.spyOn(window.HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+  vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
 });
 
 describe("PhotoDetail — the layer tabs", () => {
@@ -114,6 +117,33 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.getByText("kumaş hışırtısı")).toBeTruthy();
     expect(screen.getByText("P0_0_V1_0_S1_0.wav")).toBeTruthy();
     expect(screen.getByText("kadın dönüyor")).toBeTruthy();
+  });
+
+  it("plays the video on its own tab", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(document.querySelector("video").getAttribute("src"))
+      .toBe("/photos/düğün/P0_0_V1_0.mp4");
+    expect(document.querySelector("audio")).toBeNull();
+  });
+
+  it("brings the sound along on the sound tab", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Ses"));
+
+    expect(document.querySelector("video")).toBeTruthy();
+    expect(document.querySelector("audio").getAttribute("src"))
+      .toBe("/photos/düğün/P0_0_V1_0_S1_0.wav");
+  });
+
+  it("leaves the photo tab as it was", async () => {
+    await open("P0_0.png", { frames: [LAYERED] });
+
+    expect(document.querySelector("video")).toBeNull();
+    expect(screen.getByAltText("P0_0.png")).toBeTruthy();
   });
 
   it("draws a waiting frame's two lines faintly", async () => {

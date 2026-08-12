@@ -5,7 +5,7 @@ import { navigate } from "../../shared/router.js";
 import Gallery from "./Gallery.jsx";
 
 vi.mock("../../shared/api.js", () => ({
-  photoUrl: (project, file) => `/photos/${project}/${file}`,
+  fileUrl: (project, file) => `/photos/${project}/${file}`,
 }));
 vi.mock("../../shared/router.js", () => ({
   navigate: vi.fn(),

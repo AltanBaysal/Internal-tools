@@ -174,8 +174,10 @@ export async function getStatus() {
   return request("/api/status");
 }
 
-// Plain URL, not a fetch: the browser loads it into an <img>.
-export function photoUrl(project, file) {
+// Plain URL, not a fetch: the browser loads it into an <img>, a <video> or an <audio>. Any file
+// the project folder holds is reachable this way; the route is still called /photos because that is
+// the server's own name for the project's file area.
+export function fileUrl(project, file) {
   return `/photos/${encodeURIComponent(project)}/${encodeURIComponent(file)}`;
 }
 

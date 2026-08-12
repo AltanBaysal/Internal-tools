@@ -19,7 +19,7 @@ vi.mock("../../shared/api.js", () => ({
   listFrames: vi.fn().mockResolvedValue([]),
   listModels: vi.fn().mockResolvedValue(["nova.safetensors"]),
   listProducers: vi.fn().mockResolvedValue([]),
-  photoUrl: (project, file) => `/photos/${project}/${file}`,
+  fileUrl: (project, file) => `/photos/${project}/${file}`,
   resumeBatch: vi.fn(),
   retryFailed: vi.fn(),
   retryFrame: vi.fn(),
