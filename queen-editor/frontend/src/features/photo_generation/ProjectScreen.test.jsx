@@ -245,3 +245,40 @@ describe("ProjectScreen — the gallery's selection reaches the video panel", ()
     expect(scope().textContent).toContain("0");
   });
 });
+
+// What the gallery is told about the queue. The pill's word is the only place on screen where a
+// frame says whether anything is coming for it, and the gallery cannot know that by itself.
+describe("ProjectScreen — a stopped queue does not look like a moving one", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => vi.useRealTimers());
+
+  const OWES_VIDEO = [{ id: "P0_0", file: "P0_0.png", status: "done", layers: { photo: "P0_0.png" },
+                        owed: ["video"], failed: [] }];
+
+  async function open(status, project) {
+    listFrames.mockResolvedValue(OWES_VIDEO);
+    getStatus.mockResolvedValue(status);
+    renderScreen(project);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  }
+
+  it("says queued while this project's queue is flowing", async () => {
+    await open({ status: "running", project: "akan" }, "akan");
+
+    expect(screen.getByText("video kuyrukta")).toBeTruthy();
+  });
+
+  it("says waiting once an error has stopped the queue", async () => {
+    // 2026-08-13: a dead xAI key stopped the run and every frame went on saying it was queued.
+    await open({ status: "error", project: "duran", error: "xAI HTTP 400" }, "duran");
+
+    expect(screen.getByText("video bekliyor")).toBeTruthy();
+  });
+
+  it("says waiting while it is another project's queue that is flowing", async () => {
+    // The worker is global: a batch belonging to someone else moves nothing here.
+    await open({ status: "running", project: "komşu" }, "bizim");
+
+    expect(screen.getByText("video bekliyor")).toBeTruthy();
+  });
+});

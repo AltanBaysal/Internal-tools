@@ -123,7 +123,7 @@ describe("Gallery — one sequence, four states", () => {
   const pillOf = (name) => tileOf(name).querySelector("[data-pill]");
 
   it("says the layer and the state in one pill, in the corner", () => {
-    renderGallery({ frames: MIXED, current: "3_a" });
+    renderGallery({ frames: MIXED, current: "3_a", running: true });
 
     expect(pillOf("4_a.png").textContent).toBe("foto kuyrukta");
     expect(pillOf("3_a.png").textContent).toBe("foto üretiliyor");
@@ -183,15 +183,16 @@ describe("Gallery — one sequence, four states", () => {
     const onRetry = vi.fn();
     renderGallery({ frames: MIXED, current: null, onRetry });
 
-    // Once: not a red tile and a dashed one at the same time.
-    expect(screen.getAllByText("foto kuyrukta")).toHaveLength(2);
+    // Once: not a red tile and a dashed one at the same time. Nothing is flowing here, so the two
+    // waiting frames say so.
+    expect(screen.getAllByText("foto bekliyor")).toHaveLength(2);
     fireEvent.click(screen.getByText("Tekrar dene"));
 
     expect(onRetry).toHaveBeenCalledWith("2_a");
   });
 
   it("turns the frame the worker is holding into a spinner without moving it", () => {
-    renderGallery({ frames: MIXED, current: "3_a" });
+    renderGallery({ frames: MIXED, current: "3_a", running: true });
 
     // Four of the five are not photos; only the one the worker holds leaves the waiting pill.
     expect(screen.getAllByText("foto kuyrukta")).toHaveLength(1);
@@ -202,7 +203,21 @@ describe("Gallery — one sequence, four states", () => {
     renderGallery({ frames: [pending("0_a.png")] });
 
     expect(screen.queryByText("henüz kare yok")).toBeNull();
-    expect(screen.getByText("foto kuyrukta")).toBeTruthy();
+    expect(screen.getByText("foto bekliyor")).toBeTruthy();
+  });
+
+  it("calls a frame queued only while the queue is flowing", () => {
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })], running: true });
+
+    expect(pillOf("P0_0.png").textContent).toBe("video kuyrukta");
+  });
+
+  it("calls the same frame waiting once the queue has stopped", () => {
+    // The debt is real: pressing Devam et still produces this video. What is not real is movement,
+    // and "kuyrukta" claims movement -- which is what a stopped run looked like on 2026-08-13.
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })], running: false });
+
+    expect(pillOf("P0_0.png").textContent).toBe("video bekliyor");
   });
 
   it("leaves the middle of a waiting card wordless -- the dashed border says it", () => {
@@ -622,7 +637,7 @@ describe("Gallery — what a frame owns", () => {
   });
 
   it("keeps the photo on screen while the video is queued", () => {
-    renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })] });
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })], running: true });
 
     expect(screen.getByAltText("P0_0.png")).toBeTruthy();
     expect(screen.getByText("video kuyrukta")).toBeTruthy();
