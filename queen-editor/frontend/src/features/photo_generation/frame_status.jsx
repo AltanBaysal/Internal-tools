@@ -8,6 +8,9 @@ const STATE = {
   // The brightest ink, not a quiet grey: 9px over a photograph, a dim tone is not a soft label but
   // an unreadable one. The other two carry meaning in their colour and are bright already.
   pending: { word: "kuyrukta", color: "var(--ink)", alive: false },
+  // The same debt, with the queue standing still: "kuyrukta" claims movement, and a run that
+  // stopped has none. Same ink -- a frame nobody is working on is no less worth reading.
+  waiting: { word: "bekliyor", color: "var(--ink)", alive: false },
   running: { word: "üretiliyor", color: "var(--accent)", alive: true },
   failed: { word: "hata", color: "var(--danger)", alive: false },
 };

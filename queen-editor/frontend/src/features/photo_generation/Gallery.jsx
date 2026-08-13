@@ -82,13 +82,17 @@ function RetryButton({ frame, sent, onRetry }) {
  * Running first, then what blew up, then what is still owed: a frame can be several of these at
  * once -- its photo failed while its video waits -- and two pills in one corner make the card
  * unreadable. The rest is the detail page's to show.
+ *
+ * `flowing` is the queue's own state, not this frame's: an owed layer reads as queued while the
+ * worker is moving through the list and as waiting once it has stopped. The debt is the same
+ * either way; only the promise differs.
  */
-function statusOf(frame, running) {
-  if (running) return { layer: running, state: "running" };
+function statusOf(frame, rendering, flowing) {
+  if (rendering) return { layer: rendering, state: "running" };
   const failed = (frame.failed || [])[0];
   if (failed) return { layer: failed, state: "failed" };
   const owed = (frame.owed || [])[0];
-  if (owed) return { layer: owed, state: "pending" };
+  if (owed) return { layer: owed, state: flowing ? "pending" : "waiting" };
   return null;
 }
 
@@ -136,8 +140,8 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
 // Artboard 03/04/05: five columns, one sequence. Every frame stands in its own place whatever
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
-export default function Gallery({ project, frames, current, currentLayer, onReorder, onDelete,
-                                  onRetry, onSelectionChange }) {
+export default function Gallery({ project, frames, current, currentLayer, running, onReorder,
+                                  onDelete, onRetry, onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -278,8 +282,10 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
           // on disk, so the list cannot say so and the running job does. Only a PHOTO render
           // empties the card -- a frame whose video is being made still has its picture, and
           // taking it away would say the photo went somewhere.
-          const running = frame.id === current ? (currentLayer || "photo") : null;
-          const state = running === "photo" ? "running" : frame.status;
+          // Which layer of this frame the worker is holding, if any -- not to be confused with
+          // `running`, the prop above, which says whether the queue is moving at all.
+          const rendering = frame.id === current ? (currentLayer || "photo") : null;
+          const state = rendering === "photo" ? "running" : frame.status;
           const produced = state === "done";
           const owns = owned(frame);
           // A layer failed on a frame that still has its picture: the card stays as it is and the
@@ -320,7 +326,7 @@ export default function Gallery({ project, frames, current, currentLayer, onReor
               ) : (
                 <Tile name={frame.file} badge={badge} muted={!produced}
                       danger={state === "failed"}
-                      pill={<StatusPill {...(statusOf(frame, running) || {})} />}
+                      pill={<StatusPill {...(statusOf(frame, rendering, running) || {})} />}
                       owns={owns}
                       veil={brokenLayer && (
                         <div data-veil className="qe-veil" style={VEIL}>

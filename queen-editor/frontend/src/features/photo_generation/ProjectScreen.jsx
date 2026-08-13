@@ -112,7 +112,11 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+          {/* Whether the queue is moving is the gallery's business too: an owed layer reads as
+              queued while it flows and as waiting once it has stopped, and only this screen knows
+              which -- the worker is global, so a neighbour's batch moves nothing here. */}
           <Gallery project={project} frames={frames} current={current} currentLayer={currentLayer}
+                   running={running}
                    onReorder={reorder} onDelete={removePhotos} onRetry={retry}
                    onSelectionChange={setSelected} />
         </div>
