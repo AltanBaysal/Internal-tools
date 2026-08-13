@@ -209,3 +209,39 @@ describe("ProjectScreen — an open project waits for the user", () => {
     expect(resumeBatch).not.toHaveBeenCalled();
   });
 });
+
+// The first test in this file that drives the gallery. Everything above renders the screen and
+// reads it; this one uses it -- which is where the bugs turned out to live: each piece was tested
+// against inputs handed to it by hand, and the wire between them by nothing at all.
+describe("ProjectScreen — the gallery's selection reaches the video panel", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => vi.useRealTimers());
+
+  const done = (file) => ({ id: file.replace(".png", ""), file, status: "done", layers: {},
+                            owed: [], failed: [] });
+  const FRAMES = [done("1_a.png"), done("0_a.png")];
+
+  async function settle(ms = 0) {
+    await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  }
+
+  it("counts a frame picked in the gallery, and stops counting it when it is let go", async () => {
+    listFrames.mockResolvedValue(FRAMES);
+    renderScreen("seçim");
+    await settle();
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    // By identity, because that is what a tile is keyed by -- and the identity is the whole point
+    // of this test.
+    const ring = () => document.getElementById("tile-0_a").querySelector("[data-check]");
+    const scope = () => screen.getByText("Seçili kareler").closest("button");
+
+    await act(async () => { fireEvent.click(ring()); });
+
+    expect(scope().textContent).toContain("1");
+
+    await act(async () => { fireEvent.click(ring()); });
+
+    // The second assertion needs the first: a count that is always 0 would pass this line alone.
+    expect(scope().textContent).toContain("0");
+  });
+});

@@ -37,7 +37,7 @@ describe("LayerPanel — the scope", () => {
   });
 
   it("follows the gallery's selection rather than keeping one of its own", () => {
-    renderPanel({ selected: ["0_a.png"] });
+    renderPanel({ selected: ["0_a"] });
 
     expect(screen.getByText("Seçili kareler").closest("button").style.borderColor)
       .toBe("var(--accent)");
@@ -77,10 +77,21 @@ describe("LayerPanel — variants", () => {
 
   it("counts a selected frame that already has a video", () => {
     // Picking it by hand is how a second video is asked for -- it becomes a copy frame.
-    renderPanel({ selected: ["1_a.png"] });
+    renderPanel({ selected: ["1_a"] });
 
     expect(screen.getByText("Seçili kareler").closest("button").textContent).toContain("1");
     expect(screen.getByText("1 video üretilecek — her kare kendi videosunu alır.")).toBeTruthy();
+  });
+
+  it("counts the frame that was picked, not the one showing the same picture", () => {
+    // Asking for a second video makes a copy frame, and the copy shows the same photo -- so a file
+    // name cannot tell the two apart and an identity can. This is the whole reason the panel must
+    // match on identity, and without this case the bug could be closed from the wrong end.
+    const twin = { id: "0_a-2", file: "0_a.png", status: "done", layers: {}, failed: [] };
+
+    renderPanel({ frames: [...FRAMES, twin], selected: ["0_a-2"] });
+
+    expect(screen.getByText("Seçili kareler").closest("button").textContent).toContain("1");
   });
 });
 
@@ -97,7 +108,9 @@ describe("LayerPanel — sending", () => {
 
   it("asks only for what is selected when that is the scope", async () => {
     const onQueue = vi.fn().mockResolvedValue({ added: 1 });
-    renderPanel({ selected: ["0_a.png"], onQueue });
+    // Matched by identity, sent by file name: two different things, and the whole value of this
+    // test is that it says so in one breath.
+    renderPanel({ selected: ["0_a"], onQueue });
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
