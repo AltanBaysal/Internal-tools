@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v11
 
-**Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` · **Durum:** 3/6
+**Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` · **Durum:** 4/6
 **Öncesi:** [Colab kurulum seçimi](2026-08-13-queen-editor-colab-kurulum-secimi.md) ve
 [v10 Görev 1](2026-08-13-queen-editor-v10-gorev-1-uretim-kendi-baslamasin.md) — ikisi de kapandı,
 Colab turu sürüyor.

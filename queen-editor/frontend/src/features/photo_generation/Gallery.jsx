@@ -149,8 +149,11 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   // Selection is by identity, not index: a batch can land while the mode is open and shift every
   // position, but an identity still means the same frame -- and two frames can be showing one
   // picture, so a file name would not tell them apart.
-  const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState([]);
+  // The mode IS the selection: rings on the cards while there is one, none while there is not.
+  // Derived rather than a flag of its own, because the two drifting apart is exactly what left a
+  // gallery covered in rings after its bar had already gone.
+  const selecting = selected.length > 0;
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // A tile can only be picked up after it has been held: this is the one that is armed.
@@ -188,7 +191,6 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   });
 
   function closeSelection() {
-    setSelecting(false);
     setSelected([]);
   }
 
@@ -198,7 +200,6 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   }
 
   function toggle(fid) {
-    setSelecting(true);
     setSelected((current) => (current.includes(fid)
       ? current.filter((chosen) => chosen !== fid)
       : [...current, fid]));
@@ -383,9 +384,9 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
         })}
       </div>
 
-      {/* The bar belongs to a selection, not to the mode: with nothing selected it has nothing to
-          say, so it goes away rather than sitting there reading "0 seçili". */}
-      {selecting && selected.length > 0 && (
+      {/* The bar belongs to a selection, not to a mode alongside it: there is only the selection
+          now, so having one is the whole condition. */}
+      {selecting && (
         <div style={BAR_RAIL}>
           <div className="wf-card wf-card--shadow" style={BAR}>
             {/* One number, never split by kind: what is selected is frames. */}
