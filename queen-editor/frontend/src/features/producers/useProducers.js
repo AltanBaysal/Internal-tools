@@ -43,7 +43,7 @@ export function useProducers() {
   }, []);
 
   const install = useCallback((kind) => {
-    said(kind, { file: null });
+    said(kind, { step: null });
     return installProducer(kind)
       .then(() => refresh())
       .catch((err) => {

@@ -24,18 +24,67 @@ class FakeFiles:
 
 
 class FakeFetcher:
-    def __init__(self, fail=None):
+    def __init__(self, fail=None, log=None):
         self.fetched = []
         self.fail = fail
         self.headers = None
+        # Shared with FakeLibs when a test cares about the order of the two kinds of step.
+        self.log = [] if log is None else log
 
     def fetch(self, url, path, headers=None, on_progress=None, cancelled=None):
         if self.fail and url == self.fail:
             raise RuntimeError("bağlantı yok")
         self.fetched.append((url, path))
+        self.log.append(f"file:{url}")
         self.headers = headers
         if on_progress:
             on_progress(10, 10)
+
+
+class FakeLibs:
+    """A library port that remembers what it was asked to do.
+
+    `stays_missing` is the case the restart sentence exists for: the install itself succeeded, and
+    this process still cannot see the module.
+    """
+
+    def __init__(self, present=(), fail=None, stays_missing=(), log=None):
+        self.have = set(present)
+        self.installed = []
+        self.fail = fail
+        self.stays_missing = set(stays_missing)
+        self.log = [] if log is None else log
+
+    def present(self, module):
+        return module in self.have
+
+    def install(self, repo, folder, module):
+        self.installed.append(module)
+        self.log.append(f"lib:{module}")
+        if self.fail == module:
+            raise RuntimeError("pip: exit 1")
+        if module not in self.stays_missing:
+            self.have.add(module)
+
+
+class SpyRunner:
+    """Runs the job inline and keeps every progress report, so what the screen was told during the
+    install is assertable -- the real runner only keeps the last one."""
+
+    def __init__(self):
+        self.reports = []
+        self.state = {"status": "idle"}
+
+    def start(self, kind, job):
+        self.state = {"status": "running", "kind": kind}
+        self.state = {**job(), "kind": kind}
+        return True
+
+    def report(self, patch):
+        self.reports.append(patch)
+
+    def cancelled(self):
+        return False
 
 
 GROUPS = {
@@ -44,6 +93,9 @@ GROUPS = {
               {"folder": "loras", "name": "high.safetensors", "url": "u2"}],
     "audio": [{"folder": "mmaudio", "name": "mm.pth", "url": "u4"}],
 }
+
+LIBS = {"audio": [{"module": "mmaudio", "name": "MMAudio kütüphanesi", "folder": "MMAudio",
+                   "repo": "https://github.com/hkchengrex/MMAudio.git"}]}
 
 
 def sync_installer():
@@ -83,11 +135,11 @@ def test_a_kind_with_no_group_is_not_installed():
 def test_the_running_install_is_reported_on_its_own_row():
     rows = list_producers(GROUPS, FakeFiles(),
                           running={"status": "running", "kind": "video",
-                                   "file": "wan.safetensors"})
+                                   "step": "wan.safetensors"})
 
-    # The file being fetched, and nothing else: a percentage that restarts per file was movement
+    # The step being worked on, and nothing else: a percentage that restarts per file was movement
     # rather than information.
-    assert rows[1]["installing"] == {"file": "wan.safetensors"}
+    assert rows[1]["installing"] == {"step": "wan.safetensors"}
     assert "installing" not in rows[0]
 
 
@@ -132,6 +184,84 @@ def test_a_producer_with_no_files_declared_cannot_be_installed():
     assert runner.status()["status"] == "error"
     assert "Fotoğraf üreticisi" in runner.status()["error"]
     assert "defter" not in runner.status()["error"]
+
+
+def test_the_library_is_installed_before_the_weights():
+    """A library is what makes the producer usable at all, and its failure is worth seeing before
+    minutes of downloading."""
+    steps = []
+    libs = FakeLibs(log=steps)
+
+    install_producer(GROUPS, FakeFiles(), FakeFetcher(log=steps), sync_installer(), {}, "audio",
+                     libraries=LIBS, lib=libs)
+
+    assert steps == ["lib:mmaudio", "file:u4"]
+
+
+def test_a_library_that_is_already_here_is_not_installed_again():
+    libs = FakeLibs(present=["mmaudio"])
+
+    install_producer(GROUPS, FakeFiles(), FakeFetcher(), sync_installer(), {}, "audio",
+                     libraries=LIBS, lib=libs)
+
+    assert libs.installed == []
+
+
+def test_a_failed_library_install_stops_before_the_weights():
+    runner, fetcher = sync_installer(), FakeFetcher()
+
+    install_producer(GROUPS, FakeFiles(), fetcher, runner, {}, "audio",
+                     libraries=LIBS, lib=FakeLibs(fail="mmaudio"))
+
+    assert fetcher.fetched == []
+    assert runner.status()["status"] == "error"
+    assert "pip: exit 1" in runner.status()["error"]
+
+
+def test_a_library_this_process_still_cannot_see_asks_for_a_restart():
+    runner, fetcher = sync_installer(), FakeFetcher()
+
+    install_producer(GROUPS, FakeFiles(), fetcher, runner, {}, "audio",
+                     libraries=LIBS, lib=FakeLibs(stays_missing=["mmaudio"]))
+
+    assert fetcher.fetched == []
+    assert "yeniden başlat" in runner.status()["error"]
+
+
+def test_the_library_step_is_named_before_it_starts():
+    runner = SpyRunner()
+
+    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "audio",
+                     libraries=LIBS, lib=FakeLibs())
+
+    assert runner.reports[0]["step"] == "MMAudio kütüphanesi"
+
+
+def test_a_producer_with_neither_a_file_nor_a_library_cannot_be_installed():
+    runner = sync_installer()
+
+    install_producer(GROUPS, FakeFiles(), FakeFetcher(), runner, {}, "photo",
+                     libraries=LIBS, lib=FakeLibs())
+
+    assert runner.status()["status"] == "error"
+    assert "Fotoğraf üreticisi" in runner.status()["error"]
+
+
+def test_a_producer_whose_library_is_missing_is_not_installed():
+    """The one case the panel used to lie about: the weights are here, the engine is not."""
+    files = FakeFiles(present=[("mmaudio", "mm.pth")])
+
+    rows = list_producers(GROUPS, files, libraries=LIBS, lib=FakeLibs())
+
+    assert rows[2]["installed"] is False
+
+
+def test_it_is_installed_when_both_the_library_and_the_weights_are_here():
+    files = FakeFiles(present=[("mmaudio", "mm.pth")])
+
+    rows = list_producers(GROUPS, files, libraries=LIBS, lib=FakeLibs(present=["mmaudio"]))
+
+    assert rows[2]["installed"] is True
 
 
 def test_a_gated_row_is_fetched_with_its_sources_headers():
@@ -215,3 +345,16 @@ def test_only_the_civitai_rows_of_the_photo_group_need_a_key():
 
     assert gated == ["nova3DCGXL_ilV90.safetensors",
                      "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"]
+
+
+def test_the_sound_producer_declares_the_engine_it_runs_in_this_process():
+    rows = model_groups.LIBRARIES["audio"]
+
+    assert len(rows) == 1, "Ses motoru tek kütüphane"
+    assert rows[0]["module"] == "mmaudio"
+    assert "hkchengrex/MMAudio" in rows[0]["repo"]
+
+
+def test_the_graph_producers_need_no_library_of_their_own():
+    """Photo and video run in ComfyUI, which the notebook still installs."""
+    assert set(model_groups.LIBRARIES) == {"audio"}

@@ -17,16 +17,23 @@ describe("InstallCard", () => {
   });
 
   it("says what is coming down while the download runs", () => {
-    render(<InstallCard producer={{ ...MISSING, installing: { file: "wan.safetensors" } }}
+    render(<InstallCard producer={{ ...MISSING, installing: { step: "wan.safetensors" } }}
                         onInstall={() => {}} />);
 
     expect(screen.getByText("kuruluyor… wan.safetensors")).toBeTruthy();
     expect(screen.queryByText("Kur")).toBeNull();
   });
 
+  it("names the step, so a library install is not mistaken for a file", () => {
+    render(<InstallCard producer={{ ...MISSING, installing: { step: "MMAudio kütüphanesi" } }}
+                        onInstall={() => {}} />);
+
+    expect(screen.getByText("kuruluyor… MMAudio kütüphanesi")).toBeTruthy();
+  });
+
   it("draws no progress bar at all", () => {
     const { container } = render(
-      <InstallCard producer={{ ...MISSING, installing: { file: "wan.safetensors" } }}
+      <InstallCard producer={{ ...MISSING, installing: { step: "wan.safetensors" } }}
                    onInstall={() => {}} />);
 
     expect(container.querySelector("[data-bar]")).toBeNull();

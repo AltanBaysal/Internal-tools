@@ -127,7 +127,7 @@ describe("SidePanel — the icon rail", () => {
   it("marks the rail while something is being installed behind a closed panel", () => {
     renderColumn({ producers: { producers: [
       { id: "video", name: "Video üreticisi", installed: false,
-        installing: { done: 1, total: 2, file: "wan.safetensors" } }], error: null } });
+        installing: { step: "wan.safetensors" } }], error: null } });
 
     expect(screen.getByLabelText("Üreticiler").querySelector(".qe-dot--alive")).toBeTruthy();
   });

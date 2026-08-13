@@ -1,4 +1,4 @@
-"""What each producer needs on disk, and where.
+"""What each producer needs before it can work: model files on disk, and code in this process.
 
 Knowledge inherited from collab-toolbox, not a dependency on it: the names and addresses are copied
 into our own file, so that folder can change without changing ours (CODE-STANDARD's independence
@@ -80,6 +80,16 @@ GROUPS = {
         {"folder": "mmaudio", "name": HF_MMAUDIO_NSFW,
          "url": f"https://huggingface.co/phazei/NSFW_MMaudio/resolve/main/{HF_MMAUDIO_NSFW}"},
     ],
+}
+
+
+# Code a producer needs inside THIS process, as opposed to a model file on disk -- so "is it here"
+# is a different question with a different answer, and it gets its own table rather than a row that
+# would have to be told apart from a file's. Only sound has one: photo and video are ComfyUI graphs,
+# and ComfyUI is what the notebook installs.
+LIBRARIES = {
+    "audio": [{"module": "mmaudio", "name": "MMAudio kütüphanesi", "folder": "MMAudio",
+               "repo": "https://github.com/hkchengrex/MMAudio.git"}],
 }
 
 

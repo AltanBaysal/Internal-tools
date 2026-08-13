@@ -20,6 +20,11 @@ COMFY_URL = os.environ.get("QE_COMFY_URL", "http://127.0.0.1:8188")
 # passes it in; the literal below is only the fallback.
 COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
 
+# Where a producer's library is cloned and installed from. Derived from the ComfyUI root rather than
+# given a setting of its own: on Colab that is /content, which is where MMAudio has always been
+# cloned, and a machine that moves one moves the other.
+LIB_ROOT = os.path.dirname(COMFY_ROOT)
+
 # The graph ships in the repo (our own copy -- never read collab-toolbox's file).
 WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
 # The video graph the same way: our own WAN 2.2 I2V export, exported from ComfyUI and committed.

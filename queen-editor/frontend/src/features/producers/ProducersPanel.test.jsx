@@ -10,7 +10,7 @@ const THREE = [
 ];
 
 const INSTALLING = THREE.map((producer) => (producer.id === "video"
-  ? { ...producer, installing: { file: "wan.safetensors" } }
+  ? { ...producer, installing: { step: "wan.safetensors" } }
   : producer));
 
 function renderPanel(props) {

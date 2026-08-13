@@ -1,18 +1,13 @@
-"""What this feature needs from a producer -- and it is one question.
+"""What this feature needs from the outside world, stated by the side that uses it.
 
-Deliberately not the photo feature's PhotoGenerator: this feature never imports another, and what
-it holds is whatever the composition root hands it.
+Two kinds of thing a producer can need before it works: model files on disk, and a library inside
+this process. They are separate ports because "is it here" is a different question for each -- one
+is answered by looking at a folder, the other by asking the import system.
+
+Deliberately no port for the renderers themselves: this feature never imports another, and what a
+producer can do is the other feature's business.
 """
 from typing import Protocol
-
-
-class Producer(Protocol):
-    def installed(self) -> bool:
-        """Is this producer's model group on this machine?
-
-        Only asked of a producer that declares no group of its own: the notebook sets that one up,
-        so the renderer is a truer witness than a list of file names we do not own.
-        """
 
 
 class ModelFiles(Protocol):
@@ -27,5 +22,16 @@ class ModelFiles(Protocol):
 
 
 class Fetcher(Protocol):
-    def fetch(self, url: str, path: str, on_progress=None, cancelled=None) -> None:
-        """Move one file from a URL onto disk, reporting bytes as they land."""
+    def fetch(self, url: str, path: str, headers=None, on_progress=None, cancelled=None) -> None:
+        """Move one file from a URL onto disk, reporting bytes as they land. `headers` is what a
+        gated source wants; this feature holds no key of its own."""
+
+
+class Libraries(Protocol):
+    def present(self, module: str) -> bool:
+        """Can this process import `module`? Asked on every panel poll, so it stays cheap and never
+        runs the module itself."""
+
+    def install(self, repo: str, folder: str, module: str) -> None:
+        """Fetch the library and install it. Raises with the tool's own output on failure -- that
+        sentence is what the panel shows."""

@@ -4,15 +4,15 @@ const CARD = { padding: "10px 12px", display: "flex", flexDirection: "column", g
                borderColor: "var(--accent)" };
 
 /** What a running install is doing, in words. No bar: a group's files each restart the count and
- *  a total is often never announced, so the drawn one moved without saying anything. The file
- *  name is what the server really knows. */
-export function Running({ file }) {
+ *  a total is often never announced, so the drawn one moved without saying anything. The step is
+ *  whatever the server named -- a file coming down, or a library being installed. */
+export function Running({ step }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span aria-hidden="true" className="qe-dot qe-dot--alive"
             style={{ background: "var(--accent)" }} />
       <Note size={12} style={{ color: "var(--ink-2)" }}>
-        {file ? `kuruluyor… ${file}` : "kuruluyor…"}
+        {step ? `kuruluyor… ${step}` : "kuruluyor…"}
       </Note>
     </div>
   );
@@ -26,7 +26,7 @@ export default function InstallCard({ producer, onInstall }) {
   return (
     <div className="wf-stroke" style={CARD}>
       {producer.installing ? (
-        <Running file={producer.installing.file} />
+        <Running step={producer.installing.step} />
       ) : (
         <>
           <Note size={12} style={{ color: "var(--ink-2)" }}>{producer.name} kurulu değil.</Note>

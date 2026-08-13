@@ -34,7 +34,7 @@ export default function ProducersPanel({ producers, error, onInstall, onCancel }
           <Note size={12} style={{ color: "var(--ink-2)" }}>{producer.name}</Note>
           {producer.installing ? (
             <>
-              <Running file={producer.installing.file} />
+              <Running step={producer.installing.step} />
               <Btn sm ghost onClick={() => setAsking({ producer, kind: "cancel" })}
                    style={{ alignSelf: "flex-start", color: "var(--danger)" }}>İptal</Btn>
             </>
