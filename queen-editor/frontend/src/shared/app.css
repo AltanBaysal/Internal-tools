@@ -36,6 +36,20 @@ html, body {
   opacity: 1;
 }
 
+/* The order badge shares the top right corner with the ✓ ring, so it steps aside in exactly the
+   two states where the ring steps in. Its dim tone for a frame that is not a photo yet lives here
+   too: as an inline style it would outrank these rules and the number would never leave. */
+.qe-badge {
+  transition: opacity 0.12s;
+}
+.qe-badge--muted {
+  opacity: 0.5;
+}
+.qe-tile:hover .qe-badge,
+.qe-tile--selecting .qe-badge {
+  opacity: 0;
+}
+
 /* A layer that failed on a frame that still has its photo: the way back rides an overlay that only
    comes down under the pointer, so the picture is never hidden for good. Hidden it takes no clicks
    either -- the photo underneath still opens the frame. */

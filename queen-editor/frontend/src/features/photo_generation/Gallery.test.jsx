@@ -176,7 +176,10 @@ describe("Gallery — one sequence, four states", () => {
     // A text check, and it says so: jsdom applies no stylesheet, so this catches the rule being
     // deleted, not the rule being wrong. The ring appears on hover and in selection mode, and the
     // number has to leave in both -- otherwise they sit on top of each other.
-    const css = readFileSync(new URL("../../shared/app.css", import.meta.url), "utf-8");
+    // Read off disk, relative to the project vitest was started in. Importing it would hand back
+    // an empty stub -- vitest does not process CSS, and ?raw does not escape that. A wrong path
+    // throws here rather than passing quietly.
+    const css = readFileSync("src/shared/app.css", "utf-8");
 
     expect(css).toMatch(/\.qe-tile:hover \.qe-badge/);
     expect(css).toMatch(/\.qe-tile--selecting \.qe-badge/);

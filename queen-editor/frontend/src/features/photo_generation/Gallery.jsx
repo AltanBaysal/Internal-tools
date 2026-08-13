@@ -35,9 +35,11 @@ const DRAGGED = { transform: "rotate(-3deg) scale(1.04) translate(14px, -10px)",
                   position: "relative" };
 const SLOT = { aspectRatio: "1/1", border: "2px dashed var(--accent)", borderRadius: 4,
                background: "var(--bg-3)", boxSizing: "border-box" };
-// The ✓ ring sits opposite the order badge. Its visibility is CSS's job (see app.css): it appears
-// on hover while browsing, and stays on for every tile once the mode is open.
-const CHECK = { position: "absolute", top: 6, left: 6, width: 18, height: 18, borderRadius: "50%",
+// The ✓ ring sits where the order badge is, and the badge steps aside for it (see app.css): while
+// frames are being picked, what is looked at is the pictures, not the numbering. Its visibility is
+// CSS's job -- it appears on hover while browsing, and stays on for every tile once the mode is
+// open.
+const CHECK = { position: "absolute", top: 6, right: 6, width: 18, height: 18, borderRadius: "50%",
                 boxSizing: "border-box", display: "flex", alignItems: "center",
                 justifyContent: "center", cursor: "pointer", zIndex: 2 };
 const CHECK_ON = { background: "var(--accent)", color: "#1a1625", fontSize: 11, fontWeight: 700 };
@@ -106,8 +108,16 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
         {veil}
         {/* A frame that is not a photo yet carries the same badge from the same sequence, only in
             a fainter tone -- 20 pending becomes 20 produced. */}
+        {/* wf-mono is repeated on purpose: the kit's Mono writes its own className before
+            spreading the rest, so a className passed in replaces it rather than joining it -- and
+            vendor/ is not ours to edit. The dim tone for a frame with no photo yet is a class
+            rather than an inline style, because an inline opacity would beat the rule in app.css
+            that takes the number away when the ring arrives. */}
         {badge != null && (
-          <Mono size={10} style={muted ? { ...BADGE, opacity: 0.5 } : BADGE}>{badge}</Mono>
+          <Mono size={10} style={BADGE}
+                className={muted ? "wf-mono qe-badge qe-badge--muted" : "wf-mono qe-badge"}>
+            {badge}
+          </Mono>
         )}
         {pill}
         {owns.length > 0 && (

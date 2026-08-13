@@ -15,12 +15,12 @@ const STATE = {
   failed: { word: "hata", color: "var(--danger)", alive: false },
 };
 
-// Bottom left, not top left, and it does not move: the select ring owns the top left corner and
-// appears under the pointer, so a pill sharing that corner had to jump out of the way -- which
-// made hovering a frame move something inside it. Two corners, no jump. The owns badge is at the
-// other end of the same row.
+// Top left, the corner the design gives it (madde 57). It sat at the bottom for a while because
+// the select ring owned this corner and appeared under the pointer, so the pill had to jump out of
+// the way -- movement inside a card the user only pointed at. The ring moved to the opposite
+// corner instead, and nothing here has to move again.
 const PILL = {
-  position: "absolute", bottom: 6, left: 6, zIndex: 2,
+  position: "absolute", top: 6, left: 6, zIndex: 2,
   display: "flex", alignItems: "center", gap: 4,
   // Dark enough to carry the words over any picture, bright or not.
   background: "rgba(10,8,7,.85)", borderRadius: 3, padding: "2px 5px",
