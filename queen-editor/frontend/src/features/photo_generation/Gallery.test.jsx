@@ -358,9 +358,52 @@ describe("Gallery selection mode", () => {
   it("takes the bar away when the selection is emptied", () => {
     renderGallery();
     fireEvent.click(checkOf("1_a.png"));
-    fireEvent.click(photoOf("1_a.png"));  // deselect: the mode stays open, the bar goes
+    fireEvent.click(photoOf("1_a.png"));  // deselect: the bar goes, and so does the mode
 
     expect(screen.queryByText(/seçili/)).toBeNull();
+  });
+
+  // The mode is the selection: rings on the cards while there is one, nothing while there is not.
+  // It used to outlive the selection, which left a gallery covered in rings and a bar that had
+  // already gone -- no way to tell whether a selection was still open (2026-08-13).
+  const inSelectMode = () => document.querySelectorAll(".qe-tile--selecting").length;
+
+  it("puts the cards in selection mode as soon as one is picked", () => {
+    renderGallery();
+
+    fireEvent.click(checkOf("1_a.png"));
+
+    expect(inSelectMode()).toBe(FRAMES.length);
+  });
+
+  it("takes the cards out of selection mode when the last one is let go", () => {
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+
+    fireEvent.click(checkOf("1_a.png"));
+
+    expect(inSelectMode()).toBe(0);
+  });
+
+  it("takes the cards out of selection mode on cancel", () => {
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+
+    fireEvent.click(screen.getByText("Vazgeç"));
+
+    expect(inSelectMode()).toBe(0);
+  });
+
+  it("takes the cards out of selection mode when the whole list is emptied", () => {
+    // Emptying the selection has two doors -- letting the last card go, and the button that clears
+    // the list -- and they are different lines of code.
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+    fireEvent.click(screen.getByText("Tümünü seç"));
+
+    fireEvent.click(screen.getByText("Tümünü seç"));
+
+    expect(inSelectMode()).toBe(0);
   });
 });
 
