@@ -130,6 +130,16 @@ describe("Gallery — one sequence, four states", () => {
     expect(pillOf("2_a.png").textContent).toBe("foto hata");
   });
 
+  it("writes a waiting frame's label in the brightest ink there is", () => {
+    // 9px over a photograph: the palette's third grey is not a quiet label there, it is one nobody
+    // can read. The other two states carry their own bright colours already.
+    renderGallery({ frames: MIXED, current: "3_a" });
+
+    expect(pillOf("4_a.png").style.color).toBe("var(--ink)");
+    expect(pillOf("3_a.png").style.color).toBe("var(--accent)");
+    expect(pillOf("2_a.png").style.color).toBe("var(--danger)");
+  });
+
   it("keeps the pill in a corner of its own, so hovering a frame moves nothing in it", () => {
     // The select ring owns the top left and appears under the pointer; a pill sharing that corner
     // had to jump out of the way, which is movement inside a card the user only pointed at.

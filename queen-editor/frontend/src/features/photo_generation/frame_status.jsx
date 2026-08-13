@@ -5,7 +5,9 @@
 // job's type can be handed straight to the pill without a translation table in between.
 const LAYER_WORD = { photo: "foto", video: "video", audio: "ses" };
 const STATE = {
-  pending: { word: "kuyrukta", color: "var(--ink-3)", alive: false },
+  // The brightest ink, not a quiet grey: 9px over a photograph, a dim tone is not a soft label but
+  // an unreadable one. The other two carry meaning in their colour and are bright already.
+  pending: { word: "kuyrukta", color: "var(--ink)", alive: false },
   running: { word: "üretiliyor", color: "var(--accent)", alive: true },
   failed: { word: "hata", color: "var(--danger)", alive: false },
 };
@@ -17,7 +19,8 @@ const STATE = {
 const PILL = {
   position: "absolute", bottom: 6, left: 6, zIndex: 2,
   display: "flex", alignItems: "center", gap: 4,
-  background: "rgba(10,8,7,.75)", borderRadius: 3, padding: "2px 5px",
+  // Dark enough to carry the words over any picture, bright or not.
+  background: "rgba(10,8,7,.85)", borderRadius: 3, padding: "2px 5px",
   fontSize: 9, lineHeight: 1.4,
   // The corner is part of the card: a label must not turn it into a dead spot for drag or click.
   pointerEvents: "none",
