@@ -12,7 +12,11 @@ class NotConfigured(RuntimeError):
 
 class XaiClient:
     def __init__(self, api_key, model, url, http=requests, timeout=120):
-        self._api_key = api_key
+        # Trimmed here because this is what builds the header: a key pasted with a trailing
+        # newline would otherwise travel as `Bearer sk-...\n`, which xAI answers 400 to. It also
+        # turns a key of nothing but spaces into no key at all, so the sentence written for a
+        # missing key is the one the user gets.
+        self._api_key = (api_key or "").strip()
         self._model = model
         self._url = url
         self._http = http

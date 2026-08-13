@@ -36,6 +36,8 @@ POLL_INTERVAL = 5          # seconds between /history polls
 # Secrets through the notebook; without one the app still starts and photos still render -- only a
 # video job's turn stops the run, with the client's own sentence.
 XAI_API_KEY = os.environ.get("QE_XAI_API_KEY", "")
+# The notebook decides both and passes them in, so its key probe asks exactly what the app asks.
+# The literals below are the fallback for a local run.
 XAI_MODEL = os.environ.get("QE_XAI_MODEL", "grok-4.3")
 XAI_URL = os.environ.get("QE_XAI_URL", "https://api.x.ai/v1/chat/completions")
 XAI_TIMEOUT = 120          # seconds per request; one prompt is a short answer
