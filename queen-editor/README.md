@@ -46,10 +46,11 @@ If the token leaks, it can only *read* this one repo — nothing else.
 ### 3. Run
 
 **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all.** The notebook mounts Drive
-(**grant access in the popup**), clones the repo, installs ComfyUI with its custom nodes and the
-models the producers need, then starts Flask and prints a cloudflared link. The first run of a
-session takes a while — the models are gigabytes. Open the link: the **Üreticiler** panel says what
-is on the machine, and anything missing is installed by running the notebook, not from the app.
+(**grant access in the popup**), clones the repo, installs ComfyUI with its custom nodes, downloads
+the photo models (~7.5 GiB, so the first run of a session takes 10-15 minutes), then starts Flask
+and prints a cloudflared link. Video and sound models are not fetched yet. Open the link: the
+**Üreticiler** panel says what is on the machine, and anything missing is installed by running the
+notebook, not from the app.
 Then **+ Yeni proje** creates a folder under `MyDrive/queenEditor/`, and clicking a project opens
 the screen where prompts become frames, a frame grows a video and a sound layer, and the export
 writes the whole sequence out. The secrets are read from Colab and never appear in any output or in
