@@ -114,7 +114,6 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
   const [open, setOpen] = useState("photo");
   const toggle = (id) => setOpen((shown) => (shown === id ? null : id));
   const current = PANELS.find((panel) => panel.id === open);
-  const installing = (producers?.producers || []).some((producer) => producer.installing);
 
   return (
     <div style={COLUMN}>
@@ -154,14 +153,14 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         {open === "producers" && (
           <ProducersPanel producers={producers?.producers || null}
                           error={producers?.error || null}
-                          onInstall={producers?.install} onCancel={producers?.cancel} />
+                          onInstall={producers?.install} />
         )}
       </div>
       )}
       <div style={RAIL}>
         {PANELS.map((panel) => (
           <RailButton key={panel.id} panel={panel} active={panel.id === open}
-                      busy={panel.id === "producers" && installing} onSelect={toggle} />
+                      onSelect={toggle} />
         ))}
       </div>
     </div>

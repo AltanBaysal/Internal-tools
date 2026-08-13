@@ -16,29 +16,21 @@ DRIVE_ROOT = os.environ.get("QE_DRIVE_ROOT", "/content/drive/MyDrive/queenEditor
 # ComfyUI runs on the same Colab machine; the notebook can point us elsewhere (tests do too).
 COMFY_URL = os.environ.get("QE_COMFY_URL", "http://127.0.0.1:8188")
 
-# ComfyUI's own folder on this machine -- where a producer's model group is installed. The notebook
-# passes it in; the literal below is only the fallback.
+# ComfyUI's own folder on this machine -- where the notebook installs each producer's model group,
+# and where the panel looks to answer whether one is here. The notebook passes it in; the literal
+# below is only the fallback.
 COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
-
-# Where a producer's library is cloned and installed from. Derived from the ComfyUI root rather than
-# given a setting of its own: on Colab that is /content, which is where MMAudio has always been
-# cloned, and a machine that moves one moves the other.
-LIB_ROOT = os.path.dirname(COMFY_ROOT)
 
 # The graph ships in the repo (our own copy -- never read collab-toolbox's file).
 WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
 # The video graph the same way: our own WAN 2.2 I2V export, exported from ComfyUI and committed.
 VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_video_api.json")
-# Sound has no graph: MMAudio runs inside this process, so its weights are a model file the
-# producers feature installs, not an asset that ships here (user's decision, 2026-08-13).
+# Sound has no graph: MMAudio runs inside this process, so its weights are a model file like any
+# other, installed by the notebook rather than shipped here.
 
 RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so this is a stall guard
 VIDEO_TIMEOUT = 30 * 60    # seconds for one video; 5s of WAN takes minutes, so this is a stall guard
 POLL_INTERVAL = 5          # seconds between /history polls
-
-# Civitai's login cookie: the gated model files sit behind it. Comes from Colab Secrets through the
-# notebook, like the xAI key; empty means those installs stop and say which source they wanted.
-CIVITAI_COOKIE = os.environ.get("QE_CIVITAI_COOKIE", "")
 
 # The language model that writes a video's prompt (design v3, madde 27). The key comes from Colab
 # Secrets through the notebook; without one the app still starts and photos still render -- only a

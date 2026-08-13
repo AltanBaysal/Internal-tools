@@ -5,8 +5,8 @@ carry a video and a sound layer on top of it, and the export joins them into one
 hand on. Photos and videos are rendered by ComfyUI, sound by MMAudio inside the app's own process,
 and everything lands in a Google Drive folder. Runs on Google Colab.
 
-The app installs its own producers — no model file comes down in the notebook. Built roadmap by
-roadmap; the closed ones are under
+The notebook installs the producers before the app starts; the app itself downloads nothing and only
+reports what is on the machine. Built roadmap by roadmap; the closed ones are under
 [`docs/superpowers/plans/`](../docs/superpowers/plans/). Needs a **T4 GPU** runtime, a
 `CIVITAI_COOKIE` secret, and an `XAI_API_KEY` if you want video.
 
@@ -46,14 +46,14 @@ If the token leaks, it can only *read* this one repo — nothing else.
 ### 3. Run
 
 **Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all.** The notebook mounts Drive
-(**grant access in the popup**), clones the repo, installs ComfyUI and its custom nodes (~5-10 min
-on the first run of a session), starts Flask and prints a cloudflared link. **Nothing a producer
-needs comes down here** — open the link and install the producers you want from the **Üreticiler**
-panel, which is also where you can see what is already on the machine. Then **+ Yeni proje**
-creates a folder under `MyDrive/queenEditor/`, and clicking a project opens the screen where
-prompts become frames, a frame grows a video and a sound layer, and the export writes the whole
-sequence out. The secrets are read from Colab and never appear in any output or in the notebook
-source.
+(**grant access in the popup**), clones the repo, installs ComfyUI with its custom nodes and the
+models the producers need, then starts Flask and prints a cloudflared link. The first run of a
+session takes a while — the models are gigabytes. Open the link: the **Üreticiler** panel says what
+is on the machine, and anything missing is installed by running the notebook, not from the app.
+Then **+ Yeni proje** creates a folder under `MyDrive/queenEditor/`, and clicking a project opens
+the screen where prompts become frames, a frame grows a video and a sound layer, and the export
+writes the whole sequence out. The secrets are read from Colab and never appear in any output or in
+the notebook source.
 
 Developer note: the frontend ships pre-built — after changing `frontend/src/`, run `npm run build`
 in `frontend/` and commit the regenerated `dist/` (Colab never builds). Run the backend tests

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import InstallCard from "./InstallCard.jsx";
+import { COLAB_INSTALL } from "./useProducers.js";
 
 const MISSING = { id: "video", name: "Video üreticisi", installed: false };
 
@@ -16,34 +17,18 @@ describe("InstallCard", () => {
     expect(onInstall).toHaveBeenCalledWith("video");
   });
 
-  it("says what is coming down while the download runs", () => {
-    render(<InstallCard producer={{ ...MISSING, installing: { step: "wan.safetensors" } }}
-                        onInstall={() => {}} />);
+  it("says where the install happens once the user has asked", () => {
+    render(<InstallCard producer={{ ...MISSING, note: COLAB_INSTALL }} onInstall={() => {}} />);
 
-    expect(screen.getByText("kuruluyor… wan.safetensors")).toBeTruthy();
-    expect(screen.queryByText("Kur")).toBeNull();
-  });
-
-  it("names the step, so a library install is not mistaken for a file", () => {
-    render(<InstallCard producer={{ ...MISSING, installing: { step: "MMAudio kütüphanesi" } }}
-                        onInstall={() => {}} />);
-
-    expect(screen.getByText("kuruluyor… MMAudio kütüphanesi")).toBeTruthy();
+    expect(screen.getByText(COLAB_INSTALL)).toBeTruthy();
+    expect(screen.getByText("Kur")).toBeTruthy();
   });
 
   it("draws no progress bar at all", () => {
     const { container } = render(
-      <InstallCard producer={{ ...MISSING, installing: { step: "wan.safetensors" } }}
-                   onInstall={() => {}} />);
+      <InstallCard producer={{ ...MISSING, note: COLAB_INSTALL }} onInstall={() => {}} />);
 
     expect(container.querySelector("[data-bar]")).toBeNull();
-  });
-
-  it("shows the failure of the last attempt next to a fresh Kur", () => {
-    render(<InstallCard producer={{ ...MISSING, error: "bağlantı yok" }} onInstall={() => {}} />);
-
-    expect(screen.getByText("bağlantı yok")).toBeTruthy();
-    expect(screen.getByText("Kur")).toBeTruthy();
   });
 
   it("is nothing at all once the producer is installed", () => {

@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import ProducersPanel from "./ProducersPanel.jsx";
+import { COLAB_INSTALL } from "./useProducers.js";
 
 const THREE = [
   { id: "photo", name: "Fotoğraf üreticisi", installed: true },
@@ -9,14 +10,9 @@ const THREE = [
   { id: "audio", name: "Ses üreticisi", installed: false },
 ];
 
-const INSTALLING = THREE.map((producer) => (producer.id === "video"
-  ? { ...producer, installing: { step: "wan.safetensors" } }
-  : producer));
-
 function renderPanel(props) {
   return render(
-    <ProducersPanel producers={THREE} error={null} onInstall={() => {}} onCancel={() => {}}
-                    {...props} />,
+    <ProducersPanel producers={THREE} error={null} onInstall={() => {}} {...props} />,
   );
 }
 
@@ -45,52 +41,22 @@ describe("ProducersPanel", () => {
     expect(screen.getByText("Üretici durumu okunamadı")).toBeTruthy();
   });
 
-  it("asks before it starts a long download", () => {
+  it("asks nothing before Kur, because nothing is started here", () => {
     const onInstall = vi.fn();
     renderPanel({ onInstall });
 
     fireEvent.click(screen.getAllByText("Kur")[0]);
 
-    expect(screen.getByText("Video üreticisi kurulsun mu?")).toBeTruthy();
-    // Wide enough for the two-line body it carries (madde 105).
-    expect(screen.getByText("Video üreticisi kurulsun mu?").closest(".wf-card").style.width)
-      .toBe("360px");
-    expect(screen.getByText("Kurulum uzun sürebilir. Üretimi engellemez, arkada sürer."))
-      .toBeTruthy();
-    expect(onInstall).not.toHaveBeenCalled();
-
-    // The modal's own Kur is the one added on top.
-    fireEvent.click(screen.getAllByText("Kur").at(-1));
     expect(onInstall).toHaveBeenCalledWith("video");
+    expect(screen.queryByText("Video üreticisi kurulsun mu?")).toBeNull();
   });
 
-  it("names what the running install is fetching, and offers a way out", () => {
-    renderPanel({ producers: INSTALLING });
-
-    expect(screen.getByText("kuruluyor… wan.safetensors")).toBeTruthy();
-    expect(screen.getByText("İptal")).toBeTruthy();
-  });
-
-  it("shows a failed install with the server's own words and a way to try again", () => {
+  it("shows the row where the install really happens", () => {
     renderPanel({ producers: THREE.map((producer) => (producer.id === "video"
-      ? { ...producer, error: "bağlantı yok" } : producer)) });
+      ? { ...producer, note: COLAB_INSTALL } : producer)) });
 
-    expect(screen.getByText("bağlantı yok")).toBeTruthy();
+    expect(screen.getByText(COLAB_INSTALL)).toBeTruthy();
+    // The button stays: pressing it again is how the user asks again.
     expect(screen.getAllByText("Kur")).toHaveLength(2);
-  });
-
-  it("asks before it throws away what has come down so far", () => {
-    const onCancel = vi.fn();
-    renderPanel({ producers: INSTALLING, onCancel });
-
-    fireEvent.click(screen.getByText("İptal"));
-
-    expect(screen.getByText("Kurulum iptal edilsin mi?")).toBeTruthy();
-    expect(screen.getByText("Kurulum iptal edilsin mi?").closest(".wf-card").style.width)
-      .toBe("360px");
-    expect(onCancel).not.toHaveBeenCalled();
-
-    fireEvent.click(screen.getByText("İptal et"));
-    expect(onCancel).toHaveBeenCalledWith("video");
   });
 });

@@ -50,22 +50,11 @@ from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
-from backend.features.producers.data.pip_libraries import PipLibraries
-from backend.features.producers.domain.model_groups import (
-    CIVITAI,
-    GROUPS,
-    LIBRARIES,
-    audio_weights,
-    civitai_headers,
-)
-from backend.features.producers.domain.usecases.cancel_install import cancel_install
-from backend.features.producers.domain.usecases.install_producer import install_producer
+from backend.features.producers.domain.model_groups import GROUPS, audio_weights
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.presentation.routes import make_producers_blueprint
-from backend.features.producers.runner import InstallRunner
 from backend.features.projects.presentation.routes import make_projects_blueprint
 from backend.services.comfy.client import ComfyClient
-from backend.services.download.fetcher import HttpFetcher
 from backend.services.drive.storage import DriveStorage
 from backend.services.xai.client import XaiClient
 from backend.web.app import create_app
@@ -184,23 +173,11 @@ _photo_bp = make_photo_generation_blueprint(
     photo_dir=_photo_store.photo_dir,
 )
 
-# Every producer is judged by what it declared: its model files on this machine, and its libraries
-# in this process. Sound is the only one with a library -- its engine runs here rather than in
-# ComfyUI, so installing it is the app's job like the models are (FOUNDATION 9).
-_fetcher = HttpFetcher()
-_libraries = PipLibraries(config.LIB_ROOT)
-_install_runner = InstallRunner()
-# The keys the installer may need, by source. Built here because a secret belongs in no other
-# layer; an empty map is a real answer -- the install then stops at a gated row and says so.
-_auth = {CIVITAI: civitai_headers(config.CIVITAI_COOKIE)} if config.CIVITAI_COOKIE else {}
+# Every producer is judged by its own model group: installed means those files are on this machine.
+# Nothing is installed from here -- the notebook does that before this process starts
+# (FOUNDATION 9), so the panel only reads.
 _producers_bp = make_producers_blueprint(
-    list_producers=lambda: list_producers(GROUPS, _model_files,
-                                          running=_install_runner.status(),
-                                          libraries=LIBRARIES, lib=_libraries),
-    install_producer=partial(install_producer, GROUPS, _model_files, _fetcher, _install_runner,
-                             _auth, libraries=LIBRARIES, lib=_libraries),
-    cancel_install=partial(cancel_install, _install_runner),
-)
+    list_producers=lambda: list_producers(GROUPS, _model_files))
 
 app = create_app(blueprints=[_projects_bp, _photo_bp, _producers_bp])
 

@@ -91,13 +91,17 @@ Knowledge and verbatim copies are inherited; no imported cell, no shared file, n
 Drive folder. Why: the tools must be able to evolve and break independently. The full rule
 and table: [CODE-STANDARD.md](CODE-STANDARD.md).
 
-**9. The app installs its own producers; the notebook installs only what the app needs to run.**
-The notebook brings up ComfyUI, its custom nodes and ffmpeg, and stops there. Everything a producer
-needs — every model file, and the sound engine's library — is installed after the app opens, from
-its own producers panel, one producer at a time.
-Why: one place answers "is this producer ready?", and it is the same place that can fix the answer.
-Two installers meant the notebook decided what was on disk while the panel reported it, and they
-only disagreed on a fresh machine — where nobody was looking. Consequence: a new machine opens with
-nothing installed, and that is the expected state rather than a failure. A source that wants a
-credential is no exception: the key reaches the app through the environment, and the download stays
-the app's.
+**9. The notebook installs the producers; the app only says what is here.**
+Everything a producer needs — every model file — comes down in the notebook, before the server
+starts. The app downloads nothing: its producers panel reads the disk and reports, and its Kur
+button says where the install happens.
+Why: the download machinery in `collab-toolbox` is proven against these sources and ours was not —
+a gated file is served by a redirect to a storage host that answers 403 if the login cookie
+travels with it, which the working cell knows and works around. Buying that knowledge twice, in a
+second downloader, is work spent to arrive where we already are.
+Consequence: a fresh machine is set up by one Run all, and a missing producer is fixed in the
+notebook rather than in the app. The cost, stated plainly: the panel reports what another place
+installed, so it can tell you what is missing but cannot fix it. It looks at real files, so it
+cannot be wrong about what is there — only powerless about what is not.
+This reverses an earlier version of this rule, which put installing in the app to stop the panel
+from lying. The lie is still gone: the panel counts files, never an empty list.

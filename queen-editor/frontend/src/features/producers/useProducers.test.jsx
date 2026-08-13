@@ -1,14 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { installProducer, listProducers } from "../../shared/api.js";
-import { useProducers } from "./useProducers.js";
+import { listProducers } from "../../shared/api.js";
+import { COLAB_INSTALL, useProducers } from "./useProducers.js";
 
-vi.mock("../../shared/api.js", () => ({
-  cancelInstall: vi.fn(),
-  installProducer: vi.fn(),
-  listProducers: vi.fn(),
-}));
+vi.mock("../../shared/api.js", () => ({ listProducers: vi.fn() }));
 
 const THREE = [
   { id: "photo", name: "Fotoğraf üreticisi", installed: true },
@@ -25,27 +21,32 @@ beforeEach(() => {
 });
 
 describe("useProducers", () => {
-  it("says the install started before the server has answered", async () => {
-    // Two round-trips separate the click from any change on screen otherwise, and the user
-    // presses Kur again.
-    installProducer.mockReturnValue(new Promise(() => {}));
+  it("reads the machine once and does not keep asking", async () => {
+    // Nothing installs while the app is up -- the notebook does it before this process starts --
+    // so a second read could only return the same answer.
+    renderHook(() => useProducers());
+    await settle();
+
+    expect(listProducers).toHaveBeenCalledTimes(1);
+  });
+
+  it("answers Kur with where the install happens, and asks the server nothing", async () => {
     const { result } = renderHook(() => useProducers());
     await settle();
 
     act(() => { result.current.install("video"); });
 
-    expect(result.current.producers[1].installing).toBeTruthy();
-    expect(result.current.producers[0].installing).toBeFalsy();
+    expect(result.current.producers[1].note).toBe(COLAB_INSTALL);
+    expect(result.current.producers[0].note).toBeUndefined();
+    expect(listProducers).toHaveBeenCalledTimes(1);
   });
 
-  it("takes that back when the request is refused", async () => {
-    installProducer.mockRejectedValue(new Error("Video üreticisi zaten kuruluyor."));
+  it("keeps the reason on screen when the list cannot be read", async () => {
+    listProducers.mockRejectedValue(new Error("Sunucuya ulaşılamadı."));
     const { result } = renderHook(() => useProducers());
     await settle();
 
-    await act(async () => { await result.current.install("video"); });
-
-    expect(result.current.producers[1].installing).toBeFalsy();
-    expect(result.current.error).toBe("Video üreticisi zaten kuruluyor.");
+    expect(result.current.error).toBe("Sunucuya ulaşılamadı.");
+    expect(result.current.producers).toBeNull();
   });
 });
