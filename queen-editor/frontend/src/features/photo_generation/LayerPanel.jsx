@@ -98,7 +98,11 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   // while picking frames by hand says "these ones" -- and that is how a second one is asked for,
   // since it is born as a copy frame rather than written over the first.
   const missing = can.filter((frame) => !(frame.layers || {})[layer]);
-  const inSelection = can.filter((frame) => chosen.includes(frame.file));
+  // By identity, not by file name: asking for a second video makes a copy frame, and the copy
+  // shows the same photo -- so a file name cannot tell two frames apart and the gallery keeps its
+  // selection as identities for exactly that reason. What goes to the queue below is still the
+  // file name; the two are three lines apart so neither can be changed without seeing the other.
+  const inSelection = can.filter((frame) => chosen.includes(frame.id));
   // The gallery's selection is what the panel follows: picking frames over there is a way of
   // saying "these ones", and the radio would be arguing with the user to stay where it was.
   useEffect(() => { setScope(chosen.length ? "selected" : "missing"); }, [chosen.length]);
