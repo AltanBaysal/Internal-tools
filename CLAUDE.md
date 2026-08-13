@@ -55,8 +55,9 @@ A web UI over the same ComfyUI photo pipeline as `nova-3dcg`, running on Colab. 
 principles and stack decisions live in [queen-editor/FOUNDATION.md](queen-editor/FOUNDATION.md);
 structure and layering rules in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the
 build order is the roadmap
-[docs/superpowers/plans/2026-08-13-queen-editor-v7-roadmap.md](docs/superpowers/plans/2026-08-13-queen-editor-v7-roadmap.md),
+[docs/superpowers/plans/2026-08-13-queen-editor-v8-roadmap.md](docs/superpowers/plans/2026-08-13-queen-editor-v8-roadmap.md),
 grounded in the findings list [queen-editor/EKSIKLER.md](queen-editor/EKSIKLER.md) and following
+[v7](docs/superpowers/plans/2026-08-13-queen-editor-v7-roadmap.md),
 [v6](docs/superpowers/plans/2026-08-13-queen-editor-v6-roadmap.md) and
 [v5](docs/superpowers/plans/2026-08-12-queen-editor-v5-roadmap.md) (both closed) — v5's items are grounded in
 [the design v3 difference report](docs/superpowers/research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
@@ -70,9 +71,10 @@ it inherits the graphs, the node ids and MMAudio's settings as knowledge and wri
 them. Photos and videos go through ComfyUI; sound runs MMAudio inside the app's own process. The
 boundary, in full: [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md).
 
-**The notebook installs code, the app installs models.** `app.ipynb` brings up ComfyUI, its custom
-nodes and the MMAudio library and stops there — no model file comes down in Colab. A fresh machine
-opens with nothing installed, and each producer is installed from the app's own Üreticiler panel
+**The notebook installs what the app needs to run; the app installs its producers.** `app.ipynb`
+brings up ComfyUI, its custom nodes and ffmpeg and stops there — nothing a producer needs comes down
+in Colab, not the model files and not MMAudio's library. A fresh machine opens with nothing
+installed, and each producer is installed from the app's own Üreticiler panel
 ([FOUNDATION 9](queen-editor/FOUNDATION.md)).
 
 **Build before commit.** The frontend ships pre-built — `frontend/dist/` is committed and Colab

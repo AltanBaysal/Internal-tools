@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v8
 
-**Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` · **Durum:** kararlar alındı, koşu başlıyor.
+**Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` · **Durum:** 3/3 bitti, push ve Colab turu bekliyor.
 **Öncesi:** [v7](2026-08-13-queen-editor-v7-roadmap.md) — 12 görev kapandı.
 **Kaynak:** kullanıcı kararı (2026-08-13), v7'nin Colab turundan çıktı.
 

@@ -91,9 +91,10 @@ Knowledge and verbatim copies are inherited; no imported cell, no shared file, n
 Drive folder. Why: the tools must be able to evolve and break independently. The full rule
 and table: [CODE-STANDARD.md](CODE-STANDARD.md).
 
-**9. The app installs its own models; the notebook installs only code.**
-The notebook brings up ComfyUI, its custom nodes and the sound library, and stops there. Every
-model file is installed after the app opens, from its own producers panel, one producer at a time.
+**9. The app installs its own producers; the notebook installs only what the app needs to run.**
+The notebook brings up ComfyUI, its custom nodes and ffmpeg, and stops there. Everything a producer
+needs — every model file, and the sound engine's library — is installed after the app opens, from
+its own producers panel, one producer at a time.
 Why: one place answers "is this producer ready?", and it is the same place that can fix the answer.
 Two installers meant the notebook decided what was on disk while the panel reported it, and they
 only disagreed on a fresh machine — where nobody was looking. Consequence: a new machine opens with
