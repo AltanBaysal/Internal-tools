@@ -163,7 +163,7 @@ describe("QueuePanel — a stopped queue", () => {
   it("invents no reason for a run that died with its session", () => {
     renderPanel({ job: { status: "idle" }, queue: [{ layer: "photo", owed: 2 }] });
 
-    expect(screen.getByText("Üretim durdu")).toBeTruthy();
+    expect(screen.getByText("Duraklatıldı")).toBeTruthy();
     expect(screen.getByText("Kaldığı yerden devam et")).toBeTruthy();
     expect(screen.queryByText(/yarım kaldı/)).toBeNull();
   });
@@ -243,6 +243,17 @@ describe("QueuePanel — the failures card", () => {
     expect(stopped.container.querySelector("[data-run-card]").style.borderColor)
       .toBe("var(--danger)");
   });
+
+  it("draws a queue its session left behind as paused, not as a failure", () => {
+    // Nothing broke: the runtime went away. Sharing the red card with a run the engine stopped
+    // told the user something had gone wrong when nothing had.
+    const { container } = renderPanel({ job: { status: "idle", project: "düğün" },
+                                        queue: [{ layer: "photo", owed: 2 }] });
+
+    expect(screen.getByText("Duraklatıldı")).toBeTruthy();
+    expect(screen.getByText("Kaldığı yerden devam et")).toBeTruthy();
+    expect(container.querySelector("[data-run-card]").style.borderColor).not.toBe("var(--danger)");
+  });
 });
 
 describe("QueuePanel — a queue with nobody to do the work", () => {
@@ -253,7 +264,6 @@ describe("QueuePanel — a queue with nobody to do the work", () => {
 
     expect(screen.getByText("Bekliyor — üretici kurulu değil")).toBeTruthy();
     expect(screen.getByText("5 video")).toBeTruthy();
-    expect(screen.getByText("Kurulum bitince kuyruk kendiliğinden sürer.")).toBeTruthy();
     expect(screen.queryByText("Üretim durdu")).toBeNull();
   });
 
@@ -265,19 +275,24 @@ describe("QueuePanel — a queue with nobody to do the work", () => {
 
     expect(onInstall).toHaveBeenCalledWith("video");
   });
-});
 
-describe("QueuePanel — a queue that picked itself up", () => {
-  it("says so when nobody pressed anything", () => {
-    renderPanel({ resumed: true });
+  it("promises no longer to carry itself on", () => {
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }] });
 
-    expect(screen.getByText("uygulama açıldı — kuyruk kaldığı yerden sürüyor")).toBeTruthy();
+    expect(screen.queryByText("Kurulum bitince kuyruk kendiliğinden sürer.")).toBeNull();
+    expect(screen.queryByText("Kaldığı yerden devam et")).toBeNull();
   });
 
-  it("stays quiet when the user pressed the button themselves", () => {
-    renderPanel();
+  it("offers the way on only once the producer is really here", () => {
+    const onResume = vi.fn();
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }],
+                  producerReady: true, onResume });
 
-    expect(screen.queryByText(/kaldığı yerden sürüyor/)).toBeNull();
+    fireEvent.click(screen.getByText("Kaldığı yerden devam et"));
+
+    expect(onResume).toHaveBeenCalled();
+    // The install button steps aside: what is missing is a press, not a model.
+    expect(screen.queryByText("Video üreticisini kur")).toBeNull();
   });
 });
 

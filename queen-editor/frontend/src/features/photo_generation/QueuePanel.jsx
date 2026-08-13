@@ -100,7 +100,7 @@ function KindCard({ layer, owed, alive }) {
 // Artboard 05: a card per kind of work, then whatever the run itself has to say. Everything the
 // run has to say lives here; the form panel next door only submits work.
 export default function QueuePanel({ job, error, errorField, busyElsewhere, project, stopping,
-                                     queue, failures, resumed, onStop, onResume, onCancel,
+                                     queue, failures, producerReady, onStop, onResume, onCancel,
                                      onRetryAll, onInstall }) {
   const [clearing, setClearing] = useState(false);
 
@@ -130,10 +130,13 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
   const abandoned = !halted && !paused && !running && !waitingFor && owed > 0;
   const finished = mine && job.status === "done" && owed === 0;
 
+  // An abandoned queue reads as paused, not as a failure: the runtime went away, nothing broke.
+  // Only a run the engine really stopped keeps the red card, so the two can be told apart. Their
+  // buttons stay different -- one queue was left on purpose, the other was not.
   const state = running ? (stopping ? "pausing" : "running")
-    : paused ? "paused"
+    : paused || abandoned ? "paused"
     : waitingFor ? "waiting"
-    : halted || abandoned ? "stopped"
+    : halted ? "stopped"
     : finished ? "done"
     : "empty";
 
@@ -150,14 +153,6 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
                   alive={running && !stopping
                          && (job.current?.type || "photo") === card.layer} />
       ))}
-
-      {/* Only for a run nobody asked for. Its life is the run's own: no timer, and no invented
-          number of seconds -- the design does not give one. */}
-      {resumed && running && (
-        <Note size={12} style={{ color: "var(--ink-3)" }}>
-          uygulama açıldı — kuyruk kaldığı yerden sürüyor
-        </Note>
-      )}
 
       {/* Nothing of its own to say while work is simply flowing: what is happening is written on
           the card of the kind it is happening to. */}
@@ -184,14 +179,25 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
               {(cards.find((card) => card.layer === waitingFor) || {}).owed || 0}{" "}
               {LAYER_WORD[waitingFor]}
             </Note>
-            <Note size={12} style={{ color: "var(--ink-3)" }}>
-              Kurulum bitince kuyruk kendiliğinden sürer.
-            </Note>
-            {/* Straight into the install, with nothing asked: the user queued this work, so what
-                they want is not in question. */}
-            <Btn hl onClick={() => onInstall(waitingFor)} style={{ justifyContent: "center" }}>
-              {PRODUCER_NAME[waitingFor]} kur
-            </Btn>
+            {/* Once the producer is on the machine the queue could go on, but it waits for a
+                press like every other queue does. Before that, saying so would offer a button
+                that stops at the same frame. */}
+            {producerReady ? (
+              <Btn hl onClick={onResume} style={{ justifyContent: "center" }}>
+                <Icon.Regen /> Kaldığı yerden devam et
+              </Btn>
+            ) : (
+              <>
+                <Note size={12} style={{ color: "var(--ink-3)" }}>
+                  Üretici kurulduktan sonra kuyruğu sen sürdürürsün.
+                </Note>
+                {/* Straight into the install, with nothing asked: the user queued this work, so
+                    what they want is not in question. */}
+                <Btn hl onClick={() => onInstall(waitingFor)} style={{ justifyContent: "center" }}>
+                  {PRODUCER_NAME[waitingFor]} kur
+                </Btn>
+              </>
+            )}
           </>
         ) : null}
 

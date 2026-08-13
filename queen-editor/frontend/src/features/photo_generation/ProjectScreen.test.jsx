@@ -121,7 +121,7 @@ describe("ProjectScreen — what leaving says while the queue flows", () => {
   });
 });
 
-describe("ProjectScreen — an open project carries its queue on", () => {
+describe("ProjectScreen — an open project waits for the user", () => {
   const OWED = [{ id: "0_a", file: "0_a.png", status: "pending", owed: ["photo"], failed: [] }];
 
   beforeEach(() => {
@@ -134,17 +134,7 @@ describe("ProjectScreen — an open project carries its queue on", () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
   }
 
-  it("asks the server to go on when frames are owed and nobody is working", async () => {
-    listFrames.mockResolvedValue(OWED);
-    getStatus.mockResolvedValue({ status: "idle" });
-
-    renderScreen();
-    await settle();
-
-    expect(resumeBatch).toHaveBeenCalledWith("düğün");
-  });
-
-  it("asks once, not on every poll", async () => {
+  it("starts nothing on its own, however many frames are owed", async () => {
     listFrames.mockResolvedValue(OWED);
     getStatus.mockResolvedValue({ status: "idle" });
 
@@ -152,10 +142,10 @@ describe("ProjectScreen — an open project carries its queue on", () => {
     await settle();
     await settle(10_000);
 
-    expect(resumeBatch).toHaveBeenCalledTimes(1);
+    expect(resumeBatch).not.toHaveBeenCalled();
   });
 
-  it("carries a waiting queue on by itself once its producer has landed", async () => {
+  it("leaves a waiting queue where it is even once its producer has landed", async () => {
     listFrames.mockResolvedValue(OWED);
     getStatus.mockResolvedValue({ status: "waiting", project: "düğün", waitingFor: "video" });
     listProducers.mockResolvedValue([
@@ -164,7 +154,7 @@ describe("ProjectScreen — an open project carries its queue on", () => {
     renderScreen();
     await settle();
 
-    expect(resumeBatch).toHaveBeenCalledWith("düğün");
+    expect(resumeBatch).not.toHaveBeenCalled();
   });
 
   it("leaves a waiting queue where it is while its producer is still missing", async () => {
@@ -174,19 +164,6 @@ describe("ProjectScreen — an open project carries its queue on", () => {
       { id: "video", name: "Video üreticisi", installed: false }]);
 
     renderScreen("boş 1");
-    await settle();
-
-    expect(resumeBatch).not.toHaveBeenCalled();
-  });
-
-  it("waits for the server before it carries any queue on", async () => {
-    // The frames arrive first -- from the answer or from the gallery this screen already had --
-    // and until the status lands, "idle" is a placeholder rather than something the server said.
-    // Acting on it would resume a queue the user had paused.
-    listFrames.mockResolvedValue(OWED);
-    getStatus.mockReturnValue(new Promise(() => {}));
-
-    renderScreen("sunucu susuyor");
     await settle();
 
     expect(resumeBatch).not.toHaveBeenCalled();

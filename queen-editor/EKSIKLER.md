@@ -21,8 +21,6 @@ oldu ve kapandı. Aşağıdakiler o koşudan artan, **kararı sana kalan** iki �
 - **Video üreticisini de kuramıyorum.** Aynı cümle: *"Video üreticisi — HTTP Error 403:
   Forbidden"*.
 - **"Foto kuyrukta" yazısı yanlış köşede.** Şu an karenin sol altında; sol üstte olması lazımdı.
-- **Proje açılınca üretim kendiliğinden başlamasın.** Yarıda kalan iş varsa duraklatılmış gelsin,
-  başlatmaya ben basayım.
 - **Ses üreticisini kuramıyorum.** "Kur"a basınca satır şunu diyor: *"MMAudio kütüphanesi kuruldu
   ama bu süreçte görünmüyor — uygulamayı yeniden başlat."*
 - **Video panelindeki açıklama kalksın:** *"Video prompt'u otomatik: LLM her fotonun kendi

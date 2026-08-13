@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { exportPath, navigate } from "../../shared/router.js";
 import { Btn, Hand, Note } from "../../vendor/kit.jsx";
@@ -24,7 +24,7 @@ const HINT = { position: "absolute", top: "calc(100% + 8px)", right: 0, width: 3
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, known, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+  const { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
           retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos } = useGeneration(project);
@@ -40,43 +40,21 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   // Whose run the status describes: another project's queue must not draw tiles into this gallery.
   const mine = job.project === project;
 
-  // Opening a project carries its queue on by itself -- a session that died mid-run leaves frames
-  // owed and nobody who remembers them. Only the two states that have a button of their own wait
-  // for the user: a queue the user paused, and one a fatal error stopped. Asked once per project,
-  // not once per poll; the server decides whether there is anything to do.
-  // Whether the queue on screen is one this screen picked up by itself. The panel says so while it
-  // flows, and only then -- a run the user asked for needs no announcing.
-  const [resumed, setResumed] = useState(false);
-  useEffect(() => { setResumed(false); }, [project]);
-
   // The gallery's own selection, echoed here so the video panel can scope itself to it. Read-only:
   // the gallery stays its owner.
   const [selected, setSelected] = useState([]);
 
-  const asked = useRef(null);
-  useEffect(() => {
-    // Nothing is decided before the server has answered: the gallery can be on screen already --
-    // from this poll or from the one this screen kept -- while the status is still the placeholder
-    // "idle", and resuming on that would restart a queue the user had paused.
-    if (!known) return;
-    const waitingForUser = mine && (job.status === "paused" || job.status === "error");
-    if (asked.current === project || job.status === "running" || waitingForUser) return;
-    if (!queue.length) return;
-    asked.current = project;
-    setResumed(true);
-    resume();
-  }, [project, known, mine, job.status, queue.length, resume]);
-
-  // "Kurulum bitince kuyruk kendiliğinden sürer": the queue stopped because the engine for the job
-  // at its head was not on this machine, and now it is. Nobody has to press anything. Joined here
-  // rather than in the server, because installing and generating are two features and neither may
-  // reach into the other.
+  // Nothing on this screen starts work by itself -- not a queue a dead session left owing frames,
+  // and not one that stopped for a producer that has since arrived (user's decision, 2026-08-13).
+  // Both used to resume on their own, and a machine that starts rendering while nobody is looking
+  // is the one thing the user asked us to stop doing. What is owed is still owed: the queue lives
+  // on disk, and the queue panel offers the button that carries it on.
+  //
+  // Whether the queue could go on at all: its producer has to be on this machine. The panel shows
+  // the way on only when this is true, because resuming without it would stop at the same frame.
   const waitingFor = mine && job.status === "waiting" ? job.waitingFor : null;
-  const readyAgain = Boolean(waitingFor)
+  const producerReady = Boolean(waitingFor)
     && (producers.producers || []).some((row) => row.id === waitingFor && row.installed);
-  useEffect(() => {
-    if (readyAgain) resume();
-  }, [readyAgain, resume]);
 
   // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
@@ -144,7 +122,8 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
                    models={models} modelsError={modelsError} producers={producers}
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
-                   onClearError={clearError} onRetryAll={retryAll} resumed={resumed} />
+                   onClearError={clearError} onRetryAll={retryAll}
+                   producerReady={producerReady} />
       </div>
 
     </div>
