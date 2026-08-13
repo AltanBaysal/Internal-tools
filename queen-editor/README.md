@@ -35,8 +35,8 @@ If the token leaks, it can only *read* this one repo — nothing else.
    - Toggle **Notebook access** on.
 3. Add a second secret the same way — **Name:** `CIVITAI_COOKIE`, **Value:** the
    `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). The
-   notebook hands it to the app, which uses it for the gated model downloads. It expires every
-   ~30 days; re-paste it when an install stops with Civitai's response.
+   notebook downloads the photo and video groups' gated files with it; a sound-only run needs no
+   cookie. It expires every ~30 days; re-paste it when an install stops with Civitai's response.
 4. A third one if you want video — **Name:** `XAI_API_KEY`. A video's prompt is written by xAI when
    the job's turn comes; without the key photos still render and a video job stops with the
    client's own sentence.
@@ -45,12 +45,14 @@ If the token leaks, it can only *read* this one repo — nothing else.
 
 ### 3. Run
 
-**Runtime → Change runtime type → T4 GPU**, then **Runtime → Run all.** The notebook mounts Drive
-(**grant access in the popup**), clones the repo, installs ComfyUI with its custom nodes, downloads
-the photo models (~7.5 GiB, so the first run of a session takes 10-15 minutes), then starts Flask
-and prints a cloudflared link. Video and sound models are not fetched yet. Open the link: the
-**Üreticiler** panel says what is on the machine, and anything missing is installed by running the
-notebook, not from the app.
+**Runtime → Change runtime type → T4 GPU.** In the notebook's **CONFIG** cell, tick the producers
+you want — `INSTALL_PHOTO` (~8 GiB), `INSTALL_VIDEO` (~37 GiB, more disk than a T4 runtime has: ask
+for A100), `INSTALL_AUDIO` (~9 GiB). All three start off and the notebook stops if none is chosen,
+because an app with no producer opens fine and renders nothing. Then **Runtime → Run all**: the
+notebook mounts Drive (**grant access in the popup**), clones the repo, installs ComfyUI with its
+custom nodes, downloads what you ticked, then starts Flask and prints a cloudflared link. Open the
+link: the **Üreticiler** panel says what is on the machine, and anything missing is installed by
+running the notebook with that box ticked, not from the app.
 Then **+ Yeni proje** creates a folder under `MyDrive/queenEditor/`, and clicking a project opens
 the screen where prompts become frames, a frame grows a video and a sound layer, and the export
 writes the whole sequence out. The secrets are read from Colab and never appear in any output or in

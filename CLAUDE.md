@@ -73,9 +73,10 @@ them. Photos and videos go through ComfyUI; sound runs MMAudio inside the app's 
 boundary, in full: [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md).
 
 **The notebook installs, the app reports.** `app.ipynb` brings up ComfyUI, its custom nodes and
-ffmpeg, and installs every model a producer needs — before the server starts, with the download
-cells copied verbatim from `collab-toolbox` because that machinery is proven against these sources.
-The app downloads nothing; its Üreticiler panel reads the disk and says what is here
+ffmpeg, and installs the models of the producers you tick in its CONFIG — three checkboxes, all off
+by default, everything before the server starts, with the download cells copied verbatim from
+`collab-toolbox` because that machinery is proven against these sources. The app downloads nothing;
+its Üreticiler panel reads the disk and says what is here
 ([FOUNDATION 9](queen-editor/FOUNDATION.md)).
 
 **Build before commit.** The frontend ships pre-built — `frontend/dist/` is committed and Colab

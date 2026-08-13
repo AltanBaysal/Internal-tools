@@ -92,15 +92,17 @@ Drive folder. Why: the tools must be able to evolve and break independently. The
 and table: [CODE-STANDARD.md](CODE-STANDARD.md).
 
 **9. The notebook installs the producers; the app only says what is here.**
-Everything a producer needs — every model file — comes down in the notebook, before the server
-starts. The app downloads nothing: its producers panel reads the disk and reports, and its Kur
-button says where the install happens.
+Everything a producer needs — every model file, and for sound the library too — comes down in the
+notebook, before the server starts. Which producers is the user's choice, made in CONFIG's three
+checkboxes: the groups run to ~54 GiB together and no machine needs all of them every session. The
+app downloads nothing: its producers panel reads the disk and reports, and its Kur button says
+where the install happens.
 Why: the download machinery in `collab-toolbox` is proven against these sources and ours was not —
 a gated file is served by a redirect to a storage host that answers 403 if the login cookie
 travels with it, which the working cell knows and works around. Buying that knowledge twice, in a
 second downloader, is work spent to arrive where we already are.
-Consequence: a fresh machine is set up by one Run all, and a missing producer is fixed in the
-notebook rather than in the app. The cost, stated plainly: the panel reports what another place
+Consequence: a fresh machine is set up by ticking what it needs and one Run all, and a missing
+producer is fixed in the notebook rather than in the app. The cost, stated plainly: the panel reports what another place
 installed, so it can tell you what is missing but cannot fix it. It looks at real files, so it
 cannot be wrong about what is there — only powerless about what is not.
 This reverses an earlier version of this rule, which put installing in the app to stop the panel
