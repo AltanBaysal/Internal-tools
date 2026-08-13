@@ -24,8 +24,6 @@ const WORDS = {
     // Every video is five seconds and there is no setting for it in this version (madde 28).
     note: "Her video 5 saniye — bu sürümde sabit.",
     empty: "Tüm karelerin videosu var — üretilecek bir şey yok.",
-    hint: "Video prompt'u otomatik: LLM her fotonun kendi prompt'undan yazar. Detayda okunur, "
-          + "düzenlenir.",
     Glyph: VideoGlyph,
   },
   audio: {
@@ -35,8 +33,6 @@ const WORDS = {
     own: "sesini",
     note: "Ses videonun süresince üretilir.",
     empty: "Videosu olup sesi olmayan kare yok — üretilecek bir şey yok.",
-    hint: "Ses prompt'u otomatik: LLM fotonun ve videonun prompt'undan yazar. Detayda okunur, "
-          + "düzenlenir.",
     Glyph: SoundGlyph,
   },
 };
@@ -193,10 +189,6 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
           </Note>
         )}
       </div>
-
-      <Note size={11} style={{ color: "var(--ink-4)", marginTop: "auto" }}>
-        {words.hint}
-      </Note>
     </div>
   );
 }
