@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { fileUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
@@ -54,9 +54,6 @@ const BAR_RAIL = { position: "sticky", bottom: 28, display: "flex", justifyConte
                    pointerEvents: "none", zIndex: 10, marginTop: -64 };
 const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
               borderColor: "var(--accent)", pointerEvents: "auto" };
-// Long enough that a press-and-slide does not become a drag, short enough that a deliberate hold
-// does not feel stuck. The design asks for a hold; the number is ours.
-const HOLD_MS = 250;
 
 // A layer that blew up on a frame that still has its picture: the way back rides an overlay CSS
 // only brings down under the pointer, so the photo is never hidden for good (madde 67).
@@ -166,32 +163,15 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   const selecting = selected.length > 0;
   const [confirming, setConfirming] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  // A tile can only be picked up after it has been held: this is the one that is armed.
-  const [armed, setArmed] = useState(null);
   // Which frames have just been sent back. The screen's own memory: the server keeps no "asked for"
   // flag, and the next poll brings the frame back as a waiting one anyway.
   const [retried, setRetried] = useState([]);
-  const hold = useRef(null);
-
-  useEffect(() => () => clearTimeout(hold.current), []);
 
   // The gallery owns the selection; the video panel only needs to read it, so it hears about it
   // rather than keeping a second copy that could drift.
   useEffect(() => {
     if (onSelectionChange) onSelectionChange(selected);
   }, [selected, onSelectionChange]);
-
-  // Every card can be picked up, whatever became of it: the sequence a drag makes is the sequence
-  // the queue produces in, so a frame with no pixels yet is exactly the one worth moving.
-  function press(fid) {
-    clearTimeout(hold.current);
-    hold.current = setTimeout(() => setArmed(fid), HOLD_MS);
-  }
-
-  function release() {
-    clearTimeout(hold.current);
-    setArmed(null);
-  }
 
   useEffect(() => {
     if (!selecting) return undefined;
@@ -315,16 +295,17 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
               // queue panel's "galeride göster" link scrolls to it without knowing this grid.
               id={`tile-${frame.id}`}
               className={selecting ? "qe-tile qe-tile--selecting" : "qe-tile"}
-              // While selecting, a press is a selection, not a drag -- one gesture cannot mean two
-              // things.
-              draggable={armed === frame.id && !selecting}
-              onMouseDown={() => !selecting && press(frame.id)}
-              onMouseUp={release}
-              onMouseLeave={release}
+              // Draggable from the start, not after a hold: the browser decides at mousedown
+              // whether a press may become a drag, so a tile armed 250 ms later was never a drag
+              // source at all -- the gallery simply could not be reordered. Every card can be
+              // picked up whatever became of it, because the sequence a drag makes is the sequence
+              // the queue produces in. While selecting, a press is a selection instead -- one
+              // gesture cannot mean two things.
+              draggable={!selecting}
               onDragStart={() => setDragIndex(index)}
               onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
               onDrop={handleDrop}
-              onDragEnd={() => { setDragIndex(null); setOverIndex(null); release(); }}
+              onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
               onClick={selecting && state !== "running" ? () => toggle(frame.id) : undefined}
               style={dragging ? DRAGGED : undefined}
             >
