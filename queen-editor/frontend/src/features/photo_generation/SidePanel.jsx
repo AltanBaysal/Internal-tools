@@ -24,7 +24,11 @@ const PANEL = {
   display: "flex",
   flexDirection: "column",
   gap: 14,
-  overflow: "hidden",
+  // Vertical only: a panel that scrolls sideways would break madde 107's rule from the inside.
+  // What made this necessary was an error long enough to push the buttons under it out of reach --
+  // with nowhere to scroll, they were not below the fold, they were simply gone.
+  overflowY: "auto",
+  overflowX: "hidden",
   boxSizing: "border-box",
 };
 

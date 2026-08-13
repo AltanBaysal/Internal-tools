@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
+import { RawOutput } from "../../shared/RawOutput.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
 
@@ -15,6 +16,17 @@ function describeError(text) {
     return { headline: "Sunucuya ulaşılamıyor", raw: nl >= 0 ? text.slice(nl + 1) : text };
   }
   return { headline: "İstek reddedildi", raw: text };
+}
+
+/** The engine's own error: the rule's sentence, then the service's answer under it.
+ *
+ * Two things that are read differently -- one is a sentence, the other is evidence -- so they are
+ * drawn differently. A one line error has no evidence to fold and gets no box.
+ */
+function splitReason(text) {
+  const nl = text.indexOf("\n");
+  return nl < 0 ? { said: text, raw: "" }
+    : { said: text.slice(0, nl), raw: text.slice(nl + 1) };
 }
 
 // The dot carries the whole state at a glance: colour says what is happening, motion says whether
@@ -124,6 +136,9 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
   const running = job.status === "running" && !busyElsewhere;
   const paused = mine && job.status === "paused";
   const halted = mine && job.status === "error";
+  // What the stopped card has to say, in its two parts. Read here rather than in the card so the
+  // split sits beside describeError, which answers the same question for a connection failure.
+  const stopped = halted && job.error ? splitReason(job.error) : null;
   // Nothing failed: the engine for the job at the head of the queue is simply not on this machine.
   const waitingFor = mine && job.status === "waiting" ? job.waitingFor : null;
   // A run that died with its session leaves frames owed and nobody who remembers why.
@@ -203,12 +218,15 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
 
         {/* Only when the server knows why. A run that died with the session left no reason behind,
             and inventing one is worse than saying nothing. */}
-        {halted && job.error && (
-          // Two lines: the rule's own sentence, then the server's raw output underneath it. Without
-          // pre-wrap they run together and the technical line reads as part of the sentence.
-          <Mono size={10} style={{ color: "var(--ink-3)", whiteSpace: "pre-wrap" }}>
-            {job.error}
-          </Mono>
+        {stopped && (
+          // The sentence stays a sentence; the service's answer is folded into its own box, which
+          // is what keeps a sixty line failure from pushing the buttons under it out of the panel.
+          <>
+            <Mono size={10} style={{ color: "var(--ink-3)", whiteSpace: "pre-wrap" }}>
+              {stopped.said}
+            </Mono>
+            {stopped.raw && <RawOutput text={stopped.raw} />}
+          </>
         )}
 
         {busyElsewhere && (

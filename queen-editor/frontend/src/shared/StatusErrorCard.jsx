@@ -1,4 +1,5 @@
-import { Btn, Icon, Mono, Note } from "../vendor/kit.jsx";
+import { Btn, Icon, Note } from "../vendor/kit.jsx";
+import { RawOutput } from "./RawOutput.jsx";
 
 // Spec §4's "state error" card: danger border AND danger background, one plain sentence, the
 // server's raw text as a bare mono line -- no nested box. Optional retry for screen-level
@@ -12,10 +13,7 @@ export function StatusErrorCard({ text, raw, onRetry }) {
         <Icon.Warn />
         <Note size={12} style={{ color: "var(--danger)", fontWeight: 500 }}>{text}</Note>
       </div>
-      {raw && (
-        <Mono size={10} style={{ color: "var(--ink-3)", whiteSpace: "pre-wrap",
-                                 wordBreak: "break-word" }}>{raw}</Mono>
-      )}
+      {raw && <RawOutput text={raw} />}
       {onRetry && (
         <Btn sm onClick={onRetry} style={{ alignSelf: "flex-start" }}>
           <Icon.Regen /> Tekrar dene
