@@ -1234,6 +1234,17 @@ def test_a_video_job_is_planned_for_every_frame_that_has_none():
     assert planned == [("0_a", "video"), ("1_a", "video")]
 
 
+def test_a_layer_job_is_planned_with_no_seed_of_its_own():
+    """Only a photo is made from a prompt and a seed; a layer is made from what is under it. The
+    producer contract runs against this, so the two must not drift apart."""
+    store, record, plan_store = video_project((0, "a"))
+
+    queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO)
+
+    assert plan_store.appended[-1][0]["seed"] is None
+
+
 def test_a_frame_that_already_has_a_video_is_out_of_scope():
     store, record, plan_store = video_project((0, "a"), (1, "a"))
     record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",

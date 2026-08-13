@@ -48,6 +48,13 @@ def make(tmp_path, sampler=None, ffmpeg=None):
                             tmp_dir=str(tmp_path))
 
 
+def make_with_port(tmp_path, sampler, new_seed, ffmpeg=None):
+    """The generator with a seed port. A sound job carries no seed of its own, so this is the
+    only thing standing between the queue's None and torch's manual_seed."""
+    return MMAudioGenerator(sampler, ffmpeg or FakeFfmpeg(), tmp_dir=str(tmp_path),
+                            new_seed=new_seed)
+
+
 SOURCE = ("P0_0_V1_0.mp4", b"mp4 bytes")
 
 
@@ -136,3 +143,50 @@ def test_a_failed_render_cleans_up_after_itself(tmp_path):
 
     assert str(exc.value) == "CUDA out of memory"
     assert os.listdir(tmp_path) == []
+
+
+def test_a_job_with_no_seed_still_reaches_the_model_with_one(tmp_path):
+    """Every sound job is planned without a seed, and torch's manual_seed takes a long or raises.
+    Passing the None straight through is what stopped production on 2026-08-14."""
+    sampler = FakeSampler()
+
+    make_with_port(tmp_path, sampler, lambda: 11).generate("waves", "", None, source=SOURCE)
+
+    assert sampler.calls[0]["seed"] == 11
+
+
+def test_two_seedless_jobs_do_not_get_the_same_seed(tmp_path):
+    """Otherwise two sound variants of one video would be the same file, and asking for a second
+    would buy nothing."""
+    sampler = FakeSampler()
+    seeds = iter([11, 22])
+    generator = make_with_port(tmp_path, sampler, lambda: next(seeds))
+
+    generator.generate("waves", "", None, source=SOURCE)
+    generator.generate("waves", "", None, source=SOURCE)
+
+    assert [call["seed"] for call in sampler.calls] == [11, 22]
+
+
+def test_every_piece_of_one_sound_shares_its_seed(tmp_path):
+    """A long video is cut into pieces but what comes out is one sound: a seed per piece would
+    change its character halfway through."""
+    sampler = FakeSampler()
+    seeds = iter([11, 22, 33, 44])
+
+    make_with_port(tmp_path, sampler, lambda: next(seeds),
+                   ffmpeg=FakeFfmpeg(seconds=24.0)).generate("waves", "", None, source=SOURCE)
+
+    assert [call["seed"] for call in sampler.calls] == [11, 11, 11]
+
+
+def test_a_job_that_carries_its_own_seed_keeps_it(tmp_path):
+    """No job carries one today, but the port makes overwriting one possible for the first time."""
+    def never():
+        raise AssertionError("the job carried a seed; the port must not be asked")
+
+    sampler = FakeSampler()
+
+    make_with_port(tmp_path, sampler, never).generate("waves", "", 4242, source=SOURCE)
+
+    assert sampler.calls[0]["seed"] == 4242

@@ -59,7 +59,12 @@ class VideoComfy:
 
 
 class Sampler:
+    """Stands in for torch on the one point that decides this contract: manual_seed takes a long
+    and raises on anything else. A fake that shrugs at the seed is exactly what let a seedless
+    sound job reach Colab."""
+
     def render(self, video, prompt, negative, seed, duration):
+        assert isinstance(seed, int), f"MMAudio needs an integer seed, got {seed!r}"
         return b"RIFFwav"
 
 
@@ -140,13 +145,16 @@ class Runner:
 
 # One frame, all three layers -- so the run also proves the order: the video is made from the
 # photo the same run produced, and the sound from that video.
+# The seeds are the queue's own, not this file's invention: a photo job is planned with one and a
+# layer job with none (queue_layer, locked by test_a_layer_job_is_planned_with_no_seed_of_its_own).
+# Writing seeds in by hand here is what kept the sound producer's demand for one out of sight.
 FRAMES = [
     {"id": "P0_0", "type": "photo", "number": 0, "variant": 0,
      "prompt": "kraliçe tahtta", "negative": "blurry", "seed": 1, "model": ""},
     {"id": "P0_0", "type": "video", "number": 0, "variant": 0,
-     "prompt": "kamera yaklaşır", "negative": "", "seed": 2, "model": ""},
+     "prompt": "kamera yaklaşır", "negative": "", "seed": None, "model": ""},
     {"id": "P0_0", "type": "audio", "number": 0, "variant": 0,
-     "prompt": "dalga sesi", "negative": "", "seed": 3, "model": ""},
+     "prompt": "dalga sesi", "negative": "", "seed": None, "model": ""},
 ]
 
 
