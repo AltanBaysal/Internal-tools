@@ -316,3 +316,36 @@ describe("QueuePanel — the connection", () => {
     expect(screen.queryByText("Format hatası — liste okunamadı")).toBeNull();
   });
 });
+
+// 2026-08-14: ComfyUI refused four nodes at once and the engine printed the sixty lines it
+// answered with. The panel does not scroll, the block had no ceiling, and both buttons went off
+// the bottom -- the run could neither be continued nor emptied.
+describe("QueuePanel — a stopped run with a lot to say", () => {
+  const NOISE = ["POST /prompt -> node_errors", "{"]
+    .concat(Array.from({ length: 60 }, (_, i) => `  "node ${i}": "value_not_in_list",`))
+    .concat(["}"])
+    .join("\n");
+  const RULE = "Aynı kare 3 kez denendi — üretim durduruldu";
+  const HALTED = { status: "error", project: "düğün", error: `${RULE}\n${NOISE}` };
+
+  function renderHalted() {
+    return renderPanel({ job: HALTED, queue: [{ layer: "video", owed: 8 }] });
+  }
+
+  it("does not let the output push the buttons off the panel", () => {
+    renderHalted();
+
+    expect(document.querySelector("[data-raw]")).toBeTruthy();
+    expect(screen.getByText("Kuyruğu boşalt")).toBeTruthy();
+    expect(screen.getByText("Kaldığı yerden devam et")).toBeTruthy();
+  });
+
+  it("leaves the rule's own sentence outside the box", () => {
+    // Two different things: one is read, the other is folded away and copied. Inside one block
+    // they read as a single technical dump and the sentence is lost in it.
+    renderHalted();
+
+    expect(screen.getByText(RULE)).toBeTruthy();
+    expect(document.querySelector("[data-raw]").textContent).toBe(NOISE);
+  });
+});
