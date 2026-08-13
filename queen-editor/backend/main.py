@@ -170,7 +170,10 @@ _photo_bp = make_photo_generation_blueprint(
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
     list_models=partial(list_models, _photo_generator),
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
-    export_summary=partial(export_summary, _photo_record, _photo_store, _plan_store, _order_store),
+    # How long one video runs is the video graph's own setting, so the producer that owns that
+    # graph is who answers it -- the summary keeps no number of its own.
+    export_summary=partial(export_summary, _photo_record, _photo_store, _plan_store, _order_store,
+                           _video_generator.seconds),
     export_state=_export_runner.state,
     run_export=_start_export,
     cancel_export=_cancel_export,

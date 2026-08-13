@@ -5,15 +5,19 @@ knowledge from collab-toolbox's photo_to_video notebook, which drives the same W
   "287"     LoadImage        -> the frame's photo
   "233:240" PromptGenerator  -> the video prompt (and its own seed)
   "210"     Seed (rgthree)   -> the sampler's noise seed
+  "178"     PrimitiveFloat   -> how many seconds one render runs
 
-A new export can renumber these; then this file changes and nothing else does. How long a video is
-never appears here: that is the graph's own setting (design v3, madde 28).
+A new export can renumber these; then this file changes and nothing else does. The duration is read
+rather than patched: the graph is where it is set (design v3, madde 28), and this file is the only
+one that knows where in the graph that is -- so anybody who needs the number asks instead of
+keeping a copy.
 """
 import json
 
 IMAGE_NODE = "287"
 PROMPT_NODE = "233:240"
 SEED_NODE = "210"
+DURATION_NODE = "178"
 
 # What counts as the render. A video graph often carries a preview image node too, so the file is
 # chosen by its own extension rather than by which output key it landed in.
@@ -49,6 +53,11 @@ class ComfyVideoGenerator:
         history = self._client.wait(prompt_id, self._timeout)
         return self._client.fetch_output(history, extensions=VIDEO_EXTENSIONS)
 
+    def seconds(self):
+        """How long one render runs, as the graph has it. Float on purpose: the field is one, and
+        rounding it here would be a second version of the truth as surely as a copy would be."""
+        return float(self._load()[DURATION_NODE]["inputs"]["value"])
+
     def _load(self):
         """Fresh copy per render -- patching is never written back to the shipped file."""
         try:
@@ -61,7 +70,7 @@ class ComfyVideoGenerator:
         if "nodes" in workflow:
             raise RuntimeError("workflow_video_api.json UI formatında — ComfyUI'de "
                                "'Workflow → Export (API)' ile kaydet")
-        for node_id in (IMAGE_NODE, PROMPT_NODE, SEED_NODE):
+        for node_id in (IMAGE_NODE, PROMPT_NODE, SEED_NODE, DURATION_NODE):
             if node_id not in workflow:
                 raise RuntimeError(f"Video grafiğinde {node_id} node yok — graf değişmiş, "
                                    "node id'lerini güncelle")

@@ -8,6 +8,7 @@ GRAPH = {
     "287": {"class_type": "LoadImage", "inputs": {"image": "example.png"}},
     "233:240": {"class_type": "PromptGenerator", "inputs": {"prompt": "", "seed": -1}},
     "210": {"class_type": "Seed", "inputs": {"seed": -1}},
+    "178": {"class_type": "PrimitiveFloat", "inputs": {"value": 5}},
 }
 
 
@@ -41,6 +42,18 @@ def graph_at(tmp_path, graph=None):
 
 def generator(tmp_path, client, graph=None):
     return ComfyVideoGenerator(client, graph_at(tmp_path, graph), timeout=60)
+
+
+def test_how_long_a_video_runs_is_read_from_the_graph(tmp_path):
+    # The graph is where the length is set. Anybody else holding a copy of the number -- the export
+    # summary did -- goes on quoting it after the graph moves.
+    assert generator(tmp_path, FakeClient()).seconds() == 5
+
+
+def test_a_fractional_length_is_not_rounded_away(tmp_path):
+    graph = {**GRAPH, "178": {"class_type": "PrimitiveFloat", "inputs": {"value": 7.5}}}
+
+    assert generator(tmp_path, FakeClient(), graph).seconds() == 7.5
 
 
 def test_the_frames_photo_is_uploaded_and_the_graph_points_at_it(tmp_path):
