@@ -596,32 +596,29 @@ describe("Gallery — every frame opens its own detail page", () => {
   });
 });
 
+// The browser decides at mousedown whether a press may become a drag, so the only question worth
+// asking is whether the tile is draggable BEFORE anything presses it. Arming it 250 ms later --
+// which is what these tests used to check -- is a state the browser has already stopped looking
+// for, and it is why the gallery could not be reordered at all (2026-08-14).
 describe("Gallery — picking a tile up", () => {
-  beforeEach(() => vi.useFakeTimers({ shouldAdvanceTime: true }));
-  afterEach(() => vi.useRealTimers());
-
-  it("does not let go of a tile that was only tapped", () => {
+  it("offers a tile to the drag before anything has touched it", () => {
     renderGallery();
 
-    fireEvent.mouseDown(tileOf("1_a.png"));
-
-    expect(tileOf("1_a.png").draggable).toBe(false);
+    expect(tileOf("1_a.png").draggable).toBe(true);
   });
 
-  it("arms the tile once it has been held", () => {
+  it("does not make a press part of the gesture", () => {
     renderGallery();
 
     fireEvent.mouseDown(tileOf("1_a.png"));
-    act(() => { vi.advanceTimersByTime(250); });
 
+    // Pressing wins the tile nothing it did not already have: that is how this says there is no
+    // step between the press and the drag for a timer to sit in.
     expect(tileOf("1_a.png").draggable).toBe(true);
   });
 
   it("lifts a waiting frame too -- the drag is what decides when it is produced", () => {
     renderGallery({ frames: [pending("9_a.png"), done("0_a.png")] });
-
-    fireEvent.mouseDown(tileOf("9_a.png"));
-    act(() => { vi.advanceTimersByTime(250); });
 
     expect(tileOf("9_a.png").draggable).toBe(true);
     expect(screen.queryByText("üretilince sıralanabilir")).toBeNull();
@@ -630,9 +627,6 @@ describe("Gallery — picking a tile up", () => {
   it("lifts a failed frame too", () => {
     renderGallery({ frames: [broken("9_a.png"), done("0_a.png")] });
 
-    fireEvent.mouseDown(tileOf("9_a.png"));
-    act(() => { vi.advanceTimersByTime(250); });
-
     expect(tileOf("9_a.png").draggable).toBe(true);
   });
 
@@ -640,10 +634,16 @@ describe("Gallery — picking a tile up", () => {
     renderGallery({ frames: [pending("9_a.png"), done("0_a.png")],
                     current: "9_a" });
 
-    fireEvent.mouseDown(tileOf("9_a.png"));
-    act(() => { vi.advanceTimersByTime(250); });
-
     expect(tileOf("9_a.png").draggable).toBe(true);
+  });
+
+  it("lets nothing be dragged while a selection is open", () => {
+    renderGallery();
+
+    fireEvent.click(checkOf("0_a.png"));
+
+    // One gesture cannot mean two things: while frames are being picked, a press is a pick.
+    expect(tileOf("1_a.png").draggable).toBe(false);
   });
 });
 
