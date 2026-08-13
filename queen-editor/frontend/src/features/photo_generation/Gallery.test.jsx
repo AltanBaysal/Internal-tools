@@ -130,6 +130,15 @@ describe("Gallery — one sequence, four states", () => {
     expect(pillOf("2_a.png").textContent).toBe("foto hata");
   });
 
+  it("keeps the pill in a corner of its own, so hovering a frame moves nothing in it", () => {
+    // The select ring owns the top left and appears under the pointer; a pill sharing that corner
+    // had to jump out of the way, which is movement inside a card the user only pointed at.
+    renderGallery({ frames: MIXED, current: "3_a" });
+
+    expect(pillOf("4_a.png").style.bottom).toBe("6px");
+    expect(pillOf("4_a.png").style.top).toBe("");
+  });
+
   it("gives a produced frame no pill -- the photo is the answer", () => {
     renderGallery({ frames: MIXED, current: "3_a" });
 

@@ -10,8 +10,12 @@ const STATE = {
   failed: { word: "hata", color: "var(--danger)", alive: false },
 };
 
+// Bottom left, not top left, and it does not move: the select ring owns the top left corner and
+// appears under the pointer, so a pill sharing that corner had to jump out of the way -- which
+// made hovering a frame move something inside it. Two corners, no jump. The owns badge is at the
+// other end of the same row.
 const PILL = {
-  position: "absolute", top: 6, left: 6, zIndex: 2,
+  position: "absolute", bottom: 6, left: 6, zIndex: 2,
   display: "flex", alignItems: "center", gap: 4,
   background: "rgba(10,8,7,.75)", borderRadius: 3, padding: "2px 5px",
   fontSize: 9, lineHeight: 1.4,
