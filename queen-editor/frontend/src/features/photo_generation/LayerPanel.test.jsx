@@ -133,10 +133,13 @@ describe("LayerPanel — sending", () => {
     expect(screen.getByText("Her video 5 saniye — bu sürümde sabit.")).toBeTruthy();
   });
 
-  it("says who writes the prompt, since it never asks for one", () => {
+  it("does not explain who writes the prompt -- the frame's own page does", () => {
+    // The sentence was read once and then took up room at the foot of the panel on every open.
+    // Where a prompt is actually read -- the frame's page -- an empty one still says that the
+    // language model will write it when its turn comes.
     renderPanel();
 
-    expect(screen.getByText(/LLM her fotonun kendi prompt'undan yazar/)).toBeTruthy();
+    expect(screen.queryByText(/LLM/)).toBeNull();
   });
 });
 
@@ -189,5 +192,13 @@ describe("LayerPanel — sound", () => {
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(screen.getByText("1 ses kuyruğa eklendi")).toBeTruthy();
+  });
+
+  it("does not explain who writes the prompt either", () => {
+    // Both panels are one component and the design asks for them to be identical; leaving the
+    // sentence on one of them would part them where nothing else does.
+    renderSound();
+
+    expect(screen.queryByText(/LLM/)).toBeNull();
   });
 });
