@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -140,13 +142,56 @@ describe("Gallery — one sequence, four states", () => {
     expect(pillOf("2_a.png").style.color).toBe("var(--danger)");
   });
 
-  it("keeps the pill in a corner of its own, so hovering a frame moves nothing in it", () => {
-    // The select ring owns the top left and appears under the pointer; a pill sharing that corner
-    // had to jump out of the way, which is movement inside a card the user only pointed at.
-    renderGallery({ frames: MIXED, current: "3_a" });
+  it("puts the state pill in the top left, where the design asks for it", () => {
+    // It used to sit at the bottom because the select ring owned this corner and appeared under
+    // the pointer, so the pill had to get out of the way. The ring moved to the other side
+    // (2026-08-13), and the corner is the pill's again.
+    renderGallery({ frames: MIXED, current: "3_a", running: true });
 
-    expect(pillOf("4_a.png").style.bottom).toBe("6px");
-    expect(pillOf("4_a.png").style.top).toBe("");
+    expect(pillOf("4_a.png").style.top).toBe("6px");
+    expect(pillOf("4_a.png").style.left).toBe("6px");
+    expect(pillOf("4_a.png").style.bottom).toBe("");
+  });
+
+  const badgeOf = (name) => tileOf(name).querySelector(".qe-badge");
+
+  it("puts the select ring in the top right, opposite the pill", () => {
+    renderGallery({ frames: MIXED, current: "3_a", running: true });
+
+    expect(checkOf("4_a.png").style.top).toBe("6px");
+    expect(checkOf("4_a.png").style.right).toBe("6px");
+    expect(checkOf("4_a.png").style.left).toBe("");
+  });
+
+  it("leaves the order badge in the top right and gives it a name to be hidden by", () => {
+    // The ring lands on the badge's corner, so one of them has to give way. The badge does -- what
+    // is being looked at while picking frames is the pictures, not the numbering.
+    renderGallery({ frames: MIXED, current: "3_a", running: true });
+
+    expect(badgeOf("4_a.png").style.top).toBe("6px");
+    expect(badgeOf("4_a.png").style.right).toBe("6px");
+  });
+
+  it("hides the number wherever the stylesheet shows the ring", () => {
+    // A text check, and it says so: jsdom applies no stylesheet, so this catches the rule being
+    // deleted, not the rule being wrong. The ring appears on hover and in selection mode, and the
+    // number has to leave in both -- otherwise they sit on top of each other.
+    const css = readFileSync(new URL("../../shared/app.css", import.meta.url), "utf-8");
+
+    expect(css).toMatch(/\.qe-tile:hover \.qe-badge/);
+    expect(css).toMatch(/\.qe-tile--selecting \.qe-badge/);
+  });
+
+  it("does not move the pill when the selection mode opens", () => {
+    // The whole point of the new layout: something appearing is not something moving, so nothing
+    // in the card shifts under the pointer.
+    renderGallery({ frames: MIXED, current: null });
+    const before = pillOf("4_a.png").style.top;
+
+    fireEvent.click(checkOf("4_a.png"));
+
+    expect(pillOf("4_a.png").style.top).toBe(before);
+    expect(pillOf("4_a.png").style.top).toBe("6px");
   });
 
   it("gives a produced frame no pill -- the photo is the answer", () => {
