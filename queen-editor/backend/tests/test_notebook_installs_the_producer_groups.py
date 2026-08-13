@@ -102,6 +102,13 @@ def test_the_sound_weights_land_where_the_app_will_look():
     assert "os.chdir(APP_DIR)" in _source()
 
 
+def test_the_freshly_installed_library_is_reachable_from_the_running_kernel():
+    """`pip install -e .` registers the package with a .pth file, and .pth files are read when a
+    Python process starts -- the Colab kernel started long before. Without the clone on sys.path
+    the very next line dies with ModuleNotFoundError, which is what happened on 2026-08-13."""
+    assert "sys.path.insert(0, MMAUDIO_DIR)" in _source()
+
+
 def test_the_app_is_told_where_the_notebook_installed():
     """The notebook owns the model tree now, so it is the side that names the path -- rather than
     both sides writing /content/ComfyUI and hoping they stay equal."""
