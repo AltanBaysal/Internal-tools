@@ -55,9 +55,10 @@ A web UI over the same ComfyUI photo pipeline as `nova-3dcg`, running on Colab. 
 principles and stack decisions live in [queen-editor/FOUNDATION.md](queen-editor/FOUNDATION.md);
 structure and layering rules in [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md); the
 build order is the roadmap
-[docs/superpowers/plans/2026-08-13-queen-editor-v6-roadmap.md](docs/superpowers/plans/2026-08-13-queen-editor-v6-roadmap.md),
-which follows
-[v5](docs/superpowers/plans/2026-08-12-queen-editor-v5-roadmap.md) — v5's items are grounded in
+[docs/superpowers/plans/2026-08-13-queen-editor-v7-roadmap.md](docs/superpowers/plans/2026-08-13-queen-editor-v7-roadmap.md),
+grounded in the findings list [queen-editor/EKSIKLER.md](queen-editor/EKSIKLER.md) and following
+[v6](docs/superpowers/plans/2026-08-13-queen-editor-v6-roadmap.md) and
+[v5](docs/superpowers/plans/2026-08-12-queen-editor-v5-roadmap.md) (both closed) — v5's items are grounded in
 [the design v3 difference report](docs/superpowers/research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 (the [v4](docs/superpowers/plans/2026-08-08-queen-editor-v4-roadmap.md),
 [v3](docs/superpowers/plans/2026-08-08-queen-editor-v3-roadmap.md) and
@@ -68,6 +69,11 @@ which follows
 it inherits the graphs, the node ids and MMAudio's settings as knowledge and writes its own code for
 them. Photos and videos go through ComfyUI; sound runs MMAudio inside the app's own process. The
 boundary, in full: [queen-editor/CODE-STANDARD.md](queen-editor/CODE-STANDARD.md).
+
+**The notebook installs code, the app installs models.** `app.ipynb` brings up ComfyUI, its custom
+nodes and the MMAudio library and stops there — no model file comes down in Colab. A fresh machine
+opens with nothing installed, and each producer is installed from the app's own Üreticiler panel
+([FOUNDATION 9](queen-editor/FOUNDATION.md)).
 
 **Build before commit.** The frontend ships pre-built — `frontend/dist/` is committed and Colab
 serves it as-is (it never runs npm/build). After any change under `queen-editor/frontend/src/`, run

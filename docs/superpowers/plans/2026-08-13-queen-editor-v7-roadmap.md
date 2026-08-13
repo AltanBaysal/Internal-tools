@@ -1,6 +1,11 @@
 # Queen Editor — Yol Haritası v7
 
-**Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` · **Durum:** yazıldı, koşu başlamadı.
+**Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` ·
+**Durum:** 12 görevin 12'si yazıldı ve commit edildi (`55b0fc2`'ye kadar); **push ve kullanıcının
+elle Colab turu bekliyor** — aşağıdaki *Koşunun sonu*.
+**Koşudan çıkan, kapatılmayan iki şey:** galeri karolarının tam boy PNG çekmesi (önizleme üretmek
+kendi tasarımını ister, Görev 8) ve başarısız karede hover'la inen karartma (tasarım kararı,
+Görev 10). İkisi de EKSIKLER'de, kullanıcının kararını bekliyor.
 **Yerini aldığı doküman:** yok — [v6](2026-08-13-queen-editor-v6-roadmap.md) kapandıktan sonra
 açılan yeni koşu.
 **Kaynak:** [queen-editor/EKSIKLER.md](../../../queen-editor/EKSIKLER.md) — kullanıcının elle UI
