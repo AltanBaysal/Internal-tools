@@ -41,6 +41,8 @@ Resume: existing outputs are skipped, and a dropped session picks up where it le
 
 ComfyUI and the models live on local disk (speed), only data on Drive; the Colab copy is removed once the work is done.
 
-## 7) Language
+## 7) Language and comments
 
-See the root [../CLAUDE.md](../CLAUDE.md) — Notebook Comment Conventions.
+See the root [../CLAUDE.md](../CLAUDE.md) — Working rules. One rule belongs here rather than there,
+because it is about a kind of task only notebooks get: **when only the comments are being updated,
+the code does not change** — prints, values, function logic and cell order stay as they are.
