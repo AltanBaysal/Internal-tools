@@ -28,6 +28,21 @@ def _source():
     return "\n".join("".join(cell.get("source", "")) for cell in doc.get("cells", []))
 
 
+def _cell(marker):
+    """The source of the one cell that carries `marker`, or "".
+
+    Some questions are about WHERE something is, not whether it exists -- and the blob `_source()`
+    returns cannot tell one cell from another.
+    """
+    with open(NOTEBOOK, encoding="utf-8") as handle:
+        doc = json.load(handle)
+    for cell in doc.get("cells", []):
+        source = "".join(cell.get("source", ""))
+        if marker in source:
+            return source
+    return ""
+
+
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
     missing = [row["name"] for group in GROUPS.values() for row in group
                if row["name"] not in _source()]
@@ -113,3 +128,45 @@ def test_the_app_is_told_where_the_notebook_installed():
     """The notebook owns the model tree now, so it is the side that names the path -- rather than
     both sides writing /content/ComfyUI and hoping they stay equal."""
     assert '"QE_COMFY_ROOT": COMFY_ROOT' in _source()
+
+
+def test_the_xai_key_is_probed_like_everything_else_from_outside():
+    """Everything the notebook needs from outside is checked before the heavy work -- the GitHub
+    token by an assert, the Civitai cookie by a 1 KB probe, the disk by measurement. The xAI key
+    was the one that was not, so on 2026-08-13 a dead key surfaced only after the whole install
+    and a batch of photos, as `xAI HTTP 400 -- Incorrect API key provided`."""
+    assert "def xai_probe" in _source(), "Defter xAI anahtarını yoklamıyor"
+
+
+def test_the_xai_probe_runs_in_config_not_after_the_downloads():
+    """CONFIG is the first cell. Anywhere later and the answer costs an install."""
+    assert "xai_probe(" in _cell("# === CONFIG ==="), "Yoklama CONFIG hücresinde çağrılmıyor"
+
+
+def test_a_dead_key_stops_a_run_that_is_installing_video():
+    """A video's prompt is written by the language model and there is no manual path, so installing
+    ~37 GiB of video models against a dead key is time spent for nothing."""
+    assert "xai_probe(XAI_API_KEY, fatal=INSTALL_VIDEO)" in _cell("# === CONFIG ==="), \
+        "Yoklamanın durdurup durdurmayacağı video seçimine bağlanmamış"
+
+
+def test_a_dead_key_only_warns_when_video_is_not_being_installed():
+    """A photo-only run never asks the language model anything, so a dead key is worth saying and
+    not worth stopping for."""
+    probe = _cell("def xai_probe")
+
+    assert "raise RuntimeError" in probe, "Yoklama hiç durdurmuyor"
+    assert "⚠️" in probe, "Yoklama, durdurmadığı durumda uyarmıyor"
+
+
+def test_the_probe_says_what_xai_answered_rather_than_guessing_why():
+    """A 400 can be a wrong key, a spent quota or a revoked one, and only the body knows which --
+    the same rule the Civitai probe follows."""
+    assert "xAI yanıtı" in _cell("def xai_probe"), "Yoklama xAI'ın kendi cevabını basmıyor"
+
+
+def test_the_key_is_trimmed_where_it_is_read():
+    """The paste is what carries the newline, so the value is cleaned at the point it is pasted --
+    before the probe uses it and before it is handed to the app."""
+    assert 'XAI_API_KEY = (userdata.get("XAI_API_KEY") or "").strip()' in _source(), \
+        "Secret'tan okunan anahtar kırpılmıyor"

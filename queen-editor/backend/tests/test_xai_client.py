@@ -86,3 +86,24 @@ def test_without_a_key_it_says_so_before_it_asks_anything():
         client(http, api_key="").complete("talimat", "prompt")
 
     assert http.calls == []
+
+
+def test_the_key_reaches_the_header_without_the_whitespace_around_it():
+    """A key pasted into Colab's secret store can carry a trailing newline, and a header reading
+    `Bearer sk-...\\n` is what xAI answers 400 to. The client owns the shape of its own header."""
+    http = FakeHttp(answering("x"))
+
+    client(http, api_key="\n k-1 \n").complete("talimat", "prompt")
+
+    assert http.calls[0]["headers"]["Authorization"] == "Bearer k-1"
+
+
+def test_a_key_that_is_only_whitespace_counts_as_no_key():
+    """There is a carefully written sentence for a missing key, and a single space must not slip
+    past it into xAI's own 400 -- which says far less about what to do."""
+    http = FakeHttp(answering("x"))
+
+    with pytest.raises(NotConfigured):
+        client(http, api_key="   ").complete("talimat", "prompt")
+
+    assert http.calls == []
