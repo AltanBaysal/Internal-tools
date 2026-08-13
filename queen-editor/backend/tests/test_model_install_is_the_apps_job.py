@@ -13,6 +13,13 @@ SKIP_DIRS = {".git", "dist", "node_modules", "__pycache__"}
 SKIP_FILES = {os.path.basename(__file__), "EKSIKLER.md"}
 GONE = ("CIVITAI_MODELS", "OPEN_MODELS", "civitai_probe")
 
+NOTEBOOK = os.path.join(ROOT, "app.ipynb")
+# The sound engine is a library rather than a model file, so it was the last thing the notebook
+# still installed on a producer's behalf. Leaving that cell in would break nothing -- it would
+# quietly become a second way of installing the same engine, and the two only disagree on a fresh
+# machine, where nobody is looking.
+ENGINE = "MMAudio"
+
 
 def _mentions():
     found = []
@@ -31,3 +38,8 @@ def _mentions():
 
 def test_the_notebook_downloads_no_models():
     assert _mentions() == []
+
+
+def test_the_notebook_installs_no_producer_engine():
+    with open(NOTEBOOK, encoding="utf-8") as handle:
+        assert ENGINE not in handle.read()
