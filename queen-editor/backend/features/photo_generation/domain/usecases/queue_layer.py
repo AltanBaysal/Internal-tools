@@ -12,7 +12,7 @@ to hang it on yet. A frame that already has this layer is never written over -- 
 the extra one becomes a frame of its own, sharing what is under it and taking the next variant of
 its source's number (madde 25, 102).
 """
-from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.copy_frame import (
     carry_layers,
     family,
@@ -91,6 +91,9 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         return 0
 
     taken = known_ids(record, plan_store, project)
+    # What the log last said about each slot. Read once: the only cells consulted below belong to
+    # frames that already exist, and the rows written during the loop are about other slots.
+    slots = record.slots(project)
     jobs, born = [], {}
     # Written oldest first, the direction the engine works in: the gallery is newest-first and its
     # foot is what gets made first, so a plan written the way it reads would run backwards wherever
@@ -101,6 +104,15 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         held = frame.get("layers", {})
         owed = variants
         if kind not in held:
+            settled = slots.get(fid, {}).get(kind)
+            if settled:
+                # Free is not the same as never written about: emptying the queue writes removed and
+                # deleting a layer writes deleted, and both close the job for good. queued is the one
+                # line that reopens it -- the same line Tekrar dene writes, with the slot's own file
+                # name -- and without it the job appended below lands in a plan the queue cannot see
+                # it in. Reported 2026-08-14: after emptying the queue, sound could never be queued
+                # again.
+                record.mark(project, fid, kind, settled["file"], queue.QUEUED, now())
             jobs.append(_job(kind, fid, number, variant))
             owed -= 1
         for _ in range(owed):
