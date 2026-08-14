@@ -1245,6 +1245,108 @@ def test_a_layer_job_is_planned_with_no_seed_of_its_own():
     assert plan_store.appended[-1][0]["seed"] is None
 
 
+def settled_slot_project(layer, status):
+    """A frame with a photo and a video, and a `layer` slot whose last line settled it.
+
+    This is what emptying the queue leaves behind: nothing was produced, but the slot has been
+    written about, and a written slot is closed for good unless something reopens it.
+    """
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    store.files["0_a.png"] = b"PNGDATA"
+    store.files["0_a_V1_0.mp4"] = b"MP4DATA"
+    record.mark("düğün", "0_a", layer, "0_a.png", status, "t")
+    return store, record, plan_store
+
+
+def ask_again(store, record, plan_store, layer, generator, files=None):
+    return queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                       {layer: generator}, lambda: "t", "düğün", layer, files=files)
+
+
+def test_a_sound_pulled_out_of_the_queue_can_be_asked_for_again():
+    """2026-08-14: the queue was emptied and sound could never be queued again. Emptying writes
+    removed on the slot, a written slot is settled, and queue_layer appended a job nobody could
+    see -- the run ended having found nothing and reported the previous batch's total."""
+    store, record, plan_store = settled_slot_project(layers.AUDIO, queue.REMOVED)
+    generator = FakeGenerator()
+
+    added = ask_again(store, record, plan_store, layers.AUDIO, generator)
+
+    assert added == 1
+    # Not the plan's contents: whether the sound was actually made.
+    assert len(generator.calls) == 1
+    assert [name for name, _data in store.saved] == ["0_a_V1_0_S1_0.wav"]
+
+
+def test_a_video_pulled_out_of_the_queue_can_be_asked_for_again():
+    """The hole is not the sound layer's: every layer is closed by the same rule."""
+    store, record, plan_store = settled_slot_project(layers.VIDEO, queue.REMOVED)
+    generator = FakeGenerator()
+
+    ask_again(store, record, plan_store, layers.VIDEO, generator)
+
+    assert len(generator.calls) == 1
+
+
+def test_a_deleted_layer_can_be_asked_for_again():
+    """A deleted layer frees its slot without putting the frame back in line -- which is right, and
+    is also why asking for it again has to do the putting back."""
+    store, record, plan_store = settled_slot_project(layers.AUDIO, queue.DELETED)
+    generator = FakeGenerator()
+
+    ask_again(store, record, plan_store, layers.AUDIO, generator)
+
+    assert len(generator.calls) == 1
+
+
+def test_reopening_a_settled_slot_is_written_down():
+    """queued is the one written status that reopens a job, so the reopening is a line in the log
+    rather than an assumption. Without this the hole could be closed by loosening is_open instead,
+    and the queue's single rule would live in two places."""
+    store, record, plan_store = settled_slot_project(layers.AUDIO, queue.REMOVED)
+
+    ask_again(store, record, plan_store, layers.AUDIO, FakeGenerator())
+
+    said = [row["status"] for row in record.rows if row.get("layer") == "audio"]
+    assert queue.QUEUED in said
+    assert said.index(queue.QUEUED) > said.index(queue.REMOVED)
+
+
+def test_a_failed_layer_stays_out_of_the_scope_nobody_picked():
+    """A guard, not a hole: a failed slot counts as taken, so the frame leaves the panel's own
+    scope and is rescued by Tekrar dene alone -- one frame never gets two ways to be produced at
+    once. Reopening settled slots must not drag failed ones back in."""
+    store, record, plan_store = settled_slot_project(layers.AUDIO, queue.FAILED)
+    generator = FakeGenerator()
+
+    added = ask_again(store, record, plan_store, layers.AUDIO, generator)
+
+    assert added == 0
+    assert generator.calls == []
+
+
+def test_a_failed_layer_picked_by_hand_becomes_a_frame_of_its_own():
+    """The other guard: picking the frame says these ones, and asking for a layer it already holds
+    is asking for a second one -- which is born as a copy frame (madde 25), never written over the
+    first. This path works today and must keep working."""
+    store, record, plan_store = settled_slot_project(layers.AUDIO, queue.FAILED)
+    generator = FakeGenerator()
+
+    ask_again(store, record, plan_store, layers.AUDIO, generator, files=["0_a.png"])
+
+    assert len(generator.calls) == 1
+    # The new identity is the frame's, not the file's: a sound is named after the video it sits on,
+    # and the copy carries its source's video -- so the name is no way to tell the two apart.
+    made = [row for row in record.rows
+            if row.get("layer") == "audio" and row.get("status") == "done"]
+    assert len(made) == 1
+    assert made[0]["frame"] != "0_a"
+
+
 def test_a_frame_that_already_has_a_video_is_out_of_scope():
     store, record, plan_store = video_project((0, "a"), (1, "a"))
     record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
