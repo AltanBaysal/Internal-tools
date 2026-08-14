@@ -18,6 +18,9 @@ import {
 
 const POLL_MS = 2000;
 
+// The two statuses that are a report rather than a state: the run is over, and this is how it went.
+const REPORT = ["done", "error"];
+
 // The last gallery each project answered with. Opening a frame's detail replaces the whole project
 // screen, so this hook is torn down and built again on every step in and out; without this the
 // screen would blank and refetch each time, though the answer it had was still good. Keyed by
@@ -50,6 +53,12 @@ export function useGeneration(project) {
   // once more, so the batch's last photo (still landing on Drive when status flips) isn't stranded
   // until a manual reload.
   const wasRunning = useRef(false);
+  // Has this page seen the engine in anything but an outcome? The engine keeps a finished run's
+  // outcome in memory and /api/status answers with it until the next run starts, so a page opened
+  // afterwards would draw a previous page's news -- and did, on top of the sound the user was
+  // trying to queue (2026-08-14). Seeing one status that is not an outcome, or starting a run from
+  // this page, is what makes the next outcome ours to show.
+  const watched = useRef(false);
   // While a drag is being saved the gallery on screen is ahead of the server: a poll's older list
   // would snap the tiles back for one frame and then forward again.
   const savingOrder = useRef(false);
@@ -74,6 +83,7 @@ export function useGeneration(project) {
     getStatus()
       .then((state) => {
         if (!alive.current) return;
+        if (!REPORT.includes(state.status)) watched.current = true;
         setJob(state);
         setKnown(true);
         setError(null);                       // a successful poll clears a stale connection error
@@ -122,6 +132,9 @@ export function useGeneration(project) {
   // second round-trip for a list the screen is holding, and that is the wait the user sees between
   // pressing Kuyruğa ekle and the frames appearing.
   const startPolling = useCallback((gallery) => {
+    // Pressing the button is watching: a run that ends before the first poll would otherwise have
+    // its report hidden from the very person who asked for it.
+    watched.current = true;
     setJob({ status: "running", project });
     wasRunning.current = true;
     clearTimeout(timer.current);
@@ -283,6 +296,10 @@ export function useGeneration(project) {
       })
   ), [project]);
 
+  // What the screen is told. The raw status stays as it is -- another tab may be watching the same
+  // run, and the server is not wrong; only this page's reading of it changes.
+  const told = !watched.current && REPORT.includes(job.status) ? { status: "idle" } : job;
+
   // The server also reports "stopping" (survives a reload); either source disables the button.
   const stopping = stopPressed || Boolean(job.stopping);
 
@@ -318,7 +335,8 @@ export function useGeneration(project) {
     .map((layer) => ({ layer, count: failedByKind[layer] }))
     .filter((card) => card.count > 0);
 
-  return { job, known, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+  return { job: told, known, frames, error, errorField, stopping, queue, failures,
+           current, currentLayer,
            retryAll, queueLayer, regenerate, removeLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
 }
