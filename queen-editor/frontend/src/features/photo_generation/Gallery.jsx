@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 
-import { fileUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Rendering, StatusPill } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 import { lostLayers, owned } from "./layer_words.js";
+import { TileImage } from "./TileImage.jsx";
 
 const PAD = { padding: 16 };
 const GRID = { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12,
@@ -341,11 +341,15 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                        if (!selecting) navigate(photoPath(project, frame.id));
                      }}>
                     {state === "done" ? (
-                      <img src={fileUrl(project, frame.file)} alt={frame.file}
-                           loading="lazy" decoding="async" draggable={false}
-                           style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
-                                    border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
-                                    display: "block" }} />
+                      /* The picture asks a queue before it downloads: every tile is a request
+                         through the same tunnel, and unlimited tiles starved the poll until it
+                         timed out. loading=lazy is gone with it -- the queue is the gate now, and
+                         the tile only asks once it is near. */
+                      <TileImage project={project} file={frame.file}
+                                 decoding="async" draggable={false}
+                                 style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
+                                          border: "1px solid var(--border)",
+                                          borderRadius: "var(--r-sm)", display: "block" }} />
                     ) : state === "running" ? (
                       <Rendering style={{ aspectRatio: "1/1" }} />
                     ) : state === "failed" ? (
