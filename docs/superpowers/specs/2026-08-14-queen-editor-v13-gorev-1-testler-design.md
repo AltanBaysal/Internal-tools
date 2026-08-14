@@ -79,7 +79,9 @@ hiçbiri tarayıcıya muhtaç değil, dolayısıyla hiçbiri tarayıcı taklidiy
 
 ### `frontend/src/shared/image_queue.test.js` — saf, DOM yok
 
-Testler `createQueue(limit)` ile kendi kuyruklarını kurar; uygulamanın paylaştığı örnek ayrı.
+Kural testleri `createQueue(limit)` ile kendi kuyruklarını kurar, böylece hiçbiri diğerinin
+durumunu görmez. Yalnız sonuncusu uygulamanın paylaştığı örneğe bakar — sınadığı şey zaten o
+örneğin tavanı.
 
 1. **`grants the first askers up to the limit`** — iki isteyen anında slot alır.
 2. **`makes an asker past the limit wait`** — üçüncü isteyen slot almaz.
@@ -91,6 +93,9 @@ Testler `createQueue(limit)` ile kendi kuyruklarını kurar; uygulamanın payla�
 5. **`frees one slot however many times done is called`** — aynı bilet iki kez bırakılırsa bir slot
    açılır. Yükledikten sonra unmount olan karo tam olarak bunu yapıyor.
 6. **`keeps a freed slot for the next asker when no one is waiting`** — boşta bırakılan slot kaybolmaz.
+7. **`shares one queue of two slots for the gallery`** — uygulamanın paylaştığı örneğin tavanı iki.
+   Görevin bütün amacı olan sayı; `createQueue` doğru çalışırken uygulamanın başka bir tavanla
+   gönderilmesi mümkün, o yüzden sayı paylaşılan örnekte sınanıyor.
 
 ### `frontend/src/features/photo_generation/TileImage.test.jsx`
 
@@ -100,14 +105,16 @@ slotu testin istediği anda verir) ve `IntersectionObserver`'ı global olarak be
 de sağlamıyor, ve repo bu yöntemi zaten kullanıyor (`vi.stubGlobal("fetch", …)`, clipboard,
 `video.duration`).
 
-7. **`draws no picture before the tile comes near`** — gözlemci daha "yaklaştın" demeden `src` yok.
-8. **`asks for the picture once the tile comes near`** — yaklaşınca kuyruğa tam bir kez sorulur.
-9. **`draws no picture until the queue grants a slot`** — sorulmuş ama verilmemişken `src` yok.
-10. **`frees its slot once the picture has loaded`** — `load` olayı slotu bırakır.
-11. **`frees its slot when the picture fails`** — `error` olayı da bırakır; bozuk dosya slot tutmaz.
-12. **`frees its slot when the tile leaves before its turn`** — slot almadan uzaklaşan sıradan düşer.
-13. **`frees its slot when the tile is taken off the screen`** — unmount bırakır.
-14. **`draws the picture at once when the browser has no observer`** — gözlemci yokken karo görünür
+8. **`draws no picture before the tile comes near`** — gözlemci daha "yaklaştın" demeden `src` yok.
+9. **`asks for the picture once the tile comes near`** — yaklaşınca kuyruğa tam bir kez sorulur.
+10. **`draws no picture until the queue grants a slot`** — sorulmuş ama verilmemişken `src` yok.
+11. **`draws the picture once the queue grants a slot`** — slot gelince `src` doğru dosyayı
+    gösterir. Olumsuzun eşi: bu test olmadan hiç resim çizmeyen bir bileşen de takımı geçerdi.
+12. **`frees its slot once the picture has loaded`** — `load` olayı slotu bırakır.
+13. **`frees its slot when the picture fails`** — `error` olayı da bırakır; bozuk dosya slot tutmaz.
+14. **`frees its slot when the tile leaves before its turn`** — slot almadan uzaklaşan sıradan düşer.
+15. **`frees its slot when the tile is taken off the screen`** — unmount bırakır.
+16. **`draws the picture at once when the browser has no observer`** — gözlemci yokken karo görünür
     sayılır ve normal sıraya girer.
 
 ## İskelet
@@ -136,19 +143,19 @@ export function TileImage({ project, file, ...rest }) {
 
 | Test | Nasıl düşüyor |
 |---|---|
-| 1, 2, 3, 6 | `ask` kimseye slot vermiyor — beklenen çağrı hiç gelmiyor |
+| 1, 2, 3, 6, 7 | `ask` kimseye slot vermiyor — beklenen çağrı hiç gelmiyor |
 | 4 | vazgeçen çağrılmıyor (doğru), ama arkasındaki de çağrılmıyor — testin ikinci yarısı düşüyor |
 | 5 | iki bırakıştan sonra tek slot açılması bekleniyor, hiç açılmıyor |
-| 8 | kuyruğa hiç sorulmuyor |
-| 10, 11, 12, 13 | bırakma hiç çağrılmıyor |
-| 14 | gözlemcisiz hâlde `src` yazılmıyor |
+| 9 | kuyruğa hiç sorulmuyor |
+| 11, 16 | `src` hiç yazılmıyor |
+| 12, 13, 14, 15 | bırakma hiç çağrılmıyor |
 
-**On iki kırmızı.** İki test iskeletle tesadüfen yeşil geçiyor ve bilerek kalıyorlar:
+**On dört kırmızı.** İki test iskeletle tesadüfen yeşil geçiyor ve bilerek kalıyorlar:
 
 | Test | Neden bugün yeşil | Neden yine de yazılıyor |
 |---|---|---|
-| 7 (yaklaşmadan resim yok) | iskelet zaten `src` yazmıyor | Düzeltmeden sonra bekçi: tavan konarken lazy davranışının düşmediğini garanti eder |
-| 9 (slot verilmeden resim yok) | aynı sebep | Tavanın gerçekten tavan olduğunu söyleyen tek test — o olmadan "hep çiz" de testleri geçerdi |
+| 8 (yaklaşmadan resim yok) | iskelet zaten `src` yazmıyor | Düzeltmeden sonra bekçi: tavan konarken lazy davranışının düşmediğini garanti eder |
+| 10 (slot verilmeden resim yok) | aynı sebep | Tavanın gerçekten tavan olduğunu söyleyen tek test — o olmadan "hep çiz" de takımı geçerdi. Eşi olan 11 ile birlikte anlam kazanıyor: biri çizmemeyi, öbürü çizmeyi zorunlu kılıyor |
 
 ## Kapsam dışı
 
@@ -164,6 +171,6 @@ export function TileImage({ project, file, ...rest }) {
 
 ## Bitti sayılır
 
-`npm test --prefix queen-editor/frontend` on iki düşen test veriyor, hepsi kuyruk tavanı ve slot
+`npm test --prefix queen-editor/frontend` on dört düşen test veriyor, hepsi kuyruk tavanı ve slot
 iadesiyle ilgili; geri kalan takım — `Gallery.test.jsx` dahil — yeşil. Commit kırmızı gidiyor ve
 mesajı bunu söylüyor.
