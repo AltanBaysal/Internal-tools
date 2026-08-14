@@ -315,6 +315,20 @@ describe("QueuePanel — the connection", () => {
 
     expect(screen.queryByText("Format hatası — liste okunamadı")).toBeNull();
   });
+
+  it("hands the evidence to the copy button", () => {
+    const evidence = [
+      "GET /api/projects/d%C3%BC%C4%9F%C3%BCn/frames",
+      "502 Bad Gateway",
+      "<html><body>error code: 1033</body></html>",
+    ].join("\n");
+
+    renderPanel({ error: `Sunucuya ulaşılamadı — bağlantıyı kontrol et.\n${evidence}` });
+
+    // Green today: describeError already splits at the first newline. It is written because
+    // nothing else says the proof can reach the clipboard, and that split is now load-bearing.
+    expect(document.querySelector("[data-raw]").textContent).toBe(evidence);
+  });
 });
 
 // 2026-08-14: ComfyUI refused four nodes at once and the engine printed the sixty lines it

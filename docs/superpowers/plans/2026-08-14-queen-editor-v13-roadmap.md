@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v13
 
-**Tarih:** 2026-08-14 · **Koşu dalı:** `feat/queen-editor-v3` · **Durum:** 0/2
+**Tarih:** 2026-08-14 · **Koşu dalı:** `feat/queen-editor-v3` · **Durum:** 1/2
 **Öncesi:** [v12](2026-08-14-queen-editor-v12-roadmap.md) — kapandı. Bu koşu onun Colab turundan
 çıktı.
 
