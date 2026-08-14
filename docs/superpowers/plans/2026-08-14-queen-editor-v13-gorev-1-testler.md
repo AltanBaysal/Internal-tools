@@ -239,8 +239,10 @@ function stubObserver() {
     observe() {}
     disconnect() {}
   });
+  // Optional call for the same reason as grant below: a component that never observes leaves this
+  // empty, and a helper that throws would hide the assertion the test is actually about.
   const fire = (isIntersecting) =>
-    act(() => made[made.length - 1].callback([{ isIntersecting }]));
+    act(() => made[made.length - 1]?.callback([{ isIntersecting }]));
   return { near: () => fire(true), away: () => fire(false) };
 }
 
