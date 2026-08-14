@@ -32,6 +32,7 @@ async function settle(ms = 0) {
 
 const RUNNING = { status: "running", project: "düğün", done: 1, failed: 0, total: 4 };
 const DONE = { status: "done", project: "düğün", done: 4, failed: 0, total: 4 };
+const STOPPED = { status: "error", project: "düğün", error: "xAI HTTP 400" };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -383,5 +384,71 @@ describe("useGeneration", () => {
     await settle();
 
     expect(result.current.stopping).toBe(true);
+  });
+});
+
+// The engine keeps a finished run's outcome in memory and /api/status answers with it until the
+// next run starts -- so a green Kuyruk tamamlandı came back on every reload, in every tab. On
+// 2026-08-14 it came back in place of the sound the user was trying to queue. A report belongs to
+// the run this page watched; anything already over when the page opened is a previous page's news.
+describe("useGeneration — whose report is this", () => {
+  it("says nothing about a run that was already over when the page opened", async () => {
+    getStatus.mockResolvedValue(DONE);
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.job.status).toBe("idle");
+  });
+
+  it("says nothing about a run that had already stopped when the page opened", async () => {
+    getStatus.mockResolvedValue(STOPPED);
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.job.status).toBe("idle");
+    expect(result.current.job.error).toBeUndefined();
+  });
+
+  it("reports a run that ended while the page was watching", async () => {
+    getStatus.mockResolvedValue(RUNNING);
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+    getStatus.mockResolvedValue(DONE);
+    await settle(2000);
+
+    expect(result.current.job.status).toBe("done");
+    expect(result.current.job.done).toBe(4);
+  });
+
+  it("keeps the reason of a run that stopped while the page was watching", async () => {
+    getStatus.mockResolvedValue(RUNNING);
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+    getStatus.mockResolvedValue(STOPPED);
+    await settle(2000);
+
+    expect(result.current.job.status).toBe("error");
+    expect(result.current.job.error).toBe("xAI HTTP 400");
+  });
+
+  it("takes nothing but the report away", async () => {
+    // The guard. What is owed is read off the gallery, not off the run, and it is true whoever
+    // watched it -- hiding the report must not hide the work.
+    getStatus.mockResolvedValue(DONE);
+    listFrames.mockResolvedValue([
+      { id: "P0_0", file: "P0_0.png", status: "done", owed: ["video"], failed: [] }]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.queue).toEqual([{ layer: "video", owed: 1 }]);
   });
 });

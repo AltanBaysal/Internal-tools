@@ -282,3 +282,23 @@ describe("ProjectScreen — a stopped queue does not look like a moving one", ()
     expect(screen.getByText("video bekliyor")).toBeTruthy();
   });
 });
+
+// What the user actually saw on 2026-08-14: a green report from a batch of photos, on a page they
+// had just opened to queue sound.
+describe("ProjectScreen — a report nobody on this page watched", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => vi.useRealTimers());
+
+  it("opens on a finished run without repeating its good news", async () => {
+    listFrames.mockResolvedValue([]);
+    getStatus.mockResolvedValue({ status: "done", project: "eski", done: 20, failed: 0,
+                                  total: 20 });
+
+    renderScreen("eski");
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
+
+    expect(screen.queryByText("Kuyruk tamamlandı")).toBeNull();
+    expect(screen.getByText("Kuyruk boş")).toBeTruthy();
+  });
+});
