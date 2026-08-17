@@ -1,14 +1,9 @@
 import { deleteJson, postJson } from "../../shared/api.js";
 import { useList } from "../../shared/useList.js";
 
-// Two lists, two questions. The sidebar asks what was touched recently across the whole workspace;
-// the project screen asks what this project holds. Filtering one out of the other works today, but
-// the day the recent list is capped the project screen would quietly go short.
-export function useRecentChats() {
-  const { items, reload } = useList("/api/chats");
-  return { recentChats: items, reloadRecentChats: reload };
-}
-
+// One question, one list: both the sidebar and the project screen ask what this project holds. The
+// sidebar draws the first eight of it, which is a matter of how much room a column has, not of a
+// second answer worth fetching.
 export function useProjectChats(projectId) {
   const { items, reload, loading } = useList(`/api/projects/${projectId}/chats`, Boolean(projectId));
   return {

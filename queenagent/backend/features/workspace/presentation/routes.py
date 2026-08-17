@@ -23,7 +23,6 @@ from backend.features.workspace.domain.usecases.edit_project import edit_project
 from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
-from backend.features.workspace.domain.usecases.list_recent_chats import list_recent_chats
 from backend.features.workspace.domain.usecases.read_file import read_file
 from backend.features.workspace.domain.usecases.restore_file import restore_file
 from backend.features.workspace.domain.usecases.start_chat import start_chat
@@ -166,15 +165,6 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
         except ChatNotFound:
             return jsonify({"error": "chat not found"}), 404
         return jsonify({})
-
-    @workspace_bp.get("/api/chats")
-    def get_recent_chats():
-        return jsonify(
-            [
-                {**_chat_summary(chat), "projectId": project_id}
-                for project_id, chat in list_recent_chats(chat_store)
-            ]
-        )
 
     return workspace_bp
 

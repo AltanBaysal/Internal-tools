@@ -13,7 +13,6 @@ import {
   deleteChat,
   startChatInProject,
   useProjectChats,
-  useRecentChats,
 } from "./features/workspace/useChatLists.js";
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
@@ -21,12 +20,18 @@ import { useProjects } from "./features/workspace/useProjects.js";
 import { useOnline } from "./shared/useOnline.js";
 import { useRoute } from "./shared/useRoute.js";
 
+// A draft has the shape of a chat so the screen needs no second mode: an empty conversation with a
+// title of its own. It is never sent anywhere -- the first message creates the real one.
+const DRAFT = { id: null, title: "New chat", messages: [] };
+
 export default function App() {
   const { route, navigate } = useRoute();
   const online = useOnline();
   const { projects, error, loading, createProject, editProject, reloadProjects } = useProjects();
-  const { recentChats, reloadRecentChats } = useRecentChats();
   const { projectChats, reloadProjectChats, loadingChats } = useProjectChats(route.projectId);
+  // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
+  // an address all the same -- a reload must not throw the user out of what they were typing.
+  const drafting = route.view === "chat" && route.chatId === "new";
   const { files, reloadFiles, loadingFiles, deleting } = useFiles(
     route.projectId,
     reloadProjects,
@@ -38,16 +43,15 @@ export default function App() {
   // the project's card.
   const chat = useChat(
     route.projectId,
-    route.chatId,
+    drafting ? null : route.chatId,
     () => Promise.all([reloadFiles(), reloadProjects()]),
     online,
   );
 
   const openProject = (id) => navigate(`/p/${id}`);
-  const openChat = (projectId, chatId) => navigate(`/p/${projectId}/c/${chatId}`);
-  // What "New chat" does is Madde 6's decision. Until then it opens the project screen, where a
-  // chat is started; the control is only drawn when there is a project, so there is always one.
-  const openNewChat = () => openProject(route.projectId ?? projects[0].id);
+  const openChat = (projectId, chatId, options) =>
+    navigate(`/p/${projectId}/c/${chatId}`, options);
+  const openDraft = () => navigate(`/p/${route.projectId}/c/new`);
 
   // "/" is a fork, not a screen. It is read once the list has arrived -- an empty array cannot tell
   // "there is none" from "not here yet", and deciding early shows the wrong screen for a moment.
@@ -80,12 +84,6 @@ export default function App() {
     if (answer && answer.trim()) editProject(route.projectId, { name: answer });
   };
 
-  const afterStart = async (started) => {
-    // The counts on the cards and both chat lists have all moved, so they are read again.
-    await Promise.all([reloadProjects(), reloadRecentChats()]);
-    openChat(started.projectId, started.chatId);
-  };
-
   const removeFile = (name) => {
     // Reading something that is no longer there is not reading, so the panel goes first.
     if (reading.name === name) reading.close();
@@ -97,26 +95,28 @@ export default function App() {
     // design asks for. The sentence says what goes and what stays.
     if (!window.confirm("Delete this chat? Its files stay in the project.")) return;
     await deleteChat(route.projectId, chatId);
-    await Promise.all([reloadProjectChats(), reloadRecentChats(), reloadProjects()]);
+    await Promise.all([reloadProjectChats(), reloadProjects()]);
   };
 
-  const sendFromProject = async (text) => {
+  // The draft address is not a place to come back to, so the chat that replaces it does exactly
+  // that; starting one from the project screen is an ordinary step and is pushed.
+  const startChat = async (text) => {
     const started = await startChatInProject(route.projectId, text);
-    await reloadProjectChats();
-    await afterStart({ projectId: route.projectId, chatId: started.id });
+    await Promise.all([reloadProjectChats(), reloadProjects()]);
+    openChat(route.projectId, started.id, { replace: drafting });
   };
 
   return (
     <div className="app-shell" data-testid="app-shell">
       <Sidebar
         projects={projects}
-        recentChats={recentChats}
+        chats={projectChats}
         activeProjectId={route.projectId}
         activeChatId={route.chatId}
-        onNewChat={openNewChat}
+        onNewChat={openDraft}
         onNewProject={createProject}
         onOpenProject={openProject}
-        onOpenChat={openChat}
+        onOpenChat={(chatId) => openChat(route.projectId, chatId)}
       />
       <main className="main">
         {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
@@ -138,7 +138,7 @@ export default function App() {
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
             onRename={askForName}
-            onSend={sendFromProject}
+            onSend={startChat}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             onDeleteChat={removeChat}
           />
@@ -147,7 +147,7 @@ export default function App() {
         {route.view === "chat" ? (
           <ChatScreen
             project={project}
-            chat={chat.chat}
+            chat={drafting ? DRAFT : chat.chat}
             files={files}
             loadingFiles={loadingFiles}
             reading={reading}
@@ -159,7 +159,7 @@ export default function App() {
             creatingFile={chat.creatingFile}
             createdFiles={chat.createdFiles}
             onBack={() => openProject(route.projectId)}
-            onSend={chat.send}
+            onSend={drafting ? startChat : chat.send}
             onRetry={chat.retry}
           />
         ) : null}

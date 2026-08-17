@@ -33,9 +33,6 @@ class ChatStore(Protocol):
     def list_for(self, project_id: str) -> list[Chat]:
         """Every chat of the project, in no particular order."""
 
-    def list_all(self) -> list[tuple[str, Chat]]:
-        """Every chat in the workspace as (project_id, chat), in no particular order."""
-
     def delete(self, project_id: str, chat_id: str) -> None:
         """Remove a chat for good. The files it produced are not touched."""
 

@@ -31,14 +31,6 @@ class FileChatStore:
             chats.append(self.get(project_id, entry[: -len(SUFFIX)]))
         return chats
 
-    def list_all(self):
-        # Every top-level directory is a project; the ones without chats simply contribute nothing.
-        return [
-            (project_id, chat)
-            for project_id in self._store.list_dir("")
-            for chat in self.list_for(project_id)
-        ]
-
     def delete(self, project_id, chat_id):
         # Really gone, not moved: the design gives Undo to files and a confirmation to chats.
         self._store.remove(self._path(project_id, chat_id))

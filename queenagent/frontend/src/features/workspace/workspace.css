@@ -27,13 +27,6 @@
   padding: 2px 6px;
 }
 
-.sidebar__mark {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  background: var(--accent);
-}
-
 .sidebar__wordmark {
   font-family: var(--font-heading);
   font-size: 21px;
