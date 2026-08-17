@@ -40,6 +40,39 @@ test("only the narrowest step tightens the padding", () => {
   expect(sidebarRule(640)).toContain("padding: 16px 10px");
 });
 
+// The radius set is three values -- control 8px, card 12-14px, pill 20px -- and a surface that
+// writes its own number drifts out of it. These lock the two that had drifted.
+// Anchored to the start of a line: ".composer {" also appears inside ".chat__composer .composer {",
+// and reading the wrong block would prove the wrong thing.
+function rule(selector) {
+  const start = CSS.indexOf(`\n${selector} {`);
+  expect(start).toBeGreaterThan(-1);
+  return CSS.slice(start, CSS.indexOf("}", start));
+}
+
+test("every control rounds by the same variable", () => {
+  expect(rule(".sidebar__new-chat")).toContain("border-radius: var(--radius-control)");
+  expect(rule(".sidebar__row")).toContain("border-radius: var(--radius-control)");
+  expect(rule(".composer__send")).toContain("border-radius: var(--radius-control)");
+  expect(CSS).not.toContain("border-radius: 9px");
+});
+
+test("the composer sits inside the card band", () => {
+  expect(rule(".composer")).toContain("border-radius: 14px");
+  expect(rule(".composer")).toContain("padding: 14px 16px 10px");
+  expect(CSS).not.toContain("border-radius: 16px");
+});
+
+test("the extension chip is a fixed square", () => {
+  // However long the extension, the row's alignment does not move.
+  const chip = rule(".file-chip");
+  expect(chip).toContain("width: 30px");
+  expect(chip).toContain("height: 30px");
+  expect(chip).toContain("border-radius: 7px");
+  expect(chip).toContain("background: #f0e7de");
+  expect(chip).toContain("font-size: 9.5px");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.

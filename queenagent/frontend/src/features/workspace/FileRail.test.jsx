@@ -22,9 +22,11 @@ test("every file gets a row, chip and all", () => {
   expect(screen.getByText("txt")).toBeTruthy();
 });
 
-test("a row says how long ago the file was written", () => {
+test("a row says whose file it is and how long ago it was written", () => {
+  // One line under the name, in the row itself: the design took the advice line away and put what
+  // it said here instead.
   render(<FileRail files={FILES} />);
-  expect(screen.getByText("2h ago")).toBeTruthy();
+  expect(screen.getByText("project file · 2h ago")).toBeTruthy();
 });
 
 test("an empty rail teaches instead of sitting blank", () => {

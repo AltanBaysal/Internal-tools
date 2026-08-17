@@ -31,6 +31,23 @@ test("every project dot is the same tone", () => {
   expect(dots.every((dot) => dot.getAttribute("style") === null)).toBe(true);
 });
 
+test("a project with no files still holds the badge's place", () => {
+  // Nothing shifts sideways when the first file lands: the badge was already standing there.
+  const { container } = render(
+    <Sidebar projects={[{ id: "p1", name: "Empty", chats: 0, files: 0 }]} activeProjectId="p1" />,
+  );
+  const badge = container.querySelector(".sidebar__row-badge");
+  expect(badge.textContent).toBe("0");
+  expect(badge.className).toContain("sidebar__row-badge--none");
+});
+
+test("a project with files shows the count plainly", () => {
+  const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
+  const badge = container.querySelector(".sidebar__row-badge");
+  expect(badge.textContent).toBe("3");
+  expect(badge.className).not.toContain("--none");
+});
+
 test("projects are listed by name", () => {
   render(<Sidebar projects={PROJECTS} activeProjectId={null} />);
   expect(screen.getByText("Thesis research")).toBeTruthy();

@@ -38,6 +38,15 @@ test("the file column lists what the project holds", () => {
   expect(screen.queryByText(/No files yet/)).toBeNull();
 });
 
+test("a file row says whose file it is here too", () => {
+  // The row is one shape wherever it stands: a file belongs to the project, never to a chat.
+  const files = [
+    { name: "outline.md", ext: "md", modifiedAt: new Date(Date.now() - 2 * 3600_000).toISOString() },
+  ];
+  render(<ProjectScreen project={PROJECT} files={files} />);
+  expect(screen.getByText("project file · 2h ago")).toBeTruthy();
+});
+
 test("clicking a file opens it beside the grid, which drops to one column", () => {
   const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
   const open = vi.fn();
