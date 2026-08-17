@@ -666,6 +666,9 @@
   display: flex;
   gap: 16px;
   overflow: hidden;
+  /* The reader carries its own margins now, so the rail stops adding to them; what is left needing
+     the padding is the list, and it takes it. */
+  padding: 0;
 }
 
 .rail__list {
@@ -673,13 +676,14 @@
   flex: none;
   min-height: 0;
   overflow-y: auto;
+  padding: 20px 18px;
 }
 
+/* The reader fills the height and hands the scrolling to its body, so its head and foot stay put. */
 .rail--open .reader {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  overflow-y: auto;
 }
 
 /* While a document is being read there is nothing to fold, so the heading is a label again. */
@@ -755,8 +759,9 @@
   width: 560px;
   flex: none;
   border-left: 1px solid var(--line);
-  padding: 20px 18px;
-  overflow-y: auto;
+  /* The reader inside is the whole of it, and it scrolls its own body. */
+  padding: 0;
+  overflow: hidden;
 }
 
 .file-row {
@@ -961,17 +966,22 @@
 
 /* --- reading a file ----------------------------------------------------- */
 
+/* Three parts, and the middle one is the only thing that scrolls. The padding is the reader's own
+   rather than its container's: the design measures the document's margins, and a container padding
+   on top of them would count the room twice. */
 .reader {
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
   animation: fadeIn 0.2s ease both;
 }
 
 .reader__head {
+  flex: none;
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 18px 28px;
 }
 
 .reader__name {
@@ -994,29 +1004,86 @@
   gap: 7px;
 }
 
+/* The project screen's way out. Ink rather than accent, and the last thing in the row. */
+.reader__close {
+  flex: none;
+  border: none;
+  background: transparent;
+  padding: 2px 4px;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.reader__close:hover {
+  color: var(--ink);
+}
+
+/* The parser owns the line breaks now, so the rule that used to keep them is gone. */
 .reader__body {
-  font-size: 14px;
-  line-height: 1.75;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 26px 28px;
+  font-size: 14.5px;
+  line-height: 1.8;
   color: #2c2823;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
+/* The document scale. Written against the reader for the same reason the bubble's is written
+   against the message: neither scale may reach into the other. */
+.reader__body .md h1 {
+  font-size: 25px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+}
+
+.reader__body .md h2 {
+  font-size: 20px;
+  font-family: var(--font-heading);
+  font-weight: 500;
+}
+
+.reader__body .md h3 {
+  font-size: 15.5px;
+}
+
+/* The design names three levels; the fourth borrows the third's size and steps back in colour. */
+.reader__body .md h4 {
+  font-size: 15.5px;
+  color: var(--muted);
+}
+
 .reader__meta {
+  flex: none;
   margin: 0;
-  padding-top: 12px;
+  padding: 12px 28px;
   border-top: 1px solid var(--line);
   font-family: var(--font-mono);
   font-size: 11px;
   color: #a79e93;
 }
 
+/* Between the header and the body, so they take the header's alignment rather than the document's. */
+.reader__note,
 .reader__error {
+  flex: none;
   margin: 0;
+  padding: 0 28px 12px;
+  overflow-wrap: anywhere;
+}
+
+.reader__note {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.reader__error {
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: #a4735a;
-  overflow-wrap: anywhere;
 }
 
 /* The project screen and its panel side by side, the same shape the chat uses. */

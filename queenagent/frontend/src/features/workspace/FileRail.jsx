@@ -57,7 +57,10 @@ export default function FileRail({ files = [], loading, reading, collapsed, onTo
           </div>
           <FileList files={files} loading={loading} reading={reading} />
         </div>
+        {/* Come back from rather than closed: this panel is the rail widened, and the list it
+            widened away from is still standing beside it. */}
         <FilePanel
+          back
           name={reading.name}
           file={reading.file}
           missing={reading.missing}
