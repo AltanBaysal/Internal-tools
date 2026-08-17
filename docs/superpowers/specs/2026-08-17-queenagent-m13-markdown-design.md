@@ -99,10 +99,11 @@ React öğesine çeviren tek yer burası.
 | h1 | 19.5px Newsreader | `HANDOFF.md` §4 |
 | h2 | 17px Newsreader | §4 |
 | h3 | 14.5px DM Sans 600 | §4 |
-| h4 | 15.5px DM Sans 600 | **boşluk dolduruldu** |
+| h4 | 14.5px DM Sans 600, sönük renk | **boşluk dolduruldu** |
 
-Tasarım dört başlık düzeyi sayıyor ama üç boyut veriyor. h4 gövde boyutunda kalın yazılıyor — yeni
-bir sayı uydurmamak için gövdenin kendi ölçüsü. Madde 35'te göze bakılır.
+Tasarım dört başlık düzeyi sayıyor ama üç boyut veriyor. h4 üçüncünün ölçüsünü alıp renkte geri
+çekiliyor: yeni bir sayı uydurulmuyor, hem h3 zaten gövdeden (15.5px) küçük olduğu için altında yer
+de kalmıyor. Madde 35'te göze bakılır.
 
 Blok stilleri paletin kendi değişkenlerinden kuruluyor (`--surface`, `--line`, `--radius-control`,
 `--font-mono`); `HANDOFF.md` kod bloğu ya da tablo için ölçü vermiyor, bu yüzden ölçü icat edilmiyor,

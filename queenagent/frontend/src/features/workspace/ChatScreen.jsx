@@ -1,6 +1,7 @@
 import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FileRail from "./FileRail.jsx";
+import Markdown from "./Markdown.jsx";
 import Skeleton from "./Skeleton.jsx";
 
 const CHIP_LENGTH = 3;
@@ -82,9 +83,14 @@ export default function ChatScreen({
                 <div className="msg__label">
                   {message.role === "user" ? "You" : "QueenAgent"} · {clockTime(message.at)}
                 </div>
-                <div className={message.role === "user" ? "msg__bubble" : "msg__text"}>
-                  {message.text}
-                </div>
+                {/* What the user typed stays what they typed -- `**test**` keeps its asterisks. */}
+                {message.role === "user" ? (
+                  <div className="msg__bubble">{message.text}</div>
+                ) : (
+                  <div className="msg__text">
+                    <Markdown text={message.text} />
+                  </div>
+                )}
                 {/* One turn can produce more than one file, so the card is not a single slot. */}
                 {message.files?.some((name) => onDisk.has(name)) ? (
                   <div className="file-cards">
@@ -100,7 +106,11 @@ export default function ChatScreen({
             {streamingText ? (
               <div className="msg msg--ai" data-testid="streaming">
                 <div className="msg__label">QueenAgent</div>
-                <div className="msg__text">{streamingText}</div>
+                <div className="msg__text">
+                  {/* Formatted from the first frame: raw first and formatted afterwards would read
+                      as a flicker rather than a stream. */}
+                  <Markdown text={streamingText} />
+                </div>
               </div>
             ) : null}
 
