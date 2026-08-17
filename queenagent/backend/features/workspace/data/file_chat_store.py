@@ -2,8 +2,11 @@
 import json
 
 from backend.features.workspace.domain.chat import Chat, Message
+from backend.features.workspace.domain.naming import unique_name
 
 CHATS_DIR = "chats"
+# The same trash the files go to: one directory answers "what did the user just delete".
+TRASH_DIR = "trash"
 SUFFIX = ".json"
 
 
@@ -32,8 +35,11 @@ class FileChatStore:
         return chats
 
     def delete(self, project_id, chat_id):
-        # Really gone, not moved: the design gives Undo to files and a confirmation to chats.
-        self._store.remove(self._path(project_id, chat_id))
+        # Moved, not destroyed, and into the same trash a deleted file goes to: a chat is the user's
+        # own writing, and nothing in this app removes work from the disk.
+        name = f"{chat_id}{SUFFIX}"
+        trashed = unique_name(self._store.list_dir(f"{project_id}/{TRASH_DIR}"), name)
+        self._store.move(self._path(project_id, chat_id), f"{project_id}/{TRASH_DIR}/{trashed}")
 
     def _write(self, project_id, chat):
         # The id is the file name, so it is not written inside: no artifact repeats an answer

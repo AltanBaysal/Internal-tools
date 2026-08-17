@@ -31,7 +31,7 @@ The store follows the same rule, and it is why there is no file-index file:
 | `project.json` | what is this project called, and since when | on create, on rename |
 | `chats/<id>.json` | what was said in this conversation | after each message |
 | `files/<name>` | what did QueenAgent produce | when a file is created |
-| `trash/<name>` | what did the user just delete | on delete; moved back on undo |
+| `trash/<name>` | what did the user just delete | on delete — a chat and a file alike |
 
 **No file repeats another's answer.** The file list is the directory listing itself: the name is the
 filename, "2h ago" is its mtime, the order is mtime descending. The count on a sidebar project row is
