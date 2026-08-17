@@ -73,6 +73,27 @@ test("the extension chip is a fixed square", () => {
   expect(chip).toContain("font-size: 9.5px");
 });
 
+// Every column in the chain zeroes its own overflow, so the scrolling happens inside rather than
+// carrying the whole layout with it.
+test("the message list can scroll inside its column", () => {
+  expect(rule(".chat__scroll")).toContain("min-height: 0");
+});
+
+test("the composer never scrolls away", () => {
+  expect(rule(".chat__composer")).toContain("flex: none");
+});
+
+test("narrow windows scroll their regions, not the layout", () => {
+  const narrow = CSS.slice(CSS.indexOf("@media (max-width: 1100px)"));
+  const layouts = narrow.slice(0, narrow.indexOf("}", narrow.indexOf(".chat-layout")));
+  expect(layouts).toContain("flex-direction: column");
+  expect(layouts).not.toContain("overflow-y: auto");
+  // The rail drops under the chat, so it needs a ceiling or it eats the conversation's room.
+  const rails = narrow.slice(narrow.indexOf(".rail,"), narrow.indexOf("}", narrow.indexOf(".rail,")));
+  expect(rails).toContain("max-height: 44%");
+  expect(rails).toContain("overflow-y: auto");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.

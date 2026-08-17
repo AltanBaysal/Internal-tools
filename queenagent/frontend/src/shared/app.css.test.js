@@ -80,6 +80,15 @@ test("the rail's width transition is the one motion that is not a fade", () => {
   expect(WORKSPACE).toContain("transition: width 220ms ease");
 });
 
+// The page itself never scrolls -- only inner regions do. The shell is what holds that line.
+test("the shell is the height of the visible window and no less", () => {
+  // A 600px floor is exactly what makes a short window scroll the page.
+  const shell = APP.slice(APP.indexOf("\n.app-shell {"));
+  const rule = shell.slice(0, shell.indexOf("}"));
+  expect(rule).toContain("height: 100dvh");
+  expect(rule).not.toContain("min-height");
+});
+
 test("the only destructive control there is today reaches for the new red", () => {
   // The three surfaces the design names arrive with Madde 17, 18 and 19; the row's x is here now.
   expect(rule(WORKSPACE, ".row-x:hover")).toContain("var(--destructive)");
