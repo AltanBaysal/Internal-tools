@@ -144,11 +144,19 @@ def test_an_unknown_chat_is_404(tmp_path):
 
 def test_there_is_no_workspace_wide_chat_address(tmp_path):
     # A chat needs a project to live in, and Recent chats now lists that project's own chats, so
-    # nothing answers here at all -- neither method.
+    # the workspace has no rule for this path at all. The status is 405 rather than 404 because the
+    # SPA fallback still claims every GET; the rule table is what actually says it is gone.
     client = _client(tmp_path)
-    assert client.post("/api/chats", json={"text": "Write the intro"}).status_code == 404
-    assert client.get("/api/chats").status_code == 404
+    assert client.post("/api/chats", json={"text": "Write the intro"}).status_code == 405
+    rules = {rule.rule for rule in client.application.url_map.iter_rules()}
+    assert "/api/chats" not in rules
     assert client.get("/api/projects").get_json() == []
+
+
+def test_the_chat_store_offers_no_workspace_wide_listing(tmp_path):
+    # Every chat is asked for through its project now, so the port shrank with the use case.
+    store = FileChatStore(Store(str(tmp_path)))
+    assert not hasattr(store, "list_all")
 
 
 def test_the_recent_chats_use_case_is_gone():

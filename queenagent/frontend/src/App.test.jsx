@@ -352,7 +352,10 @@ test("deleting a chat asks first, and a no sends nothing", async () => {
   window.history.pushState(null, "", "/p/p1");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByText("Write the intro")).toBeTruthy());
+  // Asked for by its control: the title itself now stands twice, in the row and in the sidebar.
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Delete Write the intro" })).toBeTruthy(),
+  );
   fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
 
   expect(window.confirm).toHaveBeenCalled();
