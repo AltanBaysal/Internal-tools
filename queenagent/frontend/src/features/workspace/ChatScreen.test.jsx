@@ -154,6 +154,32 @@ test("a card is not drawn for a file the project no longer holds", () => {
   expect(screen.queryByText("deleted-away.md")).toBeNull();
 });
 
+function withText(role, text) {
+  return { ...CHAT, messages: [{ role, at: CHAT.messages[0].at, text }] };
+}
+
+test("an answer is drawn as Markdown", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={withText("ai", "**Done.**")} />);
+  expect(container.querySelector(".msg--ai strong").textContent).toBe("Done.");
+});
+
+test("what the user typed stays exactly as they typed it", () => {
+  // The design asks for this one by name: writing `**test**` shows the asterisks.
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={withText("user", "**test**")} />,
+  );
+  expect(container.querySelector(".msg__bubble").textContent).toBe("**test**");
+  expect(container.querySelector(".msg__bubble strong")).toBeNull();
+});
+
+test("text that is still arriving is drawn as Markdown too", () => {
+  // Raw first and formatted afterwards would be a flicker, not a stream.
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="# Title" />,
+  );
+  expect(container.querySelector("[data-testid=streaming] h1").textContent).toBe("Title");
+});
+
 test("the rail lists the project's files beside the conversation", () => {
   const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
   render(<ChatScreen project={PROJECT} chat={CHAT} files={files} />);

@@ -94,6 +94,32 @@ test("narrow windows scroll their regions, not the layout", () => {
   expect(rails).toContain("overflow-y: auto");
 });
 
+// One parser, two scales. The bubble's is the design's own three numbers, and a page-level heading
+// size must never reach inside a message.
+test("the bubble scale is written where the answer is drawn", () => {
+  expect(rule(".msg__text .md h1")).toContain("font-size: 19.5px");
+  expect(rule(".msg__text .md h2")).toContain("font-size: 17px");
+  expect(rule(".msg__text .md h3")).toContain("font-size: 14.5px");
+});
+
+test("the two serif levels are the two the design names", () => {
+  expect(rule(".msg__text .md h1")).toContain("var(--font-heading)");
+  expect(rule(".msg__text .md h2")).toContain("var(--font-heading)");
+});
+
+test("only code keeps its whitespace once the answer is parsed", () => {
+  // The parser owns the line breaks now; left in place the rule would double every gap.
+  expect(rule(".msg__text")).not.toContain("white-space");
+  expect(rule(".md pre")).toContain("white-space: pre");
+  // What the user typed is not parsed at all, so its bubble still keeps every newline.
+  expect(rule(".msg__bubble")).toContain("white-space: pre-wrap");
+});
+
+test("a wide table or a long code line scrolls inside itself", () => {
+  expect(rule(".md pre")).toContain("overflow-x: auto");
+  expect(rule(".md__table-scroll")).toContain("overflow-x: auto");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.
