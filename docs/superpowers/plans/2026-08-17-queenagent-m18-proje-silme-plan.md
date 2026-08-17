@@ -51,6 +51,11 @@ ve menüyü açıyor; menüde "Rename" ve "Delete project".
 **`workspace.css.test.js`** — menü 176px ve `position: fixed`; başlık satırı sarar; başlıktaki
 "Delete" kırmızı çerçeveli, hover'da dolar.
 
+**Ölçülen kırmızı: 19** — `RowMenu.test.jsx` ayrıca hiç yüklenmiyor.
+
+**A döngüsünde bir testim yanlış şeyi ölçtü:** "projeyi geri getiren yol yok" iddiası dosyanın geri
+yükleme yolunu da yakalıyordu; o yol Madde 19'da gidiyor. İddia söylediği şeye çekildi.
+
 ## B2 — Ön yüz uygulaması
 
 1. `useProjects.js` — `removeProject`.

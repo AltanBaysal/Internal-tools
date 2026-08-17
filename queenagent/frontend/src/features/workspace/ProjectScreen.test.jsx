@@ -3,6 +3,21 @@ import { expect, test, vi } from "vitest";
 
 import ProjectScreen from "./ProjectScreen.jsx";
 
+// The second of the two doors the design opens onto the same box.
+test("the header offers to delete the project", () => {
+  const onDelete = vi.fn();
+  render(<ProjectScreen project={{ id: "p1", name: "Thesis research" }} onDelete={onDelete} />);
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(onDelete).toHaveBeenCalled();
+});
+
+test("the header does not delete anything by itself", () => {
+  // It opens the question; the answer belongs to the box.
+  const onDelete = vi.fn();
+  render(<ProjectScreen project={{ id: "p1", name: "Thesis research" }} onDelete={onDelete} />);
+  expect(screen.queryByText(/can't be undone/)).toBeNull();
+});
+
 const PROJECT = {
   id: "p1",
   name: "Thesis research",

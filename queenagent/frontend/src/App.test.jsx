@@ -54,6 +54,141 @@ test("the fork is not written into the history", async () => {
   expect(push).not.toHaveBeenCalled();
 });
 
+// --- deleting a project ------------------------------------------------------------------------
+
+const TWO = [
+  { id: "p1", name: "Thesis", chats: 3, files: 2 },
+  { id: "p2", name: "Notes", chats: 1, files: 0 },
+];
+
+// The list answers the GET, and the DELETE takes a project out of it, so what the screen shows after
+// a delete is the server's answer rather than a guess made here.
+function serverWith(projects) {
+  const live = [...projects];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.startsWith("/api/projects/") && options?.method === "DELETE") {
+      const id = path.slice("/api/projects/".length);
+      const at = live.findIndex((project) => project.id === id);
+      live.splice(at, 1);
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ trashed: id }) });
+    }
+    if (path === "/api/projects") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [...live] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
+const openMenuFor = (name) =>
+  fireEvent.click(screen.getByRole("button", { name: `More for ${name}` }));
+
+test("the sidebar menu and the header open the same question", async () => {
+  serverWith(TWO);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+
+  openMenuFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  expect(screen.getByText('Delete "Thesis"?')).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(screen.getByText('Delete "Thesis"?')).toBeTruthy();
+});
+
+test("the box counts what goes with the project", async () => {
+  serverWith(TWO);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  openMenuFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  expect(
+    screen.getByText("The 3 chats and 2 files in this project are deleted with it. This can't be undone."),
+  ).toBeTruthy();
+});
+
+test("one of a thing is one, not one of them", async () => {
+  serverWith(TWO);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  openMenuFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  expect(screen.getByText(/The 1 chat and 0 files/)).toBeTruthy();
+});
+
+test("cancelling asks the server nothing", async () => {
+  const fetch = serverWith(TWO);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  openMenuFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === "DELETE")).toEqual([]);
+  expect(screen.queryByText('Delete "Thesis"?')).toBeNull();
+});
+
+test("deleting the project you are in moves to the first one left", async () => {
+  serverWith(TWO);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  openMenuFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p2"));
+  expect(screen.queryByText("Thesis")).toBeNull();
+});
+
+test("deleting the last project leaves the empty screen", async () => {
+  serverWith([TWO[0]]);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  openMenuFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
+});
+
+test("deleting another project leaves where you are alone", async () => {
+  serverWith(TWO);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  openMenuFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await waitFor(() => expect(screen.queryByText("Notes")).toBeNull());
+  // Nothing about the screen the user was on has any business changing.
+  expect(window.location.pathname).toBe("/p/p1");
+});
+
+test("a deleted project is not offered back", async () => {
+  serverWith(TWO);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  openMenuFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await waitFor(() => expect(screen.queryByText("Notes")).toBeNull());
+  // Undo is gone by karar 16: the question was the protection, and the disk keeps the directory.
+  expect(screen.queryByText("Undo")).toBeNull();
+});
+
+test("Escape closes the menu first, then the question", async () => {
+  serverWith(TWO);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+
+  openMenuFor("Thesis");
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByRole("button", { name: "Rename" })).toBeNull();
+
+  openMenuFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByText('Delete "Thesis"?')).toBeNull();
+});
+
 test("nothing is drawn while the list is still on its way", () => {
   // An empty array cannot tell "none" from "not here yet", and guessing shows the wrong screen.
   vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));

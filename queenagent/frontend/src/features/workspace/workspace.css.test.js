@@ -156,6 +156,28 @@ test("the darkened screen covers the screen", () => {
   expect(dialog).toContain("inset: 0");
 });
 
+test("the row menu is the design's width and escapes the sidebar's scroll", () => {
+  const menu = rule(".row-menu");
+  expect(menu).toContain("width: 176px");
+  // Fixed rather than absolute: inside the sidebar's scrolling area an absolute menu gets clipped.
+  expect(menu).toContain("position: fixed");
+});
+
+test("the destructive choice is the only red one in the menu", () => {
+  expect(rule(".row-menu__item--danger")).toContain("color: var(--destructive)");
+});
+
+test("the header wraps rather than squeezing its buttons", () => {
+  // A second button joined Rename, and a title has no business being cut for it.
+  expect(rule(".screen__title-row")).toContain("flex-wrap: wrap");
+});
+
+test("the header's Delete is outlined until it is hovered", () => {
+  expect(rule(".screen__delete")).toContain("border: 1px solid var(--destructive-line)");
+  expect(rule(".screen__delete")).toContain("color: var(--destructive)");
+  expect(rule(".screen__delete:hover")).toContain("background: var(--destructive)");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.

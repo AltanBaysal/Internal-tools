@@ -108,6 +108,61 @@ test("New chat asks rather than creating anything itself", () => {
   expect(onNewChat).toHaveBeenCalled();
 });
 
+// The row stops being a single button here: a ⋯ button cannot live inside another button. What the
+// row looks like does not change; what it is made of does.
+test("every project row carries a way into its menu", () => {
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
+  expect(screen.getByRole("button", { name: "More for Thesis research" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "More for Product notes" })).toBeTruthy();
+});
+
+test("opening the menu does not open the project", () => {
+  const onOpenProject = vi.fn();
+  const onOpenMenu = vi.fn();
+  render(
+    <Sidebar
+      projects={PROJECTS}
+      activeProjectId="p1"
+      onOpenProject={onOpenProject}
+      onOpenMenu={onOpenMenu}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "More for Thesis research" }));
+  expect(onOpenMenu).toHaveBeenCalledWith("p1");
+  expect(onOpenProject).not.toHaveBeenCalled();
+});
+
+test("the menu offers the two things a project row can do", () => {
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" menuFor="p1" />);
+  expect(screen.getByRole("button", { name: "Rename" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Delete project" })).toBeTruthy();
+});
+
+test("only the row whose menu is open has one", () => {
+  const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" menuFor="p2" />);
+  const menus = container.querySelectorAll(".row-menu");
+  expect(menus.length).toBe(1);
+  expect(menus[0].closest(".sidebar__row").textContent).toContain("Product notes");
+});
+
+test("each choice names the project it belongs to", () => {
+  const onRenameProject = vi.fn();
+  const onDeleteProject = vi.fn();
+  render(
+    <Sidebar
+      projects={PROJECTS}
+      activeProjectId="p1"
+      menuFor="p2"
+      onRenameProject={onRenameProject}
+      onDeleteProject={onDeleteProject}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+  expect(onRenameProject).toHaveBeenCalledWith("p2");
+  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  expect(onDeleteProject).toHaveBeenCalledWith("p2");
+});
+
 test("New chat is hidden rather than disabled when nothing is selected", () => {
   // A chat lives inside a project, so with none selected there is nothing for the control to do --
   // and a disabled button is a dead control the design refuses to draw.
