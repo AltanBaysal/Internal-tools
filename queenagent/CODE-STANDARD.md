@@ -78,8 +78,11 @@ Cross-cutting HTTP plumbing that is not a domain feature: the app factory (`app.
 
 ## Frontend (`frontend/src/`)
 
-Same feature-first shape: `features/<name>/` with components and data access; `shared/` for the fetch
-wrapper and `app.css`.
+Same feature-first shape: `features/<name>/` with components and data access; `shared/` for what no
+single feature owns — the two request roads and the one rule that reads a failure off a response, the
+router, the clock, and the Markdown parser. Nothing in `shared/` imports a feature, and nothing in it
+renders: the parser returns tokens and the component that turns them into elements lives with the
+feature that draws them.
 
 **There is no `vendor/` directory, and the design is a visual specification rather than source code.**
 queen-editor copies component files verbatim from its design project; QueenAgent cannot. Its
