@@ -6,12 +6,20 @@ export default function Composer({ rows, placeholder, action, onSubmit }) {
   const [draft, setDraft] = useState("");
   const ready = draft.trim().length > 0;
 
-  const submit = () => {
+  const submit = async () => {
     // onSubmit is optional: this component owns the draft rules, and where a message goes is
     // decided in Madde 10.
     if (!ready || !onSubmit) return;
-    onSubmit(draft.trim());
+    const text = draft.trim();
+    // Cleared straight away, because the design wants the bubble to appear immediately. If the
+    // message is refused the sentence comes back -- losing it would lose work the user did.
     setDraft("");
+    try {
+      await onSubmit(text);
+    } catch {
+      // Unless they have started writing something else in the meantime, which is theirs now.
+      setDraft((current) => current || text);
+    }
   };
 
   const onKeyDown = (event) => {

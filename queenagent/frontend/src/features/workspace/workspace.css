@@ -450,6 +450,14 @@
   animation-delay: 0.36s;
 }
 
+/* One line, no card: nothing was sent, so there is nothing to try again. */
+.refused {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--destructive);
+}
+
 .failure {
   display: flex;
   align-items: center;

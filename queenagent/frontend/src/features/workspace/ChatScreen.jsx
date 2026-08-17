@@ -47,6 +47,7 @@ export default function ChatScreen({
   reading,
   deleting,
   error,
+  refused,
   missing,
   thinking,
   streamingText,
@@ -182,6 +183,10 @@ export default function ChatScreen({
                 ))}
               </div>
             ) : null}
+
+            {/* A message that was never sent has no answer to try again for -- it has a sentence to
+                write again, and that sentence is already back in the composer. */}
+            {refused ? <p className="refused">{refused}</p> : null}
 
             {error ? (
               <div className="failure">

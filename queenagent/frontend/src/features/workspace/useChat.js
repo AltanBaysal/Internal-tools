@@ -15,6 +15,9 @@ function isOwedAnAnswer(chat) {
 export function useChat(projectId, chatId, onFileCreated, online = true) {
   const [chat, setChat] = useState(null);
   const [error, setError] = useState(null);
+  // Kept apart from `error` on purpose: a message that was never sent and an answer that never came
+  // are different failures, and only this hook knows which road the message came down.
+  const [refused, setRefused] = useState(null);
   const [missing, setMissing] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [streamingText, setStreamingText] = useState("");
@@ -96,7 +99,7 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
           ? { ...current, messages: [...current.messages, { role: "user", at, text, pending: true }] }
           : current,
       );
-      setError(null);
+      setRefused(null);
       try {
         setChat(await postJson(`/api/projects/${projectId}/chats/${chatId}/messages`, { text }));
       } catch (failure) {
@@ -112,7 +115,10 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
               }
             : current,
         );
-        setError(failure.message);
+        setRefused(failure.message);
+        // Thrown on rather than swallowed: the composer is holding the only copy of the sentence,
+        // and it has to know to keep it.
+        throw failure;
       }
     },
     [projectId, chatId],
@@ -123,6 +129,7 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
   return {
     chat,
     error,
+    refused,
     missing,
     thinking,
     streamingText,

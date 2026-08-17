@@ -153,6 +153,7 @@ export default function App() {
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
             error={chat.error}
+            refused={chat.refused}
             missing={chat.missing}
             thinking={chat.thinking}
             streamingText={chat.streamingText}

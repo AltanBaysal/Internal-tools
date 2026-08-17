@@ -51,6 +51,20 @@ test("events arrive in order", async () => {
 });
 
 test("a refused request throws with its status", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404 }));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404, text: async () => "" }));
   await expect(streamEvents("/api/x", () => {})).rejects.toThrow("404");
+});
+
+test("the stream reports what the server said, like every other request", async () => {
+  // This is the second road out of the browser, and it was writing its own sentence over the
+  // server's exactly as the first one did.
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: false,
+      status: 502,
+      text: async () => JSON.stringify({ error: "xai answered 401: bad key" }),
+    }),
+  );
+  await expect(streamEvents("/api/x", () => {})).rejects.toThrow("xai answered 401: bad key");
 });
