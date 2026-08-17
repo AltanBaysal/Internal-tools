@@ -723,11 +723,12 @@
   color: var(--ink);
 }
 
+/* The gap the description used to hold open: the title now sits directly above the composer. */
 .screen__title-row {
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 0 0 8px;
+  margin: 0 0 32px;
 }
 
 .screen__title {
@@ -736,16 +737,6 @@
   font-size: 36px;
   margin: 0;
   letter-spacing: -0.01em;
-}
-
-.screen__desc {
-  margin: 0 0 32px;
-  color: #78716a;
-  font-size: 15px;
-  line-height: 1.6;
-  max-width: 560px;
-  text-wrap: pretty;
-  cursor: pointer;
 }
 
 .screen__missing {

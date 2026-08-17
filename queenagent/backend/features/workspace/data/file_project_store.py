@@ -41,7 +41,6 @@ class FileProjectStore:
                 Project(
                     id=entry,
                     name=raw["name"],
-                    desc=raw["desc"],
                     hue=raw["hue"],
                     created_at=raw["createdAt"],
                     chat_count=len(self._store.list_dir(f"{entry}/{CHATS_DIR}")),
@@ -58,7 +57,6 @@ class FileProjectStore:
             json.dumps(
                 {
                     "name": project.name,
-                    "desc": project.desc,
                     "hue": project.hue,
                     "createdAt": project.created_at,
                 },

@@ -5,7 +5,7 @@ from backend.features.workspace.domain.errors import InvalidProjectName, Project
 from backend.features.workspace.domain.project import Project
 
 
-def edit_project(store, project_id, name=None, desc=None) -> Project:
+def edit_project(store, project_id, name=None) -> Project:
     current = store.get(project_id)
     if current is None:
         raise ProjectNotFound(project_id)
@@ -17,8 +17,6 @@ def edit_project(store, project_id, name=None, desc=None) -> Project:
         if not trimmed:
             raise InvalidProjectName(name)
         changes["name"] = trimmed
-    if desc is not None:
-        changes["desc"] = desc.strip()
 
     # hue and created_at are never in `changes`: one is part of the project's identity, the other is
     # its history.

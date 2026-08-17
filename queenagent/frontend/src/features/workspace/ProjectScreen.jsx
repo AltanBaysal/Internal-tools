@@ -15,7 +15,6 @@ export default function ProjectScreen({
   deleting,
   onBack,
   onRename,
-  onDescribe,
   onSend,
   onOpenChat,
   onRenameChat,
@@ -50,12 +49,6 @@ export default function ProjectScreen({
               Rename
             </button>
           </div>
-
-          {/* Every new project is born saying "Click to add a description.", so clicking has to do
-              something -- otherwise the app instructs the user and then ignores them. */}
-          <p className="screen__desc" onClick={onDescribe}>
-            {project.desc}
-          </p>
 
           <Composer
             rows={2}

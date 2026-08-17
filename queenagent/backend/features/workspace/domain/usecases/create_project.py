@@ -3,7 +3,6 @@ from backend.features.workspace.domain.project import Project
 
 # The design never asks for a name up front: the project is born named and renamed afterwards.
 NEW_PROJECT_NAME = "New project"
-NEW_PROJECT_DESC = "Click to add a description."
 # Successive projects step around the colour wheel instead of repeating a hue.
 HUE_STEP = 47
 
@@ -14,7 +13,6 @@ def create_project(store, new_id, now):
     project = Project(
         id=new_id,
         name=NEW_PROJECT_NAME,
-        desc=NEW_PROJECT_DESC,
         hue=hue,
         created_at=now,
     )

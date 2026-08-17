@@ -77,11 +77,11 @@ export default function App() {
   // time would be asking for an answer we have.
   const project = projects.find((candidate) => candidate.id === route.projectId) ?? null;
 
-  const ask = (question, current, field) => {
-    const answer = window.prompt(question, current);
+  const askForName = () => {
+    const answer = window.prompt("Project name", project?.name);
     // An empty answer cancels -- the design's rule. The server refuses an empty name anyway, so
     // this is a convenience rather than the guarantee.
-    if (answer && answer.trim()) editProject(route.projectId, { [field]: answer });
+    if (answer && answer.trim()) editProject(route.projectId, { name: answer });
   };
 
   const afterStart = async (started) => {
@@ -159,8 +159,7 @@ export default function App() {
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
             onBack={leaveProject}
-            onRename={() => ask("Project name", project?.name, "name")}
-            onDescribe={() => ask("Project description", project?.desc, "desc")}
+            onRename={askForName}
             onSend={sendFromProject}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             onRenameChat={retitleChat}

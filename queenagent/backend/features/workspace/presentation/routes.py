@@ -50,12 +50,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
     def patch_project(project_id):
         payload = request.get_json(silent=True) or {}
         try:
-            edit_project(
-                project_store,
-                project_id,
-                name=payload.get("name"),
-                desc=payload.get("desc"),
-            )
+            edit_project(project_store, project_id, name=payload.get("name"))
         except ProjectNotFound:
             return jsonify({"error": "project not found"}), 404
         except InvalidProjectName:
@@ -247,7 +242,6 @@ def _project_json(project):
     return {
         "id": project.id,
         "name": project.name,
-        "desc": project.desc,
         "hue": project.hue,
         "createdAt": project.created_at,
         "chats": project.chat_count,

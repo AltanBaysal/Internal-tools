@@ -34,8 +34,8 @@ The store follows the same rule, and it is why there is no file-index file:
 | `trash/<name>` | what did the user just delete | on delete; moved back on undo |
 
 **No file repeats another's answer.** The file list is the directory listing itself: the name is the
-filename, "2h ago" is its mtime, the order is mtime descending. The counts on a project card are a
-directory count. Before adding a field, ask which question it answers — a field that answers a fifth
+filename, "2h ago" is its mtime, the order is mtime descending. The count on a sidebar project row is
+a directory count. Before adding a field, ask which question it answers — a field that answers a fifth
 question wants a fifth artifact, and a field that restates an answer already on disk wants deleting.
 
 ## Services (`backend/services/`)

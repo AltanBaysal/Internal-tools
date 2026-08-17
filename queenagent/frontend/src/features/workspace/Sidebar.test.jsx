@@ -4,8 +4,8 @@ import { expect, test, vi } from "vitest";
 import Sidebar from "./Sidebar.jsx";
 
 const PROJECTS = [
-  { id: "p1", name: "Thesis research", desc: "", hue: 45, chats: 3, files: 3 },
-  { id: "p2", name: "Product notes", desc: "", hue: 150, chats: 2, files: 2 },
+  { id: "p1", name: "Thesis research", hue: 45, chats: 3, files: 3 },
+  { id: "p2", name: "Product notes", hue: 150, chats: 2, files: 2 },
 ];
 
 test("both section headings are there with no projects at all", () => {
