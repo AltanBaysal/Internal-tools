@@ -41,7 +41,7 @@
   gap: 10px;
   padding: 9px 12px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   background: var(--accent);
   color: #fdfbf8;
   font-family: inherit;
@@ -122,7 +122,7 @@
   width: 100%;
   padding: 8px 12px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   cursor: pointer;
   font-family: inherit;
   font-size: 13.5px;
@@ -148,6 +148,10 @@
   font-size: 11px;
   font-family: var(--font-mono);
   color: #96795f;
+}
+
+.sidebar__row-badge--none {
+  opacity: 0;
 }
 
 .sidebar__chat {
@@ -386,21 +390,31 @@
   background: #f0ece5;
 }
 
+/* A fixed square, not a label that grows with its text: however long the extension, the rows stay
+   in line with each other. */
 .file-chip {
   flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #96795f;
-  background: #f0ece5;
-  border-radius: 5px;
-  padding: 3px 6px;
+  background: #f0e7de;
+  border-radius: 7px;
+}
+
+.file-row__text {
+  flex: 1;
+  min-width: 0;
 }
 
 .file-row__name {
-  flex: 1;
-  min-width: 0;
+  display: block;
   font-size: 13.5px;
   color: var(--ink);
   overflow: hidden;
@@ -408,11 +422,14 @@
   white-space: nowrap;
 }
 
-.file-row__when {
-  flex: none;
+/* The row says whose file it is. The advice line under the list is gone; this is where what it
+   said belongs. */
+.file-row__meta {
+  display: block;
   font-family: var(--font-mono);
   font-size: 11px;
   color: #a79e93;
+  margin-top: 2px;
 }
 
 /* Present in the row at all times so nothing shifts, and only visible once the row is under the
@@ -815,11 +832,13 @@
   margin: 0;
 }
 
+/* Inside the card band rather than above it: the box sits among project and file surfaces, so it
+   rounds like them. */
 .composer {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 16px 16px 12px;
+  border-radius: 14px;
+  padding: 14px 16px 10px;
   box-shadow: 0 1px 2px rgba(60, 50, 40, 0.04);
 }
 
@@ -845,7 +864,7 @@
 
 .composer__send {
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   padding: 8px 16px;
   font-family: inherit;
   font-size: 13.5px;

@@ -30,7 +30,13 @@
 - `.composer` 14px yarıçaplı, `14px 16px 10px` dolgulu.
 - `.file-chip` 30×30, 7px yarıçap, `#f0e7de` zemin, 9.5px yazı.
 
-**Beklenen kırmızı:** ön yüzde 8–9. Ölçülen sayı buraya yazılır.
+**Ölçülen kırmızı: ön yüzde 6.** (Arka uç hiç kırmızı vermedi — bu madde ona dokunmuyor.)
+
+Tahmin 8–9'du. İki test ilk koşuda **yeşil** geldi ve ikisi de doğru sebeple: rozetin dolu hâli
+zaten sayıyı çiziyordu, dolayısıyla o testi yeni bir şey istemiyor, var olanı koruyor.
+
+**Bir testim yanlış bloğu okuyordu.** `CSS.indexOf(".composer {")` `.chat__composer .composer {`
+bloğunu yakalıyordu; kırmızıydı ama yanlış sebeple. Seçici satır başına sabitlendi.
 
 ---
 

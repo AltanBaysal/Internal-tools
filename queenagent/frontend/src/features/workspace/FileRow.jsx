@@ -10,8 +10,10 @@ export default function FileRow({ file, onOpen, onDelete }) {
   return (
     <div className="file-row" title={file.name} onClick={() => onOpen?.(file.name)}>
       <span className="file-chip">{file.ext}</span>
-      <span className="file-row__name">{file.name}</span>
-      <span className="file-row__when">{relativeTime(file.modifiedAt)}</span>
+      <span className="file-row__text">
+        <span className="file-row__name">{file.name}</span>
+        <span className="file-row__meta">project file · {relativeTime(file.modifiedAt)}</span>
+      </span>
       {onDelete ? (
         <button
           type="button"

@@ -48,7 +48,17 @@ export default function Sidebar({
           >
             <span className="dot" />
             <span className="sidebar__row-name">{project.name}</span>
-            <span className="sidebar__row-badge">{project.files || ""}</span>
+            {/* A zero is drawn and made transparent rather than left out: the first file to land
+                must not push the name sideways. */}
+            <span
+              className={
+                project.files
+                  ? "sidebar__row-badge"
+                  : "sidebar__row-badge sidebar__row-badge--none"
+              }
+            >
+              {project.files ?? 0}
+            </span>
           </button>
         ))}
       </div>
