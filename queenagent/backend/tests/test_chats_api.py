@@ -151,7 +151,7 @@ def test_starting_a_chat_from_nowhere_is_gone(tmp_path):
     assert client.get("/api/projects").get_json() == []
 
 
-def test_the_home_use_case_is_gone():
+def test_opening_a_project_and_a_chat_together_is_gone():
     with pytest.raises(ModuleNotFoundError):
         import backend.features.workspace.domain.usecases.start_chat_in_new_project  # noqa: F401
 

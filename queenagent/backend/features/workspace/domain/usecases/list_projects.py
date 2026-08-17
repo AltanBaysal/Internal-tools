@@ -1,4 +1,4 @@
-"""List projects oldest first -- the order both the sidebar and the home cards show."""
+"""List projects oldest first -- the sidebar's order, and so the first one the app opens on."""
 
 
 def list_projects(store):

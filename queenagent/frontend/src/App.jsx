@@ -4,7 +4,7 @@ import "./features/workspace/workspace.css";
 import { useEffect, useState } from "react";
 
 import ChatScreen from "./features/workspace/ChatScreen.jsx";
-import HomeScreen from "./features/workspace/HomeScreen.jsx";
+import NoProjectsScreen from "./features/workspace/NoProjectsScreen.jsx";
 import OfflineStrip from "./features/workspace/OfflineStrip.jsx";
 import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
 import Sidebar from "./features/workspace/Sidebar.jsx";
@@ -12,7 +12,6 @@ import { useChat } from "./features/workspace/useChat.js";
 import {
   deleteChat,
   renameChat,
-  startChatInNewProject,
   startChatInProject,
   useProjectChats,
   useRecentChats,
@@ -45,9 +44,22 @@ export default function App() {
     online,
   );
 
-  const goHome = () => navigate("/");
   const openProject = (id) => navigate(`/p/${id}`);
   const openChat = (projectId, chatId) => navigate(`/p/${projectId}/c/${chatId}`);
+  // What "New chat" does is Madde 6's decision. Until then it opens the project screen, where a
+  // chat is started; the control is only drawn when there is a project, so there is always one.
+  const openNewChat = () => openProject(route.projectId ?? projects[0].id);
+  // Madde 5 takes the project screen's back control away. Until then it goes through the fork,
+  // which lands on the first project -- the place it used to reach no longer exists.
+  const leaveProject = () => navigate("/");
+
+  // "/" is a fork, not a screen. It is read once the list has arrived -- an empty array cannot tell
+  // "there is none" from "not here yet", and deciding early shows the wrong screen for a moment.
+  const atFork = route.view === "root";
+  const landing = atFork && !loading && !error && projects.length > 0 ? projects[0].id : null;
+  useEffect(() => {
+    if (landing) navigate(`/p/${landing}`, { replace: true });
+  }, [landing, navigate]);
 
   useEffect(() => {
     // One listener owns the keyboard. Two of them could not agree on an order: they hang off the
@@ -76,11 +88,6 @@ export default function App() {
     // The counts on the cards and both chat lists have all moved, so they are read again.
     await Promise.all([reloadProjects(), reloadRecentChats()]);
     openChat(started.projectId, started.chatId);
-  };
-
-  const sendFromHome = async (text) => {
-    const started = await startChatInNewProject(text);
-    await afterStart({ projectId: started.project.id, chatId: started.chat.id });
   };
 
   const removeFile = (name) => {
@@ -127,7 +134,7 @@ export default function App() {
         recentChats={recentChats}
         activeProjectId={route.projectId}
         activeChatId={route.chatId}
-        onNewChat={goHome}
+        onNewChat={openNewChat}
         onNewProject={createProject}
         onOpenProject={openProject}
         onOpenChat={openChat}
@@ -136,17 +143,10 @@ export default function App() {
         {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
         <OfflineStrip online={online} />
 
-        {/* Creating a project keeps the user on home: what this item has to show is the project
-            appearing in both lists at once. */}
-        {route.view === "home" ? (
-          <HomeScreen
-            projects={projects}
-            error={error}
-            loading={loading}
-            onNewProject={createProject}
-            onOpenProject={openProject}
-            onSend={sendFromHome}
-          />
+        {/* The fork draws nothing while it is still deciding, and hands over to the empty screen
+            only once the server has said there is nothing to open. */}
+        {atFork && !landing && (!loading || error) ? (
+          <NoProjectsScreen error={error} onNewProject={createProject} />
         ) : null}
 
         {route.view === "project" ? (
@@ -158,7 +158,7 @@ export default function App() {
             loadingFiles={loadingFiles}
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
-            onBack={goHome}
+            onBack={leaveProject}
             onRename={() => ask("Project name", project?.name, "name")}
             onDescribe={() => ask("Project description", project?.desc, "desc")}
             onSend={sendFromProject}

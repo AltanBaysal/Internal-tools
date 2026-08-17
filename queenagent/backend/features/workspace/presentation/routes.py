@@ -30,9 +30,6 @@ from backend.features.workspace.domain.usecases.rename_chat import rename_chat
 from backend.features.workspace.domain.usecases.rename_file import rename_file
 from backend.features.workspace.domain.usecases.restore_file import restore_file
 from backend.features.workspace.domain.usecases.start_chat import start_chat
-from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
-    start_chat_in_new_project,
-)
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
 
@@ -121,24 +118,6 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
             ),
             mimetype="text/event-stream",
         )
-
-    @workspace_bp.post("/api/chats")
-    def post_chat_anywhere():
-        # A message from home has no target, so the rule that opens a project and a chat together
-        # lives here rather than in two browser calls that could stop half-way.
-        payload = request.get_json(silent=True) or {}
-        try:
-            project, chat = start_chat_in_new_project(
-                project_store,
-                chat_store,
-                payload.get("text", ""),
-                new_project_id=_new_id("p"),
-                new_chat_id=_new_id("c"),
-                now=_now(),
-            )
-        except EmptyMessage:
-            return jsonify({"error": "a message needs text"}), 400
-        return jsonify({"project": _project_json(project), "chat": _chat_json(chat)}), 201
 
     @workspace_bp.get("/api/projects/<project_id>/files")
     def get_files(project_id):

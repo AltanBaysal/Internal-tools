@@ -8,8 +8,8 @@ afterEach(() => {
   window.history.pushState(null, "", "/");
 });
 
-test("the root is home", () => {
-  expect(parsePath("/")).toEqual({ view: "home", projectId: null, chatId: null });
+test("the root carries no ids of its own", () => {
+  expect(parsePath("/")).toEqual({ view: "root", projectId: null, chatId: null });
 });
 
 test("a replacing navigation changes the address without adding to the history", () => {
@@ -44,6 +44,6 @@ test("a chat path carries both ids", () => {
   expect(parsePath("/p/pabc/c/c1")).toEqual({ view: "chat", projectId: "pabc", chatId: "c1" });
 });
 
-test("anything unrecognised falls back to home", () => {
-  expect(parsePath("/nonsense/deep").view).toBe("home");
+test("anything unrecognised falls back to the root", () => {
+  expect(parsePath("/nonsense/deep").view).toBe("root");
 });

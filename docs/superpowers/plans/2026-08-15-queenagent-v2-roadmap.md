@@ -114,17 +114,24 @@ Her madde bağımsızdır; sıra içlerinde serbesttir.
 - **Nasıl görülür:** ⌘K'ya basmak hiçbir şey yapmaz; arama uç noktası 404 döner; kenar çubuğu adın
   altından doğrudan "New chat" ile başlar.
 
-### Madde 3 — Home sadeleşir, boş hâl ekranı gelir *(fark 12, 16, 17; karar 14)*
+### Madde 3 — Home kalkar, açılış ilk projeye iner *(fark 12, 16, 17; karar 14)*
 
-- **Ne çalışır:** Home'dan selamlama, üç öneri hapı ve **composer** gider — Home'dan mesaj
-  gönderilmez; kalan: "Projects" başlığı, "New project" düğmesi, kart ızgarası. Hiç proje yokken
-  Home yerine kendi ekranı gelir: "No projects yet" + tek cümle + dolu "New project" düğmesi.
-  Home'a bağlı `start_chat_in_new_project` zinciri sökülür. Sütunun üst boşluğu 14vh'den 18vh'ye
-  çıkar *(fark 19)*.
-- **Nasıl görülür:** Home'da yazı kutusu yok; sıfır projeyle açılışta boş hâl ekranı; "New project"
-  her iki yerden proje kurar (ad sorulmaz, "New project" doğar).
-- **Spec'te karara bağlanacak:** açılış ekranı (tasarım ilk projeye iniyor — fark 12) ve Home'a
-  dönüş yolu (kelime markası mı, başka bir şey mi).
+**Spec'teki iki soru kullanıcıya soruldu ve maddenin kapsamını değiştirdi.** Verilen karar: proje
+seçilmeden sohbet olmaz; proje varsa açılışta **ilk proje** seçili gelir; yoksa "projen yok, bir
+tane oluştur" ekranı gelir. Bunun sonucu **Home diye bir ekranın hiç kalmamasıdır** — kart ızgarası
+proje varken zaten görünmeyeceği için tümüyle gider, "Home'a dönüş yolu" sorusu da kendiliğinden
+düşer. Ayrıntı: [tasarım belgesi](../specs/2026-08-17-queenagent-m3-home-design.md).
+
+- **Ne çalışır:** `/` bir ekran değil bir **çataldır** — liste geldikten sonra proje varsa ilk
+  projeye iner (`replaceState`, geçmişe yazılmaz), yoksa boş hâl ekranını çizer, liste gelemezse
+  sunucunun hata cümlesini gösterir. Boş hâl: "No projects yet" + tek cümle + dolu "+ New project".
+  Home ekranı, kart ızgarası, selamlama, üç öneri hapı ve Home composer'ı gider;
+  `start_chat_in_new_project` zinciri (`POST /api/chats` dahil) sökülür. Hiç proje yokken kenar
+  çubuğundaki "New chat" gizlenir.
+- **Nasıl görülür:** sıfır projeyle açılışta boş hâl ekranı ve kenar çubuğunda "New chat" yok; en az
+  bir projeyle açılışta doğrudan o projenin ekranı ve adres `/p/<ilk>`.
+- **Konusuz kalanlar:** fark 15 (sayaçların tekil hâli), 16, 17, 19 (Home sütununun üst boşluğu) ve
+  Madde 33'ün "< 780px'de Home kartları tek sütuna iner" ayağı — hepsinin öznesi silindi.
 
 ### Madde 4 — Proje açıklaması gider *(fark 20)*
 
@@ -403,15 +410,16 @@ yoktur; motor tarafına dokunulmaz.
 
 - **Ne çalışır:** ölçü pencereden **kabuğun ölçülen genişliğine** geçer (ResizeObserver); üç eşik:
   1000px — ray sohbetin altına iner (%44, en çok 250 en az 150, katlanınca tek başlık satırı), proje
-  ekranı tek sütuna düşer, açılan panel alanın tamamını alır; 780px — yatay dolgu 32→20, Home
-  kartları tek sütun, başlıklar 42→31 / 36→27, sohbet satırının zamanı gizlenir; 640px — kenar
-  çubuğu son basamağına iner. Hiçbir genişlikte yatay kaydırma yoktur.
+  ekranı tek sütuna düşer, açılan panel alanın tamamını alır; 780px — yatay dolgu 32→20, başlıklar
+  42→31 / 36→27, sohbet satırının zamanı gizlenir; 640px — kenar çubuğu son basamağına iner. Hiçbir
+  genişlikte yatay kaydırma yoktur. *(Fark 71'in "Home kartları tek sütuna iner" ayağı Madde 3'te
+  konusuz kaldı — ızgara yok.)*
 - **Nasıl görülür:** pencereyi kademeli daralt → her eşikte tarif edilen olur, düzen kırılmaz.
 
 ### Madde 34 — Durum ekranları ve erişilebilirlik *(fark 64, 65, 69)*
 
-- **Ne çalışır:** ilk yüklemede içerik alanının tamamı tek iskelet düzenine döner (çubuk + blok +
-  2×2 kart, 1.4s kademeli), kenar çubuğu normal çalışır. Çevrimdışı şeridi kızılımsı olur
+- **Ne çalışır:** ilk yüklemede içerik alanının tamamı tek iskelet düzenine döner (çubuk + blok,
+  1.4s kademeli; kart ızgarası Madde 3'te silindi), kenar çubuğu normal çalışır. Çevrimdışı şeridi kızılımsı olur
   (`#F5E9E3` / `#E7D3C8` / `#8A5237`), solda 7px vurgu noktası, metin "You're offline — messages are
   saved and will send when you reconnect." Sohbet ve dosya satırları gerçek düğme olur (sekme +
   Enter), yıkıcı denetimler hover'da okunan `title` taşır.
@@ -425,7 +433,7 @@ Kod bittikten sonra tek dalgada elle koşulur:
 | # | Ne yapılır | Beklenen |
 |---|---|---|
 | 1 | Sıfırdan aç | Boş hâl ekranı: "No projects yet" + New project |
-| 2 | Proje kur, New chat'e bas | Projede boş sohbet açılır; Home'a uğranmaz |
+| 2 | Proje kur, New chat'e bas | Projede boş sohbet açılır; başka bir ekrana uğranmaz |
 | 3 | Mesaj at, cevabı izle | Saatli "QUEENAGENT · saat" etiketi, akan Markdown, uçta imleç |
 | 4 | "Bunu dosyaya yaz" de | Noktaların altında kesikli kutu → kart; karta tıkla → panel açılır |
 | 5 | "Merhaba" de | Dosya doğmaz |

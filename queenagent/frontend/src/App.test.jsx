@@ -33,7 +33,7 @@ test("the app opens on the first project", async () => {
   expect(screen.getAllByText("Thesis").length).toBe(2);
 });
 
-test("with no projects the empty screen stands where home used to", async () => {
+test("with no projects the fork draws the empty screen and stays at /", async () => {
   stubProjects([]);
   render(<App />);
   await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
@@ -76,7 +76,7 @@ test("a list that fails to load says so instead of claiming there are none", asy
   expect(screen.queryByPlaceholderText(/Ask anything/)).toBeNull();
 });
 
-test("a project address does not draw home", async () => {
+test("a project address that matches nothing says so", async () => {
   stubProjects([]);
   window.history.pushState(null, "", "/p/pabc");
   render(<App />);

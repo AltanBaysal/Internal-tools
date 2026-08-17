@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { getJson, patchJson, postJson } from "../../shared/api.js";
 
-// One array feeds both lists on screen -- the sidebar and the home cards -- so a new project shows
-// up in both without a second round trip and without them ever disagreeing.
+// One array answers two questions -- what the sidebar lists, and which project the app opens on --
+// so the two can never disagree and a new project needs no second round trip.
 export function useProjects() {
   const [projects, setProjects] = useState([]);
   const [error, setError] = useState(null);

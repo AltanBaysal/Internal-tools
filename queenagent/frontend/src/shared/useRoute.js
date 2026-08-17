@@ -11,7 +11,7 @@ export function parsePath(pathname) {
     }
     return { view: "project", projectId: parts[1], chatId: null };
   }
-  return { view: "home", projectId: null, chatId: null };
+  return { view: "root", projectId: null, chatId: null };
 }
 
 export function useRoute() {
@@ -23,8 +23,12 @@ export function useRoute() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
-  const navigate = useCallback((next) => {
-    window.history.pushState(null, "", next);
+  // "/" is a fork rather than a place: the app reads it, picks a screen and moves on. Left in the
+  // history it would catch the back button and throw the user forward again, so that one step
+  // replaces instead of pushing.
+  const navigate = useCallback((next, { replace = false } = {}) => {
+    if (replace) window.history.replaceState(null, "", next);
+    else window.history.pushState(null, "", next);
     setPathname(next);
   }, []);
 

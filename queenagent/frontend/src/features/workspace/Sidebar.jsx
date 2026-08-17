@@ -17,10 +17,14 @@ export default function Sidebar({
         <span className="sidebar__wordmark">QueenAgent</span>
       </div>
 
-      <button type="button" className="sidebar__new-chat" onClick={onNewChat}>
-        <span className="sidebar__plus">+</span>
-        New chat
-      </button>
+      {/* Hidden, not disabled: a chat needs a project to live in, and a control that cannot act is
+          worse than no control at all. */}
+      {projects.length > 0 ? (
+        <button type="button" className="sidebar__new-chat" onClick={onNewChat}>
+          <span className="sidebar__plus">+</span>
+          New chat
+        </button>
+      ) : null}
 
       <div className="sidebar__projects">
         <div className="sidebar__head">

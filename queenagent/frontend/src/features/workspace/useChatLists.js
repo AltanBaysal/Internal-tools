@@ -18,10 +18,6 @@ export function useProjectChats(projectId) {
   };
 }
 
-export function startChatInNewProject(text) {
-  return postJson("/api/chats", { text });
-}
-
 export function startChatInProject(projectId, text) {
   return postJson(`/api/projects/${projectId}/chats`, { text });
 }

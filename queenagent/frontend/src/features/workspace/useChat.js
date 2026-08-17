@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getJson, postJson } from "../../shared/api.js";
 import { streamEvents } from "../../shared/sse.js";
 
-// A chat whose last message is the user's is owed an answer. Stating it that way means a chat
-// started from home and a follow-up inside a chat travel the same road: send, then ask.
+// A chat whose last message is the user's is owed an answer. Stating it that way means the message
+// that opens a chat and a follow-up inside one travel the same road: send, then ask.
 function isOwedAnAnswer(chat) {
   const last = chat?.messages[chat.messages.length - 1];
   // A message still in flight does not count -- asking for an answer before the question has
