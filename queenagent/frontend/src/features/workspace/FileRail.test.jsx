@@ -86,29 +86,27 @@ test("clicking a row opens that file", () => {
   expect(open).toHaveBeenCalledWith("outline.md");
 });
 
-test("the × deletes the row without opening it", () => {
-  const open = vi.fn();
-  const remove = vi.fn();
-  render(<FileRail files={FILES} reading={{ open }} deleting={{ remove }} />);
-  fireEvent.click(screen.getByRole("button", { name: "Delete outline.md" }));
-  expect(remove).toHaveBeenCalledWith("outline.md");
-  // The × sits inside the row, so it has to stop the click from reaching it.
-  expect(open).not.toHaveBeenCalled();
+// The rail's row does one thing. Deleting stays on the project screen, where the list is the
+// subject of the screen rather than something standing beside a conversation.
+test("a rail row carries no way to delete, even when one is handed to it", () => {
+  render(<FileRail files={FILES} reading={{ open: vi.fn() }} deleting={{ remove: vi.fn() }} />);
+  expect(screen.queryByRole("button", { name: "Delete outline.md" })).toBeNull();
 });
 
-test("a file row offers no rename", () => {
-  // Renaming lives on the project alone; the row opens and deletes, nothing else.
+test("a file row offers no rename either", () => {
   render(<FileRail files={FILES} reading={{ open: vi.fn() }} />);
   expect(screen.queryByRole("button", { name: "Rename outline.md" })).toBeNull();
 });
 
-test("a refused delete says so above the list, and offers nothing back", () => {
-  // The strip is gone with the undo it existed for; its other job is one line.
-  render(<FileRail files={FILES} deleting={{ error: "HTTP 409", remove: vi.fn() }} />);
-  expect(screen.getByText("HTTP 409")).toBeTruthy();
-  expect(screen.queryByText("Undo")).toBeNull();
-  expect(screen.getByText("outline.md")).toBeTruthy();
+test("a list that cannot delete cannot report a delete going wrong", () => {
+  // The line Madde 19 left in place of the strip belongs to the screen that still deletes.
+  const { container } = render(<FileRail files={FILES} deleting={{ error: "HTTP 409" }} />);
+  expect(container.querySelector(".file-list__error")).toBeNull();
 });
+
+// The row of the file being read is the marked one -- but the rail draws the reader instead of the
+// list while a file is open, so there is no moment on screen for it yet. That is fark 53, which the
+// roadmap never assigned to a madde. The rule is tested where it lives: FileRow.test.jsx.
 
 test("an open file takes the rail over and widens it", () => {
   const file = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };

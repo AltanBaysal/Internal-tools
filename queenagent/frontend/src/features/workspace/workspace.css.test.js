@@ -208,6 +208,15 @@ test("under the chat a folded rail is a row, not a column", () => {
   expect(folded.slice(0, folded.indexOf("}"))).not.toContain("46px");
 });
 
+test("the rail is a surface of its own rather than the canvas with a line on it", () => {
+  expect(rule(".rail")).toContain("background: #fbf9f5");
+});
+
+test("the row being read is marked, and hovering is not the same as being open", () => {
+  expect(rule(".file-row--selected")).toContain("background: #efebe4");
+  expect(rule(".file-row:hover")).toContain("background: #f0ece5");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.
