@@ -89,6 +89,22 @@ test("the shell is the height of the visible window and no less", () => {
   expect(rule).not.toContain("min-height");
 });
 
+// The focus ring has one home. A component that writes its own -- or writes it away -- leaves a
+// stop on the tab route with nothing to see.
+test("the ring is defined once and only here", () => {
+  expect(APP.match(/:focus-visible \{/g).length).toBe(1);
+  expect(rule(APP, ":focus-visible")).toContain("outline: 2px solid var(--accent)");
+});
+
+test("no surface writes the ring, or writes it away", () => {
+  // Not even to remove it: the composer's textarea was the one stop on the tab route with nothing
+  // to see.
+  expect(WORKSPACE).not.toContain("outline");
+  // The one focus rule outside app.css decides visibility, not appearance -- a control that only
+  // shows on hover would otherwise be invisible to the keyboard.
+  expect(WORKSPACE).toContain(".row-x:focus-visible");
+});
+
 test("the only destructive control there is today reaches for the new red", () => {
   // The three surfaces the design names arrive with Madde 17, 18 and 19; the row's x is here now.
   expect(rule(WORKSPACE, ".row-x:hover")).toContain("var(--destructive)");
