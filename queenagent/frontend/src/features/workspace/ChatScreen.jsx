@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
@@ -16,6 +16,17 @@ const STICK_WITHIN = 220;
 function extensionOf(name) {
   const dot = name.lastIndexOf(".");
   return name.slice(dot + 1, dot + 1 + CHIP_LENGTH).toLowerCase();
+}
+
+// The skeleton of the card about to be born: an empty badge slot where the chip will go, and no
+// name -- the model's wish is not the name until it has been cleaned and a clash resolved.
+function CreatingFile() {
+  return (
+    <div className="creating">
+      <span className="creating__chip" />
+      <span>creating file…</span>
+    </div>
+  );
 }
 
 function FileCard({ name }) {
@@ -45,6 +56,13 @@ export default function ChatScreen({
   onSend,
   onRetry,
 }) {
+  // Stamped once, when the wait starts. There is nothing on the server to read it from yet, and the
+  // label answers "when was this asked for" -- an answer that stops being new the moment it is given.
+  const [askedAt, setAskedAt] = useState(null);
+  useEffect(() => {
+    setAskedAt(thinking ? (at) => at ?? new Date().toISOString() : null);
+  }, [thinking]);
+
   const scroll = useRef(null);
   const toBottom = () => {
     const list = scroll.current;
@@ -82,6 +100,7 @@ export default function ChatScreen({
   // was said. The card claims something else, that the file exists and is called this, so it is
   // drawn from the crossing of the two: once the file is deleted it simply stops having a card.
   const onDisk = new Set(files.map((file) => file.name));
+  const waitingLabel = askedAt ? `QueenAgent · ${clockTime(askedAt)}` : "QueenAgent";
 
   return (
     <div className="chat-layout">
@@ -101,8 +120,12 @@ export default function ChatScreen({
                 key={`${message.at}-${index}`}
                 className={message.role === "user" ? "msg msg--user" : "msg msg--ai"}
               >
+                {/* No name over the user's own bubble: the design draws one but never says where it
+                    comes from, and the bubble sitting on the right already says who wrote it. */}
                 <div className="msg__label">
-                  {message.role === "user" ? "You" : "QueenAgent"} · {clockTime(message.at)}
+                  {message.role === "user"
+                    ? clockTime(message.at)
+                    : `QueenAgent · ${clockTime(message.at)}`}
                 </div>
                 {/* What the user typed stays what they typed -- `**test**` keeps its asterisks. */}
                 {message.role === "user" ? (
@@ -126,25 +149,27 @@ export default function ChatScreen({
             ))}
             {streamingText ? (
               <div className="msg msg--ai" data-testid="streaming">
-                <div className="msg__label">QueenAgent</div>
+                <div className="msg__label">{waitingLabel}</div>
                 <div className="msg__text">
                   {/* Formatted from the first frame: raw first and formatted afterwards would read
                       as a flicker rather than a stream. */}
                   <Markdown text={streamingText} caret />
                 </div>
+                {creatingFile ? <CreatingFile /> : null}
               </div>
             ) : null}
 
             {thinking && !streamingText ? (
               // Three blinking dots and nothing else, and only until the first piece lands: the
               // design refuses a fake partial answer.
-              <div className="msg msg--ai" data-testid="thinking">
-                <div className="msg__label">QueenAgent</div>
+              <div className="msg msg--ai msg--waiting" data-testid="thinking">
+                <div className="msg__label">{waitingLabel}</div>
                 <div className="dots">
                   <span className="dots__dot" />
                   <span className="dots__dot" />
                   <span className="dots__dot" />
                 </div>
+                {creatingFile ? <CreatingFile /> : null}
               </div>
             ) : null}
 
@@ -156,12 +181,6 @@ export default function ChatScreen({
                   <FileCard key={name} name={name} />
                 ))}
               </div>
-            ) : null}
-
-            {creatingFile ? (
-              // Nameless on purpose: the model's wish is not the name until it has been cleaned and
-              // a clash resolved, and the tool has not run yet.
-              <div className="creating">creating file…</div>
             ) : null}
 
             {error ? (

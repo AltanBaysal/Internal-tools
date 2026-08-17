@@ -247,6 +247,11 @@
   align-items: flex-start;
 }
 
+/* The design measures the wait: 10px between the label and the dots, where a message uses 6. */
+.msg--waiting {
+  gap: 10px;
+}
+
 .msg__label {
   font-family: var(--font-mono);
   font-size: 10.5px;
@@ -682,8 +687,16 @@
   color: #6f8a5f;
 }
 
+/* Inside the block that is still pending, right under the dots. It carries the skeleton of the card
+   about to be born rather than being a note about it, which is why it holds a badge slot and stops
+   at the width a file card would take. */
 .creating {
   align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 340px;
   background: #fbf8f3;
   border: 1px dashed #ded5c9;
   border-radius: var(--radius-card);
@@ -691,6 +704,14 @@
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--muted);
+}
+
+.creating__chip {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: #f0e7de;
 }
 
 /* --- waiting ------------------------------------------------------------ */
