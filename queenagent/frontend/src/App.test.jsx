@@ -13,10 +13,9 @@ afterEach(() => {
 const PROJECT = { id: "p1", name: "Old", desc: "Notes.", hue: 45, chats: 0, files: 0 };
 
 function stubProjects(projects) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => projects }),
-  );
+  const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => projects });
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
 }
 
 test("the shell renders", () => {
@@ -25,10 +24,54 @@ test("the shell renders", () => {
   expect(screen.getByTestId("app-shell")).toBeTruthy();
 });
 
-test("loaded projects reach both the sidebar and the cards", async () => {
+test("the app opens on the first project", async () => {
+  // "/" is a fork, not a screen: with a project to show, the app lands inside it.
   stubProjects([{ id: "p1", name: "Thesis", desc: "Summaries.", hue: 45, chats: 0, files: 0 }]);
   render(<App />);
-  await waitFor(() => expect(screen.getAllByText("Thesis").length).toBe(2));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  // The sidebar row and the project title read the same array, so the name stands twice.
+  expect(screen.getAllByText("Thesis").length).toBe(2);
+});
+
+test("with no projects the empty screen stands where home used to", async () => {
+  stubProjects([]);
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
+  expect(window.location.pathname).toBe("/");
+});
+
+test("the fork is not written into the history", async () => {
+  const push = vi.spyOn(window.history, "pushState");
+  const replace = vi.spyOn(window.history, "replaceState");
+  stubProjects([{ id: "p1", name: "Thesis", desc: "Summaries.", hue: 45, chats: 0, files: 0 }]);
+
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  // Pushed, the back button would land on the fork and be thrown forward again.
+  expect(replace).toHaveBeenCalled();
+  expect(push).not.toHaveBeenCalled();
+});
+
+test("nothing is drawn while the list is still on its way", () => {
+  // An empty array cannot tell "none" from "not here yet", and guessing shows the wrong screen.
+  vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+  render(<App />);
+  expect(screen.queryByText("No projects yet")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Rename" })).toBeNull();
+  // Not even blocks standing in for cards: the fork has no screen of its own to fill.
+  expect(screen.queryByTestId("skeleton")).toBeNull();
+});
+
+test("a list that fails to load says so instead of claiming there are none", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
+  );
+  render(<App />);
+  await waitFor(() => expect(screen.getByText(/failed with 500/)).toBeTruthy());
+  expect(screen.queryByText("No projects yet")).toBeNull();
+  // And no way to send a message either -- there is no project for one to land in.
+  expect(screen.queryByPlaceholderText(/Ask anything/)).toBeNull();
 });
 
 test("a project address does not draw home", async () => {
@@ -60,30 +103,15 @@ test("a renamed project shows the new name in both places at once", async () => 
   await waitFor(() => expect(screen.getAllByText("New").length).toBe(2));
 });
 
-test("a message from home opens a project and a chat and goes there", async () => {
-  const chat = { id: "c1", title: "Write the intro", messages: [], lastActivity: "x" };
-  const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path === "/api/chats" && options?.method === "POST") {
-      return Promise.resolve({
-        ok: true,
-        status: 201,
-        json: async () => ({ project: { ...PROJECT, name: "Write the intro" }, chat }),
-      });
-    }
-    if (path.endsWith("/chats/c1")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
-  });
-  vi.stubGlobal("fetch", fetch);
-
+test("nothing asks the server to open a project and a chat at once", async () => {
+  // A chat is always started from inside a project. GET /api/chats still lists recent ones, so it
+  // is the POST that must never happen.
+  const fetch = stubProjects([]);
   render(<App />);
-  fireEvent.change(screen.getByPlaceholderText(/Ask anything/), {
-    target: { value: "Write the intro" },
-  });
-  fireEvent.keyDown(screen.getByPlaceholderText(/Ask anything/), { key: "Enter" });
-
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+  await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
+  expect(
+    fetch.mock.calls.every(([path, options]) => !(path === "/api/chats" && options?.method === "POST")),
+  ).toBe(true);
 });
 
 test("the user bubble shows before the server answers, and leaves if it refuses", async () => {
@@ -436,10 +464,7 @@ test("Escape closes the reading panel", async () => {
 });
 
 test("nothing asks the server to search", async () => {
-  const fetch = vi.fn().mockImplementation(() =>
-    Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] }),
-  );
-  vi.stubGlobal("fetch", fetch);
+  const fetch = stubProjects([]);
 
   render(<App />);
   await waitFor(() => expect(screen.getByText("QueenAgent")).toBeTruthy());
@@ -455,11 +480,13 @@ function goOffline(offline) {
 
 test("offline, the strip shows and the composer stays open", async () => {
   goOffline(true);
-  stubProjects([]);
+  // Inside a project, because that is now the only place a composer stands.
+  stubProjects([PROJECT]);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
   await waitFor(() => expect(screen.getByTestId("offline")).toBeTruthy());
   // The composer is not taken away: what is offline is the engine, not the machine.
-  expect(screen.getByPlaceholderText(/Ask anything/)).toBeTruthy();
+  expect(screen.getByPlaceholderText(/Start a new chat/)).toBeTruthy();
   goOffline(false);
   await waitFor(() => expect(screen.queryByTestId("offline")).toBeNull());
 });

@@ -8,12 +8,11 @@ from backend.features.workspace.domain.errors import (
     FileNotFound,
     InvalidChatTitle,
 )
+from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.rename_chat import rename_chat
 from backend.features.workspace.domain.usecases.rename_file import rename_file
-from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
-    start_chat_in_new_project,
-)
+from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.services.store.store import Store
 
 
@@ -23,10 +22,11 @@ def _files(tmp_path):
 
 def _chats(tmp_path):
     store = Store(str(tmp_path))
-    start_chat_in_new_project(
-        FileProjectStore(store), FileChatStore(store), "hi", "p1", "c1", "2026-08-09T11:04:00.000+00:00"
-    )
-    return FileChatStore(store)
+    projects, chats = FileProjectStore(store), FileChatStore(store)
+    now = "2026-08-09T11:04:00.000+00:00"
+    create_project(projects, new_id="p1", now=now)
+    start_chat(chats, projects, "p1", "hi", "c1", now)
+    return chats
 
 
 def test_a_chat_takes_the_new_title(tmp_path):

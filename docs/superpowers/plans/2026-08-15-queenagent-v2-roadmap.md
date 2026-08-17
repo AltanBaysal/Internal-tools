@@ -20,7 +20,19 @@ Birim **maddedir**. Her madde dört adımdan geçer:
    küçük maddede spec kısa düşer, atlanmaz.
 2. **Plan** — TDD adımlarıyla uygulama planı (`docs/superpowers/plans/`).
 3. **TDD** — iki ayrı commit: önce yalnız testler (kırmızı gider), sonra implementasyon. İstisnasız.
-4. **Kapanış** — `pytest` ve `npm test` yeşil.
+4. **Kapanış** — tam takım yeşil.
+
+**Test komutu tektir ve hiç değişmez.** Koşu boyunca, her seferinde harfi harfine bu dize:
+
+```
+python -m pytest queenagent -q; npm test --prefix queenagent/frontend
+```
+
+Başına `cd`, sonuna `| grep` / `| tail` yok; tek dosya, tek test, tek suite koşmak için ayrı bir dize
+kurulmaz — dize her değiştiğinde yeni bir onay penceresi açılır ve koşu durur. Kullanıcı bunu bir kez
+"allow for this session" ile onaylar; gerisi durmadan akar. Çıktıdan yalnız bir satırla ilgileniyorsan
+onu gözünle süz, komuta boru ekleme. Kırmızı adımda da aynı dize koşulur — beklenen kırmızı, çıktıdan
+okunur.
 
 **Varsayma, sor.** Koşu maddeler arasında durmaz — ama spec yazarken bir şey **gerçekten belirsizse**
 orada durulur ve kullanıcıya sorulur. Ölçüt "emin değilim" değil, **"iki farklı okuma iki farklı ürün

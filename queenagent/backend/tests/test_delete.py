@@ -7,10 +7,9 @@ from backend.features.workspace.domain.errors import ChatNotFound, FileNotFound,
 from backend.features.workspace.domain.usecases.delete_chat import delete_chat
 from backend.features.workspace.domain.usecases.delete_file import delete_file
 from backend.features.workspace.domain.usecases.list_files import list_files
+from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.restore_file import restore_file
-from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
-    start_chat_in_new_project,
-)
+from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.services.store.store import Store
 
 
@@ -83,7 +82,9 @@ def test_restoring_something_the_trash_does_not_hold_is_reported(tmp_path):
 def _seeded(tmp_path):
     store = Store(str(tmp_path))
     projects, chats = FileProjectStore(store), FileChatStore(store)
-    start_chat_in_new_project(projects, chats, "hi", "p1", "c1", "2026-08-09T11:04:00.000+00:00")
+    now = "2026-08-09T11:04:00.000+00:00"
+    create_project(projects, new_id="p1", now=now)
+    start_chat(chats, projects, "p1", "hi", "c1", now)
     return chats
 
 

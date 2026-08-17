@@ -8,9 +8,8 @@ from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.domain.chat import Chat
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, FileWritten
-from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
-    start_chat_in_new_project,
-)
+from backend.features.workspace.domain.usecases.create_project import create_project
+from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 from backend.services.store.store import Store
 
@@ -41,7 +40,9 @@ class ScriptedEngine:
 def _seeded(tmp_path):
     store = Store(str(tmp_path))
     projects, chats, files = FileProjectStore(store), FileChatStore(store), FileFileStore(store)
-    start_chat_in_new_project(projects, chats, "hi", "p1", "c1", "2026-08-09T11:04:00.000+00:00")
+    now = "2026-08-09T11:04:00.000+00:00"
+    create_project(projects, new_id="p1", now=now)
+    start_chat(chats, projects, "p1", "hi", "c1", now)
     return chats, files
 
 
