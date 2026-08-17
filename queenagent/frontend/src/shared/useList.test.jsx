@@ -36,7 +36,7 @@ test("a list is loading until its first answer arrives", async () => {
 });
 
 test("a refused list stops loading too", async () => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }));
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => "" }));
   render(<Host />);
   // Otherwise the blocks would stand there for ever, which is a lie about what is coming.
   await waitFor(() => expect(screen.getByTestId("state").textContent).toBe("settled"));

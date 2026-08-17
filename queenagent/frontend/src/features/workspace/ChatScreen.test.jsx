@@ -87,6 +87,14 @@ test("a failure states what happened and repeats the server's words", () => {
   expect(screen.getByText(/failed with 500/)).toBeTruthy();
 });
 
+test("a message that was never sent is not told as an answer that never came", () => {
+  // Two different failures: one has a request to retry, the other has a sentence to write again.
+  render(<ChatScreen project={PROJECT} chat={CHAT} refused="a message needs text" />);
+  expect(screen.getByText("a message needs text")).toBeTruthy();
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+});
+
 test("Try again asks again", () => {
   const onRetry = vi.fn();
   render(<ChatScreen project={PROJECT} chat={CHAT} error="boom" onRetry={onRetry} />);

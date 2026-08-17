@@ -33,7 +33,7 @@ function server({ onDisk = [], trashed = "plan.md", refuse = false }) {
     }
     if (path.includes("/trash/")) {
       if (refuse) {
-        return Promise.resolve({ ok: false, status: 409, json: async () => ({}) });
+        return Promise.resolve({ ok: false, status: 409, text: async () => "" });
       }
       state.files = [...onDisk];
       return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });

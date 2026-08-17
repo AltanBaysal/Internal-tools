@@ -51,7 +51,7 @@ test("opening a file reads it", async () => {
 });
 
 test("a file that is not there is marked gone rather than shouting", async () => {
-  stub({ ok: false, status: 404, json: async () => ({ error: "file not found" }) });
+  stub({ ok: false, status: 404, text: async () => JSON.stringify({ error: "file not found" }) });
   render(<Host />);
   fireEvent.click(screen.getByText("open"));
   await waitFor(() => expect(screen.getByTestId("missing").textContent).toBe("gone"));

@@ -67,10 +67,10 @@ test("nothing is drawn while the list is still on its way", () => {
 test("a list that fails to load says so instead of claiming there are none", async () => {
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) }),
+    vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => "" }),
   );
   render(<App />);
-  await waitFor(() => expect(screen.getByText(/failed with 500/)).toBeTruthy());
+  await waitFor(() => expect(screen.getByText(/HTTP 500/)).toBeTruthy());
   expect(screen.queryByText("No projects yet")).toBeNull();
   // And no way to send a message either -- there is no project for one to land in.
   expect(screen.queryByPlaceholderText(/Ask anything/)).toBeNull();
@@ -164,11 +164,16 @@ test("the first message in a draft creates the chat and takes its address", asyn
   expect(push).not.toHaveBeenCalled();
 });
 
-test("the user bubble shows before the server answers, and leaves if it refuses", async () => {
+test("the user bubble shows before the server answers, and a refusal hands the words back", async () => {
   const chat = { id: "c1", title: "Hi", messages: [], lastActivity: "x" };
   let refuse;
   const pending = new Promise((resolve) => {
-    refuse = () => resolve({ ok: false, status: 500, json: async () => ({}) });
+    refuse = () =>
+      resolve({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ error: "a message needs text" }),
+      });
   });
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") return pending;
@@ -190,7 +195,12 @@ test("the user bubble shows before the server answers, and leaves if it refuses"
 
   refuse();
   await waitFor(() => expect(screen.queryByText("hello")).toBeNull());
-  expect(screen.getByText(/failed with 500/)).toBeTruthy();
+  // The server's own sentence, not the method and the code the browser used to write instead.
+  expect(screen.getByText("a message needs text")).toBeTruthy();
+  // A message that was never sent has no answer to retry.
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+  // And FOUNDATION's first principle: the sentence the user wrote comes back to them.
+  expect(screen.getByPlaceholderText("Reply...").value).toBe("hello");
 });
 
 function sseResponse(text) {
@@ -322,7 +332,7 @@ test("a broken engine is reported once and not asked again", async () => {
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/answer") && options?.method === "POST") {
-      return Promise.resolve({ ok: false, status: 502, json: async () => ({}) });
+      return Promise.resolve({ ok: false, status: 502, text: async () => "" });
     }
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => owed });
@@ -333,7 +343,7 @@ test("a broken engine is reported once and not asked again", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByText(/failed with 502/)).toBeTruthy());
+  await waitFor(() => expect(screen.getByText(/HTTP 502/)).toBeTruthy());
   const asked = fetch.mock.calls.filter(([path]) => path.endsWith("/answer")).length;
   // A chat that is owed an answer must not turn a broken engine into an endless retry.
   expect(asked).toBe(1);
