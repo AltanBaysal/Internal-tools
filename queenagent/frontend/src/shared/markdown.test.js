@@ -46,6 +46,15 @@ test("a fence that never closes ends with the text", () => {
   expect(block.text).toBe("half(");
 });
 
+test("a fence that arrives piece by piece is a block at every step", () => {
+  // What the design asks for is that a half-arrived block never breaks the layout, so the shape of
+  // the answer has to be the same at every length.
+  const steps = ["Here:", "Here:\n```js", "Here:\n```js\nx =", "Here:\n```js\nx = 1\n```"];
+  const shapes = steps.map((step) => parseBlocks(step).map((block) => block.type).join("+"));
+  expect(shapes).toEqual(["paragraph", "paragraph+code", "paragraph+code", "paragraph+code"]);
+  expect(parseBlocks(steps[2])[1].text).toBe("x =");
+});
+
 test("markers inside a fence are not markers", () => {
   expect(only("```\n**bold**\n```").text).toBe("**bold**");
 });

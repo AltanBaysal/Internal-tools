@@ -64,3 +64,48 @@ test("the wrapper is the one hook the scales hang on", () => {
 test("nothing empty draws an empty wrapper rather than crashing", () => {
   expect(draw("").querySelector(".md").textContent).toBe("");
 });
+
+// The caret marks where the text has got to, so it belongs at the end of the text -- which, once
+// the answer is a tree of blocks, takes a rule rather than a position.
+const drawStreaming = (text) => render(<Markdown text={text} caret />).container;
+
+test("a finished answer carries no caret", () => {
+  expect(draw("Done.").querySelector(".caret")).toBeNull();
+});
+
+test("the caret ends the last paragraph", () => {
+  const container = drawStreaming("One.\n\nTwo.");
+  const paragraphs = container.querySelectorAll("p");
+  expect(paragraphs[0].querySelector(".caret")).toBeNull();
+  expect(paragraphs[1].lastChild.className).toBe("caret");
+});
+
+test("the caret ends the last heading", () => {
+  expect(drawStreaming("# Title").querySelector("h1 .caret")).toBeTruthy();
+});
+
+test("inside a code block the caret goes inside the code", () => {
+  // The end of the text is in there, not under the box.
+  expect(drawStreaming("```js\nx = ").querySelector("pre code .caret")).toBeTruthy();
+});
+
+test("in a list the caret ends the last item", () => {
+  const items = drawStreaming("- one\n- two").querySelectorAll("li");
+  expect(items[0].querySelector(".caret")).toBeNull();
+  expect(items[1].querySelector(".caret")).toBeTruthy();
+});
+
+test("a quote passes the caret to the block inside it", () => {
+  expect(drawStreaming("> half a th").querySelector("blockquote p .caret")).toBeTruthy();
+});
+
+test("a block with no text end takes the caret underneath", () => {
+  // A table has no line to sit at the end of, so the caret gets one of its own.
+  const container = drawStreaming("| a |\n| --- |\n| 1 |");
+  expect(container.querySelector("table .caret")).toBeNull();
+  expect(container.querySelector(".md > .caret")).toBeTruthy();
+});
+
+test("an answer that is still nothing but a caret still draws it", () => {
+  expect(drawStreaming("").querySelector(".caret")).toBeTruthy();
+});

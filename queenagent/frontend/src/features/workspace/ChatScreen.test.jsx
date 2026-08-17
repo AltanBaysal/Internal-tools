@@ -180,6 +180,52 @@ test("text that is still arriving is drawn as Markdown too", () => {
   expect(container.querySelector("[data-testid=streaming] h1").textContent).toBe("Title");
 });
 
+test("only the text still arriving carries a caret", () => {
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it" />,
+  );
+  expect(container.querySelector("[data-testid=streaming] .caret")).toBeTruthy();
+  expect(container.querySelector(".msg--ai:not([data-testid=streaming]) .caret")).toBeNull();
+});
+
+// jsdom lays nothing out, so the sizes are declared and what is under test is the decision: does
+// the list follow the answer down, or does it leave the reader where they are?
+function scrollable(container, { at }) {
+  const scroll = container.querySelector(".chat__scroll");
+  Object.defineProperty(scroll, "scrollHeight", { configurable: true, value: 1000 });
+  Object.defineProperty(scroll, "clientHeight", { configurable: true, value: 300 });
+  scroll.scrollTop = at;
+  return scroll;
+}
+
+test("a new message takes the list to the bottom", () => {
+  const { container, rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  const scroll = scrollable(container, { at: 0 });
+  const said = { ...CHAT, messages: [...CHAT.messages, { role: "user", at: NOW, text: "More" }] };
+  rerender(<ChatScreen project={PROJECT} chat={said} />);
+  expect(scroll.scrollTop).toBe(1000);
+});
+
+test("a reader who has scrolled up is never dragged back down", () => {
+  const { container, rerender } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here" />,
+  );
+  // 700px from the bottom: reading, not watching.
+  const scroll = scrollable(container, { at: 0 });
+  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it is" />);
+  expect(scroll.scrollTop).toBe(0);
+});
+
+test("a reader who is watching the end stays stuck to it", () => {
+  const { container, rerender } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here" />,
+  );
+  // 100px from the bottom, inside the design's 220.
+  const scroll = scrollable(container, { at: 600 });
+  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it is" />);
+  expect(scroll.scrollTop).toBe(1000);
+});
+
 test("the rail lists the project's files beside the conversation", () => {
   const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
   render(<ChatScreen project={PROJECT} chat={CHAT} files={files} />);

@@ -120,6 +120,15 @@ test("a wide table or a long code line scrolls inside itself", () => {
   expect(rule(".md__table-scroll")).toContain("overflow-x: auto");
 });
 
+test("the caret is the design's block and borrows the dots' blink", () => {
+  const caret = rule(".caret");
+  expect(caret).toContain("width: 7px");
+  expect(caret).toContain("height: 15px");
+  expect(caret).toContain("animation: blink");
+  // The accent marks the primary action and nothing else; a text cursor is ink.
+  expect(caret).not.toContain("var(--accent)");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.
