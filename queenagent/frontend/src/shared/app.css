@@ -94,10 +94,11 @@ a:hover {
   }
 }
 
+/* The visible window, exactly: dvh follows a browser bar that comes and goes, and a minimum height
+   would be the one thing that could make the page itself scroll. Only inner regions scroll. */
 .app-shell {
   display: flex;
-  height: 100%;
-  min-height: 600px;
+  height: 100dvh;
   width: 100%;
   overflow: hidden;
   background: var(--canvas);

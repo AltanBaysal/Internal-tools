@@ -216,8 +216,11 @@
   color: #4a443d;
 }
 
+/* min-height: 0 is what lets it scroll at all -- a flex child refuses to shrink below its content
+   without it, and the overflow would push the composer off the bottom instead. */
 .chat__scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 32px;
 }
@@ -932,17 +935,19 @@
   .chat-layout,
   .screen-layout {
     flex-direction: column;
-    overflow-y: auto;
   }
 
+  /* Under the chat, with a ceiling: unbounded it would push the conversation up and the layout
+     would start scrolling as a whole, which is the one thing the contract forbids. */
   .rail,
   .rail--open,
   .panel {
     width: auto;
-    max-height: none;
+    flex: none;
+    max-height: 44%;
     border-left: none;
     border-top: 1px solid var(--line);
-    overflow: visible;
+    overflow-y: auto;
   }
 
   .chat,
