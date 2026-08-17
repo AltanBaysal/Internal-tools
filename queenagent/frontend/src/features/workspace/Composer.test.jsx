@@ -50,12 +50,11 @@ test("the draft is cleared once it has been sent", () => {
   expect(box.value).toBe("");
 });
 
-test("a suggestion fills the draft and sends nothing", () => {
-  const onSubmit = vi.fn();
-  const { box } = draw({ onSubmit, suggestions: ["Draft a meeting agenda"] });
-  fireEvent.click(screen.getByRole("button", { name: "Draft a meeting agenda" }));
-  expect(box.value).toBe("Draft a meeting agenda");
-  expect(onSubmit).not.toHaveBeenCalled();
+test("nothing fills the draft for the user", () => {
+  // The three prompt pills go with the screen that held them; the composer offers no wording.
+  const { box } = draw({ suggestions: ["Draft a meeting agenda"] });
+  expect(screen.queryByRole("button", { name: "Draft a meeting agenda" })).toBeNull();
+  expect(box.value).toBe("");
 });
 
 test("with no handler attached Enter does nothing and nothing breaks", () => {
