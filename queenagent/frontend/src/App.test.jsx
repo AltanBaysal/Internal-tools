@@ -486,18 +486,29 @@ test("a broken engine is reported once and not asked again", async () => {
   expect(asked).toBe(1);
 });
 
-test("deleting a chat asks first, and a no sends nothing", async () => {
-  const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
-  const fetch = vi.fn().mockImplementation((path) => {
-    if (path === `/api/projects/p1/chats`) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => chats });
+// The app speaks one deletion language now: ask, then delete. The browser's box is gone from it.
+function withChats(chats) {
+  const live = [...chats];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (options?.method === "DELETE") {
+      live.length = 0;
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }
+    if (path === "/api/projects/p1/chats") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [...live] });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
   });
   vi.stubGlobal("fetch", fetch);
-  vi.stubGlobal("confirm", vi.fn().mockReturnValue(false));
   window.history.pushState(null, "", "/p/p1");
+  return fetch;
+}
 
+const CHAT_ROW = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
+
+test("deleting a chat asks in the app's own box, not the browser's", async () => {
+  const fetch = withChats(CHAT_ROW);
+  vi.stubGlobal("confirm", vi.fn());
   render(<App />);
   // Asked for by its control: the title itself now stands twice, in the row and in the sidebar.
   await waitFor(() =>
@@ -505,29 +516,29 @@ test("deleting a chat asks first, and a no sends nothing", async () => {
   );
   fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
 
-  expect(window.confirm).toHaveBeenCalled();
+  expect(screen.getByText("Delete this chat?")).toBeTruthy();
+  expect(screen.getByText("Its files stay in the project.")).toBeTruthy();
+  expect(window.confirm).not.toHaveBeenCalled();
+  expect(fetch.mock.calls.every(([, options]) => options?.method !== "DELETE")).toBe(true);
+});
+
+test("cancelling a chat deletion sends nothing", async () => {
+  const fetch = withChats(CHAT_ROW);
+  render(<App />);
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: "Delete Write the intro" })).toBeTruthy(),
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(fetch.mock.calls.every(([, options]) => options?.method !== "DELETE")).toBe(true);
 });
 
 test("a chat the user confirms is deleted and leaves the list", async () => {
-  let chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
-  const fetch = vi.fn().mockImplementation((path, options) => {
-    if (options?.method === "DELETE") {
-      chats = [];
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
-    }
-    if (path === "/api/projects/p1/chats") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => chats });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
-  });
-  vi.stubGlobal("fetch", fetch);
-  vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
-  window.history.pushState(null, "", "/p/p1");
-
+  withChats(CHAT_ROW);
   render(<App />);
   await waitFor(() => expect(screen.getAllByText("Write the intro").length).toBeGreaterThan(0));
   fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete chat" }));
   await waitFor(() => expect(screen.queryByText("Write the intro")).toBeNull());
 });
 
@@ -560,9 +571,31 @@ test("deleting the file that is open closes the panel", async () => {
   await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: "Delete plan.md" }));
+  expect(screen.getByText('Delete "plan.md"?')).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Delete file" }));
   // Reading something that is no longer there is not reading.
   await waitFor(() => expect(screen.queryByText("body")).toBeNull());
-  expect(screen.getByText("File deleted.")).toBeTruthy();
+  // Nothing is offered back: the question was the protection, and the disk keeps the file.
+  expect(screen.queryByText("Undo")).toBeNull();
+  expect(screen.queryByText("File deleted.")).toBeNull();
+});
+
+test("a file is not deleted until the question is answered", async () => {
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "Delete plan.md" }));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(fetch.mock.calls.every(([, options]) => options?.method !== "DELETE")).toBe(true);
 });
 
 test("no row anywhere offers a rename", async () => {

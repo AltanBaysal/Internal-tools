@@ -179,6 +179,18 @@ test("the header's Delete is outlined until it is hovered", () => {
   expect(rule(".screen__delete:hover")).toContain("background: var(--destructive)");
 });
 
+test("a chat row's delete is there before it is reached for", () => {
+  // The design separates the two deliberately: the sidebar's menu button waits for the row, this
+  // one stands in it.
+  expect(rule(".row-x")).not.toContain("opacity: 0");
+  expect(rule(".row-x")).toContain("color: #b5ada2");
+});
+
+test("the undo strip is gone rather than restyled", () => {
+  // fark 31 was about its colour and its radius; karar 16 took the strip itself.
+  expect(CSS).not.toContain(".strip");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.

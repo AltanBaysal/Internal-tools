@@ -14,29 +14,20 @@ function Host({ projectId = "p1" }) {
       <button type="button" onClick={() => deleting.remove("plan.md")}>
         remove
       </button>
-      <button type="button" onClick={deleting.undo}>
-        undo
-      </button>
       <span data-testid="names">{files.map((file) => file.name).join(",")}</span>
-      <span data-testid="deleted">{deleting.deleted?.trashed ?? ""}</span>
       <span data-testid="error">{deleting.error ?? ""}</span>
+      <span data-testid="keys">{Object.keys(deleting).sort().join(",")}</span>
     </div>
   );
 }
 
-function server({ onDisk = [], trashed = "plan.md", refuse = false }) {
+function server({ onDisk = [], refuse = false }) {
   const state = { files: [...onDisk] };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (options?.method === "DELETE") {
+      if (refuse) return Promise.resolve({ ok: false, status: 409, text: async () => "" });
       state.files = [];
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({ trashed }) });
-    }
-    if (path.includes("/trash/")) {
-      if (refuse) {
-        return Promise.resolve({ ok: false, status: 409, text: async () => "" });
-      }
-      state.files = [...onDisk];
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ trashed: "plan.md" }) });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => state.files });
   });
@@ -46,50 +37,41 @@ function server({ onDisk = [], trashed = "plan.md", refuse = false }) {
 
 const PLAN = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
 
-test("removing a file takes it out of the list and offers an undo", async () => {
+test("removing a file takes it out of the list", async () => {
   server({ onDisk: [PLAN] });
   render(<Host />);
   await waitFor(() => expect(screen.getByTestId("names").textContent).toBe("plan.md"));
-
   fireEvent.click(screen.getByText("remove"));
   await waitFor(() => expect(screen.getByTestId("names").textContent).toBe(""));
-  expect(screen.getByTestId("deleted").textContent).toBe("plan.md");
 });
 
-test("undo asks for the name the file had, not the one the trash gave it", async () => {
-  const fetch = server({ onDisk: [PLAN], trashed: "plan-2.md" });
+test("nothing is kept in order to offer it back", async () => {
+  // The trash name was held only for as long as the undo offer stood; karar 16 took the offer, so
+  // there is nothing left to remember.
+  server({ onDisk: [PLAN] });
   render(<Host />);
   await waitFor(() => expect(screen.getByTestId("names").textContent).toBe("plan.md"));
-  fireEvent.click(screen.getByText("remove"));
-  await waitFor(() => expect(screen.getByTestId("deleted").textContent).toBe("plan-2.md"));
-
-  fireEvent.click(screen.getByText("undo"));
-  await waitFor(() => expect(screen.getByTestId("deleted").textContent).toBe(""));
-  const restore = fetch.mock.calls.find(([path]) => path.includes("/trash/"));
-  expect(restore[0]).toContain("plan-2.md");
-  expect(JSON.parse(restore[1].body)).toEqual({ name: "plan.md" });
+  expect(screen.getByTestId("keys").textContent).toBe("error,remove");
 });
 
-test("an undo the server refuses keeps the offer and says why", async () => {
+test("a refused delete says what the server said", async () => {
+  // The strip that used to carry this line is gone; the line is not.
   server({ onDisk: [PLAN], refuse: true });
   render(<Host />);
   await waitFor(() => expect(screen.getByTestId("names").textContent).toBe("plan.md"));
   fireEvent.click(screen.getByText("remove"));
-  await waitFor(() => expect(screen.getByTestId("deleted").textContent).toBe("plan.md"));
-
-  fireEvent.click(screen.getByText("undo"));
   await waitFor(() => expect(screen.getByTestId("error").textContent).toContain("409"));
-  // The file is still in the trash, so the offer is still real.
-  expect(screen.getByTestId("deleted").textContent).toBe("plan.md");
+  // Refused means still there.
+  expect(screen.getByTestId("names").textContent).toBe("plan.md");
 });
 
-test("leaving the project takes the offer with it", async () => {
-  server({ onDisk: [PLAN] });
+test("leaving the project clears the last failure", async () => {
+  server({ onDisk: [PLAN], refuse: true });
   const { rerender } = render(<Host projectId="p1" />);
   await waitFor(() => expect(screen.getByTestId("names").textContent).toBe("plan.md"));
   fireEvent.click(screen.getByText("remove"));
-  await waitFor(() => expect(screen.getByTestId("deleted").textContent).toBe("plan.md"));
+  await waitFor(() => expect(screen.getByTestId("error").textContent).toContain("409"));
 
   rerender(<Host projectId="p2" />);
-  await waitFor(() => expect(screen.getByTestId("deleted").textContent).toBe(""));
+  await waitFor(() => expect(screen.getByTestId("error").textContent).toBe(""));
 });
