@@ -72,20 +72,9 @@ a:hover {
   background-clip: content-box;
 }
 
-/* The only motion the design allows: opacity fades and the rail's width transition. Nothing here
-   moves a laid-out element sideways. */
-@keyframes riseIn {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes slideIn {
+/* The only motion the design allows: a 140-220ms opacity fade, and the rail's width transition.
+   One name, and it says what it does -- an element that has been laid out never moves. */
+@keyframes fadeIn {
   from {
     opacity: 0;
   }
@@ -102,12 +91,6 @@ a:hover {
   }
   40% {
     opacity: 1;
-  }
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
   }
 }
 

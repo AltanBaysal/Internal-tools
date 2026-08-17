@@ -40,14 +40,7 @@ export default function FilePanel({ name, file, missing, error, onClose, onDownl
           onClick={download}
           disabled={preparing}
         >
-          {preparing ? (
-            <>
-              <span className="spinner" />
-              preparing…
-            </>
-          ) : (
-            "Download"
-          )}
+          {preparing ? "preparing…" : "Download"}
         </button>
       </header>
 

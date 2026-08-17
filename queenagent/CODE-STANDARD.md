@@ -87,8 +87,9 @@ prototype is a single monolithic `DCLogic` component with inline style strings a
 `style-hover` — there is no component file to copy. So we write the React ourselves and stay faithful
 to the design's colours, type, measurements and behaviour.
 
-`shared/app.css` owns the colour variables, the radii, the focus ring and the four keyframes. A
-component never writes its own focus outline and never invents a fifth animation. The accent
+`shared/app.css` owns the colour variables, the radii, the focus ring and the two keyframes — a
+140–220ms `fadeIn` and the three dots' `blink`. A component never writes its own focus outline and
+never invents a third animation. The only motion that is not a fade is the rail's width. The accent
 `--accent` marks the primary action and nothing else.
 
 ## Language
