@@ -15,6 +15,45 @@ test("the rail is headed Project files", () => {
   expect(screen.getByText("Project files")).toBeTruthy();
 });
 
+// The heading stops being a heading: it is the control that folds the rail away, and it says how
+// much is in there so the count is readable folded as well as open.
+test("the heading is the control, and it counts", () => {
+  render(<FileRail files={FILES} />);
+  const head = screen.getByRole("button", { name: /Project files/ });
+  expect(head.textContent).toContain("2");
+  expect(head.getAttribute("aria-expanded")).toBe("true");
+});
+
+test("pressing it asks to fold rather than folding by itself", () => {
+  // The state lives in App: it has to survive moving between chats, and the rail does not.
+  const onToggle = vi.fn();
+  render(<FileRail files={FILES} onToggle={onToggle} />);
+  fireEvent.click(screen.getByRole("button", { name: /Project files/ }));
+  expect(onToggle).toHaveBeenCalled();
+});
+
+test("folded, the list goes and the label and the count stay", () => {
+  render(<FileRail files={FILES} collapsed />);
+  expect(screen.queryByText("outline.md")).toBeNull();
+  const head = screen.getByRole("button", { name: /Project files/ });
+  expect(head.textContent).toContain("2");
+  expect(head.getAttribute("aria-expanded")).toBe("false");
+});
+
+test("folded, one click on the strip is what opens it", () => {
+  const onToggle = vi.fn();
+  render(<FileRail files={FILES} collapsed onToggle={onToggle} />);
+  fireEvent.click(screen.getByRole("button", { name: /Project files/ }));
+  expect(onToggle).toHaveBeenCalled();
+});
+
+test("with a file open there is nothing to fold", () => {
+  // The rail is drawing a document, not a list, so the control has no subject.
+  const file = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file }} />);
+  expect(screen.queryByRole("button", { name: /Project files/ })).toBeNull();
+});
+
 test("every file gets a row, chip and all", () => {
   render(<FileRail files={FILES} />);
   expect(screen.getByText("outline.md")).toBeTruthy();

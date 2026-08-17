@@ -598,6 +598,75 @@ test("a file is not deleted until the question is answered", async () => {
   expect(fetch.mock.calls.every(([, options]) => options?.method !== "DELETE")).toBe(true);
 });
 
+// --- folding the rail --------------------------------------------------------------------------
+
+function withRail() {
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
+  const chat = { id: "c1", title: "Write the intro", messages: [] };
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (path.endsWith("/files/plan.md")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...file, size: 4, text: "body" }),
+      });
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    if (path.endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chats });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
+const fold = () => fireEvent.click(screen.getByRole("button", { name: /Project files/ }));
+
+test("the rail stays folded when the chat changes under it", async () => {
+  // The design asks for the state to last the session, so it cannot live in a component that is
+  // rebuilt every time the address does.
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+
+  fold();
+  await waitFor(() => expect(screen.queryByText("plan.md")).toBeNull());
+
+  fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  expect(screen.queryByText("plan.md")).toBeNull();
+});
+
+test("opening a file unfolds the rail rather than hiding what was opened", async () => {
+  // A file can be opened from the project screen while the chat's rail is folded, and closing it
+  // must not drop the reader back into a folded rail.
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fold();
+  await waitFor(() => expect(screen.queryByText("plan.md")).toBeNull());
+
+  fireEvent.click(screen.getByRole("button", { name: /Thesis|Old/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Write the intro" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+  fireEvent.click(screen.getByRole("button", { name: "←" }));
+  // Folded, this list would not be here.
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+});
+
 test("no row anywhere offers a rename", async () => {
   // Renaming lives on the project alone, so neither a file row nor a chat row carries one.
   const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };

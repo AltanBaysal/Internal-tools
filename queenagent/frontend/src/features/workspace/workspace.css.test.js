@@ -191,6 +191,23 @@ test("the undo strip is gone rather than restyled", () => {
   expect(CSS).not.toContain(".strip");
 });
 
+test("a folded rail is the design's strip, and it gets there by the one transition", () => {
+  expect(rule(".rail--collapsed")).toContain("width: 46px");
+  expect(rule(".rail")).toContain("transition: width 220ms");
+});
+
+test("the label turns rather than being cut", () => {
+  expect(rule(".rail--collapsed .rail__label")).toContain("writing-mode: vertical-rl");
+});
+
+test("under the chat a folded rail is a row, not a column", () => {
+  // A vertical strip means nothing in a layout that is already stacked.
+  const narrow = CSS.slice(CSS.indexOf("@media (max-width: 1100px)"));
+  const folded = narrow.slice(narrow.indexOf(".rail--collapsed"));
+  expect(folded.slice(0, folded.indexOf("}"))).toContain("width: auto");
+  expect(folded.slice(0, folded.indexOf("}"))).not.toContain("46px");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.
