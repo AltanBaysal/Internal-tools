@@ -1,3 +1,5 @@
+import { failureFrom } from "./failure.js";
+
 // EventSource can only GET, and the answer endpoint is a POST, so the stream is read straight off
 // the response body instead.
 
@@ -19,11 +21,7 @@ export function parseFrame(frame) {
 
 export async function streamEvents(path, onEvent) {
   const response = await fetch(path, { method: "POST" });
-  if (!response.ok) {
-    const failure = new Error(`POST ${path} failed with ${response.status}`);
-    failure.status = response.status;
-    throw failure;
-  }
+  if (!response.ok) throw await failureFrom(response);
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
