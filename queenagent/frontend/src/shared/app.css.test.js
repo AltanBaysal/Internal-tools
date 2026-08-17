@@ -99,7 +99,8 @@ test("the ring is defined once and only here", () => {
 test("no surface writes the ring, or writes it away", () => {
   // Not even to remove it: the composer's textarea was the one stop on the tab route with nothing
   // to see.
-  expect(WORKSPACE).not.toContain("outline");
+  // Matched as a declaration rather than a word: prose about the rule is not a breach of it.
+  expect(WORKSPACE).not.toMatch(/^\s*outline\s*:/m);
   // The one focus rule outside app.css decides visibility, not appearance -- a control that only
   // shows on hover would otherwise be invisible to the keyboard.
   expect(WORKSPACE).toContain(".row-x:focus-visible");
