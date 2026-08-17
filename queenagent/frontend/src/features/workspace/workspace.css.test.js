@@ -144,6 +144,18 @@ test("the box carries the skeleton of the card about to be born", () => {
   expect(chip).toContain("border-radius: 7px");
 });
 
+// The one confirmation pattern in the app, and the first filled red button it has ever had.
+test("the confirm button is filled with the destructive red", () => {
+  expect(rule(".dialog__confirm")).toContain("background: var(--destructive)");
+  expect(rule(".dialog__confirm:hover")).toContain("background: var(--destructive-hover)");
+});
+
+test("the darkened screen covers the screen", () => {
+  const dialog = rule(".dialog");
+  expect(dialog).toContain("position: fixed");
+  expect(dialog).toContain("inset: 0");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.
