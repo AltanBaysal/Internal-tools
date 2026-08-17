@@ -54,12 +54,12 @@ def test_project_payload_carries_zero_counts_before_anything_exists(tmp_path):
     assert body["files"] == 0
 
 
-def test_two_projects_get_different_ids_and_hues(tmp_path):
+def test_two_projects_get_different_ids(tmp_path):
+    # The id is all that tells them apart now: two projects are told apart by name, not by colour.
     client = _client(tmp_path)
     first = client.post("/api/projects").get_json()
     second = client.post("/api/projects").get_json()
     assert first["id"] != second["id"]
-    assert first["hue"] != second["hue"]
 
 
 def test_patch_renames_a_project(tmp_path):
@@ -98,6 +98,6 @@ def test_a_description_in_the_body_is_simply_not_a_field(tmp_path):
     assert "desc" not in resp.get_json()
 
 
-def test_the_answer_carries_no_description(tmp_path):
+def test_the_answer_carries_neither_a_description_nor_a_colour(tmp_path):
     created = _client(tmp_path).post("/api/projects").get_json()
-    assert set(created) == {"id", "name", "hue", "createdAt", "chats", "files"}
+    assert set(created) == {"id", "name", "createdAt", "chats", "files"}

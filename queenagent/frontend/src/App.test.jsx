@@ -10,7 +10,7 @@ afterEach(() => {
   Object.defineProperty(window.navigator, "onLine", { value: true, configurable: true });
 });
 
-const PROJECT = { id: "p1", name: "Old", hue: 45, chats: 0, files: 0 };
+const PROJECT = { id: "p1", name: "Old", chats: 0, files: 0 };
 
 function stubProjects(projects) {
   const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => projects });
@@ -26,7 +26,7 @@ test("the shell renders", () => {
 
 test("the app opens on the first project", async () => {
   // "/" is a fork, not a screen: with a project to show, the app lands inside it.
-  stubProjects([{ id: "p1", name: "Thesis", hue: 45, chats: 0, files: 0 }]);
+  stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
   render(<App />);
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   // The sidebar row and the project title read the same array, so the name stands twice.
@@ -45,7 +45,7 @@ test("with no projects the fork draws the empty screen and stays at /", async ()
 test("the fork is not written into the history", async () => {
   const push = vi.spyOn(window.history, "pushState");
   const replace = vi.spyOn(window.history, "replaceState");
-  stubProjects([{ id: "p1", name: "Thesis", hue: 45, chats: 0, files: 0 }]);
+  stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
 
   render(<App />);
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));

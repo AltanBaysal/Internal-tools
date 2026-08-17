@@ -7,7 +7,6 @@ const PROJECT = {
   id: "p1",
   name: "Thesis research",
   desc: "Source summaries.",
-  hue: 45,
   chats: 0,
   files: 0,
 };

@@ -2,7 +2,6 @@ from dataclasses import fields
 
 from backend.features.workspace.domain.project import Project
 from backend.features.workspace.domain.usecases.create_project import (
-    HUE_STEP,
     NEW_PROJECT_NAME,
     create_project,
 )
@@ -23,12 +22,15 @@ class FakeProjectStore:
 
 
 def _project(pid, created_at):
-    return Project(id=pid, name=pid, hue=0, created_at=created_at)
+    return Project(id=pid, name=pid, created_at=created_at)
 
 
-def test_a_project_carries_no_description():
-    # The design removed it as a data field, not only as a paragraph on screen.
-    assert "desc" not in {field.name for field in fields(Project)}
+def test_a_project_carries_neither_a_description_nor_a_colour():
+    # Both were data fields, and both are gone: one accent marks the primary action and nothing
+    # else, so a project has no colour of its own to store.
+    named = {field.name for field in fields(Project)}
+    assert "desc" not in named
+    assert "hue" not in named
 
 
 def test_new_project_is_born_with_the_default_name():
@@ -43,20 +45,6 @@ def test_created_project_is_handed_to_the_store():
     store = FakeProjectStore()
     project = create_project(store, new_id="pabc", now="2026-08-09T10:00:00+00:00")
     assert store.projects == [project]
-
-
-def test_hue_steps_with_the_number_of_existing_projects():
-    store = FakeProjectStore([_project("p1", "2026-08-01T00:00:00+00:00")])
-    project = create_project(store, new_id="p2", now="2026-08-09T10:00:00+00:00")
-    assert project.hue == HUE_STEP
-
-
-def test_hue_wraps_around_the_colour_wheel():
-    existing = [_project(f"p{i}", "2026-08-01T00:00:00+00:00") for i in range(8)]
-    project = create_project(
-        FakeProjectStore(existing), new_id="p9", now="2026-08-09T10:00:00+00:00"
-    )
-    assert 0 <= project.hue < 360
 
 
 def test_projects_come_back_oldest_first():

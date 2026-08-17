@@ -4,8 +4,8 @@ import { expect, test, vi } from "vitest";
 import Sidebar from "./Sidebar.jsx";
 
 const PROJECTS = [
-  { id: "p1", name: "Thesis research", hue: 45, chats: 3, files: 3 },
-  { id: "p2", name: "Product notes", hue: 150, chats: 2, files: 2 },
+  { id: "p1", name: "Thesis research", chats: 3, files: 3 },
+  { id: "p2", name: "Product notes", chats: 2, files: 2 },
 ];
 
 test("with no project selected only the wordmark and the projects remain", () => {
@@ -20,6 +20,15 @@ test("there is no logo mark beside the wordmark", () => {
   const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
   expect(screen.getByText("QueenAgent")).toBeTruthy();
   expect(container.querySelector(".sidebar__mark")).toBeNull();
+});
+
+test("every project dot is the same tone", () => {
+  // One accent marks the primary action and nothing else, so a project has no colour of its own --
+  // two projects are told apart by name.
+  const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
+  const dots = [...container.querySelectorAll(".dot")];
+  expect(dots.length).toBe(2);
+  expect(dots.every((dot) => dot.getAttribute("style") === null)).toBe(true);
 });
 
 test("projects are listed by name", () => {

@@ -13,12 +13,7 @@ from backend.services.store.store import Store
 def _store(tmp_path):
     store = FileProjectStore(Store(str(tmp_path)))
     store.add(
-        Project(
-            id="pabc",
-            name="Thesis",
-            hue=94,
-            created_at="2026-08-09T10:00:00+00:00",
-        )
+        Project(id="pabc", name="Thesis", created_at="2026-08-09T10:00:00+00:00")
     )
     return store
 
@@ -51,7 +46,7 @@ def test_the_name_is_trimmed(tmp_path):
     assert edit_project(_store(tmp_path), "pabc", name="  Thesis  ").name == "Thesis"
 
 
-def test_the_hue_and_the_creation_time_are_never_touched(tmp_path):
+def test_the_creation_time_is_never_touched(tmp_path):
+    # It is the project's history, not something a rename may rewrite.
     edited = edit_project(_store(tmp_path), "pabc", name="Renamed")
-    assert edited.hue == 94
     assert edited.created_at == "2026-08-09T10:00:00+00:00"

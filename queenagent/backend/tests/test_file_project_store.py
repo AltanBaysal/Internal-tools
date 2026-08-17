@@ -16,7 +16,7 @@ def _store(tmp_path):
 
 
 def _project(pid="pabc", name="Thesis", created_at="2026-08-09T10:00:00+00:00"):
-    return Project(id=pid, name=name, hue=94, created_at=created_at)
+    return Project(id=pid, name=name, created_at=created_at)
 
 
 def test_project_survives_a_new_store_instance(tmp_path):
@@ -67,15 +67,15 @@ def test_counts_come_from_the_directories(tmp_path):
     assert (listed.chat_count, listed.file_count) == (1, 2)
 
 
-def test_the_written_file_answers_only_the_name_and_the_look(tmp_path):
+def test_the_written_file_answers_only_the_name_and_the_time(tmp_path):
     raw = Store(str(tmp_path))
     FileProjectStore(raw).add(_project())
     stored = json.loads(raw.read_text(f"pabc/{PROJECT_FILE}"))
-    assert set(stored) == {"name", "hue", "createdAt"}
+    assert set(stored) == {"name", "createdAt"}
 
 
-def test_an_old_file_with_a_description_is_read_without_complaint(tmp_path):
-    # The field is not migrated away, it is simply never asked for again.
+def test_an_older_file_is_read_without_complaint(tmp_path):
+    # Neither dropped field is migrated away; they are simply never asked for again.
     raw = Store(str(tmp_path))
     raw.write_text(
         f"pabc/{PROJECT_FILE}",
