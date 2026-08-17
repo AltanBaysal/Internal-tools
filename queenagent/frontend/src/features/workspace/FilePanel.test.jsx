@@ -55,6 +55,16 @@ test("Download asks for the file", () => {
   expect(onDownload).toHaveBeenCalled();
 });
 
+test("preparing is said in words, not spun", async () => {
+  // Motion is a fade and the rail's width; a spinner is neither. The word and the disabled button
+  // already say the same thing.
+  const onDownload = vi.fn().mockReturnValue(new Promise(() => {}));
+  const { container } = render(<FilePanel name="plan.md" file={FILE} onDownload={onDownload} />);
+  fireEvent.click(screen.getByRole("button", { name: "Download" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: /preparing/ })).toBeTruthy());
+  expect(container.querySelector(".spinner")).toBeNull();
+});
+
 test("while it downloads the button says preparing and comes back after", async () => {
   let finish;
   const onDownload = vi.fn().mockReturnValue(

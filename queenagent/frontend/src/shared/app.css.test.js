@@ -50,6 +50,36 @@ test("accent-coloured text takes the text hover", () => {
   expect(rule(WORKSPACE, ".strip__undo:hover")).toContain("var(--accent-link-hover)");
 });
 
+// Motion is a fade of 140-220ms and the rail's width, and nothing else. A name that describes a
+// movement is part of the drift, so only one animation name survives and it says what it does.
+test("there is one fade and one blink, and nothing else", () => {
+  expect(APP).toContain("@keyframes fadeIn");
+  expect(APP).toContain("@keyframes blink");
+  expect(APP).not.toContain("@keyframes riseIn");
+  expect(APP).not.toContain("@keyframes slideIn");
+  expect(APP).not.toContain("@keyframes spin");
+});
+
+test("no keyframe moves anything", () => {
+  // Not sideways, not upwards: an element that has been laid out stays where it was put.
+  const frames = APP.slice(APP.indexOf("@keyframes"));
+  expect(frames).not.toContain("transform");
+});
+
+test("every animation stays inside the band", () => {
+  const durations = [...WORKSPACE.matchAll(/animation: (\w+) ([\d.]+)s/g)];
+  expect(durations.length).toBeGreaterThan(0);
+  for (const [, name, seconds] of durations) {
+    if (name === "blink") continue; // the design's own three dots, and they never settle
+    expect(Number(seconds)).toBeLessThanOrEqual(0.22);
+  }
+  expect(WORKSPACE).not.toContain("animation: spin");
+});
+
+test("the rail's width transition is the one motion that is not a fade", () => {
+  expect(WORKSPACE).toContain("transition: width 220ms ease");
+});
+
 test("the only destructive control there is today reaches for the new red", () => {
   // The three surfaces the design names arrive with Madde 17, 18 and 19; the row's x is here now.
   expect(rule(WORKSPACE, ".row-x:hover")).toContain("var(--destructive)");
