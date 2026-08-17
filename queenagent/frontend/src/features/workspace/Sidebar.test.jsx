@@ -52,6 +52,13 @@ test("clicking a recent chat carries its project along", () => {
   expect(onOpenChat).toHaveBeenCalledWith("p1", "c1");
 });
 
+test("the sidebar carries no search control", () => {
+  // The design drops search on purpose: the project structure is the navigation.
+  render(<Sidebar projects={PROJECTS} activeProjectId={null} />);
+  expect(screen.queryByText("Search")).toBeNull();
+  expect(screen.queryByText("⌘K")).toBeNull();
+});
+
 test("New chat goes home rather than creating anything", () => {
   const onNewChat = vi.fn();
   render(<Sidebar projects={[]} activeProjectId={null} onNewChat={onNewChat} />);

@@ -100,21 +100,10 @@ def test_reading_a_file_that_is_gone_is_a_404(tmp_path):
     assert "not found" in resp.get_json()["error"]
 
 
-def test_search_over_http_finds_a_word_inside_a_file(tmp_path):
+def test_search_is_gone(tmp_path):
+    # The design removes search deliberately, so the endpoint is not there to answer.
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
-    _files(tmp_path).write(pid, "outline.md", "a word about quantum things")
-    hits = client.get("/api/search?q=quantum").get_json()
-    assert hits == [
-        {
-            "kind": "file",
-            "label": "outline.md",
-            "projectId": pid,
-            "projectName": "New project",
-            "chatId": "",
-            "fileName": "outline.md",
-        }
-    ]
+    assert client.get("/api/search?q=quantum").status_code == 404
 
 
 def test_search_with_no_query_answers_an_empty_list(tmp_path):

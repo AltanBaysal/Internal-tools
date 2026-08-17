@@ -396,21 +396,19 @@ test("an empty answer to the rename prompt sends nothing", async () => {
   expect(fetch.mock.calls.every(([, options]) => options?.method !== "PATCH")).toBe(true);
 });
 
-test("⌘K opens the search and pressing it again closes it", async () => {
+test("⌘K is bound to nothing", async () => {
+  // Search is gone with its three parts: the sidebar button, ⌘K and the layer.
   stubProjects([]);
   render(<App />);
   fireEvent.keyDown(window, { key: "k", metaKey: true });
-  await waitFor(() => expect(screen.getByTestId("search")).toBeTruthy());
-  fireEvent.keyDown(window, { key: "k", metaKey: true });
-  await waitFor(() => expect(screen.queryByTestId("search")).toBeNull());
+  fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+  expect(screen.queryByTestId("search")).toBeNull();
 });
 
-test("Escape closes the search first and the reading panel second", async () => {
+test("Escape closes the reading panel", async () => {
   const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
   const fetch = vi.fn().mockImplementation((path) => {
-    if (path.startsWith("/api/search")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
-    }
     if (path.endsWith("/files/plan.md")) {
       return Promise.resolve({
         ok: true,
@@ -431,57 +429,23 @@ test("Escape closes the search first and the reading panel second", async () => 
   fireEvent.click(screen.getByText("plan.md"));
   await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
 
-  fireEvent.keyDown(window, { key: "k", ctrlKey: true });
-  await waitFor(() => expect(screen.getByTestId("search")).toBeTruthy());
-
-  fireEvent.keyDown(window, { key: "Escape" });
-  await waitFor(() => expect(screen.queryByTestId("search")).toBeNull());
-  // One key, one order: the panel is still open after the first Escape.
-  expect(screen.getByText("body")).toBeTruthy();
-
   fireEvent.keyDown(window, { key: "Escape" });
   await waitFor(() => expect(screen.queryByText("body")).toBeNull());
+  // Escape closes; it never steps backwards.
+  expect(window.location.pathname).toBe("/p/p1");
 });
 
-test("a file found by search opens its project with the file in the panel", async () => {
-  const hit = {
-    kind: "file",
-    label: "outline.md",
-    projectId: "p1",
-    projectName: "Old",
-    chatId: "",
-    fileName: "outline.md",
-  };
-  const file = { name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() };
-  const fetch = vi.fn().mockImplementation((path) => {
-    if (path.startsWith("/api/search")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => [hit] });
-    }
-    if (path.endsWith("/files/outline.md")) {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({ ...file, size: 7, text: "read me" }),
-      });
-    }
-    if (path.endsWith("/files")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
-  });
+test("nothing asks the server to search", async () => {
+  const fetch = vi.fn().mockImplementation(() =>
+    Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] }),
+  );
   vi.stubGlobal("fetch", fetch);
 
   render(<App />);
+  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
   fireEvent.keyDown(window, { key: "k", metaKey: true });
-  await waitFor(() => expect(screen.getByTestId("search")).toBeTruthy());
-  fireEvent.change(screen.getByPlaceholderText(/Search projects/), { target: { value: "read" } });
 
-  await waitFor(() => expect(screen.getByText("outline.md", { selector: ".hit__label" })).toBeTruthy());
-  fireEvent.click(screen.getByText("outline.md", { selector: ".hit__label" }));
-
-  // The navigation and the opening happen together, so the file must not be lost on the way.
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  await waitFor(() => expect(screen.getByText("read me")).toBeTruthy());
+  expect(fetch.mock.calls.every(([path]) => !String(path).startsWith("/api/search"))).toBe(true);
 });
 
 function goOffline(offline) {
