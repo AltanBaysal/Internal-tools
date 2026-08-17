@@ -101,3 +101,28 @@ def test_a_description_in_the_body_is_simply_not_a_field(tmp_path):
 def test_the_answer_carries_neither_a_description_nor_a_colour(tmp_path):
     created = _client(tmp_path).post("/api/projects").get_json()
     assert set(created) == {"id", "name", "createdAt", "chats", "files"}
+
+
+def test_a_project_can_be_deleted(tmp_path):
+    client = _client(tmp_path)
+    created = client.post("/api/projects").get_json()
+    resp = client.delete(f"/api/projects/{created['id']}")
+    assert resp.status_code == 200
+    assert resp.get_json()["trashed"] == created["id"]
+    assert client.get("/api/projects").get_json() == []
+
+
+def test_deleting_a_project_that_is_not_there_says_so(tmp_path):
+    resp = _client(tmp_path).delete("/api/projects/nope")
+    assert resp.status_code == 404
+    assert "not found" in resp.get_json()["error"]
+
+
+def test_there_is_no_way_to_bring_a_project_back(tmp_path):
+    # Undo is gone everywhere (karar 16): the confirmation is what protects the user, and the disk
+    # keeps the directory. The rule table is what proves no such address exists.
+    client = _client(tmp_path)
+    addresses = [str(rule) for rule in client.application.url_map.iter_rules()]
+    assert not [
+        address for address in addresses if "projects" in address and "restore" in address
+    ]
