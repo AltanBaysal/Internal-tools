@@ -12,10 +12,9 @@ const PROJECT = {
   files: 0,
 };
 
-test("the title, the description and both column headings are drawn", () => {
+test("the title and both column headings are drawn", () => {
   render(<ProjectScreen project={PROJECT} />);
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Thesis research");
-  expect(screen.getByText("Source summaries.")).toBeTruthy();
   expect(screen.getByText("Chats")).toBeTruthy();
   expect(screen.getByText("Files QueenAgent created")).toBeTruthy();
 });
@@ -103,9 +102,9 @@ test("Rename asks for a new name", () => {
   expect(onRename).toHaveBeenCalled();
 });
 
-test("clicking the description asks to change it", () => {
-  const onDescribe = vi.fn();
-  render(<ProjectScreen project={PROJECT} onDescribe={onDescribe} />);
-  fireEvent.click(screen.getByText("Source summaries."));
-  expect(onDescribe).toHaveBeenCalled();
+test("the screen carries no description to click", () => {
+  // PROJECT still holds a desc on purpose: a field the server no longer sends must not be drawn
+  // even if one turns up.
+  render(<ProjectScreen project={PROJECT} />);
+  expect(screen.queryByText("Source summaries.")).toBeNull();
 });

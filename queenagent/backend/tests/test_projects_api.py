@@ -84,6 +84,20 @@ def test_patch_on_an_unknown_project_is_404(tmp_path):
 def test_patch_keeps_the_counts_in_the_answer(tmp_path):
     client = _client(tmp_path)
     created = client.post("/api/projects").get_json()
-    body = client.patch(f"/api/projects/{created['id']}", json={"desc": "Notes."}).get_json()
+    body = client.patch(f"/api/projects/{created['id']}", json={"name": "Thesis"}).get_json()
     assert body["chats"] == 0
     assert body["files"] == 0
+
+
+def test_a_description_in_the_body_is_simply_not_a_field(tmp_path):
+    # PATCH sends what changed; a key the project has no room for is not an error, it is nothing.
+    client = _client(tmp_path)
+    created = client.post("/api/projects").get_json()
+    resp = client.patch(f"/api/projects/{created['id']}", json={"desc": "Notes."})
+    assert resp.status_code == 200
+    assert "desc" not in resp.get_json()
+
+
+def test_the_answer_carries_no_description(tmp_path):
+    created = _client(tmp_path).post("/api/projects").get_json()
+    assert set(created) == {"id", "name", "hue", "createdAt", "chats", "files"}

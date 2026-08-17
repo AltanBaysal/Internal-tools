@@ -1,7 +1,8 @@
+from dataclasses import fields
+
 from backend.features.workspace.domain.project import Project
 from backend.features.workspace.domain.usecases.create_project import (
     HUE_STEP,
-    NEW_PROJECT_DESC,
     NEW_PROJECT_NAME,
     create_project,
 )
@@ -22,14 +23,18 @@ class FakeProjectStore:
 
 
 def _project(pid, created_at):
-    return Project(id=pid, name=pid, desc="", hue=0, created_at=created_at)
+    return Project(id=pid, name=pid, hue=0, created_at=created_at)
 
 
-def test_new_project_is_born_with_the_default_name_and_description():
+def test_a_project_carries_no_description():
+    # The design removed it as a data field, not only as a paragraph on screen.
+    assert "desc" not in {field.name for field in fields(Project)}
+
+
+def test_new_project_is_born_with_the_default_name():
     store = FakeProjectStore()
     project = create_project(store, new_id="pabc", now="2026-08-09T10:00:00+00:00")
     assert project.name == NEW_PROJECT_NAME
-    assert project.desc == NEW_PROJECT_DESC
     assert project.id == "pabc"
     assert project.created_at == "2026-08-09T10:00:00+00:00"
 

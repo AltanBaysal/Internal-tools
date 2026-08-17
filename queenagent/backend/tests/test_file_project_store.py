@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from backend.features.workspace.data.file_project_store import (
@@ -14,7 +16,7 @@ def _store(tmp_path):
 
 
 def _project(pid="pabc", name="Thesis", created_at="2026-08-09T10:00:00+00:00"):
-    return Project(id=pid, name=name, desc="Notes.", hue=94, created_at=created_at)
+    return Project(id=pid, name=name, hue=94, created_at=created_at)
 
 
 def test_project_survives_a_new_store_instance(tmp_path):
@@ -63,6 +65,30 @@ def test_counts_come_from_the_directories(tmp_path):
     raw.write_text("pabc/files/b.md", "b")
     listed = FileProjectStore(raw).list_all()[0]
     assert (listed.chat_count, listed.file_count) == (1, 2)
+
+
+def test_the_written_file_answers_only_the_name_and_the_look(tmp_path):
+    raw = Store(str(tmp_path))
+    FileProjectStore(raw).add(_project())
+    stored = json.loads(raw.read_text(f"pabc/{PROJECT_FILE}"))
+    assert set(stored) == {"name", "hue", "createdAt"}
+
+
+def test_an_old_file_with_a_description_is_read_without_complaint(tmp_path):
+    # The field is not migrated away, it is simply never asked for again.
+    raw = Store(str(tmp_path))
+    raw.write_text(
+        f"pabc/{PROJECT_FILE}",
+        json.dumps(
+            {
+                "name": "Thesis",
+                "desc": "Click to add a description.",
+                "hue": 94,
+                "createdAt": "2026-08-09T10:00:00+00:00",
+            }
+        ),
+    )
+    assert FileProjectStore(raw).list_all() == [_project()]
 
 
 def test_counts_are_not_written_into_the_project_file(tmp_path):

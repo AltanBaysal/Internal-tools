@@ -16,7 +16,6 @@ def _store(tmp_path):
         Project(
             id="pabc",
             name="Thesis",
-            desc="Click to add a description.",
             hue=94,
             created_at="2026-08-09T10:00:00+00:00",
         )
@@ -29,15 +28,10 @@ def test_the_name_changes_and_stays_changed(tmp_path):
     assert FileProjectStore(Store(str(tmp_path))).get("pabc").name == "Thesis research"
 
 
-def test_sending_only_a_description_leaves_the_name_alone(tmp_path):
-    edited = edit_project(_store(tmp_path), "pabc", desc="Source summaries.")
-    assert edited.name == "Thesis"
-    assert edited.desc == "Source summaries."
-
-
-def test_sending_only_a_name_leaves_the_description_alone(tmp_path):
-    edited = edit_project(_store(tmp_path), "pabc", name="Renamed")
-    assert edited.desc == "Click to add a description."
+def test_a_description_is_not_something_a_project_can_be_given(tmp_path):
+    # The field is gone from the domain, so the use case has no argument left to take it.
+    with pytest.raises(TypeError):
+        edit_project(_store(tmp_path), "pabc", desc="Source summaries.")
 
 
 @pytest.mark.parametrize("bad", ["", "   ", "\n"])
@@ -53,9 +47,8 @@ def test_an_unknown_project_is_reported(tmp_path):
         edit_project(_store(tmp_path), "nope", name="x")
 
 
-def test_both_fields_are_trimmed(tmp_path):
-    edited = edit_project(_store(tmp_path), "pabc", name="  Thesis  ", desc="  Notes.  ")
-    assert (edited.name, edited.desc) == ("Thesis", "Notes.")
+def test_the_name_is_trimmed(tmp_path):
+    assert edit_project(_store(tmp_path), "pabc", name="  Thesis  ").name == "Thesis"
 
 
 def test_the_hue_and_the_creation_time_are_never_touched(tmp_path):
