@@ -76,3 +76,28 @@ def test_deleting_a_chat_leaves_its_files_alone(tmp_path):
 def test_deleting_a_chat_that_is_not_there_is_reported(tmp_path):
     with pytest.raises(ChatNotFound):
         delete_chat(_seeded(tmp_path), "p1", "nope")
+
+
+def test_a_deleted_chat_is_moved_rather_than_destroyed(tmp_path):
+    # It used to be removed outright, on the grounds that files got Undo and chats got a question.
+    # Karar 16 took the Undo, and what was left was the user's own sentences being destroyed while
+    # QueenAgent's file sat in the trash. A chat is the most personal thing in the project.
+    chats = _seeded(tmp_path)
+    delete_chat(chats, "p1", "c1")
+    assert Store(str(tmp_path)).list_dir("p1/trash") == ["c1.json"]
+
+
+def test_the_same_chat_id_deleted_twice_does_not_lose_the_first(tmp_path):
+    chats = _seeded(tmp_path)
+    delete_chat(chats, "p1", "c1")
+    start_chat(
+        chats,
+        FileProjectStore(Store(str(tmp_path))),
+        "p1",
+        "again",
+        "c1",
+        "2026-08-09T12:00:00.000+00:00",
+    )
+    delete_chat(chats, "p1", "c1")
+    # The same rule the files follow: the trash keeps everything it is handed.
+    assert sorted(Store(str(tmp_path)).list_dir("p1/trash")) == ["c1-2.json", "c1.json"]

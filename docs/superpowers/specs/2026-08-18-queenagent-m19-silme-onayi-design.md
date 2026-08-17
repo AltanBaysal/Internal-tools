@@ -19,8 +19,16 @@ Karar 16 ve 17 bunu tek dile indiriyor: **hepsi sorar, hiçbirinde geri alma yok
 | Sohbet | `window.confirm` | Madde 17'nin kutusu |
 | Dosya | sormadan siler, Undo sunar | Madde 17'nin kutusu, Undo yok |
 
-**Diskte hiçbir şey kaybolmuyor** — üçü de `trash/`e taşımaya devam ediyor. FOUNDATION'ın "ya onay
-ya geri alma, asla ikisi de değil" kuralı onay tarafından karşılanıyor.
+**Diskte hiçbir şey kaybolmuyor** — üçü de `trash/`e taşıyor. FOUNDATION'ın "ya onay ya geri alma,
+asla ikisi de değil" kuralı onay tarafından karşılanıyor.
+
+**Sohbet bugün gerçekten siliniyor.** `FileChatStore.delete` dosyayı diskten kaldırıyor ve
+yanındaki yorum sebebini "tasarım geri almayı dosyaya, onayı sohbete veriyor" diye yazıyor. O
+gerekçe karar 16 ile ortadan kalktı, ve geriye kullanıcının **kendi yazdığı** cümlelerin kalıcı
+olarak yok edilmesi kaldı — QueenAgent'ın ürettiği dosya çöpte dururken. FOUNDATION ilke 1
+("kullanıcının emeği kutsaldır", "silinen taşınır, yok edilmez") bunu yasaklıyor ve yol haritası da
+"ikisi de `trash/`e taşımayı sürdürür" diyor. **Sohbet de `trash/`e taşınıyor**, dosyayla aynı
+klasöre ve aynı `unique_name` kuralıyla.
 
 ---
 
