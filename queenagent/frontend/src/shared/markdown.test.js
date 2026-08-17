@@ -125,6 +125,22 @@ test("the four inline markers are read", () => {
   expect(parseInline("`c`")[0].type).toBe("code");
 });
 
+test("an underscore inside a word is not emphasis", () => {
+  // `create_file` and `snake_case` are ordinary words in this app's answers.
+  expect(parseInline("read_file and list_files").every((token) => token.type === "text")).toBe(true);
+});
+
+test("a list needs no blank line above it", () => {
+  // Models write the sentence and the bullets back to back; swallowed into the paragraph the
+  // markers would show up as text.
+  const blocks = parseBlocks("Here they are:\n- one\n- two");
+  expect(blocks.map((block) => block.type)).toEqual(["paragraph", "list"]);
+});
+
+test("a heading ends the paragraph above it", () => {
+  expect(parseBlocks("text\n# Title").map((block) => block.type)).toEqual(["paragraph", "heading"]);
+});
+
 test("emphasis nests", () => {
   const [strong] = parseInline("**bold *and italic***");
   expect(strong.type).toBe("strong");
