@@ -5,7 +5,7 @@ from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
-from backend.features.workspace.domain.usecases.list_recent_chats import list_recent_chats
+from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.services.store.store import Store
 
@@ -55,20 +55,13 @@ def test_an_unknown_chat_is_reported(tmp_path):
         append_message(chats, "p1", "nope", "hi", "2026-08-09T11:06:00.000+00:00")
 
 
-def test_recent_chats_cross_projects_and_come_newest_first(tmp_path):
-    projects, chats = _stores(tmp_path)
-    _chat(projects, chats, "p1", "c1", "older", "2026-08-09T10:00:00.000+00:00")
-    _chat(projects, chats, "p2", "c2", "newer", "2026-08-09T12:00:00.000+00:00")
-    recent = list_recent_chats(chats)
-    assert [(pid, chat.id) for pid, chat in recent] == [("p2", "c2"), ("p1", "c1")]
-
-
 def test_a_later_message_lifts_its_chat_to_the_top(tmp_path):
     projects, chats = _stores(tmp_path)
-    _chat(projects, chats, "p1", "c1", "older", "2026-08-09T10:00:00.000+00:00")
-    _chat(projects, chats, "p2", "c2", "newer", "2026-08-09T12:00:00.000+00:00")
+    create_project(projects, new_id="p1", now="2026-08-09T10:00:00.000+00:00")
+    start_chat(chats, projects, "p1", "older", "c1", "2026-08-09T10:00:00.000+00:00")
+    start_chat(chats, projects, "p1", "newer", "c2", "2026-08-09T12:00:00.000+00:00")
     append_message(chats, "p1", "c1", "still here", "2026-08-09T13:00:00.000+00:00")
-    assert [chat.id for _, chat in list_recent_chats(chats)] == ["c1", "c2"]
+    assert [chat.id for chat in list_chats(chats, "p1")] == ["c1", "c2"]
 
 
 def test_starting_a_chat_needs_its_project_to_exist(tmp_path):

@@ -8,11 +8,18 @@ const PROJECTS = [
   { id: "p2", name: "Product notes", hue: 150, chats: 2, files: 2 },
 ];
 
-test("both section headings are there with no projects at all", () => {
-  render(<Sidebar projects={[]} activeProjectId={null} />);
-  // A hidden section would hide the fact that projects can be made at all.
+test("with no project selected only the wordmark and the projects remain", () => {
+  // Chats belong to a project, so with none selected neither control has anywhere to point.
+  render(<Sidebar projects={PROJECTS} activeProjectId={null} />);
   expect(screen.getByText("Projects")).toBeTruthy();
-  expect(screen.getByText("Recent chats")).toBeTruthy();
+  expect(screen.queryByText("Recent chats")).toBeNull();
+  expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
+});
+
+test("there is no logo mark beside the wordmark", () => {
+  const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
+  expect(screen.getByText("QueenAgent")).toBeTruthy();
+  expect(container.querySelector(".sidebar__mark")).toBeNull();
 });
 
 test("projects are listed by name", () => {
@@ -34,22 +41,31 @@ test("the open project is the marked row", () => {
   expect(marked.className).toContain("sidebar__row--active");
 });
 
-test("recent chats are listed and the open one is marked", () => {
-  const recentChats = [
-    { id: "c1", title: "Write the intro", projectId: "p1" },
-    { id: "c2", title: "Missing values", projectId: "p2" },
-  ];
-  render(<Sidebar projects={[]} recentChats={recentChats} activeChatId="c2" />);
+const CHATS = [
+  { id: "c1", title: "Write the intro" },
+  { id: "c2", title: "Missing values" },
+];
+
+test("the project's chats are listed and the open one is marked", () => {
+  render(<Sidebar projects={PROJECTS} chats={CHATS} activeProjectId="p1" activeChatId="c2" />);
+  expect(screen.getByText("Recent chats")).toBeTruthy();
   expect(screen.getByText("Write the intro")).toBeTruthy();
   expect(screen.getByText("Missing values").className).toContain("sidebar__chat--active");
 });
 
-test("clicking a recent chat carries its project along", () => {
+test("clicking a chat asks to open it", () => {
+  // They all live in the project on screen, so the row does not have to carry one.
   const onOpenChat = vi.fn();
-  const recentChats = [{ id: "c1", title: "Write the intro", projectId: "p1" }];
-  render(<Sidebar projects={[]} recentChats={recentChats} onOpenChat={onOpenChat} />);
+  render(<Sidebar projects={PROJECTS} chats={CHATS} activeProjectId="p1" onOpenChat={onOpenChat} />);
   fireEvent.click(screen.getByText("Write the intro"));
-  expect(onOpenChat).toHaveBeenCalledWith("p1", "c1");
+  expect(onOpenChat).toHaveBeenCalledWith("c1");
+});
+
+test("at most eight chats are listed", () => {
+  const many = Array.from({ length: 12 }, (_, i) => ({ id: `c${i}`, title: `Chat ${i}` }));
+  render(<Sidebar projects={PROJECTS} chats={many} activeProjectId="p1" />);
+  expect(screen.queryByText("Chat 7")).toBeTruthy();
+  expect(screen.queryByText("Chat 8")).toBeNull();
 });
 
 test("the sidebar carries no search control", () => {
@@ -66,9 +82,9 @@ test("New chat asks rather than creating anything itself", () => {
   expect(onNewChat).toHaveBeenCalled();
 });
 
-test("with no projects New chat is hidden rather than disabled", () => {
-  // A chat lives inside a project, so with none there is nothing for the control to do -- and a
-  // disabled button is a dead control the design refuses to draw.
+test("New chat is hidden rather than disabled when nothing is selected", () => {
+  // A chat lives inside a project, so with none selected there is nothing for the control to do --
+  // and a disabled button is a dead control the design refuses to draw.
   render(<Sidebar projects={[]} activeProjectId={null} />);
   expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });

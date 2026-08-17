@@ -105,15 +105,63 @@ test("a renamed project shows the new name in both places at once", async () => 
   await waitFor(() => expect(screen.getAllByText("New").length).toBe(2));
 });
 
-test("nothing asks the server to open a project and a chat at once", async () => {
-  // A chat is always started from inside a project. GET /api/chats still lists recent ones, so it
-  // is the POST that must never happen.
+test("nothing is asked of a workspace-wide chat address", async () => {
+  // A chat is always started from inside a project, and Recent chats now lists that project's own
+  // chats -- so nothing reaches /api/chats at all, by any method.
   const fetch = stubProjects([]);
   render(<App />);
   await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
-  expect(
-    fetch.mock.calls.every(([path, options]) => !(path === "/api/chats" && options?.method === "POST")),
-  ).toBe(true);
+  expect(fetch.mock.calls.every(([path]) => path !== "/api/chats")).toBe(true);
+});
+
+test("New chat opens an empty chat in the project it was pressed in", async () => {
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (path === "/api/projects/p1/chats") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /New chat/ })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
+  // There is no chat to read yet, so nothing is asked for one.
+  expect(fetch.mock.calls.every(([path]) => !String(path).endsWith("/chats/new"))).toBe(true);
+});
+
+test("the first message in a draft creates the chat and takes its address", async () => {
+  const chat = { id: "c1", title: "Write the intro", messages: [], lastActivity: "x" };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path === "/api/projects/p1/chats" && options?.method === "POST") {
+      return Promise.resolve({ ok: true, status: 201, json: async () => chat });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    if (path === "/api/projects/p1/chats") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [chat] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/new");
+  const push = vi.spyOn(window.history, "pushState");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByPlaceholderText("Reply...")).toBeTruthy());
+  fireEvent.change(screen.getByPlaceholderText("Reply..."), {
+    target: { value: "Write the intro" },
+  });
+  fireEvent.keyDown(screen.getByPlaceholderText("Reply..."), { key: "Enter" });
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+  // The draft address is not a place to go back to: it no longer exists.
+  expect(push).not.toHaveBeenCalled();
 });
 
 test("the user bubble shows before the server answers, and leaves if it refuses", async () => {
@@ -311,14 +359,14 @@ test("deleting a chat asks first, and a no sends nothing", async () => {
   expect(fetch.mock.calls.every(([, options]) => options?.method !== "DELETE")).toBe(true);
 });
 
-test("a chat the user confirms is deleted and leaves both lists", async () => {
+test("a chat the user confirms is deleted and leaves the list", async () => {
   let chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (options?.method === "DELETE") {
       chats = [];
       return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
     }
-    if (path === "/api/projects/p1/chats" || path === "/api/chats") {
+    if (path === "/api/projects/p1/chats") {
       return Promise.resolve({ ok: true, status: 200, json: async () => chats });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });

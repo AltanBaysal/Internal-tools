@@ -44,6 +44,12 @@ test("a chat path carries both ids", () => {
   expect(parsePath("/p/pabc/c/c1")).toEqual({ view: "chat", projectId: "pabc", chatId: "c1" });
 });
 
+test("a draft chat has an address of its own", () => {
+  // A chat is born with its first message, so the draft has no id yet -- but it still has a place,
+  // or a reload would throw the user out of what they were typing.
+  expect(parsePath("/p/p1/c/new")).toEqual({ view: "chat", projectId: "p1", chatId: "new" });
+});
+
 test("anything unrecognised falls back to the root", () => {
   expect(parsePath("/nonsense/deep").view).toBe("root");
 });

@@ -142,12 +142,18 @@ def test_an_unknown_chat_is_404(tmp_path):
     assert client.get(f"/api/projects/{pid}/chats/nope").status_code == 404
 
 
-def test_starting_a_chat_from_nowhere_is_gone(tmp_path):
-    # A chat needs a project to live in, so there is no address that opens both at once. 405 rather
-    # than 404: GET /api/chats still answers there.
+def test_there_is_no_workspace_wide_chat_address(tmp_path):
+    # A chat needs a project to live in, and Recent chats now lists that project's own chats, so
+    # nothing answers here at all -- neither method.
     client = _client(tmp_path)
-    assert client.post("/api/chats", json={"text": "Write the intro"}).status_code == 405
+    assert client.post("/api/chats", json={"text": "Write the intro"}).status_code == 404
+    assert client.get("/api/chats").status_code == 404
     assert client.get("/api/projects").get_json() == []
+
+
+def test_the_recent_chats_use_case_is_gone():
+    with pytest.raises(ModuleNotFoundError):
+        import backend.features.workspace.domain.usecases.list_recent_chats  # noqa: F401
 
 
 def test_opening_a_project_and_a_chat_together_is_gone():
@@ -180,13 +186,14 @@ def test_appending_nothing_is_400(tmp_path):
     )
 
 
-def test_recent_chats_span_every_project_and_name_theirs(tmp_path):
+def test_a_projects_chats_come_back_newest_first(tmp_path):
+    # The sidebar and the project screen read this one list; there is no wider one to read.
     client = _client(tmp_path)
-    older_pid, _ = _started(client, "older")
-    newer_pid, _ = _started(client, "newer")
-    recent = client.get("/api/chats").get_json()
-    assert [row["title"] for row in recent] == ["newer", "older"]
-    assert [row["projectId"] for row in recent] == [newer_pid, older_pid]
+    pid = _project(client)
+    client.post(f"/api/projects/{pid}/chats", json={"text": "older"})
+    client.post(f"/api/projects/{pid}/chats", json={"text": "newer"})
+    listed = client.get(f"/api/projects/{pid}/chats").get_json()
+    assert [row["title"] for row in listed] == ["newer", "older"]
 
 
 def test_the_answer_arrives_as_a_stream_of_events(tmp_path):
