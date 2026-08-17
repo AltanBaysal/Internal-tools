@@ -69,6 +69,3 @@ class FileStore(Protocol):
 
     def delete(self, project_id: str, name: str) -> str | None:
         """Move a file to the trash and answer with the name it took there, or None if it is gone."""
-
-    def restore(self, project_id: str, trashed: str, name: str) -> bool | None:
-        """Move it back: None if the trash has no such name, False if the name is taken again."""

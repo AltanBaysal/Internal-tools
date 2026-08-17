@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { deleteJson, postJson } from "../../shared/api.js";
+import { deleteJson } from "../../shared/api.js";
 import { useList } from "../../shared/useList.js";
 
 // The directory is the list. Nothing is kept beyond this array and a new file is a reload rather
@@ -8,13 +8,11 @@ import { useList } from "../../shared/useList.js";
 export function useFiles(projectId, onChanged) {
   const base = `/api/projects/${projectId}`;
   const { items, reload, loading } = useList(`${base}/files`, Boolean(projectId));
-  // What was deleted lives here and nowhere else: the trash name is the only handle on the file,
-  // and it is never written to disk. When this goes, the offer goes with it.
-  const [deleted, setDeleted] = useState(null);
+  // Nothing is remembered about what went: the trash name was held only for as long as there was an
+  // undo to offer, and there is none. What is kept is a failure, which is not an offer.
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    setDeleted(null);
     setError(null);
   }, [projectId]);
 
@@ -22,8 +20,7 @@ export function useFiles(projectId, onChanged) {
     async (name) => {
       setError(null);
       try {
-        const { trashed } = await deleteJson(`${base}/files/${encodeURIComponent(name)}`);
-        setDeleted({ name, trashed });
+        await deleteJson(`${base}/files/${encodeURIComponent(name)}`);
         await reload();
         await onChanged?.();
       } catch (failure) {
@@ -33,26 +30,10 @@ export function useFiles(projectId, onChanged) {
     [base, reload, onChanged],
   );
 
-  const undo = useCallback(async () => {
-    if (!deleted) return;
-    try {
-      await postJson(`${base}/trash/${encodeURIComponent(deleted.trashed)}/restore`, {
-        name: deleted.name,
-      });
-      setDeleted(null);
-      setError(null);
-      await reload();
-      await onChanged?.();
-    } catch (failure) {
-      // The offer stands: a refusal means the file is still in the trash.
-      setError(failure.message);
-    }
-  }, [base, deleted, reload, onChanged]);
-
   return {
     files: projectId ? items : [],
     reloadFiles: reload,
     loadingFiles: loading,
-    deleting: { deleted, error, remove, undo },
+    deleting: { error, remove },
   };
 }

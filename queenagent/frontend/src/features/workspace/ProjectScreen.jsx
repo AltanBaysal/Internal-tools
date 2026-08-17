@@ -2,7 +2,6 @@ import { relativeTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
-import FileStrip from "./FileStrip.jsx";
 import Skeleton from "./Skeleton.jsx";
 
 export default function ProjectScreen({
@@ -90,11 +89,8 @@ export default function ProjectScreen({
             </div>
             <div>
               <h2 className="column__title">Files QueenAgent created</h2>
-              <FileStrip
-                deleted={deleting?.deleted}
-                error={deleting?.error}
-                onUndo={deleting?.undo}
-              />
+              {/* No offer to bring anything back, but a refusal is still worth a line. */}
+              {deleting?.error ? <p className="file-list__error">{deleting.error}</p> : null}
               <div className="file-list">
                 {/* The teaching line waits for the answer: until the list has arrived, "no files
                     yet" is a guess and not a fact. */}

@@ -125,18 +125,33 @@ export default function App() {
     navigate(left.length ? `/p/${left[0].id}` : "/", { replace: true });
   };
 
-  const removeFile = (name) => {
-    // Reading something that is no longer there is not reading, so the panel goes first.
-    if (reading.name === name) reading.close();
-    return deleting.remove(name);
+  // Every deletion in the app comes through the same slot: ask, then do. A fourth one would know
+  // where to ask without being told.
+  const askToDeleteFile = (name) => {
+    setConfirming({
+      title: `Delete "${name}"?`,
+      body: "The file is moved out of the project. This can't be undone.",
+      confirmLabel: "Delete file",
+      onConfirm: () => {
+        setConfirming(null);
+        // Reading something that is no longer there is not reading, so the panel goes first.
+        if (reading.name === name) reading.close();
+        deleting.remove(name);
+      },
+    });
   };
 
-  const removeChat = async (chatId) => {
-    // The browser's own dialog, as with Rename: a second dialog language is not something the
-    // design asks for. The sentence says what goes and what stays.
-    if (!window.confirm("Delete this chat? Its files stay in the project.")) return;
-    await deleteChat(route.projectId, chatId);
-    await Promise.all([reloadProjectChats(), reloadProjects()]);
+  const askToDeleteChat = (chatId) => {
+    setConfirming({
+      title: "Delete this chat?",
+      body: "Its files stay in the project.",
+      confirmLabel: "Delete chat",
+      onConfirm: async () => {
+        setConfirming(null);
+        await deleteChat(route.projectId, chatId);
+        await Promise.all([reloadProjectChats(), reloadProjects()]);
+      },
+    });
   };
 
   // The draft address is not a place to come back to, so the chat that replaces it does exactly
@@ -182,12 +197,12 @@ export default function App() {
             loadingChats={loadingChats}
             loadingFiles={loadingFiles}
             reading={reading}
-            deleting={{ ...deleting, remove: removeFile }}
+            deleting={{ ...deleting, remove: askToDeleteFile }}
             onRename={() => askForName(route.projectId)}
             onDelete={() => askToDelete(route.projectId)}
             onSend={startChat}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
-            onDeleteChat={removeChat}
+            onDeleteChat={askToDeleteChat}
           />
         ) : null}
 
@@ -198,7 +213,7 @@ export default function App() {
             files={files}
             loadingFiles={loadingFiles}
             reading={reading}
-            deleting={{ ...deleting, remove: removeFile }}
+            deleting={{ ...deleting, remove: askToDeleteFile }}
             error={chat.error}
             refused={chat.refused}
             missing={chat.missing}

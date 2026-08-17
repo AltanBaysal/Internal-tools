@@ -63,17 +63,6 @@ class FileFileStore:
         )
         return trashed
 
-    def restore(self, project_id, trashed, name):
-        if not self._store.exists(f"{project_id}/{TRASH_DIR}/{trashed}"):
-            return None
-        # Three answers, not two: gone, in the way, or done. The use case turns them into words.
-        if self._store.exists(f"{project_id}/{FILES_DIR}/{name}"):
-            return False
-        self._store.move(
-            f"{project_id}/{TRASH_DIR}/{trashed}", f"{project_id}/{FILES_DIR}/{name}"
-        )
-        return True
-
 
 def _iso(timestamp):
     return datetime.fromtimestamp(timestamp, timezone.utc).isoformat(timespec="milliseconds")

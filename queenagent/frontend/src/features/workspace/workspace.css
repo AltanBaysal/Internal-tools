@@ -725,72 +725,23 @@
 
 /* Present in the row at all times so nothing shifts, and only visible once the row is under the
    pointer. No filled red button anywhere in the app. */
+/* Standing in the row rather than waiting for it. The design separates this from the sidebar's ⋯
+   deliberately: that one is a door into a menu, this one is the list's own business. */
 .row-x {
   flex: none;
   border: none;
   background: none;
-  padding: 0 2px;
+  border-radius: 6px;
+  padding: 0 4px;
   line-height: 1;
   font-size: 15px;
-  color: #a79e93;
+  color: #b5ada2;
   cursor: pointer;
-  opacity: 0;
-}
-
-.file-row:hover .row-x,
-.chat-row:hover .row-x,
-.row-x:focus-visible {
-  opacity: 1;
 }
 
 .row-x:hover {
   color: var(--destructive);
-}
-
-.strip {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  padding: 9px 12px;
-  margin-bottom: 8px;
-  animation: fadeIn 0.2s ease both;
-}
-
-.strip__row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.strip__line {
-  flex: 1;
-  font-size: 13px;
-  color: #6b6259;
-}
-
-.strip__undo {
-  flex: none;
-  border: none;
-  background: none;
-  padding: 0;
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--accent);
-  cursor: pointer;
-}
-
-.strip__undo:hover {
-  color: var(--accent-link-hover);
-}
-
-.strip__detail {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: #a4735a;
-  overflow-wrap: anywhere;
+  background: var(--destructive-soft);
 }
 
 .file-cards {
@@ -1086,6 +1037,15 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   padding: 6px;
+}
+
+/* What is left of the strip: no offer, just what the server said when a delete was refused. */
+.file-list__error {
+  margin: 0 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #a4735a;
+  overflow-wrap: anywhere;
 }
 
 .file-list__empty {

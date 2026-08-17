@@ -63,10 +63,11 @@ test("a file row offers no rename", () => {
   expect(screen.queryByRole("button", { name: "Rename outline.md" })).toBeNull();
 });
 
-test("the strip sits above the list once something was deleted", () => {
-  const deleting = { deleted: { name: "gone.md", trashed: "gone.md" }, remove: vi.fn() };
-  render(<FileRail files={FILES} deleting={deleting} />);
-  expect(screen.getByText("File deleted.")).toBeTruthy();
+test("a refused delete says so above the list, and offers nothing back", () => {
+  // The strip is gone with the undo it existed for; its other job is one line.
+  render(<FileRail files={FILES} deleting={{ error: "HTTP 409", remove: vi.fn() }} />);
+  expect(screen.getByText("HTTP 409")).toBeTruthy();
+  expect(screen.queryByText("Undo")).toBeNull();
   expect(screen.getByText("outline.md")).toBeTruthy();
 });
 

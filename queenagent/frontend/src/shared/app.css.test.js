@@ -46,8 +46,10 @@ test("filled accent surfaces take the filled hover", () => {
 });
 
 test("accent-coloured text takes the text hover", () => {
+  // The undo link used to be the other half of this: karar 16 took it, and with it the only
+  // accent-coloured word outside app.css.
   expect(rule(APP, "a:hover")).toContain("var(--accent-link-hover)");
-  expect(rule(WORKSPACE, ".strip__undo:hover")).toContain("var(--accent-link-hover)");
+  expect(WORKSPACE).not.toContain("--accent-link-hover");
 });
 
 // Motion is a fade of 140-220ms and the rail's width, and nothing else. A name that describes a
@@ -101,9 +103,11 @@ test("no surface writes the ring, or writes it away", () => {
   // to see.
   // Matched as a declaration rather than a word: prose about the rule is not a breach of it.
   expect(WORKSPACE).not.toMatch(/^\s*outline\s*:/m);
-  // The one focus rule outside app.css decides visibility, not appearance -- a control that only
-  // shows on hover would otherwise be invisible to the keyboard.
-  expect(WORKSPACE).toContain(".row-x:focus-visible");
+  // One focus rule outside app.css, and it decides visibility rather than appearance: whichever
+  // control hides until the row is hovered would otherwise be invisible to the keyboard. It used to
+  // be the row's ×, which now stands in the row; it is the sidebar's ⋯, which does not.
+  expect(WORKSPACE.match(/:focus-visible/g).length).toBe(1);
+  expect(WORKSPACE).toContain(".sidebar__row-more:focus-visible");
 });
 
 test("the only destructive control there is today reaches for the new red", () => {
