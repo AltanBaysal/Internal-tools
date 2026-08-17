@@ -185,6 +185,56 @@ test("the file a stored reply produced is drawn under that reply", () => {
   expect(screen.getByText("sources.txt", { selector: ".file-card__name" })).toBeTruthy();
 });
 
+// The card is the primary way into a file: the design turns it from a receipt into a door.
+function withCard(files = ["outline.md"]) {
+  return { ...CHAT, messages: [CHAT.messages[0], { ...CHAT.messages[1], files }] };
+}
+
+test("the card is a door, and says so", () => {
+  const open = vi.fn();
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={withCard()}
+      files={withFiles("outline.md")}
+      reading={{ open }}
+    />,
+  );
+  const card = screen.getByRole("button", { name: /outline\.md/ });
+  expect(card.textContent).toContain("Open ›");
+  fireEvent.click(card);
+  expect(open).toHaveBeenCalledWith("outline.md");
+});
+
+test("the card of the file being read says open rather than offering to", () => {
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={withCard()}
+      files={withFiles("outline.md")}
+      reading={{ name: "outline.md", open: vi.fn() }}
+    />,
+  );
+  const card = screen.getByRole("button", { name: /outline\.md/ });
+  expect(card.className).toContain("file-card--selected");
+  // Telling someone to open what is already open would be the wrong sentence, and there is nowhere
+  // left to go, so the arrow drops with it.
+  expect(card.textContent).toContain("open");
+  expect(card.textContent).not.toContain("Open ›");
+});
+
+test("the other cards are not marked", () => {
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={withCard(["outline.md", "sources.txt"])}
+      files={withFiles("outline.md", "sources.txt")}
+      reading={{ name: "outline.md", open: vi.fn() }}
+    />,
+  );
+  expect(screen.getByRole("button", { name: /sources\.txt/ }).className).not.toContain("selected");
+});
+
 test("the chip on a card comes from the name the reply remembers", () => {
   const chat = { ...CHAT, messages: [CHAT.messages[0], { ...CHAT.messages[1], files: ["a.txt"] }] };
   render(<ChatScreen project={PROJECT} chat={chat} files={withFiles("a.txt")} />);

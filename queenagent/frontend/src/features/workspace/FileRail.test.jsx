@@ -47,12 +47,8 @@ test("folded, one click on the strip is what opens it", () => {
   expect(onToggle).toHaveBeenCalled();
 });
 
-test("with a file open there is nothing to fold", () => {
-  // The rail is drawing a document, not a list, so the control has no subject.
-  const file = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
-  render(<FileRail files={FILES} reading={{ name: "outline.md", file }} />);
-  expect(screen.queryByRole("button", { name: /Project files/ })).toBeNull();
-});
+// With a file open there is nothing to fold -- the rail is showing a document. That is asserted
+// below, where the two-column state is set out.
 
 test("every file gets a row, chip and all", () => {
   render(<FileRail files={FILES} />);
@@ -104,15 +100,36 @@ test("a list that cannot delete cannot report a delete going wrong", () => {
   expect(container.querySelector(".file-list__error")).toBeNull();
 });
 
-// The row of the file being read is the marked one -- but the rail draws the reader instead of the
-// list while a file is open, so there is no moment on screen for it yet. That is fark 53, which the
-// roadmap never assigned to a madde. The rule is tested where it lives: FileRow.test.jsx.
+const OPEN_FILE = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
 
-test("an open file takes the rail over and widens it", () => {
-  const file = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
-  render(<FileRail files={FILES} reading={{ name: "outline.md", file }} />);
+test("an open file widens the rail rather than taking it over", () => {
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
   expect(screen.getByText("read me")).toBeTruthy();
-  // The list is behind the panel, not beside it: the rail is 320px wide until it is 560.
-  expect(screen.queryByText("sources.txt")).toBeNull();
+  // The list stays beside the reader: closing the panel used to be the only way to reach another
+  // file.
+  expect(screen.getByText("sources.txt")).toBeTruthy();
   expect(screen.getByTestId("file-rail").className).toContain("rail--open");
+});
+
+test("the row of the file being read is the marked one", () => {
+  // Madde 21 wrote this rule with nowhere to show it. Here is where it shows.
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
+  expect(screen.getByText("outline.md").closest(".file-row").className).toContain(
+    "file-row--selected",
+  );
+  expect(screen.getByText("sources.txt").closest(".file-row").className).not.toContain("selected");
+});
+
+test("another file can be reached without closing the one open", () => {
+  const open = vi.fn();
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE, open }} />);
+  fireEvent.click(screen.getByText("sources.txt"));
+  expect(open).toHaveBeenCalledWith("sources.txt");
+});
+
+test("while reading, the list keeps its label and loses its control", () => {
+  // Madde 20's rule stands: a rail showing a document has nothing to fold away.
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
+  expect(screen.getByText("Project files")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Project files/ })).toBeNull();
 });

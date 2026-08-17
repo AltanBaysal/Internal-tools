@@ -220,6 +220,24 @@ test("the row being read is marked, and hovering is not the same as being open",
   expect(rule(".file-row:hover")).toContain("background: #f0ece5");
 });
 
+test("the card in the transcript is the size of the box that preceded it", () => {
+  // The dashed creating box is this card before it was born, so they share a skeleton.
+  expect(rule(".file-card")).toContain("max-width: 340px");
+  expect(rule(".file-card")).toContain("border-radius: 12px");
+});
+
+test("the card of the file being read is marked", () => {
+  expect(rule(".file-card--selected")).toContain("background: #f4efe7");
+  expect(rule(".file-card--selected")).toContain("border-color: #cfc3b2");
+});
+
+test("while reading, the rail is two columns and the list keeps one", () => {
+  // The design gives 320 to 560 and no split; the list takes the narrower half so the document gets
+  // the room it is there for.
+  expect(rule(".rail--open")).toContain("display: flex");
+  expect(rule(".rail__list")).toContain("width: 200px");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.

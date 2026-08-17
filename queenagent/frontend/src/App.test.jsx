@@ -667,6 +667,46 @@ test("opening a file unfolds the rail rather than hiding what was opened", async
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
 });
 
+test("the card in the transcript opens the file, unfolding the rail on the way", async () => {
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  const chat = {
+    id: "c1",
+    title: "Write the intro",
+    messages: [
+      { role: "user", at: new Date().toISOString(), text: "write it" },
+      { role: "ai", at: new Date().toISOString(), text: "Done.", files: ["plan.md"] },
+    ],
+  };
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (path.endsWith("/files/plan.md")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...file, size: 4, text: "body" }),
+      });
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
+  fold();
+  await waitFor(() => expect(screen.queryByText("project file · just now")).toBeNull());
+
+  // The card is the second caller of the rule Madde 20 put in one place.
+  fireEvent.click(screen.getByRole("button", { name: /plan\.md/ }));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+  expect(screen.getByTestId("file-rail").className).toContain("rail--open");
+});
+
 test("no row anywhere offers a rename", async () => {
   // Renaming lives on the project alone, so neither a file row nor a chat row carries one.
   const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
