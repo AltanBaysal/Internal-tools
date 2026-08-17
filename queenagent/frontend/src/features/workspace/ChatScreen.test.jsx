@@ -20,6 +20,19 @@ test("the breadcrumb names the project and the chat", () => {
   expect(screen.getByText("Write the intro", { selector: ".chat__title" })).toBeTruthy();
 });
 
+test("the way back to the project stays", () => {
+  // The design asks for this one by name: a chat header is "← project name".
+  const onBack = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={CHAT} onBack={onBack} />);
+  fireEvent.click(screen.getByRole("button", { name: /Thesis research/ }));
+  expect(onBack).toHaveBeenCalled();
+});
+
+test("nothing is written under the composer", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(screen.queryByText("save the answer as a file")).toBeNull();
+});
+
 test("a user message is labelled You with its wall clock", () => {
   // The prototype took the name from a prop we never shipped; an unnamed user is "You".
   render(<ChatScreen project={PROJECT} chat={CHAT} />);

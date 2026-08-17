@@ -72,21 +72,32 @@ test("a chat row can be asked to go, and asking is all the row does", () => {
   expect(onOpenChat).not.toHaveBeenCalled();
 });
 
-test("a chat row can be asked for a new title", () => {
+test("a chat row offers no rename", () => {
+  // Renaming lives on the project alone; the row opens and deletes, nothing else.
   const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
-  const onRenameChat = vi.fn();
-  const onOpenChat = vi.fn();
-  render(
-    <ProjectScreen
-      project={PROJECT}
-      chats={chats}
-      onRenameChat={onRenameChat}
-      onOpenChat={onOpenChat}
-    />,
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Rename Write the intro" }));
-  expect(onRenameChat).toHaveBeenCalledWith("c1");
-  expect(onOpenChat).not.toHaveBeenCalled();
+  render(<ProjectScreen project={PROJECT} chats={chats} onOpenChat={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: "Rename Write the intro" })).toBeNull();
+});
+
+test("the screen starts with its title", () => {
+  render(<ProjectScreen project={PROJECT} onBack={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: "← back" })).toBeNull();
+});
+
+test("a project that is not there says so and offers no way back", () => {
+  render(<ProjectScreen project={null} onBack={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: "← back" })).toBeNull();
+});
+
+test("nothing is written under the composer", () => {
+  render(<ProjectScreen project={PROJECT} />);
+  expect(screen.queryByText("the answer is saved as a file")).toBeNull();
+});
+
+test("a file list carries no advice under it", () => {
+  const files = [{ name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  render(<ProjectScreen project={PROJECT} files={files} />);
+  expect(screen.queryByText(/Chats create the files/)).toBeNull();
 });
 
 test("a project that does not exist says so instead of crashing", () => {

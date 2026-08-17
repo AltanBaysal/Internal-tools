@@ -76,21 +76,20 @@ def test_an_unknown_project_is_404(tmp_path):
     assert client.post("/api/projects/nope/chats", json={"text": "hi"}).status_code == 404
 
 
-def test_a_chat_can_be_renamed_over_http(tmp_path):
+def test_a_chat_cannot_be_renamed(tmp_path):
+    # Renaming lives on the project alone. 405 rather than 404: GET and DELETE still answer there.
     client = _client(tmp_path)
-    pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).get_json()["id"]
-    resp = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": "The introduction"})
-    assert resp.status_code == 200
-    assert resp.get_json()["title"] == "The introduction"
-    assert client.get(f"/api/projects/{pid}/chats").get_json()[0]["title"] == "The introduction"
+    pid, cid = _started(client)
+    resp = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": "Something else"})
+    assert resp.status_code == 405
+    assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["title"] == "hello"
 
 
-def test_an_empty_title_is_refused_over_http(tmp_path):
-    client = _client(tmp_path)
-    pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).get_json()["id"]
-    assert client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": " "}).status_code == 400
+def test_the_chat_rename_use_case_is_gone():
+    with pytest.raises(ModuleNotFoundError):
+        import backend.features.workspace.domain.usecases.rename_chat  # noqa: F401
+
+
 
 
 def test_a_chat_can_be_deleted_and_stops_being_listed(tmp_path):

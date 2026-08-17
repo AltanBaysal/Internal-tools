@@ -1,5 +1,7 @@
 import time
 
+import pytest
+
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
@@ -107,21 +109,24 @@ def test_search_is_gone(tmp_path):
     assert client.get("/api/search").status_code == 404
 
 
-def test_renaming_over_http_answers_with_the_name_used(tmp_path):
+def test_a_file_cannot_be_renamed(tmp_path):
+    # Renaming lives on the project alone. 405 rather than 404: GET and DELETE still answer there.
     client = _client(tmp_path)
     pid = client.post("/api/projects").get_json()["id"]
-    files = _files(tmp_path)
-    files.write(pid, "plan.md", "body")
-    files.write(pid, "outline.md", "other")
-    body = client.patch(f"/api/projects/{pid}/files/plan.md", json={"name": "outline.md"}).get_json()
-    assert body == {"name": "outline-2.md", "ext": "md", "modifiedAt": body["modifiedAt"]}
-    assert client.get(f"/api/projects/{pid}/files/outline-2.md").get_json()["text"] == "body"
+    _files(tmp_path).write(pid, "plan.md", "body")
+    resp = client.patch(f"/api/projects/{pid}/files/plan.md", json={"name": "outline.md"})
+    assert resp.status_code == 405
+    assert client.get(f"/api/projects/{pid}/files/plan.md").get_json()["text"] == "body"
 
 
-def test_renaming_a_file_that_is_gone_is_a_404(tmp_path):
-    client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
-    assert client.patch(f"/api/projects/{pid}/files/ghost.md", json={"name": "x"}).status_code == 404
+def test_the_file_rename_use_case_is_gone():
+    with pytest.raises(ModuleNotFoundError):
+        import backend.features.workspace.domain.usecases.rename_file  # noqa: F401
+
+
+def test_the_store_offers_no_rename(tmp_path):
+    # The port shrank with the use case: nothing is left that can move a file inside files/.
+    assert not hasattr(_files(tmp_path), "rename")
 
 
 def test_deleting_over_http_answers_with_the_trash_name(tmp_path):
