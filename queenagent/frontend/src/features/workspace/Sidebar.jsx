@@ -1,3 +1,5 @@
+import RowMenu from "./RowMenu.jsx";
+
 // A chat lives inside a project, so the two chat sections follow the selected one: with none
 // selected they are absent rather than empty or disabled.
 const MOST_CHATS = 8;
@@ -7,10 +9,15 @@ export default function Sidebar({
   chats = [],
   activeProjectId,
   activeChatId,
+  menuFor,
   onNewChat,
   onNewProject,
   onOpenProject,
   onOpenChat,
+  onOpenMenu,
+  onCloseMenu,
+  onRenameProject,
+  onDeleteProject,
 }) {
   return (
     <aside className="sidebar">
@@ -37,29 +44,55 @@ export default function Sidebar({
             +
           </button>
         </div>
+        {/* The row is a box rather than a button: a menu button cannot live inside another button.
+            What it looks like is unchanged; what it is made of is not. */}
         {projects.map((project) => (
-          <button
-            key={project.id}
-            type="button"
-            className={
-              project.id === activeProjectId ? "sidebar__row sidebar__row--active" : "sidebar__row"
-            }
-            onClick={() => onOpenProject(project.id)}
-          >
-            <span className="dot" />
-            <span className="sidebar__row-name">{project.name}</span>
-            {/* A zero is drawn and made transparent rather than left out: the first file to land
-                must not push the name sideways. */}
-            <span
+          <div key={project.id} className="sidebar__row">
+            <button
+              type="button"
               className={
-                project.files
-                  ? "sidebar__row-badge"
-                  : "sidebar__row-badge sidebar__row-badge--none"
+                project.id === activeProjectId
+                  ? "sidebar__row-open sidebar__row--active"
+                  : "sidebar__row-open"
               }
+              onClick={() => onOpenProject(project.id)}
             >
-              {project.files ?? 0}
-            </span>
-          </button>
+              <span className="dot" />
+              <span className="sidebar__row-name">{project.name}</span>
+              {/* A zero is drawn and made transparent rather than left out: the first file to land
+                  must not push the name sideways. */}
+              <span
+                className={
+                  project.files
+                    ? "sidebar__row-badge"
+                    : "sidebar__row-badge sidebar__row-badge--none"
+                }
+              >
+                {project.files ?? 0}
+              </span>
+            </button>
+            <button
+              type="button"
+              className="sidebar__row-more"
+              aria-label={`More for ${project.name}`}
+              onClick={() => onOpenMenu?.(project.id)}
+            >
+              ⋯
+            </button>
+            {menuFor === project.id ? (
+              <RowMenu
+                onClose={onCloseMenu}
+                items={[
+                  { label: "Rename", onChoose: () => onRenameProject?.(project.id) },
+                  {
+                    label: "Delete project",
+                    danger: true,
+                    onChoose: () => onDeleteProject?.(project.id),
+                  },
+                ]}
+              />
+            ) : null}
+          </div>
         ))}
       </div>
 

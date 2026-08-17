@@ -115,7 +115,15 @@
   color: var(--ink);
 }
 
+/* The row is a box holding two buttons -- a menu button cannot live inside another button -- so the
+   look that used to belong to the row now belongs to the one that opens the project. */
 .sidebar__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.sidebar__row-open {
   display: flex;
   align-items: center;
   gap: 9px;
@@ -131,9 +139,67 @@
   background: transparent;
 }
 
-.sidebar__row:hover,
+.sidebar__row-open:hover,
 .sidebar__row--active {
   background: #e5dfd5;
+}
+
+/* It waits for the row rather than standing there: the list is read far more often than it is
+   rearranged. Focus brings it back for anyone arriving by keyboard. */
+.sidebar__row-more {
+  position: absolute;
+  right: 6px;
+  border: none;
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.sidebar__row:hover .sidebar__row-more,
+.sidebar__row-more:focus-visible {
+  opacity: 1;
+}
+
+.row-menu {
+  position: fixed;
+  z-index: 15;
+  width: 176px;
+  padding: 5px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  box-shadow: 0 8px 24px rgba(34, 32, 29, 0.12);
+}
+
+.row-menu__item {
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 10px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.row-menu__item:hover {
+  background: #f2ede5;
+}
+
+.row-menu__item--danger {
+  color: var(--destructive);
+}
+
+.row-menu__item--danger:hover {
+  background: var(--destructive-soft);
 }
 
 .sidebar__row-name {
@@ -953,11 +1019,31 @@
 }
 
 /* The gap the description used to hold open: the title now sits directly above the composer. */
+/* A second button joined Rename, and a title has no business being cut to make room: what does not
+   fit drops to the next line. */
 .screen__title-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 14px;
   margin: 0 0 32px;
+}
+
+/* Outlined until it is hovered, and then it is the thing it does. */
+.screen__delete {
+  border: 1px solid var(--destructive-line);
+  border-radius: var(--radius-control);
+  padding: 6px 12px;
+  background: transparent;
+  color: var(--destructive);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.screen__delete:hover {
+  background: var(--destructive);
+  color: #fffdfa;
 }
 
 .screen__title {

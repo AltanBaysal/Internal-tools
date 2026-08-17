@@ -14,6 +14,7 @@ export default function ProjectScreen({
   reading,
   deleting,
   onRename,
+  onDelete,
   onSend,
   onOpenChat,
   onDeleteChat,
@@ -37,6 +38,10 @@ export default function ProjectScreen({
             <h1 className="screen__title">{project.name}</h1>
             <button type="button" className="ghost" onClick={onRename}>
               Rename
+            </button>
+            {/* One of the two doors onto the same question. It opens it and nothing more. */}
+            <button type="button" className="screen__delete" title="Delete project" onClick={onDelete}>
+              Delete
             </button>
           </div>
 

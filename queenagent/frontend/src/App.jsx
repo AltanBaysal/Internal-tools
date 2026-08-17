@@ -4,6 +4,7 @@ import "./features/workspace/workspace.css";
 import { useEffect, useState } from "react";
 
 import ChatScreen from "./features/workspace/ChatScreen.jsx";
+import ConfirmDialog from "./features/workspace/ConfirmDialog.jsx";
 import NoProjectsScreen from "./features/workspace/NoProjectsScreen.jsx";
 import OfflineStrip from "./features/workspace/OfflineStrip.jsx";
 import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
@@ -27,7 +28,12 @@ const DRAFT = { id: null, title: "New chat", messages: [] };
 export default function App() {
   const { route, navigate } = useRoute();
   const online = useOnline();
-  const { projects, error, loading, createProject, editProject, reloadProjects } = useProjects();
+  const { projects, error, loading, createProject, editProject, removeProject, reloadProjects } =
+    useProjects();
+  // Both live here rather than inside the sidebar, because App's one listener owns Escape and it
+  // can only close what it can see.
+  const [menuFor, setMenuFor] = useState(null);
+  const [confirming, setConfirming] = useState(null);
   const { projectChats, reloadProjectChats, loadingChats } = useProjectChats(route.projectId);
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
@@ -66,22 +72,57 @@ export default function App() {
     // same window event, and stopping propagation does not stop a sibling.
     const onKey = (event) => {
       if (event.key !== "Escape") return;
-      // Escape closes what is open and never steps backwards.
-      if (reading.name) reading.close();
+      // Escape closes what is open, innermost first, and never steps backwards.
+      if (menuFor) setMenuFor(null);
+      else if (confirming) setConfirming(null);
+      else if (reading.name) reading.close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [reading.name, reading.close]);
+  }, [menuFor, confirming, reading.name, reading.close]);
 
   // The screen reads its project out of the list the app already holds; asking the server a second
   // time would be asking for an answer we have.
   const project = projects.find((candidate) => candidate.id === route.projectId) ?? null;
 
-  const askForName = () => {
-    const answer = window.prompt("Project name", project?.name);
+  // The id is asked for rather than assumed: the sidebar menu can rename a project the user is not
+  // standing in.
+  const askForName = (id) => {
+    const named = projects.find((candidate) => candidate.id === id);
+    const answer = window.prompt("Project name", named?.name);
     // An empty answer cancels -- the design's rule. The server refuses an empty name anyway, so
     // this is a convenience rather than the guarantee.
-    if (answer && answer.trim()) editProject(route.projectId, { name: answer });
+    if (answer && answer.trim()) editProject(id, { name: answer });
+  };
+
+  // The counts come from the list the app already holds. One of a thing is one of it, not one of
+  // them -- the design writes the sentence out that way.
+  const countOf = (many, word) => `${many} ${word}${many === 1 ? "" : "s"}`;
+
+  const askToDelete = (id) => {
+    const doomed = projects.find((candidate) => candidate.id === id);
+    if (!doomed) return;
+    setConfirming({
+      title: `Delete "${doomed.name}"?`,
+      body: `The ${countOf(doomed.chats ?? 0, "chat")} and ${countOf(
+        doomed.files ?? 0,
+        "file",
+      )} in this project are deleted with it. This can't be undone.`,
+      confirmLabel: "Delete project",
+      onConfirm: () => deleteProject(id),
+    });
+  };
+
+  // Where to go afterwards is a question only about the project being left: another project's
+  // deletion has no business moving the screen the user is on.
+  const deleteProject = async (id) => {
+    setConfirming(null);
+    if (!(await removeProject(id))) return;
+    if (route.projectId !== id) return;
+    const left = projects.filter((candidate) => candidate.id !== id);
+    // "/" rather than a guess: the fork picks the first project, or the empty screen if none is
+    // left, and it is the only place that rule is written.
+    navigate(left.length ? `/p/${left[0].id}` : "/", { replace: true });
   };
 
   const removeFile = (name) => {
@@ -117,6 +158,11 @@ export default function App() {
         onNewProject={createProject}
         onOpenProject={openProject}
         onOpenChat={(chatId) => openChat(route.projectId, chatId)}
+        menuFor={menuFor}
+        onOpenMenu={setMenuFor}
+        onCloseMenu={() => setMenuFor(null)}
+        onRenameProject={askForName}
+        onDeleteProject={askToDelete}
       />
       <main className="main">
         {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
@@ -137,7 +183,8 @@ export default function App() {
             loadingFiles={loadingFiles}
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
-            onRename={askForName}
+            onRename={() => askForName(route.projectId)}
+            onDelete={() => askToDelete(route.projectId)}
             onSend={startChat}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             onDeleteChat={removeChat}
@@ -165,6 +212,11 @@ export default function App() {
           />
         ) : null}
       </main>
+
+      {/* Outside main so the darkened screen covers the sidebar too. */}
+      {confirming ? (
+        <ConfirmDialog {...confirming} onCancel={() => setConfirming(null)} />
+      ) : null}
     </div>
   );
 }

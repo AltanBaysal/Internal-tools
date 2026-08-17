@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getJson, patchJson, postJson } from "../../shared/api.js";
+import { deleteJson, getJson, patchJson, postJson } from "../../shared/api.js";
 
 // One array answers two questions -- what the sidebar lists, and which project the app opens on --
 // so the two can never disagree and a new project needs no second round trip.
@@ -46,5 +46,24 @@ export function useProjects() {
     }
   }, []);
 
-  return { projects, error, loading, createProject, editProject, reloadProjects: reload };
+  const removeProject = useCallback(async (id) => {
+    try {
+      await deleteJson(`/api/projects/${id}`);
+      setProjects((current) => current.filter((project) => project.id !== id));
+      return true;
+    } catch (failure) {
+      setError(failure.message);
+      return false;
+    }
+  }, []);
+
+  return {
+    projects,
+    error,
+    loading,
+    createProject,
+    editProject,
+    removeProject,
+    reloadProjects: reload,
+  };
 }

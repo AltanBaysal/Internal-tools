@@ -52,7 +52,8 @@ function rule(selector) {
 
 test("every control rounds by the same variable", () => {
   expect(rule(".sidebar__new-chat")).toContain("border-radius: var(--radius-control)");
-  expect(rule(".sidebar__row")).toContain("border-radius: var(--radius-control)");
+  // The row became a box holding two buttons, so the rounding belongs to the one that is a control.
+  expect(rule(".sidebar__row-open")).toContain("border-radius: var(--radius-control)");
   expect(rule(".composer__send")).toContain("border-radius: var(--radius-control)");
   expect(CSS).not.toContain("border-radius: 9px");
 });

@@ -176,12 +176,14 @@ test("a deleted project is not offered back", async () => {
 
 test("Escape closes the menu first, then the question", async () => {
   serverWith(TWO);
-  render(<App />);
+  const { container } = render(<App />);
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
   openMenuFor("Thesis");
+  expect(container.querySelector(".row-menu")).toBeTruthy();
   fireEvent.keyDown(window, { key: "Escape" });
-  expect(screen.queryByRole("button", { name: "Rename" })).toBeNull();
+  // Asked for by shape rather than by name: the project header carries a Rename of its own.
+  expect(container.querySelector(".row-menu")).toBeNull();
 
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
