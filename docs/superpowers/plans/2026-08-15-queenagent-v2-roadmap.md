@@ -22,6 +22,20 @@ Birim **maddedir**. Her madde dört adımdan geçer:
 3. **TDD** — iki ayrı commit: önce yalnız testler (kırmızı gider), sonra implementasyon. İstisnasız.
 4. **Kapanış** — `pytest` ve `npm test` yeşil.
 
+**Varsayma, sor.** Koşu maddeler arasında durmaz — ama spec yazarken bir şey **gerçekten belirsizse**
+orada durulur ve kullanıcıya sorulur. Ölçüt "emin değilim" değil, **"iki farklı okuma iki farklı ürün
+üretir"**dir. Sorulacak şeyler yalnız kullanıcı deneyimi değil, teknik de olabilir:
+
+- Geri dönülemez olan her şey: disk düzeni ve dosya biçimi, veri göçü, kalıcı alan adları, uç nokta
+  sözleşmesi, silinen bir yeteneğin geri getirilemez hâle gelmesi.
+- Kullanıcının alışkanlığını bozan her şey: bir eylemin yerinin, adımının ya da sonucunun değişmesi.
+- Kaynakların çeliştiği ve [kararlar belgesinin](../research/2026-08-14-mira-tasarim-kararlari.md)
+  susduğu her yer.
+
+Sorular **düz metinle** sorulur: tek soru, numaralı kısa seçenekler, bir cümlelik öneri, "hangisi?".
+Cevap gelmeden o maddenin planı yazılmaz. Küçük ve geri alınabilir seçimlerde sorulmaz — makul olan
+seçilir, spec'te tek cümleyle gerekçesiyle yazılır.
+
 **Deneme en sonda, toplu:** maddeler tek tek elle denenmez, hepsi Madde 35'te bir dalgada denenir.
 Bir maddenin *nasıl görülür* satırı o maddenin kabul kriteridir — testler o satırı kanıtlar.
 
@@ -31,8 +45,22 @@ maddede gider.
 
 ## Kod kuralları
 
-Yerleri `queenagent/FOUNDATION.md` ve `queenagent/CODE-STANDARD.md` (Madde 1'e kadar `mira/` altında).
-Bu koşuda en çok işe karışacaklar:
+**Yapıyı iki dosya belirler ve ikisi de bağlayıcıdır:** `queenagent/FOUNDATION.md` (ilkeler ve yığın
+kararları) ve `queenagent/CODE-STANDARD.md` (katmanlar ve dosya düzeni). Madde 1'e kadar ikisi de
+`mira/` altındadır.
+
+**Bu bir gate'tir, tercih değil.** Her maddede:
+
+- **Spec yazılırken** ikisi de açılıp okunur; maddenin dokunduğu kurallar spec'te adıyla anılır.
+- **Plan yazılırken** her yeni dosyanın hangi katmana düştüğü yazılır — `domain/`, `data/`,
+  `presentation/`, `services/`, `web/` ya da ön yüzde `features/workspace/` veya `shared/`.
+- **Kapanışta** bağımlılık yönü denetlenir: `presentation → domain ← data → services`. Yasaklar
+  istisnasız: `feature ↛ feature`, `service ↛ feature`, `service ↛ service`. Somut sınıflar yalnız
+  kompozisyon kökünde bağlanır.
+- Bir madde bu kuralları tutturamıyorsa **madde durur ve kullanıcıya sorulur** — kural sessizce
+  esnetilmez. İki belgeden birinin değişmesi gerekiyorsa o kendi başına bir karardır.
+
+Bu koşuda en çok işe karışacak kurallar:
 
 - **Kural arka uçta, ön yüz görüntüdür.** Seçimlerin sohbete yapışması, silme, adlandırma — hepsi
   arka uçta yaşar ve orada test edilir.
