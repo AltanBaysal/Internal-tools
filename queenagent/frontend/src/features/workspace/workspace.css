@@ -450,6 +450,68 @@
   animation-delay: 0.36s;
 }
 
+/* The one confirmation pattern in the app. The design gives the sentences and the buttons but no
+   measurements, so the box is built out of the palette's own tokens; 420px is where two buttons and
+   two lines of sentence sit, the same family as the 340px the creating box stops at. */
+.dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(34, 32, 29, 0.4);
+  animation: fadeIn 160ms ease;
+}
+
+.dialog__card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  padding: 24px 26px 20px;
+}
+
+.dialog__title {
+  margin: 0 0 10px;
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.dialog__body {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #4a443d;
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* The first filled red button the app has ever had, and it marks the only kind of action allowed to
+   be red. */
+.dialog__confirm {
+  border: none;
+  border-radius: var(--radius-control);
+  padding: 9px 16px;
+  background: var(--destructive);
+  color: #fffdfa;
+  font-family: var(--font-body);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.dialog__confirm:hover {
+  background: var(--destructive-hover);
+}
+
 /* One line, no card: nothing was sent, so there is nothing to try again. */
 .refused {
   margin: 0;
