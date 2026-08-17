@@ -19,6 +19,9 @@ class ProjectStore(Protocol):
     def replace(self, project: Project) -> None:
         """Overwrite an existing project's stored fields."""
 
+    def delete(self, project_id: str) -> str | None:
+        """Move the whole project to the trash and answer with the name it took, or None."""
+
 
 class ChatStore(Protocol):
     def add(self, project_id: str, chat: Chat) -> None:

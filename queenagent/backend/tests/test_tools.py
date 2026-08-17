@@ -42,6 +42,13 @@ def test_a_taken_name_gets_a_number_rather_than_overwriting():
     assert unique_name(["plan.md", "plan-2.md"], "plan.md") == "plan-3.md"
 
 
+def test_a_name_with_no_extension_is_numbered_the_same_way():
+    # A project id is a directory name, not a filename, and the trash numbers it by the same rule.
+    # Splitting on a dot that is not there used to turn p1 into -2.p1.
+    assert unique_name(["p1"], "p1") == "p1-2"
+    assert unique_name(["p1", "p1-2"], "p1") == "p1-3"
+
+
 def test_listing_an_empty_project_says_so_in_words(tmp_path):
     assert "no files yet" in _call(_files(tmp_path), "list_files")
 
