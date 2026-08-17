@@ -77,6 +77,40 @@ test("clicking a file opens it beside the grid, which drops to one column", () =
   expect(container.querySelector(".project-grid").className).toContain("project-grid--reading");
 });
 
+// The panel is showing the files column's subject, so leaving the column standing would put the
+// same list on the screen twice. The chat rail keeps its list for the opposite reason: there the
+// reader is the rail widened, and the list is its neighbour rather than its copy.
+test("with the panel open the files column is not drawn at all", () => {
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  const reading = { name: "outline.md", file: { ...files[0], size: 7, text: "read me" } };
+  const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
+  render(<ProjectScreen project={PROJECT} chats={chats} files={files} reading={reading} />);
+  expect(screen.queryByText("Files QueenAgent created")).toBeNull();
+  // What stays: the title row, the composer and the chats.
+  expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Thesis research");
+  expect(screen.getByRole("button", { name: "Start" })).toBeTruthy();
+  expect(screen.getByText("Chats")).toBeTruthy();
+  expect(screen.getByText("Write the intro")).toBeTruthy();
+});
+
+test("nothing can be deleted from a column that is not there", () => {
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  const reading = { name: "outline.md", file: { ...files[0], size: 7, text: "read me" } };
+  render(
+    <ProjectScreen project={PROJECT} files={files} reading={reading} deleting={{ remove: vi.fn() }} />,
+  );
+  expect(screen.queryByRole("button", { name: "Delete outline.md" })).toBeNull();
+});
+
+test("closing the panel brings the column back", () => {
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  const reading = { name: "outline.md", file: { ...files[0], size: 7, text: "read me" } };
+  const { rerender } = render(<ProjectScreen project={PROJECT} files={files} reading={reading} />);
+  rerender(<ProjectScreen project={PROJECT} files={files} reading={{}} />);
+  expect(screen.getByText("Files QueenAgent created")).toBeTruthy();
+  expect(screen.getByText("outline.md")).toBeTruthy();
+});
+
 test("the panel beside the grid closes rather than going back", () => {
   // There is nothing to go back to: the grid is still there under it.
   const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
