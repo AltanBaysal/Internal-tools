@@ -227,8 +227,11 @@ test("the card in the transcript is the size of the box that preceded it", () =>
 });
 
 test("the card of the file being read is marked", () => {
-  expect(rule(".file-card--selected")).toContain("background: #f4efe7");
-  expect(rule(".file-card--selected")).toContain("border-color: #cfc3b2");
+  // Grouped with its hover for the same reason the row is: being read outranks being pointed at.
+  const selected = CSS.slice(CSS.indexOf("\n.file-card--selected,"));
+  const block = selected.slice(0, selected.indexOf("}"));
+  expect(block).toContain("background: #f4efe7");
+  expect(block).toContain("border-color: #cfc3b2");
 });
 
 test("while reading, the rail is two columns and the list keeps one", () => {

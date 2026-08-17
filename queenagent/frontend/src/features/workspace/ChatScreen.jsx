@@ -29,13 +29,21 @@ function CreatingFile() {
   );
 }
 
-function FileCard({ name }) {
+// The primary way into a file: the card is a door rather than a receipt. Which one is open is the
+// caller's answer, and telling someone to open what is already open would be the wrong sentence --
+// so the hint drops to "open" and the arrow, having nowhere to point, drops with it.
+function FileCard({ name, selected, onOpen }) {
   return (
-    <div className="file-card">
+    <button
+      type="button"
+      className={selected ? "file-card file-card--selected" : "file-card"}
+      onClick={() => onOpen?.(name)}
+    >
       <span className="file-chip">{extensionOf(name)}</span>
       <span className="file-card__name">{name}</span>
       <span className="file-card__saved">✓ saved to project</span>
-    </div>
+      <span className="file-card__hint">{selected ? "open" : "Open ›"}</span>
+    </button>
   );
 }
 
@@ -144,7 +152,12 @@ export default function ChatScreen({
                     {message.files
                       .filter((name) => onDisk.has(name))
                       .map((name) => (
-                        <FileCard key={name} name={name} />
+                        <FileCard
+                          key={name}
+                          name={name}
+                          selected={name === reading?.name}
+                          onOpen={reading?.open}
+                        />
                       ))}
                   </div>
                 ) : null}
@@ -181,7 +194,12 @@ export default function ChatScreen({
             {createdFiles.length ? (
               <div className="file-cards">
                 {createdFiles.map((name) => (
-                  <FileCard key={name} name={name} />
+                  <FileCard
+                          key={name}
+                          name={name}
+                          selected={name === reading?.name}
+                          onOpen={reading?.open}
+                        />
                 ))}
               </div>
             ) : null}

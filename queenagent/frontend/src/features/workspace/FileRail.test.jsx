@@ -113,11 +113,13 @@ test("an open file widens the rail rather than taking it over", () => {
 
 test("the row of the file being read is the marked one", () => {
   // Madde 21 wrote this rule with nowhere to show it. Here is where it shows.
-  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
-  expect(screen.getByText("outline.md").closest(".file-row").className).toContain(
-    "file-row--selected",
+  // Asked for inside the list: the reader's header carries the same name.
+  const { container } = render(
+    <FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />,
   );
-  expect(screen.getByText("sources.txt").closest(".file-row").className).not.toContain("selected");
+  const rows = [...container.querySelectorAll(".file-row")];
+  expect(rows[0].className).toContain("file-row--selected");
+  expect(rows[1].className).not.toContain("selected");
 });
 
 test("another file can be reached without closing the one open", () => {

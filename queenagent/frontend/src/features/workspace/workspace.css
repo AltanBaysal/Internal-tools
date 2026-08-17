@@ -658,8 +658,37 @@
   transition: width 220ms ease;
 }
 
+/* Reading widens the rail rather than emptying it: the list stays beside the reader, so another
+   file can be reached without closing this one. The design gives 320 → 560 and no split; the list
+   takes the narrower half because the document is what the width was asked for. */
 .rail--open {
   width: 560px;
+  display: flex;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.rail__list {
+  width: 200px;
+  flex: none;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.rail--open .reader {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* While a document is being read there is nothing to fold, so the heading is a label again. */
+.rail__head--still {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 8px;
 }
 
 /* Folded to the design's strip. The width transition it already had is what carries it there. */
@@ -820,26 +849,57 @@
   margin-top: 4px;
 }
 
+/* A door rather than a receipt, and the same skeleton the dashed box wore before the file was
+   born: 340px and the card radius. */
 .file-card {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
+  max-width: 340px;
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius-card);
+  border-radius: 12px;
   padding: 11px 14px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
   animation: fadeIn 0.2s ease both;
 }
 
+.file-card:hover {
+  border-color: #d9d0c3;
+}
+
+/* The file the panel is showing. Its row in the rail is marked the same moment, so which one is
+   open reads from either place. */
+.file-card--selected,
+.file-card--selected:hover {
+  background: #f4efe7;
+  border-color: #cfc3b2;
+}
+
 .file-card__name {
+  flex: 1;
+  min-width: 0;
   font-size: 14px;
   color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .file-card__saved {
   font-family: var(--font-mono);
   font-size: 11px;
   color: #6f8a5f;
+}
+
+.file-card__hint {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
 }
 
 /* Inside the block that is still pending, right under the dots. It carries the skeleton of the card
