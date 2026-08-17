@@ -294,7 +294,7 @@
   white-space: pre-wrap;
 }
 
-/* Mira's turn carries no bubble -- the design gives the answer the page itself. */
+/* QueenAgent's turn carries no bubble -- the design gives the answer the page itself. */
 .msg__text {
   max-width: 88%;
   font-size: 15.5px;

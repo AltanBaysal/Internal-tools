@@ -81,7 +81,7 @@ export default function ChatScreen({
                 className={message.role === "user" ? "msg msg--user" : "msg msg--ai"}
               >
                 <div className="msg__label">
-                  {message.role === "user" ? "You" : "Mira"} · {clockTime(message.at)}
+                  {message.role === "user" ? "You" : "QueenAgent"} · {clockTime(message.at)}
                 </div>
                 <div className={message.role === "user" ? "msg__bubble" : "msg__text"}>
                   {message.text}
@@ -100,7 +100,7 @@ export default function ChatScreen({
             ))}
             {streamingText ? (
               <div className="msg msg--ai" data-testid="streaming">
-                <div className="msg__label">Mira</div>
+                <div className="msg__label">QueenAgent</div>
                 <div className="msg__text">{streamingText}</div>
               </div>
             ) : null}
@@ -109,7 +109,7 @@ export default function ChatScreen({
               // Three blinking dots and nothing else, and only until the first piece lands: the
               // design refuses a fake partial answer.
               <div className="msg msg--ai" data-testid="thinking">
-                <div className="msg__label">Mira</div>
+                <div className="msg__label">QueenAgent</div>
                 <div className="dots">
                   <span className="dots__dot" />
                   <span className="dots__dot" />

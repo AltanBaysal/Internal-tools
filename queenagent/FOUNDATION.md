@@ -1,4 +1,4 @@
-# Mira — Foundation
+# QueenAgent — Foundation
 
 Engineering principles and architecture decisions, independent of any product shape.
 Principles say which value wins when two collide while writing code; decisions record the
@@ -55,14 +55,14 @@ first time either side changes. Presentation concerns (formatting, what is enabl
 while typing) stay in the UI.
 
 **5. Disk is the only persistent store.**
-Everything lives under one root, named in exactly one place: `MIRA_ROOT`. The root sits outside the
-repo, so user data never lands in the source tree and `git status` never sees it.
+Everything lives under one root, named in exactly one place: `QUEENAGENT_ROOT`. The root sits
+outside the repo, so user data never lands in the source tree and `git status` never sees it.
 
 **6. xAI Grok is the engine, behind our own thin layer.**
 We write our own transport, our own agent loop and our own tools on top of it. Why: the loop and the
 tools are the product; the vendor behind them should be replaceable without touching either.
 
 **7. No dependency on `collab-toolbox/` or `queen-editor/`.**
-No imported module, no shared file, no shared store. What Mira inherits from queen-editor is
+No imported module, no shared file, no shared store. What QueenAgent inherits from queen-editor is
 documents, not code: the layering rules, the language split and the test discipline. Why: the tools
 must be able to evolve and break independently.

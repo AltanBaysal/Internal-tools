@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 Internal tools monorepo, one folder per tool: **collab-toolbox** (Colab notebooks), **queen-editor**
-(web UI) and **mira** (web UI). Adding a tool means a new subfolder and a section here.
+(web UI) and **queenagent** (web UI). Adding a tool means a new subfolder and a section here.
 
 ## Working rules
 
@@ -13,7 +13,7 @@ Internal tools monorepo, one folder per tool: **collab-toolbox** (Colab notebook
 - **Language splits by reader.** Turkish is what a human sees: notebook markdown cells, everything
   printed at runtime (`print` / `log` / `assert` / `RuntimeError`), queen-editor's UI, and the specs
   and plans under `docs/`. English is what a developer reads: code, comments, docstrings, commit
-  messages, these repo docs — and Mira's UI, which is English on purpose.
+  messages, these repo docs — and QueenAgent's UI, which is English on purpose.
 - **A comment says WHY, and only what is true now.** e.g. `MAX_CHUNK_DURATION = 10  # model trained
   on 8s — large drift hurts quality`. `# OLD:` / `# NEW:` traces and claims about past behaviour are
   banned; on a conflict the comment is fixed to match the code, never the reverse.
@@ -48,17 +48,23 @@ or Colab serves a stale UI.
 all before the server starts. The app downloads nothing; its Üreticiler panel reads the disk and says
 what is here.
 
-## mira — Mira (web UI)
+## queenagent — QueenAgent (web UI)
 
 A small AI workspace: a **project** holds two sibling collections, **chats** and **files**. Chats
 produce files; a file belongs to the project, never to a chat, and the user reads files rather than
 uploading them. xAI Grok drives an agent loop with three tools (`list_files`, `read_file`,
 `create_file`) and decides whether a reply becomes a file. Principles:
-[FOUNDATION.md](mira/FOUNDATION.md); layering: [CODE-STANDARD.md](mira/CODE-STANDARD.md); build
-order: [the v1 roadmap](docs/superpowers/plans/2026-08-09-mira-v1-roadmap.md), grounded in
-[the design](docs/superpowers/specs/2026-08-09-mira-v1-design.md).
+[FOUNDATION.md](queenagent/FOUNDATION.md); layering:
+[CODE-STANDARD.md](queenagent/CODE-STANDARD.md); what is being built now:
+[the v2 roadmap](docs/superpowers/plans/2026-08-15-queenagent-v2-roadmap.md), grounded in
+[the design v2 diff](docs/superpowers/research/2026-08-14-mira-tasarim-farklari.md) and
+[the decisions it produced](docs/superpowers/research/2026-08-14-mira-tasarim-kararlari.md).
 
-**Two things differ from queen-editor — do not carry that tool's habits over.** Mira's UI text is
-English, because its design was written in English and translating it would stop the design from
-being the source. And `dist/` is not committed: Mira runs locally, `python mira/main.py` on port
-8100, so whoever runs it also builds it.
+**It was called Mira until v2.** The v1 documents keep that name and stay as they are — they record
+what was true then: [the v1 roadmap](docs/superpowers/plans/2026-08-09-mira-v1-roadmap.md) and
+[the v1 design](docs/superpowers/specs/2026-08-09-mira-v1-design.md).
+
+**Two things differ from queen-editor — do not carry that tool's habits over.** QueenAgent's UI text
+is English, because its design was written in English and translating it would stop the design from
+being the source. And `dist/` is not committed: QueenAgent runs locally,
+`python queenagent/main.py` on port 8100, so whoever runs it also builds it.

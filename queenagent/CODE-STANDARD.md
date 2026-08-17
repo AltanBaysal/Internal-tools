@@ -1,4 +1,4 @@
-# Mira — Code Standard
+# QueenAgent — Code Standard
 
 Two building blocks, feature-first. Read this before adding code.
 The principles and stack decisions these rules serve: [FOUNDATION.md](FOUNDATION.md).
@@ -14,8 +14,8 @@ Vite's own server and proxies `/api` to Flask, so a UI change does not cost a fu
 
 ## Independence
 
-Mira depends on nothing under `collab-toolbox/` or `queen-editor/` — no imported module, no shared
-file, no shared store. What it inherits from queen-editor is **documents, not code**: the layering
+QueenAgent depends on nothing under `collab-toolbox/` or `queen-editor/` — no imported module, no
+shared file, no shared store. What it inherits from queen-editor is **documents, not code**: the layering
 rules below, the language split, and the test discipline. The two tools must be able to evolve and
 break independently.
 
@@ -30,7 +30,7 @@ The store follows the same rule, and it is why there is no file-index file:
 |---|---|---|
 | `project.json` | what is this project called and how does it look | on create, on rename |
 | `chats/<id>.json` | what was said in this conversation | after each message |
-| `files/<name>` | what did Mira produce | when a file is created |
+| `files/<name>` | what did QueenAgent produce | when a file is created |
 | `trash/<name>` | what did the user just delete | on delete; moved back on undo |
 
 **No file repeats another's answer.** The file list is the directory listing itself: the name is the
@@ -83,8 +83,8 @@ Same feature-first shape: `features/<name>/` with components and data access; `s
 wrapper and `app.css`.
 
 **There is no `vendor/` directory, and the design is a visual specification rather than source code.**
-queen-editor copies component files verbatim from its design project; Mira cannot. Its prototype is a
-single monolithic `DCLogic` component with inline style strings and DC-only attributes such as
+queen-editor copies component files verbatim from its design project; QueenAgent cannot. Its
+prototype is a single monolithic `DCLogic` component with inline style strings and DC-only attributes such as
 `style-hover` — there is no component file to copy. So we write the React ourselves and stay faithful
 to the design's colours, type, measurements and behaviour.
 
@@ -97,16 +97,16 @@ component never writes its own focus outline and never invents a fifth animation
 **Everything is English**: UI text, code, comments, docstrings, test names and commit messages. The
 superpowers specs and plans under `docs/` are Turkish.
 
-This differs from queen-editor deliberately. That tool's rule is "UI text is Turkish"; Mira's UI is
+This differs from queen-editor deliberately. That tool's rule is "UI text is Turkish"; QueenAgent's UI is
 English because every string in its design was written in English, and translating them would stop
 the design from being the source. Do not carry the neighbouring tool's rule over here.
 
 ## Tests
 
-Backend: run `pytest` from `mira/`. Domain and use cases test with fake ports — no network, no real
-store.
+Backend: run `pytest` from `queenagent/`. Domain and use cases test with fake ports — no network, no
+real store.
 
-Frontend: run `npm test` from `mira/frontend/` (vitest + jsdom). Test files sit next to their source
+Frontend: run `npm test` from `queenagent/frontend/` (vitest + jsdom). Test files sit next to their source
 as `<name>.test.js(x)`; they are never imported, so they stay out of `dist/`. Network and clock are
 faked (`vi.stubGlobal("fetch", …)`, `vi.useFakeTimers()`) — no test waits a real second, and none of
 them needs a browser or a network. Testing Library's `waitFor` does not understand vitest's fake

@@ -42,7 +42,7 @@ export default function FileRail({ files = [], loading, reading, deleting, onRen
               : null}
             {!loading && !files.length ? (
               <p className="file-list__empty">
-                No files yet — send a message and Mira will create one.
+                No files yet — send a message and QueenAgent will create one.
               </p>
             ) : null}
           </div>

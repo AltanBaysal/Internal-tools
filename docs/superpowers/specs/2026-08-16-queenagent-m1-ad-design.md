@@ -108,7 +108,8 @@ Yeni değişken adı başka hiçbir dosyada geçmez.
 1. `queenagent/` altında `Mira`, `MIRA`, `mira` araması **sonuç vermez**.
 2. `docs/superpowers/` altında arama yalnız **tarihî** belgelerde sonuç verir; v2 yol haritası ve bu
    spec yeni adı kullanır.
-3. `CLAUDE.md`'de Mira geçmez.
+3. `CLAUDE.md`'de "Mira" yalnız **tarihî bağlamda** geçer: v1 belgelerinin dosya adlarında ve "v2'ye
+   kadar Mira deniyordu" notunda. Yaşayan hiçbir kuralda, komutta ya da bağlantı metninde geçmez.
 4. `python -m pytest queenagent` yeşil; `npm test --prefix queenagent/frontend` yeşil.
 5. Uygulama açılır, kenar çubuğunda `QueenAgent` yazar, çalışma alanı boştur.
 

@@ -15,7 +15,7 @@ export default function Sidebar({
     <aside className="sidebar">
       <div className="sidebar__brand">
         <span className="sidebar__mark" />
-        <span className="sidebar__wordmark">Mira</span>
+        <span className="sidebar__wordmark">QueenAgent</span>
       </div>
 
       <button type="button" className="sidebar__search" onClick={onSearch}>

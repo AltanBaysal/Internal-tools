@@ -1,4 +1,4 @@
-"""The three tools Mira can reach for, and the rules around them.
+"""The three tools QueenAgent can reach for, and the rules around them.
 
 The rules live here rather than in data/ because what a file may be called is a product decision,
 not a detail of how a directory works.

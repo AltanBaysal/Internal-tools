@@ -10,7 +10,7 @@ PORT = 8100  # queen-editor owns 8000 and both can run on this machine at the sa
 
 # Every project is a folder under this root. It lives outside the repo so user data never lands in
 # the source tree and `git status` never sees it.
-ROOT = os.environ.get("MIRA_ROOT", os.path.join(os.path.expanduser("~"), "Mira"))
+ROOT = os.environ.get("QUEENAGENT_ROOT", os.path.join(os.path.expanduser("~"), "QueenAgent"))
 
 # The engine is reached over the network; the key has no default, so an unset one is visible.
 XAI_API_KEY = os.environ.get("XAI_API_KEY", "")

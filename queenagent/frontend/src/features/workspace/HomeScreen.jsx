@@ -26,7 +26,7 @@ export default function HomeScreen({
             and naming a target before that decision would be answering it from the wrong place. */}
         <Composer
           rows={3}
-          placeholder="Ask anything — Mira saves the answer to your project as a file."
+          placeholder="Ask anything — QueenAgent saves the answer to your project as a file."
           action="Send"
           suggestions={SUGGESTIONS}
           onSubmit={onSend}

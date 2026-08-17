@@ -4,7 +4,7 @@ export default function OfflineStrip({ online }) {
   if (online) return null;
   return (
     <div className="offline" data-testid="offline">
-      You&apos;re offline. Messages are saved; Mira will answer when the connection is back.
+      You&apos;re offline. Messages are saved; QueenAgent will answer when the connection is back.
     </div>
   );
 }

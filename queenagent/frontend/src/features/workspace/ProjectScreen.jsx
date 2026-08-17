@@ -115,7 +115,7 @@ export default function ProjectScreen({
               </div>
             </div>
             <div>
-              <h2 className="column__title">Files Mira created</h2>
+              <h2 className="column__title">Files QueenAgent created</h2>
               <FileStrip
                 deleted={deleting?.deleted}
                 error={deleting?.error}
@@ -138,7 +138,7 @@ export default function ProjectScreen({
                   : null}
                 {!loadingFiles && !files.length ? (
                   <p className="file-list__empty">
-                    No files yet — start a chat and Mira will create one.
+                    No files yet — start a chat and QueenAgent will create one.
                   </p>
                 ) : null}
               </div>
