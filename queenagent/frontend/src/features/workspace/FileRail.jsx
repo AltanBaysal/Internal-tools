@@ -8,12 +8,15 @@ import FileRow from "./FileRow.jsx";
 //
 // The heading is the control in both states -- the header when it is open, the strip when it is
 // folded -- because "the header folds it" and "one click on the strip opens it" are one sentence.
+//
+// Its rows do one thing: open a file. Deleting lives on the project screen, where the list is the
+// subject rather than something standing beside a conversation.
 function railClass(reading, collapsed) {
   if (reading?.name) return "rail rail--open";
   return collapsed ? "rail rail--collapsed" : "rail";
 }
 
-export default function FileRail({ files = [], loading, reading, deleting, collapsed, onToggle }) {
+export default function FileRail({ files = [], loading, reading, collapsed, onToggle }) {
   return (
     <aside className={railClass(reading, collapsed)} data-testid="file-rail">
       {reading?.name ? (
@@ -37,10 +40,6 @@ export default function FileRail({ files = [], loading, reading, deleting, colla
             <span className="rail__count">{files.length}</span>
             <span className="rail__chevron">{collapsed ? "‹" : "›"}</span>
           </button>
-          {/* No offer to bring anything back, but a refusal is still worth a line. */}
-          {deleting?.error && !collapsed ? (
-            <p className="file-list__error">{deleting.error}</p>
-          ) : null}
           {/* Not merely hidden: folded, there is no list, and the strip is what stands in its
               place. */}
           {collapsed ? null : (
@@ -53,8 +52,8 @@ export default function FileRail({ files = [], loading, reading, deleting, colla
                   <FileRow
                     key={file.name}
                     file={file}
+                    selected={file.name === reading?.name}
                     onOpen={reading?.open}
-                    onDelete={deleting?.remove}
                   />
                 ))
               : null}

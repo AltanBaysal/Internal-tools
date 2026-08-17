@@ -213,7 +213,10 @@ test("the rail is a surface of its own rather than the canvas with a line on it"
 });
 
 test("the row being read is marked, and hovering is not the same as being open", () => {
-  expect(rule(".file-row--selected")).toContain("background: #efebe4");
+  // Written as one grouped rule on purpose: being read outranks being pointed at, so the selected
+  // tone has to survive the hover.
+  const selected = CSS.slice(CSS.indexOf("\n.file-row--selected,"));
+  expect(selected.slice(0, selected.indexOf("}"))).toContain("background: #efebe4");
   expect(rule(".file-row:hover")).toContain("background: #f0ece5");
 });
 

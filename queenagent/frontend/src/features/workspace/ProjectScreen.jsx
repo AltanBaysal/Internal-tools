@@ -100,6 +100,7 @@ export default function ProjectScreen({
                       <FileRow
                         key={file.name}
                         file={file}
+                        selected={file.name === reading?.name}
                         onOpen={reading?.open}
                         onDelete={deleting?.remove}
                       />

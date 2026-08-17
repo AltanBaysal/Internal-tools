@@ -652,6 +652,9 @@
   border-left: 1px solid var(--line);
   padding: 20px 18px;
   overflow-y: auto;
+  /* A surface of its own rather than the canvas with a line drawn on it. Written here, so the
+     folded strip and the narrow-window row inherit it without saying so again. */
+  background: #fbf9f5;
   transition: width 220ms ease;
 }
 
@@ -738,6 +741,12 @@
 
 .file-row:hover {
   background: #f0ece5;
+}
+
+/* Being read is not the same as being pointed at, so it is a tone darker and it stays. */
+.file-row--selected,
+.file-row--selected:hover {
+  background: #efebe4;
 }
 
 /* A fixed square, not a label that grows with its text: however long the extension, the rows stay

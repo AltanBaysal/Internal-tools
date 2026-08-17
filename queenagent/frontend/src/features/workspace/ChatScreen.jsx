@@ -223,7 +223,6 @@ export default function ChatScreen({
         files={files}
         loading={loadingFiles}
         reading={reading}
-        deleting={deleting}
         collapsed={railCollapsed}
         onToggle={onToggleRail}
       />
