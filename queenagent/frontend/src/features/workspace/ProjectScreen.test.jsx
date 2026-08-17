@@ -77,6 +77,16 @@ test("clicking a file opens it beside the grid, which drops to one column", () =
   expect(container.querySelector(".project-grid").className).toContain("project-grid--reading");
 });
 
+test("the panel beside the grid closes rather than going back", () => {
+  // There is nothing to go back to: the grid is still there under it.
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  const close = vi.fn();
+  const reading = { name: "outline.md", file: { ...files[0], size: 7, text: "read me" }, close };
+  render(<ProjectScreen project={PROJECT} files={files} reading={reading} />);
+  fireEvent.click(screen.getByRole("button", { name: "×" }));
+  expect(close).toHaveBeenCalled();
+});
+
 test("a chat row can be asked to go, and asking is all the row does", () => {
   const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
   const onDeleteChat = vi.fn();

@@ -111,6 +111,14 @@ test("an open file widens the rail rather than taking it over", () => {
   expect(screen.getByTestId("file-rail").className).toContain("rail--open");
 });
 
+test("the rail's reader is come back from rather than closed", () => {
+  // The panel here is the rail widened, so it keeps the arrow. The project screen's panel is a
+  // surface of its own and closes with an ×.
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
+  expect(screen.getByRole("button", { name: "←" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "×" })).toBeNull();
+});
+
 test("the row of the file being read is the marked one", () => {
   // Madde 21 wrote this rule with nowhere to show it. Here is where it shows.
   // Asked for inside the list: the reader's header carries the same name.

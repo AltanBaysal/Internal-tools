@@ -241,6 +241,42 @@ test("while reading, the rail is two columns and the list keeps one", () => {
   expect(rule(".rail__list")).toContain("width: 200px");
 });
 
+// The second scale, written against the reader's own container for the same reason the bubble's is
+// written against the message's: neither may reach into the other.
+test("the reader draws its document at the doc scale", () => {
+  expect(rule(".reader__body .md h1")).toContain("font-size: 25px");
+  expect(rule(".reader__body .md h2")).toContain("font-size: 20px");
+  expect(rule(".reader__body .md h3")).toContain("font-size: 15.5px");
+  // The bubble keeps its own three; a page-level size arriving here must not follow the parser back.
+  expect(rule(".msg__text .md h1")).toContain("font-size: 19.5px");
+});
+
+test("the document reads at the design's size and leading", () => {
+  const body = rule(".reader__body");
+  expect(body).toContain("font-size: 14.5px");
+  expect(body).toContain("line-height: 1.8");
+  expect(body).toContain("padding: 26px 28px");
+  // The parser owns the line breaks here too -- kept, the rule would double every gap.
+  expect(body).not.toContain("white-space");
+});
+
+test("the header and the footer stay while the document scrolls", () => {
+  expect(rule(".reader__head")).toContain("flex: none");
+  expect(rule(".reader__body")).toContain("overflow-y: auto");
+  expect(rule(".reader__meta")).toContain("flex: none");
+  expect(rule(".reader__meta")).toContain("border-top: 1px solid var(--line)");
+  // The reader as a whole no longer scrolls: that is what used to carry the head away.
+  expect(rule(".rail--open .reader")).not.toContain("overflow-y");
+});
+
+test("the room around the document belongs to the document", () => {
+  // Once the body carries the design's 26/28 the container's own padding would sit under it, so it
+  // moves to the list -- the only thing left in the rail that still needs it.
+  expect(rule(".panel")).toContain("padding: 0");
+  expect(rule(".rail--open")).toContain("padding: 0");
+  expect(rule(".rail__list")).toContain("padding: 20px 18px");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.
