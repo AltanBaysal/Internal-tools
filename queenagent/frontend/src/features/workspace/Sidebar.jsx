@@ -1,5 +1,3 @@
-import ProjectDot from "./ProjectDot.jsx";
-
 // A chat lives inside a project, so the two chat sections follow the selected one: with none
 // selected they are absent rather than empty or disabled.
 const MOST_CHATS = 8;
@@ -48,7 +46,7 @@ export default function Sidebar({
             }
             onClick={() => onOpenProject(project.id)}
           >
-            <ProjectDot hue={project.hue} />
+            <span className="dot" />
             <span className="sidebar__row-name">{project.name}</span>
             <span className="sidebar__row-badge">{project.files || ""}</span>
           </button>

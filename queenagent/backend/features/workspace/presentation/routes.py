@@ -206,7 +206,6 @@ def _project_json(project):
     return {
         "id": project.id,
         "name": project.name,
-        "hue": project.hue,
         "createdAt": project.created_at,
         "chats": project.chat_count,
         "files": project.file_count,

@@ -6,7 +6,6 @@ from dataclasses import dataclass
 class Project:
     id: str
     name: str
-    hue: int
     created_at: str
     # Derived from the directories at read time and never written back: the counts are the
     # directory's own answer, so storing them would be a second copy that can go stale.

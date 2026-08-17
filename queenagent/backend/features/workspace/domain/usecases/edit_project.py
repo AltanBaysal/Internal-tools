@@ -18,8 +18,7 @@ def edit_project(store, project_id, name=None) -> Project:
             raise InvalidProjectName(name)
         changes["name"] = trimmed
 
-    # hue and created_at are never in `changes`: one is part of the project's identity, the other is
-    # its history.
+    # created_at is never in `changes`: it is the project's history, not something a rename rewrites.
     edited = replace(current, **changes)
     store.replace(edited)
     return edited

@@ -4,8 +4,16 @@
   --canvas: #f7f5f1;
   --sidebar: #efebe4;
   --surface: #fffdfa;
+  /* One accent, and it marks the primary action only. Its two hovers are different colours because
+     a filled surface and a coloured word do not darken the same way. */
   --accent: #b5623c;
-  --accent-strong: #8f4a2c;
+  --accent-hover: #9e5232;
+  --accent-link-hover: #8f4a2c;
+  /* The one family that is allowed to be red: destructive actions and nothing else. */
+  --destructive: #b23a2e;
+  --destructive-hover: #973026;
+  --destructive-line: #ebcfc9;
+  --destructive-soft: #fdf4f2;
   --ink: #22201d;
   --muted: #8b8378;
   --line: #e2dcd2;
@@ -43,7 +51,7 @@ a {
 }
 
 a:hover {
-  color: var(--accent-strong);
+  color: var(--accent-link-hover);
 }
 
 :focus-visible {

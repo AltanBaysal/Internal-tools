@@ -28,7 +28,7 @@ The store follows the same rule, and it is why there is no file-index file:
 
 | Artifact | The question it answers | Written when |
 |---|---|---|
-| `project.json` | what is this project called and how does it look | on create, on rename |
+| `project.json` | what is this project called, and since when | on create, on rename |
 | `chats/<id>.json` | what was said in this conversation | after each message |
 | `files/<name>` | what did QueenAgent produce | when a file is created |
 | `trash/<name>` | what did the user just delete | on delete; moved back on undo |

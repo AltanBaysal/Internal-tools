@@ -52,7 +52,7 @@
 }
 
 .sidebar__new-chat:hover {
-  background: var(--accent-strong);
+  background: var(--accent-hover);
 }
 
 .sidebar__plus {
@@ -436,7 +436,7 @@
 }
 
 .row-x:hover {
-  color: #8a5237;
+  color: var(--destructive);
 }
 
 .strip {
@@ -475,7 +475,7 @@
 }
 
 .strip__undo:hover {
-  color: var(--accent-strong);
+  color: var(--accent-link-hover);
 }
 
 .strip__detail {
@@ -806,7 +806,7 @@
 }
 
 .empty__action:hover {
-  background: var(--accent-strong);
+  background: var(--accent-hover);
 }
 
 .empty__error {
@@ -863,7 +863,7 @@
 }
 
 .composer__send--ready:hover {
-  background: var(--accent-strong);
+  background: var(--accent-hover);
 }
 
 .ghost {
@@ -881,9 +881,15 @@
   border-color: #c9bfb2;
 }
 
+/* A marker, not an action: one tone for every project, and the muted one so the eye reaches the
+   name first. */
 .dot {
   display: block;
   flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--muted);
 }
 
 /* --- narrow windows ----------------------------------------------------- */
