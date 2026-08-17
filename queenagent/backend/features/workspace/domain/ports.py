@@ -67,9 +67,6 @@ class FileStore(Protocol):
     def write(self, project_id: str, name: str, content: str) -> str:
         """Write a file and answer with the name actually used."""
 
-    def rename(self, project_id: str, name: str, wanted: str) -> File | None:
-        """Rename a file and answer with the row it became, or None if there is no such file."""
-
     def delete(self, project_id: str, name: str) -> str | None:
         """Move a file to the trash and answer with the name it took there, or None if it is gone."""
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 // The draft lives here rather than in App: it is the box's momentary state, not something a screen
 // keeps. Only the finished text leaves, through onSubmit.
-export default function Composer({ rows, placeholder, note, action, onSubmit }) {
+export default function Composer({ rows, placeholder, action, onSubmit }) {
   const [draft, setDraft] = useState("");
   const ready = draft.trim().length > 0;
 
@@ -32,7 +32,6 @@ export default function Composer({ rows, placeholder, note, action, onSubmit }) 
         onKeyDown={onKeyDown}
       />
       <div className="composer__foot">
-        {note ? <span className="composer__note">{note}</span> : null}
         <button
           type="button"
           className={ready ? "composer__send composer__send--ready" : "composer__send"}

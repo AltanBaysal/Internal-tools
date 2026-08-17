@@ -10,7 +10,6 @@ from backend.features.workspace.domain.errors import (
     EmptyMessage,
     EngineFailed,
     FileNotFound,
-    InvalidChatTitle,
     InvalidProjectName,
     NameTaken,
     ProjectNotFound,
@@ -26,8 +25,6 @@ from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.list_recent_chats import list_recent_chats
 from backend.features.workspace.domain.usecases.read_file import read_file
-from backend.features.workspace.domain.usecases.rename_chat import rename_chat
-from backend.features.workspace.domain.usecases.rename_file import rename_file
 from backend.features.workspace.domain.usecases.restore_file import restore_file
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
@@ -139,29 +136,6 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
                 "size": body.size,
                 "text": body.text,
             }
-        )
-
-    @workspace_bp.patch("/api/projects/<project_id>/chats/<chat_id>")
-    def patch_chat(project_id, chat_id):
-        payload = request.get_json(silent=True) or {}
-        try:
-            chat = rename_chat(chat_store, project_id, chat_id, payload.get("title"))
-        except ChatNotFound:
-            return jsonify({"error": "chat not found"}), 404
-        except InvalidChatTitle:
-            return jsonify({"error": "a chat needs a title"}), 400
-        return jsonify(_chat_summary(chat))
-
-    @workspace_bp.patch("/api/projects/<project_id>/files/<name>")
-    def patch_file(project_id, name):
-        payload = request.get_json(silent=True) or {}
-        try:
-            renamed = rename_file(file_store, project_id, name, payload.get("name"))
-        except FileNotFound:
-            return jsonify({"error": "file not found"}), 404
-        # The name actually used, which is not always the one asked for.
-        return jsonify(
-            {"name": renamed.name, "ext": renamed.ext, "modifiedAt": renamed.modified_at}
         )
 
     @workspace_bp.delete("/api/projects/<project_id>/files/<name>")

@@ -5,7 +5,7 @@ import FileRow from "./FileRow.jsx";
 
 // Always open, never a toggle: the rail sits beside the composer so the user can see what already
 // exists while they are asking for more. Reading a file widens it rather than covering the chat.
-export default function FileRail({ files = [], loading, reading, deleting, onRenameFile }) {
+export default function FileRail({ files = [], loading, reading, deleting }) {
   return (
     <aside className={reading?.name ? "rail rail--open" : "rail"} data-testid="file-rail">
       {reading?.name ? (
@@ -35,7 +35,6 @@ export default function FileRail({ files = [], loading, reading, deleting, onRen
                     key={file.name}
                     file={file}
                     onOpen={reading?.open}
-                    onRename={onRenameFile}
                     onDelete={deleting?.remove}
                   />
                 ))

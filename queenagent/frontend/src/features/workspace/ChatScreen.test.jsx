@@ -146,12 +146,12 @@ test("the chip on a card comes from the name the reply remembers", () => {
 test("a card is not drawn for a file the project no longer holds", () => {
   const chat = {
     ...CHAT,
-    messages: [CHAT.messages[0], { ...CHAT.messages[1], files: ["renamed-away.md"] }],
+    messages: [CHAT.messages[0], { ...CHAT.messages[1], files: ["deleted-away.md"] }],
   };
   // The message remembers what it produced and is never rewritten; the card is that memory crossed
-  // with what exists now, so a renamed or deleted file simply stops having one.
+  // with what exists now, so a deleted file simply stops having one.
   render(<ChatScreen project={PROJECT} chat={chat} files={withFiles("outline.md")} />);
-  expect(screen.queryByText("renamed-away.md")).toBeNull();
+  expect(screen.queryByText("deleted-away.md")).toBeNull();
 });
 
 test("the rail lists the project's files beside the conversation", () => {

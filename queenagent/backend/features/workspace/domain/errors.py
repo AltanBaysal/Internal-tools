@@ -27,7 +27,3 @@ class FileNotFound(Exception):
 
 class NameTaken(Exception):
     """Something already answers to that name, and nothing is ever overwritten."""
-
-
-class InvalidChatTitle(Exception):
-    """A chat cannot be left without a title."""

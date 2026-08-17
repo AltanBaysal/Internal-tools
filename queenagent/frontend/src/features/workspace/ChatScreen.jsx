@@ -29,7 +29,6 @@ export default function ChatScreen({
   loadingFiles,
   reading,
   deleting,
-  onRenameFile,
   error,
   missing,
   thinking,
@@ -59,7 +58,7 @@ export default function ChatScreen({
 
   // A message remembers what it produced and is never rewritten -- that sentence was true when it
   // was said. The card claims something else, that the file exists and is called this, so it is
-  // drawn from the crossing of the two: renamed or deleted, the file simply stops having a card.
+  // drawn from the crossing of the two: once the file is deleted it simply stops having a card.
   const onDisk = new Set(files.map((file) => file.name));
 
   return (
@@ -157,20 +156,13 @@ export default function ChatScreen({
           <Composer
             rows={2}
             placeholder="Reply..."
-            note="save the answer as a file"
             action="Send"
             onSubmit={onSend}
           />
         </div>
       </div>
 
-      <FileRail
-        files={files}
-        loading={loadingFiles}
-        reading={reading}
-        deleting={deleting}
-        onRenameFile={onRenameFile}
-      />
+      <FileRail files={files} loading={loadingFiles} reading={reading} deleting={deleting} />
     </div>
   );
 }

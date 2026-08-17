@@ -1,4 +1,4 @@
-import { deleteJson, patchJson, postJson } from "../../shared/api.js";
+import { deleteJson, postJson } from "../../shared/api.js";
 import { useList } from "../../shared/useList.js";
 
 // Two lists, two questions. The sidebar asks what was touched recently across the whole workspace;
@@ -24,8 +24,4 @@ export function startChatInProject(projectId, text) {
 
 export function deleteChat(projectId, chatId) {
   return deleteJson(`/api/projects/${projectId}/chats/${chatId}`);
-}
-
-export function renameChat(projectId, chatId, title) {
-  return patchJson(`/api/projects/${projectId}/chats/${chatId}`, { title });
 }

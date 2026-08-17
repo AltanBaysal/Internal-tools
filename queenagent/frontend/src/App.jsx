@@ -11,7 +11,6 @@ import Sidebar from "./features/workspace/Sidebar.jsx";
 import { useChat } from "./features/workspace/useChat.js";
 import {
   deleteChat,
-  renameChat,
   startChatInProject,
   useProjectChats,
   useRecentChats,
@@ -28,7 +27,7 @@ export default function App() {
   const { projects, error, loading, createProject, editProject, reloadProjects } = useProjects();
   const { recentChats, reloadRecentChats } = useRecentChats();
   const { projectChats, reloadProjectChats, loadingChats } = useProjectChats(route.projectId);
-  const { files, reloadFiles, loadingFiles, rename, deleting } = useFiles(
+  const { files, reloadFiles, loadingFiles, deleting } = useFiles(
     route.projectId,
     reloadProjects,
   );
@@ -49,9 +48,6 @@ export default function App() {
   // What "New chat" does is Madde 6's decision. Until then it opens the project screen, where a
   // chat is started; the control is only drawn when there is a project, so there is always one.
   const openNewChat = () => openProject(route.projectId ?? projects[0].id);
-  // Madde 5 takes the project screen's back control away. Until then it goes through the fork,
-  // which lands on the first project -- the place it used to reach no longer exists.
-  const leaveProject = () => navigate("/");
 
   // "/" is a fork, not a screen. It is read once the list has arrived -- an empty array cannot tell
   // "there is none" from "not here yet", and deciding early shows the wrong screen for a moment.
@@ -94,23 +90,6 @@ export default function App() {
     // Reading something that is no longer there is not reading, so the panel goes first.
     if (reading.name === name) reading.close();
     return deleting.remove(name);
-  };
-
-  const renameFile = async (name) => {
-    const wanted = window.prompt("File name", name);
-    if (!wanted || !wanted.trim()) return;
-    const renamed = await rename(name, wanted);
-    // The file is still there under another name, so the panel follows it rather than closing.
-    if (renamed && reading.name === name) reading.open(renamed.name);
-  };
-
-  const retitleChat = async (chatId) => {
-    const current = projectChats.find((candidate) => candidate.id === chatId);
-    const title = window.prompt("Chat title", current?.title);
-    if (!title || !title.trim()) return;
-    await renameChat(route.projectId, chatId, title);
-    // Two lists show a title, and neither of them is the other's copy.
-    await Promise.all([reloadProjectChats(), reloadRecentChats()]);
   };
 
   const removeChat = async (chatId) => {
@@ -158,13 +137,10 @@ export default function App() {
             loadingFiles={loadingFiles}
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
-            onBack={leaveProject}
             onRename={askForName}
             onSend={sendFromProject}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
-            onRenameChat={retitleChat}
             onDeleteChat={removeChat}
-            onRenameFile={renameFile}
           />
         ) : null}
 
@@ -176,7 +152,6 @@ export default function App() {
             loadingFiles={loadingFiles}
             reading={reading}
             deleting={{ ...deleting, remove: removeFile }}
-            onRenameFile={renameFile}
             error={chat.error}
             missing={chat.missing}
             thinking={chat.thinking}

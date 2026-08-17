@@ -13,22 +13,16 @@ export default function ProjectScreen({
   loadingFiles,
   reading,
   deleting,
-  onBack,
   onRename,
   onSend,
   onOpenChat,
-  onRenameChat,
   onDeleteChat,
-  onRenameFile,
 }) {
   if (!project) {
     // The address bar is something a person can type into, so a wrong id has to be survivable.
     return (
       <div className="screen">
         <div className="screen__column">
-          <button type="button" className="back" onClick={onBack}>
-            ← back
-          </button>
           <p className="screen__missing">That project does not exist.</p>
         </div>
       </div>
@@ -39,10 +33,6 @@ export default function ProjectScreen({
     <div className="screen-layout">
       <div className="screen">
         <div className="screen__column">
-          <button type="button" className="back" onClick={onBack}>
-            ← back
-          </button>
-
           <div className="screen__title-row">
             <h1 className="screen__title">{project.name}</h1>
             <button type="button" className="ghost" onClick={onRename}>
@@ -53,7 +43,6 @@ export default function ProjectScreen({
           <Composer
             rows={2}
             placeholder="Start a new chat in this project..."
-            note="the answer is saved as a file"
             action="Start"
             onSubmit={onSend}
           />
@@ -77,19 +66,6 @@ export default function ProjectScreen({
                   >
                     <span className="chat-row__title">{chat.title}</span>
                     <span className="chat-row__when">{relativeTime(chat.lastActivity)}</span>
-                    {onRenameChat ? (
-                      <button
-                        type="button"
-                        className="row-act"
-                        aria-label={`Rename ${chat.title}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onRenameChat(chat.id);
-                        }}
-                      >
-                        name
-                      </button>
-                    ) : null}
                     {onDeleteChat ? (
                       <button
                         type="button"
@@ -124,7 +100,6 @@ export default function ProjectScreen({
                         key={file.name}
                         file={file}
                         onOpen={reading?.open}
-                        onRename={onRenameFile}
                         onDelete={deleting?.remove}
                       />
                     ))
@@ -135,9 +110,6 @@ export default function ProjectScreen({
                   </p>
                 ) : null}
               </div>
-              <p className="file-list__note">
-                Chats create the files; you just open and read them.
-              </p>
             </div>
           </div>
         </div>

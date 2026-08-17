@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { deleteJson, patchJson, postJson } from "../../shared/api.js";
+import { deleteJson, postJson } from "../../shared/api.js";
 import { useList } from "../../shared/useList.js";
 
 // The directory is the list. Nothing is kept beyond this array and a new file is a reload rather
@@ -49,29 +49,10 @@ export function useFiles(projectId, onChanged) {
     }
   }, [base, deleted, reload, onChanged]);
 
-  const rename = useCallback(
-    async (name, wanted) => {
-      setError(null);
-      try {
-        // The answer carries the name actually used: asking for a taken one gets a numbered one.
-        const renamed = await patchJson(`${base}/files/${encodeURIComponent(name)}`, {
-          name: wanted,
-        });
-        await reload();
-        return renamed;
-      } catch (failure) {
-        setError(failure.message);
-        return null;
-      }
-    },
-    [base, reload],
-  );
-
   return {
     files: projectId ? items : [],
     reloadFiles: reload,
     loadingFiles: loading,
-    rename,
     deleting: { deleted, error, remove, undo },
   };
 }
