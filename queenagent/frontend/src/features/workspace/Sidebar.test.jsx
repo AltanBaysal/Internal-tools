@@ -59,9 +59,16 @@ test("the sidebar carries no search control", () => {
   expect(screen.queryByText("⌘K")).toBeNull();
 });
 
-test("New chat goes home rather than creating anything", () => {
+test("New chat asks rather than creating anything itself", () => {
   const onNewChat = vi.fn();
-  render(<Sidebar projects={[]} activeProjectId={null} onNewChat={onNewChat} />);
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" onNewChat={onNewChat} />);
   fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
   expect(onNewChat).toHaveBeenCalled();
+});
+
+test("with no projects New chat is hidden rather than disabled", () => {
+  // A chat lives inside a project, so with none there is nothing for the control to do -- and a
+  // disabled button is a dead control the design refuses to draw.
+  render(<Sidebar projects={[]} activeProjectId={null} />);
+  expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });

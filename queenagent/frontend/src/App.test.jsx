@@ -38,6 +38,8 @@ test("with no projects the empty screen stands where home used to", async () => 
   render(<App />);
   await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
   expect(window.location.pathname).toBe("/");
+  // No dead control beside an empty screen.
+  expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });
 
 test("the fork is not written into the history", async () => {
