@@ -888,15 +888,31 @@
 
 /* --- narrow windows ----------------------------------------------------- */
 
-/* The rail goes under the conversation rather than floating over it: a floating rail would need a
-   control to open it, and the design has none. Folding the sidebar means giving up width, not
-   function -- every place stays reachable. Nothing here may produce a horizontal scrollbar. */
-@media (max-width: 1100px) {
+/* The sidebar folds in four steps, and the padding holds until the last of them: giving up width is
+   not the same as giving up room to breathe. Every place stays reachable at every step. The layout
+   below keeps its own threshold until Madde 33 brings both onto one measurement. */
+@media (max-width: 1000px) {
   .sidebar {
-    width: 208px;
+    width: 226px;
+  }
+}
+
+@media (max-width: 780px) {
+  .sidebar {
+    width: 198px;
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    width: 172px;
     padding: 16px 10px;
   }
+}
 
+/* The rail goes under the conversation rather than floating over it: a floating rail would need a
+   control to open it, and the design has none. Nothing here may produce a horizontal scrollbar. */
+@media (max-width: 1100px) {
   .chat-layout,
   .screen-layout {
     flex-direction: column;
