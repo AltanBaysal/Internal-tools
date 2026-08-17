@@ -46,6 +46,8 @@ export default function ChatScreen({
   loadingFiles,
   reading,
   deleting,
+  railCollapsed,
+  onToggleRail,
   error,
   refused,
   missing,
@@ -217,7 +219,14 @@ export default function ChatScreen({
         </div>
       </div>
 
-      <FileRail files={files} loading={loadingFiles} reading={reading} deleting={deleting} />
+      <FileRail
+        files={files}
+        loading={loadingFiles}
+        reading={reading}
+        deleting={deleting}
+        collapsed={railCollapsed}
+        onToggle={onToggleRail}
+      />
     </div>
   );
 }

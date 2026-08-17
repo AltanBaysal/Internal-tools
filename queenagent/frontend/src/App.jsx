@@ -34,6 +34,9 @@ export default function App() {
   // can only close what it can see.
   const [menuFor, setMenuFor] = useState(null);
   const [confirming, setConfirming] = useState(null);
+  // The rail's folded state lasts the session and crosses chats and projects, so it cannot live in
+  // a component that is rebuilt every time the address changes.
+  const [railCollapsed, setRailCollapsed] = useState(false);
   const { projectChats, reloadProjectChats, loadingChats } = useProjectChats(route.projectId);
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
@@ -125,6 +128,13 @@ export default function App() {
     navigate(left.length ? `/p/${left[0].id}` : "/", { replace: true });
   };
 
+  // One rule, one place: opening something must never be a way of hiding it. Madde 22 adds a second
+  // caller -- the card in the transcript -- and will not write the rule again.
+  const openFile = (name) => {
+    setRailCollapsed(false);
+    reading.open(name);
+  };
+
   // Every deletion in the app comes through the same slot: ask, then do. A fourth one would know
   // where to ask without being told.
   const askToDeleteFile = (name) => {
@@ -196,7 +206,7 @@ export default function App() {
             files={files}
             loadingChats={loadingChats}
             loadingFiles={loadingFiles}
-            reading={reading}
+            reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
             onRename={() => askForName(route.projectId)}
             onDelete={() => askToDelete(route.projectId)}
@@ -212,8 +222,10 @@ export default function App() {
             chat={drafting ? DRAFT : chat.chat}
             files={files}
             loadingFiles={loadingFiles}
-            reading={reading}
+            reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
+            railCollapsed={railCollapsed}
+            onToggleRail={() => setRailCollapsed((folded) => !folded)}
             error={chat.error}
             refused={chat.refused}
             missing={chat.missing}

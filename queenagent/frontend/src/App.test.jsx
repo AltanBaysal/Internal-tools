@@ -655,7 +655,7 @@ test("opening a file unfolds the rail rather than hiding what was opened", async
   fold();
   await waitFor(() => expect(screen.queryByText("plan.md")).toBeNull());
 
-  fireEvent.click(screen.getByRole("button", { name: /Thesis|Old/ }));
+  fireEvent.click(screen.getByRole("button", { name: "← Old" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   fireEvent.click(screen.getByText("plan.md"));
   await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
