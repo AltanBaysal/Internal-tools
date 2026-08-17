@@ -38,7 +38,7 @@ def test_move_keeps_the_content_and_clears_the_old_place(tmp_path):
 
 
 def test_root_is_created_on_first_write_not_on_construction(tmp_path):
-    root = tmp_path / "mira-root"
+    root = tmp_path / "queenagent-root"
     store = Store(str(root))
     assert not os.path.exists(root)
     store.write_text("a.txt", "x")

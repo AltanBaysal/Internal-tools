@@ -26,9 +26,9 @@ test("a user message is labelled You with its wall clock", () => {
   expect(screen.getByText("You · 11:04")).toBeTruthy();
 });
 
-test("an answer is labelled Mira", () => {
+test("an answer is labelled QueenAgent", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByText("Mira · 11:05")).toBeTruthy();
+  expect(screen.getByText("QueenAgent · 11:05")).toBeTruthy();
 });
 
 test("both messages are drawn", () => {
@@ -57,7 +57,7 @@ test("nothing blinks when nothing is pending", () => {
   expect(screen.queryByTestId("thinking")).toBeNull();
 });
 
-test("text that is still arriving is drawn as Mira's turn", () => {
+test("text that is still arriving is drawn as QueenAgent's turn", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it" />);
   expect(screen.getByTestId("streaming").textContent).toContain("Here it");
   // The dots are only for the wait before the first piece.

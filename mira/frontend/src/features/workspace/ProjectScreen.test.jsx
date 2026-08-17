@@ -17,7 +17,7 @@ test("the title, the description and both column headings are drawn", () => {
   expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Thesis research");
   expect(screen.getByText("Source summaries.")).toBeTruthy();
   expect(screen.getByText("Chats")).toBeTruthy();
-  expect(screen.getByText("Files Mira created")).toBeTruthy();
+  expect(screen.getByText("Files QueenAgent created")).toBeTruthy();
 });
 
 test("an empty file column teaches instead of sitting blank", () => {
