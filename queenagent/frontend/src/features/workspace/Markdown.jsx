@@ -1,7 +1,17 @@
+import { Fragment } from "react";
+
 import { parseBlocks } from "../../shared/markdown.js";
 
 // Tokens become React elements here and nowhere else. The wrapper carries no size of its own: the
 // container it sits in picks the scale, so one parser serves both the bubble and the file panel.
+//
+// While an answer is still arriving a caret marks where it has got to. That is the end of the text,
+// which in a tree of blocks is a rule rather than a position: it descends to the last block, and
+// into it wherever the block has a text end to sit at.
+
+function Caret() {
+  return <span className="caret" />;
+}
 
 function inline(tokens) {
   return tokens.map((token, key) => {
@@ -29,64 +39,97 @@ function inline(tokens) {
   });
 }
 
-function block(node, key) {
+// The caret belongs to the last block of a run -- and to the run itself when there is no block yet,
+// which is the first frame of every answer.
+function blockList(nodes, caret) {
+  if (!nodes.length) return caret ? <Caret /> : null;
+  return nodes.map((node, key) => block(node, key, caret && key === nodes.length - 1));
+}
+
+function block(node, key, caret) {
   switch (node.type) {
     case "heading": {
       const Heading = `h${node.level}`;
-      return <Heading key={key}>{inline(node.inline)}</Heading>;
+      return (
+        <Heading key={key}>
+          {inline(node.inline)}
+          {caret ? <Caret /> : null}
+        </Heading>
+      );
     }
     case "code":
       return (
         <pre key={key}>
-          <code>{node.text}</code>
+          <code>
+            {node.text}
+            {caret ? <Caret /> : null}
+          </code>
         </pre>
       );
     case "rule":
-      return <hr key={key} />;
+      // Nothing to sit at the end of, so the caret takes a line of its own.
+      return (
+        <Fragment key={key}>
+          <hr />
+          {caret ? <Caret /> : null}
+        </Fragment>
+      );
     case "quote":
-      return <blockquote key={key}>{node.blocks.map(block)}</blockquote>;
+      return <blockquote key={key}>{blockList(node.blocks, caret)}</blockquote>;
     case "list": {
       const List = node.ordered ? "ol" : "ul";
       return (
         <List key={key}>
-          {node.items.map((item, index) => (
-            <li key={index}>
-              {inline(item.inline)}
-              {item.blocks?.map(block)}
-            </li>
-          ))}
+          {node.items.map((item, index) => {
+            const last = caret && index === node.items.length - 1;
+            return (
+              <li key={index}>
+                {inline(item.inline)}
+                {item.blocks ? blockList(item.blocks, last) : null}
+                {last && !item.blocks ? <Caret /> : null}
+              </li>
+            );
+          })}
         </List>
       );
     }
     case "table":
       // Its own scroller: the page never scrolls sideways, so a wide table scrolls inside itself.
       return (
-        <div className="md__table-scroll" key={key}>
-          <table>
-            <thead>
-              <tr>
-                {node.head.map((cell, index) => (
-                  <th key={index}>{inline(cell)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {node.rows.map((row, index) => (
-                <tr key={index}>
-                  {row.map((cell, column) => (
-                    <td key={column}>{inline(cell)}</td>
+        <Fragment key={key}>
+          <div className="md__table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  {node.head.map((cell, index) => (
+                    <th key={index}>{inline(cell)}</th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {node.rows.map((row, index) => (
+                  <tr key={index}>
+                    {row.map((cell, column) => (
+                      <td key={column}>{inline(cell)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {caret ? <Caret /> : null}
+        </Fragment>
       );
     default:
-      return <p key={key}>{inline(node.inline)}</p>;
+      return (
+        <p key={key}>
+          {inline(node.inline)}
+          {caret ? <Caret /> : null}
+        </p>
+      );
   }
 }
 
-export default function Markdown({ text }) {
-  return <div className="md">{parseBlocks(text).map(block)}</div>;
+export default function Markdown({ text, caret = false }) {
+  return <div className="md">{blockList(parseBlocks(text), caret)}</div>;
 }

@@ -1,3 +1,5 @@
+import { useEffect, useRef } from "react";
+
 import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FileRail from "./FileRail.jsx";
@@ -5,6 +7,9 @@ import Markdown from "./Markdown.jsx";
 import Skeleton from "./Skeleton.jsx";
 
 const CHIP_LENGTH = 3;
+// A reader further from the bottom than this is reading, not watching, and the answer must not pull
+// them away from it. The design's own number.
+const STICK_WITHIN = 220;
 
 // A message remembers names, not rows, so the chip's letters are read off the name here -- the same
 // three the server puts on a listed file.
@@ -40,6 +45,22 @@ export default function ChatScreen({
   onSend,
   onRetry,
 }) {
+  const scroll = useRef(null);
+  const toBottom = () => {
+    const list = scroll.current;
+    if (list) list.scrollTop = list.scrollHeight;
+  };
+
+  // A message the user just sent is theirs to see, so the list always jumps.
+  useEffect(toBottom, [chat?.messages.length]);
+
+  // An answer is different: it follows the reader rather than the other way round.
+  useEffect(() => {
+    const list = scroll.current;
+    if (!list) return;
+    if (list.scrollHeight - list.scrollTop - list.clientHeight <= STICK_WITHIN) toBottom();
+  }, [streamingText]);
+
   if (!chat) {
     return (
       <div className="screen">
@@ -73,7 +94,7 @@ export default function ChatScreen({
           <span className="chat__title">{chat.title}</span>
         </header>
 
-        <div className="chat__scroll">
+        <div className="chat__scroll" ref={scroll}>
           <div className="chat__column">
             {chat.messages.map((message, index) => (
               <div
@@ -109,7 +130,7 @@ export default function ChatScreen({
                 <div className="msg__text">
                   {/* Formatted from the first frame: raw first and formatted afterwards would read
                       as a flicker rather than a stream. */}
-                  <Markdown text={streamingText} />
+                  <Markdown text={streamingText} caret />
                 </div>
               </div>
             ) : null}
