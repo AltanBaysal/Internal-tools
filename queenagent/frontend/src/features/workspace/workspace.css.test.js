@@ -129,6 +129,21 @@ test("the caret is the design's block and borrows the dots' blink", () => {
   expect(caret).not.toContain("var(--accent)");
 });
 
+test("the waiting block breathes wider than an ordinary message", () => {
+  // The design measures this one: 10px between the label and the dots, where a message uses 6.
+  expect(rule(".msg--waiting")).toContain("gap: 10px");
+  expect(rule(".msg")).toContain("gap: 6px");
+});
+
+test("the box carries the skeleton of the card about to be born", () => {
+  const creating = rule(".creating");
+  expect(creating).toContain("max-width: 340px");
+  const chip = rule(".creating__chip");
+  expect(chip).toContain("width: 30px");
+  expect(chip).toContain("height: 30px");
+  expect(chip).toContain("border-radius: 7px");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.

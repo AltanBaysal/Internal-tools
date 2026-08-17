@@ -33,10 +33,12 @@ test("nothing is written under the composer", () => {
   expect(screen.queryByText("save the answer as a file")).toBeNull();
 });
 
-test("a user message is labelled You with its wall clock", () => {
-  // The prototype took the name from a prop we never shipped; an unnamed user is "You".
+test("a user message is labelled with the time and nothing else", () => {
+  // The design draws the person's own name there but never says where it comes from, and there is
+  // no such setting. Who wrote it is already clear from the bubble sitting on the right.
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByText("You · 11:04")).toBeTruthy();
+  expect(screen.getByText("11:04")).toBeTruthy();
+  expect(screen.queryByText(/You/)).toBeNull();
 });
 
 test("an answer is labelled QueenAgent", () => {
@@ -96,6 +98,44 @@ test("a file on its way shows a dashed card with no name on it", () => {
   // No name yet: the model's wish still has to be cleaned and a clash still has to be resolved.
   render(<ChatScreen project={PROJECT} chat={CHAT} thinking creatingFile />);
   expect(screen.getByText("creating file…")).toBeTruthy();
+});
+
+test("the waiting label carries the time the wait began", () => {
+  // Today the clock only appears once the answer has been saved; the design wants the label and the
+  // dots on screen together, time and all.
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  expect(screen.getByText("QueenAgent · 14:32")).toBeTruthy();
+  vi.useRealTimers();
+});
+
+test("that time does not move while the answer arrives", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
+  const { rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  vi.setSystemTime(new Date(2026, 7, 9, 14, 35));
+  rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here" />);
+  // It answers "when was this asked for", and that answer stopped being new at 14:32.
+  expect(screen.getByText("QueenAgent · 14:32")).toBeTruthy();
+  vi.useRealTimers();
+});
+
+test("the file being written waits inside the block that is waiting", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} thinking creatingFile />);
+  expect(container.querySelector("[data-testid=thinking] .creating")).toBeTruthy();
+  // The skeleton of the card about to be born: an empty badge slot where the chip will go.
+  expect(container.querySelector(".creating .creating__chip")).toBeTruthy();
+});
+
+test("a file born mid-answer waits under the text instead", () => {
+  // The design never met this one -- in its own flow the file is born at the end of the stream. The
+  // rule that covers both: the box belongs to whichever block is still pending.
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Saving" creatingFile />,
+  );
+  expect(container.querySelector("[data-testid=streaming] .creating")).toBeTruthy();
+  expect(container.querySelectorAll(".creating").length).toBe(1);
 });
 
 test("nothing dashed is drawn when no file is being written", () => {
