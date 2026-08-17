@@ -19,6 +19,7 @@ from backend.features.workspace.domain.usecases.append_message import append_mes
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.delete_chat import delete_chat
 from backend.features.workspace.domain.usecases.delete_file import delete_file
+from backend.features.workspace.domain.usecases.delete_project import delete_project
 from backend.features.workspace.domain.usecases.edit_project import edit_project
 from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
@@ -53,6 +54,15 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
             return jsonify({"error": "a project needs a name"}), 400
         # Re-read so the counts in the answer come from the directories, exactly like the list does.
         return jsonify(_project_json(project_store.get(project_id)))
+
+    @workspace_bp.delete("/api/projects/<project_id>")
+    def delete_project_route(project_id):
+        try:
+            trashed = delete_project(project_store, project_id)
+        except ProjectNotFound:
+            return jsonify({"error": "project not found"}), 404
+        # There is no way back, so the name is only a record of what happened on disk.
+        return jsonify({"trashed": trashed})
 
     @workspace_bp.post("/api/projects/<project_id>/chats")
     def post_chat(project_id):

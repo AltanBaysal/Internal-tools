@@ -1,11 +1,16 @@
 """FileProjectStore -- the only place that knows the project.json schema."""
 import json
 
+from backend.features.workspace.domain.naming import unique_name
 from backend.features.workspace.domain.project import Project
 
 PROJECT_FILE = "project.json"
 CHATS_DIR = "chats"
 FILES_DIR = "files"
+# One trash for whole projects, beside them rather than inside any of them. It can never collide
+# with a project: an id is "p" plus twelve hex characters, and list_all already skips a directory
+# with no project.json in it.
+TRASH_DIR = "trash"
 
 
 class ProjectIdTaken(Exception):
@@ -29,6 +34,15 @@ class FileProjectStore:
             if project.id == project_id:
                 return project
         return None
+
+    def delete(self, project_id):
+        if not self._store.exists(f"{project_id}/{PROJECT_FILE}"):
+            return None
+        # The directory moves whole: the chats and the files go with it rather than being deleted
+        # one by one, and a second project of the same id is numbered rather than written over.
+        trashed = unique_name(self._store.list_dir(TRASH_DIR), project_id)
+        self._store.move(project_id, f"{TRASH_DIR}/{trashed}")
+        return trashed
 
     def list_all(self):
         projects = []

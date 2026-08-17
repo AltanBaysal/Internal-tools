@@ -119,10 +119,10 @@ def test_deleting_a_project_that_is_not_there_says_so(tmp_path):
 
 
 def test_there_is_no_way_to_bring_a_project_back(tmp_path):
-    # Undo is gone everywhere (karar 16): the confirmation is what protects the user, and the disk
-    # keeps the directory. The rule table is what proves no such address exists.
+    # Undo is gone (karar 16): the confirmation is what protects the user, and the disk keeps the
+    # directory. The rule table is what proves no such address exists. The file's own restore is
+    # still here -- that one goes in Madde 19.
     client = _client(tmp_path)
     addresses = [str(rule) for rule in client.application.url_map.iter_rules()]
-    assert not [
-        address for address in addresses if "projects" in address and "restore" in address
-    ]
+    assert "/api/projects/<project_id>/restore" not in addresses
+    assert not [address for address in addresses if address.startswith("/api/trash")]

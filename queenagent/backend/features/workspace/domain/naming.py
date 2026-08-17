@@ -6,11 +6,15 @@ twice. Two copies of this rule would drift apart on the first change to either.
 
 
 def unique_name(existing, name):
-    """Nothing is ever overwritten: plan.md becomes plan-2.md."""
+    """Nothing is ever overwritten: plan.md becomes plan-2.md, and p1 becomes p1-2."""
     if name not in existing:
         return name
-    stem, _, extension = name.rpartition(".")
+    stem, dot, extension = name.rpartition(".")
+    # A directory name has no extension, and rpartition hands the whole name back as the tail.
+    suffix = f".{extension}" if dot else ""
+    if not dot:
+        stem = name
     number = 2
-    while f"{stem}-{number}.{extension}" in existing:
+    while f"{stem}-{number}{suffix}" in existing:
         number += 1
-    return f"{stem}-{number}.{extension}"
+    return f"{stem}-{number}{suffix}"
