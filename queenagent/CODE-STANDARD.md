@@ -67,7 +67,6 @@ Concrete classes are wired only in the composition root (`main.py`).
 This is not a preference, it is what the ban forces. Projects, chats, files and messages cannot be
 separate features, because **writing a file in reply to a message touches all of them at once** —
 splitting them would break `feature ↛ feature` on the first real use case. They are one aggregate.
-Search is a use case inside `workspace`, not a feature of its own.
 
 A second feature is created when a genuinely separate bounded context appears (sharing, identity).
 Today there is none.

@@ -18,8 +18,8 @@ function save(name, text) {
 export function useFile(projectId) {
   // The file is held together with the project it belongs to, and read back only while that is
   // still the project on screen. As a rule that holds by construction it beats an effect that
-  // clears the name later -- an effect would also undo a file opened from another project by a
-  // search hit, in the same breath as the navigation that took us there.
+  // clears the name later -- an effect would also undo a file opened in the same breath as the
+  // navigation that took us to its project.
   const [opened, setOpened] = useState(null);
   const [file, setFile] = useState(null);
   const [missing, setMissing] = useState(false);
@@ -55,7 +55,7 @@ export function useFile(projectId) {
     save(fresh.name, fresh.text);
   }, [path]);
 
-  // A search hit can open a file that lives in another project, so where it lives travels with it.
+  // A caller can open a file that lives in another project, so where it lives travels with it.
   const open = useCallback(
     (fileName, inProject) => setOpened({ projectId: inProject ?? projectId, name: fileName }),
     [projectId],

@@ -40,8 +40,8 @@ test("← closes the panel", () => {
   expect(onClose).toHaveBeenCalled();
 });
 
-// Escape is not this component's key any more: search takes it first, so one owner decides.
-// The behaviour is tested in App.test.jsx.
+// Escape is not this component's key: one listener owns the keyboard, so the order stays in one
+// place. The behaviour is tested in App.test.jsx.
 
 test("a file that is gone says so instead of showing an empty page", () => {
   render(<FilePanel name="plan.md" file={null} missing />);

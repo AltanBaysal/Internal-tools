@@ -402,7 +402,7 @@ test("⌘K is bound to nothing", async () => {
   render(<App />);
   fireEvent.keyDown(window, { key: "k", metaKey: true });
   fireEvent.keyDown(window, { key: "k", ctrlKey: true });
-  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("QueenAgent")).toBeTruthy());
   expect(screen.queryByTestId("search")).toBeNull();
 });
 
@@ -442,7 +442,7 @@ test("nothing asks the server to search", async () => {
   vi.stubGlobal("fetch", fetch);
 
   render(<App />);
-  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("QueenAgent")).toBeTruthy());
   fireEvent.keyDown(window, { key: "k", metaKey: true });
 
   expect(fetch.mock.calls.every(([path]) => !String(path).startsWith("/api/search"))).toBe(true);

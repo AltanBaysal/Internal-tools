@@ -104,10 +104,7 @@ def test_search_is_gone(tmp_path):
     # The design removes search deliberately, so the endpoint is not there to answer.
     client = _client(tmp_path)
     assert client.get("/api/search?q=quantum").status_code == 404
-
-
-def test_search_with_no_query_answers_an_empty_list(tmp_path):
-    assert _client(tmp_path).get("/api/search").get_json() == []
+    assert client.get("/api/search").status_code == 404
 
 
 def test_renaming_over_http_answers_with_the_name_used(tmp_path):

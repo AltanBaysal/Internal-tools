@@ -9,7 +9,6 @@ export default function Sidebar({
   onNewProject,
   onOpenProject,
   onOpenChat,
-  onSearch,
 }) {
   return (
     <aside className="sidebar">
@@ -17,11 +16,6 @@ export default function Sidebar({
         <span className="sidebar__mark" />
         <span className="sidebar__wordmark">QueenAgent</span>
       </div>
-
-      <button type="button" className="sidebar__search" onClick={onSearch}>
-        <span className="sidebar__search-label">Search</span>
-        <span className="sidebar__shortcut">⌘K</span>
-      </button>
 
       <button type="button" className="sidebar__new-chat" onClick={onNewChat}>
         <span className="sidebar__plus">+</span>

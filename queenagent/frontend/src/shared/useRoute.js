@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
-// The address bar is the source of truth for which screen is open: a reload must not lose the
-// user's place, and the search results of Faz 13 need somewhere to jump to. Three shapes are all we
-// have, so this stays a hook rather than a routing dependency.
+// The address bar is the source of truth for which screen is open, so a reload does not lose the
+// user's place. Three shapes are all we have, so this stays a hook rather than a routing
+// dependency.
 export function parsePath(pathname) {
   const parts = pathname.split("/").filter(Boolean);
   if (parts[0] === "p" && parts[1]) {

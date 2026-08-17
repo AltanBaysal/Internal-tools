@@ -7,7 +7,6 @@ import ChatScreen from "./features/workspace/ChatScreen.jsx";
 import HomeScreen from "./features/workspace/HomeScreen.jsx";
 import OfflineStrip from "./features/workspace/OfflineStrip.jsx";
 import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
-import SearchPanel from "./features/workspace/SearchPanel.jsx";
 import Sidebar from "./features/workspace/Sidebar.jsx";
 import { useChat } from "./features/workspace/useChat.js";
 import {
@@ -21,7 +20,6 @@ import {
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
 import { useProjects } from "./features/workspace/useProjects.js";
-import { useSearch } from "./features/workspace/useSearch.js";
 import { useOnline } from "./shared/useOnline.js";
 import { useRoute } from "./shared/useRoute.js";
 
@@ -47,9 +45,6 @@ export default function App() {
     online,
   );
 
-  const [searching, setSearching] = useState(false);
-  const search = useSearch();
-
   const goHome = () => navigate("/");
   const openProject = (id) => navigate(`/p/${id}`);
   const openChat = (projectId, chatId) => navigate(`/p/${projectId}/c/${chatId}`);
@@ -58,28 +53,13 @@ export default function App() {
     // One listener owns the keyboard. Two of them could not agree on an order: they hang off the
     // same window event, and stopping propagation does not stop a sibling.
     const onKey = (event) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setSearching((open) => !open);
-        return;
-      }
       if (event.key !== "Escape") return;
-      // Search first, the reading panel second, and never a step backwards.
-      if (searching) setSearching(false);
-      else if (reading.name) reading.close();
+      // Escape closes what is open and never steps backwards.
+      if (reading.name) reading.close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [searching, reading.name, reading.close]);
-
-  const pickHit = (hit) => {
-    setSearching(false);
-    search.setQuery("");
-    if (hit.kind === "chat") openChat(hit.projectId, hit.chatId);
-    else openProject(hit.projectId);
-    // The file may live in a project we are only now navigating to, so it says which one.
-    if (hit.kind === "file") reading.open(hit.fileName, hit.projectId);
-  };
+  }, [reading.name, reading.close]);
 
   // The screen reads its project out of the list the app already holds; asking the server a second
   // time would be asking for an answer we have.
@@ -151,7 +131,6 @@ export default function App() {
         onNewProject={createProject}
         onOpenProject={openProject}
         onOpenChat={openChat}
-        onSearch={() => setSearching(true)}
       />
       <main className="main">
         {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
@@ -211,17 +190,6 @@ export default function App() {
           />
         ) : null}
       </main>
-
-      {searching ? (
-        <SearchPanel
-          query={search.query}
-          hits={search.hits}
-          searched={search.searched}
-          onQuery={search.setQuery}
-          onPick={pickHit}
-          onClose={() => setSearching(false)}
-        />
-      ) : null}
     </div>
   );
 }

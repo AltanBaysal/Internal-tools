@@ -29,7 +29,6 @@ from backend.features.workspace.domain.usecases.read_file import read_file
 from backend.features.workspace.domain.usecases.rename_chat import rename_chat
 from backend.features.workspace.domain.usecases.rename_file import rename_file
 from backend.features.workspace.domain.usecases.restore_file import restore_file
-from backend.features.workspace.domain.usecases.search import search
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.start_chat_in_new_project import (
     start_chat_in_new_project,
@@ -219,24 +218,6 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
         except ChatNotFound:
             return jsonify({"error": "chat not found"}), 404
         return jsonify({})
-
-    @workspace_bp.get("/api/search")
-    def get_search():
-        return jsonify(
-            [
-                {
-                    "kind": hit.kind,
-                    "label": hit.label,
-                    "projectId": hit.project_id,
-                    "projectName": hit.project_name,
-                    "chatId": hit.chat_id,
-                    "fileName": hit.file_name,
-                }
-                for hit in search(
-                    project_store, chat_store, file_store, request.args.get("q", "")
-                )
-            ]
-        )
 
     @workspace_bp.get("/api/chats")
     def get_recent_chats():
