@@ -35,7 +35,9 @@ onu gözünle süz, komuta boru ekleme. Kırmızı adımda da aynı dize koşulu
 okunur.
 
 **Varsayma, sor.** Koşu maddeler arasında durmaz — ama spec yazarken bir şey **gerçekten belirsizse**
-orada durulur ve kullanıcıya sorulur. Ölçüt "emin değilim" değil, **"iki farklı okuma iki farklı ürün
+orada durulur ve kullanıcıya sorulur. **Beceriler bunun ilan edilmiş istisnasıdır:** Madde 27'den
+Madde 30'a kadar her madde, spec yazılmadan önce kullanıcıyla birlikte tasarlanır — orada koşu
+durur, soru beklemez. Ölçüt "emin değilim" değil, **"iki farklı okuma iki farklı ürün
 üretir"**dir. Sorulacak şeyler yalnız kullanıcı deneyimi değil, teknik de olabilir:
 
 - Geri dönülemez olan her şey: disk düzeni ve dosya biçimi, veri göçü, kalıcı alan adları, uç nokta
@@ -346,6 +348,11 @@ düşer. Ayrıntı: [tasarım belgesi](../specs/2026-08-17-queenagent-m3-home-de
 
 ### Madde 27 — Skills seçici arayüzü *(fark 33; karar 3, 18'in arayüz yarısı)*
 
+> **Dur ve birlikte tasarla.** Becerilerin tasarımı — Madde 27'den Madde 30'a kadar hepsi —
+> kullanıcıyla konuşularak yapılır. Bu maddeye gelindiğinde spec yazılmadan önce durulur; koşu
+> maddeleri arka arkaya götürmez. Karar 18 kümeyi (üç beceri) veriyor, geri kalanını kullanıcı
+> veriyor.
+
 - **Ne çalışır:** model düğmesinin solunda "Skills" düğmesi; menüde üç beceri: **Create scenario**,
   **Split into scenes**, **Generate prompts** (İngilizce etiketler spec'te kesinleşir). Tek seçim;
   seçiliye tekrar basmak temizler; seçiliyken düğme sıcak tonla boyanır ve becerinin adını taşır.
@@ -357,6 +364,10 @@ düşer. Ayrıntı: [tasarım belgesi](../specs/2026-08-17-queenagent-m3-home-de
 ---
 
 ## Faz 7 — Beceriler
+
+> **Dur ve birlikte tasarla.** Madde 27'de başlayan kural burada da geçerli: her becerinin
+> yönergesi, beklenen çıktısı ve dosya biçimi kullanıcıyla konuşularak kararlaştırılır, sonra spec
+> yazılır. Madde 30'un Python listesi zaten böyle işaretliydi; artık üçü de öyle.
 
 Üç beceri de aynı mekanikle çalışır: seçili beceri, o sohbetin sistem yönergesine kendi ekini
 koyar; model gerekirse projedeki dosyaları `list_files`/`read_file` ile okur. Beceriler
