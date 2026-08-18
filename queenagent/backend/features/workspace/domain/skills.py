@@ -5,8 +5,9 @@ A product behaviour like prompt.py, so it lives in the domain. Every text is wri
 is sent, and an instruction in the imperative would start producing something the moment the user
 typed "thanks". What to do comes from the user's own sentence.
 
-English, like the rest of QueenAgent -- its design was written in English and translating it would
-stop the design from being the source.
+The instruction texts are English, like the rest of QueenAgent's own words. What the model writes
+back follows the user's language (prompt.py); the exception is what an image model reads -- the
+prompts and the structure file -- and the two skills that produce those say so in as many words.
 """
 
 CREATE_SCENARIO = (
@@ -18,9 +19,7 @@ CREATE_SCENARIO = (
     "scene headings, no long description of how anything looks. The detail is added by the steps "
     "that come after this one, and a scenario that already carries it leaves them nothing to do.\n"
     "\n"
-    "Write it in the chat and save it with create_file as scenario.md.\n"
-    "\n"
-    "Write the scenario in the language the user is writing in, not in English."
+    "Write it in the chat and save it with create_file as scenario.md."
 )
 
 CREATE_CHARACTER_PROMPT = (
