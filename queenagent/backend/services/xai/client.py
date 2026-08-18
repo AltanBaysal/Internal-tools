@@ -49,8 +49,11 @@ def _delta(raw):
 
 
 class XaiClient:
-    def __init__(self, api_key, model, base_url, opener=urllib.request.urlopen):
-        self._api_key = api_key
+    def __init__(self, read_key, model, base_url, opener=urllib.request.urlopen):
+        # A function rather than a string: the key is settled in the app's own settings and can
+        # change while it runs, so it is read at the moment it is needed. Held as a string, saving
+        # one would need a restart to be worth anything.
+        self._read_key = read_key
         self._model = model
         self._base_url = base_url.rstrip("/")
         # The one line that reaches the network, and the one thing a test replaces.
@@ -87,8 +90,11 @@ class XaiClient:
             raise XaiFailed(str(failure.reason)) from failure
 
     def _request(self, body, tools, model=None):
-        if not self._api_key:
-            raise XaiNotConfigured("XAI_API_KEY is not set")
+        api_key = self._read_key()
+        # Not a guessed cause: there is nothing to send, and that is something known here rather
+        # than read off a 401 from the other end.
+        if not api_key:
+            raise XaiNotConfigured("No API key is set.")
         # The caller's model wins; the configured one is what answers when nobody asked.
         payload = {"model": model or self._model, **body}
         if tools:
@@ -97,7 +103,7 @@ class XaiClient:
             f"{self._base_url}/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
             headers={
-                "Authorization": f"Bearer {self._api_key}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
             method="POST",

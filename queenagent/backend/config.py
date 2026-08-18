@@ -12,8 +12,9 @@ PORT = 8100  # queen-editor owns 8000 and both can run on this machine at the sa
 # the source tree and `git status` never sees it.
 ROOT = os.environ.get("QUEENAGENT_ROOT", os.path.join(os.path.expanduser("~"), "QueenAgent"))
 
-# The engine is reached over the network; the key has no default, so an unset one is visible.
-XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
+# The API key is not here: it is written in the app's own Settings screen and lives in settings.json
+# under ROOT. One road, and it can be changed without restarting the server.
+#
 # What a chat that picked no model of its own answers with. Every chat may carry its own choice, so
 # this is the starting point rather than the only model. Verified against xAI's documentation on
 # 2026-08-09.
