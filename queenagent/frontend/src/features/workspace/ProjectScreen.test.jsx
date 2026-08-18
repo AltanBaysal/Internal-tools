@@ -146,6 +146,13 @@ test("a chat row offers no rename", () => {
   expect(screen.queryByRole("button", { name: "Rename Write the intro" })).toBeNull();
 });
 
+test("the composer here carries no model picker", () => {
+  // The design puts it on the chat composer alone. A chat started from here is born with the last
+  // pick of the session, which is a rule App keeps rather than a control this screen shows.
+  render(<ProjectScreen project={PROJECT} />);
+  expect(screen.queryByRole("button", { name: /Grok/ })).toBeNull();
+});
+
 test("the screen starts with its title", () => {
   render(<ProjectScreen project={PROJECT} onBack={vi.fn()} />);
   expect(screen.queryByRole("button", { name: "← back" })).toBeNull();

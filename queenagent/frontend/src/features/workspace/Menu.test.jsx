@@ -65,6 +65,34 @@ test("the menu does not take the keyboard for itself", () => {
   onWindow.mockRestore();
 });
 
+// Three callers, one box. The sidebar's menu is a bare list; the model's carries a label over it,
+// a line under each name and a mark on the one in use. Extended rather than copied -- that was the
+// whole of Madde 25.
+test("a menu can be given a label to stand under", () => {
+  render(<Menu items={ITEMS} header="MODEL" />);
+  expect(screen.getByText("MODEL")).toBeTruthy();
+});
+
+test("without one it draws no empty label", () => {
+  const { container } = render(<Menu items={ITEMS} />);
+  expect(container.querySelector(".menu__header")).toBeNull();
+});
+
+test("an item can say a second line about itself", () => {
+  render(<Menu items={[{ label: "Grok 4.6", detail: "$2 / $6 per 1M" }]} />);
+  expect(screen.getByText("$2 / $6 per 1M")).toBeTruthy();
+});
+
+test("the one in use is the marked one", () => {
+  const { container } = render(
+    <Menu items={[{ label: "Grok 4.6", checked: true }, { label: "Grok 4.5" }]} />,
+  );
+  const items = [...container.querySelectorAll(".menu__item")];
+  expect(items[0].className).toContain("menu__item--checked");
+  expect(items[0].textContent).toContain("✓");
+  expect(items[1].textContent).not.toContain("✓");
+});
+
 test("given the button it hangs off, it takes a place on the screen", () => {
   // jsdom measures everything as zero, so what is asserted is that the placement was applied at
   // all; the arithmetic is proved in menuPlacement.test.js.

@@ -329,3 +329,19 @@ test("the rail lists the project's files beside the conversation", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} files={files} />);
   expect(screen.getByTestId("file-rail").textContent).toContain("outline.md");
 });
+
+test("the composer says which model this chat answers with", () => {
+  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.3" }} />);
+  expect(screen.getByRole("button", { name: /Grok 4.3/ })).toBeTruthy();
+});
+
+test("picking another one is passed up rather than kept here", () => {
+  // Which model a chat uses lives on the server. The screen asks; App sends.
+  const onModelChange = vi.fn();
+  render(
+    <ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.5" }} onModelChange={onModelChange} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  fireEvent.click(screen.getByText("Grok Build"));
+  expect(onModelChange).toHaveBeenCalledWith("grok-build-0.1");
+});

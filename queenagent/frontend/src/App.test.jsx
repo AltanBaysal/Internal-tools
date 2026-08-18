@@ -848,6 +848,91 @@ test("offline, no answer is asked for; back online, one is", async () => {
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
 });
 
+// --- which model answers -----------------------------------------------------------------------
+
+function withModel(model = "") {
+  const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
+  let chat = { id: "c1", title: "Write the intro", messages: [], model: model || "grok-4.5" };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path === "/api/model") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ default: "grok-4.5" }) });
+    }
+    if (path.endsWith("/chats/c1") && options?.method === "PATCH") {
+      chat = { ...chat, model: JSON.parse(options.body).model };
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    if (path.endsWith("/chats") && options?.method === "POST") {
+      return Promise.resolve({
+        ok: true,
+        status: 201,
+        json: async () => ({ id: "c2", title: "new", messages: [], model: "" }),
+      });
+    }
+    if (path.endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chats });
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
+test("picking a model writes it to the chat it was picked in", async () => {
+  const fetch = withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.5/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  fireEvent.click(screen.getByText("Grok Build"));
+
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
+  const patch = fetch.mock.calls.find(([, options]) => options?.method === "PATCH");
+  expect(JSON.parse(patch[1].body)).toEqual({ model: "grok-build-0.1" });
+});
+
+test("a new chat is born with the last model picked in this session", async () => {
+  // The pick sticks to the chat on disk; the last one also becomes what the next chat starts from,
+  // and that much is the session's, not the disk's.
+  const fetch = withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.5/ })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  fireEvent.click(screen.getByText("Grok 4.3"));
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.3/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "← Old" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  const box = screen.getByPlaceholderText("Start a new chat in this project...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([path, options]) =>
+          options?.method === "POST" &&
+          path.endsWith("/chats") &&
+          JSON.parse(options.body).model === "grok-4.3",
+      ),
+    ).toBe(true),
+  );
+});
+
+test("with nothing picked yet a draft follows the server's own setting", async () => {
+  withModel();
+  window.history.pushState(null, "", "/p/p1/c/new");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.5/ })).toBeTruthy());
+});
+
 test("an empty prompt sends nothing", async () => {
   const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [PROJECT] });
   vi.stubGlobal("fetch", fetch);

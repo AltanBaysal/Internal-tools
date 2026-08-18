@@ -93,3 +93,16 @@ test("with no handler attached Enter does nothing and nothing breaks", () => {
   fireEvent.keyDown(box, { key: "Enter" });
   expect(box.value).toBe("hello");
 });
+
+// karar 1 settled the foot's order: Skills · model · Send. The box does not know what goes in
+// there, only that it comes before Send.
+test("the foot has room to the left of Send", () => {
+  const { container } = render(<Composer action="Send" foot={<button type="button">Grok 4.5</button>} />);
+  const buttons = [...container.querySelectorAll(".composer__foot button")];
+  expect(buttons.map((button) => button.textContent)).toEqual(["Grok 4.5", "Send"]);
+});
+
+test("with nothing to put there the foot is Send alone", () => {
+  const { container } = render(<Composer action="Send" />);
+  expect(container.querySelectorAll(".composer__foot button").length).toBe(1);
+});
