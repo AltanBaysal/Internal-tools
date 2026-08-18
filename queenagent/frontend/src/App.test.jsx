@@ -180,10 +180,10 @@ test("Escape closes the menu first, then the question", async () => {
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
   openMenuFor("Thesis");
-  expect(container.querySelector(".row-menu")).toBeTruthy();
+  expect(container.querySelector(".menu")).toBeTruthy();
   fireEvent.keyDown(window, { key: "Escape" });
   // Asked for by shape rather than by name: the project header carries a Rename of its own.
-  expect(container.querySelector(".row-menu")).toBeNull();
+  expect(container.querySelector(".menu")).toBeNull();
 
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));

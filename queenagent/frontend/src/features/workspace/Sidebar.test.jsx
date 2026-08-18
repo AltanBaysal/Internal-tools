@@ -140,7 +140,7 @@ test("the menu offers the two things a project row can do", () => {
 
 test("only the row whose menu is open has one", () => {
   const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" menuFor="p2" />);
-  const menus = container.querySelectorAll(".row-menu");
+  const menus = container.querySelectorAll(".menu");
   expect(menus.length).toBe(1);
   expect(menus[0].closest(".sidebar__row").textContent).toContain("Product notes");
 });
