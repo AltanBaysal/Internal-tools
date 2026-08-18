@@ -279,6 +279,20 @@ test("the document reads at the design's size and leading", () => {
   expect(body).not.toContain("white-space");
 });
 
+test("a file that is not a document is read in mono, exactly as written", () => {
+  const code = rule(".reader__code");
+  expect(code).toContain("font-family: var(--font-mono)");
+  expect(code).toContain("white-space: pre");
+  // A long prompt line scrolls inside its own block rather than widening the reader.
+  expect(code).toContain("overflow-x: auto");
+  // The code block's own measures, not a new pair invented for this.
+  expect(code).toContain("font-size: 12.5px");
+  expect(code).toContain("line-height: 1.6");
+  // No box: the reader's body is already a surface, and a block inside it is paper on paper.
+  expect(code).not.toContain("background");
+  expect(code).not.toContain("border");
+});
+
 test("the header and the footer stay while the document scrolls", () => {
   expect(rule(".reader__head")).toContain("flex: none");
   expect(rule(".reader__body")).toContain("overflow-y: auto");

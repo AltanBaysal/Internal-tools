@@ -33,6 +33,39 @@ test("the body is drawn as a document rather than as plain text", () => {
   expect(container.querySelector(".reader__body strong").textContent).toBe("bold");
 });
 
+// A structure file and a prompt list are the point of the skills, and Markdown eats both: the
+// indentation goes, the lines run together, and a Python comment becomes a heading. The decision is
+// read off the name -- the chip's three letters say "jso", which is not an extension.
+const STRUCTURE = '{\n  "quality": "score_9_up",\n  "shots": []\n}';
+
+test("a file that is not Markdown is shown exactly as it is written", () => {
+  const { container } = render(
+    <FilePanel name="shots.json" file={{ ...FILE, name: "shots.json", text: STRUCTURE }} />,
+  );
+  expect(container.querySelector(".reader__code").textContent).toBe(STRUCTURE);
+  expect(container.querySelector(".reader__body .md")).toBeNull();
+});
+
+test("Markdown syntax inside a code file stays as syntax", () => {
+  const { container } = render(
+    <FilePanel
+      name="prompts.py"
+      file={{ ...FILE, name: "prompts.py", text: "# a comment\nPROMPTS = [**x**]" }}
+    />,
+  );
+  expect(container.querySelector("h1")).toBeNull();
+  expect(container.querySelector("strong")).toBeNull();
+  expect(container.querySelector(".reader__code").textContent).toContain("**x**");
+});
+
+test("a Markdown file is still drawn as a document", () => {
+  const { container } = render(
+    <FilePanel name="plan.md" file={{ ...FILE, text: "# Title" }} />,
+  );
+  expect(container.querySelector(".reader__body h1")).toBeTruthy();
+  expect(container.querySelector(".reader__code")).toBeNull();
+});
+
 test("the footer says how long ago it was written and whose file it is", () => {
   render(<FilePanel name="plan.md" file={FILE} />);
   expect(screen.getByTestId("file-meta").textContent).toBe("2h ago · project file");
