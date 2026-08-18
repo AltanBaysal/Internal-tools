@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import App from "./App.jsx";
@@ -22,6 +22,27 @@ test("the shell renders", () => {
   stubProjects([]);
   render(<App />);
   expect(screen.getByTestId("app-shell")).toBeTruthy();
+});
+
+test("the shell wears the step it was measured at", () => {
+  stubProjects([]);
+  const observers = [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback) {
+        observers.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+  render(<App />);
+  // Unmeasured is the wide layout: zero is the absence of an answer, not a narrow screen.
+  expect(screen.getByTestId("app-shell").className).toBe("app-shell");
+
+  act(() => observers.forEach((callback) => callback([{ contentRect: { width: 600 } }])));
+  expect(screen.getByTestId("app-shell").className).toContain("app-shell--compact");
 });
 
 test("the app opens on the first project", async () => {

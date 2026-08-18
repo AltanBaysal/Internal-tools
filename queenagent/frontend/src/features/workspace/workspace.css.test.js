@@ -11,33 +11,39 @@ import { expect, test } from "vitest";
 // import.meta.url nor `?raw` hands back the file. The working directory is the frontend root.
 const CSS = readFileSync(resolve(process.cwd(), "src/features/workspace/workspace.css"), "utf8");
 
-// The `.sidebar { ... }` rule inside a given media block, or at the top level when none is named.
-function sidebarRule(maxWidth) {
-  const scope = maxWidth
-    ? CSS.slice(CSS.indexOf(`@media (max-width: ${maxWidth}px)`))
-    : CSS;
-  const start = scope.indexOf(".sidebar {");
+// The `.sidebar { ... }` rule at a given step, or the one that holds at every width when no step is
+// named. The step is a class on the shell, because what is measured is the shell rather than the
+// window -- the same screen inside a frame has to answer the same way.
+function sidebarRule(step) {
+  const selector = step ? `\n.app-shell--${step} .sidebar {` : "\n.sidebar {";
+  const start = CSS.indexOf(selector);
   expect(start).toBeGreaterThan(-1);
-  return scope.slice(start, scope.indexOf("}", start));
+  return CSS.slice(start, CSS.indexOf("}", start));
 }
+
+test("nothing asks the window how wide it is", () => {
+  // A media query can only ask about the window. Leaving one in would make the sidebar follow the
+  // window while the rail follows the shell.
+  expect(CSS).not.toContain("@media");
+});
 
 test("the sidebar starts at its full width", () => {
   expect(sidebarRule()).toContain("width: 280px");
 });
 
 test("it narrows in three steps rather than one", () => {
-  expect(sidebarRule(1000)).toContain("width: 226px");
-  expect(sidebarRule(780)).toContain("width: 198px");
-  expect(sidebarRule(640)).toContain("width: 172px");
+  expect(sidebarRule("narrow")).toContain("width: 226px");
+  expect(sidebarRule("tight")).toContain("width: 198px");
+  expect(sidebarRule("compact")).toContain("width: 172px");
 });
 
 test("only the narrowest step tightens the padding", () => {
   // Giving up width is not the same as giving up room to breathe: the padding holds until there is
   // no width left to hold it.
   expect(sidebarRule()).toContain("padding: 18px 14px");
-  expect(sidebarRule(1000)).not.toContain("padding");
-  expect(sidebarRule(780)).not.toContain("padding");
-  expect(sidebarRule(640)).toContain("padding: 16px 10px");
+  expect(sidebarRule("narrow")).not.toContain("padding");
+  expect(sidebarRule("tight")).not.toContain("padding");
+  expect(sidebarRule("compact")).toContain("padding: 16px 10px");
 });
 
 // The radius set is three values -- control 8px, card 12-14px, pill 20px -- and a surface that
@@ -84,15 +90,54 @@ test("the composer never scrolls away", () => {
   expect(rule(".chat__composer")).toContain("flex: none");
 });
 
-test("narrow windows scroll their regions, not the layout", () => {
-  const narrow = CSS.slice(CSS.indexOf("@media (max-width: 1100px)"));
-  const layouts = narrow.slice(0, narrow.indexOf("}", narrow.indexOf(".chat-layout")));
+// A grouped rule, so it is read by hand: rule() anchors on a single selector.
+function grouped(first) {
+  const start = CSS.indexOf(`\n${first}`);
+  expect(start).toBeGreaterThan(-1);
+  return CSS.slice(start, CSS.indexOf("}", start));
+}
+
+test("a narrow shell scrolls its regions, not the layout", () => {
+  const layouts = grouped(".app-shell--narrow .chat-layout,");
   expect(layouts).toContain("flex-direction: column");
   expect(layouts).not.toContain("overflow-y: auto");
   // The rail drops under the chat, so it needs a ceiling or it eats the conversation's room.
-  const rails = narrow.slice(narrow.indexOf(".rail,"), narrow.indexOf("}", narrow.indexOf(".rail,")));
-  expect(rails).toContain("max-height: 44%");
+  const rails = grouped(".app-shell--narrow .rail,");
+  // 44% of the area, never more than 250px and never less than 150px -- the design's three numbers.
+  expect(rails).toContain("max-height: min(250px, 44%)");
+  expect(rails).toContain("min-height: 150px");
   expect(rails).toContain("overflow-y: auto");
+});
+
+test("a narrow shell puts the project's two columns one above the other", () => {
+  expect(rule(".app-shell--narrow .project-grid")).toContain("grid-template-columns: minmax(0, 1fr)");
+});
+
+test("reading in a narrow shell takes the whole area rather than lengthening the page", () => {
+  // The column stays in place today and the panel is added underneath it, which is the one thing
+  // the contract forbids: the page itself scrolls.
+  expect(rule(".app-shell--narrow .chat-layout--reading .chat")).toContain("display: none");
+  expect(rule(".app-shell--narrow .screen-layout--reading .screen")).toContain("display: none");
+  const readers = grouped(".app-shell--narrow .chat-layout--reading .rail--open,");
+  expect(readers).toContain("max-height: none");
+  expect(readers).toContain("flex: 1");
+});
+
+test("a tight shell gives up its side room in one move", () => {
+  // Six surfaces share the same 32px of breathing room; loosening one and not the others would
+  // stagger the left edge.
+  const sides = grouped(".app-shell--tight .screen,");
+  expect(sides).toContain("padding-left: 20px");
+  expect(sides).toContain("padding-right: 20px");
+  ["chat__header", "chat__scroll", "chat__composer", "offline", "empty"].forEach((surface) => {
+    expect(sides).toContain(`.${surface}`);
+  });
+});
+
+test("a tight shell shrinks the project title and drops the time from a chat row", () => {
+  expect(rule(".app-shell--tight .screen__title")).toContain("font-size: 27px");
+  // The title is what a narrow row is for; the time is what it can afford to lose.
+  expect(rule(".app-shell--tight .chat-row__when")).toContain("display: none");
 });
 
 // One parser, two scales. The bubble's is the design's own three numbers, and a page-level heading
@@ -221,10 +266,9 @@ test("the label turns rather than being cut", () => {
 
 test("under the chat a folded rail is a row, not a column", () => {
   // A vertical strip means nothing in a layout that is already stacked.
-  const narrow = CSS.slice(CSS.indexOf("@media (max-width: 1100px)"));
-  const folded = narrow.slice(narrow.indexOf(".rail--collapsed"));
-  expect(folded.slice(0, folded.indexOf("}"))).toContain("width: auto");
-  expect(folded.slice(0, folded.indexOf("}"))).not.toContain("46px");
+  const folded = rule(".app-shell--narrow .rail--collapsed");
+  expect(folded).toContain("width: auto");
+  expect(folded).not.toContain("46px");
 });
 
 test("the rail is a surface of its own rather than the canvas with a line on it", () => {
@@ -329,11 +373,9 @@ test("a selected skill warms its button without borrowing the accent", () => {
   expect(on).not.toContain("var(--accent)");
 });
 
-test("the layout breakpoint no longer sets the sidebar width", () => {
-  // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
-  // sidebar's four steps are the only thing that decides its width.
-  const layout = CSS.slice(CSS.indexOf("@media (max-width: 1100px)"));
-  expect(layout.slice(0, layout.indexOf("}", layout.indexOf(".chat-layout")))).not.toContain(
-    ".sidebar",
-  );
+test("the layout and the sidebar now step at the same widths", () => {
+  // They used to disagree: the sidebar stepped at 1000/780/640 and the layout stacked at 1100.
+  // Madde 33 put both on the shell's measured width, so the stacking step is the sidebar's first.
+  expect(grouped(".app-shell--narrow .chat-layout,")).not.toContain(".sidebar");
+  expect(CSS).not.toContain("1100px");
 });

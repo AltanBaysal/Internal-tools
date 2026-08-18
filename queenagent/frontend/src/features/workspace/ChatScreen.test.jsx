@@ -14,6 +14,18 @@ const CHAT = {
   ],
 };
 
+// A narrow shell hides the conversation while a file is open, and CSS cannot look at a later
+// sibling to find out. The screen already knows, so it says so.
+test("the layout says when something is being read", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} reading={{ name: "a.md" }} />);
+  expect(container.querySelector(".chat-layout--reading")).toBeTruthy();
+});
+
+test("with nothing open the layout says nothing", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".chat-layout--reading")).toBeNull();
+});
+
 test("the breadcrumb names the project and the chat", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
   expect(screen.getByText(/Thesis research/)).toBeTruthy();

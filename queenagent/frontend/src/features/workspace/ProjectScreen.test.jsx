@@ -33,6 +33,16 @@ test("the title and both column headings are drawn", () => {
   expect(screen.getByText("Files QueenAgent created")).toBeTruthy();
 });
 
+test("the layout says when something is being read", () => {
+  const { container } = render(<ProjectScreen project={PROJECT} reading={{ name: "a.md" }} />);
+  expect(container.querySelector(".screen-layout--reading")).toBeTruthy();
+});
+
+test("with nothing open the layout says nothing", () => {
+  const { container } = render(<ProjectScreen project={PROJECT} />);
+  expect(container.querySelector(".screen-layout--reading")).toBeNull();
+});
+
 test("an empty file column teaches instead of sitting blank", () => {
   render(<ProjectScreen project={PROJECT} />);
   expect(screen.getByText(/No files yet/)).toBeTruthy();
