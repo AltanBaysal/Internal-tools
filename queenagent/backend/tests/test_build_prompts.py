@@ -130,6 +130,12 @@ def test_a_structure_with_no_shots_says_so():
         build_prompts({"quality": QUALITY})
 
 
+def test_something_that_is_not_a_structure_at_all_is_refused():
+    # Valid JSON is not the same as a structure, and the answer is words rather than a crash.
+    with pytest.raises(BadStructure):
+        build_prompts(["a list"])
+
+
 def test_the_written_module_is_valid_python_and_holds_the_prompts():
     assert _prompts_of(render_module(["one, two", "three"])) == ["one, two", "three"]
 
