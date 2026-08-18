@@ -138,6 +138,12 @@ PROMPTS = [
 ]
 ```
 
+6. **Çıktının adı kaynaktan türer** (Madde 28 spec'inde çözüldü): aynı gövde, `.py` uzantısı —
+   `intro-shots.json` → `intro-shots.py`. Yukarıdaki "`prompts.py`" o dosyanın **türünü** anlatıyor;
+   sabit tek ad, §4'ün "bir projede birden çok senaryo yaşayabilir" cümlesiyle çelişir ve iki
+   senaryoyu birbirine yazdırırdı. Ve bu tek dosya **üstüne yazılır**: türev üründür, yeniden üretmek
+   maddenin bütün amacıdır; numaralasaydı hangisinin güncel olduğu kaybolurdu.
+
 ## 5b · Çalışma kuralı — küçük parçalar, asla tek nefeste
 
 Kare listesi uzayabilir; model **hiçbir beceride** hepsini tek üretimde yazmaya çalışmaz. Kural

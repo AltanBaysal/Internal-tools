@@ -398,6 +398,8 @@ ile okur. Beceriler **bağımsızdır** — zinciri kullanıcı kurar. İki yeni
   yok, `build_prompts` yok: **kontrol grubu**. Generate prompts+ yapı JSON'unu kurar/günceller
   (iskelet önce, kareler **beşerli partiler** hâlinde), öz-denetimi koşar, sonra `build_prompts`'u
   çağırır. Verify shots aynı kural defterini istendiği an uygular ve **rapor eder, düzeltmez**.
+  Okuyucu bu maddede `.md` dışını **mono ve biçimi korunmuş** çizer — JSON ve `PROMPTS` ekranda ilk
+  kez burada görünüyor, Markdown ikisinin de girintisini yutar.
 - **Nasıl görülür:** aynı kare listesinden iki yolla üret → ikisi de `PROMPTS` verir; prompts+'ta
   karakter metni her karede birebir aynı; karakteri güncelle → hepsi döner; `action` içine karakter
   tarifi yaz → verify ihlal der.
