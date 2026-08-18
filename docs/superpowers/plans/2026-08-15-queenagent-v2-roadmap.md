@@ -35,10 +35,11 @@ onu gözünle süz, komuta boru ekleme. Kırmızı adımda da aynı dize koşulu
 okunur.
 
 **Varsayma, sor.** Koşu maddeler arasında durmaz — ama spec yazarken bir şey **gerçekten belirsizse**
-orada durulur ve kullanıcıya sorulur. **Beceriler bunun ilan edilmiş istisnasıdır:** Madde 27'den
-Madde 30'a kadar her madde, spec yazılmadan önce kullanıcıyla birlikte tasarlanır — orada koşu
-durur, soru beklemez. Ölçüt "emin değilim" değil, **"iki farklı okuma iki farklı ürün
-üretir"**dir. Sorulacak şeyler yalnız kullanıcı deneyimi değil, teknik de olabilir:
+orada durulur ve kullanıcıya sorulur. **Becerilerin tasarımı bunun ilan edilmiş istisnasıydı**
+(Madde 27-31); o konuşma 18 Ağustos'ta yapıldı ve kararlar
+[beceriler tasarım kararları](../research/2026-08-18-queenagent-beceriler-tasarim-kararlari.md)
+belgesinde toplandı — bu maddelerin spec'leri o belgeden yazılır. Ölçüt "emin değilim" değil,
+**"iki farklı okuma iki farklı ürün üretir"**dir. Sorulacak şeyler yalnız kullanıcı deneyimi değil, teknik de olabilir:
 
 - Geri dönülemez olan her şey: disk düzeni ve dosya biçimi, veri göçü, kalıcı alan adları, uç nokta
   sözleşmesi, silinen bir yeteneğin geri getirilemez hâle gelmesi.
@@ -348,60 +349,64 @@ düşer. Ayrıntı: [tasarım belgesi](../specs/2026-08-17-queenagent-m3-home-de
 
 ### Madde 27 — Skills seçici arayüzü *(fark 33; karar 3, 18'in arayüz yarısı)*
 
-> **Dur ve birlikte tasarla.** Becerilerin tasarımı — Madde 27'den Madde 30'a kadar hepsi —
-> kullanıcıyla konuşularak yapılır. Bu maddeye gelindiğinde spec yazılmadan önce durulur; koşu
-> maddeleri arka arkaya götürmez. Karar 18 kümeyi (üç beceri) veriyor, geri kalanını kullanıcı
-> veriyor.
+> **Tasarım konuşması yapıldı (18 Ağustos).** Varılan her karar
+> [beceriler tasarım kararları](../research/2026-08-18-queenagent-beceriler-tasarim-kararlari.md)
+> belgesinde; Madde 27-31'in spec'leri **o belgenin türevidir**, tersi değil. Karar 18'in "üç
+> beceri" ve "yeni araç gerekmiyor" cümleleri orada eskidi: küme **altı beceri**, iki yeni tool var.
 
-- **Ne çalışır:** model düğmesinin solunda "Skills" düğmesi; menüde üç beceri: **Create scenario**,
-  **Split into scenes**, **Generate prompts** (İngilizce etiketler spec'te kesinleşir). Tek seçim;
-  seçiliye tekrar basmak temizler; seçiliyken düğme sıcak tonla boyanır ve becerinin adını taşır.
-  Seçim sohbete yazılır; iki menü birbirini kapatır. Bu maddede beceri **yalnız kayıt edilir** —
-  cevabı henüz değiştirmez.
-- **Nasıl görülür:** beceri seç → düğme adını alır ve renklenir; sohbet değiştir → seçim sohbetle
-  gider.
+- **Ne çalışır:** model düğmesinin solunda "Skills" düğmesi; menüde altı beceri: **Create scenario**,
+  **Create character prompt**, **Split into shots**, **Generate prompts**, **Generate prompts+**,
+  **Verify shots**. Tek seçim; seçiliye tekrar basmak temizler; seçiliyken düğme sıcak tonla boyanır
+  ve becerinin adını taşır. Seçim sohbete yazılır ve **mesaj gönderilince seçili kalır**; gönderilen
+  her mesaj hangi beceriyle gittiğini kendinde taşır (`message.skill`). İki menü birbirini kapatır.
+  Bu maddede beceri **yalnız kayıt edilir** — cevabı henüz değiştirmez.
+- **Nasıl görülür:** beceri seç → düğme adını alır ve renklenir; mesaj gönder → seçim durur; sohbet
+  değiştir → seçim sohbetle gider.
 
 ---
 
 ## Faz 7 — Beceriler
 
-> **Dur ve birlikte tasarla.** Madde 27'de başlayan kural burada da geçerli: her becerinin
-> yönergesi, beklenen çıktısı ve dosya biçimi kullanıcıyla konuşularak kararlaştırılır, sonra spec
-> yazılır. Madde 30'un Python listesi zaten böyle işaretliydi; artık üçü de öyle.
+Her beceri bir **yönerge metnidir**; talimat o beceriyle gönderilen ilk mesajın önüne bir kez konur,
+art arda tekrarlanmaz ve transkriptte görünmez. Model projedeki dosyaları `list_files`/`read_file`
+ile okur. Beceriler **bağımsızdır** — zinciri kullanıcı kurar. İki yeni tool gelir (`edit_file`,
+`build_prompts`); motorun kendisine dokunulmaz. Ayrıntı ve gerekçeler
+[tasarım kararları](../research/2026-08-18-queenagent-beceriler-tasarim-kararlari.md) belgesinde.
 
-Üç beceri de aynı mekanikle çalışır: seçili beceri, o sohbetin sistem yönergesine kendi ekini
-koyar; model gerekirse projedeki dosyaları `list_files`/`read_file` ile okur. Beceriler
-**bağımsızdır** — zinciri kullanıcı kurar: hangi dosyayla çalışılacağını mesajında söyler. Yeni araç
-yoktur; motor tarafına dokunulmaz.
+### Madde 28 — Tool katmanı: `edit_file` ve `build_prompts`
 
-### Madde 28 — Senaryo oluştur
+- **Ne çalışır:** `edit_file` var olan bir dosyada hedefli değişiklik yapar (genel, JSON'a özel
+  değil) — `create_file` asla üstüne yazmadığı için güncelleme akışı bunsuz çalışmaz.
+  `build_prompts` yapı JSON'unu okur, adları çözer, sabit sırayla
+  (`quality → characters → location → action → camera`) birleştirir ve `prompts.py`'yi yazar. Saf
+  kod: bilinmeyen ad **isimli hata** verir, tahmin edilmez.
+- **Nasıl görülür:** yapı dosyasında karakteri değiştir → tek alan değişir; `build_prompts` çağır →
+  bütün kareler yeni metinle çıkar; `{aylinn}` gibi bir ad → "aylinn yok; bilinenler: …".
 
-- **Ne çalışır:** ilk becerinin yönergesi yazılır ve seçiliyken cevabı yönlendirir: model bir
-  senaryo üretir ve dosya olarak kaydeder.
-- **Nasıl görülür:** beceri seçiliyken "bir senaryo yaz" → projeye senaryo dosyası düşer.
-- **Spec'te karara bağlanacak:** yönergenin tam metni; senaryonun beklenen yapısı.
+### Madde 29 — Üreten üç beceri: senaryo, karakter, kareler
 
-### Madde 29 — Senaryoyu parçalara böl
+- **Ne çalışır:** üçü de yalnız okur ve düz yazar. Senaryo **10-15 cümlelik kısa** bir örgüdür ve
+  `scenario.md` olarak diske iner. Karakter promptu SDXL standardında üretilir ve **sohbette kalır**
+  — hiçbir dosyaya yazmaz; yapıya girmesi kullanıcının ayrı bir cümlesidir. Split senaryoyu okur,
+  kareleri **sohbete** döker (dosya değil), kare sayısı kullanıcıyla birlikte kararlaştırılır.
+- **Nasıl görülür:** senaryo iste → dosya düşer; karakter ve kare listesi iste → sohbette çıkar,
+  proje dosyalarında hiçbir şey doğmaz.
 
-- **Ne çalışır:** ikinci beceri: projedeki bir senaryoyu okuyup sahnelere böler, her sahneye kaç
-  prompt düşeceğini yazar; sonucu dosya olarak kaydeder.
-- **Nasıl görülür:** senaryo dosyası olan projede beceriyi seç, "şu senaryoyu böl" → sahne listesi
-  dosyası düşer.
-- **Spec'te karara bağlanacak:** yönergenin tam metni; sahne/prompt sayısı biçimi.
+### Madde 30 — Prompt üreten üç beceri: düz, yapılı, denetleyen
 
-### Madde 30 — Promptları oluştur
-
-- **Ne çalışır:** üçüncü beceri: sahne listesini okuyup promptları üretir; **çıktı bir Python
-  listesidir** ve dosya olarak kaydedilir.
-- **Nasıl görülür:** sahne listesi olan projede beceriyi seç → Python listesi biçiminde prompt
-  dosyası düşer.
-- **Spec'te karara bağlanacak:** listenin tam biçimi (tek liste mi, sahne başına mı; değişken adı;
-  dosya uzantısı) — **bu maddeye gelindiğinde kullanıcıyla birlikte detaylı tasarlanır.**
+- **Ne çalışır:** Generate prompts sohbetteki kare listesinden `prompts.py`'yi doğrudan yazar — yapı
+  yok, `build_prompts` yok: **kontrol grubu**. Generate prompts+ yapı JSON'unu kurar/günceller
+  (iskelet önce, kareler **beşerli partiler** hâlinde), öz-denetimi koşar, sonra `build_prompts`'u
+  çağırır. Verify shots aynı kural defterini istendiği an uygular ve **rapor eder, düzeltmez**.
+- **Nasıl görülür:** aynı kare listesinden iki yolla üret → ikisi de `PROMPTS` verir; prompts+'ta
+  karakter metni her karede birebir aynı; karakteri güncelle → hepsi döner; `action` içine karakter
+  tarifi yaz → verify ihlal der.
 
 ### Madde 31 — Belgeler ürünü yakalar
 
 - **Ne çalışır:** `CLAUDE.md`'nin QueenAgent bölümü ve `FOUNDATION.md` güncellenir: "hiçbir üretim
-  hattına bağlı değil" ve "amaç alanı serbesttir" cümleleri düşer; üç beceri ve amaçları yazılır.
+  hattına bağlı değil" ve "amaç alanı serbesttir" cümleleri düşer; altı beceri, iki yeni tool ve
+  amaçları yazılır. Karar 18'in eskiyen iki cümlesi de burada kapanır.
 - **Nasıl görülür:** belgeler ürünün yaptığı işi anlatıyor, eskisini değil.
 
 ---
@@ -450,17 +455,22 @@ Kod bittikten sonra tek dalgada elle koşulur:
 | 5 | "Merhaba" de | Dosya doğmaz |
 | 6 | Rayı katla, sohbet değiştir, karta tıkla | Katlı kalır → kart rayı zorla açar |
 | 7 | Model değiştir, ikinci sohbette başka model seç | Her sohbet kendi modelini hatırlar |
-| 8 | "Create scenario" ile senaryo üret | Senaryo dosyası düşer |
-| 9 | "Split into scenes" ile böl | Sahne listesi dosyası düşer |
-| 10 | "Generate prompts" ile promptları al | Python listesi dosyası düşer |
-| 11 | Dosya sil | Onay kutusu; Undo yok; dosya `trash/`te |
-| 12 | Sohbet sil | Aynı kutu; dosyaları kalır |
-| 13 | Projeyi iki kapıdan sil | Başlıktan ve ⋯ menüsünden aynı kutu; içindeyken silince ilk projeye düşülür |
-| 14 | Anahtarı boz, mesaj at | Sunucunun gerçek cümlesi ekranda; Try again çalışır |
-| 15 | Ağı kes | Kızılımsı şerit; composer açık |
-| 16 | Pencereyi 1000/780/640 altına daralt | Eşikler tarif edildiği gibi; composer hep altta |
-| 17 | Sunucuyu kapat-aç | Projeler, sohbetler, model seçimleri, dosyalar yerinde |
-| 18 | Olmayan adrese git | "That project does not exist." |
+| 8 | "Create scenario" ile senaryo üret | 10-15 cümlelik `scenario.md` düşer |
+| 9 | "Create character prompt" ile karakter iste | Sohbette aday çıkar, **dosya doğmaz** |
+| 10 | "Split into shots" ile böl | Kare listesi **sohbete** düşer, dosya doğmaz |
+| 11 | "Generate prompts" ile düz üret | `PROMPTS` listesi dosyası düşer |
+| 12 | "Generate prompts+" ile üret | Yapı JSON'u + `PROMPTS`; karakter metni her karede birebir aynı |
+| 13 | Karakteri güncelle, prompts+ yeniden koş | Bütün kareler yeni metinle çıkar |
+| 14 | `action` içine karakter tarifi yaz, "Verify shots" | İhlal raporlanır, düzeltilmez |
+| 15 | `.json` ve `.py` dosyalarını okuyucuda aç | Mono, girinti korunmuş — Markdown'a çevrilmemiş |
+| 16 | Dosya sil | Onay kutusu; Undo yok; dosya `trash/`te |
+| 17 | Sohbet sil | Aynı kutu; dosyaları kalır |
+| 18 | Projeyi iki kapıdan sil | Başlıktan ve ⋯ menüsünden aynı kutu; içindeyken silince ilk projeye düşülür |
+| 19 | Anahtarı boz, mesaj at | Sunucunun gerçek cümlesi ekranda; Try again çalışır |
+| 20 | Ağı kes | Kızılımsı şerit; composer açık |
+| 21 | Pencereyi 1000/780/640 altına daralt | Eşikler tarif edildiği gibi; composer hep altta |
+| 22 | Sunucuyu kapat-aç | Projeler, sohbetler, model seçimleri, dosyalar yerinde |
+| 23 | Olmayan adrese git | "That project does not exist." |
 
 ---
 
@@ -475,7 +485,7 @@ Kod bittikten sonra tek dalgada elle koşulur:
 | 4 · Yıkıcı eylemler | 17-19 | Tek onay dili, proje silme | ray ve satırlar silme dilinin son hâline göre yazılır |
 | 5 · Ray ve dosya | 20-24 | Katlanan ray, kapı olan kart, okuyucu | zemin + metin + silme dili hazır |
 | 6 · Seçiciler | 25-27 | Model ve Skills | composer son hâlinde, menü deseni tek |
-| 7 · Beceriler | 28-31 | Üç beceri iş görür | seçici arayüzü ve sohbete yapışma hazır |
+| 7 · Beceriler | 28-31 | Altı beceri iş görür, tool katmanı tam | seçici arayüzü ve sohbete yapışma hazır |
 | 8 · Uçlar | 32-35 | Sapmalar, duyarlılık, durumlar, tur | en çok şeye bağımlı işler en sonda |
 
 ## Kapsam dışı
