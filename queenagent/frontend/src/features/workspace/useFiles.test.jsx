@@ -8,7 +8,7 @@ afterEach(() => {
 });
 
 function Host({ projectId = "p1" }) {
-  const { files, deleting } = useFiles(projectId);
+  const { files, deleting, filesError } = useFiles(projectId);
   return (
     <div>
       <button type="button" onClick={() => deleting.remove("plan.md")}>
@@ -16,6 +16,7 @@ function Host({ projectId = "p1" }) {
       </button>
       <span data-testid="names">{files.map((file) => file.name).join(",")}</span>
       <span data-testid="error">{deleting.error ?? ""}</span>
+      <span data-testid="fetch-error">{filesError ?? ""}</span>
       <span data-testid="keys">{Object.keys(deleting).sort().join(",")}</span>
     </div>
   );
@@ -63,6 +64,23 @@ test("a refused delete says what the server said", async () => {
   await waitFor(() => expect(screen.getByTestId("error").textContent).toContain("409"));
   // Refused means still there.
   expect(screen.getByTestId("names").textContent).toBe("plan.md");
+});
+
+test("a list that could not be read is a different failure from a refused delete", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => JSON.stringify({ error: "the store is unreachable" }),
+    }),
+  );
+  render(<Host />);
+  // Two failures, two lines: one is about the list, the other about a file that would not go.
+  await waitFor(() =>
+    expect(screen.getByTestId("fetch-error").textContent).toBe("the store is unreachable"),
+  );
+  expect(screen.getByTestId("error").textContent).toBe("");
 });
 
 test("leaving the project clears the last failure", async () => {

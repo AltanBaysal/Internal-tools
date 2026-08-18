@@ -45,6 +45,29 @@ test("while the lists load there are blocks and no teaching line", () => {
   expect(screen.queryByText(/No files yet/)).toBeNull();
 });
 
+test("a file list that could not be read says so instead of teaching", () => {
+  render(<ProjectScreen project={PROJECT} filesError="the store is unreachable" />);
+  expect(screen.getByText("the store is unreachable")).toBeTruthy();
+  expect(screen.queryByText(/No files yet/)).toBeNull();
+});
+
+test("a chat list that could not be read no longer empties in silence", () => {
+  // The quieter of the two lies: no list, no sentence, no reason.
+  render(<ProjectScreen project={PROJECT} chatsError="the store is unreachable" />);
+  expect(screen.getByText("the store is unreachable")).toBeTruthy();
+});
+
+test("a failure and a refused delete are two lines, not one", () => {
+  const { container } = render(
+    <ProjectScreen
+      project={PROJECT}
+      filesError="the store is unreachable"
+      deleting={{ error: "HTTP 409", remove: vi.fn() }}
+    />,
+  );
+  expect(container.querySelectorAll(".list-error").length).toBe(2);
+});
+
 test("the file column lists what the project holds", () => {
   const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
   render(<ProjectScreen project={PROJECT} files={files} />);

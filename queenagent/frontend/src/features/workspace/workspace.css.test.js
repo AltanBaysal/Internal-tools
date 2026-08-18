@@ -279,6 +279,18 @@ test("the document reads at the design's size and leading", () => {
   expect(body).not.toContain("white-space");
 });
 
+test("a list says what went wrong in one voice", () => {
+  // One class for all four places: a line saying something failed in this list is the same thing in
+  // the rail, in either column, and after a refused delete.
+  const line = rule(".list-error");
+  expect(line).toContain("font-family: var(--font-mono)");
+  expect(line).toContain("font-size: 11px");
+  // The look does not change with the name: this madde widens where the line is used, nothing else.
+  expect(line).toContain("color: #a4735a");
+  // The old name was the file list's alone and read wrong in a column of chats.
+  expect(CSS).not.toContain(".file-list__error");
+});
+
 test("a file that is not a document is read in mono, exactly as written", () => {
   const code = rule(".reader__code");
   expect(code).toContain("font-family: var(--font-mono)");

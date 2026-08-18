@@ -97,7 +97,20 @@ test("a file row offers no rename either", () => {
 test("a list that cannot delete cannot report a delete going wrong", () => {
   // The line Madde 19 left in place of the strip belongs to the screen that still deletes.
   const { container } = render(<FileRail files={FILES} deleting={{ error: "HTTP 409" }} />);
-  expect(container.querySelector(".file-list__error")).toBeNull();
+  expect(container.querySelector(".list-error")).toBeNull();
+});
+
+test("a rail that could not read the list says so instead of teaching", () => {
+  render(<FileRail files={[]} error="the store is unreachable" />);
+  // Answering "there are none" to a question that got no answer would be the screen inventing one.
+  expect(screen.getByText("the store is unreachable")).toBeTruthy();
+  expect(screen.queryByText(/No files yet/)).toBeNull();
+});
+
+test("a rail still loading says neither", () => {
+  render(<FileRail files={[]} loading />);
+  expect(screen.queryByText(/No files yet/)).toBeNull();
+  expect(screen.getByTestId("skeleton")).toBeTruthy();
 });
 
 const OPEN_FILE = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };

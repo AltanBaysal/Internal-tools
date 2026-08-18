@@ -24,6 +24,9 @@ function Host({ projectId = "p1" }) {
       <button type="button" onClick={() => reading.open("plan.md")}>
         open
       </button>
+      <button type="button" onClick={() => reading.open("plan.md", "p2")}>
+        open elsewhere
+      </button>
       <button type="button" onClick={() => reading.download()}>
         save
       </button>
@@ -74,6 +77,30 @@ test("a different project closes what was open", async () => {
   rerender(<Host projectId="p2" />);
   // The file belongs to the project that was left behind.
   await waitFor(() => expect(screen.getByTestId("name").textContent).toBe(""));
+});
+
+test("coming back to the project finds the panel closed", async () => {
+  stub({ ok: true, status: 200, json: async () => FILE });
+  const { rerender } = render(<Host projectId="p1" />);
+  fireEvent.click(screen.getByText("open"));
+  await waitFor(() => expect(screen.getByTestId("name").textContent).toBe("plan.md"));
+
+  rerender(<Host projectId="p2" />);
+  await waitFor(() => expect(screen.getByTestId("name").textContent).toBe(""));
+  rerender(<Host projectId="p1" />);
+  // Leaving the project closed it. Reopening itself would be the panel deciding for the user.
+  expect(screen.getByTestId("name").textContent).toBe("");
+});
+
+test("a file opened in the same breath as going to its project survives the trip", async () => {
+  stub({ ok: true, status: 200, json: async () => FILE });
+  const { rerender } = render(<Host projectId="p1" />);
+  fireEvent.click(screen.getByText("open elsewhere"));
+  // Not on screen yet: it belongs to the project being navigated to.
+  expect(screen.getByTestId("name").textContent).toBe("");
+
+  rerender(<Host projectId="p2" />);
+  await waitFor(() => expect(screen.getByTestId("name").textContent).toBe("plan.md"));
 });
 
 test("saving reads the file again rather than keeping the copy on screen", async () => {
