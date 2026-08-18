@@ -12,6 +12,10 @@ class Message:
     # The files this reply produced. The design draws a card under the answer, so the message has
     # to remember them; a reload must find the card still there.
     files: tuple = ()
+    # Which skill governed this turn. Kept on the message rather than only on the chat so the record
+    # stays honest: changing the selection later must not make an older turn look as though the new
+    # skill produced it.
+    skill: str = ""
 
 
 @dataclass(frozen=True)
@@ -24,6 +28,9 @@ class Chat:
     # for it -- so a chat that made no choice keeps following the setting when the setting moves,
     # and the records written before this field existed need no migration.
     model: str = ""
+    # The skill selected right now. Empty is the ordinary state -- unlike a model, a chat may have
+    # no skill at all, and pressing the selected one again puts it back here.
+    skill: str = ""
 
     @property
     def last_activity(self):

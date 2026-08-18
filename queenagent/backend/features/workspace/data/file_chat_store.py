@@ -52,6 +52,8 @@ class FileChatStore:
         # A chat that picked no model writes no field, exactly as a message with no files does.
         if chat.model:
             stored["model"] = chat.model
+        if chat.skill:
+            stored["skill"] = chat.skill
         self._store.write_text(
             self._path(project_id, chat.id),
             json.dumps(stored, ensure_ascii=False, indent=2),
@@ -67,6 +69,8 @@ def _message_json(message):
     # An empty list is noise on disk: the field appears only when there is something in it.
     if message.files:
         stored["files"] = list(message.files)
+    if message.skill:
+        stored["skill"] = message.skill
     return stored
 
 
@@ -75,15 +79,17 @@ def _as_chat(chat_id, raw):
         id=chat_id,
         title=raw["title"],
         created_at=raw["createdAt"],
-        # Chats written before this field existed picked nothing, which is what empty means.
+        # Chats written before these fields existed picked nothing, which is what empty means.
         model=raw.get("model", ""),
+        skill=raw.get("skill", ""),
         messages=tuple(
             Message(
                 role=message["role"],
                 at=message["at"],
                 text=message["text"],
-                # Chats written before this field existed simply have no files.
+                # Chats written before these fields existed simply have neither.
                 files=tuple(message.get("files", ())),
+                skill=message.get("skill", ""),
             )
             for message in raw["messages"]
         ),

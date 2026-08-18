@@ -24,7 +24,10 @@ from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.read_file import read_file
-from backend.features.workspace.domain.usecases.set_chat_model import set_chat_model
+from backend.features.workspace.domain.usecases.set_chat_choices import (
+    UNCHANGED,
+    set_chat_choices,
+)
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
@@ -81,6 +84,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, default_mod
                 new_id=_new_id("c"),
                 now=_now(),
                 model=payload.get("model", ""),
+                skill=payload.get("skill", ""),
             )
         except ProjectNotFound:
             return jsonify({"error": "project not found"}), 404
@@ -91,12 +95,19 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, default_mod
     @workspace_bp.patch("/api/projects/<project_id>/chats/<chat_id>")
     def patch_chat(project_id, chat_id):
         payload = request.get_json(silent=True) or {}
-        # The model is the only thing about a chat that changes. A title arriving here is not a
-        # rename that failed quietly -- it is a request this route does not understand.
-        if "model" not in payload:
-            return jsonify({"error": "a chat only carries a model"}), 400
+        # The model and the skill are the only things about a chat that change. A title arriving
+        # here is not a rename that failed quietly -- it is a request this route does not
+        # understand.
+        if "model" not in payload and "skill" not in payload:
+            return jsonify({"error": "a chat only carries a model and a skill"}), 400
         try:
-            chat = set_chat_model(chat_store, project_id, chat_id, payload["model"])
+            chat = set_chat_choices(
+                chat_store,
+                project_id,
+                chat_id,
+                model=payload.get("model", UNCHANGED),
+                skill=payload.get("skill", UNCHANGED),
+            )
         except ChatNotFound:
             return jsonify({"error": "chat not found"}), 404
         return jsonify(_chat_json(chat, default_model))
@@ -119,7 +130,12 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, default_mod
         payload = request.get_json(silent=True) or {}
         try:
             chat = append_message(
-                chat_store, project_id, chat_id, payload.get("text", ""), now=_now()
+                chat_store,
+                project_id,
+                chat_id,
+                payload.get("text", ""),
+                now=_now(),
+                skill=payload.get("skill", ""),
             )
         except ChatNotFound:
             return jsonify({"error": "chat not found"}), 404
@@ -242,6 +258,8 @@ def _chat_summary(chat, default_model):
         # Resolved on the way out, so the client always has a name to draw. The record on disk
         # stays empty and keeps following the setting.
         "model": chat.model or default_model,
+        # Not resolved: no skill is an ordinary state, and there is no default to stand in for it.
+        "skill": chat.skill,
     }
 
 
@@ -254,6 +272,7 @@ def _chat_json(chat, default_model):
                 "at": message.at,
                 "text": message.text,
                 "files": list(message.files),
+                "skill": message.skill,
             }
             for message in chat.messages
         ],
