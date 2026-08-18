@@ -57,6 +57,28 @@ def test_the_request_carries_the_model_the_messages_and_the_bearer():
     assert "tools" not in seen["body"]
 
 
+def test_a_model_given_for_the_call_replaces_the_configured_one():
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return _Response({"choices": [{"message": {"content": "hi"}}]})
+
+    _client(opener).complete(MESSAGES, model="grok-4.3")
+    assert seen["body"]["model"] == "grok-4.3"
+
+
+def test_streaming_carries_its_own_model_too():
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return io.BytesIO(b"data: [DONE]\n")
+
+    list(_client(opener).stream(MESSAGES, model="grok-build-0.1"))
+    assert seen["body"]["model"] == "grok-build-0.1"
+
+
 def test_tools_are_sent_when_given():
     seen = {}
 

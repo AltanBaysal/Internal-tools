@@ -1,4 +1,5 @@
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -27,9 +28,11 @@ class ScriptedEngine:
         self.rounds = list(rounds)
         self.blow_up_after = blow_up_after
         self.seen = []
+        self.asked_for = "not asked"
 
-    def stream(self, messages, tools=None):
+    def stream(self, messages, tools=None, model=None):
         self.seen.append(list(messages))
+        self.asked_for = model
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
             raise RuntimeError("connection dropped")
         pieces = self.rounds.pop(0) if self.rounds else []
@@ -164,3 +167,20 @@ def test_an_unknown_chat_is_reported_before_anything_streams(tmp_path):
     chats, files = _seeded(tmp_path)
     with pytest.raises(ChatNotFound):
         list(stream_answer(chats, files, ScriptedEngine([]), "p1", "nope", NOW))
+
+
+def test_the_answer_is_asked_for_with_the_chats_own_model(tmp_path):
+    chats, files = _seeded(tmp_path)
+    chats.replace("p1", replace(chats.get("p1", "c1"), model="grok-4.3"))
+    engine = ScriptedEngine([[{"text": "hi"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    assert engine.asked_for == "grok-4.3"
+
+
+def test_a_chat_that_chose_nothing_asks_for_nothing(tmp_path):
+    # None, not a name: which model answers for a chat that never picked one is the engine's own
+    # setting, and the domain has no business knowing what it says.
+    chats, files = _seeded(tmp_path)
+    engine = ScriptedEngine([[{"text": "hi"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    assert engine.asked_for is None

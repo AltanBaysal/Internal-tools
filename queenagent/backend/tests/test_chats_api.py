@@ -14,19 +14,21 @@ class FakeEngine:
     def __init__(self, answer="Done.", blow_up=None):
         self.answer = answer
         self.blow_up = blow_up
+        self.asked_for = "not asked"
 
     def complete(self, messages, tools=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         return {"role": "assistant", "content": self.answer}
 
-    def stream(self, messages, tools=None):
+    def stream(self, messages, tools=None, model=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
+        self.asked_for = model
         yield {"text": self.answer}
 
 
-def _client(tmp_path, engine=None):
+def _client(tmp_path, engine=None, default_model="grok-4.5"):
     store = Store(str(tmp_path))
     app = create_app(
         dist_dir=str(tmp_path),
@@ -36,6 +38,7 @@ def _client(tmp_path, engine=None):
                 FileChatStore(store),
                 FileFileStore(store),
                 engine or FakeEngine(),
+                default_model,
             ),
         ),
     )
@@ -239,3 +242,53 @@ def test_a_new_chat_shows_up_in_the_project_count(tmp_path):
     pid = _project(client)
     client.post(f"/api/projects/{pid}/chats", json={"text": "hello"})
     assert client.get("/api/projects").get_json()[0]["chats"] == 1
+
+
+def test_a_chat_is_born_with_the_model_it_was_sent(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    born = client.post(
+        f"/api/projects/{pid}/chats", json={"text": "hello", "model": "grok-4.3"}
+    ).get_json()
+    assert born["model"] == "grok-4.3"
+
+
+def test_a_chat_that_picked_nothing_answers_with_the_default(tmp_path):
+    # Resolved on the way out: the client always has a name to draw, and the record on disk is
+    # still free to follow the setting.
+    client = _client(tmp_path, default_model="grok-4.5")
+    pid, cid = _started(client)
+    assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["model"] == "grok-4.5"
+
+
+def test_the_model_can_be_changed_mid_conversation(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    changed = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "grok-build-0.1"})
+    assert changed.status_code == 200
+    assert changed.get_json()["model"] == "grok-build-0.1"
+    # And it stays: the next reader sees the pick, not the default.
+    assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["model"] == "grok-build-0.1"
+
+
+def test_changing_the_model_of_a_chat_that_is_not_there_is_404(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    assert client.patch(f"/api/projects/{pid}/chats/nope", json={"model": "grok-4.3"}).status_code == 404
+
+
+def test_the_answer_is_asked_for_with_the_chats_own_model(tmp_path):
+    engine = FakeEngine()
+    client = _client(tmp_path, engine=engine)
+    pid, cid = _started(client)
+    client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "grok-4.3"})
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+    assert engine.asked_for == "grok-4.3"
+
+
+def test_a_chat_that_picked_nothing_lets_the_engine_decide(tmp_path):
+    engine = FakeEngine()
+    client = _client(tmp_path, engine=engine)
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+    assert engine.asked_for is None

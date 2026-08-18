@@ -25,10 +25,26 @@ class FakeChatStore:
         return [chat for pid, chat in self.saved if pid == project_id]
 
 
-def _start(text, chat_store=None, new_id="c1", now="2026-08-09T11:04:00+00:00"):
+def _start(text, chat_store=None, new_id="c1", now="2026-08-09T11:04:00+00:00", model=""):
     return start_chat(
-        chat_store or FakeChatStore(), FakeProjectStore(), "p1", text, new_id=new_id, now=now
+        chat_store or FakeChatStore(),
+        FakeProjectStore(),
+        "p1",
+        text,
+        new_id=new_id,
+        now=now,
+        model=model,
     )
+
+
+def test_a_chat_is_born_with_the_model_that_was_picked():
+    assert _start("Hello", model="grok-4.3").model == "grok-4.3"
+
+
+def test_a_chat_born_without_a_pick_carries_none():
+    # Empty rather than the default written in: the setting is allowed to move, and a chat that
+    # never chose should move with it.
+    assert _start("Hello").model == ""
 
 
 def test_a_short_message_is_the_title_as_it_is():

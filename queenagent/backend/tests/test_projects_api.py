@@ -21,6 +21,7 @@ def _client(tmp_path):
                 FileChatStore(store),
                 FileFileStore(store),
                 FakeEngine(),
+                "grok-4.5",
             ),
         ),
     )
