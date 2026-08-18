@@ -7,6 +7,7 @@ from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
     TOOL_SPECS,
+    WRITES_FILES,
     FileStarted,
     FileWritten,
     run_tool,
@@ -48,10 +49,12 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
                 tool = call["function"]["name"]
                 # The dashed card goes up before the tool runs: the name is not settled until it
                 # has, and the design's card carries no name anyway.
-                if tool == "create_file":
+                if tool in WRITES_FILES:
                     yield FileStarted()
                 result = run_tool(file_store, project_id, tool, call["function"]["arguments"])
-                if result.created:
+                # A name born twice in one turn is still one file: the card says a file exists, not
+                # how many times it was written.
+                if result.created and result.created not in born:
                     born.append(result.created)
                     yield FileWritten(result.created)
                 conversation.append(

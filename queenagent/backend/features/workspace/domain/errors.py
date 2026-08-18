@@ -23,3 +23,7 @@ class EngineFailed(Exception):
 
 class FileNotFound(Exception):
     """The project holds no file by this name."""
+
+
+class BadStructure(Exception):
+    """No prompts can be built from this file. Carries what is wrong, in words."""
