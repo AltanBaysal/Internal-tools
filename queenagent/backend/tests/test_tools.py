@@ -6,11 +6,24 @@ from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.domain.naming import unique_name
 from backend.features.workspace.domain.tools import (
     DEFAULT_NAME,
+    MAX_ROUNDS,
     TOOL_SPECS,
     run_tool,
     safe_name,
 )
 from backend.services.store.store import Store
+
+STRUCTURE = json.dumps(
+    {
+        "quality": "score_9_up",
+        "characters": {"aylin": "1girl, long teal hair"},
+        "locations": {"bedroom": "sunlit bedroom"},
+        "shots": [
+            {"characters": ["aylin"], "location": "bedroom", "action": "one", "camera": "wide"},
+            {"characters": ["aylin"], "location": "bedroom", "action": "two", "camera": "close"},
+        ],
+    }
+)
 
 
 def _files(tmp_path):
@@ -19,6 +32,12 @@ def _files(tmp_path):
 
 def _call(files, tool, **arguments):
     return run_tool(files, "p1", tool, json.dumps(arguments)).text
+
+
+def _with(tmp_path, name, content):
+    files = _files(tmp_path)
+    files.write("p1", name, content)
+    return files
 
 
 @pytest.mark.parametrize(
@@ -99,4 +118,104 @@ def test_every_tool_is_declared_to_the_model():
         "list_files",
         "read_file",
         "create_file",
+        "edit_file",
+        "build_prompts",
     }
+
+
+def test_the_round_limit_carries_the_longest_chain():
+    # list, read, a skeleton, several batches of shots, a self-check and the build. Pinned, because
+    # a limit that quietly cuts the chain short looks like a model that gave up.
+    assert MAX_ROUNDS == 16
+
+
+def test_editing_changes_the_one_match_and_leaves_the_rest(tmp_path):
+    files = _with(tmp_path, "plan.md", "alpha\nbeta\ngamma")
+    assert "plan.md" in _call(files, "edit_file", name="plan.md", old="beta", new="BETA")
+    assert files.read("p1", "plan.md") == "alpha\nBETA\ngamma"
+
+
+def test_an_edit_can_take_text_out(tmp_path):
+    files = _with(tmp_path, "plan.md", "alpha, beta")
+    _call(files, "edit_file", name="plan.md", old=", beta", new="")
+    assert files.read("p1", "plan.md") == "alpha"
+
+
+def test_editing_a_file_that_is_not_there_is_an_answer_not_a_crash(tmp_path):
+    said = _call(_files(tmp_path), "edit_file", name="ghost.md", old="a", new="b")
+    assert "no file by that name" in said
+
+
+def test_an_edit_with_nothing_to_replace_is_refused(tmp_path):
+    files = _with(tmp_path, "plan.md", "alpha")
+    assert "text to replace" in _call(files, "edit_file", name="plan.md", old="", new="x")
+    assert files.read("p1", "plan.md") == "alpha"
+
+
+def test_text_that_is_not_in_the_file_changes_nothing(tmp_path):
+    files = _with(tmp_path, "plan.md", "alpha")
+    assert "not in plan.md" in _call(files, "edit_file", name="plan.md", old="beta", new="x")
+    assert files.read("p1", "plan.md") == "alpha"
+
+
+def test_text_that_appears_twice_is_refused_and_says_how_many(tmp_path):
+    files = _with(tmp_path, "plan.md", "beta and beta")
+    # Uniqueness is the safety: with two matches, which one was meant is a guess.
+    assert "2 times" in _call(files, "edit_file", name="plan.md", old="beta", new="x")
+    assert files.read("p1", "plan.md") == "beta and beta"
+
+
+def test_an_edit_does_not_report_a_born_file(tmp_path):
+    files = _with(tmp_path, "plan.md", "alpha")
+    edited = run_tool(files, "p1", "edit_file", json.dumps({"name": "plan.md", "old": "a", "new": "b"}))
+    assert edited.created is None
+
+
+def test_building_writes_a_file_named_after_the_source(tmp_path):
+    files = _with(tmp_path, "intro-shots.json", STRUCTURE)
+    said = _call(files, "build_prompts", name="intro-shots.json")
+    assert "intro-shots.py" in said and "2" in said
+    assert "PROMPTS" in files.read("p1", "intro-shots.py")
+    assert "long teal hair" in files.read("p1", "intro-shots.py")
+
+
+def test_building_reports_a_born_file(tmp_path):
+    files = _with(tmp_path, "intro-shots.json", STRUCTURE)
+    built = run_tool(files, "p1", "build_prompts", json.dumps({"name": "intro-shots.json"}))
+    assert built.created == "intro-shots.py"
+
+
+def test_building_again_writes_over_its_own_output(tmp_path):
+    files = _with(tmp_path, "intro-shots.json", STRUCTURE)
+    _call(files, "build_prompts", name="intro-shots.json")
+    _call(files, "edit_file", name="intro-shots.json", old="long teal hair", new="short red hair")
+    _call(files, "build_prompts", name="intro-shots.json")
+    # A derived file: regenerating it is the point, so numbering would only hide which one is now.
+    assert sorted(files.list_names("p1")) == ["intro-shots.json", "intro-shots.py"]
+    assert "teal" not in files.read("p1", "intro-shots.py")
+
+
+def test_building_from_a_file_that_is_not_there_is_an_answer(tmp_path):
+    assert "no file by that name" in _call(_files(tmp_path), "build_prompts", name="ghost.json")
+
+
+def test_broken_json_is_reported_in_the_parsers_own_words(tmp_path):
+    files = _with(tmp_path, "shots.json", "{oops")
+    said = _call(files, "build_prompts", name="shots.json")
+    # Never a guessed cause: whatever the parser said is what the model is told.
+    assert "shots.json" in said and "Expecting" in said
+    assert files.list_names("p1") == ["shots.json"]
+
+
+def test_an_unknown_name_writes_no_file(tmp_path):
+    broken = STRUCTURE.replace('"aylin"], "location"', '"aylinn"], "location"', 1)
+    files = _with(tmp_path, "shots.json", broken)
+    said = _call(files, "build_prompts", name="shots.json")
+    assert "aylinn" in said and "aylin" in said
+    assert files.list_names("p1") == ["shots.json"]
+
+
+def test_a_python_source_is_refused_so_it_is_not_written_over(tmp_path):
+    files = _with(tmp_path, "shots.py", STRUCTURE)
+    assert "shots.py" in _call(files, "build_prompts", name="shots.py")
+    assert files.read("p1", "shots.py") == STRUCTURE

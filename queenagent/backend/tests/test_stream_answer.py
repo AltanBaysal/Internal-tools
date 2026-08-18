@@ -16,6 +16,17 @@ from backend.services.store.store import Store
 
 NOW = "2026-08-09T11:06:00.000+00:00"
 
+STRUCTURE = json.dumps(
+    {
+        "quality": "score_9_up",
+        "characters": {"aylin": "1girl"},
+        "locations": {"bedroom": "sunlit bedroom"},
+        "shots": [
+            {"characters": ["aylin"], "location": "bedroom", "action": "one", "camera": "wide"}
+        ],
+    }
+)
+
 
 def call(tool, call_id="t1", **arguments):
     return {"id": call_id, "function": {"name": tool, "arguments": json.dumps(arguments)}}
@@ -153,6 +164,48 @@ def test_reading_a_file_announces_nothing(tmp_path):
     rounds = [[{"tool_calls": [call("read_file", name="ghost.md")]}], [{"text": "Not there."}]]
     _, _, _, produced = _run(tmp_path, rounds)
     assert not any(isinstance(piece, (FileStarted, FileWritten)) for piece in produced)
+
+
+def test_building_prompts_announces_itself_twice(tmp_path):
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "shots.json", STRUCTURE)
+    rounds = [[{"tool_calls": [call("build_prompts", name="shots.json")]}], [{"text": "done"}]]
+    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
+    # A file is born here too, so it gets the same dashed card and the same filled one.
+    assert isinstance(produced[0], FileStarted)
+    assert produced[1] == FileWritten("shots.py")
+
+
+def test_editing_a_file_announces_nothing(tmp_path):
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "alpha")
+    rounds = [
+        [{"tool_calls": [call("edit_file", name="plan.md", old="alpha", new="beta")]}],
+        [{"text": "done"}],
+    ]
+    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
+    # An edit is not a birth: a card would claim a file the user already has is new.
+    assert not any(isinstance(piece, (FileStarted, FileWritten)) for piece in produced)
+    assert files.read("p1", "plan.md") == "beta"
+
+
+def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "shots.json", STRUCTURE)
+    rounds = [
+        [
+            {
+                "tool_calls": [
+                    call("build_prompts", call_id="a", name="shots.json"),
+                    call("build_prompts", call_id="b", name="shots.json"),
+                ]
+            }
+        ],
+        [{"text": "done"}],
+    ]
+    list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
+    # The card says a file exists, not how many times it was written.
+    assert chats.get("p1", "c1").messages[-1].files == ("shots.py",)
 
 
 def test_a_stream_that_breaks_writes_nothing(tmp_path):
