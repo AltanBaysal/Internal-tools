@@ -25,7 +25,8 @@ test("pressing it opens the labelled menu with every model in it", () => {
 test("the menu says what each model costs", () => {
   render(<ModelPicker model="grok-4.5" />);
   fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
-  expect(screen.getByText(MODELS[0].detail)).toBeTruthy();
+  // Asked for by all: 4.6 and 4.5 cost the same, so the line is not unique and should not have to be.
+  expect(screen.getAllByText(MODELS[0].detail).length).toBeGreaterThan(0);
 });
 
 test("choosing another one hands the id over and closes", () => {

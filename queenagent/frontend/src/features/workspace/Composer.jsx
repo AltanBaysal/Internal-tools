@@ -2,7 +2,9 @@ import { useState } from "react";
 
 // The draft lives here rather than in App: it is the box's momentary state, not something a screen
 // keeps. Only the finished text leaves, through onSubmit.
-export default function Composer({ rows, placeholder, action, onSubmit }) {
+// `foot` is what stands to the left of Send. karar 1 settled that order -- Skills · model · Send --
+// and the box holds the room without knowing what goes in it.
+export default function Composer({ rows, placeholder, action, foot, onSubmit }) {
   const [draft, setDraft] = useState("");
   const ready = draft.trim().length > 0;
 
@@ -40,6 +42,7 @@ export default function Composer({ rows, placeholder, action, onSubmit }) {
         onKeyDown={onKeyDown}
       />
       <div className="composer__foot">
+        {foot}
         <button
           type="button"
           className={ready ? "composer__send composer__send--ready" : "composer__send"}

@@ -18,6 +18,7 @@ import {
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
 import { useProjects } from "./features/workspace/useProjects.js";
+import { getJson } from "./shared/api.js";
 import { useOnline } from "./shared/useOnline.js";
 import { useRoute } from "./shared/useRoute.js";
 
@@ -37,6 +38,10 @@ export default function App() {
   // The rail's folded state lasts the session and crosses chats and projects, so it cannot live in
   // a component that is rebuilt every time the address changes.
   const [railCollapsed, setRailCollapsed] = useState(false);
+  // The last model picked, and what the next chat is born with. Held for the session rather than
+  // written to disk: a chat's own choice is on the server, and this is only the starting point.
+  // Empty until the server says what it is set to.
+  const [lastModel, setLastModel] = useState("");
   const { projectChats, reloadProjectChats, loadingChats } = useProjectChats(route.projectId);
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
@@ -56,6 +61,23 @@ export default function App() {
     () => Promise.all([reloadFiles(), reloadProjects()]),
     online,
   );
+
+  // Which model a chat that picked nothing answers with is a setting, and only the server knows it.
+  // Asked once: it cannot change while the app is open.
+  useEffect(() => {
+    let cancelled = false;
+    getJson("/api/model")
+      .then((answer) => {
+        // Only as a starting point: a pick made in the meantime is the newer answer.
+        if (!cancelled && answer?.default) setLastModel((picked) => picked || answer.default);
+      })
+      // A default nobody could fetch is not worth a message on the screen: the chat's own record
+      // carries a resolved name anyway, and only a draft is left saying "Model".
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const openProject = (id) => navigate(`/p/${id}`);
   const openChat = (projectId, chatId, options) =>
@@ -167,8 +189,15 @@ export default function App() {
 
   // The draft address is not a place to come back to, so the chat that replaces it does exactly
   // that; starting one from the project screen is an ordinary step and is pushed.
+  // A chat's own choice lives on the server; the last one made also becomes what the next chat
+  // starts from, and that much is the session's.
+  const chooseModel = async (model) => {
+    setLastModel(model);
+    await chat.chooseModel(model);
+  };
+
   const startChat = async (text) => {
-    const started = await startChatInProject(route.projectId, text);
+    const started = await startChatInProject(route.projectId, text, lastModel);
     await Promise.all([reloadProjectChats(), reloadProjects()]);
     openChat(route.projectId, started.id, { replace: drafting });
   };
@@ -220,7 +249,8 @@ export default function App() {
         {route.view === "chat" ? (
           <ChatScreen
             project={project}
-            chat={drafting ? DRAFT : chat.chat}
+            /* A draft has no record yet, so the model it would be born with is the session's. */
+            chat={drafting ? { ...DRAFT, model: lastModel } : chat.chat}
             files={files}
             loadingFiles={loadingFiles}
             reading={{ ...reading, open: openFile }}
@@ -236,6 +266,8 @@ export default function App() {
             createdFiles={chat.createdFiles}
             onBack={() => openProject(route.projectId)}
             onSend={drafting ? startChat : chat.send}
+            /* A draft has nothing to write to yet, so picking only moves the session's own. */
+            onModelChange={drafting ? setLastModel : chooseModel}
             onRetry={chat.retry}
           />
         ) : null}

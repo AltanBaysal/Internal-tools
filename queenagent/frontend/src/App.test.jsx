@@ -871,6 +871,13 @@ function withModel(model = "") {
         json: async () => ({ id: "c2", title: "new", messages: [], model: "" }),
       });
     }
+    if (path.includes("/chats/")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ id: "c2", title: "new", messages: [], model: "grok-4.3" }),
+      });
+    }
     if (path.endsWith("/chats")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => chats });
     }

@@ -13,7 +13,14 @@ import { placeMenu } from "../../shared/menuPlacement.js";
 // It registers no key listener: Escape belongs to App's one listener, the same rule ConfirmDialog
 // follows, so the order of what closes first stays in a single place.
 
-export default function Menu({ items, anchor, onClose }) {
+function itemClass(item) {
+  const classes = ["menu__item"];
+  if (item.danger) classes.push("menu__item--danger");
+  if (item.checked) classes.push("menu__item--checked");
+  return classes.join(" ");
+}
+
+export default function Menu({ items, header, anchor, onClose }) {
   const menu = useRef(null);
   const [place, setPlace] = useState(null);
 
@@ -37,18 +44,22 @@ export default function Menu({ items, anchor, onClose }) {
         ref={menu}
         style={place ? { left: place.left, top: place.top, maxHeight: place.maxHeight } : undefined}
       >
+        {/* Drawn only when there is one: an empty label is a line of nothing. */}
+        {header ? <span className="menu__header">{header}</span> : null}
         {items.map((item) => (
           <button
             key={item.label}
             type="button"
-            className={item.danger ? "menu__item menu__item--danger" : "menu__item"}
+            className={itemClass(item)}
             title={item.danger ? item.label : undefined}
             onClick={() => {
               item.onChoose?.();
               onClose?.();
             }}
           >
-            {item.label}
+            <span className="menu__item-name">{item.label}</span>
+            {item.checked ? <span className="menu__item-mark">✓</span> : null}
+            {item.detail ? <span className="menu__item-detail">{item.detail}</span> : null}
           </button>
         ))}
       </div>

@@ -4,6 +4,7 @@ import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FileRail from "./FileRail.jsx";
 import Markdown from "./Markdown.jsx";
+import ModelPicker from "./ModelPicker.jsx";
 import Skeleton from "./Skeleton.jsx";
 
 const CHIP_LENGTH = 3;
@@ -65,6 +66,7 @@ export default function ChatScreen({
   createdFiles = [],
   onBack,
   onSend,
+  onModelChange,
   onRetry,
 }) {
   // Stamped once, when the wait starts. There is nothing on the server to read it from yet, and the
@@ -232,6 +234,9 @@ export default function ChatScreen({
             rows={2}
             placeholder="Reply..."
             action="Send"
+            /* Which model answers belongs to the chat on the server, so the screen asks and App
+               sends. Madde 27 puts Skills to the left of this one. */
+            foot={<ModelPicker model={chat.model} onChange={onModelChange} />}
             onSubmit={onSend}
           />
         </div>
