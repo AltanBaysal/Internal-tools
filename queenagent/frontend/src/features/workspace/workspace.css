@@ -803,12 +803,25 @@
   overflow: hidden;
 }
 
+/* A box holding buttons. The room belongs to the opener so the clickable area is the whole row, and
+   the lit surface stays on the box so hovering the × keeps the row lit. */
 .file-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-control);
+}
+
+.file-row__open {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 8px;
-  border-radius: var(--radius-control);
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
 
@@ -987,20 +1000,57 @@
   background: #ece7df;
   border-radius: var(--radius-control);
   height: 44px;
-  animation: blink 1.6s infinite;
+  animation: blink 1.4s infinite;
 }
 
 .skeleton--message .skeleton__block {
   height: 68px;
 }
 
+/* The whole content area before the first answer: a bar, a block, a shorter bar. The design's
+   fourth part was a grid of cards, and the grid went in Madde 3. */
+.skeleton--screen {
+  padding: 48px 32px;
+  gap: 22px;
+}
+
+.skeleton--screen .skeleton__block:nth-child(1) {
+  width: 280px;
+  height: 38px;
+}
+
+/* Staged, so the area reads as one thing waking up rather than three blocks flashing together. */
+.skeleton--screen .skeleton__block:nth-child(2) {
+  height: 104px;
+  animation-delay: 0.14s;
+}
+
+.skeleton--screen .skeleton__block:nth-child(3) {
+  width: 180px;
+  height: 16px;
+  animation-delay: 0.28s;
+}
+
 .offline {
   flex: none;
-  background: #fbf6ec;
-  border-bottom: 1px solid #eadfc8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f5e9e3;
+  border-bottom: 1px solid #e7d3c8;
   padding: 9px 32px;
   font-size: 12.5px;
-  color: #8a6a37;
+  color: #8a5237;
+}
+
+/* The strip's own ink rather than the accent: the accent marks the primary action, and being
+   offline is a state. */
+.offline__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8a5237;
 }
 
 /* --- reading a file ----------------------------------------------------- */
@@ -1156,11 +1206,22 @@
 .chat-row {
   display: flex;
   align-items: center;
-  gap: 14px;
   border-bottom: 1px solid #e9e3da;
-  padding: 13px 8px;
-  cursor: pointer;
   border-radius: var(--radius-control);
+}
+
+.chat-row__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .chat-row:hover {

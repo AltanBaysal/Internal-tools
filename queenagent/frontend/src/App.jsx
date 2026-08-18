@@ -9,6 +9,7 @@ import NoProjectsScreen from "./features/workspace/NoProjectsScreen.jsx";
 import OfflineStrip from "./features/workspace/OfflineStrip.jsx";
 import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
 import Sidebar from "./features/workspace/Sidebar.jsx";
+import Skeleton from "./features/workspace/Skeleton.jsx";
 import { useChat } from "./features/workspace/useChat.js";
 import {
   deleteChat,
@@ -96,6 +97,9 @@ export default function App() {
 
   // "/" is a fork, not a screen. It is read once the list has arrived -- an empty array cannot tell
   // "there is none" from "not here yet", and deciding early shows the wrong screen for a moment.
+  // The first answer has not come back yet, so which screen this is cannot be known. A failure ends
+  // it too: the empty screen is what carries the server's words.
+  const firstLoad = loading && !error;
   const atFork = route.view === "root";
   const landing = atFork && !loading && !error && projects.length > 0 ? projects[0].id : null;
   useEffect(() => {
@@ -247,13 +251,19 @@ export default function App() {
         {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
         <OfflineStrip online={online} />
 
+        {/* Until the first answer, the whole content area is one skeleton and no screen is drawn.
+            Two wrongs close with it: the fork used to sit empty, and an address typed straight into
+            a project answered "does not exist" about a list nobody had answered yet. The sidebar
+            stays live so navigation is never locked. */}
+        {firstLoad ? <Skeleton variant="screen" rows={3} /> : null}
+
         {/* The fork draws nothing while it is still deciding, and hands over to the empty screen
             only once the server has said there is nothing to open. */}
-        {atFork && !landing && (!loading || error) ? (
+        {!firstLoad && atFork && !landing ? (
           <NoProjectsScreen error={error} onNewProject={createProject} />
         ) : null}
 
-        {route.view === "project" ? (
+        {!firstLoad && route.view === "project" ? (
           <ProjectScreen
             project={project}
             chats={projectChats}
@@ -272,7 +282,7 @@ export default function App() {
           />
         ) : null}
 
-        {route.view === "chat" ? (
+        {!firstLoad && route.view === "chat" ? (
           <ChatScreen
             project={project}
             /* A draft has no record yet, so the choices it would be born with are the session's. */

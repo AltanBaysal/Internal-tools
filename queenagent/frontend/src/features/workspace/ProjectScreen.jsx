@@ -65,24 +65,25 @@ export default function ProjectScreen({
                 {loadingChats ? <Skeleton rows={3} /> : null}
                 {/* This column used to empty in silence, which was the quieter of the two lies. */}
                 {chatsError ? <p className="list-error">{chatsError}</p> : null}
+                {/* A box holding buttons, like the file row and the sidebar's: a clickable box has
+                    no tab stop and no Enter, and the × cannot sit inside a button. */}
                 {chats.map((chat) => (
-                  <div
-                    key={chat.id}
-                    className="chat-row"
-                    onClick={() => onOpenChat(chat.id)}
-                    title={chat.title}
-                  >
-                    <span className="chat-row__title">{chat.title}</span>
-                    <span className="chat-row__when">{relativeTime(chat.lastActivity)}</span>
+                  <div key={chat.id} className="chat-row" title={chat.title}>
+                    <button
+                      type="button"
+                      className="chat-row__open"
+                      onClick={() => onOpenChat(chat.id)}
+                    >
+                      <span className="chat-row__title">{chat.title}</span>
+                      <span className="chat-row__when">{relativeTime(chat.lastActivity)}</span>
+                    </button>
                     {onDeleteChat ? (
                       <button
                         type="button"
                         className="row-x"
+                        title={`Delete ${chat.title}`}
                         aria-label={`Delete ${chat.title}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDeleteChat(chat.id);
-                        }}
+                        onClick={() => onDeleteChat(chat.id)}
                       >
                         ×
                       </button>
