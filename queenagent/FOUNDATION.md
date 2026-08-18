@@ -30,6 +30,14 @@ simple code fast and correctly, and it breaks dense code on every later edit. So
 simple and bounded enough to be rewritten from its spec alone. A file too big to hold comfortably in
 context is doing too much — split it.
 
+**5. What a model would have to repeat, code does instead.**
+Anything that must come out identical every time is assembled by a deterministic function, and the
+model is left the part that genuinely needs judgement — the text itself. Why: attention is not a
+guarantee. A character description copied by hand into forty prompts drifts, and the drift is
+invisible until the images come back wrong; the same description resolved from one entry cannot
+drift at all. Consequence: a tool that only joins known pieces (`build_prompts`) is preferred over
+an instruction asking for care, and its input is data on disk the user can read and correct.
+
 ## Decisions
 
 **1. The app runs on the user's own machine.**

@@ -406,10 +406,20 @@ ile okur. Beceriler **bağımsızdır** — zinciri kullanıcı kurar. İki yeni
 
 ### Madde 31 — Belgeler ürünü yakalar
 
-- **Ne çalışır:** `CLAUDE.md`'nin QueenAgent bölümü ve `FOUNDATION.md` güncellenir: "hiçbir üretim
-  hattına bağlı değil" ve "amaç alanı serbesttir" cümleleri düşer; altı beceri, iki yeni tool ve
-  amaçları yazılır. Karar 18'in eskiyen iki cümlesi de burada kapanır.
+- **Ne çalışır:** `CLAUDE.md`'nin QueenAgent bölümü altı beceriyi, beş tool'u ve hattı yazar; ürünün
+  genel amaçlı bir çalışma alanı **olmadığı** orada söylenir. `FOUNDATION.md`'ye bir ilke girer:
+  *modelin tekrarlamak zorunda kalacağı şeyi kod yapar.* `CODE-STANDARD.md`'nin mağaza tablosunda
+  sohbet dosyası artık seçimleri de taşıdığını söyler. Karar 18'in eskiyen iki cümlesi tarihli bir
+  notla kapanır.
 - **Nasıl görülür:** belgeler ürünün yaptığı işi anlatıyor, eskisini değil.
+
+> **Yürütmede iki düzeltme (18 Ağustos).** (1) "Hiçbir üretim hattına bağlı değil" ve "amaç alanı
+> serbesttir" cümleleri `CLAUDE.md`'de değil **Mira v1 tasarımında** duruyor; o belge donmuştur
+> (`CLAUDE.md`'nin kendi kuralı: v1 belgeleri o günün doğrusunu kaydeder), bu yüzden cümleler
+> silinmedi — karar 18'e tarihli bir not düşüldü ve `CLAUDE.md` ürünün bugününü söyleyecek şekilde
+> yazıldı. (2) `FOUNDATION.md` ürün biçimini kabul etmiyor ("product decisions never enter this
+> file"), dolayısıyla altı beceri oraya yazılamaz; oraya giren şey becerilerin dayandığı **mühendislik
+> ilkesi** oldu. Beceri kümesi `CLAUDE.md`'de ve `CODE-STANDARD.md`'de duruyor.
 
 ---
 

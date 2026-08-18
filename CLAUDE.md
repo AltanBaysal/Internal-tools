@@ -52,13 +52,23 @@ what is here.
 
 A small AI workspace: a **project** holds two sibling collections, **chats** and **files**. Chats
 produce files; a file belongs to the project, never to a chat, and the user reads files rather than
-uploading them. xAI Grok drives an agent loop with three tools (`list_files`, `read_file`,
-`create_file`) and decides whether a reply becomes a file. Principles:
+uploading them. xAI Grok drives an agent loop with five tools (`list_files`, `read_file`,
+`create_file`, `edit_file`, `build_prompts`) and decides whether a reply becomes a file. Principles:
 [FOUNDATION.md](queenagent/FOUNDATION.md); layering:
 [CODE-STANDARD.md](queenagent/CODE-STANDARD.md); what is being built now:
 [the v2 roadmap](docs/superpowers/plans/2026-08-15-queenagent-v2-roadmap.md), grounded in
 [the design v2 diff](docs/superpowers/research/2026-08-14-mira-tasarim-farklari.md) and
 [the decisions it produced](docs/superpowers/research/2026-08-14-mira-tasarim-kararlari.md).
+
+**It is the front end of one production line, not a general workspace.** A chat can be handed one of
+six **skills** — Create scenario · Create character prompt · Split into shots · Generate prompts ·
+Generate prompts+ · Verify shots — and together they run scenario → shot list → structure JSON →
+`PROMPTS` list for the SDXL pipeline. A skill is an instruction text
+(`domain/skills.py`), placed into the conversation once, in front of the turn it governs. The
+intermediate steps live in the chat where the user approves them; only what is approved reaches
+disk. And the rule the whole set turns on: **the model writes the text, code does the joining** —
+`build_prompts` resolves the names and assembles every shot itself. Why each of these is so:
+[the skills design decisions](docs/superpowers/research/2026-08-18-queenagent-beceriler-tasarim-kararlari.md).
 
 **It was called Mira until v2.** The v1 documents keep that name and stay as they are — they record
 what was true then: [the v1 roadmap](docs/superpowers/plans/2026-08-09-mira-v1-roadmap.md) and

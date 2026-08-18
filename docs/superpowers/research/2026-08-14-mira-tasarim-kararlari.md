@@ -143,6 +143,13 @@ var. Motor tarafına dokunulmuyor.
 üretim hattının ön yüzüne çeviriyor. `CLAUDE.md`'nin "hiçbir üretim hattına bağlı değil" cümlesi ve
 Mira v1'in "amaç alanı serbesttir" cümlesi artık doğru değil; ikisi de güncellenmeli.
 
+> **Güncelleme (18 Ağustos, Madde 31).** Bu maddenin iki cümlesi eskidi ve yerine
+> [beceriler tasarım kararları](2026-08-18-queenagent-beceriler-tasarim-kararlari.md) geçti: küme
+> **üç değil altı beceri**, ve "yeni araç gerekmiyor" düştü — `edit_file` ile `build_prompts` geldi.
+> Karar metni olduğu gibi bırakıldı; 14 Ağustos'ta bilinen buydu. `CLAUDE.md` güncellendi. Mira v1
+> tasarımının cümlesine **dokunulmadı**: v1 belgeleri o günün doğrusunu kaydeder ve öyle kalır
+> (`CLAUDE.md`'nin kendi kuralı).
+
 ---
 
 ## Süreç
