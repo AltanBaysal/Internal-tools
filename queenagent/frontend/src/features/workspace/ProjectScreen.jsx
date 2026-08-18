@@ -51,8 +51,8 @@ export default function ProjectScreen({
             onSubmit={onSend}
           />
 
-          {/* Reading drops the grid to one column: the panel takes the width the files column had,
-              and the chats it pushes down are still all there. */}
+          {/* Reading drops the grid to one column, because the column it would have held is the one
+              the panel is already showing: the same list twice is not two things. */}
           <div className={reading?.name ? "project-grid project-grid--reading" : "project-grid"}>
             <div>
               {/* No empty-state line here on purpose: the composer sits right above and already
@@ -87,32 +87,36 @@ export default function ProjectScreen({
                 ))}
               </div>
             </div>
-            <div>
-              <h2 className="column__title">Files QueenAgent created</h2>
-              {/* No offer to bring anything back, but a refusal is still worth a line. */}
-              {deleting?.error ? <p className="file-list__error">{deleting.error}</p> : null}
-              <div className="file-list">
-                {/* The teaching line waits for the answer: until the list has arrived, "no files
-                    yet" is a guess and not a fact. */}
-                {loadingFiles ? <Skeleton rows={3} /> : null}
-                {!loadingFiles && files.length
-                  ? files.map((file) => (
-                      <FileRow
-                        key={file.name}
-                        file={file}
-                        selected={file.name === reading?.name}
-                        onOpen={reading?.open}
-                        onDelete={deleting?.remove}
-                      />
-                    ))
-                  : null}
-                {!loadingFiles && !files.length ? (
-                  <p className="file-list__empty">
-                    No files yet — start a chat and QueenAgent will create one.
-                  </p>
-                ) : null}
+            {/* Gone while the panel is open, and the row's × goes with it: there is no row left to
+                delete. The chat rail keeps its list in the same situation for the opposite reason --
+                there the reader is the rail widened, so the list is its neighbour, not its copy. */}
+            {reading?.name ? null : (
+              <div>
+                <h2 className="column__title">Files QueenAgent created</h2>
+                {/* No offer to bring anything back, but a refusal is still worth a line. */}
+                {deleting?.error ? <p className="file-list__error">{deleting.error}</p> : null}
+                <div className="file-list">
+                  {/* The teaching line waits for the answer: until the list has arrived, "no files
+                      yet" is a guess and not a fact. */}
+                  {loadingFiles ? <Skeleton rows={3} /> : null}
+                  {!loadingFiles && files.length
+                    ? files.map((file) => (
+                        <FileRow
+                          key={file.name}
+                          file={file}
+                          onOpen={reading?.open}
+                          onDelete={deleting?.remove}
+                        />
+                      ))
+                    : null}
+                  {!loadingFiles && !files.length ? (
+                    <p className="file-list__empty">
+                      No files yet — start a chat and QueenAgent will create one.
+                    </p>
+                  ) : null}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

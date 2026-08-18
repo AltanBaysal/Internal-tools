@@ -1213,7 +1213,8 @@
   margin-top: 36px;
 }
 
-/* The panel took the room the second column had, so the two columns stack instead. */
+/* The second column is not there to lay out: the panel is showing it. Without this the track would
+   still be reserved and the chats would sit in a narrower column for no reason. */
 .project-grid--reading {
   grid-template-columns: minmax(0, 1fr);
 }

@@ -137,6 +137,9 @@ export default function App() {
 
   // Every deletion in the app comes through the same slot: ask, then do. A fourth one would know
   // where to ask without being told.
+  //
+  // The panel is never open when this is reached: the only way to ask is the row's ×, and the row
+  // stands in the column the panel replaces.
   const askToDeleteFile = (name) => {
     setConfirming({
       title: `Delete "${name}"?`,
@@ -144,8 +147,6 @@ export default function App() {
       confirmLabel: "Delete file",
       onConfirm: () => {
         setConfirming(null);
-        // Reading something that is no longer there is not reading, so the panel goes first.
-        if (reading.name === name) reading.close();
         deleting.remove(name);
       },
     });
