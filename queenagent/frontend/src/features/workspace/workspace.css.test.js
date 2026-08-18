@@ -110,7 +110,10 @@ test("a narrow shell scrolls its regions, not the layout", () => {
 });
 
 test("a narrow shell puts the project's two columns one above the other", () => {
-  expect(rule(".app-shell--narrow .project-grid")).toContain("grid-template-columns: minmax(0, 1fr)");
+  // Reading or not: at this width there is only ever one column to give.
+  expect(grouped(".app-shell--narrow .project-grid,")).toContain(
+    "grid-template-columns: minmax(0, 1fr)",
+  );
 });
 
 test("reading in a narrow shell takes the whole area rather than lengthening the page", () => {

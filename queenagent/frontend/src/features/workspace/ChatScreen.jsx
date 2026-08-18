@@ -121,7 +121,9 @@ export default function ChatScreen({
   const waitingLabel = askedAt ? `QueenAgent · ${clockTime(askedAt)}` : "QueenAgent";
 
   return (
-    <div className="chat-layout">
+    /* A narrow shell hides the conversation while a file is open, and CSS cannot look at a later
+       sibling to find that out. The screen knows already, so it says so. */
+    <div className={reading?.name ? "chat-layout chat-layout--reading" : "chat-layout"}>
       <div className="chat">
         <header className="chat__header">
           <button type="button" className="back back--inline" onClick={onBack}>

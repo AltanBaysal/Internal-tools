@@ -21,6 +21,7 @@ import { useProjects } from "./features/workspace/useProjects.js";
 import { getJson } from "./shared/api.js";
 import { useOnline } from "./shared/useOnline.js";
 import { useRoute } from "./shared/useRoute.js";
+import { useShellWidth } from "./shared/useShellWidth.js";
 
 // A draft has the shape of a chat so the screen needs no second mode: an empty conversation with a
 // title of its own. It is never sent anywhere -- the first message creates the real one.
@@ -29,6 +30,8 @@ const DRAFT = { id: null, title: "New chat", messages: [] };
 export default function App() {
   const { route, navigate } = useRoute();
   const online = useOnline();
+  // Which layout step holds is the shell's own width, measured -- not the window's.
+  const { shell, steps } = useShellWidth();
   const { projects, error, loading, createProject, editProject, removeProject, reloadProjects } =
     useProjects();
   // Both live here rather than inside the sidebar, because App's one listener owns Escape and it
@@ -224,7 +227,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell" data-testid="app-shell">
+    <div ref={shell} className={`app-shell ${steps}`.trim()} data-testid="app-shell">
       <Sidebar
         projects={projects}
         chats={projectChats}

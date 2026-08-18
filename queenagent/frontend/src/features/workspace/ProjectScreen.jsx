@@ -32,7 +32,7 @@ export default function ProjectScreen({
   }
 
   return (
-    <div className="screen-layout">
+    <div className={reading?.name ? "screen-layout screen-layout--reading" : "screen-layout"}>
       <div className="screen">
         <div className="screen__column">
           <div className="screen__title-row">
