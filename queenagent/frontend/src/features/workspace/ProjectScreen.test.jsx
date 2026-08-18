@@ -33,6 +33,18 @@ test("the title and both column headings are drawn", () => {
   expect(screen.getByText("Files QueenAgent created")).toBeTruthy();
 });
 
+test("a chat row is a real button and its × is a sibling", () => {
+  const chats = [{ id: "c1", title: "First chat", lastActivity: new Date().toISOString() }];
+  const { container } = render(
+    <ProjectScreen project={PROJECT} chats={chats} onOpenChat={vi.fn()} onDeleteChat={vi.fn()} />,
+  );
+  const opener = screen.getByRole("button", { name: /First chat/ });
+  expect(opener.tagName).toBe("BUTTON");
+  const remove = screen.getByRole("button", { name: "Delete First chat" });
+  expect(container.querySelector(".chat-row__open").contains(remove)).toBe(false);
+  expect(remove.title).toBe("Delete First chat");
+});
+
 test("the layout says when something is being read", () => {
   const { container } = render(<ProjectScreen project={PROJECT} reading={{ name: "a.md" }} />);
   expect(container.querySelector(".screen-layout--reading")).toBeTruthy();

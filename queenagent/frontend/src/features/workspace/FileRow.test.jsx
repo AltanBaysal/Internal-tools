@@ -36,8 +36,39 @@ test("with one, the × deletes without opening", () => {
   render(<FileRow file={FILE} onOpen={onOpen} onDelete={onDelete} />);
   fireEvent.click(screen.getByRole("button", { name: "Delete outline.md" }));
   expect(onDelete).toHaveBeenCalledWith("outline.md");
-  // The × sits inside the row, so it has to stop the click from reaching it.
   expect(onOpen).not.toHaveBeenCalled();
+});
+
+// A row that only listens for a click cannot be reached from the keyboard at all: no tab stop, no
+// Enter, no focus ring. Opening a file was impossible without a mouse.
+test("the row is a real button", () => {
+  render(<FileRow file={FILE} onOpen={vi.fn()} />);
+  const opener = screen.getByRole("button", { name: /outline\.md/ });
+  expect(opener.tagName).toBe("BUTTON");
+});
+
+test("Enter on the row opens the file", () => {
+  const onOpen = vi.fn();
+  render(<FileRow file={FILE} onOpen={onOpen} />);
+  const opener = screen.getByRole("button", { name: /outline\.md/ });
+  opener.focus();
+  expect(document.activeElement).toBe(opener);
+  // A button answers Enter itself; the browser turns it into a click.
+  fireEvent.click(opener);
+  expect(onOpen).toHaveBeenCalledWith("outline.md");
+});
+
+test("the × is a sibling of the opener rather than sitting inside it", () => {
+  // A button inside a button is not valid HTML, and the row had to become a button.
+  const { container } = render(<FileRow file={FILE} onOpen={vi.fn()} onDelete={vi.fn()} />);
+  const remove = screen.getByRole("button", { name: "Delete outline.md" });
+  expect(remove.closest("button")).toBe(remove);
+  expect(container.querySelector(".file-row__open").contains(remove)).toBe(false);
+});
+
+test("the × says what it does to a pointer as well as to a screen reader", () => {
+  render(<FileRow file={FILE} onOpen={vi.fn()} onDelete={vi.fn()} />);
+  expect(screen.getByRole("button", { name: "Delete outline.md" }).title).toBe("Delete outline.md");
 });
 
 // Which row is open is the caller's answer, not the row's: the row is drawn in two lists and

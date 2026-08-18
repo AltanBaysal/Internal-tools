@@ -24,6 +24,50 @@ test("the shell renders", () => {
   expect(screen.getByTestId("app-shell")).toBeTruthy();
 });
 
+test("the first load is one skeleton and no screen at all", async () => {
+  let answer;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        answer = () => resolve({ ok: true, status: 200, json: async () => [] });
+      }),
+    ),
+  );
+  render(<App />);
+  expect(screen.getByTestId("skeleton")).toBeTruthy();
+  // The navigation stays usable while the middle waits.
+  expect(screen.getByText("QueenAgent")).toBeTruthy();
+  expect(screen.queryByText(/No projects yet/)).toBeNull();
+
+  await act(async () => {
+    answer();
+  });
+  await waitFor(() => expect(screen.queryByTestId("skeleton")).toBeNull());
+});
+
+test("an address is not called wrong before the list has arrived", async () => {
+  window.history.pushState(null, "", "/p/p1");
+  let answer;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        answer = () => resolve({ ok: true, status: 200, json: async () => [] });
+      }),
+    ),
+  );
+  render(<App />);
+  // Saying "does not exist" about a list nobody has answered yet is the same untruth Madde 32 took
+  // out of the file column, one level up.
+  expect(screen.queryByText("That project does not exist.")).toBeNull();
+
+  await act(async () => {
+    answer();
+  });
+  await waitFor(() => expect(screen.getByText("That project does not exist.")).toBeTruthy());
+});
+
 test("the shell wears the step it was measured at", () => {
   stubProjects([]);
   const observers = [];

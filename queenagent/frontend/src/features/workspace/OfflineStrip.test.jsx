@@ -10,7 +10,13 @@ test("nothing is drawn while the connection is there", () => {
 
 test("offline, it says what is saved and what waits", () => {
   render(<OfflineStrip online={false} />);
-  // The server is on this machine: the message lands, the answer is what needs the network.
-  expect(screen.getByTestId("offline").textContent).toContain("Messages are saved");
-  expect(screen.getByTestId("offline").textContent).toContain("answer when the connection is back");
+  // The server is on this machine: the message lands, the sending is what needs the network.
+  expect(screen.getByTestId("offline").textContent).toContain(
+    "You're offline — messages are saved and will send when you reconnect.",
+  );
+});
+
+test("a dot stands in front of the sentence", () => {
+  const { container } = render(<OfflineStrip online={false} />);
+  expect(container.querySelector(".offline__dot")).toBeTruthy();
 });

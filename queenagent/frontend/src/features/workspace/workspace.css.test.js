@@ -326,6 +326,49 @@ test("the document reads at the design's size and leading", () => {
   expect(body).not.toContain("white-space");
 });
 
+test("the first load has a shape, and it is the design's three", () => {
+  const screenSkeleton = rule(".skeleton--screen .skeleton__block:nth-child(1)");
+  expect(screenSkeleton).toContain("width: 280px");
+  expect(screenSkeleton).toContain("height: 38px");
+  expect(rule(".skeleton--screen .skeleton__block:nth-child(2)")).toContain("height: 104px");
+  const third = rule(".skeleton--screen .skeleton__block:nth-child(3)");
+  expect(third).toContain("width: 180px");
+  expect(third).toContain("height: 16px");
+});
+
+test("the blocks blink at the design's speed, one after another", () => {
+  // One blink in the app, and the number is the design's rather than the one that was here.
+  expect(rule(".skeleton__block")).toContain("animation: blink 1.4s infinite");
+  expect(CSS).not.toContain("blink 1.6s");
+  // Staged only on this screen: the design says it here, and generalising it would be inventing.
+  expect(rule(".skeleton--screen .skeleton__block:nth-child(2)")).toContain("animation-delay");
+  expect(rule(".skeleton--screen .skeleton__block:nth-child(3)")).toContain("animation-delay");
+});
+
+test("the offline strip turns reddish and carries a dot", () => {
+  const strip = rule(".offline");
+  expect(strip).toContain("background: #f5e9e3");
+  expect(strip).toContain("border-bottom: 1px solid #e7d3c8");
+  expect(strip).toContain("color: #8a5237");
+
+  const dot = rule(".offline__dot");
+  expect(dot).toContain("width: 7px");
+  expect(dot).toContain("height: 7px");
+  // Being offline is a state, and the accent marks the primary action and nothing else.
+  expect(dot).not.toContain("var(--accent)");
+});
+
+test("a row is a box holding buttons, and the lit surface is the box", () => {
+  // The × cannot sit inside a button, so it became a sibling -- and the hover has to survive that.
+  expect(rule(".file-row:hover")).toContain("background: #f0ece5");
+  expect(rule(".chat-row:hover")).toContain("background: #f0ece5");
+  // The room the row used to hold moves to the opener, so the clickable area does not shrink.
+  expect(rule(".file-row")).not.toContain("padding");
+  expect(rule(".file-row__open")).toContain("padding: 10px 8px");
+  expect(rule(".chat-row")).not.toContain("padding");
+  expect(rule(".chat-row__open")).toContain("padding: 13px 8px");
+});
+
 test("a list says what went wrong in one voice", () => {
   // One class for all four places: a line saying something failed in this list is the same thing in
   // the rail, in either column, and after a refused delete.
