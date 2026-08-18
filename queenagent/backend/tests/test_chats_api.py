@@ -80,11 +80,12 @@ def test_an_unknown_project_is_404(tmp_path):
 
 
 def test_a_chat_cannot_be_renamed(tmp_path):
-    # Renaming lives on the project alone. 405 rather than 404: GET and DELETE still answer there.
+    # Renaming lives on the project alone. PATCH exists now -- it is how the model is changed -- so
+    # the refusal has to be in what it understands rather than in the method not being there.
     client = _client(tmp_path)
     pid, cid = _started(client)
     resp = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": "Something else"})
-    assert resp.status_code == 405
+    assert resp.status_code == 400
     assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["title"] == "hello"
 
 
