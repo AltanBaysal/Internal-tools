@@ -335,13 +335,43 @@ test("the composer says which model this chat answers with", () => {
   expect(screen.getByRole("button", { name: /Grok 4.3/ })).toBeTruthy();
 });
 
+test("the foot carries Skills, the model and Send, in that order", () => {
+  // karar 1's order, complete at last.
+  const { container } = render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.5" }} />);
+  const buttons = [...container.querySelectorAll(".composer__foot button")];
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.5⌄", "Send"]);
+});
+
+test("a chat with a skill selected says which one", () => {
+  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "verify-shots" }} />);
+  expect(screen.getByRole("button", { name: /Verify shots/ })).toBeTruthy();
+});
+
+test("picking a skill is passed up rather than kept here", () => {
+  const onSkillChange = vi.fn();
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      picker="skills"
+      onSkillChange={onSkillChange}
+    />,
+  );
+  fireEvent.click(screen.getByText("Split into shots"));
+  expect(onSkillChange).toHaveBeenCalledWith("split-into-shots");
+});
+
 test("picking another one is passed up rather than kept here", () => {
   // Which model a chat uses lives on the server. The screen asks; App sends.
   const onModelChange = vi.fn();
   render(
-    <ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.5" }} onModelChange={onModelChange} />,
+    <ChatScreen
+      project={PROJECT}
+      chat={{ ...CHAT, model: "grok-4.5" }}
+      picker="model"
+      onModelChange={onModelChange}
+    />,
   );
-  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
   fireEvent.click(screen.getByText("Grok Build"));
   expect(onModelChange).toHaveBeenCalledWith("grok-build-0.1");
 });

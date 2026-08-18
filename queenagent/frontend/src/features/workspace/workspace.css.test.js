@@ -296,6 +296,13 @@ test("the room around the document belongs to the document", () => {
   expect(rule(".rail__list")).toContain("padding: 20px 18px");
 });
 
+test("a selected skill warms its button without borrowing the accent", () => {
+  // One accent only: it marks the primary action, and a selection is a state rather than an action.
+  const on = rule(".picker--on");
+  expect(on).toContain("background: #f0e7de");
+  expect(on).not.toContain("var(--accent)");
+});
+
 test("the layout breakpoint no longer sets the sidebar width", () => {
   // Madde 33 brings the layout onto the same measurements; until then it keeps its own, and the
   // sidebar's four steps are the only thing that decides its width.

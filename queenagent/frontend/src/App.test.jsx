@@ -933,6 +933,81 @@ test("a new chat is born with the last model picked in this session", async () =
   );
 });
 
+// --- which skill is selected ---------------------------------------------------------------------
+
+test("picking a skill writes it to the chat it was picked in", async () => {
+  const fetch = withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(screen.getByText("Verify shots"));
+
+  await waitFor(() => expect(screen.getByRole("button", { name: /Verify shots/ })).toBeTruthy());
+  const patch = fetch.mock.calls
+    .filter(([, options]) => options?.method === "PATCH")
+    .map(([, options]) => JSON.parse(options.body));
+  expect(patch).toContainEqual({ skill: "verify-shots" });
+});
+
+test("a new chat is born with the last skill picked in this session", async () => {
+  const fetch = withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(screen.getByText("Split into shots"));
+  await waitFor(() => expect(screen.getByRole("button", { name: /Split into shots/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "← Old" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  const box = screen.getByPlaceholderText("Start a new chat in this project...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() =>
+    expect(
+      fetch.mock.calls.some(
+        ([path, options]) =>
+          options?.method === "POST" &&
+          path.endsWith("/chats") &&
+          JSON.parse(options.body).skill === "split-into-shots",
+      ),
+    ).toBe(true),
+  );
+});
+
+test("one menu closes the other", async () => {
+  withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  expect(screen.getByText("SKILLS")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  expect(screen.queryByText("SKILLS")).toBeNull();
+  expect(screen.getByText("MODEL")).toBeTruthy();
+});
+
+test("Escape closes the pickers in the design's order", async () => {
+  // fark 67: project menu -> confirm box -> Skills -> model -> open panel. The two pickers are the
+  // links that could not be wired until both existed.
+  withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByText("MODEL")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByText("SKILLS")).toBeNull();
+});
+
 test("with nothing picked yet a draft follows the server's own setting", async () => {
   withModel();
   window.history.pushState(null, "", "/p/p1/c/new");
