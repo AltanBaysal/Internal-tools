@@ -491,6 +491,27 @@ Kod bittikten sonra tek dalgada elle koşulur:
 | 23 | Olmayan adrese git | "That project does not exist." |
 | 24 | Yavaş açılışta ilk kareye bak | Ana bölge tek iskelet (çubuk + blok + çubuk), kenar çubuğu çalışıyor; "does not exist" **çıkmıyor** |
 | 25 | Fareyi bırak, sekmeyle dolaş | Sohbet ve dosya satırlarına sekme giriyor, Enter açıyor, odak halkası çiziliyor |
+| 26 | Anahtarı Settings'ten ver, kapat-aç; sonra sil ve mesaj at | Anahtar duruyor ve cevap geliyor; silince hata kartı ve altında Settings satırı |
+
+---
+
+---
+
+## Faz 9 — Anahtar uygulamanın içinde
+
+### Madde 36 — Ayarlar ekranı ve xAI anahtarı *(kullanıcı isteği, 18 Ağustos)*
+
+- **Ne çalışır:** kenar çubuğunun altında **Settings** satırı ve kendi ekranı; xAI anahtarı oraya
+  yazılır, **kaydedilir** ve kökteki `settings.json`'da yaşar. `XAI_API_KEY` ortam değişkeni
+  **tamamen kalkar** — anahtarın tek yolu bu ekran. Anahtar çalışırken değişebildiği için motor onu
+  her istekte okur; sunucuyu yeniden başlatmak gerekmez. Anahtar hiç yokken uygulama normal açılır;
+  cevap istenince bugünkü hata kartı çıkar ve altında ayarlara götüren bir satır durur.
+- **Nasıl görülür:** anahtarı ayarlara yaz → kaydet → mesaj at, cevap gelir; anahtarı boşalt →
+  hata kartı ve Settings bağlantısı; sunucuyu kapat-aç → anahtar yerinde.
+
+*(Numara 36: Madde 35'in numarası kaydırılmadı — yazılmış spec'lerde otuza yakın "gözle doğrulama
+Madde 35" referansı yanlış hâle gelirdi. Elle tur bu maddeden sonra koşulur ve tablosuna 26. adım
+eklendi.)*
 
 ---
 
@@ -507,6 +528,7 @@ Kod bittikten sonra tek dalgada elle koşulur:
 | 6 · Seçiciler | 25-27 | Model ve Skills | composer son hâlinde, menü deseni tek |
 | 7 · Beceriler | 28-31 | Altı beceri iş görür, tool katmanı tam | seçici arayüzü ve sohbete yapışma hazır |
 | 8 · Uçlar | 32-35 | Sapmalar, duyarlılık, durumlar, tur | en çok şeye bağımlı işler en sonda |
+| 9 · Anahtar | 36 | Ayarlar ekranı, env'siz anahtar | tasarımdan değil kullanımdan geldi; tur ondan sonra koşulur |
 
 ## Kapsam dışı
 
