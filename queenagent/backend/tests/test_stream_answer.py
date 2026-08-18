@@ -8,7 +8,9 @@ from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.domain.chat import Chat
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
+from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, FileWritten
+from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
@@ -206,6 +208,89 @@ def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
     list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
     # The card says a file exists, not how many times it was written.
     assert chats.get("p1", "c1").messages[-1].files == ("shots.py",)
+
+
+def _said_with(tmp_path, *turns):
+    """Run one answer over a chat whose messages were sent with the given skills."""
+    chats, files = _seeded(tmp_path)
+    for number, (text, skill) in enumerate(turns):
+        append_message(chats, "p1", "c1", text, f"2026-08-09T12:0{number}:00.000+00:00", skill=skill)
+    engine = ScriptedEngine([[{"text": "ok"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    return chats, engine.seen[0]
+
+
+def _instructions(conversation):
+    return [piece["content"] for piece in conversation if piece["role"] == "system"]
+
+
+def test_a_skill_puts_its_instruction_right_before_the_message(tmp_path):
+    _, conversation = _said_with(tmp_path, ("write me a scenario", "create-scenario"))
+    assert conversation[-2] == {
+        "role": "system",
+        "content": instruction_for("create-scenario"),
+    }
+    assert conversation[-1]["content"] == "write me a scenario"
+
+
+def test_the_same_skill_twice_running_says_it_once(tmp_path):
+    _, conversation = _said_with(
+        tmp_path, ("one", "create-scenario"), ("and again", "create-scenario")
+    )
+    # Resending the same text every turn would break the conversation and pay for it twice.
+    assert _instructions(conversation) == [instruction_for("create-scenario")]
+
+
+def test_a_reply_in_between_does_not_bring_it_back(tmp_path):
+    chats, files = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", "one", NOW, skill="create-scenario")
+    append_message(chats, "p1", "c1", "here it is", NOW, role="ai")
+    append_message(chats, "p1", "c1", "again", NOW, skill="create-scenario")
+    engine = ScriptedEngine([[{"text": "ok"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    # Answers carry no skill, and letting them count would repeat the instruction every turn.
+    assert _instructions(engine.seen[0]) == [instruction_for("create-scenario")]
+
+
+def test_changing_the_skill_brings_the_new_one_in_once(tmp_path):
+    _, conversation = _said_with(
+        tmp_path, ("one", "create-scenario"), ("now split it", "split-into-shots")
+    )
+    assert _instructions(conversation) == [
+        instruction_for("create-scenario"),
+        instruction_for("split-into-shots"),
+    ]
+
+
+def test_a_skill_left_and_taken_up_again_is_said_again(tmp_path):
+    _, conversation = _said_with(
+        tmp_path,
+        ("one", "create-scenario"),
+        ("just chatting", ""),
+        ("another scenario", "create-scenario"),
+    )
+    # The rule fades the further back it sits, so coming back to it says it again.
+    assert _instructions(conversation) == [
+        instruction_for("create-scenario"),
+        instruction_for("create-scenario"),
+    ]
+
+
+def test_a_chat_without_a_skill_is_told_nothing_extra(tmp_path):
+    _, conversation = _said_with(tmp_path, ("hello", ""))
+    assert _instructions(conversation) == []
+
+
+def test_a_skill_nobody_knows_adds_nothing_and_still_answers(tmp_path):
+    chats, conversation = _said_with(tmp_path, ("hello", "web-search"))
+    assert _instructions(conversation) == []
+    assert chats.get("p1", "c1").messages[-1].text == "ok"
+
+
+def test_the_instruction_is_never_written_to_the_chat(tmp_path):
+    chats, _ = _said_with(tmp_path, ("write me a scenario", "create-scenario"))
+    # The transcript is what the user reads: user sentences and answers, nothing else.
+    assert [m.role for m in chats.get("p1", "c1").messages] == ["user", "user", "ai"]
 
 
 def test_a_stream_that_breaks_writes_nothing(tmp_path):
