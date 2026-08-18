@@ -589,6 +589,10 @@ Bugün "Chats create the files; you just open and read them." satırı liste dol
 sohbetteki ray ise boşken bile o satırı hiç göstermez. *Tarifi neydi:* Faz 3 iki cümleyi birlikte
 **boş** dosya listesinin öğretici metni olarak tanımlamıştı.
 
+> **Güncelleme (18 Ağustos, Madde 32): kapandı.** İkinci satır üründe yok; hem ray hem proje sütunu
+> tek cümle gösteriyor ve o cümle yalnız liste boşken çıkıyor. Madde 20-22 ray ile sütunu yeniden
+> yazarken kapanmıştı; Madde 32 bunu doğruladı ve yapacak iş bulmadı.
+
 **80. Bekleme etiketi saatsiz kalıyor** — `düzeltilecek` · görsel
 Bugün üç noktanın üstünde yalnız ürün adı yazar; saat ancak akış bitip cevap kaydedildikten sonra
 belirir. *Tarifi neydi:* Madde 14 ekranda "MIRA · saat" etiketini ve üç noktayı **birlikte**
@@ -622,6 +626,12 @@ kapatma anıydı, gizleme anı değil.
 Bugün gelen ad zaten bir uzantıyla bitiyorsa olduğu gibi kabul edilir: "report.txt" isteyen bir model
 projeye `report.txt` bırakır. *Tarifi neydi:* Faz 8 "uzantı yoksa `.md` eklenir. **v1'de üretilen
 dosya markdown'dır**" diyordu.
+
+> **Güncelleme (18 Ağustos, Madde 32): bu sapma eskidi, düzeltilmiyor.** Dayanağı v1'in "üretilen
+> dosya markdown'dır" cümlesiydi; Faz 7 onu geçersiz kıldı — `Generate prompts+` bir `.json` yapı
+> dosyası yazıyor, `build_prompts` bir `.py` üretiyor, okuyucu Madde 30'da ikisini göstermeyi
+> öğrendi. Uzantıyı `.md`'ye çevirmek bugün üretim hattını kırardı. Bugünkü davranış bilerek
+> kalıyor: uzantı verilmişse korunur, verilmemişse `.md` eklenir.
 
 **86. Composer ve arama kutusunda odak halkası çıkmıyor** — `düzeltilecek` · görsel
 Bugün sekmeyle dolaşırken her düğme ve satır 2px'lik vurgu renkli halka kazanır, ama sıra composer'ın

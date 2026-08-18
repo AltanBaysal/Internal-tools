@@ -428,11 +428,17 @@ ile okur. Beceriler **bağımsızdır** — zinciri kullanıcı kurar. İki yeni
 ### Madde 32 — Kalan sapmalar kapanır *(sapma 79, 83, 84, 85)*
 
 - **Ne çalışır:** çekilemeyen liste boş liste gibi konuşmaz — hata satırı gösterir, boş hâl cümlesi
-  yalnız yükleme başarıyla bittiğinde çıkar. Açık dosya proje değişince **kapanır**, gizlenip geri
-  gelmez. Model `.md` dışında uzantı isterse `.md`'ye çevrilir. (Sapma 78 ve 79'un Home ayağı
-  Madde 3'te kendiliğinden düştü.)
+  yalnız yükleme başarıyla bittiğinde çıkar; başarısız bir yenileme eldeki listeyi de silmez. Açık
+  dosya proje değişince **kapanır**, gizlenip geri gelmez. (Sapma 78 ve 79'un Home ayağı Madde 3'te
+  kendiliğinden düştü.)
 - **Nasıl görülür:** ağı koparıp proje aç → "No files yet" değil hata satırı; başka projeye gidip
-  dön → panel kapalı; "report.txt iste" → `report.md` doğar.
+  dön → panel kapalı.
+
+> **Yürütmede iki düzeltme (18 Ağustos).** (1) **Sapma 85 düştü:** uzantıyı `.md`'ye çevirmek Faz
+> 7'nin ürettiği `.json` ve `.py` dosyalarını kırardı; dayanağı olan "v1'de üretilen dosya
+> markdown'dır" cümlesi eskidi. Farklar belgesine tarihli not düşüldü, davranış bilerek kalıyor.
+> (2) **Sapma 79 zaten kapalıydı** — öğretici ikinci satır Madde 20-22'de kalkmıştı; doğrulandı,
+> yapacak iş çıkmadı.
 
 ### Madde 33 — Duyarlı yerleşim *(fark 70, 71, 72, 73)*
 
