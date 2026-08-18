@@ -1071,6 +1071,18 @@
   overflow-wrap: anywhere;
 }
 
+/* A structure file and a prompt list are read, not parsed. The measures are the code block's, so a
+   code file looks like the code in an answer -- but with no box around it: the reader's body is
+   already a surface, and a block drawn inside it would be paper on paper. */
+.reader__code {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow-x: auto;
+}
+
 /* The document scale. Written against the reader for the same reason the bubble's is written
    against the message: neither scale may reach into the other. */
 .reader__body .md h1 {

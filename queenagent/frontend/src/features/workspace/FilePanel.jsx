@@ -9,6 +9,10 @@ import Markdown from "./Markdown.jsx";
 // `back` is what the two callers differ by. The rail's panel is the rail widened, so it is come back
 // from; the project screen's panel is a surface standing beside the grid, so it closes. One
 // component either way -- splitting it would copy the header, the Download and its waiting state.
+function isDocument(name) {
+  return /\.md$/i.test(name);
+}
+
 export default function FilePanel({ name, file, missing, error, back, onClose, onDownload }) {
   const [preparing, setPreparing] = useState(false);
   const [failed, setFailed] = useState(null);
@@ -54,10 +58,17 @@ export default function FilePanel({ name, file, missing, error, back, onClose, o
       {error ? <p className="reader__error">{error}</p> : null}
       {failed ? <p className="reader__error">{failed}</p> : null}
 
-      {/* The same parser the answers use. The scale is the container's: this one is a document. */}
+      {/* A document is parsed -- the same parser the answers use, at the container's own scale.
+          Anything else is read as it was written: Markdown eats a JSON file's indentation and turns
+          a Python comment into a heading. The decision comes off the name rather than the chip,
+          whose three letters say "jso" and are not an extension. */}
       {file ? (
         <div className="reader__body">
-          <Markdown text={file.text} />
+          {isDocument(file.name) ? (
+            <Markdown text={file.text} />
+          ) : (
+            <pre className="reader__code">{file.text}</pre>
+          )}
         </div>
       ) : null}
       {file ? (
