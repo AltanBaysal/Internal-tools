@@ -17,9 +17,8 @@ function save(name, text) {
 // file no URL of its own.
 export function useFile(projectId) {
   // The file is held together with the project it belongs to, and read back only while that is
-  // still the project on screen. As a rule that holds by construction it beats an effect that
-  // clears the name later -- an effect would also undo a file opened in the same breath as the
-  // navigation that took us to its project.
+  // still the project on screen. That pairing is what makes the frame between a project changing
+  // and the effect below running draw nothing rather than the wrong project's file.
   const [opened, setOpened] = useState(null);
   const [file, setFile] = useState(null);
   const [missing, setMissing] = useState(false);
@@ -27,6 +26,14 @@ export function useFile(projectId) {
 
   const name = opened && opened.projectId === projectId ? opened.name : null;
   const path = name ? `/api/projects/${projectId}/files/${encodeURIComponent(name)}` : null;
+
+  // Leaving the project closes the file rather than hiding it: coming back and finding it open again
+  // would be the panel deciding for the user. Watching the project alone is what keeps the case
+  // above working -- a file opened in the same breath as the navigation to its project arrives here
+  // before the project does, and this effect does not run then.
+  useEffect(() => {
+    setOpened((current) => (current && current.projectId !== projectId ? null : current));
+  }, [projectId]);
 
   useEffect(() => {
     if (!path) return undefined;

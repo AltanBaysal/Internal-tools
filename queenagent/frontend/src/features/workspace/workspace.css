@@ -1286,8 +1286,9 @@
   padding: 6px;
 }
 
-/* What is left of the strip: no offer, just what the server said when a delete was refused. */
-.file-list__error {
+/* One line for anything that went wrong in a list, in the server's own words: a list that could not
+   be read, and a delete that was refused. What is left of the strip -- no offer, just the sentence. */
+.list-error {
   margin: 0 0 8px;
   font-family: var(--font-mono);
   font-size: 11px;

@@ -54,6 +54,7 @@ export default function ChatScreen({
   chat,
   files = [],
   loadingFiles,
+  filesError,
   reading,
   deleting,
   railCollapsed,
@@ -265,6 +266,7 @@ export default function ChatScreen({
       <FileRail
         files={files}
         loading={loadingFiles}
+        error={filesError}
         reading={reading}
         collapsed={railCollapsed}
         onToggle={onToggleRail}

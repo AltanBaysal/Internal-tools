@@ -7,7 +7,10 @@ import { useList } from "../../shared/useList.js";
 // than an insert, because the order and the times are the server's answer, not ours to guess.
 export function useFiles(projectId, onChanged) {
   const base = `/api/projects/${projectId}`;
-  const { items, reload, loading } = useList(`${base}/files`, Boolean(projectId));
+  const { items, reload, loading, error: fetchError } = useList(
+    `${base}/files`,
+    Boolean(projectId),
+  );
   // Nothing is remembered about what went: the trash name was held only for as long as there was an
   // undo to offer, and there is none. What is kept is a failure, which is not an offer.
   const [error, setError] = useState(null);
@@ -34,6 +37,8 @@ export function useFiles(projectId, onChanged) {
     files: projectId ? items : [],
     reloadFiles: reload,
     loadingFiles: loading,
+    // Two failures, two lines: one is about the list, the other about a file that would not go.
+    filesError: fetchError,
     deleting: { error, remove },
   };
 }

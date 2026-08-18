@@ -47,11 +47,13 @@ export default function App() {
   // Which picker is open, "model" | "skills" | null. Here rather than inside a picker, because
   // Escape closes them in a fixed order and one has to close the other.
   const [picker, setPicker] = useState(null);
-  const { projectChats, reloadProjectChats, loadingChats } = useProjectChats(route.projectId);
+  const { projectChats, reloadProjectChats, loadingChats, chatsError } = useProjectChats(
+    route.projectId,
+  );
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
   const drafting = route.view === "chat" && route.chatId === "new";
-  const { files, reloadFiles, loadingFiles, deleting } = useFiles(
+  const { files, reloadFiles, loadingFiles, filesError, deleting } = useFiles(
     route.projectId,
     reloadProjects,
   );
@@ -255,6 +257,8 @@ export default function App() {
             files={files}
             loadingChats={loadingChats}
             loadingFiles={loadingFiles}
+            chatsError={chatsError}
+            filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
             onRename={() => askForName(route.projectId)}
@@ -272,6 +276,7 @@ export default function App() {
             chat={drafting ? { ...DRAFT, model: lastModel, skill: lastSkill } : chat.chat}
             files={files}
             loadingFiles={loadingFiles}
+            filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
             railCollapsed={railCollapsed}

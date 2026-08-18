@@ -10,12 +10,18 @@ export function useList(path, enabled = true) {
   // An empty array cannot tell "not here yet" from "there is none", and the two want opposite
   // things on screen: blocks in one case, a sentence teaching what to do in the other.
   const [loading, setLoading] = useState(enabled);
+  // And neither of those is "we asked and got nothing back". Swallowed, the failure came out as the
+  // teaching sentence -- the screen answering a question it never got an answer to.
+  const [error, setError] = useState(null);
 
   const reload = useCallback(() => {
     if (!enabled) return Promise.resolve();
+    setError(null);
     return getJson(path)
       .then(setItems)
-      .catch(() => setItems([]))
+      // The list already on screen is left alone: emptying it would show a project with files in it
+      // as empty, which is a second untruth on top of the first.
+      .catch((failure) => setError(failure.message))
       .finally(() => setLoading(false));
   }, [path, enabled]);
 
@@ -23,5 +29,5 @@ export function useList(path, enabled = true) {
     reload();
   }, [reload]);
 
-  return { items, reload, loading };
+  return { items, reload, loading, error };
 }

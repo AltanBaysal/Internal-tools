@@ -21,12 +21,13 @@ function railClass(reading, collapsed) {
   return collapsed ? "rail rail--collapsed" : "rail";
 }
 
-function FileList({ files, loading, reading }) {
+function FileList({ files, loading, error, reading }) {
   return (
     <div className="file-list">
       {/* The teaching line waits for the answer: until the list has arrived, "no files yet" is a
-          guess and not a fact. */}
+          guess and not a fact -- and if the answer never came, it is not even a guess. */}
       {loading ? <Skeleton rows={3} /> : null}
+      {error ? <p className="list-error">{error}</p> : null}
       {!loading && files.length
         ? files.map((file) => (
             <FileRow
@@ -37,7 +38,7 @@ function FileList({ files, loading, reading }) {
             />
           ))
         : null}
-      {!loading && !files.length ? (
+      {!loading && !error && !files.length ? (
         <p className="file-list__empty">
           No files yet — send a message and QueenAgent will create one.
         </p>
@@ -46,7 +47,7 @@ function FileList({ files, loading, reading }) {
   );
 }
 
-export default function FileRail({ files = [], loading, reading, collapsed, onToggle }) {
+export default function FileRail({ files = [], loading, error, reading, collapsed, onToggle }) {
   if (reading?.name) {
     return (
       <aside className={railClass(reading, collapsed)} data-testid="file-rail">
@@ -55,7 +56,7 @@ export default function FileRail({ files = [], loading, reading, collapsed, onTo
             <span className="rail__label">Project files</span>
             <span className="rail__count">{files.length}</span>
           </div>
-          <FileList files={files} loading={loading} reading={reading} />
+          <FileList files={files} loading={loading} error={error} reading={reading} />
         </div>
         {/* Come back from rather than closed: this panel is the rail widened, and the list it
             widened away from is still standing beside it. */}
@@ -80,7 +81,7 @@ export default function FileRail({ files = [], loading, reading, collapsed, onTo
         <span className="rail__chevron">{collapsed ? "‹" : "›"}</span>
       </button>
       {/* Not merely hidden: folded, there is no list, and the strip is what stands in its place. */}
-      {collapsed ? null : <FileList files={files} loading={loading} reading={reading} />}
+      {collapsed ? null : <FileList files={files} loading={loading} error={error} reading={reading} />}
     </aside>
   );
 }

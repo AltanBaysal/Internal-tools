@@ -10,6 +10,8 @@ export default function ProjectScreen({
   files = [],
   loadingChats,
   loadingFiles,
+  chatsError,
+  filesError,
   reading,
   deleting,
   onRename,
@@ -61,6 +63,8 @@ export default function ProjectScreen({
               <h2 className="column__title">Chats</h2>
               <div className="chat-list">
                 {loadingChats ? <Skeleton rows={3} /> : null}
+                {/* This column used to empty in silence, which was the quieter of the two lies. */}
+                {chatsError ? <p className="list-error">{chatsError}</p> : null}
                 {chats.map((chat) => (
                   <div
                     key={chat.id}
@@ -94,11 +98,12 @@ export default function ProjectScreen({
               <div>
                 <h2 className="column__title">Files QueenAgent created</h2>
                 {/* No offer to bring anything back, but a refusal is still worth a line. */}
-                {deleting?.error ? <p className="file-list__error">{deleting.error}</p> : null}
+                {deleting?.error ? <p className="list-error">{deleting.error}</p> : null}
                 <div className="file-list">
                   {/* The teaching line waits for the answer: until the list has arrived, "no files
-                      yet" is a guess and not a fact. */}
+                      yet" is a guess and not a fact -- and if no answer came, not even that. */}
                   {loadingFiles ? <Skeleton rows={3} /> : null}
+                  {filesError ? <p className="list-error">{filesError}</p> : null}
                   {!loadingFiles && files.length
                     ? files.map((file) => (
                         <FileRow
@@ -109,7 +114,7 @@ export default function ProjectScreen({
                         />
                       ))
                     : null}
-                  {!loadingFiles && !files.length ? (
+                  {!loadingFiles && !filesError && !files.length ? (
                     <p className="file-list__empty">
                       No files yet — start a chat and QueenAgent will create one.
                     </p>
