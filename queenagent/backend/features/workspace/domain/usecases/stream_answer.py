@@ -4,6 +4,7 @@ The generator yields text pieces and finally the updated Chat. Telling them apar
 simpler than carrying a separate "this one is the last" flag.
 """
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
+from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
     TOOL_SPECS,
@@ -15,14 +16,34 @@ from backend.features.workspace.domain.tools import (
 from backend.features.workspace.domain.usecases.append_message import append_message
 
 
+def _conversation(chat):
+    """Every message, with a skill's instruction dropped in front of the turn it governs.
+
+    Once, not on every request: the instruction is a piece of the conversation rather than a header
+    on it. Only the user's messages are watched -- an answer carries no skill, and letting one count
+    would make the instruction reappear on every single turn.
+    """
+    active = ""
+    built = []
+    for message in chat.messages:
+        if message.role == "user" and message.skill != active:
+            active = message.skill
+            # A rule fades the further back it sits, so a skill taken up again is stated again.
+            instruction = instruction_for(active)
+            if instruction:
+                built.append({"role": "system", "content": instruction})
+        built.append({"role": message.role, "content": message.text})
+    return built
+
+
 def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
     chat = chat_store.get(project_id, chat_id)
     if chat is None:
         raise ChatNotFound(chat_id)
 
-    # Local to this answer and never written to the chat: tool calls and their results are the
-    # model's own bookkeeping, and the design has nowhere to draw them.
-    conversation = [{"role": message.role, "content": message.text} for message in chat.messages]
+    # Local to this answer and never written to the chat: tool calls, their results and a skill's
+    # instruction are the model's own bookkeeping, and the design has nowhere to draw them.
+    conversation = _conversation(chat)
     said = []
     born = []
 
