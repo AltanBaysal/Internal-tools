@@ -68,6 +68,40 @@ test("an address is not called wrong before the list has arrived", async () => {
   await waitFor(() => expect(screen.getByText("That project does not exist.")).toBeTruthy());
 });
 
+test("the sidebar's Settings row opens the settings screen at its own address", async () => {
+  stubProjects([PROJECT]);
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Old")).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  await waitFor(() =>
+    expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy(),
+  );
+  expect(window.location.pathname).toBe("/settings");
+});
+
+test("saving the key from that screen sends it to the server", async () => {
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path === "/api/settings" && options?.method === "PATCH") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ apiKey: "xai-new" }) });
+    }
+    if (path === "/api/settings") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ apiKey: "" }) });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/settings");
+  render(<App />);
+
+  const box = await screen.findByLabelText("XAI API KEY");
+  fireEvent.change(box, { target: { value: "xai-new" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(screen.getByText("Saved.")).toBeTruthy());
+  const saved = fetch.mock.calls.find(([path, options]) => options?.method === "PATCH");
+  expect(JSON.parse(saved[1].body)).toEqual({ apiKey: "xai-new" });
+});
+
 test("the shell wears the step it was measured at", () => {
   stubProjects([]);
   const observers = [];

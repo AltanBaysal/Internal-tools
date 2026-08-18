@@ -50,6 +50,11 @@ test("a draft chat has an address of its own", () => {
   expect(parsePath("/p/p1/c/new")).toEqual({ view: "chat", projectId: "p1", chatId: "new" });
 });
 
+test("/settings is a place of its own", () => {
+  // Its own address, so a reload lands back on it like every other screen.
+  expect(parsePath("/settings")).toEqual({ view: "settings", projectId: null, chatId: null });
+});
+
 test("anything unrecognised falls back to the root", () => {
   expect(parsePath("/nonsense/deep").view).toBe("root");
 });

@@ -16,6 +16,23 @@ test("with no project selected only the wordmark and the projects remain", () =>
   expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });
 
+test("Settings sits at the foot of the sidebar, under everything else", () => {
+  const onOpenSettings = vi.fn();
+  const { container } = render(
+    <Sidebar projects={PROJECTS} activeProjectId="p1" onOpenSettings={onOpenSettings} />,
+  );
+  const settings = screen.getByRole("button", { name: "Settings" });
+  // Last child of the sidebar: it belongs to the app rather than to any project in it.
+  expect(container.querySelector(".sidebar").lastChild.contains(settings)).toBe(true);
+  fireEvent.click(settings);
+  expect(onOpenSettings).toHaveBeenCalled();
+});
+
+test("Settings is there with no project selected too", () => {
+  render(<Sidebar projects={PROJECTS} activeProjectId={null} onOpenSettings={vi.fn()} />);
+  expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();
+});
+
 test("there is no logo mark beside the wordmark", () => {
   const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
   expect(screen.getByText("QueenAgent")).toBeTruthy();
