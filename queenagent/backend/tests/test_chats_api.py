@@ -3,6 +3,7 @@ import pytest
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
+from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
 from backend.web.app import create_app
@@ -336,9 +337,10 @@ def test_changing_one_choice_leaves_the_other_alone(tmp_path):
     assert changed["skill"] == "verify"
 
 
-def test_a_selected_skill_does_not_change_the_answer_yet(tmp_path):
-    # The boundary of this madde, stated as a test: the choice is recorded and nothing reads it.
-    # The instructions arrive in Madde 29 and 30.
+def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
+    # Madde 27 proved the opposite here -- the choice was recorded and nothing read it. Madde 29
+    # lifts that boundary, so the proof moves rather than disappearing: the road from the composer
+    # to the engine is one road, and this is where it is checked end to end.
     plain, with_skill = FakeEngine(), FakeEngine()
     client = _client(tmp_path, engine=plain)
     pid, cid = _started(client)
@@ -351,4 +353,8 @@ def test_a_selected_skill_does_not_change_the_answer_yet(tmp_path):
     ).get_json()["id"]
     other.post(f"/api/projects/{opid}/chats/{ocid}/answer").get_data()
 
-    assert with_skill.seen == plain.seen
+    assert not [piece for piece in plain.seen if piece["role"] == "system"]
+    assert with_skill.seen[0] == {
+        "role": "system",
+        "content": instruction_for("create-scenario"),
+    }
