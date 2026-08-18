@@ -157,15 +157,34 @@ test("the darkened screen covers the screen", () => {
   expect(dialog).toContain("inset: 0");
 });
 
-test("the row menu is the design's width and escapes the sidebar's scroll", () => {
-  const menu = rule(".row-menu");
-  expect(menu).toContain("width: 176px");
-  // Fixed rather than absolute: inside the sidebar's scrolling area an absolute menu gets clipped.
+test("the menu escapes the sidebar's scroll and scrolls inside itself", () => {
+  const menu = rule(".menu");
+  // Fixed rather than absolute: inside the sidebar's scrolling area an absolute menu gets clipped,
+  // and the placement it is given is measured against the window.
   expect(menu).toContain("position: fixed");
+  // Its height is capped by the placement, so what is left is letting the overflow scroll.
+  expect(menu).toContain("overflow-y: auto");
+  // One box, three callers: the width belongs to each of them, not to the box.
+  expect(menu).not.toContain("width");
+});
+
+test("the sidebar's menu is the design's own width", () => {
+  expect(rule(".sidebar__row .menu")).toContain("width: 176px");
+});
+
+test("the catcher covers the screen and shows nothing", () => {
+  const catcher = rule(".menu__catcher");
+  expect(catcher).toContain("position: fixed");
+  expect(catcher).toContain("inset: 0");
+  expect(catcher).not.toContain("background");
 });
 
 test("the destructive choice is the only red one in the menu", () => {
-  expect(rule(".row-menu__item--danger")).toContain("color: var(--destructive)");
+  expect(rule(".menu__item--danger")).toContain("color: var(--destructive)");
+});
+
+test("the menu that was a row's alone is gone by that name", () => {
+  expect(CSS).not.toContain(".row-menu");
 });
 
 test("the header wraps rather than squeezing its buttons", () => {
