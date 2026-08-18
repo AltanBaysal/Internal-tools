@@ -47,6 +47,27 @@ def test_a_chat_born_without_a_pick_carries_none():
     assert _start("Hello").model == ""
 
 
+def test_a_chat_is_born_with_the_skill_that_was_selected():
+    chat = start_chat(
+        FakeChatStore(),
+        FakeProjectStore(),
+        "p1",
+        "Hello",
+        new_id="c1",
+        now="2026-08-09T11:04:00+00:00",
+        skill="create-scenario",
+    )
+    assert chat.skill == "create-scenario"
+    # And the message that started it remembers what governed it.
+    assert chat.messages[0].skill == "create-scenario"
+
+
+def test_a_chat_started_without_a_skill_carries_none():
+    chat = _start("Hello")
+    assert chat.skill == ""
+    assert chat.messages[0].skill == ""
+
+
 def test_a_short_message_is_the_title_as_it_is():
     assert chat_title("Write the intro") == "Write the intro"
 

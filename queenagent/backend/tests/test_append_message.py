@@ -34,6 +34,22 @@ def test_a_message_lands_at_the_end_and_the_title_stays(tmp_path):
     assert chat.title == "Write the intro"
 
 
+def test_a_message_remembers_which_skill_sent_it(tmp_path):
+    # The record has to stay honest: changing the selection later must not make it look as though
+    # an older turn was governed by the new one.
+    _, chats = _seeded(tmp_path)
+    chat = append_message(
+        chats, "p1", "c1", "and a second one", "2026-08-09T11:06:00.000+00:00", skill="split-shots"
+    )
+    assert chat.messages[-1].skill == "split-shots"
+
+
+def test_a_message_sent_with_no_skill_says_so(tmp_path):
+    _, chats = _seeded(tmp_path)
+    chat = append_message(chats, "p1", "c1", "plain", "2026-08-09T11:06:00.000+00:00")
+    assert chat.messages[-1].skill == ""
+
+
 def test_the_role_can_be_the_answer(tmp_path):
     # Faz 6 appends the reply through this very call.
     _, chats = _seeded(tmp_path)

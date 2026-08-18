@@ -37,6 +37,26 @@ def test_a_chat_that_chose_nothing_writes_no_model(tmp_path):
     assert "model" not in raw.read_text("p1/chats/c1.json")
 
 
+def test_the_skill_a_chat_selected_is_written_and_read_back(tmp_path):
+    FileChatStore(Store(str(tmp_path))).add("p1", replace(_chat(), skill="generate-prompts"))
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1").skill == "generate-prompts"
+
+
+def test_the_skill_a_message_was_sent_with_survives_the_disk(tmp_path):
+    written = replace(
+        _chat(),
+        messages=(Message(role="user", at="2026-08-09T11:04:00+00:00", text="hi", skill="verify"),),
+    )
+    FileChatStore(Store(str(tmp_path))).add("p1", written)
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1").messages[0].skill == "verify"
+
+
+def test_a_chat_and_a_message_with_no_skill_write_no_field(tmp_path):
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _chat())
+    assert "skill" not in raw.read_text("p1/chats/c1.json")
+
+
 def test_a_chat_written_before_models_existed_still_reads(tmp_path):
     # There are records on disk already. They have no such field and must not need a migration.
     raw = Store(str(tmp_path))
@@ -44,7 +64,9 @@ def test_a_chat_written_before_models_existed_still_reads(tmp_path):
         "p1/chats/old.json",
         '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "messages": []}',
     )
-    assert FileChatStore(raw).get("p1", "old").model == ""
+    old = FileChatStore(raw).get("p1", "old")
+    assert old.model == ""
+    assert old.skill == ""
 
 
 def test_an_unknown_chat_is_none(tmp_path):

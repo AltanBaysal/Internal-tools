@@ -15,6 +15,7 @@ class FakeEngine:
         self.answer = answer
         self.blow_up = blow_up
         self.asked_for = "not asked"
+        self.seen = None
 
     def complete(self, messages, tools=None):
         if self.blow_up:
@@ -25,6 +26,7 @@ class FakeEngine:
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         self.asked_for = model
+        self.seen = [dict(message) for message in messages]
         yield {"text": self.answer}
 
 
@@ -80,8 +82,9 @@ def test_an_unknown_project_is_404(tmp_path):
 
 
 def test_a_chat_cannot_be_renamed(tmp_path):
-    # Renaming lives on the project alone. PATCH exists now -- it is how the model is changed -- so
-    # the refusal has to be in what it understands rather than in the method not being there.
+    # Renaming lives on the project alone. PATCH exists now -- it is how the model and the skill are
+    # changed -- so the refusal has to be in what it understands rather than in the method being
+    # absent.
     client = _client(tmp_path)
     pid, cid = _started(client)
     resp = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": "Something else"})
@@ -293,3 +296,59 @@ def test_a_chat_that_picked_nothing_lets_the_engine_decide(tmp_path):
     pid, cid = _started(client)
     client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
     assert engine.asked_for is None
+
+
+def test_a_chat_is_born_with_the_skill_it_was_sent(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    born = client.post(
+        f"/api/projects/{pid}/chats", json={"text": "hello", "skill": "create-scenario"}
+    ).get_json()
+    assert born["skill"] == "create-scenario"
+    assert born["messages"][0]["skill"] == "create-scenario"
+
+
+def test_a_message_carries_the_skill_it_was_sent_with(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    chat = client.post(
+        f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "more", "skill": "verify"}
+    ).get_json()
+    assert [m["skill"] for m in chat["messages"]] == ["", "verify"]
+
+
+def test_the_skill_can_be_changed_and_cleared(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    chosen = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": "verify"})
+    assert chosen.get_json()["skill"] == "verify"
+    # Pressing the selected one again clears it -- a skill may be absent, a model may not.
+    cleared = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": ""})
+    assert cleared.get_json()["skill"] == ""
+
+
+def test_changing_one_choice_leaves_the_other_alone(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "grok-4.3"})
+    changed = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": "verify"}).get_json()
+    assert changed["model"] == "grok-4.3"
+    assert changed["skill"] == "verify"
+
+
+def test_a_selected_skill_does_not_change_the_answer_yet(tmp_path):
+    # The boundary of this madde, stated as a test: the choice is recorded and nothing reads it.
+    # The instructions arrive in Madde 29 and 30.
+    plain, with_skill = FakeEngine(), FakeEngine()
+    client = _client(tmp_path, engine=plain)
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+
+    other = _client(tmp_path / "second", engine=with_skill)
+    opid = _project(other)
+    ocid = other.post(
+        f"/api/projects/{opid}/chats", json={"text": "hello", "skill": "create-scenario"}
+    ).get_json()["id"]
+    other.post(f"/api/projects/{opid}/chats/{ocid}/answer").get_data()
+
+    assert with_skill.seen == plain.seen
