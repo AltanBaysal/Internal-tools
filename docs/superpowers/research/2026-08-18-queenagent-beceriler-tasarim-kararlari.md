@@ -243,6 +243,11 @@ gidiyor; başka dil olamaz.
 **Senaryonun dili belirtilmiyor** — kullanıcı hangi dilde isterse. Türkçe bir senaryodan kare
 açıklaması üretilirken model İngilizceye geçer; bu bilerek ve sorun değil.
 
+> **Güncelleme (18 Ağustos, Madde 37).** Bu artık senaryoya özel bir kural değil, **uygulamanın
+> kuralı**: sistem yönergesindeki "in English" düştü, model sorulan dilde cevap veriyor. Senaryo
+> yönergesindeki dil cümlesi de kalktı — tekrarlanan kural sapar. Zorunlu İngilizce olanlar aynen
+> duruyor (promptlar, yapı JSON'u), çünkü onları okuyan bir görüntü modeli.
+
 ## 10 · Açık kalan yok
 
 Konuşma kapandı; spec'ler bu belgeden yazılabilir. Kapanma sırası: örnek prompt alındı (§5c) ·

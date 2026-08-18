@@ -492,6 +492,7 @@ Kod bittikten sonra tek dalgada elle koşulur:
 | 24 | Yavaş açılışta ilk kareye bak | Ana bölge tek iskelet (çubuk + blok + çubuk), kenar çubuğu çalışıyor; "does not exist" **çıkmıyor** |
 | 25 | Fareyi bırak, sekmeyle dolaş | Sohbet ve dosya satırlarına sekme giriyor, Enter açıyor, odak halkası çiziliyor |
 | 26 | Anahtarı Settings'ten ver, kapat-aç; sonra sil ve mesaj at | Anahtar duruyor ve cevap geliyor; silince hata kartı ve altında Settings satırı |
+| 27 | Türkçe bir mesaj at; sonra "Generate prompts" ile üret | Cevap Türkçe; üretilen `PROMPTS` yine İngilizce |
 
 ---
 
@@ -508,6 +509,16 @@ Kod bittikten sonra tek dalgada elle koşulur:
   cevap istenince bugünkü hata kartı çıkar ve altında ayarlara götüren bir satır durur.
 - **Nasıl görülür:** anahtarı ayarlara yaz → kaydet → mesaj at, cevap gelir; anahtarı boşalt →
   hata kartı ve Settings bağlantısı; sunucuyu kapat-aç → anahtar yerinde.
+
+### Madde 37 — Cevabın dili kullanıcının dili *(kullanıcı isteği, 18 Ağustos)*
+
+- **Ne çalışır:** sistem yönergesindeki "in English" düşer; model **sorulan dilde** cevap verir.
+  Arayüz metni İngilizce kalır (`CODE-STANDARD.md` kuralı, o arayüzün dili). **Promptlar ve yapı
+  JSON'u zorunlu İngilizce kalır** — SDXL'e gidiyorlar ve iki beceri bunu kendi yönergesinde açıkça
+  söylüyor. Senaryo becerisindeki "kullanıcının dilinde yaz" istisnası **kalkar**: uygulamanın kuralı
+  olunca her beceride tekrarlanması gereksiz, tekrarlanan kural da zamanla sapar.
+- **Nasıl görülür:** Türkçe yaz → Türkçe cevap; "Generate prompts" ile üret → `PROMPTS` yine
+  İngilizce.
 
 *(Numara 36: Madde 35'in numarası kaydırılmadı — yazılmış spec'lerde otuza yakın "gözle doğrulama
 Madde 35" referansı yanlış hâle gelirdi. Elle tur bu maddeden sonra koşulur ve tablosuna 26. adım
