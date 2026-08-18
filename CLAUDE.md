@@ -74,6 +74,10 @@ disk. And the rule the whole set turns on: **the model writes the text, code doe
 what was true then: [the v1 roadmap](docs/superpowers/plans/2026-08-09-mira-v1-roadmap.md) and
 [the v1 design](docs/superpowers/specs/2026-08-09-mira-v1-design.md).
 
+**The xAI key is typed into the app, not into the environment.** Settings sits at the foot of the
+sidebar; the key is saved to `settings.json` under the store root and read again on every request, so
+changing it needs no restart. There is no `XAI_API_KEY`.
+
 **Two things differ from queen-editor — do not carry that tool's habits over.** QueenAgent's UI text
 is English, because its design was written in English and translating it would stop the design from
 being the source. And `dist/` is not committed: QueenAgent runs locally,

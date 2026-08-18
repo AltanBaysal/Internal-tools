@@ -32,6 +32,7 @@ The store follows the same rule, and it is why there is no file-index file:
 | `chats/<id>.json` | what was said in this conversation, and what it answers with | after each message, and on a model or skill choice |
 | `files/<name>` | what did QueenAgent produce | when a file is created |
 | `trash/<name>` | what did the user just delete | on delete — a chat and a file alike |
+| `settings.json` | what was the app itself told — today the xAI key | on Save in Settings |
 
 **No file repeats another's answer.** The file list is the directory listing itself: the name is the
 filename, "2h ago" is its mtime, the order is mtime descending. The count on a sidebar project row is
@@ -62,14 +63,19 @@ Dependency direction: `presentation → domain ← data → services`.
 Bans (no exceptions): `feature ↛ feature`, `service ↛ feature`, `service ↛ service`.
 Concrete classes are wired only in the composition root (`main.py`).
 
-### There is exactly one feature: `workspace`
+### Two features: `workspace` and `settings`
 
-This is not a preference, it is what the ban forces. Projects, chats, files and messages cannot be
-separate features, because **writing a file in reply to a message touches all of them at once** —
-splitting them would break `feature ↛ feature` on the first real use case. They are one aggregate.
+`workspace` is one feature and not four. Projects, chats, files and messages cannot be separated,
+because **writing a file in reply to a message touches all of them at once** — splitting them would
+break `feature ↛ feature` on the first real use case. They are one aggregate.
 
-A second feature is created when a genuinely separate bounded context appears (sharing, identity).
-Today there is none.
+`settings` is the app's own configuration — today the xAI API key. It is a feature of its own
+because nothing in the workspace touches it: no project, chat or file has an opinion about the key.
+The ban holds because **workspace never imports it**; what binds the key to the engine is the
+composition root, whose job that is.
+
+A third feature is created on the same test: a genuinely separate bounded context (sharing,
+identity). Today there is none.
 
 ## Infrastructure (`backend/web/`)
 
