@@ -489,6 +489,8 @@ Kod bittikten sonra tek dalgada elle koşulur:
 | 21 | Pencereyi 1000/780/640 altına daralt | Eşikler tarif edildiği gibi; composer hep altta |
 | 22 | Sunucuyu kapat-aç | Projeler, sohbetler, model seçimleri, dosyalar yerinde |
 | 23 | Olmayan adrese git | "That project does not exist." |
+| 24 | Yavaş açılışta ilk kareye bak | Ana bölge tek iskelet (çubuk + blok + çubuk), kenar çubuğu çalışıyor; "does not exist" **çıkmıyor** |
+| 25 | Fareyi bırak, sekmeyle dolaş | Sohbet ve dosya satırlarına sekme giriyor, Enter açıyor, odak halkası çiziliyor |
 
 ---
 
@@ -518,3 +520,6 @@ kuralı (kalıyor, karar 12).
 Her biri ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez: eski kökteki verinin
 taşınması (M1) · açılış ekranı ve Home'a dönüş (M3) · projenin çöp düzeni (M18) · üç becerinin
 yönerge metinleri ve çıktı biçimleri (M28-30).
+
+**Hepsi kapandı (18 Ağustos).** Madde 1-34 yazıldı ve testleri yeşil; geriye yalnız **Madde 35**,
+kullanıcının elle turu kaldı.
