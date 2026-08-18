@@ -24,12 +24,19 @@ from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.read_file import read_file
+from backend.features.workspace.domain.usecases.set_chat_model import set_chat_model
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
 
-def make_workspace_bp(project_store, chat_store, file_store, engine):
+def make_workspace_bp(project_store, chat_store, file_store, engine, default_model):
     workspace_bp = Blueprint("workspace", __name__)
+
+    @workspace_bp.get("/api/model")
+    def get_model():
+        # The one thing about the model menu that only the server knows. The names and the prices
+        # are text, and text belongs to the interface.
+        return jsonify({"default": default_model})
 
     @workspace_bp.get("/api/projects")
     def get_projects():
@@ -73,23 +80,39 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
                 payload.get("text", ""),
                 new_id=_new_id("c"),
                 now=_now(),
+                model=payload.get("model", ""),
             )
         except ProjectNotFound:
             return jsonify({"error": "project not found"}), 404
         except EmptyMessage:
             return jsonify({"error": "a message needs text"}), 400
-        return jsonify(_chat_json(chat)), 201
+        return jsonify(_chat_json(chat, default_model)), 201
+
+    @workspace_bp.patch("/api/projects/<project_id>/chats/<chat_id>")
+    def patch_chat(project_id, chat_id):
+        payload = request.get_json(silent=True) or {}
+        # The model is the only thing about a chat that changes. A title arriving here is not a
+        # rename that failed quietly -- it is a request this route does not understand.
+        if "model" not in payload:
+            return jsonify({"error": "a chat only carries a model"}), 400
+        try:
+            chat = set_chat_model(chat_store, project_id, chat_id, payload["model"])
+        except ChatNotFound:
+            return jsonify({"error": "chat not found"}), 404
+        return jsonify(_chat_json(chat, default_model))
 
     @workspace_bp.get("/api/projects/<project_id>/chats")
     def get_chats(project_id):
-        return jsonify([_chat_summary(chat) for chat in list_chats(chat_store, project_id)])
+        return jsonify(
+            [_chat_summary(chat, default_model) for chat in list_chats(chat_store, project_id)]
+        )
 
     @workspace_bp.get("/api/projects/<project_id>/chats/<chat_id>")
     def get_chat(project_id, chat_id):
         chat = chat_store.get(project_id, chat_id)
         if chat is None:
             return jsonify({"error": "chat not found"}), 404
-        return jsonify(_chat_json(chat))
+        return jsonify(_chat_json(chat, default_model))
 
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/messages")
     def post_message(project_id, chat_id):
@@ -102,7 +125,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
             return jsonify({"error": "chat not found"}), 404
         except EmptyMessage:
             return jsonify({"error": "a message needs text"}), 400
-        return jsonify(_chat_json(chat))
+        return jsonify(_chat_json(chat, default_model))
 
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/answer")
     def post_answer(project_id, chat_id):
@@ -113,7 +136,8 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
             return jsonify({"error": "chat not found"}), 404
         return Response(
             _sse(
-                stream_answer(chat_store, file_store, engine, project_id, chat_id, now=_now())
+                stream_answer(chat_store, file_store, engine, project_id, chat_id, now=_now()),
+                default_model,
             ),
             mimetype="text/event-stream",
         )
@@ -166,7 +190,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine):
     return workspace_bp
 
 
-def _sse(pieces):
+def _sse(pieces, default_model):
     """Wrap the use case's output as events, telling them apart by type."""
     try:
         for piece in pieces:
@@ -177,7 +201,7 @@ def _sse(pieces):
             elif isinstance(piece, FileWritten):
                 yield _frame("file", {"name": piece.name})
             else:
-                yield _frame("done", _chat_json(piece))
+                yield _frame("done", _chat_json(piece, default_model))
     except EngineFailed as failure:
         # The status code was settled the moment the first byte left, so a fault after that can
         # only travel inside the stream.
@@ -209,18 +233,21 @@ def _project_json(project):
     }
 
 
-def _chat_summary(chat):
+def _chat_summary(chat, default_model):
     return {
         "id": chat.id,
         "title": chat.title,
         "createdAt": chat.created_at,
         "lastActivity": chat.last_activity,
+        # Resolved on the way out, so the client always has a name to draw. The record on disk
+        # stays empty and keeps following the setting.
+        "model": chat.model or default_model,
     }
 
 
-def _chat_json(chat):
+def _chat_json(chat, default_model):
     return {
-        **_chat_summary(chat),
+        **_chat_summary(chat, default_model),
         "messages": [
             {
                 "role": message.role,

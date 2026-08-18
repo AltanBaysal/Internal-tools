@@ -3,7 +3,7 @@ from backend.features.workspace.domain.chat import Chat, Message, chat_title
 from backend.features.workspace.domain.errors import EmptyMessage, ProjectNotFound
 
 
-def start_chat(chat_store, project_store, project_id, text, new_id, now):
+def start_chat(chat_store, project_store, project_id, text, new_id, now, model=""):
     if project_store.get(project_id) is None:
         raise ProjectNotFound(project_id)
     trimmed = text.strip()
@@ -14,6 +14,7 @@ def start_chat(chat_store, project_store, project_id, text, new_id, now):
         title=chat_title(trimmed),
         created_at=now,
         messages=(Message(role="user", at=now, text=trimmed),),
+        model=model,
     )
     chat_store.add(project_id, chat)
     return chat

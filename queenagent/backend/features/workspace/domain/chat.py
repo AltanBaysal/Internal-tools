@@ -20,6 +20,10 @@ class Chat:
     title: str
     created_at: str
     messages: tuple = ()
+    # Which model answers here. Empty means the chat never picked one, and the app's default speaks
+    # for it -- so a chat that made no choice keeps following the setting when the setting moves,
+    # and the records written before this field existed need no migration.
+    model: str = ""
 
     @property
     def last_activity(self):

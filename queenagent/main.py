@@ -18,6 +18,7 @@ app = create_app(
             FileChatStore(store),
             FileFileStore(store),
             engine,
+            config.XAI_MODEL,
         ),
     ),
 )

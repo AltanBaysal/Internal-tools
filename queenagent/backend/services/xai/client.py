@@ -56,8 +56,8 @@ class XaiClient:
         # The one line that reaches the network, and the one thing a test replaces.
         self._opener = opener
 
-    def complete(self, messages, tools=None):
-        request = self._request({"messages": messages}, tools)
+    def complete(self, messages, tools=None, model=None):
+        request = self._request({"messages": messages}, tools, model)
         try:
             with self._opener(request) as response:
                 payload = json.loads(response.read().decode("utf-8"))
@@ -70,8 +70,8 @@ class XaiClient:
             raise XaiFailed(str(failure.reason)) from failure
         return payload["choices"][0]["message"]
 
-    def stream(self, messages, tools=None):
-        request = self._request({"messages": messages, "stream": True}, tools)
+    def stream(self, messages, tools=None, model=None):
+        request = self._request({"messages": messages, "stream": True}, tools, model)
         try:
             with self._opener(request) as response:
                 for raw in response:
@@ -86,10 +86,11 @@ class XaiClient:
         except urllib.error.URLError as failure:
             raise XaiFailed(str(failure.reason)) from failure
 
-    def _request(self, body, tools):
+    def _request(self, body, tools, model=None):
         if not self._api_key:
             raise XaiNotConfigured("XAI_API_KEY is not set")
-        payload = {"model": self._model, **body}
+        # The caller's model wins; the configured one is what answers when nobody asked.
+        payload = {"model": model or self._model, **body}
         if tools:
             payload["tools"] = tools
         return urllib.request.Request(

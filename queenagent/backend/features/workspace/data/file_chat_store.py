@@ -44,17 +44,17 @@ class FileChatStore:
     def _write(self, project_id, chat):
         # The id is the file name, so it is not written inside: no artifact repeats an answer
         # another one already gives.
+        stored = {
+            "title": chat.title,
+            "createdAt": chat.created_at,
+            "messages": [_message_json(message) for message in chat.messages],
+        }
+        # A chat that picked no model writes no field, exactly as a message with no files does.
+        if chat.model:
+            stored["model"] = chat.model
         self._store.write_text(
             self._path(project_id, chat.id),
-            json.dumps(
-                {
-                    "title": chat.title,
-                    "createdAt": chat.created_at,
-                    "messages": [_message_json(message) for message in chat.messages],
-                },
-                ensure_ascii=False,
-                indent=2,
-            ),
+            json.dumps(stored, ensure_ascii=False, indent=2),
         )
 
     @staticmethod
@@ -75,6 +75,8 @@ def _as_chat(chat_id, raw):
         id=chat_id,
         title=raw["title"],
         created_at=raw["createdAt"],
+        # Chats written before this field existed picked nothing, which is what empty means.
+        model=raw.get("model", ""),
         messages=tuple(
             Message(
                 role=message["role"],

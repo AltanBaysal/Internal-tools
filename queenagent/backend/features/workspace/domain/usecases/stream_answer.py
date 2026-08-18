@@ -28,7 +28,9 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
     try:
         for _ in range(MAX_ROUNDS):
             spoken, calls = [], []
-            for piece in engine.stream(conversation, tools=TOOL_SPECS):
+            # None rather than a name when the chat never chose: which model speaks for it is the
+            # engine's own setting, and the domain has no business knowing what that says.
+            for piece in engine.stream(conversation, tools=TOOL_SPECS, model=chat.model or None):
                 if "text" in piece:
                     spoken.append(piece["text"])
                     said.append(piece["text"])
