@@ -90,8 +90,10 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     ask();
   }, [chat, thinking, error, online, ask]);
 
+  // The skill travels with the message rather than being read off the chat on the server: what
+  // governed a turn is settled when the turn is sent.
   const send = useCallback(
-    async (text) => {
+    async (text, skill = "") => {
       const at = new Date().toISOString();
       // The bubble appears before the server answers -- the design says so in as many words.
       setChat((current) =>
@@ -101,7 +103,9 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
       );
       setRefused(null);
       try {
-        setChat(await postJson(`/api/projects/${projectId}/chats/${chatId}/messages`, { text }));
+        setChat(
+          await postJson(`/api/projects/${projectId}/chats/${chatId}/messages`, { text, skill }),
+        );
       } catch (failure) {
         // Refused: the optimistic bubble is taken back out so the screen never claims something
         // was said when it was not.
@@ -124,11 +128,11 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     [projectId, chatId],
   );
 
-  // The record on the server is the truth about which model answers, so the choice goes there and
-  // what comes back replaces what is held here.
-  const chooseModel = useCallback(
-    async (model) => {
-      setChat(await patchJson(`/api/projects/${projectId}/chats/${chatId}`, { model }));
+  // The record on the server is the truth about what a chat answers with, so a choice goes there
+  // and what comes back replaces what is held here. One road for both: the endpoint takes either.
+  const choose = useCallback(
+    async (choice) => {
+      setChat(await patchJson(`/api/projects/${projectId}/chats/${chatId}`, choice));
     },
     [projectId, chatId],
   );
@@ -137,7 +141,7 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
   // still owed one and the user's sentence must not be written twice.
   return {
     chat,
-    chooseModel,
+    choose,
     error,
     refused,
     missing,

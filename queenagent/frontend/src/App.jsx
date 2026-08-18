@@ -42,6 +42,11 @@ export default function App() {
   // written to disk: a chat's own choice is on the server, and this is only the starting point.
   // Empty until the server says what it is set to.
   const [lastModel, setLastModel] = useState("");
+  // The same rule for the skill: the chat's own is on the server, this is where the next one starts.
+  const [lastSkill, setLastSkill] = useState("");
+  // Which picker is open, "model" | "skills" | null. Here rather than inside a picker, because
+  // Escape closes them in a fixed order and one has to close the other.
+  const [picker, setPicker] = useState(null);
   const { projectChats, reloadProjectChats, loadingChats } = useProjectChats(route.projectId);
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
@@ -100,11 +105,14 @@ export default function App() {
       // Escape closes what is open, innermost first, and never steps backwards.
       if (menuFor) setMenuFor(null);
       else if (confirming) setConfirming(null);
+      // The design's order, fark 67: project menu → confirm box → Skills → model → open panel.
+      else if (picker === "skills") setPicker(null);
+      else if (picker === "model") setPicker(null);
       else if (reading.name) reading.close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [menuFor, confirming, reading.name, reading.close]);
+  }, [menuFor, confirming, picker, reading.name, reading.close]);
 
   // The screen reads its project out of the list the app already holds; asking the server a second
   // time would be asking for an answer we have.
@@ -189,15 +197,26 @@ export default function App() {
 
   // The draft address is not a place to come back to, so the chat that replaces it does exactly
   // that; starting one from the project screen is an ordinary step and is pushed.
-  // A chat's own choice lives on the server; the last one made also becomes what the next chat
+  // A chat's own choices live on the server; the last ones made also become what the next chat
   // starts from, and that much is the session's.
   const chooseModel = async (model) => {
     setLastModel(model);
-    await chat.chooseModel(model);
+    setPicker(null);
+    await chat.choose({ model });
   };
 
+  const chooseSkill = async (skill) => {
+    setLastSkill(skill);
+    setPicker(null);
+    await chat.choose({ skill });
+  };
+
+  // One value, two menus: opening either closes whatever was open, and pressing the open one shuts
+  // it. "Two menus close each other" needs no rule of its own.
+  const togglePicker = (which) => setPicker((open) => (open === which ? null : which));
+
   const startChat = async (text) => {
-    const started = await startChatInProject(route.projectId, text, lastModel);
+    const started = await startChatInProject(route.projectId, text, lastModel, lastSkill);
     await Promise.all([reloadProjectChats(), reloadProjects()]);
     openChat(route.projectId, started.id, { replace: drafting });
   };
@@ -249,8 +268,8 @@ export default function App() {
         {route.view === "chat" ? (
           <ChatScreen
             project={project}
-            /* A draft has no record yet, so the model it would be born with is the session's. */
-            chat={drafting ? { ...DRAFT, model: lastModel } : chat.chat}
+            /* A draft has no record yet, so the choices it would be born with are the session's. */
+            chat={drafting ? { ...DRAFT, model: lastModel, skill: lastSkill } : chat.chat}
             files={files}
             loadingFiles={loadingFiles}
             reading={{ ...reading, open: openFile }}
@@ -265,9 +284,27 @@ export default function App() {
             creatingFile={chat.creatingFile}
             createdFiles={chat.createdFiles}
             onBack={() => openProject(route.projectId)}
-            onSend={drafting ? startChat : chat.send}
+            picker={picker}
+            onPicker={togglePicker}
+            /* The skill goes with the message: what governed a turn is settled when it is sent. */
+            onSend={drafting ? startChat : (text) => chat.send(text, lastSkill)}
             /* A draft has nothing to write to yet, so picking only moves the session's own. */
-            onModelChange={drafting ? setLastModel : chooseModel}
+            onModelChange={
+              drafting
+                ? (model) => {
+                    setLastModel(model);
+                    setPicker(null);
+                  }
+                : chooseModel
+            }
+            onSkillChange={
+              drafting
+                ? (skill) => {
+                    setLastSkill(skill);
+                    setPicker(null);
+                  }
+                : chooseSkill
+            }
             onRetry={chat.retry}
           />
         ) : null}

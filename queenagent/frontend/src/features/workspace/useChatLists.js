@@ -13,8 +13,8 @@ export function useProjectChats(projectId) {
   };
 }
 
-export function startChatInProject(projectId, text, model = "") {
-  return postJson(`/api/projects/${projectId}/chats`, { text, model });
+export function startChatInProject(projectId, text, model = "", skill = "") {
+  return postJson(`/api/projects/${projectId}/chats`, { text, model, skill });
 }
 
 export function deleteChat(projectId, chatId) {

@@ -6,6 +6,7 @@ import FileRail from "./FileRail.jsx";
 import Markdown from "./Markdown.jsx";
 import ModelPicker from "./ModelPicker.jsx";
 import Skeleton from "./Skeleton.jsx";
+import SkillPicker from "./SkillPicker.jsx";
 
 const CHIP_LENGTH = 3;
 // A reader further from the bottom than this is reading, not watching, and the answer must not pull
@@ -64,9 +65,12 @@ export default function ChatScreen({
   streamingText,
   creatingFile,
   createdFiles = [],
+  picker,
+  onPicker,
   onBack,
   onSend,
   onModelChange,
+  onSkillChange,
   onRetry,
 }) {
   // Stamped once, when the wait starts. There is nothing on the server to read it from yet, and the
@@ -234,9 +238,25 @@ export default function ChatScreen({
             rows={2}
             placeholder="Reply..."
             action="Send"
-            /* Which model answers belongs to the chat on the server, so the screen asks and App
-               sends. Madde 27 puts Skills to the left of this one. */
-            foot={<ModelPicker model={chat.model} onChange={onModelChange} />}
+            /* karar 1's order: Skills · model · Send. Both choices belong to the chat on the
+               server, so the screen asks and App sends; which picker is open is App's too, because
+               Escape closes them in a fixed order. */
+            foot={
+              <>
+                <SkillPicker
+                  skill={chat.skill}
+                  open={picker === "skills"}
+                  onToggle={() => onPicker?.("skills")}
+                  onChange={onSkillChange}
+                />
+                <ModelPicker
+                  model={chat.model}
+                  open={picker === "model"}
+                  onToggle={() => onPicker?.("model")}
+                  onChange={onModelChange}
+                />
+              </>
+            }
             onSubmit={onSend}
           />
         </div>

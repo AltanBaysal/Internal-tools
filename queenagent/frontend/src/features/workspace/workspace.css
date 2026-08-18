@@ -1396,6 +1396,13 @@
   background: #efe9e0;
 }
 
+/* A selected skill is worth seeing at a glance. The chip's ground rather than a new colour, and not
+   the accent: one accent only, and it marks the primary action rather than a state. */
+.picker--on {
+  background: #f0e7de;
+  color: var(--ink);
+}
+
 .picker__chevron {
   font-size: 11px;
   color: var(--muted);
