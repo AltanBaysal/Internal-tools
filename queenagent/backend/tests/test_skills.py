@@ -27,12 +27,17 @@ def test_a_skill_nobody_knows_carries_nothing():
     assert instruction_for("") == ""
 
 
-def test_the_scenario_instruction_says_how_long_where_it_goes_and_in_what_language():
+def test_the_scenario_instruction_says_how_long_and_where_it_goes():
     said = instruction_for("create-scenario")
     assert "10 to 15" in said
     assert "scenario.md" in said
-    # The app's own prompt says English; silence here would make that the scenario's language too.
-    assert "language" in said
+
+
+def test_the_scenario_instruction_no_longer_argues_about_language():
+    # It carried one only because the app forced English. The app follows the user now, and a rule
+    # repeated in every skill is a rule that drifts.
+    # Narrow on purpose: "camera or lighting language" is a different sentence and stays.
+    assert "the language the user" not in instruction_for("create-scenario")
 
 
 def test_the_scenario_instruction_keeps_out_of_the_shot_lists_territory():
