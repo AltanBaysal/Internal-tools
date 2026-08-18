@@ -542,7 +542,7 @@ test("a chat the user confirms is deleted and leaves the list", async () => {
   await waitFor(() => expect(screen.queryByText("Write the intro")).toBeNull());
 });
 
-test("deleting the file that is open closes the panel", async () => {
+function withFile() {
   const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
   let onDisk = [file];
   const fetch = vi.fn().mockImplementation((path, options) => {
@@ -564,20 +564,35 @@ test("deleting the file that is open closes the panel", async () => {
   });
   vi.stubGlobal("fetch", fetch);
   window.history.pushState(null, "", "/p/p1");
+  return fetch;
+}
 
+test("answering the question takes the file, and nothing is offered back", async () => {
+  withFile();
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Delete plan.md" }));
+  expect(screen.getByText('Delete "plan.md"?')).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Delete file" }));
+  await waitFor(() => expect(screen.queryByText("plan.md")).toBeNull());
+  // The question was the protection, and the disk keeps the file.
+  expect(screen.queryByText("Undo")).toBeNull();
+  expect(screen.queryByText("File deleted.")).toBeNull();
+});
+
+test("a file open in the panel cannot be asked to go, and closing it brings the row back", async () => {
+  // The delete lives on the row, and the row lives in the column the panel replaced. So reading a
+  // file is not a state a file can be deleted from -- on either screen.
+  withFile();
   render(<App />);
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
   fireEvent.click(screen.getByText("plan.md"));
   await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
 
-  fireEvent.click(screen.getByRole("button", { name: "Delete plan.md" }));
-  expect(screen.getByText('Delete "plan.md"?')).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Delete file" }));
-  // Reading something that is no longer there is not reading.
-  await waitFor(() => expect(screen.queryByText("body")).toBeNull());
-  // Nothing is offered back: the question was the protection, and the disk keeps the file.
-  expect(screen.queryByText("Undo")).toBeNull();
-  expect(screen.queryByText("File deleted.")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Delete plan.md" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "×" }));
+  await waitFor(() => expect(screen.getByRole("button", { name: "Delete plan.md" })).toBeTruthy());
 });
 
 test("a file is not deleted until the question is answered", async () => {
