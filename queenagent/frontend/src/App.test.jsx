@@ -256,14 +256,15 @@ test("Escape closes the menu first, then the question", async () => {
   expect(screen.queryByText('Delete "Thesis"?')).toBeNull();
 });
 
-test("nothing is drawn while the list is still on its way", () => {
+test("no screen is drawn while the list is still on its way", () => {
   // An empty array cannot tell "none" from "not here yet", and guessing shows the wrong screen.
   vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
   render(<App />);
   expect(screen.queryByText("No projects yet")).toBeNull();
   expect(screen.queryByRole("button", { name: "Rename" })).toBeNull();
-  // Not even blocks standing in for cards: the fork has no screen of its own to fill.
-  expect(screen.queryByTestId("skeleton")).toBeNull();
+  // Madde 34 moved this line: the area used to sit empty, which said nothing about why. It now
+  // carries the skeleton, and still no screen.
+  expect(screen.getByTestId("skeleton")).toBeTruthy();
 });
 
 test("a list that fails to load says so instead of claiming there are none", async () => {

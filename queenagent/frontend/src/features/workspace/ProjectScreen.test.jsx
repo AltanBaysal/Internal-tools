@@ -38,7 +38,8 @@ test("a chat row is a real button and its × is a sibling", () => {
   const { container } = render(
     <ProjectScreen project={PROJECT} chats={chats} onOpenChat={vi.fn()} onDeleteChat={vi.fn()} />,
   );
-  const opener = screen.getByRole("button", { name: /First chat/ });
+  // Anchored: the × next to it is named "Delete First chat".
+  const opener = screen.getByRole("button", { name: /^First chat/ });
   expect(opener.tagName).toBe("BUTTON");
   const remove = screen.getByRole("button", { name: "Delete First chat" });
   expect(container.querySelector(".chat-row__open").contains(remove)).toBe(false);

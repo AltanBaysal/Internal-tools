@@ -204,7 +204,7 @@ function withCard(files = ["outline.md"]) {
 
 test("the card is a door, and says so", () => {
   const open = vi.fn();
-  render(
+  const { container } = render(
     <ChatScreen
       project={PROJECT}
       chat={withCard()}
@@ -212,14 +212,15 @@ test("the card is a door, and says so", () => {
       reading={{ open }}
     />,
   );
-  const card = screen.getByRole("button", { name: /outline\.md/ });
+  // The rail's row is a real button now too, so the card is asked for by what it is.
+  const card = container.querySelector(".file-card");
   expect(card.textContent).toContain("Open ›");
   fireEvent.click(card);
   expect(open).toHaveBeenCalledWith("outline.md");
 });
 
 test("the card of the file being read says open rather than offering to", () => {
-  render(
+  const { container } = render(
     <ChatScreen
       project={PROJECT}
       chat={withCard()}
@@ -227,7 +228,8 @@ test("the card of the file being read says open rather than offering to", () => 
       reading={{ name: "outline.md", open: vi.fn() }}
     />,
   );
-  const card = screen.getByRole("button", { name: /outline\.md/ });
+  // The rail's row is a real button now too, so the card is asked for by what it is.
+  const card = container.querySelector(".file-card");
   expect(card.className).toContain("file-card--selected");
   // Telling someone to open what is already open would be the wrong sentence, and there is nowhere
   // left to go, so the arrow drops with it.
@@ -236,7 +238,7 @@ test("the card of the file being read says open rather than offering to", () => 
 });
 
 test("the other cards are not marked", () => {
-  render(
+  const { container } = render(
     <ChatScreen
       project={PROJECT}
       chat={withCard(["outline.md", "sources.txt"])}
@@ -244,7 +246,9 @@ test("the other cards are not marked", () => {
       reading={{ name: "outline.md", open: vi.fn() }}
     />,
   );
-  expect(screen.getByRole("button", { name: /sources\.txt/ }).className).not.toContain("selected");
+  const cards = [...container.querySelectorAll(".file-card")];
+  const other = cards.find((card) => card.textContent.includes("sources.txt"));
+  expect(other.className).not.toContain("selected");
 });
 
 test("the chip on a card comes from the name the reply remembers", () => {
