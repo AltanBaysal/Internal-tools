@@ -1,4 +1,6 @@
-import RowMenu from "./RowMenu.jsx";
+import { useRef } from "react";
+
+import Menu from "./Menu.jsx";
 
 // A chat lives inside a project, so the two chat sections follow the selected one: with none
 // selected they are absent rather than empty or disabled.
@@ -19,6 +21,9 @@ export default function Sidebar({
   onRenameProject,
   onDeleteProject,
 }) {
+  // Only one menu is ever open, so one ref holds whichever ⋯ opened it.
+  const trigger = useRef(null);
+
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
@@ -75,12 +80,18 @@ export default function Sidebar({
               type="button"
               className="sidebar__row-more"
               aria-label={`More for ${project.name}`}
-              onClick={() => onOpenMenu?.(project.id)}
+              onClick={(event) => {
+                // Which button the menu hangs off is a matter of where it is drawn, so it stays
+                // here rather than travelling up to App with the id.
+                trigger.current = event.currentTarget;
+                onOpenMenu?.(project.id);
+              }}
             >
               ⋯
             </button>
             {menuFor === project.id ? (
-              <RowMenu
+              <Menu
+                anchor={trigger.current}
                 onClose={onCloseMenu}
                 items={[
                   { label: "Rename", onChoose: () => onRenameProject?.(project.id) },

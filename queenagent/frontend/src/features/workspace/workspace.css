@@ -165,18 +165,33 @@
   opacity: 1;
 }
 
-.row-menu {
+/* Nothing here but the box: the placement puts it where it goes and caps its height, and the width
+   belongs to whoever opens it. Fixed rather than absolute -- inside the sidebar's scrolling area an
+   absolute menu is clipped by the list it belongs to. */
+.menu {
   position: fixed;
   z-index: 15;
-  width: 176px;
   padding: 5px;
+  overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   box-shadow: 0 8px 24px rgba(34, 32, 29, 0.12);
 }
 
-.row-menu__item {
+.sidebar__row .menu {
+  width: 176px;
+}
+
+/* Invisible, and over everything but the menu: the click that dismisses the menu is spent doing
+   that and does not reach what it landed on. */
+.menu__catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 14;
+}
+
+.menu__item {
   display: block;
   width: 100%;
   border: none;
@@ -190,15 +205,15 @@
   cursor: pointer;
 }
 
-.row-menu__item:hover {
+.menu__item:hover {
   background: #f2ede5;
 }
 
-.row-menu__item--danger {
+.menu__item--danger {
   color: var(--destructive);
 }
 
-.row-menu__item--danger:hover {
+.menu__item--danger:hover {
   background: var(--destructive-soft);
 }
 
