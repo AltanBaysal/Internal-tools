@@ -1536,6 +1536,89 @@
   background: var(--muted);
 }
 
+/* --- settings ------------------------------------------------------------ */
+
+/* Pushed to the foot by the margin rather than by a spacer: the sidebar is a column, and whatever
+   is above it takes the room it needs first. */
+.sidebar__foot {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.sidebar__settings {
+  width: 100%;
+  border: none;
+  background: none;
+  border-radius: var(--radius-control);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sidebar__settings:hover {
+  background: #efebe4;
+  color: var(--ink);
+}
+
+.field {
+  display: block;
+  max-width: 520px;
+  margin-top: 28px;
+}
+
+.field__label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+/* The composer's surface, because it is the same thing: a box the user types into. */
+.field__input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.field__foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+/* A moment rather than a state: it goes as soon as the box is touched again. */
+.field__saved {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* A sentence, not a second button: the card already has one, and this one only points at a door. */
+.failure__settings {
+  align-self: flex-start;
+  margin-top: 6px;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  color: #8a5237;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* --- the three steps ----------------------------------------------------- */
 
 /* What is measured is the shell's own width rather than the window's (shared/useShellWidth.js), so

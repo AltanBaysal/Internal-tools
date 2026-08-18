@@ -8,6 +8,8 @@ import ConfirmDialog from "./features/workspace/ConfirmDialog.jsx";
 import NoProjectsScreen from "./features/workspace/NoProjectsScreen.jsx";
 import OfflineStrip from "./features/workspace/OfflineStrip.jsx";
 import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
+import SettingsScreen from "./features/settings/SettingsScreen.jsx";
+import { useSettings } from "./features/settings/useSettings.js";
 import Sidebar from "./features/workspace/Sidebar.jsx";
 import Skeleton from "./features/workspace/Skeleton.jsx";
 import { useChat } from "./features/workspace/useChat.js";
@@ -33,6 +35,9 @@ export default function App() {
   const online = useOnline();
   // Which layout step holds is the shell's own width, measured -- not the window's.
   const { shell, steps } = useShellWidth();
+  // The engine's key. Held here rather than only on the settings screen, because the failure card
+  // has to know whether there is one -- and asking the error text would be reading tea leaves.
+  const { apiKey, save: saveApiKey } = useSettings();
   const { projects, error, loading, createProject, editProject, removeProject, reloadProjects } =
     useProjects();
   // Both live here rather than inside the sidebar, because App's one listener owns Escape and it
@@ -246,6 +251,7 @@ export default function App() {
         onCloseMenu={() => setMenuFor(null)}
         onRenameProject={askForName}
         onDeleteProject={askToDelete}
+        onOpenSettings={() => navigate("/settings")}
       />
       <main className="main">
         {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
@@ -255,12 +261,16 @@ export default function App() {
             Two wrongs close with it: the fork used to sit empty, and an address typed straight into
             a project answered "does not exist" about a list nobody had answered yet. The sidebar
             stays live so navigation is never locked. */}
-        {firstLoad ? <Skeleton variant="screen" rows={3} /> : null}
+        {firstLoad && route.view !== "settings" ? <Skeleton variant="screen" rows={3} /> : null}
 
         {/* The fork draws nothing while it is still deciding, and hands over to the empty screen
             only once the server has said there is nothing to open. */}
         {!firstLoad && atFork && !landing ? (
           <NoProjectsScreen error={error} onNewProject={createProject} />
+        ) : null}
+
+        {route.view === "settings" ? (
+          <SettingsScreen apiKey={apiKey} onSave={saveApiKey} />
         ) : null}
 
         {!firstLoad && route.view === "project" ? (
@@ -304,6 +314,8 @@ export default function App() {
             onBack={() => openProject(route.projectId)}
             picker={picker}
             onPicker={togglePicker}
+            missingKey={!apiKey}
+            onSettings={() => navigate("/settings")}
             /* The skill goes with the message: what governed a turn is settled when it is sent. */
             onSend={drafting ? startChat : (text) => chat.send(text, lastSkill)}
             /* A draft has nothing to write to yet, so picking only moves the session's own. */
