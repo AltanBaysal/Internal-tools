@@ -22,9 +22,15 @@ STRUCTURE = json.dumps(
     {
         "quality": "score_9_up",
         "characters": {"aylin": "1girl"},
+        "outfits": {"gecelik": "white nightgown"},
         "locations": {"bedroom": "sunlit bedroom"},
         "frames": [
-            {"characters": ["aylin"], "location": "bedroom", "action": "one", "camera": "wide"}
+            {
+                "characters": {"aylin": ["gecelik"]},
+                "location": "bedroom",
+                "action": "one",
+                "camera": "wide",
+            }
         ],
     }
 )

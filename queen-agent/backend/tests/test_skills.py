@@ -76,6 +76,13 @@ def test_the_character_instruction_keeps_the_frames_own_fields_out():
     assert "pose" in said and "camera" in said
 
 
+def test_the_character_instruction_leaves_clothing_out_of_the_identity():
+    # An identity that carries clothing cannot be worn twice, which is exactly what outfits is for.
+    said = instruction_for("create-character-prompt").lower()
+    assert "what they are wearing" not in said
+    assert "outfits" in said
+
+
 def test_the_frame_instruction_settles_the_count_with_the_user_and_works_in_batches():
     said = instruction_for("split-into-frames").lower()
     assert "how many" in said and "together with the user" in said
@@ -103,10 +110,29 @@ def test_the_plain_instruction_writes_in_batches_too():
 
 
 @pytest.mark.parametrize(
-    "field", ["quality", "characters", "locations", "frames", "action", "camera"]
+    "field", ["quality", "characters", "outfits", "locations", "frames", "action", "camera"]
 )
 def test_the_structured_instruction_shows_the_schema_rather_than_describing_it(field):
     assert f'"{field}"' in instruction_for("generate-prompts-plus")
+
+
+def test_the_structured_instruction_shows_the_frames_characters_as_a_map():
+    # The shape is the whole decision: a frame names who is in it and what each of them wears.
+    said = instruction_for("generate-prompts-plus")
+    assert '"characters": { "aylin": [' in said
+
+
+def test_the_structured_instruction_says_what_belongs_where():
+    said = instruction_for("generate-prompts-plus").lower()
+    # The rule that makes the split make sense, rather than two maps and no reason.
+    assert "changes" in said and "outfits" in said
+
+
+def test_the_rulebook_calls_clothing_in_the_wrong_place_a_violation():
+    said = RULEBOOK.lower()
+    assert "clothing" in said
+    # Both wrong homes, because both are how it comes back as a copy.
+    assert "action" in said
 
 
 def test_the_structured_instruction_names_the_structure_file_after_frames():

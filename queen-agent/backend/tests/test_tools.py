@@ -17,10 +17,21 @@ STRUCTURE = json.dumps(
     {
         "quality": "score_9_up",
         "characters": {"aylin": "1girl, long teal hair"},
+        "outfits": {"gecelik": "white nightgown"},
         "locations": {"bedroom": "sunlit bedroom"},
         "frames": [
-            {"characters": ["aylin"], "location": "bedroom", "action": "one", "camera": "wide"},
-            {"characters": ["aylin"], "location": "bedroom", "action": "two", "camera": "close"},
+            {
+                "characters": {"aylin": ["gecelik"]},
+                "location": "bedroom",
+                "action": "one",
+                "camera": "wide",
+            },
+            {
+                "characters": {"aylin": ["gecelik"]},
+                "location": "bedroom",
+                "action": "two",
+                "camera": "close",
+            },
         ],
     }
 )
@@ -216,7 +227,7 @@ def test_broken_json_is_reported_in_the_parsers_own_words(tmp_path):
 
 
 def test_an_unknown_name_writes_no_file(tmp_path):
-    broken = STRUCTURE.replace('"aylin"], "location"', '"aylinn"], "location"', 1)
+    broken = STRUCTURE.replace('{"aylin": ["gecelik"]}', '{"aylinn": ["gecelik"]}', 1)
     files = _with(tmp_path, "frames.json", broken)
     said = _call(files, "build_prompts", name="frames.json")
     assert "aylinn" in said and "aylin" in said

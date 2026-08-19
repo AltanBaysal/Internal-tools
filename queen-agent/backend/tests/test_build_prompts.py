@@ -13,11 +13,14 @@ QUALITY = "score_9_up, masterpiece"
 AYLIN = "1girl, long teal hair"
 DENIZ = "1boy, short black hair"
 BEDROOM = "sunlit bedroom, morning light"
+GECELIK = "white nightgown"
+GUNLUK = "black t-shirt"
+TAKIM = "dark grey suit"
 
 
 def _frame(**changes):
     frame = {
-        "characters": ["aylin"],
+        "characters": {"aylin": []},
         "location": "bedroom",
         "action": "an action",
         "camera": "a camera",
@@ -30,6 +33,7 @@ def _structure(**changes):
     structure = {
         "quality": QUALITY,
         "characters": {"aylin": AYLIN, "deniz": DENIZ},
+        "outfits": {"gecelik": GECELIK, "gunluk": GUNLUK, "takim": TAKIM},
         "locations": {"bedroom": BEDROOM},
         "frames": [_frame()],
     }
@@ -64,13 +68,70 @@ def test_one_edit_in_the_map_turns_every_frame():
 
 
 def test_two_characters_keep_the_frames_own_order():
-    built = build_prompts(_structure(frames=[_frame(characters=["deniz", "aylin"])]))
+    built = build_prompts(_structure(frames=[_frame(characters={"deniz": [], "aylin": []})]))
     assert built[0].index(DENIZ) < built[0].index(AYLIN)
 
 
 def test_a_frame_without_a_character_or_a_place_still_builds():
-    built = build_prompts(_structure(frames=[_frame(characters=[], location="")]))
+    built = build_prompts(_structure(frames=[_frame(characters={}, location="")]))
     assert built == [f"{QUALITY}, an action, a camera"]
+
+
+def test_a_frames_outfit_follows_its_character():
+    built = build_prompts(_structure(frames=[_frame(characters={"aylin": ["gecelik"]})]))
+    assert built == [f"{QUALITY}, {AYLIN}, {GECELIK}, {BEDROOM}, an action, a camera"]
+
+
+def test_two_outfits_keep_the_order_they_were_written_in():
+    built = build_prompts(_structure(frames=[_frame(characters={"aylin": ["gunluk", "gecelik"]})]))
+    assert built[0].index(GUNLUK) < built[0].index(GECELIK)
+
+
+def test_each_characters_block_stays_together():
+    # An image model has to be able to tell whose clothes are whose, and the only thing saying so
+    # is that the identity and its outfits are neighbours.
+    frame = _frame(characters={"aylin": ["gunluk"], "deniz": ["takim"]})
+    built = build_prompts(_structure(frames=[frame]))[0]
+    assert built.index(AYLIN) < built.index(GUNLUK) < built.index(DENIZ) < built.index(TAKIM)
+
+
+def test_a_character_with_no_outfit_is_just_the_identity():
+    built = build_prompts(_structure(frames=[_frame(characters={"aylin": []})]))
+    assert built == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+
+
+def test_the_old_list_of_names_is_read_as_names_without_outfits():
+    # Files written before outfits existed carry a plain list, and they keep building.
+    built = build_prompts(_structure(frames=[_frame(characters=["aylin"])]))
+    assert built == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+
+
+def test_a_single_outfit_written_without_a_list_is_read_as_one():
+    # The instruction asks for a list; a model that writes one name plainly still means one name,
+    # and reading it letter by letter would answer with nonsense.
+    built = build_prompts(_structure(frames=[_frame(characters={"aylin": "gecelik"})]))
+    assert built == [f"{QUALITY}, {AYLIN}, {GECELIK}, {BEDROOM}, an action, a camera"]
+
+
+def test_an_unknown_outfit_names_the_frame_and_what_is_known():
+    with pytest.raises(BadStructure) as refused:
+        build_prompts(_structure(frames=[_frame(characters={"aylin": ["gecelikk"]})]))
+    said = str(refused.value)
+    assert "frame 1" in said and "gecelikk" in said and "outfits" in said
+    assert "gecelik" in said and "takim" in said
+
+
+def test_an_unknown_character_in_the_map_form_is_reported_too():
+    with pytest.raises(BadStructure) as refused:
+        build_prompts(_structure(frames=[_frame(characters={"aylinn": []})]))
+    said = str(refused.value)
+    assert "frame 1" in said and "aylinn" in said and "characters" in said
+
+
+def test_a_structure_with_no_outfits_map_still_builds():
+    structure = _structure()
+    del structure["outfits"]
+    assert build_prompts(structure) == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
 
 
 def test_a_structure_without_quality_still_builds():
@@ -88,7 +149,7 @@ def test_loose_commas_and_spaces_are_tidied_away():
 
 
 def test_a_repeated_solo_tag_is_left_exactly_as_written():
-    structure = _structure(frames=[_frame(characters=["aylin", "deniz"])])
+    structure = _structure(frames=[_frame(characters={"aylin": [], "deniz": []})])
     structure["characters"] = {"aylin": "1girl, solo", "deniz": "1boy, solo"}
     # Out of scope by decision: the tool carries the entries through as written, and a wrong count
     # is seen on the screen rather than silently guessed at here.
