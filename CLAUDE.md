@@ -27,9 +27,14 @@ Verifying a queen-editor change also needs a push, for the same reason.
 a decision with two readings or no way back, and ask it in plain text: one question, numbered
 options, a recommendation.
 
-**YOU MUST split every task into two cycles**, down to a two-line deletion: the tests alone first,
-committed red (`skip`/`xfail` are not how a suite is made green), then the implementation. Written
-together, a test inherits the code's blind spots.
+**YOU MUST run every task as two full superpowers tours**, down to a two-line deletion:
+
+1. **Test tour** — spec, plan, then implement *the tests only*. Run the suite, see them fail,
+   commit them red (`skip`/`xfail` are not how a suite is made green).
+2. **Implementation tour** — a second spec and plan, now for the code itself. Implement what the
+   committed tests describe, see the suite go green, commit.
+
+Never write test and code in one pass: written together, a test inherits the code's blind spots.
 
 The user tests at the end of a run, not between items.
 
