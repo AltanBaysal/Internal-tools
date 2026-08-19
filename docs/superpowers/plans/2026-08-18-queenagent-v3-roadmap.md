@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-18 · **Branch:** `fix/mira`
 **Kaynak:** [test bulguları](../research/2026-08-18-queenagent-test-bulgulari.md) — kullanıcının
-elle turundan çıkan 14 bulgu; her bulgu bir madde. Numaralar v2'den devam eder.
+elle turundan çıkan 15 bulgu; her bulgu bir madde. Numaralar v2'den devam eder.
 **Örnek yapı:** [2026-08-18-ornek-yapi.json](../research/2026-08-18-ornek-yapi.json)
 
 Sıranın mantığı: Madde 38 her becerinin turunu bitiren sahte hatayı öldürür; 39-40 yapıyı kurar,
@@ -52,7 +52,12 @@ yönergeler (41-44) o yapıya yazılır; gerisi bağımsız, sona. Kullanıcın�
 - **Ne çalışır:** kaç aday istendiği söylenmediyse model sorar; çıktı sohbete değil **dosyaya** —
   yapıdaki `characters` şekliyle JSON, adı karakterden (`aylin.json`). Yapıştırılan beğenilmiş
   prompt biçim örneği alınır; kareye ait olanlar (poz, mekân, kamera, kalite) ayıklanır.
-- **Nasıl görülür:** "3 aday" → `aylin.json`'da üç girdi; sayı söylenmezse model soruyor.
+  Kıyafet **yazılır ama kimliğe girmez**: bugünkü yönergedeki "what they are wearing" karakterden
+  düşer, kıyafet aynı dosyada ayrı bir `outfits` girdisi olur ve giyene göre değil giysiye göre
+  adlandırılır — Madde 40'ın yapısı burada da geçerli, yoksa beceri kıyafeti karaktere gömmeye
+  devam eder.
+- **Nasıl görülür:** "3 aday" → `aylin.json`'da üç kimlik girdisi ve kıyafetleri `outfits`'te ayrı;
+  sayı söylenmezse model soruyor.
 
 ### Madde 43 — Kare açıklaması 1-2 cümle *(bulgu 10)*
 
@@ -104,8 +109,11 @@ yönergeler (41-44) o yapıya yazılır; gerisi bağımsız, sona. Kullanıcın�
 ### Madde 50 — Sağ kenar sürüklenerek ayarlanır *(bulgu 2)*
 
 - **Ne çalışır:** dosya bölümü kenarından sürüklenerek yatayda genişler/daralır; kapanıp açılma
-  kalır.
-- **Nasıl görülür:** kenarı çek → genişlik değişir ve kalır.
+  kalır. Genişlik bugün duyarlı yerleşimin elinde (v2 Madde 33: %44, en çok 250 en az 150, 1000px
+  altında ray sohbetin altına iniyor), yani iki kural aynı sayıyı istiyor — sürüklemenin o eşiklerin
+  yerine mi geçtiği yoksa yanında mı durduğu spec'te karara bağlanır ve kullanıcıya sorulur.
+- **Nasıl görülür:** kenarı çek → genişlik değişir ve kalır; pencereyi daralt → eşik davranışı
+  spec'te yazan gibi olur.
 
 ### Madde 51 — Sol kenar kapanıp açılır *(bulgu 3)*
 
@@ -113,9 +121,17 @@ yönergeler (41-44) o yapıya yazılır; gerisi bağımsız, sona. Kullanıcın�
   claude.ai davranışı.
 - **Nasıl görülür:** kapat → sohbet genişler; aç → çubuk geri gelir.
 
+### Madde 52 — Çatal, kullanıcı gitmişse karar vermez *(bulgu 15)*
+
+- **Ne çalışır:** çatal kararını yalnız kullanıcı hâlâ `/`'da beklerken verir. Liste gelene kadar
+  kullanıcı kendi bir adrese gittiyse çatal susar — seçilen adresin üstüne `replace` ile yazmaz.
+  Kimse bir yere gitmediyse bugünkü davranış aynen kalır: liste gelince ilk projeye inilir.
+- **Nasıl görülür:** liste yüklenirken kenar çubuğundan Settings'e bas → Settings ekranında
+  kalınır, proje ekranı açılmaz.
+
 ---
 
 ## Kapanış
 
 Maddeler durmadan spec → plan → test → uygulama ile gider; kullanıcının toplu testi **en sonda**
-(38-51 bitince, v2 Madde 35'in turu bu değişikliklerle birlikte koşulur).
+(38-52 bitince, v2 Madde 35'in turu bu değişikliklerle birlikte koşulur).
