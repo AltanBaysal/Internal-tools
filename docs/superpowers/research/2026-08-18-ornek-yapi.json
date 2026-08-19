@@ -1,0 +1,43 @@
+{
+  "quality": "score_9_up, score_9, score_8_up, masterpiece, best quality, raw, high quality, 4k, absurdres",
+  "characters": {
+    "aylin": "1girl, solo, woman in her mid 20s, goth woman, pale skin, long black hair, green eyes, slim body",
+    "deniz": "1boy, man in his late 20s, short black hair, stubble, athletic build"
+  },
+  "outfits": {
+    "gecelik": "white nightgown, lace trim, bare shoulders",
+    "gunluk": "oversized long black t-shirt, black thong",
+    "atki": "red knit scarf",
+    "takim": "dark grey suit, white shirt, no tie"
+  },
+  "locations": {
+    "yatak_odasi": "cozy bedroom, morning light through curtains, indoors",
+    "kapi_onu": "apartment doorway, daytime, natural light, indoors"
+  },
+  "shots": [
+    {
+      "characters": { "aylin": ["gecelik"] },
+      "location": "yatak_odasi",
+      "action": "sitting on the edge of the bed, holding a letter, pensive expression",
+      "camera": "medium shot, from slightly above"
+    },
+    {
+      "characters": { "aylin": ["gunluk"] },
+      "location": "kapi_onu",
+      "action": "standing in doorway, door opening, light blush, soft flirty smile, looking at viewer",
+      "camera": "full body"
+    },
+    {
+      "characters": { "aylin": ["gunluk", "atki"], "deniz": ["takim"] },
+      "location": "kapi_onu",
+      "action": "handing over a small package, fingers touching, surprised expressions",
+      "camera": "medium shot, side view"
+    },
+    {
+      "characters": { "aylin": [] },
+      "location": "yatak_odasi",
+      "action": "extreme close-up of her eyes, single tear, soft focus",
+      "camera": "extreme close-up"
+    }
+  ]
+}
