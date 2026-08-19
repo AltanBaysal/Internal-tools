@@ -3,6 +3,8 @@ __pycache__/
 .pytest_cache/
 node_modules/
 
-# The frontend is built on the machine that runs it -- unlike queen-editor, nothing here ships
-# pre-built.
-frontend/dist/
+# The built frontend ships in the repo -- override the root-level `dist/` ignore. The notebook
+# clones this repo and never builds, so the bundle travels with the source. Re-including the
+# directory is what matters: git never opens an ignored one, so a rule about the files inside it
+# would never be read.
+!frontend/dist/
