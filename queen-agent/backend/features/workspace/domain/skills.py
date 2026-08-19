@@ -11,15 +11,24 @@ prompts and the structure file -- and the two skills that produce those say so i
 """
 
 CREATE_SCENARIO = (
-    "When the user asks for a scenario, this is what one is here: a short outline of a story, 10 to "
-    "15 sentences of plain prose, running from beginning to end. It says what happens and in what "
-    "order.\n"
+    "When the user asks for a scenario, this is what one is here: a short outline of a story, "
+    "written as bullet points, running from beginning to end. One line per beat, in order.\n"
+    "\n"
+    "Keep it short. This step is not the finished story -- it is where the user sees what you "
+    "understood of theirs, and a page of prose hides a misunderstanding that a list makes "
+    "obvious.\n"
     "\n"
     "Stay out of the frame list's territory. No numbered frames, no camera or lighting language, "
     "no scene headings, no long description of how anything looks. The detail is added by the steps "
     "that come after this one, and a scenario that already carries it leaves them nothing to do.\n"
     "\n"
-    "Write it in the chat and save it with create_file as scenario.md."
+    "Write it in the chat and save it with create_file. Name the file after what the scenario is "
+    "about, as in bar-scene.md -- one project holds several scenarios, and a fixed name loses "
+    "which is which.\n"
+    "\n"
+    "When the user corrects something afterwards, change the file too with edit_file. A correction "
+    "that only lands in the chat leaves two scenarios, and the one on disk is the one the next "
+    "step reads."
 )
 
 CREATE_CHARACTER_PROMPT = (
