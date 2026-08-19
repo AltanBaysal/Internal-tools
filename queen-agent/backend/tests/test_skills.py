@@ -90,10 +90,35 @@ def test_the_scenario_instruction_keeps_out_of_the_frame_lists_territory():
     assert "camera" in said and "frame" in said
 
 
-def test_only_the_frame_split_still_stays_in_the_chat():
-    # The character skill writes a file now, so it left this list.
-    assert "Do not create a file" in instruction_for("split-into-frames")
-    assert "Do not create a file" not in instruction_for("create-character-prompt")
+def test_verify_is_the_one_skill_that_writes_nothing():
+    # Every other skill leaves something on disk now. Verify reports, and fixing is the user's own
+    # next sentence.
+    writing = [skill for skill in INSTRUCTIONS if "Do not create a file" in INSTRUCTIONS[skill]]
+    assert writing == ["verify-prompts"]
+
+
+def test_the_frame_list_comes_in_the_users_own_language():
+    # A human reads this list. What an image model reads is the prompt, and that is a later skill.
+    said = instruction_for("split-into-frames").lower()
+    assert "language the user" in said
+
+
+def test_the_frame_list_leaves_the_translating_to_the_prompt_skills():
+    said = instruction_for("split-into-frames")
+    assert "English" in said
+
+
+def test_the_frame_list_reaches_a_file_too():
+    said = instruction_for("split-into-frames")
+    assert "create_file" in said and "edit_file" in said
+
+
+def test_the_frame_file_is_named_after_the_subject():
+    assert "-frames.md" in instruction_for("split-into-frames")
+
+
+def test_the_frame_split_no_longer_stays_in_the_chat():
+    assert "Do not create a file" not in instruction_for("split-into-frames")
 
 
 def test_the_character_instruction_asks_for_candidates_and_leaves_quality_out():

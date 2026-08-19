@@ -34,13 +34,15 @@ test("each row says what it does", () => {
   }
 });
 
-test("the two that produce nothing on disk say so in the menu", () => {
-  // The most surprising thing about them, so the line has to carry it.
-  const staying = SKILLS.filter((skill) => /stays in the chat/i.test(skill.detail));
-  expect(staying.map((skill) => skill.id)).toEqual([
-    "create-character-prompt",
-    "split-into-frames",
-  ]);
+test("no row promises to stay in the chat any more", () => {
+  // Both of them write a file now, and a menu that says otherwise is the app telling a lie.
+  expect(SKILLS.filter((skill) => /stays in the chat/i.test(skill.detail))).toEqual([]);
+});
+
+test("the rows that write a file say so", () => {
+  const writing = SKILLS.filter((skill) => /file/i.test(skill.detail)).map((skill) => skill.id);
+  expect(writing).toContain("create-character-prompt");
+  expect(writing).toContain("split-into-frames");
 });
 
 test("a name is the label, not the id", () => {
