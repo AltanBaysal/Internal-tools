@@ -1096,6 +1096,56 @@ test("one menu closes the other", async () => {
   expect(screen.getByText("MODEL")).toBeTruthy();
 });
 
+test("picking a model closes the menu", async () => {
+  // Closing was written twice -- once in Menu, once in App -- and the two landed in the same batch,
+  // so the toggle re-opened what the other had just closed.
+  withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.6/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.6/ }));
+  fireEvent.click(screen.getByText("Grok 4.3", { selector: ".menu__item-name" }));
+  await waitFor(() => expect(screen.queryByText("MODEL")).toBeNull());
+});
+
+test("pressing the model already in use closes the menu and asks the server nothing", async () => {
+  // The row that changes nothing still ends the menu's business: closing belongs to the press, not
+  // to whether something moved.
+  const fetch = withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.6/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.6/ }));
+  fireEvent.click(screen.getByText("Grok 4.6", { selector: ".menu__item-name" }));
+  await waitFor(() => expect(screen.queryByText("MODEL")).toBeNull());
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === "PATCH")).toEqual([]);
+});
+
+test("picking a skill closes the menu", async () => {
+  withModel();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(screen.getByText("Create scenario", { selector: ".menu__item-name" }));
+  await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
+});
+
+test("in a draft, picking a model closes the menu too", async () => {
+  // A draft has no chat to write to, so it takes a different path out of the same menu.
+  withModel();
+  window.history.pushState(null, "", "/p/p1/c/new");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.6/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.6/ }));
+  fireEvent.click(screen.getByText("Grok 4.3", { selector: ".menu__item-name" }));
+  await waitFor(() => expect(screen.queryByText("MODEL")).toBeNull());
+});
+
 test("Escape closes the pickers in the design's order", async () => {
   // fark 67: project menu -> confirm box -> Skills -> model -> open panel. The two pickers are the
   // links that could not be wired until both existed.
