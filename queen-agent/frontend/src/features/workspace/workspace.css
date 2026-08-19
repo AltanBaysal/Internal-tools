@@ -717,6 +717,12 @@
   background: #e5dfd5;
 }
 
+/* The 220ms above is for a rail folding itself away. A rail following the pointer has to arrive with
+   it, so the easing is off for as long as the drag lasts. */
+.rail--dragging {
+  transition: none;
+}
+
 /* Reading widens the rail rather than emptying it: the list stays beside the reader, so another
    file can be reached without closing this one. The design gives 320 → 560 and no split; the list
    takes the narrower half because the document is what the width was asked for. */

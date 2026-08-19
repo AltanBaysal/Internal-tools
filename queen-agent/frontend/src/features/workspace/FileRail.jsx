@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Skeleton from "./Skeleton.jsx";
 import FilePanel from "./FilePanel.jsx";
@@ -24,9 +24,12 @@ import { DEFAULT_RAIL_WIDTH } from "./railWidth.js";
 // asked for, not a decision: whether that is a width at all, or is narrow enough to mean closing,
 // belongs with the folded state, which is App's (railWidth.js).
 
-function railClass(reading, collapsed) {
+function railClass(reading, collapsed, dragging) {
   if (reading?.name) return "rail rail--open";
-  return collapsed ? "rail rail--collapsed" : "rail";
+  if (collapsed) return "rail rail--collapsed";
+  // Said out loud because the stylesheet has to hear it: the width easing is for folding, and a rail
+  // following the pointer has to arrive with it.
+  return dragging ? "rail rail--dragging" : "rail";
 }
 
 // The rail's own width is only its own while it is a list. Folded it is the design's strip, and
@@ -39,7 +42,7 @@ function railStyle(reading, collapsed, width) {
 // Dragging leftwards widens: the rail's edge is its left one, so the distance the pointer travels is
 // subtracted from where it started. The window is what listens, not the grip -- the pointer leaves a
 // 6px strip on the first frame of any real drag.
-function Grip({ width, onResize }) {
+function Grip({ width, onResize, onDrag }) {
   const drag = useRef(null);
 
   useEffect(() => {
@@ -47,7 +50,9 @@ function Grip({ width, onResize }) {
       if (drag.current) onResize(drag.current.width + (drag.current.x - event.clientX));
     };
     const stop = () => {
+      if (!drag.current) return;
       drag.current = null;
+      onDrag(false);
     };
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", stop);
@@ -55,7 +60,7 @@ function Grip({ width, onResize }) {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", stop);
     };
-  }, [onResize]);
+  }, [onResize, onDrag]);
 
   return (
     <div
@@ -67,6 +72,7 @@ function Grip({ width, onResize }) {
         // Nothing dragged yet means the stylesheet's width is the one on screen, so that is where
         // this drag starts from.
         drag.current = { x: event.clientX, width: width ?? DEFAULT_RAIL_WIDTH };
+        onDrag(true);
       }}
     />
   );
@@ -114,6 +120,9 @@ export default function FileRail({
   onResize,
   onToggle,
 }) {
+  // Only the stylesheet cares, and only for as long as the pointer is down, so it lives here rather
+  // than travelling up with the width.
+  const [dragging, setDragging] = useState(false);
   const style = railStyle(reading, collapsed, width);
 
   if (reading?.name) {
@@ -148,7 +157,11 @@ export default function FileRail({
   }
 
   return (
-    <aside className={railClass(reading, collapsed)} style={style} data-testid="file-rail">
+    <aside
+      className={railClass(reading, collapsed, dragging)}
+      style={style}
+      data-testid="file-rail"
+    >
       {/* Folded because the shell has no room for both, the strip has nowhere to open into, so its
           heading is a label -- the same sentence the rail says while it is showing a document. A
           button that opened nothing would be a lie. */}
@@ -167,7 +180,7 @@ export default function FileRail({
       {/* Not merely hidden: folded, there is no list, and the strip is what stands in its place. */}
       {collapsed ? null : (
         <>
-          {onResize ? <Grip width={width} onResize={onResize} /> : null}
+          {onResize ? <Grip width={width} onResize={onResize} onDrag={setDragging} /> : null}
           <FileList
             files={files}
             loading={loading}
