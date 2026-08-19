@@ -213,15 +213,17 @@ export default function App() {
   // that; starting one from the project screen is an ordinary step and is pushed.
   // A chat's own choices live on the server; the last ones made also become what the next chat
   // starts from, and that much is the session's.
+  //
+  // Neither of these closes the menu: pressing a row already ends it, in Menu, whether or not the
+  // press changed anything. Clearing the picker here too put two updates in one batch -- the clear
+  // landed first, and the toggle, reading a closed menu, opened it straight back up.
   const chooseModel = async (model) => {
     setLastModel(model);
-    setPicker(null);
     await chat.choose({ model });
   };
 
   const chooseSkill = async (skill) => {
     setLastSkill(skill);
-    setPicker(null);
     await chat.choose({ skill });
   };
 
@@ -319,22 +321,8 @@ export default function App() {
             /* The skill goes with the message: what governed a turn is settled when it is sent. */
             onSend={drafting ? startChat : (text) => chat.send(text, lastSkill)}
             /* A draft has nothing to write to yet, so picking only moves the session's own. */
-            onModelChange={
-              drafting
-                ? (model) => {
-                    setLastModel(model);
-                    setPicker(null);
-                  }
-                : chooseModel
-            }
-            onSkillChange={
-              drafting
-                ? (skill) => {
-                    setLastSkill(skill);
-                    setPicker(null);
-                  }
-                : chooseSkill
-            }
+            onModelChange={drafting ? setLastModel : chooseModel}
+            onSkillChange={drafting ? setLastSkill : chooseSkill}
             onRetry={chat.retry}
           />
         ) : null}
