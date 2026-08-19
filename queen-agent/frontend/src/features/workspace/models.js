@@ -1,6 +1,9 @@
-// Every text model xAI documents, read from docs.x.ai/docs/models on 2026-08-18, in the order the
-// documentation lists them. Which of these a chat that picked nothing answers with is the server's
-// setting and arrives from GET /api/model; the names and the prices are text, and text lives here.
+// The models this app offers, in the order xAI's documentation lists them (docs.x.ai/docs/models,
+// read 2026-08-18). Which of these a chat that picked nothing answers with is the server's setting
+// and arrives from GET /api/model; the names and the prices are text, and text lives here.
+//
+// Offered, not documented: grok-4.5 is missing on purpose. It costs exactly what grok-4.6 costs, so
+// putting it here would only offer a worse version of the same money.
 //
 // The design wrote a sentence under each name, but those names -- Grok 4 Fast, Heavy, Code -- do not
 // exist, and the documentation describes only one of the real models. So each row says what it
@@ -9,7 +12,6 @@
 // Prices are per million tokens, input / output, for a prompt under 200k. Above that they double.
 export const MODELS = [
   { id: "grok-4.6", name: "Grok 4.6", detail: "$2 / $6 per 1M · 500k" },
-  { id: "grok-4.5", name: "Grok 4.5", detail: "$2 / $6 per 1M · 500k" },
   { id: "grok-4.3", name: "Grok 4.3", detail: "$1.25 / $2.50 per 1M · 1M" },
   {
     id: "grok-4.20-0309-reasoning",
