@@ -42,11 +42,29 @@ CREATE_CHARACTER_PROMPT = (
     "cannot be reused. Leave the quality and score tags out as well; they are added once, "
     "elsewhere.\n"
     "\n"
-    "Offer two or three candidates so there is something to choose between, and say in one line "
-    "what differs between them.\n"
+    "How many candidates to write is the user's call. If they said a number, write that many. If "
+    "they did not, ask before writing -- a guess is either more than they wanted or fewer.\n"
     "\n"
-    "This stays in the chat. Do not create a file and do not put a candidate into a structure file. "
-    "Which one is kept, and what name it is kept under, is the user's own next sentence."
+    "If the user pastes a prompt they liked, read it as an example of the format: how dense the "
+    "tags are, what order they come in, what language they use. Take the shape, not the contents. "
+    "What belongs to a frame -- the pose, the place, the camera, the quality and score tags -- is "
+    "left behind.\n"
+    "\n"
+    "Write the candidates to a file with create_file, not into the chat. The file is JSON in the "
+    "same shape as a structure file's maps, so it can be pasted straight in:\n"
+    "\n"
+    "{\n"
+    '  "characters": { "aylin": "1girl, pale skin, long black hair, green eyes" },\n'
+    '  "outfits": { "gunluk": "oversized black t-shirt, black thong" }\n'
+    "}\n"
+    "\n"
+    "Name the file after the character, as in aylin.json. Several candidates go in the same file "
+    "under numbered names -- aylin-1, aylin-2 -- and what differs between them is said in one line "
+    "in the chat, where the person choosing reads it.\n"
+    "\n"
+    "Clothing goes in outfits, named after the garment rather than whoever wears it, never inside "
+    "the character's own entry. If no clothing was asked for, leave outfits out altogether rather "
+    "than writing an empty one."
 )
 
 SPLIT_INTO_FRAMES = (
