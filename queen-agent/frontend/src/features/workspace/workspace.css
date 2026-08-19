@@ -688,6 +688,8 @@
 .rail {
   width: 320px;
   flex: none;
+  /* The grip is placed against this edge. */
+  position: relative;
   border-left: 1px solid var(--line);
   padding: 20px 18px;
   overflow-y: auto;
@@ -695,6 +697,24 @@
      folded strip and the narrow-window row inherit it without saying so again. */
   background: #fbf9f5;
   transition: width 220ms ease;
+}
+
+/* Pulled to set the width. It covers the rail's whole left edge: the rail scrolls its own content,
+   so `bottom: 0` reaches the end of a long list and `min-height: 100%` covers the other case, where
+   there is less list than there is rail. Six pixels is what the pointer needs; the line the user
+   sees is the rail's own border, which the grip sits on top of. */
+.rail__grip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  min-height: 100%;
+  width: 6px;
+  cursor: col-resize;
+}
+
+.rail__grip:hover {
+  background: #e5dfd5;
 }
 
 /* Reading widens the rail rather than emptying it: the list stays beside the reader, so another
@@ -1640,17 +1660,16 @@
   padding: 16px 10px;
 }
 
-/* The rail goes under the conversation rather than floating over it: a floating rail would need a
-   control to open it, and the design has none. Nothing here may produce a horizontal scrollbar. */
-.app-shell--narrow .chat-layout,
+/* The project screen's reader goes under its list rather than floating over it: a floating panel
+   would need a control to open it, and the design has none. Nothing here may produce a horizontal
+   scrollbar. The chat's rail is not here -- Madde 50 keeps it on the right at every width and closes
+   it instead, which is what the user asked for. */
 .app-shell--narrow .screen-layout {
   flex-direction: column;
 }
 
-/* Under the chat, with a ceiling: unbounded it would push the conversation up and the layout would
-   start scrolling as a whole, which is the one thing the contract forbids. */
-.app-shell--narrow .rail,
-.app-shell--narrow .rail--open,
+/* Under the list, with a ceiling: unbounded it would push the column up and the layout would start
+   scrolling as a whole, which is the one thing the contract forbids. */
 .app-shell--narrow .panel {
   width: auto;
   flex: none;
@@ -1659,25 +1678,6 @@
   border-left: none;
   border-top: 1px solid var(--line);
   overflow-y: auto;
-}
-
-/* A vertical strip means nothing in a layout that is already stacked: folded, the rail here is a
-   single header row. */
-.app-shell--narrow .rail--collapsed {
-  width: auto;
-  max-height: none;
-  min-height: 0;
-  padding: 8px 18px;
-}
-
-.app-shell--narrow .rail--collapsed .rail__head {
-  flex-direction: row;
-  margin-bottom: 0;
-}
-
-.app-shell--narrow .rail--collapsed .rail__label {
-  writing-mode: horizontal-tb;
-  flex: 1;
 }
 
 .app-shell--narrow .chat,
@@ -1701,7 +1701,6 @@
   display: none;
 }
 
-.app-shell--narrow .chat-layout--reading .rail--open,
 .app-shell--narrow .screen-layout--reading .panel {
   flex: 1;
   max-height: none;

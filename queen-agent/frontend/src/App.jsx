@@ -21,6 +21,7 @@ import {
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
 import { useProjects } from "./features/workspace/useProjects.js";
+import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
 import { getJson } from "./shared/api.js";
 import { useOnline } from "./shared/useOnline.js";
 import { useRoute } from "./shared/useRoute.js";
@@ -34,7 +35,7 @@ export default function App() {
   const { route, navigate } = useRoute();
   const online = useOnline();
   // Which layout step holds is the shell's own width, measured -- not the window's.
-  const { shell, steps } = useShellWidth();
+  const { shell, width: shellWidth, steps } = useShellWidth();
   // The engine's key. Held here rather than only on the settings screen, because the failure card
   // has to know whether there is one -- and asking the error text would be reading tea leaves.
   const { apiKey, save: saveApiKey } = useSettings();
@@ -45,8 +46,21 @@ export default function App() {
   const [menuFor, setMenuFor] = useState(null);
   const [confirming, setConfirming] = useState(null);
   // The rail's folded state lasts the session and crosses chats and projects, so it cannot live in
-  // a component that is rebuilt every time the address changes.
+  // a component that is rebuilt every time the address changes. Its width is held for the same
+  // reason and in the same place.
   const [railCollapsed, setRailCollapsed] = useState(false);
+  const [railWidth, setRailWidth] = useState(DEFAULT_RAIL_WIDTH);
+  // One rule, two reasons. A shell too narrow for both folds the rail without writing it down, so
+  // widening the window brings back exactly what the user left -- overwriting their choice would
+  // hand them back a folded rail nobody folded.
+  const railFoldedByWidth = !railFitsIn(shellWidth);
+  // The rail measures the drag; the decision is here, where the folded state is. Pulled in past its
+  // minimum it is not a narrower rail, it is a closed one.
+  const resizeRail = (desired) => {
+    const next = railWidthFor(desired);
+    if (next === null) setRailCollapsed(true);
+    else setRailWidth(next);
+  };
   // The last model picked, and what the next chat is born with. Held for the session rather than
   // written to disk: a chat's own choice is on the server, and this is only the starting point.
   // Empty until the server says what it is set to.
@@ -304,7 +318,10 @@ export default function App() {
             filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
-            railCollapsed={railCollapsed}
+            railCollapsed={railCollapsed || railFoldedByWidth}
+            railFoldedByWidth={railFoldedByWidth}
+            railWidth={railWidth}
+            onResizeRail={resizeRail}
             onToggleRail={() => setRailCollapsed((folded) => !folded)}
             error={chat.error}
             refused={chat.refused}

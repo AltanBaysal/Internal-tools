@@ -33,5 +33,7 @@ export function useShellWidth() {
     return () => observer.disconnect();
   }, []);
 
-  return { shell, steps: shellSteps(width) };
+  // The number as well as the steps: the stylesheet asks in steps, but whether the rail still fits
+  // beside the conversation is arithmetic, and it is answered in JS (railWidth.js).
+  return { shell, width, steps: shellSteps(width) };
 }

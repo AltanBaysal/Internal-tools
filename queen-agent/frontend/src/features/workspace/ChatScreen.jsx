@@ -58,6 +58,9 @@ export default function ChatScreen({
   reading,
   deleting,
   railCollapsed,
+  railFoldedByWidth,
+  railWidth,
+  onResizeRail,
   onToggleRail,
   error,
   refused,
@@ -281,6 +284,9 @@ export default function ChatScreen({
         reading={reading}
         deleting={deleting}
         collapsed={railCollapsed}
+        foldedByWidth={railFoldedByWidth}
+        width={railWidth}
+        onResize={onResizeRail}
         onToggle={onToggleRail}
       />
     </div>
