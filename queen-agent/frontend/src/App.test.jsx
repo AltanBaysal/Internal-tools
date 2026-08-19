@@ -121,8 +121,8 @@ test("the sidebar's Settings row opens the settings screen at its own address", 
   stubProjects([PROJECT]);
   render(<App />);
 
-  // Clicked only once the fork has landed: while the list is still on its way the fork owns the
-  // address and replaces whatever was chosen in the meantime (finding 15).
+  // Clicked once the fork has landed, so this test is about the row rather than about the race.
+  // Pressing it earlier holds too now -- Madde 52, and its own two tests say so.
   await screen.findByText("Old", { selector: ".screen__title" });
   fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   await waitFor(() =>
