@@ -41,10 +41,41 @@ def test_no_instruction_calls_a_frame_a_shot():
         assert "shot" not in said.lower().replace("medium shot", ""), skill
 
 
-def test_the_scenario_instruction_says_how_long_and_where_it_goes():
+def test_the_scenario_instruction_no_longer_counts_sentences():
+    # A count and a shape that were both wrong for what a scenario is for. Watched rather than
+    # simply deleted, so the old rule cannot quietly come back.
+    said = instruction_for("create-scenario").lower()
+    assert "10 to 15" not in said
+    assert "plain prose" not in said
+
+
+def test_the_scenario_instruction_asks_for_a_list():
+    said = instruction_for("create-scenario").lower()
+    assert "bullet" in said or "one line each" in said
+
+
+def test_the_scenario_instruction_says_why_it_stays_short():
+    # The reason is the rule: this is here to show what was understood, not to be the finished work.
+    said = instruction_for("create-scenario").lower()
+    assert "understood" in said
+    assert "short" in said
+
+
+def test_the_scenario_file_is_named_after_its_subject():
     said = instruction_for("create-scenario")
-    assert "10 to 15" in said
-    assert "scenario.md" in said
+    # One project holds several scenarios, and a fixed name loses which is which.
+    assert "scenario.md" not in said
+    assert ".md" in said
+
+
+def test_a_correction_reaches_the_scenario_file_too():
+    said = instruction_for("create-scenario")
+    assert "create_file" in said and "edit_file" in said
+
+
+def test_the_scenario_still_goes_into_the_chat_as_well():
+    said = instruction_for("create-scenario").lower()
+    assert "chat" in said
 
 
 def test_the_scenario_instruction_no_longer_argues_about_language():
