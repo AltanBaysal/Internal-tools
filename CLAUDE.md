@@ -5,21 +5,22 @@ Internal tools monorepo, one folder per tool: `collab-toolbox`, `queen-editor`, 
 ## Commands
 
 ```bash
-# QueenAgent — the whole suite, always these two lines, both of them, verbatim.
+# Tests — per tool, always these fixed lines, both of them, verbatim.
 # Independent — run them in parallel; each one's red fails its own call, nothing is masked.
 python -m pytest queen-agent -q
 npm test --prefix queen-agent/frontend
+python -m pytest queen-editor -q
+npm test --prefix queen-editor/frontend
 
 # QueenAgent — run it (dist is NOT committed, so build first)
 npm run build --prefix queen-agent/frontend
 python queen-agent/main.py           # http://127.0.0.1:8100 — restart it after a backend change
 
-# queen-editor — dist IS committed; build and commit it in the SAME commit as the source
+# queen-editor — no local run: the app lives on Colab, and app.ipynb clones this repo and never
+# builds. So dist IS committed — build and commit it in the SAME commit as the source, and a change
+# is only seeable after a push; the user runs the notebook.
 npm run build --prefix queen-editor/frontend
 ```
-
-Skipping that last build makes Colab serve a stale UI — it clones the repo and never builds.
-Verifying a queen-editor change also needs a push, for the same reason.
 
 ## Workflow
 
