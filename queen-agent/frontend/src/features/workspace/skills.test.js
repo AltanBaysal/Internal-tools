@@ -39,6 +39,13 @@ test("no row promises to stay in the chat any more", () => {
   expect(SKILLS.filter((skill) => /stays in the chat/i.test(skill.detail))).toEqual([]);
 });
 
+test("the scenario row says what a scenario is now", () => {
+  // Madde 41 turned it into bullets and gave it a file; the row still promised 10-15 sentences.
+  const scenario = SKILLS.find((skill) => skill.id === "create-scenario");
+  expect(scenario.detail).not.toMatch(/10-15/);
+  expect(scenario.detail).toMatch(/file/i);
+});
+
 test("the rows that write a file say so", () => {
   const writing = SKILLS.filter((skill) => /file/i.test(skill.detail)).map((skill) => skill.id);
   expect(writing).toContain("create-character-prompt");
