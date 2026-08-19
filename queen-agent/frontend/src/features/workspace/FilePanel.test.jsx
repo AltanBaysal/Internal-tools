@@ -36,11 +36,11 @@ test("the body is drawn as a document rather than as plain text", () => {
 // A structure file and a prompt list are the point of the skills, and Markdown eats both: the
 // indentation goes, the lines run together, and a Python comment becomes a heading. The decision is
 // read off the name -- the chip's three letters say "jso", which is not an extension.
-const STRUCTURE = '{\n  "quality": "score_9_up",\n  "shots": []\n}';
+const STRUCTURE = '{\n  "quality": "score_9_up",\n  "frames": []\n}';
 
 test("a file that is not Markdown is shown exactly as it is written", () => {
   const { container } = render(
-    <FilePanel name="shots.json" file={{ ...FILE, name: "shots.json", text: STRUCTURE }} />,
+    <FilePanel name="frames.json" file={{ ...FILE, name: "frames.json", text: STRUCTURE }} />,
   );
   expect(container.querySelector(".reader__code").textContent).toBe(STRUCTURE);
   expect(container.querySelector(".reader__body .md")).toBeNull();

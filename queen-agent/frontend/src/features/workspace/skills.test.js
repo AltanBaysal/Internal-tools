@@ -8,11 +8,23 @@ test("the six skills are the ones that were agreed", () => {
   expect(SKILLS.map((skill) => skill.id)).toEqual([
     "create-scenario",
     "create-character-prompt",
-    "split-into-shots",
+    "split-into-frames",
     "generate-prompts",
     "generate-prompts-plus",
-    "verify-shots",
+    "verify-prompts",
   ]);
+});
+
+test("the skill that checks carries no frame in its name", () => {
+  // It reads the material the prompts are made of, not the frames themselves.
+  const verify = SKILLS.find((skill) => skill.id === "verify-prompts");
+  expect(verify.name).toBe("Verify prompts");
+  expect(verify.detail).toBe("Check the structure files against the rules.");
+});
+
+test("the skill that splits says frames", () => {
+  const split = SKILLS.find((skill) => skill.id === "split-into-frames");
+  expect(split.name).toBe("Split into frames");
 });
 
 test("each row says what it does", () => {
@@ -27,7 +39,7 @@ test("the two that produce nothing on disk say so in the menu", () => {
   const staying = SKILLS.filter((skill) => /stays in the chat/i.test(skill.detail));
   expect(staying.map((skill) => skill.id)).toEqual([
     "create-character-prompt",
-    "split-into-shots",
+    "split-into-frames",
   ]);
 });
 

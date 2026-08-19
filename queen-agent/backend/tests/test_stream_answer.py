@@ -23,7 +23,7 @@ STRUCTURE = json.dumps(
         "quality": "score_9_up",
         "characters": {"aylin": "1girl"},
         "locations": {"bedroom": "sunlit bedroom"},
-        "shots": [
+        "frames": [
             {"characters": ["aylin"], "location": "bedroom", "action": "one", "camera": "wide"}
         ],
     }
@@ -170,12 +170,12 @@ def test_reading_a_file_announces_nothing(tmp_path):
 
 def test_building_prompts_announces_itself_twice(tmp_path):
     chats, files = _seeded(tmp_path)
-    files.write("p1", "shots.json", STRUCTURE)
-    rounds = [[{"tool_calls": [call("build_prompts", name="shots.json")]}], [{"text": "done"}]]
+    files.write("p1", "frames.json", STRUCTURE)
+    rounds = [[{"tool_calls": [call("build_prompts", name="frames.json")]}], [{"text": "done"}]]
     produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
     # A file is born here too, so it gets the same dashed card and the same filled one.
     assert isinstance(produced[0], FileStarted)
-    assert produced[1] == FileWritten("shots.py")
+    assert produced[1] == FileWritten("frames.py")
 
 
 def test_editing_a_file_announces_nothing(tmp_path):
@@ -193,13 +193,13 @@ def test_editing_a_file_announces_nothing(tmp_path):
 
 def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
     chats, files = _seeded(tmp_path)
-    files.write("p1", "shots.json", STRUCTURE)
+    files.write("p1", "frames.json", STRUCTURE)
     rounds = [
         [
             {
                 "tool_calls": [
-                    call("build_prompts", call_id="a", name="shots.json"),
-                    call("build_prompts", call_id="b", name="shots.json"),
+                    call("build_prompts", call_id="a", name="frames.json"),
+                    call("build_prompts", call_id="b", name="frames.json"),
                 ]
             }
         ],
@@ -207,7 +207,7 @@ def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
     ]
     list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
     # The card says a file exists, not how many times it was written.
-    assert chats.get("p1", "c1").messages[-1].files == ("shots.py",)
+    assert chats.get("p1", "c1").messages[-1].files == ("frames.py",)
 
 
 def test_a_silent_turn_that_made_a_file_is_still_an_answer(tmp_path):
@@ -291,11 +291,11 @@ def test_a_reply_in_between_does_not_bring_it_back(tmp_path):
 
 def test_changing_the_skill_brings_the_new_one_in_once(tmp_path):
     _, conversation = _said_with(
-        tmp_path, ("one", "create-scenario"), ("now split it", "split-into-shots")
+        tmp_path, ("one", "create-scenario"), ("now split it", "split-into-frames")
     )
     assert _instructions(conversation) == [
         instruction_for("create-scenario"),
-        instruction_for("split-into-shots"),
+        instruction_for("split-into-frames"),
     ]
 
 

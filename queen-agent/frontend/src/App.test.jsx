@@ -1047,13 +1047,13 @@ test("picking a skill writes it to the chat it was picked in", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Verify shots"));
+  fireEvent.click(screen.getByText("Verify prompts"));
 
-  await waitFor(() => expect(screen.getByRole("button", { name: /Verify shots/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Verify prompts/ })).toBeTruthy());
   const patch = fetch.mock.calls
     .filter(([, options]) => options?.method === "PATCH")
     .map(([, options]) => JSON.parse(options.body));
-  expect(patch).toContainEqual({ skill: "verify-shots" });
+  expect(patch).toContainEqual({ skill: "verify-prompts" });
 });
 
 test("a new chat is born with the last skill picked in this session", async () => {
@@ -1062,8 +1062,8 @@ test("a new chat is born with the last skill picked in this session", async () =
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Split into shots"));
-  await waitFor(() => expect(screen.getByRole("button", { name: /Split into shots/ })).toBeTruthy());
+  fireEvent.click(screen.getByText("Split into frames"));
+  await waitFor(() => expect(screen.getByRole("button", { name: /Split into frames/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: "← Old" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
@@ -1077,7 +1077,7 @@ test("a new chat is born with the last skill picked in this session", async () =
         ([path, options]) =>
           options?.method === "POST" &&
           path.endsWith("/chats") &&
-          JSON.parse(options.body).skill === "split-into-shots",
+          JSON.parse(options.body).skill === "split-into-frames",
       ),
     ).toBe(true),
   );

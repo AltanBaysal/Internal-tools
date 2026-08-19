@@ -18,7 +18,7 @@ STRUCTURE = json.dumps(
         "quality": "score_9_up",
         "characters": {"aylin": "1girl, long teal hair"},
         "locations": {"bedroom": "sunlit bedroom"},
-        "shots": [
+        "frames": [
             {"characters": ["aylin"], "location": "bedroom", "action": "one", "camera": "wide"},
             {"characters": ["aylin"], "location": "bedroom", "action": "two", "camera": "close"},
         ],
@@ -113,6 +113,14 @@ def test_only_creating_reports_a_born_file(tmp_path):
     assert listed.created is None
 
 
+def test_the_build_tool_tells_the_model_it_assembles_frames():
+    # The model reads this before it reaches for the tool, so the word has to be the same one the
+    # instruction and the structure file use.
+    built = next(spec for spec in TOOL_SPECS if spec["function"]["name"] == "build_prompts")
+    said = built["function"]["description"].lower()
+    assert "frame" in said and "shot" not in said
+
+
 def test_every_tool_is_declared_to_the_model():
     assert {spec["function"]["name"] for spec in TOOL_SPECS} == {
         "list_files",
@@ -124,8 +132,8 @@ def test_every_tool_is_declared_to_the_model():
 
 
 def test_the_round_limit_carries_the_longest_chain():
-    # list, read, a skeleton, several batches of shots, a self-check and the build. Pinned, because
-    # a limit that quietly cuts the chain short looks like a model that gave up.
+    # list, read, a skeleton, several batches of frames, a self-check and the build. Pinned,
+    # because a limit that quietly cuts the chain short looks like a model that gave up.
     assert MAX_ROUNDS == 16
 
 
@@ -172,27 +180,27 @@ def test_an_edit_does_not_report_a_born_file(tmp_path):
 
 
 def test_building_writes_a_file_named_after_the_source(tmp_path):
-    files = _with(tmp_path, "intro-shots.json", STRUCTURE)
-    said = _call(files, "build_prompts", name="intro-shots.json")
-    assert "intro-shots.py" in said and "2" in said
-    assert "PROMPTS" in files.read("p1", "intro-shots.py")
-    assert "long teal hair" in files.read("p1", "intro-shots.py")
+    files = _with(tmp_path, "intro-frames.json", STRUCTURE)
+    said = _call(files, "build_prompts", name="intro-frames.json")
+    assert "intro-frames.py" in said and "2" in said
+    assert "PROMPTS" in files.read("p1", "intro-frames.py")
+    assert "long teal hair" in files.read("p1", "intro-frames.py")
 
 
 def test_building_reports_a_born_file(tmp_path):
-    files = _with(tmp_path, "intro-shots.json", STRUCTURE)
-    built = run_tool(files, "p1", "build_prompts", json.dumps({"name": "intro-shots.json"}))
-    assert built.created == "intro-shots.py"
+    files = _with(tmp_path, "intro-frames.json", STRUCTURE)
+    built = run_tool(files, "p1", "build_prompts", json.dumps({"name": "intro-frames.json"}))
+    assert built.created == "intro-frames.py"
 
 
 def test_building_again_writes_over_its_own_output(tmp_path):
-    files = _with(tmp_path, "intro-shots.json", STRUCTURE)
-    _call(files, "build_prompts", name="intro-shots.json")
-    _call(files, "edit_file", name="intro-shots.json", old="long teal hair", new="short red hair")
-    _call(files, "build_prompts", name="intro-shots.json")
+    files = _with(tmp_path, "intro-frames.json", STRUCTURE)
+    _call(files, "build_prompts", name="intro-frames.json")
+    _call(files, "edit_file", name="intro-frames.json", old="long teal hair", new="short red hair")
+    _call(files, "build_prompts", name="intro-frames.json")
     # A derived file: regenerating it is the point, so numbering would only hide which one is now.
-    assert sorted(files.list_names("p1")) == ["intro-shots.json", "intro-shots.py"]
-    assert "teal" not in files.read("p1", "intro-shots.py")
+    assert sorted(files.list_names("p1")) == ["intro-frames.json", "intro-frames.py"]
+    assert "teal" not in files.read("p1", "intro-frames.py")
 
 
 def test_building_from_a_file_that_is_not_there_is_an_answer(tmp_path):
@@ -200,22 +208,22 @@ def test_building_from_a_file_that_is_not_there_is_an_answer(tmp_path):
 
 
 def test_broken_json_is_reported_in_the_parsers_own_words(tmp_path):
-    files = _with(tmp_path, "shots.json", "{oops")
-    said = _call(files, "build_prompts", name="shots.json")
+    files = _with(tmp_path, "frames.json", "{oops")
+    said = _call(files, "build_prompts", name="frames.json")
     # Never a guessed cause: whatever the parser said is what the model is told.
-    assert "shots.json" in said and "Expecting" in said
-    assert files.list_names("p1") == ["shots.json"]
+    assert "frames.json" in said and "Expecting" in said
+    assert files.list_names("p1") == ["frames.json"]
 
 
 def test_an_unknown_name_writes_no_file(tmp_path):
     broken = STRUCTURE.replace('"aylin"], "location"', '"aylinn"], "location"', 1)
-    files = _with(tmp_path, "shots.json", broken)
-    said = _call(files, "build_prompts", name="shots.json")
+    files = _with(tmp_path, "frames.json", broken)
+    said = _call(files, "build_prompts", name="frames.json")
     assert "aylinn" in said and "aylin" in said
-    assert files.list_names("p1") == ["shots.json"]
+    assert files.list_names("p1") == ["frames.json"]
 
 
 def test_a_python_source_is_refused_so_it_is_not_written_over(tmp_path):
-    files = _with(tmp_path, "shots.py", STRUCTURE)
-    assert "shots.py" in _call(files, "build_prompts", name="shots.py")
-    assert files.read("p1", "shots.py") == STRUCTURE
+    files = _with(tmp_path, "frames.py", STRUCTURE)
+    assert "frames.py" in _call(files, "build_prompts", name="frames.py")
+    assert files.read("p1", "frames.py") == STRUCTURE

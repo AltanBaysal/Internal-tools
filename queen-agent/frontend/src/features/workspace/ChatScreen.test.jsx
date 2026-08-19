@@ -386,8 +386,8 @@ test("the foot carries Skills, the model and Send, in that order", () => {
 });
 
 test("a chat with a skill selected says which one", () => {
-  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "verify-shots" }} />);
-  expect(screen.getByRole("button", { name: /Verify shots/ })).toBeTruthy();
+  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "verify-prompts" }} />);
+  expect(screen.getByRole("button", { name: /Verify prompts/ })).toBeTruthy();
 });
 
 test("picking a skill is passed up rather than kept here", () => {
@@ -400,8 +400,8 @@ test("picking a skill is passed up rather than kept here", () => {
       onSkillChange={onSkillChange}
     />,
   );
-  fireEvent.click(screen.getByText("Split into shots"));
-  expect(onSkillChange).toHaveBeenCalledWith("split-into-shots");
+  fireEvent.click(screen.getByText("Split into frames"));
+  expect(onSkillChange).toHaveBeenCalledWith("split-into-frames");
 });
 
 test("picking another one is passed up rather than kept here", () => {
