@@ -7,7 +7,7 @@ from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.domain.chat import Chat
-from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
+from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage, EngineFailed
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
@@ -208,6 +208,43 @@ def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
     list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
     # The card says a file exists, not how many times it was written.
     assert chats.get("p1", "c1").messages[-1].files == ("shots.py",)
+
+
+def test_a_silent_turn_that_made_a_file_is_still_an_answer(tmp_path):
+    # The model that only works and never speaks is the common case under a skill, and what it
+    # made is the answer.
+    rounds = [[{"tool_calls": [call("create_file", name="plan.md", content="x")]}], []]
+    _, _, _, produced = _run(tmp_path, rounds)
+    assert isinstance(produced[-1], Chat)
+
+
+def test_the_silent_answer_keeps_the_file_and_no_words(tmp_path):
+    rounds = [[{"tool_calls": [call("create_file", name="plan.md", content="x")]}], []]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    kept = chats.get("p1", "c1").messages[-1]
+    assert kept.text == ""
+    assert kept.files == ("plan.md",)
+
+
+def test_the_silent_answer_is_still_one_reply_in_the_chat(tmp_path):
+    rounds = [[{"tool_calls": [call("create_file", name="plan.md", content="x")]}], []]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    assert [m.role for m in chats.get("p1", "c1").messages] == ["user", "ai"]
+
+
+def test_a_turn_that_said_nothing_and_made_nothing_is_not_an_answer(tmp_path):
+    # The boundary of the rule: reading a file is not making one, so this turn produced neither a
+    # word nor a file and there is nothing to keep.
+    rounds = [[{"tool_calls": [call("read_file", name="ghost.md")]}], []]
+    with pytest.raises(EmptyMessage):
+        _run(tmp_path, rounds)
+
+
+def test_a_silent_turn_that_runs_out_of_rounds_is_not_an_answer_either(tmp_path):
+    # Same rule down a different road: the loop stops at its limit rather than at a quiet round.
+    forever = [[{"tool_calls": [call("list_files")]}] for _ in range(MAX_ROUNDS + 3)]
+    with pytest.raises(EmptyMessage):
+        _run(tmp_path, forever)
 
 
 def _said_with(tmp_path, *turns):

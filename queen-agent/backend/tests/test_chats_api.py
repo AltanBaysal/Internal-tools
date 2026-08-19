@@ -1,3 +1,5 @@
+import json
+
 import pytest
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
@@ -29,6 +31,27 @@ class FakeEngine:
         self.asked_for = model
         self.seen = [dict(message) for message in messages]
         yield {"text": self.answer}
+
+
+class ScriptedEngine:
+    """An engine whose rounds are written out, so a turn can call tools and never speak.
+
+    FakeEngine answers in one piece and cannot reach for a tool, and a silent turn is exactly the
+    shape it cannot make. Kept here rather than shared with the use case's tests: a test that
+    imports another test's fixture makes the two move together for no reason.
+    """
+
+    def __init__(self, rounds):
+        self.rounds = list(rounds)
+
+    def stream(self, messages, tools=None, model=None):
+        pieces = self.rounds.pop(0) if self.rounds else []
+        for piece in pieces:
+            yield piece
+
+
+def _tool_call(tool, **arguments):
+    return {"id": "t1", "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
 
 def _client(tmp_path, engine=None, default_model="grok-4.5"):
@@ -234,6 +257,48 @@ def test_a_broken_engine_speaks_inside_the_stream(tmp_path):
     assert "401 bad key" in body
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     assert [m["text"] for m in kept["messages"]] == ["hello"]
+
+
+def _silent_with_a_file():
+    return ScriptedEngine([[{"tool_calls": [_tool_call("create_file", name="plan.md", content="x")]}], []])
+
+
+def test_a_silent_turn_that_made_a_file_closes_the_stream_cleanly(tmp_path):
+    # What the user reported as a network error: the model worked without speaking and the stream
+    # broke instead of ending.
+    client = _client(tmp_path, engine=_silent_with_a_file())
+    pid, cid = _started(client)
+    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    assert "event: file" in body
+    assert "event: done" in body
+    assert "event: error" not in body
+
+
+def test_the_record_keeps_the_silent_answer(tmp_path):
+    client = _client(tmp_path, engine=_silent_with_a_file())
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+    kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [m["text"] for m in kept] == ["hello", ""]
+    assert kept[-1]["files"] == ["plan.md"]
+
+
+def test_a_turn_that_produced_nothing_says_so_inside_the_stream(tmp_path):
+    # Neither a word nor a file, so there is no answer -- and saying so is the server's job, not
+    # the browser's guess about the connection.
+    client = _client(tmp_path, engine=ScriptedEngine([[]]))
+    pid, cid = _started(client)
+    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    assert "event: error" in body
+    assert "The model returned nothing." in body
+
+
+def test_a_turn_that_produced_nothing_writes_nothing(tmp_path):
+    client = _client(tmp_path, engine=ScriptedEngine([[]]))
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+    kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [m["text"] for m in kept] == ["hello"]
 
 
 def test_answering_an_unknown_chat_is_404(tmp_path):
