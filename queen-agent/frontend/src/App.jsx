@@ -50,6 +50,8 @@ export default function App() {
   // reason and in the same place.
   const [railCollapsed, setRailCollapsed] = useState(false);
   const [railWidth, setRailWidth] = useState(DEFAULT_RAIL_WIDTH);
+  // The sidebar's own fold, held here for the same reason and outliving every address.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   // One rule, two reasons. A shell too narrow for both folds the rail without writing it down, so
   // widening the window brings back exactly what the user left -- overwriting their choice would
   // hand them back a folded rail nobody folded.
@@ -268,6 +270,8 @@ export default function App() {
         onRenameProject={askForName}
         onDeleteProject={askToDelete}
         onOpenSettings={() => navigate("/settings")}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed((folded) => !folded)}
       />
       <main className="main">
         {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}

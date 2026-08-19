@@ -6,6 +6,23 @@ import Menu from "./Menu.jsx";
 // selected they are absent rather than empty or disabled.
 const MOST_CHATS = 8;
 
+// One button, never a drag: claude.ai's behaviour rather than the rail's, and the user asked for it
+// by that name. Folded, the sidebar is not hidden -- a strip stands where it was, carrying the one
+// thing that brings it back. Nothing else survives the fold: every row here is a name or a title,
+// and inventing icons for them is a different decision from this one.
+function Fold({ collapsed, onToggle }) {
+  return (
+    <button
+      type="button"
+      className="sidebar__fold"
+      aria-label={collapsed ? "Show the sidebar" : "Hide the sidebar"}
+      onClick={onToggle}
+    >
+      {collapsed ? "›" : "‹"}
+    </button>
+  );
+}
+
 export default function Sidebar({
   projects,
   chats = [],
@@ -21,14 +38,25 @@ export default function Sidebar({
   onRenameProject,
   onDeleteProject,
   onOpenSettings,
+  collapsed,
+  onToggle,
 }) {
   // Only one menu is ever open, so one ref holds whichever ⋯ opened it.
   const trigger = useRef(null);
+
+  if (collapsed) {
+    return (
+      <aside className="sidebar sidebar--collapsed">
+        <Fold collapsed onToggle={onToggle} />
+      </aside>
+    );
+  }
 
   return (
     <aside className="sidebar">
       <div className="sidebar__brand">
         <span className="sidebar__wordmark">QueenAgent</span>
+        <Fold onToggle={onToggle} />
       </div>
 
       {activeProjectId ? (

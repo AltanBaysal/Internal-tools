@@ -18,6 +18,17 @@
   flex-direction: column;
   padding: 18px 14px;
   gap: 18px;
+  /* The same easing the rail folds by, on the other side of the screen. */
+  transition: width 220ms ease;
+}
+
+/* Folded to a strip rather than hidden: what stands here is the button that brings it back, and
+   nothing else -- every row in this sidebar is a name or a title. */
+.sidebar--collapsed {
+  width: 52px;
+  padding: 18px 0;
+  align-items: center;
+  overflow: hidden;
 }
 
 .sidebar__brand {
@@ -25,6 +36,28 @@
   align-items: center;
   gap: 10px;
   padding: 2px 6px;
+}
+
+/* Beside the wordmark while the sidebar is open, and the whole of it once folded. */
+.sidebar__fold {
+  margin-left: auto;
+  border: none;
+  border-radius: var(--radius-control);
+  padding: 4px 8px;
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.sidebar__fold:hover {
+  background: #e5dfd5;
+}
+
+/* Nothing to sit beside, so the margin that pushed it right has nothing to push against. */
+.sidebar--collapsed .sidebar__fold {
+  margin-left: 0;
 }
 
 .sidebar__wordmark {
