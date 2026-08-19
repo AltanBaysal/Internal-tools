@@ -2,8 +2,8 @@
 // search, Deep research, Data & tables, Code -- belonging to a product that does something else;
 // karar 18 replaced them and the design conversation grew the set to these.
 //
-// The second line says what a skill does and, for two of them, where it stops: producing nothing on
-// disk is their most surprising property, so the menu says it before the user finds out.
+// The second line says what a skill does and, where it applies, that a file comes out of it: a file
+// appearing unasked is the surprising part, so the menu says it before the user finds out.
 export const SKILLS = [
   {
     id: "create-scenario",
@@ -13,12 +13,12 @@ export const SKILLS = [
   {
     id: "create-character-prompt",
     name: "Create character prompt",
-    detail: "SDXL character tags. Stays in the chat.",
+    detail: "SDXL character tags, into a file per character.",
   },
   {
     id: "split-into-frames",
     name: "Split into frames",
-    detail: "Turn the scenario into frames. Stays in the chat.",
+    detail: "Turn the scenario into frames, chat and file.",
   },
   {
     id: "generate-prompts",

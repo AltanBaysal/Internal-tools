@@ -81,7 +81,15 @@ SPLIT_INTO_FRAMES = (
     "Quality falls away towards the end of a long stretch, and batches leave the user room to "
     "correct one before the next is written.\n"
     "\n"
-    "This stays in the chat. Do not create a file."
+    "Write the list in the language the user writes in. This one is read by a person, not by an "
+    "image model -- what an image model reads is the prompt, and putting it into English is the "
+    "job of the skills that write prompts. The structure file and the PROMPTS list stay English; "
+    "this list does not.\n"
+    "\n"
+    "Write it in the chat and save it with create_file. Name the file after what the scenario is "
+    "about and end the name with -frames, as in bar-scene-frames.md, so it sits beside the "
+    "scenario it came from. When the user corrects a frame afterwards, change the file too with "
+    "edit_file -- a correction that only lands in the chat leaves the file saying something else."
 )
 
 GENERATE_PROMPTS = (
