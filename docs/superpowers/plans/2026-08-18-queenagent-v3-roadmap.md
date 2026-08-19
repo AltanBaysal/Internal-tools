@@ -108,12 +108,13 @@ yönergeler (41-44) o yapıya yazılır; gerisi bağımsız, sona. Kullanıcın�
 
 ### Madde 50 — Sağ kenar sürüklenerek ayarlanır *(bulgu 2)*
 
-- **Ne çalışır:** dosya bölümü kenarından sürüklenerek yatayda genişler/daralır; kapanıp açılma
-  kalır. Genişlik bugün duyarlı yerleşimin elinde (v2 Madde 33: %44, en çok 250 en az 150, 1000px
-  altında ray sohbetin altına iniyor), yani iki kural aynı sayıyı istiyor — sürüklemenin o eşiklerin
-  yerine mi geçtiği yoksa yanında mı durduğu spec'te karara bağlanır ve kullanıcıya sorulur.
-- **Nasıl görülür:** kenarı çek → genişlik değişir ve kalır; pencereyi daralt → eşik davranışı
-  spec'te yazan gibi olur.
+- **Ne çalışır:** VS Code davranışı *(kullanıcı kararı, 19 Ağustos)*. Ray **her genişlikte sağda
+  kalır** — v2 Madde 33'ün "1000px altında ray sohbetin altına iner" kuralı düşer. Kenarından
+  sürüklenerek genişler/daralır ve seçilen genişlik kalır. En az genişliğinin altına sürüklenirse
+  **kapanır**; pencere daralıp ikisine birden yer kalmayınca da kapanır — tek kural, iki sebep.
+  Kapalıyken bugünkü katlanmış şerit görünür, açılınca son genişlik geri gelir.
+- **Nasıl görülür:** kenarı çek → genişlik değişir ve kalır; iyice içeri çek → ray kapanır; pencereyi
+  daralt → ray sohbetin altına **inmez**, dar gelince kapanır.
 
 ### Madde 51 — Sol kenar kapanıp açılır *(bulgu 3)*
 
