@@ -16,6 +16,12 @@ test("every text model xAI documents is offered", () => {
   ]);
 });
 
+test("the default the server starts from is a row in this menu", () => {
+  // Python cannot read this file, so the match between config.XAI_MODEL and the list is pinned
+  // here in words. A default the menu does not know leaves every new chat showing a raw id.
+  expect(MODELS.map((model) => model.id)).toContain("grok-4.3");
+});
+
 test("each row carries a name and what it costs", () => {
   // The design wrote a sentence under each name, but those sentences belonged to models that do not
   // exist and the documentation describes only one of the real ones. The price is true for all of
