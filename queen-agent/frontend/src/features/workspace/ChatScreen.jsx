@@ -279,6 +279,7 @@ export default function ChatScreen({
         loading={loadingFiles}
         error={filesError}
         reading={reading}
+        deleting={deleting}
         collapsed={railCollapsed}
         onToggle={onToggleRail}
       />

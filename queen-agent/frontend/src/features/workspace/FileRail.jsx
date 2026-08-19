@@ -13,21 +13,25 @@ import FileRow from "./FileRow.jsx";
 // "one click on the strip opens it" are one sentence. While a document is being read there is
 // nothing to fold, so the heading is a label again.
 //
-// Its rows do one thing: open a file. Deleting lives on the project screen, where the list is the
-// subject rather than something standing beside a conversation.
+// Its rows open a file and, when the caller hands one over, offer a way to delete it -- the same
+// question the project screen asks. The row being read is the exception: deleting a file out from
+// under the reader leaves the user looking at nothing.
 
 function railClass(reading, collapsed) {
   if (reading?.name) return "rail rail--open";
   return collapsed ? "rail rail--collapsed" : "rail";
 }
 
-function FileList({ files, loading, error, reading }) {
+function FileList({ files, loading, error, reading, deleting }) {
   return (
     <div className="file-list">
       {/* The teaching line waits for the answer: until the list has arrived, "no files yet" is a
           guess and not a fact -- and if the answer never came, it is not even a guess. */}
       {loading ? <Skeleton rows={3} /> : null}
       {error ? <p className="list-error">{error}</p> : null}
+      {/* A delete that failed has to be said where it was asked for, or the user walks away
+          believing the file is gone. */}
+      {deleting?.error ? <p className="list-error">{deleting.error}</p> : null}
       {!loading && files.length
         ? files.map((file) => (
             <FileRow
@@ -35,6 +39,7 @@ function FileList({ files, loading, error, reading }) {
               file={file}
               selected={file.name === reading?.name}
               onOpen={reading?.open}
+              onDelete={file.name === reading?.name ? undefined : deleting?.remove}
             />
           ))
         : null}
@@ -47,7 +52,15 @@ function FileList({ files, loading, error, reading }) {
   );
 }
 
-export default function FileRail({ files = [], loading, error, reading, collapsed, onToggle }) {
+export default function FileRail({
+  files = [],
+  loading,
+  error,
+  reading,
+  deleting,
+  collapsed,
+  onToggle,
+}) {
   if (reading?.name) {
     return (
       <aside className={railClass(reading, collapsed)} data-testid="file-rail">
@@ -56,7 +69,13 @@ export default function FileRail({ files = [], loading, error, reading, collapse
             <span className="rail__label">Project files</span>
             <span className="rail__count">{files.length}</span>
           </div>
-          <FileList files={files} loading={loading} error={error} reading={reading} />
+          <FileList
+            files={files}
+            loading={loading}
+            error={error}
+            reading={reading}
+            deleting={deleting}
+          />
         </div>
         {/* Come back from rather than closed: this panel is the rail widened, and the list it
             widened away from is still standing beside it. */}
@@ -81,7 +100,15 @@ export default function FileRail({ files = [], loading, error, reading, collapse
         <span className="rail__chevron">{collapsed ? "‹" : "›"}</span>
       </button>
       {/* Not merely hidden: folded, there is no list, and the strip is what stands in its place. */}
-      {collapsed ? null : <FileList files={files} loading={loading} error={error} reading={reading} />}
+      {collapsed ? null : (
+        <FileList
+          files={files}
+          loading={loading}
+          error={error}
+          reading={reading}
+          deleting={deleting}
+        />
+      )}
     </aside>
   );
 }
