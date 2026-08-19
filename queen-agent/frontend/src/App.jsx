@@ -124,7 +124,12 @@ export default function App() {
   const atFork = route.view === "root";
   const landing = atFork && !loading && !error && projects.length > 0 ? projects[0].id : null;
   useEffect(() => {
-    if (landing) navigate(`/p/${landing}`, { replace: true });
+    // The address the browser has now, not the one this render was built from. An effect carries the
+    // values of the commit that scheduled it, so a list arriving in the same batch as a move would
+    // have the fork deciding for someone who has already left -- and replacing where they went.
+    if (landing && window.location.pathname === "/") {
+      navigate(`/p/${landing}`, { replace: true });
+    }
   }, [landing, navigate]);
 
   useEffect(() => {
