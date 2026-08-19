@@ -73,9 +73,9 @@ export default function FilePanel({ name, file, missing, error, back, onClose, o
       ) : null}
       {file ? (
         <p className="reader__meta" data-testid="file-meta">
-          {/* Not what the file measures -- when it was written, and that it belongs to the project
-              rather than to the chat that asked for it. */}
-          {`${relativeTime(file.modifiedAt)} · project file`}
+          {/* Not what the file measures -- when it was written. Whose file it is was here too and
+              left: it read the same under every file, and the screen is full with one open. */}
+          {relativeTime(file.modifiedAt)}
         </p>
       ) : null}
     </div>
