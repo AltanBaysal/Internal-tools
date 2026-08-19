@@ -66,9 +66,16 @@ test("a Markdown file is still drawn as a document", () => {
   expect(container.querySelector(".reader__code")).toBeNull();
 });
 
-test("the footer says how long ago it was written and whose file it is", () => {
+test("the footer says only how long ago it was written", () => {
   render(<FilePanel name="plan.md" file={FILE} />);
-  expect(screen.getByTestId("file-meta").textContent).toBe("2h ago · project file");
+  expect(screen.getByTestId("file-meta").textContent).toBe("2h ago");
+});
+
+test("the footer does not repeat that the file belongs to the project", () => {
+  // It was true of every file, so it told the reader nothing about the one in front of them --
+  // and the screen is crowded enough with a file open.
+  render(<FilePanel name="plan.md" file={FILE} />);
+  expect(screen.getByTestId("file-meta").textContent).not.toContain("project file");
 });
 
 test("the footer no longer measures the file", () => {
