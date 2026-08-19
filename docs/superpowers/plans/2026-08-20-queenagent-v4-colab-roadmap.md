@@ -1,31 +1,50 @@
 # QueenAgent v4 Yol Haritası — Colab'da paylaşım
 
-**Tarih:** 2026-08-20 · **Branch:** `fix/mira`
-**Kaynak:** kullanıcı isteği — "arkadaşımla paylaşmak"; Colab, ve **derlenip commit'lensin**
-(19–20 Ağustos kararı). Numaralar v3'ten devam eder (52'de bitti).
-**Örnek:** [queen-editor/app.ipynb](../../../queen-editor/app.ipynb) — desen oradan alınır, ama
-**birebir kopyalanmaz**; farklar Madde 57'de.
+**Tarih:** 2026-08-20 · **Branch:** `feat/queenagent-colab`
+**Kaynak:** kullanıcı isteği — "arkadaşımla paylaşmak"; Colab, **derlenip commit'lensin**, veri
+**Drive'da**. Numaralar v3'ten devam eder (52'de bitti).
+**Örnek:** [queen-editor/app.ipynb](../../../queen-editor/app.ipynb) — desen oradan alınır.
 
 ---
 
 ## Neden bu iş var
 
-QueenAgent bugün yalnız kendi makinesinde çalışıyor. Arkadaşına vermenin iki yolu vardı: exe ya da
-Colab. Colab seçildi, çünkü uygulamanın kendisi zaten ona göre biçilmiş — `QUEENAGENT_ROOT` ortam
-değişkeniyle taşınıyor ([config.py:13](../../../queen-agent/backend/config.py#L13)), API anahtarı o
-kökün altındaki `settings.json`'da yaşıyor, ve depoda çalışan bir Colab deseni (queen-editor) zaten
-var. Exe ise `DIST_DIR`'i paketleme bilgisiyle kirletir, Windows'a çakılır, ve her değişiklikte elden
-yeni bir dosya göndermeyi gerektirir.
+QueenAgent bugün yalnız kendi makinesinde çalışıyor. Colab seçildi çünkü uygulama zaten ona göre
+biçilmiş: `QUEENAGENT_ROOT` ortam değişkeniyle taşınıyor
+([config.py:13](../../../queen-agent/backend/config.py#L13)), API anahtarı o kökün altındaki
+`settings.json`'da yaşıyor, tek üçüncü parti bağımlılık Flask (xAI transportu bile stdlib
+[urllib](../../../queen-agent/backend/services/xai/client.py)), ve depoda çalışan bir Colab deseni
+zaten var. Exe'nin güncelleme maliyeti — her değişiklikte elden yeni dosya — tek başına diğer her
+şeyi bastırıyor.
 
-## Sıranın mantığı
+## Araştırmanın değiştirdiği karar *(20 Ağustos)*
 
-53-54-59 zemini kurar — defter, kendi temelini yalanlayan bir depoya yazılamaz, ve veri Drive'a
-taşınmadan önce yazmanın orada güvenli olması gerekir. 55-57 defterin kendisi, hücre sırasıyla:
-yapılandırma → klon → sunucu. 58 arkadaşının izleyeceği yolu yazar. Kullanıcının toplu testi en
-sonda: **arkadaş gerçekten açar.**
+İlk taslak adresi **Colab'ın kendi kernel proxy'sinden** vermeyi öneriyordu: yalnız defteri açan
+oturuma açık, uygulamaya giriş yazmadan. Yazmadan önce araştırıldı ve **bu yol kapalı çıktı.**
 
-*(59 sonradan yazıldı, o yüzden numarası büyük; koşudaki yeri Faz 1. Numaralar kaymaz — numara ne
-zaman yazıldığını söyler, nerede koşulduğunu değil.)*
+- **Kök yolları sorun değilmiş.** Resmî proxy yol öneki değil **alt alan adı** veriyor
+  (`https://<id>-<port>-colab.googleusercontent.com/`), yani uygulama kökte durur ve `/api/...`
+  tutar.
+- **Ama POST çalışmıyor.** [colabtools#3925](https://github.com/googlecolab/colabtools/issues/3925):
+  proxy üzerinden POST `500 (Not Allowed)` dönüyor, aynı uygulama ngrok/cloudflared ile çalışıyor,
+  konu açık. Google resmî proxy'yi GET'e daraltmış.
+
+QueenAgent'ta proje açmak POST, mesaj göndermek POST, cevap istemek POST, ayar PATCH, silme DELETE.
+Yani **cloudflared** — queen-editor'ün seçimi. Bedeli: link herkese açık. Karşılığı Madde 60.
+
+*Akış (SSE) artık risk değil: cloudflared akışı taşır, ve kullanıcı "mesajlar akmak zorunda değil,
+direkt gelebilir" dedi. Drive'ın yavaşlığı da kabul edildi.*
+
+## Sıra
+
+**53 → 54 → 59 → 60** zemini kurar: iki belge düzeltilir, `dist` depoya girer, yazma yarım kalmaz
+hâle gelir, ve uygulama bir parola kapısı kazanır. Bunlar bitmeden defter yazılamaz — defter,
+kendi temelini yalanlayan bir depoya ve herkese açık bir linke yazılamaz.
+**55 → 56 → 57** defterin kendisi, hücre sırasıyla. **58** arkadaşının yolunu yazar.
+Kullanıcının toplu testi en sonda.
+
+*(59 ve 60 sonradan yazıldı, o yüzden numaraları büyük; koşudaki yerleri Faz 1. Numaralar kaymaz —
+numara ne zaman yazıldığını söyler, nerede koşulduğunu değil.)*
 
 ---
 
@@ -35,31 +54,40 @@ zaman yazıldığını söyler, nerede koşulduğunu değil.)*
 
 - **Ne çalışır:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) **Karar 1** bugün "uygulama
   yalnız kullanıcının makinesinde çalışır… paylaşmak, henüz vermediğimiz bir karar gerektirir"
-  diyor — karar verildi, yazılır. **Karar 3** "`dist/` commit'lenmez" diyor — değişti. İkisi de bu
-  maddede düzeltilir, ve Karar 1 yereli **birincil** yol olarak korur: Colab eklenen bir yüzey,
-  yerini alan değil.
-  Aynı maddede [CLAUDE.md](../../../CLAUDE.md)'nin komut bloğu (queen-agent'ın dist'i hakkındaki
-  cümle) ve [queen-agent/README.md](../../../queen-agent/README.md) düzeltilir.
-- **Nasıl görülür:** iki belge, deponun bugünkü hâlini anlatıyor; hiçbiri defteri yalanlamıyor.
+  diyor — karar verildi. **Karar 3** "`dist/` commit'lenmez" diyor — değişti. İkisi de düzeltilir,
+  ve Karar 1 yereli **birincil** yol olarak korur: Colab eklenen bir yüzey, yerini alan değil.
+  Aynı maddede [CLAUDE.md](../../../CLAUDE.md)'nin komut bloğu ve
+  [queen-agent/README.md](../../../queen-agent/README.md) düzeltilir.
+- **Nasıl görülür:** iki belge deponun bugünkü hâlini anlatıyor; hiçbiri defteri yalanlamıyor.
 
 ### Madde 54 — `dist` depoya girer ve girmiş kalır
 
 - **Ne çalışır:** kök `.gitignore`'daki `dist/` kuralına queen-agent istisnası; `frontend/dist`
-  commit'lenir. Kural: **kaynakla aynı commit'te derlenip commit'lenir** — queen-editor'ün kuralı,
-  aynı sebeple (defter derlemez).
+  commit'lenir. Kural: **kaynakla aynı commit'te derlenip commit'lenir** — queen-editor'ünkiyle
+  aynı, aynı sebeple (defter derlemez).
 - **Nasıl görülür:** temiz bir klon `npm` çalıştırmadan `python main.py` ile açılıyor.
 
-### Madde 59 — Yazma yarım kalmaz *(Faz 1'de koşar)*
+### Madde 59 — Yazma yarım kalmaz
 
-- **Ne çalışır:** [store.py:27](../../../queen-agent/backend/services/store/store.py#L27) bugün tek
-  yazma yolu ve dosyayı **yerinde kesip** yeniden yazıyor. Yerel diskte pencere mikrosaniye; Drive
-  FUSE'da bir I/O hatası ya da runtime'ın ortada ölmesi `<chat>.json`'ı yarım bırakır ve o sohbet
-  gider — FOUNDATION'ın 1. ilkesiyle ("kullanıcının emeği kutsaldır") doğrudan çarpışan tek yer.
-  `write_text` geçici bir dosyaya yazıp `os.replace` ile üstüne geçer. Atomik ilkel zaten Store'da:
-  `move` onu kullanıyor.
-- **Nasıl görülür:** yazma ortasında patlayan bir Store, eski dosyayı **olduğu gibi** bırakıyor —
-  ne yarım ne boş. Drive'da `os.replace`'in aynı bağlama içinde çalıştığı da bu maddede görülür.
-- **Neden Drive'a özel değil:** yerelde de doğru olan şey; Drive onu yalnızca *sık* hâle getiriyor.
+- **Ne çalışır:** [store.py:27](../../../queen-agent/backend/services/store/store.py#L27) tek yazma
+  yolu ve dosyayı **yerinde kesip** yeniden yazıyor. Yerel diskte pencere mikrosaniye; Drive FUSE'da
+  bir I/O hatası ya da runtime'ın ortada ölmesi `<chat>.json`'ı yarım bırakır ve o sohbet gider —
+  FOUNDATION'ın 1. ilkesiyle ("kullanıcının emeği kutsaldır") çarpışan tek yer. `write_text` geçici
+  bir dosyaya yazıp `os.replace` ile üstüne geçer. Atomik ilkel Store'da zaten var: `move` kullanıyor.
+- **Nasıl görülür:** yazma ortasında patlayan bir Store eski dosyayı **olduğu gibi** bırakıyor — ne
+  yarım ne boş. Drive'da `os.replace`'in aynı bağlama içinde çalıştığı da burada görülür.
+- **Yerelde de doğru:** Drive onu yalnızca *sık* hâle getiriyor.
+
+### Madde 60 — Parola kapısı, yalnız kurulduğunda
+
+- **Ne çalışır:** cloudflared linki herkese açık, ve QueenAgent'ta giriş yok: linki bulan
+  kullanıcının anahtarını harcar ve dosyalarını okur. `QUEENAGENT_PASSWORD` **kuruluysa** her istek
+  bir parola ister; kurulu değilse kapı **hiç yoktur** — yerel koşu bugünkü gibi kalır, tek bir
+  ekran fazladan görmez.
+- **Nasıl görülür:** parola kurulu bir sunucuda `/api/projects` parolasız 401 diyor, parolayla
+  çalışıyor; parola kurulu değilken ikisi de bugünkü gibi.
+- **Neden en küçük hâli:** amaç kimlik yönetimi değil, açık bir linki tek bir sır ardına almak.
+  Kullanıcı hesabı, oturum, rol — hiçbiri bu maddenin işi değil.
 
 ---
 
@@ -68,81 +96,86 @@ zaman yazıldığını söyler, nerede koşulduğunu değil.)*
 ### Madde 55 — CONFIG: önce Drive, sonra her şey
 
 - **Ne çalışır:** `queen-agent/app.ipynb`'nin ilk kodu tek bir CONFIG hücresi. Drive **ilk** bağlanır
-  (izin penceresi ilk saniyede çıksın), `QUEENAGENT_ROOT` `MyDrive/<DRIVE_FOLDER>`'a bakar
-  (`QueenAgent`), `GITHUB_TOKEN` Colab Secrets'tan okunur ve yoksa ne yapılacağını söyleyen bir
-  `assert` ile durur. Eksik olan **yüksek sesle** söylenir ve sebep uydurulmaz.
+  (izin penceresi ilk saniyede çıksın). Kök: `MyDrive/queenAgent` — queen-editor'ün `queenEditor`
+  klasörünün kardeşi, adı CONFIG'de tek yerde (`DRIVE_FOLDER`). `GITHUB_TOKEN` ve
+  `QUEENAGENT_PASSWORD` Colab Secrets'tan okunur; eksik olan **yüksek sesle** söylenir ve sebep
+  uydurulmaz.
   xAI anahtarı **burada yok**: uygulamanın kendi Settings ekranına girilir ve Drive'daki
-  `settings.json`'a düşer — bir kere, sonsuza kadar. Bu queen-editor'den bilerek ayrılan yer.
-- **Nasıl görülür:** Secrets boşken hücre ne yapılacağını söyleyerek durur; doluyken Drive kökünü
-  basar.
+  `settings.json`'a düşer — bir kere, sonsuza kadar. queen-editor'den bilerek ayrılan yer.
+- **Nasıl görülür:** Secrets boşken hücre ne yapılacağını söyleyerek duruyor; doluyken Drive kökünü
+  basıyor.
 
-### Madde 56 — Klon: sil ve yeniden klonla
+### Madde 56 — Klon, bağımlılık, ve derlenmiş arayüzün kontrolü
 
-- **Ne çalışır:** `AltanBaysal/Internal-tools` **özel** bir depo, o yüzden token'lı klon. Token
-  kabuğa, log'a ve hata metnine sızmaz (argüman listesi + maskeleme). Başarısızlıkta git'in kendi
-  stderr'i basılır. Klondan sonra `queen-agent/frontend/dist/index.html` **aranır**: yoksa hücre
-  durur — unutulmuş bir derleme burada görünsün, boş sayfa olarak değil.
+- **Ne çalışır:** `AltanBaysal/Internal-tools` özel bir depo → token'lı klon (sil-ve-yeniden-klonla).
+  Token kabuğa, log'a ve hata metnine sızmaz; başarısızlıkta git'in kendi stderr'i maskelenmiş
+  basılır. Ardından `pip install -q flask` — Colab'da zaten kurulu olduğu için anında döner, ama
+  defter "Colab'da vardır" varsayımına sessizce yaslanmaz. Sonra
+  `queen-agent/frontend/dist/index.html` **aranır**: yoksa hücre durur — unutulmuş bir derleme
+  burada görünsün, boş sayfa olarak değil.
 - **Nasıl görülür:** `dist` commit'lenmemiş bir dalda hücre "derlenmiş arayüz yok" diyerek duruyor.
 
-### Madde 57 — Sunucu kalkar, ve adresi Colab oturumuna kapalıdır
+### Madde 57 — Sunucu kalkar, link ve parola birlikte basılır
 
-- **Ne çalışır:** `main.py` arka planda başlar, `QUEENAGENT_ROOT` ortamdan geçer, `/api/health`
-  90 sn boyunca yoklanır, cevap gelmezse sunucunun kendi log'unun son satırları basılıp durulur.
-  Hücre açık kalır, yoksa Colab runtime'ı boşta sayar.
-
-  **Burada queen-editor'den ayrılıyoruz.** O, `cloudflared` ile **herkese açık** bir
-  `trycloudflare.com` adresi basıyor. QueenAgent'ta giriş/parola yok ve anahtar kullanıcının
-  kendisinin: linki bulan, onun anahtarını harcar ve dosyalarını okur. Bu yüzden adres
-  **Colab'ın kendi kernel proxy'siyle** verilir (`serve_kernel_port_as_window` /
-  `kernel.proxyPort`) — yalnız defteri açan oturuma açıktır, ve uygulamaya auth yazmayı
-  gerektirmez.
-
-  **Bu maddenin kanıtlaması gereken şey:** QueenAgent cevabı **SSE ile** akıtıyor. Kernel proxy'nin
-  akışı bozmadan taşıdığı görülmeli. Taşımıyorsa karar `cloudflared`'e döner — ama o zaman defter
-  linkin herkese açık olduğunu **açıkça söyler**, ve bu ayrı bir karar olarak yazılır.
-- **Nasıl görülür:** hücre bir adres basıyor, adres açılıyor, bir soru soruluyor ve cevap
-  **kelime kelime** akıyor (tek parça hâlinde değil).
+- **Ne çalışır:** `main.py` arka planda başlar; ortamdan `QUEENAGENT_ROOT` ve
+  `QUEENAGENT_PASSWORD` geçer. `/api/health` 90 sn yoklanır, cevap gelmezse sunucunun kendi
+  log'unun son satırları basılıp durulur. Sonra **cloudflared** tüneli açılır ve link basılır —
+  **parolayla birlikte**, çünkü biri olmadan diğeri işe yaramaz. Hücre açık kalır (`tail -f`),
+  yoksa Colab runtime'ı boşta sayar.
+- **Nasıl görülür:** hücre bir link ve bir parola basıyor; link açılıyor, parola soruluyor, sonra
+  bir soru sorulup cevap alınıyor.
+- **Kararın kaydı:** kernel proxy denenmedi bile — POST'u taşımadığı araştırmayla saptandı (yukarı
+  bak). cloudflared'in bedeli linkin açık olması, ve o bedel Madde 60 ile ödendi.
 
 ---
 
 ## Faz 3 — Kapanış
 
-### Madde 58 — Arkadaşının izleyeceği yol yazılır
+### Madde 58 — Arkadaşının yolu, ve Drive'da ne olduğu
 
-- **Ne çalışır:** defterin ilk markdown hücresi ve `queen-agent/README.md`, sırayı adım adım
-  söyler: defteri Colab'a yükle → 🔑 Secrets'a `GITHUB_TOKEN` ekle (fine-grained, yalnız bu depo,
-  `Contents: read`) → Run all → Drive iznini ver → linke gir → **Settings'e kendi xAI anahtarını
-  yaz**. Türkçe, çünkü okuyan bir insan.
+- **Ne çalışır:** defterin ilk markdown hücresi ve `queen-agent/README.md` sırayı adım adım söyler:
+  defteri Colab'a yükle → 🔑 Secrets'a `GITHUB_TOKEN` ve `QUEENAGENT_PASSWORD` ekle → Run all →
+  Drive iznini ver → linke gir, parolayı yaz → **Settings'e kendi xAI anahtarını yaz**. Türkçe,
+  çünkü okuyan bir insan.
 
-  Üç şey de burada söylenir, çünkü hiçbiri koddan anlaşılmaz ve üçü de Drive'ın kendi doğasından
-  geliyor:
-  1. **Aynı klasöre iki oturum bakmasın.** Uygulamada kilit yok; defteri iki kere açmak ya da aynı
-     klasörü paylaşmak, iki sunucunun aynı dosyaya yazması demek.
-  2. **Çalışırken klasörü Drive'ın web arayüzünden karıştırma.** Drive aynı klasörde aynı adlı iki
-     dosyaya izin verir; FUSE hangisini göstereceğini seçmek zorunda kalır.
-  3. **xAI anahtarı Drive'da düz metin** (`settings.json`). Yerelde de öyle, ama Drive'da Google'a
-     senkronlanır ve web arayüzünde görünür. Arkadaşının kendi anahtarı, ama bilerek koysun.
-- **Nasıl görülür:** daha önce hiç açmamış biri, sormadan sonuna kadar gidiyor.
+  Aynı yerde **Drive'da ne olduğu** anlatılır. Yapı zaten var, uydurulmuyor — yazılıyor, ki klasöre
+  bakan biri ne gördüğünü bilsin:
+
+  ```
+  MyDrive/queenAgent/
+    settings.json          ← xAI anahtarı
+    trash/                 ← silinen projelerin tamamı
+    p<12 hex>/             ← bir proje
+      project.json         ← adı ve doğduğu an
+      chats/<id>.json      ← bir sohbet, mesajlarıyla
+      files/               ← modelin ürettiği dosyalar
+      trash/               ← bu projeden silinen sohbet ve dosyalar
+  ```
+
+  Üç uyarı da burada, çünkü hiçbiri koddan anlaşılmaz:
+  1. **Aynı klasöre iki oturum bakmasın** — uygulamada kilit yok.
+  2. **Çalışırken klasörü Drive web arayüzünden karıştırma** — Drive aynı klasörde aynı adlı iki
+     dosyaya izin verir, FUSE birini seçmek zorunda kalır.
+  3. **xAI anahtarı Drive'da düz metin.** Yerelde de öyle, ama Drive'da Google'a senkronlanır.
+- **Nasıl görülür:** daha önce hiç açmamış biri, sormadan sonuna kadar gidiyor; Drive klasörüne
+  bakınca ne olduğunu anlıyor.
 
 ---
 
 ## Bilerek yapılmayanlar
 
-- **Uygulamaya giriş/parola eklenmiyor.** Madde 57'nin kapalı adresi bu ihtiyacı ortadan kaldırıyor;
-  auth eklemek ayrı ve büyük bir iş.
-- **Defter derlemiyor.** Madde 54 bunun için var: `npm ci` her oturumda ~1.5 dakika ve arkadaşının
-  ödeyeceği bir bedel.
-- **Ortak çalışma yok.** Her arkadaş kendi Drive'ında kendi kökünü taşır; tek bir kök paylaşmak
-  ayrı bir tasarım.
-- **Yerel yol değişmiyor.** `python main.py` bugünkü gibi çalışır.
-- **Yazma hızı için bir şey yapılmıyor.** Drive'da her kayıt dosyanın tamamının yüklenmesi demek ve
-  sohbet uzadıkça JSON büyüyor. Ölçülmüş bir sorun değil, ve FOUNDATION 3 ölçülmemiş bir sorunu
-  optimize etmeyi yasaklıyor. Yavaşlık görülürse ayrı bir madde olur.
-- **Kilit eklenmiyor.** Tek kullanıcı tek oturum varsayımı duruyor; kural Madde 58'de yazılıyor.
+- **Kimlik yönetimi eklenmiyor.** Madde 60 tek bir parola; hesap, oturum, rol ayrı ve büyük bir iş.
+- **Defter derlemiyor.** Madde 54 bunun için var: `npm ci` her oturumda ~1.5 dakika.
+- **Ortak çalışma yok.** Herkes kendi Drive'ında kendi kökünü taşır.
+- **Yerel yol değişmiyor.** `python main.py` bugünkü gibi, parolasız.
+- **Drive'ın yavaşlığı için bir şey yapılmıyor** *(kullanıcı kararı)*. Her kayıt dosyanın tamamının
+  yüklenmesi ve rayın her açılışta dosya başına `mtime` sorması ölçülmüş bir sorun değil; FOUNDATION
+  3 ölçülmemişi optimize etmeyi yasaklıyor. Rahatsız ederse kendi maddesi olur.
+- **Akış için bir şey yapılmıyor** *(kullanıcı kararı)*. Cevabın kelime kelime gelmesi kritik değil.
 
 ## Kapanış
 
 Maddeler durmadan spec → plan → test → uygulama ile gider. Defter **çalıştırılarak değil okunarak**
 test edilir — `.ipynb`'nin JSON'u ayrıştırılıp hücrenin ne yaptığı sorulur; desen
 [queen-editor'ün defter testi](../../../queen-editor/backend/tests/test_notebook_installs_the_producer_groups.py).
-Kullanıcının toplu testi en sonda: arkadaş defteri açar ve bir tur atar.
+Kullanıcının toplu testi en sonda: defter açılır ve bir tur atılır.
