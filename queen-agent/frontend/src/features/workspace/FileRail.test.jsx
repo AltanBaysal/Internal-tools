@@ -110,11 +110,19 @@ test("clicking a row opens that file", () => {
   expect(open).toHaveBeenCalledWith("outline.md");
 });
 
-// The rail's row does one thing. Deleting stays on the project screen, where the list is the
-// subject of the screen rather than something standing beside a conversation.
-test("a rail row carries no way to delete, even when one is handed to it", () => {
-  render(<FileRail files={FILES} reading={{ open: vi.fn() }} deleting={{ remove: vi.fn() }} />);
-  expect(screen.queryByRole("button", { name: "Delete outline.md" })).toBeNull();
+test("a rail row deletes while a file is open beside it", () => {
+  // The list stays standing next to the reader, so the rows keep working -- all but the one being
+  // read, which has its own test above.
+  const remove = vi.fn();
+  render(
+    <FileRail
+      files={FILES}
+      reading={{ name: "outline.md", file: { text: "body" }, open: vi.fn() }}
+      deleting={{ remove }}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Delete sources.txt" }));
+  expect(remove).toHaveBeenCalledWith("sources.txt");
 });
 
 test("a file row offers no rename either", () => {
@@ -122,10 +130,11 @@ test("a file row offers no rename either", () => {
   expect(screen.queryByRole("button", { name: "Rename outline.md" })).toBeNull();
 });
 
-test("a list that cannot delete cannot report a delete going wrong", () => {
-  // The line Madde 19 left in place of the strip belongs to the screen that still deletes.
-  const { container } = render(<FileRail files={FILES} deleting={{ error: "HTTP 409" }} />);
-  expect(container.querySelector(".list-error")).toBeNull();
+test("a delete that goes wrong is said in the rail, not swallowed", () => {
+  // It could not report one while it could not delete. Now that it can, a failure with nowhere to
+  // be said would be a file the user believes is gone.
+  render(<FileRail files={FILES} deleting={{ remove: vi.fn(), error: "HTTP 409" }} />);
+  expect(screen.getByText("HTTP 409")).toBeTruthy();
 });
 
 test("a rail that could not read the list says so instead of teaching", () => {
