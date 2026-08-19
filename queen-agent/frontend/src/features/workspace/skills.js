@@ -8,7 +8,7 @@ export const SKILLS = [
   {
     id: "create-scenario",
     name: "Create scenario",
-    detail: "A short outline, 10-15 sentences.",
+    detail: "A short outline in bullets, chat and file.",
   },
   {
     id: "create-character-prompt",
