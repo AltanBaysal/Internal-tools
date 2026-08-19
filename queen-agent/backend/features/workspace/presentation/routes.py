@@ -222,6 +222,11 @@ def _sse(pieces, default_model):
         # The status code was settled the moment the first byte left, so a fault after that can
         # only travel inside the stream.
         yield _frame("error", {"error": str(failure)})
+    except EmptyMessage:
+        # Neither a word nor a file, so there is no answer to keep. It travels as an event for the
+        # same reason: escaping here would break the connection, and a broken connection is read
+        # by the browser as a network fault, which is not what happened.
+        yield _frame("error", {"error": "The model returned nothing."})
 
 
 def _frame(event, data):
