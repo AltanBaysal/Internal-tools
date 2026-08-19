@@ -90,9 +90,10 @@ def test_the_scenario_instruction_keeps_out_of_the_frame_lists_territory():
     assert "camera" in said and "frame" in said
 
 
-@pytest.mark.parametrize("skill", ["create-character-prompt", "split-into-frames"])
-def test_the_two_chat_only_skills_say_they_write_no_file(skill):
-    assert "Do not create a file" in instruction_for(skill)
+def test_only_the_frame_split_still_stays_in_the_chat():
+    # The character skill writes a file now, so it left this list.
+    assert "Do not create a file" in instruction_for("split-into-frames")
+    assert "Do not create a file" not in instruction_for("create-character-prompt")
 
 
 def test_the_character_instruction_asks_for_candidates_and_leaves_quality_out():
@@ -100,6 +101,37 @@ def test_the_character_instruction_asks_for_candidates_and_leaves_quality_out():
     assert "candidates" in said
     # build_prompts puts the quality tags in once, so a character carrying them would double them.
     assert "quality" in said.lower()
+
+
+def test_the_character_count_comes_from_the_user():
+    # How many is the user's call: a guess is either more than they wanted or fewer.
+    said = instruction_for("create-character-prompt").lower()
+    assert "two or three" not in said
+    assert "ask" in said
+
+
+def test_the_character_candidates_go_into_a_file():
+    said = instruction_for("create-character-prompt")
+    assert "create_file" in said
+    assert "stays in the chat" not in said.lower()
+
+
+def test_the_character_file_is_named_after_the_character():
+    # A general name loses which file is whose once the tries pile up.
+    assert "aylin.json" in instruction_for("create-character-prompt")
+
+
+def test_the_character_file_has_the_shape_of_the_structure():
+    # Pasteable straight into a structure file, which is the whole reason it is a file.
+    said = instruction_for("create-character-prompt")
+    assert '"characters"' in said and '"outfits"' in said
+
+
+def test_a_pasted_prompt_is_read_as_a_format_example():
+    said = instruction_for("create-character-prompt").lower()
+    assert "paste" in said
+    # What is taken is the shape; what belongs to a frame is left behind.
+    assert "pose" in said and "camera" in said
 
 
 def test_the_character_instruction_keeps_the_frames_own_fields_out():
