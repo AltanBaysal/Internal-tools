@@ -765,6 +765,24 @@ test("the rail stays folded when the chat changes under it", async () => {
   expect(screen.queryByText("plan.md")).toBeNull();
 });
 
+test("the sidebar folds away and comes back, and stays folded across an address", async () => {
+  // Madde 51: one button, and the state outlives the screen the way the rail's does.
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Hide the sidebar" }));
+  await waitFor(() => expect(screen.queryByText("Projects")).toBeNull());
+
+  fireEvent.click(screen.getByRole("button", { name: "← Old" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  expect(screen.queryByText("Projects")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Show the sidebar" }));
+  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+});
+
 test("dragging the rail's edge widens it, and the width crosses chats", async () => {
   // Madde 50: the width lasts the session for the same reason the folded state does.
   withRail();

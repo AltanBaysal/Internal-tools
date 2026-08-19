@@ -441,6 +441,15 @@ test("the width the rail starts at is one number said twice, and the two agree",
   expect(rule(".rail")).toContain(`width: ${DEFAULT_RAIL_WIDTH}px`);
 });
 
+test("a folded sidebar is a strip, and it gets there by its own transition", () => {
+  // Not hidden: a strip stands where it was, carrying the button that brings it back. The rail's
+  // rule, on the other side of the screen.
+  expect(rule(".sidebar")).toContain("transition: width 220ms");
+  const folded = rule(".sidebar--collapsed");
+  expect(folded).toContain("width: 52px");
+  expect(folded).toContain("overflow: hidden");
+});
+
 test("the easing is for folding, and a drag turns it off", () => {
   // 220ms is right for a rail folding itself away and wrong for one following the pointer.
   expect(rule(".rail")).toContain("transition: width 220ms");

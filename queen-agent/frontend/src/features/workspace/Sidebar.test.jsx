@@ -33,6 +33,44 @@ test("Settings is there with no project selected too", () => {
   expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();
 });
 
+// Madde 51: one button, never a drag -- claude.ai's behaviour rather than the rail's. Folded, the
+// sidebar is a strip carrying the one thing that brings it back; its rows are names and titles, and
+// there are no icon forms of those to fall back on.
+
+test("the sidebar carries one button that puts it away", () => {
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" onToggle={vi.fn()} />);
+  expect(screen.getByRole("button", { name: "Hide the sidebar" })).toBeTruthy();
+});
+
+test("the button asks to fold rather than folding by itself", () => {
+  // The state lasts the session and crosses addresses, so it lives in App.
+  const onToggle = vi.fn();
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" onToggle={onToggle} />);
+  fireEvent.click(screen.getByRole("button", { name: "Hide the sidebar" }));
+  expect(onToggle).toHaveBeenCalled();
+});
+
+test("folded, nothing is left but the way back", () => {
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={vi.fn()} />);
+  expect(screen.queryByText("Projects")).toBeNull();
+  expect(screen.queryByText("Thesis research")).toBeNull();
+  expect(screen.queryByText("Recent chats")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
+  expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
+});
+
+test("folded, the same button is what brings it back", () => {
+  const onToggle = vi.fn();
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={onToggle} />);
+  fireEvent.click(screen.getByRole("button", { name: "Show the sidebar" }));
+  expect(onToggle).toHaveBeenCalled();
+});
+
+test("folded, it says so where the stylesheet can hear it", () => {
+  const { container } = render(<Sidebar projects={PROJECTS} collapsed onToggle={vi.fn()} />);
+  expect(container.querySelector(".sidebar").className).toContain("sidebar--collapsed");
+});
+
 test("there is no logo mark beside the wordmark", () => {
   const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
   expect(screen.getByText("QueenAgent")).toBeTruthy();
