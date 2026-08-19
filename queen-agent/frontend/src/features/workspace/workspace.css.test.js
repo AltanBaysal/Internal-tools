@@ -456,6 +456,15 @@ test("the easing is for folding, and a drag turns it off", () => {
   expect(rule(".rail--dragging")).toContain("transition: none");
 });
 
+test("both folding controls are big enough and dark enough to find", () => {
+  // One rule for the two sides: they do the same job and were both too faint to see -- 13px and
+  // 15px of muted grey on a surface nearly the same colour.
+  for (const control of [".rail__chevron", ".sidebar__fold"]) {
+    expect(rule(control)).toContain("font-size: 20px");
+    expect(rule(control)).toContain("color: var(--ink)");
+  }
+});
+
 test("the grip is on the rail's left edge and says it can be pulled", () => {
   const grip = rule(".rail__grip");
   expect(grip).toContain("cursor: col-resize");
