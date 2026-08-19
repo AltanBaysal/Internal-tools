@@ -25,10 +25,31 @@ class Store:
             return handle.read()
 
     def write_text(self, rel, text):
+        # The target is never opened for writing: opening it would empty it, and a write that died
+        # after that would take the user's work with it. It is replaced instead, which the operating
+        # system does atomically -- either the old file stands or the new one does.
         full = self._full(rel)
         os.makedirs(os.path.dirname(full), exist_ok=True)
-        with open(full, "w", encoding="utf-8") as handle:
-            handle.write(text)
+        # Beside the target rather than in the system's temp directory: os.replace cannot cross a
+        # filesystem, and the root is a Drive mount when the app runs on Colab while /tmp is that
+        # machine's own disk. Named rather than random, so a directory left behind by a crash can
+        # still be read by a person.
+        temp = f"{full}.writing"
+        try:
+            with open(temp, "w", encoding="utf-8") as handle:
+                handle.write(text)
+            os.replace(temp, full)
+        except BaseException:
+            # Half a file is rubbish rather than evidence, and these directories are listed in the
+            # UI -- what is left here comes back as one of the user's own files. KeyboardInterrupt
+            # leaves one too, so it is caught as well.
+            try:
+                os.remove(temp)
+            except OSError:
+                # The write's own error is the one that explains what happened; a failure to tidy up
+                # on top of it would report the wrong cause.
+                pass
+            raise
 
     def list_dir(self, rel):
         # An empty directory is a normal state -- every screen starts with "nothing here yet" -- so
