@@ -957,10 +957,10 @@ test("offline, no answer is asked for; back online, one is", async () => {
 
 function withModel(model = "") {
   const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
-  let chat = { id: "c1", title: "Write the intro", messages: [], model: model || "grok-4.5" };
+  let chat = { id: "c1", title: "Write the intro", messages: [], model: model || "grok-4.6" };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path === "/api/model") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({ default: "grok-4.5" }) });
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ default: "grok-4.6" }) });
     }
     if (path.endsWith("/chats/c1") && options?.method === "PATCH") {
       chat = { ...chat, model: JSON.parse(options.body).model };
@@ -999,9 +999,9 @@ test("picking a model writes it to the chat it was picked in", async () => {
   const fetch = withModel();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.5/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.6/ })).toBeTruthy());
 
-  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.6/ }));
   fireEvent.click(screen.getByText("Grok Build"));
 
   await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
@@ -1015,8 +1015,8 @@ test("a new chat is born with the last model picked in this session", async () =
   const fetch = withModel();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.5/ })).toBeTruthy());
-  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.6/ })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.6/ }));
   fireEvent.click(screen.getByText("Grok 4.3"));
   await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.3/ })).toBeTruthy());
 
@@ -1091,7 +1091,7 @@ test("one menu closes the other", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   expect(screen.getByText("SKILLS")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.6/ }));
   expect(screen.queryByText("SKILLS")).toBeNull();
   expect(screen.getByText("MODEL")).toBeTruthy();
 });
@@ -1104,7 +1104,7 @@ test("Escape closes the pickers in the design's order", async () => {
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
-  fireEvent.click(screen.getByRole("button", { name: /Grok 4.5/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Grok 4.6/ }));
   fireEvent.keyDown(window, { key: "Escape" });
   expect(screen.queryByText("MODEL")).toBeNull();
 
@@ -1117,7 +1117,7 @@ test("with nothing picked yet a draft follows the server's own setting", async (
   withModel();
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.5/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok 4.6/ })).toBeTruthy());
 });
 
 test("an empty prompt sends nothing", async () => {

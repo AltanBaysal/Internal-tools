@@ -380,9 +380,9 @@ test("the composer says which model this chat answers with", () => {
 
 test("the foot carries Skills, the model and Send, in that order", () => {
   // karar 1's order, complete at last.
-  const { container } = render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.5" }} />);
+  const { container } = render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.6" }} />);
   const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.5⌄", "Send"]);
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "Send"]);
 });
 
 test("a chat with a skill selected says which one", () => {
@@ -410,7 +410,7 @@ test("picking another one is passed up rather than kept here", () => {
   render(
     <ChatScreen
       project={PROJECT}
-      chat={{ ...CHAT, model: "grok-4.5" }}
+      chat={{ ...CHAT, model: "grok-4.6" }}
       picker="model"
       onModelChange={onModelChange}
     />,
