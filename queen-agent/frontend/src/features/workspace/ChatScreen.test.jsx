@@ -26,6 +26,15 @@ test("with nothing open the layout says nothing", () => {
   expect(container.querySelector(".chat-layout--reading")).toBeNull();
 });
 
+test("the rail's rows can be deleted from the chat", () => {
+  // Same road as the project screen: the screen only hands the way to ask further along.
+  const remove = vi.fn();
+  const files = [{ name: "notes.md", ext: "md", modifiedAt: NOW }];
+  render(<ChatScreen project={PROJECT} chat={CHAT} files={files} deleting={{ remove }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Delete notes.md" }));
+  expect(remove).toHaveBeenCalledWith("notes.md");
+});
+
 test("the breadcrumb names the project and the chat", () => {
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
   expect(screen.getByText(/Thesis research/)).toBeTruthy();

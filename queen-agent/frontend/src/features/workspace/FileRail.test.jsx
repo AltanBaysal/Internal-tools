@@ -15,6 +15,34 @@ test("the rail is headed Project files", () => {
   expect(screen.getByText("Project files")).toBeTruthy();
 });
 
+test("a row offers a way to delete when the rail is given one", () => {
+  // A file born by accident mid-chat had to be chased to the project screen to be got rid of.
+  const remove = vi.fn();
+  render(<FileRail files={FILES} deleting={{ remove }} />);
+  fireEvent.click(screen.getByRole("button", { name: "Delete outline.md" }));
+  expect(remove).toHaveBeenCalledWith("outline.md");
+});
+
+test("without a way to delete the rail rows carry no ×", () => {
+  render(<FileRail files={FILES} />);
+  expect(screen.queryByRole("button", { name: /^Delete / })).toBeNull();
+});
+
+test("the row of the file being read carries no ×", () => {
+  // Deleting what is open under the reader leaves the user staring at nothing. The project screen
+  // is spared this by its layout; here the rule has to be said.
+  const remove = vi.fn();
+  render(
+    <FileRail
+      files={FILES}
+      deleting={{ remove }}
+      reading={{ name: "outline.md", file: { text: "body" } }}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: "Delete outline.md" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Delete sources.txt" })).toBeTruthy();
+});
+
 // The heading stops being a heading: it is the control that folds the rail away, and it says how
 // much is in there so the count is readable folded as well as open.
 test("the heading is the control, and it counts", () => {
