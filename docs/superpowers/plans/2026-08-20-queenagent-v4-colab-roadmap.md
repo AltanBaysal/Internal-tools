@@ -19,9 +19,13 @@ yeni bir dosya göndermeyi gerektirir.
 
 ## Sıranın mantığı
 
-53-54 kararı yazar ve zemini kurar — defter, kendi temelini yalanlayan bir depoya yazılamaz. 55-57
-defterin kendisi, hücre sırasıyla: yapılandırma → klon → sunucu. 58 arkadaşının izleyeceği yolu
-yazar. Kullanıcının toplu testi en sonda: **arkadaş gerçekten açar.**
+53-54-59 zemini kurar — defter, kendi temelini yalanlayan bir depoya yazılamaz, ve veri Drive'a
+taşınmadan önce yazmanın orada güvenli olması gerekir. 55-57 defterin kendisi, hücre sırasıyla:
+yapılandırma → klon → sunucu. 58 arkadaşının izleyeceği yolu yazar. Kullanıcının toplu testi en
+sonda: **arkadaş gerçekten açar.**
+
+*(59 sonradan yazıldı, o yüzden numarası büyük; koşudaki yeri Faz 1. Numaralar kaymaz — numara ne
+zaman yazıldığını söyler, nerede koşulduğunu değil.)*
 
 ---
 
@@ -44,6 +48,18 @@ yazar. Kullanıcının toplu testi en sonda: **arkadaş gerçekten açar.**
   commit'lenir. Kural: **kaynakla aynı commit'te derlenip commit'lenir** — queen-editor'ün kuralı,
   aynı sebeple (defter derlemez).
 - **Nasıl görülür:** temiz bir klon `npm` çalıştırmadan `python main.py` ile açılıyor.
+
+### Madde 59 — Yazma yarım kalmaz *(Faz 1'de koşar)*
+
+- **Ne çalışır:** [store.py:27](../../../queen-agent/backend/services/store/store.py#L27) bugün tek
+  yazma yolu ve dosyayı **yerinde kesip** yeniden yazıyor. Yerel diskte pencere mikrosaniye; Drive
+  FUSE'da bir I/O hatası ya da runtime'ın ortada ölmesi `<chat>.json`'ı yarım bırakır ve o sohbet
+  gider — FOUNDATION'ın 1. ilkesiyle ("kullanıcının emeği kutsaldır") doğrudan çarpışan tek yer.
+  `write_text` geçici bir dosyaya yazıp `os.replace` ile üstüne geçer. Atomik ilkel zaten Store'da:
+  `move` onu kullanıyor.
+- **Nasıl görülür:** yazma ortasında patlayan bir Store, eski dosyayı **olduğu gibi** bırakıyor —
+  ne yarım ne boş. Drive'da `os.replace`'in aynı bağlama içinde çalıştığı da bu maddede görülür.
+- **Neden Drive'a özel değil:** yerelde de doğru olan şey; Drive onu yalnızca *sık* hâle getiriyor.
 
 ---
 
@@ -97,6 +113,15 @@ yazar. Kullanıcının toplu testi en sonda: **arkadaş gerçekten açar.**
   söyler: defteri Colab'a yükle → 🔑 Secrets'a `GITHUB_TOKEN` ekle (fine-grained, yalnız bu depo,
   `Contents: read`) → Run all → Drive iznini ver → linke gir → **Settings'e kendi xAI anahtarını
   yaz**. Türkçe, çünkü okuyan bir insan.
+
+  Üç şey de burada söylenir, çünkü hiçbiri koddan anlaşılmaz ve üçü de Drive'ın kendi doğasından
+  geliyor:
+  1. **Aynı klasöre iki oturum bakmasın.** Uygulamada kilit yok; defteri iki kere açmak ya da aynı
+     klasörü paylaşmak, iki sunucunun aynı dosyaya yazması demek.
+  2. **Çalışırken klasörü Drive'ın web arayüzünden karıştırma.** Drive aynı klasörde aynı adlı iki
+     dosyaya izin verir; FUSE hangisini göstereceğini seçmek zorunda kalır.
+  3. **xAI anahtarı Drive'da düz metin** (`settings.json`). Yerelde de öyle, ama Drive'da Google'a
+     senkronlanır ve web arayüzünde görünür. Arkadaşının kendi anahtarı, ama bilerek koysun.
 - **Nasıl görülür:** daha önce hiç açmamış biri, sormadan sonuna kadar gidiyor.
 
 ---
@@ -110,6 +135,10 @@ yazar. Kullanıcının toplu testi en sonda: **arkadaş gerçekten açar.**
 - **Ortak çalışma yok.** Her arkadaş kendi Drive'ında kendi kökünü taşır; tek bir kök paylaşmak
   ayrı bir tasarım.
 - **Yerel yol değişmiyor.** `python main.py` bugünkü gibi çalışır.
+- **Yazma hızı için bir şey yapılmıyor.** Drive'da her kayıt dosyanın tamamının yüklenmesi demek ve
+  sohbet uzadıkça JSON büyüyor. Ölçülmüş bir sorun değil, ve FOUNDATION 3 ölçülmemiş bir sorunu
+  optimize etmeyi yasaklıyor. Yavaşlık görülürse ayrı bir madde olur.
+- **Kilit eklenmiyor.** Tek kullanıcı tek oturum varsayımı duruyor; kural Madde 58'de yazılıyor.
 
 ## Kapanış
 
