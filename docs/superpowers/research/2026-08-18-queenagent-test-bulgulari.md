@@ -84,3 +84,8 @@ eder (menüde olmayan id zaten böyle davranıyor).
 
 **14.** Model ya da beceri menüsünden bir satır seçince menü **kendiliğinden kapansın** — bugün açık
 kalıyor, ikinci bir tıklama gerekiyor. Seçim yapıldı, menünün işi bitti.
+
+**15.** Açılışta liste henüz gelmemişken kenar çubuğundan bir yere gitmek tutmuyor: proje listesi
+gelince `/` çatalı ilk projeye `replace` ile gidiyor ve kullanıcının seçtiği adresin üstüne yazıyor.
+Testte yakalandı (Settings satırına erken basınca proje ekranı açılıyor). Çatal, kullanıcı bir yere
+gitmişse artık karar vermemeli.
