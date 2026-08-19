@@ -9,8 +9,10 @@ Backend **Flask** (sync) + frontend **React 18** (JSX, built with Vite). The bac
 operations, one outbound API call, streaming its result back. Live progress is server-sent events,
 not websockets — the stream is one-way and short-lived.
 
-The frontend is built by whoever runs the app; `dist/` is not committed. In development the UI runs on
-Vite's own server and proxies `/api` to Flask, so a UI change does not cost a full build.
+`frontend/dist` is committed, in the same commit as the source it was built from — the notebook
+clones this repo and never builds (FOUNDATION, Decision 3). In development the UI runs on Vite's own
+server and proxies `/api` to Flask, so a UI change does not cost a full build; the bundle is rebuilt
+and committed when the change is finished, not on every save.
 
 ## Independence
 

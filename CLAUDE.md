@@ -12,14 +12,16 @@ npm test --prefix queen-agent/frontend
 python -m pytest queen-editor -q
 npm test --prefix queen-editor/frontend
 
-# QueenAgent — run it (dist is NOT committed, so build first)
+# Both tools ship their built frontend: each one's notebook clones this repo and never builds. So
+# build and commit dist in the SAME commit as the source — a frontend change is not finished
+# otherwise — and on the notebook side nothing is seeable until it is pushed.
 npm run build --prefix queen-agent/frontend
+npm run build --prefix queen-editor/frontend
+
+# QueenAgent also runs locally, and that is its primary road.
 python queen-agent/main.py           # http://127.0.0.1:8100 — restart it after a backend change
 
-# queen-editor — no local run: the app lives on Colab, and app.ipynb clones this repo and never
-# builds. So dist IS committed — build and commit it in the SAME commit as the source, and a change
-# is only seeable after a push; the user runs the notebook.
-npm run build --prefix queen-editor/frontend
+# queen-editor has no local run: it lives on Colab and the user runs the notebook.
 ```
 
 ## Workflow

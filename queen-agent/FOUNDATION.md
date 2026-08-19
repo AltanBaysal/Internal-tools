@@ -40,20 +40,29 @@ an instruction asking for care, and its input is data on disk the user can read 
 
 ## Decisions
 
-**1. The app runs on the user's own machine.**
-`python main.py` serves it on localhost. Why: the engine is a remote API, so there is no GPU to
-borrow — Colab's one benefit does not apply here, while all of its costs (a dead session, secrets,
-cloning the repo on every start) would. Consequence: the app is reachable only from that machine;
-sharing it would need a decision we have not made.
+**1. The app runs on the user's own machine, and on Colab when it is being shared.**
+`python main.py` on localhost is the primary road and stays that way: the engine is a remote API, so
+there is no GPU to borrow and Colab's one benefit still does not apply. What settled the second road
+was sharing — which this file used to call a decision we had not made. Handing the app to someone
+else meant either an executable, rebuilt and re-sent by hand on every change, or a notebook that
+clones this repo; and the app was already shaped for the notebook, since the root travels in
+`QUEENAGENT_ROOT`, the key lives under it, and the only third-party dependency is Flask.
+Consequence: Colab is a second surface, never a replacement, and its costs are paid where they land.
+Drive holds the work, and because the address it is served on is a public tunnel, **it may not be
+served without a password**. Colab's own kernel proxy would have been private and would have needed
+none, but it forwards only GET — and this app creates, sends and deletes.
 
 **2. Backend is sync Flask; frontend is React 18 built with Vite.**
 Why: the backend is thin — file operations, one outbound API call, streaming its result back — so
 sync Flask is enough. The UI comes from a claude.ai/design project, which is React.
 
-**3. The frontend is built on the machine that runs it; `dist/` is not committed.**
-Why: the developer and the runtime are the same machine, so a pre-built artifact in the repo would
-buy nothing and go stale. Consequence: a fresh clone needs `npm install && npm run build` before
-`main.py` has anything to serve.
+**3. `frontend/dist` is committed, in the same commit as the source it was built from.**
+Why: the premise of the old rule was that the developer and the runtime are the same machine, and
+Decision 1 ended that. The notebook clones this repo and never builds, so a bundle that lives only on
+the developer's disk arrives as a blank page — and a blank page never says why. Consequence: a
+frontend change is not finished until `dist` is rebuilt and committed **with** its source; a bundle
+committed one commit late is a lie about what the source says, and `test_dist_is_committed.py` is
+what refuses it.
 
 **4. The frontend is a view; the rules live in the backend.**
 The browser renders state and collects input. It never reaches the store or the engine directly, and

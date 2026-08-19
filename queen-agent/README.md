@@ -9,11 +9,16 @@ them.
 ```bash
 cd queen-agent/frontend
 npm install
-npm run build
+npm run build           # dist is committed, so this is only needed after a source change
 
 cd ..
 python main.py          # http://127.0.0.1:8100
 ```
+
+The bundle is committed because this is no longer the only place the app runs: sharing it means a
+Colab notebook that clones this repo and never builds ([FOUNDATION.md](FOUNDATION.md), Decisions 1
+and 3). So a frontend change is not finished until `dist` is rebuilt and committed **with** its
+source — `backend/tests/test_dist_is_committed.py` refuses the alternative.
 
 Then open **Settings** at the foot of the sidebar and paste your xAI key. It is saved beside your
 projects and read again on every request, so changing it needs no restart. The app starts without
