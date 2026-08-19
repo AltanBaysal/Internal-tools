@@ -146,6 +146,22 @@ def test_the_character_instruction_leaves_clothing_out_of_the_identity():
     assert "outfits" in said
 
 
+def test_a_frame_is_one_or_two_sentences():
+    # A countable limit: "keep it short" was already there and the model wrote paragraphs anyway.
+    said = instruction_for("split-into-frames").lower()
+    assert "one or two sentences" in said
+
+
+def test_the_frame_instruction_no_longer_says_one_line():
+    # It described a shape rather than a length -- three sentences with no line break are still
+    # one line -- and two rules side by side let the model pick the loose one.
+    assert "one line" not in instruction_for("split-into-frames").lower()
+
+
+def test_a_frame_is_still_not_a_paragraph():
+    assert "paragraph" in instruction_for("split-into-frames").lower()
+
+
 def test_the_frame_instruction_settles_the_count_with_the_user_and_works_in_batches():
     said = instruction_for("split-into-frames").lower()
     assert "how many" in said and "together with the user" in said
