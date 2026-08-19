@@ -43,6 +43,76 @@ test("the row of the file being read carries no ×", () => {
   expect(screen.getByRole("button", { name: "Delete sources.txt" })).toBeTruthy();
 });
 
+// Madde 50: the rail is dragged by its left edge, and it stays on the right at every width. What it
+// reports is the width that was asked for -- whether that is a width at all, or is narrow enough to
+// mean closing, is App's answer (railWidth.js), because closing is App's state.
+
+test("the rail is drawn at the width it is handed", () => {
+  render(<FileRail files={FILES} width={420} />);
+  expect(screen.getByTestId("file-rail").style.width).toBe("420px");
+});
+
+test("a rail given no width leaves the stylesheet's own", () => {
+  // Before the first drag there is nothing to say, and saying 320 here would copy a number that
+  // already lives in the stylesheet.
+  render(<FileRail files={FILES} />);
+  expect(screen.getByTestId("file-rail").style.width).toBe("");
+});
+
+test("the rail carries a grip to pull its edge with", () => {
+  render(<FileRail files={FILES} width={320} onResize={vi.fn()} />);
+  expect(screen.getByRole("separator")).toBeTruthy();
+});
+
+test("pulling the grip leftwards asks for a wider rail", () => {
+  const onResize = vi.fn();
+  render(<FileRail files={FILES} width={320} onResize={onResize} />);
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 500 });
+  fireEvent.mouseMove(window, { clientX: 420 });
+  expect(onResize).toHaveBeenCalledWith(400);
+});
+
+test("pulling it rightwards asks for a narrower one, and letting go ends the drag", () => {
+  const onResize = vi.fn();
+  render(<FileRail files={FILES} width={320} onResize={onResize} />);
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 500 });
+  fireEvent.mouseMove(window, { clientX: 560 });
+  expect(onResize).toHaveBeenCalledWith(260);
+  fireEvent.mouseUp(window);
+  onResize.mockClear();
+  // The mouse moving across the window afterwards is not a drag: the pointer was let go.
+  fireEvent.mouseMove(window, { clientX: 200 });
+  expect(onResize).not.toHaveBeenCalled();
+});
+
+test("a folded rail has no grip", () => {
+  // 46px of strip is there to be pressed, not pulled.
+  render(<FileRail files={FILES} collapsed width={320} onResize={vi.fn()} />);
+  expect(screen.queryByRole("separator")).toBeNull();
+});
+
+test("a rail showing a document has no grip", () => {
+  // While a file is open the width belongs to the document. The dragged width comes back when the
+  // reader closes.
+  render(
+    <FileRail
+      files={FILES}
+      width={320}
+      onResize={vi.fn()}
+      reading={{ name: "outline.md", file: { text: "body" } }}
+    />,
+  );
+  expect(screen.queryByRole("separator")).toBeNull();
+});
+
+test("a rail folded because the window is narrow has a label, not a control", () => {
+  // There is nowhere to open into, so a button that opens would be a lie. The same sentence the rail
+  // already says while it is showing a document.
+  render(<FileRail files={FILES} collapsed foldedByWidth />);
+  expect(screen.getByText("Project files")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Project files/ })).toBeNull();
+});
+
 // The heading stops being a heading: it is the control that folds the rail away, and it says how
 // much is in there so the count is readable folded as well as open.
 test("the heading is the control, and it counts", () => {

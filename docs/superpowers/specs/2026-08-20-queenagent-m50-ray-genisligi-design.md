@@ -21,6 +21,7 @@ inince ray sohbetin **altına** iniyor (v2 Madde 33). Kullanıcı VS Code davran
 
 | Sayı | Ne | Neden bu |
 |---|---|---|
+| `DEFAULT_RAIL_WIDTH` | 320px | Bugünkü genişlik; hiçbir şey sürüklenmemişken görülen. Stylesheet de aynı sayıyı taşır (bir şey söylenmediğinde geçerli olan), ve bir kilit testi ikisini birbirine bağlar — iki kopya, birbirini tutmuyorsa yalandır. |
 | `MIN_RAIL_WIDTH` | 220px | Rayın 18px'lik iki yan boşluğu düşünce satıra 184px kalır: dosya adı ve altındaki `project file · 2h ago` satırı hâlâ okunur. Altında satır kendi kendini keser. |
 | `MAX_RAIL_WIDTH` | 560px | Okuyucu açıkken rayın çizildiği genişlik. Liste, uğruna yer açılan belgeden geniş olamaz. |
 | `RAIL_CLOSES_BELOW` | 860px | Kabuk bu genişlikteyken kenar çubuğu 226px (narrow adımı), rayın en azı 220px; sohbete 414px kalır. Altında sohbet, yanındaki raydan dar olur — o zaman ray gitmelidir. |

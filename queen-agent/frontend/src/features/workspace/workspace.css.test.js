@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 
 import { expect, test } from "vitest";
 
+import { DEFAULT_RAIL_WIDTH } from "./railWidth.js";
+
 // A lock, not a behaviour test. jsdom neither loads this stylesheet nor evaluates media queries, so
 // nothing here proves the sidebar narrows -- that is Madde 35's manual pass. What it does prove is
 // that the four widths the design specifies are still the four widths the stylesheet carries.
@@ -98,15 +100,16 @@ function grouped(first) {
 }
 
 test("a narrow shell scrolls its regions, not the layout", () => {
-  const layouts = grouped(".app-shell--narrow .chat-layout,");
-  expect(layouts).toContain("flex-direction: column");
-  expect(layouts).not.toContain("overflow-y: auto");
-  // The rail drops under the chat, so it needs a ceiling or it eats the conversation's room.
-  const rails = grouped(".app-shell--narrow .rail,");
+  // The project screen's two columns are what stack now. Madde 50 took the chat's rail out of this:
+  // it stays on the right at every width, so it is neither stacked nor given a ceiling.
+  const layout = rule(".app-shell--narrow .screen-layout");
+  expect(layout).toContain("flex-direction: column");
+  expect(layout).not.toContain("overflow-y: auto");
+  const panel = rule(".app-shell--narrow .panel");
   // 44% of the area, never more than 250px and never less than 150px -- the design's three numbers.
-  expect(rails).toContain("max-height: min(250px, 44%)");
-  expect(rails).toContain("min-height: 150px");
-  expect(rails).toContain("overflow-y: auto");
+  expect(panel).toContain("max-height: min(250px, 44%)");
+  expect(panel).toContain("min-height: 150px");
+  expect(panel).toContain("overflow-y: auto");
 });
 
 test("a narrow shell puts the project's two columns one above the other", () => {
@@ -121,9 +124,10 @@ test("reading in a narrow shell takes the whole area rather than lengthening the
   // the contract forbids: the page itself scrolls.
   expect(rule(".app-shell--narrow .chat-layout--reading .chat")).toContain("display: none");
   expect(rule(".app-shell--narrow .screen-layout--reading .screen")).toContain("display: none");
-  const readers = grouped(".app-shell--narrow .chat-layout--reading .rail--open,");
-  expect(readers).toContain("max-height: none");
-  expect(readers).toContain("flex: 1");
+  // Only the project screen's panel needs its ceiling lifted; the rail never had one after Madde 50.
+  const reader = rule(".app-shell--narrow .screen-layout--reading .panel");
+  expect(reader).toContain("max-height: none");
+  expect(reader).toContain("flex: 1");
 });
 
 test("a tight shell gives up its side room in one move", () => {
@@ -265,13 +269,6 @@ test("a folded rail is the design's strip, and it gets there by the one transiti
 
 test("the label turns rather than being cut", () => {
   expect(rule(".rail--collapsed .rail__label")).toContain("writing-mode: vertical-rl");
-});
-
-test("under the chat a folded rail is a row, not a column", () => {
-  // A vertical strip means nothing in a layout that is already stacked.
-  const folded = rule(".app-shell--narrow .rail--collapsed");
-  expect(folded).toContain("width: auto");
-  expect(folded).not.toContain("46px");
 });
 
 test("the rail is a surface of its own rather than the canvas with a line on it", () => {
@@ -422,6 +419,30 @@ test("a selected skill warms its button without borrowing the accent", () => {
 test("the layout and the sidebar now step at the same widths", () => {
   // They used to disagree: the sidebar stepped at 1000/780/640 and the layout stacked at 1100.
   // Madde 33 put both on the shell's measured width, so the stacking step is the sidebar's first.
-  expect(grouped(".app-shell--narrow .chat-layout,")).not.toContain(".sidebar");
+  // Madde 50 then took the chat's rail out of the stacking altogether -- what is left stepping here
+  // is the project screen, and it steps where the sidebar does.
+  expect(rule(".app-shell--narrow .screen-layout")).not.toContain(".sidebar");
   expect(CSS).not.toContain("1100px");
+});
+
+test("the chat's rail stays beside the conversation at every width", () => {
+  // v2 Madde 33 dropped it under the chat below 1000px. The user asked for VS Code: it stays on the
+  // right and closes instead. No step may name the chat's layout or its rail again.
+  for (const step of ["narrow", "tight", "compact"]) {
+    expect(CSS).not.toContain(`.app-shell--${step} .chat-layout {`);
+    expect(CSS).not.toContain(`.app-shell--${step} .chat-layout,`);
+    expect(CSS).not.toContain(`.app-shell--${step} .rail`);
+  }
+});
+
+test("the width the rail starts at is one number said twice, and the two agree", () => {
+  // The app writes it inline from the first frame; the stylesheet's is what holds where nothing is
+  // said. Two copies of a number are a lie waiting to happen, so they are pinned to each other.
+  expect(rule(".rail")).toContain(`width: ${DEFAULT_RAIL_WIDTH}px`);
+});
+
+test("the grip is on the rail's left edge and says it can be pulled", () => {
+  const grip = rule(".rail__grip");
+  expect(grip).toContain("cursor: col-resize");
+  expect(grip).toContain("left: 0");
 });

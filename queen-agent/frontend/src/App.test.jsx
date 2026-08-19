@@ -765,6 +765,38 @@ test("the rail stays folded when the chat changes under it", async () => {
   expect(screen.queryByText("plan.md")).toBeNull();
 });
 
+test("dragging the rail's edge widens it, and the width crosses chats", async () => {
+  // Madde 50: the width lasts the session for the same reason the folded state does.
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 600 });
+  fireEvent.mouseMove(window, { clientX: 520 });
+  fireEvent.mouseUp(window);
+  await waitFor(() => expect(screen.getByTestId("file-rail").style.width).toBe("400px"));
+
+  fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  expect(screen.getByTestId("file-rail").style.width).toBe("400px");
+});
+
+test("dragging it past its minimum folds it instead of leaving a sliver", async () => {
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+
+  // 320 - 200 is under the 220 the rail needs, so this is not a narrower rail -- it is a closed one.
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 400 });
+  fireEvent.mouseMove(window, { clientX: 600 });
+  await waitFor(() => expect(screen.queryByText("plan.md")).toBeNull());
+  expect(screen.getByTestId("file-rail").className).toContain("rail--collapsed");
+  // Folded, it is the strip again -- and the strip has no edge to pull.
+  expect(screen.queryByRole("separator")).toBeNull();
+});
+
 test("opening a file unfolds the rail rather than hiding what was opened", async () => {
   // A file can be opened from the project screen while the chat's rail is folded, and closing it
   // must not drop the reader back into a folded rail.

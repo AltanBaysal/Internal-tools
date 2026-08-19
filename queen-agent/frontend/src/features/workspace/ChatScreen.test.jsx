@@ -382,6 +382,18 @@ test("the rail lists the project's files beside the conversation", () => {
   expect(screen.getByTestId("file-rail").textContent).toContain("outline.md");
 });
 
+test("the rail is drawn at the width the app is holding, and reports a drag back to it", () => {
+  // The width outlives this screen -- it crosses chats -- so the screen only carries it through.
+  const onResizeRail = vi.fn();
+  render(
+    <ChatScreen project={PROJECT} chat={CHAT} railWidth={380} onResizeRail={onResizeRail} />,
+  );
+  expect(screen.getByTestId("file-rail").style.width).toBe("380px");
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 400 });
+  fireEvent.mouseMove(window, { clientX: 340 });
+  expect(onResizeRail).toHaveBeenCalledWith(440);
+});
+
 test("the composer says which model this chat answers with", () => {
   render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.3" }} />);
   expect(screen.getByRole("button", { name: /Grok 4.3/ })).toBeTruthy();
