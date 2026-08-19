@@ -441,6 +441,12 @@ test("the width the rail starts at is one number said twice, and the two agree",
   expect(rule(".rail")).toContain(`width: ${DEFAULT_RAIL_WIDTH}px`);
 });
 
+test("the easing is for folding, and a drag turns it off", () => {
+  // 220ms is right for a rail folding itself away and wrong for one following the pointer.
+  expect(rule(".rail")).toContain("transition: width 220ms");
+  expect(rule(".rail--dragging")).toContain("transition: none");
+});
+
 test("the grip is on the rail's left edge and says it can be pulled", () => {
   const grip = rule(".rail__grip");
   expect(grip).toContain("cursor: col-resize");

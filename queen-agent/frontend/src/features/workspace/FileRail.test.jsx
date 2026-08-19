@@ -85,6 +85,18 @@ test("pulling it rightwards asks for a narrower one, and letting go ends the dra
   expect(onResize).not.toHaveBeenCalled();
 });
 
+test("while its edge is being pulled the rail says so", () => {
+  // The width follows the pointer frame by frame, and the rail's eased transition -- written for
+  // folding -- would run 220ms behind it. The stylesheet turns the easing off on this class.
+  render(<FileRail files={FILES} width={320} onResize={vi.fn()} />);
+  const rail = screen.getByTestId("file-rail");
+  expect(rail.className).not.toContain("rail--dragging");
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 500 });
+  expect(rail.className).toContain("rail--dragging");
+  fireEvent.mouseUp(window);
+  expect(rail.className).not.toContain("rail--dragging");
+});
+
 test("a folded rail has no grip", () => {
   // 46px of strip is there to be pressed, not pulled.
   render(<FileRail files={FILES} collapsed width={320} onResize={vi.fn()} />);
