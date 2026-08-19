@@ -68,6 +68,55 @@ test("an address is not called wrong before the list has arrived", async () => {
   await waitFor(() => expect(screen.getByText("That project does not exist.")).toBeTruthy());
 });
 
+test("the fork keeps quiet once the user has gone somewhere", async () => {
+  // Madde 52: "/" is a fork, and a fork only decides for someone who is still standing on it. The
+  // list arriving late must not replace an address the user chose in the meantime.
+  window.history.pushState(null, "", "/");
+  let answer;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        answer = () => resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+      }),
+    ),
+  );
+  render(<App />);
+
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  expect(window.location.pathname).toBe("/settings");
+
+  await act(async () => {
+    answer();
+  });
+  expect(window.location.pathname).toBe("/settings");
+  expect(screen.queryByText("Old", { selector: ".screen__title" })).toBeNull();
+});
+
+test("the fork asks the browser where we are, not the render it was built from", async () => {
+  // The hazard behind finding 15. A React effect carries the values of the commit that scheduled it,
+  // so a list arriving in the same batch as a move can fire a fork that was decided for an address
+  // the user has already left. Here the address moves without React being told -- which is exactly
+  // the stale commit, made deterministic.
+  window.history.pushState(null, "", "/");
+  let answer;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        answer = () => resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+      }),
+    ),
+  );
+  render(<App />);
+
+  window.history.pushState(null, "", "/settings");
+  await act(async () => {
+    answer();
+  });
+  expect(window.location.pathname).toBe("/settings");
+});
+
 test("the sidebar's Settings row opens the settings screen at its own address", async () => {
   stubProjects([PROJECT]);
   render(<App />);
