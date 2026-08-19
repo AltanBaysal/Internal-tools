@@ -27,9 +27,11 @@ CREATE_CHARACTER_PROMPT = (
     "comma-separated phrases, never sentences.\n"
     "\n"
     "A character carries only what does not change from frame to frame: who they are, hair, eyes, "
-    "build, what they are wearing. Leave the pose, the place, the camera and the mood out -- those "
-    "belong to a frame, and a character that carries them cannot be reused. Leave the quality and "
-    "score tags out as well; they are added once, elsewhere.\n"
+    "build. Clothing is not one of those -- it changes between frames, so it lives in the structure "
+    "file's outfits map and is named by the frame. Leave the pose, the place, the camera and the "
+    "mood out for the same reason: they belong to a frame, and a character that carries them "
+    "cannot be reused. Leave the quality and score tags out as well; they are added once, "
+    "elsewhere.\n"
     "\n"
     "Offer two or three candidates so there is something to choose between, and say in one line "
     "what differs between them.\n"
@@ -85,11 +87,14 @@ GENERATE_PROMPTS = (
 RULEBOOK = (
     "1. A frame describing a character or a place in plain words when the maps already hold an "
     "entry for it. This is the one worth hunting: it is the silent copy coming back.\n"
-    "2. Quality tags written inside a frame's own fields. Code adds them once, so they would be "
+    "2. Clothing written inside a character's own entry, or inside a frame's action, when outfits "
+    "is where it belongs. Both are rule 1 wearing different clothes: the text copied in instead of "
+    "the name named.\n"
+    "3. Quality tags written inside a frame's own fields. Code adds them once, so they would be "
     "printed twice.\n"
-    "3. The same name carrying different text in two structure files in this project. Copying is "
+    "4. The same name carrying different text in two structure files in this project. Copying is "
     "allowed; a copy that has drifted is not.\n"
-    "4. A name defined in a map and used by no frame -- a note, not a violation."
+    "5. A name defined in a map and used by no frame -- a note, not a violation."
 )
 
 GENERATE_PROMPTS_PLUS = (
@@ -101,9 +106,10 @@ GENERATE_PROMPTS_PLUS = (
     "{\n"
     '  "quality": "score_9_up, masterpiece, best quality, absurdres",\n'
     '  "characters": { "aylin": "1girl, long teal hair, ..." },\n'
+    '  "outfits": { "gunluk": "jeans, black t-shirt", "atki": "red knit scarf" },\n'
     '  "locations": { "bedroom": "sunlit bedroom, morning light, ..." },\n'
     '  "frames": [\n'
-    '    { "characters": ["aylin"], "location": "bedroom",\n'
+    '    { "characters": { "aylin": ["gunluk", "atki"] }, "location": "bedroom",\n'
     '      "action": "sitting on the edge of the bed, holding a letter",\n'
     '      "camera": "medium shot, from slightly above" }\n'
     "  ]\n"
@@ -111,8 +117,16 @@ GENERATE_PROMPTS_PLUS = (
     "\n"
     "Whatever repeats across frames is written once, in the maps at the top. A frame names it and "
     "never carries the text again -- that is what makes updating a character one edit instead of "
-    "forty. characters is a list because a frame can hold several of them; location is a single "
-    "name because a frame happens in one place. A frame with nobody in it has an empty list.\n"
+    "forty. location is a single name because a frame happens in one place.\n"
+    "\n"
+    "What a character always is goes in characters; what changes from frame to frame goes in "
+    "outfits. Clothing is the thing that changes, so it never belongs in a character's own entry. "
+    "An outfit is named after the garment rather than whoever wears it, because two characters can "
+    "wear the same one.\n"
+    "\n"
+    "A frame's characters is a map: the key is the character, the value is the outfits they wear in "
+    "that frame. Someone wearing nothing named has an empty list, and a frame with nobody in it is "
+    "an empty map.\n"
     "\n"
     "Take the character and place tags from what the user settled in the chat. If a frame needs one "
     "that was never settled, ask for it rather than inventing it.\n"

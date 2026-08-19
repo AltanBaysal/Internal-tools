@@ -14,7 +14,7 @@
     "yatak_odasi": "cozy bedroom, morning light through curtains, indoors",
     "kapi_onu": "apartment doorway, daytime, natural light, indoors"
   },
-  "shots": [
+  "frames": [
     {
       "characters": { "aylin": ["gecelik"] },
       "location": "yatak_odasi",

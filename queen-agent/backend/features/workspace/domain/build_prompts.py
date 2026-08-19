@@ -15,6 +15,7 @@ def build_prompts(structure):
         )
 
     characters = structure.get("characters") or {}
+    outfits = structure.get("outfits") or {}
     locations = structure.get("locations") or {}
     # A transition, not a second name: files written before the rename keep their list under
     # "shots", and a rename cannot turn what is already on the user's disk into rubbish. Dropping
@@ -28,8 +29,12 @@ def build_prompts(structure):
         # The order is fixed here rather than in the file: a structure that could reorder itself
         # would answer "why did this frame come out different" with "it varies".
         parts = [structure.get("quality", "")]
-        for name in frame.get("characters") or []:
+        # One character at a time, identity then what they wear: the only thing telling an image
+        # model whose clothes are whose is that the two sit next to each other.
+        for name, worn in _worn(frame.get("characters")):
             parts.append(_looked_up(name, characters, "characters", number, misses))
+            for outfit in worn:
+                parts.append(_looked_up(outfit, outfits, "outfits", number, misses))
         place = frame.get("location") or ""
         if place:
             parts.append(_looked_up(place, locations, "locations", number, misses))
@@ -56,6 +61,22 @@ def prompts_name(source):
     """The output is the source under a new extension, so a project can hold several scenarios."""
     stem, dot, _ = source.rpartition(".")
     return f"{stem if dot else source}.py"
+
+
+def _worn(field):
+    """A frame's characters as (name, outfits) pairs, whichever way the field was written.
+
+    The one place the two shapes meet, so nothing downstream has to ask which it was holding. A
+    plain list is what files written before outfits existed carry: names, wearing nothing. A single
+    name written without its list is read as that one name -- the instruction asks for a list, but
+    walking a string letter by letter would answer a small slip with nonsense.
+    """
+    if isinstance(field, dict):
+        return [
+            (name, [worn] if isinstance(worn, str) else list(worn or []))
+            for name, worn in field.items()
+        ]
+    return [(name, []) for name in field or []]
 
 
 def _looked_up(name, known, field, number, misses):
