@@ -43,11 +43,13 @@
   margin-left: auto;
   border: none;
   border-radius: var(--radius-control);
-  padding: 4px 8px;
+  padding: 2px 8px;
   background: transparent;
-  color: var(--muted);
+  /* The same reading as the rail's chevron, for the same reason: folded, this is the only way back. */
+  color: var(--ink);
   font-family: inherit;
-  font-size: 15px;
+  font-size: 20px;
+  line-height: 1;
   cursor: pointer;
 }
 
@@ -835,9 +837,12 @@
   color: #96795f;
 }
 
+/* The control that folds the rail away, and the only way back once it is folded -- so it is read at
+   the ink colour rather than the muted one, and at a size that is found without looking for it. */
 .rail__chevron {
-  font-size: 13px;
-  color: var(--muted);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--ink);
 }
 
 /* Turned rather than cut: the strip is too narrow to read across, and the count still has to be. */
