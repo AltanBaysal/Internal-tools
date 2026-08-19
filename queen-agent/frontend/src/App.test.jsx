@@ -963,7 +963,9 @@ function withModel(model = "") {
       return Promise.resolve({ ok: true, status: 200, json: async () => ({ default: "grok-4.6" }) });
     }
     if (path.endsWith("/chats/c1") && options?.method === "PATCH") {
-      chat = { ...chat, model: JSON.parse(options.body).model };
+      // Merged, the way the server merges: it writes the field it was given and leaves the other
+      // alone. Taking only model dropped a picked skill and blanked the model on a skill PATCH.
+      chat = { ...chat, ...JSON.parse(options.body) };
       return Promise.resolve({ ok: true, status: 200, json: async () => chat });
     }
     if (path.endsWith("/chats/c1")) {
