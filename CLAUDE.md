@@ -1,16 +1,18 @@
 # CLAUDE.md
 
-Internal tools monorepo, one folder per tool: `collab-toolbox`, `queen-editor`, `queenagent`.
+Internal tools monorepo, one folder per tool: `collab-toolbox`, `queen-editor`, `queen-agent`.
 
 ## Commands
 
 ```bash
-# QueenAgent — the whole suite, always this one line
-python -m pytest queenagent -q; npm test --prefix queenagent/frontend
+# QueenAgent — the whole suite, always these two lines, both of them, verbatim.
+# Independent — run them in parallel; each one's red fails its own call, nothing is masked.
+python -m pytest queen-agent -q
+npm test --prefix queen-agent/frontend
 
 # QueenAgent — run it (dist is NOT committed, so build first)
-npm run build --prefix queenagent/frontend
-python queenagent/main.py            # http://127.0.0.1:8100 — restart it after a backend change
+npm run build --prefix queen-agent/frontend
+python queen-agent/main.py           # http://127.0.0.1:8100 — restart it after a backend change
 
 # queen-editor — dist IS committed; build and commit it in the SAME commit as the source
 npm run build --prefix queen-editor/frontend

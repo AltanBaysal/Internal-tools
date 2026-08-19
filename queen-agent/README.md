@@ -7,7 +7,7 @@ them.
 ## Run it
 
 ```bash
-cd queenagent/frontend
+cd queen-agent/frontend
 npm install
 npm run build
 
@@ -27,8 +27,8 @@ Where your projects live is `QUEENAGENT_ROOT` — that and every other setting a
 Run Vite and Flask side by side so a UI change costs no build:
 
 ```bash
-cd queenagent/frontend && npm run dev     # serves the UI, proxies /api to Flask
-cd queenagent && python main.py           # serves the API
+cd queen-agent/frontend && npm run dev    # serves the UI, proxies /api to Flask
+cd queen-agent && python main.py          # serves the API
 ```
 
 The test command lives in [CLAUDE.md](../CLAUDE.md), once.
