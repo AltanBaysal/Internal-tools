@@ -4,10 +4,10 @@ import { MODELS, modelName } from "./models.js";
 
 // The list is text, and text belongs here rather than on the server. What the server owns is which
 // of these a chat that picked nothing answers with.
-test("every text model xAI documents is offered", () => {
+test("the models we offer are these, and grok-4.5 is not one of them", () => {
+  // Same price as grok-4.6 for an older version, so offering it only adds a wrong choice.
   expect(MODELS.map((model) => model.id)).toEqual([
     "grok-4.6",
-    "grok-4.5",
     "grok-4.3",
     "grok-4.20-0309-reasoning",
     "grok-4.20-0309-non-reasoning",
@@ -40,6 +40,11 @@ test("a model the list does not know is shown as it is", () => {
   // XAI_MODEL can be set to anything, and a button that said nothing would be worse than one that
   // says a raw id.
   expect(modelName("grok-9000")).toBe("grok-9000");
+});
+
+test("a chat that picked the model we stopped offering still says what it is", () => {
+  // Removing a row must not make an older chat unreadable: the id it kept is shown as it is.
+  expect(modelName("grok-4.5")).toBe("grok-4.5");
 });
 
 test("nothing chosen yet says so rather than lying about a model", () => {
