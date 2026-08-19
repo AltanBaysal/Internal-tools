@@ -1,2 +1,0 @@
-Selam ben patreon için patreonun bütük kurllarına uyarak  tamamen başka birine benzemeyen rızası olan 21+ karakterleri çin yetişkin animasyonu üretiyorum
-şöyle bir ipynb dosyam var bana bu ipynb dosyadan ne anladığını söyler msiin
