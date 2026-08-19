@@ -112,10 +112,9 @@ the design from being the source. Do not carry the neighbouring tool's rule over
 
 ## Tests
 
-Backend: run `pytest` from `queenagent/`. Domain and use cases test with fake ports — no network, no
-real store.
+Backend: domain and use cases test with fake ports — no network, no real store.
 
-Frontend: run `npm test` from `queenagent/frontend/` (vitest + jsdom). Test files sit next to their source
+Frontend: vitest + jsdom. Test files sit next to their source
 as `<name>.test.js(x)`; they are never imported, so they stay out of `dist/`. Network and clock are
 faked (`vi.stubGlobal("fetch", …)`, `vi.useFakeTimers()`) — no test waits a real second, and none of
 them needs a browser or a network. Testing Library's `waitFor` does not understand vitest's fake

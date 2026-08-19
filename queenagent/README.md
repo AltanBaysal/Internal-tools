@@ -15,12 +15,12 @@ cd ..
 python main.py          # http://127.0.0.1:8100
 ```
 
-Two environment variables:
+Then open **Settings** at the foot of the sidebar and paste your xAI key. It is saved beside your
+projects and read again on every request, so changing it needs no restart. The app starts without
+one; only asking for an answer fails.
 
-| Variable | What it does |
-|---|---|
-| `QUEENAGENT_ROOT` | Where your projects live. Defaults to `QueenAgent` in your home folder. |
-| `XAI_API_KEY` | Your xAI key. The app starts without it, but chats cannot answer. |
+Where your projects live is `QUEENAGENT_ROOT` — that and every other setting are named in
+[backend/config.py](backend/config.py), which is the one place they exist.
 
 ## Develop
 
@@ -31,15 +31,11 @@ cd queenagent/frontend && npm run dev     # serves the UI, proxies /api to Flask
 cd queenagent && python main.py           # serves the API
 ```
 
-## Test
-
-```bash
-cd queenagent && pytest
-cd queenagent/frontend && npm test
-```
+The test command lives in [CLAUDE.md](../CLAUDE.md), once.
 
 ## Rules
 
 Principles and stack decisions: [FOUNDATION.md](FOUNDATION.md).
 Layering and structure: [CODE-STANDARD.md](CODE-STANDARD.md).
-What gets built and in what order: [the v2 roadmap](../docs/superpowers/plans/2026-08-15-queenagent-v2-roadmap.md).
+What gets built and in what order: the roadmaps under
+[`docs/superpowers/plans/`](../docs/superpowers/plans/) — the highest `vN` is the current one.

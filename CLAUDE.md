@@ -1,84 +1,63 @@
 # CLAUDE.md
 
-Internal tools monorepo, one folder per tool: **collab-toolbox** (Colab notebooks), **queen-editor**
-(web UI) and **queenagent** (web UI). Adding a tool means a new subfolder and a section here.
+Internal tools monorepo, one folder per tool: `collab-toolbox`, `queen-editor`, `queenagent`.
 
-## Working rules
+## Commands
 
-- **Don't run shell/terminal commands unless you must.** Read, Grep, Glob, Edit, Write and
-  NotebookEdit do the exploring and the editing. When a command really is needed, say in one
-  sentence what no tool could have done, then run it.
-- **Don't spawn subagents or run workflows unless asked for them.** An interrupted run returns
-  nothing at all — the output is lost whole, not partially — so the cost buys zero.
-- **Language splits by reader.** Turkish is what a human sees: notebook markdown cells, everything
-  printed at runtime (`print` / `log` / `assert` / `RuntimeError`), queen-editor's UI, and the specs
-  and plans under `docs/`. English is what a developer reads: code, comments, docstrings, commit
-  messages, these repo docs — and QueenAgent's UI, which is English on purpose.
-- **A comment says WHY, and only what is true now.** e.g. `MAX_CHUNK_DURATION = 10  # model trained
-  on 8s — large drift hurts quality`. `# OLD:` / `# NEW:` traces and claims about past behaviour are
-  banned; on a conflict the comment is fixed to match the code, never the reverse.
-- **Never invent a cause in an error message.** Print what the command or the service actually said
-  — HTTP code and response body, `stderr` tail. A Civitai 401 is not "cookie expired"; a wrong
-  selector returns 401 too.
+```bash
+# QueenAgent — the whole suite, always this one line
+python -m pytest queenagent -q; npm test --prefix queenagent/frontend
 
-## collab-toolbox — Colab notebooks
+# QueenAgent — run it (dist is NOT committed, so build first)
+npm run build --prefix queenagent/frontend
+python queenagent/main.py            # http://127.0.0.1:8100 — restart it after a backend change
 
-Self-contained notebooks that generate and clean up media. Google Drive (`MyDrive/...`) is the only
-channel between them; most bring ComfyUI up in the background as an API and batch-process files.
+# queen-editor — dist IS committed; build and commit it in the SAME commit as the source
+npm run build --prefix queen-editor/frontend
+```
 
-Which notebook does what, the hardware each needs and how to run one:
-[collab-toolbox/README.md](collab-toolbox/README.md). The patterns every notebook follows:
-[collab-toolbox/NOTEBOOK-STANDARD.md](collab-toolbox/NOTEBOOK-STANDARD.md).
+Skipping that last build makes Colab serve a stale UI — it clones the repo and never builds.
+Verifying a queen-editor change also needs a push, for the same reason.
 
-## queen-editor — Queen Editor (web UI)
+## Workflow
 
-A web UI over the same ComfyUI photo pipeline as `nova-3dcg`, running on Colab. Engineering
-principles: [FOUNDATION.md](queen-editor/FOUNDATION.md). Layering rules, and the boundary that keeps
-this tool from depending on anything under `collab-toolbox/` at runtime:
-[CODE-STANDARD.md](queen-editor/CODE-STANDARD.md). Work is written down as roadmaps under
-[docs/superpowers/plans/](docs/superpowers/plans/), one per run — the highest `vN` is the current
-one, and whatever is still waiting stands at its foot.
+**IMPORTANT — approval starts a task, nothing else does.** Once given, run to the end. Stop only for
+a decision with two readings or no way back, and ask it in plain text: one question, numbered
+options, a recommendation.
 
-**Build before commit.** `frontend/dist/` is committed and Colab serves it as-is; it never runs a
-build. After any change under `queen-editor/frontend/src/`, run
-`npm run build --prefix queen-editor/frontend` and commit the regenerated `dist/` in the SAME commit,
-or Colab serves a stale UI.
+**YOU MUST split every task into two cycles**, down to a two-line deletion: the tests alone first,
+committed red (`skip`/`xfail` are not how a suite is made green), then the implementation. Written
+together, a test inherits the code's blind spots.
 
-**The notebook installs, the app reports.** `app.ipynb` installs the producers ticked in its CONFIG,
-all before the server starts. The app downloads nothing; its Üreticiler panel reads the disk and says
-what is here.
+The user tests at the end of a run, not between items.
 
-## queenagent — QueenAgent (web UI)
+Roadmaps live in [docs/superpowers/plans/](docs/superpowers/plans/), one file per run, highest `vN`
+current. One problem, one item, ordered so nothing is built before what it stands on, each saying
+what will work and how it will be seen. Numbering never shifts: written specs cite it. A spec
+derives from its source document, never the reverse.
 
-A small AI workspace: a **project** holds two sibling collections, **chats** and **files**. Chats
-produce files; a file belongs to the project, never to a chat, and the user reads files rather than
-uploading them. xAI Grok drives an agent loop with five tools (`list_files`, `read_file`,
-`create_file`, `edit_file`, `build_prompts`) and decides whether a reply becomes a file. Principles:
-[FOUNDATION.md](queenagent/FOUNDATION.md); layering:
-[CODE-STANDARD.md](queenagent/CODE-STANDARD.md); what is being built now:
-[the v2 roadmap](docs/superpowers/plans/2026-08-15-queenagent-v2-roadmap.md), grounded in
-[the design v2 diff](docs/superpowers/research/2026-08-14-mira-tasarim-farklari.md) and
-[the decisions it produced](docs/superpowers/research/2026-08-14-mira-tasarim-kararlari.md).
+## Gotchas
 
-**It is the front end of one production line, not a general workspace.** A chat can be handed one of
-six **skills** — Create scenario · Create character prompt · Split into shots · Generate prompts ·
-Generate prompts+ · Verify shots — and together they run scenario → shot list → structure JSON →
-`PROMPTS` list for the SDXL pipeline. A skill is an instruction text
-(`domain/skills.py`), placed into the conversation once, in front of the turn it governs. The
-intermediate steps live in the chat where the user approves them; only what is approved reaches
-disk. And the rule the whole set turns on: **the model writes the text, code does the joining** —
-`build_prompts` resolves the names and assembles every shot itself. Why each of these is so:
-[the skills design decisions](docs/superpowers/research/2026-08-18-queenagent-beceriler-tasarim-kararlari.md).
+- **Commit messages carry no double quotes** — they break the PowerShell here-string and git reads
+  the pieces as pathspecs. **Never amend**: another session may share the branch.
+- Reach for Read, Grep, Glob, Edit, Write — not the shell, and never a file through `python -c` or a
+  heredoc. No subagents or workflows unless asked for.
 
-**It was called Mira until v2.** The v1 documents keep that name and stay as they are — they record
-what was true then: [the v1 roadmap](docs/superpowers/plans/2026-08-09-mira-v1-roadmap.md) and
-[the v1 design](docs/superpowers/specs/2026-08-09-mira-v1-design.md).
+## Style
 
-**The xAI key is typed into the app, not into the environment.** Settings sits at the foot of the
-sidebar; the key is saved to `settings.json` under the store root and read again on every request, so
-changing it needs no restart. There is no `XAI_API_KEY`.
+- **A comment says WHY, and only what is true now.** `# OLD:` / `# NEW:` traces are banned; on a
+  conflict the comment is fixed to match the code.
+- **Never invent a cause in an error message.** Print what the command or the service actually said;
+  a Civitai 401 is not "cookie expired".
+- **A doc says what the code cannot.** Why a thing is so, a rule that binds code not yet written,
+  what happens outside the repo. It never restates what the code already states — it names the file
+  instead, because a copy is what goes stale.
+- **Language splits by reader.** Turkish is what a human sees: notebook markdown cells, runtime
+  output, queen-editor's UI, everything under `docs/`. English is what a developer reads: code,
+  comments, commit messages — and QueenAgent's UI, which is English on purpose.
 
-**Two things differ from queen-editor — do not carry that tool's habits over.** QueenAgent's UI text
-is English, because its design was written in English and translating it would stop the design from
-being the source. And `dist/` is not committed: QueenAgent runs locally,
-`python queenagent/main.py` on port 8100, so whoever runs it also builds it.
+## Where the rest lives
+
+Each tool carries its own README and its own rules (`FOUNDATION.md`, `CODE-STANDARD.md`,
+`NOTEBOOK-STANDARD.md`). They bind, the code does not repeat them, and this file does not either —
+read them before touching that tool.

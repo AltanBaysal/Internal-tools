@@ -1,63 +1,41 @@
 # Queen Editor
 
 A web UI for making a sequence of frames. A project holds frames; a frame starts as a photo and can
-carry a video and a sound layer on top of it, and the export joins them into one folder you can
-hand on. Photos and videos are rendered by ComfyUI, sound by MMAudio inside the app's own process,
-and everything lands in a Google Drive folder. Runs on Google Colab.
+carry a video and a sound layer on top of it, and the export joins them into one folder you can hand
+on. Photos and videos are rendered by ComfyUI, sound by MMAudio inside the app's own process, and
+everything lands in Google Drive.
 
-The notebook installs the producers before the app starts; the app itself downloads nothing and only
-reports what is on the machine. Built roadmap by roadmap; the closed ones are under
-[`docs/superpowers/plans/`](../docs/superpowers/plans/). Needs a **T4 GPU** runtime, a
-`CIVITAI_COOKIE` secret, and an `XAI_API_KEY` if you want video.
+Runs on Google Colab: `app.ipynb` mounts Drive, clones this repo, installs the producers, starts
+Flask and prints a cloudflared link. Colab never builds — it only serves.
 
-## Run on Colab
+## Before the first run
 
-`app.ipynb` mounts Google Drive, clones this repo (the built `frontend/dist/` ships with it), starts
-the Flask server, and prints a cloudflared link. Colab never builds — it only serves.
+Upload `queen-editor/app.ipynb` to Colab (**File → Upload notebook**), then add these in the
+**Secrets** panel (🔑, left sidebar) with **Notebook access** on. They live in your Colab account:
+set once, nothing to paste again and nothing to commit.
 
-### 1. Create a GitHub token (once)
+| Secret | What it is for |
+|---|---|
+| `GITHUB_TOKEN` | Cloning this repo. Make it fine-grained, **this repository only, Contents: read-only** — leaked, it can only read this one repo. |
+| `CIVITAI_COOKIE` | The `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). The notebook downloads the gated photo and video files with it. It expires every ~30 days; re-paste it when an install stops with Civitai's own response. A sound-only run needs none. |
+| `XAI_API_KEY` | Video only: a video's prompt is written by xAI when the job's turn comes. Without it photos still render and a video job stops with the client's own sentence. |
 
-A fine-grained token scoped to this repo only, read-only:
+## Run
 
-1. GitHub → **Settings → Developer settings → Fine-grained tokens → Generate new token**.
-2. **Repository access → Only select repositories → `Internal-tools`**.
-3. **Repository permissions → Contents → Read-only**. No other permission is needed.
-4. Generate and copy the token.
+**Runtime → Change runtime type → T4 GPU.** In the **CONFIG** cell tick the producers you want —
+`INSTALL_PHOTO` (~8 GiB), `INSTALL_VIDEO` (~37 GiB, more disk than a T4 has: ask for A100),
+`INSTALL_AUDIO` (~9 GiB). All three start off and the notebook stops if none is chosen, because an
+app with no producer opens fine and renders nothing.
 
-If the token leaks, it can only *read* this one repo — nothing else.
+Then **Runtime → Run all** and grant Drive access in the popup. Open the printed link: the
+**Üreticiler** panel says what is on the machine, and anything missing is installed by running the
+notebook again with that box ticked — never from the app. **+ Yeni proje** creates a folder under
+`MyDrive/queenEditor/`.
 
-### 2. Store the token in Colab (once)
+## Rules
 
-1. Download `queen-editor/app.ipynb` from GitHub and upload it to Colab (**File → Upload notebook**).
-2. Open the **Secrets** panel (🔑 icon, left sidebar) → **Add new secret**:
-   - **Name:** `GITHUB_TOKEN`
-   - **Value:** the token from step 1
-   - Toggle **Notebook access** on.
-3. Add a second secret the same way — **Name:** `CIVITAI_COOKIE`, **Value:** the
-   `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). The
-   notebook downloads the photo and video groups' gated files with it; a sound-only run needs no
-   cookie. It expires every ~30 days; re-paste it when an install stops with Civitai's response.
-4. A third one if you want video — **Name:** `XAI_API_KEY`. A video's prompt is written by xAI when
-   the job's turn comes; without the key photos still render and a video job stops with the
-   client's own sentence.
-5. That's it. They live in your Colab account, not in the notebook. Set them once; every session
-   and every notebook can read them. Nothing to paste again, nothing to commit.
+Principles: [FOUNDATION.md](FOUNDATION.md) · layering and structure:
+[CODE-STANDARD.md](CODE-STANDARD.md) · how we work: [CLAUDE.md](../CLAUDE.md).
 
-### 3. Run
-
-**Runtime → Change runtime type → T4 GPU.** In the notebook's **CONFIG** cell, tick the producers
-you want — `INSTALL_PHOTO` (~8 GiB), `INSTALL_VIDEO` (~37 GiB, more disk than a T4 runtime has: ask
-for A100), `INSTALL_AUDIO` (~9 GiB). All three start off and the notebook stops if none is chosen,
-because an app with no producer opens fine and renders nothing. Then **Runtime → Run all**: the
-notebook mounts Drive (**grant access in the popup**), clones the repo, installs ComfyUI with its
-custom nodes, downloads what you ticked, then starts Flask and prints a cloudflared link. Open the
-link: the **Üreticiler** panel says what is on the machine, and anything missing is installed by
-running the notebook with that box ticked, not from the app.
-Then **+ Yeni proje** creates a folder under `MyDrive/queenEditor/`, and clicking a project opens
-the screen where prompts become frames, a frame grows a video and a sound layer, and the export
-writes the whole sequence out. The secrets are read from Colab and never appear in any output or in
-the notebook source.
-
-Developer note: the frontend ships pre-built — after changing `frontend/src/`, run `npm run build`
-in `frontend/` and commit the regenerated `dist/` (Colab never builds). Run the backend tests
-locally with `pytest` from `queen-editor/`.
+The frontend ships pre-built, so a source change is not a change until `dist/` is rebuilt and
+committed with it — and not testable until it is pushed, because the notebook clones the repo.
