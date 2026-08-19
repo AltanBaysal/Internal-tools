@@ -2,34 +2,39 @@
 
 Pure: it is handed the parsed structure and hands back strings, so it is the one part of the chain
 that cannot be talked out of the rules. Assembly is exactly what a model must not do by hand -- a
-character copied into forty shots drifts, a character resolved by code cannot.
+character copied into forty frames drifts, a character resolved by code cannot.
 """
 from backend.features.workspace.domain.errors import BadStructure
 
 
 def build_prompts(structure):
-    """Every shot as one prompt, or a sentence saying why none of them can be built."""
+    """Every frame as one prompt, or a sentence saying why none of them can be built."""
     if not isinstance(structure, dict):
-        raise BadStructure("A structure file is a JSON object with characters, locations and shots.")
+        raise BadStructure(
+            "A structure file is a JSON object with characters, locations and frames."
+        )
 
     characters = structure.get("characters") or {}
     locations = structure.get("locations") or {}
-    shots = structure.get("shots") or []
-    if not shots:
-        raise BadStructure("That file has no shots to build from.")
+    # A transition, not a second name: files written before the rename keep their list under
+    # "shots", and a rename cannot turn what is already on the user's disk into rubbish. Dropping
+    # the fallback is its own decision, for the day those files are gone.
+    frames = structure.get("frames") or structure.get("shots") or []
+    if not frames:
+        raise BadStructure("That file has no frames to build from.")
 
     misses, built = [], []
-    for number, shot in enumerate(shots, start=1):
+    for number, frame in enumerate(frames, start=1):
         # The order is fixed here rather than in the file: a structure that could reorder itself
-        # would answer "why did this shot come out different" with "it varies".
+        # would answer "why did this frame come out different" with "it varies".
         parts = [structure.get("quality", "")]
-        for name in shot.get("characters") or []:
+        for name in frame.get("characters") or []:
             parts.append(_looked_up(name, characters, "characters", number, misses))
-        place = shot.get("location") or ""
+        place = frame.get("location") or ""
         if place:
             parts.append(_looked_up(place, locations, "locations", number, misses))
-        parts.append(shot.get("action", ""))
-        parts.append(shot.get("camera", ""))
+        parts.append(frame.get("action", ""))
+        parts.append(frame.get("camera", ""))
         built.append(_tags(parts))
 
     # Every miss at once and nothing written: one pass fixes them all, and a dirty structure never
@@ -59,7 +64,7 @@ def _looked_up(name, known, field, number, misses):
     # Only this map's names: place names are no help to someone looking for a character. The tool
     # never guesses at a near miss -- the model looks and fixes it, or asks.
     misses.append(
-        f"shot {number}: {name} is not in {field}; known: {', '.join(sorted(known)) or 'nothing'}"
+        f"frame {number}: {name} is not in {field}; known: {', '.join(sorted(known)) or 'nothing'}"
     )
     return ""
 

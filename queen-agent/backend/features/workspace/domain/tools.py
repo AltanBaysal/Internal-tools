@@ -32,7 +32,7 @@ class FileWritten:
 
 
 # The longest sensible chain is the structured prompt run: list, read, write the skeleton, add the
-# shots in batches, check itself, build. Sixteen rounds carry it; an unbounded loop would burn both
+# frames in batches, check itself, build. Sixteen rounds carry it; an unbounded loop would burn both
 # money and time. Reaching the limit is a stop, not a failure -- which is why the number has to be
 # generous: a chain cut short looks exactly like a model that gave up.
 MAX_ROUNDS = 16
@@ -108,7 +108,7 @@ TOOL_SPECS = [
         "function": {
             "name": "build_prompts",
             "description": (
-                "Build the prompt list from a structure file. Code assembles every shot in a fixed "
+                "Build the prompt list from a structure file. Code assembles every frame in a fixed "
                 "order, so a character reads the same in all of them. Writes a Python file named "
                 "after the structure, replacing what it wrote last time."
             ),

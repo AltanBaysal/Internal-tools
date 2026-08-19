@@ -16,9 +16,9 @@ export const SKILLS = [
     detail: "SDXL character tags. Stays in the chat.",
   },
   {
-    id: "split-into-shots",
-    name: "Split into shots",
-    detail: "Turn the scenario into shots. Stays in the chat.",
+    id: "split-into-frames",
+    name: "Split into frames",
+    detail: "Turn the scenario into frames. Stays in the chat.",
   },
   {
     id: "generate-prompts",
@@ -31,9 +31,9 @@ export const SKILLS = [
     detail: "Build from parts, so a character never drifts.",
   },
   {
-    id: "verify-shots",
-    name: "Verify shots",
-    detail: "Check the structure against the rules.",
+    id: "verify-prompts",
+    name: "Verify prompts",
+    detail: "Check the structure files against the rules.",
   },
 ];
 
