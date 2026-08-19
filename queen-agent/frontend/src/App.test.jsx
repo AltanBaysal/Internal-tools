@@ -71,8 +71,10 @@ test("an address is not called wrong before the list has arrived", async () => {
 test("the sidebar's Settings row opens the settings screen at its own address", async () => {
   stubProjects([PROJECT]);
   render(<App />);
-  await waitFor(() => expect(screen.getByText("Old")).toBeTruthy());
 
+  // Clicked only once the fork has landed: while the list is still on its way the fork owns the
+  // address and replaces whatever was chosen in the meantime (finding 15).
+  await screen.findByText("Old", { selector: ".screen__title" });
   fireEvent.click(screen.getByRole("button", { name: "Settings" }));
   await waitFor(() =>
     expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy(),
@@ -128,8 +130,11 @@ test("the app opens on the first project", async () => {
   stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
   render(<App />);
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  // The sidebar row and the project title read the same array, so the name stands twice.
-  expect(screen.getAllByText("Thesis").length).toBe(2);
+  // The sidebar row and the project title read the same array, so the name stands in both. Counted
+  // by where it stands rather than how many times: the stub answers every request with the same
+  // array, so a file row carrying the name too is the stub's doing, not the app's.
+  expect(screen.getByText("Thesis", { selector: ".sidebar__row-name" })).toBeTruthy();
+  expect(screen.getByText("Thesis", { selector: ".screen__title" })).toBeTruthy();
 });
 
 test("with no projects the fork draws the empty screen and stays at /", async () => {
