@@ -129,14 +129,17 @@ istendiğinde fazlalıklar kopya kare olarak doğuyor — kaynağın fotoğrafı
 resim), kaynağın hemen üstüne yerleşiyorlar, galeride normal kare gibi davranıyorlar. Adlandırma,
 yerleşim ve kayıt kuralları hazır; eksik olan kullanıcının bunu isteyebileceği bir yol.
 
-**Karar verildi:** kopya kartın **tamamını** alır — fotoğraf, video, ses. Birebir ikiz olur,
-üretilecek bir şeyi kalmaz. Bugünkü kopya kareden farkı bu: o yalnız fotoğrafı paylaşıp videosunu
-kendi üretiyor.
+**Karar verildi:** kopya kartın **tamamını** alır — fotoğraf, video, ses, bütün bilgiler. Değişen tek
+şey kartın adı. Kopya kaynağın bir üstüne yerleşir, kısayolu **Ctrl + D**. Bugünkü kopya kareden
+farkı bu: o yalnız fotoğrafı paylaşıp videosunu kendi üretiyor.
 
 Dosya paylaşımının silme tarafı da çözülmüş: bir dosyayı başka bir kare hâlâ tutuyorsa dosya yerinde
 kalıyor, yani ikizlerden birini silmek öbürünü bozmuyor.
 
-**Tasarımda çözülecek:** kopyalama nereden yapılır ve nasıl davranır — tasarımcıya bırakıldı.
+*Uygulayan bilsin:* Ctrl + D tarayıcının kendi kısayolu (yer imi), yani uygulamanın onu üstlenmesi
+gerekir.
+
+**Tasarımda çözülecek:** kısayolun yanında görünür bir yol olacak mı — tasarımcıya bırakıldı.
 
 ## 8 · Fotoğraf varyant varsayılanı 4 → 2
 

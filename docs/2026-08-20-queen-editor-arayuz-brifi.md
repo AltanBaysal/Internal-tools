@@ -118,23 +118,22 @@ Bu maddede senden karar beklemiyoruz.
 
 ## 7 · Kart kopyalama
 
-Kullanıcı bir kartı kendi eliyle kopyalayabilsin. Kopya birebir ikiz olur — fotoğraf, video, ses
-hepsi gelir, üretilecek bir şeyi kalmaz.
+Kullanıcı bir kartı kendi eliyle kopyalayabilsin.
 
-**Uygulamada zaten yerleşik olan kurallar** (tasarımın bunlara uyması yeter, değiştirmesi
-gerekmiyor):
+**Karar verildi:**
 
-- Kopya, kaynağın hemen üstüne yerleşir
-- Kopya kaynağın dosyalarını paylaşır — iki kart, diskte tek resim
-- İkizlerden birini silmek öbürünü bozmaz
+- Kopya **birebir aynı** — fotoğraf, video, ses, bütün bilgiler gelir. Üretilecek bir şeyi kalmaz.
+- Değişen tek şey **kartın adı**.
+- Kopya, kaynağın **bir üstüne** yerleşir.
+- Kısayolu **Ctrl + D**.
 
-**Bugün galeride nasıl iş yapılıyor:** kartlar seçiliyor, sonra galerinin çubuğundaki düğmeyle
-siliniyor. Kartın kendi üstünde eylem düğmesi yok — yalnız seçim işareti var, bir de bozuk katmanda
-beliren "Tekrar dene".
+Uygulamada yerleşik olan ve tasarımın uyması yeten iki kural daha: kopya kaynağın dosyalarını
+paylaşır (iki kart, diskte tek resim), ve ikizlerden birini silmek öbürünü bozmaz.
 
-**Karar sende:** kopyalama nereden yapılacak ve nasıl davranacak. Tasarımı da davranışı da sen
-kur — tek kart mı kopyalanır, seçili olanların hepsi mi; düğme nerede durur; kopya oluştuğunda
-kullanıcı bunu nasıl görür.
+**Karar sende:** Ctrl + D'nin yanında bir de görünür bir yol olsun mu. Bugün galeride kartlar
+seçiliyor ve galerinin çubuğundaki düğmeyle siliniyor; kartın kendi üstünde eylem düğmesi yok —
+yalnız seçim işareti var, bir de bozuk katmanda beliren "Tekrar dene". Kopyalama o çubuğa mı girer,
+başka bir yere mi, hiç girmez mi. Bir de: kopya oluştuğunda kullanıcı bunu nasıl fark eder.
 
 ---
 
