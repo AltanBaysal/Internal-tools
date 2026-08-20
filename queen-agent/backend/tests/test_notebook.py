@@ -141,8 +141,17 @@ def test_a_failed_clone_shows_git_own_words_masked():
 
 def test_flask_is_installed_rather_than_assumed():
     """The app's only third-party dependency. Colab already has it, so this costs nothing -- but a
-    notebook that quietly leans on what Colab happens to ship is one that breaks silently."""
-    assert "pip install" in _cell(CLONE) and "flask" in _cell(CLONE).lower()
+    notebook that quietly leans on what Colab happens to ship is one that breaks silently.
+
+    Asked as "a pip line that names flask" rather than the exact string `pip install`: it was written
+    that way at first and pinned a spelling instead of the rule, which `["pip", "install", …]` fails
+    while doing exactly what the rule asks.
+    """
+    installs = [
+        line for line in _cell(CLONE).splitlines()
+        if "pip" in line and "flask" in line.lower()
+    ]
+    assert installs, "Flask kurulmuyor — defter Colab'da var olduğuna güveniyor"
 
 
 def test_the_built_frontend_is_looked_for_after_the_clone():
