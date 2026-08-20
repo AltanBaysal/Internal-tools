@@ -133,8 +133,10 @@ yerleşim ve kayıt kuralları hazır; eksik olan kullanıcının bunu isteyebil
 üretilecek bir şeyi kalmaz. Bugünkü kopya kareden farkı bu: o yalnız fotoğrafı paylaşıp videosunu
 kendi üretiyor.
 
-**Tasarımda çözülecek:** kopyalama nereden yapılır. Bir de spec'in cevaplayacağı bir soru var: iki
-kare aynı dosyaları paylaşırken birinden bir katman silinirse öbürü ne olur.
+Dosya paylaşımının silme tarafı da çözülmüş: bir dosyayı başka bir kare hâlâ tutuyorsa dosya yerinde
+kalıyor, yani ikizlerden birini silmek öbürünü bozmuyor.
+
+**Tasarımda çözülecek:** kopyalama nereden yapılır ve nasıl davranır — tasarımcıya bırakıldı.
 
 ## 8 · Fotoğraf varyant varsayılanı 4 → 2
 

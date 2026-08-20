@@ -1,6 +1,6 @@
 # Queen Editor — Arayüz İşleri
 
-**20 Ağustos 2026 · 5 madde**
+**20 Ağustos 2026 · 6 madde**
 
 Sıradaki işlerden arayüzü ilgilendirenler. Her maddede ne istediğimiz ve tasarımın hangi kararı
 vermesi gerektiği yazıyor.
@@ -116,6 +116,26 @@ aralarındaki sıra korunarak. Aralarında kalan kartlar boşluğu kapatır.
 
 Bu maddede senden karar beklemiyoruz.
 
+## 7 · Kart kopyalama
+
+Kullanıcı bir kartı kendi eliyle kopyalayabilsin. Kopya birebir ikiz olur — fotoğraf, video, ses
+hepsi gelir, üretilecek bir şeyi kalmaz.
+
+**Uygulamada zaten yerleşik olan kurallar** (tasarımın bunlara uyması yeter, değiştirmesi
+gerekmiyor):
+
+- Kopya, kaynağın hemen üstüne yerleşir
+- Kopya kaynağın dosyalarını paylaşır — iki kart, diskte tek resim
+- İkizlerden birini silmek öbürünü bozmaz
+
+**Bugün galeride nasıl iş yapılıyor:** kartlar seçiliyor, sonra galerinin çubuğundaki düğmeyle
+siliniyor. Kartın kendi üstünde eylem düğmesi yok — yalnız seçim işareti var, bir de bozuk katmanda
+beliren "Tekrar dene".
+
+**Karar sende:** kopyalama nereden yapılacak ve nasıl davranacak. Tasarımı da davranışı da sen
+kur — tek kart mı kopyalanır, seçili olanların hepsi mi; düğme nerede durur; kopya oluştuğunda
+kullanıcı bunu nasıl görür.
+
 ---
 
 ## Bu listede olmayanlar
@@ -128,4 +148,3 @@ Sıradaki işlerin hepsi arayüz değil; bunlara bakmana gerek yok:
 - **Üretme hızı** — üretimin kendi süresi.
 - **Varyant varsayılanı** — bir prompt'tan kaç kare üretileceğinin varsayılanı 4'ten 2'ye inecek. Tek
   bir sayı.
-- **Kart kopyalama** — ertelendi, sırası gelince tasarıma dönecek.
