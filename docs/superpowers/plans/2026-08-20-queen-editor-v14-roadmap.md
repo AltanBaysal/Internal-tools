@@ -44,6 +44,12 @@ maddelerde sıra, o ekranın bir kez açılıp bir kez kapanmasına göre kuruld
 on iki tane ölçü düzeltmesi tek maddede toplanıp birlikte doğrulanıyor, çünkü zaten aynı ekrana
 dokunuyorlar.
 
+**Biten madde satırında işaretlenir.** İki tur da bitip takım yeşile döndüğünde maddenin **İş**
+hücresi ✅ ile başlar ve başlıktaki sayaç ilerler. Asıl kayıt commit'lerdir — her madde iki commit,
+biri kırmızı testler biri kod — ama otuz bir satırlık bir listede "7/31" hangi yedisi olduğunu
+söylemiyor, işaret onun için var. Yarım kalan madde işaretlenmez: bir maddeyi kısmen bitmiş
+göstermenin yolu yok, çünkü "bitti sayılır" sütunu bölünmüyor.
+
 **A'dan G'ye kadar tek başına yürür; H kullanıcıyla birlikte.** Son bölümün hiçbir maddesi ekranda
 görünmüyor ve hiçbirinin "bitti" yargısı koda bakarak verilemiyor. O bölüme sıra gelince
 kullanıcıyla birlikte oturulur.
