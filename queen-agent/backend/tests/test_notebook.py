@@ -19,6 +19,7 @@ NOTEBOOK = os.path.join(
 )
 
 CONFIG = "# === CONFIG ==="
+CLONE = "# === Clone ==="
 
 
 def _cells():
@@ -99,3 +100,61 @@ def test_the_xai_key_is_not_asked_for_here():
     in settings.json on Drive -- written once, kept forever. Deliberate, and without this test
     someone reads the difference as an omission and adds it back."""
     assert "XAI_API_KEY" not in _source(), "xAI anahtarı defterde sorulmamalı — Settings'e giriliyor"
+
+
+# --- Madde 56: the clone -------------------------------------------------------------------------
+
+
+def test_the_clone_deletes_and_starts_again():
+    """A disposable tree with one behaviour. A pull can stop on a merge conflict, and a user staring
+    at that has no way to know what it means or what to do."""
+    clone = _cell(CLONE)
+    assert "shutil.rmtree" in clone, "Klon, eski ağacı silmiyor"
+    assert "git pull" not in _source(), "Defterde pull var — klon tek davranışlı olmalı"
+
+
+def test_the_token_never_reaches_the_shell():
+    """Asked as what the cell DOES rather than only what it avoids: a rule written as an absence
+    alone can never fail before the code exists, and a test that cannot fail has proved nothing."""
+    clone = _cell(CLONE)
+    assert '["git", "clone"' in clone, "Klon bir argüman listesiyle çalıştırılmıyor"
+    # A URL that goes through a shell lands in its history and in log lines.
+    assert "shell=True" not in _source(), "Kabuk üzerinden çalıştırma var — token oraya sızar"
+
+
+def test_the_clone_url_is_never_printed():
+    """The one string carrying the token. The cell has to report something -- otherwise this walks
+    over an empty list and passes without looking at anything."""
+    printed = [line for line in _cell(CLONE).splitlines() if "print(" in line]
+    assert printed, "Klon hücresi hiçbir şey söylemiyor"
+    for line in printed:
+        assert "clone_url" not in line, f"Token taşıyan URL basılıyor: {line.strip()}"
+
+
+def test_a_failed_clone_shows_git_own_words_masked():
+    """A 403 has a dozen causes and the notebook knows none of them, so it prints what git said --
+    with the token taken out of it."""
+    clone = _cell(CLONE)
+    assert "_mask" in clone, "Maskeleme yok — hata metni token taşıyabilir"
+    assert "result.stderr" in clone, "git'in kendi sözleri basılmıyor"
+
+
+def test_flask_is_installed_rather_than_assumed():
+    """The app's only third-party dependency. Colab already has it, so this costs nothing -- but a
+    notebook that quietly leans on what Colab happens to ship is one that breaks silently."""
+    assert "pip install" in _cell(CLONE) and "flask" in _cell(CLONE).lower()
+
+
+def test_the_built_frontend_is_looked_for_after_the_clone():
+    """The repo side of Madde 54. There it is asked whether the bundle was committed; here, whether
+    it arrived -- so a forgotten rebuild stops the cell rather than reaching the user as a blank
+    page."""
+    clone = _cell(CLONE)
+    assert "frontend/dist/index.html" in clone or "dist" in clone
+    assert "assert" in clone, "Derlenmiş arayüz yoksa hücre durmuyor"
+
+
+def test_the_clone_cell_refuses_to_run_before_config():
+    """Its paths are defined in CONFIG. Without this gate a CONFIG that failed stays invisible until
+    something much later breaks for a reason nobody can trace back."""
+    assert 'assert "CLONE_DIR" in globals()' in _cell(CLONE)

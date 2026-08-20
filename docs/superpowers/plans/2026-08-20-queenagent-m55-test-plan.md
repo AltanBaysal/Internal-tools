@@ -51,9 +51,16 @@ sorusunun tek bir yeri olsun.
 döndürdüğü için düşer.
 
 **7 bugün yeşil**, ve bu ilk tahminimin düzeltilmesi: boş metinde `XAI_API_KEY` de geçmiyor, yani
-test "sorulmuyor" cevabını yanlış sebeple veriyor. Kuralı asıl tutacağı an defter yazıldıktan
-sonra — o yüzden kalıyor. Yeşil doğduğu burada yazılı olsun ki, kırmızı görülmedi diye atlandığı
-sanılmasın.
+test "sorulmuyor" cevabını yanlış sebeple veriyor.
+
+**Sonradan eklenen not (Madde 56'da öğrenildi):** doğuştan yeşil bir test, düşebildiğini
+kanıtlamamış bir iddiadır. 56'da aynı kusurdaki iki test, yanlarına o hücrenin **yaptığı işi** soran
+birer iddia eklenerek kırmızı hâle getirildi.
+
+Bu test için aynısı yapılamıyor: kural saf bir yokluk — "xAI anahtarı defterde hiç sorulmasın" — ve
+karşılığı olan olumlu bir iş yok. Böyle bir şey TDD kırmızısı değil, **kilit**tir: bugün bir şey
+kanıtlamaz, yarın birinin queen-editor'e bakıp "burada eksik kalmış" diye eklemesini durdurur.
+Kilit olduğu burada yazılı, ki kırmızı görülmüş gibi sayılmasın.
 
 ## Bu turda yapılmayan
 
