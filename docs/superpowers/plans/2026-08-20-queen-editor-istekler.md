@@ -16,7 +16,7 @@ spec'inde çıkar. Bilerek ertelenmiş işlerin kalıcı kaydı [BACKLOG.md](../
 4. Bulunan UI hataları düzeltilecek
 5. Toplu card taşıma
 6. Detaydan çıkınca yüklenmeme olmaması — sayfa neden, fotolar neden siliniyor
-7. Duplicate card özelliği gelmeli
+7. Duplicate card özelliği gelmeli *(erteleme kalktı)*
 8. Default 2 yap
 9. Üretme hızı *(sonradan eklendi, en sona)*
 
@@ -89,7 +89,9 @@ olur; seçim kart başına mı, toplu mu.
 
 ### 4.1 Detay sayfası yalnız kendi katmanını göstersin
 Bugün açık sekmenin altındaki katmanlar da görünüyor — video sekmesinde fotoğrafın adı ve prompt'u da
-yazıyor. Kalacak olan: kaçıncı kare olduğu ve kartın kendi adı.
+yazıyor. Kalacak olan: kaçıncı kare olduğu, kartın kendi adı ve açık sekmenin kendi prompt kutusu.
+Katman başına açılan dosya adı satırlarının hepsi gidiyor, açık olanınki de dahil: sekmede görünen
+tek ad kartın adı.
 
 **Tasarımda çözülecek:** video prompt'u çoğu zaman boş olduğu için sekme boşalabilir — o boşluk ne
 diyecek.
@@ -118,12 +120,21 @@ Seçili bir kart sürüklenirse seçimin tamamı gider; seçili olmayan sürükl
 yeni bir öğe eklenmiyor — seçili kartların hepsi sürüklenen görünümüne geçer, yuva göstergesi aynı
 kalır.
 
-## 7 · Duplicate card — ertelendi
+## 7 · Duplicate card
 
-Bugün yok. Şimdilik beklesin.
+Kullanıcı bir kartı kendi eliyle kopyalayabilsin.
 
-Sırası gelince cevaplanacak: kopya yalnız tarifi mi alır (yeniden üretilir), yoksa üretilmiş
-dosyaları da mı; ve kopya kaynağın hemen arkasına mı, listenin sonuna mı düşer.
+**Sıfırdan değil.** Uygulamada kopya kare kavramı zaten var: bir kareye birden fazla video varyantı
+istendiğinde fazlalıklar kopya kare olarak doğuyor — kaynağın fotoğrafını paylaşıyorlar (diskte tek
+resim), kaynağın hemen üstüne yerleşiyorlar, galeride normal kare gibi davranıyorlar. Adlandırma,
+yerleşim ve kayıt kuralları hazır; eksik olan kullanıcının bunu isteyebileceği bir yol.
+
+**Karar verildi:** kopya kartın **tamamını** alır — fotoğraf, video, ses. Birebir ikiz olur,
+üretilecek bir şeyi kalmaz. Bugünkü kopya kareden farkı bu: o yalnız fotoğrafı paylaşıp videosunu
+kendi üretiyor.
+
+**Tasarımda çözülecek:** kopyalama nereden yapılır. Bir de spec'in cevaplayacağı bir soru var: iki
+kare aynı dosyaları paylaşırken birinden bir katman silinirse öbürü ne olur.
 
 ## 8 · Fotoğraf varyant varsayılanı 4 → 2
 

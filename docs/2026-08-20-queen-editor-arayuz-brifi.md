@@ -55,8 +55,25 @@ onun üstünde, ses en üstte. Sayfa bugün "açık sekmenin altındakileri de g
 Bu bilerek yapılmıştı ("bu katman neyden yapıldı" görünsün diye), kararı geri alıyoruz.
 
 **Karar verildi:** video seçiliyse video detayları görünür, ses seçiliyse ses detayları, foto
-seçiliyse foto detayları. Her sekmede kalacak olan: kaçıncı kare olduğu ve kartın kendi adı.
-Gidecek olan: alttaki katmanların dosya adı satırları ve prompt kutuları.
+seçiliyse foto detayları.
+
+- **Kalacak:** kaçıncı kare olduğu · **kartın kendi adı** · açık sekmenin kendi prompt kutusu
+- **Gidecek:** katman başına açılan dosya adı satırlarının **hepsi** — açık olanınki de dahil ·
+  alttaki katmanların prompt kutuları
+
+Yani sekmede görünen tek ad kartın adı; katmanların dosya adları hiç yazmıyor. Video sekmesi için
+somut hâli:
+
+```
+bugün                            olması gereken
+
+Sıra          3 / 12             Sıra          3 / 12
+Foto          kare_03.png        <kartın adı>
+Video         kare_03.mp4
+                                 Prompt   [video'nun prompt'u]
+Prompt   [video'nun prompt'u]
+Foto prompt   [salt okunur]
+```
 
 Video prompt'u çoğu zaman boş — onu yapay zekâ yazıyor, üretim sırası gelene kadar boş duruyor. Bu
 durumda prompt kutusu boş görünsün, yeter; ayrı bir boş sayfa tasarımı istemiyoruz. Bu maddede
