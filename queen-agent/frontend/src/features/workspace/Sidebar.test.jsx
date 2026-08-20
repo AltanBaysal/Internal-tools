@@ -16,28 +16,11 @@ test("with no project selected only the wordmark and the projects remain", () =>
   expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });
 
-test("Settings sits at the foot of the sidebar, under everything else", () => {
-  const onOpenSettings = vi.fn();
-  const { container } = render(
-    <Sidebar projects={PROJECTS} activeProjectId="p1" onOpenSettings={onOpenSettings} />,
-  );
-  const settings = screen.getByRole("button", { name: "Settings" });
-  // Last child of the sidebar: it belongs to the app rather than to any project in it.
-  expect(container.querySelector(".sidebar").lastChild.contains(settings)).toBe(true);
-  fireEvent.click(settings);
-  expect(onOpenSettings).toHaveBeenCalled();
-});
-
 // Madde 62: the key comes from the environment now. There is no settings screen, so there is
 // nothing for a row at the foot of the sidebar to open.
 test("there is no Settings row", () => {
   render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
   expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
-});
-
-test("Settings is there with no project selected too", () => {
-  render(<Sidebar projects={PROJECTS} activeProjectId={null} onOpenSettings={vi.fn()} />);
-  expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();
 });
 
 // Madde 51: one button, never a drag -- claude.ai's behaviour rather than the rail's. Folded, the
@@ -62,7 +45,6 @@ test("folded, nothing is left but the way back", () => {
   expect(screen.queryByText("Projects")).toBeNull();
   expect(screen.queryByText("Thesis research")).toBeNull();
   expect(screen.queryByText("Recent chats")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
   expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });
 

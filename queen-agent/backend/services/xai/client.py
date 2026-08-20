@@ -50,9 +50,10 @@ def _delta(raw):
 
 class XaiClient:
     def __init__(self, read_key, model, base_url, opener=urllib.request.urlopen):
-        # A function rather than a string: the key is settled in the app's own settings and can
-        # change while it runs, so it is read at the moment it is needed. Held as a string, saving
-        # one would need a restart to be worth anything.
+        # A function rather than a string: where the key comes from is the composition root's
+        # decision, and this class is built so that changing it never reaches here. It has changed
+        # twice already -- an environment variable, then a settings file, then the environment
+        # again -- and none of those touched this line.
         self._read_key = read_key
         self._model = model
         self._base_url = base_url.rstrip("/")

@@ -105,8 +105,10 @@ küçük: `create_app` içinde tek bir `before_request`, ve arayüzde sıfır de
   klasörünün kardeşi, adı CONFIG'de tek yerde (`DRIVE_FOLDER`). `GITHUB_TOKEN` Colab Secrets'tan
   okunur; yoksa ne yapılacağını söyleyen bir `assert` ile durulur — **yüksek sesle**, ve sebep
   uydurulmadan.
-  xAI anahtarı **burada yok**: uygulamanın kendi Settings ekranına girilir ve Drive'daki
-  `settings.json`'a düşer — bir kere, sonsuza kadar. queen-editor'den bilerek ayrılan yer.
+  ~~xAI anahtarı **burada yok**: uygulamanın kendi Settings ekranına girilir ve Drive'daki
+  `settings.json`'a düşer — bir kere, sonsuza kadar. queen-editor'den bilerek ayrılan yer.~~
+  **Madde 62 bunu tersine çevirdi**: anahtar da `GITHUB_TOKEN` gibi Secrets'tan okunuyor, Settings
+  ekranı kaldırıldı. Ayrılan yer kapandı — sebebi orada.
 - **Nasıl görülür:** Secrets boşken hücre ne yapılacağını söyleyerek duruyor; doluyken Drive kökünü
   basıyor.
 
@@ -144,18 +146,35 @@ küçük: `create_app` içinde tek bir `before_request`, ve arayüzde sıfır de
 - **Koşudaki yeri:** 57'den sonra, 58'den önce — 58 adı yazacağı için doğru adın önce oturması
   gerekiyordu.
 
+### Madde 62 — Anahtar Secrets'tan gelir, Settings kalkar *(sonradan eklendi, 20 Ağustos)*
+
+- **Ne çalışır:** xAI anahtarı `XAI_API_KEY` ortam değişkeninden okunur — Colab'da Secrets'tan,
+  yerelde kabuktan. Settings ekranı, rotası, uç noktası, deposu ve `settings.json` dosyası
+  tamamen kalkar.
+- **Neden:** `GET /api/settings` anahtarı düz metin döndürüyordu. Kodun kendi yorumu gerekçesini
+  yazıyordu — *"this is the user's own machine"* — ve o varsayım Madde 53–58 uygulamayı parolasız
+  bir tünelin arkasına koyduğu an yalan oldu. Linki eline geçiren anahtarı okuyabiliyordu. Bunu
+  kapatmanın yolu uç noktayı düzeltmek değil, ortadan kaldırmak: ikinci bir kaynak da olmayınca
+  hangisinin geçerli olduğu sorusu hiç doğmuyor.
+- **Nasıl görülür:** Secrets'ta `XAI_API_KEY` yokken CONFIG hücresi ne yapılacağını söyleyerek
+  duruyor; varken uygulama soruya cevap veriyor. `<link>/api/settings` 404.
+- **Koşudaki yeri:** 61'den sonra, 58'den önce — 58 arkadaşın adımlarını yazacak, ve o adımlar bu
+  maddeden sonra başka.
+- **Bedeli:** anahtarsız açılan uygulamanın yerelde "anahtar yok" demekten başka söyleyeceği bir
+  şey kalmıyor; gidilecek ekran yok. Colab tarafında bu, hücrenin baştan durmasıyla karşılanıyor.
+
 ### Madde 58 — Arkadaşının yolu, ve Drive'da ne olduğu
 
 - **Ne çalışır:** defterin ilk markdown hücresi ve `queen-agent/README.md` sırayı adım adım söyler:
-  defteri Colab'a yükle → 🔑 Secrets'a `GITHUB_TOKEN` ekle → Run all → Drive iznini ver → linke gir
-  → **Settings'e kendi xAI anahtarını yaz**. Türkçe, çünkü okuyan bir insan.
+  defteri Colab'a yükle → 🔑 Secrets'a `GITHUB_TOKEN` **ve** `XAI_API_KEY` ekle → Run all → Drive
+  iznini ver → linke gir. Türkçe, çünkü okuyan bir insan. *(Anahtarın Secrets'a girmesi Madde
+  62'nin kararı; önceki sürüm burada Settings ekranını tarif ediyordu.)*
 
   Aynı yerde **Drive'da ne olduğu** anlatılır. Yapı zaten var, uydurulmuyor — yazılıyor, ki klasöre
   bakan biri ne gördüğünü bilsin:
 
   ```
   MyDrive/queenAgent/
-    settings.json          ← xAI anahtarı
     trash/                 ← silinen projelerin tamamı
     p<12 hex>/             ← bir proje
       project.json         ← adı ve doğduğu an
@@ -164,14 +183,16 @@ küçük: `create_app` içinde tek bir `before_request`, ve arayüzde sıfır de
       trash/               ← bu projeden silinen sohbet ve dosyalar
   ```
 
-  Dört uyarı da burada, çünkü hiçbiri koddan anlaşılmaz:
+  Üç uyarı da burada, çünkü hiçbiri koddan anlaşılmaz:
   1. **Link parolasızdır — kime verilirse o kişi her şeye girer.** Anahtarı harcayabilir, bütün
      dosyaları okuyabilir. Adres rastgele ve oturumluk, koruma bundan ibaret. Bu, birinci sırada
      yazılır.
   2. **Aynı klasöre iki oturum bakmasın** — uygulamada kilit yok.
   3. **Çalışırken klasörü Drive web arayüzünden karıştırma** — Drive aynı klasörde aynı adlı iki
      dosyaya izin verir, FUSE birini seçmek zorunda kalır.
-  4. **xAI anahtarı Drive'da düz metin.** Yerelde de öyle, ama Drive'da Google'a senkronlanır.
+
+  ~~Dördüncüsü — xAI anahtarının Drive'da düz metin durduğu — **Madde 62 ile düştü**: anahtar
+  Drive'a hiç yazılmıyor.~~
 - **Nasıl görülür:** daha önce hiç açmamış biri, sormadan sonuna kadar gidiyor; Drive klasörüne
   bakınca ne olduğunu anlıyor.
 

@@ -37,7 +37,6 @@ export default function Sidebar({
   onCloseMenu,
   onRenameProject,
   onDeleteProject,
-  onOpenSettings,
   collapsed,
   onToggle,
 }) {
@@ -155,13 +154,6 @@ export default function Sidebar({
         </div>
       ) : null}
 
-      {/* At the foot, under everything: it belongs to the app rather than to any project in it, and
-          it is the one row that is there whether a project is selected or not. */}
-      <div className="sidebar__foot">
-        <button type="button" className="sidebar__settings" onClick={onOpenSettings}>
-          Settings
-        </button>
-      </div>
     </aside>
   );
 }

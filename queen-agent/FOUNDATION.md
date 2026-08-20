@@ -45,13 +45,16 @@ an instruction asking for care, and its input is data on disk the user can read 
 there is no GPU to borrow and Colab's one benefit still does not apply. What settled the second road
 was sharing — which this file used to call a decision we had not made. Handing the app to someone
 else meant either an executable, rebuilt and re-sent by hand on every change, or a notebook that
-clones this repo; and the app was already shaped for the notebook, since the root travels in
-`QUEENAGENT_ROOT`, the key lives under it, and the only third-party dependency is Flask.
+clones this repo; and the app was already shaped for the notebook, since everything it is told from
+outside travels in the environment — the root in `QUEENAGENT_ROOT`, the key in `XAI_API_KEY` — and
+the only third-party dependency is Flask.
 Consequence: Colab is a second surface, never a replacement, and its costs are paid where they land.
 Drive holds the work, and the address is a public tunnel — Colab's own kernel proxy would have been
 private, but it forwards only GET, and this app creates, sends and deletes. **The app carries no
-login, so whoever holds the address holds everything behind it**: the key it spends and the files it
-keeps. What guards it is that the address is random and lasts one session. That is thin, and it is
+login, so whoever holds the address holds everything behind it**: the files it keeps, and the key it
+spends on their behalf. The key itself cannot be read back — the app stores none and there is no
+endpoint that answers with one — but that is a limit on the damage, not a defence of the address.
+What guards the address is that it is random and lasts one session. That is thin, and it is
 accepted knowingly (owner's decision, 20 August) — the alternative was a password, and the cost of
 one on every visit was judged higher than the risk of an address nobody has been given.
 

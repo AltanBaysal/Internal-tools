@@ -12,9 +12,15 @@ PORT = 8100  # queen-editor owns 8000 and both can run on this machine at the sa
 # the source tree and `git status` never sees it.
 ROOT = os.environ.get("QUEENAGENT_ROOT", os.path.join(os.path.expanduser("~"), "QueenAgent"))
 
-# The API key is not here: it is written in the app's own Settings screen and lives in settings.json
-# under ROOT. One road, and it can be changed without restarting the server.
+# One road for the key, and this is it. On Colab it arrives from Secrets through the notebook, in a
+# shell it is exported before the server starts -- and the app cannot tell the two apart. It used to
+# be typed into a Settings screen instead, until that screen's own endpoint handed the key back in
+# plain text to anyone holding a link that has no password.
 #
+# Empty rather than absent when it is unset: the app starts without a key and only asking for an
+# answer fails.
+XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
+
 # What a chat that picked no model of its own answers with. Every chat may carry its own choice, so
 # this is the starting point rather than the only model.
 #

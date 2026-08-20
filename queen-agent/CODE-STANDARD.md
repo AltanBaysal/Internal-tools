@@ -34,7 +34,6 @@ The store follows the same rule, and it is why there is no file-index file:
 | `chats/<id>.json` | what was said in this conversation, and what it answers with | after each message, and on a model or skill choice |
 | `files/<name>` | what did QueenAgent produce | when a file is created |
 | `trash/<name>` | what did the user just delete | on delete — a chat and a file alike |
-| `settings.json` | what was the app itself told — today the xAI key | on Save in Settings |
 
 **No file repeats another's answer.** The file list is the directory listing itself: the name is the
 filename, "2h ago" is its mtime, the order is mtime descending. The count on a sidebar project row is
@@ -65,16 +64,18 @@ Dependency direction: `presentation → domain ← data → services`.
 Bans (no exceptions): `feature ↛ feature`, `service ↛ feature`, `service ↛ service`.
 Concrete classes are wired only in the composition root (`main.py`).
 
-### Two features: `workspace` and `settings`
+### One feature: `workspace`
 
 `workspace` is one feature and not four. Projects, chats, files and messages cannot be separated,
 because **writing a file in reply to a message touches all of them at once** — splitting them would
 break `feature ↛ feature` on the first real use case. They are one aggregate.
 
-`settings` is the app's own configuration — today the xAI API key. It is a feature of its own
-because nothing in the workspace touches it: no project, chat or file has an opinion about the key.
-The ban holds because **workspace never imports it**; what binds the key to the engine is the
-composition root, whose job that is.
+And it is the only one. **The app has no feature for its own configuration**: everything it is told
+from outside arrives in the environment and stops at `config.py`. There was a `settings` feature
+once, holding the xAI key — it was deleted because the endpoint that served the key back was written
+for a machine only its owner could reach, and Colab put the app behind a public address. The next
+setting goes in `config.py` too; a feature is what the user makes things in, not where the app keeps
+what it was told.
 
 A third feature is created on the same test: a genuinely separate bounded context (sharing,
 identity). Today there is none.

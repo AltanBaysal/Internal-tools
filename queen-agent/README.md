@@ -12,6 +12,7 @@ npm install
 npm run build           # dist is committed, so this is only needed after a source change
 
 cd ..
+export XAI_API_KEY=...  # or set it however your shell does
 python main.py          # http://127.0.0.1:8100
 ```
 
@@ -20,11 +21,11 @@ Colab notebook that clones this repo and never builds ([FOUNDATION.md](FOUNDATIO
 and 3). So a frontend change is not finished until `dist` is rebuilt and committed **with** its
 source — `backend/tests/test_dist_is_committed.py` refuses the alternative.
 
-Then open **Settings** at the foot of the sidebar and paste your xAI key. It is saved beside your
-projects and read again on every request, so changing it needs no restart. The app starts without
-one; only asking for an answer fails.
+The key is read at startup and the app saves none of it — there is no screen for typing one and no
+endpoint that answers with one, which is what makes the Colab address survivable. Without a key the
+app still starts; only asking for an answer fails, and it fails saying so.
 
-Where your projects live is `QUEENAGENT_ROOT` — that and every other setting are named in
+Where your projects live is `QUEENAGENT_ROOT` — that, the key and every other setting are named in
 [backend/config.py](backend/config.py), which is the one place they exist.
 
 ## Develop

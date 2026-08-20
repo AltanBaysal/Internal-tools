@@ -24,8 +24,8 @@ class _Response:
 
 
 def _client(opener, api_key="key"):
-    # A function rather than a string: the key is settled in the app's own settings and can change
-    # while it runs, so it is read at the moment it is needed.
+    # A function rather than a string: where the key comes from is the composition root's decision,
+    # and the client is built so that changing it never reaches here.
     return XaiClient(lambda: api_key, "grok-4.5", "https://api.x.ai/v1", opener=opener)
 
 
@@ -34,7 +34,9 @@ def test_no_key_is_reported_before_anything_is_sent():
     with pytest.raises(XaiNotConfigured) as refused:
         _client(lambda request: sent.append(request), api_key="").complete(MESSAGES)
     assert sent == []
-    # The old sentence named an environment variable that no longer exists.
+    # Deliberately does not name where a key would come from. The client is not told, and a sentence
+    # that guessed would have been wrong twice already -- once when Settings replaced the
+    # environment variable, and again in Madde 62 when the environment took it back.
     assert "No API key is set" in str(refused.value)
 
 
@@ -49,7 +51,8 @@ def test_the_key_is_read_at_every_request():
     client = XaiClient(lambda: keys.pop(0), "grok-4.5", "https://api.x.ai/v1", opener=opener)
     client.complete(MESSAGES)
     client.complete(MESSAGES)
-    # Held as a string, saving a key in Settings would need a restart to be worth anything.
+    # Read per request rather than held: the client stays out of the question of where the key comes
+    # from, so a source that can change mid-run costs it nothing.
     assert seen == ["Bearer first", "Bearer second"]
 
 

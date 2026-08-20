@@ -125,31 +125,9 @@ test("no failure card ever offers a settings screen", () => {
   expect(screen.queryByRole("button", { name: /Settings/ })).toBeNull();
 });
 
-test("with no key saved, the failure card offers the way to fix it", () => {
-  const onSettings = vi.fn();
-  render(
-    <ChatScreen
-      project={PROJECT}
-      chat={CHAT}
-      error="No API key is set."
-      missingKey
-      onSettings={onSettings}
-    />,
-  );
-  fireEvent.click(screen.getByRole("button", { name: /Settings/ }));
-  expect(onSettings).toHaveBeenCalled();
-});
-
-test("with a key saved the card says nothing about settings", () => {
-  // Whether a key is set is something the app knows for itself. Reading it off the error text would
-  // break silently the day the server's sentence changes.
-  render(<ChatScreen project={PROJECT} chat={CHAT} error="No API key is set." onSettings={vi.fn()} />);
-  expect(screen.queryByRole("button", { name: /Settings/ })).toBeNull();
-});
-
-test("no failure, no settings line", () => {
-  render(<ChatScreen project={PROJECT} chat={CHAT} missingKey onSettings={vi.fn()} />);
-  expect(screen.queryByRole("button", { name: /Settings/ })).toBeNull();
+test("no failure, no card at all", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
 });
 
 test("a message that was never sent is not told as an answer that never came", () => {

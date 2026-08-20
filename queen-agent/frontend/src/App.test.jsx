@@ -11,6 +11,9 @@ afterEach(() => {
 });
 
 const PROJECT = { id: "p1", name: "Old", chats: 0, files: 0 };
+// The fork lands on the first project, so a test about where the fork did NOT send the user needs
+// a second one -- going to the first would read the same either way.
+const PROJECT_2 = { id: "p2", name: "Newer", chats: 0, files: 0 };
 
 function stubProjects(projects) {
   const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => projects });
@@ -68,53 +71,34 @@ test("an address is not called wrong before the list has arrived", async () => {
   await waitFor(() => expect(screen.getByText("That project does not exist.")).toBeTruthy());
 });
 
-test("the fork keeps quiet once the user has gone somewhere", async () => {
-  // Madde 52: "/" is a fork, and a fork only decides for someone who is still standing on it. The
-  // list arriving late must not replace an address the user chose in the meantime.
-  window.history.pushState(null, "", "/");
-  let answer;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockReturnValue(
-      new Promise((resolve) => {
-        answer = () => resolve({ ok: true, status: 200, json: async () => [PROJECT] });
-      }),
-    ),
-  );
-  render(<App />);
-
-  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-  expect(window.location.pathname).toBe("/settings");
-
-  await act(async () => {
-    answer();
-  });
-  expect(window.location.pathname).toBe("/settings");
-  expect(screen.queryByText("Old", { selector: ".screen__title" })).toBeNull();
-});
-
 test("the fork asks the browser where we are, not the render it was built from", async () => {
-  // The hazard behind finding 15. A React effect carries the values of the commit that scheduled it,
-  // so a list arriving in the same batch as a move can fire a fork that was decided for an address
-  // the user has already left. Here the address moves without React being told -- which is exactly
-  // the stale commit, made deterministic.
+  // Madde 52, and the hazard behind finding 15. A React effect carries the values of the commit that
+  // scheduled it, so a list arriving in the same batch as a move can fire a fork that was decided
+  // for an address the user has already left. Here the address moves without React being told --
+  // which is exactly the stale commit, made deterministic.
+  //
+  // This was one of a pair. Its sibling moved through the app instead of behind its back, and its
+  // only way to do that before the list arrived was the Settings row -- gone with Madde 62, and
+  // nothing else at the fork navigates. Nothing is lost: an in-app move updates the address React
+  // holds, so the fork's own dependency turns null and the effect never runs at all. This test is
+  // the harder half, where the effect does run and has to decline.
   window.history.pushState(null, "", "/");
   let answer;
   vi.stubGlobal(
     "fetch",
     vi.fn().mockReturnValue(
       new Promise((resolve) => {
-        answer = () => resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+        answer = () => resolve({ ok: true, status: 200, json: async () => [PROJECT, PROJECT_2] });
       }),
     ),
   );
   render(<App />);
 
-  window.history.pushState(null, "", "/settings");
+  window.history.pushState(null, "", "/p/p2");
   await act(async () => {
     answer();
   });
-  expect(window.location.pathname).toBe("/settings");
+  expect(window.location.pathname).toBe("/p/p2");
 });
 
 test("/settings is an address like any other unknown one: the fork lands it on a project", async () => {
@@ -138,42 +122,6 @@ test("the app never asks the server for settings", async () => {
   await screen.findByText("Old", { selector: ".screen__title" });
   const asked = fetch.mock.calls.filter(([path]) => String(path).startsWith("/api/settings"));
   expect(asked).toEqual([]);
-});
-
-test("the sidebar's Settings row opens the settings screen at its own address", async () => {
-  stubProjects([PROJECT]);
-  render(<App />);
-
-  // Clicked once the fork has landed, so this test is about the row rather than about the race.
-  // Pressing it earlier holds too now -- Madde 52, and its own two tests say so.
-  await screen.findByText("Old", { selector: ".screen__title" });
-  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
-  await waitFor(() =>
-    expect(screen.getByRole("heading", { level: 1, name: "Settings" })).toBeTruthy(),
-  );
-  expect(window.location.pathname).toBe("/settings");
-});
-
-test("saving the key from that screen sends it to the server", async () => {
-  const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path === "/api/settings" && options?.method === "PATCH") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({ apiKey: "xai-new" }) });
-    }
-    if (path === "/api/settings") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({ apiKey: "" }) });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
-  });
-  vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/settings");
-  render(<App />);
-
-  const box = await screen.findByLabelText("XAI API KEY");
-  fireEvent.change(box, { target: { value: "xai-new" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save" }));
-  await waitFor(() => expect(screen.getByText("Saved.")).toBeTruthy());
-  const saved = fetch.mock.calls.find(([path, options]) => options?.method === "PATCH");
-  expect(JSON.parse(saved[1].body)).toEqual({ apiKey: "xai-new" });
 });
 
 test("the shell wears the step it was measured at", () => {

@@ -126,12 +126,19 @@ def test_the_notebook_no_longer_points_at_a_settings_screen():
 
 
 def test_the_xai_key_is_never_printed():
-    """A lock rather than a test, and said so in Madde 62's plan: the notebook never held this
-    string, so the claim cannot fail today. It is written for the day someone prints the key while
-    chasing something else -- the sibling of the rule that keeps the clone URL out of the output."""
+    """The sibling of the rule that keeps the clone URL out of the output, and a lock rather than a
+    test: nothing interpolates the key today, so it cannot fail yet.
+
+    Asked about the value, not the name. The first version banned the string XAI_API_KEY from any
+    print line and went red the moment the notebook told the user which secret to add -- which is a
+    sentence the user needs. The name belongs in the output; only the value must never reach it, and
+    it can only get there by interpolation or as the argument itself.
+    """
     for line in _source().splitlines():
-        if "print(" in line:
-            assert "XAI_API_KEY" not in line, f"Anahtar basılıyor: {line.strip()}"
+        if "print(" not in line:
+            continue
+        assert "{XAI_API_KEY" not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
+        assert "print(XAI_API_KEY" not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
 
 
 # --- Madde 56: the clone -------------------------------------------------------------------------

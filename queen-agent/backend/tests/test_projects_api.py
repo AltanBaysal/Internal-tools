@@ -34,10 +34,10 @@ def test_empty_root_returns_an_empty_list(tmp_path):
     assert resp.get_json() == []
 
 
-def test_the_settings_file_is_not_a_project(tmp_path):
-    # It lives beside the project folders, and the list already skips anything without a
-    # project.json in it. Stated as a test because it is now a real file rather than a maybe.
-    (tmp_path / "settings.json").write_text('{"apiKey": "xai-abc123"}', encoding="utf-8")
+def test_a_stray_file_beside_the_projects_is_not_one(tmp_path):
+    # The list skips anything without a project.json in it. The root is on the user's own Drive or
+    # disk, so a file nobody planned for can land there at any time -- and it must not become a row.
+    (tmp_path / "notes.json").write_text('{"anything": "at all"}', encoding="utf-8")
     assert _client(tmp_path).get("/api/projects").get_json() == []
 
 

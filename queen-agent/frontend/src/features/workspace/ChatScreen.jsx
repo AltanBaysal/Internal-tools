@@ -71,8 +71,6 @@ export default function ChatScreen({
   createdFiles = [],
   picker,
   onPicker,
-  missingKey,
-  onSettings,
   onBack,
   onSend,
   onModelChange,
@@ -229,14 +227,10 @@ export default function ChatScreen({
                       key and a wrong model name raise this same card -- so the card states what
                       happened and the server's own words sit underneath. */}
                   <span className="failure__line">Couldn&apos;t get a response.</span>
+                  {/* The server's own words and nothing beside them. There used to be a way out
+                      offered here -- a screen for typing a missing key -- and with the key coming
+                      from the environment there is no longer anywhere for it to lead. */}
                   <span className="failure__detail">{error}</span>
-                  {/* Whether a key is saved is something the app knows for itself. Reading it off
-                      this sentence would break the day the server's words change. */}
-                  {missingKey ? (
-                    <button type="button" className="failure__settings" onClick={onSettings}>
-                      Add your API key in Settings
-                    </button>
-                  ) : null}
                 </div>
                 {onRetry ? (
                   <button type="button" className="failure__retry" onClick={onRetry}>
