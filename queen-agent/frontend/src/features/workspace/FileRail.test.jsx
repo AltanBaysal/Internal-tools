@@ -269,6 +269,37 @@ test("another file can be reached without closing the one open", () => {
   expect(open).toHaveBeenCalledWith("sources.txt");
 });
 
+// Madde 63: what is being read gets the whole rail. The list is one press of ← away, and 200 of the
+// rail's 560 pixels were going to something already reachable.
+
+test("an open file takes the rail over", () => {
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
+  // The reader is asked for first: a rail that drew nothing at all would pass the absences below
+  // while being far more broken than the thing they are guarding against.
+  expect(screen.getByText("read me")).toBeTruthy();
+  expect(screen.queryByText("sources.txt")).toBeNull();
+});
+
+test("while reading, the rail says nothing about a list", () => {
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
+  expect(screen.getByText("read me")).toBeTruthy();
+  // Neither as a heading nor as a label. There is no list for the words to be about.
+  expect(screen.queryByText("Project files")).toBeNull();
+});
+
+test("while reading, there is nothing to delete", () => {
+  // Not a rule of its own -- a consequence. Deleting happened from rows, and there are no rows.
+  render(
+    <FileRail
+      files={FILES}
+      reading={{ name: "outline.md", file: OPEN_FILE }}
+      deleting={{ remove: vi.fn() }}
+    />,
+  );
+  expect(screen.getByText("read me")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /^Delete / })).toBeNull();
+});
+
 test("while reading, the list keeps its label and loses its control", () => {
   // Madde 20's rule stands: a rail showing a document has nothing to fold away.
   render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);

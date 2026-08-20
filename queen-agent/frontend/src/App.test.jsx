@@ -857,6 +857,26 @@ test("opening a file unfolds the rail rather than hiding what was opened", async
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
 });
 
+test("opening a file empties the rail, and ← brings the list back", async () => {
+  // Madde 63, end to end -- and the whole decision rests on the second half. Giving the rail over to
+  // the document is only acceptable because the list is one press away, so the press is asked for
+  // here rather than assumed. App's, not the rail's: the rail calls close, App is what it does.
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  const { container } = render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+  expect(screen.queryByText("Project files")).toBeNull();
+  // The row rather than the name: the reader's own header says "plan.md" too.
+  expect(container.querySelector(".file-row")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "←" }));
+  await waitFor(() => expect(screen.getByText("Project files")).toBeTruthy());
+  expect(container.querySelector(".file-row")).toBeTruthy();
+});
+
 test("the card in the transcript opens the file, unfolding the rail on the way", async () => {
   const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
   const chat = {

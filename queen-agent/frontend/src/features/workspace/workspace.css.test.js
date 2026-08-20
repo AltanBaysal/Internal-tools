@@ -297,6 +297,25 @@ test("the card of the file being read is marked", () => {
   expect(block).toContain("border-color: #cfc3b2");
 });
 
+// Madde 63: reading empties the rail rather than splitting it. The document takes all 560.
+
+test("the rail has no list column while it is reading", () => {
+  // Asked of the file rather than through rule(): that helper asserts the selector exists, so a
+  // deleted rule would fail its assert instead of this one, and the test would go red saying the
+  // wrong thing.
+  //
+  // Collected into a list rather than asked as `not.toContain`: a failing toContain on a file this
+  // size prints the whole stylesheet, and whoever re-adds the rule one day deserves to be shown the
+  // line they added instead of twenty thousand they did not.
+  const found = CSS.split("\n").filter((line) => line.startsWith(".rail__list"));
+  expect(found).toEqual([]);
+});
+
+test("nothing in the reading rail is spaced apart from anything", () => {
+  // gap separates two children. There is one.
+  expect(rule(".rail--open")).not.toContain("gap");
+});
+
 test("while reading, the rail is two columns and the list keeps one", () => {
   // The design gives 320 to 560 and no split; the list takes the narrower half so the document gets
   // the room it is there for.
