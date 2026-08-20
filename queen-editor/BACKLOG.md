@@ -63,10 +63,3 @@ olduğunu ve elde ne olduğunu tutuyor.
   yazılıyor, yani bir ses satırından yeniden üretilemiyor. Video da bugün böyle. Düzeltmek
   üreticinin kullandığı tohumu geri döndürmesini, yani üç üreticinin de port'unu değiştirmeyi
   gerektirir.
-
-## Colab turuna bağlı
-
-- **Sürükleme gerçekten düzeldi mi.** v12 karoyu basıştan önce sürüklenebilir yaptı; teşhis
-  çıkarımdı, burada tarayıcı yok. Kart hâlâ kalkmıyorsa sıradaki şüpheli karonun içindeki bağlantı
-  ve resmin `draggable={false}` zinciri — o zaman resmin üstünden değil **karonun kenarından**
-  sürüklemeyi dene, ikisini ayırt eder.
