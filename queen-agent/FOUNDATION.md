@@ -48,9 +48,12 @@ else meant either an executable, rebuilt and re-sent by hand on every change, or
 clones this repo; and the app was already shaped for the notebook, since the root travels in
 `QUEENAGENT_ROOT`, the key lives under it, and the only third-party dependency is Flask.
 Consequence: Colab is a second surface, never a replacement, and its costs are paid where they land.
-Drive holds the work, and because the address it is served on is a public tunnel, **it may not be
-served without a password**. Colab's own kernel proxy would have been private and would have needed
-none, but it forwards only GET — and this app creates, sends and deletes.
+Drive holds the work, and the address is a public tunnel — Colab's own kernel proxy would have been
+private, but it forwards only GET, and this app creates, sends and deletes. **The app carries no
+login, so whoever holds the address holds everything behind it**: the key it spends and the files it
+keeps. What guards it is that the address is random and lasts one session. That is thin, and it is
+accepted knowingly (owner's decision, 20 August) — the alternative was a password, and the cost of
+one on every visit was judged higher than the risk of an address nobody has been given.
 
 **2. Backend is sync Flask; frontend is React 18 built with Vite.**
 Why: the backend is thin — file operations, one outbound API call, streaming its result back — so
