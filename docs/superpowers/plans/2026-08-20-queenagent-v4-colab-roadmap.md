@@ -1,6 +1,7 @@
 # QueenAgent v4 Yol Haritası — Colab'da paylaşım
 
-**Tarih:** 2026-08-20 · **Branch:** `feat/queenagent-colab`
+**Tarih:** 2026-08-20 · **Branch:** `feat/queenagent-colab` — *20 Ağustos'ta `main`'e merge edildi
+(fast-forward). Defterin klonladığı dal Madde 64'te main'e çevrildi.*
 **Kaynak:** kullanıcı isteği — "arkadaşımla paylaşmak"; Colab, **derlenip commit'lensin**, veri
 **Drive'da**. Numaralar v3'ten devam eder (52'de bitti).
 **Örnek:** [queen-editor/app.ipynb](../../../queen-editor/app.ipynb) — desen oradan alınır.
@@ -162,6 +163,19 @@ küçük: `create_app` içinde tek bir `before_request`, ve arayüzde sıfır de
   maddeden sonra başka.
 - **Bedeli:** anahtarsız açılan uygulamanın yerelde "anahtar yok" demekten başka söyleyeceği bir
   şey kalmıyor; gidilecek ekran yok. Colab tarafında bu, hücrenin baştan durmasıyla karşılanıyor.
+
+### Madde 64 — Defter main'den klonlar *(sonradan eklendi, 20 Ağustos)*
+
+- **Ne çalışır:** CONFIG'de `BRANCH = "main"`. Dal merge edildi, yani Madde 55'te yazılan gerekçe
+  — *"main bunu taşımıyor"* — o merge ile birlikte yalan oldu.
+- **Neden şimdi:** yanlışlık **görünmüyor.** Özellik dalı durduğu sürece defter çalışmaya devam
+  ediyor; silindiği gün `Remote branch feat/queenagent-colab not found` diyor ve o cümle ne zaman
+  bozulduğunu söylemiyor. Yanlış olduğu tek an, merge ile düzeltme arasındaki an — o yüzden
+  merge'in hemen ardında.
+- **Nasıl görülür:** CONFIG hücresi `✓ Dal: main` basıyor.
+- **Testi:** iki tane, ve ikincisi asıl kural — defterin **hiçbir yerinde** özellik dalı adı
+  geçmemesi. Bir madde koşarken `BRANCH`'i kendi dalına çevirmek doğal; öyle commit'lemek değil,
+  ve unutulmuş bir dal adı en uzun ömrü bir yorumun içinde yaşar.
 
 ### Madde 58 — Arkadaşının yolu, ve Drive'da ne olduğu
 
