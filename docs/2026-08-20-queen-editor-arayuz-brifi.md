@@ -43,37 +43,20 @@ için kart nereye taşınırsa taşınsın bozulmuyor. Aynı kontrolün iki modu
 
 ## 4.1 · Her sekme yalnız kendi katmanını göstersin
 
-Kare detayında üç sekme var: Foto, Video, Ses. Katmanlar üst üste biniyor — fotoğraf en altta, video
-onun üstünde, ses en üstte. Sayfa bugün "açık sekmenin altındakileri de göster" diye kurulmuş:
+Kare detayında üç sekme var: Foto, Video, Ses. Sayfa bugün açık sekmenin altındaki katmanları da
+gösteriyor — video sekmesinde fotoğrafın dosya adı ve prompt'u da yazıyor, ses sekmesinde ikisi
+birden. Bu bilerek yapılmıştı ("bu katman neyden yapıldı" görünsün diye), kararı geri alıyoruz.
 
-| Açık sekme | Bugün sağ sütunda görünen | Olması gereken |
-|---|---|---|
-| Foto | Yalnız fotoğraf | Aynı — zaten doğru |
-| Video | Fotoğraf **+** video | Yalnız video |
-| Ses | Fotoğraf **+** video **+** ses | Yalnız ses |
+**Karar verildi.** Üçü de aynı, sade düzen:
 
-Bu bilerek yapılmıştı ("bu katman neyden yapıldı" görünsün diye), kararı geri alıyoruz.
+- Üstte **kartın adı ve sırası**
+- Altında **yalnız o sekmenin prompt'u** — Foto'da foto prompt'u, Video'da video prompt'u, Ses'te ses
+  prompt'u
 
-**Karar verildi:** video seçiliyse video detayları görünür, ses seçiliyse ses detayları, foto
-seçiliyse foto detayları.
+Başka prompt yok, katmanların dosya adları hiç yazmıyor. Bu Foto sekmesini de değiştiriyor: orada da
+bugün bir dosya adı satırı var, o da gidiyor.
 
-- **Kalacak:** kaçıncı kare olduğu · **kartın kendi adı** · açık sekmenin kendi prompt kutusu
-- **Gidecek:** katman başına açılan dosya adı satırlarının **hepsi** — açık olanınki de dahil ·
-  alttaki katmanların prompt kutuları
-
-Yani sekmede görünen tek ad kartın adı; katmanların dosya adları hiç yazmıyor. Video sekmesi için
-somut hâli:
-
-```
-bugün                            olması gereken
-
-Sıra          3 / 12             Sıra          3 / 12
-Foto          kare_03.png        <kartın adı>
-Video         kare_03.mp4
-                                 Prompt   [video'nun prompt'u]
-Prompt   [video'nun prompt'u]
-Foto prompt   [salt okunur]
-```
+Düğmeler bugünkü gibi kalıyor.
 
 Video prompt'u çoğu zaman boş — onu yapay zekâ yazıyor, üretim sırası gelene kadar boş duruyor. Bu
 durumda prompt kutusu boş görünsün, yeter; ayrı bir boş sayfa tasarımı istemiyoruz. Bu maddede

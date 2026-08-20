@@ -89,9 +89,9 @@ olur; seçim kart başına mı, toplu mu.
 
 ### 4.1 Detay sayfası yalnız kendi katmanını göstersin
 Bugün açık sekmenin altındaki katmanlar da görünüyor — video sekmesinde fotoğrafın adı ve prompt'u da
-yazıyor. Kalacak olan: kaçıncı kare olduğu, kartın kendi adı ve açık sekmenin kendi prompt kutusu.
-Katman başına açılan dosya adı satırlarının hepsi gidiyor, açık olanınki de dahil: sekmede görünen
-tek ad kartın adı.
+yazıyor. Üçü de aynı, sade düzene inecek: üstte kartın adı ve sırası, altında yalnız o sekmenin
+prompt'u. Başka prompt yok, katmanların dosya adları hiç yazmıyor — Foto sekmesindeki dosya adı
+satırı da gidiyor. Düğmeler bugünkü gibi kalıyor.
 
 Video prompt'u çoğu zaman boş olduğu için sekme boşalabilir; o durumda prompt kutusu boş görünsün,
 ayrı bir boş sayfa tasarımı istenmiyor.
