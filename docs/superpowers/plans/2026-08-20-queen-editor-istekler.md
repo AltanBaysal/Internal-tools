@@ -1,0 +1,155 @@
+# Queen Editor — İstekler
+
+**Tarih:** 2026-08-20 · **Dal:** `feat/queen-editor-v4`
+
+Sıradaki işlerin tek listesi. Kullanıcının bugün saydıkları, kendi sırasıyla; bekleyen eski maddeler
+de bunların içine yerleşti.
+
+Maddeler ne istendiğini ve neye bağlı olduğunu söylüyor; nasıl yapılacağı sırası gelince kendi
+spec'inde çıkar. Bilerek ertelenmiş işlerin kalıcı kaydı [BACKLOG.md](../../../queen-editor/BACKLOG.md).
+
+## Ham liste
+
+1. UI hızı ciddi şekilde artırılır
+2. Video modelinin gücü artırılacak
+3. Video üretiminde loop ve bir sonraki kareye bağlama özelliği gelecek
+4. Bulunan UI hataları düzeltilecek
+5. Toplu card taşıma
+6. Detaydan çıkınca yüklenmeme olmaması — sayfa neden, fotolar neden siliniyor
+7. Duplicate card özelliği gelmeli
+8. Default 2 yap
+9. Üretme hızı *(sonradan eklendi, en sona)*
+
+---
+
+## 1 · UI hızı
+
+İki ayrı şey; ilaçları da ayrı.
+
+### 1.1 Galeride fotoğraflar ve videolar yavaş yükleniyor
+Karolar yavaş doluyor, çünkü her karo dosyanın tam boyunu indiriyor.
+
+**Öneri — küçük önizleme.** Karolar için küçük birer önizleme üretilsin; galeri tam boy dosya yerine
+onları göstersin. Asıl hızı bu getirir.
+
+Kararı gereken: önizleme ne zaman üretilecek (kare üretilirken mi, ilk bakışta mı) ve kare
+değişince ne olacak.
+
+**Yarısı yapıldı, görülmedi.** Aynı anda kaç karonun birden indirileceğine bir tavan kondu; bu dalda
+duruyor ama Colab'da denenmedi. Tavan yığılmayı durdurur, indirilen veriyi küçültmez — o yüzden
+önizleme yine de gerekiyor.
+
+### 1.2 Detaydan dönünce ana sayfa state'ini kaybediyor
+Bir kareyi açıp geri gelince galeri sıfırdan yükleniyor, fotoğraflar ekrandan kayboluyor. Dosyalar
+Drive'da duruyor — kaybolan görüntü, veri değil. Olması gereken: geri dönünce sayfa bıraktığın yerde
+dursun.
+
+**Ham listedeki 6 bu maddedir** — aynı kök, tek iş.
+
+## 2 · Video modelinin gücü
+
+Model değişmiyor. Güç iki yerden aranacak.
+
+### 2.1 LoRA denenecek
+Videonun LoRA'ları değiştirilip denenecek.
+
+**Bedeli:** LoRA seçimi bugün uygulamadan yapılamıyor, üretim tarifinin içinde sabit duruyor. Colab
+yalnız yayınlanmış hâli gördüğü için **her deneme bir yayın** demek. Denemeyi ucuzlatmak — LoRA'yı
+uygulamadan seçilebilir kılmak — kendi başına ayrı bir iş; bu maddeye dahil mi, karar gerekir.
+
+### 2.2 Video prompt'u güçlenecek
+Kullanıcı yazmazsa videonun prompt'unu yapay zekâ yazıyor. Ona verilen talimat güçlenecek.
+
+**Kapsam:** şimdilik yalnız talimat. Yazan modeli değiştirmek bu maddede yok.
+
+## 3 · Loop ve sonraki kareye bağlama
+
+**İkisi tek özellik.** Video üretimi ilk ve son kareyi alabilir; fark yalnızca son karenin ne
+olduğunda:
+
+| Mod | İlk kare | Son kare |
+|---|---|---|
+| Loop | Kartın kendi fotoğrafı | Aynı fotoğraf — video başladığı yere döner |
+| Sonrakine bağla | Kartın kendi fotoğrafı | Bir sonraki kartın fotoğrafı |
+
+10. kartta *"sonrakine bağla"* seçilirse: başlangıç 10, bitiş 11.
+
+**Bugün son kare verilemiyor** — üretim yalnız ilk kareyi alıyor. Asıl iş bu; iki mod onun üstüne
+oturan seçim.
+
+Loop için başka bir araçtan grafik devralınması düşünülüyordu; buna gerek kalmıyor, loop kendi
+üretimimizin son karesi.
+
+**Tasarımda çözülecek:** son kartta "sonrakine bağla" ne yapar; sonraki kartın fotoğrafı yoksa ne
+olur; seçim kart başına mı, toplu mu.
+
+## 4 · Bulunan UI hataları
+
+Dördü de daha önce görülmüş, kararı verilmiş, sırası gelmemiş işler.
+
+### 4.1 Detay sayfası yalnız kendi katmanını göstersin
+Bugün açık sekmenin altındaki katmanlar da görünüyor — video sekmesinde fotoğrafın adı ve prompt'u da
+yazıyor. Kalacak olan: kaçıncı kare olduğu ve kartın kendi adı.
+
+**Tasarımda çözülecek:** video prompt'u çoğu zaman boş olduğu için sekme boşalabilir — o boşluk ne
+diyecek.
+
+### 4.2 Foto / Video / Ses sekmeleri ayrılsın
+Bugün bitişikler, tek bir parça gibi duruyorlar. Aralarına boşluk girecek.
+
+**Tasarımda çözülecek:** ayrılınca hangi sekmenin açık olduğu yalnız renkten anlaşılacak; buna bir
+kez daha bakmak gerekir.
+
+### 4.3 Video paneli yanlış sebebi söylüyor
+Seçilen karelerin henüz fotoğrafı yokken panel *"Tüm karelerin videosu var — üretilecek bir şey
+yok"* diyor. Sebep o değil.
+
+### 4.4 Kareler sürüklenip sıralanamıyor
+Bir düzeltme yapıldı ama burada tarayıcı olmadığı için doğrulanamadı; gerçekten düzeldiği **Colab
+turunda** görülecek. Hâlâ çalışmıyorsa fotoğrafın üstünden değil kartın kenarından sürüklemeyi
+denemek, sorunun nerede olduğunu ayırt eder.
+
+## 5 · Toplu kart taşıma
+
+**Neden:** kareler çoğu zaman birbirinin devamı, bir dizi oluşturuyorlar. O diziyi başka bir yere
+almak gerektiğinde kartlar tek tek taşınıyor ve sıra karışıyor.
+
+**Ne olacak:** birden fazla kart seçilip sürüklendiğinde hepsi birlikte taşınacak, kendi aralarındaki
+sıra bozulmadan. Çoklu seçim zaten var; eksik olan seçimin sürüklemeye katılması.
+
+**Bağımlılık:** madde 4.4 — tek kartın sürüklenmesi bile çalışıyor mu, doğrulanmadı. Önce o.
+
+**Tasarımda çözülecek:** seçim dağınıksa ne olur, ve seçilenler bırakılan kartın önüne mi arkasına mı
+gider.
+
+## 7 · Duplicate card — ertelendi
+
+Bugün yok. Şimdilik beklesin.
+
+Sırası gelince cevaplanacak: kopya yalnız tarifi mi alır (yeniden üretilir), yoksa üretilmiş
+dosyaları da mı; ve kopya kaynağın hemen arkasına mı, listenin sonuna mı düşer.
+
+## 8 · Fotoğraf varyant varsayılanı 4 → 2
+
+Üretim panelinde bir prompt'tan kaç kare üretileceğinin varsayılanı 4; 2 olacak. Katman panelindeki
+varyant değişmiyor.
+
+Listedeki en küçük iş.
+
+## 9 · Üretme hızı
+
+Sıranın en sonu. Üretim hızlansın; yol olarak hız LoRA'ları denenecek.
+
+Kazanç fotoğraf tarafında görünüyor — video zaten hızlı koşacak şekilde ayarlı.
+
+**Dikkat:** madde 2.1 videoyu güçlendirmek istiyor, bu madde hızlandırmak. İkisi aynı ayarları ters
+yönlere çekiyor, birlikte bakılmalı.
+
+## Colab turu
+
+İki madde tarayıcı olmadan yargılanamıyor ve ikisi de bu dalda duruyor: **4.4** (sürükleme gerçekten
+düzeldi mi) ve **1.1'in tavanı** (galeri açıkken çıkan zaman aşımı kalktı mı). Notebook yalnız
+yayınlanmış hâli klonladığı için tur, bu dal yayınlanmadan atılamaz.
+
+Turun sonucu sıralamayı değiştirir: tavan yetmediyse 1.1 öne geçer, sürükleme hâlâ kırıksa 5 geri
+kalır.
