@@ -20,6 +20,7 @@ NOTEBOOK = os.path.join(
 
 CONFIG = "# === CONFIG ==="
 CLONE = "# === Clone ==="
+SERVE = "# === Serve ==="
 
 
 def _cells():
@@ -167,3 +168,59 @@ def test_the_clone_cell_refuses_to_run_before_config():
     """Its paths are defined in CONFIG. Without this gate a CONFIG that failed stays invisible until
     something much later breaks for a reason nobody can trace back."""
     assert 'assert "CLONE_DIR" in globals()' in _cell(CLONE)
+
+
+# --- Madde 57: serving it ------------------------------------------------------------------------
+
+
+def test_the_root_travels_to_the_app_in_the_environment():
+    """The app learns where to write from QUEENAGENT_ROOT. Unset, it falls back to a home directory
+    -- on Colab that is local disk, which dies with the runtime while the user believes it worked."""
+    assert '"QUEENAGENT_ROOT": DRIVE_ROOT' in _cell(SERVE)
+
+
+def test_the_server_starts_in_the_background():
+    # run() would block the cell until the server dies, and nothing below it would ever happen.
+    assert "Popen" in _cell(SERVE), "Sunucu arka planda başlatılmıyor"
+
+
+def test_a_server_that_never_came_up_shows_its_own_log():
+    """A Flask process dies for a dozen reasons and the notebook knows none of them. What it does
+    know is whether /api/health answered, and what the server itself wrote."""
+    serve = _cell(SERVE)
+    assert "/api/health" in serve, "Sunucunun kalktığı doğrulanmıyor"
+    assert "readlines()" in serve or "read()" in serve, "Düşerse sunucunun kendi log'u basılmıyor"
+
+
+def test_the_address_comes_from_cloudflared():
+    """Colab's own proxy forwards only GET, and this app creates, sends and deletes."""
+    serve = _cell(SERVE)
+    assert "cloudflared" in serve
+    assert "trycloudflare" in serve, "Link cloudflared çıktısından okunmuyor"
+
+
+def test_the_link_is_printed_saying_it_has_no_password():
+    """There is no login, by the owner's decision, so whoever holds the link holds everything. The
+    warning belongs beside the link: written anywhere else it never reaches the person copying it."""
+    printed = "\n".join(
+        line for line in _cell(SERVE).splitlines() if "print(" in line
+    ).lower()
+    assert printed, "Sunucu hücresi hiçbir şey söylemiyor"
+    assert "parola" in printed, "Linkin yanında parolasız olduğu söylenmiyor"
+
+
+def test_the_cell_stays_open():
+    """A finished cell tells Colab there is nothing left to do here, and the runtime is called idle
+    and shut down -- taking the tunnel with it."""
+    serve = _cell(SERVE)
+    assert "tail" in serve and "-f" in serve
+
+
+def test_running_it_twice_is_safe():
+    """It happened in this very session: an older server kept answering every request while a new
+    one believed it had the port."""
+    assert "pkill" in _cell(SERVE), "İkinci koşuda eski süreçler öldürülmüyor"
+
+
+def test_the_serve_cell_refuses_to_run_before_config():
+    assert 'assert "APP_DIR" in globals()' in _cell(SERVE)
