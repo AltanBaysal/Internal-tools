@@ -100,7 +100,7 @@ küçük: `create_app` içinde tek bir `before_request`, ve arayüzde sıfır de
 
 ### Madde 55 — CONFIG: önce Drive, sonra her şey
 
-- **Ne çalışır:** `queen-agent/app.ipynb`'nin ilk kodu tek bir CONFIG hücresi. Drive **ilk** bağlanır
+- **Ne çalışır:** `queen-agent/queenagent.ipynb`'nin ilk kodu tek bir CONFIG hücresi. Drive **ilk** bağlanır
   (izin penceresi ilk saniyede çıksın). Kök: `MyDrive/queenAgent` — queen-editor'ün `queenEditor`
   klasörünün kardeşi, adı CONFIG'de tek yerde (`DRIVE_FOLDER`). `GITHUB_TOKEN` Colab Secrets'tan
   okunur; yoksa ne yapılacağını söyleyen bir `assert` ile durulur — **yüksek sesle**, ve sebep
@@ -134,6 +134,15 @@ küçük: `create_app` içinde tek bir `before_request`, ve arayüzde sıfır de
 ---
 
 ## Faz 3 — Kapanış
+
+### Madde 61 — Defterin adı ayırt edilebilir *(sonradan eklendi, 20 Ağustos)*
+
+- **Ne çalışır:** defter `app.ipynb` değil **`queenagent.ipynb`**. queen-editor'ünki `app.ipynb`
+  olarak kalıyor, ve Colab bir defteri sekmede yalnız dosya adıyla gösteriyor — ikisi de aynı adı
+  taşırken hangisinin hangisi olduğu görülmüyordu, ve yanlış defterde Run all yanlış depoyu klonlar.
+- **Nasıl görülür:** iki defter Colab'da açıkken sekmelerden ayırt ediliyor.
+- **Koşudaki yeri:** 57'den sonra, 58'den önce — 58 adı yazacağı için doğru adın önce oturması
+  gerekiyordu.
 
 ### Madde 58 — Arkadaşının yolu, ve Drive'da ne olduğu
 
