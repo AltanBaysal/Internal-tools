@@ -1,12 +1,23 @@
 // Single fetch wrapper -- same-origin "/api", so no base URL and no CORS.
 // On failure it throws the server's own message: the rules (and their Turkish wording) live in the
-// backend, and the UI prints whatever comes back.
+// backend, and the UI prints whatever comes back. The proof of what happened rides beside it on
+// the error's `evidence`, for the panels that offer it to be copied.
 
 // fetch has no timeout of its own; when the Colab runtime dies, the Cloudflare edge can hold a
 // request open for minutes, so the poll's catch never fires and the screen freezes on stale state.
 const TIMEOUT_MS = 10_000;
 
+// The sentence a panel shows, and beside it what a developer needs to act: which request, what came
+// back, and the body verbatim. Never a guessed cause -- every line is either what we did or what
+// the service said.
+function failure(said, evidence) {
+  const err = new Error(said);
+  err.evidence = evidence;
+  return err;
+}
+
 async function request(path, options) {
+  const method = options?.method || "GET";
   let resp;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -14,20 +25,27 @@ async function request(path, options) {
     resp = await fetch(path, { ...options, signal: controller.signal });
   } catch (err) {
     // fetch rejects with a browser-English TypeError (or AbortError on timeout) when the tunnel is
-    // unreachable; say it in Turkish and keep the raw text underneath (we never guess the cause).
+    // unreachable. AbortError's own text names our own abort rather than the server, so what goes
+    // down is what we can honestly say: which request, and that we cut it after ten seconds.
     const detail = err.name === "AbortError" ? `Zaman aşımı (${TIMEOUT_MS / 1000} sn)` : err.message;
-    throw new Error(`Sunucuya ulaşılamadı — bağlantıyı kontrol et.\n${detail}`);
+    throw failure("Sunucuya ulaşılamadı — bağlantıyı kontrol et.", `${method} ${path}\n${detail}`);
   } finally {
     clearTimeout(timer);
   }
+  // Bytes first, parsing after. A body is read once and only once, so parsing straight into JSON
+  // threw away every answer that was not JSON -- which is exactly what a tunnel's error page is.
+  const raw = await resp.text();
   let body = null;
   try {
-    body = await resp.json();
+    body = JSON.parse(raw);
   } catch {
     body = null; // empty or non-JSON body (e.g. a tunnel error page)
   }
   if (!resp.ok) {
-    const err = new Error(body?.error || `${resp.status} ${resp.statusText}`);
+    // The server's sentence is an answer, not a diagnosis: the same words come back with a 400 and
+    // with a 500, so the code goes into the evidence even when there is a sentence to show.
+    const err = failure(body?.error || `${resp.status} ${resp.statusText}`,
+                        `${method} ${path}\n${resp.status} ${resp.statusText}\n${raw}`);
     // Which input the server blamed, when it says so -- the panel marks that box (spec §4).
     if (body?.field) err.field = body.field;
     throw err;

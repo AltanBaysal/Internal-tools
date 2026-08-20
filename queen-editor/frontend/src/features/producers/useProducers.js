@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { listProducers } from "../../shared/api.js";
+import { failureText } from "../../shared/failure_text.js";
 
 /** What Kur answers now. The app installs nothing: the models come down in the Colab notebook,
  *  before this process starts (FOUNDATION 9). */
@@ -23,7 +24,7 @@ export function useProducers() {
         setProducers(rows);
         setError(null);
       })
-      .catch((err) => { if (alive.current) setError(err.message); });
+      .catch((err) => { if (alive.current) setError(failureText(err)); });
     return () => { alive.current = false; };
   }, []);
 

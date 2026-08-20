@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { listModels } from "../../shared/api.js";
+import { failureText } from "../../shared/failure_text.js";
 
 // Which models can render, asked once when the project screen opens. There is no list here and no
 // list on the server either: the notebook decides what is installed and the renderer reports it.
@@ -17,7 +18,7 @@ export function useModels() {
   const reload = useCallback(() => (
     listModels()
       .then((list) => { if (alive.current) { setModels(list); setError(null); } })
-      .catch((err) => { if (alive.current) { setModels([]); setError(err.message); } })
+      .catch((err) => { if (alive.current) { setModels([]); setError(failureText(err)); } })
   ), []);
 
   useEffect(() => {

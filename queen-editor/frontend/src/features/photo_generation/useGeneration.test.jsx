@@ -266,6 +266,19 @@ describe("useGeneration", () => {
     expect(result.current.error).toBeNull();
   });
 
+  it("keeps the evidence of a failed poll", async () => {
+    const dead = new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et.");
+    dead.evidence = "GET /api/status\nZaman aşımı (10 sn)";
+    getStatus.mockRejectedValue(dead);
+    listFrames.mockRejectedValue(dead);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    // Storing the message alone threw the proof away at the last step of the road it travelled.
+    expect(result.current.error).toContain("GET /api/status");
+  });
+
   it("asks for the photos once more as the run finishes", async () => {
     getStatus.mockResolvedValue(RUNNING);
     listFrames.mockResolvedValue([]);

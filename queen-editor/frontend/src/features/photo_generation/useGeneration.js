@@ -15,6 +15,7 @@ import {
   saveOrder,
   stopGeneration,
 } from "../../shared/api.js";
+import { failureText } from "../../shared/failure_text.js";
 
 const POLL_MS = 2000;
 
@@ -73,7 +74,7 @@ export function useGeneration(project) {
   const refreshFrames = useCallback(() => {
     listFrames(project)
       .then((data) => { if (alive.current && !savingOrder.current) setFrames(data); })
-      .catch((err) => { if (alive.current) setError(err.message); });
+      .catch((err) => { if (alive.current) setError(failureText(err)); });
   }, [project]);
 
   const poll = useCallback(() => {
@@ -97,7 +98,7 @@ export function useGeneration(project) {
       })
       .catch((err) => {
         if (!alive.current) return;
-        setError(err.message);
+        setError(failureText(err));
         // One bad poll must not kill the chain -- otherwise the screen freezes as "fake alive"
         // and never notices the tunnel coming back.
         clearTimeout(timer.current);
@@ -157,7 +158,7 @@ export function useGeneration(project) {
         })
         .catch((err) => {
           if (!alive.current) return null;
-          setError(err.message);
+          setError(failureText(err));
           setErrorField(err.field || null);
           return null;
         });
@@ -169,7 +170,7 @@ export function useGeneration(project) {
     clearError();
     return resumeBatch(project)
       .then(() => { if (alive.current) startPolling(); })
-      .catch((err) => { if (alive.current) setError(err.message); });
+      .catch((err) => { if (alive.current) setError(failureText(err)); });
   }, [project, startPolling, clearError]);
 
   // Emptying the queue does not start anything: it only changes what is owed, so the screen has to
@@ -177,14 +178,14 @@ export function useGeneration(project) {
   const cancel = useCallback(() => (
     cancelGeneration(project)
       .then(() => { if (alive.current) poll(); })
-      .catch((err) => { if (alive.current) setError(err.message); })
+      .catch((err) => { if (alive.current) setError(failureText(err)); })
   ), [project, poll]);
 
   // One frame, put back in line with the prompt and seed the plan gave it.
   const retry = useCallback((frame) => (
     retryFrame(project, frame)
       .then(() => { if (alive.current) startPolling(); })
-      .catch((err) => { if (alive.current) setError(err.message); })
+      .catch((err) => { if (alive.current) setError(failureText(err)); })
   ), [project, startPolling]);
 
   // Hang a layer on every frame in scope. Resolves with the server's answer so the panel can quote
@@ -198,7 +199,7 @@ export function useGeneration(project) {
       })
       .catch((err) => {
         if (!alive.current) return null;
-        setError(err.message);
+        setError(failureText(err));
         return null;
       })
   ), [project, startPolling]);
@@ -215,7 +216,7 @@ export function useGeneration(project) {
       })
       .catch((err) => {
         if (!alive.current) return null;
-        setError(err.message);
+        setError(failureText(err));
         return null;
       })
   ), [project, startPolling]);
@@ -231,7 +232,7 @@ export function useGeneration(project) {
       })
       .catch((err) => {
         if (!alive.current) return null;
-        setError(err.message);
+        setError(failureText(err));
         return null;
       })
   ), [project, poll]);
@@ -240,14 +241,14 @@ export function useGeneration(project) {
   const retryAll = useCallback(() => (
     retryFailed(project)
       .then(() => { if (alive.current) startPolling(); })
-      .catch((err) => { if (alive.current) setError(err.message); })
+      .catch((err) => { if (alive.current) setError(failureText(err)); })
   ), [project, startPolling]);
 
   const stop = useCallback(() => {
     setStopPressed(true);                     // instant feedback; the server confirms via polls
     return stopGeneration()
       .then((state) => { if (alive.current) setJob(state); })
-      .catch((err) => { if (alive.current) setError(err.message); });
+      .catch((err) => { if (alive.current) setError(failureText(err)); });
   }, []);
 
   // Optimistic: the tiles move the moment they are dropped, because the drag already showed the
@@ -266,7 +267,7 @@ export function useGeneration(project) {
         .catch((err) => {
           savingOrder.current = false;
           if (!alive.current) return;
-          setError(`Sıra kaydedilemedi.\n${err.message}`);
+          setError(`Sıra kaydedilemedi.\n${failureText(err)}`);
           refreshFrames();
         });
     },
@@ -291,7 +292,7 @@ export function useGeneration(project) {
       .catch((err) => {
         // The server's own sentence, with no framing of ours wrapped around it -- the card that
         // shows it supplies the heading, and it is the only side that knows what was attempted.
-        if (alive.current) setError(err.message);
+        if (alive.current) setError(failureText(err));
         return null;
       })
   ), [project]);
