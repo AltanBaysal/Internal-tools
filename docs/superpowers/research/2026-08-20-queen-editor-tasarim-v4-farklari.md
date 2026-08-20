@@ -1087,6 +1087,12 @@ madde madde verildi.
 | 24 | Bekleyen katmanın prompt kutusunda **ortalanmış tek satır** durur — tasarım geçerli. Boş kutu bırakmak kullanıcıya prompt silinmiş gibi geliyor. | 6 |
 | 25 | **Panel hata dili tasarım gibi olur:** buton hiçbir eksik alan için pasifleşmez, sebep basıldıktan sonra kırmızı hata kartında tek satır olarak doğar. Maddeler 27, 28, 29 ve 35 bu kararın parçasıdır. | 7 |
 
+### Yol haritası kurulurken verilen ek karar
+
+| # | Karar | Kapattığı madde |
+|---|---|---|
+| 26 | **İzleme moda uymaz.** Video hangi modda üretilmiş olursa olsun detayda bugünkü gibi döner — loop'a, standarda ve bağlıya özel oynatma davranışı yazılmaz. | 97 |
+
 ### Karar gerektirmeyenler
 
 Kalan maddeler karar beklemiyordu: `düzeltilecek` türündekiler uygulamanın kendi tarifinden
