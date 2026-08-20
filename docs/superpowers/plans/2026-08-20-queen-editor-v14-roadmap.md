@@ -50,13 +50,11 @@ kullanıcıyla birlikte oturulur.
 
 ## Kapsam sınırı
 
-- **LoRA'nın uygulamadan seçilebilmesi dışarıda.** İstek listesinin 2.1 maddesi; kullanıcı kararıyla
-  bu koşuya girmiyor.
+- **LoRA'nın uygulamadan seçilebilmesi düştü.** İstek listesinin 2.1 maddesi; kullanıcı kararıyla
+  bu koşuda da yakın koşularda da yok.
 - **Export ekranı bu koşuda hiç açılmıyor.** Kullanıcı ekranı düzgün buldu; fark listesinin export
-  maddelerinin tamamı bu koşunun dışında.
+  maddelerinin tamamı — görsel olanı da olmayanı da — kullanıcı kararıyla düştü.
 - **Kararla kapanan 31 fark maddesi dışarıda.** Bugünkü hâlleriyle kalıyorlar.
-- **Başarısız karede hover karartması dışarıda.** Kullanıcıya sorulmuş, henüz cevaplanmamış bir soru
-  bekliyor: "hover'da kart ortalanıyor" derken kastedilen bu muydu.
 - **Tasarım tarafında iki satır güncellenmeli.** Açılışta kuyruğun kendiliğinden sürmesi ve yeniden
   üretimin tur numarası, kullanıcı kararıyla bugünkü hâlinde kaldı; tasarımın kural metni hâlâ
   tersini söylüyor. Güncellenmezse bir sonraki karşılaştırmada aynı çelişkiler yeniden çıkar.
@@ -157,11 +155,6 @@ Kullanıcı bunların bir arada ve en sonda yapılmasını istedi.
 
 ## Sonraki koşuya kalanlar
 
-- **LoRA'nın uygulamadan seçilebilmesi.** Bugün üretim tarifinin içinde sabit; her deneme bir yayın
-  demek. Denemeyi ucuzlatmak kendi başına bir iş.
-- **Başarısız karede hover karartması.** Kullanıcıya sorulmuş soru cevaplanınca sıraya girer.
-- **Export ekranının maddeleri.** Ekran düzgün bulundu, bu koşuda açılmıyor. Fark listesinde iki
-  tanesi görsel hizalama değil: bitiş kartının yeşili uygulamadaki öteki yeşillerden farklı bir
-  tondan geliyor, ve klasör adı basış anına göre üretildiği için iki export ayrı klasörlere
-  düşebiliyor. İkisi de kayıtta dursun diye buraya yazıldı.
 - **Bu koşuyu kapatacak Colab turundan çıkacak yeni maddeler.**
+
+Başka bir şey bekletilmiyor. Kapsam dışı kalan her şey kullanıcı kararıyla düştü; sıra beklemiyor.
