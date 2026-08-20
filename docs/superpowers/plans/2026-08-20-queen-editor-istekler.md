@@ -93,8 +93,8 @@ yazıyor. Kalacak olan: kaçıncı kare olduğu, kartın kendi adı ve açık se
 Katman başına açılan dosya adı satırlarının hepsi gidiyor, açık olanınki de dahil: sekmede görünen
 tek ad kartın adı.
 
-**Tasarımda çözülecek:** video prompt'u çoğu zaman boş olduğu için sekme boşalabilir — o boşluk ne
-diyecek.
+Video prompt'u çoğu zaman boş olduğu için sekme boşalabilir; o durumda prompt kutusu boş görünsün,
+ayrı bir boş sayfa tasarımı istenmiyor.
 
 ### 4.2 Foto / Video / Ses sekmeleri ayrılsın
 Bugün bitişikler, tek bir parça gibi duruyorlar. Aralarına boşluk girecek.
