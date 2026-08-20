@@ -28,6 +28,13 @@ test("Settings sits at the foot of the sidebar, under everything else", () => {
   expect(onOpenSettings).toHaveBeenCalled();
 });
 
+// Madde 62: the key comes from the environment now. There is no settings screen, so there is
+// nothing for a row at the foot of the sidebar to open.
+test("there is no Settings row", () => {
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
+  expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
+});
+
 test("Settings is there with no project selected too", () => {
   render(<Sidebar projects={PROJECTS} activeProjectId={null} onOpenSettings={vi.fn()} />);
   expect(screen.getByRole("button", { name: "Settings" })).toBeTruthy();

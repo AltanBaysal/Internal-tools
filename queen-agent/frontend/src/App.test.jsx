@@ -117,6 +117,29 @@ test("the fork asks the browser where we are, not the render it was built from",
   expect(window.location.pathname).toBe("/settings");
 });
 
+test("/settings is an address like any other unknown one: the fork lands it on a project", async () => {
+  // Madde 62's trap. Deleting the route alone would leave the address parsing to the fork while the
+  // fork's own guard still asked for a literal "/" -- no redirect, no screen, a blank page. The two
+  // pieces are each correct on their own and open a hole together.
+  stubProjects([PROJECT]);
+  window.history.pushState(null, "", "/settings");
+  render(<App />);
+
+  await screen.findByText("Old", { selector: ".screen__title" });
+  expect(window.location.pathname).toBe("/p/p1");
+});
+
+test("the app never asks the server for settings", async () => {
+  // There is no endpoint left to ask. Said as a test because the call was made on mount, before any
+  // screen was drawn -- so nothing on screen would have shown it was still happening.
+  const fetch = stubProjects([PROJECT]);
+  render(<App />);
+
+  await screen.findByText("Old", { selector: ".screen__title" });
+  const asked = fetch.mock.calls.filter(([path]) => String(path).startsWith("/api/settings"));
+  expect(asked).toEqual([]);
+});
+
 test("the sidebar's Settings row opens the settings screen at its own address", async () => {
   stubProjects([PROJECT]);
   render(<App />);

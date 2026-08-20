@@ -108,6 +108,23 @@ test("a failure states what happened and repeats the server's words", () => {
   expect(screen.getByText(/failed with 500/)).toBeTruthy();
 });
 
+test("no failure card ever offers a settings screen", () => {
+  // Madde 62. The old props are passed on purpose: the claim is "whatever the caller sends", and
+  // the only way to prove the old branch is gone is to feed it exactly what used to trigger it.
+  // The card is left with the server's own sentence, which is what the repo asks for anyway.
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      error="No API key is set."
+      missingKey
+      onSettings={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("No API key is set.")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Settings/ })).toBeNull();
+});
+
 test("with no key saved, the failure card offers the way to fix it", () => {
   const onSettings = vi.fn();
   render(

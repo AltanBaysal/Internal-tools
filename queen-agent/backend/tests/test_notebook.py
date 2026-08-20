@@ -99,11 +99,39 @@ def test_a_missing_token_says_what_to_do():
     assert "Secrets" in said and "GITHUB_TOKEN" in said, "Ne yapılacağı söylenmiyor"
 
 
-def test_the_xai_key_is_not_asked_for_here():
-    """queen-editor reads it from Secrets. QueenAgent has its own Settings screen and the key lands
-    in settings.json on Drive -- written once, kept forever. Deliberate, and without this test
-    someone reads the difference as an omission and adds it back."""
-    assert "XAI_API_KEY" not in _source(), "xAI anahtarı defterde sorulmamalı — Settings'e giriliyor"
+def test_the_xai_key_comes_from_secrets():
+    """Madde 62: the same panel the token comes from, the same way queen-editor has always read it.
+    The Settings screen that used to hold it is gone -- it served the key back in plain text over a
+    link with no password."""
+    assert 'userdata.get("XAI_API_KEY")' in _source(), "xAI anahtarı Secrets'tan okunmuyor"
+
+
+def test_a_missing_xai_key_says_what_to_do():
+    """Colab has no second road for it: there is no screen to type it into later, so an app started
+    without one can do nothing at all. Stopping here beats failing on the first message."""
+    said = _cell("assert XAI_API_KEY")
+    assert said, "xAI anahtarı yokken defter sessizce devam ediyor"
+    assert "Secrets" in said and "XAI_API_KEY" in said, "Ne yapılacağı söylenmiyor"
+
+
+def test_the_xai_key_travels_to_the_app_in_the_environment():
+    """The same road QUEENAGENT_ROOT takes. config.py reads it at startup and nothing else does."""
+    assert '"XAI_API_KEY": XAI_API_KEY' in _cell(SERVE), "Anahtar uygulamaya geçirilmiyor"
+
+
+def test_the_notebook_no_longer_points_at_a_settings_screen():
+    """It used to close by telling the user to open Settings and paste the key. That screen no
+    longer exists, and an instruction pointing at a screen that is not there is worse than none."""
+    assert "Settings" not in _source(), "Defter hâlâ bir Settings ekranını işaret ediyor"
+
+
+def test_the_xai_key_is_never_printed():
+    """A lock rather than a test, and said so in Madde 62's plan: the notebook never held this
+    string, so the claim cannot fail today. It is written for the day someone prints the key while
+    chasing something else -- the sibling of the rule that keeps the clone URL out of the output."""
+    for line in _source().splitlines():
+        if "print(" in line:
+            assert "XAI_API_KEY" not in line, f"Anahtar basılıyor: {line.strip()}"
 
 
 # --- Madde 56: the clone -------------------------------------------------------------------------
