@@ -79,6 +79,21 @@ def test_the_drive_folder_is_named_once():
     assert 'DRIVE_FOLDER = "queenAgent"' in _source()
 
 
+def test_the_notebook_clones_main():
+    """Released work lives on main. A notebook handed to someone else clones what is released --
+    a feature branch is alive for as long as its madde is, and this one outlived its own."""
+    assert 'BRANCH       = "main"' in _cell(CONFIG), "Defter main'den klonlamıyor"
+
+
+def test_the_notebook_ships_pointing_at_no_feature_branch():
+    """The wider rule, and the one that actually bites. Pointing BRANCH at your own branch while a
+    madde is being run is ordinary; committing it that way is not, and it keeps working until the
+    branch is deleted -- so nothing says it is wrong until long after it was done."""
+    assert "feat/" not in _source(), (
+        "Defterde bir özellik dalı adı kalmış — commit'lemeden önce BRANCH main'e çevrilmeli"
+    )
+
+
 def test_an_unmounted_drive_does_not_pass_quietly():
     """Writing under /content/drive without a mount lands on Colab's local disk, and that folder dies
     with the runtime -- the user believes it worked and loses everything later."""
