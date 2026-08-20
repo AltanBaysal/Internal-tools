@@ -19,6 +19,7 @@ spec'inde çıkar. Bilerek ertelenmiş işlerin kalıcı kaydı [BACKLOG.md](../
 7. Duplicate card özelliği gelmeli *(erteleme kalktı)*
 8. Default 2 yap
 9. Üretme hızı *(sonradan eklendi, en sona)*
+10. Proje adı değiştirilebilsin *(sonradan eklendi)*
 
 ---
 
@@ -156,6 +157,20 @@ Kazanç fotoğraf tarafında görünüyor — video zaten hızlı koşacak şeki
 
 **Dikkat:** madde 2.1 videoyu güçlendirmek istiyor, bu madde hızlandırmak. İkisi aynı ayarları ters
 yönlere çekiyor, birlikte bakılmalı.
+
+## 10 · Proje adı değiştirilebilsin
+
+Bugün proje oluşturuluyor ve siliniyor; adı değiştirilemiyor. Yanlış yazılan ya da sonradan
+anlamsızlaşan bir ad projeyle birlikte kalıyor.
+
+**Sıfırdan değil:** yeni proje açarken adın uygun ve boşta olup olmadığını söyleyen kontrol zaten
+var, aynı kural yeniden adlandırmada da geçerli.
+
+*Uygulayan bilsin:* proje bir Drive klasörü ve adı her şeyin adresi. Adı değiştirmek klasörü
+değiştirmek demek — üretim sürerken ne olacağı ve daha önce dışa aktarılmış işlerin ne olacağı
+spec'in cevaplayacağı sorular.
+
+**Tasarımda çözülecek:** yeniden adlandırma nereden yapılır — tasarımcıya bırakıldı.
 
 ## Colab turu
 

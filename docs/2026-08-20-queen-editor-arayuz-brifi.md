@@ -1,6 +1,6 @@
 # Queen Editor — Arayüz İşleri
 
-**20 Ağustos 2026 · 6 madde**
+**20 Ağustos 2026 · 7 madde**
 
 Sıradaki işlerden arayüzü ilgilendirenler. Her maddede ne istediğimiz ve tasarımın hangi kararı
 vermesi gerektiği yazıyor.
@@ -134,6 +134,17 @@ paylaşır (iki kart, diskte tek resim), ve ikizlerden birini silmek öbürünü
 seçiliyor ve galerinin çubuğundaki düğmeyle siliniyor; kartın kendi üstünde eylem düğmesi yok —
 yalnız seçim işareti var, bir de bozuk katmanda beliren "Tekrar dene". Kopyalama o çubuğa mı girer,
 başka bir yere mi, hiç girmez mi. Bir de: kopya oluştuğunda kullanıcı bunu nasıl fark eder.
+
+## 10 · Proje adı değiştirilebilsin
+
+Bugün proje açılıyor ve siliniyor; adı değiştirilemiyor. Yanlış yazılan bir ad projeyle birlikte
+kalıyor.
+
+**İstediğimiz:** kullanıcı bir projenin adını değiştirebilsin.
+
+**Karar sende:** bu nereden yapılacak ve nasıl görünecek. Yeni proje açarken adın uygun ve boşta olup
+olmadığını söyleyen bir kontrol zaten var; yeniden adlandırmada da aynı kural geçerli, yani "bu ad
+kullanılıyor" gibi bir cevabın yeri olmalı.
 
 ---
 
