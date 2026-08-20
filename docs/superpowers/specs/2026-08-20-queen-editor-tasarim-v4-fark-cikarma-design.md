@@ -144,7 +144,7 @@ diğerinin çıktısını görmez.**
 
 | Yol | Tasarım tarafına nasıl erişir |
 |---|---|
-| Yol 1 | **DesignSync'i hiç çağırmaz.** Dört yazılı belge görev metninde hazır verilir; wireframe kaynağına erişimi yok |
+| Yol 1 | DesignSync'i **kendisi çağırır**, yalnız dört yazılı belge için. Wireframe zincirinden bir dosya çekmesi yasak — ihlal çağrı kaydında görünür ve o yolun çıktısı geçersiz sayılır |
 | Yol 2 | DesignSync'i **kendisi çağırır**, yalnız v4 wireframe zinciri için. Yazılı belgelerden herhangi birini çekmesi yasak — ihlal çağrı kaydında görünür ve o yolun çıktısı geçersiz sayılır |
 | Yol 3 | DesignSync'i kendisi çağırır, tasarım tarafının tamamı serbesttir |
 
@@ -299,6 +299,11 @@ işleri hep orada toplandığı için kendi alanı oldu.
   çok şey değiştirdi (rozet dili, seçim modu, toplu katman silme, detay panelinin yeniden düzeni).
 - **Üç yol kör koşar** — öncüldeki düzenin aynısı. Erişimi paylaştırma ve sıra dayatma seçenekleri
   tartışıldı ve bırakıldı: körlük 108 maddenin 34'ünü üreten şeydi.
+- **Yol 1 yazılı belgeleri kendisi çeker.** Öncülde belgeler görev metnine yapıştırılıyordu; bu
+  turda yazılı taraf ikiden dörde çıktı ve ekran notları tek başına on dokuz ekranı taşıyor.
+  Yapıştırma iki yerde bedel ödetir — ana oturum metni önce kendi bağlamına almak zorunda kalır, ve
+  uzun metin görev tanımını boğar. Körlük yine de yapısaldır: yasak listesi ve çağrı kaydı
+  denetimi Yol 2'dekiyle aynı mekanizmadır.
 - **Brif çelişkisi kendi bölümüne girer**, fark listesine karışmaz. Gerekçe: bunlar repo↔tasarım farkı
   değil — repoda ikisinin de karşılığı yok. Kullanıcının kendi verdiği kararların tasarımca geri
   alınmış olması, uygulamaya geçmeden görülmesi gereken tek madde sınıfıdır.
