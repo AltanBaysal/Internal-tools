@@ -758,25 +758,16 @@
   transition: none;
 }
 
-/* Reading widens the rail rather than emptying it: the list stays beside the reader, so another
-   file can be reached without closing this one. The design gives 320 → 560 and no split; the list
-   takes the narrower half because the document is what the width was asked for. */
+/* Reading empties the rail rather than splitting it: the document is the only thing in here, and it
+   gets all 560 -- the widest the design allows. It used to share the room with the list, which cost
+   the document 200 pixels to offer what the back arrow offers anyway.
+   Still flex, with one child: the reader below claims the space with flex: 1. */
 .rail--open {
   width: 560px;
   display: flex;
-  gap: 16px;
   overflow: hidden;
-  /* The reader carries its own margins now, so the rail stops adding to them; what is left needing
-     the padding is the list, and it takes it. */
+  /* The reader carries its own margins, so the rail adds none of its own. */
   padding: 0;
-}
-
-.rail__list {
-  width: 200px;
-  flex: none;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 20px 18px;
 }
 
 /* The reader fills the height and hands the scrolling to its body, so its head and foot stay put. */

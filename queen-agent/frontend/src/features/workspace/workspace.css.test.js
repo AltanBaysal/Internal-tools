@@ -278,6 +278,11 @@ test("the rail is a surface of its own rather than the canvas with a line on it"
 test("the row being read is marked, and hovering is not the same as being open", () => {
   // Written as one grouped rule on purpose: being read outranks being pointed at, so the selected
   // tone has to survive the hover.
+  //
+  // Nothing in the app reaches this state since Madde 63 -- the rail's list is not drawn while a
+  // file is open, and the project screen never marked its rows. FileRow keeps the capability and
+  // its own test; narrowing that is a separate decision, and this note is here so the next reader
+  // does not go looking for the caller.
   const selected = CSS.slice(CSS.indexOf("\n.file-row--selected,"));
   expect(selected.slice(0, selected.indexOf("}"))).toContain("background: #efebe4");
   expect(rule(".file-row:hover")).toContain("background: #f0ece5");
@@ -316,11 +321,11 @@ test("nothing in the reading rail is spaced apart from anything", () => {
   expect(rule(".rail--open")).not.toContain("gap");
 });
 
-test("while reading, the rail is two columns and the list keeps one", () => {
-  // The design gives 320 to 560 and no split; the list takes the narrower half so the document gets
-  // the room it is there for.
+test("while reading, the rail is the document at the design's widest", () => {
+  // The design gives 320 to 560. Reading asks for the top of that range, and nothing shares it.
+  expect(rule(".rail--open")).toContain("width: 560px");
+  // Still flex with one child: the reader claims the space with flex: 1 rather than a width.
   expect(rule(".rail--open")).toContain("display: flex");
-  expect(rule(".rail__list")).toContain("width: 200px");
 });
 
 // The second scale, written against the reader's own container for the same reason the bubble's is
@@ -421,11 +426,10 @@ test("the header and the footer stay while the document scrolls", () => {
 });
 
 test("the room around the document belongs to the document", () => {
-  // Once the body carries the design's 26/28 the container's own padding would sit under it, so it
-  // moves to the list -- the only thing left in the rail that still needs it.
+  // Once the body carries the design's 26/28, a container adding its own padding would sit under it.
+  // Neither surface holding a reader adds any.
   expect(rule(".panel")).toContain("padding: 0");
   expect(rule(".rail--open")).toContain("padding: 0");
-  expect(rule(".rail__list")).toContain("padding: 20px 18px");
 });
 
 test("a selected skill warms its button without borrowing the accent", () => {

@@ -6,19 +6,21 @@ import FileRow from "./FileRow.jsx";
 import { DEFAULT_RAIL_WIDTH } from "./railWidth.js";
 
 // The rail sits beside the composer so the user can see what already exists while they are asking
-// for more. It has three states and the list is present in two of them:
+// for more. It has three states and the list is present in exactly one of them:
 //
 //   folded   -- a strip that still says how many files there are
 //   open     -- the list
-//   reading  -- the list beside the reader, so another file can be reached without closing this one
+//   reading  -- the document, and nothing else
 //
 // The heading is the control when there is something to fold, because "the header folds it" and
-// "one click on the strip opens it" are one sentence. While a document is being read there is
-// nothing to fold, so the heading is a label again.
+// "one click on the strip opens it" are one sentence.
+//
+// Reading used to keep the list standing beside the reader, so another file could be reached
+// without closing this one. Madde 63 gave the document the whole rail instead: the list was taking
+// 200 of 560 pixels to offer something the back arrow already offers.
 //
 // Its rows open a file and, when the caller hands one over, offer a way to delete it -- the same
-// question the project screen asks. The row being read is the exception: deleting a file out from
-// under the reader leaves the user looking at nothing.
+// question the project screen asks.
 //
 // Madde 50 gave the open list a grip on its left edge. What travels back up is the width that was
 // asked for, not a decision: whether that is a width at all, or is narrow enough to mean closing,
@@ -93,9 +95,8 @@ function FileList({ files, loading, error, reading, deleting }) {
             <FileRow
               key={file.name}
               file={file}
-              selected={file.name === reading?.name}
               onOpen={reading?.open}
-              onDelete={file.name === reading?.name ? undefined : deleting?.remove}
+              onDelete={deleting?.remove}
             />
           ))
         : null}
@@ -128,21 +129,8 @@ export default function FileRail({
   if (reading?.name) {
     return (
       <aside className={railClass(reading, collapsed)} style={style} data-testid="file-rail">
-        <div className="rail__list">
-          <div className="rail__head rail__head--still">
-            <span className="rail__label">Project files</span>
-            <span className="rail__count">{files.length}</span>
-          </div>
-          <FileList
-            files={files}
-            loading={loading}
-            error={error}
-            reading={reading}
-            deleting={deleting}
-          />
-        </div>
-        {/* Come back from rather than closed: this panel is the rail widened, and the list it
-            widened away from is still standing beside it. */}
+        {/* Come back from rather than closed: the rail is the document while this is open, and the
+            arrow is the way back to what it was. */}
         <FilePanel
           back
           name={reading.name}

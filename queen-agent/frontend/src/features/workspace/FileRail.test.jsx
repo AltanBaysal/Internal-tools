@@ -28,21 +28,6 @@ test("without a way to delete the rail rows carry no ×", () => {
   expect(screen.queryByRole("button", { name: /^Delete / })).toBeNull();
 });
 
-test("the row of the file being read carries no ×", () => {
-  // Deleting what is open under the reader leaves the user staring at nothing. The project screen
-  // is spared this by its layout; here the rule has to be said.
-  const remove = vi.fn();
-  render(
-    <FileRail
-      files={FILES}
-      deleting={{ remove }}
-      reading={{ name: "outline.md", file: { text: "body" } }}
-    />,
-  );
-  expect(screen.queryByRole("button", { name: "Delete outline.md" })).toBeNull();
-  expect(screen.getByRole("button", { name: "Delete sources.txt" })).toBeTruthy();
-});
-
 // Madde 50: the rail is dragged by its left edge, and it stays on the right at every width. What it
 // reports is the width that was asked for -- whether that is a width at all, or is narrow enough to
 // mean closing, is App's answer (railWidth.js), because closing is App's state.
@@ -157,8 +142,8 @@ test("folded, one click on the strip is what opens it", () => {
   expect(onToggle).toHaveBeenCalled();
 });
 
-// With a file open there is nothing to fold -- the rail is showing a document. That is asserted
-// below, where the two-column state is set out.
+// With a file open there is no heading at all, folding or otherwise -- the rail is the document.
+// That is asserted below, under Madde 63.
 
 test("every file gets a row, chip and all", () => {
   render(<FileRail files={FILES} />);
@@ -192,21 +177,6 @@ test("clicking a row opens that file", () => {
   expect(open).toHaveBeenCalledWith("outline.md");
 });
 
-test("a rail row deletes while a file is open beside it", () => {
-  // The list stays standing next to the reader, so the rows keep working -- all but the one being
-  // read, which has its own test above.
-  const remove = vi.fn();
-  render(
-    <FileRail
-      files={FILES}
-      reading={{ name: "outline.md", file: { text: "body" }, open: vi.fn() }}
-      deleting={{ remove }}
-    />,
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Delete sources.txt" }));
-  expect(remove).toHaveBeenCalledWith("sources.txt");
-});
-
 test("a file row offers no rename either", () => {
   render(<FileRail files={FILES} reading={{ open: vi.fn() }} />);
   expect(screen.queryByRole("button", { name: "Rename outline.md" })).toBeNull();
@@ -234,39 +204,12 @@ test("a rail still loading says neither", () => {
 
 const OPEN_FILE = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
 
-test("an open file widens the rail rather than taking it over", () => {
-  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
-  expect(screen.getByText("read me")).toBeTruthy();
-  // The list stays beside the reader: closing the panel used to be the only way to reach another
-  // file.
-  expect(screen.getByText("sources.txt")).toBeTruthy();
-  expect(screen.getByTestId("file-rail").className).toContain("rail--open");
-});
-
 test("the rail's reader is come back from rather than closed", () => {
   // The panel here is the rail widened, so it keeps the arrow. The project screen's panel is a
   // surface of its own and closes with an ×.
   render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
   expect(screen.getByRole("button", { name: "←" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "×" })).toBeNull();
-});
-
-test("the row of the file being read is the marked one", () => {
-  // Madde 21 wrote this rule with nowhere to show it. Here is where it shows.
-  // Asked for inside the list: the reader's header carries the same name.
-  const { container } = render(
-    <FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />,
-  );
-  const rows = [...container.querySelectorAll(".file-row")];
-  expect(rows[0].className).toContain("file-row--selected");
-  expect(rows[1].className).not.toContain("selected");
-});
-
-test("another file can be reached without closing the one open", () => {
-  const open = vi.fn();
-  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE, open }} />);
-  fireEvent.click(screen.getByText("sources.txt"));
-  expect(open).toHaveBeenCalledWith("sources.txt");
 });
 
 // Madde 63: what is being read gets the whole rail. The list is one press of ← away, and 200 of the
@@ -300,9 +243,3 @@ test("while reading, there is nothing to delete", () => {
   expect(screen.queryByRole("button", { name: /^Delete / })).toBeNull();
 });
 
-test("while reading, the list keeps its label and loses its control", () => {
-  // Madde 20's rule stands: a rail showing a document has nothing to fold away.
-  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
-  expect(screen.getByText("Project files")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Project files/ })).toBeNull();
-});
