@@ -1,6 +1,6 @@
 # Queen Editor — Arayüz İşleri
 
-**20 Ağustos 2026 · 6 madde**
+**20 Ağustos 2026 · 5 madde**
 
 Sıradaki işlerden arayüzü ilgilendirenler. Her maddede ne istediğimiz ve tasarımın hangi kararı
 vermesi gerektiği yazıyor.
@@ -116,20 +116,14 @@ aralarındaki sıra korunarak. Aralarında kalan kartlar boşluğu kapatır.
 
 Bu maddede senden karar beklemiyoruz.
 
-## 1.1 · Galeride kart bekleme durumu
-
-Galeri yavaş yükleniyor; asıl çözüm geliştirme tarafında (karolar için küçük önizleme). Senden
-istediğimiz tek şey bekleme hâli.
-
-**Karar sende:** kart, resmi gelene kadar ne gösterecek — boş çerçeve, yer tutucu, bulanık önizleme?
-Galeri kaydırılırken bu durumun sık görüneceğini hesaba kat.
-
 ---
 
 ## Bu listede olmayanlar
 
 Sıradaki işlerin hepsi arayüz değil; bunlara bakmana gerek yok:
 
+- **Galeri hızı** — karolar için küçük önizleme üretilecek. Kartın bekleme hâli zaten var, tasarım
+  gerekmiyor.
 - **Video kalitesi** — üretim ayarları ve videonun prompt'u. Ekranda karşılığı yok.
 - **Üretme hızı** — üretimin kendi süresi.
 - **Varyant varsayılanı** — bir prompt'tan kaç kare üretileceğinin varsayılanı 4'ten 2'ye inecek. Tek
