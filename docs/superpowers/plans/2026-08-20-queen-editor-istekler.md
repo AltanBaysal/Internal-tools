@@ -85,7 +85,7 @@ olur; seçim kart başına mı, toplu mu.
 
 ## 4 · Bulunan UI hataları
 
-Dördü de daha önce görülmüş, kararı verilmiş, sırası gelmemiş işler.
+Üçü de daha önce görülmüş, kararı verilmiş, sırası gelmemiş işler.
 
 ### 4.1 Detay sayfası yalnız kendi katmanını göstersin
 Bugün açık sekmenin altındaki katmanlar da görünüyor — video sekmesinde fotoğrafın adı ve prompt'u da
@@ -104,23 +104,19 @@ kez daha bakmak gerekir.
 Seçilen karelerin henüz fotoğrafı yokken panel *"Tüm karelerin videosu var — üretilecek bir şey
 yok"* diyor. Sebep o değil.
 
-### 4.4 Kareler sürüklenip sıralanamıyor
-Bir düzeltme yapıldı ama burada tarayıcı olmadığı için doğrulanamadı; gerçekten düzeldiği **Colab
-turunda** görülecek. Hâlâ çalışmıyorsa fotoğrafın üstünden değil kartın kenarından sürüklemeyi
-denemek, sorunun nerede olduğunu ayırt eder.
-
 ## 5 · Toplu kart taşıma
 
 **Neden:** kareler çoğu zaman birbirinin devamı, bir dizi oluşturuyorlar. O diziyi başka bir yere
 almak gerektiğinde kartlar tek tek taşınıyor ve sıra karışıyor.
 
 **Ne olacak:** birden fazla kart seçilip sürüklendiğinde hepsi birlikte taşınacak, kendi aralarındaki
-sıra bozulmadan. Çoklu seçim zaten var; eksik olan seçimin sürüklemeye katılması.
+sıra bozulmadan. Çoklu seçim zaten var, tek kart sürükleme de çalışıyor; eksik olan seçimin
+sürüklemeye katılması. Mekanik değişmiyor.
 
-**Bağımlılık:** madde 4.4 — tek kartın sürüklenmesi bile çalışıyor mu, doğrulanmadı. Önce o.
-
-**Tasarımda çözülecek:** seçim dağınıksa ne olur, ve seçilenler bırakılan kartın önüne mi arkasına mı
-gider.
+**Karar verildi:** dağınık seçim taşınınca kartlar yan yana gelir, kendi aralarındaki sıra korunur.
+Seçili bir kart sürüklenirse seçimin tamamı gider; seçili olmayan sürüklenirse yalnız o gider. Ekrana
+yeni bir öğe eklenmiyor — seçili kartların hepsi sürüklenen görünümüne geçer, yuva göstergesi aynı
+kalır.
 
 ## 7 · Duplicate card — ertelendi
 
@@ -147,9 +143,8 @@ yönlere çekiyor, birlikte bakılmalı.
 
 ## Colab turu
 
-İki madde tarayıcı olmadan yargılanamıyor ve ikisi de bu dalda duruyor: **4.4** (sürükleme gerçekten
-düzeldi mi) ve **1.1'in tavanı** (galeri açıkken çıkan zaman aşımı kalktı mı). Notebook yalnız
-yayınlanmış hâli klonladığı için tur, bu dal yayınlanmadan atılamaz.
+Bir madde tarayıcı olmadan yargılanamıyor: **1.1'in tavanı** — galeri açıkken çıkan zaman aşımı
+kalktı mı. Bu dalda duruyor ama notebook yalnız yayınlanmış hâli klonladığı için tur, dal
+yayınlanmadan atılamaz.
 
-Turun sonucu sıralamayı değiştirir: tavan yetmediyse 1.1 öne geçer, sürükleme hâlâ kırıksa 5 geri
-kalır.
+Turun sonucu sıralamayı değiştirir: tavan yetmediyse 1.1 öne geçer.
