@@ -1,4 +1,4 @@
-"""What app.ipynb says.
+"""What queenagent.ipynb says.
 
 The notebook is read, never run: a Colab cell cannot execute here -- there is no google.colab, no
 Drive, no tunnel. What text can still answer is the part that matters, which is whether each cell
@@ -15,7 +15,10 @@ NOTEBOOK = os.path.join(
     os.path.dirname(          # queen-agent
         os.path.dirname(      # backend
             os.path.dirname(os.path.abspath(__file__)))),  # tests
-    "app.ipynb",
+    # Not app.ipynb: queen-editor's notebook is called that, and Colab shows a notebook by its file
+    # name alone. Two tabs both saying app.ipynb are two tabs nobody can tell apart, and pressing
+    # Run all in the wrong one clones the wrong repo and starts the wrong app.
+    "queenagent.ipynb",
 )
 
 CONFIG = "# === CONFIG ==="
