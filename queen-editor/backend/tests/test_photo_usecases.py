@@ -285,9 +285,9 @@ def test_progress_is_reported_before_each_frame():
     seen = []
     original = generator.generate
 
-    def spy(prompt, negative, seed, model="", source=None):
+    def spy(prompt, negative, seed, model="", source=None, end=None):
         seen.append(runner.status())
-        return original(prompt, negative, seed, model, source)
+        return original(prompt, negative, seed, model, source, end)
 
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
@@ -1070,7 +1070,7 @@ class FailsTwice:
     def __init__(self):
         self.calls = []
 
-    def generate(self, prompt, negative, seed, model="", source=None):
+    def generate(self, prompt, negative, seed, model="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
         if len(self.calls) < 3:
             raise FrameFault(f"node 41: {prompt}")
@@ -1362,8 +1362,11 @@ def test_a_linked_video_whose_target_lost_its_photo_turns_that_frame_red():
     """The frame it was told to end on is gone -- deleted between the press and the render. One
     frame's trouble, so the tile turns red and the queue goes on; falling back to a plain video
     would hand the user something other than what they asked for and say nothing about it."""
+    # The gallery holds one frame and the job still points at 1_a: that is what deletion leaves
+    # behind. A gallery that still listed 1_a would leave its own photo job owed, and the run would
+    # stop waiting for a photo producer this test does not have -- the video would never be reached.
     generator, record = render_one_video(production_mode.LINKED, linked_to="1_a",
-                                         photos=("0_a",))
+                                         gallery=((0, "a"),), photos=("0_a",))
 
     assert generator.ends == []          # nothing was ever rendered for this job
     video = record.slots("düğün")["0_a"]["video"]
@@ -2339,12 +2342,12 @@ def test_frames_added_while_the_loop_runs_are_produced_in_the_same_run():
     plan_store, record, generator, seen = FakePlanStore(), FakeRecord(), FakeGenerator(), []
     rendering = generator.generate
 
-    def spy(prompt, negative, seed, model="", source=None):
+    def spy(prompt, negative, seed, model="", source=None, end=None):
         seen.append(prompt)
         if prompt == "ilk":
             plan_store.append("düğün", [{"number": 9, "letter": "a", "prompt": "sonradan",
                                          "negative": "", "seed": 7, "model": ""}])
-        return rendering(prompt, negative, seed, model, source)
+        return rendering(prompt, negative, seed, model, source, end)
 
     generator.generate = spy
     run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,

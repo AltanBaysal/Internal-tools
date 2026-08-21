@@ -14,8 +14,19 @@ second map, exactly the way it finds the producer.
 """
 import time
 
-from backend.features.photo_generation.domain import layers, policy, queue
+from backend.features.photo_generation.domain import layers, policy, production_mode, queue
 from backend.features.photo_generation.domain.photo_name import layer_file, photo_file
+
+
+class MissingEndFrame(RuntimeError):
+    """A linked video's target frame has no photo to end on.
+
+    frame_level, so policy treats it the way it treats a graph that blew up: this one tile turns red
+    and the queue goes on. The alternative -- quietly rendering a plain video instead -- would hand
+    the user something other than what they asked for and say nothing about it.
+    """
+
+    frame_level = True
 
 
 def _prompts_of(record, project, fid):
@@ -44,6 +55,29 @@ def _source_for(kind, store, slots, project, fid):
     cell = slots.get(fid, {}).get(under)
     if not cell:
         return None
+    return (cell["file"], store.read(project, cell["file"]))
+
+
+def _end_for(job, store, slots, project, fid, source):
+    """The picture this job's video arrives at, as (name, bytes); None when it arrives nowhere.
+
+    Read at the job's turn like the source is, and for the same reason: the file is on Drive and the
+    run may have started hours ago.
+
+    A loop ends on the frame's own picture -- the very file it is being made from -- so `source` is
+    handed back rather than read a second time.
+    """
+    mode = production_mode.of(job)
+    if mode == production_mode.STANDARD:
+        return None
+    if mode == production_mode.LOOP:
+        return source
+    target = job.get("linkedTo")
+    cell = slots.get(target, {}).get(layers.PHOTO) if target else None
+    if not cell:
+        # Deleted between the press and the render. Named in the message, because "the frame it was
+        # told to end on" is the one thing the user cannot work out from the tile.
+        raise MissingEndFrame(f"Bağlanacak karenin fotoğrafı yok: {target or '?'}")
     return (cell["file"], store.read(project, cell["file"]))
 
 
@@ -128,9 +162,12 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     if any(source.values()):
                         written = writer.write(source)
                 prompt = current["prompt"] or written or ""
+                # Held in a variable because a loop ends on the very file it is made from: reading
+                # it twice would be the same download from Drive twice, once per video.
+                under = _source_for(kind, store, slots, project, fid)
                 data = producer.generate(prompt, current["negative"], current["seed"],
-                                         current["model"],
-                                         source=_source_for(kind, store, slots, project, fid))
+                                         current["model"], source=under,
+                                         end=_end_for(current, store, slots, project, fid, under))
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job

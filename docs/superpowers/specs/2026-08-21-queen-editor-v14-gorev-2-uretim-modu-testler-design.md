@@ -32,13 +32,17 @@ işinin plan satırına yazıyor. Bağlı modda **hedef kare de** o an çözül�
 Sebebi: kuyruk saatlerce akıyor ve kullanıcı bu sırada galeriyi sürükleyebiliyor. Render anında
 okunan bir "sonraki kare", kullanıcının butona bastığında baktığı kare olmazdı.
 
-**4. "Sonraki kare" galerinin kendi sırası.** `list_frames`'in döndürdüğü dizide `index + 1`.
-İkinci bir tanım yazılmıyor: detay sayfasının ileri oku bugün bunu böyle okuyor
-(`PhotoDetail.jsx`'te `frames[index + 1]`), ve okun bir kuralı, videonun başka bir kuralı olsa video
-kullanıcının hiç gitmediği yere giderdi.
+**4. "Sonraki kare" filmin sırası, galerinin okunma sırası değil.** Galeri yeniden eskiye
+diziliyor, ama export onu **ters** birleştiriyor (`export_summary.exportable`): galerinin dibi
+filmin ilk karesi. Dolayısıyla bir karenin ardından **oynayan** kare, galeride bir **üstündeki** —
+`list_frames` dizisinde `index - 1`.
 
-**5. Sonrası olmayan kare kuyruğa hiç girmiyor — ama koşuyu durdurmuyor.** Galerinin son karesinin
-bağlanacağı bir şey yok. O kare batch'in dışında kalıyor, kalanlar giriyor. Kapsamdaki her kare bu
+Detay sayfasının ileri oku (`PhotoDetail.jsx`'te `frames[index + 1]`) galeriyi aşağı yürüyor, yani
+filmin tersine. O ok galeride gezinmenin adı; buradaki "sonraki" filmin kendi sırası. İkisini
+karıştırmak, her bağlı zincirin parçası olduğu filme ters akması demekti.
+
+**5. Sonrası olmayan kare kuyruğa hiç girmiyor — ama koşuyu durdurmuyor.** Filmin son karesinin,
+yani galerinin **tepesindeki** karenin bağlanacağı bir şey yok. O kare batch'in dışında kalıyor, kalanlar giriyor. Kapsamdaki her kare bu
 yüzden düşerse cevap 0 — boş kapsam neyse o, çünkü ikisi de "borç yok, koşu başlamadı" demek.
 
 **6. Mod video işinin dışına çıkmıyor.** Ses işine standart dışı bir mod verilmesi `InvalidMode`.

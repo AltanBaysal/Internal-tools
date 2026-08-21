@@ -12,7 +12,7 @@ to hang it on yet. A frame that already has this layer is never written over -- 
 the extra one becomes a frame of its own, sharing what is under it and taking the next variant of
 its source's number (madde 25, 102).
 """
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.domain.copy_frame import (
     carry_layers,
     family,
@@ -32,6 +32,10 @@ from backend.features.photo_generation.domain.usecases.start_batch import (  # n
 
 class InvalidScope(Exception):
     """The selection was not a list of file names (message is user-facing)."""
+
+
+class InvalidMode(Exception):
+    """A production mode nobody knows, or one given to a layer that ends nowhere."""
 
 
 def frames_in_scope(gallery, kind, files=None):
@@ -64,22 +68,69 @@ def frames_in_scope(gallery, kind, files=None):
     return scope
 
 
-def _job(kind, fid, number, variant):
+def _job(kind, fid, number, variant, mark=()):
     """The plan line for one layer.
 
     The prompt is empty on purpose: a language model writes it when the job's turn comes, and a box
     the user was never shown must not pretend to hold their words.
+
+    `mark` is what the production mode adds -- nothing at all for a layer that ends nowhere.
     """
     return {"id": fid, "type": kind, "number": number, "variant": variant,
-            "prompt": "", "negative": "", "seed": None, "model": ""}
+            "prompt": "", "negative": "", "seed": None, "model": "", **dict(mark)}
+
+
+def _frame_after(gallery, fid):
+    """The frame a linked video ends on: the one that comes after it in the film.
+
+    The film's sequence, not the gallery's reading order. The gallery is newest-first and the export
+    stitches it reversed (export_summary.exportable) -- the foot of the gallery is the film's first
+    frame -- so the frame that plays next is the one ABOVE, at index - 1. Linking downwards would
+    make every chain run against the film it is part of.
+
+    None where there is nothing to end on: the last frame of the film -- the top of the gallery --
+    has no next, and a next whose photo never landed is the same emptiness seen from closer up.
+    """
+    for index, frame in enumerate(gallery):
+        if frame["id"] != fid:
+            continue
+        after = gallery[index - 1] if index > 0 else None
+        return after["id"] if after and after["status"] == queue.DONE else None
+    return None
+
+
+def _mark(kind, mode, gallery, fid):
+    """What the mode writes into this frame's plan line, or None when it takes no job at all.
+
+    Resolved as the job is queued rather than as it is rendered: the user can drag the gallery while
+    the queue runs, and a target read hours later would not be the one they were looking at when
+    they pressed the button.
+    """
+    if kind != layers.VIDEO:
+        return {}
+    if mode != production_mode.LINKED:
+        return {"mode": mode}
+    target = _frame_after(gallery, fid)
+    if target is None:
+        # The brief's decision: production is not blocked, this one frame stays out and the rest go
+        # in. Fixing the selection and pressing again is all it takes.
+        return None
+    return {"mode": mode, "linkedTo": target}
 
 
 def queue_layer(runner, store, record, plan_store, order_store, producers, now, project, kind,
-                files=None, variants=1, log=None, writers=None):
+                files=None, variants=1, log=None, writers=None,
+                mode=production_mode.STANDARD):
     """Returns how many jobs of this kind the queue took."""
     if files is not None and (not isinstance(files, list)
                               or any(not isinstance(name, str) for name in files)):
         raise InvalidScope("Seçim listesi metin dizisi olmalı.")
+    if mode not in production_mode.ALL:
+        raise InvalidMode(f"Üretim modu şunlardan biri olmalı: {', '.join(production_mode.ALL)}.")
+    if mode != production_mode.STANDARD and kind != layers.VIDEO:
+        # Only a video ends on a picture. Ignoring the argument would hide the caller's mistake
+        # behind a sound that came out fine.
+        raise InvalidMode("Üretim modu yalnız video işine verilebilir.")
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \
             or not 1 <= variants <= MAX_VARIANTS:
@@ -100,6 +151,9 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
     # the gallery's own order file has nothing to say.
     for frame in reversed(scope):
         fid = frame["id"]
+        mark = _mark(kind, mode, gallery, fid)
+        if mark is None:
+            continue
         number, variant = family(frame)
         held = frame.get("layers", {})
         owed = variants
@@ -113,7 +167,7 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
                 # it in. Reported 2026-08-14: after emptying the queue, sound could never be queued
                 # again.
                 record.mark(project, fid, kind, settled["file"], queue.QUEUED, now())
-            jobs.append(_job(kind, fid, number, variant))
+            jobs.append(_job(kind, fid, number, variant, mark))
             owed -= 1
         for _ in range(owed):
             copy = next_id(taken, number)
@@ -122,8 +176,12 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
             # field -- the gallery draws it, deletes it and orders it by the rules it has.
             carry_layers(record, project, copy, frame, kind, now)
             born.setdefault(fid, []).append(copy)
-            jobs.append(_job(kind, copy, number, variant_of(copy)))
+            jobs.append(_job(kind, copy, number, variant_of(copy), mark))
 
+    if not jobs:
+        # Every frame in scope was dropped for want of something to end on. Nothing owed and nothing
+        # started, exactly as an empty scope already is.
+        return 0
     if born:
         order_store.write(project, placed([frame["id"] for frame in gallery], born))
     plan_store.append(project, jobs)
