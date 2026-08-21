@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 9/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 10/31
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -96,7 +96,7 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 10 | **Toplu kart taşıma.** Seçili bir kart sürüklenince seçimin tamamı bitişik blok olarak taşınır, sıra korunur; seçili olmayan sürüklenirse yalnız o gider. Dağınık seçim bırakıldığı yerde yan yana gelir. Yeni bir öğe eklenmez. | Üç dağınık kare seçilip taşınınca yan yana iniyor, aralarındaki sıra korunuyor, aradaki kartlar boşluğu kapatıyor. | İstek 5 · Fark 70, 71, 72 |
+| 10 | ✅ **Toplu kart taşıma.** Seçili bir kart sürüklenince seçimin tamamı bitişik blok olarak taşınır, sıra korunur; seçili olmayan sürüklenirse yalnız o gider. Dağınık seçim bırakıldığı yerde yan yana gelir. Yeni bir öğe eklenmez. | Üç dağınık kare seçilip taşınınca yan yana iniyor, aralarındaki sıra korunuyor, aradaki kartlar boşluğu kapatıyor. | İstek 5 · Fark 70, 71, 72 |
 | 11 | **Kart kopyalama.** Seçim barına Kopyala gelir, kısayolu Ctrl + D. Kopya birebir doğar, adı kopya önekiyle başlar, kaynağın bir üstüne iner, seçim kopyaya geçer. Yalnız bekleyen kareler seçiliyse buton doğmaz. | Bir kare kopyalanınca üstünde ikizi beliriyor, seçim ona geçiyor, ikizden birini silmek öbürünü bozmuyor. | İstek 7 · Fark 77, 78, 79 |
 | 12 | **Toplu katman silme.** Seçim barına Videoları sil ve Sesleri sil gelir. Kareler yerinde kalır, yalnız katman düşer; katmanı olmayan seçili kareler atlanır ve onay metni bunu söyler. | On iki kare seçilip videoları silinince kareler ve fotoğrafları duruyor, videosu olmayanlar atlanmış ve sayı onayda doğru yazmış. | Fark 80, 81 |
 | 13 | **Seçim barının görünümü.** Öğeler arası boşluk daralır ve bar sarmaz; seçimde bekleyen kare varsa katman silme düğmeleri hiç çizilmez. | Beş düğme tek satırda kalıyor, yalnız bekleyen seçiminde bar üç öğeye iniyor. | Fark 82, 83, 84 |

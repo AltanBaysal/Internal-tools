@@ -250,16 +250,32 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                 + "Bu işlem geri alınamaz.",
           label: "Sil", width: 320 };
 
+  // Who is moving, as one answer for the whole drag: a selected card takes the selection with it,
+  // an unselected one goes alone. In the gallery's own order rather than the selection's, because
+  // the selection is a list of presses -- picking a block from the bottom up would otherwise turn
+  // it over on landing.
+  const dragged = dragIndex === null ? null : frames[dragIndex].id;
+  const moving = dragged === null
+    ? []
+    : selected.includes(dragged)
+      ? frames.map((frame) => frame.id).filter((fid) => selected.includes(fid))
+      : [dragged];
+
   function handleDrop() {
-    const from = dragIndex;
     const to = overIndex;
+    const block = moving;
     setDragIndex(null);
     setOverIndex(null);
-    if (from === null || to === null || from === to) return;
+    if (to === null || !block.length) return;
+    const ids = frames.map((frame) => frame.id);
+    // Everything moving comes out, then goes back in starting at the slot's index. One card is this
+    // rule with a single element, which is why dragging one has not changed.
+    const next = ids.filter((fid) => !block.includes(fid));
+    next.splice(to, 0, ...block);
+    // Compared, not counted: dropping the second card of a block on its first leaves the sequence
+    // exactly as it was while the two indices still differ.
+    if (next.every((fid, index) => fid === ids[index])) return;
     // The whole sequence is sent, pending frames included: the order covers them too now.
-    const next = frames.map((frame) => frame.id);
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
     onReorder(next);
   }
 
@@ -285,7 +301,7 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
           // The badge counts up from the bottom: the oldest frame is 1, the newest is N, and a new
           // frame on top never renumbers the ones below it.
           const badge = frames.length - index;
-          const dragging = index === dragIndex;
+          const dragging = moving.includes(frame.id);
           const isSlot = index === overIndex && dragIndex !== null && !dragging;
           return (
             <div
@@ -299,9 +315,9 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
               // whether a press may become a drag, so a tile armed 250 ms later was never a drag
               // source at all -- the gallery simply could not be reordered. Every card can be
               // picked up whatever became of it, because the sequence a drag makes is the sequence
-              // the queue produces in. While selecting, a press is a selection instead -- one
-              // gesture cannot mean two things.
-              draggable={!selecting}
+              // the queue produces in. A selection does not close this: a completed drag never ends
+              // in a click, so a press can still mean a selection without the two colliding.
+              draggable
               onDragStart={() => setDragIndex(index)}
               onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
               onDrop={handleDrop}

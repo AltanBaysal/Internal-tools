@@ -742,14 +742,6 @@ describe("Gallery — picking a tile up", () => {
     expect(tileOf("9_a.png").draggable).toBe(true);
   });
 
-  it("lets nothing be dragged while a selection is open", () => {
-    renderGallery();
-
-    fireEvent.click(checkOf("0_a.png"));
-
-    // One gesture cannot mean two things: while frames are being picked, a press is a pick.
-    expect(tileOf("1_a.png").draggable).toBe(false);
-  });
 });
 
 describe("Gallery — a layer that blew up", () => {
