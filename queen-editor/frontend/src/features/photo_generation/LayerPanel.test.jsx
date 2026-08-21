@@ -80,7 +80,9 @@ describe("LayerPanel — variants", () => {
     renderPanel({ selected: ["1_a"] });
 
     expect(screen.getByText("Seçili kareler").closest("button").textContent).toContain("1");
-    expect(screen.getByText("1 video üretilecek — her kare kendi videosunu alır.")).toBeTruthy();
+    expect(screen.getByText(
+      "1 video üretilecek — videolu 1 kare için yeniler kopya kare olur, eskisi durur."))
+      .toBeTruthy();
   });
 
   it("counts the frame that was picked, not the one showing the same picture", () => {
@@ -248,6 +250,111 @@ describe("LayerPanel — linking wants neighbours", () => {
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(onQueue).toHaveBeenCalledWith(["2_a.png", "0_a.png"], 1, "standard");
+  });
+});
+
+describe("LayerPanel — the estimate speaks the mode", () => {
+  const modeRow = (label) => screen.getByText(label).closest("button");
+
+  it("says what a loop video is and what it does", () => {
+    renderPanel();
+
+    fireEvent.click(modeRow("Loop"));
+
+    expect(screen.getByText("2 loop video üretilecek — her video kendine döner.")).toBeTruthy();
+  });
+
+  it("says what a linked video is and where it ends", () => {
+    renderPanel();
+
+    fireEvent.click(modeRow("Sonrakine bağla"));
+
+    expect(screen.getByText("2 bağlı video üretilecek — her video sıradaki karede biter."))
+      .toBeTruthy();
+  });
+
+  it("leaves no trace of the plain sentence once a mode is picked", () => {
+    // The whole point of the item: three modes, three sentences, and the old single template gone
+    // from all of them. Asserting the new sentence alone would pass with both on screen.
+    renderPanel();
+
+    fireEvent.click(modeRow("Loop"));
+
+    expect(screen.queryByText(/her kare kendi videosunu alır/)).toBeNull();
+  });
+
+  it("confirms in the mode's own words", async () => {
+    renderPanel({ onQueue: () => Promise.resolve({ added: 2 }) });
+
+    fireEvent.click(modeRow("Loop"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(screen.getByText("2 loop video kuyruğa eklendi")).toBeTruthy();
+  });
+
+  it("keeps the words the queue was actually sent with", async () => {
+    // The card stands for ten seconds and the row is one click away. Reading the live mode would
+    // let it report a loop run that was never asked for.
+    renderPanel({ onQueue: () => Promise.resolve({ added: 2 }) });
+
+    fireEvent.click(modeRow("Loop"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+    fireEvent.click(modeRow("Standart"));
+
+    expect(screen.getByText("2 loop video kuyruğa eklendi")).toBeTruthy();
+  });
+});
+
+describe("LayerPanel — the estimate warns about copies", () => {
+  const modeRow = (label) => screen.getByText(label).closest("button");
+  const COPY = "videolu 1 kare için yeniler kopya kare olur, eskisi durur.";
+
+  it("says a frame that already has this layer will gain a twin", () => {
+    // Production never writes over a layer that is there: it makes a copy frame beside it. Until
+    // now nothing said so and the gallery growing by one was the first news of it.
+    renderPanel({ selected: ["1_a"] });
+
+    expect(screen.getByText(`1 video üretilecek — ${COPY}`)).toBeTruthy();
+  });
+
+  it("counts only the frames in scope that hold the layer", () => {
+    // Two frames go to the queue, one of them is the copy. The two numbers in the line are
+    // different numbers and a single count would read as either.
+    renderPanel({ selected: ["1_a", "0_a"] });
+
+    expect(screen.getByText(`2 video üretilecek — ${COPY}`)).toBeTruthy();
+  });
+
+  it("never warns on the scope that leaves those frames out", () => {
+    // Videosu olmayanlar cannot contain a frame with a video, so the count is zero by its own
+    // definition rather than by a second rule about which scope may warn.
+    renderPanel();
+
+    expect(screen.queryByText(/kopya kare olur/)).toBeNull();
+  });
+
+  it("puts the warning where the mode's own line would have been", () => {
+    // The mode is still said -- it is in the head of the sentence -- so nothing is lost by giving
+    // the tail to the news the user has no other way of hearing.
+    renderPanel({ selected: ["1_a"] });
+
+    fireEvent.click(modeRow("Loop"));
+
+    expect(screen.getByText(`1 loop video üretilecek — ${COPY}`)).toBeTruthy();
+    expect(screen.queryByText(/kendine döner/)).toBeNull();
+  });
+
+  it("warns in the sound panel's own words", () => {
+    const held = done("2_a.png", { video: "2_a_V1_0.mp4", audio: "2_a_A1_0.wav" });
+
+    render(
+      <LayerPanel layer="audio" frames={[done("0_a.png"), held]} selected={["2_a"]} producer={null}
+                  onQueue={() => Promise.resolve({ added: 1 })} onInstall={() => {}} />,
+    );
+
+    expect(screen.getByText(
+      "1 ses üretilecek — sesi olan 1 kare için yeniler kopya kare olur, eskisi durur."))
+      .toBeTruthy();
   });
 });
 
