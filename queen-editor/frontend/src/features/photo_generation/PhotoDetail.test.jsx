@@ -138,15 +138,16 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.getByText("ComfyUI 500 — 3 kez denendi")).toBeTruthy();
   });
 
-  it("shows the open layer's own prompt and the ones under it", async () => {
+  it("shows the open layer's own prompt and nothing under it", async () => {
     await open("P0_0", { frames: [LAYERED] });
 
     fireEvent.click(tab("Video"));
 
-    // The open layer's prompt is the editable box; the ones under it are read-only (madde 75).
+    // Its own words are the editable box; what it was made from is not this page's to show any
+    // more -- the decision that put it here was taken back (madde 87).
     expect(screen.getByDisplayValue("kadın dönüyor")).toBeTruthy();
-    expect(screen.getByText("kırmızı elbise")).toBeTruthy();
-    expect(screen.getByText("P0_0_V1_0.mp4")).toBeTruthy();
+    expect(screen.queryByText("kırmızı elbise")).toBeNull();
+    expect(screen.queryByText("P0_0_V1_0.mp4")).toBeNull();
     // The negative belongs to the photo alone: video and sound jobs carry none.
     expect(screen.queryByText("Negatif")).toBeNull();
   });
@@ -157,8 +158,44 @@ describe("PhotoDetail — the layer tabs", () => {
     fireEvent.click(tab("Ses"));
 
     expect(screen.getByDisplayValue("kumaş hışırtısı")).toBeTruthy();
-    expect(screen.getByText("P0_0_V1_0_S1_0.wav")).toBeTruthy();
-    expect(screen.getByText("kadın dönüyor")).toBeTruthy();
+    expect(screen.queryByText("kadın dönüyor")).toBeNull();
+    expect(screen.queryByText("P0_0_V1_0_S1_0.wav")).toBeNull();
+  });
+
+  it("keeps the frame's own name and its place on every tab", async () => {
+    // The page's own header carries the project's name, not the frame's -- so if this row went,
+    // the identity would be nowhere on screen (karar 23).
+    await open("P0_0", { frames: [LAYERED] });
+    expect(screen.getByText("Dosya adı")).toBeTruthy();
+
+    fireEvent.click(tab("Video"));
+    expect(screen.getByText("Dosya adı")).toBeTruthy();
+    expect(screen.getByText("P0_0.png")).toBeTruthy();
+    expect(screen.getByText("1 / 1")).toBeTruthy();
+
+    fireEvent.click(tab("Ses"));
+    expect(screen.getByText("Dosya adı")).toBeTruthy();
+  });
+
+  it("keeps nothing else in the top group", async () => {
+    // Read as a list rather than one row at a time: naming the rows that went says nothing about
+    // the rows that stayed, and what this item promises is the whole group.
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect([...document.querySelectorAll("[data-field]")].map((one) => one.textContent))
+      .toEqual(["Sıra", "Dosya adı"]);
+  });
+
+  it("centres the one line a waiting box holds", async () => {
+    // The box is never left blank -- an empty one reads as a prompt someone deleted (karar 24).
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.getByText("Prompt yok — üretim sırası geldiğinde eklenecek.").style.textAlign)
+      .toBe("center");
   });
 
   it("plays the video on its own tab", async () => {
@@ -803,7 +840,7 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
 
     fireEvent.click(tab("Video"));
 
-    expect(screen.getByText("üretim sırası gelince LLM yazacak")).toBeTruthy();
+    expect(screen.getByText("Prompt yok — üretim sırası geldiğinde eklenecek.")).toBeTruthy();
     // Nothing to make again and nothing to delete: the layer is not there yet.
     expect(screen.queryByText("Yeniden üret — yeni kare")).toBeNull();
     expect(screen.queryByText("Videoyu sil — kare kalır")).toBeNull();
