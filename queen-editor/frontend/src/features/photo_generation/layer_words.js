@@ -1,6 +1,7 @@
 // What a frame's layers are called on screen, and the one sentence that counts them.
 // The gallery's tile badges and the two delete confirms have to agree: a window that promises a
 // video the tile never showed would be promising a file the user does not believe they have.
+import { LOOP } from "./production_modes.js";
 
 // What a frame can own, in layer order. The photo is not here: a frame without one is not a frame
 // yet, so it is never something the frame "also" has.
@@ -9,11 +10,21 @@ export const OWNED = [{ layer: "video", word: "video" }, { layer: "audio", word:
 // The frame's own suffix for each layer, for the sentence rather than the badge.
 const OWNS_WORD = { video: "videosu", audio: "sesi" };
 
+// What a loop video wears instead of the plain word. Lower case unlike the panel's own label: that
+// one is a row in a list of choices, this one is a word laid on a picture beside video and ses.
+const LOOP_WORD = "loop";
+
 /** Which of OWNED this frame really has. A layer that blew up holds its slot but is not owned --
- *  that one is the status pill's to name. */
+ *  that one is the status pill's to name.
+ *
+ *  A loop video takes the word rather than standing beside it: one row per layer, so the two can
+ *  never be read together. Swapped after the filter, so a loop video that blew up says nothing at
+ *  all. A fresh row each time -- OWNED is shared, and writing over it would rename every frame. */
 export function owned(frame) {
-  return OWNED.filter(({ layer }) => (frame.layers || {})[layer]
-    && !(frame.failed || []).includes(layer));
+  return OWNED
+    .filter(({ layer }) => (frame.layers || {})[layer] && !(frame.failed || []).includes(layer))
+    .map((row) => (row.layer === "video" && (frame.modes || {}).video === LOOP
+      ? { ...row, word: LOOP_WORD } : row));
 }
 
 /**

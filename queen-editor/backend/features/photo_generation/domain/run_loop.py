@@ -81,6 +81,18 @@ def _end_for(job, store, slots, project, fid, source):
     return (cell["file"], store.read(project, cell["file"]))
 
 
+def _mode_of(job):
+    """The mode to write on the produced layer's row -- nothing for a job that names none.
+
+    The same reading the render used (_end_for), so the row says what the video actually is.
+
+    Which jobs have a mode is the queue's rule -- queue_layer puts the field on video jobs alone --
+    and it is not written a second time here, where the two could drift apart. A photo row saying
+    standard would be a field that means nothing on nearly every line it appears on.
+    """
+    return {"mode": production_mode.of(job)} if job.get("mode") else {}
+
+
 def make_job(runner, store, record, plan_store, producers, now, project,
              clock=time.monotonic, log=None, order_store=None, writers=None,
              new_seed=seed.random_seed):
@@ -208,7 +220,7 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             record.append(project, {"file": filename, "frame": fid, "layer": kind,
                                     "status": queue.DONE,
                                     "prompt": prompt, "negative": current["negative"],
-                                    "seed": chosen, "createdAt": now()})
+                                    "seed": chosen, "createdAt": now(), **_mode_of(current)})
             if log:
                 # Two numbers, never one: the render is the GPU's share and the writes are the
                 # pipeline's, and speed decisions need to tell them apart.

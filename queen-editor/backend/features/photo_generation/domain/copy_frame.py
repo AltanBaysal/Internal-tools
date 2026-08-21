@@ -66,11 +66,16 @@ def carry_layers(record, project, copy, frame, kind, now):
     rows point at the source's own files: one picture, two frames holding it.
     """
     words = frame.get("prompts", {})
+    modes = frame.get("modes", {})
     for under in queue.ORDER[:queue.ORDER.index(kind)]:
         file = frame.get("layers", {}).get(under)
         if not file:
             continue
+        mode = modes.get(under)
         record.append(project, {"file": file, "frame": copy, "layer": under,
                                 "status": queue.DONE, "prompt": words.get(under, ""),
                                 "negative": frame.get("negative", ""),
-                                "seed": frame.get("seed"), "createdAt": now()})
+                                "seed": frame.get("seed"), "createdAt": now(),
+                                # One file, two frames holding it: without this the twin's tile
+                                # would read video while the original reads loop.
+                                **({"mode": mode} if mode else {})})
