@@ -128,6 +128,39 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(tab("Ses").disabled).toBe(true);
   });
 
+  it("sets eight pixels between the three tabs", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // The strip's own measure, not the buttons': three buttons have two gaps between them, and a
+    // margin would write the number three times to get two of them (Fark 85).
+    expect(document.querySelector("[data-strip]").style.gap).toBe("8px");
+  });
+
+  it("pulls no tab onto the one before it", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Each tab already owns a corner radius -- the stroke class draws it. What hid the radius was
+    // the overlap: two rounded corners meeting on the same pixel read as a pinch, not a corner.
+    expect([tab("Foto"), tab("Video"), tab("Ses")].map((one) => one.style.marginLeft))
+      .toEqual(["", "", ""]);
+  });
+
+  it("tells the open tab by its colour and adds nothing else to it", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    const shut = { held: tab("Video").childElementCount, said: tab("Video").textContent };
+    expect(tab("Video").style.color).toBe("var(--ink-3)");
+
+    fireEvent.click(tab("Video"));
+
+    expect(tab("Video").style.color).toBe("var(--accent)");
+    expect(tab("Foto").style.color).toBe("var(--ink-3)");
+    // No underline, no dot, no caret: opening a tab changes what colour it is and nothing about
+    // what it holds. Separating the three is what makes that temptation appear (Fark 85).
+    expect(tab("Video").childElementCount).toBe(shut.held);
+    expect(tab("Video").textContent).toBe(shut.said);
+  });
+
   it("opens the tab of a layer that blew up, so its reason can be read", async () => {
     await open("P0_0", { frames: [{ ...LAYERED, failed: ["audio"],
                                     errors: { audio: "ComfyUI 500 — 3 kez denendi" } }] });

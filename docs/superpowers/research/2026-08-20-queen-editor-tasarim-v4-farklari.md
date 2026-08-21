@@ -1095,7 +1095,7 @@ madde madde verildi.
 
 ### Koşu sırasında verilen ek kararlar
 
-*(21 Ağustos 2026, 13. ve 15. madde uygulanırken.)*
+*(21 Ağustos 2026, 13, 15 ve 20. madde uygulanırken.)*
 
 | # | Karar | Kapattığı madde |
 |---|---|---|
@@ -1104,6 +1104,7 @@ madde madde verildi.
 | 29 | **Numara hover'da zaten kalkıyor.** `app.css`'teki `.qe-tile:hover .qe-badge` kuralı 13 Ağustos'ta, bu turdan bir hafta önce yazıldı; yerini de tasarımın istediği seçim halkası alıyor. Gözlem bayat, madde doğuştan kapalı. | 73 |
 | 30 | **Bırakma üretim başlatmaz.** Farkın özü zaten doğru: motor her turda sırayı yeniden okuyor, yani öne çekilen bekleyen kare bırakıldığı yerden üretiliyor. Eksik olan tek şey kartın bırakma anında "üretiliyor" yazması — motor başka bir kareyi tutarken bu yalan olur, kuyruk duruyorken de 6. karara aykırı. | 74 |
 | 31 | **Karışık seçim onayı yalnız başlık kalır.** Kullanıcının 12 Ağustos 2026 kararı (v3 fark listesi, madde 64): "alt satır hiç yazılmayacak — pencerede yalnız başlık ve butonlar kalacak." Fark listesi aynı wireframe'i yeniden görmüş. | 76 |
+| 32 | **Açık sekmenin çerçevesi vurgu rengini korur.** Tasarım "yalnız rengiyle belli olur, ek işaret yoktur" diyor; bugün açık sekmede yazı da çerçeve de vurgu rengine dönüyor ve ikisi de renk. İşaret, tasarımın sözlüğünde *eklenen* bir şey — alt çizgi, nokta, ok. Her sekmenin zaten sahip olduğu çerçevenin açık olanda renk değiştirmesi, sekmenin renklenmesidir. Bitişikken o çerçeve sürekli bir şeridin içinde açık parçayı kutulama işini de görüyordu; ayrılınca o işi bırakıyor, rengini değil. Madde geometriden ibaret kalıyor. | 85 |
 
 ### Karar gerektirmeyenler
 
