@@ -26,10 +26,10 @@ class ComfyPhotoGenerator:
         """Which checkpoints are installed -- asked of the server, never listed here."""
         return self._client.checkpoints()
 
-    def generate(self, prompt, negative, seed, model="", source=None):
-        """`source` is nobody's business here: a picture is made from its words alone. The argument
-        is taken because the queue has one call shape for every producer -- see
-        ports.PhotoGenerator.
+    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        """`source` and `end` are nobody's business here: a picture is made from its words alone and
+        arrives nowhere. Both are taken because the queue has one call shape for every producer --
+        see ports.PhotoGenerator.
         """
         workflow = self._load()
         self._set_text(workflow, PROMPT_NODE, prompt)

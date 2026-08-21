@@ -25,6 +25,10 @@ COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
 WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
 # The video graph the same way: our own WAN 2.2 I2V export, exported from ComfyUI and committed.
 VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_video_api.json")
+# The second video graph: a video that ends on a chosen picture. Its own pipeline rather than the
+# one above with a node swapped, so it ships beside it and standard production is untouched.
+VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR),
+                                              "workflow_video_first_last_api.json")
 # Sound has no graph: MMAudio runs inside this process, so its weights are a model file like any
 # other, installed by the notebook rather than shipped here.
 

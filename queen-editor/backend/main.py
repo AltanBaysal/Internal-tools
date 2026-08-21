@@ -69,6 +69,7 @@ _photo_store = DrivePhotoStore(_storage)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
 _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
+                                       config.VIDEO_FIRST_LAST_WORKFLOW_PATH,
                                        config.VIDEO_TIMEOUT)
 # Sound is the one producer that is not a ComfyUI graph: MMAudio runs inside this process. Where
 # its weights live is the producers feature's answer, so the path is taken from the group it

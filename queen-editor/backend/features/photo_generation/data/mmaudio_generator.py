@@ -40,8 +40,11 @@ class MMAudioGenerator:
         # choice, but a test cannot prove two jobs got different seeds without knowing them.
         self._new_seed = new_seed or _random_seed
 
-    def generate(self, prompt, negative, seed, model="", source=None):
+    def generate(self, prompt, negative, seed, model="", source=None, end=None):
         """`source` is the frame's video as (name, bytes); the answer is its sound as bytes.
+
+        `end` is a video's business alone -- a sound is laid over the whole of one and arrives
+        nowhere. Taken and ignored, because the queue has one call shape for every producer.
 
         The name is not ours to give: the queue names every layer file from the domain's scheme
         (photo_name.layer_file), and a second name written here drifts from it -- as it had.

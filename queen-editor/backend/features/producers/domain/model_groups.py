@@ -36,6 +36,9 @@ GROUPS = {
         {"folder": "diffusion_models", "name": "SmoothMix_I2V_v2_Low.safetensors"},
         {"folder": "loras", "name": "SmoothMix_Animations_XXX_High.safetensors"},
         {"folder": "loras", "name": "SmoothMix_Animations_XXX_Low.safetensors"},
+        # Only the first-last graph reads this one, and only through its CLIPVisionLoader. It is in
+        # the video group all the same: one producer, and a producer is installed or it is not.
+        {"folder": "clip_vision", "name": "clip_vision_h.safetensors"},
     ],
     "audio": [
         # The fine-tune the sampler loads. MMAudio's own vae, synchformer and vocoder come down

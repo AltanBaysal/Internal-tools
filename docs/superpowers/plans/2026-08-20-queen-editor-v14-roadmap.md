@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 0/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 1/31
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -71,7 +71,7 @@ kullanıcıyla birlikte oturulur.
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 1 | **Motorun bitiş karesi alabilmesi.** Üretim, bugün yalnız ilk kareyi alıyor; yanına son kareyi de alacak. | Bir kareye kendi fotoğrafı bitiş karesi verilerek üretim yapılıyor ve dönen video başladığı yere dönüyor. | İstek 3 |
+| 1 | ✅ **Motorun bitiş karesi alabilmesi.** Üretim, bugün yalnız ilk kareyi alıyor; yanına son kareyi de alacak. | Bir kareye kendi fotoğrafı bitiş karesi verilerek üretim yapılıyor ve dönen video başladığı yere dönüyor. | İstek 3 |
 | 2 | **Kuyruk işinin üretim modunu taşıması.** Kuyruğa giren video işi standart, loop ya da bağlı olduğunu kaydedecek; motor onu okuyup bitiş karesini buna göre seçecek. | Üç modda da kuyruğa iş eklenip beklendiğinde çıkan videolar birbirinden farklı; bağlı modda bitiş karesi sonraki karenin fotoğrafı. | İstek 3 · Fark 22 |
 | 3 | **Video ve sesin tohumunun kayda geçmesi.** Üretici eksik tohumu kendisi seçiyor ama kayda geçmiyor, dolayısıyla bir satırdan yeniden üretilemiyor. Üç üreticinin de kullandığı tohumu geri döndürmesi gerekiyor. | Tohum verilmeden yapılan üretimde üç üreticinin de döndürdüğü tohum satıra yazılıyor; o satırdan yeniden üretim aynı tohumla gidiyor. | Bekleyen işler |
 

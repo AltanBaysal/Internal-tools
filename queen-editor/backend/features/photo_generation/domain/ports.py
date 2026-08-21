@@ -4,12 +4,15 @@ from typing import Protocol
 
 class PhotoGenerator(Protocol):
     def generate(self, prompt: str, negative: str, seed: int, model: str = "",
-                 source: tuple | None = None) -> bytes:
+                 source: tuple | None = None, end: tuple | None = None) -> bytes:
         """Render one layer and return its bytes -- nothing else, and no name.
 
         `source` is the file this layer is made from as (name, bytes): a video's photo, a sound's
         video. A layer made from its words alone is given None, and every producer takes the
         argument whether it uses it or not -- the queue has one call shape, not three.
+
+        `end` is the picture the layer arrives at, same shape. Only a video has one; a photo and a
+        sound take the argument and ignore it, for the same reason `source` is taken by all three.
 
         The file's name is the domain's (photo_name.layer_file), never the producer's.
 
