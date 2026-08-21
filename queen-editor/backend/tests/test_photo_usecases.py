@@ -1098,8 +1098,10 @@ def test_a_video_job_with_no_prompt_has_one_written_from_the_photos():
                  lambda: "t", "düğün", writers={layers.VIDEO: writer})
 
     assert writer.calls == [{"photo": "kırmızı elbiseli kadın"}]
-    # Produced with the written text, and the record says the layer was made with it.
-    assert generator.calls == [("kadın başını yavaşça çeviriyor", "", None, "")]
+    # Produced with the written text, and the record says the layer was made with it. The seed is
+    # left out: the engine picks one for a job that carries none, so it is not this test's to know.
+    assert [(call[0], call[1], call[3]) for call in generator.calls] == [
+        ("kadın başını yavaşça çeviriyor", "", "")]
     video = [row for row in record.rows if row.get("layer") == "video"][0]
     assert video["prompt"] == "kadın başını yavaşça çeviriyor"
 
@@ -1177,7 +1179,8 @@ def test_a_job_that_carries_its_own_prompt_never_reaches_the_model():
                  lambda: "t", "düğün", writers={layers.VIDEO: writer})
 
     assert writer.calls == []
-    assert generator.calls == [("elini kaldırıyor", "", None, "")]
+    assert [(call[0], call[1], call[3]) for call in generator.calls] == [
+        ("elini kaldırıyor", "", "")]
 
 
 def test_a_frame_with_no_photo_prompt_is_not_worth_an_ask():
@@ -1188,7 +1191,7 @@ def test_a_frame_with_no_photo_prompt_is_not_worth_an_ask():
                  lambda: "t", "düğün", writers={layers.VIDEO: writer})
 
     assert writer.calls == []
-    assert generator.calls == [("", "", None, "")]
+    assert [(call[0], call[1], call[3]) for call in generator.calls] == [("", "", "")]
 
 
 def test_the_three_attempts_of_one_job_spend_a_single_ask():

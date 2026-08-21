@@ -175,8 +175,10 @@ def test_a_producer_with_no_end_frame_takes_the_argument_anyway(tmp_path):
 
     photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
         "kraliçe tahtta", "blurry", 1, end=("P1_0.png", b"PNG"))
+    # A real seed, because the sound engine no longer invents one: the loop picks it before the
+    # render so the number can also be written on the produced layer's row.
     sound = MMAudioGenerator(Sampler(), ffmpeg, tmp_dir=str(tmp_path)).generate(
-        "dalga sesi", "", None, source=("P0_0_V1_0.mp4", b"MP4"), end=("P1_0.png", b"PNG"))
+        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), end=("P1_0.png", b"PNG"))
 
     assert photo == b"PNG"
     assert sound == b"RIFFwav"

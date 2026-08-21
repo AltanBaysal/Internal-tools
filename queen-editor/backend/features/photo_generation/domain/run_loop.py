@@ -14,7 +14,7 @@ second map, exactly the way it finds the producer.
 """
 import time
 
-from backend.features.photo_generation.domain import layers, policy, production_mode, queue
+from backend.features.photo_generation.domain import layers, policy, production_mode, queue, seed
 from backend.features.photo_generation.domain.photo_name import layer_file, photo_file
 
 
@@ -82,7 +82,8 @@ def _end_for(job, store, slots, project, fid, source):
 
 
 def make_job(runner, store, record, plan_store, producers, now, project,
-             clock=time.monotonic, log=None, order_store=None, writers=None):
+             clock=time.monotonic, log=None, order_store=None, writers=None,
+             new_seed=seed.random_seed):
     """Returns the callable PhotoRunner.start expects: it drains this project's queue.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
@@ -96,6 +97,12 @@ def make_job(runner, store, record, plan_store, producers, now, project,
     `order_store` is where the sequence comes from: the gallery's own order is the order work is
     done in, read from its foot up. Without one the plan's sequence stands, which is what a project
     nobody has dragged in looks like anyway.
+
+    `new_seed` is where a job with no seed of its own gets one. Chosen here rather than inside a
+    producer because the number has to be written on the produced layer's row as well, and this is
+    the only place standing between the render and that row. A default rather than a required
+    argument: every caller reaches the queue through this function, and none of them has a reason to
+    know about seeds.
 
     `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
     says is decided here; where it lands is main.py's to choose, so the loop can be tested without
@@ -114,7 +121,7 @@ def make_job(runner, store, record, plan_store, producers, now, project,
         # Attempts spent on the job in hand, which job they belong to, and the prompt written for
         # it. Memory only: a dead process must leave no count behind, and a restarted run deserves
         # three fresh tries.
-        attempts, holding, written = 0, None, None
+        attempts, holding, written, chosen = 0, None, None, None
         while True:
             if runner.stop_requested():
                 return summary("paused")
@@ -140,8 +147,14 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             name = layer_file(kind, fid, video=(slots.get(fid, {}).get(layers.VIDEO) or {}).get(
                 "file"))
             if name != holding:
-                # A different job: its predecessor's attempts and written prompt are not its own.
-                holding, attempts, written = name, 0, None
+                # A different job: its predecessor's attempts, written prompt and seed are not its
+                # own.
+                holding, attempts, written, chosen = name, 0, None, None
+            if chosen is None:
+                # A layer job is planned with no seed (queue_layer). Picked before the render, and
+                # once per job rather than once per attempt: all three tries share it, so the row
+                # names the number every one of them used.
+                chosen = current["seed"] if current["seed"] is not None else new_seed()
             # pending is what the gallery draws as "bekliyor": the queue behind the job being done.
             # failures names the tiles it draws red, each with its own Tekrar dene.
             runner.report({**queue.counts(jobs, slots), "current": current,
@@ -165,7 +178,7 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # Held in a variable because a loop ends on the very file it is made from: reading
                 # it twice would be the same download from Drive twice, once per video.
                 under = _source_for(kind, store, slots, project, fid)
-                data = producer.generate(prompt, current["negative"], current["seed"],
+                data = producer.generate(prompt, current["negative"], chosen,
                                          current["model"], source=under,
                                          end=_end_for(current, store, slots, project, fid, under))
             except Exception as exc:
@@ -195,7 +208,7 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             record.append(project, {"file": filename, "frame": fid, "layer": kind,
                                     "status": queue.DONE,
                                     "prompt": prompt, "negative": current["negative"],
-                                    "seed": current["seed"], "createdAt": now()})
+                                    "seed": chosen, "createdAt": now()})
             if log:
                 # Two numbers, never one: the render is the GPU's share and the writes are the
                 # pipeline's, and speed decisions need to tell them apart.

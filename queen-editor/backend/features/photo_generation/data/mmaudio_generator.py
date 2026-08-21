@@ -11,7 +11,6 @@ near the length the model was trained on. Everything torch touches lives behind 
 file never imports it, so the suite runs on a machine with no GPU.
 """
 import os
-import random
 import shutil
 import tempfile
 
@@ -25,20 +24,11 @@ NEGATIVE = "music, speech, voices, singing, talking, vocals"
 FADE_MS = 100
 
 
-def _random_seed():
-    """The seed a sound job never carries. The same range photo jobs are planned in, so a seed is
-    a seed wherever it was born."""
-    return random.randint(0, 2**31 - 1)
-
-
 class MMAudioGenerator:
-    def __init__(self, sampler, ffmpeg, tmp_dir=None, new_seed=None):
+    def __init__(self, sampler, ffmpeg, tmp_dir=None):
         self._sampler = sampler
         self._ffmpeg = ffmpeg
         self._tmp_dir = tmp_dir
-        # A port for the test's sake rather than the wiring's: which numbers come out is nobody's
-        # choice, but a test cannot prove two jobs got different seeds without knowing them.
-        self._new_seed = new_seed or _random_seed
 
     def generate(self, prompt, negative, seed, model="", source=None, end=None):
         """`source` is the frame's video as (name, bytes); the answer is its sound as bytes.
@@ -54,12 +44,9 @@ class MMAudioGenerator:
         """
         if not source:
             raise RuntimeError("Ses için kaynak video verilmedi")
-        # A sound job is planned with no seed of its own -- only photos are seeded, and a layer is
-        # made from what is under it. torch's manual_seed takes a long and raises on None, so the
-        # missing one is chosen here: once per job, so every piece of one sound shares it, and
-        # freshly each time, so two sound variants of one video are two different sounds.
-        if seed is None:
-            seed = self._new_seed()
+        # The seed arrives with the job and this engine invents none. A sound job is planned without
+        # one, so the loop picks it before the render -- there, because the number also has to be
+        # written on the produced layer's line, and a seed chosen here could never reach it.
         _name, data = source
         room = tempfile.mkdtemp(dir=self._tmp_dir)
         try:

@@ -1,6 +1,5 @@
 """Composition root -- build services, wire them into features, start Flask.
 Run as: python -m backend.main"""
-import random
 import time
 from datetime import datetime, timezone
 from functools import partial
@@ -15,7 +14,7 @@ from backend.features.photo_generation.data.xai_prompt_writer import (
     AudioPromptWriter,
     VideoPromptWriter,
 )
-from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain import layers, seed
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
@@ -129,7 +128,7 @@ def _timing(line):
 
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
-                        _producers, lambda: random.randint(0, 2**31 - 1),
+                        _producers, seed.random_seed,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing, order_store=_order_store, writers=_writers),
     get_status=partial(get_status, _photo_runner),
@@ -154,7 +153,7 @@ _photo_bp = make_photo_generation_blueprint(
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing, writers=_writers),
     regenerate=partial(regenerate, _photo_runner, _photo_store, _photo_record, _plan_store,
-                       _order_store, _producers, lambda: random.randint(0, 2**31 - 1),
+                       _order_store, _producers, seed.random_seed,
                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                        log=_timing, writers=_writers),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
