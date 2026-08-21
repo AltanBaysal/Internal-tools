@@ -24,6 +24,9 @@ bağlamadığı için onu o tabloya koymamış.
 **Bu turda bar 28'de kalıyor** ve soru kullanıcıya açık metinle soruluyor. Yön güvenli olan yön:
 kullanıcının kendi kararını bozmadan bırakmak, tersi bir tuşla geri alınabilir.
 
+> **Soruldu ve kapandı:** bar 28 pikselde kalıyor. Kararın kendisi kaynak belgede —
+> [v4 fark listesi](../research/2026-08-20-queen-editor-tasarim-v4-farklari.md), karar 27.
+
 ## Verilen kararlar
 
 ### 1 · Bekleyen kare varsa katman düğmeleri yok

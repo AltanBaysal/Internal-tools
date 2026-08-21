@@ -1093,6 +1093,14 @@ madde madde verildi.
 |---|---|---|
 | 26 | **İzleme moda uymaz.** Video hangi modda üretilmiş olursa olsun detayda bugünkü gibi döner — loop'a, standarda ve bağlıya özel oynatma davranışı yazılmaz. | 97 |
 
+### Koşu sırasında verilen ek kararlar
+
+*(21 Ağustos 2026, 13. madde uygulanırken.)*
+
+| # | Karar | Kapattığı madde |
+|---|---|---|
+| 27 | **Seçim barı alt kenardan 28 pikselde kalır.** Tasarımın istediği 20, kullanıcının v3'te "en dibe yapışık" dediği değerin ta kendisi; 28 o bulguya (v3 madde 108) verilmiş cevaptır ve v5'in 33. görev spec'inde yazılıdır. Tasarımın 20'si tek artboard'dan gelen zayıf sinyal. Bu madde 2. bölümde `değişecek` göründüğü için 5–8'in yanına yazılmamıştı; oysa aynı istisnadır — "sapma" sanılan şey sonradan verilmiş bir karardı. | 84 |
+
 ### Karar gerektirmeyenler
 
 Kalan maddeler karar beklemiyordu: `düzeltilecek` türündekiler uygulamanın kendi tarifinden
