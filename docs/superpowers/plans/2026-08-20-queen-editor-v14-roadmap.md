@@ -1,6 +1,7 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 26/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 26/30
+*(31 madde yazıldı; 26. madde kullanıcı kararıyla düştü — numaralandırma kaymıyor.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -61,6 +62,9 @@ kullanıcıyla birlikte oturulur.
 - **Export ekranı bu koşuda hiç açılmıyor.** Kullanıcı ekranı düzgün buldu; fark listesinin export
   maddelerinin tamamı — görsel olanı da olmayanı da — kullanıcı kararıyla düştü.
 - **Kararla kapanan 31 fark maddesi dışarıda.** Bugünkü hâlleriyle kalıyorlar.
+- **26. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Kurulum bitince kuyruğun
+  kendiliğinden sürmesi, 13 Ağustos 2026'nın "hiçbir üretim kullanıcı basmadan başlamaz" kararına
+  aykırıydı; o karar geçerli.
 - **Tasarım tarafında iki satır güncellenmeli.** Açılışta kuyruğun kendiliğinden sürmesi ve yeniden
   üretimin tur numarası, kullanıcı kararıyla bugünkü hâlinde kaldı; tasarımın kural metni hâlâ
   tersini söylüyor. Güncellenmezse bir sonraki karşılaştırmada aynı çelişkiler yeniden çıkar.
@@ -132,7 +136,7 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
 | 25 | ✅ **Kısmi üretici eksikliğinde uyarının kendi kartına geçmesi.** *(46. karar: farkın motor yarısı zaten doğruydu — motor bir türü bitirmeden ötekine başlamıyor. Değişen, panelin ne zaman ve nerede konuştuğu.)* Yalnız bir türün üreticisi eksikken panelin geneli etkilenmez; uyarı ve kurulum düğmesi o türün kendi kartının içinde durur, diğer türler normal akar. | Ses üreticisi eksikken foto ve video kartları akıyor, uyarı yalnız ses kartında duruyor. | Fark 38 |
-| 26 | ⏸ **Kurulum bitince kuyruğun kendiliğinden sürmesi.** *(Kullanıcı kararı bekliyor: bu madde 13 Ağustos 2026'nın "hiçbir üretim kullanıcı basmadan başlamaz, istisnası yok — üreticisini bekleyen kuyruk da bekler" kararının tersini istiyor. Fark 36 aynı kararla, 6. karar olarak kapatılmıştı.)* Üretici eksikliği yüzünden bekleyen kuyruk, üretici geldiğinde kullanıcıdan bir hamle beklemeden akar; bekleme kartı bunu önceden söyler. | Eksik üretici kurulunca kuyruk kendiliğinden akmaya başlıyor. | Fark 37 |
+| 26 | ❌ **Düştü** *(kullanıcı kararı, 21 Ağustos 2026 — 50. karar)*. **Kurulum bitince kuyruğun kendiliğinden sürmesi.** Madde, 13 Ağustos 2026'nın *"hiçbir üretim kullanıcı basmadan başlamaz; istisnası yok — üreticisini bekleyen kuyruk da bekler"* kararının tersini istiyordu. O karar geçerli; fark 37 de fark 36 gibi kapandı. | — | Fark 37 |
 | 27 | ✅ **Kuyruk panelinin görsel hizalaması** *(grup)*. *(47–49. kararlar: onayın "kare" sözcüğü ve durdu kartının ham çıktı kutusu kalıyor; fark 59 zaten 25. maddede kapandı.)* Tür kartının başlık dili ve büyük sayısının rengi, duraklatılıyor hâlindeki nokta, tamamlandı kartının tonu, hata kartının düğme metni ve ne zaman doğduğu, bekleme hâlinde boşaltma düğmesinin görünmesi. | Listedeki farkların hepsi ekranda kapanmış. | Fark 41–48, 50, 59 |
 
 ---
