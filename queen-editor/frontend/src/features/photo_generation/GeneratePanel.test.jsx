@@ -203,6 +203,22 @@ describe("GeneratePanel — the confirmation", () => {
 });
 
 describe("GeneratePanel — the variant box", () => {
+  it("opens at two when the project has never saved a count", () => {
+    // A project with nothing saved is what a new one looks like, and two is what the user asked
+    // the box to start at (İstek 8).
+    renderPanel({ settings: { ...SETTINGS, variants: null } });
+
+    expect(variantBox().value).toBe("2");
+  });
+
+  it("opens at the saved count rather than the default", () => {
+    // The default is for an empty setting, not a correction: a project saved with a count of its
+    // own keeps it, whatever a new one now starts at.
+    renderPanel({ settings: { ...SETTINGS, variants: 6 } });
+
+    expect(variantBox().value).toBe("6");
+  });
+
   it("refuses a value outside 1-26", () => {
     renderPanel();
 

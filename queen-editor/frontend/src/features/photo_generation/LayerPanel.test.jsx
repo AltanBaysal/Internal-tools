@@ -54,6 +54,14 @@ describe("LayerPanel — the scope", () => {
 });
 
 describe("LayerPanel — variants", () => {
+  it("opens at one, whatever the photo panel's default is", () => {
+    // İstek 8's second sentence: the photo panel's default moved and this one did not. Two panels,
+    // two decisions -- and a number shared between them would have made one follow the other.
+    renderPanel();
+
+    expect(variantBox().value).toBe("1");
+  });
+
   it("multiplies the estimate by the variant count", () => {
     renderPanel();
 
