@@ -27,7 +27,8 @@ describe("LayerPanel — the scope", () => {
     renderPanel();
 
     // 2_a and 0_a: the one with a video is out, and so is the one with no photo yet.
-    expect(screen.getByText("Videosu olmayanlar").closest("button").textContent).toContain("2");
+    expect(screen.getByText("Videosu olmayan kareler").closest("button").textContent)
+      .toContain("2");
   });
 
   it("says what pressing the button would do", () => {
@@ -179,7 +180,7 @@ describe("LayerPanel — why the press was refused", () => {
     press();
     expect(screen.getByText("Seçili karelerin fotoğrafı henüz üretilmedi.")).toBeTruthy();
 
-    fireEvent.click(screen.getByText("Videosu olmayanlar").closest("button"));
+    fireEvent.click(screen.getByText("Videosu olmayan kareler").closest("button"));
 
     expect(screen.queryByText("Seçili karelerin fotoğrafı henüz üretilmedi.")).toBeNull();
   });
@@ -218,6 +219,63 @@ describe("LayerPanel — why the press was refused", () => {
   });
 });
 
+describe("LayerPanel — the panel's own shape", () => {
+  const rowOf = (label) => screen.getByText(label).closest("button");
+  const blocks = () => [...document.querySelectorAll("[data-label]")].map((one) => one.textContent);
+
+  it("names the scope in full, the way its sound twin is named", () => {
+    // A slip rather than a choice: the app's own description wrote this row out in full, and only
+    // the video side got shortened.
+    renderPanel();
+
+    expect(screen.getByText("Videosu olmayan kareler")).toBeTruthy();
+    expect(screen.queryByText("Videosu olmayanlar")).toBeNull();
+  });
+
+  it("puts a circle at the head of each scope row, bright on the chosen one", () => {
+    renderPanel();
+
+    const chosen = rowOf("Videosu olmayan kareler").querySelector("[data-dot]");
+    const other = rowOf("Seçili kareler").querySelector("[data-dot]");
+    expect(chosen.style.borderWidth).toBe("2px");
+    expect(chosen.style.borderColor).toBe("var(--accent)");
+    expect(other.style.borderWidth).toBe("1px");
+    expect(other.style.borderColor).toBe("var(--ink-3)");
+  });
+
+  it("draws its rows with more room, the scope rows and the mode rows alike", () => {
+    // One look for both families: the mode row is drawn the way a scope row is drawn, and giving
+    // the measure to only one of them would leave 8px rows sitting under 10px rows.
+    renderPanel();
+
+    expect(rowOf("Videosu olmayan kareler").style.padding).toBe("10px 12px");
+    expect(rowOf("Loop").style.padding).toBe("10px 12px");
+  });
+
+  it("offers the model in the same box the photo panel uses", () => {
+    // One option, because there is one model per layer -- a box that opens and shows the only
+    // thing there is. The frame and the arrow are the design's; the choice is not invented.
+    renderPanel();
+
+    expect(screen.getByRole("combobox").className).toContain("wf-input");
+    expect([...screen.getByRole("combobox").options].map((one) => one.textContent))
+      .toEqual(["WAN 2.2 I2V"]);
+  });
+
+  it("has no block of its own for the length", () => {
+    renderPanel();
+
+    expect(screen.queryByText("Süre")).toBeNull();
+    expect(screen.queryByText(/5 saniye/)).toBeNull();
+  });
+
+  it("keeps only the blocks the design leaves standing", () => {
+    renderPanel();
+
+    expect(blocks()).toEqual(["Model", "Kapsam", "Üretim modu", "Varyant"]);
+  });
+});
+
 describe("LayerPanel — sending", () => {
   it("asks for every frame with no video when that is the scope", async () => {
     const onQueue = vi.fn().mockResolvedValue({ added: 2 });
@@ -248,12 +306,6 @@ describe("LayerPanel — sending", () => {
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(onQueue).toHaveBeenCalledWith(null, 2, "standard");
-  });
-
-  it("says the length is not a choice in this version", () => {
-    renderPanel();
-
-    expect(screen.getByText("Her video 5 saniye — bu sürümde sabit.")).toBeTruthy();
   });
 
   it("does not explain who writes the prompt -- the frame's own page does", () => {
@@ -513,6 +565,28 @@ describe("LayerPanel — sound", () => {
 
     expect(screen.getByText("MMAudio v2")).toBeTruthy();
     expect(screen.getByText("1 ses üretilecek — her kare kendi sesini alır.")).toBeTruthy();
+  });
+
+  it("already names its own scope in full", () => {
+    // The anchor the video row is being matched to: this side was written out from the start, and
+    // this test is what keeps it from drifting the other way.
+    renderSound();
+
+    expect(screen.getByText("Videosu olup sesi olmayan kareler")).toBeTruthy();
+  });
+
+  it("shows its own model in that same box", () => {
+    renderSound();
+
+    expect([...screen.getByRole("combobox").options].map((one) => one.textContent))
+      .toEqual(["MMAudio v2"]);
+  });
+
+  it("has no length block either", () => {
+    renderSound();
+
+    expect(screen.queryByText("Süre")).toBeNull();
+    expect(screen.queryByText("Ses videonun süresince üretilir.")).toBeNull();
   });
 
   it("says all the frames already have a sound", () => {
