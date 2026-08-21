@@ -508,6 +508,24 @@ describe("Gallery selection mode", () => {
     expect(screen.getByText("1 seçili").closest("[style*='sticky']").style.bottom).toBe("28px");
   });
 
+  it("narrows the space between the bar's items", () => {
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+
+    // Six buttons now, and 14 was a bar with three (Fark 83).
+    expect(screen.getByText("1 seçili").parentElement.style.gap).toBe("10px");
+  });
+
+  it("keeps every button's words on one line", () => {
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+
+    // Whether the bar really fits on one line is a question jsdom cannot answer -- it computes no
+    // layout. What it can hold is the rule that keeps a label from breaking in two, and that also
+    // stops a flex item shrinking below its own text.
+    expect(screen.getByText("1 seçili").parentElement.style.whiteSpace).toBe("nowrap");
+  });
+
   it("takes the bar away when the selection is emptied", () => {
     renderGallery();
     fireEvent.click(checkOf("1_a.png"));
@@ -778,6 +796,29 @@ describe("Gallery — taking a layer off many frames", () => {
 
     expect(screen.getByText("1 karenin videosu silinsin mi?")).toBeTruthy();
     expect(screen.getByText(/videosu olmayan 1 kare atlanır/)).toBeTruthy();
+  });
+
+  it("draws no layer buttons while a frame that is not produced is in the selection", () => {
+    // What these two take off is a finished stack, and the queue is still writing into that one.
+    renderGallery({ frames: [withSound("2_a.png"), pending("1_a.png")],
+                    onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png");
+
+    expect(screen.queryByText("Videoları sil")).toBeNull();
+    expect(screen.queryByText("Sesleri sil")).toBeNull();
+    // The frames themselves can still go, and the produced one can still be copied.
+    expect(screen.getByText("Sil")).toBeTruthy();
+    expect(screen.getByText("Kopyala")).toBeTruthy();
+  });
+
+  it("leaves three buttons in the bar when only frames that are not produced are selected", () => {
+    renderGallery({ frames: [pending("2_a.png"), pending("1_a.png")],
+                    onCopy: vi.fn(), onRemoveLayer: remover() });
+    pick("2_a.png");
+
+    const bar = screen.getByText("1 seçili").parentElement;
+    const words = [...bar.querySelectorAll("button")].map((one) => one.textContent.trim());
+    expect(words).toEqual(["Tümünü seç", "Sil", "Vazgeç"]);
   });
 });
 
