@@ -17,7 +17,7 @@ const MAX_VARIANTS = 26;
 const WORDS = {
   video: {
     model: "WAN 2.2 I2V",
-    missing: "Videosu olmayanlar",
+    missing: "Videosu olmayan kareler",
     // The bare noun for counting, and the possessive the estimate line needs -- Turkish does not
     // build one from the other.
     noun: "video",
@@ -25,8 +25,6 @@ const WORDS = {
     // The adjective for a frame that already carries this layer. Only the copy warning needs it,
     // and the two panels say it differently enough that neither can be built from the other.
     held: "videolu",
-    // Every video is five seconds and there is no setting for it in this version (madde 28).
-    note: "Her video 5 saniye — bu sürümde sabit.",
     // Why a press found nothing to do. Three of them, because the panel can be empty for three
     // different reasons and one sentence for all of them is what sent the user here (İstek 4.3).
     // noBase is what this layer hangs on: for a video that is the frame's own picture.
@@ -41,7 +39,6 @@ const WORDS = {
     noun: "ses",
     own: "sesini",
     held: "sesi olan",
-    note: "Ses videonun süresince üretilir.",
     // A sound hangs on a video, not on a photo -- so an empty project reads this one here, and it
     // is the nearer thing that is missing.
     noBase: "Videosu olan kare yok.",
@@ -130,15 +127,31 @@ function neighbours(frames, chosen) {
   return Math.max(...places) - Math.min(...places) + 1 === places.length;
 }
 
+// What both row families share. One constant rather than the same object written twice: the design
+// widened the row (Fark 31), and a measure given to only one of them would leave two heights in one
+// panel -- ModeRow's own comment says it is drawn the way a scope row is drawn.
+const ROW = { display: "flex", alignItems: "center", padding: "10px 12px", background: "none",
+              width: "100%" };
+// The radio the design puts at the head of a scope row: thick and accent-coloured on the chosen
+// one, thin and grey on the other. Three long properties rather than the border shorthand, because
+// a shorthand carrying var() cannot be read back out of the element again.
+const DOT = { width: 12, height: 12, borderRadius: "50%", borderStyle: "solid", flexShrink: 0 };
+
 function ScopeRow({ label, count, active, disabled, onPick }) {
   return (
     <button type="button" onClick={onPick} disabled={disabled}
             className="wf-stroke"
-            style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-                     padding: "8px 10px", background: "none", cursor: disabled ? "default" : "pointer",
+            style={{ ...ROW, justifyContent: "space-between", gap: 10,
+                     cursor: disabled ? "default" : "pointer",
                      borderColor: active ? "var(--accent)" : "var(--border)",
-                     opacity: disabled ? 0.4 : active ? 1 : 0.4, width: "100%" }}>
-      <Note size={12} style={{ color: "var(--ink-2)" }}>{label}</Note>
+                     opacity: disabled ? 0.4 : active ? 1 : 0.4 }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+        {/* The row's own dim state is what makes an unpicked circle faint -- no second fading here,
+            or the two would drift the day one of them is changed. */}
+        <span data-dot style={{ ...DOT, borderWidth: active ? 2 : 1,
+                                borderColor: active ? "var(--accent)" : "var(--ink-3)" }} />
+        <Note size={12} style={{ color: "var(--ink-2)" }}>{label}</Note>
+      </span>
       <Mono size={12} style={{ color: active ? "var(--accent)" : "var(--ink-3)" }}>{count}</Mono>
     </button>
   );
@@ -153,11 +166,10 @@ function ModeRow({ label, active, disabled, onPick }) {
   return (
     <button type="button" onClick={onPick} disabled={disabled}
             className="wf-stroke"
-            style={{ display: "flex", alignItems: "center", padding: "8px 10px", background: "none",
-                     cursor: disabled ? "default" : "pointer",
+            style={{ ...ROW, cursor: disabled ? "default" : "pointer",
                      borderColor: active ? "var(--accent)" : "var(--border)",
                      // Closed first: a closed row must not stay bright just because it was picked.
-                     opacity: disabled ? 0.4 : active ? 1 : 0.4, width: "100%" }}>
+                     opacity: disabled ? 0.4 : active ? 1 : 0.4 }}>
       <Note size={12} style={{ color: "var(--ink-2)" }}>{label}</Note>
     </button>
   );
@@ -207,13 +219,13 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   const owed = scoped.length * (Number(variants) || 0);
   // Frames in scope that already carry this layer. Production does not write over one -- it makes
   // a copy frame beside it -- and nothing on screen said so until now. Read from the scope rather
-  // than the raw selection: Videosu olmayanlar leaves those frames out by its own definition, so
-  // the count is zero there without a second rule about which scope may warn.
+  // than the raw selection: Videosu olmayan kareler leaves those frames out by its own definition,
+  // so the count is zero there without a second rule about which scope may warn.
   const copies = scoped.filter((frame) => (frame.layers || {})[layer]).length;
   const said = { noun: nounOf(mode, words.noun),
                  tail: MODE_TAIL[mode] || `her kare kendi ${words.own} alır.` };
-  // Only on the selection's own scope: "Videosu olmayanlar" is scattered by nature -- what sits
-  // between its members already has a video -- and each of its frames still has a real next.
+  // Only on the selection's own scope: "Videosu olmayan kareler" is scattered by nature -- what
+  // sits between its members already has a video -- and each of its frames still has a real next.
   const linkingClosed = scope === "selected" && !neighbours(frames, chosen);
   // A row nobody can click must not keep going to the queue. Written as an effect rather than a
   // correction during render: what changed is a prop from the gallery, and the panel never hears a
@@ -257,12 +269,19 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
       <InstallCard producer={producer} onInstall={onInstall} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <Mono size={11} style={LABEL}>Model</Mono>
-        <Note size={12} style={{ color: "var(--ink-3)" }}>{words.model}</Note>
+        <Mono size={11} data-label style={LABEL}>Model</Mono>
+        {/* The photo panel's own box, with the one option there is: a layer has a single model and
+            the job that goes to the queue carries no model at all -- the engine picks it. The frame
+            and the arrow are the design's (Fark 32); the choice is not invented, and the day a
+            second model arrives the box is already here. */}
+        <select className="wf-input" value={words.model} onChange={() => {}}
+                style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
+          <option value={words.model}>{words.model}</option>
+        </select>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <Mono size={11} style={LABEL}>Kapsam</Mono>
+        <Mono size={11} data-label style={LABEL}>Kapsam</Mono>
         <ScopeRow label={words.missing} count={counts.missing} active={scope === "missing"}
                   onPick={() => setScope("missing")} />
         <ScopeRow label="Seçili kareler" count={counts.selected} active={scope === "selected"}
@@ -272,7 +291,7 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
       {/* Only a video ends on a picture, so only the video panel has this to ask. */}
       {layer === "video" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <Mono size={11} style={LABEL}>Üretim modu</Mono>
+          <Mono size={11} data-label style={LABEL}>Üretim modu</Mono>
           {MODES.map((one) => (
             <ModeRow key={one.id} label={one.label} active={mode === one.id}
                      disabled={one.id === LINKED && linkingClosed}
@@ -287,7 +306,7 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
 
       {/* The design's own order: scope, then the mode, then how many of each, then the button. */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Mono size={11} style={{ ...LABEL, flex: 1 }}>Varyant</Mono>
+        <Mono size={11} data-label style={{ ...LABEL, flex: 1 }}>Varyant</Mono>
         <input
           className="wf-input"
           type="number"
@@ -301,11 +320,6 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
           style={{ width: 56, textAlign: "center", fontSize: 13,
                    ...(variants === "" ? { borderColor: "var(--danger)" } : {}) }}
         />
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <Mono size={11} style={LABEL}>Süre</Mono>
-        <Note size={12} style={{ color: "var(--ink-3)" }}>{words.note}</Note>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>

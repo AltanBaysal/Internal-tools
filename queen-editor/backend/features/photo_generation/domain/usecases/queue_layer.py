@@ -39,9 +39,9 @@ def frames_in_scope(gallery, kind, files=None):
 
     `files` is the gallery's own selection; None means every frame that does not hold this layer
     yet. A frame that already holds one is out of the None scope and inside a selection's: the
-    panel's row is called "Videosu olmayanlar", while picking a frame by hand says "this one" --
-    and that is the only way madde 25's "every variant of a frame that already has a video" can be
-    asked for.
+    panel's row is called "Videosu olmayan kareler", while picking a frame by hand says "this one"
+    -- and that is the only way madde 25's "every variant of a frame that already has a video" can
+    be asked for.
     """
     chosen = None if files is None else set(files)
     scope = []

@@ -1713,7 +1713,7 @@ def test_a_selected_frame_that_has_a_video_is_still_in_scope():
                {"id": "1_a", "file": "1_a.png", "status": "done", "layers": {}}]
 
     assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a.png"])] == ["0_a"]
-    # The panel's row is called "Videosu olmayanlar": with no selection it means exactly that.
+    # The panel's row is called "Videosu olmayan kareler": with no selection it means exactly that.
     assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO)] == ["1_a"]
 
 
