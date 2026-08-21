@@ -74,11 +74,6 @@ const KIND_ORDER = ["photo", "video", "audio"];
 // end of the run.
 const LAYER_WORD = { photo: "foto", video: "video", audio: "ses" };
 
-// The button on the waiting card names the producer it would install, so pressing it is not a leap
-// of faith.
-const PRODUCER_NAME = { photo: "Fotoğraf üreticisini", video: "Video üreticisini",
-                        audio: "Ses üreticisini" };
-
 // The run card wears what it is saying. Every other state stays neutral.
 const CARD_TONE = {
   done: { borderColor: "var(--ok)", background: "var(--ok-bg)" },
@@ -86,13 +81,16 @@ const CARD_TONE = {
 };
 
 // One kind's share of the queue. The card the engine has in hand is the one worth looking at; the
-// rest wait their turn and step back rather than compete with it.
-function KindCard({ layer, owed, alive }) {
+// rest wait their turn and step back rather than compete with it -- unless they have something to
+// say, and a warning written at .55 is a warning nobody reads (Fark 38).
+function KindCard({ layer, owed, alive, producer, onInstall }) {
   const kind = KINDS[layer];
+  const missing = Boolean(producer) && !producer.installed;
   return (
     <div data-kind={layer} className="wf-stroke"
          style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8,
-                  ...(alive ? { borderColor: "var(--accent)" } : { opacity: 0.55 }) }}>
+                  ...(alive ? { borderColor: "var(--accent)" }
+                    : missing ? {} : { opacity: 0.55 }) }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span aria-hidden="true" className={alive ? "qe-dot qe-dot--alive" : "qe-dot"}
               style={{ background: alive ? "var(--accent)" : "var(--ink-3)" }} />
@@ -105,6 +103,20 @@ function KindCard({ layer, owed, alive }) {
         <Mono size={26} style={{ color: "var(--accent)" }}>{owed}</Mono>
         <Note size={13} style={{ color: "var(--ink-2)" }}>{kind.unit}</Note>
       </div>
+      {missing && (
+        // The answer has been in hand since startup -- what is installed cannot change while the
+        // app is up -- so there is no reason to hold it back until the engine reaches this kind.
+        // The producer is not named again: the card's own heading already says which one it is.
+        <>
+          <Note size={12} style={{ color: "var(--ink-2)" }}>Üretici kurulu değil.</Note>
+          {/* Kur installs nothing (FOUNDATION 9): it writes the one sentence the app can answer
+              with onto that producer's row, and the sentence belongs where the button is. */}
+          {producer.note && (
+            <Note size={12} style={{ color: "var(--ink-3)" }}>{producer.note}</Note>
+          )}
+          <Btn sm hl onClick={() => onInstall(layer)} style={{ justifyContent: "center" }}>Kur</Btn>
+        </>
+      )}
     </div>
   );
 }
@@ -112,7 +124,7 @@ function KindCard({ layer, owed, alive }) {
 // Artboard 05: a card per kind of work, then whatever the run itself has to say. Everything the
 // run has to say lives here; the form panel next door only submits work.
 export default function QueuePanel({ job, error, errorField, busyElsewhere, project, stopping,
-                                     queue, failures, producerReady, onStop, onResume, onCancel,
+                                     queue, failures, producers, onStop, onResume, onCancel,
                                      onRetryAll, onInstall }) {
   const [clearing, setClearing] = useState(false);
 
@@ -141,6 +153,15 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
   const stopped = halted && job.error ? splitReason(job.error) : null;
   // Nothing failed: the engine for the job at the head of the queue is simply not on this machine.
   const waitingFor = mine && job.status === "waiting" ? job.waitingFor : null;
+  // Nothing on this screen starts work by itself -- not a queue a dead session left owing frames,
+  // and not one that stopped for a producer that has since arrived (user's decision, 2026-08-13).
+  // A machine that starts rendering while nobody is looking is the one thing the user asked us to
+  // stop doing. What is owed is still owed: the queue lives on disk, and the button below carries
+  // it on. It is offered only once the producer is really here, because resuming without it would
+  // stop at the same frame. Read from the rows the panel already has rather than taken as a
+  // second-hand answer: one rule, one owner.
+  const producerReady = Boolean(waitingFor)
+    && (producers || []).some((row) => row.id === waitingFor && row.installed);
   // A run that died with its session leaves frames owed and nobody who remembers why.
   const abandoned = !halted && !paused && !running && !waitingFor && owed > 0;
   const finished = mine && job.status === "done" && owed === 0;
@@ -163,6 +184,8 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
     <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, minHeight: 0 }}>
       {cards.map((card) => (
         <KindCard key={card.layer} layer={card.layer} owed={card.owed}
+                  producer={(producers || []).find((row) => row.id === card.layer)}
+                  onInstall={onInstall}
                   // Only while the run is really flowing, and only for the kind whose job the
                   // worker has in hand. A plan written before jobs had types is a photo job.
                   alive={running && !stopping
@@ -202,16 +225,11 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
                 <Icon.Regen /> Kaldığı yerden devam et
               </Btn>
             ) : (
-              <>
-                <Note size={12} style={{ color: "var(--ink-3)" }}>
-                  Üretici kurulduktan sonra kuyruğu sen sürdürürsün.
-                </Note>
-                {/* Straight into the install, with nothing asked: the user queued this work, so
-                    what they want is not in question. */}
-                <Btn hl onClick={() => onInstall(waitingFor)} style={{ justifyContent: "center" }}>
-                  {PRODUCER_NAME[waitingFor]} kur
-                </Btn>
-              </>
+              // The way in to the install is on the card of the kind that is missing it, not here:
+              // this card speaks for the run, and what is missing belongs to one kind (Fark 38).
+              <Note size={12} style={{ color: "var(--ink-3)" }}>
+                Üretici kurulduktan sonra kuyruğu sen sürdürürsün.
+              </Note>
             )}
           </>
         ) : null}

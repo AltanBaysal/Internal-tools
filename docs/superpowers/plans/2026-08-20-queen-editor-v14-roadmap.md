@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 24/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 25/31
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -131,7 +131,7 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 25 | **Kısmi üretici eksikliğinde uyarının kendi kartına geçmesi.** Yalnız bir türün üreticisi eksikken panelin geneli etkilenmez; uyarı ve kurulum düğmesi o türün kendi kartının içinde durur, diğer türler normal akar. | Ses üreticisi eksikken foto ve video kartları akıyor, uyarı yalnız ses kartında duruyor. | Fark 38 |
+| 25 | ✅ **Kısmi üretici eksikliğinde uyarının kendi kartına geçmesi.** *(46. karar: farkın motor yarısı zaten doğruydu — motor bir türü bitirmeden ötekine başlamıyor. Değişen, panelin ne zaman ve nerede konuştuğu.)* Yalnız bir türün üreticisi eksikken panelin geneli etkilenmez; uyarı ve kurulum düğmesi o türün kendi kartının içinde durur, diğer türler normal akar. | Ses üreticisi eksikken foto ve video kartları akıyor, uyarı yalnız ses kartında duruyor. | Fark 38 |
 | 26 | **Kurulum bitince kuyruğun kendiliğinden sürmesi.** Üretici eksikliği yüzünden bekleyen kuyruk, üretici geldiğinde kullanıcıdan bir hamle beklemeden akar; bekleme kartı bunu önceden söyler. | Eksik üretici kurulunca kuyruk kendiliğinden akmaya başlıyor. | Fark 37 |
 | 27 | **Kuyruk panelinin görsel hizalaması** *(grup)*. Tür kartının başlık dili ve büyük sayısının rengi, duraklatılıyor hâlindeki nokta, tamamlandı kartının tonu, hata kartının düğme metni ve ne zaman doğduğu, bekleme hâlinde boşaltma düğmesinin görünmesi, durdu kartının tek satıra inmesi, kurulum düğmesinin her yerde aynı yazması. | Listedeki farkların hepsi ekranda kapanmış. | Fark 41–48, 50, 59 |
 

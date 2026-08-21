@@ -40,24 +40,10 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   // The worker is global: a batch started from another project blocks this one (the server 409s).
   const busyElsewhere = job.status === "running" && job.project !== project;
   const running = job.status === "running" && !busyElsewhere;
-  // Whose run the status describes: another project's queue must not draw tiles into this gallery.
-  const mine = job.project === project;
 
   // The gallery's own selection, echoed here so the video panel can scope itself to it. Read-only:
   // the gallery stays its owner.
   const [selected, setSelected] = useState([]);
-
-  // Nothing on this screen starts work by itself -- not a queue a dead session left owing frames,
-  // and not one that stopped for a producer that has since arrived (user's decision, 2026-08-13).
-  // Both used to resume on their own, and a machine that starts rendering while nobody is looking
-  // is the one thing the user asked us to stop doing. What is owed is still owed: the queue lives
-  // on disk, and the queue panel offers the button that carries it on.
-  //
-  // Whether the queue could go on at all: its producer has to be on this machine. The panel shows
-  // the way on only when this is true, because resuming without it would stop at the same frame.
-  const waitingFor = mine && job.status === "waiting" ? job.waitingFor : null;
-  const producerReady = Boolean(waitingFor)
-    && (producers.producers || []).some((row) => row.id === waitingFor && row.installed);
 
   // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
@@ -130,8 +116,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
                    models={models} modelsError={modelsError} producers={producers}
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
-                   onClearError={clearError} onRetryAll={retryAll}
-                   producerReady={producerReady} />
+                   onClearError={clearError} onRetryAll={retryAll} />
       </div>
 
     </div>

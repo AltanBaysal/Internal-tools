@@ -283,12 +283,15 @@ describe("QueuePanel — a producer that is not on the machine", () => {
   });
 
   it("leaves the card that has something to say readable", () => {
-    renderPanel({ queue: BOTH, producers: MISSING });
+    // Video is the card to compare against: a job with no type is a photo job, so the photo card
+    // is the live one here and live cards are not dimmed either.
+    renderPanel({ queue: [{ layer: "video", owed: 1 }, { layer: "audio", owed: 2 }],
+                  producers: MISSING });
 
     // A warning written at .55 is a warning nobody reads. Waiting its turn and having something to
     // say are two different states, and only the first one steps back.
     expect(card("audio").style.opacity).toBe("");
-    expect(card("photo").style.opacity).toBe("0.55");
+    expect(card("video").style.opacity).toBe("0.55");
   });
 
   it("says nothing on the cards whose producers are here", () => {
