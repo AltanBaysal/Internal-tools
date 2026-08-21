@@ -727,6 +727,46 @@ describe("Gallery — what a frame owns", () => {
     expect(screen.getByText("video hata")).toBeTruthy();
   });
 
+  it("marks a loop video with its own word", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", { modes: { video: "loop" } })] });
+
+    expect(screen.getByText("loop")).toBeTruthy();
+  });
+
+  it("never shows both words on one frame", () => {
+    // They share the corner: the badge is one row per layer, and loop takes the video row's word
+    // rather than standing beside it.
+    renderGallery({ frames: [withVideo("P0_0.png", { modes: { video: "loop" } })] });
+
+    expect(screen.queryByText("video")).toBeNull();
+  });
+
+  it("leaves a video made the plain way saying video", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", { modes: { video: "standard" } })] });
+
+    expect(screen.getByText("video")).toBeTruthy();
+    expect(screen.queryByText("loop")).toBeNull();
+  });
+
+  it("adds the sound beside the loop, not instead of it", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", {
+      layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" },
+      modes: { video: "loop" } })] });
+
+    expect(screen.getByText("loop")).toBeTruthy();
+    expect(screen.getByText("ses")).toBeTruthy();
+  });
+
+  it("says nothing about a loop video that blew up", () => {
+    // A failed layer holds its slot but is not owned -- that tile is the pill's to speak for, and
+    // the mode must not smuggle a word past that rule.
+    renderGallery({ frames: [withVideo("P0_0.png", { modes: { video: "loop" },
+                                                     failed: ["video"] })] });
+
+    expect(screen.queryByText("loop")).toBeNull();
+    expect(screen.queryByText("video")).toBeNull();
+  });
+
   it("keeps the photo on screen while the video is queued", () => {
     renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })], running: true });
 

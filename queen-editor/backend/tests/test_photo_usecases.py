@@ -179,6 +179,8 @@ class FakeRecord:
             cell = {"status": row.get("status", "done"), "file": row["file"]}
             if isinstance(row.get("error"), str):
                 cell["error"] = row["error"]
+            if isinstance(row.get("mode"), str):
+                cell["mode"] = row["mode"]
             folded.setdefault(self._frame_of(row), {})[self._layer_of(row)] = cell
         return folded
 
@@ -727,6 +729,32 @@ def test_a_frames_taken_layers_are_published():
     frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
 
     assert frames[0]["layers"] == {"photo": "0_a.png", "video": "0_a_v0.mp4"}
+
+
+def test_the_gallery_says_which_mode_made_each_layer():
+    """The tile's loop badge and the detail page's information row both ask this one question, so
+    the frame answers it once."""
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "mode": "loop"})
+
+    frames = list_frames(record, FakeStore(), planned((0, "a", "ilk")), FakeOrderStore(), "düğün")
+
+    assert frames[0]["modes"] == {"video": "loop"}
+
+
+def test_a_layer_with_no_mode_on_its_line_is_left_out_of_the_map():
+    # Shaped like errors: only the layers that have one are in it, so a missing key is the answer
+    # rather than a value standing for absence.
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    frames = list_frames(record, FakeStore(), planned((0, "a", "ilk")), FakeOrderStore(), "düğün")
+
+    assert frames[0]["modes"] == {}
 
 
 def test_a_frame_whose_video_is_queued_is_still_one_frame():
@@ -1376,6 +1404,37 @@ def test_a_linked_video_whose_target_lost_its_photo_turns_that_frame_red():
     assert video["status"] == queue.FAILED
 
 
+def video_row(record):
+    """The produced video's own line -- the one the gallery and the detail page read back."""
+    return [row for row in record.rows
+            if row.get("layer") == "video" and row.get("status") == "done"][0]
+
+
+def test_a_loop_video_says_on_its_row_that_it_is_one():
+    """Until now the mode reached the render and stopped there. The tile has no other way of
+    knowing: the file it holds is a video like any other."""
+    _generator, record = render_one_video(production_mode.LOOP)
+
+    assert video_row(record)["mode"] == production_mode.LOOP
+
+
+def test_a_plain_video_says_so_on_its_row_as_well():
+    # Both written, because the tile and the detail page have to tell the two apart -- an absent
+    # field would mean plain and unknown at the same time.
+    _generator, record = render_one_video(production_mode.STANDARD)
+
+    assert video_row(record)["mode"] == production_mode.STANDARD
+
+
+def test_a_job_that_names_no_mode_leaves_the_field_off_its_row():
+    """Which jobs carry a mode is the queue's rule (queue_layer puts it on video jobs alone), and
+    the loop does not write that rule a second time. A photo row saying standard would be a field
+    that means nothing on nearly every line it appears on."""
+    _generator, record = render_seedless(lambda: 777)
+
+    assert "mode" not in video_row(record)
+
+
 def render_seedless(new_seed, jobs=1):
     """`jobs` seedless video jobs on their own frames, run to completion.
 
@@ -1671,6 +1730,19 @@ def test_a_sound_copy_carries_the_photo_and_the_video():
     assert copy["video"]["file"] == "0_a_V1_0.mp4"
     # And the words each of them was made from come with them.
     assert record.prompts("düğün")["P0_1"] == {"photo": "p", "video": "kadın dönüyor"}
+
+
+def test_a_sound_copy_carries_the_videos_mode_too():
+    """One file, two frames holding it. Without the mode the twin's tile would read video while the
+    original reads loop -- two answers about the same video."""
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor", "mode": "loop"})
+
+    queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO, variants=2)
+
+    assert record.slots("düğün")["P0_1"]["video"]["mode"] == "loop"
 
 
 def test_a_video_copy_still_carries_only_the_photo():
