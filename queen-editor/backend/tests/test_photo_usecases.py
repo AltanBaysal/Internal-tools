@@ -181,6 +181,8 @@ class FakeRecord:
                 cell["error"] = row["error"]
             if isinstance(row.get("mode"), str):
                 cell["mode"] = row["mode"]
+            if isinstance(row.get("endsOn"), str):
+                cell["endsOn"] = row["endsOn"]
             folded.setdefault(self._frame_of(row), {})[self._layer_of(row)] = cell
         return folded
 
@@ -755,6 +757,19 @@ def test_a_layer_with_no_mode_on_its_line_is_left_out_of_the_map():
     frames = list_frames(record, FakeStore(), planned((0, "a", "ilk")), FakeOrderStore(), "düğün")
 
     assert frames[0]["modes"] == {}
+
+
+def test_the_gallery_says_where_a_linked_video_ended():
+    """Keyed by layer like modes and errors: the frame answers per layer, so the page asking about
+    one never has to know which layers the others are."""
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "mode": "linked", "endsOn": "1_a.png"})
+
+    frames = list_frames(record, FakeStore(), planned((0, "a", "ilk")), FakeOrderStore(), "düğün")
+
+    assert frames[0]["endsOn"] == {"video": "1_a.png"}
 
 
 def test_a_frame_whose_video_is_queued_is_still_one_frame():
@@ -1435,6 +1450,30 @@ def test_a_job_that_names_no_mode_leaves_the_field_off_its_row():
     assert "mode" not in video_row(record)
 
 
+def test_a_linked_video_names_the_picture_it_ended_on():
+    """The detail page prints this name. Recorded rather than resolved later from the target's
+    identity: the frame it points at can be deleted while the video it made stays, and then there
+    would be no name to print for a video that really did arrive somewhere."""
+    _generator, record = render_one_video(production_mode.LINKED, linked_to="1_a")
+
+    assert video_row(record)["endsOn"] == "1_a.png"
+
+
+def test_a_loop_video_names_its_own_picture():
+    # One rule rather than one per mode: whatever the render was handed as an ending picture is what
+    # the row names. Teaching the engine which modes have an ending would be the modes' own rule
+    # written a second time.
+    _generator, record = render_one_video(production_mode.LOOP)
+
+    assert video_row(record)["endsOn"] == "0_a.png"
+
+
+def test_a_plain_video_names_no_ending_picture():
+    _generator, record = render_one_video(production_mode.STANDARD)
+
+    assert "endsOn" not in video_row(record)
+
+
 def render_seedless(new_seed, jobs=1):
     """`jobs` seedless video jobs on their own frames, run to completion.
 
@@ -1743,6 +1782,20 @@ def test_a_sound_copy_carries_the_videos_mode_too():
                 {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO, variants=2)
 
     assert record.slots("düğün")["P0_1"]["video"]["mode"] == "loop"
+
+
+def test_a_sound_copy_carries_where_the_video_ended_too():
+    # The twin holds the same video file, so its detail page has to be able to say the same thing
+    # about it.
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor", "mode": "linked",
+                            "endsOn": "1_a.png"})
+
+    queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO, variants=2)
+
+    assert record.slots("düğün")["P0_1"]["video"]["endsOn"] == "1_a.png"
 
 
 def test_a_video_copy_still_carries_only_the_photo():

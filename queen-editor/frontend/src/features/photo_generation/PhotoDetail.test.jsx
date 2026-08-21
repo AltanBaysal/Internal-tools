@@ -196,6 +196,65 @@ describe("PhotoDetail — the layer tabs", () => {
   });
 });
 
+describe("PhotoDetail — how the video was made", () => {
+  const LOOPED = { ...LAYERED, modes: { video: "loop" } };
+  const LINKED = { ...LAYERED, modes: { video: "linked" }, endsOn: { video: "P1_0.png" } };
+
+  it("says which mode made this video", async () => {
+    await open("P0_0", { frames: [LOOPED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.getByText("Üretim modu")).toBeTruthy();
+    expect(screen.getByText("Loop")).toBeTruthy();
+  });
+
+  it("names the picture a linked video ended on", async () => {
+    // The file rather than the frame's number: the sequence can be dragged, and then the number
+    // would be a lie about a video nobody touched.
+    await open("P0_0", { frames: [LINKED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.getByText("Sonrakine bağla → P1_0.png")).toBeTruthy();
+  });
+
+  it("says it and nothing more -- there is nothing here to press", async () => {
+    // Changing the mode is making the video again, and that is the form below.
+    await open("P0_0", { frames: [LOOPED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.getByText("Loop").closest("button")).toBeNull();
+  });
+
+  it("never draws the row on the sound tab", async () => {
+    // The sound tab shows the video's file name, because the sound was laid over it -- but the
+    // video's mode is not a fact about the sound.
+    await open("P0_0", { frames: [LOOPED] });
+
+    fireEvent.click(tab("Ses"));
+
+    expect(screen.queryByText("Üretim modu")).toBeNull();
+  });
+
+  it("never draws it on the photo tab either", async () => {
+    await open("P0_0", { frames: [LOOPED] });
+
+    expect(screen.queryByText("Üretim modu")).toBeNull();
+  });
+
+  it("stays quiet about a video whose line never named a mode", async () => {
+    // Videos already on Drive were produced before modes existed. An empty row would be a question
+    // rather than an answer.
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.queryByText("Üretim modu")).toBeNull();
+  });
+});
+
 describe("PhotoDetail", () => {
   it("shows the position, the file name and the prompt", async () => {
     await open("1_a");

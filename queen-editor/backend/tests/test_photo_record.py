@@ -205,6 +205,15 @@ def test_a_slot_whose_line_named_no_mode_has_no_mode_key(tmp_path):
     assert "mode" not in record.slots("düğün")["0_a"]["video"]
 
 
+def test_a_line_that_names_an_ending_picture_carries_it_into_the_slot(tmp_path):
+    """The detail page's Uretim modu row prints this file for a linked video."""
+    record = record_at(tmp_path)
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "mode": "linked", "endsOn": "1_a.png"})
+
+    assert record.slots("düğün")["0_a"]["video"]["endsOn"] == "1_a.png"
+
+
 def test_lines_written_before_the_status_field_still_read(tmp_path):
     # What the projects already on Drive look like: a photo row and a deletion row, no status.
     record = record_at(tmp_path)
