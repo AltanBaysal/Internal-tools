@@ -113,6 +113,111 @@ describe("Gallery ordering", () => {
 
 });
 
+describe("Gallery — dragging a selection", () => {
+  // Five, not three: a scattered selection needs cards left standing between its members, and with
+  // three there is only one such card.
+  const FIVE = [done("4_a.png"), done("3_a.png"), done("2_a.png"), done("1_a.png"),
+                done("0_a.png")];
+
+  function selectAll(...names) {
+    names.forEach((name) => fireEvent.click(checkOf(name)));
+  }
+
+  it("takes the whole selection along when one of its cards is dragged", () => {
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("4_a.png", "3_a.png");
+
+    dragTile("4_a.png", "2_a.png");
+
+    expect(onReorder).toHaveBeenCalledWith(["2_a", "1_a", "4_a", "3_a", "0_a"]);
+  });
+
+  it("keeps the block in the gallery's order, not the order it was clicked in", () => {
+    // The selection is a list of presses; the sequence is the gallery's. Reading the presses would
+    // reverse a block whenever the user picked its cards from the bottom up.
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("0_a.png", "4_a.png");
+
+    dragTile("4_a.png", "2_a.png");
+
+    expect(onReorder).toHaveBeenCalledWith(["3_a", "2_a", "4_a", "0_a", "1_a"]);
+  });
+
+  it("gathers a scattered selection where it was dropped and closes the gap behind it", () => {
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("4_a.png", "2_a.png", "0_a.png");
+
+    dragTile("4_a.png", "3_a.png");
+
+    expect(onReorder).toHaveBeenCalledWith(["3_a", "4_a", "2_a", "0_a", "1_a"]);
+  });
+
+  it("moves only the card that was dragged when it is not in the selection", () => {
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("4_a.png", "3_a.png");
+
+    dragTile("0_a.png", "2_a.png");
+
+    expect(onReorder).toHaveBeenCalledWith(["4_a", "3_a", "0_a", "2_a", "1_a"]);
+  });
+
+  it("leaves the selection where it was when an unselected card is dragged", () => {
+    renderGallery({ frames: FIVE });
+    selectAll("4_a.png", "3_a.png");
+
+    dragTile("0_a.png", "2_a.png");
+
+    expect(screen.getByText("2 seçili")).toBeTruthy();
+  });
+
+  it("lets a card be picked up at all while frames are selected", () => {
+    // Until now dragging was switched off for the whole gallery as soon as anything was selected,
+    // which is the reason the sequence could not be moved without breaking the selection first.
+    renderGallery({ frames: FIVE });
+    selectAll("4_a.png");
+
+    expect(tileOf("4_a.png").getAttribute("draggable")).toBe("true");
+  });
+
+  it("puts the dragged look on every card in the block", () => {
+    renderGallery({ frames: FIVE });
+    selectAll("4_a.png", "3_a.png");
+
+    fireEvent.dragStart(tileOf("4_a.png"));
+
+    expect(tileOf("3_a.png").style.transform).toContain("rotate(-3deg)");
+    expect(tileOf("2_a.png").style.transform).toBe("");
+  });
+
+  it("adds nothing to the screen while the block is moving", () => {
+    // No count badge, no stack, no ghost card: the design asks for the single-card effect applied
+    // to the selection and nothing more.
+    renderGallery({ frames: FIVE });
+    selectAll("4_a.png", "3_a.png");
+    const before = document.querySelectorAll("[data-tile]").length;
+
+    fireEvent.dragStart(tileOf("4_a.png"));
+
+    expect(document.querySelectorAll("[data-tile]").length).toBe(before);
+  });
+
+  it("does not go to the server when the block lands where it already was", () => {
+    // from and to differ here -- the second card of the block was dropped on the first -- and the
+    // sequence still comes out unchanged. Comparing indices would miss it.
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("4_a.png", "3_a.png");
+
+    dragTile("3_a.png", "4_a.png");
+
+    expect(onReorder).not.toHaveBeenCalled();
+  });
+});
+
 describe("Gallery — one sequence, four states", () => {
   const MIXED = [
     pending("4_a.png"),
