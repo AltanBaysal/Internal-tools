@@ -1095,7 +1095,7 @@ madde madde verildi.
 
 ### Koşu sırasında verilen ek kararlar
 
-*(21 Ağustos 2026, 13, 15, 20, 21, 22, 23 ve 24. madde uygulanırken.)*
+*(21 Ağustos 2026, 13, 15, 20, 21, 22, 23, 24 ve 25. madde uygulanırken.)*
 
 | # | Karar | Kapattığı madde |
 |---|---|---|
@@ -1118,6 +1118,7 @@ madde madde verildi.
 | 43 | **Karttaki kalem çerçevesiz kalıyor.** 1. karar çöpü yıkıcı eylem standardına soktu; standart yıkıcı bir düğmenin neye benzediğini söylüyor ve kalem yıkıcı değil (fark 3). İkisini düzen adına benzetmek standardın var olma sebebini silerdi: kırmızı çerçeve, yanındaki çıplak ikondan ayrıldığı için işaret. Kalem `ghost` varyantını alıyor — çizgisiz, ama aynı kutu; `border: none` kutuyu her kenardan bir piksel küçültüp düğmeleri kaydırıyordu. | 5 |
 | 44 | **Liste kendi içinde kayıyor; 9 Ağustos 2026'nın N3 kararı geri alınıyor.** O karar tasarım v2'ye karşı verildi ve v2'de çizilmiş bir tutamak yoktu — ortada seçenek değil "bugünkü hâl yeter mi" sorusu vardı. v4 hem tutamağı hem bandı çiziyor ve ikisi ancak kırpılmış bir kutuda var olabilir: sayfa kayıyorsa tarayıcının kendi çubuğu zaten var ve altı soluklaşacak bir liste alanı yok. Uygulamanın diğer dört ekranı zaten `height: 100vh` + içeride kayan gövde. | 8 |
 | 45 | **Bant sayıya bakıyor, taşmaya değil.** Tasarımın ölçüsü bir sayı: "liste sekizi geçince" — dört sütunun iki satırı. Taşmayı ölçmek uygulanabilir değil: `scrollHeight > clientHeight` jsdom'da iki sıfırı karşılaştırır ve o kuralı doğrulayan test yerleşimi taklit etmek zorunda kalır. Tutamak bu ayrımdan etkilenmiyor — kutu `overflow-y: auto` ve tarayıcı kayacak bir şey yoksa tutamağı çizmiyor. | 8 |
+| 46 | **Fark 38'in motor yarısı zaten doğru; değişen yalnız panel.** `queue.ORDER` foto → video → ses ve motor bir türü bitirmeden ötekine başlamıyor: her tür kendi üreticisini yüklüyor, aralarında zıplamak her turda bir model yeniden yüklerdi, ve bir video üstüne asıldığı fotoğrafın önce var olmasını istiyor. Sırayı koruyan bir test de var (`test_the_engine_does_not_skip_past_the_type_it_is_waiting_for`). Yani "diğer türler normal akar, sıra o türe gelince motor bekler" bugün de böyle. Bu maddenin işi panelin **ne zaman ve nerede** konuştuğu: eksiklik, motor o türe gelene kadar hiç söylenmiyordu. | 38 |
 
 ### Karar gerektirmeyenler
 

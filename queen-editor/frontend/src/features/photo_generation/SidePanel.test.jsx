@@ -142,4 +142,16 @@ describe("SidePanel — the icon rail", () => {
 
     expect(screen.getByRole("heading", { name: "Kuyruk" })).toBeTruthy();
   });
+
+  it("hands the queue panel the producer rows", () => {
+    renderColumn({ queue: [{ layer: "video", owed: 3 }],
+                   producers: { producers: [
+                     { id: "video", name: "Video üreticisi", installed: false }], error: null } });
+
+    fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
+
+    // The wiring is the half that breaks silently: the panel can only say what it was given.
+    expect(document.querySelector('[data-kind="video"]').textContent)
+      .toContain("Üretici kurulu değil.");
+  });
 });

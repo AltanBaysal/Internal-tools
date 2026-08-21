@@ -5,6 +5,10 @@ import QueuePanel from "./QueuePanel.jsx";
 
 const DEAD = "Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nZaman aşımı (10 sn)";
 const RUNNING = { status: "running", project: "düğün", done: 7, failed: 0, total: 48 };
+// The producer list as the app asks for it once at startup: what is installed cannot change while
+// the process is up, because installing happens in the notebook before it starts.
+const MISSING = [{ id: "photo", name: "Fotoğraf üreticisi", installed: true },
+                 { id: "audio", name: "Ses üreticisi", installed: false }];
 
 function renderPanel(props) {
   return render(
@@ -256,6 +260,73 @@ describe("QueuePanel — the failures card", () => {
   });
 });
 
+describe("QueuePanel — a producer that is not on the machine", () => {
+  const BOTH = [{ layer: "photo", owed: 4 }, { layer: "audio", owed: 2 }];
+  const card = (layer) => document.querySelector(`[data-kind="${layer}"]`);
+
+  it("says so on the card of the kind it belongs to", () => {
+    renderPanel({ queue: BOTH, producers: MISSING });
+
+    // Fark 38: the answer has been in hand since startup, so there is no reason to keep it until
+    // the engine reaches that kind.
+    expect(card("audio").textContent).toContain("Üretici kurulu değil.");
+    expect(card("audio").textContent).toContain("Kur");
+  });
+
+  it("asks for that kind's producer when its Kur is pressed", () => {
+    const onInstall = vi.fn();
+    renderPanel({ queue: BOTH, producers: MISSING, onInstall });
+
+    fireEvent.click(card("audio").querySelector("button"));
+
+    expect(onInstall).toHaveBeenCalledWith("audio");
+  });
+
+  it("leaves the card that has something to say readable", () => {
+    renderPanel({ queue: BOTH, producers: MISSING });
+
+    // A warning written at .55 is a warning nobody reads. Waiting its turn and having something to
+    // say are two different states, and only the first one steps back.
+    expect(card("audio").style.opacity).toBe("");
+    expect(card("photo").style.opacity).toBe("0.55");
+  });
+
+  it("says nothing on the cards whose producers are here", () => {
+    renderPanel({ queue: BOTH, producers: MISSING });
+
+    expect(card("photo").textContent).not.toContain("Üretici kurulu değil.");
+  });
+
+  it("lets the queue go on flowing while the warning waits on its own card", () => {
+    renderPanel({ job: { ...RUNNING, current: { id: "P0_0", type: "photo" } },
+                  queue: BOTH, producers: MISSING });
+
+    // The roadmap's own acceptance sentence: photos flow, and the sound producer's absence is
+    // already on the sound card rather than taking the panel over.
+    expect(card("photo").querySelector(".qe-dot--alive")).toBeTruthy();
+    expect(card("audio").textContent).toContain("Üretici kurulu değil.");
+    expect(screen.queryByText("Bekliyor — üretici kurulu değil")).toBeNull();
+  });
+
+  it("prints the answer the app has on the same card", () => {
+    const noted = MISSING.map((row) => (row.id === "audio"
+      ? { ...row, note: "Bu üretici Colab defterinden kurulur — app.ipynb'de kutusunu işaretleyip "
+                        + "çalıştır." }
+      : row));
+    renderPanel({ queue: BOTH, producers: noted });
+
+    // Kur installs nothing (karar 5): it writes the one sentence the app can answer with, and the
+    // sentence belongs where the button is.
+    expect(card("audio").textContent).toContain("Colab defterinden kurulur");
+  });
+
+  it("says nothing at all before the list of producers has landed", () => {
+    renderPanel({ queue: BOTH, producers: null });
+
+    expect(card("audio").textContent).not.toContain("Üretici kurulu değil.");
+  });
+});
+
 describe("QueuePanel — a queue with nobody to do the work", () => {
   const WAITING = { status: "waiting", project: "düğün", waitingFor: "video" };
 
@@ -267,13 +338,13 @@ describe("QueuePanel — a queue with nobody to do the work", () => {
     expect(screen.queryByText("Üretim durdu")).toBeNull();
   });
 
-  it("offers the one button that would unblock it, by name", () => {
-    const onInstall = vi.fn();
-    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }], onInstall });
+  it("keeps no install button of its own: that one is on the kind's card", () => {
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }],
+                  producers: [{ id: "video", name: "Video üreticisi", installed: false }] });
 
-    fireEvent.click(screen.getByText("Video üreticisini kur"));
-
-    expect(onInstall).toHaveBeenCalledWith("video");
+    // Fark 38: the run card no longer carries what belongs to one kind.
+    expect(screen.queryByText("Video üreticisini kur")).toBeNull();
+    expect(document.querySelector('[data-kind="video"]').textContent).toContain("Kur");
   });
 
   it("promises no longer to carry itself on", () => {
@@ -285,14 +356,15 @@ describe("QueuePanel — a queue with nobody to do the work", () => {
 
   it("offers the way on only once the producer is really here", () => {
     const onResume = vi.fn();
-    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }],
-                  producerReady: true, onResume });
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }], onResume,
+                  producers: [{ id: "video", name: "Video üreticisi", installed: true }] });
 
     fireEvent.click(screen.getByText("Kaldığı yerden devam et"));
 
     expect(onResume).toHaveBeenCalled();
-    // The install button steps aside: what is missing is a press, not a model.
-    expect(screen.queryByText("Video üreticisini kur")).toBeNull();
+    // The panel reads the rows it already has rather than being told the answer twice.
+    expect(document.querySelector('[data-kind="video"]').textContent)
+      .not.toContain("Üretici kurulu değil.");
   });
 });
 
