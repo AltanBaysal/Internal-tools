@@ -50,12 +50,6 @@ describe("LayerPanel — the scope", () => {
     expect(screen.getByText("Seçili kareler").closest("button").disabled).toBe(true);
   });
 
-  it("says there is nothing to do rather than treating it as a fault", () => {
-    renderPanel({ frames: [done("1_a.png", { video: "1_a_V1_0.mp4" })] });
-
-    expect(screen.getByText("Tüm karelerin videosu var — üretilecek bir şey yok.")).toBeTruthy();
-    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
-  });
 });
 
 describe("LayerPanel — variants", () => {
@@ -94,6 +88,133 @@ describe("LayerPanel — variants", () => {
     renderPanel({ frames: [...FRAMES, twin], selected: ["0_a-2"] });
 
     expect(screen.getByText("Seçili kareler").closest("button").textContent).toContain("1");
+  });
+});
+
+describe("LayerPanel — why the press was refused", () => {
+  const addButton = () => screen.getByText("Kuyruğa ekle").closest("button");
+  const press = () => fireEvent.click(addButton());
+  // Every frame already carries the layer: the scope is empty and nothing is wrong.
+  const ALL_HELD = [done("1_a.png", { video: "1_a_V1_0.mp4" })];
+  // Nothing is a photo yet, so there is nothing to hang a video on at all.
+  const NONE_MADE = [{ id: "3_a", file: "3_a.png", status: "pending", layers: {}, failed: [] }];
+
+  it("stays pressable with nothing to do, and says nothing until it is pressed", () => {
+    renderPanel({ frames: ALL_HELD });
+
+    expect(addButton().disabled).toBe(false);
+    expect(screen.queryByText(/Tüm karelerin/)).toBeNull();
+    expect(screen.queryByText(/üretilecek bir şey yok/)).toBeNull();
+  });
+
+  it("says all the frames already have one", () => {
+    renderPanel({ frames: ALL_HELD });
+
+    press();
+
+    expect(screen.getByText("Tüm karelerin videosu var.")).toBeTruthy();
+  });
+
+  it("does not send a request it refused", () => {
+    const onQueue = vi.fn();
+    renderPanel({ frames: ALL_HELD, onQueue });
+
+    press();
+
+    expect(onQueue).not.toHaveBeenCalled();
+  });
+
+  it("says the project has nothing produced yet", () => {
+    renderPanel({ frames: NONE_MADE });
+
+    press();
+
+    expect(screen.getByText("Henüz üretilmiş kare yok.")).toBeTruthy();
+  });
+
+  it("says the chosen frames are not photos yet", () => {
+    // İstek 4.3, word for word: the frames the user picked have no picture, and the panel used to
+    // blame them for already having videos.
+    renderPanel({ selected: ["3_a"] });
+
+    press();
+
+    expect(screen.getByText("Seçili karelerin fotoğrafı henüz üretilmedi.")).toBeTruthy();
+  });
+
+  it("says the variant box is empty", () => {
+    renderPanel();
+
+    fireEvent.change(variantBox(), { target: { value: "" } });
+    press();
+
+    expect(screen.getByText("Varyant sayısı girilmedi — en az 1 yaz.")).toBeTruthy();
+  });
+
+  it("turns the variant box red while it is empty", () => {
+    renderPanel();
+    expect(variantBox().style.borderColor).toBe("");
+
+    fireEvent.change(variantBox(), { target: { value: "" } });
+
+    expect(variantBox().style.borderColor).toBe("var(--danger)");
+  });
+
+  it("clears the reason as soon as the count is typed", () => {
+    // Both halves, because the second one alone is true of a panel that never answers at all.
+    renderPanel();
+    fireEvent.change(variantBox(), { target: { value: "" } });
+    press();
+    expect(screen.getByText("Varyant sayısı girilmedi — en az 1 yaz.")).toBeTruthy();
+
+    fireEvent.change(variantBox(), { target: { value: "2" } });
+
+    expect(screen.queryByText("Varyant sayısı girilmedi — en az 1 yaz.")).toBeNull();
+  });
+
+  it("clears the reason when another scope is picked", () => {
+    // The reason belongs to the press that made it -- the scope it named and the frames it counted.
+    // Moving either one turns it into a stale answer under a button about to be pressed again.
+    renderPanel({ selected: ["3_a"] });
+    press();
+    expect(screen.getByText("Seçili karelerin fotoğrafı henüz üretilmedi.")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("Videosu olmayanlar").closest("button"));
+
+    expect(screen.queryByText("Seçili karelerin fotoğrafı henüz üretilmedi.")).toBeNull();
+  });
+
+  it("dresses the reason as the green card's red twin", () => {
+    renderPanel({ frames: ALL_HELD });
+
+    press();
+
+    const card = screen.getByText("Tüm karelerin videosu var.").closest(".wf-stroke");
+    expect(card.style.borderColor).toBe("var(--danger)");
+    expect(card.style.background).toBe("var(--danger-bg)");
+  });
+
+  it("keeps the button pressable while the reason stands", () => {
+    renderPanel({ frames: ALL_HELD });
+
+    press();
+
+    expect(screen.getByText("Tüm karelerin videosu var.")).toBeTruthy();
+    expect(addButton().disabled).toBe(false);
+  });
+
+  it("locks the button only while the request is in flight", async () => {
+    // The other half of the rule: nothing before the press locks it, and the one thing that does
+    // lets go again.
+    let land;
+    renderPanel({ onQueue: () => new Promise((resolve) => { land = resolve; }) });
+    expect(addButton().disabled).toBe(false);
+
+    await act(async () => { press(); });
+
+    expect(screen.getByText("Ekleniyor…").closest("button").disabled).toBe(true);
+    await act(async () => { land({ added: 2 }); });
+    expect(addButton().disabled).toBe(false);
   });
 });
 
@@ -394,11 +515,31 @@ describe("LayerPanel — sound", () => {
     expect(screen.getByText("1 ses üretilecek — her kare kendi sesini alır.")).toBeTruthy();
   });
 
-  it("says there is nothing to do in its own words", () => {
+  it("says all the frames already have a sound", () => {
+    renderSound({ frames: [
+      done("1_a.png", { video: "1_a_V1_0.mp4", audio: "1_a_V1_0_S1_0.wav" })] });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle").closest("button"));
+
+    expect(screen.getByText("Tüm karelerin sesi var.")).toBeTruthy();
+  });
+
+  it("says nothing has a video to lay a sound over", () => {
+    // Not the video panel's sentence: what is missing under a sound is a video, not a photo. An
+    // empty project reads this too, and it is the nearer thing that is missing.
     renderSound({ frames: [done("0_a.png")] });
 
-    expect(screen.getByText("Videosu olup sesi olmayan kare yok — üretilecek bir şey yok."))
-      .toBeTruthy();
+    fireEvent.click(screen.getByText("Kuyruğa ekle").closest("button"));
+
+    expect(screen.getByText("Videosu olan kare yok.")).toBeTruthy();
+  });
+
+  it("says the chosen frames have no video yet", () => {
+    renderSound({ selected: ["0_a"] });
+
+    fireEvent.click(screen.getByText("Kuyruğa ekle").closest("button"));
+
+    expect(screen.getByText("Seçili karelerin videosu henüz üretilmedi.")).toBeTruthy();
   });
 
   it("confirms in its own words", async () => {
