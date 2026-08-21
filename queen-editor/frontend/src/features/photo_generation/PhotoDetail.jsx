@@ -55,8 +55,9 @@ function Arrow({ glyph, side, onClick }) {
   );
 }
 
-// Madde 73's strip: three joined buttons over the stage. A layer the frame does not have stays
-// disabled rather than hidden -- the user sees what a frame could still become.
+// Madde 73's strip: three tabs over the stage, 8px apart so each reads as its own (Fark 85). A
+// layer the frame does not have stays disabled rather than hidden -- the user sees what a frame
+// could still become.
 const TABS = [
   { id: "photo", label: "Foto" },
   { id: "video", label: "Video", Glyph: PlayGlyph },
@@ -69,7 +70,7 @@ const LAYER_ORDER = TABS.map((row) => row.id);
 const LAYER_LABEL = Object.fromEntries(TABS.map((row) => [row.id, row.label]));
 
 const STRIP = { position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
-                display: "flex", zIndex: 2 };
+                display: "flex", gap: 8, zIndex: 2 };
 
 // The one destructive thing a layer tab offers (madde 80): it takes its own layer and whatever
 // lies over it, and says what survives. The photo tab is not here -- deleting the base layer is
@@ -88,8 +89,8 @@ const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", backgroun
 
 function LayerTabs({ open, has, onOpen }) {
   return (
-    <div style={STRIP}>
-      {TABS.map(({ id, label, Glyph }, index) => (
+    <div data-strip style={STRIP}>
+      {TABS.map(({ id, label, Glyph }) => (
         <button key={id} type="button" disabled={!has[id]}
                 aria-current={open === id ? "page" : undefined}
                 onClick={() => onOpen(id)} className="wf-stroke"
@@ -97,9 +98,7 @@ function LayerTabs({ open, has, onOpen }) {
                          background: "var(--bg-2)", cursor: has[id] ? "pointer" : "default",
                          opacity: has[id] ? 1 : 0.35,
                          color: open === id ? "var(--accent)" : "var(--ink-3)",
-                         borderColor: open === id ? "var(--accent)" : "var(--border)",
-                         // Joined, not three separate pills: one control with three states.
-                         marginLeft: index ? -1 : 0 }}>
+                         borderColor: open === id ? "var(--accent)" : "var(--border)" }}>
           {Glyph && <Glyph size={10} />}
           <Mono size={10}>{label}</Mono>
         </button>

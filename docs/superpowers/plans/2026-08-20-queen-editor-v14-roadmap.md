@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 19/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 20/31
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -116,7 +116,7 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
 | 19 | ✅ **Her sekme yalnız kendi katmanını gösterir.** Alt katmanların dosya adları ve prompt kutuları gider; karenin kendi adı ve sırası üstte kalır. Kuyrukta bekleyen katmanın kutusunda ortalanmış tek satır durur. | Video sekmesinde yalnız video prompt'u, ses sekmesinde yalnız ses prompt'u görünüyor; kare adı üç sekmede de duruyor. | İstek 4.1 · Fark 86, 87, 92 |
-| 20 | **Sekmelerin ayrılması.** Foto, Video ve Ses sekmeleri arasına boşluk girer, her biri kendi köşe yarıçapını alır; açık sekme yalnız rengiyle belli olur. | Üç sekme ayrı ayrı okunuyor, açık olan renginden ayırt ediliyor, olmayan katmanın sekmesi pasif duruyor. | İstek 4.2 · Fark 85 |
+| 20 | ✅ **Sekmelerin ayrılması.** Foto, Video ve Ses sekmeleri arasına boşluk girer, her biri kendi köşe yarıçapını alır; açık sekme yalnız rengiyle belli olur. | Üç sekme ayrı ayrı okunuyor, açık olan renginden ayırt ediliyor, olmayan katmanın sekmesi pasif duruyor. | İstek 4.2 · Fark 85 |
 | 21 | **Sağ panelin düzeni.** Panel iki gruba ayrılır — üstte kare bilgisi, altta üretim — grup başlığı ve ayraç olmadan. Prompt kutuları sabit yüksekliğe geçip büyür, taşan metin kendi içinde kayar. Her prompt başlığının sağına kopyala ikonu gelir. Etiketler hangi katmanı okuduğunu söyler. | Pencere boyu değişince kutular esnemiyor; kopyala ikonu metni panoya alıyor; etiketler katman adını taşıyor. | Fark 88–91 |
 | 22 | **Detayın görsel hizalaması** *(grup)*. Oynatıcı çubuğu ve dalga videonun içine iner, oynat düğmesi çerçeve alır, sahnenin üst boşluğu açılır, hap ve düğme metinleri düzeltilir, negatif prompt düzenlenebilir olur. | Listedeki farkların hepsi ekranda kapanmış. | Fark 98–117 |
 
