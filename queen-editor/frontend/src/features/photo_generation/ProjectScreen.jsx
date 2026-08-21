@@ -6,6 +6,7 @@ import { useProducers } from "../producers/useProducers.js";
 import Gallery from "./Gallery.jsx";
 import SidePanel from "./SidePanel.jsx";
 import { useGeneration } from "./useGeneration.js";
+import { useKeptScroll } from "./useKeptScroll.js";
 import { useModels } from "./useModels.js";
 
 const HEADER = {
@@ -32,6 +33,8 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   const { models, error: modelsError } = useModels();
   // The machine's own question, not this project's: which producers are here.
   const producers = useProducers();
+  // The gallery's own scroll box, kept across the steps in and out of a frame's page.
+  const box = useKeptScroll(project);
   const [saveError, setSaveError] = useState(null);
   const [hinting, setHinting] = useState(false);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
@@ -111,7 +114,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
-        <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+        <div data-scroll ref={box} style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
           {/* Whether the queue is moving is the gallery's business too: an owed layer reads as
               queued while it flows and as waiting once it has stopped, and only this screen knows
               which -- the worker is global, so a neighbour's batch moves nothing here. */}
