@@ -52,8 +52,12 @@ const TINT = { position: "absolute", inset: 0, background: "rgba(167,139,250,.18
 // than floating over the gallery (madde 108).
 const BAR_RAIL = { position: "sticky", bottom: 28, display: "flex", justifyContent: "center",
                    pointerEvents: "none", zIndex: 10, marginTop: -64 };
-const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
-              borderColor: "var(--accent)", pointerEvents: "auto" };
+// 10, not 14: the bar was drawn for three buttons and carries six now (Fark 83). Nothing in it may
+// break in two -- nowrap keeps a label on one line, and with it a flex item cannot shrink below its
+// own text either. The other half of never wrapping, items falling to a second row, is what flex
+// already does by default.
+const BAR = { display: "flex", alignItems: "center", gap: 10, padding: "10px 18px",
+              borderColor: "var(--accent)", pointerEvents: "auto", whiteSpace: "nowrap" };
 // Red text, red border, no fill -- the app-wide destructive standard (madde 83). Three of the bar's
 // buttons wear it now.
 const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", background: "none" };
@@ -466,14 +470,16 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                   window's to say, and it says it differently every time. */}
               <Icon.Trash /> Sil
             </Btn>
-            {/* One per layer, to the right of Sil and dressed like it. Drawn only while something
-                selected carries that layer: a window asking about no frames at all is not a
-                window (Fark 80). */}
-            {LAYER_ACTIONS.map(({ layer, label }) => holding(layer).length > 0 && (
-              <Btn key={layer} sm onClick={() => setConfirming(layer)} style={DANGER}>
-                <Icon.Trash /> {label}
-              </Btn>
-            ))}
+            {/* One per layer, to the right of Sil and dressed like it. Two conditions: nothing in
+                the selection may still be waiting -- what these take off is a finished stack, and
+                the queue is still writing into that one (Fark 82) -- and something has to carry the
+                layer, because a window asking about no frames at all is not a window (Fark 80). */}
+            {chosenQueued.length === 0
+              && LAYER_ACTIONS.map(({ layer, label }) => holding(layer).length > 0 && (
+                <Btn key={layer} sm onClick={() => setConfirming(layer)} style={DANGER}>
+                  <Icon.Trash /> {label}
+                </Btn>
+              ))}
             <Btn sm ghost onClick={closeSelection}>Vazgeç</Btn>
           </div>
         </div>
