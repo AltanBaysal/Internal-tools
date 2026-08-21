@@ -7,9 +7,14 @@ import { Btn, Hand, Mono, Note } from "../../vendor/kit.jsx";
 // that the warning still feels like it belongs to what was typed.
 const CHECK_MS = 300;
 
+// Both windows carry the same form -- the same label, the same box, the same two buttons -- so
+// there is one measure and it belongs to the window (Fark 6). It was the caller's while the two
+// were expected to differ.
+const WIDTH = 380;
+
 // A window that asks for a project name -- to open one with, or to give one another. Both are the
-// same window, so it is written once and its heading, its opening value, its words and its measure
-// come from whoever opened it.
+// same window, so it is written once and its heading, its opening value and its words come from
+// whoever opened it.
 //
 // The server owns the name rules; this modal never keeps a copy. It warns as the name is typed by
 // asking the server whether the name would be accepted and printing whatever sentence comes back --
@@ -18,7 +23,7 @@ const CHECK_MS = 300;
 //
 // A name already taken is a clash rather than a broken rule and the live check knows nothing about
 // the disk, so that one only appears once the button is pressed and the server refuses.
-export default function NameModal({ title, value = "", submitLabel, busyLabel, width = 400,
+export default function NameModal({ title, value = "", submitLabel, busyLabel,
                                     onCancel, onSubmit }) {
   const [name, setName] = useState(value);
   // Two different things, one place on screen: what the server says the name WOULD be, and what it
@@ -78,7 +83,7 @@ export default function NameModal({ title, value = "", submitLabel, busyLabel, w
       <div
         className="wf-card wf-card--shadow"
         onClick={(e) => e.stopPropagation()}
-        style={{ width, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
+        style={{ width: WIDTH, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
       >
         <Hand size={17}>{title}</Hand>
         <Mono
