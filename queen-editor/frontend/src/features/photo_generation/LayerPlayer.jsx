@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Mono } from "../../vendor/kit.jsx";
+import { PauseGlyph, PlayGlyph } from "./glyphs.jsx";
 
 // Madde 74's numbers: a 64px round button in the middle of a 16:9 stage, and a waveform of 46 bars
 // where the sound rides along.
@@ -9,15 +10,24 @@ const BARS = 46;
 // it, and correcting on every tick would make the sound stutter.
 const DRIFT = 0.25;
 
-const STAGE = { position: "relative", width: "100%", maxWidth: "calc(100% - 120px)",
+const SCENE = { position: "relative", width: "100%", maxWidth: "calc(100% - 120px)",
                 aspectRatio: "16/9", background: "#000", borderRadius: "var(--r-sm)",
                 overflow: "hidden" };
+// Fark 116: an outline and a darker ground, so the button reads as a button over any frame the
+// video happens to be paused on. Written in longhands -- the shorthand is not reliably read back.
 const BUTTON = { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
-                 width: 64, height: 64, borderRadius: "50%", border: "none",
-                 background: "rgba(10,8,7,.6)", color: "#fff", cursor: "pointer",
-                 display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 };
-const ROW = { display: "flex", alignItems: "center", gap: 10, width: "100%",
-              maxWidth: "calc(100% - 120px)", marginTop: 10 };
+                 width: 64, height: 64, borderRadius: "50%",
+                 borderWidth: 1, borderStyle: "solid", borderColor: "rgba(255,255,255,.35)",
+                 background: "rgba(10,8,7,.72)", color: "#fff", cursor: "pointer",
+                 display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2 };
+// Fark 114/115: the clock, the line and the waveform live inside the picture now, a little above
+// its bottom edge, so the player reads as one thing rather than two stacked.
+const TRACK = { position: "absolute", left: 12, right: 12, bottom: 10, zIndex: 1,
+                display: "flex", alignItems: "center", gap: 10 };
+// White with a shadow rather than the panel's faint ink: what is under these is a picture now, and
+// a tone chosen for a flat surface disappears over half of them.
+const CLOCK = { color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,.8)" };
+const UNPLAYED = "rgba(255,255,255,.35)";
 
 /** m:ss -- the only shape a five second clip needs. */
 function clock(seconds) {
@@ -61,9 +71,10 @@ function useWaveform(audioUrl) {
   return peaks;
 }
 
-// Artboard: the video in a 16:9 stage with one round button over it, and under it the time, the
-// progress and the time again. The sound tab opens no player of its own (madde 74) -- it is this
-// same one with the wav playing alongside and a waveform where the bar was.
+// Artboard: the video in a 16:9 stage with one round button over it, and near its bottom edge the
+// time, the progress and the time again -- all of it inside the picture (Fark 114). The sound tab
+// opens no player of its own (madde 74) -- it is this same one with the wav playing alongside and a
+// waveform where the bar was.
 export default function LayerPlayer({ videoUrl, audioUrl }) {
   const video = useRef(null);
   const audio = useRef(null);
@@ -105,7 +116,7 @@ export default function LayerPlayer({ videoUrl, audioUrl }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-      <div style={STAGE}>
+      <div data-scene style={SCENE}>
         {/* Loops by itself: the design asks for a five second clip that keeps going round. */}
         <video ref={video} src={videoUrl} loop playsInline
                onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
@@ -115,32 +126,33 @@ export default function LayerPlayer({ videoUrl, audioUrl }) {
         {audioUrl && <audio ref={audio} src={audioUrl} loop />}
         <button type="button" aria-label={playing ? "Duraklat" : "Oynat"} onClick={toggle}
                 style={BUTTON}>
-          <Mono size={20}>{playing ? "❙❙" : "▶"}</Mono>
+          {playing ? <PauseGlyph size={22} /> : <PlayGlyph size={22} />}
         </button>
-      </div>
 
-      <div style={ROW}>
-        <Mono size={11} style={{ color: "var(--ink-3)" }}>{clock(at)}</Mono>
-        {audioUrl ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 2, height: 24 }}>
-            {Array.from({ length: BARS }, (_, bar) => (
-              <span key={bar} data-bar
-                    style={{ flex: 1,
-                             // A flat bar is what an unread waveform looks like: still a progress
-                             // strip, still not a shape anybody invented.
-                             height: `${20 + 80 * (peaks ? peaks[bar] : 0.2)}%`,
-                             borderRadius: 1,
-                             background: bar / BARS <= done ? "var(--accent)" : "var(--ink-4)" }} />
-            ))}
-          </div>
-        ) : (
-          <div className="wf-stroke" style={{ flex: 1, height: 4, padding: 0, borderRadius: 2,
-                                              overflow: "hidden" }}>
-            <div data-progress style={{ width: `${done * 100}%`, height: "100%",
-                                        background: "var(--accent)" }} />
-          </div>
-        )}
-        <Mono size={11} style={{ color: "var(--ink-3)" }}>{clock(length)}</Mono>
+        <div data-track style={TRACK}>
+          <Mono size={11} style={CLOCK}>{clock(at)}</Mono>
+          {audioUrl ? (
+            <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 2, height: 24 }}>
+              {Array.from({ length: BARS }, (_, bar) => (
+                <span key={bar} data-bar
+                      style={{ flex: 1,
+                               // A flat bar is what an unread waveform looks like: still a progress
+                               // strip, still not a shape anybody invented.
+                               height: `${20 + 80 * (peaks ? peaks[bar] : 0.2)}%`,
+                               borderRadius: 1,
+                               background: bar / BARS <= done ? "var(--accent)" : UNPLAYED }} />
+              ))}
+            </div>
+          ) : (
+            /* No box around it: over a picture the contrast is the picture. */
+            <div style={{ flex: 1, height: 4, borderRadius: 2, overflow: "hidden",
+                          background: "rgba(255,255,255,.25)" }}>
+              <div data-progress style={{ width: `${done * 100}%`, height: "100%",
+                                          background: "var(--accent)" }} />
+            </div>
+          )}
+          <Mono size={11} style={CLOCK}>{clock(length)}</Mono>
+        </div>
       </div>
     </div>
   );

@@ -93,6 +93,27 @@ export function StatusPills({ states }) {
   );
 }
 
+/** What the stage says while a layer is made over a picture that is already there.
+ *
+ * The picture stays under it (Fark 113): for the length of a render it is the one thing left to
+ * look at, and swapping it for a spinner took that away. A photo being made has no picture to keep
+ * -- that one still gets `Rendering`.
+ */
+export function Making({ layer }) {
+  return (
+    <span data-making className="wf-mono"
+          style={{ position: "absolute", top: "50%", left: "50%",
+                   transform: "translate(-50%,-50%)", zIndex: 1,
+                   display: "flex", alignItems: "center", gap: 6,
+                   background: "rgba(10,8,7,.72)", borderRadius: 4, padding: "8px 14px",
+                   fontSize: 12, color: "var(--accent)" }}>
+      <span aria-hidden="true" className="qe-dot qe-dot--alive"
+            style={{ background: "currentColor", width: 6, height: 6 }} />
+      {LAYER_WORD[layer]} üretiliyor…
+    </span>
+  );
+}
+
 /** The kit's loading holder without its word.
  *
  * vendor/ is never hand-edited, and the kit's own version writes "Çalışıyor" across the middle of

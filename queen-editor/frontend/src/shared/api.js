@@ -115,11 +115,11 @@ export async function queueLayer(project, kind, files, variants, mode) {
 //
 // The frame is named by its identity rather than by a file, here and in removeLayer: a copy frame
 // shares its source's picture, so one file name can belong to two frames.
-export async function regenerateFrame(project, frame, layer, prompt, mode) {
+export async function regenerateFrame(project, frame, layer, prompt, mode, negative) {
   return request(`/api/projects/${encodeURIComponent(project)}/regenerate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ frame, layer, prompt, mode }),
+    body: JSON.stringify({ frame, layer, prompt, mode, negative }),
   });
 }
 

@@ -180,12 +180,15 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         if layer not in queue.ORDER:
             return jsonify({"error": f"Böyle bir katman yok: {layer}"}), 404
         prompt = body.get("prompt")
+        negative = body.get("negative")
         try:
             # The frame is named by its identity: a copy frame shares its source's picture, so a
             # file name would not say which of the two was asked for. A non-string prompt counts as
-            # no words at all -- what goes down is exactly what the user was shown.
+            # no words at all -- what goes down is exactly what the user was shown, and the negative
+            # travels the same way.
             frame = regenerate(project, body.get("frame"), layer,
                                prompt if isinstance(prompt, str) else "",
+                               negative if isinstance(negative, str) else "",
                                mode=body.get("mode", production_mode.STANDARD))
         except (ProjectMissing, FrameMissing) as exc:
             return jsonify({"error": str(exc)}), 404

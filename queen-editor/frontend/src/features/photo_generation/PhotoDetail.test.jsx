@@ -159,12 +159,16 @@ describe("PhotoDetail — the stage", () => {
   });
 
   it("keeps the picture and lays a box over it while a layer is made", async () => {
+    // `type` is the job's own field for which layer it is making -- the same word the queue uses.
     await open("P0_0", { frames: [RENDERING],
                          status: { status: "running", project: "düğün",
-                                   current: { id: "P0_0", layer: "video" } } });
+                                   current: { id: "P0_0", type: "video" } } });
+
+    fireEvent.click(tab("Video"));
 
     // Fark 113: the photo used to be swapped for a spinner, so the one thing the user could still
-    // look at went away for the length of the render.
+    // look at went away for the length of the render. On the layer's own tab -- the photo tab has
+    // nothing being made on it.
     expect(screen.getByAltText("P0_0.png")).toBeTruthy();
     expect(document.querySelector("[data-making]").textContent).toContain("video üretiliyor");
     expect(document.querySelector("[data-making] .qe-dot--alive")).toBeTruthy();
@@ -436,7 +440,9 @@ describe("PhotoDetail — the new mode", () => {
 
     await act(async () => { fireEvent.click(regenButton()); });
 
-    expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın dönüyor", "loop");
+    // No negative on a video: only a photo is made from one (Fark 98).
+    expect(regenerateFrame)
+      .toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın dönüyor", "loop", undefined);
   });
 
   it("sends the mode that was picked", async () => {
@@ -447,7 +453,7 @@ describe("PhotoDetail — the new mode", () => {
     await act(async () => { fireEvent.click(regenButton()); });
 
     expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın dönüyor",
-                                                 "standard");
+                                                 "standard", undefined);
   });
 
   it("marks the box once the mode is no longer the video's own", async () => {
@@ -762,7 +768,7 @@ describe("PhotoDetail — regenerating", () => {
 
     // The frame's identity, not its file: a copy frame shares its source's picture.
     expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın yürüyor",
-                                                 "standard");
+                                                 "standard", undefined);
   });
 
   it("says the job went into the queue and refuses a second press", async () => {
@@ -1191,8 +1197,10 @@ describe("PhotoDetail — the negative prompt", () => {
   it("draws the box even when there is no negative, rather than hiding it", async () => {
     await open("1_a");
 
+    // Fark 98 made it writable, so an empty one is an empty box: the dash was what a read-only box
+    // said when it had nothing to show.
     expect(screen.getByText("Foto negatif prompt'u")).toBeTruthy();
-    expect(screen.getByText("—")).toBeTruthy();
+    expect(document.querySelectorAll("[data-box]")[1].value).toBe("");
   });
 
   it("lets the negative be edited", async () => {

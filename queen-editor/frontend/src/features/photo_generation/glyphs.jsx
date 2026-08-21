@@ -58,6 +58,13 @@ export const PlayGlyph = ({ size }) => (
   </Glyph>
 );
 
+// Two bars: what the round button over the video shows while the clip is running.
+export const PauseGlyph = ({ size }) => (
+  <Glyph name="pause" size={size}>
+    <path d="M5 2.5v9M9 2.5v9" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </Glyph>
+);
+
 // A crate: what a producer's model group arrives in.
 export const ProducersGlyph = ({ size }) => (
   <Glyph name="producers" size={size}>

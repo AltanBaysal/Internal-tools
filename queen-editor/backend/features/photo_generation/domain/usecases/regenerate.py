@@ -43,7 +43,7 @@ class NoNextFrame(Exception):
 
 
 def regenerate(runner, store, record, plan_store, order_store, producers, new_seed, now,
-               project, fid, kind, prompt, log=None, writers=None,
+               project, fid, kind, prompt, negative="", log=None, writers=None,
                mode=production_mode.STANDARD):
     """Returns the identity of the frame the new layer will be made on.
 
@@ -54,6 +54,10 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
     `mode` is what the new video should be, and the form's default is the source video's own -- so
     changing only the prompt keeps the video the user had (madde 94). A linked one's target is
     worked out here, from the gallery already open on this side.
+
+    `negative` is the box's own words, the same way `prompt` is (Fark 98). Only a photo carries one:
+    the layers over it are made from what is under them, so whatever is passed for a video or a
+    sound is dropped here rather than at the caller.
     """
     # Above the gallery read: an unknown mode is an unknown mode even in a project that is not
     # there, and the cheap refusal comes first.
@@ -91,9 +95,10 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
     plan_store.append(project, [{
         "id": born, "type": kind, "number": number_of(born), "variant": variant_of(born),
         "prompt": prompt,
-        # Only a photo is made from a prompt and a seed of its own; the layers above it are made
-        # from what is under them, and the model that renders them is not the user's to pick.
-        "negative": source.get("negative", "") if kind == layers.PHOTO else "",
+        # Only a photo is made from a prompt, a negative and a seed of its own; the layers above it
+        # are made from what is under them, and the model that renders them is not the user's to
+        # pick.
+        "negative": negative if kind == layers.PHOTO else "",
         "seed": new_seed() if kind == layers.PHOTO else None,
         "model": source.get("model", "") if kind == layers.PHOTO else "",
         **mark,

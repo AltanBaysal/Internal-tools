@@ -611,6 +611,7 @@ def test_a_regenerate_mode_nobody_knows_is_refused(tmp_path):
     resp = regenerate_request(client, "P0_0", layer="video", mode="kelebek")
 
     assert resp.status_code == 400
+    assert resp.get_json()["error"]
 
 
 def test_the_body_negative_reaches_the_new_frames_line(tmp_path):
@@ -625,7 +626,6 @@ def test_the_body_negative_reaches_the_new_frames_line(tmp_path):
 
     rows = client.get("/api/projects/düğün/frames").get_json()["frames"]
     assert rows[0]["negative"] == "bulanık, gürültü"
-    assert resp.get_json()["error"]
 
 
 def test_linking_a_frame_with_nothing_after_it_is_refused_with_a_reason(tmp_path):

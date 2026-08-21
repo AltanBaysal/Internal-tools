@@ -208,8 +208,8 @@ export function useGeneration(project) {
   // One layer of one frame, made again from the words on screen. Resolves with the server's answer
   // -- it names the frame the result will land on, which is never this one -- or null when it was
   // refused; the page has to tell those apart to know whether to say anything.
-  const regenerate = useCallback((frame, kind, prompt, mode) => (
-    regenerateFrame(project, frame, kind, prompt, mode)
+  const regenerate = useCallback((frame, kind, prompt, mode, negative) => (
+    regenerateFrame(project, frame, kind, prompt, mode, negative)
       .then((body) => {
         if (!alive.current) return null;
         startPolling();
