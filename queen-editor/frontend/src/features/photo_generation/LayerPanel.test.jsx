@@ -102,7 +102,7 @@ describe("LayerPanel — sending", () => {
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null, 1);
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
     expect(screen.getByText("2 video kuyruğa eklendi")).toBeTruthy();
   });
 
@@ -114,7 +114,7 @@ describe("LayerPanel — sending", () => {
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(["0_a.png"], 1);
+    expect(onQueue).toHaveBeenCalledWith(["0_a.png"], 1, "standard");
   });
 
   it("sends the variant count along with the scope", async () => {
@@ -124,7 +124,7 @@ describe("LayerPanel — sending", () => {
     fireEvent.change(variantBox(), { target: { value: "2" } });
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null, 2);
+    expect(onQueue).toHaveBeenCalledWith(null, 2, "standard");
   });
 
   it("says the length is not a choice in this version", () => {
@@ -140,6 +140,56 @@ describe("LayerPanel — sending", () => {
     renderPanel();
 
     expect(screen.queryByText(/LLM/)).toBeNull();
+  });
+});
+
+describe("LayerPanel — the production mode", () => {
+  const modeRow = (label) => screen.getByText(label).closest("button");
+
+  it("offers the three ways a video can be made", () => {
+    renderPanel();
+
+    expect(screen.getByText("Üretim modu")).toBeTruthy();
+    expect(modeRow("Standart")).toBeTruthy();
+    expect(modeRow("Loop")).toBeTruthy();
+    expect(modeRow("Sonrakine bağla")).toBeTruthy();
+  });
+
+  it("opens on the plain one", () => {
+    renderPanel();
+
+    expect(modeRow("Standart").style.borderColor).toBe("var(--accent)");
+    expect(modeRow("Loop").style.borderColor).toBe("var(--border)");
+    expect(modeRow("Sonrakine bağla").style.borderColor).toBe("var(--border)");
+  });
+
+  it("stands between the scope and the variant count", () => {
+    // The design's order, and the reason it is that order: the mode is part of deciding what to
+    // make, so it belongs on the scope's side of the panel rather than after the count.
+    const { container } = renderPanel();
+
+    const text = container.textContent;
+    expect(text.indexOf("Üretim modu")).toBeGreaterThan(text.indexOf("Kapsam"));
+    expect(text.indexOf("Üretim modu")).toBeLessThan(text.indexOf("Varyant"));
+  });
+
+  it("sends the mode that was picked", async () => {
+    const onQueue = vi.fn().mockResolvedValue({ added: 2 });
+    renderPanel({ onQueue });
+
+    fireEvent.click(modeRow("Loop"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "loop");
+  });
+
+  it("sends the plain mode when nobody touched the row", async () => {
+    const onQueue = vi.fn().mockResolvedValue({ added: 2 });
+    renderPanel({ onQueue });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
   });
 });
 
@@ -192,6 +242,24 @@ describe("LayerPanel — sound", () => {
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(screen.getByText("1 ses kuyruğa eklendi")).toBeTruthy();
+  });
+
+  it("never offers a mode -- a sound ends nowhere", () => {
+    // Loop and "Sonrakine bağla" are both about the picture a video ends on. A sound is laid over
+    // the whole of one video and arrives nowhere, so there is nothing here to choose between.
+    renderSound();
+
+    expect(screen.queryByText("Üretim modu")).toBeNull();
+    expect(screen.queryByText("Loop")).toBeNull();
+  });
+
+  it("still sends the plain mode, so the server reads one call shape", async () => {
+    const onQueue = vi.fn().mockResolvedValue({ added: 1 });
+    renderSound({ onQueue });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
   });
 
   it("does not explain who writes the prompt either", () => {

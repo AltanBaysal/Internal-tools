@@ -502,6 +502,54 @@ def test_the_videos_endpoint_refuses_an_impossible_variant_count(tmp_path):
     assert resp.get_json()["field"] == "variants"
 
 
+def video_jobs(drive, project="düğün"):
+    plan = json.loads((drive / project / "plan.json").read_text(encoding="utf-8"))
+    return [frame for frame in plan["frames"] if frame["type"] == "video"]
+
+
+def test_the_videos_endpoint_carries_the_production_mode(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"mode": "loop"})
+
+    assert resp.status_code == 202
+    # The plan line is where the mode has to land: the renderer reads it hours later, long after
+    # the panel that chose it is gone.
+    assert [job["mode"] for job in video_jobs(drive)] == ["loop"]
+
+
+def test_a_layer_queued_with_no_mode_is_a_plain_one(tmp_path):
+    # A client older than the row asks for exactly what it always asked for -- the same reading the
+    # variant count already gets.
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    client.post("/api/projects/düğün/layers/video", json={})
+
+    assert [job["mode"] for job in video_jobs(drive)] == ["standard"]
+
+
+def test_the_videos_endpoint_refuses_a_mode_nobody_knows(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"mode": "kelebek"})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "mode"
+
+
+def test_a_sound_cannot_be_asked_to_end_anywhere(tmp_path):
+    # Only a video ends on a picture. Letting the word through would hide the mistake behind a
+    # sound that came out fine.
+    client, _ = make_client(tmp_path)
+
+    resp = client.post("/api/projects/düğün/layers/audio", json={"mode": "loop"})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "mode"
+
+
 def test_an_unknown_layer_is_not_a_place_to_queue_anything(tmp_path):
     client, _ = make_client(tmp_path)
 

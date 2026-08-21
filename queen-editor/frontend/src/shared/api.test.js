@@ -1,6 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { createProject, getSettings, getStatus, listFrames, listProjects, saveOrder } from "./api.js";
+import {
+  createProject,
+  getSettings,
+  getStatus,
+  listFrames,
+  listProjects,
+  queueLayer,
+  saveOrder,
+} from "./api.js";
 
 function okResponse(body) {
   const text = JSON.stringify(body);
@@ -82,6 +90,20 @@ describe("api.request", () => {
     expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/order`);
     expect(options.method).toBe("PUT");
     expect(JSON.parse(options.body)).toEqual({ order: ["1_a.png"] });
+  });
+
+  it("carries the production mode into the queue request", async () => {
+    // The panel is where the mode is chosen and the plan is where it lands; this line is the only
+    // thing between them, and a body that quietly drops the key would leave every video standard
+    // with nothing on screen to say so.
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ added: 1 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await queueLayer("düğün", "video", ["0_a.png"], 2, "loop");
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/layers/video`);
+    expect(JSON.parse(options.body)).toEqual({ files: ["0_a.png"], variants: 2, mode: "loop" });
   });
 
   it("does not abort a request after its answer has arrived", async () => {
