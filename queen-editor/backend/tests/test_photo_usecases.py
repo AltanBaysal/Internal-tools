@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import pytest
 
 from backend.features.photo_generation.domain import layers, production_mode, queue
@@ -129,12 +131,16 @@ class FakePlanStore:
         self.appended = []                # each append call's frames, in order
         self.frames = list(frames or [])
         self.negative = negative          # the pre-per-frame field older plans still carry
+        self.read_for = None              # the project name the last read was made under
 
     def append(self, project, frames):
         self.appended.append(frames)
         self.frames = self.frames + list(frames)
 
     def read(self, project):
+        # Which project was asked for last: a run that follows a renamed folder is only visible
+        # here, because the plan lives inside the folder and its name is the whole address.
+        self.read_for = project
         # Mirrors DrivePlanStore: a frame without its own negative falls back to the old field, one
         # planned before models could be chosen carries none at all, and one planned before
         # identities were written down keeps the one it was born with.
@@ -2104,6 +2110,38 @@ def test_an_empty_scope_starts_nothing():
                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün",
                         layers.VIDEO) == 0
     assert runner.status()["status"] == "idle"
+
+
+class MovingName:
+    """The holder a run reads its project's name from -- the whole of the protocol make_job needs.
+
+    Written here rather than imported: what this test is about is that the run asks again every
+    turn, and a fake that answers differently after a move is the only way to see it.
+    """
+
+    def __init__(self, name):
+        self.name = name
+
+    def now(self):
+        return self.name
+
+    @contextmanager
+    def steady(self):
+        yield self.name
+
+
+def test_a_run_reads_the_project_name_again_every_turn():
+    """A rename moves the folder under a run, and the run has to follow it: the name is read from a
+    holder rather than captured once, so the turn after the move works in the new folder."""
+    store, record, plan_store = video_project((0, "a"))
+    named = MovingName("düğün")
+
+    job = make_job(sync_runner(), store, record, plan_store,
+                   {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", named=named)
+    named.name = "başka"
+    job()
+
+    assert plan_store.read_for == "başka"
 
 
 def test_regenerating_with_the_same_prompt_stays_in_the_family():

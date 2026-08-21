@@ -6,7 +6,7 @@ from backend.features.projects.domain.usecases.get_settings import ProjectMissin
 
 
 def make_projects_blueprint(list_projects, create_project, check_name, delete_project, get_settings,
-                            save_settings):
+                            save_settings, rename_project=None):
     """Every argument is a use case already bound to a store (see main.py)."""
     bp = Blueprint("projects", __name__)
 

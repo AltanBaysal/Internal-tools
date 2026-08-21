@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import * as api from "./api.js";
 import {
   createProject,
   getSettings,
@@ -90,6 +91,22 @@ describe("api.request", () => {
     expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/order`);
     expect(options.method).toBe("PUT");
     expect(JSON.parse(options.body)).toEqual({ order: ["1_a.png"] });
+  });
+
+  it("renames a project at the address it has now", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ name: "nikah" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Reached through the module rather than by name, so a missing export shows up as one failing
+    // test instead of a file that will not load at all.
+    await api.renameProject("düğün", "nikah");
+
+    const [url, options] = fetchMock.mock.calls[0];
+    // The address is the name the project has today and the body is the one it is getting: a
+    // project IS its folder, so the folder it is in now is where the request has to go.
+    expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/rename`);
+    expect(options.method).toBe("POST");
+    expect(JSON.parse(options.body)).toEqual({ name: "nikah" });
   });
 
   it("carries the production mode into the queue request", async () => {

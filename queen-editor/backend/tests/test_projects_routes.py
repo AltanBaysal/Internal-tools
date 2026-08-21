@@ -9,6 +9,7 @@ from backend.features.projects.domain.usecases.create_project import create_proj
 from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
+from backend.features.projects.domain.usecases.rename_project import rename_project
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.projects.presentation.routes import make_projects_blueprint
 from backend.services.drive.storage import DriveStorage
@@ -31,6 +32,9 @@ def client_for(drive_root, dist_dir, halted=None):
         delete_project=partial(delete_project, store,
                                lambda project: (halted if halted is not None else []).append(
                                    project)),
+        # The move port stands in for the photo worker the same way halt does: here it only has to
+        # run what it was handed.
+        rename_project=partial(rename_project, store, lambda old, new, do: do()),
         get_settings=partial(get_settings, settings_store),
         save_settings=partial(save_settings, settings_store),
     )
@@ -56,6 +60,39 @@ def test_deleting_a_project_removes_the_folder_with_everything_in_it(tmp_path):
     assert resp.status_code == 204
     assert not (drive / "düğün").exists()
     assert client.get("/api/projects").get_json()["projects"] == []
+
+
+def test_renaming_a_project_moves_its_folder(tmp_path):
+    client, drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    (drive / "düğün" / "0_a.png").write_bytes(b"PNG")
+
+    resp = client.post("/api/projects/düğün/rename", json={"name": "nikah"})
+
+    assert resp.status_code == 200
+    assert resp.get_json()["name"] == "nikah"
+    # The photo came with the folder: nothing inside a project is rewritten by a rename.
+    assert (drive / "nikah" / "0_a.png").read_bytes() == b"PNG"
+    assert not (drive / "düğün").exists()
+
+
+def test_renaming_onto_a_name_that_is_taken_is_refused_with_the_reason(tmp_path):
+    client, _ = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects", json={"name": "nikah"})
+
+    resp = client.post("/api/projects/düğün/rename", json={"name": "nikah"})
+
+    assert resp.status_code == 409
+    assert resp.get_json()["error"] == "Bu ad zaten kullanılıyor. Başka bir ad dene."
+
+
+def test_renaming_a_project_that_is_not_there_answers_404(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    resp = client.post("/api/projects/yok/rename", json={"name": "başka"})
+
+    assert resp.status_code == 404
 
 
 def test_deleting_a_project_asks_for_its_production_to_stop(tmp_path):

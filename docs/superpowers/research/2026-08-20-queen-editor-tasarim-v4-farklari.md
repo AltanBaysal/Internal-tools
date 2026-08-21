@@ -1095,7 +1095,7 @@ madde madde verildi.
 
 ### Koşu sırasında verilen ek kararlar
 
-*(21 Ağustos 2026, 13, 15, 20, 21 ve 22. madde uygulanırken.)*
+*(21 Ağustos 2026, 13, 15, 20, 21, 22 ve 23. madde uygulanırken.)*
 
 | # | Karar | Kapattığı madde |
 |---|---|---|
@@ -1112,6 +1112,9 @@ madde madde verildi.
 | 37 | **Kuyruktaki kopya karede şerit duruyor, etiket geliyor.** Farkın şeridi hiç çizmeme yarısı alınmıyor: aynı listenin 92. maddesi kuyrukta bekleyen katmanın sekmesi açılınca kutusunda ne yazacağını tarif ediyor (19. maddede uygulandı), 99. maddesi de düğmenin sekmede durmasını istiyor — şerit kalkarsa ikisi de ulaşılamaz olur. Etiket yarısı alınıyor: sahnedeki resmin bu kareye ait olmadığını bugün hiçbir şey söylemiyor, köşeye "kaynak foto · kopya kare" giriyor. | 112 |
 | 38 | **"Kuyruktan çıkar — kare kalır" yazılmıyor.** Kuyruk kareyi çıkarıyor, katmanı değil: `remove_frames.py` kimliklerle çalışıyor ve üretilmemiş bir kareyi kuyruktan düşürüyor. Bir katmanı kuyruktan alıp kareyi bırakan bir basış yok, dolayısıyla "kare kalır" diyen bir düğme motorun yapamadığını vaat ederdi. Farkın asıl şikâyeti — düğmenin yalnız foto sekmesinde olması — düzeltiliyor. | 99 |
 | 39 | **Hap fotoğrafın içine inmiyor.** Köşe sahneye göre konumlanıyor, fotoğrafa göre değil: resim sahnenin ortasında `contain` ile duruyor ve sol kenarının nerede olduğu ancak yerleşimden sonra belli. Tutturulacak bir kenar yok. Hapın nabız atan noktası alınıyor, konumu bugünkü yerinde kalıyor. | 107 |
+| 40 | **Klasör taşınır, kopyalanmaz.** İstek listesi "adı değiştirmek klasörü değiştirmek demek" deyip cevabı spec'e bırakıyor. Kopyalamak yarıda kalabilir: bir projede binlerce dosya olabilir, Drive üzerinden kopyalama dakikalar sürer, ve kesilirse ortada iki eksik klasör kalır. Ad değiştirme dosya sisteminin kendi atomik işlemi. Sonucu: kare adları, plan, kayıt, ayarlar ve dışa aktarımlar klasörün içinde olduğu için birlikte taşınıyor ve hiçbiri yeniden yazılmıyor. | İstek 10 |
+| 41 | **Koşan iş adı her turda yeniden okur, yazarken kilit tutar.** Bugün iş adı bir kez alıyor; klasör altından taşınırsa bir sonraki tur okuyamıyor ve koşu "error" ile bitiyor — yani bugünkü hâliyle ad değiştirmek üretimi öldürür. İş adı bir tutamaktan okuyor, ve yazma anı o tutamağın kilidini alıyor: `write_bytes` eksik klasörü kendisi açtığı için, eski adla çözülmüş bir yazma taşınmadan sonra düşerse yanına hayalet bir klasör bırakırdı. Render kilidin dışında, yani bekleme bir dosya yazma kadar. İşçinin durumundaki proje damgası da adı takip ediyor, yoksa ekran kendi koşusunu tanımaz. | İstek 10 |
+| 42 | **Eski dışa aktarımlar taşınır, adları değişmez.** Dışa aktarım klasörü projenin içinde, dolayısıyla klasörle gidiyor. Ama birleştirilmiş dosyanın adı `{proje}.mp4` ve yeniden yazılmıyor: o dosya o adla yapıldı ve kullanıcı onu indirmiş olabilir. Bundan sonrakiler yeni adı alıyor. | İstek 10 |
 
 ### Karar gerektirmeyenler
 
