@@ -302,3 +302,18 @@ describe("ProjectScreen — a report nobody on this page watched", () => {
     expect(screen.getByText("Kuyruk boş")).toBeTruthy();
   });
 });
+
+describe("ProjectScreen — coming back to where the gallery was", () => {
+  const boxOf = () => document.querySelector("[data-scroll]");
+
+  it("opens the gallery at the place the screen was left at", () => {
+    const first = renderScreen("kayma");
+    boxOf().scrollTop = 640;
+
+    first.unmount();
+    renderScreen("kayma");
+
+    // The list was already remembered across mounts; this is the other half of standing still.
+    expect(boxOf().scrollTop).toBe(640);
+  });
+});

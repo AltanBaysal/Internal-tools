@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fileUrl } from "../../shared/api.js";
+import { shownPictures } from "../../shared/shown_pictures.js";
 import { TileImage } from "./TileImage.jsx";
 
 // The queue's own rules are tested next door. What is tested here is the protocol -- ask, draw
@@ -45,7 +46,12 @@ const sourceOf = () => picture().getAttribute("src");
 const grant = () => act(() => queue.waiting[0]?.grant());
 const releases = () => queue.waiting.map((ticket) => ticket.released);
 
-beforeEach(() => queue.forget());
+beforeEach(() => {
+  queue.forget();
+  // A picture that has been on screen once is remembered for the session, so a suite whose tests
+  // all name the same file has to start each of them from nothing.
+  shownPictures.clear();
+});
 afterEach(() => vi.unstubAllGlobals());
 
 describe("TileImage", () => {
@@ -142,5 +148,36 @@ describe("TileImage", () => {
     grant();
 
     expect(sourceOf()).toBe(fileUrl("düğün", "1_a.png"));
+  });
+
+  it("keeps a picture it has already shown when the tile is built again", () => {
+    const view = stubObserver();
+    const first = render(<TileImage project="düğün" file="1_a.png" />);
+    view.near();
+    grant();
+    fireEvent.load(picture());
+    first.unmount();
+
+    stubObserver();
+    render(<TileImage project="düğün" file="1_a.png" />);
+
+    // Neither gate again: not the viewport, not the queue. The bytes are in the browser's cache,
+    // so what a second wait would cost is the picture blinking off the screen (İstek 1.2).
+    expect(sourceOf()).toBe(fileUrl("düğün", "1_a.png"));
+    expect(queue.waiting).toHaveLength(1);
+  });
+
+  it("does not remember a picture that never arrived", () => {
+    const view = stubObserver();
+    const first = render(<TileImage project="düğün" file="1_a.png" />);
+    view.near();
+    grant();
+    fireEvent.error(picture());
+    first.unmount();
+
+    stubObserver();
+    render(<TileImage project="düğün" file="1_a.png" />);
+
+    expect(sourceOf()).toBeNull();
   });
 });
