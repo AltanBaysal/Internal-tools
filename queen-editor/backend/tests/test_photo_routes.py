@@ -650,8 +650,8 @@ def test_regenerating_a_layer_that_does_not_exist_returns_404(tmp_path):
     assert regenerate_request(client, "P0_0", layer="foto").status_code == 404
 
 
-def delete_layer_request(client, frame, layer="video", project="düğün"):
-    return client.post(f"/api/projects/{project}/layers/{layer}/delete", json={"frame": frame})
+def delete_layer_request(client, frames, layer="video", project="düğün"):
+    return client.post(f"/api/projects/{project}/layers/{layer}/delete", json={"frames": frames})
 
 
 def give_it_a_video(drive, frame="P0_0", project="düğün"):
@@ -673,7 +673,7 @@ def test_deleting_a_video_leaves_the_frame_in_the_gallery(tmp_path):
     generate(client, prompts='["a"]', variants=1)
     give_it_a_video(drive)
 
-    resp = delete_layer_request(client, "P0_0")
+    resp = delete_layer_request(client, ["P0_0"])
 
     assert resp.status_code == 200
     assert resp.get_json() == {"deleted": ["P0_0_V1_0.mp4"]}
@@ -686,14 +686,44 @@ def test_the_photo_layer_is_not_deleted_this_way(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
 
-    assert delete_layer_request(client, "P0_0", layer="photo").status_code == 404
+    assert delete_layer_request(client, ["P0_0"], layer="photo").status_code == 404
 
 
-def test_deleting_a_layer_of_an_unknown_frame_returns_404(tmp_path):
+def test_deleting_a_layer_of_an_unknown_frame_is_skipped(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
 
-    assert delete_layer_request(client, "P9_9").status_code == 404
+    resp = delete_layer_request(client, ["P9_9"])
+
+    # Skipped rather than refused: one name that is already gone must not undo the rest.
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": []}
+
+
+def test_deleting_one_layer_off_many_frames_in_one_press(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+    give_it_a_video(drive, "P0_0")
+    give_it_a_video(drive, "P1_0")
+
+    resp = delete_layer_request(client, ["P0_0", "P1_0"])
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": ["P0_0_V1_0.mp4", "P1_0_V1_0.mp4"]}
+    # The frames and their pictures stay exactly where they were: only the layer fell.
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [frame["layers"] for frame in gallery] == [{"photo": "P1_0.png"},
+                                                      {"photo": "P0_0.png"}]
+
+
+def test_a_layer_delete_body_that_is_not_a_list_of_identities_is_refused(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = delete_layer_request(client, "P0_0")
+
+    assert resp.status_code == 400
+    assert "metin dizisi" in resp.get_json()["error"]
 
 
 def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):

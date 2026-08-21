@@ -717,7 +717,7 @@ describe("PhotoDetail — one destructive action per tab", () => {
     fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
     await act(async () => { fireEvent.click(confirmButton()); });
 
-    expect(removeLayer).toHaveBeenCalledWith("düğün", "P0_0", "video");
+    expect(removeLayer).toHaveBeenCalledWith("düğün", ["P0_0"], "video");
     // The frame is still the gallery's, so the page stays on it.
     expect(navigate).not.toHaveBeenCalled();
     expect(tab("Foto").getAttribute("aria-current")).toBe("page");

@@ -650,6 +650,135 @@ describe("Gallery — copying a card", () => {
   });
 });
 
+describe("Gallery — taking a layer off many frames", () => {
+  // A frame that carries all three layers. withVideo spreads its extra after its own map, so this
+  // replaces that map rather than adding to it.
+  const withSound = (file) => withVideo(file, {
+    layers: { photo: file, video: file.replace(".png", "_V1_0.mp4"),
+              audio: file.replace(".png", "_V1_0_S1_0.wav") },
+  });
+  // Three frames, three answers to "does it carry this layer": both, video only, neither.
+  const MIXED = [withSound("2_a.png"), withVideo("1_a.png"), done("0_a.png")];
+  const remover = () => vi.fn().mockResolvedValue({ deleted: [] });
+
+  function pick(...names) {
+    names.forEach((name) => fireEvent.click(checkOf(name)));
+  }
+
+  it("puts the two layer buttons to the right of Sil", () => {
+    renderGallery({ frames: MIXED, onCopy: vi.fn(), onRemoveLayer: remover() });
+    pick("2_a.png");
+
+    const bar = screen.getByText("1 seçili").parentElement;
+    const words = [...bar.querySelectorAll("button")].map((one) => one.textContent.trim());
+    expect(words).toEqual(["Tümünü seç", "Kopyala", "Sil", "Videoları sil", "Sesleri sil",
+                           "Vazgeç"]);
+  });
+
+  it("draws no Videoları sil when nothing selected carries a video", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("0_a.png");
+
+    // A window asking about 0 frames is not a window, so the button is simply not there.
+    expect(screen.queryByText("Videoları sil")).toBeNull();
+    expect(screen.queryByText("Sesleri sil")).toBeNull();
+  });
+
+  it("draws no Sesleri sil when nothing selected carries a sound", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("1_a.png");
+
+    expect(screen.getByText("Videoları sil")).toBeTruthy();
+    expect(screen.queryByText("Sesleri sil")).toBeNull();
+  });
+
+  it("counts only the frames that carry the layer", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png", "0_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+
+    expect(screen.getByText("2 karenin videosu silinsin mi?")).toBeTruthy();
+  });
+
+  it("names the frames it will skip", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png", "0_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+
+    // First, because it is what explains the number in the title.
+    expect(screen.getByText(
+      "Seçili 3 kareden videosu olmayan 1 kare atlanır. "
+      + "Kareler ve fotoğrafları kalır. Videoya bindirilen sesler de gider.")).toBeTruthy();
+  });
+
+  it("says nothing about skipping when every selected frame carries the layer", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+
+    expect(screen.queryByText(/atlanır/)).toBeNull();
+  });
+
+  it("promises the video stays when the sound is the one going", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png");
+
+    fireEvent.click(screen.getByText("Sesleri sil"));
+
+    expect(screen.getByText("1 karenin sesi silinsin mi?")).toBeTruthy();
+    expect(screen.getByText("Kareler, fotoğrafları ve videoları kalır.")).toBeTruthy();
+  });
+
+  it("sends only the frames that carry the layer", async () => {
+    const onRemoveLayer = remover();
+    renderGallery({ frames: MIXED, onRemoveLayer });
+    pick("2_a.png", "1_a.png", "0_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+    // The window's own Sil is the last one on screen; the bar's is the first.
+    await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
+
+    expect(onRemoveLayer).toHaveBeenCalledWith(["2_a", "1_a"], "video");
+  });
+
+  it("sends nothing when the window is cancelled", () => {
+    const onRemoveLayer = remover();
+    renderGallery({ frames: MIXED, onRemoveLayer });
+    pick("2_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+    fireEvent.click(screen.getByText("Vazgeç"));
+
+    expect(onRemoveLayer).not.toHaveBeenCalled();
+    expect(screen.queryByText("1 karenin videosu silinsin mi?")).toBeNull();
+  });
+
+  it("closes the selection once the layer is gone", async () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+    await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
+
+    expect(screen.queryByText("2 seçili")).toBeNull();
+  });
+
+  it("does not count a video that blew up", () => {
+    // The tile shows no video badge for a red layer, and the window has to agree with the tile.
+    renderGallery({ frames: [withVideo("2_a.png"), withVideo("1_a.png", { failed: ["video"] })],
+                    onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+
+    expect(screen.getByText("1 karenin videosu silinsin mi?")).toBeTruthy();
+    expect(screen.getByText(/videosu olmayan 1 kare atlanır/)).toBeTruthy();
+  });
+});
+
 describe("Gallery — selecting frames that are not photos yet", () => {
   const MIXED = [
     pending("4_a.png"),

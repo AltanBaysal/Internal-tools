@@ -8,16 +8,11 @@ from backend.features.photo_generation.domain.photo_name import (
     number_of,
     photo_file,
 )
+from backend.features.photo_generation.domain.frame_list import InvalidFrames
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.run_loop import make_job
-from backend.features.photo_generation.domain.usecases.copy_frames import (
-    InvalidFrames,
-    copy_frames,
-)
-from backend.features.photo_generation.domain.usecases.remove_frames import (
-    InvalidFiles,
-    remove_frames,
-)
+from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
+from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
@@ -2327,7 +2322,7 @@ def test_deleting_a_video_takes_the_sound_over_it():
     store, record, plan_store = layered_project()
 
     gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                        "düğün", "0_a", layers.VIDEO)
+                        "düğün", ["0_a"], layers.VIDEO)
 
     assert gone == {"deleted": ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav"]}
     assert sorted(store.deleted) == ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav"]
@@ -2341,7 +2336,7 @@ def test_deleting_a_sound_leaves_the_video_alone():
     store, record, plan_store = layered_project()
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "0_a", layers.AUDIO)
+                 "düğün", ["0_a"], layers.AUDIO)
 
     assert store.deleted == ["0_a_V1_0_S1_0.wav"]
     assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
@@ -2351,7 +2346,7 @@ def test_a_layer_the_frame_does_not_carry_costs_nothing():
     store, record, plan_store = layered_project(audio=False)
 
     assert remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                        "düğün", "0_a", layers.AUDIO) == {"deleted": []}
+                        "düğün", ["0_a"], layers.AUDIO) == {"deleted": []}
     assert store.deleted == []
 
 
@@ -2367,7 +2362,7 @@ def test_a_file_another_frame_still_holds_is_left_on_disk_when_a_layer_goes():
     with_a_copy(record)
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "0_a", layers.VIDEO)
+                 "düğün", ["0_a"], layers.VIDEO)
 
     assert store.deleted == []
     assert record.slots("düğün")["P0_1"]["video"]["status"] == "done"
@@ -2379,7 +2374,7 @@ def test_the_copy_is_the_one_that_loses_its_layer_when_the_copy_is_named():
     with_a_copy(record)
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "P0_1", layers.VIDEO)
+                 "düğün", ["P0_1"], layers.VIDEO)
 
     assert record.slots("düğün")["P0_1"]["video"]["status"] == "deleted"
     assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
@@ -2392,25 +2387,91 @@ def test_a_job_still_owed_above_the_deleted_layer_leaves_the_queue():
                                  "prompt": "", "negative": "", "seed": None, "model": ""}])
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "0_a", layers.VIDEO)
+                 "düğün", ["0_a"], layers.VIDEO)
 
     assert record.slots("düğün")["0_a"]["audio"]["status"] == "removed"
     assert owed_files(record, plan_store) == []
 
 
-def test_deleting_a_layer_of_a_frame_the_gallery_does_not_know_is_refused():
+def two_layered(audio=True):
+    """Two produced frames, each carrying a photo and a video (and a sound by default)."""
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+    for number in (0, 1):
+        record.append("düğün", {"file": f"{number}_a_V1_0.mp4", "frame": f"{number}_a",
+                                "layer": "video", "status": "done"})
+        if audio:
+            record.append("düğün", {"file": f"{number}_a_V1_0_S1_0.wav", "frame": f"{number}_a",
+                                    "layer": "audio", "status": "done"})
+    return store, record, plan_store
+
+
+def test_one_layer_comes_off_every_frame_named():
+    store, record, plan_store = two_layered()
+
+    gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", ["0_a", "1_a"], layers.VIDEO)
+
+    assert gone == {"deleted": ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav",
+                                "1_a_V1_0.mp4", "1_a_V1_0_S1_0.wav"]}
+    # The frames keep their places and their pictures: only the layer fell.
+    assert [record.slots("düğün")[fid]["photo"]["status"] for fid in ("0_a", "1_a")] == [
+        "done", "done"]
+    assert [record.slots("düğün")[fid]["video"]["status"] for fid in ("0_a", "1_a")] == [
+        "deleted", "deleted"]
+
+
+def test_a_file_two_frames_share_goes_when_both_let_go_in_one_press():
+    # The whole press is worked out before a line is written, which is the only way this can be
+    # right: read one frame at a time, the second would still see the first holding the file.
+    store, record, plan_store = layered_project(audio=False)
+    with_a_copy(record)
+
+    gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", ["0_a", "P0_1"], layers.VIDEO)
+
+    assert gone == {"deleted": ["0_a_V1_0.mp4"]}
+    assert store.deleted == ["0_a_V1_0.mp4"]
+
+
+def test_a_layer_asked_off_an_identity_the_gallery_does_not_know_is_skipped():
+    # Another tab can delete a frame while the confirm sits open; refusing the whole press over one
+    # name that is already gone would leave the rest undone.
     store, record, plan_store = layered_project()
 
-    with pytest.raises(FrameMissing):
+    gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", ["yok", "0_a"], layers.VIDEO)
+
+    assert gone == {"deleted": ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav"]}
+
+
+@pytest.mark.parametrize("names", ["0_a", [7], None])
+def test_taking_a_layer_off_needs_a_list_of_identities(names):
+    store, record, plan_store = layered_project()
+
+    with pytest.raises(InvalidFrames):
         remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                     "düğün", "yok", layers.VIDEO)
+                     "düğün", names, layers.VIDEO)
+
+
+def test_a_sound_still_owed_is_dropped_on_every_frame_the_video_left():
+    store, record, plan_store = two_layered(audio=False)
+    plan_store.append("düğün", [{"id": fid, "type": "audio", "number": number, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": None, "model": ""}
+                                for number, fid in ((0, "0_a"), (1, "1_a"))])
+
+    remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                 "düğün", ["0_a", "1_a"], layers.VIDEO)
+
+    assert [record.slots("düğün")[fid]["audio"]["status"] for fid in ("0_a", "1_a")] == [
+        "removed", "removed"]
+    assert owed_files(record, plan_store) == []
 
 
 def test_the_gallery_stops_reporting_a_deleted_layer():
     store, record, plan_store = layered_project()
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "0_a", layers.VIDEO)
+                 "düğün", ["0_a"], layers.VIDEO)
 
     frame = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
     assert frame["layers"] == {"photo": "0_a.png"}
@@ -2633,7 +2694,7 @@ def test_removing_takes_the_named_frame_not_the_one_sharing_its_picture():
 
 
 def test_a_body_that_is_not_a_list_of_names_is_rejected():
-    with pytest.raises(InvalidFiles):
+    with pytest.raises(InvalidFrames):
         remove_frames(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(), stamped,
                       "düğün", "0_a.png")
 
