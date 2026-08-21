@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 22/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 23/31
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -124,7 +124,7 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 23 | **Proje adı değiştirme.** Proje kartına kalem düğmesi gelir; pencere yeni proje penceresinin aynısıdır, alan mevcut adla dolu ve seçili gelir. Ad başka bir projede kullanılıyorsa uyarı aynı yerde çıkar. Yalnız ad değişir; klasör içeriği, kare adları ve kuyruk etkilenmez, üretim akarken de yapılabilir. Yıkıcı bir eylem değildir. | Üretim akarken bir projenin adı değiştiriliyor, kuyruk kesintisiz sürüyor, kare adları olduğu gibi kalıyor. | İstek 10 · Fark 1–4 |
+| 23 | ✅ **Proje adı değiştirme.** Proje kartına kalem düğmesi gelir; pencere yeni proje penceresinin aynısıdır, alan mevcut adla dolu ve seçili gelir. Ad başka bir projede kullanılıyorsa uyarı aynı yerde çıkar. Yalnız ad değişir; klasör içeriği, kare adları ve kuyruk etkilenmez, üretim akarken de yapılabilir. Yıkıcı bir eylem değildir. | Üretim akarken bir projenin adı değiştiriliyor, kuyruk kesintisiz sürüyor, kare adları olduğu gibi kalıyor. | İstek 10 · Fark 1–4 |
 | 24 | **Proje ekranının hizalaması** *(grup)*. Karttaki silme düğmesi yıkıcı eylem standardına geçer, yeni proje penceresi yeniden adlandırma penceresiyle aynı ölçüye iner, liste uzayınca kayma göstergesi belirir, silme onayının cümle sırası değişir. | Dört farkın dördü de kapanmış. | Fark 5, 6, 8, 9 |
 
 ## G · Kuyruk

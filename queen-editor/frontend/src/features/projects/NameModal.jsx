@@ -7,20 +7,33 @@ import { Btn, Hand, Mono, Note } from "../../vendor/kit.jsx";
 // that the warning still feels like it belongs to what was typed.
 const CHECK_MS = 300;
 
+// A window that asks for a project name -- to open one with, or to give one another. Both are the
+// same window, so it is written once and its heading, its opening value, its words and its measure
+// come from whoever opened it.
+//
 // The server owns the name rules; this modal never keeps a copy. It warns as the name is typed by
 // asking the server whether the name would be accepted and printing whatever sentence comes back --
-// and "Oluştur" is disabled while the box is empty, while a warning stands, or while a request is
-// in flight (Drive can take a moment over FUSE -- no double create).
-export default function NewProjectModal({ onCancel, onCreate }) {
-  const [name, setName] = useState("");
+// and the button is disabled while the box is empty, while a warning stands, or while a request is
+// in flight (Drive can take a moment over FUSE -- no double press).
+//
+// A name already taken is a clash rather than a broken rule and the live check knows nothing about
+// the disk, so that one only appears once the button is pressed and the server refuses.
+export default function NameModal({ title, value = "", submitLabel, busyLabel, width = 400,
+                                    onCancel, onSubmit }) {
+  const [name, setName] = useState(value);
   // Two different things, one place on screen: what the server says the name WOULD be, and what it
-  // said when the project was actually asked for.
+  // said when the name was actually sent.
   const [warning, setWarning] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
   // A box nobody has touched is not a mistake: the design's warning appears once a name has been
   // entered, so opening the modal must not greet the user with "Proje adı boş olamaz."
   const touched = useRef(false);
+  const box = useRef(null);
+
+  // Opened on a name that is already there: the whole of it is selected, so one keystroke replaces
+  // it and nobody has to clear the box by hand.
+  useEffect(() => { if (value) box.current?.select(); }, [value]);
 
   useEffect(() => {
     if (!touched.current) return undefined;
@@ -29,7 +42,7 @@ export default function NewProjectModal({ onCancel, onCreate }) {
       checkProjectName(name)
         .then((body) => { if (current) setWarning(body?.error || null); })
         // A preview must never stand in the way: an unreachable server is not a broken name, and
-        // pressing Oluştur still goes through the real rules.
+        // pressing the button still goes through the real rules.
         .catch(() => { if (current) setWarning(null); });
     }, CHECK_MS);
     // Cancels both the pending request's effect and its answer: only the newest name's verdict is
@@ -39,8 +52,8 @@ export default function NewProjectModal({ onCancel, onCreate }) {
 
   useEffect(() => {
     const onKey = (e) => {
-      // While the create request is in flight the modal must not pretend to cancel -- the
-      // server is still creating the project (spec §1B).
+      // While the request is in flight the modal must not pretend to cancel -- the server is still
+      // working on it (spec §1B).
       if (e.key === "Escape" && !busy) onCancel();
     };
     window.addEventListener("keydown", onKey);
@@ -52,7 +65,7 @@ export default function NewProjectModal({ onCancel, onCreate }) {
   function submit() {
     setBusy(true);
     setError(null);
-    onCreate(name).catch((err) => {
+    onSubmit(name).catch((err) => {
       setError(err.message);
       setBusy(false);
     });
@@ -65,11 +78,9 @@ export default function NewProjectModal({ onCancel, onCreate }) {
       <div
         className="wf-card wf-card--shadow"
         onClick={(e) => e.stopPropagation()}
-        // 400: the widest of the plain windows, because the name box carries a rule line under it
-        // and a warning that must not wrap mid-word (madde 105).
-        style={{ width: 400, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
+        style={{ width, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}
       >
-        <Hand size={17}>Yeni proje</Hand>
+        <Hand size={17}>{title}</Hand>
         <Mono
           size={11}
           style={{ color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" }}
@@ -78,6 +89,7 @@ export default function NewProjectModal({ onCancel, onCreate }) {
         </Mono>
         <input
           className="wf-input"
+          ref={box}
           autoFocus
           value={name}
           onChange={(e) => {
@@ -94,7 +106,7 @@ export default function NewProjectModal({ onCancel, onCreate }) {
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
           <Btn ghost onClick={onCancel} disabled={busy}>Vazgeç</Btn>
           <Btn hl onClick={submit} disabled={blocked}>
-            {busy ? "Oluşturuluyor…" : "Oluştur"}
+            {busy ? busyLabel : submitLabel}
           </Btn>
         </div>
       </div>

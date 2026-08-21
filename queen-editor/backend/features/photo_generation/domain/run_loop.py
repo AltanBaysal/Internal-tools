@@ -102,7 +102,7 @@ def _made_with(job, end):
 
 def make_job(runner, store, record, plan_store, producers, now, project,
              clock=time.monotonic, log=None, order_store=None, writers=None,
-             new_seed=seed.random_seed):
+             new_seed=seed.random_seed, named=None):
     """Returns the callable PhotoRunner.start expects: it drains this project's queue.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
@@ -126,9 +126,18 @@ def make_job(runner, store, record, plan_store, producers, now, project,
     `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
     says is decided here; where it lands is main.py's to choose, so the loop can be tested without
     capturing output and the clock can be faked instead of waited on.
+
+    `named` is where the project's name is read from, turn by turn: a project IS a folder and it can
+    be renamed under a run, so a name captured once would leave the next turn reading a folder that
+    is not there. It defaults to the runner's own holder -- the runner is what every way into the
+    queue already carries. A caller that hands its own is a test watching the run follow a move.
     """
+    if named is None:
+        named = runner.named
+        named.took(project)
 
     def snapshot():
+        project = named.now()
         return (plan_store.read(project)["frames"], record.slots(project),
                 order_store.read(project) if order_store else ())
 
@@ -144,6 +153,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
         while True:
             if runner.stop_requested():
                 return summary("paused")
+            # Read again every turn: a rename moves the folder under the run, and this is what lets
+            # the next turn simply work in the new one.
+            project = named.now()
             jobs, slots, order = snapshot()
             owed = queue.open_jobs(jobs, slots, order)
             if not owed:
@@ -215,8 +227,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 if policy.is_frame_fault(exc):
                     # The renderer answered three times that this one job is what failed. The queue
                     # owes the rest nothing, so the tile turns red where it stands and work goes on.
-                    record.mark(project, fid, kind, name, queue.FAILED, now(),
-                                error=policy.frame_reason(exc, attempts))
+                    with named.steady() as project:
+                        record.mark(project, fid, kind, name, queue.FAILED, now(),
+                                    error=policy.frame_reason(exc, attempts))
                     attempts, holding = 0, None
                     continue
                 # No answer came at all, three times: the next job would fall the same way, so the
@@ -224,13 +237,17 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # from it rather than leaving a red tile the user has to rescue by hand.
                 return summary("error", error=f"{policy.stop_reason(attempts)}\n{exc}")
             rendered = clock()
-            filename = store.save(project, name, data)
-            # Only after the file exists: the line is what "this layer is here" means.
-            record.append(project, {"file": filename, "frame": fid, "layer": kind,
-                                    "status": queue.DONE,
-                                    "prompt": prompt, "negative": current["negative"],
-                                    "seed": chosen, "createdAt": now(),
-                                    **_made_with(current, ending)})
+            # Together and under the gate: the storage layer creates a folder it is missing, so a
+            # save that resolved the old name after a rename would leave a ghost project beside the
+            # real one with this single file in it.
+            with named.steady() as project:
+                filename = store.save(project, name, data)
+                # Only after the file exists: the line is what "this layer is here" means.
+                record.append(project, {"file": filename, "frame": fid, "layer": kind,
+                                        "status": queue.DONE,
+                                        "prompt": prompt, "negative": current["negative"],
+                                        "seed": chosen, "createdAt": now(),
+                                        **_made_with(current, ending)})
             if log:
                 # Two numbers, never one: the render is the GPU's share and the writes are the
                 # pipeline's, and speed decisions need to tell them apart.

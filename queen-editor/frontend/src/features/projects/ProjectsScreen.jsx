@@ -1,10 +1,10 @@
 import { useState } from "react";
 
-import { createProject, deleteProject } from "../../shared/api.js";
+import { createProject, deleteProject, renameProject } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import NewProjectModal from "./NewProjectModal.jsx";
+import NameModal from "./NameModal.jsx";
 import ProjectCard from "./ProjectCard.jsx";
 import { useProjects } from "./useProjects.js";
 
@@ -23,6 +23,9 @@ export default function ProjectsScreen() {
   // The name being confirmed for deletion, or null. The name is the whole state: it is what the
   // question on screen has to say and what the request needs.
   const [deletingName, setDeletingName] = useState(null);
+  // The name being renamed, or null -- the twin of deletingName. It is what the window opens on and
+  // what the request is addressed to.
+  const [renamingName, setRenamingName] = useState(null);
   const [busy, setBusy] = useState(false);
 
   async function handleDelete() {
@@ -43,6 +46,13 @@ export default function ProjectsScreen() {
   async function handleCreate(name) {
     await createProject(name);
     setModalOpen(false);
+    await reload();
+  }
+
+  // The same rule: re-read the list rather than guess which card moved and what its date became.
+  async function handleRename(name) {
+    await renameProject(renamingName, name);
+    setRenamingName(null);
     await reload();
   }
 
@@ -88,14 +98,26 @@ export default function ProjectsScreen() {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
             {projects.map((p) => (
               <ProjectCard key={p.name} name={p.name} modifiedAt={p.modifiedAt}
-                           onDelete={() => setDeletingName(p.name)} />
+                           onDelete={() => setDeletingName(p.name)}
+                           onRename={() => setRenamingName(p.name)} />
             ))}
           </div>
         )}
       </div>
 
       {modalOpen && (
-        <NewProjectModal onCancel={() => setModalOpen(false)} onCreate={handleCreate} />
+        // 400: the widest of the plain windows, because the name box carries a rule line under it
+        // and a warning that must not wrap mid-word (madde 105).
+        <NameModal title="Yeni proje" submitLabel="Oluştur" busyLabel="Oluşturuluyor…" width={400}
+                   onCancel={() => setModalOpen(false)} onSubmit={handleCreate} />
+      )}
+
+      {renamingName && (
+        // Renaming takes nothing away, so there is no confirm and no red: the window opens straight
+        // onto the name (Fark 3), at the measure the design gives it (Fark 4).
+        <NameModal title="Projeyi yeniden adlandır" value={renamingName}
+                   submitLabel="Kaydet" busyLabel="Kaydediliyor…" width={380}
+                   onCancel={() => setRenamingName(null)} onSubmit={handleRename} />
       )}
 
       {deletingName && (

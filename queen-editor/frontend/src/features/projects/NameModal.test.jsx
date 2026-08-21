@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { checkProjectName } from "../../shared/api.js";
-import NewProjectModal from "./NewProjectModal.jsx";
+import NameModal from "./NameModal.jsx";
 
 vi.mock("../../shared/api.js", () => ({
   checkProjectName: vi.fn(),
@@ -16,8 +16,11 @@ async function settle(ms = 0) {
   await act(async () => { await vi.advanceTimersByTimeAsync(ms); });
 }
 
-function open(onCreate = () => Promise.resolve()) {
-  return render(<NewProjectModal onCancel={() => {}} onCreate={onCreate} />);
+// The window as the projects screen opens it to make one: the same window the rename opens with
+// other words.
+function open(onSubmit = () => Promise.resolve()) {
+  return render(<NameModal title="Yeni proje" submitLabel="Oluştur" busyLabel="Oluşturuluyor…"
+                           width={400} onCancel={() => {}} onSubmit={onSubmit} />);
 }
 
 function box() {
@@ -40,7 +43,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-describe("NewProjectModal", () => {
+describe("NameModal", () => {
   it("opens at the width its form asks for", () => {
     open();
 
@@ -59,15 +62,15 @@ describe("NewProjectModal", () => {
 
   it("warns while the name is being typed, in the server's own words", async () => {
     checkProjectName.mockResolvedValue({ error: FORBIDDEN });
-    const onCreate = vi.fn();
-    open(onCreate);
+    const onSubmit = vi.fn();
+    open(onSubmit);
 
     await type("a:b");
 
     expect(checkProjectName).toHaveBeenCalledWith("a:b");
     expect(screen.getByText(FORBIDDEN)).toBeTruthy();
     expect(createButton().disabled).toBe(true);
-    expect(onCreate).not.toHaveBeenCalled();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("lets go the moment the name is fixed", async () => {
@@ -117,18 +120,18 @@ describe("NewProjectModal", () => {
   });
 
   it("creates the project when the name checks out", async () => {
-    const onCreate = vi.fn().mockResolvedValue(null);
-    open(onCreate);
+    const onSubmit = vi.fn().mockResolvedValue(null);
+    open(onSubmit);
     await type("düğün");
 
     await act(async () => { fireEvent.click(createButton()); });
 
-    expect(onCreate).toHaveBeenCalledWith("düğün");
+    expect(onSubmit).toHaveBeenCalledWith("düğün");
   });
 
   it("shows what the server said when the create itself is refused", async () => {
-    const onCreate = vi.fn().mockRejectedValue(new Error("Bu ad zaten kullanılıyor."));
-    open(onCreate);
+    const onSubmit = vi.fn().mockRejectedValue(new Error("Bu ad zaten kullanılıyor."));
+    open(onSubmit);
     await type("düğün");
 
     await act(async () => { fireEvent.click(createButton()); });

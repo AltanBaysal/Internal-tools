@@ -68,6 +68,16 @@ export async function createProject(name) {
 
 // Would this name be accepted? Asked while it is being typed, so the box can warn without keeping
 // a copy of the rules -- the answer is the server's own sentence, or null.
+// The address is the name the project has today and the body is the one it is getting: a project IS
+// its folder, so the folder it is in now is where the request has to go.
+export async function renameProject(project, name) {
+  return request(`/api/projects/${encodeURIComponent(project)}/rename`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+}
+
 export async function checkProjectName(name) {
   return request(`/api/projects/name-check?name=${encodeURIComponent(name)}`);
 }

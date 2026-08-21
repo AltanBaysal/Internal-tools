@@ -6,7 +6,7 @@ import { Btn, Hand, Icon, Mono } from "../../vendor/kit.jsx";
 // wf-card look kept by resetting the button's own chrome. The trash is a sibling rather than a
 // child: a button inside a button is invalid HTML, and keeping them apart is also what stops a
 // click meant for deleting from opening the project.
-export default function ProjectCard({ name, modifiedAt, onDelete }) {
+export default function ProjectCard({ name, modifiedAt, onDelete, onRename }) {
   return (
     <div style={{ position: "relative" }}>
       <button
@@ -32,16 +32,23 @@ export default function ProjectCard({ name, modifiedAt, onDelete }) {
           {formatModified(modifiedAt)}
         </Mono>
       </button>
-      {/* The destructive standard says no filled red; inside a card it also means no box at all
-          (madde 3) -- the card's own line is already there, and a second one around the icon reads
-          as a button sitting on a button. The label the standard asks for lives on the confirm
-          window instead: a word here would crowd the card without saying anything the icon and the
-          colour do not (madde 9). */}
-      <Btn sm aria-label="Projeyi sil" onClick={onDelete}
-           style={{ position: "absolute", top: 10, right: 10, color: "var(--danger)",
-                    border: "none", background: "none", padding: "4px 8px" }}>
-        <Icon.Trash />
-      </Btn>
+      {/* Two icon buttons, 4px apart (Fark 5). Neither carries a box: the destructive standard says
+          no filled red, and inside a card it also means no box at all (madde 3) -- the card's own
+          line is already there and a second one around an icon reads as a button sitting on a
+          button. The pencil is neutral, because renaming takes nothing away (Fark 3). The label the
+          standard asks for lives on the delete confirm instead: a word here would crowd the card
+          without saying anything the icon and the colour do not (madde 9). */}
+      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4 }}>
+        <Btn sm aria-label="Projeyi yeniden adlandır" onClick={onRename}
+             style={{ border: "none", background: "none", padding: "4px 8px" }}>
+          <Icon.Pencil />
+        </Btn>
+        <Btn sm aria-label="Projeyi sil" onClick={onDelete}
+             style={{ color: "var(--danger)", border: "none", background: "none",
+                      padding: "4px 8px" }}>
+          <Icon.Trash />
+        </Btn>
+      </div>
     </div>
   );
 }

@@ -27,6 +27,7 @@ from backend.features.photo_generation.domain.usecases.run_export import start_e
 from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
+from backend.features.photo_generation.domain.usecases.follow_rename import follow_rename
 from backend.features.photo_generation.domain.usecases.halt_project import halt_project
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
@@ -48,6 +49,7 @@ from backend.features.projects.domain.usecases.create_project import create_proj
 from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
+from backend.features.projects.domain.usecases.rename_project import rename_project
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
 from backend.features.producers.domain.model_groups import GROUPS, audio_weights
@@ -101,6 +103,10 @@ _projects_bp = make_projects_blueprint(
     delete_project=partial(delete_project, _project_store,
                            partial(halt_project, _photo_runner, _comfy_client.interrupt,
                                    time.sleep)),
+    # Renaming meets the worker too, but the other way round: the production is not stopped, it is
+    # carried over to the folder's new name.
+    rename_project=partial(rename_project, _project_store,
+                           partial(follow_rename, _photo_runner)),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
 )

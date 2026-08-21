@@ -35,6 +35,26 @@ class DriveStorage:
             return False
         return True
 
+    def rename_dir(self, old, new):
+        """Move root/old to root/new -- the folder itself, with everything in it.
+
+        Renamed and never copied: a project can hold thousands of files and a copy over Drive can be
+        interrupted, which leaves two half folders and nobody able to say which is real. A rename is
+        one operation that either happened or did not.
+
+        Two ways to fail and the caller has a different sentence for each, so they come back apart:
+        False when there was nothing to move, None when the new name is already something. The mtime
+        comes back on success, the same answer make_dir gives.
+        """
+        source = os.path.join(self.root, old)
+        target = os.path.join(self.root, new)
+        if not os.path.isdir(source):
+            return False
+        if os.path.exists(target):
+            return None
+        os.rename(source, target)
+        return os.stat(target).st_mtime
+
     def dir_exists(self, subdir):
         return os.path.isdir(os.path.join(self.root, subdir))
 

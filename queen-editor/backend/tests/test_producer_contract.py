@@ -15,6 +15,7 @@ from backend.features.photo_generation.data.comfy_photo_generator import ComfyPh
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.run_loop import make_job
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -135,7 +136,12 @@ class Plan:
 
 
 class Runner:
-    """The two things the loop asks of a runner, and nothing else."""
+    """The three things the loop asks of a runner, and nothing else."""
+
+    def __init__(self):
+        # Which folder the job writes into: a project can be renamed under a run, so the loop reads
+        # the name from here rather than keeping the string it was handed.
+        self.named = RunningName()
 
     def stop_requested(self):
         return False
