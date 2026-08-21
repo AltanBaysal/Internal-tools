@@ -8,12 +8,11 @@ from flask import Blueprint, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.export_runner import MODES
+from backend.features.photo_generation.domain.frame_list import InvalidFrames
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.production_mode import InvalidMode
-from backend.features.photo_generation.domain.usecases.copy_frames import InvalidFrames
 from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
 from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing, NoNextFrame
-from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
@@ -161,10 +160,12 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": f"Silinebilir bir katman değil: {kind}"}), 404
         body = request.get_json(silent=True) or {}
         try:
-            # What really left the disk goes back: a layer the frame did not carry costs nothing
-            # and is not an error.
-            return jsonify(remove_layer(project, body.get("frame"), kind))
-        except (ProjectMissing, FrameMissing) as exc:
+            # What really left the disk goes back: a layer a frame did not carry costs nothing and
+            # is not an error, and neither is a name the gallery no longer knows.
+            return jsonify(remove_layer(project, body.get("frames"), kind))
+        except InvalidFrames as exc:
+            return jsonify({"error": str(exc)}), 400
+        except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except OSError as exc:
             # The operating system's own words -- never guess the cause.
@@ -260,7 +261,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             # What really happened goes back, split in two: a photo left the disk, a frame that was
             # never produced only left the queue. Frames that had already gone are not an error.
             return jsonify(remove_frames(project, body.get("frames")))
-        except InvalidFiles as exc:
+        except InvalidFrames as exc:
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

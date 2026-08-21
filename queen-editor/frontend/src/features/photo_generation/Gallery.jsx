@@ -5,7 +5,7 @@ import { navigate, photoPath } from "../../shared/router.js";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Rendering, StatusPill } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
-import { lostLayers, owned } from "./layer_words.js";
+import { LAYER_ACTIONS, layerConfirm, lostLayers, owned } from "./layer_words.js";
 import { TileImage } from "./TileImage.jsx";
 
 const PAD = { padding: 16 };
@@ -54,6 +54,12 @@ const BAR_RAIL = { position: "sticky", bottom: 28, display: "flex", justifyConte
                    pointerEvents: "none", zIndex: 10, marginTop: -64 };
 const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
               borderColor: "var(--accent)", pointerEvents: "auto" };
+// Red text, red border, no fill -- the app-wide destructive standard (madde 83). Three of the bar's
+// buttons wear it now.
+const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", background: "none" };
+// Which window is open, or none. A name rather than a flag: there are three of them -- the frames'
+// own and one per layer -- and only one can be up at a time.
+const FRAMES = "frames";
 
 // A layer that blew up on a frame that still has its picture: the way back rides an overlay CSS
 // only brings down under the pointer, so the photo is never hidden for good (madde 67).
@@ -148,7 +154,7 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
 export default function Gallery({ project, frames, current, currentLayer, running, onReorder,
-                                  onDelete, onCopy, onRetry, onSelectionChange }) {
+                                  onDelete, onCopy, onRemoveLayer, onRetry, onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -161,7 +167,7 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   // Derived rather than a flag of its own, because the two drifting apart is exactly what left a
   // gallery covered in rings after its bar had already gone.
   const selecting = selected.length > 0;
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState(null);
   const [deleting, setDeleting] = useState(false);
   // Which frames have just been sent back. The screen's own memory: the server keeps no "asked for"
   // flag, and the next poll brings the frame back as a waiting one anyway.
@@ -209,7 +215,7 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
     setDeleting(true);
     onDelete(selected).then(() => {
       setDeleting(false);
-      setConfirming(false);
+      setConfirming(null);
       closeSelection();
     });
   }
@@ -228,6 +234,23 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
       // The selection moving onto the twins is how the copy is noticed -- there is no notification
       // of its own. A refused request answers with nothing and the selection stays where it was.
       if (copies?.length) setSelected(copies);
+    });
+  }
+
+  // Which of the selection really carries a layer, in the gallery's own words: a layer that blew up
+  // holds its slot but is not one the frame owns, and the tile shows no badge for it either. One
+  // answer read three times -- whether the button is drawn, what its window counts, and what the
+  // request carries.
+  const holding = (layer) => selected.filter(
+    (fid) => owned(byId.get(fid) || {}).some((row) => row.layer === layer));
+
+  function handleRemoveLayer() {
+    const layer = confirming;
+    setDeleting(true);
+    onRemoveLayer(holding(layer), layer).then(() => {
+      setDeleting(false);
+      setConfirming(null);
+      closeSelection();
     });
   }
 
@@ -438,23 +461,37 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
             {chosenPhotos.length > 0 && (
               <Btn sm ghost onClick={handleCopy}>Kopyala</Btn>
             )}
-            <Btn sm onClick={() => setConfirming(true)}
-                 style={{ color: "var(--danger)", borderColor: "var(--danger)",
-                          background: "none" }}>
+            <Btn sm onClick={() => setConfirming(FRAMES)} style={DANGER}>
               {/* One word in all three cases (madde 65): what really happens is the opening
                   window's to say, and it says it differently every time. */}
               <Icon.Trash /> Sil
             </Btn>
+            {/* One per layer, to the right of Sil and dressed like it. Drawn only while something
+                selected carries that layer: a window asking about no frames at all is not a
+                window (Fark 80). */}
+            {LAYER_ACTIONS.map(({ layer, label }) => holding(layer).length > 0 && (
+              <Btn key={layer} sm onClick={() => setConfirming(layer)} style={DANGER}>
+                <Icon.Trash /> {label}
+              </Btn>
+            ))}
             <Btn sm ghost onClick={closeSelection}>Vazgeç</Btn>
           </div>
         </div>
       )}
 
-      {confirming && (
+      {confirming === FRAMES && (
         <ConfirmModal title={confirm.title} body={confirm.body} confirmLabel={confirm.label}
                       width={confirm.width}
                       busyLabel="Siliniyor…" danger busy={deleting}
-                      onCancel={() => setConfirming(false)} onConfirm={handleDelete} />
+                      onCancel={() => setConfirming(null)} onConfirm={handleDelete} />
+      )}
+
+      {confirming && confirming !== FRAMES && (
+        /* The layer's own window: what goes, what stays, and who is being skipped. Its words and
+           its width both come from the module the tile badges come from. */
+        <ConfirmModal {...layerConfirm(confirming, holding(confirming).length, selected.length)}
+                      confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={deleting}
+                      onCancel={() => setConfirming(null)} onConfirm={handleRemoveLayer} />
       )}
     </div>
   );

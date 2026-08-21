@@ -125,11 +125,13 @@ export async function regenerateFrame(project, frame, layer, prompt, mode) {
 
 // Take one layer off a frame. The frame stays in the gallery: what goes is this layer and whatever
 // lies over it. The answer says which files really left the disk.
-export async function removeLayer(project, frame, kind) {
+// One call for one frame and for many, the same as deleting frames: the bar takes a layer off a
+// whole selection and the detail page takes it off one.
+export async function removeLayer(project, frames, kind) {
   return request(`/api/projects/${encodeURIComponent(project)}/layers/${kind}/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ frame }),
+    body: JSON.stringify({ frames }),
   });
 }
 

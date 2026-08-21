@@ -27,7 +27,7 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
   const { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
           retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
-          reorder, removePhotos, copyPhotos } = useGeneration(project);
+          reorder, removePhotos, copyPhotos, removeLayer } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
   const { models, error: modelsError } = useModels();
   // The machine's own question, not this project's: which producers are here.
@@ -117,7 +117,8 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
               which -- the worker is global, so a neighbour's batch moves nothing here. */}
           <Gallery project={project} frames={frames} current={current} currentLayer={currentLayer}
                    running={running}
-                   onReorder={reorder} onDelete={removePhotos} onCopy={copyPhotos} onRetry={retry}
+                   onReorder={reorder} onDelete={removePhotos} onCopy={copyPhotos}
+                   onRemoveLayer={removeLayer} onRetry={retry}
                    onSelectionChange={setSelected} />
         </div>
         <SidePanel job={job} error={saveError || error} errorField={errorField}

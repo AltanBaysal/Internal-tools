@@ -222,10 +222,10 @@ export function useGeneration(project) {
       })
   ), [project, startPolling]);
 
-  // One layer off one frame. Nothing starts running, so the screen only has to read the gallery
-  // again -- the frame stays where it is and comes back with one layer fewer.
-  const removeLayer = useCallback((frame, kind) => (
-    deleteLayer(project, frame, kind)
+  // One layer off the frames named. Nothing starts running, so the screen only has to read the
+  // gallery again -- the frames stay where they are and come back with one layer fewer.
+  const removeLayer = useCallback((frames, kind) => (
+    deleteLayer(project, frames, kind)
       .then((body) => {
         if (!alive.current) return null;
         poll();

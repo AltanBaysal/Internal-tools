@@ -46,3 +46,36 @@ export function lostLayers(frames) {
   const counts = held.map(({ word, count }) => `${count} ${word}`).join(" · ");
   return `${owner} ${named} ${also} birlikte silinir (${counts}). `;
 }
+
+// What the bar's two layer buttons say, and what each one's window promises. Here beside the
+// counting sentence for the reason that one is here: the tile's badges and every window that names
+// a layer have to be using one set of words.
+export const LAYER_ACTIONS = [
+  { layer: "video", label: "Videoları sil", noun: "videosu",
+    stays: "Kareler ve fotoğrafları kalır. Videoya bindirilen sesler de gider." },
+  { layer: "audio", label: "Sesleri sil", noun: "sesi",
+    stays: "Kareler, fotoğrafları ve videoları kalır." },
+];
+
+/**
+ * One of those windows: how many frames really lose the layer, and what survives.
+ * `held` is how many of the selection carry it, `selected` is the whole selection.
+ *
+ * The skipped frames get a sentence of their own and it comes first, because it is what explains
+ * the number in the title. Written as a count of frames rather than of the number itself: Turkish
+ * hangs a suffix on a number that changes with its last digit, and a table for that would be more
+ * machinery than one sentence is worth.
+ *
+ * The width travels with the words (madde 105): the skip sentence makes the window a size wider.
+ */
+export function layerConfirm(layer, held, selected) {
+  const { noun, stays } = LAYER_ACTIONS.find((one) => one.layer === layer);
+  const skipped = selected - held;
+  return {
+    title: `${held} karenin ${noun} silinsin mi?`,
+    body: skipped
+      ? `Seçili ${selected} kareden ${noun} olmayan ${skipped} kare atlanır. ${stays}`
+      : stays,
+    width: skipped ? 420 : 400,
+  };
+}

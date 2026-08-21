@@ -20,16 +20,12 @@ from backend.features.photo_generation.domain.copy_frame import (
     next_copy_id,
     placed,
 )
+from backend.features.photo_generation.domain.frame_list import checked
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 
 
-class InvalidFrames(Exception):
-    """The body was not a list of frame identities."""
-
-
 def copy_frames(record, store, plan_store, order_store, now, project, frames):
-    if not isinstance(frames, list) or any(not isinstance(fid, str) for fid in frames):
-        raise InvalidFrames("Kopyalanacak kare listesi metin dizisi olmalı.")
+    checked(frames, "Kopyalanacak")
     # Raises ProjectMissing when there is no such project.
     gallery = list_frames(record, store, plan_store, order_store, project)
     by_id = {frame["id"]: frame for frame in gallery}

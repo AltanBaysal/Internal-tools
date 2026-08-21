@@ -323,7 +323,7 @@ export default function PhotoDetail({ project, frame: fid }) {
     setBusy(true);
     setRefusedAct(null);
     const layer = open;
-    return removeLayer(frame.id, layer).then((body) => {
+    return removeLayer([frame.id], layer).then((body) => {
       setBusy(false);
       setConfirming(false);
       if (!body) return setRefusedAct(`${LAYER_WORD[layer]} silinemedi`);

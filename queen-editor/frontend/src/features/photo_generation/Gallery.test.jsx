@@ -750,7 +750,9 @@ describe("Gallery — taking a layer off many frames", () => {
     pick("2_a.png");
 
     fireEvent.click(screen.getByText("Videoları sil"));
-    fireEvent.click(screen.getByText("Vazgeç"));
+    // The window's own Vazgeç, not the bar's -- what is being cancelled is the deletion, and the
+    // selection behind it stays.
+    fireEvent.click(screen.getAllByText("Vazgeç").at(-1));
 
     expect(onRemoveLayer).not.toHaveBeenCalled();
     expect(screen.queryByText("1 karenin videosu silinsin mi?")).toBeNull();
