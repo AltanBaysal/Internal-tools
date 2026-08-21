@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
-import { MODES, STANDARD } from "./production_modes.js";
+import { LINKED, MODES, STANDARD } from "./production_modes.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
@@ -61,6 +61,27 @@ function acceptsVariants(text) {
   return Number(text) >= 1 && Number(text) <= MAX_VARIANTS;
 }
 
+// Why linking closes when the chosen frames are scattered. Says the reason rather than the remedy:
+// what to do about it is visible in the gallery, why it matters is not.
+const SCATTERED_REASON = "Zincir ancak bitişik karelerde kapanır — arada seçilmemiş kare var.";
+
+/** Do the chosen frames sit together in the gallery, with nothing unchosen between them?
+ *
+ * Measured against the whole gallery rather than the frames this layer could be hung on: the engine
+ * reads a linked video's target from the gallery's own sequence, so a frame standing in between is
+ * a real hole in the chain whatever state it is in.
+ *
+ * max - min + 1 === count, so no sorting: a run of positions with no gap is exactly as wide as it
+ * is long. An id the gallery does not hold -- a frame deleted while it was selected -- contributes
+ * no position and is not counted, so it cannot make a solid run look broken.
+ */
+function neighbours(frames, chosen) {
+  const places = (frames || []).reduce(
+    (found, frame, index) => (chosen.includes(frame.id) ? [...found, index] : found), []);
+  if (places.length < 2) return true;   // one frame has nothing to skip over
+  return Math.max(...places) - Math.min(...places) + 1 === places.length;
+}
+
 function ScopeRow({ label, count, active, disabled, onPick }) {
   return (
     <button type="button" onClick={onPick} disabled={disabled}
@@ -80,13 +101,15 @@ function ScopeRow({ label, count, active, disabled, onPick }) {
  * Not ScopeRow with an empty count: a mode has nothing to count, and saying so with a missing
  * argument would leave the reader deciding what an absent number means.
  */
-function ModeRow({ label, active, onPick }) {
+function ModeRow({ label, active, disabled, onPick }) {
   return (
-    <button type="button" onClick={onPick}
+    <button type="button" onClick={onPick} disabled={disabled}
             className="wf-stroke"
             style={{ display: "flex", alignItems: "center", padding: "8px 10px", background: "none",
-                     cursor: "pointer", borderColor: active ? "var(--accent)" : "var(--border)",
-                     opacity: active ? 1 : 0.4, width: "100%" }}>
+                     cursor: disabled ? "default" : "pointer",
+                     borderColor: active ? "var(--accent)" : "var(--border)",
+                     // Closed first: a closed row must not stay bright just because it was picked.
+                     opacity: disabled ? 0.4 : active ? 1 : 0.4, width: "100%" }}>
       <Note size={12} style={{ color: "var(--ink-2)" }}>{label}</Note>
     </button>
   );
@@ -128,6 +151,16 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   const scoped = scope === "selected" ? inSelection : missing;
   // What the queue would take: every frame in scope, once per variant.
   const owed = scoped.length * (Number(variants) || 0);
+  // Only on the selection's own scope: "Videosu olmayanlar" is scattered by nature -- what sits
+  // between its members already has a video -- and each of its frames still has a real next.
+  const linkingClosed = scope === "selected" && !neighbours(frames, chosen);
+  // A row nobody can click must not keep going to the queue. Written as an effect rather than a
+  // correction during render: what changed is a prop from the gallery, and the panel never hears a
+  // second click to put itself right. Not dependent on `mode` -- it would then re-run on the very
+  // click that picks linking and take it straight back.
+  useEffect(() => {
+    if (linkingClosed) setMode((picked) => (picked === LINKED ? STANDARD : picked));
+  }, [linkingClosed]);
   const missingProducer = Boolean(producer) && !producer.installed;
 
   function handleAdd() {
@@ -168,8 +201,13 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
           <Mono size={11} style={LABEL}>Üretim modu</Mono>
           {MODES.map((one) => (
             <ModeRow key={one.id} label={one.label} active={mode === one.id}
+                     disabled={one.id === LINKED && linkingClosed}
                      onPick={() => setMode(one.id)} />
           ))}
+          {linkingClosed && (
+            // Under the row it closed, in the ordinary ink: a closed option is a rule, not a fault.
+            <Note size={12} style={{ color: "var(--ink-3)" }}>{SCATTERED_REASON}</Note>
+          )}
         </div>
       )}
 
