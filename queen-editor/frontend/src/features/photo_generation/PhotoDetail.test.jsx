@@ -103,9 +103,12 @@ const QUEUED_COPY = { id: "P0_1", file: "P0_0.png", status: "done", prompt: "kı
 const tab = (name) => screen.getByRole("button", { name });
 const regenButton = () => screen.getByText("Yeniden üret — yeni kare").closest("button");
 
-// jsdom ships no clipboard, so the test supplies one and watches what it is handed.
+// jsdom ships no clipboard, so the test supplies one and watches what it is handed. The answer is
+// made at the call and not before it: a page has to be opened between the stub and the press, and a
+// rejected promise sitting through those ticks with nothing waiting on it is an unhandled rejection
+// -- which vitest fails the whole run over, however green the tests are.
 function stubClipboard(answer) {
-  const writeText = vi.fn(() => answer);
+  const writeText = vi.fn(() => answer());
   Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
   return writeText;
 }
@@ -946,7 +949,7 @@ describe("PhotoDetail — the right column", () => {
   });
 
   it("copies the box's own text and says so", async () => {
-    const writeText = stubClipboard(Promise.resolve());
+    const writeText = stubClipboard(() => Promise.resolve());
     await open("P0_0", { frames: [LAYERED] });
 
     fireEvent.click(tab("Video"));
@@ -960,7 +963,7 @@ describe("PhotoDetail — the right column", () => {
   });
 
   it("says so when the clipboard refuses", async () => {
-    stubClipboard(Promise.reject(new Error("denied")));
+    stubClipboard(() => Promise.reject(new Error("denied")));
     await open("P0_0", { frames: [LAYERED] });
 
     fireEvent.click(tab("Video"));

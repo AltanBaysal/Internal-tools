@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { fileUrl } from "../../shared/api.js";
 import { navigate, photoPath, projectPath } from "../../shared/router.js";
@@ -6,7 +6,7 @@ import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Corner, Pill, Rendering, StatusPill } from "./frame_status.jsx";
-import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
+import { CopyGlyph, PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
@@ -30,11 +30,20 @@ const ARROW = {
   lineHeight: 1, fontWeight: 300, textShadow: "0 0 4px rgba(0,0,0,.9), 0 2px 8px rgba(0,0,0,.7)",
   userSelect: "none",
 };
+// Fark 91: one vertical rhythm down the column -- 16 between blocks. And with every box at a fixed
+// height the column has a fixed total, so a window shorter than that scrolls the panel rather than
+// putting the delete button somewhere nobody can reach (karar 35).
 const SIDE = {
   width: 300, flexShrink: 0, borderLeft: "1px solid var(--border)", padding: 16,
-  display: "flex", flexDirection: "column", gap: 14, boxSizing: "border-box", minHeight: 0,
+  display: "flex", flexDirection: "column", gap: 16, boxSizing: "border-box", minHeight: 0,
+  overflowY: "auto",
 };
 const LABEL = { color: "var(--ink-3)", letterSpacing: ".08em", textTransform: "uppercase" };
+// Fark 89: each box takes its own measure instead of sharing whatever the window leaves over -- a
+// short window used to squeeze both at once. The photo's is the tallest, being the one prompt
+// written from nothing; the negative is the shortest, a list of words rather than a sentence.
+const PROMPT_HEIGHT = { photo: 162, video: 150, audio: 150 };
+const NEGATIVE_HEIGHT = 96;
 // A frame with no photo yet still has to hold the stage: a square the height of the area, inside
 // the same 120px arrow gutter the photo keeps clear.
 const HOLDER = {
@@ -107,28 +116,88 @@ function LayerTabs({ open, has, onOpen }) {
   );
 }
 
+// Long enough to be read without looking away, short enough that the icon is an icon again before
+// it is next needed. RawOutput's own measure -- the same answer to the same question.
+const SAID_MS = 2500;
+
+// Fark 90: one press puts the box's text on the clipboard. The icon answers in its own name and
+// its colour and adds no line to the panel -- a word appearing beside the heading would push the
+// box under it down, which is the very thing Fark 89 is about (karar 33).
+function CopyButton({ label, text }) {
+  const [said, setSaid] = useState(null);
+  const fade = useRef(null);
+
+  useEffect(() => () => clearTimeout(fade.current), []);
+
+  function copy() {
+    clearTimeout(fade.current);
+    // Written straight from the press, not from a microtask after it: the clipboard is granted to
+    // a user gesture and a browser may refuse a write that arrives even a tick late. The try is
+    // for the other half -- with no clipboard object at all the call throws where it stands, while
+    // a refused permission rejects instead, and the user needs the same answer either way.
+    let landing;
+    try {
+      landing = navigator.clipboard.writeText(text);
+    } catch (absent) {
+      landing = Promise.reject(absent);
+    }
+    Promise.resolve(landing)
+      .then(() => setSaid("Kopyalandı"))
+      .catch(() => setSaid("Kopyalanamadı"))
+      .finally(() => { fade.current = setTimeout(() => setSaid(null), SAID_MS); });
+  }
+
+  return (
+    // An empty box has nothing to copy, and a button that copies nothing and says it did is a lie.
+    // Dimmed rather than gone: an icon that came and went as the user typed would make the heading
+    // twitch (karar 34).
+    <button type="button" onClick={copy} disabled={!text}
+            aria-label={said || `${label} — kopyala`}
+            style={{ background: "none", border: "none", padding: 0, lineHeight: 0,
+                     cursor: text ? "pointer" : "default", opacity: text ? 1 : 0.35,
+                     color: said === "Kopyalandı" ? "var(--accent)"
+                       : said === "Kopyalanamadı" ? "var(--danger)" : "var(--ink-3)" }}>
+      <CopyGlyph size={12} />
+    </button>
+  );
+}
+
+// A box's heading: what it holds on the left, and on the right the one thing that can be done to it
+// without opening it. Both prompt boxes are drawn from here, so the row is described once.
+function BoxLabel({ label, text }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <Mono size={10} style={LABEL}>{label}</Mono>
+      <CopyButton label={label} text={text} />
+    </div>
+  );
+}
+
 function Field({ label, value, muted }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <Mono size={10} data-field style={LABEL}>{label}</Mono>
       <Mono size={13} style={{ color: muted ? "var(--ink-4)" : "var(--ink)" }}>{value}</Mono>
     </div>
   );
 }
 
-// Prompt and negative are the same block twice: both take an equal share of whatever the two small
-// fields leave behind, and each scrolls inside itself so a long negative cannot squeeze the prompt.
+// Prompt and negative are the same block twice, each at its own height and each scrolling inside
+// itself so a long text folds rather than growing the panel (Fark 89).
 //
 // `hint` is what an empty box says when the emptiness has a reason -- a layer nobody has written
 // the words for yet (madde 81). It is centred while a real prompt is not: a prompt is read from the
 // left, an absence is a notice and stands in the middle of the box (Fark 92). Without a hint an
 // empty box says "—", because an empty negative is an answer of its own.
-function TextBlock({ label, text, hint }) {
+function TextBlock({ label, text, hint, height }) {
   const empty = !text;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
-      <Mono size={10} style={LABEL}>{label}</Mono>
-      <div className="wf-stroke" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 10 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <BoxLabel label={label} text={text} />
+      {/* border-box, or the padding would add itself to the design's measure: this repo has no
+          global box-sizing reset and the stroke class does not carry one. */}
+      <div data-box className="wf-stroke"
+           style={{ height, overflowY: "auto", padding: 10, boxSizing: "border-box" }}>
         {/* The box is drawn even with nothing in it: a box that came and went with the frame would
             make the column jump between frames -- and an empty one reads as a prompt somebody
             deleted, which is the whole reason the hint exists. */}
@@ -147,14 +216,15 @@ function TextBlock({ label, text, hint }) {
 //
 // Nothing is saved. The words live on screen until they are made into a frame or the frame is left
 // (madde 76) -- a stored draft is a concept the design never asked for.
-function PromptBox({ label, value, changed, onChange }) {
+function PromptBox({ label, value, changed, height, onChange }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
-      <Mono size={10} style={LABEL}>{label}</Mono>
-      <textarea className="wf-stroke wf-note" value={value} onChange={(e) => onChange(e.target.value)}
-                style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 10, resize: "none",
-                         background: "transparent", color: "var(--ink-2)", fontSize: 12,
-                         lineHeight: 1.6,
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <BoxLabel label={label} text={value} />
+      <textarea data-box className="wf-stroke wf-note" value={value}
+                onChange={(e) => onChange(e.target.value)}
+                style={{ height, overflowY: "auto", padding: 10, resize: "none",
+                         boxSizing: "border-box", background: "transparent", color: "var(--ink-2)",
+                         fontSize: 12, lineHeight: 1.6,
                          // The accent says one thing: pressing now makes a NEW prompt rather than
                          // another variant of this one. Space around the words is not that.
                          borderColor: changed ? "var(--accent)" : undefined }} />
@@ -415,8 +485,11 @@ export default function PhotoDetail({ project, frame: fid }) {
             )}
           </div>
 
-          <div style={SIDE}>
-            <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+          <div data-side style={SIDE}>
+            {/* What the frame is. No group heading and no rule under it: the split from what can be
+                made of it is where the eye rests, not a line it reads (Fark 91). */}
+            <div data-group="info"
+                 style={{ display: "flex", flexWrap: "wrap", columnGap: 24, rowGap: 16 }}>
               {/* The same number the tile carries: the badge counts up from the bottom, so walking
                   down the gallery with › walks the counter down with it. */}
               <Field label="Sıra" value={`${frames.length - index} / ${frames.length}`} />
@@ -437,92 +510,105 @@ export default function PhotoDetail({ project, frame: fid }) {
               )}
             </div>
 
-            {/* The open layer's own prompt, and nothing under it: what a layer was made from is no
-                longer this page's to show (madde 87). */}
-            {holds ? (
-              <PromptBox label="Prompt" value={typed} changed={changed}
-                         onChange={(text) => setWords((kept) => ({ ...kept, [open]: text }))} />
-            ) : (
-              <TextBlock label="Prompt"
-                         text={(frame.prompts || {})[open]
-                               ?? (open === "photo" ? frame.prompt : "")}
-                         // A layer still in the queue has no words yet, and nobody typed the
-                         // missing ones. Not the photo's: those words are the user's own, so a
-                         // notice about a prompt nobody has written would be false there.
-                         hint={openState === "pending" && open !== "photo"
-                           ? "Prompt yok — üretim sırası geldiğinde eklenecek."
-                           : null} />
-            )}
-            {/* The negative belongs to the photo alone: video and sound jobs carry none. It stays
-                read-only: the design gives the user the prompt, not the whole submission. */}
-            {open === "photo" && <TextBlock label="Negatif" text={frame.negative} />}
+            {/* What can be made of it. */}
+            <div data-group="production"
+                 style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* The open layer's own prompt, and nothing under it: what a layer was made from is
+                  no longer this page's to show (madde 87). The heading says whose words these are,
+                  in the tab's own word so a layer cannot be called two things (Fark 88). */}
+              {holds ? (
+                <PromptBox label={`${LAYER_LABEL[open]} prompt'u`} value={typed} changed={changed}
+                           height={PROMPT_HEIGHT[open]}
+                           onChange={(text) => setWords((kept) => ({ ...kept, [open]: text }))} />
+              ) : (
+                <TextBlock label={`${LAYER_LABEL[open]} prompt'u`} height={PROMPT_HEIGHT[open]}
+                           text={(frame.prompts || {})[open]
+                                 ?? (open === "photo" ? frame.prompt : "")}
+                           // A layer still in the queue has no words yet, and nobody typed the
+                           // missing ones. Not the photo's: those words are the user's own, so a
+                           // notice about a prompt nobody has written would be false there.
+                           hint={openState === "pending" && open !== "photo"
+                             ? "Prompt yok — üretim sırası geldiğinde eklenecek."
+                             : null} />
+              )}
+              {/* The negative belongs to the photo alone: video and sound jobs carry none. It stays
+                  read-only: the design gives the user the prompt, not the whole submission. */}
+              {open === "photo" && (
+                <TextBlock label={`${LAYER_LABEL.photo} negatif prompt'u`}
+                           height={NEGATIVE_HEIGHT} text={frame.negative} />
+              )}
 
-            {holds && open === "video" && (
-              /* Only a video arrives at a picture, so only its form has this to ask. */
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <Mono size={10} style={LABEL} id="yeni-mod">Yeni mod</Mono>
-                <select className="wf-input" aria-labelledby="yeni-mod" value={picked}
-                        onChange={(e) => setNewMode(e.target.value)}
-                        style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer",
-                                 // Danger first: a box that cannot be pressed through must not look
-                                 // like an ordinary change.
-                                 borderColor: noTarget ? "var(--danger)"
-                                   : picked !== (madeIn ?? STANDARD) ? "var(--accent)" : undefined }}>
-                  {MODES.map((one) => (
-                    <option key={one.id} value={one.id}>{one.label}</option>
-                  ))}
-                </select>
-                {noTarget && <Note size={12} style={{ color: "var(--danger)" }}>{noTarget}</Note>}
-              </div>
-            )}
+              {holds && open === "video" && (
+                /* Only a video arrives at a picture, so only its form has this to ask. */
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <Mono size={10} style={LABEL} id="yeni-mod">Yeni mod</Mono>
+                  <select className="wf-input" aria-labelledby="yeni-mod" value={picked}
+                          onChange={(e) => setNewMode(e.target.value)}
+                          style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer",
+                                   // Danger first: a box that cannot be pressed through must not
+                                   // look like an ordinary change.
+                                   borderColor: noTarget ? "var(--danger)"
+                                     : picked !== (madeIn ?? STANDARD)
+                                       ? "var(--accent)" : undefined }}>
+                    {MODES.map((one) => (
+                      <option key={one.id} value={one.id}>{one.label}</option>
+                    ))}
+                  </select>
+                  {noTarget && <Note size={12} style={{ color: "var(--danger)" }}>{noTarget}</Note>}
+                </div>
+              )}
 
-            {holds && (
-              /* Accent whether the prompt was touched or not (madde 78): making the frame again is
-                 what this page is for, and a changed prompt only decides the new frame's name. */
-              <Btn sm hl disabled={sent.includes(open) || Boolean(noTarget)}
-                   onClick={handleRegenerate} style={{ justifyContent: "center" }}>
-                {sent.includes(open)
-                  ? "Kuyruğa eklendi"
-                  : <><Icon.Regen /> Yeniden üret — yeni kare</>}
-              </Btn>
-            )}
-            {holds && open === "video" && (
-              /* What one press opens, in the mode's own words: a copy frame beside this one, never
-                 a video written over the one that is here (madde 77). */
-              <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-                Yeni bir kare açılır — {frame.id} kopyası, {nounOf(picked, "video")}.
-              </Note>
-            )}
-            {openState === "failed" && (
-              /* The way back from a red layer, on the page it is read (madde 79). Retrying makes no
-                 new frame -- it is the one exception to "üret = ekle" -- so it asks nothing and
-                 only says the queue took it. */
-              <Btn sm hl disabled={sent.includes(open)} onClick={handleRetry}
-                   style={{ justifyContent: "center" }}>
-                {sent.includes(open) ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene</>}
-              </Btn>
-            )}
+              {holds && (
+                /* Accent whether the prompt was touched or not (madde 78): making the frame again
+                   is what this page is for, and a changed prompt only decides the new frame's
+                   name. */
+                <Btn sm hl disabled={sent.includes(open) || Boolean(noTarget)}
+                     onClick={handleRegenerate} style={{ justifyContent: "center" }}>
+                  {sent.includes(open)
+                    ? "Kuyruğa eklendi"
+                    : <><Icon.Regen /> Yeniden üret — yeni kare</>}
+                </Btn>
+              )}
+              {holds && open === "video" && (
+                /* What one press opens, in the mode's own words: a copy frame beside this one,
+                   never a video written over the one that is here (madde 77). */
+                <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
+                  Yeni bir kare açılır — {frame.id} kopyası, {nounOf(picked, "video")}.
+                </Note>
+              )}
+              {openState === "failed" && (
+                /* The way back from a red layer, on the page it is read (madde 79). Retrying makes
+                   no new frame -- it is the one exception to "üret = ekle" -- so it asks nothing
+                   and only says the queue took it. */
+                <Btn sm hl disabled={sent.includes(open)} onClick={handleRetry}
+                     style={{ justifyContent: "center" }}>
+                  {sent.includes(open) ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene</>}
+                </Btn>
+              )}
 
-            {refusedAct && <StatusErrorCard text={refusedAct} raw={error} />}
-            {refused && (
-              <StatusErrorCard text={produced ? "Kare silinemedi" : "Kare kuyruktan çıkarılamadı"}
-                               raw={error} />
-            )}
+              {refusedAct && <StatusErrorCard text={refusedAct} raw={error} />}
+              {refused && (
+                <StatusErrorCard text={produced ? "Kare silinemedi" : "Kare kuyruktan çıkarılamadı"}
+                                 raw={error} />
+              )}
 
-            {/* One destructive button per tab (madde 80): the frame on the photo tab, the layer on
-                the others. Only a frame whose picture is its own loses a file, and only that one
-                asks first; the other two say which of the frame's two ends it is at. */}
-            {open === "photo" ? (
-              <Btn sm disabled={busy || state === "running"}
-                   onClick={ownsItsPhoto ? () => setConfirming(true) : handleRemove}
-                   style={DANGER}>
-                <Icon.Trash /> {ownsItsPhoto ? "Sil" : (awaited ? "Kuyruktan çıkar" : "Kareyi sil")}
-              </Btn>
-            ) : holds && (
-              <Btn sm disabled={busy} onClick={() => setConfirming(true)} style={DANGER}>
-                <Icon.Trash /> {DESTRUCTIVE[open].label}
-              </Btn>
-            )}
+              {/* One destructive button per tab (madde 80): the frame on the photo tab, the layer
+                  on the others. Only a frame whose picture is its own loses a file, and only that
+                  one asks first; the other two say which of the frame's two ends it is at. */}
+              {open === "photo" ? (
+                <Btn sm disabled={busy || state === "running"}
+                     onClick={ownsItsPhoto ? () => setConfirming(true) : handleRemove}
+                     style={DANGER}>
+                  <Icon.Trash /> {ownsItsPhoto
+                    ? "Sil"
+                    : (awaited ? "Kuyruktan çıkar" : "Kareyi sil")}
+                </Btn>
+              ) : holds && (
+                <Btn sm disabled={busy} onClick={() => setConfirming(true)} style={DANGER}>
+                  <Icon.Trash /> {DESTRUCTIVE[open].label}
+                </Btn>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -74,3 +74,14 @@ export const AgentGlyph = ({ size }) => (
              A1 1 0 0 1 2 9V4.5z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
   </Glyph>
 );
+
+// Two sheets, one behind the other. The front one is whole; the back one shows only the edge the
+// front does not cover, which is what makes the pair read as a copy rather than two boxes.
+export const CopyGlyph = ({ size }) => (
+  <Glyph name="copy" size={size}>
+    <rect x="4.6" y="1.9" width="7.5" height="7.5" rx="1.3" stroke="currentColor"
+          strokeWidth="1.4" />
+    <path d="M9.4 12.1H3.2a1.3 1.3 0 0 1-1.3-1.3V4.6" stroke="currentColor" strokeWidth="1.4"
+          strokeLinecap="round" strokeLinejoin="round" />
+  </Glyph>
+);
