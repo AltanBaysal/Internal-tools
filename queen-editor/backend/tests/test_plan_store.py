@@ -21,6 +21,21 @@ def test_append_then_read_round_trips(tmp_path):
     assert store.read("düğün")["frames"] == FRAMES
 
 
+def test_the_plan_keeps_a_jobs_production_mode(tmp_path):
+    """The mode is written when the job is queued and read when its turn comes, which can be hours
+    later and a process restart apart. Nothing else stands between those two moments, so a read
+    that dropped the key would leave every video plain with no sign of why."""
+    store = store_at(tmp_path)
+    store.append("düğün", [
+        {"id": "P0_0", "type": "video", "number": 0, "variant": 0, "prompt": "", "negative": "",
+         "seed": None, "model": "", "mode": "linked", "linkedTo": "P1_0"}])
+
+    job = store.read("düğün")["frames"][0]
+
+    assert job["mode"] == "linked"
+    assert job["linkedTo"] == "P1_0"
+
+
 def test_a_frame_planned_before_identities_keeps_the_one_it_was_born_with(tmp_path):
     # Renaming is never done, so the gallery order pointing at "0_a" has to keep finding it.
     (tmp_path / "düğün").mkdir()

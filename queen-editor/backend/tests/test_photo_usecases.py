@@ -1,6 +1,6 @@
 import pytest
 
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.domain.photo_name import (
     frame_id,
     frame_id_of,
@@ -18,6 +18,7 @@ from backend.features.photo_generation.domain.usecases.get_status import get_sta
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
 from backend.features.photo_generation.domain.usecases.queue_layer import (
+    InvalidMode,
     frames_in_scope,
     queue_layer,
 )
@@ -102,6 +103,9 @@ class FakeGenerator:
     def __init__(self, fail_on=(), installed=("nova.safetensors",)):
         self.calls = []
         self.sources = []
+        # Kept apart from sources: what a layer is made from and where it arrives are two different
+        # questions, and one list holding both could not answer either.
+        self.ends = []
         self.models_called = 0
         self.fail_on = list(fail_on)
         self.installed = list(installed)
@@ -110,9 +114,10 @@ class FakeGenerator:
         self.models_called += 1
         return list(self.installed)
 
-    def generate(self, prompt, negative, seed, model="", source=None):
+    def generate(self, prompt, negative, seed, model="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
         self.sources.append(source)
+        self.ends.append(end)
         if prompt in self.fail_on:
             raise FrameFault(f"node 41: {prompt}")
         return b"PNG"
@@ -299,7 +304,7 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             if self.calls <= 3:
                 raise FrameFault("node 41: OOM")
@@ -317,7 +322,7 @@ def test_a_job_the_producer_drops_is_tried_three_times_before_it_turns_red():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             if prompt == "patlak":
                 raise FrameFault("node 41: OOM")
@@ -336,7 +341,7 @@ def test_a_dropped_job_writes_nothing_until_its_attempts_run_out():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             if self.calls == 1:
                 raise FrameFault("node 41: OOM")
@@ -354,7 +359,7 @@ def test_each_job_gets_its_own_three_drops():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             raise FrameFault("node 41: OOM")
 
@@ -369,7 +374,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
     """The old rule counted three failed frames in a row; the new one counts attempts on ONE frame,
     so a queue of bad prompts turns red to the end instead of stopping partway."""
     class AlwaysBroken:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             raise FrameFault("node 41: OOM")
 
     store, runner = FakeStore(), sync_runner()
@@ -382,7 +387,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
 def test_a_loader_failure_is_no_longer_special():
     """It used to stop the run on the first frame. ComfyUI answered, so it is now the frame's."""
     class BrokenLoader:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             raise FrameFault("node 9 (CheckpointLoaderSimple): dosya yok")
 
     runner = sync_runner()
@@ -396,7 +401,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
         def __init__(self):
             self.calls = []
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls.append(prompt)
             raise RuntimeError("Connection refused")
 
@@ -415,7 +420,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
 
 def test_a_frame_the_run_gave_up_on_is_still_owed():
     class Unreachable:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             raise RuntimeError("Connection refused")
 
     record, plan_store = FakeRecord(), FakePlanStore()
@@ -431,7 +436,7 @@ def test_an_attempt_that_lands_costs_the_frame_nothing():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             if self.calls <= 2:
                 raise RuntimeError("Connection refused")
@@ -451,7 +456,7 @@ def test_every_frame_gets_its_own_three_attempts():
             self.failed = set()
             self.calls = []
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls.append(prompt)
             if prompt not in self.failed:
                 self.failed.add(prompt)
@@ -473,7 +478,7 @@ def test_stop_request_ends_the_batch_between_frames():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             runner.request_stop()
             return b"PNG"
@@ -490,7 +495,7 @@ def test_frame_killed_by_user_stop_is_not_a_failure():
     store, runner = FakeStore(), sync_runner()
 
     class StoppingGenerator:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             runner.request_stop()          # the user's stop lands mid-render
             raise RuntimeError("interrupted")
 
@@ -1221,6 +1226,148 @@ def video_project(*frames):
         record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
                                 "layer": "photo", "status": "done"})
     return store, record, plan_store
+
+
+def queue_video(store, record, plan_store, mode, order=(), files=None):
+    """Queue a video job the way the panel would, and hand back the plan lines it wrote."""
+    added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(order),
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                        files=files, mode=mode)
+    return added, (plan_store.appended[-1] if plan_store.appended else [])
+
+
+def test_a_video_job_carries_the_mode_it_was_queued_with():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+
+    _added, jobs = queue_video(store, record, plan_store, production_mode.LOOP)
+
+    # The mode is on the job, not on the batch: the queue holds work from several presses at once,
+    # and a batch-level answer would be read by whichever job happened to be next.
+    assert [job["mode"] for job in jobs] == ["loop", "loop"]
+
+
+def test_a_linked_video_job_names_the_frame_it_ends_on():
+    """Resolved as the job is queued rather than as it is rendered: the queue runs for hours and the
+    gallery can be dragged while it does, so a target read later would not be the one the user was
+    looking at when they pressed the button."""
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+
+    _added, jobs = queue_video(store, record, plan_store, production_mode.LINKED)
+
+    # The gallery is newest-first, so 1_a is above 0_a and the frame after 0_a is 1_a.
+    by_id = {job["id"]: job for job in jobs}
+    assert by_id["0_a"]["linkedTo"] == "1_a"
+
+
+def test_the_last_frame_takes_no_linked_job_but_the_rest_do():
+    """The frame at the top of the gallery has no next one. Production is not blocked over it: that
+    one frame stays out and the rest go in, and fixing the selection is one press away."""
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+
+    added, jobs = queue_video(store, record, plan_store, production_mode.LINKED)
+
+    assert added == 1
+    assert [job["id"] for job in jobs] == ["0_a"]
+
+
+def test_a_linked_batch_with_nowhere_to_end_takes_nothing():
+    store, record, plan_store = video_project((0, "a"))
+
+    added, _jobs = queue_video(store, record, plan_store, production_mode.LINKED)
+
+    # Nothing owed and nothing started -- exactly what an empty scope already answers.
+    assert added == 0
+    assert plan_store.appended == []
+
+
+def test_a_sound_job_carries_no_mode_at_all():
+    """A sound is laid over the whole of a video and arrives nowhere. Writing "standard" on its line
+    would be a field claiming an answer to a question the layer never asks."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO)
+
+    assert "mode" not in plan_store.appended[-1][0]
+
+
+def test_a_mode_nobody_knows_is_refused():
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(InvalidMode):
+        queue_video(store, record, plan_store, "kelebek")
+
+
+def test_a_sound_cannot_be_asked_to_end_anywhere():
+    # Only a video ends on a picture. Ignoring the argument would hide the caller's mistake behind
+    # a sound that came out fine.
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(InvalidMode):
+        queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                    {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO,
+                    mode=production_mode.LOOP)
+
+
+def render_one_video(mode, linked_to=None, gallery=((0, "a"), (1, "a")), photos=("0_a", "1_a")):
+    """One video job, planned by hand with the mode already on it, run to completion.
+
+    Planned by hand rather than through queue_layer: what is under test here is the engine reading
+    a mode, and going through the queue would make one test answer for two rules at once.
+    """
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(number) for number, _letter in gallery])
+    for fid in photos:
+        record.append("düğün", {"file": f"{fid}.png", "frame": fid, "layer": "photo",
+                                "status": "done"})
+        store.files[f"{fid}.png"] = f"{fid} bytes".encode()
+    job = {"id": "0_a", "type": "video", "number": 0, "variant": 0, "prompt": "p", "negative": "",
+           "seed": None, "model": "", "mode": mode}
+    if linked_to is not None:
+        job["linkedTo"] = linked_to
+    plan_store.append("düğün", [job])
+    generator = FakeGenerator()
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", "düğün")()
+    return generator, record
+
+
+def test_a_plain_video_is_produced_with_no_ending_frame():
+    generator, _record = render_one_video(production_mode.STANDARD)
+
+    assert generator.ends == [None]
+
+
+def test_a_loop_video_ends_on_its_own_picture():
+    """A loop is a video that arrives where it started, so the ending picture is the frame's own --
+    the very file it is being made from."""
+    generator, _record = render_one_video(production_mode.LOOP)
+
+    assert generator.ends == [("0_a.png", b"0_a bytes")]
+    assert generator.sources == [("0_a.png", b"0_a bytes")]
+
+
+def test_a_linked_video_ends_on_the_next_frames_picture():
+    generator, _record = render_one_video(production_mode.LINKED, linked_to="1_a")
+
+    assert generator.sources == [("0_a.png", b"0_a bytes")]
+    assert generator.ends == [("1_a.png", b"1_a bytes")]
+
+
+def test_a_linked_video_whose_target_lost_its_photo_turns_that_frame_red():
+    """The frame it was told to end on is gone -- deleted between the press and the render. One
+    frame's trouble, so the tile turns red and the queue goes on; falling back to a plain video
+    would hand the user something other than what they asked for and say nothing about it."""
+    generator, record = render_one_video(production_mode.LINKED, linked_to="1_a",
+                                         photos=("0_a",))
+
+    assert generator.ends == []          # nothing was ever rendered for this job
+    video = record.slots("düğün")["0_a"]["video"]
+    assert video["status"] == queue.FAILED
 
 
 def test_a_video_job_is_planned_for_every_frame_that_has_none():
@@ -2101,7 +2248,7 @@ def test_the_plan_is_appended_before_the_first_frame_renders():
     plan_store, runner = FakePlanStore(), sync_runner()
 
     class ChecksThePlan:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             assert plan_store.appended, "the batch started before the plan was appended to"
             return b"PNG"
 
@@ -2428,7 +2575,7 @@ def test_the_loop_finishes_photos_before_it_starts_videos():
         def __init__(self, kind):
             self.kind = kind
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             done.append(self.kind)
             return b"X"
 
