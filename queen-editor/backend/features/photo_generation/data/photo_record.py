@@ -91,12 +91,13 @@ class DrivePhotoRecord:
         return self._cache.parsed(project, FILE, _parse)
 
     def slots(self, project):
-        """{frame: {slot: {"status", "file"[, "error"][, "mode"]}}} -- the latest line per
-        (frame, slot) wins.
+        """{frame: {slot: {"status", "file"[, "error"][, "mode"][, "endsOn"]}}} -- the latest line
+        per (frame, slot) wins.
 
         A failure line also carries why: the renderer's own sentence, which the detail page prints
-        under the red frame. A produced video's line carries the mode it was made in. Neither is on
-        every line, so neither key is always there.
+        under the red frame. A produced video's line carries the mode it was made in, and the
+        picture it arrived at when it arrived at one. None of the three is on every line, so none
+        of those keys is always there.
         """
         folded = {}
         for row in self._rows(project):
@@ -107,6 +108,8 @@ class DrivePhotoRecord:
                 # Only a produced video's line names one, and the lines already on Drive name none
                 # -- so the key is there only when the line had it.
                 cell["mode"] = row["mode"]
+            if isinstance(row.get("endsOn"), str):
+                cell["endsOn"] = row["endsOn"]
             folded.setdefault(_frame_of(row), {})[_layer_of(row)] = cell
         return folded
 

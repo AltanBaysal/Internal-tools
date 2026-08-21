@@ -9,6 +9,7 @@ import { Pill, Rendering, StatusPill } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
+import { LINKED, labelOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
 
 // minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
@@ -227,6 +228,12 @@ export default function PhotoDetail({ project, frame: fid }) {
   // What the layer was made from -- the frame's own words until the user types over them.
   const said = (frame?.prompts || {})[open] ?? (open === "photo" ? frame?.prompt : "") ?? "";
   const typed = words[open] ?? said;
+  // How the open layer was made, when its line said so. Only a video has an answer today, and only
+  // a produced one: a failed or deleted layer's latest line names no mode.
+  const madeIn = (frame?.modes || {})[open];
+  // Linked names the picture rather than the frame's number -- the sequence can be dragged, and a
+  // number would then be a lie about a video nobody touched.
+  const arrivesAt = (frame?.endsOn || {})[open];
   // Compared trimmed, exactly as the server compares it: what the accent border promises and what
   // the new frame's name turns out to be must be the same answer (madde 99).
   const changed = typed.trim() !== said.trim();
@@ -402,6 +409,14 @@ export default function PhotoDetail({ project, frame: fid }) {
                        value={(frame.layers || {})[layer] || frame.file}
                        muted={layer === "photo" && !produced} />
               ))}
+              {open === "video" && madeIn && (
+                /* Information, never a control: changing the mode is making the video again, and
+                   that is the form further down (madde 94). */
+                <Field label="Üretim modu"
+                       value={madeIn === LINKED && arrivesAt
+                         ? `${labelOf(madeIn)} → ${arrivesAt}`
+                         : labelOf(madeIn)} />
+              )}
             </div>
 
             {/* The open layer's own prompt first, then the ones under it -- those are what it was

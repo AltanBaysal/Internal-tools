@@ -59,6 +59,12 @@ def placed(gallery, born):
     return sequence
 
 
+# What a carried layer keeps about how it was made: the frame's own map, and the field the row
+# takes. One file, two frames holding it -- without these the twin's tile would read video while the
+# original reads loop, and its detail page could not say where the video arrived.
+CARRIED = (("modes", "mode"), ("endsOn", "endsOn"))
+
+
 def carry_layers(record, project, copy, frame, kind, now):
     """Give the new frame everything below the layer that is about to be made.
 
@@ -66,16 +72,13 @@ def carry_layers(record, project, copy, frame, kind, now):
     rows point at the source's own files: one picture, two frames holding it.
     """
     words = frame.get("prompts", {})
-    modes = frame.get("modes", {})
     for under in queue.ORDER[:queue.ORDER.index(kind)]:
         file = frame.get("layers", {}).get(under)
         if not file:
             continue
-        mode = modes.get(under)
+        made = {field: frame.get(source, {})[under]
+                for source, field in CARRIED if frame.get(source, {}).get(under)}
         record.append(project, {"file": file, "frame": copy, "layer": under,
                                 "status": queue.DONE, "prompt": words.get(under, ""),
                                 "negative": frame.get("negative", ""),
-                                "seed": frame.get("seed"), "createdAt": now(),
-                                # One file, two frames holding it: without this the twin's tile
-                                # would read video while the original reads loop.
-                                **({"mode": mode} if mode else {})})
+                                "seed": frame.get("seed"), "createdAt": now(), **made})

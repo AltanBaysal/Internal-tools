@@ -81,16 +81,23 @@ def _end_for(job, store, slots, project, fid, source):
     return (cell["file"], store.read(project, cell["file"]))
 
 
-def _mode_of(job):
-    """The mode to write on the produced layer's row -- nothing for a job that names none.
+def _made_with(job, end):
+    """What the produced row says about how it was made, beyond its words and its seed.
 
-    The same reading the render used (_end_for), so the row says what the video actually is.
+    The mode, and the name of the picture the video arrived at -- each only when there is one.
 
-    Which jobs have a mode is the queue's rule -- queue_layer puts the field on video jobs alone --
-    and it is not written a second time here, where the two could drift apart. A photo row saying
+    Which jobs carry a mode is the queue's rule (queue_layer puts the field on video jobs alone) and
+    it is not written a second time here, where the two could drift apart. A photo row saying
     standard would be a field that means nothing on nearly every line it appears on.
+
+    The ending picture is named by the file the render was actually handed, not by the target's
+    identity. The detail page prints that name, and an identity resolved later can resolve to
+    nothing: the frame a video ends on can be deleted while the video stays.
     """
-    return {"mode": production_mode.of(job)} if job.get("mode") else {}
+    made = {"mode": production_mode.of(job)} if job.get("mode") else {}
+    if end:
+        made["endsOn"] = end[0]
+    return made
 
 
 def make_job(runner, store, record, plan_store, producers, now, project,
@@ -190,9 +197,11 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # Held in a variable because a loop ends on the very file it is made from: reading
                 # it twice would be the same download from Drive twice, once per video.
                 under = _source_for(kind, store, slots, project, fid)
+                # Held because the row names it too: the picture the video arrives at is what the
+                # detail page prints for a linked one.
+                ending = _end_for(current, store, slots, project, fid, under)
                 data = producer.generate(prompt, current["negative"], chosen,
-                                         current["model"], source=under,
-                                         end=_end_for(current, store, slots, project, fid, under))
+                                         current["model"], source=under, end=ending)
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job
@@ -220,7 +229,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             record.append(project, {"file": filename, "frame": fid, "layer": kind,
                                     "status": queue.DONE,
                                     "prompt": prompt, "negative": current["negative"],
-                                    "seed": chosen, "createdAt": now(), **_mode_of(current)})
+                                    "seed": chosen, "createdAt": now(),
+                                    **_made_with(current, ending)})
             if log:
                 # Two numbers, never one: the render is the GPU's share and the writes are the
                 # pipeline's, and speed decisions need to tell them apart.

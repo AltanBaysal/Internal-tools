@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 7/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 8/31
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -86,7 +86,7 @@ bağımlılıktan değil aynı tarafta olmasından geldi.
 | 5 | ✅ **Sonrakine bağla ardışık seçim istiyor.** Galeride ardışık olmayan kareler seçiliyken seçenek pasifleşir ve altında sebebi tek satır yazar. | Dağınık seçimle seçenek tıklanamıyor ve sebep görünüyor; ardışık seçimde açılıyor. | İstek 3 · Fark 24 |
 | 6 | ✅ **Tahmin ve onay metinleri moda göre değişiyor.** Butonun altındaki tahmin ve eklendikten sonraki yeşil onay, seçilen modu söyler. | Üç modda üç ayrı cümle çıkıyor; hiçbirinde eski tek kalıp kalmamış. | İstek 3 · Fark 25, 26 |
 | 7 | ✅ **Galeride loop rozeti.** Loop modunda üretilmiş videosu olan kare, "video" yerine "loop" yazan rozeti gösterir; ikisi aynı yeri paylaşır. | Loop videolu karede "loop", standart videolu karede "video" okunuyor; ikisi bir arada hiç görünmüyor. | İstek 3 · Fark 63 |
-| 8 | **Detayda Üretim modu bilgi satırı.** Video sekmesinde, bu videonun hangi modda üretildiğini salt bilgi olarak yazar; bağlı modda hedefi adıyla söyler. Ses sekmesinde doğmaz. | Üç modda üretilmiş üç karenin video sekmesinde üç ayrı değer okunuyor, satır tıklanmıyor, ses sekmesinde yok. | İstek 3 · Fark 93 |
+| 8 | ✅ **Detayda Üretim modu bilgi satırı.** Video sekmesinde, bu videonun hangi modda üretildiğini salt bilgi olarak yazar; bağlı modda hedefi adıyla söyler. Ses sekmesinde doğmaz. | Üç modda üretilmiş üç karenin video sekmesinde üç ayrı değer okunuyor, satır tıklanmıyor, ses sekmesinde yok. | İstek 3 · Fark 93 |
 | 9 | **Detayda Yeni mod seçicisi.** Yeniden üret formuna gelir, varsayılanı bu videonun modudur. Dizinin son karesinde "Sonrakine bağla" seçilirse kutu uyarıya döner ve yeniden üret pasifleşir. Butonun altında ne doğacağını söyleyen tek satır durur. | Mod değiştirilmeden basınca mod korunuyor; son karede bağla seçilince üretim kapanıyor ve sebep görünüyor. | İstek 3 · Fark 94, 95, 96 |
 
 İzleme davranışı bu koşuda değişmiyor: video hangi modda üretilmiş olursa olsun bugünkü gibi döner.

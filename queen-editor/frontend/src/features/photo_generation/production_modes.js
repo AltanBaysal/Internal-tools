@@ -15,3 +15,12 @@ export const MODES = [
   { id: LOOP, label: "Loop" },
   { id: LINKED, label: "Sonrakine bağla" },
 ];
+
+/** The mode's own name, for the places that report a mode rather than offer one.
+ *
+ * The id itself is the fallback: a value this list does not know is corrupted data, and printing it
+ * says more than an empty row would.
+ */
+export function labelOf(mode) {
+  return (MODES.find((one) => one.id === mode) || {}).label || mode;
+}
