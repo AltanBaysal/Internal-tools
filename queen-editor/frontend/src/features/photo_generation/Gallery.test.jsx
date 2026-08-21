@@ -560,6 +560,94 @@ describe("Gallery selection mode", () => {
   });
 });
 
+describe("Gallery — copying a card", () => {
+  const twins = (copies) => vi.fn().mockResolvedValue(copies);
+
+  it("puts Kopyala in the bar, to the left of Sil", () => {
+    renderGallery({ onCopy: twins(["C1_1_a"]) });
+    fireEvent.click(checkOf("1_a.png"));
+
+    const bar = screen.getByText("1 seçili").parentElement;
+    const words = [...bar.querySelectorAll("button")].map((one) => one.textContent);
+    expect(words).toEqual(["Tümünü seç", "Kopyala", "Sil", "Vazgeç"]);
+  });
+
+  it("draws no Kopyala when only frames that are not produced are selected", () => {
+    renderGallery({ frames: [pending("2_a.png"), done("1_a.png")], onCopy: twins([]) });
+    fireEvent.click(checkOf("2_a.png"));
+
+    // Nothing in the selection owns a layer, so there is nothing to press (Fark 79).
+    expect(screen.queryByText("Kopyala")).toBeNull();
+    expect(screen.getByText("Sil")).toBeTruthy();
+  });
+
+  it("copies only the produced frames of a mixed selection", async () => {
+    const onCopy = twins(["C1_1_a"]);
+    renderGallery({ frames: [pending("2_a.png"), done("1_a.png")], onCopy });
+    fireEvent.click(checkOf("2_a.png"));
+    fireEvent.click(checkOf("1_a.png"));
+
+    await act(async () => { fireEvent.click(screen.getByText("Kopyala")); });
+
+    expect(onCopy).toHaveBeenCalledWith(["1_a"]);
+  });
+
+  it("moves the selection onto the twins", async () => {
+    const onCopy = twins(["C1_1_a"]);
+    renderGallery({ frames: [done("2_a.png"), done("C1_1_a.png"), done("1_a.png")], onCopy });
+    fireEvent.click(checkOf("1_a.png"));
+
+    await act(async () => { fireEvent.click(screen.getByText("Kopyala")); });
+
+    // How the copy is noticed: no notification of its own (Fark 77).
+    expect(screen.getByText("1 seçili")).toBeTruthy();
+    expect(checkOf("C1_1_a.png").className).toContain("qe-check--on");
+    expect(checkOf("1_a.png").className).not.toContain("qe-check--on");
+  });
+
+  it("copies with Ctrl + D as well as with the button", async () => {
+    const onCopy = twins(["C1_1_a"]);
+    renderGallery({ onCopy });
+    fireEvent.click(checkOf("1_a.png"));
+
+    await act(async () => { fireEvent.keyDown(window, { key: "d", ctrlKey: true }); });
+
+    expect(onCopy).toHaveBeenCalledWith(["1_a"]);
+  });
+
+  it("takes Ctrl + D away from the browser", () => {
+    renderGallery({ onCopy: twins(["C1_1_a"]) });
+    fireEvent.click(checkOf("1_a.png"));
+
+    // Left alone it opens the bookmark window, which is never what was meant over a selection.
+    const taken = !fireEvent.keyDown(window, { key: "d", ctrlKey: true, cancelable: true });
+
+    expect(taken).toBe(true);
+  });
+
+  it("leaves Ctrl + D alone while the confirm window is open", () => {
+    const onCopy = twins(["C1_1_a"]);
+    renderGallery({ onCopy });
+    fireEvent.click(checkOf("1_a.png"));
+    fireEvent.click(screen.getByText("Sil"));
+
+    fireEvent.keyDown(window, { key: "d", ctrlKey: true });
+
+    // The window owns the keyboard while it is up -- the same rule Esc follows.
+    expect(onCopy).not.toHaveBeenCalled();
+  });
+
+  it("presses nothing when the shortcut is used on a selection with nothing to copy", () => {
+    const onCopy = twins([]);
+    renderGallery({ frames: [pending("2_a.png"), done("1_a.png")], onCopy });
+    fireEvent.click(checkOf("2_a.png"));
+
+    fireEvent.keyDown(window, { key: "d", ctrlKey: true });
+
+    expect(onCopy).not.toHaveBeenCalled();
+  });
+});
+
 describe("Gallery — selecting frames that are not photos yet", () => {
   const MIXED = [
     pending("4_a.png"),

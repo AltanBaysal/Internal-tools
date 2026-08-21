@@ -6,6 +6,7 @@ from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
 from backend.features.photo_generation.domain.usecases.run_export import start_export
@@ -120,6 +121,8 @@ def make_client(tmp_path, generator=None, runner=None):
         cancel_export=lambda: [export_runner.cancel(mode) for mode in MODES],
         remove_frames=partial(remove_frames, record, store, plan_store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),
+        copy_frames=partial(copy_frames, record, store, plan_store, order_store,
+                            lambda: "2026-08-05T10:00:00+00:00"),
         photo_dir=store.photo_dir,
     )
     app = create_app(dist_dir=str(dist), blueprints=[blueprint])
@@ -740,8 +743,48 @@ def test_cancel_empties_the_queue_and_leaves_the_photos(tmp_path):
     assert client.post("/api/projects/düğün/resume").status_code == 409
 
 
+def copy_frames_request(client, frames, project="düğün"):
+    return client.post(f"/api/projects/{project}/frames/copy", json={"frames": frames})
+
+
 def delete_photos_request(client, frames, project="düğün"):
     return client.post(f"/api/projects/{project}/frames/delete", json={"frames": frames})
+
+
+def test_the_copy_route_answers_with_the_twins_and_the_gallery_they_landed_in(tmp_path):
+    client, _drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    answer = copy_frames_request(client, ["P0_0"])
+
+    assert answer.status_code == 200
+    body = answer.get_json()
+    assert body["copies"] == ["C1_P0_0"]
+    # The gallery comes back with it: the screen would ask for exactly this in a second round-trip.
+    assert [f["id"] for f in body["frames"]] == ["P1_0", "C1_P0_0", "P0_0"]
+
+
+def test_deleting_one_twin_leaves_the_others_picture_on_the_disk(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    copy_frames_request(client, ["P0_0"])
+
+    delete_photos_request(client, ["C1_P0_0"])
+
+    # One picture, two frames holding it: the last of them to let go is what unlinks it.
+    assert (drive / "düğün" / "P0_0.png").exists()
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [f["id"] for f in gallery] == ["P0_0"]
+
+
+def test_a_copy_body_that_is_not_a_list_of_identities_is_refused(tmp_path):
+    client, _drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    answer = copy_frames_request(client, "P0_0")
+
+    assert answer.status_code == 400
+    assert "metin dizisi" in answer.get_json()["error"]
 
 
 def test_deleting_photos_removes_them_from_the_gallery_and_the_folder(tmp_path):

@@ -10,6 +10,10 @@ from backend.features.photo_generation.domain.photo_name import (
 )
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.run_loop import make_job
+from backend.features.photo_generation.domain.usecases.copy_frames import (
+    InvalidFrames,
+    copy_frames,
+)
 from backend.features.photo_generation.domain.usecases.remove_frames import (
     InvalidFiles,
     remove_frames,
@@ -1924,6 +1928,166 @@ def test_nothing_is_written_to_the_order_file_when_no_copy_is_born():
                  {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO, variants=1)
 
     assert order.order == []
+
+
+def twin_project(*frames):
+    """A project whose named frames are produced photos, with a store and an order file.
+
+    The order file is written here rather than left empty: what a copy has to prove is where it
+    lands, and a gallery nobody has dragged has no sequence of its own to land in.
+    """
+    store, record, plan_store = video_project(*frames)
+    order = FakeOrderStore([f"{number}_a" for number, _letter in reversed(frames)])
+    return store, record, plan_store, order
+
+
+def copy_of(record, store, plan_store, order, names, project="düğün"):
+    return copy_frames(record, store, plan_store, order, lambda: "t", project, names)
+
+
+def test_a_twin_carries_every_layer_its_source_holds():
+    store, record, plan_store, order = twin_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0_S1_0.wav", "frame": "0_a", "layer": "audio",
+                            "status": "done"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    # Everything, not everything below something: the twin has nothing left to produce.
+    assert list(record.slots("düğün")["C1_0_a"]) == ["photo", "video", "audio"]
+
+
+def test_a_twins_rows_point_at_its_sources_own_files():
+    store, record, plan_store, order = twin_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    twin = record.slots("düğün")["C1_0_a"]
+    assert twin["photo"]["file"] == "0_a.png"
+    assert twin["video"]["file"] == "0_a_V1_0.mp4"
+    assert store.saved == []                     # one picture on disk, two frames holding it
+
+
+def test_a_twin_carries_the_words_each_layer_was_made_from():
+    store, record, plan_store, order = twin_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert record.prompts("düğün")["C1_0_a"] == {"photo": "p", "video": "kadın dönüyor"}
+
+
+def test_a_twin_carries_the_videos_mode_and_where_it_ended():
+    store, record, plan_store, order = twin_project((0, "a"), (1, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "mode": "linked", "endsOn": "1_a.png"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    twin = record.slots("düğün")["C1_0_a"]["video"]
+    assert (twin["mode"], twin["endsOn"]) == ("linked", "1_a.png")
+
+
+def test_nothing_is_owed_on_a_twin():
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    # No plan line at all: an exact twin has nothing left to make, so the queue never hears of it.
+    assert plan_store.appended == []
+    twin = [f for f in list_frames(record, store, plan_store, order, "düğün")
+            if f["id"] == "C1_0_a"][0]
+    assert (twin["owed"], twin["status"]) == ([], "done")
+
+
+def test_a_twin_lands_directly_above_its_source():
+    store, record, plan_store, order = twin_project((0, "a"), (1, "a"))
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert order.order == ["1_a", "C1_0_a", "0_a"]
+    assert [f["id"] for f in list_frames(record, store, plan_store, order, "düğün")] == [
+        "1_a", "C1_0_a", "0_a"]
+
+
+def test_the_answer_names_the_twins_that_were_born():
+    store, record, plan_store, order = twin_project((0, "a"), (1, "a"))
+
+    answer = copy_of(record, store, plan_store, order, ["0_a", "1_a"])
+
+    # The screen moves the selection onto them, so it has to be told their names.
+    assert answer == {"copies": ["C1_0_a", "C1_1_a"]}
+
+
+def test_a_second_copy_is_a_copy_of_the_copy_rather_than_a_nested_name():
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+    answer = copy_of(record, store, plan_store, order, ["C1_0_a"])
+
+    assert answer == {"copies": ["C2_0_a"]}
+    # And it sits above the one it was made from, not above the original.
+    assert order.order == ["C2_0_a", "C1_0_a", "0_a"]
+
+
+def test_a_frame_that_is_not_produced_yet_is_skipped():
+    # There is nothing to twin: a pending frame owns no layer at all (Fark 79).
+    store, record = FakeStore(), FakeRecord()
+    plan_store, order = FakePlanStore(frames=[frame(0)]), FakeOrderStore()
+
+    answer = copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert answer == {"copies": []}
+    assert record.rows == []
+
+
+def test_an_identity_the_gallery_does_not_know_is_skipped_rather_than_refused():
+    # Another tab can delete a frame while this selection sits open; refusing the whole press over
+    # one name that is already gone would leave the rest undone.
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    answer = copy_of(record, store, plan_store, order, ["7_z", "0_a"])
+
+    assert answer == {"copies": ["C1_0_a"]}
+
+
+def test_a_layer_that_blew_up_is_not_carried_into_the_twin():
+    # The red video names a file that is not on disk; a done row about it would claim it is.
+    store, record, plan_store, order = twin_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "failed", "error": "node 41"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert list(record.slots("düğün")["C1_0_a"]) == ["photo"]
+
+
+def test_nothing_is_written_to_the_order_file_when_nothing_was_copied():
+    store, record = FakeStore(), FakeRecord()
+    plan_store, order = FakePlanStore(frames=[frame(0)]), FakeOrderStore()
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert order.order == []
+
+
+@pytest.mark.parametrize("names", ["0_a", [7], None])
+def test_copying_needs_a_list_of_identities(names):
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    with pytest.raises(InvalidFrames):
+        copy_of(record, store, plan_store, order, names)
+
+
+def test_copying_in_a_project_that_is_not_there_is_refused():
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    with pytest.raises(ProjectMissing):
+        copy_of(record, store, plan_store, order, ["0_a"], project="yok")
 
 
 def test_the_video_variant_count_has_the_same_ceiling_as_a_photo_batch():
