@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 17/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 18/31
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -109,7 +109,7 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 |---|---|---|---|
 | 16 | ✅ **Panel hata dili.** Buton hiçbir eksik alan için pasifleşmez — basmadan önce panel sakin durur, basınca altında hata kartı doğar ve sebep tek satır yazar. Sebep dört ayrı duruma göre değişir. Varyant boşken kutu uyarıya döner. Buton yalnız süren işlemde pasif kalır. | Dört sebebin dördü ayrı ayrı çıkarılıyor; hiçbirinde buton önceden kilitli değil; varyant kutusuna yazmaya başlayınca uyarı temizleniyor. | İstek 4.3 · Fark 27, 28, 29, 35 |
 | 17 | ✅ **Panelin görsel hizalaması** *(grup)*. Kapsam satırına seçim dairesi gelir, model satırı açılır kutuya döner, kapsam satırının adı tam yazılır, Süre bloğu kalkar. | Dört farkın dördü de kapanmış; panelde Model, Kapsam, Üretim modu, Varyant ve buton dışında blok kalmamış. | Fark 30–33 |
-| 18 | **Fotoğraf varyant varsayılanı 4 → 2.** Bir prompt'tan kaç kare üretileceğinin varsayılanı iki olur. Katman panelindeki varyant değişmez. | Panel açıldığında kutuda 2 yazıyor. | İstek 8 |
+| 18 | ✅ **Fotoğraf varyant varsayılanı 4 → 2.** Bir prompt'tan kaç kare üretileceğinin varsayılanı iki olur. Katman panelindeki varyant değişmez. | Panel açıldığında kutuda 2 yazıyor. | İstek 8 |
 
 ## E · Detay sayfası
 

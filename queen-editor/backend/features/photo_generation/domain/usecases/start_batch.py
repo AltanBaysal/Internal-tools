@@ -90,6 +90,6 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
     plan_store.append(project, frames)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
               order_store=order_store, writers=writers)
-    # How many frames the queue really took. The panel's own "12 prompt × 4 varyant" line is a
-    # preview it is not allowed to enforce, so the confirmation card quotes this instead.
+    # How many frames the queue really took. The panel's own estimate is a preview it is not
+    # allowed to enforce, so the confirmation card quotes this instead.
     return len(frames)

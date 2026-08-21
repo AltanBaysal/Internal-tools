@@ -10,6 +10,11 @@ const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "u
 const PLACEHOLDER = '["ilk prompt", "ikinci prompt"]';
 
 const MAX_VARIANTS = 26;
+// What the box starts at in a project that has never saved a count. Two rather than four (İstek 8):
+// four was the number the app was born with, and fewer variants of one prompt is what the work
+// actually looks like. A name rather than a bare string inside the initial state, because "why this
+// number" is the whole of what this line says.
+const FIRST_VARIANTS = "2";
 // Long enough to still be there when the eyes come back from the gallery, short enough to be gone
 // before the next batch is typed. The design named two different numbers; this one is the user's.
 const CONFIRM_MS = 10000;
@@ -51,7 +56,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const [model, setModel] = useState(settings.model || "");
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState(
-    settings.variants === null ? "4" : String(settings.variants),
+    settings.variants === null ? FIRST_VARIANTS : String(settings.variants),
   );
   const [submitting, setSubmitting] = useState(false);
   // How many frames the last submission added, straight from the server; null once it has faded.
