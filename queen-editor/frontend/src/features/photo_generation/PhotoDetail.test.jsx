@@ -103,6 +103,13 @@ const QUEUED_COPY = { id: "P0_1", file: "P0_0.png", status: "done", prompt: "kı
 const tab = (name) => screen.getByRole("button", { name });
 const regenButton = () => screen.getByText("Yeniden üret — yeni kare").closest("button");
 
+// jsdom ships no clipboard, so the test supplies one and watches what it is handed.
+function stubClipboard(answer) {
+  const writeText = vi.fn(() => answer);
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  return writeText;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
@@ -182,7 +189,7 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.queryByText("kırmızı elbise")).toBeNull();
     expect(screen.queryByText("P0_0_V1_0.mp4")).toBeNull();
     // The negative belongs to the photo alone: video and sound jobs carry none.
-    expect(screen.queryByText("Negatif")).toBeNull();
+    expect(screen.queryByText("Foto negatif prompt'u")).toBeNull();
   });
 
   it("repeats the skeleton for sound", async () => {
@@ -891,18 +898,133 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
   });
 });
 
+describe("PhotoDetail — the right column", () => {
+  it("names the layer every prompt heading belongs to", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 88: all three tabs drew the same two words, so the heading said nothing about which
+    // layer was under it. The words come off the tabs, so a layer cannot end up with two names.
+    expect(screen.getByText("Foto prompt'u")).toBeTruthy();
+    expect(screen.getByText("Foto negatif prompt'u")).toBeTruthy();
+
+    fireEvent.click(tab("Video"));
+    expect(screen.getByText("Video prompt'u")).toBeTruthy();
+
+    fireEvent.click(tab("Ses"));
+    expect(screen.getByText("Ses prompt'u")).toBeTruthy();
+  });
+
+  it("gives the photo tab's two boxes their own heights", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 89: the two boxes used to share whatever the window left over, so a short window
+    // squeezed both of them. Their own measure now, and a long text folds inside it.
+    const [prompt, negative] = [...document.querySelectorAll("[data-box]")];
+    expect([prompt.style.height, negative.style.height]).toEqual(["162px", "96px"]);
+    expect([prompt.style.overflowY, negative.style.overflowY]).toEqual(["auto", "auto"]);
+  });
+
+  it("gives the video and sound boxes the same measure", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    expect(document.querySelector("[data-box]").style.height).toBe("150px");
+
+    fireEvent.click(tab("Ses"));
+    expect(document.querySelector("[data-box]").style.height).toBe("150px");
+  });
+
+  it("puts a copy icon beside every prompt heading", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 90. The negative is a prompt box too, so it carries one as well.
+    expect(screen.getByLabelText("Foto prompt'u — kopyala")).toBeTruthy();
+    expect(screen.getByLabelText("Foto negatif prompt'u — kopyala")).toBeTruthy();
+
+    fireEvent.click(tab("Video"));
+    expect(screen.getByLabelText("Video prompt'u — kopyala")).toBeTruthy();
+  });
+
+  it("copies the box's own text and says so", async () => {
+    const writeText = stubClipboard(Promise.resolve());
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByLabelText("Video prompt'u — kopyala"));
+    await settle();
+
+    // The open layer's words, not the photo's -- there are three boxes on this page across the
+    // three tabs and each icon belongs to the one beside it.
+    expect(writeText).toHaveBeenCalledWith("kadın dönüyor");
+    expect(screen.getByLabelText("Kopyalandı")).toBeTruthy();
+  });
+
+  it("says so when the clipboard refuses", async () => {
+    stubClipboard(Promise.reject(new Error("denied")));
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByLabelText("Video prompt'u — kopyala"));
+    await settle();
+
+    // Silence would leave the user believing they had the text, and the box is still selectable
+    // by hand -- saying it failed is also saying take it yourself (karar 33).
+    expect(screen.getByLabelText("Kopyalanamadı")).toBeTruthy();
+  });
+
+  it("leaves the icon unpressable when the box is empty", async () => {
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    fireEvent.click(tab("Video"));
+
+    // A copy button that copies nothing is a lie; one that comes and goes as the user types makes
+    // the heading twitch. It stays and it dims (karar 34).
+    expect(screen.getByLabelText("Video prompt'u — kopyala").disabled).toBe(true);
+  });
+
+  it("splits the column into two groups with nothing between them", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 91: what the frame is, then what can be made of it. No group heading and no rule
+    // between them -- the split is where the eye rests, not a line it reads.
+    const side = document.querySelector("[data-side]");
+    expect([...side.children].map((one) => one.getAttribute("data-group")))
+      .toEqual(["info", "production"]);
+  });
+
+  it("keeps one vertical rhythm down the column", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 91: three measures became two -- 16 between blocks, 6 between a label and what it
+    // labels. The information group wraps on a 300px panel, so its own rows answer to the 16 too.
+    const side = document.querySelector("[data-side]");
+    expect(side.style.gap).toBe("16px");
+    expect(side.children[0].style.rowGap).toBe("16px");
+    expect(side.children[1].style.gap).toBe("16px");
+    expect(document.querySelector("[data-field]").parentElement.style.gap).toBe("6px");
+  });
+
+  it("lets the panel scroll rather than clip its own buttons", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // With every box at a fixed height the column has a fixed total, and a window shorter than
+    // that would put the delete button somewhere nobody can reach (karar 35).
+    expect(document.querySelector("[data-side]").style.overflowY).toBe("auto");
+  });
+});
+
 describe("PhotoDetail — the negative prompt", () => {
   it("shows the negative next to the prompt", async () => {
     await open("3_a", { frames: MIXED });
 
-    expect(screen.getByText("Negatif")).toBeTruthy();
+    expect(screen.getByText("Foto negatif prompt'u")).toBeTruthy();
     expect(screen.getByText(/bulanık/)).toBeTruthy();
   });
 
   it("draws the box even when there is no negative, rather than hiding it", async () => {
     await open("1_a");
 
-    expect(screen.getByText("Negatif")).toBeTruthy();
+    expect(screen.getByText("Foto negatif prompt'u")).toBeTruthy();
     expect(screen.getByText("—")).toBeTruthy();
   });
 });

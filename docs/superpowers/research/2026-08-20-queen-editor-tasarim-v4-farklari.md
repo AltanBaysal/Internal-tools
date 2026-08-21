@@ -1095,7 +1095,7 @@ madde madde verildi.
 
 ### Koşu sırasında verilen ek kararlar
 
-*(21 Ağustos 2026, 13, 15 ve 20. madde uygulanırken.)*
+*(21 Ağustos 2026, 13, 15, 20 ve 21. madde uygulanırken.)*
 
 | # | Karar | Kapattığı madde |
 |---|---|---|
@@ -1105,6 +1105,9 @@ madde madde verildi.
 | 30 | **Bırakma üretim başlatmaz.** Farkın özü zaten doğru: motor her turda sırayı yeniden okuyor, yani öne çekilen bekleyen kare bırakıldığı yerden üretiliyor. Eksik olan tek şey kartın bırakma anında "üretiliyor" yazması — motor başka bir kareyi tutarken bu yalan olur, kuyruk duruyorken de 6. karara aykırı. | 74 |
 | 31 | **Karışık seçim onayı yalnız başlık kalır.** Kullanıcının 12 Ağustos 2026 kararı (v3 fark listesi, madde 64): "alt satır hiç yazılmayacak — pencerede yalnız başlık ve butonlar kalacak." Fark listesi aynı wireframe'i yeniden görmüş. | 76 |
 | 32 | **Açık sekmenin çerçevesi vurgu rengini korur.** Tasarım "yalnız rengiyle belli olur, ek işaret yoktur" diyor; bugün açık sekmede yazı da çerçeve de vurgu rengine dönüyor ve ikisi de renk. İşaret, tasarımın sözlüğünde *eklenen* bir şey — alt çizgi, nokta, ok. Her sekmenin zaten sahip olduğu çerçevenin açık olanda renk değiştirmesi, sekmenin renklenmesidir. Bitişikken o çerçeve sürekli bir şeridin içinde açık parçayı kutulama işini de görüyordu; ayrılınca o işi bırakıyor, rengini değil. Madde geometriden ibaret kalıyor. | 85 |
+| 33 | **Kopya ikonu cevabını kendi adında verir.** Tasarım yalnız "basınca metin panoya alınır" diyor; basıştan sonrasını söylemiyor. Sessizlik cevap değil, ve reddedilen bir pano sessizce geçerse kullanıcı metni aldığını sanır. İkon 2,5 saniye boyunca **Kopyalandı** / **Kopyalanamadı** adını alıyor ve vurgu ya da tehlike rengine dönüyor — `RawOutput`'un kelimeleri ve süresi. Panele satır eklemiyor: başlığın yanında beliren bir kelime altındaki kutuyu aşağı iterdi, ki fark 89'un derdi tam olarak buydu. | 90 |
+| 34 | **Kutu boşken ikon basılamaz.** Boş bir kutuyu kopyalayıp "Kopyalandı" demek yalan olurdu. İkonu gizlemek de bir cevap ama kullanıcı yazıp sildikçe başlık seğirir. İkon yerinde duruyor ve pasif kalıyor — evin pasif düğme dili. | 90 |
+| 35 | **Panel kendi içinde kayar.** Kutular sabit yüksekliğe geçince sütunun toplam boyu da sabitleniyor. Tasarım "panel uzayıp altındaki butonları aşağı itmez" diyor ama panelden kısa bir pencerede ne olacağını söylemiyor. Sütun kendi içinde kayıyor; yoksa silme düğmesi ekranın altında, ulaşılamayacak bir yerde kalırdı. | 89 |
 
 ### Karar gerektirmeyenler
 
