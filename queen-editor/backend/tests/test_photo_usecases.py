@@ -1373,6 +1373,91 @@ def test_a_linked_video_whose_target_lost_its_photo_turns_that_frame_red():
     assert video["status"] == queue.FAILED
 
 
+def render_seedless(new_seed, jobs=1):
+    """`jobs` seedless video jobs on their own frames, run to completion.
+
+    Video rather than sound because a video job is the one that plans no seed and has a producer a
+    test can hold; what the loop does about a missing seed is the same whatever the layer is.
+    """
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(number) for number in range(jobs)])
+    planned = []
+    for number in range(jobs):
+        fid = f"{number}_a"
+        record.append("düğün", {"file": f"{fid}.png", "frame": fid, "layer": "photo",
+                                "status": "done"})
+        store.files[f"{fid}.png"] = b"PNG"
+        planned.append({"id": fid, "type": "video", "number": number, "variant": 0,
+                        "prompt": "p", "negative": "", "seed": None, "model": ""})
+    plan_store.append("düğün", planned)
+    generator = FakeGenerator()
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", "düğün", new_seed=new_seed)()
+    return generator, record
+
+
+def video_seeds(record):
+    """The seed written on every produced video row, in the order the rows were written."""
+    return [row["seed"] for row in record.rows
+            if row.get("layer") == "video" and row.get("status") == "done"]
+
+
+def test_a_seedless_job_is_produced_with_a_seed_the_engine_chose():
+    """A layer job is planned without one (queue_layer), and until now that None travelled all the
+    way into the render: the sound engine invented a number of its own and the video graph kept its
+    -1, which rgthree only randomises in the browser widget."""
+    generator, _record = render_seedless(lambda: 777)
+
+    assert [call[2] for call in generator.calls] == [777]
+
+
+def test_the_seed_a_job_was_produced_with_is_written_down():
+    """The whole madde in one line: the number that rendered the layer is the number on its row, so
+    the row can be produced again."""
+    generator, record = render_seedless(lambda: 777)
+
+    assert video_seeds(record) == [call[2] for call in generator.calls]
+
+
+def test_a_job_that_carried_its_own_seed_keeps_it():
+    # A photo job is planned with a seed of its own. Choosing a second one for it would quietly
+    # produce a different picture from the one the plan describes.
+    store, generator = FakeStore(), FakeGenerator()
+    record = FakeRecord()
+    run_batch(sync_runner(), store, generator, text='["a"]', variants=1, record=record)
+
+    assert [call[2] for call in generator.calls] == [42]
+
+
+def test_the_three_attempts_of_one_job_share_one_seed():
+    """Otherwise "produce this row again with its seed" would name a number only the last attempt
+    used, and the two earlier renders would be unreproducible."""
+    seeds = iter([1, 2, 3])
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    store.files["0_a.png"] = b"PNG"
+    plan_store.append("düğün", [{"id": "0_a", "type": "video", "number": 0, "variant": 0,
+                                 "prompt": "p", "negative": "", "seed": None, "model": ""}])
+    # Fails every time, so the job spends all three of its attempts and three calls are recorded.
+    generator = FakeGenerator(fail_on=["p"])
+
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", "düğün", new_seed=lambda: next(seeds))()
+
+    assert len(generator.calls) == 3
+    assert len({call[2] for call in generator.calls}) == 1
+
+
+def test_two_seedless_jobs_get_seeds_of_their_own():
+    """Two variants of one frame must not come out identical: asking for a second would buy
+    nothing."""
+    seeds = iter([777, 888])
+    generator, _record = render_seedless(lambda: next(seeds), jobs=2)
+
+    assert sorted(call[2] for call in generator.calls) == [777, 888]
+
+
 def test_a_video_job_is_planned_for_every_frame_that_has_none():
     store, record, plan_store = video_project((0, "a"), (1, "a"))
 
