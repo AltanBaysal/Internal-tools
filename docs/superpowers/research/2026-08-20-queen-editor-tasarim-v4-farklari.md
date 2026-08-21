@@ -1095,7 +1095,7 @@ madde madde verildi.
 
 ### Koşu sırasında verilen ek kararlar
 
-*(21 Ağustos 2026, 13, 15, 20, 21, 22 ve 23. madde uygulanırken.)*
+*(21 Ağustos 2026, 13, 15, 20, 21, 22, 23 ve 24. madde uygulanırken.)*
 
 | # | Karar | Kapattığı madde |
 |---|---|---|
@@ -1115,6 +1115,9 @@ madde madde verildi.
 | 40 | **Klasör taşınır, kopyalanmaz.** İstek listesi "adı değiştirmek klasörü değiştirmek demek" deyip cevabı spec'e bırakıyor. Kopyalamak yarıda kalabilir: bir projede binlerce dosya olabilir, Drive üzerinden kopyalama dakikalar sürer, ve kesilirse ortada iki eksik klasör kalır. Ad değiştirme dosya sisteminin kendi atomik işlemi. Sonucu: kare adları, plan, kayıt, ayarlar ve dışa aktarımlar klasörün içinde olduğu için birlikte taşınıyor ve hiçbiri yeniden yazılmıyor. | İstek 10 |
 | 41 | **Koşan iş adı her turda yeniden okur, yazarken kilit tutar.** Bugün iş adı bir kez alıyor; klasör altından taşınırsa bir sonraki tur okuyamıyor ve koşu "error" ile bitiyor — yani bugünkü hâliyle ad değiştirmek üretimi öldürür. İş adı bir tutamaktan okuyor, ve yazma anı o tutamağın kilidini alıyor: `write_bytes` eksik klasörü kendisi açtığı için, eski adla çözülmüş bir yazma taşınmadan sonra düşerse yanına hayalet bir klasör bırakırdı. Render kilidin dışında, yani bekleme bir dosya yazma kadar. İşçinin durumundaki proje damgası da adı takip ediyor, yoksa ekran kendi koşusunu tanımaz. | İstek 10 |
 | 42 | **Eski dışa aktarımlar taşınır, adları değişmez.** Dışa aktarım klasörü projenin içinde, dolayısıyla klasörle gidiyor. Ama birleştirilmiş dosyanın adı `{proje}.mp4` ve yeniden yazılmıyor: o dosya o adla yapıldı ve kullanıcı onu indirmiş olabilir. Bundan sonrakiler yeni adı alıyor. | İstek 10 |
+| 43 | **Karttaki kalem çerçevesiz kalıyor.** 1. karar çöpü yıkıcı eylem standardına soktu; standart yıkıcı bir düğmenin neye benzediğini söylüyor ve kalem yıkıcı değil (fark 3). İkisini düzen adına benzetmek standardın var olma sebebini silerdi: kırmızı çerçeve, yanındaki çıplak ikondan ayrıldığı için işaret. Kalem `ghost` varyantını alıyor — çizgisiz, ama aynı kutu; `border: none` kutuyu her kenardan bir piksel küçültüp düğmeleri kaydırıyordu. | 5 |
+| 44 | **Liste kendi içinde kayıyor; 9 Ağustos 2026'nın N3 kararı geri alınıyor.** O karar tasarım v2'ye karşı verildi ve v2'de çizilmiş bir tutamak yoktu — ortada seçenek değil "bugünkü hâl yeter mi" sorusu vardı. v4 hem tutamağı hem bandı çiziyor ve ikisi ancak kırpılmış bir kutuda var olabilir: sayfa kayıyorsa tarayıcının kendi çubuğu zaten var ve altı soluklaşacak bir liste alanı yok. Uygulamanın diğer dört ekranı zaten `height: 100vh` + içeride kayan gövde. | 8 |
+| 45 | **Bant sayıya bakıyor, taşmaya değil.** Tasarımın ölçüsü bir sayı: "liste sekizi geçince" — dört sütunun iki satırı. Taşmayı ölçmek uygulanabilir değil: `scrollHeight > clientHeight` jsdom'da iki sıfırı karşılaştırır ve o kuralı doğrulayan test yerleşimi taklit etmek zorunda kalır. Tutamak bu ayrımdan etkilenmiyor — kutu `overflow-y: auto` ve tarayıcı kayacak bir şey yoksa tutamağı çizmiyor. | 8 |
 
 ### Karar gerektirmeyenler
 

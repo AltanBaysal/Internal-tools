@@ -20,7 +20,7 @@ async function settle(ms = 0) {
 // other words.
 function open(onSubmit = () => Promise.resolve()) {
   return render(<NameModal title="Yeni proje" submitLabel="Oluştur" busyLabel="Oluşturuluyor…"
-                           width={400} onCancel={() => {}} onSubmit={onSubmit} />);
+                           onCancel={() => {}} onSubmit={onSubmit} />);
 }
 
 function box() {
@@ -44,10 +44,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("NameModal", () => {
-  it("opens at the width its form asks for", () => {
+  it("opens at its own measure: the caller does not give one", () => {
     open();
 
-    expect(createButton().closest(".wf-card").style.width).toBe("400px");
+    // Fark 6: two windows, one form, one measure. It stopped being the caller's the moment the
+    // second window turned out to want the same number.
+    expect(createButton().closest(".wf-card").style.width).toBe("380px");
   });
 
   it("greets an untouched box with nothing to complain about", async () => {

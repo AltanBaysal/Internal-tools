@@ -27,6 +27,16 @@ async function openScreen() {
   await settle();
 }
 
+// The list at a given length. The names only have to be different from each other; what the test
+// is looking at is the box they sit in.
+async function openWith(count) {
+  listProjects.mockResolvedValue(
+    Array.from({ length: count }, (_, i) => ({ name: `p${i + 1}`, modifiedAt: 1754300000 })),
+  );
+  render(<ProjectsScreen />);
+  await settle();
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -38,6 +48,19 @@ describe("ProjectsScreen with nothing in it yet", () => {
     await settle();
 
     expect(screen.getByText("İlk projeni oluştur, karelerin burada toplansın")).toBeTruthy();
+  });
+});
+
+describe("ProjectsScreen opening a new project", () => {
+  it("opens the window at the one measure both windows share", async () => {
+    await openScreen();
+
+    fireEvent.click(screen.getByText("Yeni proje"));
+
+    // Fark 6: 400 was the wider of two measures; there is only one now, and it belongs to the
+    // window rather than to whoever opens it.
+    const title = screen.getByText("Yeni proje", { selector: ".wf-hand" });
+    expect(title.closest(".wf-card").style.width).toBe("380px");
   });
 });
 
@@ -149,24 +172,39 @@ describe("ProjectsScreen deleting a project", () => {
     expect(screen.queryByText("düğün")).toBeNull();
   });
 
-  it("draws the bin as a red icon and nothing else: no box of its own", async () => {
+  it("draws the bin in the clothes every destructive button in the app wears", async () => {
     await openScreen();
 
+    // Fark 5, karar 1: the design's own texts disagreed -- the rules document counts project
+    // delete among the destructive standard's examples, the card drawing shows a bare icon. The
+    // rules document won. Unfilled, red border, red icon.
     const bin = screen.getByLabelText("Projeyi sil");
+    expect(bin.style.borderColor).toBe("var(--danger)");
     expect(bin.style.color).toBe("var(--danger)");
-    // border:none expands, and the part that decides whether a line is drawn is the style.
-    expect(bin.style.borderStyle).toBe("none");
     expect(bin.style.background).toBe("none");
+    expect(bin.querySelector("svg")).toBeTruthy();
   });
 
-  it("says what leaves with the project and what happens to the production", async () => {
+  it("leaves the pencil beside it without a line of its own", async () => {
+    await openScreen();
+
+    // Karar 43: the red frame is a mark, and a mark only marks while the thing next to it has
+    // none. Ghost draws nothing but keeps the box, so the two sit level.
+    const pencil = screen.getByLabelText("Projeyi yeniden adlandır");
+    expect(pencil.className).toContain("wf-btn--ghost");
+    expect(pencil.style.color).not.toBe("var(--danger)");
+    expect(pencil.style.borderColor).not.toBe("var(--danger)");
+  });
+
+  it("says what happens to the production first, then what leaves with the project", async () => {
     await openScreen();
 
     fireEvent.click(screen.getByLabelText("Projeyi sil"));
 
+    // Fark 9: the sentences are the same, their order is not. What is running stops first.
     expect(screen.getByText(
-      "İçindeki tüm kareler — fotoğraf, video ve ses dosyalarıyla birlikte — kalıcı olarak "
-      + "silinir. Çalışan üretim durdurulur, kuyruktaki işler atılır. Bu işlem geri alınamaz."))
+      "Çalışan üretim durdurulur, kuyruktaki işler atılır. İçindeki tüm kareler — fotoğraf, video "
+      + "ve ses dosyalarıyla birlikte — kalıcı olarak silinir. Bu işlem geri alınamaz."))
       .toBeTruthy();
   });
 
@@ -176,5 +214,42 @@ describe("ProjectsScreen deleting a project", () => {
     fireEvent.click(screen.getByText("düğün"));
 
     expect(navigate).toHaveBeenCalledWith(`/projects/${encodeURIComponent("düğün")}`);
+  });
+});
+
+describe("ProjectsScreen with a long list", () => {
+  it("scrolls the list in its own box rather than the page", async () => {
+    await openWith(12);
+
+    // Fark 8, karar 44: the header stays put and the projects move under it -- the way the app's
+    // other four screens are built. The 2026-08-09 decision that the page scrolls was given
+    // against a design that drew no handle at all.
+    expect(document.querySelector("[data-list]").style.overflowY).toBe("auto");
+  });
+
+  it("gives the list a handle of its own, a thin one", async () => {
+    await openWith(12);
+
+    // The rule is in app.css because it is a scrollbar pseudo-element; what the screen owes is the
+    // class. Nothing is drawn while there is nothing to scroll, so the handle needs no condition
+    // of its own (karar 45).
+    expect(document.querySelector("[data-list]").className).toContain("qe-thin-scroll");
+  });
+
+  it("fades the foot of the list once it has passed eight", async () => {
+    await openWith(9);
+
+    // Karar 45: eight is two rows of four, and it is a count because the design gives a count --
+    // measuring the overflow would mean a test that fakes layout.
+    const fade = document.querySelector("[data-fade]");
+    expect(fade).toBeTruthy();
+    // A band nobody can see must not swallow the click meant for the card under it.
+    expect(fade.style.pointerEvents).toBe("none");
+  });
+
+  it("fades nothing while eight still fit", async () => {
+    await openWith(8);
+
+    expect(document.querySelector("[data-fade]")).toBeNull();
   });
 });
