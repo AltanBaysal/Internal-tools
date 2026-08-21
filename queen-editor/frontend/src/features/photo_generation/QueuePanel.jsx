@@ -33,7 +33,9 @@ function splitReason(text) {
 // the engine is still turning. Only the two states where work is in flight pulse.
 const DOT = {
   running: { color: "var(--accent)", alive: true },
-  pausing: { color: "var(--accent)", alive: true },
+  // Still beating while the pause is on its way -- the engine is still turning -- but no longer in
+  // the colour that means work is flowing (Fark 43).
+  pausing: { color: "var(--ink-3)", alive: true },
   paused: { color: "var(--ink-3)", alive: false },
   stopped: { color: "var(--danger)", alive: false },
   waiting: { color: "var(--ink-3)", alive: false },
@@ -95,12 +97,16 @@ function KindCard({ layer, owed, alive, producer, onInstall }) {
         <span aria-hidden="true" className={alive ? "qe-dot qe-dot--alive" : "qe-dot"}
               style={{ background: alive ? "var(--accent)" : "var(--ink-3)" }} />
         <Note size={12} style={{ color: alive ? "var(--ink-2)" : "var(--ink-3)" }}>
-          {kind.title} · {alive ? "üretiliyor" : "sırada"}
+          {/* Three states, three words (Fark 41). "sırada" says a turn is coming; a kind with no
+              producer cannot have one until something lands on the machine. */}
+          {kind.title} — {alive ? "üretiliyor" : missing ? "bekliyor" : "sırada"}
         </Note>
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        {/* The biggest number on the screen wears the accent colour, like every other counter. */}
-        <Mono size={26} style={{ color: "var(--accent)" }}>{owed}</Mono>
+        {/* The accent stays on the heading row, where the dot is: three numbers in the same loud
+            colour made the panel one big counter and said nothing about which one is moving
+            (Fark 42). */}
+        <Mono size={26} style={{ color: alive ? "var(--ink)" : "var(--ink-3)" }}>{owed}</Mono>
         <Note size={13} style={{ color: "var(--ink-2)" }}>{kind.unit}</Note>
       </div>
       {missing && (
@@ -177,8 +183,9 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
     : "empty";
 
   // The queue can only be emptied when nothing is being rendered: a frame in flight has no line in
-  // the log yet, so it would read as owed and get pulled out from underneath the worker.
-  const canClear = (paused || halted || abandoned) && owed > 0;
+  // the log yet, so it would read as owed and get pulled out from underneath the worker. A queue
+  // waiting for a producer has nothing in hand either, so the way out belongs there too (Fark 47).
+  const canClear = (paused || halted || abandoned || Boolean(waitingFor)) && owed > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, minHeight: 0 }}>
@@ -201,12 +208,14 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Dot state={state} />
           <Mono size={12} style={{ color: state === "stopped" ? "var(--danger)"
-            : state === "done" ? "var(--ok)" : "var(--ink-2)" }}>{TITLE[state]}</Mono>
+            : state === "done" ? "var(--ok)"
+            : state === "pausing" ? "var(--ink-3)" : "var(--ink-2)" }}>{TITLE[state]}</Mono>
         </div>
 
         {state === "done" ? (
           // Good news only: what failed has a card of its own, and one sentence cannot carry both.
-          <Note size={12} style={{ color: "var(--ok)" }}>{job.done} kare üretildi</Note>
+          // The heading is what carries the news; this line is a fact under it (Fark 44).
+          <Note size={12} style={{ color: "var(--ink-3)" }}>{job.done} kare üretildi</Note>
         ) : state === "empty" ? (
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Fotoğraf üret panelinden kare gönder.
@@ -255,9 +264,10 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
       </div>
       )}
 
-      {/* Its own card, outside the run's: what failed is true whether the queue is flowing, paused
-          or finished, and the run's card is not drawn at all during a run. */}
-      {failed > 0 && (
+      {/* Its own card, outside the run's -- and only once the queue is through (Fark 46): a total
+          that is still growing is not a total, and every red frame is already red in the gallery
+          with a Tekrar dene of its own. */}
+      {failed > 0 && state === "done" && (
         <div className="wf-stroke"
              style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8,
                       borderColor: "var(--danger)", background: "var(--danger-bg)" }}>
@@ -269,7 +279,7 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
           <Btn sm onClick={onRetryAll}
                style={{ alignSelf: "flex-start", color: "var(--danger)",
                         borderColor: "var(--danger)", background: "none" }}>
-            <Icon.Regen /> Hepsini tekrar dene
+            <Icon.Regen /> Tekrar dene
           </Btn>
         </div>
       )}

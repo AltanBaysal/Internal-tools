@@ -69,7 +69,7 @@ describe("SidePanel — the icon rail", () => {
     fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
 
     expect(screen.queryByPlaceholderText(PROMPT_BOX)).toBeNull();
-    expect(screen.getByText("Foto · üretiliyor")).toBeTruthy();
+    expect(screen.getByText("Foto — üretiliyor")).toBeTruthy();
     expect(screen.getByLabelText("Kuyruğu takip et").getAttribute("aria-current")).toBe("page");
   });
 
