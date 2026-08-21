@@ -63,8 +63,10 @@ const TABS = [
   { id: "audio", label: "Ses", Glyph: SoundGlyph },
 ];
 const LAYER_ORDER = TABS.map((row) => row.id);
-// What each layer's own file and prompt are called in the column.
-const LAYER_WORD = { photo: "Foto", video: "Video", audio: "Ses" };
+// What a layer is called inside a sentence. Read off the tabs rather than written a second time:
+// the window that says a video could not be deleted and the tab it was deleted from must not end up
+// calling the same layer two different things.
+const LAYER_LABEL = Object.fromEntries(TABS.map((row) => [row.id, row.label]));
 
 const STRIP = { position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)",
                 display: "flex", zIndex: 2 };
@@ -109,7 +111,7 @@ function LayerTabs({ open, has, onOpen }) {
 function Field({ label, value, muted }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <Mono size={10} style={LABEL}>{label}</Mono>
+      <Mono size={10} data-field style={LABEL}>{label}</Mono>
       <Mono size={13} style={{ color: muted ? "var(--ink-4)" : "var(--ink)" }}>{value}</Mono>
     </div>
   );
@@ -119,8 +121,9 @@ function Field({ label, value, muted }) {
 // fields leave behind, and each scrolls inside itself so a long negative cannot squeeze the prompt.
 //
 // `hint` is what an empty box says when the emptiness has a reason -- a layer nobody has written
-// the words for yet (madde 81). Without one an empty box says "—", because an empty negative is an
-// answer of its own.
+// the words for yet (madde 81). It is centred while a real prompt is not: a prompt is read from the
+// left, an absence is a notice and stands in the middle of the box (Fark 92). Without a hint an
+// empty box says "—", because an empty negative is an answer of its own.
 function TextBlock({ label, text, hint }) {
   const empty = !text;
   return (
@@ -128,9 +131,11 @@ function TextBlock({ label, text, hint }) {
       <Mono size={10} style={LABEL}>{label}</Mono>
       <div className="wf-stroke" style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 10 }}>
         {/* The box is drawn even with nothing in it: a box that came and went with the frame would
-            make the column jump between frames. */}
+            make the column jump between frames -- and an empty one reads as a prompt somebody
+            deleted, which is the whole reason the hint exists. */}
         <Note size={12} style={{ color: empty ? "var(--ink-4)" : "var(--ink-2)", display: "block",
-                                 lineHeight: 1.6 }}>
+                                 lineHeight: 1.6,
+                                 ...(empty && hint ? { textAlign: "center" } : {}) }}>
           {empty ? (hint || "—") : text}
         </Note>
       </div>
@@ -213,9 +218,6 @@ export default function PhotoDetail({ project, frame: fid }) {
   // A tab opens for every layer that is in the plan, whatever became of it; one the frame never
   // asked for stays disabled rather than hidden -- what it could still become is worth seeing.
   const has = Object.fromEntries(LAYER_ORDER.map((layer) => [layer, stateOf(layer) !== null]));
-  // Every layer up to the open one: the column shows their file names, then the open layer's own
-  // prompt, then the ones under it (madde 75).
-  const shown = LAYER_ORDER.slice(0, LAYER_ORDER.indexOf(open) + 1);
   const openState = stateOf(open);
   // Only a layer that is really there can be made again, and only it can be edited.
   const holds = openState === "done";
@@ -326,7 +328,7 @@ export default function PhotoDetail({ project, frame: fid }) {
     return removeLayer([frame.id], layer).then((body) => {
       setBusy(false);
       setConfirming(false);
-      if (!body) return setRefusedAct(`${LAYER_WORD[layer]} silinemedi`);
+      if (!body) return setRefusedAct(`${LAYER_LABEL[layer]} silinemedi`);
       setOpen("photo");
     });
   }
@@ -419,16 +421,13 @@ export default function PhotoDetail({ project, frame: fid }) {
               {/* The same number the tile carries: the badge counts up from the bottom, so walking
                   down the gallery with › walks the counter down with it. */}
               <Field label="Sıra" value={`${frames.length - index} / ${frames.length}`} />
-              {/* One row per layer up to the open tab. With only the photo on screen the row keeps
-                  its old name -- and with nothing on disk yet it says the name is a plan. */}
-              {shown.map((layer) => (
-                <Field key={layer}
-                       label={shown.length === 1
-                         ? (produced ? "Dosya adı" : "Dosya adı (planlanan)")
-                         : LAYER_WORD[layer]}
-                       value={(frame.layers || {})[layer] || frame.file}
-                       muted={layer === "photo" && !produced} />
-              ))}
+              {/* The frame's own name, on every tab. The design took this row away too; it was put
+                  back because the page's header carries the project's name and not the frame's, so
+                  this is the only place the identity appears at all (karar 23). The layers' own
+                  file names are what really went. With nothing on disk yet the name is a plan. */}
+              <Field label={produced ? "Dosya adı" : "Dosya adı (planlanan)"}
+                     value={(frame.layers || {}).photo || frame.file}
+                     muted={!produced} />
               {open === "video" && madeIn && (
                 /* Information, never a control: changing the mode is making the video again, and
                    that is the form further down (madde 94). */
@@ -439,24 +438,22 @@ export default function PhotoDetail({ project, frame: fid }) {
               )}
             </div>
 
-            {/* The open layer's own prompt first, then the ones under it -- those are what it was
-                made from, and this page never asks them to be changed (madde 75). */}
-            {[...shown].reverse().map((layer) => (
-              layer === open && holds ? (
-                <PromptBox key={layer} label="Prompt" value={typed} changed={changed}
-                           onChange={(text) => setWords((kept) => ({ ...kept, [layer]: text }))} />
-              ) : (
-                <TextBlock key={layer}
-                           label={layer === open ? "Prompt" : `${LAYER_WORD[layer]} prompt`}
-                           text={(frame.prompts || {})[layer]
-                                 ?? (layer === "photo" ? frame.prompt : "")}
-                           // A layer still in the queue has no words yet, and nobody typed the
-                           // missing ones: the box says who will (madde 81).
-                           hint={layer === open && openState === "pending" && layer !== "photo"
-                             ? "üretim sırası gelince LLM yazacak"
-                             : null} />
-              )
-            ))}
+            {/* The open layer's own prompt, and nothing under it: what a layer was made from is no
+                longer this page's to show (madde 87). */}
+            {holds ? (
+              <PromptBox label="Prompt" value={typed} changed={changed}
+                         onChange={(text) => setWords((kept) => ({ ...kept, [open]: text }))} />
+            ) : (
+              <TextBlock label="Prompt"
+                         text={(frame.prompts || {})[open]
+                               ?? (open === "photo" ? frame.prompt : "")}
+                         // A layer still in the queue has no words yet, and nobody typed the
+                         // missing ones. Not the photo's: those words are the user's own, so a
+                         // notice about a prompt nobody has written would be false there.
+                         hint={openState === "pending" && open !== "photo"
+                           ? "Prompt yok — üretim sırası geldiğinde eklenecek."
+                           : null} />
+            )}
             {/* The negative belongs to the photo alone: video and sound jobs carry none. It stays
                 read-only: the design gives the user the prompt, not the whole submission. */}
             {open === "photo" && <TextBlock label="Negatif" text={frame.negative} />}
