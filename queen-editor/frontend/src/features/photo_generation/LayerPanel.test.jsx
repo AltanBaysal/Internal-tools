@@ -193,6 +193,64 @@ describe("LayerPanel — the production mode", () => {
   });
 });
 
+describe("LayerPanel — linking wants neighbours", () => {
+  const modeRow = (label) => screen.getByText(label).closest("button");
+  // 2_a and 0_a sit either side of 1_a in the gallery, so picking the two of them leaves a hole.
+  const SCATTERED = ["2_a", "0_a"];
+  const NEIGHBOURS = ["2_a", "1_a"];
+  const WHY = "Zincir ancak bitişik karelerde kapanır — arada seçilmemiş kare var.";
+
+  it("closes the option when the chosen frames are not neighbours", () => {
+    renderPanel({ selected: SCATTERED });
+
+    expect(modeRow("Sonrakine bağla").disabled).toBe(true);
+  });
+
+  it("says why, in one line, under the option it closed", () => {
+    renderPanel({ selected: SCATTERED });
+
+    expect(screen.getByText(WHY)).toBeTruthy();
+  });
+
+  it("opens the option again when the hole is closed", () => {
+    renderPanel({ selected: NEIGHBOURS });
+
+    expect(modeRow("Sonrakine bağla").disabled).toBe(false);
+    expect(screen.queryByText(WHY)).toBeNull();
+  });
+
+  it("leaves the option open when the scope is every frame with no video", () => {
+    // That set is scattered by its nature -- the frames between its members are the ones that
+    // already have a video -- and each of its frames still has a next one to end on.
+    renderPanel();
+
+    expect(modeRow("Sonrakine bağla").disabled).toBe(false);
+    expect(screen.queryByText(WHY)).toBeNull();
+  });
+
+  it("counts one frame as neighbours of itself", () => {
+    renderPanel({ selected: ["1_a"] });
+
+    expect(modeRow("Sonrakine bağla").disabled).toBe(false);
+  });
+
+  it("drops back to the plain mode when the selection breaks apart under it", async () => {
+    // Otherwise a row nobody can click keeps going to the queue: the gallery is where the
+    // selection changes, and the panel never hears a second click to correct itself.
+    const onQueue = vi.fn().mockResolvedValue({ added: 1 });
+    const { rerender } = renderPanel({ selected: NEIGHBOURS, onQueue });
+    fireEvent.click(modeRow("Sonrakine bağla"));
+
+    rerender(
+      <LayerPanel layer="video" frames={FRAMES} selected={SCATTERED} producer={null}
+                  onQueue={onQueue} onInstall={() => {}} />,
+    );
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).toHaveBeenCalledWith(["2_a.png", "0_a.png"], 1, "standard");
+  });
+});
+
 describe("LayerPanel — sound", () => {
   const SOUND_FRAMES = [
     done("0_a.png"),
