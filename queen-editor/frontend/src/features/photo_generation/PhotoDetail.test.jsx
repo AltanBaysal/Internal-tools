@@ -121,6 +121,72 @@ beforeEach(() => {
   vi.spyOn(window.HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
 });
 
+// The frame the worker is holding a layer of: its photo is on disk, its video is not yet.
+const RENDERING = { ...LAYERED, layers: { photo: "P0_0.png" }, owed: ["video"],
+                    prompts: { photo: "kırmızı elbise" } };
+
+describe("PhotoDetail — the stage", () => {
+  it("opens the stage from the top and drops the strip closer to it", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 103: the tabs sat 16px down over a stage padded evenly on all four sides, so the strip
+    // and the picture crowded the same band. The top opens, the other three stay.
+    const stage = document.querySelector("[data-stage]");
+    expect(stage.style.paddingTop).toBe("48px");
+    expect([stage.style.paddingRight, stage.style.paddingBottom, stage.style.paddingLeft])
+      .toEqual(["24px", "24px", "24px"]);
+    expect(document.querySelector("[data-strip]").style.top).toBe("12px");
+  });
+
+  it("puts a step between a waiting frame's two lines", async () => {
+    await open("P0_0", { frames: [{ id: "P0_0", file: "P0_0.png", status: "pending", prompt: "p",
+                                    layers: {}, failed: [], owed: ["photo"], prompts: {} }] });
+
+    // Fark 105: both lines read at the same size, so neither was the heading. The word is the
+    // heading now and the sentence under it steps back.
+    expect(screen.getByText("bekliyor").style.fontSize).toBe("14px");
+    expect(screen.getByText("henüz üretilmedi").style.fontSize).toBe("10px");
+    expect(screen.getByText("henüz üretilmedi").style.color).toBe("var(--ink-4)");
+  });
+
+  it("swaps the fonts of the failed stage's title and reason", async () => {
+    await open("P0_0", { frames: [BROKEN] });
+
+    // Fark 106: exactly the other way round from today. The two words are a heading and read as
+    // one; what the renderer said is machine output and reads as machine output.
+    expect(screen.getByText("Bu kare üretilemedi").className).toContain("wf-note");
+    expect(screen.getByText("CUDA out of memory — 3 kez denendi").className).toContain("wf-mono");
+  });
+
+  it("keeps the picture and lays a box over it while a layer is made", async () => {
+    await open("P0_0", { frames: [RENDERING],
+                         status: { status: "running", project: "düğün",
+                                   current: { id: "P0_0", layer: "video" } } });
+
+    // Fark 113: the photo used to be swapped for a spinner, so the one thing the user could still
+    // look at went away for the length of the render.
+    expect(screen.getByAltText("P0_0.png")).toBeTruthy();
+    expect(document.querySelector("[data-making]").textContent).toContain("video üretiliyor");
+    expect(document.querySelector("[data-making] .qe-dot--alive")).toBeTruthy();
+  });
+
+  it("still spins where there is no picture yet", async () => {
+    await open("2_a", { frames: MIXED, status: RUNNING });
+
+    // The exception the fark does not name: a photo being made has nothing to keep on screen, so
+    // the holder stays what it was.
+    expect(document.querySelector(".wf-spinner")).toBeTruthy();
+    expect(document.querySelector("[data-making]")).toBeNull();
+  });
+
+  it("says whose picture a copy frame is showing", async () => {
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    // Fark 112: the stage is full of the source's photo and nothing said so (karar 37).
+    expect(screen.getByText("kaynak foto · kopya kare")).toBeTruthy();
+  });
+});
+
 describe("PhotoDetail — the layer tabs", () => {
   it("opens on the photo and offers a tab per layer", async () => {
     await open("P0_0", { frames: [LAYERED] });
@@ -496,7 +562,7 @@ describe("PhotoDetail", () => {
     await open("1_a");
 
     fireEvent.click(screen.getByText("Sil"));
-    expect(screen.getByText("Bu kare silinsin mi?")).toBeTruthy();
+    expect(screen.getByText("1 kare silinsin mi?")).toBeTruthy();
     // Nothing but a picture on this one, so the window promises nothing beyond the frame.
     expect(screen.getByText("Bu işlem geri alınamaz.")).toBeTruthy();
     expect(removeFrames).not.toHaveBeenCalled();
@@ -754,6 +820,83 @@ describe("PhotoDetail — regenerating", () => {
   });
 });
 
+describe("PhotoDetail — what the page says it did", () => {
+  it("makes the queued pill beat", async () => {
+    regenerateFrame.mockResolvedValue({ frame: "P0_2" });
+    await open("P0_0", { frames: [LAYERED] });
+
+    await act(async () => { fireEvent.click(regenButton()); });
+
+    // Fark 107: the same live dot the gallery's own running pill carries. Its place does not
+    // change -- the corner is fixed to the stage and a photo drawn to fit has no edge to aim at
+    // (karar 39).
+    expect(screen.getByText("yeniden üretilecek — kuyrukta")
+      .querySelector(".qe-dot--alive")).toBeTruthy();
+  });
+
+  it("says a retry was a retry and not a new frame", async () => {
+    retryFrame.mockResolvedValue({ job: "running" });
+    await open("P0_0", { frames: [BROKEN] });
+
+    await act(async () => { fireEvent.click(screen.getByText("Tekrar dene — bu kareye")); });
+
+    // Fark 108: both presses used to leave the same sentence in the corner, and only one of them
+    // opens a frame of its own.
+    expect(screen.getByText("kuyrukta — tekrar denenecek")).toBeTruthy();
+    expect(screen.queryByText("yeniden üretilecek — kuyrukta")).toBeNull();
+  });
+
+  it("says on the button that a retry opens no new frame", async () => {
+    await open("P0_0", { frames: [BROKEN] });
+
+    // Fark 109: retry is the one exception to uret = ekle, and the button is where that is read.
+    expect(screen.getByText("Tekrar dene — bu kareye")).toBeTruthy();
+  });
+
+  it("offers a second way out of a failed layer", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED, layers: { photo: "P0_0.png" }, failed: ["video"],
+                                    errors: { video: "ComfyUI 500 — 3 kez denendi" },
+                                    prompts: { photo: "kırmızı elbise" } }] });
+
+    fireEvent.click(tab("Video"));
+
+    // Fark 100: a copy with no video is pointless, so the way out stands beside the way back.
+    expect(screen.getByText("Tekrar dene — bu kareye")).toBeTruthy();
+    expect(screen.getByText("Kareyi sil")).toBeTruthy();
+  });
+
+  it("puts the way out of the queue on the waiting layer's own tab", async () => {
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    fireEvent.click(tab("Video"));
+
+    // Fark 99: the button lived on the photo tab alone, which is not the tab the user is on when
+    // they are looking at what they are waiting for. The words are the photo tab's own -- the
+    // queue takes frames out, not layers (karar 38).
+    expect(screen.getByText("Kuyruktan çıkar")).toBeTruthy();
+  });
+
+  it("draws the regenerate button full size and the delete one small", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 110: one of the two is what the page is for and the other is the way out. Drawn at the
+    // same size, they said they weigh the same.
+    expect(regenButton().className).toContain("wf-btn--hl");
+    expect(regenButton().className).not.toContain("wf-btn--sm");
+    expect(screen.getByText("Sil").closest("button").className).toContain("wf-btn--sm");
+  });
+
+  it("drops the red from the delete button while the frame is being made", async () => {
+    await open("2_a", { frames: MIXED, status: RUNNING });
+
+    // Fark 111: a disabled button in the destructive colour reads as a refusal rather than a wait.
+    const bin = screen.getByText("Kuyruktan çıkar").closest("button");
+    expect(bin.disabled).toBe(true);
+    expect(bin.style.color).not.toBe("var(--danger)");
+    expect(bin.style.borderColor).not.toBe("var(--danger)");
+  });
+});
+
 describe("PhotoDetail — one destructive action per tab", () => {
   it("offers the frame on the photo tab and the layer on the others", async () => {
     await open("P0_0", { frames: [LAYERED] });
@@ -777,6 +920,27 @@ describe("PhotoDetail — one destructive action per tab", () => {
     expect(screen.getByText("Video silinsin mi?")).toBeTruthy();
     expect(screen.getByText(/üzerindeki ses kalıcı olarak silinir/)).toBeTruthy();
     expect(removeLayer).not.toHaveBeenCalled();
+  });
+
+  it("names the file the layer confirm is about to take", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByText("Videoyu sil — kare kalır"));
+
+    // Fark 101: a frame carries more than one video across its history, and the window that says
+    // one of them is going should say which.
+    expect(screen.getByText(/^P0_0_V1_0\.mp4 ve üzerindeki ses/)).toBeTruthy();
+  });
+
+  it("counts the frame in the confirm the way the selection bar does", async () => {
+    await open("1_a");
+
+    fireEvent.click(screen.getByText("Sil"));
+
+    // Fark 102: one window, one language. The bar says 2 kare silinsin mi and this said something
+    // else about one.
+    expect(screen.getByText("1 kare silinsin mi?")).toBeTruthy();
   });
 
   it("says what a sound costs instead", async () => {
@@ -837,7 +1001,7 @@ describe("PhotoDetail — a frame that blew up", () => {
     retryFrame.mockResolvedValue({ job: "running" });
     await open("P0_0", { frames: [BROKEN] });
 
-    await act(async () => { fireEvent.click(screen.getByText("Tekrar dene")); });
+    await act(async () => { fireEvent.click(screen.getByText("Tekrar dene — bu kareye")); });
 
     expect(retryFrame).toHaveBeenCalledWith("düğün", "P0_0");
     expect(screen.getByText("Kuyruğa eklendi").closest("button").disabled).toBe(true);
@@ -897,7 +1061,7 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
 
     // Its identity, not the picture it shares with its source.
     expect(removeFrames).toHaveBeenCalledWith("düğün", ["P0_1"]);
-    expect(screen.queryByText("Bu kare silinsin mi?")).toBeNull();
+    expect(screen.queryByText("1 kare silinsin mi?")).toBeNull();
   });
 });
 
@@ -1029,5 +1193,53 @@ describe("PhotoDetail — the negative prompt", () => {
 
     expect(screen.getByText("Foto negatif prompt'u")).toBeTruthy();
     expect(screen.getByText("—")).toBeTruthy();
+  });
+
+  it("lets the negative be edited", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 98: the prompt was the user's and the negative was not, though the two travel into the
+    // same job together.
+    fireEvent.change(screen.getByDisplayValue("bulanık"), { target: { value: "bulanık, gürültü" } });
+
+    expect(screen.getByDisplayValue("bulanık, gürültü")).toBeTruthy();
+  });
+
+  it("marks the negative's box once it is no longer the frame's own", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    const box = screen.getByDisplayValue("bulanık");
+    expect(box.style.borderColor).not.toBe("var(--accent)");
+
+    fireEvent.change(box, { target: { value: "bulanık, gürültü" } });
+
+    expect(screen.getByDisplayValue("bulanık, gürültü").style.borderColor).toBe("var(--accent)");
+  });
+
+  it("sends the negative that was typed", async () => {
+    regenerateFrame.mockResolvedValue({ frame: "P1_0" });
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.change(screen.getByDisplayValue("bulanık"), { target: { value: "gürültü" } });
+    await act(async () => { fireEvent.click(regenButton()); });
+
+    // An accent border promising a different frame while the negative never leaves the screen
+    // would be the box lying about what it did.
+    expect(regenerateFrame)
+      .toHaveBeenCalledWith("düğün", "P0_0", "photo", "kırmızı elbise", undefined, "gürültü");
+  });
+
+  it("reads a prompt in the same face the panel reads it in", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // Fark 117: the visual language says a prompt box is monospace wherever it stands, and the
+    // production panel already obeys it. The same words read in two faces on two screens.
+    expect(screen.getByDisplayValue("kırmızı elbise").className).toContain("wf-mono");
+  });
+
+  it("keeps the face when the box is only there to be read", async () => {
+    await open("3_a", { frames: MIXED });
+
+    expect(screen.getByText("dördüncü").className).toContain("wf-mono");
   });
 });

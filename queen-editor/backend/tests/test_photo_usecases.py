@@ -2139,6 +2139,30 @@ def test_only_the_words_count_as_a_change():
     assert born == "P0_1"
 
 
+def test_the_new_photo_carries_the_negative_it_was_given():
+    # Fark 98: the negative became the user's too, so what goes down is the box's own words and not
+    # the line the source frame happened to be made from.
+    store, record, plan_store = video_project((0, "a"))
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.PHOTO, "p", negative="bulanık, gürültü")
+
+    assert plan_store.appended[-1][0]["negative"] == "bulanık, gürültü"
+
+
+def test_a_layer_over_the_photo_carries_no_negative_whatever_it_is_given():
+    # Only a photo is made from a prompt and a negative of its own; the layers over it are made from
+    # what is under them. The editable box is the photo tab's alone and this is the rule behind it.
+    store, record, plan_store = video_project((0, "a"))
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.VIDEO, "p", negative="bulanık")
+
+    assert plan_store.appended[-1][0]["negative"] == ""
+
+
 def test_the_new_frame_stands_next_to_its_source():
     store, record, plan_store = video_project((0, "a"), (1, "a"))
     order = FakeOrderStore()

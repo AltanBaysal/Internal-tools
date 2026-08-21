@@ -1095,7 +1095,7 @@ madde madde verildi.
 
 ### Koşu sırasında verilen ek kararlar
 
-*(21 Ağustos 2026, 13, 15, 20 ve 21. madde uygulanırken.)*
+*(21 Ağustos 2026, 13, 15, 20, 21 ve 22. madde uygulanırken.)*
 
 | # | Karar | Kapattığı madde |
 |---|---|---|
@@ -1108,6 +1108,10 @@ madde madde verildi.
 | 33 | **Kopya ikonu cevabını kendi adında verir.** Tasarım yalnız "basınca metin panoya alınır" diyor; basıştan sonrasını söylemiyor. Sessizlik cevap değil, ve reddedilen bir pano sessizce geçerse kullanıcı metni aldığını sanır. İkon 2,5 saniye boyunca **Kopyalandı** / **Kopyalanamadı** adını alıyor ve vurgu ya da tehlike rengine dönüyor — `RawOutput`'un kelimeleri ve süresi. Panele satır eklemiyor: başlığın yanında beliren bir kelime altındaki kutuyu aşağı iterdi, ki fark 89'un derdi tam olarak buydu. | 90 |
 | 34 | **Kutu boşken ikon basılamaz.** Boş bir kutuyu kopyalayıp "Kopyalandı" demek yalan olurdu. İkonu gizlemek de bir cevap ama kullanıcı yazıp sildikçe başlık seğirir. İkon yerinde duruyor ve pasif kalıyor — evin pasif düğme dili. | 90 |
 | 35 | **Panel kendi içinde kayar.** Kutular sabit yüksekliğe geçince sütunun toplam boyu da sabitleniyor. Tasarım "panel uzayıp altındaki butonları aşağı itmez" diyor ama panelden kısa bir pencerede ne olacağını söylemiyor. Sütun kendi içinde kayıyor; yoksa silme düğmesi ekranın altında, ulaşılamayacak bir yerde kalırdı. | 89 |
+| 36 | **Oklar dizinin ucunda sönük kalır.** Fark okların her karede tam opak ve tıklanabilir durmasını istiyor ve kendi notu "uçta basılınca ne olacağını tasarım söylemiyor" diyor. Tasarım başka bir yerde uçların dönmediğini söylüyor; dönmüyorsa uçtaki oka basınca hiçbir şey olmaz, ve hiçbir şey yapmayan tam opak bir ok orada bir kare olduğunu söyler. Sönüklük o cümlenin dürüst karşılığı. Gözlem ortadaki bir kareyi çizen artboard'dan geliyor olmalı — orada iki ok da zaten tam opak. | 104 |
+| 37 | **Kuyruktaki kopya karede şerit duruyor, etiket geliyor.** Farkın şeridi hiç çizmeme yarısı alınmıyor: aynı listenin 92. maddesi kuyrukta bekleyen katmanın sekmesi açılınca kutusunda ne yazacağını tarif ediyor (19. maddede uygulandı), 99. maddesi de düğmenin sekmede durmasını istiyor — şerit kalkarsa ikisi de ulaşılamaz olur. Etiket yarısı alınıyor: sahnedeki resmin bu kareye ait olmadığını bugün hiçbir şey söylemiyor, köşeye "kaynak foto · kopya kare" giriyor. | 112 |
+| 38 | **"Kuyruktan çıkar — kare kalır" yazılmıyor.** Kuyruk kareyi çıkarıyor, katmanı değil: `remove_frames.py` kimliklerle çalışıyor ve üretilmemiş bir kareyi kuyruktan düşürüyor. Bir katmanı kuyruktan alıp kareyi bırakan bir basış yok, dolayısıyla "kare kalır" diyen bir düğme motorun yapamadığını vaat ederdi. Farkın asıl şikâyeti — düğmenin yalnız foto sekmesinde olması — düzeltiliyor. | 99 |
+| 39 | **Hap fotoğrafın içine inmiyor.** Köşe sahneye göre konumlanıyor, fotoğrafa göre değil: resim sahnenin ortasında `contain` ile duruyor ve sol kenarının nerede olduğu ancak yerleşimden sonra belli. Tutturulacak bir kenar yok. Hapın nabız atan noktası alınıyor, konumu bugünkü yerinde kalıyor. | 107 |
 
 ### Karar gerektirmeyenler
 

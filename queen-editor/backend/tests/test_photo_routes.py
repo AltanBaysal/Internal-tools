@@ -611,6 +611,20 @@ def test_a_regenerate_mode_nobody_knows_is_refused(tmp_path):
     resp = regenerate_request(client, "P0_0", layer="video", mode="kelebek")
 
     assert resp.status_code == 400
+
+
+def test_the_body_negative_reaches_the_new_frames_line(tmp_path):
+    """Proof that the box's own words travel: an unchanged prompt would otherwise keep the source's
+    negative, and the screen would be promising an edit that never left it."""
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    client.post("/api/projects/düğün/regenerate",
+                json={"frame": "P0_0", "layer": "photo", "prompt": "a",
+                      "negative": "bulanık, gürültü"})
+
+    rows = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert rows[0]["negative"] == "bulanık, gürültü"
     assert resp.get_json()["error"]
 
 
