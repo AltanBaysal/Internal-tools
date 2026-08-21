@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 3/31
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 4/31
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -82,7 +82,7 @@ bağımlılıktan değil aynı tarafta olmasından geldi.
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 4 | **Video panelinde Üretim modu seçicisi.** Kapsam ile Varyant arasına gelir; varsayılanı Standart, diğerleri Loop ve Sonrakine bağla. Ses panelinde doğmaz. | Panelden mod seçilip kuyruğa eklenince iş o modla kaydediliyor; ses panelinde satır hiç görünmüyor. | İstek 3 · Fark 22, 23, 34 |
+| 4 | ✅ **Video panelinde Üretim modu seçicisi.** Kapsam ile Varyant arasına gelir; varsayılanı Standart, diğerleri Loop ve Sonrakine bağla. Ses panelinde doğmaz. | Panelden mod seçilip kuyruğa eklenince iş o modla kaydediliyor; ses panelinde satır hiç görünmüyor. | İstek 3 · Fark 22, 23, 34 |
 | 5 | **Sonrakine bağla ardışık seçim istiyor.** Galeride ardışık olmayan kareler seçiliyken seçenek pasifleşir ve altında sebebi tek satır yazar. | Dağınık seçimle seçenek tıklanamıyor ve sebep görünüyor; ardışık seçimde açılıyor. | İstek 3 · Fark 24 |
 | 6 | **Tahmin ve onay metinleri moda göre değişiyor.** Butonun altındaki tahmin ve eklendikten sonraki yeşil onay, seçilen modu söyler. | Üç modda üç ayrı cümle çıkıyor; hiçbirinde eski tek kalıp kalmamış. | İstek 3 · Fark 25, 26 |
 | 7 | **Galeride loop rozeti.** Loop modunda üretilmiş videosu olan kare, "video" yerine "loop" yazan rozeti gösterir; ikisi aynı yeri paylaşır. | Loop videolu karede "loop", standart videolu karede "video" okunuyor; ikisi bir arada hiç görünmüyor. | İstek 3 · Fark 63 |

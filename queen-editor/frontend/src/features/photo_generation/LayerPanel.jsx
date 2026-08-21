@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
+import { MODES, STANDARD } from "./production_modes.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
@@ -74,12 +75,32 @@ function ScopeRow({ label, count, active, disabled, onPick }) {
   );
 }
 
+/** One production mode, drawn the way a scope row is drawn -- with nothing on the right.
+ *
+ * Not ScopeRow with an empty count: a mode has nothing to count, and saying so with a missing
+ * argument would leave the reader deciding what an absent number means.
+ */
+function ModeRow({ label, active, onPick }) {
+  return (
+    <button type="button" onClick={onPick}
+            className="wf-stroke"
+            style={{ display: "flex", alignItems: "center", padding: "8px 10px", background: "none",
+                     cursor: "pointer", borderColor: active ? "var(--accent)" : "var(--border)",
+                     opacity: active ? 1 : 0.4, width: "100%" }}>
+      <Note size={12} style={{ color: "var(--ink-2)" }}>{label}</Note>
+    </button>
+  );
+}
+
 // Artboard: the photo panel's shape with a different subject. What it does not ask for is the
 // point -- the prompt is written by a language model when the job's turn comes, and the length is
 // fixed, so the only questions left are which frames, and how many of each.
 export default function LayerPanel({ layer, frames, selected, producer, onQueue, onInstall }) {
   const words = WORDS[layer];
   const [scope, setScope] = useState("missing");
+  // Kept by both panels though only the video one shows the row: a sound ends nowhere, so it has
+  // nothing to choose -- and one call shape means the server never asks where a request came from.
+  const [mode, setMode] = useState(STANDARD);
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState("1");
   const [submitting, setSubmitting] = useState(false);
@@ -113,7 +134,8 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
     setSubmitting(true);
     setAdded(null);
     clearTimeout(fade.current);
-    onQueue(scope === "selected" ? inSelection.map((frame) => frame.file) : null, Number(variants))
+    onQueue(scope === "selected" ? inSelection.map((frame) => frame.file) : null, Number(variants),
+            mode)
       .then((body) => {
         if (body && typeof body.added === "number") {
           setAdded(body.added);
@@ -140,7 +162,18 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
                   disabled={!chosen.length} onPick={() => setScope("selected")} />
       </div>
 
-      {/* The design's own order: scope, then how many of each, then the button. */}
+      {/* Only a video ends on a picture, so only the video panel has this to ask. */}
+      {layer === "video" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} style={LABEL}>Üretim modu</Mono>
+          {MODES.map((one) => (
+            <ModeRow key={one.id} label={one.label} active={mode === one.id}
+                     onPick={() => setMode(one.id)} />
+          ))}
+        </div>
+      )}
+
+      {/* The design's own order: scope, then the mode, then how many of each, then the button. */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <Mono size={11} style={{ ...LABEL, flex: 1 }}>Varyant</Mono>
         <input

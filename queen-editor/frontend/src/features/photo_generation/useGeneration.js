@@ -190,8 +190,8 @@ export function useGeneration(project) {
 
   // Hang a layer on every frame in scope. Resolves with the server's answer so the panel can quote
   // how many the queue took, or null when it was refused.
-  const queueLayer = useCallback((kind, files, variants) => (
-    postLayer(project, kind, files, variants)
+  const queueLayer = useCallback((kind, files, variants, mode) => (
+    postLayer(project, kind, files, variants, mode)
       .then((body) => {
         if (!alive.current) return null;
         startPolling(body?.frames);

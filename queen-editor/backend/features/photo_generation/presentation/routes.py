@@ -6,10 +6,10 @@ lives in exactly one place (the domain).
 """
 from flask import Blueprint, jsonify, request, send_from_directory
 
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.export_runner import MODES
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
+from backend.features.photo_generation.domain.usecases.queue_layer import InvalidMode, InvalidScope
 from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing
 from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
@@ -134,13 +134,16 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # selection.
         files = body.get("files")
         try:
-            # No "variants" key means one per frame: a client older than the box asks for exactly
-            # what it always asked for.
-            added = queue_layer(project, kind, files=files, variants=body.get("variants", 1))
+            # No "variants" key means one per frame, and no "mode" key means a plain video: a
+            # client older than either box asks for exactly what it always asked for.
+            added = queue_layer(project, kind, files=files, variants=body.get("variants", 1),
+                                mode=body.get("mode", production_mode.STANDARD))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except InvalidScope as exc:
             return jsonify({"error": str(exc), "field": "files"}), 400
+        except InvalidMode as exc:
+            return jsonify({"error": str(exc), "field": "mode"}), 400
         except InvalidVariants as exc:
             return jsonify({"error": str(exc), "field": "variants"}), 400
         except Busy as exc:

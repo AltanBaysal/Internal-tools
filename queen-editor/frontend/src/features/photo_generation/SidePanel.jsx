@@ -143,7 +143,7 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         {(open === "video" || open === "audio") && (
           <LayerPanel layer={open} frames={frames} selected={selected}
                       producer={(producers?.producers || []).find((p) => p.id === open)}
-                      onQueue={(files, variants) => onQueueLayer(open, files, variants)}
+                      onQueue={(files, variants, mode) => onQueueLayer(open, files, variants, mode)}
                       onInstall={producers?.install} />
         )}
         {open === "queue" && (
