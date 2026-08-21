@@ -196,6 +196,16 @@ export async function removeFrames(project, frames) {
   });
 }
 
+// The twins of the frames named, born beside them. Identities again, the same as the delete call,
+// and the answer carries both their names and the gallery they landed in.
+export async function copyFrames(project, frames) {
+  return request(`/api/projects/${encodeURIComponent(project)}/frames/copy`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ frames }),
+  });
+}
+
 // 204 with no body: request() reads nothing back and answers null, which is the whole result.
 export async function deleteProject(project) {
   return request(`/api/projects/${encodeURIComponent(project)}`, { method: "DELETE" });

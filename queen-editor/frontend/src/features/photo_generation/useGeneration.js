@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   cancelGeneration,
+  copyFrames,
   generateBatch,
   getStatus,
   listFrames,
@@ -274,6 +275,22 @@ export function useGeneration(project) {
     [project, refreshFrames],
   );
 
+  // Twins of the frames named. Nothing is produced, so nothing starts running -- the answer carries
+  // the gallery they landed in, which is one round-trip instead of two. Resolves with the twins'
+  // own names so the screen can move the selection onto them, or null when it was refused.
+  const copyPhotos = useCallback((frames) => (
+    copyFrames(project, frames)
+      .then((body) => {
+        if (!alive.current) return null;
+        if (body?.frames) setFrames(body.frames);
+        return body?.copies || [];
+      })
+      .catch((err) => {
+        if (alive.current) setError(failureText(err));
+        return null;
+      })
+  ), [project]);
+
   // Only what the server says really went leaves the screen: a name that was already gone changes
   // nothing here, and the gallery keeps matching Drive. Both lists count -- a photo that left the
   // disk and a frame that only left the queue are equally out of the gallery.
@@ -339,5 +356,5 @@ export function useGeneration(project) {
   return { job: told, known, frames, error, errorField, stopping, queue, failures,
            current, currentLayer,
            retryAll, queueLayer, regenerate, removeLayer,
-           generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
+           generate, stop, resume, cancel, retry, clearError, reorder, removePhotos, copyPhotos };
 }

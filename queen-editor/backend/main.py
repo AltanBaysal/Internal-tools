@@ -19,6 +19,7 @@ from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
+from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
@@ -170,6 +171,8 @@ _photo_bp = make_photo_generation_blueprint(
     cancel_export=_cancel_export,
     remove_frames=partial(remove_frames, _photo_record, _photo_store, _plan_store, _order_store,
                           lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+    copy_frames=partial(copy_frames, _photo_record, _photo_store, _plan_store, _order_store,
+                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     photo_dir=_photo_store.photo_dir,
 )
 

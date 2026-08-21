@@ -148,7 +148,7 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
 export default function Gallery({ project, frames, current, currentLayer, running, onReorder,
-                                  onDelete, onRetry, onSelectionChange }) {
+                                  onDelete, onCopy, onRetry, onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -175,7 +175,17 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
 
   useEffect(() => {
     if (!selecting) return undefined;
-    const onKey = (e) => { if (e.key === "Escape" && !confirming) closeSelection(); };
+    const onKey = (e) => {
+      // The window owns the keyboard while it is up: both of these belong to the gallery behind it.
+      if (confirming) return;
+      if (e.key === "Escape") closeSelection();
+      if (e.key.toLowerCase() === "d" && e.ctrlKey) {
+        // The browser's own bookmark shortcut, taken: over a selection Ctrl + D means duplicate,
+        // and a bookmark window is never what was meant.
+        e.preventDefault();
+        handleCopy();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
@@ -204,6 +214,23 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
     });
   }
 
+  // Who is in the selection, split by what they are: only a produced frame owns layers to twin or
+  // files to delete. Worked out above the empty gallery's own answers, because the shortcut is
+  // listened for from up here -- and a list that has not arrived yet holds nobody.
+  const byId = new Map((frames || []).map((frame) => [frame.id, frame]));
+  const chosenPhotos = selected.filter((fid) => byId.get(fid)?.status === "done");
+  const chosenQueued = selected.filter((fid) => byId.get(fid)?.status !== "done");
+
+  function handleCopy() {
+    // Only the produced ones multiply: a pending frame has no layer to twin (Fark 79).
+    if (!chosenPhotos.length) return;
+    onCopy(chosenPhotos).then((copies) => {
+      // The selection moving onto the twins is how the copy is noticed -- there is no notification
+      // of its own. A refused request answers with nothing and the selection stays where it was.
+      if (copies?.length) setSelected(copies);
+    });
+  }
+
   if (frames === null) {
     // First fetch still flying: "empty" is not known yet, so spin instead of a false
     // "henüz kare yok" (spec §2.3).
@@ -227,9 +254,6 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   // Everything but the frame the worker is holding can be selected: a disabled ring would raise
   // "why can I not select this?", and a ring that is simply not there raises nothing.
   const selectable = frames.filter((frame) => frame.id !== current);
-  const byId = new Map(frames.map((frame) => [frame.id, frame]));
-  const chosenPhotos = selected.filter((fid) => byId.get(fid)?.status === "done");
-  const chosenQueued = selected.filter((fid) => byId.get(fid)?.status !== "done");
   // Three windows, because a pending frame is not a produced one: telling someone that 5 frames
   // will be deleted when 3 of them do not exist yet would be a lie, and "cannot be undone" is only
   // true of the ones that do. The mixed one is the title alone -- with both halves named there, a
@@ -408,6 +432,12 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                    : selectable.map((frame) => frame.id))}>
               Tümünü seç
             </Btn>
+            {/* Only while the selection holds something produced: a bar over nothing but pending
+                frames offers no copy at all, because there is nothing to twin (Fark 79). Frameless,
+                like the button beside it -- the destructive one is the only outlined one here. */}
+            {chosenPhotos.length > 0 && (
+              <Btn sm ghost onClick={handleCopy}>Kopyala</Btn>
+            )}
             <Btn sm onClick={() => setConfirming(true)}
                  style={{ color: "var(--danger)", borderColor: "var(--danger)",
                           background: "none" }}>

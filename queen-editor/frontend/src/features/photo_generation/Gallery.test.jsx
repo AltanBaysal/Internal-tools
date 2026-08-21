@@ -568,7 +568,9 @@ describe("Gallery — copying a card", () => {
     fireEvent.click(checkOf("1_a.png"));
 
     const bar = screen.getByText("1 seçili").parentElement;
-    const words = [...bar.querySelectorAll("button")].map((one) => one.textContent);
+    // Trimmed: Sil carries its trash glyph, so its text starts with a space. What is being read
+    // here is the order of the words, not the spacing around them.
+    const words = [...bar.querySelectorAll("button")].map((one) => one.textContent.trim());
     expect(words).toEqual(["Tümünü seç", "Kopyala", "Sil", "Vazgeç"]);
   });
 

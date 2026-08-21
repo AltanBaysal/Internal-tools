@@ -36,6 +36,29 @@ def legacy_frame_id(number, letter):
     return f"{number}_{letter}"
 
 
+# A twin's identity is its source's with this in front: C1_P11_1 was copied from P11_1. At the
+# front rather than the back, because a suffix reads as another layer round -- _V1_0 and _S1_0 are
+# exactly that (madde 78).
+COPY = "C"
+
+
+def copy_id(base, index):
+    """The identity the `index`th twin of `base` takes."""
+    return f"{COPY}{index}_{base}"
+
+
+def copy_parts(name):
+    """(which copy, the identity it was copied from); a name with no prefix is its own base.
+
+    One prefix, never nested: a copy of a copy is another copy of the same base, so the head is
+    read off once and what is left is the base itself.
+    """
+    head, sep, rest = name.partition("_")
+    if sep and head.startswith(COPY) and head[1:].isdigit() and rest:
+        return int(head[1:]), rest
+    return None, name
+
+
 def photo_file(frame):
     """The name a frame's photo is stored under."""
     return f"{frame}.png"
@@ -86,7 +109,10 @@ def _parts(name):
     Both schemes are read in this one place: they are two spellings of the same pair, and a second
     copy of the parsing would let them drift apart.
     """
-    stem = frame_id_of(name)
+    # The prefix comes off first: a twin holds its source's picture, so it belongs to the family of
+    # the prompt that made that picture. Left on, the name fits neither scheme and the frame would
+    # have no number at all.
+    stem = copy_parts(frame_id_of(name))[1]
     if stem.startswith("P"):
         number, _, variant = stem[1:].partition("_")
         if number.isdigit() and variant.isdigit():

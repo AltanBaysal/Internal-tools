@@ -10,6 +10,7 @@ from backend.features.photo_generation.domain import layers, production_mode, qu
 from backend.features.photo_generation.export_runner import MODES
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.production_mode import InvalidMode
+from backend.features.photo_generation.domain.usecases.copy_frames import InvalidFrames
 from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
 from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing, NoNextFrame
 from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
@@ -36,7 +37,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
                                     regenerate, remove_layer, list_frames, list_models, save_order,
                                     export_summary, export_state, run_export, cancel_export,
-                                    remove_frames, photo_dir):
+                                    remove_frames, copy_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -266,6 +267,22 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         except OSError as exc:
             # The operating system's own words -- never guess the cause.
             return jsonify({"error": str(exc)}), 500
+
+    # Beside the delete above, and the same shape: a list of identities in the body, because a copy
+    # frame shares its source's picture and a file name would not say which of the two was asked
+    # for.
+    @bp.post("/api/projects/<project>/frames/copy")
+    def copy(project):
+        body = request.get_json(silent=True) or {}
+        try:
+            answer = copy_frames(project, body.get("frames"))
+        except InvalidFrames as exc:
+            return jsonify({"error": str(exc)}), 400
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        # The gallery comes back with the twins: the screen would ask for exactly this in a second
+        # round-trip, and until it lands the copies it was just told about are nowhere.
+        return jsonify({**answer, "frames": list_frames(project)})
 
     @bp.get("/photos/<project>/<filename>")
     def serve_photo(project, filename):
