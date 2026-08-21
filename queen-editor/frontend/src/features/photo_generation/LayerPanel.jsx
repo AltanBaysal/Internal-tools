@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
-import { LINKED, MODES, STANDARD } from "./production_modes.js";
+import { LINKED, LOOP, MODES, STANDARD } from "./production_modes.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
@@ -22,6 +22,9 @@ const WORDS = {
     // build one from the other.
     noun: "video",
     own: "videosunu",
+    // The adjective for a frame that already carries this layer. Only the copy warning needs it,
+    // and the two panels say it differently enough that neither can be built from the other.
+    held: "videolu",
     // Every video is five seconds and there is no setting for it in this version (madde 28).
     note: "Her video 5 saniye — bu sürümde sabit.",
     empty: "Tüm karelerin videosu var — üretilecek bir şey yok.",
@@ -32,10 +35,22 @@ const WORDS = {
     missing: "Videosu olup sesi olmayan kareler",
     noun: "ses",
     own: "sesini",
+    held: "sesi olan",
     note: "Ses videonun süresince üretilir.",
     empty: "Videosu olup sesi olmayan kare yok — üretilecek bir şey yok.",
     Glyph: SoundGlyph,
   },
+};
+
+/** What a mode calls what it makes, and what it promises about it.
+ *
+ * No row for the plain mode: its words are the layer's own -- video / ses, videosunu / sesini --
+ * and this table has no layer, so writing it here would mean writing those words a second time,
+ * once per panel. A mode with no row falls back to the layer, which is what plain means.
+ */
+const MODE_WORDS = {
+  [LOOP]: { noun: "loop video", tail: "her video kendine döner." },
+  [LINKED]: { noun: "bağlı video", tail: "her video sıradaki karede biter." },
 };
 
 /** The frames this layer can be hung on.
@@ -127,6 +142,9 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState("1");
   const [submitting, setSubmitting] = useState(false);
+  // What the queue took and what it was told to make: both from the moment the request went out.
+  // The card stands for ten seconds and the mode row is one click away, so reading the live mode
+  // would let it report a run nobody asked for. null still means no card.
   const [added, setAdded] = useState(null);
   const fade = useRef(null);
 
@@ -151,6 +169,13 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   const scoped = scope === "selected" ? inSelection : missing;
   // What the queue would take: every frame in scope, once per variant.
   const owed = scoped.length * (Number(variants) || 0);
+  // Frames in scope that already carry this layer. Production does not write over one -- it makes
+  // a copy frame beside it -- and nothing on screen said so until now. Read from the scope rather
+  // than the raw selection: Videosu olmayanlar leaves those frames out by its own definition, so
+  // the count is zero there without a second rule about which scope may warn.
+  const copies = scoped.filter((frame) => (frame.layers || {})[layer]).length;
+  const said = MODE_WORDS[mode] || { noun: words.noun,
+                                     tail: `her kare kendi ${words.own} alır.` };
   // Only on the selection's own scope: "Videosu olmayanlar" is scattered by nature -- what sits
   // between its members already has a video -- and each of its frames still has a real next.
   const linkingClosed = scope === "selected" && !neighbours(frames, chosen);
@@ -167,11 +192,12 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
     setSubmitting(true);
     setAdded(null);
     clearTimeout(fade.current);
+    const sent = mode;
     onQueue(scope === "selected" ? inSelection.map((frame) => frame.file) : null, Number(variants),
-            mode)
+            sent)
       .then((body) => {
         if (body && typeof body.added === "number") {
-          setAdded(body.added);
+          setAdded({ count: body.added, mode: sent });
           fade.current = setTimeout(() => setAdded(null), CONFIRM_MS);
         }
       })
@@ -246,12 +272,17 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
                         borderColor: "var(--ok)", background: "var(--ok-bg)" }}>
             <Note size={12} style={{ color: "var(--ok)" }}>✓</Note>
             <Note size={12} style={{ color: "var(--ok)" }}>
-              {added} {words.noun} kuyruğa eklendi
+              {/* Both tables carry a noun, so the line never asks which one it read from. */}
+              {added.count} {(MODE_WORDS[added.mode] || words).noun} kuyruğa eklendi
             </Note>
           </div>
         ) : owed ? (
+          // The copy warning takes the mode's tail, never its head: the mode is already named in
+          // what comes out, so what is given up is an echo of the marked row just above.
           <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-            {owed} {words.noun} üretilecek — her kare kendi {words.own} alır.
+            {owed} {said.noun} üretilecek — {copies
+              ? `${words.held} ${copies} kare için yeniler kopya kare olur, eskisi durur.`
+              : said.tail}
           </Note>
         ) : (
           // Nothing left to do is a result, not a fault: no danger colour anywhere in this line.
