@@ -787,6 +787,17 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
     expect(screen.getByText("video kuyrukta")).toBeTruthy();
   });
 
+  it("keeps the stage's own label in the corner", async () => {
+    // The corner became a box of its own so the gallery could stack two labels in it (Fark 64).
+    // This page shows one at a time -- and it has to be the same corner, or the label lands
+    // wherever the stage's own flexbox puts it.
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    const corner = document.querySelector("[data-corner]");
+    expect(corner.style.top).toBe("6px");
+    expect(corner.style.left).toBe("6px");
+  });
+
   it("opens the tab of the layer it is waiting for, with an empty box", async () => {
     await open("P0_1", { frames: [QUEUED_COPY] });
 

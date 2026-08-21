@@ -1095,11 +1095,15 @@ madde madde verildi.
 
 ### Koşu sırasında verilen ek kararlar
 
-*(21 Ağustos 2026, 13. madde uygulanırken.)*
+*(21 Ağustos 2026, 13. ve 15. madde uygulanırken.)*
 
 | # | Karar | Kapattığı madde |
 |---|---|---|
 | 27 | **Seçim barı alt kenardan 28 pikselde kalır.** Tasarımın istediği 20, kullanıcının v3'te "en dibe yapışık" dediği değerin ta kendisi; 28 o bulguya (v3 madde 108) verilmiş cevaptır ve v5'in 33. görev spec'inde yazılıdır. Tasarımın 20'si tek artboard'dan gelen zayıf sinyal. Bu madde 2. bölümde `değişecek` göründüğü için 5–8'in yanına yazılmamıştı; oysa aynı istisnadır — "sapma" sanılan şey sonradan verilmiş bir karardı. | 84 |
+| 28 | **Sürükleme basıştan itibaren açık kalır.** Basılı tutma 14 Ağustos'ta bir hata raporu üzerine kaldırıldı: tarayıcı bir basışın sürüklemeye dönüşüp dönüşemeyeceğine `mousedown` anında karar veriyor, dolayısıyla sonradan açılan `draggable` o basışı geri kazanmıyor ve galeri hiç sıralanamıyordu. Sebep ve ölçüsü v12'nin 2. görev spec'inde yazılı. Tutuşun asıl derdi tarayıcının kendi piksel eşiğiyle zaten karşılanıyor. | 69 |
+| 29 | **Numara hover'da zaten kalkıyor.** `app.css`'teki `.qe-tile:hover .qe-badge` kuralı 13 Ağustos'ta, bu turdan bir hafta önce yazıldı; yerini de tasarımın istediği seçim halkası alıyor. Gözlem bayat, madde doğuştan kapalı. | 73 |
+| 30 | **Bırakma üretim başlatmaz.** Farkın özü zaten doğru: motor her turda sırayı yeniden okuyor, yani öne çekilen bekleyen kare bırakıldığı yerden üretiliyor. Eksik olan tek şey kartın bırakma anında "üretiliyor" yazması — motor başka bir kareyi tutarken bu yalan olur, kuyruk duruyorken de 6. karara aykırı. | 74 |
+| 31 | **Karışık seçim onayı yalnız başlık kalır.** Kullanıcının 12 Ağustos 2026 kararı (v3 fark listesi, madde 64): "alt satır hiç yazılmayacak — pencerede yalnız başlık ve butonlar kalacak." Fark listesi aynı wireframe'i yeniden görmüş. | 76 |
 
 ### Karar gerektirmeyenler
 

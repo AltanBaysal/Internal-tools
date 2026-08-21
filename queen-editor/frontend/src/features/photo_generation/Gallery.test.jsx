@@ -228,6 +228,9 @@ describe("Gallery — one sequence, four states", () => {
   ];
 
   const pillOf = (name) => tileOf(name).querySelector("[data-pill]");
+  // The box the pills stand in. A frame can owe two layers, and the second label reads under the
+  // first rather than beside it -- so the corner is a box of its own, not the pill's own position.
+  const cornerOf = (name) => tileOf(name).querySelector("[data-corner]");
 
   it("says the layer and the state in one pill, in the corner", () => {
     renderGallery({ frames: MIXED, current: "3_a", running: true });
@@ -237,25 +240,38 @@ describe("Gallery — one sequence, four states", () => {
     expect(pillOf("2_a.png").textContent).toBe("foto hata");
   });
 
-  it("writes a waiting frame's label in the brightest ink there is", () => {
-    // 9px over a photograph: the palette's third grey is not a quiet label there, it is one nobody
-    // can read. The other two states carry their own bright colours already.
+  it("writes a waiting frame's label in a quieter ink than the ones that carry a colour", () => {
+    // The design's soft tone, read as the palette's second grey rather than its third: the badge in
+    // the opposite corner already carries that one at this very size, so it is the faint tone whose
+    // readability this card has already proved. The other two states say what they are in colour.
     renderGallery({ frames: MIXED, current: "3_a" });
 
-    expect(pillOf("4_a.png").style.color).toBe("var(--ink)");
+    expect(pillOf("4_a.png").style.color).toBe("var(--ink-2)");
     expect(pillOf("3_a.png").style.color).toBe("var(--accent)");
     expect(pillOf("2_a.png").style.color).toBe("var(--danger)");
+  });
+
+  it("gives the label a lighter ground and more room inside it", () => {
+    // Measure belongs to the mould and colour to the state: a stack of two must not show two
+    // different grounds, so the ground and the padding change on every pill and the ink only on the
+    // one the design speaks of. The digits are matched loosely -- what is fixed is the tone, not
+    // how a browser spells it back.
+    renderGallery({ frames: MIXED, current: "3_a" });
+
+    expect(pillOf("4_a.png").style.background).toMatch(/10,\s*8,\s*7,\s*0?\.7\)/);
+    expect(pillOf("4_a.png").style.padding).toBe("3px 7px");
   });
 
   it("puts the state pill in the top left, where the design asks for it", () => {
     // It used to sit at the bottom because the select ring owned this corner and appeared under
     // the pointer, so the pill had to get out of the way. The ring moved to the other side
-    // (2026-08-13), and the corner is the pill's again.
+    // (2026-08-13), and the corner is the pill's again. The corner is the box now, not the pill: a
+    // frame can be waiting for two layers and both of them stand in it (Fark 64).
     renderGallery({ frames: MIXED, current: "3_a", running: true });
 
-    expect(pillOf("4_a.png").style.top).toBe("6px");
-    expect(pillOf("4_a.png").style.left).toBe("6px");
-    expect(pillOf("4_a.png").style.bottom).toBe("");
+    expect(cornerOf("4_a.png").style.top).toBe("6px");
+    expect(cornerOf("4_a.png").style.left).toBe("6px");
+    expect(cornerOf("4_a.png").style.bottom).toBe("");
   });
 
   const badgeOf = (name) => tileOf(name).querySelector(".qe-badge");
@@ -294,12 +310,12 @@ describe("Gallery — one sequence, four states", () => {
     // The whole point of the new layout: something appearing is not something moving, so nothing
     // in the card shifts under the pointer.
     renderGallery({ frames: MIXED, current: null });
-    const before = pillOf("4_a.png").style.top;
+    const before = cornerOf("4_a.png").style.top;
 
     fireEvent.click(checkOf("4_a.png"));
 
-    expect(pillOf("4_a.png").style.top).toBe(before);
-    expect(pillOf("4_a.png").style.top).toBe("6px");
+    expect(cornerOf("4_a.png").style.top).toBe(before);
+    expect(cornerOf("4_a.png").style.top).toBe("6px");
   });
 
   it("gives a produced frame no pill -- the photo is the answer", () => {
@@ -308,12 +324,30 @@ describe("Gallery — one sequence, four states", () => {
     expect(pillOf("1_a.png")).toBeNull();
   });
 
-  it("never puts two pills on one frame", () => {
-    renderGallery({ frames: MIXED, current: "3_a" });
+  it("gives a frame that owes two layers a label for each", () => {
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video", "audio"] })], running: true });
 
-    for (const frame of MIXED) {
-      expect(tileOf(frame.file).querySelectorAll("[data-pill]").length).toBeLessThan(2);
-    }
+    expect([...tileOf("P0_0.png").querySelectorAll("[data-pill]")].map((one) => one.textContent))
+      .toEqual(["video kuyrukta", "ses kuyrukta"]);
+  });
+
+  it("stacks the second label under the first", () => {
+    // In the queue's own order, which is the order owed already comes in: the labels read the way
+    // the work will happen.
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video", "audio"] })], running: true });
+
+    expect(cornerOf("P0_0.png").style.flexDirection).toBe("column");
+    expect(cornerOf("P0_0.png").querySelectorAll("[data-pill]")).toHaveLength(2);
+  });
+
+  it("says one thing while a layer is being made, however much is still owed", () => {
+    // Only the debt became a list. What the worker is holding is one job, and a card naming it
+    // beside two more would bury the picture under it.
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video", "audio"] })],
+                    current: "P0_0", currentLayer: "video", running: true });
+
+    expect([...tileOf("P0_0.png").querySelectorAll("[data-pill]")].map((one) => one.textContent))
+      .toEqual(["video üretiliyor"]);
   });
 
   it("keeps every frame in its own place whatever became of it", () => {
@@ -1018,6 +1052,30 @@ describe("Gallery — a layer that blew up", () => {
     expect(screen.getByText("Tekrar dene")).toBeTruthy();
   });
 
+  it("brings the veil down in the app's own brown black", () => {
+    // The tone every other label on this card already stands on, rather than a pure black that
+    // belongs to no palette here. Only the tone changes; how much of the photo shows through does
+    // not.
+    renderGallery({ frames: [brokenVideo], onRetry: () => {} });
+
+    expect(tileOf("P0_0.png").querySelector("[data-veil]").style.background)
+      .toMatch(/10,\s*8,\s*7/);
+  });
+
+  it("stands the way back on the card's own ground", () => {
+    renderGallery({ frames: [brokenVideo], onRetry: () => {} });
+
+    expect(screen.getByText("Tekrar dene").closest("button").style.background).toBe("var(--bg-2)");
+  });
+
+  it("leaves the button on an empty red card without one", () => {
+    // The ground belongs to the veil's button alone: this one already stands on a card of its own,
+    // and a second ground would be a box drawn inside a box.
+    renderGallery({ frames: [broken("P0_0.png")], onRetry: () => {} });
+
+    expect(screen.getByText("Tekrar dene").closest("button").style.background).toBe("transparent");
+  });
+
   it("keeps the middle of an empty red card for its own button", () => {
     renderGallery({ frames: [broken("P0_0.png")], onRetry: () => {} });
 
@@ -1048,20 +1106,52 @@ describe("Gallery — a layer that blew up", () => {
 });
 
 describe("Gallery — what a frame owns", () => {
+  const ownsOf = (name) => tileOf(name).querySelector("[data-owns]");
+  const badgesOf = (name) => [...tileOf(name).querySelectorAll("[data-own]")];
+  const HAS_BOTH = withVideo("P0_0.png", {
+    layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" } });
+
   it("marks a frame that has a video", () => {
     renderGallery({ frames: [withVideo("P0_0.png")] });
 
     expect(screen.getByText("video")).toBeTruthy();
-    expect(document.querySelector("[data-glyph=play]")).toBeTruthy();
   });
 
   it("marks a frame that has a sound as well", () => {
-    renderGallery({ frames: [withVideo("P0_0.png", {
-      layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" } })] });
+    renderGallery({ frames: [HAS_BOTH] });
 
     expect(screen.getByText("video")).toBeTruthy();
     expect(screen.getByText("ses")).toBeTruthy();
-    expect(document.querySelector("[data-glyph=sound]")).toBeTruthy();
+  });
+
+  it("puts what the frame owns in the bottom left, and leaves the corner across from it empty",
+     () => {
+       // Four corners, four meanings: the state pill top left, the number and the select ring top
+       // right, what the frame owns bottom left. The fourth is left empty on purpose, so no two of
+       // them ever land on each other.
+       renderGallery({ frames: [withVideo("P0_0.png")] });
+
+       expect(ownsOf("P0_0.png").style.bottom).toBe("6px");
+       expect(ownsOf("P0_0.png").style.left).toBe("6px");
+       expect(ownsOf("P0_0.png").style.right).toBe("");
+     });
+
+  it("writes the word by itself -- no icon rides with it", () => {
+    renderGallery({ frames: [HAS_BOTH] });
+
+    expect(screen.getByText("video")).toBeTruthy();
+    expect(screen.getByText("ses")).toBeTruthy();
+    expect(document.querySelector("[data-glyph=play]")).toBeNull();
+    expect(document.querySelector("[data-glyph=sound]")).toBeNull();
+  });
+
+  it("gives each layer a box of its own", () => {
+    // Two words inside one dark box read as one thing the frame has. Each layer carries its own
+    // box, with a thin space between them.
+    renderGallery({ frames: [HAS_BOTH] });
+
+    expect(badgesOf("P0_0.png").map((one) => one.textContent)).toEqual(["video", "ses"]);
+    expect(ownsOf("P0_0.png").style.gap).toBe("4px");
   });
 
   it("does not call a failed sound something the frame owns", () => {
