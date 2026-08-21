@@ -255,6 +255,125 @@ describe("PhotoDetail — how the video was made", () => {
   });
 });
 
+describe("PhotoDetail — the new mode", () => {
+  // The gallery's top is the film's last frame: the export stitches it reversed. NEWER stands above
+  // P0_0, so P0_0 has somewhere to link to and NEWER has not.
+  const LOOPED = { ...LAYERED, modes: { video: "loop" } };
+  const NEWER = { id: "P1_0", file: "P1_0.png", status: "done", prompt: "sonraki", negative: "",
+                  layers: { photo: "P1_0.png" }, failed: [], owed: [], prompts: {} };
+  const UNMADE = { ...NEWER, status: "pending", layers: {}, owed: ["photo"] };
+  const modeBox = () => screen.getByLabelText("Yeni mod");
+
+  async function openVideo(frames) {
+    await open("P0_0", { frames });
+    fireEvent.click(tab("Video"));
+  }
+
+  it("offers the new mode, opened on the one this video was made in", async () => {
+    await openVideo([NEWER, LOOPED]);
+
+    expect(modeBox().value).toBe("loop");
+  });
+
+  it("opens on the plain one when the video's line never named a mode", async () => {
+    await openVideo([NEWER, LAYERED]);
+
+    expect(modeBox().value).toBe("standard");
+  });
+
+  it("keeps the video's own mode when nobody touched the box", async () => {
+    // The point of the default: a user who only edited the prompt gets the video they had.
+    regenerateFrame.mockResolvedValue({ job: "running", frame: "P0_1" });
+    await openVideo([NEWER, LOOPED]);
+
+    await act(async () => { fireEvent.click(regenButton()); });
+
+    expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın dönüyor", "loop");
+  });
+
+  it("sends the mode that was picked", async () => {
+    regenerateFrame.mockResolvedValue({ job: "running", frame: "P0_1" });
+    await openVideo([NEWER, LOOPED]);
+
+    fireEvent.change(modeBox(), { target: { value: "standard" } });
+    await act(async () => { fireEvent.click(regenButton()); });
+
+    expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın dönüyor",
+                                                 "standard");
+  });
+
+  it("marks the box once the mode is no longer the video's own", async () => {
+    await openVideo([NEWER, LOOPED]);
+
+    fireEvent.change(modeBox(), { target: { value: "standard" } });
+
+    expect(modeBox().style.borderColor).toBe("var(--accent)");
+  });
+
+  it("closes production when the film's last frame is asked to link", async () => {
+    // The gallery's top. The design refused both a disabled option and an error after the press:
+    // the option is pickable, and picking it says why and shuts the button.
+    await openVideo([LOOPED]);
+
+    fireEvent.change(modeBox(), { target: { value: "linked" } });
+
+    expect(modeBox().style.borderColor).toBe("var(--danger)");
+    expect(screen.getByText("Bu son kare — bağlanacak sonraki kare yok.")).toBeTruthy();
+    expect(regenButton().disabled).toBe(true);
+  });
+
+  it("closes it too when the next frame has no picture yet", async () => {
+    // The design never named this one. Letting it through would be the error-after-the-press it
+    // refused, so it closes the same way and says its own reason.
+    await openVideo([UNMADE, LOOPED]);
+
+    fireEvent.change(modeBox(), { target: { value: "linked" } });
+
+    expect(screen.getByText("Sonraki karenin fotoğrafı henüz üretilmedi.")).toBeTruthy();
+    expect(regenButton().disabled).toBe(true);
+  });
+
+  it("leaves linking alive where there is something to link to", async () => {
+    await openVideo([NEWER, LOOPED]);
+
+    fireEvent.change(modeBox(), { target: { value: "linked" } });
+
+    expect(regenButton().disabled).toBe(false);
+    expect(screen.queryByText(/bağlanacak sonraki kare yok/)).toBeNull();
+  });
+
+  it("says what pressing would open", async () => {
+    await openVideo([NEWER, LOOPED]);
+
+    expect(screen.getByText("Yeni bir kare açılır — P0_0 kopyası, loop video.")).toBeTruthy();
+  });
+
+  it("follows the mode with that line", async () => {
+    await openVideo([NEWER, LOOPED]);
+
+    fireEvent.change(modeBox(), { target: { value: "linked" } });
+
+    expect(screen.getByText("Yeni bir kare açılır — P0_0 kopyası, bağlı video.")).toBeTruthy();
+  });
+
+  it("puts none of it on the photo tab", async () => {
+    // A photo arrives nowhere, and the design wrote no sentence for what its regenerate would open.
+    await open("P0_0", { frames: [NEWER, LOOPED] });
+
+    expect(screen.queryByLabelText("Yeni mod")).toBeNull();
+    expect(screen.queryByText(/Yeni bir kare açılır/)).toBeNull();
+  });
+
+  it("puts none of it on the sound tab either", async () => {
+    await open("P0_0", { frames: [NEWER, LOOPED] });
+
+    fireEvent.click(tab("Ses"));
+
+    expect(screen.queryByLabelText("Yeni mod")).toBeNull();
+    expect(screen.queryByText(/Yeni bir kare açılır/)).toBeNull();
+  });
+});
+
 describe("PhotoDetail", () => {
   it("shows the position, the file name and the prompt", async () => {
     await open("1_a");

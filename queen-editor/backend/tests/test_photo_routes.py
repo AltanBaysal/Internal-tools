@@ -568,9 +568,13 @@ def test_a_copy_frame_shares_its_sources_photo_file(tmp_path):
     assert {row["file"] for row in rows} == {"P0_0.png"}
 
 
-def regenerate_request(client, frame, layer="photo", prompt="a", project="düğün"):
-    return client.post(f"/api/projects/{project}/regenerate",
-                       json={"frame": frame, "layer": layer, "prompt": prompt})
+def regenerate_request(client, frame, layer="photo", prompt="a", project="düğün", mode=None):
+    body = {"frame": frame, "layer": layer, "prompt": prompt}
+    if mode is not None:
+        # Left out rather than sent as null: what the older screen sends is a body with no mode at
+        # all, and that shape has to keep working.
+        body["mode"] = mode
+    return client.post(f"/api/projects/{project}/regenerate", json=body)
 
 
 def test_regenerate_answers_with_the_new_frames_name(tmp_path):
@@ -593,6 +597,30 @@ def test_a_frame_made_again_joins_the_gallery_beside_its_source(tmp_path):
     assert [(row["id"], row["file"]) for row in rows] == [("P1_0", "P1_0.png"),
                                                           ("P0_0", "P0_0.png")]
     assert (drive / "düğün" / "P1_0.png").exists()
+
+
+def test_a_regenerate_mode_nobody_knows_is_refused(tmp_path):
+    """Proof that the body's mode reaches the rule at all: an unknown one could not be refused if
+    the route were dropping the field."""
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = regenerate_request(client, "P0_0", layer="video", mode="kelebek")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]
+
+
+def test_linking_a_frame_with_nothing_after_it_is_refused_with_a_reason(tmp_path):
+    """One frame in the gallery, so it is the film's last. The screen never sends this; the answer
+    still has to be a refusal rather than a job that will fail later."""
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = regenerate_request(client, "P0_0", layer="video", mode="linked")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]
 
 
 def test_regenerating_a_frame_the_gallery_does_not_know_returns_404(tmp_path):

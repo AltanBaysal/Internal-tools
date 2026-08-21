@@ -25,6 +25,7 @@ from backend.features.photo_generation.domain.usecases.queue_layer import (
 from backend.features.photo_generation.domain.usecases.regenerate import (
     FrameMissing,
     LayerMissing,
+    NoNextFrame,
     regenerate,
 )
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
@@ -1998,6 +1999,66 @@ def test_a_frame_made_again_is_produced_under_its_own_name():
                       "düğün", "0_a", layers.PHOTO, "p")
 
     assert [name for name, _data in store.saved] == ["P0_1.png"]
+
+
+def make_video_again(fid, mode=None, gallery=((0, "a"), (1, "a"))):
+    """One frame's video made again, with the mode the form would have sent.
+
+    A video rather than a photo: the mode belongs to a video and nothing else, and a photo job would
+    answer for a rule it does not have.
+    """
+    store, record, plan_store = video_project(*gallery)
+    extra = {} if mode is None else {"mode": mode}
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", fid, layers.VIDEO, "p", **extra)
+    return born, plan_store.appended[-1][0]
+
+
+def test_a_video_made_again_is_planned_in_the_mode_it_was_asked_for():
+    """The whole madde in one line: pressing the button without touching the box has to keep the
+    video's own mode, and the form can only keep it by sending it."""
+    _born, job = make_video_again("0_a", production_mode.LOOP)
+
+    assert job["mode"] == production_mode.LOOP
+
+
+def test_a_linked_video_made_again_is_planned_with_its_target():
+    # Resolved here rather than sent by the screen: the gallery is already open on this side, and a
+    # target coming from outside would be the same rule living in two places.
+    _born, job = make_video_again("0_a", production_mode.LINKED)
+
+    assert job["linkedTo"] == "1_a"
+
+
+def test_linking_the_last_frame_of_the_film_is_refused():
+    """The screen closes the button before this can be pressed. The server refuses anyway: planning
+    a job with nothing to end on would send it to a render that fails on a target it cannot name."""
+    with pytest.raises(NoNextFrame):
+        make_video_again("1_a", production_mode.LINKED)
+
+
+def test_a_mode_nobody_knows_is_refused():
+    with pytest.raises(production_mode.InvalidMode):
+        make_video_again("0_a", "kelebek")
+
+
+def test_a_mode_on_a_layer_that_ends_nowhere_is_refused():
+    # Only a video arrives at a picture. Ignoring the argument would hide the caller's mistake
+    # behind a photo that came out fine.
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(production_mode.InvalidMode):
+        regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                   {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                   "düğün", "0_a", layers.PHOTO, "p", mode=production_mode.LOOP)
+
+
+def test_a_video_made_again_with_no_mode_named_is_planned_without_one():
+    # Every caller before this madde named none, and the plan has to keep reading back the same way.
+    _born, job = make_video_again("0_a")
+
+    assert "mode" not in job
     # The source is left exactly as it was: "üret = ekle" holds here too (madde 77).
     assert record.slots("düğün")["0_a"]["photo"] == {"status": "done", "file": "0_a.png"}
     assert record.prompts("düğün")[born] == {"photo": "p"}
