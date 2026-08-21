@@ -5,12 +5,13 @@
 // job's type can be handed straight to the pill without a translation table in between.
 const LAYER_WORD = { photo: "foto", video: "video", audio: "ses" };
 const STATE = {
-  // The brightest ink, not a quiet grey: 9px over a photograph, a dim tone is not a soft label but
-  // an unreadable one. The other two carry meaning in their colour and are bright already.
-  pending: { word: "kuyrukta", color: "var(--ink)", alive: false },
+  // The palette's second grey, not its brightest ink: at 9px over a photograph the third one is a
+  // label nobody can read, but this is the tone the ownership badge in the opposite corner already
+  // carries at exactly this size (Fark 65). The other two carry meaning in their colour.
+  pending: { word: "kuyrukta", color: "var(--ink-2)", alive: false },
   // The same debt, with the queue standing still: "kuyrukta" claims movement, and a run that
   // stopped has none. Same ink -- a frame nobody is working on is no less worth reading.
-  waiting: { word: "bekliyor", color: "var(--ink)", alive: false },
+  waiting: { word: "bekliyor", color: "var(--ink-2)", alive: false },
   running: { word: "üretiliyor", color: "var(--accent)", alive: true },
   failed: { word: "hata", color: "var(--danger)", alive: false },
 };
@@ -19,15 +20,34 @@ const STATE = {
 // the select ring owned this corner and appeared under the pointer, so the pill had to jump out of
 // the way -- movement inside a card the user only pointed at. The ring moved to the opposite
 // corner instead, and nothing here has to move again.
-const PILL = {
+//
+// The corner is the box rather than the pill's own position: a frame can be waiting for two layers
+// at once, and the second label reads under the first (Fark 64).
+const CORNER = {
   position: "absolute", top: 6, left: 6, zIndex: 2,
-  display: "flex", alignItems: "center", gap: 4,
-  // Dark enough to carry the words over any picture, bright or not.
-  background: "rgba(10,8,7,.85)", borderRadius: 3, padding: "2px 5px",
-  fontSize: 9, lineHeight: 1.4,
+  display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 3,
   // The corner is part of the card: a label must not turn it into a dead spot for drag or click.
   pointerEvents: "none",
 };
+
+// One mould whatever the state says, and the measure is the mould's half: two labels standing one
+// under the other on different grounds would read as a mistake. The colour is the caller's, because
+// that is the half that means something (Fark 65).
+const PILL = {
+  display: "flex", alignItems: "center", gap: 4,
+  // Dark enough to carry the words over any picture, bright or not.
+  background: "rgba(10,8,7,.7)", borderRadius: 3, padding: "3px 7px",
+  fontSize: 9, lineHeight: 1.4,
+};
+
+/** The corner the labels stand in: top left, one under another.
+ *
+ * Exported so a page with a single sentence of its own puts it in the same place rather than
+ * wherever its own layout happens to drop it.
+ */
+export function Corner({ children }) {
+  return <span data-corner style={CORNER}>{children}</span>;
+}
 
 /** The corner label itself, with whatever words the caller has.
  *
@@ -56,6 +76,20 @@ export function StatusPill({ layer, state }) {
   if (!shown) return null;
   return (
     <Pill color={shown.color} alive={shown.alive}>{LAYER_WORD[layer]} {shown.word}</Pill>
+  );
+}
+
+/** Every label a frame's state has earned, in the corner they belong in.
+ *
+ * An empty list draws no corner at all: a produced frame with nothing owed has the photo itself for
+ * an answer, and what it owns is said by the badges in the corner below.
+ */
+export function StatusPills({ states }) {
+  if (!states.length) return null;
+  return (
+    <Corner>
+      {states.map(({ layer, state }) => <StatusPill key={layer} layer={layer} state={state} />)}
+    </Corner>
   );
 }
 

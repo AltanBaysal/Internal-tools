@@ -5,7 +5,7 @@ import { navigate, photoPath, projectPath } from "../../shared/router.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import { Pill, Rendering, StatusPill } from "./frame_status.jsx";
+import { Corner, Pill, Rendering, StatusPill } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
@@ -356,13 +356,15 @@ export default function PhotoDetail({ project, frame: fid }) {
             {/* The corner label the gallery uses, with this page's own sentence: the queue took the
                 job, and what it makes will be a frame of its own rather than this one changing. */}
             {sent.length > 0 ? (
-              <Pill color="var(--accent)">yeniden üretilecek — kuyrukta</Pill>
+              <Corner><Pill color="var(--accent)">yeniden üretilecek — kuyrukta</Pill></Corner>
             ) : coming ? (
               /* What the frame is waiting for, in the gallery's own words. A copy frame's page is
                  full of its source's picture, and this is the only thing that says the video is
                  still coming (madde 81). A failed layer gets no pill: the stage says that across
                  its whole width. */
-              <StatusPill layer={coming} state={running ? "running" : "pending"} />
+              <Corner>
+                <StatusPill layer={coming} state={running ? "running" : "pending"} />
+              </Corner>
             ) : null}
             <Arrow glyph="‹" side="left"
                    onClick={previous

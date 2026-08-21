@@ -3,8 +3,7 @@ import { useEffect, useState } from "react";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import { Rendering, StatusPill } from "./frame_status.jsx";
-import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
+import { Rendering, StatusPills } from "./frame_status.jsx";
 import { LAYER_ACTIONS, layerConfirm, lostLayers, owned } from "./layer_words.js";
 import { TileImage } from "./TileImage.jsx";
 
@@ -23,13 +22,16 @@ const EMPTY = {
 const BADGE = { position: "absolute", top: 6, right: 6, background: "rgba(10,8,7,.75)",
                 color: "var(--ink-2)", padding: "2px 6px", borderRadius: 3, zIndex: 1 };
 // Madde 57's third plane: the order badge top right, the state pill top left, and what the frame
-// owns bottom right. It says the layer is finished -- an unfinished one is the pill's to tell.
-const OWNS = { position: "absolute", bottom: 6, right: 6, display: "flex", alignItems: "center",
-               gap: 6, background: "rgba(10,8,7,.75)", color: "var(--ink-2)", padding: "2px 5px",
-               borderRadius: 3, zIndex: 1, pointerEvents: "none" };
-// The badge's own drawing of each layer. The layers themselves and their words live next door, in
-// the module the delete confirms count with -- the tile and the window say the same thing.
-const GLYPH = { video: PlayGlyph, audio: SoundGlyph };
+// owns bottom left -- the corner across from it is left empty on purpose, so no two of them ever
+// land on each other (Fark 60). It says the layer is finished; an unfinished one is the pill's to
+// tell.
+const OWNS = { position: "absolute", bottom: 6, left: 6, display: "flex", alignItems: "center",
+               gap: 4, zIndex: 1, pointerEvents: "none" };
+// A box per layer rather than two words sharing one (Fark 62), and the word stands in it alone --
+// no icon rides with it (Fark 61, karar 21). The layers themselves and their words live next door,
+// in the module the delete confirms count with -- the tile and the window say the same thing.
+const OWN = { background: "rgba(10,8,7,.75)", color: "var(--ink-2)", padding: "2px 5px",
+              borderRadius: 3 };
 const DRAGGED = { transform: "rotate(-3deg) scale(1.04) translate(14px, -10px)",
                   filter: "drop-shadow(0 12px 24px rgba(0,0,0,.55))", zIndex: 5,
                   position: "relative" };
@@ -66,43 +68,53 @@ const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", backgroun
 const FRAMES = "frames";
 
 // A layer that blew up on a frame that still has its picture: the way back rides an overlay CSS
-// only brings down under the pointer, so the photo is never hidden for good (madde 67).
+// only brings down under the pointer, so the photo is never hidden for good (madde 67). The app's
+// own brown black rather than a pure one -- the tone every other label on this card already stands
+// on (Fark 75). How much of the photo shows through does not change.
 const VEIL = { position: "absolute", inset: 0, display: "flex", alignItems: "center",
-               justifyContent: "center", background: "rgba(0,0,0,.55)",
+               justifyContent: "center", background: "rgba(10,8,7,.55)",
                borderRadius: "var(--r-sm)", zIndex: 3 };
 
 /** The way back from a failed render.
  *
  * Pressed once: the queue has taken it and the card only changes on the next poll, so the button
  * says so itself rather than sitting there ready for a second press (madde 69).
+ *
+ * `ground` is what it stands on. Under the veil that is the card's own colour, so the button reads
+ * as a button rather than as a hole cut in the overlay (Fark 75). In the middle of an empty red
+ * card it is already standing on a card, and a second ground there would be a box inside a box --
+ * which is why none is the default and the one that wants one says so.
  */
-function RetryButton({ frame, sent, onRetry }) {
+function RetryButton({ frame, sent, ground = "transparent", onRetry }) {
   return (
     <Btn sm disabled={sent}
          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!sent) onRetry(frame); }}
-         style={{ color: "var(--danger)", borderColor: "var(--danger)", background: "transparent" }}>
+         style={{ color: "var(--danger)", borderColor: "var(--danger)", background: ground }}>
       {sent ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene</>}
     </Btn>
   );
 }
 
-/** The one thing worth saying about a frame's state, or nothing at all.
+/** Everything worth saying about a frame's state, in the order it is read.
  *
- * Running first, then what blew up, then what is still owed: a frame can be several of these at
- * once -- its photo failed while its video waits -- and two pills in one corner make the card
- * unreadable. The rest is the detail page's to show.
+ * Running first, then what blew up, then what is still owed. Only the debt is ever more than one: a
+ * frame's video and its sound can both be waiting, and the corner stacks them (Fark 64). What the
+ * worker is holding is a single job, and a card naming it beside two more would bury the picture
+ * under it.
+ *
+ * No ceiling is written here because the queue is one: a frame whose photo has not landed takes no
+ * layer job at all (queue_layer.frames_in_scope), so a photo's debt and a layer's never meet on one
+ * frame and two is as high as this list goes.
  *
  * `flowing` is the queue's own state, not this frame's: an owed layer reads as queued while the
  * worker is moving through the list and as waiting once it has stopped. The debt is the same
  * either way; only the promise differs.
  */
 function statusOf(frame, rendering, flowing) {
-  if (rendering) return { layer: rendering, state: "running" };
+  if (rendering) return [{ layer: rendering, state: "running" }];
   const failed = (frame.failed || [])[0];
-  if (failed) return { layer: failed, state: "failed" };
-  const owed = (frame.owed || [])[0];
-  if (owed) return { layer: owed, state: flowing ? "pending" : "waiting" };
-  return null;
+  if (failed) return [{ layer: failed, state: "failed" }];
+  return (frame.owed || []).map((layer) => ({ layer, state: flowing ? "pending" : "waiting" }));
 }
 
 function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck, children }) {
@@ -128,16 +140,10 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
         )}
         {pill}
         {owns.length > 0 && (
-          <span style={OWNS}>
-            {owns.map(({ layer, word }) => {
-              const Glyph = GLYPH[layer];
-              return (
-                <span key={layer} style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <Glyph size={9} />
-                  <Mono size={9}>{word}</Mono>
-                </span>
-              );
-            })}
+          <span data-owns style={OWNS}>
+            {owns.map(({ layer, word }) => (
+              <Mono key={layer} size={9} data-own style={OWN}>{word}</Mono>
+            ))}
           </span>
         )}
         {selected && <div style={TINT} />}
@@ -385,12 +391,12 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
               ) : (
                 <Tile name={frame.file} badge={badge} muted={!produced}
                       danger={state === "failed"}
-                      pill={<StatusPill {...(statusOf(frame, rendering, running) || {})} />}
+                      pill={<StatusPills states={statusOf(frame, rendering, running)} />}
                       owns={owns}
                       veil={brokenLayer && (
                         <div data-veil className="qe-veil" style={VEIL}>
                           <RetryButton frame={frame.id} sent={retried.includes(frame.id)}
-                                       onRetry={sendBack} />
+                                       ground="var(--bg-2)" onRetry={sendBack} />
                         </div>
                       )}
                       onCheck={state === "running" ? undefined : () => toggle(frame.id)}
