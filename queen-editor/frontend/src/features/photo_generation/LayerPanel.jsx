@@ -27,7 +27,12 @@ const WORDS = {
     held: "videolu",
     // Every video is five seconds and there is no setting for it in this version (madde 28).
     note: "Her video 5 saniye — bu sürümde sabit.",
-    empty: "Tüm karelerin videosu var — üretilecek bir şey yok.",
+    // Why a press found nothing to do. Three of them, because the panel can be empty for three
+    // different reasons and one sentence for all of them is what sent the user here (İstek 4.3).
+    // noBase is what this layer hangs on: for a video that is the frame's own picture.
+    noBase: "Henüz üretilmiş kare yok.",
+    chosenNoBase: "Seçili karelerin fotoğrafı henüz üretilmedi.",
+    allHeld: "Tüm karelerin videosu var.",
     Glyph: VideoGlyph,
   },
   audio: {
@@ -37,7 +42,11 @@ const WORDS = {
     own: "sesini",
     held: "sesi olan",
     note: "Ses videonun süresince üretilir.",
-    empty: "Videosu olup sesi olmayan kare yok — üretilecek bir şey yok.",
+    // A sound hangs on a video, not on a photo -- so an empty project reads this one here, and it
+    // is the nearer thing that is missing.
+    noBase: "Videosu olan kare yok.",
+    chosenNoBase: "Seçili karelerin videosu henüz üretilmedi.",
+    allHeld: "Tüm karelerin sesi var.",
     Glyph: SoundGlyph,
   },
 };
@@ -74,6 +83,30 @@ function acceptsVariants(text) {
   if (text === "") return true;
   if (!/^\d+$/.test(text)) return false;
   return Number(text) >= 1 && Number(text) <= MAX_VARIANTS;
+}
+
+// The one reason that belongs to no layer: the box is on both panels and says the same thing.
+const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
+
+/** Why this press cannot go to the queue, or null when it can.
+ *
+ * Read in the order a person would: the box in front of them first, then whether the project holds
+ * anything this layer could ever hang on, then what they picked, then the scope's own answer.
+ *
+ * `can` is every frame this layer could be hung on at all -- empty means the layer underneath is
+ * missing, which is a different sentence from "they all have one already". That difference is the
+ * whole point: one sentence for every empty scope is what made the panel blame frames for having
+ * videos when what they were missing was pictures (İstek 4.3).
+ *
+ * No dead branch: for a video `can` is the produced frames themselves, so its noBase is exactly
+ * "nothing is produced yet"; for a sound it is the frames holding a video, and its noBase says so.
+ */
+function refusalOf(words, can, scope, scoped, variants) {
+  if (variants === "") return NO_VARIANTS;
+  if (scoped.length) return null;
+  if (!can.length) return words.noBase;
+  if (scope === "selected") return words.chosenNoBase;
+  return words.allHeld;
 }
 
 // Why linking closes when the chosen frames are scattered. Says the reason rather than the remedy:
@@ -146,6 +179,9 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   // The card stands for ten seconds and the mode row is one click away, so reading the live mode
   // would let it report a run nobody asked for. null still means no card.
   const [added, setAdded] = useState(null);
+  // Why the last press went nowhere, or null. The green card's opposite number, and it lives in the
+  // same slot: one press, one answer.
+  const [refused, setRefused] = useState(null);
   const fade = useRef(null);
 
   useEffect(() => () => clearTimeout(fade.current), []);
@@ -186,9 +222,21 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   useEffect(() => {
     if (linkingClosed) setMode((picked) => (picked === LINKED ? STANDARD : picked));
   }, [linkingClosed]);
+  // A reason belongs to the press that produced it: the frames it counted, the scope it named and
+  // the number it read. Move any of the three and it becomes a stale answer standing under a button
+  // about to be pressed again. The gallery's selection is in here too -- picking other frames over
+  // there is exactly such a move. A press changes none of the three, so the answer stays up.
+  useEffect(() => { setRefused(null); }, [chosen, scope, variants]);
   const missingProducer = Boolean(producer) && !producer.installed;
 
   function handleAdd() {
+    const why = refusalOf(words, can, scope, scoped, variants);
+    if (why) {
+      setAdded(null);
+      clearTimeout(fade.current);
+      setRefused(why);
+      return;
+    }
     setSubmitting(true);
     setAdded(null);
     clearTimeout(fade.current);
@@ -247,8 +295,11 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
           max={MAX_VARIANTS}
           value={variants}
           onChange={(e) => { if (acceptsVariants(e.target.value)) setVariants(e.target.value); }}
-          onBlur={() => { if (variants === "") setVariants("1"); }}
-          style={{ width: 56, textAlign: "center", fontSize: 13 }}
+          /* Red while it is empty, and it stays empty: the silent reset to 1 on the way out is what
+             kept the box from ever showing that (Fark 29). What the emptiness means is said when
+             the button is pressed. */
+          style={{ width: 56, textAlign: "center", fontSize: 13,
+                   ...(variants === "" ? { borderColor: "var(--danger)" } : {}) }}
         />
       </div>
 
@@ -258,8 +309,12 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {/* Nothing the user could fill in locks this: an empty field is answered after the press,
+            in the card below (Fark 27). What is left is one request in flight -- and the producer,
+            which is the design's own exception: not a field but an engine that is not here yet, and
+            the card at the top of the panel says so. */}
         <button type="button" className="wf-btn wf-btn--hl"
-                disabled={!owed || submitting || missingProducer} onClick={handleAdd}
+                disabled={submitting || missingProducer} onClick={handleAdd}
                 style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}>
           {submitting
             ? <><span className="qe-spinner" aria-hidden="true" /> Ekleniyor…</>
@@ -275,6 +330,16 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
               {added.count} {nounOf(added.mode, words.noun)} kuyruğa eklendi
             </Note>
           </div>
+        ) : refused ? (
+          // The green card's red twin: the same box in the same place, the other colour. The mark
+          // is its own part for the reason the green one's is -- it carries the answer at a glance
+          // and does not wrap onto the sentence's second line.
+          <div className="wf-stroke"
+               style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: 8,
+                        borderColor: "var(--danger)", background: "var(--danger-bg)" }}>
+            <Note size={12} style={{ color: "var(--danger)" }}>✕</Note>
+            <Note size={12} style={{ color: "var(--danger)" }}>{refused}</Note>
+          </div>
         ) : owed ? (
           // The copy warning takes the mode's tail, never its head: the mode is already named in
           // what comes out, so what is given up is an echo of the marked row just above.
@@ -283,12 +348,7 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
               ? `${words.held} ${copies} kare için yeniler kopya kare olur, eskisi durur.`
               : said.tail}
           </Note>
-        ) : (
-          // Nothing left to do is a result, not a fault: no danger colour anywhere in this line.
-          <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-            {words.empty}
-          </Note>
-        )}
+        ) : null}
       </div>
     </div>
   );
