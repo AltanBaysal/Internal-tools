@@ -1095,7 +1095,7 @@ madde madde verildi.
 
 ### Koşu sırasında verilen ek kararlar
 
-*(21 Ağustos 2026, 13, 15, 20, 21, 22, 23, 24 ve 25. madde uygulanırken.)*
+*(21 Ağustos 2026, 13, 15, 20, 21, 22, 23, 24, 25 ve 27. madde uygulanırken.)*
 
 | # | Karar | Kapattığı madde |
 |---|---|---|
@@ -1119,6 +1119,9 @@ madde madde verildi.
 | 44 | **Liste kendi içinde kayıyor; 9 Ağustos 2026'nın N3 kararı geri alınıyor.** O karar tasarım v2'ye karşı verildi ve v2'de çizilmiş bir tutamak yoktu — ortada seçenek değil "bugünkü hâl yeter mi" sorusu vardı. v4 hem tutamağı hem bandı çiziyor ve ikisi ancak kırpılmış bir kutuda var olabilir: sayfa kayıyorsa tarayıcının kendi çubuğu zaten var ve altı soluklaşacak bir liste alanı yok. Uygulamanın diğer dört ekranı zaten `height: 100vh` + içeride kayan gövde. | 8 |
 | 45 | **Bant sayıya bakıyor, taşmaya değil.** Tasarımın ölçüsü bir sayı: "liste sekizi geçince" — dört sütunun iki satırı. Taşmayı ölçmek uygulanabilir değil: `scrollHeight > clientHeight` jsdom'da iki sıfırı karşılaştırır ve o kuralı doğrulayan test yerleşimi taklit etmek zorunda kalır. Tutamak bu ayrımdan etkilenmiyor — kutu `overflow-y: auto` ve tarayıcı kayacak bir şey yoksa tutamağı çizmiyor. | 8 |
 | 46 | **Fark 38'in motor yarısı zaten doğru; değişen yalnız panel.** `queue.ORDER` foto → video → ses ve motor bir türü bitirmeden ötekine başlamıyor: her tür kendi üreticisini yüklüyor, aralarında zıplamak her turda bir model yeniden yüklerdi, ve bir video üstüne asıldığı fotoğrafın önce var olmasını istiyor. Sırayı koruyan bir test de var (`test_the_engine_does_not_skip_past_the_type_it_is_waiting_for`). Yani "diğer türler normal akar, sıra o türe gelince motor bekler" bugün de böyle. Bu maddenin işi panelin **ne zaman ve nerede** konuştuğu: eksiklik, motor o türe gelene kadar hiç söylenmiyordu. | 38 |
+| 47 | **Fark 48 düşüyor — "kare" kalıyor.** 4. kararın kapattığı sorunun aynısı: tasarımın terminoloji kuralı içerik birimi için "kare" diyor, çizimi bazı cümlelerde "fotoğraf" diyor ve o sözcük terminoloji netleşmeden önceki dilden kalmış. 4. karar boş ekran metinleri için verilmişti; gerekçe sözcüğün kendisine ait. | 48 |
+| 48 | **Fark 50 düşüyor — ham çıktı kutusu kalıyor.** İstenen tek satır zaten ilk satır: kart kuralın cümlesini üstte, servisin cevabını altındaki kutuda gösteriyor. Kalkması istenen cümle değil **kanıt**, ve deponun kuralı hata mesajında sebep uydurmayı yasaklıyor — uygulama tasarımın örnek cümlesindeki sentezlenmiş teşhisi ("3 kez denendi") üretemez, üretirse uydurur. Kutu ayrıca uzun çıktının düğmeleri panelden itmemesi için yazılmış, ve kopyalanabilir olması kullanıcının hatayı taşıyabilmesinin tek yolu. | 50 |
+| 49 | **Fark 59 zaten kapandı.** 25. maddede kurulum düğmesi koşu kartından tür kartına indi ve orada yalnız "Kur" yazıyor; "Video üreticisini kur" hiç kalmadı. | 59 |
 
 ### Karar gerektirmeyenler
 
