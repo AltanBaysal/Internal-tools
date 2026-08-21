@@ -205,8 +205,9 @@ describe("PhotoDetail — how the video was made", () => {
 
     fireEvent.click(tab("Video"));
 
-    expect(screen.getByText("Üretim modu")).toBeTruthy();
-    expect(screen.getByText("Loop")).toBeTruthy();
+    // Read off the row itself: Loop is also one of the options in the Yeni mod box below, and a
+    // bare text match would be happy with either.
+    expect(screen.getByText("Üretim modu").parentElement.textContent).toContain("Loop");
   });
 
   it("names the picture a linked video ended on", async () => {
@@ -225,7 +226,8 @@ describe("PhotoDetail — how the video was made", () => {
 
     fireEvent.click(tab("Video"));
 
-    expect(screen.getByText("Loop").closest("button")).toBeNull();
+    expect(screen.getByText("Üretim modu").parentElement.querySelector("button")).toBeNull();
+    expect(screen.getByText("Üretim modu").parentElement.querySelector("select")).toBeNull();
   });
 
   it("never draws the row on the sound tab", async () => {
@@ -613,7 +615,8 @@ describe("PhotoDetail — regenerating", () => {
     await act(async () => { fireEvent.click(regenButton()); });
 
     // The frame's identity, not its file: a copy frame shares its source's picture.
-    expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın yürüyor");
+    expect(regenerateFrame).toHaveBeenCalledWith("düğün", "P0_0", "video", "kadın yürüyor",
+                                                 "standard");
   });
 
   it("says the job went into the queue and refuses a second press", async () => {

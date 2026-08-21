@@ -17,8 +17,8 @@ from backend.features.photo_generation.domain.usecases.remove_frames import (
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.production_mode import InvalidMode
 from backend.features.photo_generation.domain.usecases.queue_layer import (
-    InvalidMode,
     frames_in_scope,
     queue_layer,
 )
@@ -1999,6 +1999,9 @@ def test_a_frame_made_again_is_produced_under_its_own_name():
                       "düğün", "0_a", layers.PHOTO, "p")
 
     assert [name for name, _data in store.saved] == ["P0_1.png"]
+    # The source is left exactly as it was: "üret = ekle" holds here too (madde 77).
+    assert record.slots("düğün")["0_a"]["photo"] == {"status": "done", "file": "0_a.png"}
+    assert record.prompts("düğün")[born] == {"photo": "p"}
 
 
 def make_video_again(fid, mode=None, gallery=((0, "a"), (1, "a"))):
@@ -2059,9 +2062,6 @@ def test_a_video_made_again_with_no_mode_named_is_planned_without_one():
     _born, job = make_video_again("0_a")
 
     assert "mode" not in job
-    # The source is left exactly as it was: "üret = ekle" holds here too (madde 77).
-    assert record.slots("düğün")["0_a"]["photo"] == {"status": "done", "file": "0_a.png"}
-    assert record.prompts("düğün")[born] == {"photo": "p"}
 
 
 def test_regenerating_a_video_gives_the_new_frame_the_sources_photo():

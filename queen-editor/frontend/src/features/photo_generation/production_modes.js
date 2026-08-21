@@ -24,3 +24,12 @@ export const MODES = [
 export function labelOf(mode) {
   return (MODES.find((one) => one.id === mode) || {}).label || mode;
 }
+
+// What each mode calls what it makes. No row for the plain one: what it makes is the layer's own
+// noun -- video in one panel, ses in the other -- and this module has no layer.
+const NOUN = { [LOOP]: "loop video", [LINKED]: "bağlı video" };
+
+/** The mode's own noun for what it produces; `plain` is what the caller calls it otherwise. */
+export function nounOf(mode, plain) {
+  return NOUN[mode] || plain;
+}

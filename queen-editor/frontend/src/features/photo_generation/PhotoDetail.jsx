@@ -9,7 +9,7 @@ import { Pill, Rendering, StatusPill } from "./frame_status.jsx";
 import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
 import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
-import { LINKED, labelOf } from "./production_modes.js";
+import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
 
 // minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
@@ -183,6 +183,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Held as the sentence rather than a flag: the two actions on a layer fail differently and the
   // card must not say the wrong one.
   const [refusedAct, setRefusedAct] = useState(null);
+  // What the video should be made in next. Untouched until the box is used, so the default can
+  // follow the poll: null means this video's own mode, whatever the record last said it was.
+  const [newMode, setNewMode] = useState(null);
 
   // By identity, never by file: a copy frame shows its source's picture, and the two of them are
   // different frames at different places in the sequence.
@@ -234,6 +237,16 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Linked names the picture rather than the frame's number -- the sequence can be dragged, and a
   // number would then be a lie about a video nobody touched.
   const arrivesAt = (frame?.endsOn || {})[open];
+  // The mode the form would send. This video's own until the box is touched (madde 94).
+  const picked = newMode ?? madeIn ?? STANDARD;
+  // The same question the server asks: the gallery's top is the film's last frame, and a next whose
+  // picture has not landed is no target either. A sentence when linking is dead here, nothing when
+  // it is alive -- the closing and its reason never come apart.
+  const nextInFilm = index > 0 ? frames?.[index - 1] : null;
+  const noTarget = picked === LINKED
+    && (index === 0
+      ? "Bu son kare — bağlanacak sonraki kare yok."
+      : nextInFilm?.status === "done" ? null : "Sonraki karenin fotoğrafı henüz üretilmedi.");
   // Compared trimmed, exactly as the server compares it: what the accent border promises and what
   // the new frame's name turns out to be must be the same answer (madde 99).
   const changed = typed.trim() !== said.trim();
@@ -250,6 +263,8 @@ export default function PhotoDetail({ project, frame: fid }) {
     setWords({});
     setSent([]);
     setRefusedAct(null);
+    // The box belongs to the video behind it, so it goes with the frame.
+    setNewMode(null);
   }, [fid]);
 
   useEffect(() => {
@@ -284,10 +299,13 @@ export default function PhotoDetail({ project, frame: fid }) {
   function handleRegenerate() {
     setRefusedAct(null);
     const layer = open;
-    return regenerate(frame.id, layer, typed).then((body) => {
-      if (!body) return setRefusedAct("Kare yeniden üretilemedi");
-      setSent((layers) => [...layers, layer]);
-    });
+    // undefined off the video tab: a body with no mode is what the server has always read, and a
+    // mode on a sound would be refused outright.
+    return regenerate(frame.id, layer, typed, layer === "video" ? picked : undefined)
+      .then((body) => {
+        if (!body) return setRefusedAct("Kare yeniden üretilemedi");
+        setSent((layers) => [...layers, layer]);
+      });
   }
 
   // The red layer goes back into the queue on this very frame -- no copy, no new name (madde 68).
@@ -441,15 +459,41 @@ export default function PhotoDetail({ project, frame: fid }) {
                 read-only: the design gives the user the prompt, not the whole submission. */}
             {open === "photo" && <TextBlock label="Negatif" text={frame.negative} />}
 
+            {holds && open === "video" && (
+              /* Only a video arrives at a picture, so only its form has this to ask. */
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <Mono size={10} style={LABEL} id="yeni-mod">Yeni mod</Mono>
+                <select className="wf-input" aria-labelledby="yeni-mod" value={picked}
+                        onChange={(e) => setNewMode(e.target.value)}
+                        style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer",
+                                 // Danger first: a box that cannot be pressed through must not look
+                                 // like an ordinary change.
+                                 borderColor: noTarget ? "var(--danger)"
+                                   : picked !== (madeIn ?? STANDARD) ? "var(--accent)" : undefined }}>
+                  {MODES.map((one) => (
+                    <option key={one.id} value={one.id}>{one.label}</option>
+                  ))}
+                </select>
+                {noTarget && <Note size={12} style={{ color: "var(--danger)" }}>{noTarget}</Note>}
+              </div>
+            )}
+
             {holds && (
               /* Accent whether the prompt was touched or not (madde 78): making the frame again is
                  what this page is for, and a changed prompt only decides the new frame's name. */
-              <Btn sm hl disabled={sent.includes(open)} onClick={handleRegenerate}
-                   style={{ justifyContent: "center" }}>
+              <Btn sm hl disabled={sent.includes(open) || Boolean(noTarget)}
+                   onClick={handleRegenerate} style={{ justifyContent: "center" }}>
                 {sent.includes(open)
                   ? "Kuyruğa eklendi"
                   : <><Icon.Regen /> Yeniden üret — yeni kare</>}
               </Btn>
+            )}
+            {holds && open === "video" && (
+              /* What one press opens, in the mode's own words: a copy frame beside this one, never
+                 a video written over the one that is here (madde 77). */
+              <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
+                Yeni bir kare açılır — {frame.id} kopyası, {nounOf(picked, "video")}.
+              </Note>
             )}
             {openState === "failed" && (
               /* The way back from a red layer, on the page it is read (madde 79). Retrying makes no

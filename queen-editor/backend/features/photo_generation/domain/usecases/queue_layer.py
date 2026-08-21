@@ -34,10 +34,6 @@ class InvalidScope(Exception):
     """The selection was not a list of file names (message is user-facing)."""
 
 
-class InvalidMode(Exception):
-    """A production mode nobody knows, or one given to a layer that ends nowhere."""
-
-
 def frames_in_scope(gallery, kind, files=None):
     """The frames a `kind` job can be hung on, in gallery order.
 
@@ -80,25 +76,6 @@ def _job(kind, fid, number, variant, mark=()):
             "prompt": "", "negative": "", "seed": None, "model": "", **dict(mark)}
 
 
-def _frame_after(gallery, fid):
-    """The frame a linked video ends on: the one that comes after it in the film.
-
-    The film's sequence, not the gallery's reading order. The gallery is newest-first and the export
-    stitches it reversed (export_summary.exportable) -- the foot of the gallery is the film's first
-    frame -- so the frame that plays next is the one ABOVE, at index - 1. Linking downwards would
-    make every chain run against the film it is part of.
-
-    None where there is nothing to end on: the last frame of the film -- the top of the gallery --
-    has no next, and a next whose photo never landed is the same emptiness seen from closer up.
-    """
-    for index, frame in enumerate(gallery):
-        if frame["id"] != fid:
-            continue
-        after = gallery[index - 1] if index > 0 else None
-        return after["id"] if after and after["status"] == queue.DONE else None
-    return None
-
-
 def _mark(kind, mode, gallery, fid):
     """What the mode writes into this frame's plan line, or None when it takes no job at all.
 
@@ -110,7 +87,7 @@ def _mark(kind, mode, gallery, fid):
         return {}
     if mode != production_mode.LINKED:
         return {"mode": mode}
-    target = _frame_after(gallery, fid)
+    target = production_mode.frame_after(gallery, fid)
     if target is None:
         # The brief's decision: production is not blocked, this one frame stays out and the rest go
         # in. Fixing the selection and pressing again is all it takes.
@@ -125,12 +102,7 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
     if files is not None and (not isinstance(files, list)
                               or any(not isinstance(name, str) for name in files)):
         raise InvalidScope("Seçim listesi metin dizisi olmalı.")
-    if mode not in production_mode.ALL:
-        raise InvalidMode(f"Üretim modu şunlardan biri olmalı: {', '.join(production_mode.ALL)}.")
-    if mode != production_mode.STANDARD and kind != layers.VIDEO:
-        # Only a video ends on a picture. Ignoring the argument would hide the caller's mistake
-        # behind a sound that came out fine.
-        raise InvalidMode("Üretim modu yalnız video işine verilebilir.")
+    production_mode.validate(mode, kind)
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \
             or not 1 <= variants <= MAX_VARIANTS:

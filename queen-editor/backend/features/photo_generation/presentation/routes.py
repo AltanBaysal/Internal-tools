@@ -9,8 +9,9 @@ from flask import Blueprint, jsonify, request, send_from_directory
 from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.export_runner import MODES
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
-from backend.features.photo_generation.domain.usecases.queue_layer import InvalidMode, InvalidScope
-from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing
+from backend.features.photo_generation.domain.production_mode import InvalidMode
+from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
+from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing, NoNextFrame
 from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
@@ -182,11 +183,15 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             # file name would not say which of the two was asked for. A non-string prompt counts as
             # no words at all -- what goes down is exactly what the user was shown.
             frame = regenerate(project, body.get("frame"), layer,
-                               prompt if isinstance(prompt, str) else "")
+                               prompt if isinstance(prompt, str) else "",
+                               mode=body.get("mode", production_mode.STANDARD))
         except (ProjectMissing, FrameMissing) as exc:
             return jsonify({"error": str(exc)}), 404
         except LayerMissing as exc:
             return jsonify({"error": str(exc)}), 400
+        except (InvalidMode, NoNextFrame) as exc:
+            # The same shape the queue's own refusal takes: both say the mode is what went wrong.
+            return jsonify({"error": str(exc), "field": "mode"}), 400
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
         # The new frame's name goes back: the screen has just been told that its work landed

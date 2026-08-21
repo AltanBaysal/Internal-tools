@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
-import { LINKED, LOOP, MODES, STANDARD } from "./production_modes.js";
+import { LINKED, LOOP, MODES, STANDARD, nounOf } from "./production_modes.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
@@ -42,15 +42,15 @@ const WORDS = {
   },
 };
 
-/** What a mode calls what it makes, and what it promises about it.
+/** What a mode promises about what it makes.
  *
- * No row for the plain mode: its words are the layer's own -- video / ses, videosunu / sesini --
- * and this table has no layer, so writing it here would mean writing those words a second time,
- * once per panel. A mode with no row falls back to the layer, which is what plain means.
+ * No row for the plain mode: its promise is the layer's own line, built from the layer's own words.
+ * The noun each mode uses lives with the modes themselves (nounOf) -- two screens say it now, and
+ * this table is only about the half nobody else says.
  */
-const MODE_WORDS = {
-  [LOOP]: { noun: "loop video", tail: "her video kendine döner." },
-  [LINKED]: { noun: "bağlı video", tail: "her video sıradaki karede biter." },
+const MODE_TAIL = {
+  [LOOP]: "her video kendine döner.",
+  [LINKED]: "her video sıradaki karede biter.",
 };
 
 /** The frames this layer can be hung on.
@@ -174,8 +174,8 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   // than the raw selection: Videosu olmayanlar leaves those frames out by its own definition, so
   // the count is zero there without a second rule about which scope may warn.
   const copies = scoped.filter((frame) => (frame.layers || {})[layer]).length;
-  const said = MODE_WORDS[mode] || { noun: words.noun,
-                                     tail: `her kare kendi ${words.own} alır.` };
+  const said = { noun: nounOf(mode, words.noun),
+                 tail: MODE_TAIL[mode] || `her kare kendi ${words.own} alır.` };
   // Only on the selection's own scope: "Videosu olmayanlar" is scattered by nature -- what sits
   // between its members already has a video -- and each of its frames still has a real next.
   const linkingClosed = scope === "selected" && !neighbours(frames, chosen);
@@ -272,8 +272,7 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
                         borderColor: "var(--ok)", background: "var(--ok-bg)" }}>
             <Note size={12} style={{ color: "var(--ok)" }}>✓</Note>
             <Note size={12} style={{ color: "var(--ok)" }}>
-              {/* Both tables carry a noun, so the line never asks which one it read from. */}
-              {added.count} {(MODE_WORDS[added.mode] || words).noun} kuyruğa eklendi
+              {added.count} {nounOf(added.mode, words.noun)} kuyruğa eklendi
             </Note>
           </div>
         ) : owed ? (
