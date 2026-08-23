@@ -1,8 +1,8 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 26/27
-*(31 madde yazıldı; 26, 29, 30 ve 31. maddeler kullanıcı kararıyla düştü — numaralandırma kaymıyor.
-Kalan tek madde koşunun Colab turu.)*
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 26/30
+*(32 madde yazıldı; 26 ve 30 kullanıcı kararıyla düştü — numaralandırma kaymıyor. 29 ve 31 düşüp
+21 Ağustos'ta yeniden açıldı, 32 aynı gün eklendi: I bölümü.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -58,20 +58,22 @@ kullanıcıyla birlikte oturulur.
 
 ## Kapsam sınırı
 
-- **LoRA'nın uygulamadan seçilebilmesi düştü.** İstek listesinin 2.1 maddesi; kullanıcı kararıyla
-  bu koşuda da yakın koşularda da yok.
+- **LoRA'nın uygulamadan seçilebilmesi düştü.** İstek listesinin 2.1 maddesinin **ikinci** yarısı;
+  kullanıcı kararıyla bu koşuda da yakın koşularda da yok. *(2.1'in birinci yarısı — LoRA'nın
+  denenmesi — bu satır yüzünden yol haritasına hiç yazılmamıştı; 21 Ağustos'ta 32. madde olarak
+  açıldı.)*
 - **Export ekranı bu koşuda hiç açılmıyor.** Kullanıcı ekranı düzgün buldu; fark listesinin export
   maddelerinin tamamı — görsel olanı da olmayanı da — kullanıcı kararıyla düştü.
 - **Kararla kapanan 31 fark maddesi dışarıda.** Bugünkü hâlleriyle kalıyorlar.
 - **26. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Kurulum bitince kuyruğun
   kendiliğinden sürmesi, 13 Ağustos 2026'nın "hiçbir üretim kullanıcı basmadan başlamaz" kararına
   aykırıydı; o karar geçerli.
-- **29. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Galeri karoları için
-  küçük önizleme üretimi istenmiyor; karolar dosyanın tam boyunu indirmeye devam ediyor.
 - **30. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Video prompt'unu yazan
   yapay zekâya verilen talimat bugünkü hâlinde kalıyor.
-- **31. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Üretme hızı ölçülmüyor;
-  motorun yazdığı süre satırları olduğu yerde kalıyor.
+- **29 ve 31 düştü ve aynı gün yeniden açıldı** — I bölümüne bakın. 29 önce "küçük önizleme
+  üretimi" diye yazılmıştı; asıl derdi *uygulamanın çok fotoğrafta kilitlenmesi* olduğu için o
+  adla geri döndü. 31'in yol haritasındaki hâli "hız ayarları denenecek" diyordu, oysa istek
+  listesi **"hız LoRA'ları denenecek"** diyor; madde isteğin diline döndürüldü.
 - **Tasarım tarafında iki satır güncellenmeli.** Açılışta kuyruğun kendiliğinden sürmesi ve yeniden
   üretimin tur numarası, kullanıcı kararıyla bugünkü hâlinde kaldı; tasarımın kural metni hâlâ
   tersini söylüyor. Güncellenmezse bir sonraki karşılaştırmada aynı çelişkiler yeniden çıkar.
@@ -148,20 +150,48 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 
 ---
 
+## I · Yeniden açılan işler — 21 Ağustos
+
+**Bu bölüm koşunun ortasında açıldı.** Kullanıcı, kendi saydığı üç işin listede olmadığını ya da
+tanınmaz hâle geldiğini söyledi; üçü de geri kondu ve **sıra kullanıcının verdiği sıra**.
+
+Üçünün de kaydı istek listesinde vardı. İkisi bu koşuda bir numara almıştı ve düşürülmüştü —
+**yeniden açılıyorlar, numaraları değişmiyor**; üçüncüsü hiç yazılmamıştı ve yeni numara alıyor.
+
+| Sıra | # | İş | Bitti sayılır | Kaynak |
+|---|---|---|---|---|
+| 1 | 29 | **Galeri çok fotoğrafta uygulamayı kilitliyor.** *(Yeniden açıldı.)* Her karo dosyanın tam boyunu indiriyor; kare sayısı büyüdükçe uygulama kilitleniyor. İlacı küçük önizleme: karolar için birer önizleme üretilir, galeri tam boy dosya yerine onları gösterir. Önizlemenin ne zaman üretileceği ve kare değişince ne olacağı kendi spec'inde çözülür. | Çok kareli bir projede galeri açılırken uygulama kilitlenmiyor ve karolar gözle görülür hızda doluyor. | İstek 1.1 |
+| 2 | 32 | **Video LoRA denemesi — anatomik hatalar.** *(Yeni; hiç yazılmamıştı.)* Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek. | Yeni LoRA ile üretilen videolar öncekilerle yan yana konup kullanıcıyla birlikte değerlendirilmiş. | İstek 2.1 |
+| 3 | 31 | **Fotoğraf üretim hızı — hız LoRA'ları.** *(Yeniden açıldı ve isteğin kendi diline döndü.)* Üretim hızlansın; yol olarak **hız LoRA'ları** denenecek. Kazanç fotoğraf tarafında görünüyor; video zaten hızlı koşacak şekilde ayarlı. | Aynı prompt'lardan üretilen kareler öncekilerle süre ve kalite olarak karşılaştırılmış, karar kullanıcıyla birlikte verilmiş. | İstek 9 |
+
+**29 koddur, 32 ve 31 denemedir.** 29'un işi bu tarafta yazılıp iki turla bitirilebilir — yalnız
+"bitti sayılır" yargısı Colab'ı bekler. 32 ve 31 ise üretim tarifine dokunup **yayınlamayı**
+gerektiriyor ve sonucu ancak kullanıcı görebilir: hazırlığı burada yapılır, kararı turda verilir.
+
+> **Denemenin bedeli:** LoRA seçimi bugün uygulamadan yapılamıyor, üretim tarifinin içinde sabit
+> duruyor ve defter yalnız yayınlanmış hâli klonluyor — yani **her deneme bir yayın**. LoRA'yı
+> uygulamadan seçilebilir kılmak (İstek 2.1'in ikinci yarısı) kullanıcı kararıyla düşmüştü; o karar
+> duruyor, bedeli burada yazılı.
+
+> **31 ile 32 birbirini ters yöne çekiyor** — biri videoyu güçlendirmek, öteki üretimi hızlandırmak
+> istiyor. İstek listesinin kendi uyarısı: aynı ayarlara dokunuyorlar, birlikte bakılmalı. Kazanç
+> fotoğraf tarafında olduğu için çakışma göründüğü kadar büyük olmayabilir, ama turda ikisi bir
+> arada denenmeli.
+
+---
+
 ## H · Kullanıcıyla birlikte yapılacak işler — koşunun en sonu
 
 **Bu bölüm tek başına yapılmaz.** Bölümün "bitti" yargısı koda bakarak verilemiyor — queen-editor
 yerelde koşmuyor, defteri kullanıcı çalıştırıyor ve sonucu kullanıcı görüyor.
 
-Üç maddesi kullanıcı kararıyla düştü; **kalan tek madde koşunun testidir** ve en sonda durur.
+**Kalan tek madde koşunun testidir** ve I bölümü de dahil her şeyden sonra, en sonda durur.
 Kullanıcı koşuyu maddeler arasında değil, en sonda bir kerede deniyor.
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 28 | **Colab turu — koşunun tek testi ve en sonu.** Dal yayınlanır ve defter koşulur; kullanıcı koşunun **tamamını** birden dener. Galeri açıkken çıkan zaman aşımı da bu turda görülür. | Kullanıcı turu yapmış; çıkan her şey yazıya geçmiş ve sonraki koşuya kalanlara eklenmiş. | İstek 1.1 |
-| 29 | ❌ **Düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. **Küçük önizleme üretimi.** Galeri karoları dosyanın tam boyunu indirmeye devam ediyor. | — | İstek 1.1 |
+| 28 | **Colab turu — koşunun tek testi ve en sonu.** Dal yayınlanır ve defter koşulur; kullanıcı koşunun **tamamını** birden dener. I bölümünün üç maddesi de bu turda görülür. | Kullanıcı turu yapmış; çıkan her şey yazıya geçmiş ve sonraki koşuya kalanlara eklenmiş. | İstek 1.1 |
 | 30 | ❌ **Düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. **Video prompt talimatının güçlenmesi.** Yapay zekâya verilen talimat bugünkü hâlinde kalıyor. | — | İstek 2.2 |
-| 31 | ❌ **Düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. **Üretme hızı.** Motorun yazdığı süre satırları toplanmıyor, hız ayarları denenmiyor. | — | İstek 9 |
 
 ---
 
