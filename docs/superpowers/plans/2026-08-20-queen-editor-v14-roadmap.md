@@ -1,7 +1,7 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 26/29
-*(31 madde yazıldı; 26 ve 29. maddeler kullanıcı kararıyla düştü — numaralandırma kaymıyor.)*
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 26/28
+*(31 madde yazıldı; 26, 29 ve 31. maddeler kullanıcı kararıyla düştü — numaralandırma kaymıyor.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -67,6 +67,8 @@ kullanıcıyla birlikte oturulur.
   aykırıydı; o karar geçerli.
 - **29. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Galeri karoları için
   küçük önizleme üretimi istenmiyor; karolar dosyanın tam boyunu indirmeye devam ediyor.
+- **31. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Üretme hızı ölçülmüyor;
+  motorun yazdığı süre satırları olduğu yerde kalıyor.
 - **Tasarım tarafında iki satır güncellenmeli.** Açılışta kuyruğun kendiliğinden sürmesi ve yeniden
   üretimin tur numarası, kullanıcı kararıyla bugünkü hâlinde kaldı; tasarımın kural metni hâlâ
   tersini söylüyor. Güncellenmezse bir sonraki karşılaştırmada aynı çelişkiler yeniden çıkar.
@@ -147,7 +149,7 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 
 **Bu bölüm tek başına yapılmaz.** Maddelerin hiçbiri ekranda görünmüyor: dosyaların boyu, üretim
 tarifi, süreler. Hiçbirinin "bitti" yargısı da koda bakarak verilemiyor — queen-editor yerelde
-koşmuyor, defteri kullanıcı çalıştırıyor ve sonucu kullanıcı görüyor. Dolayısıyla kalan üç madde
+koşmuyor, defteri kullanıcı çalıştırıyor ve sonucu kullanıcı görüyor. Dolayısıyla kalan iki madde
 kullanıcıyla **birlikte** yürütülür: koşulur, bakılır, karar verilir.
 
 Kullanıcı bunların bir arada ve en sonda yapılmasını istedi.
@@ -157,11 +159,7 @@ Kullanıcı bunların bir arada ve en sonda yapılmasını istedi.
 | 28 | **Colab turu.** Dal yayınlanır ve defter koşulur; galeri açıkken çıkan zaman aşımının kalkıp kalkmadığı görülür. | Galeri açıkken üretim sürerken zaman aşımı çıkmıyor — ya da çıkıyor ve bu yazıya geçmiş. | İstek 1.1 |
 | 29 | ❌ **Düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. **Küçük önizleme üretimi.** Galeri karoları dosyanın tam boyunu indirmeye devam ediyor. | — | İstek 1.1 |
 | 30 | **Video prompt talimatının güçlenmesi.** Kullanıcı yazmazsa video prompt'unu yapay zekâ yazıyor; ona verilen talimat güçlenecek. Yazan modeli değiştirmek bu maddede yok. | Aynı fotoğraflardan üretilen video prompt'ları öncekilerle yan yana konup kullanıcıyla birlikte değerlendirilmiş. | İstek 2.2 |
-| 31 | **Üretme hızı.** Motor her kare için süreyi zaten yazıyor ve üretimin payı ile yazmanın payı ayrı duruyor. İş, önce o satırları toplamak, sonra hangisinin büyük olduğuna göre karar vermek. Yol olarak hız ayarları denenecek. | Hangi payın büyük olduğu ölçülmüş ve bir sonraki adım kullanıcıyla birlikte karara bağlanmış. | İstek 9 |
-
-> 30. ve 31. maddeler birbirini ters yöne çekiyor: biri videoyu güçlendirmek, öteki üretimi
-> hızlandırmak istiyor. Aynı ayarlara dokunuyorlar, birlikte bakılmalı — bu da bölümün neden bir
-> arada durduğunun bir sebebi.
+| 31 | ❌ **Düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. **Üretme hızı.** Motorun yazdığı süre satırları toplanmıyor, hız ayarları denenmiyor. | — | İstek 9 |
 
 ---
 
