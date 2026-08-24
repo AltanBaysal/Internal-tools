@@ -1,10 +1,10 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 34/35
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 34/36
 *(Numaralar ve bölüm harfleri okuma sırasına göre gidiyor. 27 düşüp 21 Ağustos'ta yeniden açıldı —
 H bölümü; 28 ve 29, 27'nin teşhisinden doğup 24 Ağustos'ta eklendi — I bölümü; 29 aynı gün
 kullanıcı kararıyla düştü, o yüzden 30'a kadarki payda 30 değil 29. 31–34 turun kendi içinden
-doğup aynı gün eklendi — K bölümü; 35 ve 36 ertesi gün kullanıcının isteğiyle eklendi.)*
+doğup aynı gün eklendi — K bölümü; 35, 36 ve 37 ertesi gün kullanıcının isteğiyle eklendi.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -210,6 +210,8 @@ aktif kartları göremiyoruz."*
 | 34 | ✅ **Açık panel geri dönüşte yerinde kalır.** Bugün hangi panel açıksa kapanıp fotoğraf üret paneline dönüyor. | Kuyruk paneli açıkken bir kare açılıp dönülüyor; panel yerinde. | Colab turu, 24 Ağustos |
 | 35 | ✅ **Yazılmış ama gönderilmemiş metin geri dönüşte duruyor.** Fotoğraf üret panelinin kutularına yazılan metin diske yalnız Kuyruğa ekle'ye basıldığında geçiyor; arada bir kareye bakıp dönen kullanıcı yazdığını kaybediyor ve kutuda en son gönderdiği metni buluyor. | Panele bir şey yazılıyor, gönderilmeden bir kare açılıp dönülüyor; yazılan metin kutuda duruyor. | Kullanıcı, 24 Ağustos |
 | 36 | ✅ **Fotoğraf inerken karonun bekleme hâli.** Halka karonun sol üstüne yapışıp deforme oluyor, ve karo aynı anda hem çizgili hem halkalı — iki gösterge birden. Halka ortasında ve yuvarlak durur; çizgi beklemeden kalkar, "piksel yok" diyen hâllere bırakılır. | Çok kareli bir projede fotoğraflar inerken her karonun ortasında yuvarlak bir halka dönüyor, arkasında çizgi yok. | Kullanıcı, 25 Ağustos |
+
+| 37 | **Export fotoğrafları da taşır.** Bugün export yalnız video yazıyor; fotoğraflar hiç girmiyor. Exportun içine `photos/` klasörü gelir ve videosu olan her karenin fotoğrafı, videosuyla aynı numarayla oraya kopyalanır. Birleşik ve ayrı export aynı anda alınırsa fotoğraflar bir kez iner. | Export alındığında klasörün içinde `photos/` var ve içindekiler `.mp4` listesiyle birebir eşleşiyor; iki mod aynı anda alınınca fotoğraflar tek kopya. | Kullanıcı, 25 Ağustos |
 
 **33, 34'ün önünde durmalı.** 34 tek başına yapılırsa kuyruk paneli açık dönmeye başlar ve 33'ün
 sustuğu yanlış cümle ilk kez ekrana çıkar.

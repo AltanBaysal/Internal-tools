@@ -15,11 +15,12 @@ FOLDER = "/fake/düğün/export/2026-08-12 14-32"
 
 
 class ExportStore(FakeStore):
-    """FakeStore with the paths an export asks for, and a note of what it removed."""
+    """FakeStore with the paths an export asks for, and a note of what it wrote and removed."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.removed = []
+        self.photos = []
 
     def file_path(self, project, filename):
         return f"/fake/{project}/{filename}"
@@ -32,6 +33,15 @@ class ExportStore(FakeStore):
 
     def remove_dir(self, path):
         self.removed.append(path)
+
+    def copy_photo(self, source, folder, filename):
+        """Every call is written down and none is skipped.
+
+        The real store refuses a target that is already there, and that refusal is tested against a
+        real folder next door. A fake that copied the rule would leave these tests sinning against
+        their own double instead of the code.
+        """
+        self.photos.append((source, folder, filename))
 
 
 class FakeExporter:
@@ -116,6 +126,43 @@ def test_a_frame_with_no_video_is_skipped():
     export(store, record, plan_store, exporter)
 
     assert len(exporter.pieces) == 2
+
+
+def test_every_exported_frame_leaves_its_photo_beside_its_video():
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter())
+
+    # The number is the video's own: the frame written as 01.mp4 puts its picture in as 01.png, so
+    # the photos folder reads as the same sequence and nothing has to be matched up by hand.
+    assert store.photos == [
+        ("/fake/düğün/0_a.png", FOLDER, "01.png"),
+        ("/fake/düğün/1_a.png", FOLDER, "02.png"),
+    ]
+
+
+def test_a_photo_keeps_the_extension_it_was_saved_with():
+    store, record, plan_store = with_videos()
+    record.append("düğün", {"file": "2_a.jpg", "frame": "2_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "2_a_V1_0.mp4", "frame": "2_a", "layer": "video",
+                            "status": "done"})
+
+    export(store, record, plan_store, FakeExporter())
+
+    # The number belongs to the export, the extension to the picture. Writing .png into the code
+    # would name the first jpg wrongly and there would be nothing on screen to say so.
+    assert store.photos[-1] == ("/fake/düğün/2_a.jpg", FOLDER, "03.jpg")
+
+
+def test_a_frame_with_no_video_leaves_no_photo_either():
+    store, record, plan_store = with_videos()
+    record.append("düğün", {"file": "2_a.png", "frame": "2_a", "layer": "photo", "status": "done"})
+
+    export(store, record, plan_store, FakeExporter())
+
+    # The photos folder is the video list, picture for picture: a frame the sequence does not hold
+    # has no number to be filed under.
+    assert len(store.photos) == 2
 
 
 def test_merged_export_writes_one_file_named_after_the_project():
