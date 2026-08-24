@@ -1,9 +1,8 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 27/28
-*(26 ve 30 kullanıcı kararıyla düştü — numaralandırma kaymıyor. 29 düşüp 21 Ağustos'ta yeniden
-açıldı: I bölümü. 33, 24 Ağustos'ta eklendi ve sonraki koşuya bırakıldı: J bölümü — bu koşunun
-kapsamına girmiyor.)*
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 27/30
+*(Numaralar ve bölüm harfleri okuma sırasına göre gidiyor. 27 düşüp 21 Ağustos'ta yeniden açıldı —
+H bölümü; 28 ve 29, 27'nin teşhisinden doğup 24 Ağustos'ta eklendi — I bölümü.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -53,9 +52,8 @@ biri kırmızı testler biri kod — ama otuz bir satırlık bir listede "7/31" 
 söylemiyor, işaret onun için var. Yarım kalan madde işaretlenmez: bir maddeyi kısmen bitmiş
 göstermenin yolu yok, çünkü "bitti sayılır" sütunu bölünmüyor.
 
-**A'dan G'ye kadar tek başına yürür; H kullanıcıyla birlikte.** Son bölümün hiçbir maddesi ekranda
-görünmüyor ve hiçbirinin "bitti" yargısı koda bakarak verilemiyor. O bölüme sıra gelince
-kullanıcıyla birlikte oturulur.
+**J dışındaki her bölüm tek başına yürür.** J'nin maddesi ekranda görünmüyor ve "bitti" yargısı
+koda bakarak verilemiyor; o bölüme sıra gelince kullanıcıyla birlikte oturulur.
 
 ## Kapsam sınırı
 
@@ -64,12 +62,7 @@ kullanıcıyla birlikte oturulur.
 - **Export ekranı bu koşuda hiç açılmıyor.** Kullanıcı ekranı düzgün buldu; fark listesinin export
   maddelerinin tamamı — görsel olanı da olmayanı da — kullanıcı kararıyla düştü.
 - **Kararla kapanan 31 fark maddesi dışarıda.** Bugünkü hâlleriyle kalıyorlar.
-- **26. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Kurulum bitince kuyruğun
-  kendiliğinden sürmesi, 13 Ağustos 2026'nın "hiçbir üretim kullanıcı basmadan başlamaz" kararına
-  aykırıydı; o karar geçerli.
-- **30. madde koşu sırasında düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. Video prompt'unu yazan
-  yapay zekâya verilen talimat bugünkü hâlinde kalıyor.
-- **29 düştü ve aynı gün yeniden açıldı** — I bölümüne bakın. Önce "küçük önizleme üretimi" diye
+- **27 düştü ve aynı gün yeniden açıldı** — H bölümüne bakın. Önce "küçük önizleme üretimi" diye
   yazılmıştı; asıl derdi *uygulamanın çok fotoğrafta kilitlenmesi* olduğu için o adla geri döndü.
 - **Tasarım tarafında iki satır güncellenmeli.** Açılışta kuyruğun kendiliğinden sürmesi ve yeniden
   üretimin tur numarası, kullanıcı kararıyla bugünkü hâlinde kaldı; tasarımın kural metni hâlâ
@@ -142,12 +135,11 @@ Kullanıcı kararı; fark listesinin 97. maddesi bu yüzden kapandı.
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
 | 25 | ✅ **Kısmi üretici eksikliğinde uyarının kendi kartına geçmesi.** *(46. karar: farkın motor yarısı zaten doğruydu — motor bir türü bitirmeden ötekine başlamıyor. Değişen, panelin ne zaman ve nerede konuştuğu.)* Yalnız bir türün üreticisi eksikken panelin geneli etkilenmez; uyarı ve kurulum düğmesi o türün kendi kartının içinde durur, diğer türler normal akar. | Ses üreticisi eksikken foto ve video kartları akıyor, uyarı yalnız ses kartında duruyor. | Fark 38 |
-| 26 | ❌ **Düştü** *(kullanıcı kararı, 21 Ağustos 2026 — 50. karar)*. **Kurulum bitince kuyruğun kendiliğinden sürmesi.** Madde, 13 Ağustos 2026'nın *"hiçbir üretim kullanıcı basmadan başlamaz; istisnası yok — üreticisini bekleyen kuyruk da bekler"* kararının tersini istiyordu. O karar geçerli; fark 37 de fark 36 gibi kapandı. | — | Fark 37 |
-| 27 | ✅ **Kuyruk panelinin görsel hizalaması** *(grup)*. *(47–49. kararlar: onayın "kare" sözcüğü ve durdu kartının ham çıktı kutusu kalıyor; fark 59 zaten 25. maddede kapandı.)* Tür kartının başlık dili ve büyük sayısının rengi, duraklatılıyor hâlindeki nokta, tamamlandı kartının tonu, hata kartının düğme metni ve ne zaman doğduğu, bekleme hâlinde boşaltma düğmesinin görünmesi. | Listedeki farkların hepsi ekranda kapanmış. | Fark 41–48, 50, 59 |
+| 26 | ✅ **Kuyruk panelinin görsel hizalaması** *(grup)*. *(47–49. kararlar: onayın "kare" sözcüğü ve durdu kartının ham çıktı kutusu kalıyor; fark 59 zaten 25. maddede kapandı.)* Tür kartının başlık dili ve büyük sayısının rengi, duraklatılıyor hâlindeki nokta, tamamlandı kartının tonu, hata kartının düğme metni ve ne zaman doğduğu, bekleme hâlinde boşaltma düğmesinin görünmesi. | Listedeki farkların hepsi ekranda kapanmış. | Fark 41–48, 50, 59 |
 
 ---
 
-## I · Yeniden açılan iş — 21 Ağustos
+## H · Yeniden açılan iş — 21 Ağustos
 
 **Bu bölüm koşunun ortasında açıldı.** Kullanıcı, kendi saydığı bir işin tanınmaz hâle geldiğini
 söyledi; madde geri kondu.
@@ -157,40 +149,37 @@ Kaydı istek listesinde vardı ve bu koşuda bir numara alıp düşürülmüşt�
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 29 | ✅ **Galeri çok fotoğrafta uygulamayı kilitliyor.** *(Yeniden açıldı; ilacı 24 Ağustos'ta ölçümle değişti.)* Fotoğraflar Colab'dan tarayıcıya saniyede 112 KB ile geliyordu — bir kare 17 saniye, boru dolunca da arayüz "sunucuya ulaşılamadı" veriyordu. Sebep ölçüldü: sunucuyu dışarı açan tünel varsayılan olarak UDP kullanıyor, Colab'ın ağı da UDP'yi kısıyor. **İlaç tek ayar: tünel TCP'ye alınır**; aynı kare 0.18 saniyeye iniyor. *Küçük önizleme fikri düştü* — ölçüm baytın sebep olmadığını gösterdi; ayrıntı [araştırma belgesinde](../research/2026-08-23-queen-editor-galeri-yavasligi.md). | Çok kareli bir projede galeri açılırken uygulama kilitlenmiyor ve karolar gözle görülür hızda doluyor. | İstek 1.1 |
+| 27 | ✅ **Galeri çok fotoğrafta uygulamayı kilitliyor.** *(Yeniden açıldı; ilacı 24 Ağustos'ta ölçümle değişti.)* Fotoğraflar Colab'dan tarayıcıya saniyede 112 KB ile geliyordu — bir kare 17 saniye, boru dolunca da arayüz "sunucuya ulaşılamadı" veriyordu. Sebep ölçüldü: sunucuyu dışarı açan tünel varsayılan olarak UDP kullanıyor, Colab'ın ağı da UDP'yi kısıyor. **İlaç tek ayar: tünel TCP'ye alınır**; aynı kare 0.18 saniyeye iniyor. *Küçük önizleme fikri düştü* — ölçüm baytın sebep olmadığını gösterdi; ayrıntı [araştırma belgesinde](../research/2026-08-23-queen-editor-galeri-yavasligi.md). | Çok kareli bir projede galeri açılırken uygulama kilitlenmiyor ve karolar gözle görülür hızda doluyor. | İstek 1.1 |
 
-**29 koddur.** İşi bu tarafta yazıldı ve iki turla bitirildi — yalnız "bitti sayılır" yargısı Colab
+**27 koddur.** İşi bu tarafta yazıldı ve iki turla bitirildi — yalnız "bitti sayılır" yargısı Colab
 turunu bekliyor.
 
 ---
 
-## J · Sonraki koşuya ayrılan iş — 24 Ağustos
+## I · Galeri deneyimi — 24 Ağustos'ta eklendi
 
-**Bu bölüm bu koşuda yapılmıyor**, numarası şimdiden ayrıldı. 29'un teşhisi sırasında galeri
-kuyruğunun kodu okundu ve kullanıcının 20 Ağustos'ta söylediklerinin hâlâ karşılanmadığı görüldü.
+**Bu bölüm 27'nin teşhisinden doğdu.** Boru açılırken galeri kuyruğunun kodu okundu ve kullanıcının
+20 Ağustos'ta söylediklerinin hâlâ karşılanmadığı görüldü; ardından kullanıcı önbelleğin neden
+işlemediğini fark etti. İkisi de o koşunun yan ürünü, ikisi de bu koşuya ait.
 
-Ayrı durmasının sebebi: kuyruğun bugünkü davranışı **tünel dar olduğu için** görünüyordu. Boru 90
-kat açılınca hangi şikâyetin gerçekten kaldığı ancak Colab turunda (madde 28) belli olur. Şimdi
-yapılırsa var olmayan bir soruna kod yazılmış olabilir.
+| # | İş | Bitti sayılır | Kaynak |
+|---|---|---|---|
+| 28 | **Galerinin indirme sırası.** Kullanıcının kendi cümleleriyle üç iş: *"görünmeyeni isteme — bunu kaldır"*, *"aynı anda en fazla 2 fotoğraf — bunu kontrol et doğru mu diye"*, *"bir queue gibi olsa, istek atsa, cevap gelince tamamlanınca diğerini atsa"*. Üstüne teşhiste bulunan iki hata: kuyruğun kendi açıklaması yaptığı işi anlatmıyor, ve bir karo sıradan çıktıktan sonra indirmeye devam ediyor — yani aynı anda kaç fotoğraf indiği kâğıt üstünde yazandan büyük. | Galeri kareleri kaydırma yönünden bağımsız, baştan sona sırayla doluyor; aynı anda inen kare sayısı kodun söylediği sayı. | İstek 1.1 |
+| 29 | **Önbellek koşular arasında yaşamıyor.** Kullanıcının tespiti: *"cache çalışmıyor çünkü cloudflare her seferinde random generated bir adres veriyor."* Her Colab koşusu yeni bir adres alıyor, tarayıcı önbelleği de adresi anahtar olarak kullanıyor — yani dün tamamen inmiş bir fotoğraf bugün yabancı sayılıp yeniden iniyor. **Önce doğrulanacak, sonra çözülecek**; en güçlü aday adresin sabitlenmesi, ve kullanıcının alan adı zaten var. | Aynı proje ikinci bir koşuda açıldığında fotoğraflar ağdan yeniden inmiyor. | Kullanıcı tespiti, 24 Ağustos |
 
-| Sıra | # | İş | Bitti sayılır | Kaynak |
-|---|---|---|---|---|
-| — | 33 | **Galerinin indirme sırası.** Kullanıcının kendi cümleleriyle üç iş: *"görünmeyeni isteme — bunu kaldır"*, *"aynı anda en fazla 2 fotoğraf — bunu kontrol et doğru mu diye"*, *"bir queue gibi olsa, istek atsa, cevap gelince tamamlanınca diğerini atsa"*. Üstüne teşhiste bulunan iki hata: kuyruğun kendi açıklaması yaptığı işi anlatmıyor, ve bir karo sıradan çıktıktan sonra indirmeye devam ediyor — yani aynı anda kaç fotoğraf indiği kâğıt üstünde yazandan büyük. | Galeri kareleri kaydırma yönünden bağımsız, baştan sona sırayla doluyor; aynı anda inen kare sayısı kodun söylediği sayı. | İstek 1.1 |
-
-**Sırası madde 28'den sonra.** Turda galeri artık akıcıysa bu madde küçülebilir ya da düşebilir;
-karar kullanıcıyla birlikte verilir.
+**29 "araştır ve çöz" diye yazıldı, "şunu yap" diye değil.** Hipotez güçlü ama henüz ölçülmedi — bu
+koşunun kendi dersi, ölçmeden sıralama yazılmayacağını söylüyor.
 
 ---
 
-## H · Kullanıcıyla birlikte yapılacak işler — koşunun en sonu
+## J · Kullanıcıyla birlikte yapılacak işler — koşunun en sonu
 
 **Bu bölüm tek başına yapılmaz.** Bölümün "bitti" yargısı koda bakarak verilemiyor — queen-editor
 yerelde koşmuyor, defteri kullanıcı çalıştırıyor ve sonucu kullanıcı görüyor.
 
-**Kalan tek madde koşunun testidir** ve I bölümü de dahil her şeyden sonra, en sonda durur.
+**Bu bölümün maddesi koşunun testidir** ve H ile I de dahil **her şeyden sonra**, en sonda durur.
 Kullanıcı koşuyu maddeler arasında değil, en sonda bir kerede deniyor.
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 28 | **Colab turu — koşunun tek testi ve en sonu.** Dal yayınlanır ve defter koşulur; kullanıcı koşunun **tamamını** birden dener. I bölümünün maddesi de bu turda görülür. | Kullanıcı turu yapmış; çıkan her şey yazıya geçmiş ve [backlog](../backlog.md)'a eklenmiş. | İstek 1.1 |
-| 30 | ❌ **Düştü** *(kullanıcı kararı, 21 Ağustos 2026)*. **Video prompt talimatının güçlenmesi.** Yapay zekâya verilen talimat bugünkü hâlinde kalıyor. | — | İstek 2.2 |
+| 30 | **Colab turu — koşunun tek testi ve en sonu.** Dal yayınlanır ve defter koşulur; kullanıcı koşunun **tamamını** birden dener. H ve I bölümlerinin maddeleri de bu turda görülür. | Kullanıcı turu yapmış; çıkan her şey yazıya geçmiş ve [backlog](../backlog.md)'a eklenmiş. | İstek 1.1 |

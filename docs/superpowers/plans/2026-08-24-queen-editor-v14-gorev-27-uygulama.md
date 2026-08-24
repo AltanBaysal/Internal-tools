@@ -1,4 +1,4 @@
-# v14 Görev 29 — Tünelin taşıma protokolü: İMPLEMENTASYON döngüsü (uygulama planı)
+# v14 Görev 27 — Tünelin taşıma protokolü: İMPLEMENTASYON döngüsü (uygulama planı)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -10,7 +10,7 @@ gerçeğine uydurmak" olduğu için aynı commit'te.
 
 **Tech Stack:** Jupyter notebook (Colab), cloudflared, pytest.
 
-**Spec:** [v14 Görev 29 implementasyon spec'i](../specs/2026-08-24-queen-editor-v14-gorev-29-uygulama-design.md)
+**Spec:** [v14 Görev 27 implementasyon spec'i](../specs/2026-08-24-queen-editor-v14-gorev-27-uygulama-design.md)
 
 ## Global Constraints
 
@@ -128,11 +128,11 @@ git log --oneline -1
 
 ### Task 3: Yol haritasında maddeyi işaretle
 
-- [ ] **Step 1: 29. maddeyi ✅ yap, sayacı ilerlet**
+- [ ] **Step 1: Maddeyi ✅ yap, sayacı ilerlet**
 
 `docs/superpowers/plans/2026-08-20-queen-editor-v14-roadmap.md`:
-- Madde 29'un **İş** hücresi `✅ **Galeri çok fotoğrafta...**` diye başlar.
-- Başlıktaki `**Durum:** 26/30` → `**Durum:** 27/30`.
+- Maddenin **İş** hücresi `✅ **Galeri çok fotoğrafta...**` diye başlar.
+- Başlıktaki sayaç bir ilerler.
 
 Yol haritasının kendi kuralı: iki tur bitip takım yeşile dönünce madde işaretlenir. Ekranda
 görülecek olan Colab turunda görülür.
@@ -142,7 +142,7 @@ görülecek olan Colab turunda görülür.
 ```bash
 git add docs/superpowers/plans/2026-08-20-queen-editor-v14-roadmap.md
 git commit -F - <<'EOF'
-docs(queen-editor): item 29 is done in code, and waits for the tour
+docs(queen-editor): the gallery item is done in code, and waits for the tour
 
 Both tours are in and the suite is green. What the tour still has to say is
 whether a gallery of a hundred photos now fills at a speed a person calls fast

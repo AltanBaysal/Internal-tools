@@ -1,4 +1,4 @@
-# v14 Görev 29 — Tünelin taşıma protokolü: TEST döngüsü (uygulama planı)
+# v14 Görev 27 — Tünelin taşıma protokolü: TEST döngüsü (uygulama planı)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -9,7 +9,7 @@ yanındaki sebebi arıyor. Yardımcılar (`_source`, `_cell`) dosyada zaten var,
 
 **Tech Stack:** pytest.
 
-**Tasarım:** [v14 Görev 29 test spec'i](../specs/2026-08-24-queen-editor-v14-gorev-29-testler-design.md)
+**Tasarım:** [v14 Görev 27 test spec'i](../specs/2026-08-24-queen-editor-v14-gorev-27-testler-design.md)
 
 ## Global Constraints
 

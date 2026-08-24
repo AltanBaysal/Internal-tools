@@ -1,7 +1,7 @@
-# v14 Görev 29 — Tünelin taşıma protokolü: TEST döngüsü tasarımı
+# v14 Görev 27 — Tünelin taşıma protokolü: TEST döngüsü tasarımı
 
 **Tarih:** 2026-08-24 · **Kaynak:** [araştırma belgesi](../research/2026-08-23-queen-editor-galeri-yavasligi.md) §0
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 29
+**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 27
 
 ## Neyin testi yazılıyor
 

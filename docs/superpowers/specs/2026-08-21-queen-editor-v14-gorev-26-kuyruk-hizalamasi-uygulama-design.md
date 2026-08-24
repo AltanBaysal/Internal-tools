@@ -1,6 +1,6 @@
-# v14 · Görev 27 — Kuyruk panelinin görsel hizalaması · **uygulama turu**
+# v14 · Görev 26 — Kuyruk panelinin görsel hizalaması · **uygulama turu**
 
-**Kaynak:** [test turu spec'i](2026-08-21-queen-editor-v14-gorev-27-kuyruk-hizalamasi-testler-design.md) ·
+**Kaynak:** [test turu spec'i](2026-08-21-queen-editor-v14-gorev-26-kuyruk-hizalamasi-testler-design.md) ·
 commit `c342b0a` (on bir test, onu kırmızı) · tasarım v4 fark listesi 41–47.
 
 Kırmızı duran on test ne istiyorsa o yazılıyor. Tek dosya: `QueuePanel.jsx`.

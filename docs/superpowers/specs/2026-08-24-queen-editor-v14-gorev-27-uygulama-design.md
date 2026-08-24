@@ -1,8 +1,8 @@
-# v14 Görev 29 — Tünelin taşıma protokolü: İMPLEMENTASYON döngüsü tasarımı
+# v14 Görev 27 — Tünelin taşıma protokolü: İMPLEMENTASYON döngüsü tasarımı
 
-**Tarih:** 2026-08-24 · **Kaynak:** [test spec'i](2026-08-24-queen-editor-v14-gorev-29-testler-design.md)
+**Tarih:** 2026-08-24 · **Kaynak:** [test spec'i](2026-08-24-queen-editor-v14-gorev-27-testler-design.md)
 **Ölçüm:** [araştırma belgesi](../research/2026-08-23-queen-editor-galeri-yavasligi.md) §0
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 29
+**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 27
 
 ## Kırmızı testlerin istediği
 
@@ -56,7 +56,7 @@ BRANCH       = "feat/queen-editor-v4"       # released work lands in main; a dev
 
 Defter bugün `main`'i klonluyor, `main` ise bu koşunun dosyalarını taşımıyor —
 `workflow_video_first_last_api.json` orada yok ve klon hücresi ona `assert` ediyor. Yani defter şu
-hâliyle Colab'da hiç açılmıyor, madde 28'in turu da yapılamıyor.
+hâliyle Colab'da hiç açılmıyor, madde 30'un turu da yapılamıyor.
 
 **Riski yazılı:** iş main'e inerken bu satır `main`'e dönmezse herkes bir geliştirme dalını
 klonlamaya başlar, ve bu sessizce olur. Yorumun son cümlesi bunun için orada.
@@ -72,7 +72,7 @@ yanlış şeyi korur, doğru işi engellerdi.
 Test dosyasına dokunulmaz: testi koda uydurmak turun anlamını yok eder.
 
 Hızın kendisi burada doğrulanamaz — bir Colab hücresi pytest'te koşmuyor. **"Bitti" yargısı Colab
-turunundur** (madde 28): çok kareli bir projede galeri açılırken uygulamanın kilitlenmemesi ve
+turunundur** (madde 30): çok kareli bir projede galeri açılırken uygulamanın kilitlenmemesi ve
 karoların gözle görülür hızda dolması.
 
 ## Kapsam dışı

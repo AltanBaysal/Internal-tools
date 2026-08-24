@@ -1,4 +1,4 @@
-# v14 Görev 27 — Kuyruk panelinin görsel hizalaması: UYGULAMA döngüsü (uygulama planı)
+# v14 Görev 26 — Kuyruk panelinin görsel hizalaması: UYGULAMA döngüsü (uygulama planı)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -10,7 +10,7 @@ beklerken boşaltma.
 
 **Tech Stack:** React 18, vitest; Vite build.
 
-**Spec:** [uygulama turu spec'i](../specs/2026-08-21-queen-editor-v14-gorev-27-kuyruk-hizalamasi-uygulama-design.md)
+**Spec:** [uygulama turu spec'i](../specs/2026-08-21-queen-editor-v14-gorev-26-kuyruk-hizalamasi-uygulama-design.md)
 
 ## Global Constraints
 
@@ -176,7 +176,7 @@ kararlar satıra not düşer. **26. satır işaretlenmiyor** — o madde kullan�
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/superpowers/specs/2026-08-21-queen-editor-v14-gorev-27-kuyruk-hizalamasi-uygulama-design.md docs/superpowers/plans/2026-08-21-queen-editor-v14-gorev-27-uygulama.md docs/superpowers/plans/2026-08-20-queen-editor-v14-roadmap.md queen-editor/frontend/src queen-editor/frontend/dist
+git add docs/superpowers/specs/2026-08-21-queen-editor-v14-gorev-26-kuyruk-hizalamasi-uygulama-design.md docs/superpowers/plans/2026-08-21-queen-editor-v14-gorev-26-uygulama.md docs/superpowers/plans/2026-08-20-queen-editor-v14-roadmap.md queen-editor/frontend/src queen-editor/frontend/dist
 git commit -m @'
 feat(queen-editor): the queue panel finds its tones
 '@

@@ -1,4 +1,4 @@
-# v14 Görev 27 — Kuyruk panelinin görsel hizalaması: TEST döngüsü (uygulama planı)
+# v14 Görev 26 — Kuyruk panelinin görsel hizalaması: TEST döngüsü (uygulama planı)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -9,7 +9,7 @@ değişmesi. Hepsi kırmızı commit ediliyor.
 
 **Tech Stack:** vitest, @testing-library/react.
 
-**Spec:** [test turu spec'i](../specs/2026-08-21-queen-editor-v14-gorev-27-kuyruk-hizalamasi-testler-design.md)
+**Spec:** [test turu spec'i](../specs/2026-08-21-queen-editor-v14-gorev-26-kuyruk-hizalamasi-testler-design.md)
 
 ## Global Constraints
 
@@ -228,7 +228,7 @@ Expected: ilk üçü yeşil (384 / 474 / 709); dördüncüsü 547 testin **10'u 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add docs/superpowers/specs/2026-08-21-queen-editor-v14-gorev-27-kuyruk-hizalamasi-testler-design.md docs/superpowers/plans/2026-08-21-queen-editor-v14-gorev-27-testler.md docs/superpowers/research/2026-08-20-queen-editor-tasarim-v4-farklari.md queen-editor/frontend/src/features/photo_generation/QueuePanel.test.jsx
+git add docs/superpowers/specs/2026-08-21-queen-editor-v14-gorev-26-kuyruk-hizalamasi-testler-design.md docs/superpowers/plans/2026-08-21-queen-editor-v14-gorev-26-testler.md docs/superpowers/research/2026-08-20-queen-editor-tasarim-v4-farklari.md queen-editor/frontend/src/features/photo_generation/QueuePanel.test.jsx
 git commit -m @'
 test(queen-editor): the queue panel gets its tones
 '@

@@ -1,7 +1,7 @@
 # Galeri yavaşlığı — ölçüm, hüküm ve açık kaldıraçlar
 
 **Başlangıç:** 2026-08-23 · **Ölçüm:** 2026-08-24, iki tur · **Kaynak:** İstek 1.1, yol haritası v14
-madde 29
+madde 27
 
 Bu belge "çok fotoğraf olunca uygulama kilitleniyor ve fotoğraflar çok yavaş iniyor" şikâyetinin
 teşhisidir. Önce bütün mekanizmalar sayıldı, sonra zincir halka halka ölçüldü. Ölçüm, sıralamayı
@@ -41,7 +41,7 @@ Tünel, HTTP/2       10.01 MB/sn                              ✓  ← ilaç
 | Drive FUSE mount'u | Soğuk 3.34 MB/sn, **sıcak 572 MB/sn** | Gerçek ama küçük. Önbellek çalışıyor |
 | Flask / Werkzeug | Yerel dosya 41.68 MB/sn | Masum |
 | Flask'ta kuyruk | `/api/health` boşken 1 ms → meşgulken 2 ms | **Kuyruk yok** |
-| Tarayıcı önbelleği | İkinci istek 16 ms, `transferSize: 0` | **Çalışıyor** |
+| Tarayıcı önbelleği | İkinci istek 16 ms, `transferSize: 0` | **Oturum içinde çalışıyor.** Koşular arasında çalışmadığı sonradan fark edildi — yol haritası v14 madde 29 |
 | CPU açlığı / GIL | Üretim dururken de aynı hız | Elendi |
 | Tarayıcı bağlantı sınırı | Protokol `h2` | Elendi — h2'de 6-bağlantı sınırı yok |
 | **Colab'ın çıkış ağı** | Tünelsiz 32.8 MB/sn yükleme, 132 MB/sn indirme | **Masum.** Kullanıcının baştan söylediği doğru çıktı |
@@ -57,6 +57,11 @@ Sunucu ölmüyor — sırada bekliyor. Ekranın "kilitlendi" görünmesinin tek 
 **"İkinci girişte de yavaş."** Tarayıcı önbelleği çalışıyor, ama **yarım kalan bir cevap önbelleğe
 hiç yazılmıyor.** Fotoğraflar ilk seferde bitmediği için saklanacak bir şey oluşmuyor. Önbellek
 kırık değil; ona verilecek tamamlanmış dosya yok.
+
+> **Bu açıklama eksik çıktı.** Kullanıcı 24 Ağustos'ta ikinci bir sebep fark etti: her Colab koşusu
+> yeni bir tünel adresi alıyor ve tarayıcı önbelleği adresi anahtar olarak kullanıyor — yani
+> tamamen inmiş bir fotoğraf bile bir sonraki koşuda yabancı sayılıyor. Yol haritası v14, madde 29;
+> doğrulanmadı, önce ölçülecek.
 
 > ### Ders: ölçmeden sıralama yazılmaz
 >

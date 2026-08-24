@@ -1,4 +1,4 @@
-# v14 · Görev 27 — Kuyruk panelinin görsel hizalaması · **test turu**
+# v14 · Görev 26 — Kuyruk panelinin görsel hizalaması · **test turu**
 
 **Kaynak:** yol haritası 27. madde · tasarım v4 fark listesi 41–48, 50, 59 · 4. karar ·
 47, 48, 49. kararlar.
