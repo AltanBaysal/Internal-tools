@@ -26,7 +26,7 @@ const HINT = { position: "absolute", top: "calc(100% + 8px)", right: 0, width: 3
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, settingsError, onRetrySettings,
                                         onSaveSettings }) {
-  const { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+  const { job, known, frames, error, errorField, stopping, queue, failures, current, currentLayer,
           retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos, copyPhotos, removeLayer } = useGeneration(project);
@@ -111,7 +111,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
                    onRemoveLayer={removeLayer} onRetry={retry}
                    onSelectionChange={setSelected} />
         </div>
-        <SidePanel job={job} error={saveError || error} errorField={errorField}
+        <SidePanel job={job} known={known} error={saveError || error} errorField={errorField}
                    busyElsewhere={busyElsewhere} settings={settings}
                    settingsError={settingsError} onRetrySettings={onRetrySettings}
                    project={project}

@@ -112,9 +112,9 @@ function RailButton({ panel, active, busy, onSelect }) {
 // v2's right column: one panel at a time, the rail on its right. Three jobs that used to share a
 // single surface -- submitting work, watching the queue, and the agent that has not been designed
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
-export default function SidePanel({ job, error, errorField, busyElsewhere, settings, settingsError,
-                                    project, stopping, queue, failures, models, modelsError,
-                                    producers, frames, selected, onQueueLayer,
+export default function SidePanel({ job, known, error, errorField, busyElsewhere, settings,
+                                    settingsError, project, stopping, queue, failures, models,
+                                    modelsError, producers, frames, selected, onQueueLayer,
                                     onGenerate, onStop, onResume, onCancel, onClearError,
                                     onRetryAll, onRetrySettings }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
@@ -161,7 +161,7 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
                       onInstall={producers?.install} />
         )}
         {open === "queue" && (
-          <QueuePanel job={job} error={error} errorField={errorField}
+          <QueuePanel job={job} known={known} error={error} errorField={errorField}
                       busyElsewhere={busyElsewhere} project={project} stopping={stopping}
                       queue={queue} failures={failures} onStop={onStop} onResume={onResume}
                       onCancel={onCancel} onRetryAll={onRetryAll}

@@ -13,6 +13,7 @@ function column(props) {
   return (
     <SidePanel
       job={{ status: "idle" }}
+      known
       error={null}
       busyElsewhere={false}
       settings={SETTINGS}

@@ -82,6 +82,10 @@ const CARD_TONE = {
   stopped: { borderColor: "var(--danger)", background: "var(--danger-bg)" },
 };
 
+// The panel's own waiting, in its own column: the same shape the photo panel takes while the
+// project record is in flight (madde 31).
+const WAITING = { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" };
+
 // One kind's share of the queue. The card the engine has in hand is the one worth looking at; the
 // rest wait their turn and step back rather than compete with it -- unless they have something to
 // say, and a warning written at .55 is a warning nobody reads (Fark 38).
@@ -129,10 +133,16 @@ function KindCard({ layer, owed, alive, producer, onInstall }) {
 
 // Artboard 05: a card per kind of work, then whatever the run itself has to say. Everything the
 // run has to say lives here; the form panel next door only submits work.
-export default function QueuePanel({ job, error, errorField, busyElsewhere, project, stopping,
-                                     queue, failures, producers, onStop, onResume, onCancel,
-                                     onRetryAll, onInstall }) {
+export default function QueuePanel({ job, known, error, errorField, busyElsewhere, project,
+                                     stopping, queue, failures, producers, onStop, onResume,
+                                     onCancel, onRetryAll, onInstall }) {
   const [clearing, setClearing] = useState(false);
+
+  // idle is a placeholder, not an answer: before the server has reported anything there is no true
+  // sentence to write about the queue, and this panel used to write the loudest wrong one -- that
+  // the queue is empty, over a run that may well be flowing (madde 33). Below the hook rather than
+  // above it, because hooks run unconditionally.
+  if (!known) return <div style={WAITING}><span className="wf-spinner" /></div>;
 
   // Another project's finished batch must not talk into this panel (state leaks across projects
   // otherwise -- the worker is global but the words on screen are this project's).
