@@ -168,7 +168,7 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
           <div style={WAITING}><span className="wf-spinner" /></div>
         ) : (
           <GeneratePanel job={job} error={error} errorField={errorField}
-                         busyElsewhere={busyElsewhere} settings={settings}
+                         busyElsewhere={busyElsewhere} settings={settings} project={project}
                          models={models} modelsError={modelsError}
                          producer={(producers?.producers || []).find((p) => p.id === "photo")}
                          onGenerate={onGenerate} onClearError={onClearError}

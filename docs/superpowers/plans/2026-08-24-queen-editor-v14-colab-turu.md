@@ -52,8 +52,12 @@ hücresi bu dala bakıyor — `queen-editor/app.ipynb` yüklenip koşulur, başk
       çıkmamalı — model kutusu ve üretici satırları olduğu gibi durmalı.
 - [ ] **Kuyruk paneli yanlış konuşmuyor** (33). Üretim akarken bir kare açılıp dönülünce panel bir an
       bile "kuyruk boş" dememeli.
-- [ ] **Panel ve seçim yerinde** (34). Kuyruk paneli açıkken ve üç kare seçiliyken bir kare açılıp
-      dönülünce panel de seçim de yerinde kalmalı.
+- [ ] **Açık panel yerinde** (34). Kuyruk paneli açıkken bir kare açılıp dönülünce panel yerinde
+      kalmalı; kapalı bırakılmışsa kapalı dönmeli. *(Galeri seçimi bu satırdan çıktı — kullanıcı
+      kararı: seçim varken karta tıklamak kareyi açmıyor, yani seçimin kaybolduğu bir yol yok.)*
+- [ ] **Yazılan metin yerinde** (35). Fotoğraf üret panelinin bir kutusuna bir şey yazılıp
+      gönderilmeden bir kare açılıp dönülünce yazılan durmalı — kutuda en son gönderilen metin
+      olmamalı. Sayfa yenilenirse kutular kayıttan dolar, o beklenen.
 - [ ] **Kart görünümü** (15). Sahiplik rozetleri sol altta ve ikonsuz, her katman kendi kutusunda;
       ikinci bekleyen hap birincinin altında; hover'da numara yok; sürükleme basılı tutmayla
       başlıyor; bekleyen hapının tonu ve hatalı karenin perdesi düzelmiş.
