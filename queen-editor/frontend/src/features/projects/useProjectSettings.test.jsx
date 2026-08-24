@@ -31,13 +31,16 @@ describe("useProjectSettings", () => {
   });
 
   it("carries the server's text on failure", async () => {
-    getSettings.mockRejectedValue(new Error("Proje bulunamadı: düğün"));
+    getSettings.mockRejectedValue(new Error("Proje bulunamadı: okunamayan"));
 
-    const { result } = renderHook(() => useProjectSettings("düğün"));
+    // Its own project name: what a record answered with is remembered for the length of a visit,
+    // so a name another test has already filled would make this a refresh rather than a first
+    // read -- and a refresh that falls over deliberately keeps what is on screen.
+    const { result } = renderHook(() => useProjectSettings("okunamayan"));
     await settle();
 
     expect(result.current.status).toBe("error");
-    expect(result.current.error).toBe("Proje bulunamadı: düğün");
+    expect(result.current.error).toBe("Proje bulunamadı: okunamayan");
   });
 
   it("swallows a late answer for the previous project after a quick switch", async () => {
