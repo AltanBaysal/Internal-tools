@@ -53,9 +53,11 @@ export function TileImage({ project, file, style, ...rest }) {
 
   return (
     <>
-      {state !== "here" && (granted && state === "waiting"
-        // Only the tile that holds the slot turns. Every tile is in the queue from the moment it
-        // is built, so a ring on each of them would be a gallery of rings saying nothing.
+      {state !== "here" && (state === "waiting"
+        // Waiting and downloading look alike: with a single slot almost every tile is waiting, and
+        // a gallery of still boxes reads as nothing happening. What it gives up is knowing which
+        // tile holds the slot. The one that will never get its picture keeps the quiet box, so a
+        // ring still means something is coming.
         ? <Rendering style={style} />
         : <div className="wf-img" style={style} />)}
       <img alt={file} src={granted ? url : undefined}
