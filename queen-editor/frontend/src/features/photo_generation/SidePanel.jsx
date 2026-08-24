@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono } from "../../vendor/kit.jsx";
@@ -56,6 +56,21 @@ const WAITING = { flex: 1, display: "flex", alignItems: "center", justifyContent
 // icon its own submit button carries.
 const GLYPH = { photo: PhotoGlyph, video: VideoGlyph, audio: SoundGlyph, queue: QueueGlyph,
                 agent: AgentGlyph, producers: ProducersGlyph };
+
+// Which panel each project's column was last showing. Opening a frame's detail replaces the whole
+// project screen, so this component is torn down and built again on every step in and out; without
+// this the column would reopen on the form every time (madde 34). Keyed by project: which panel is
+// being watched is the user's work in one project, never a fact about the app.
+//
+// Memory only, like the gallery's own stores: a reload opens the column on the form again.
+const REMEMBERED = new Map();
+
+// Where a mount starts. Asked with has() rather than read with a fallback, because a closed column
+// is null and so is having nothing remembered -- `?? "photo"` here would reopen a column the user
+// closed on purpose, which is this item's own mistake in the other direction.
+function opening(project) {
+  return REMEMBERED.has(project) ? REMEMBERED.get(project) : "photo";
+}
 
 // Adding a panel later means adding a row here -- the rail is drawn from this list, not from three
 // hard-coded buttons. The id is the layer's own word, so it matches both the glyph's name and what
@@ -120,9 +135,16 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it. null means none of them -- pressing the open panel's own icon closes
   // it and gives the width back to the gallery, the way a code editor's side bar behaves.
-  const [open, setOpen] = useState("photo");
+  const [open, setOpen] = useState(() => opening(project));
   const toggle = (id) => setOpen((shown) => (shown === id ? null : id));
   const current = PANELS.find((panel) => panel.id === open);
+
+  // Whatever the column becomes is what a later mount starts from -- closed included. One effect
+  // rather than a write inside toggle: that one is a functional update, and a store written from
+  // inside it would be a side effect where there must be none.
+  useEffect(() => {
+    REMEMBERED.set(project, open);
+  }, [project, open]);
 
   return (
     <div style={COLUMN}>
