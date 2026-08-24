@@ -1,10 +1,10 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 31/33
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 32/34
 *(Numaralar ve bölüm harfleri okuma sırasına göre gidiyor. 27 düşüp 21 Ağustos'ta yeniden açıldı —
 H bölümü; 28 ve 29, 27'nin teşhisinden doğup 24 Ağustos'ta eklendi — I bölümü; 29 aynı gün
 kullanıcı kararıyla düştü, o yüzden 30'a kadarki payda 30 değil 29. 31–34 turun kendi içinden
-doğup aynı gün eklendi — K bölümü.)*
+doğup aynı gün eklendi — K bölümü; 35 ertesi gün kullanıcının isteğiyle eklendi.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -207,7 +207,7 @@ aktif kartları göremiyoruz."*
 | 31 | ✅ **Galeri, kendisine gerekmeyen bir cevabı beklemez.** Bugün proje kaydı gelene kadar tüm ekran tek bir yükleniyor işaretine dönüyor — galerisi, başlığı ve sağdaki rayıyla birlikte. Bundan sonra ekran anında açılır; bekleyen tek yer fotoğraf üret paneli olur ve beklediğini kendi sütununun içinde söyler. Kayıt okunamazsa hata kartı da tam ekran yerine o panelde durur. | Bir projeye ilk kez girildiğinde de bir kareden dönüldüğünde de galeri hemen görünüyor; yükleniyor işareti yalnız fotoğraf üret panelinin içinde çıkıyor. | Colab turu · kullanıcı kuralı, 24 Ağustos |
 | 32 | ✅ **Elde cevap varken hiçbir gösterge yanmaz.** Proje kaydı, model listesi ve üretici listesi bir ziyaret boyunca hatırlanır; geri dönüşte arkada tazelenir, ekranda hiçbir şey kıpırdamaz. Kareler, fotoğraflar ve kayma yeri bunu zaten yapıyor — eksik olan üçü tamamlanıyor. | Bir kare açılıp kapandığında ekranın hiçbir yerinde yükleniyor çıkmıyor; model kutusu ve üretici satırları olduğu gibi duruyor. | Kullanıcı kuralı: *"zaten veri varsa sessiz yapılsın"* |
 | 33 | ✅ **Ekran, kuyruğun durumunu bilmeden konuşmaz.** Sunucu ilk cevabını vermeden kuyruk paneli "kuyruk boş" diyor — akan bir üretim varken bile. Bilmediği sürece o kart susar. | Üretim akarken bir kare açılıp dönülünce kuyruk paneli bir an bile "kuyruk boş" demiyor. | Teşhis, 24 Ağustos |
-| 34 | **Açık panel geri dönüşte yerinde kalır.** Bugün hangi panel açıksa kapanıp fotoğraf üret paneline dönüyor. | Kuyruk paneli açıkken bir kare açılıp dönülüyor; panel yerinde. | Colab turu, 24 Ağustos |
+| 34 | ✅ **Açık panel geri dönüşte yerinde kalır.** Bugün hangi panel açıksa kapanıp fotoğraf üret paneline dönüyor. | Kuyruk paneli açıkken bir kare açılıp dönülüyor; panel yerinde. | Colab turu, 24 Ağustos |
 | 35 | **Yazılmış ama gönderilmemiş metin geri dönüşte duruyor.** Fotoğraf üret panelinin kutularına yazılan metin diske yalnız Kuyruğa ekle'ye basıldığında geçiyor; arada bir kareye bakıp dönen kullanıcı yazdığını kaybediyor ve kutuda en son gönderdiği metni buluyor. | Panele bir şey yazılıyor, gönderilmeden bir kare açılıp dönülüyor; yazılan metin kutuda duruyor. | Kullanıcı, 24 Ağustos |
 
 **33, 34'ün önünde durmalı.** 34 tek başına yapılırsa kuyruk paneli açık dönmeye başlar ve 33'ün
