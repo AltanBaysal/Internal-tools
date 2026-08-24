@@ -39,6 +39,14 @@ const turning = () => document.querySelector(".wf-spinner");
 const grant = () => act(() => queue.waiting[0]?.grant());
 const releases = () => queue.waiting.map((ticket) => ticket.released);
 
+// The style the gallery really hands a tile. It is an img's style, and `display: block` is right
+// for an img -- the holder that stands in for the picture is not one, and that is where this item's
+// fault begins. Written out rather than imported: a test that reads the value from the code it
+// tests cannot say the value is wrong.
+const GALLERY_STYLE = { width: "100%", aspectRatio: "1/1", objectFit: "cover",
+                        border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
+                        display: "block" };
+
 beforeEach(() => {
   queue.forget();
   // A picture that has been on screen once is remembered for the session, so a suite whose tests
@@ -170,6 +178,41 @@ describe("TileImage — what the tile shows", () => {
     expect(holder()).toBeTruthy();
     expect(turning()).toBeNull();
     expect(seen()).toBe(false);
+  });
+
+  it("keeps the ring in the middle of the tile, whatever shape the gallery asks for", () => {
+    render(<TileImage project="düğün" file="1_a.png" style={GALLERY_STYLE} />);
+
+    // The gallery's style is an img's, and it says display: block. The holder is a div whose whole
+    // job is to centre the ring, and block takes the centring away -- the ring stops being a flex
+    // item, falls back to inline, and an inline span is a box that width and height do not apply
+    // to. That is the same fault twice over: the ring lands in the top left corner AND collapses
+    // into a deformed arc. One assertion, because they have one cause.
+    expect(holder().style.display).toBe("flex");
+    expect(holder().style.alignItems).toBe("center");
+    expect(holder().style.justifyContent).toBe("center");
+  });
+
+  it("waits on a calm ground rather than a striped one", () => {
+    render(<TileImage project="düğün" file="1_a.png" style={GALLERY_STYLE} />);
+
+    // Two indicators for one wait: diagonal stripes behind a turning ring. The stripes are how the
+    // gallery says there are no pixels here -- a frame still queued, one that failed, a picture
+    // that never came. Saying it behind a ring that says the opposite is what makes the tile noisy.
+    expect(holder().style.backgroundImage).toBe("none");
+    expect(holder().className).not.toContain("wf-img--loading");
+  });
+
+  it("leaves the stripes where they mean there are no pixels", () => {
+    render(<TileImage project="düğün" file="1_a.png" style={GALLERY_STYLE} />);
+    grant();
+
+    fireEvent.error(picture());
+
+    // The holder for a picture that never arrived keeps its stripes and loses its ring. Taking the
+    // stripes from this one too would make the two states look alike again, from the other side.
+    expect(holder().style.backgroundImage).toBe("");
+    expect(turning()).toBeNull();
   });
 });
 
