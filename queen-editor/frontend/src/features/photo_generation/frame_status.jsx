@@ -114,15 +114,28 @@ export function Making({ layer }) {
   );
 }
 
-/** The kit's loading holder without its word.
+/** The kit's loading holder without its word, and without its stripes.
  *
  * vendor/ is never hand-edited, and the kit's own version writes "Çalışıyor" across the middle of
- * the card -- which is exactly what the design takes away. Same classes, same spinner, no words.
+ * the card -- which is exactly what the design takes away. The spinner is the kit's; the ground is
+ * not, because the kit's loading class paints diagonal stripes and this holder must not.
+ *
+ * Stripes are how the gallery says there are no pixels here: a frame still queued, one that failed,
+ * a picture that never came. A ring says the opposite -- something is on its way. Saying both at
+ * once left the two states telling one difference through the ring alone (madde 36).
+ *
+ * The caller's style is written first and the centring after it, so no caller can take the ring out
+ * of the middle. That is not a hypothetical: the gallery hands a tile the img's own style, and an
+ * img's style says display block. Block is right for an img and wrong for this box -- it stops the
+ * ring being a flex item, the ring falls back to inline, and width and height do not apply to an
+ * inline span. The ring landed in the top left corner as a deformed arc.
  */
 export function Rendering({ style }) {
   return (
-    <div className="wf-img wf-img--loading" style={style}>
-      <span className="wf-spinner" style={{ position: "relative", zIndex: 1 }} />
+    <div className="wf-img"
+         style={{ ...style, backgroundImage: "none",
+                  display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <span className="wf-spinner" />
     </div>
   );
 }

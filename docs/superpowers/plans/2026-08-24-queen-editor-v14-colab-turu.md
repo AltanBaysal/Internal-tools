@@ -58,6 +58,10 @@ hücresi bu dala bakıyor — `queen-editor/app.ipynb` yüklenip koşulur, başk
 - [ ] **Yazılan metin yerinde** (35). Fotoğraf üret panelinin bir kutusuna bir şey yazılıp
       gönderilmeden bir kare açılıp dönülünce yazılan durmalı — kutuda en son gönderilen metin
       olmamalı. Sayfa yenilenirse kutular kayıttan dolar, o beklenen.
+- [ ] **İnerken bekleme hâli** (36). Çok kareli bir projede fotoğraflar inerken her karonun tam
+      ortasında yuvarlak bir halka dönmeli — sol üstte ezilmiş bir yay değil — ve arkasında çapraz
+      çizgi olmamalı. Çizgi yalnız piksel olmayan karolarda: kuyrukta bekleyen, hata almış, ve
+      fotoğrafı hiç gelmeyen.
 - [ ] **Kart görünümü** (15). Sahiplik rozetleri sol altta ve ikonsuz, her katman kendi kutusunda;
       ikinci bekleyen hap birincinin altında; hover'da numara yok; sürükleme basılı tutmayla
       başlıyor; bekleyen hapının tonu ve hatalı karenin perdesi düzelmiş.
