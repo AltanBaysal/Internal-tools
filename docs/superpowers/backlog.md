@@ -29,3 +29,15 @@ konması gerekiyor — ikisi de kullanıcının tarafında.
 
 Kararı bekleyen yan etki: sabit adres, koşu ayaktayken herkesin bilebileceği kalıcı bir kapı demek;
 bugünkü rastgele adresin sağladığı örtü kalkıyor. Yol haritası v14, madde 29.
+
+### Gönderilmemiş prompt metni kayboluyor — iki ekranın aynı soruya iki cevabı
+
+Fotoğraf üret panelinin kutularına yazılan metin yalnızca **Kuyruğa ekle**'ye basıldığında kayda
+geçiyor. Yazıp basmadan bir kareye bakmaya gidince dönüşte kutular boş.
+
+Tek başına bir eksik gibi görünüyor ama değil: detay sayfası aynı soruya bilerek *"kare terk edilince
+yazı ölür"* diye cevap vermiş durumda (v4 tasarım kuralı, madde 76). Paneli hatırlar hâle getirmek
+iki ekranı birbirine ters düşürür, ikisini birden değiştirmek de "kaydedilmemiş yazı ne kadar
+yaşamalı" sorusunun kendisini açar — o da bir tasarım kararı, bir düzeltme değil.
+
+Karar kullanıcınındır. Yol haritası v14, K bölümü, dışarıda bırakılan iş.
