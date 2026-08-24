@@ -60,8 +60,10 @@ kırık değil; ona verilecek tamamlanmış dosya yok.
 
 > **Bu açıklama eksik çıktı.** Kullanıcı 24 Ağustos'ta ikinci bir sebep fark etti: her Colab koşusu
 > yeni bir tünel adresi alıyor ve tarayıcı önbelleği adresi anahtar olarak kullanıyor — yani
-> tamamen inmiş bir fotoğraf bile bir sonraki koşuda yabancı sayılıyor. Yol haritası v14, madde 29;
-> doğrulanmadı, önce ölçülecek.
+> tamamen inmiş bir fotoğraf bile bir sonraki koşuda yabancı sayılıyor. Yol haritası v14 madde 29
+> bunun için açıldı ve aynı gün düştü: sebep ölçülmeden kabul edildi, çünkü tarayıcıda bayt saklayan
+> her depo origin'e göre bölünüyor ve sıralanacak ikinci bir aday yok. Tek kapı adresi sabitlemek,
+> o da defterin tünel satırıyla kullanıcının alan adında — [backlog](../backlog.md).
 
 > ### Ders: ölçmeden sıralama yazılmaz
 >

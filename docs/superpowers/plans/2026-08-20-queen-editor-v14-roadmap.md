@@ -1,8 +1,9 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 28/30
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 28/29
 *(Numaralar ve bölüm harfleri okuma sırasına göre gidiyor. 27 düşüp 21 Ağustos'ta yeniden açıldı —
-H bölümü; 28 ve 29, 27'nin teşhisinden doğup 24 Ağustos'ta eklendi — I bölümü.)*
+H bölümü; 28 ve 29, 27'nin teşhisinden doğup 24 Ağustos'ta eklendi — I bölümü; 29 aynı gün
+kullanıcı kararıyla düştü, o yüzden payda 30 değil 29.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -64,6 +65,8 @@ koda bakarak verilemiyor; o bölüme sıra gelince kullanıcıyla birlikte oturu
 - **Kararla kapanan 31 fark maddesi dışarıda.** Bugünkü hâlleriyle kalıyorlar.
 - **27 düştü ve aynı gün yeniden açıldı** — H bölümüne bakın. Önce "küçük önizleme üretimi" diye
   yazılmıştı; asıl derdi *uygulamanın çok fotoğrafta kilitlenmesi* olduğu için o adla geri döndü.
+- **29 düştü — I bölümüne bakın.** Önbelleğin koşular arası yarısı yalnız sabit bir adresle açılıyor;
+  o da defterin tünel satırı ve kullanıcının alan adı, yani bu koşunun elindeki bir iş değil.
 - **Tasarım tarafında iki satır güncellenmeli.** Açılışta kuyruğun kendiliğinden sürmesi ve yeniden
   üretimin tur numarası, kullanıcı kararıyla bugünkü hâlinde kaldı; tasarımın kural metni hâlâ
   tersini söylüyor. Güncellenmezse bir sonraki karşılaştırmada aynı çelişkiler yeniden çıkar.
@@ -160,15 +163,26 @@ turunu bekliyor.
 
 **Bu bölüm 27'nin teşhisinden doğdu.** Boru açılırken galeri kuyruğunun kodu okundu ve kullanıcının
 20 Ağustos'ta söylediklerinin hâlâ karşılanmadığı görüldü; ardından kullanıcı önbelleğin neden
-işlemediğini fark etti. İkisi de o koşunun yan ürünü, ikisi de bu koşuya ait.
+işlemediğini fark etti. İkisi de o koşunun yan ürünü; 28 bu koşuda bitti, 29 aynı gün düştü.
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
 | 28 | ✅ **Galerinin indirme sırası.** Kullanıcının kendi cümleleriyle üç iş: *"görünmeyeni isteme — bunu kaldır"*, *"aynı anda en fazla 2 fotoğraf — bunu kontrol et doğru mu diye"*, *"bir queue gibi olsa, istek atsa, cevap gelince tamamlanınca diğerini atsa"*. Üstüne teşhiste bulunan iki hata: kuyruğun kendi açıklaması yaptığı işi anlatmıyor, ve bir karo sıradan çıktıktan sonra indirmeye devam ediyor — yani aynı anda kaç fotoğraf indiği kâğıt üstünde yazandan büyük. | Galeri kareleri kaydırma yönünden bağımsız, baştan sona sırayla doluyor; aynı anda inen kare sayısı kodun söylediği sayı. | İstek 1.1 |
-| 29 | **Önbellek koşular arasında yaşamıyor.** Kullanıcının tespiti: *"cache çalışmıyor çünkü cloudflare her seferinde random generated bir adres veriyor."* Her Colab koşusu yeni bir adres alıyor, tarayıcı önbelleği de adresi anahtar olarak kullanıyor — yani dün tamamen inmiş bir fotoğraf bugün yabancı sayılıp yeniden iniyor. **Önce doğrulanacak, sonra çözülecek**; en güçlü aday adresin sabitlenmesi, ve kullanıcının alan adı zaten var. | Aynı proje ikinci bir koşuda açıldığında fotoğraflar ağdan yeniden inmiyor. | Kullanıcı tespiti, 24 Ağustos |
+| 29 | **Önbellek koşular arasında yaşamıyor** — *24 Ağustos'ta açıldı, aynı gün kullanıcı kararıyla **düştü**.* Kullanıcının tespiti: *"cache çalışmıyor çünkü cloudflare her seferinde random generated bir adres veriyor."* Her Colab koşusu yeni bir adres alıyor, tarayıcı önbelleği de adresi anahtar olarak kullanıyor — yani dün tamamen inmiş bir fotoğraf bugün yabancı sayılıp yeniden iniyor. Tespit doğru kabul edildi, çözümü bu koşuya ait değil. | — *(düşen maddenin bitti yargısı olmuyor)* | Kullanıcı tespiti, 24 Ağustos |
 
-**29 "araştır ve çöz" diye yazıldı, "şunu yap" diye değil.** Hipotez güçlü ama henüz ölçülmedi — bu
-koşunun kendi dersi, ölçmeden sıralama yazılmayacağını söylüyor.
+**29 ölçülmeden düştü, ve bu koşunun kendi dersiyle çelişmiyor.** *"Ölçmeden sıralama yazılmaz"*
+dersi, birden çok aday varken hangisinin önce geldiğini yazmayı yasaklıyor. Burada sıralanacak aday
+yok: tarayıcıda bayt saklayan **her** depo — HTTP önbelleği, Cache Storage, IndexedDB — origin'e
+göre bölünüyor, origin de konak adının kendisi. Adres değişince hepsi birden yabancılaşıyor, yani
+"kendi önbelleğimizi yazalım" diye bir aile hiç yok. Sabit adres seçeneklerden biri değil, **tek
+kapı** — ve o kapı defterin tünel satırıyla kullanıcının alan adında duruyor, uygulamanın kodunda
+değil. Kayıt [backlog](../backlog.md)'a geçti.
+
+**Foto rotasının `immutable` başlığı yerinde kalıyor.** Bugün yarısı zaten çalışıyor: koşu içinde
+galeri kaydırması ve detaydan dönüş ağa hiç çıkmıyor. Silmek bunu geri götürür ve yer de
+kazandırmaz — başlık olmayınca Werkzeug `no-cache` koyuyor, yani bayt yine diske iniyor, üstüne her
+fotoğraf için bir gidiş-dönüş ekleniyor. Adres sabitlendiği gün başlığın ikinci yarısı kod
+değişmeden açılır.
 
 ---
 
