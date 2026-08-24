@@ -85,16 +85,17 @@ describe("image queue", () => {
     expect(granted).toEqual(["a", "b"]);
   });
 
-  it("shares one queue of two slots for the gallery", () => {
+  it("shares one queue of a single slot for the gallery", () => {
     const granted = [];
 
     imageQueue.ask(() => granted.push("a"));
     imageQueue.ask(() => granted.push("b"));
     imageQueue.ask(() => granted.push("c"));
 
-    // The number the whole task exists for. Tested on the shared instance because that is the one
-    // the gallery uses -- createQueue could be right while the app shipped a different ceiling.
-    // Nothing is released here on purpose: this test is last, and no other test reads this queue.
-    expect(granted).toEqual(["a", "b"]);
+    // One at a time: the picture downloads, and only when it is in does the next request leave.
+    // Tested on the shared instance because that is the one the gallery uses -- createQueue could
+    // be right while the app shipped a different ceiling. Nothing is released here on purpose:
+    // this test is last, and no other test reads this queue.
+    expect(granted).toEqual(["a"]);
   });
 });

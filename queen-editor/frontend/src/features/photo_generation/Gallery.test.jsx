@@ -14,6 +14,24 @@ vi.mock("../../shared/router.js", () => ({
   photoPath: (project, file) => `/projects/${encodeURIComponent(project)}/photos/${file}`,
 }));
 
+// The tiles ask a shared queue before they download, and jsdom never loads a picture -- with the
+// real one the first tile would hold the only slot for the whole file. The fake grants nothing by
+// itself, and the order of its list is the order the tiles asked in.
+const queue = vi.hoisted(() => {
+  const waiting = [];
+  return {
+    waiting,
+    ask(grant) {
+      const ticket = { grant, done: () => {} };
+      waiting.push(ticket);
+      return ticket;
+    },
+    forget: () => { waiting.length = 0; },
+  };
+});
+
+vi.mock("../../shared/image_queue.js", () => ({ imageQueue: queue }));
+
 // What the server answers with: a frame's identity and status, plus which of its layers are still
 // owed and which blew up. The identity is what the gallery keys everything by; the file is only
 // what it shows. These fixtures name a frame after its own picture, which is the ordinary case --
@@ -31,6 +49,7 @@ const withVideo = (file, extra = {}) => done(file, {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  queue.forget();
 });
 
 // jsdom has no DataTransfer, so the component must not depend on one: it tracks the dragged tile
@@ -101,6 +120,22 @@ describe("Gallery ordering", () => {
     dragTile("1_a.png", "1_a.png");
 
     expect(onReorder).not.toHaveBeenCalled();
+  });
+
+  it("puts the tiles in the queue in the order the frames are in", () => {
+    renderGallery();
+
+    act(() => queue.waiting[0].grant());
+
+    // The item's own promise: the gallery fills from the first frame to the last, whichever way
+    // the page was scrolled. FIFO is the queue's own test and asking at build is the tile's; what
+    // only this can say is that the first ticket belongs to the first frame.
+    expect(screen.getByAltText("2_a.png").getAttribute("src")).toBeTruthy();
+    expect(screen.getByAltText("1_a.png").getAttribute("src")).toBeNull();
+
+    act(() => queue.waiting[1].grant());
+
+    expect(screen.getByAltText("1_a.png").getAttribute("src")).toBeTruthy();
   });
 
   it("goes to the detail page when a frame is clicked", () => {
