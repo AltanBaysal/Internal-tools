@@ -351,13 +351,22 @@ export default function PhotoDetail({ project, frame: fid }) {
   const retried = sent.some((one) => one.retry);
 
   // The arrows swap the frame under a page that stays mounted, so anything said about the old one
-  // has to go with it -- a refusal card from the previous frame would read as this one's, and a
-  // tab it does not have would be open on a frame that never had that layer.
+  // has to go with it -- a refusal card from the previous frame would read as this one's.
+  //
+  // The open tab is the one thing that stays. Stepping through a run of videos used to cost a press
+  // per frame, and dropping a tab the frame that arrived does have buys nothing (madde 38). It only
+  // falls back when there is nowhere to fall back from: a tab on a layer the frame never had would
+  // be a tab on nothing. Not by layer name -- the sound tab keeps its place by the same line.
+  //
+  // Asked of React rather than read from `open`, because this effect sets other state around it and
+  // a value read from the closure would depend on where in the list it sits. `has` is the arriving
+  // frame's: it is worked out during the render that fid changed, and this runs after it. `has` is
+  // deliberately not a dependency -- the tab is a question for a new frame, not for every poll.
   useEffect(() => {
     setRefused(false);
     setAsking(null);
     setBusy(false);
-    setOpen("photo");
+    setOpen((shown) => (has[shown] ? shown : "photo"));
     // The editing belonged to that frame, and so did the presses: both go with it.
     setWords({});
     setSent([]);

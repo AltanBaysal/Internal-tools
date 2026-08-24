@@ -106,6 +106,9 @@ hücresi bu dala bakıyor — `queen-editor/app.ipynb` yüklenip koşulur, başk
       karesinde "Sonrakine bağla" seçilince kutu uyarıya döner ve yeniden üret pasifleşir.
 - [ ] **Detayın görseli** (22). Oynatıcı çubuğu ve dalga videonun içinde, oynat düğmesi çerçeveli,
       sahnenin üst boşluğu açık, negatif prompt düzenlenebilir.
+- [ ] **Sekme kareler arasında yerinde** (38). Videosu olan iki kare arasında oklarla gezilir: video
+      sekmesi açık kalmalı, her karede yeniden seçilmemeli. Videosu olmayan bir kareye gelince
+      fotoğrafa dönmeli. Oynatıcı duraklamış başlar — o bilerek öyle.
 
 ## 7 · Kuyruk
 

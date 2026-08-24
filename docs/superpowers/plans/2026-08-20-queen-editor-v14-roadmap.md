@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 35/37
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 36/37
 *(Numaralar ve bölüm harfleri okuma sırasına göre gidiyor. 27 düşüp 21 Ağustos'ta yeniden açıldı —
 H bölümü; 28 ve 29, 27'nin teşhisinden doğup 24 Ağustos'ta eklendi — I bölümü; 29 aynı gün
 kullanıcı kararıyla düştü, o yüzden 30'a kadarki payda 30 değil 29. 31–34 turun kendi içinden
@@ -213,7 +213,7 @@ aktif kartları göremiyoruz."*
 
 | 37 | ✅ **Export fotoğrafları da taşır.** Bugün export yalnız video yazıyor; fotoğraflar hiç girmiyor. Exportun içine `photos/` klasörü gelir ve videosu olan her karenin fotoğrafı, videosuyla aynı numarayla oraya kopyalanır. Birleşik ve ayrı export aynı anda alınırsa fotoğraflar bir kez iner. | Export alındığında klasörün içinde `photos/` var ve içindekiler `.mp4` listesiyle birebir eşleşiyor; iki mod aynı anda alınınca fotoğraflar tek kopya. | Kullanıcı, 25 Ağustos |
 
-| 38 | **Açık sekme kareler arasında yerinde kalır.** Detayda video izlerken sonraki kareye geçilince sekme fotoğrafa düşüyor ve video her seferinde yeniden seçiliyor. Bundan sonra sekme yerinde kalır; yalnız sonraki karede o katman yoksa fotoğrafa döner. | Videosu olan kareler arasında oklarla gezilirken video sekmesi açık kalıyor; videosuz bir kareye gelince fotoğrafa düşüyor. | Kullanıcı, 25 Ağustos |
+| 38 | ✅ **Açık sekme kareler arasında yerinde kalır.** Detayda video izlerken sonraki kareye geçilince sekme fotoğrafa düşüyor ve video her seferinde yeniden seçiliyor. Bundan sonra sekme yerinde kalır; yalnız sonraki karede o katman yoksa fotoğrafa döner. | Videosu olan kareler arasında oklarla gezilirken video sekmesi açık kalıyor; videosuz bir kareye gelince fotoğrafa düşüyor. | Kullanıcı, 25 Ağustos |
 
 **33, 34'ün önünde durmalı.** 34 tek başına yapılırsa kuyruk paneli açık dönmeye başlar ve 33'ün
 sustuğu yanlış cümle ilk kez ekrana çıkar.
