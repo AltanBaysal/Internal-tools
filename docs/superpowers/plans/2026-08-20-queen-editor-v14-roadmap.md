@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 27/30
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 28/30
 *(Numaralar ve bölüm harfleri okuma sırasına göre gidiyor. 27 düşüp 21 Ağustos'ta yeniden açıldı —
 H bölümü; 28 ve 29, 27'nin teşhisinden doğup 24 Ağustos'ta eklendi — I bölümü.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
@@ -164,7 +164,7 @@ işlemediğini fark etti. İkisi de o koşunun yan ürünü, ikisi de bu koşuya
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 28 | **Galerinin indirme sırası.** Kullanıcının kendi cümleleriyle üç iş: *"görünmeyeni isteme — bunu kaldır"*, *"aynı anda en fazla 2 fotoğraf — bunu kontrol et doğru mu diye"*, *"bir queue gibi olsa, istek atsa, cevap gelince tamamlanınca diğerini atsa"*. Üstüne teşhiste bulunan iki hata: kuyruğun kendi açıklaması yaptığı işi anlatmıyor, ve bir karo sıradan çıktıktan sonra indirmeye devam ediyor — yani aynı anda kaç fotoğraf indiği kâğıt üstünde yazandan büyük. | Galeri kareleri kaydırma yönünden bağımsız, baştan sona sırayla doluyor; aynı anda inen kare sayısı kodun söylediği sayı. | İstek 1.1 |
+| 28 | ✅ **Galerinin indirme sırası.** Kullanıcının kendi cümleleriyle üç iş: *"görünmeyeni isteme — bunu kaldır"*, *"aynı anda en fazla 2 fotoğraf — bunu kontrol et doğru mu diye"*, *"bir queue gibi olsa, istek atsa, cevap gelince tamamlanınca diğerini atsa"*. Üstüne teşhiste bulunan iki hata: kuyruğun kendi açıklaması yaptığı işi anlatmıyor, ve bir karo sıradan çıktıktan sonra indirmeye devam ediyor — yani aynı anda kaç fotoğraf indiği kâğıt üstünde yazandan büyük. | Galeri kareleri kaydırma yönünden bağımsız, baştan sona sırayla doluyor; aynı anda inen kare sayısı kodun söylediği sayı. | İstek 1.1 |
 | 29 | **Önbellek koşular arasında yaşamıyor.** Kullanıcının tespiti: *"cache çalışmıyor çünkü cloudflare her seferinde random generated bir adres veriyor."* Her Colab koşusu yeni bir adres alıyor, tarayıcı önbelleği de adresi anahtar olarak kullanıyor — yani dün tamamen inmiş bir fotoğraf bugün yabancı sayılıp yeniden iniyor. **Önce doğrulanacak, sonra çözülecek**; en güçlü aday adresin sabitlenmesi, ve kullanıcının alan adı zaten var. | Aynı proje ikinci bir koşuda açıldığında fotoğraflar ağdan yeniden inmiyor. | Kullanıcı tespiti, 24 Ağustos |
 
 **29 "araştır ve çöz" diye yazıldı, "şunu yap" diye değil.** Hipotez güçlü ama henüz ölçülmedi — bu
