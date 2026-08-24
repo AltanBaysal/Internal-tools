@@ -115,6 +115,14 @@ hücresi bu dala bakıyor — `queen-editor/app.ipynb` yüklenip koşulur, başk
       hâlindeki nokta, tamamlandı kartının tonu, hata kartının düğme metni ve ne zaman doğduğu,
       bekleme hâlinde boşaltma düğmesi.
 
+## 8 · Export
+
+- [ ] **Fotoğraflar exportun içinde** (37). Bir export alınır ve klasöre bakılır: içinde `photos/`
+      var, içindekiler `01.png`, `02.png`… diye numaralanmış ve yanlarındaki `01.mp4`, `02.mp4`
+      ile birebir eşleşiyor. Videosu olmayan karenin fotoğrafı orada yok.
+- [ ] **İki mod aynı anda** (37). Birleşik ve ayrı export aynı dakika içinde başlatılır; ikisi de
+      bittiğinde `photos/` içinde her fotoğraf tek kopya, hiçbiri yarım değil.
+
 ## Hata sanılmayacaklar — kararla böyleler
 
 - **Fotoğraflar iki koşu arasında yeniden iniyor** (29). Cloudflare her koşuda yeni adres veriyor,
@@ -122,7 +130,8 @@ hücresi bu dala bakıyor — `queen-editor/app.ipynb` yüklenip koşulur, başk
   [backlog](../backlog.md)'da. Koşu *içinde* önbellek çalışıyor: galeri kaydırması ve detaydan dönüş
   ağa çıkmıyor.
 - **Export ekranı** bu koşuda hiç açılmadı — kullanıcı düzgün bulduğu için tüm export farkları
-  düştü.
+  düştü. Ekran hâlâ değişmedi; 37. madde exportun *çıktısını* değiştiriyor ve turda 8. bölümde
+  görülüyor.
 - **LoRA'nın uygulamadan seçilmesi** yok; kullanıcı kararıyla düştü.
 - **İzleme davranışı** değişmedi: video hangi modda üretilirse üretilsin bugünkü gibi dönüyor.
 

@@ -151,7 +151,15 @@ def test_a_photo_keeps_the_extension_it_was_saved_with():
 
     # The number belongs to the export, the extension to the picture. Writing .png into the code
     # would name the first jpg wrongly and there would be nothing on screen to say so.
-    assert store.photos[-1] == ("/fake/düğün/2_a.jpg", FOLDER, "03.jpg")
+    #
+    # 2_a leads because the plan does not know it: a frame the plan lost is added at the end of the
+    # gallery, and the export reads the gallery from its foot. The whole list is written out rather
+    # than the one row, so the order is on the page instead of inside an index.
+    assert store.photos == [
+        ("/fake/düğün/2_a.jpg", FOLDER, "01.jpg"),
+        ("/fake/düğün/0_a.png", FOLDER, "02.png"),
+        ("/fake/düğün/1_a.png", FOLDER, "03.png"),
+    ]
 
 
 def test_a_frame_with_no_video_leaves_no_photo_either():

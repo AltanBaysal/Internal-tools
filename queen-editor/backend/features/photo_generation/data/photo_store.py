@@ -11,11 +11,14 @@ answer, and two ways to ask it would be two ways to disagree.
 """
 import os
 import shutil
+import tempfile
 
 from backend.features.photo_generation.domain.photo_name import number_of
 
 # The project folder's own export area; a run makes a dated folder inside it (design v3, madde 92).
 EXPORT_DIR = "export"
+# The pictures ride inside the export in a folder of their own, so the mp4s stay a bare sequence.
+PHOTOS_DIR = "photos"
 
 
 class DrivePhotoStore:
@@ -64,6 +67,32 @@ class DrivePhotoStore:
     def remove_dir(self, path):
         """Take a folder and everything in it. Used on a failed or cancelled export."""
         shutil.rmtree(path, ignore_errors=True)
+
+    def copy_photo(self, source, folder, filename):
+        """Put one picture in the export's photos folder, unless it is already there.
+
+        Both export modes can run at once and a folder named down to the minute is one folder for
+        both, so two threads asking for the same 01.png is the expected case rather than a corner
+        one. Which is why there are two answers here and not one.
+
+        Already there means nothing to do: the other mode has written the very same bytes, and
+        writing them again buys nothing.
+
+        And the write itself lands in one move. Two threads can both find the target missing and
+        both start writing; two copies into one path is a half file. Copying to a name of its own
+        and then moving it over means the target is never seen half written, whichever thread gets
+        there last. os.replace rather than os.rename: on Windows rename refuses a target that is
+        already there, and the two have to behave alike.
+        """
+        photos = os.path.join(folder, PHOTOS_DIR)
+        os.makedirs(photos, exist_ok=True)
+        target = os.path.join(photos, filename)
+        if os.path.exists(target):
+            return
+        handle, temporary = tempfile.mkstemp(dir=photos)
+        os.close(handle)
+        shutil.copyfile(source, temporary)
+        os.replace(temporary, target)
 
     def export_dir(self, project):
         """Where an export lands: one folder inside the project, next to its photos.
