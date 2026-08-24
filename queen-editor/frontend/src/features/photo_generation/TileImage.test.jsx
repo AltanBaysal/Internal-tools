@@ -118,13 +118,15 @@ describe("TileImage — asking", () => {
 });
 
 describe("TileImage — what the tile shows", () => {
-  it("shows a plain holder while it waits its turn", () => {
+  it("turns while it waits its turn, the same as while it downloads", () => {
     render(<TileImage project="düğün" file="1_a.png" />);
 
-    // Every tile is in the queue from the moment it is built, so a ring on each of them would be
-    // ninety rings turning at once. That is not information.
+    // Waiting and downloading look alike on purpose. Seen on a screen rather than read in a
+    // design: with one slot almost every tile is waiting, and a gallery that sits still says
+    // nothing is happening. Which tile holds the slot is what this gives up, and it was the
+    // cheaper of the two.
     expect(holder()).toBeTruthy();
-    expect(turning()).toBeNull();
+    expect(turning()).toBeTruthy();
   });
 
   it("shows a turning holder while the picture is coming", () => {
