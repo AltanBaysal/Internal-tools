@@ -14,6 +14,7 @@ function renderPanel(props) {
   return render(
     <QueuePanel
       job={RUNNING}
+      known
       error={null}
       busyElsewhere={false}
       project="düğün"
@@ -504,5 +505,18 @@ describe("QueuePanel — a stopped run with a lot to say", () => {
 
     expect(screen.getByText(RULE)).toBeTruthy();
     expect(document.querySelector("[data-raw]").textContent).toBe(NOISE);
+  });
+});
+
+describe("QueuePanel — before the server has said anything", () => {
+  it("says nothing about a queue it has not been told about", () => {
+    const { container } = renderPanel({ known: false, job: { status: "idle" }, queue: null });
+
+    // idle is a placeholder, not an answer. Saying the queue is empty over it is a claim that can
+    // be flatly wrong -- a run may be flowing on the other side of the first poll.
+    expect(screen.queryByText("Kuyruk boş")).toBeNull();
+    expect(screen.queryByText("Fotoğraf üret panelinden kare gönder.")).toBeNull();
+    // Its own waiting, in its own column -- the shape the photo panel already took (madde 31).
+    expect(container.querySelector(".wf-spinner")).toBeTruthy();
   });
 });

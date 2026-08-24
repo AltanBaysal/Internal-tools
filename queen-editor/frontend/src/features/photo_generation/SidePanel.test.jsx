@@ -205,4 +205,13 @@ describe("SidePanel — while the project record is still missing", () => {
     fireEvent.click(screen.getByText("Tekrar dene"));
     expect(asked).toHaveBeenCalled();
   });
+
+  it("does not let the queue panel speak before the server has", () => {
+    renderColumn({ known: false, job: { status: "idle" }, queue: null });
+
+    fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
+
+    // The column only carries this; the sentence it prevents belongs to the panel.
+    expect(screen.queryByText("Kuyruk boş")).toBeNull();
+  });
 });
