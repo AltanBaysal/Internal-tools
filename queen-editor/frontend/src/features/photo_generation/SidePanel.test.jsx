@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import SidePanel from "./SidePanel.jsx";
 
@@ -7,8 +7,10 @@ const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4 };
 const RUNNING = { status: "running", project: "düğün", done: 7, failed: 0, total: 48 };
 const PROMPT_BOX = '["ilk prompt", "ikinci prompt"]';
 
-function renderColumn(props) {
-  return render(
+// The element apart from the render: one test draws the same column twice, before and after the
+// project record lands, and rerender has to be handed the same element.
+function column(props) {
+  return (
     <SidePanel
       job={{ status: "idle" }}
       error={null}
@@ -23,8 +25,12 @@ function renderColumn(props) {
       onCancel={() => {}}
       onClearError={() => {}}
       {...props}
-    />,
+    />
   );
+}
+
+function renderColumn(props) {
+  return render(column(props));
 }
 
 describe("SidePanel — the icon rail", () => {
@@ -153,5 +159,50 @@ describe("SidePanel — the icon rail", () => {
     // The wiring is the half that breaks silently: the panel can only say what it was given.
     expect(document.querySelector('[data-kind="video"]').textContent)
       .toContain("Üretici kurulu değil.");
+  });
+});
+
+describe("SidePanel — while the project record is still missing", () => {
+  it("waits inside its own column", () => {
+    const { container } = renderColumn({ settings: null });
+
+    // The waiting belongs to the panel that asked for the record, not to the screen: the boxes
+    // are not there yet and the ring stands where they will be.
+    expect(container.querySelector(".wf-spinner")).toBeTruthy();
+    expect(screen.queryByPlaceholderText(PROMPT_BOX)).toBeNull();
+    // The rail is untouched, so every other panel is still one press away.
+    expect(screen.getByLabelText("Kuyruğu takip et")).toBeTruthy();
+  });
+
+  it("opens the panels that never needed the record", () => {
+    renderColumn({ settings: null, job: RUNNING, queue: [{ layer: "photo", owed: 2 }] });
+
+    fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
+
+    // The queue reads the server's own status, not the project's record. It had no reason to wait
+    // and now it does not.
+    expect(screen.getByText("Foto — üretiliyor")).toBeTruthy();
+  });
+
+  it("fills the boxes once the record lands", () => {
+    const { rerender } = render(column({ settings: null }));
+
+    rerender(column({ settings: SETTINGS }));
+
+    // The form is still seeded once, at its own mount -- it simply mounts inside a live screen
+    // now. Nothing is synced afterwards, so nothing can be typed over.
+    expect(screen.getByPlaceholderText(PROMPT_BOX).value).toBe('["ilk prompt"]');
+  });
+
+  it("shows an unreadable record inside the panel, with a way to ask again", () => {
+    const asked = vi.fn();
+
+    renderColumn({ settings: null, settingsError: "Proje bulunamadı: düğün",
+                   onRetrySettings: asked });
+
+    expect(screen.getByText("Proje ayarları yüklenemedi")).toBeTruthy();
+    // The gallery behind it is untouched, so the way back belongs to this column too.
+    fireEvent.click(screen.getByText("Tekrar dene"));
+    expect(asked).toHaveBeenCalled();
   });
 });
