@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v14
 
-**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 26/30
+**Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 27/30
 *(33 madde yazıldı; 26 ve 30 kullanıcı kararıyla düştü — numaralandırma kaymıyor. 29 ve 31 düşüp
 21 Ağustos'ta yeniden açıldı, 32 aynı gün eklendi: I bölümü. 33, 24 Ağustos'ta eklendi ve sonraki
 koşuya bırakıldı: J bölümü — bu koşunun 30 maddelik kapsamına girmiyor.)*
@@ -161,7 +161,7 @@ tanınmaz hâle geldiğini söyledi; üçü de geri kondu ve **sıra kullanıcı
 
 | Sıra | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|---|
-| 1 | 29 | **Galeri çok fotoğrafta uygulamayı kilitliyor.** *(Yeniden açıldı; ilacı 24 Ağustos'ta ölçümle değişti.)* Fotoğraflar Colab'dan tarayıcıya saniyede 112 KB ile geliyordu — bir kare 17 saniye, boru dolunca da arayüz "sunucuya ulaşılamadı" veriyordu. Sebep ölçüldü: sunucuyu dışarı açan tünel varsayılan olarak UDP kullanıyor, Colab'ın ağı da UDP'yi kısıyor. **İlaç tek ayar: tünel TCP'ye alınır**; aynı kare 0.18 saniyeye iniyor. *Küçük önizleme fikri düştü* — ölçüm baytın sebep olmadığını gösterdi; ayrıntı [araştırma belgesinde](../research/2026-08-23-queen-editor-galeri-yavasligi.md). | Çok kareli bir projede galeri açılırken uygulama kilitlenmiyor ve karolar gözle görülür hızda doluyor. | İstek 1.1 |
+| 1 | 29 | ✅ **Galeri çok fotoğrafta uygulamayı kilitliyor.** *(Yeniden açıldı; ilacı 24 Ağustos'ta ölçümle değişti.)* Fotoğraflar Colab'dan tarayıcıya saniyede 112 KB ile geliyordu — bir kare 17 saniye, boru dolunca da arayüz "sunucuya ulaşılamadı" veriyordu. Sebep ölçüldü: sunucuyu dışarı açan tünel varsayılan olarak UDP kullanıyor, Colab'ın ağı da UDP'yi kısıyor. **İlaç tek ayar: tünel TCP'ye alınır**; aynı kare 0.18 saniyeye iniyor. *Küçük önizleme fikri düştü* — ölçüm baytın sebep olmadığını gösterdi; ayrıntı [araştırma belgesinde](../research/2026-08-23-queen-editor-galeri-yavasligi.md). | Çok kareli bir projede galeri açılırken uygulama kilitlenmiyor ve karolar gözle görülür hızda doluyor. | İstek 1.1 |
 | 2 | 32 | **Video LoRA denemesi — anatomik hatalar.** *(Yeni; hiç yazılmamıştı.)* Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek. | Yeni LoRA ile üretilen videolar öncekilerle yan yana konup kullanıcıyla birlikte değerlendirilmiş. | İstek 2.1 |
 | 3 | 31 | **Fotoğraf üretim hızı — hız LoRA'ları.** *(Yeniden açıldı ve isteğin kendi diline döndü.)* Üretim hızlansın; yol olarak **hız LoRA'ları** denenecek. Kazanç fotoğraf tarafında görünüyor; video zaten hızlı koşacak şekilde ayarlı. | Aynı prompt'lardan üretilen kareler öncekilerle süre ve kalite olarak karşılaştırılmış, karar kullanıcıyla birlikte verilmiş. | İstek 9 |
 
