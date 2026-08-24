@@ -89,6 +89,13 @@ const SECOND = { id: "P1_0", file: "P1_0.png", status: "done", prompt: "mavi elb
                  layers: { photo: "P1_0.png" }, failed: [], owed: [],
                  prompts: { photo: "mavi elbise" } };
 
+// The same second frame with a video of its own: a run of videos is what the user is stepping
+// through when the open tab matters, and no fixture in this file was one before.
+const SECOND_VIDEO = { id: "P1_0", file: "P1_0.png", status: "done", prompt: "mavi elbise",
+                       negative: "", layers: { photo: "P1_0.png", video: "P1_0_V1_0.mp4" },
+                       failed: [], owed: [],
+                       prompts: { photo: "mavi elbise", video: "kadın yürüyor" } };
+
 // A frame whose photo blew up: nothing on disk, and the record's own sentence about why.
 const BROKEN = { id: "P0_0", file: "P0_0.png", status: "failed", prompt: "kırmızı elbise",
                  negative: "", layers: {}, failed: ["photo"], owed: [],
@@ -343,6 +350,38 @@ describe("PhotoDetail — the layer tabs", () => {
                                     layers: {}, failed: [], owed: ["photo"], prompts: {} }] });
 
     expect(screen.getByText("bekliyor").closest("[data-holder]").style.opacity).toBe("0.45");
+  });
+
+  it("keeps the open tab when the next frame has that layer too", async () => {
+    // The arrows swap the frame under a mounted page. Stepping through a run of videos should not
+    // drop the user back on the photo at every step and make them pick the video again.
+    listFrames.mockResolvedValue([LAYERED, SECOND_VIDEO]);
+    getStatus.mockResolvedValue(IDLE);
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    fireEvent.click(tab("Video"));
+
+    rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+    await settle();
+
+    expect(tab("Video").getAttribute("aria-current")).toBe("page");
+    expect(screen.getByText("P1_0.png")).toBeTruthy();     // it really is the next frame
+  });
+
+  it("falls back to the photo when the next frame has no such layer", async () => {
+    listFrames.mockResolvedValue([LAYERED, SECOND]);
+    getStatus.mockResolvedValue(IDLE);
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    fireEvent.click(tab("Video"));
+
+    rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+    await settle();
+
+    // This is what the reset was for, and it is the half that stays: an open tab on a layer the
+    // frame never had would be a tab on nothing.
+    expect(tab("Foto").getAttribute("aria-current")).toBe("page");
+    expect(tab("Video").disabled).toBe(true);
   });
 });
 
