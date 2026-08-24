@@ -30,14 +30,17 @@ konması gerekiyor — ikisi de kullanıcının tarafında.
 Kararı bekleyen yan etki: sabit adres, koşu ayaktayken herkesin bilebileceği kalıcı bir kapı demek;
 bugünkü rastgele adresin sağladığı örtü kalkıyor. Yol haritası v14, madde 29.
 
-### Gönderilmemiş prompt metni kayboluyor — iki ekranın aynı soruya iki cevabı
+### Galeri seçimi export dönüşünde dağılıyor
 
-Fotoğraf üret panelinin kutularına yazılan metin yalnızca **Kuyruğa ekle**'ye basıldığında kayda
-geçiyor. Yazıp basmadan bir kareye bakmaya gidince dönüşte kutular boş.
+Galeride kare seçiliyken export ekranına gidip dönmek — ya da projeden çıkıp girmek — seçimi
+dağıtıyor. Sebep her seferinde aynı: adres değişince proje ekranı sökülüyor ve seçim o bileşenin
+state'inde duruyor.
 
-Tek başına bir eksik gibi görünüyor ama değil: detay sayfası aynı soruya bilerek *"kare terk edilince
-yazı ölür"* diye cevap vermiş durumda (v4 tasarım kuralı, madde 76). Paneli hatırlar hâle getirmek
-iki ekranı birbirine ters düşürür, ikisini birden değiştirmek de "kaydedilmemiş yazı ne kadar
-yaşamalı" sorusunun kendisini açar — o da bir tasarım kararı, bir düzeltme değil.
+**Detay sayfasıyla ilgisi yok.** Seçim modundayken bir kareyi açmanın yolu bulunmuyor: seçim varken
+karta tıklamak kareyi açmıyor, seçime ekliyor. Bu yüzden v14'ün 34. maddesinden kullanıcı kararıyla
+çıkarıldı — o madde detaydan dönüşü anlatıyordu ve bu durum orada hiç oluşmuyor.
 
-Karar kullanıcınındır. Yol haritası v14, K bölümü, dışarıda bırakılan iş.
+Yapılırsa bedeli `Gallery.test.jsx`'in 112 testini test başına taze modül düzenine geçirmek: seçim
+deposu modül seviyesinde duracak ve dosyanın tamamı tek bir proje adını paylaşıyor. Ayrıca
+hatırlanan seçimin artık var olmayan kareleri ayıklaması gerekir — detay sayfasından kare
+silinebiliyor.

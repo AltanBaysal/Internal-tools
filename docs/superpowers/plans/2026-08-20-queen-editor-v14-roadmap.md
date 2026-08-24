@@ -207,15 +207,20 @@ aktif kartları göremiyoruz."*
 | 31 | ✅ **Galeri, kendisine gerekmeyen bir cevabı beklemez.** Bugün proje kaydı gelene kadar tüm ekran tek bir yükleniyor işaretine dönüyor — galerisi, başlığı ve sağdaki rayıyla birlikte. Bundan sonra ekran anında açılır; bekleyen tek yer fotoğraf üret paneli olur ve beklediğini kendi sütununun içinde söyler. Kayıt okunamazsa hata kartı da tam ekran yerine o panelde durur. | Bir projeye ilk kez girildiğinde de bir kareden dönüldüğünde de galeri hemen görünüyor; yükleniyor işareti yalnız fotoğraf üret panelinin içinde çıkıyor. | Colab turu · kullanıcı kuralı, 24 Ağustos |
 | 32 | ✅ **Elde cevap varken hiçbir gösterge yanmaz.** Proje kaydı, model listesi ve üretici listesi bir ziyaret boyunca hatırlanır; geri dönüşte arkada tazelenir, ekranda hiçbir şey kıpırdamaz. Kareler, fotoğraflar ve kayma yeri bunu zaten yapıyor — eksik olan üçü tamamlanıyor. | Bir kare açılıp kapandığında ekranın hiçbir yerinde yükleniyor çıkmıyor; model kutusu ve üretici satırları olduğu gibi duruyor. | Kullanıcı kuralı: *"zaten veri varsa sessiz yapılsın"* |
 | 33 | ✅ **Ekran, kuyruğun durumunu bilmeden konuşmaz.** Sunucu ilk cevabını vermeden kuyruk paneli "kuyruk boş" diyor — akan bir üretim varken bile. Bilmediği sürece o kart susar. | Üretim akarken bir kare açılıp dönülünce kuyruk paneli bir an bile "kuyruk boş" demiyor. | Teşhis, 24 Ağustos |
-| 34 | **Açık panel ve galeri seçimi geri dönüşte yerinde kalır.** Bugün hangi panel açıksa kapanıp fotoğraf üret paneline dönüyor; galerideki seçim de dağılıyor. | Kuyruk paneli açıkken ve üç kare seçiliyken bir kare açılıp dönülüyor; panel de seçim de yerinde. | Colab turu, 24 Ağustos |
+| 34 | **Açık panel geri dönüşte yerinde kalır.** Bugün hangi panel açıksa kapanıp fotoğraf üret paneline dönüyor. | Kuyruk paneli açıkken bir kare açılıp dönülüyor; panel yerinde. | Colab turu, 24 Ağustos |
+| 35 | **Yazılmış ama gönderilmemiş metin geri dönüşte duruyor.** Fotoğraf üret panelinin kutularına yazılan metin diske yalnız Kuyruğa ekle'ye basıldığında geçiyor; arada bir kareye bakıp dönen kullanıcı yazdığını kaybediyor ve kutuda en son gönderdiği metni buluyor. | Panele bir şey yazılıyor, gönderilmeden bir kare açılıp dönülüyor; yazılan metin kutuda duruyor. | Kullanıcı, 24 Ağustos |
 
 **33, 34'ün önünde durmalı.** 34 tek başına yapılırsa kuyruk paneli açık dönmeye başlar ve 33'ün
 sustuğu yanlış cümle ilk kez ekrana çıkar.
 
-**Gönderilmemiş prompt metni bu bölümde yok.** Fotoğraf üret panelinin kutularına yazılıp henüz
-kuyruğa eklenmemiş metin, bir kareye bakıp dönünce kayboluyor. Teknik bir eksik değil, bir karar
-sorusu: detay sayfası aynı soruya *"kare terk edilince yazı ölür"* diye cevap vermiş durumda, ve
-panelde tersini yapmak ikisini birbirine ters düşürür. Kaydı [backlog](../backlog.md)'a geçti.
+**Galeri seçiminin hatırlanması 34'ten çıkarıldı — kullanıcı kararı, 24 Ağustos.** Seçim modundayken
+bir kareyi açmanın yolu yok: seçim varken karta tıklamak kareyi açmıyor, seçime ekliyor. Yani
+"detaydan dönünce seçim kayboluyor" diye bir durum hiç oluşmuyor. Seçimin gerçekten kaybolduğu tek
+yol export ekranına gidip dönmek, ve o ayrı bir kapı. Kaydı [backlog](../backlog.md)'a geçti.
+
+**35, detay sayfasının kuralıyla çelişmiyor.** Orada yazı *başka bir kareye geçilince* ölüyor
+(madde 76) — panel ise tek bir forma ait ve hiçbir yere geçmiyor. Aynı soruya iki cevap değil, iki
+ayrı soru.
 
 ---
 
