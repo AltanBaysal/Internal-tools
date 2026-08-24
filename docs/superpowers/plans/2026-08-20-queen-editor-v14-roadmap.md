@@ -1,8 +1,9 @@
 # Queen Editor — Yol Haritası v14
 
 **Tarih:** 2026-08-20 · **Koşu dalı:** `feat/queen-editor-v4` · **Durum:** 26/30
-*(32 madde yazıldı; 26 ve 30 kullanıcı kararıyla düştü — numaralandırma kaymıyor. 29 ve 31 düşüp
-21 Ağustos'ta yeniden açıldı, 32 aynı gün eklendi: I bölümü.)*
+*(33 madde yazıldı; 26 ve 30 kullanıcı kararıyla düştü — numaralandırma kaymıyor. 29 ve 31 düşüp
+21 Ağustos'ta yeniden açıldı, 32 aynı gün eklendi: I bölümü. 33, 24 Ağustos'ta eklendi ve sonraki
+koşuya bırakıldı: J bölümü — bu koşunun 30 maddelik kapsamına girmiyor.)*
 **Öncesi:** [v13](2026-08-14-queen-editor-v13-roadmap.md)
 
 ## Neden bu koşu var
@@ -160,7 +161,7 @@ tanınmaz hâle geldiğini söyledi; üçü de geri kondu ve **sıra kullanıcı
 
 | Sıra | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|---|
-| 1 | 29 | **Galeri çok fotoğrafta uygulamayı kilitliyor.** *(Yeniden açıldı.)* Her karo dosyanın tam boyunu indiriyor; kare sayısı büyüdükçe uygulama kilitleniyor. İlacı küçük önizleme: karolar için birer önizleme üretilir, galeri tam boy dosya yerine onları gösterir. Önizlemenin ne zaman üretileceği ve kare değişince ne olacağı kendi spec'inde çözülür. | Çok kareli bir projede galeri açılırken uygulama kilitlenmiyor ve karolar gözle görülür hızda doluyor. | İstek 1.1 |
+| 1 | 29 | **Galeri çok fotoğrafta uygulamayı kilitliyor.** *(Yeniden açıldı; ilacı 24 Ağustos'ta ölçümle değişti.)* Fotoğraflar Colab'dan tarayıcıya saniyede 112 KB ile geliyordu — bir kare 17 saniye, boru dolunca da arayüz "sunucuya ulaşılamadı" veriyordu. Sebep ölçüldü: sunucuyu dışarı açan tünel varsayılan olarak UDP kullanıyor, Colab'ın ağı da UDP'yi kısıyor. **İlaç tek ayar: tünel TCP'ye alınır**; aynı kare 0.18 saniyeye iniyor. *Küçük önizleme fikri düştü* — ölçüm baytın sebep olmadığını gösterdi; ayrıntı [araştırma belgesinde](../research/2026-08-23-queen-editor-galeri-yavasligi.md). | Çok kareli bir projede galeri açılırken uygulama kilitlenmiyor ve karolar gözle görülür hızda doluyor. | İstek 1.1 |
 | 2 | 32 | **Video LoRA denemesi — anatomik hatalar.** *(Yeni; hiç yazılmamıştı.)* Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek. | Yeni LoRA ile üretilen videolar öncekilerle yan yana konup kullanıcıyla birlikte değerlendirilmiş. | İstek 2.1 |
 | 3 | 31 | **Fotoğraf üretim hızı — hız LoRA'ları.** *(Yeniden açıldı ve isteğin kendi diline döndü.)* Üretim hızlansın; yol olarak **hız LoRA'ları** denenecek. Kazanç fotoğraf tarafında görünüyor; video zaten hızlı koşacak şekilde ayarlı. | Aynı prompt'lardan üretilen kareler öncekilerle süre ve kalite olarak karşılaştırılmış, karar kullanıcıyla birlikte verilmiş. | İstek 9 |
 
@@ -177,6 +178,24 @@ gerektiriyor ve sonucu ancak kullanıcı görebilir: hazırlığı burada yapıl
 > istiyor. İstek listesinin kendi uyarısı: aynı ayarlara dokunuyorlar, birlikte bakılmalı. Kazanç
 > fotoğraf tarafında olduğu için çakışma göründüğü kadar büyük olmayabilir, ama turda ikisi bir
 > arada denenmeli.
+
+---
+
+## J · Sonraki koşuya ayrılan iş — 24 Ağustos
+
+**Bu bölüm bu koşuda yapılmıyor**, numarası şimdiden ayrıldı. 29'un teşhisi sırasında galeri
+kuyruğunun kodu okundu ve kullanıcının 20 Ağustos'ta söylediklerinin hâlâ karşılanmadığı görüldü.
+
+Ayrı durmasının sebebi: kuyruğun bugünkü davranışı **tünel dar olduğu için** görünüyordu. Boru 90
+kat açılınca hangi şikâyetin gerçekten kaldığı ancak Colab turunda (madde 28) belli olur. Şimdi
+yapılırsa var olmayan bir soruna kod yazılmış olabilir.
+
+| Sıra | # | İş | Bitti sayılır | Kaynak |
+|---|---|---|---|---|
+| — | 33 | **Galerinin indirme sırası.** Kullanıcının kendi cümleleriyle üç iş: *"görünmeyeni isteme — bunu kaldır"*, *"aynı anda en fazla 2 fotoğraf — bunu kontrol et doğru mu diye"*, *"bir queue gibi olsa, istek atsa, cevap gelince tamamlanınca diğerini atsa"*. Üstüne teşhiste bulunan iki hata: kuyruğun kendi açıklaması yaptığı işi anlatmıyor, ve bir karo sıradan çıktıktan sonra indirmeye devam ediyor — yani aynı anda kaç fotoğraf indiği kâğıt üstünde yazandan büyük. | Galeri kareleri kaydırma yönünden bağımsız, baştan sona sırayla doluyor; aynı anda inen kare sayısı kodun söylediği sayı. | İstek 1.1 |
+
+**Sırası madde 28'den sonra.** Turda galeri artık akıcıysa bu madde küçülebilir ya da düşebilir;
+karar kullanıcıyla birlikte verilir.
 
 ---
 
@@ -197,6 +216,9 @@ Kullanıcı koşuyu maddeler arasında değil, en sonda bir kerede deniyor.
 
 ## Sonraki koşuya kalanlar
 
+- **33. madde — galerinin indirme sırası.** J bölümü; numarası ayrıldı, işi Colab turundan sonra.
+- **Bayt azaltma (küçük önizleme / WebP).** 29'un ilacı olmaktan çıktı ama bir iyileştirme olarak
+  duruyor; turda hâlâ değerliyse kendi maddesini alır.
 - **Bu koşuyu kapatacak Colab turundan çıkacak yeni maddeler.**
 
-Başka bir şey bekletilmiyor. Kapsam dışı kalan her şey kullanıcı kararıyla düştü; sıra beklemiyor.
+Başka bir şey bekletilmiyor. Kapsam dışı kalan her şey kullanıcı kararıyla düştü.
