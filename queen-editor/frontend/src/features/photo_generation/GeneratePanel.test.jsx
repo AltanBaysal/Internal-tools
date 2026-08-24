@@ -1,7 +1,16 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import GeneratePanel from "./GeneratePanel.jsx";
+// What was typed and not yet sent is remembered for the length of a visit, and that memory lives in
+// the module. So each test gets the module itself fresh -- otherwise a test that types into a box
+// would be deciding what the next one opens with. Nothing is mocked in this file, so resetModules
+// really does rebuild it.
+let GeneratePanel;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ default: GeneratePanel } = await import("./GeneratePanel.jsx"));
+});
 
 const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4, model: "" };
 const PROMPT_BOX = '["ilk prompt", "ikinci prompt"]';
@@ -15,6 +24,7 @@ function renderPanel(props) {
       error={null}
       busyElsewhere={false}
       settings={SETTINGS}
+      project="düğün"
       models={MODELS}
       modelsError={null}
       onGenerate={() => Promise.resolve({ added: 4 })}
@@ -283,5 +293,59 @@ describe("GeneratePanel — a format error", () => {
     fireEvent.change(promptBox(), { target: { value: '["a"]' } });
 
     expect(onClearError).toHaveBeenCalled();
+  });
+});
+
+describe("GeneratePanel — coming back to the form", () => {
+  it("keeps a prompt that was typed but never sent", () => {
+    const first = renderPanel();
+
+    fireEvent.change(promptBox(), { target: { value: '["yazdım ama göndermedim"]' } });
+    first.unmount();
+
+    // Opening a frame tears the whole project screen down, this panel with it. What was typed
+    // reached no disk -- only pressing the button does that -- so React dropping the state is the
+    // whole of the loss.
+    renderPanel();
+
+    expect(promptBox().value).toBe('["yazdım ama göndermedim"]');
+  });
+
+  it("keeps the negative, the model and the variant count too", () => {
+    const first = renderPanel();
+
+    fireEvent.change(screen.getByDisplayValue(""), { target: { value: "bulanık" } });
+    fireEvent.change(modelBox(), { target: { value: "başka.safetensors" } });
+    fireEvent.change(variantBox(), { target: { value: "9" } });
+    first.unmount();
+
+    // One form, one loss: remembering the prompt and forgetting the three boxes under it would be
+    // remembering half of an unfinished piece of work.
+    renderPanel();
+
+    expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
+    expect(modelBox().value).toBe("başka.safetensors");
+    expect(variantBox().value).toBe("9");
+  });
+
+  it("fills the boxes from the record when nothing has been typed yet", () => {
+    renderPanel({ settings: { ...SETTINGS, prompts: '["kayıttaki"]', variants: 6 } });
+
+    // The first visit of a session has nothing to go on, and the project's own record is where the
+    // boxes come from. Losing this would mean showing someone else's text to a user who typed none.
+    expect(promptBox().value).toBe('["kayıttaki"]');
+    expect(variantBox().value).toBe("6");
+  });
+
+  it("does not carry one project's draft into another", () => {
+    const first = renderPanel();
+
+    fireEvent.change(promptBox(), { target: { value: '["düğünün prompt listesi"]' } });
+    first.unmount();
+
+    renderPanel({ project: "balo" });
+
+    // What is half-written is the user's work in one project, never a fact about the app.
+    expect(promptBox().value).toBe('["ilk prompt"]');
   });
 });
