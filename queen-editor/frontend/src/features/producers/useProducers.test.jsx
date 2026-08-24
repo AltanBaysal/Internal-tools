@@ -1,9 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { listProducers } from "../../shared/api.js";
-import { COLAB_INSTALL, useProducers } from "./useProducers.js";
-
 vi.mock("../../shared/api.js", () => ({ listProducers: vi.fn() }));
 
 const THREE = [
@@ -15,7 +12,20 @@ async function settle() {
   await act(async () => { await Promise.resolve(); });
 }
 
-beforeEach(() => {
+// What the machine answered is remembered for the length of a visit, and that memory lives in the
+// module -- so each test gets the module itself fresh. Both are imported from the same fresh
+// registry: taking the hook from the new one and the fake from the old would leave them talking to
+// two different mocks.
+let listProducers;
+let COLAB_INSTALL;
+let useProducers;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ listProducers } = await import("../../shared/api.js"));
+  ({ COLAB_INSTALL, useProducers } = await import("./useProducers.js"));
+  // resetModules does not re-run a vi.mock factory, so the fake is the same object every test and
+  // carries its calls over -- and this file counts them. The hook beside it really is new.
   vi.clearAllMocks();
   listProducers.mockResolvedValue(THREE);
 });
@@ -48,5 +58,28 @@ describe("useProducers", () => {
 
     expect(result.current.error).toBe("Sunucuya ulaşılamadı.");
     expect(result.current.producers).toBeNull();
+  });
+
+  it("opens with the rows it already read", async () => {
+    const first = renderHook(() => useProducers());
+    await settle();
+    first.unmount();
+
+    // The panel drew neither rows nor an error while this was null, and coming back from a frame
+    // put it through that again for an answer that cannot have changed.
+    const { result } = renderHook(() => useProducers());
+    expect(result.current.producers).toEqual(THREE);
+  });
+
+  it("remembers the rows as they stand, not as they arrived", async () => {
+    const first = renderHook(() => useProducers());
+    await settle();
+    act(() => { first.result.current.install("video"); });
+    first.unmount();
+
+    const { result } = renderHook(() => useProducers());
+    // Kur writes its sentence onto a row, so the answer on screen is no longer the answer the
+    // server gave. Remembering the first one would take that sentence away on the way back.
+    expect(result.current.producers[1].note).toBe(COLAB_INSTALL);
   });
 });
