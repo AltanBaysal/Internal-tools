@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono } from "../../vendor/kit.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import GeneratePanel from "./GeneratePanel.jsx";
@@ -46,6 +47,10 @@ const RAIL = {
 };
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
+
+// The panel's own waiting: the ring stands where the boxes will be, so the column keeps its shape
+// while the record is in flight. The screen behind it is not waiting for anything (madde 31).
+const WAITING = { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" };
 
 // Which panel gets which icon. The drawings live in glyphs.jsx, because the photo one is also the
 // icon its own submit button carries.
@@ -107,11 +112,11 @@ function RailButton({ panel, active, busy, onSelect }) {
 // v2's right column: one panel at a time, the rail on its right. Three jobs that used to share a
 // single surface -- submitting work, watching the queue, and the agent that has not been designed
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
-export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
-                                    stopping, queue, failures, models, modelsError, producers,
-                                    frames, selected, onQueueLayer,
-                                    onGenerate, onStop, onResume,
-                                    onCancel, onClearError, onRetryAll }) {
+export default function SidePanel({ job, error, errorField, busyElsewhere, settings, settingsError,
+                                    project, stopping, queue, failures, models, modelsError,
+                                    producers, frames, selected, onQueueLayer,
+                                    onGenerate, onStop, onResume, onCancel, onClearError,
+                                    onRetryAll, onRetrySettings }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it. null means none of them -- pressing the open panel's own icon closes
   // it and gives the width back to the gallery, the way a code editor's side bar behaves.
@@ -130,14 +135,23 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         <h2 style={{ margin: 0 }}>
           <Mono size={11} style={LABEL}>{current.heading || current.title}</Mono>
         </h2>
-        {open === "photo" && (
+        {/* The project record fills this panel's boxes and nothing else on the screen reads it, so
+            waiting for it is this column's business alone (madde 31). The failure is asked about
+            first: with an unreadable record there is no record either, and a ring that never stops
+            would promise something that is not coming. */}
+        {open === "photo" && (settingsError ? (
+          <StatusErrorCard text="Proje ayarları yüklenemedi" raw={settingsError}
+                           onRetry={onRetrySettings} />
+        ) : !settings ? (
+          <div style={WAITING}><span className="wf-spinner" /></div>
+        ) : (
           <GeneratePanel job={job} error={error} errorField={errorField}
                          busyElsewhere={busyElsewhere} settings={settings}
                          models={models} modelsError={modelsError}
                          producer={(producers?.producers || []).find((p) => p.id === "photo")}
                          onGenerate={onGenerate} onClearError={onClearError}
                          onInstall={producers?.install} />
-        )}
+        ))}
         {/* One panel, two layers: the design asks for the same screen twice, so only the words and
             the scope rule differ (see LayerPanel). */}
         {(open === "video" || open === "audio") && (

@@ -24,7 +24,8 @@ const HINT = { position: "absolute", top: "calc(100% + 8px)", right: 0, width: 3
 
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
-export default function ProjectScreen({ project, settings, onSaveSettings }) {
+export default function ProjectScreen({ project, settings, settingsError, onRetrySettings,
+                                        onSaveSettings }) {
   const { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
           retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
@@ -111,7 +112,9 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
                    onSelectionChange={setSelected} />
         </div>
         <SidePanel job={job} error={saveError || error} errorField={errorField}
-                   busyElsewhere={busyElsewhere} settings={settings} project={project}
+                   busyElsewhere={busyElsewhere} settings={settings}
+                   settingsError={settingsError} onRetrySettings={onRetrySettings}
+                   project={project}
                    stopping={stopping} queue={queue} failures={failures}
                    models={models} modelsError={modelsError} producers={producers}
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
