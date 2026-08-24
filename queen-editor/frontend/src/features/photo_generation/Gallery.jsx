@@ -415,9 +415,10 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                      }}>
                     {state === "done" ? (
                       /* The picture asks a queue before it downloads: every tile is a request
-                         through the same tunnel, and unlimited tiles starved the poll until it
-                         timed out. loading=lazy is gone with it -- the queue is the gate now, and
-                         the tile only asks once it is near. */
+                         through the same tunnel, and one at a time keeps the poll's own request
+                         from waiting behind a project's worth of photos. Every tile asks as soon
+                         as it is drawn, so the gallery fills in frame order however the page is
+                         scrolled. */
                       <TileImage project={project} file={frame.file}
                                  decoding="async" draggable={false}
                                  style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",

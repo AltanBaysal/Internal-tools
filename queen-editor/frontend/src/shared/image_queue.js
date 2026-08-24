@@ -1,7 +1,8 @@
-// The gallery draws every tile as its own request through the same tunnel, and nothing used to
-// count them: the poll's request waited behind a screenful of photos until the ten second abort in
-// api.js fired. Two at a time leaves the pipe open for the API without making the gallery crawl.
-const GALLERY_SLOTS = 2;
+// One at a time, in the order the tiles were built. Every tile is its own request through the same
+// tunnel and the status poll shares it, so a ceiling is what keeps the API's request from waiting
+// behind a project's worth of photos. One rather than more: on a full gallery the difference is
+// seconds, and a pipe with one thing in it is the pipe nobody has to reason about.
+const GALLERY_SLOTS = 1;
 
 export function createQueue(limit) {
   const waiting = [];
