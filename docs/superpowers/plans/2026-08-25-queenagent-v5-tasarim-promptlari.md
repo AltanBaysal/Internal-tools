@@ -15,6 +15,11 @@ eklemek etiketleri bozar. Başlıklar ve notlar Türkçe.
 Her promptun sonunda tasarımcıya bırakılan sorular var — bilerek. O kararlar tasarımın kendi işi;
 yol haritasının spec'leri onları ratifiye eder, önden dayatmaz.
 
+**Her prompt iki şeyi daha istiyor:** `QueenAgent Handoff`'un güncellenmesini — davranış sözleşmesi
+o ve çelişkide o kazanıyor, yani yalnız prototipte yaşayan bir eleman gecikmeli bir çelişki — ve
+handoff'un başında bir **değişiklik günlüğü** tutulmasını. Günlük ayrı dosyaya değil handoff'un
+içine yazılıyor: aynı bilgi iki yerde tutulunca birinde bayatlıyor.
+
 ---
 
 ## 1 — Tool call satırı *(Madde 66, yakında lazım)*
@@ -48,6 +53,15 @@ yol haritasının spec'leri onları ratifiye eder, önden dayatmaz.
 > name); whether the calls stay as a list or collapse into one summary line once the answer lands;
 > and whether they sit inside the answer's own block or above it. Show the states: one call running,
 > several finished, and a call that failed.
+>
+> **Also update the handoff, and log the change.** `QueenAgent Handoff` is the behaviour contract in
+> this project and it wins over the prototype wherever the two disagree — so something that exists
+> only in the prototype is a contradiction with a delay on it. Write what this change means for
+> behaviour into the handoff: the states involved, the keyboard behaviour if any, and what is shown
+> when there is nothing to show. Then add a line to a **change log** at the top of the handoff,
+> newest first: the date, what changed, and what it replaced. Keep that log inside the handoff rather
+> than in a file of its own — the same fact kept in two places goes stale in one. The log is how I
+> see what moved without re-reading the whole design.
 
 ---
 
@@ -78,6 +92,15 @@ yol haritasının spec'leri onları ratifiye eder, önden dayatmaz.
 > Stop is a separate control that appears beside it; and what the answer looks like the instant after
 > it is stopped — does the half-written text stay on screen with a mark saying it was stopped, or
 > does it go. Show all three states: idle, streaming, just-stopped.
+>
+> **Also update the handoff, and log the change.** `QueenAgent Handoff` is the behaviour contract in
+> this project and it wins over the prototype wherever the two disagree — so something that exists
+> only in the prototype is a contradiction with a delay on it. Write what this change means for
+> behaviour into the handoff: the states involved, the keyboard behaviour if any, and what is shown
+> when there is nothing to show. Then add a line to a **change log** at the top of the handoff,
+> newest first: the date, what changed, and what it replaced. Keep that log inside the handoff rather
+> than in a file of its own — the same fact kept in two places goes stale in one. The log is how I
+> see what moved without re-reading the whole design.
 
 ---
 
@@ -110,6 +133,15 @@ yol haritasının spec'leri onları ratifiye eder, önden dayatmaz.
 > **Decide and show me:** whether it sits under every answer, in the chat's own total, or both; and
 > whether the cached/fresh split is always visible or only on hover or expand. Show a cheap answer
 > and an expensive one side by side.
+>
+> **Also update the handoff, and log the change.** `QueenAgent Handoff` is the behaviour contract in
+> this project and it wins over the prototype wherever the two disagree — so something that exists
+> only in the prototype is a contradiction with a delay on it. Write what this change means for
+> behaviour into the handoff: the states involved, the keyboard behaviour if any, and what is shown
+> when there is nothing to show. Then add a line to a **change log** at the top of the handoff,
+> newest first: the date, what changed, and what it replaced. Keep that log inside the handoff rather
+> than in a file of its own — the same fact kept in two places goes stale in one. The log is how I
+> see what moved without re-reading the whole design.
 
 ---
 
@@ -136,6 +168,15 @@ yol haritasının spec'leri onları ratifiye eder, önden dayatmaz.
 > answer is no, say so; a screen that says nothing is a legitimate answer.
 >
 > **Show me** the composer on both the chat screen and the empty draft screen, since both carry it.
+>
+> **Also update the handoff, and log the change.** `QueenAgent Handoff` is the behaviour contract in
+> this project and it wins over the prototype wherever the two disagree — and a removal is the case
+> where this matters most: a control deleted from the prototype but still described in the handoff
+> reads as a bug for as long as nobody notices. Take the model picker out of the handoff too. Then
+> add a line to a **change log** at the top of the handoff, newest first: the date, what changed, and
+> what it replaced. Keep that log inside the handoff rather than in a file of its own — the same fact
+> kept in two places goes stale in one. The log is how I see what moved without re-reading the whole
+> design.
 
 ---
 
@@ -164,6 +205,15 @@ yol haritasının spec'leri onları ratifiye eder, önden dayatmaz.
 > **Decide and show me:** whether a picker survives; and if the flow has steps, whether the user sees
 > which step they are on and whether they can go back to an earlier one. Show the empty state — a
 > chat where the flow has not started — and a chat in the middle of it.
+>
+> **Also update the handoff, and log the change.** `QueenAgent Handoff` is the behaviour contract in
+> this project and it wins over the prototype wherever the two disagree — so something that exists
+> only in the prototype is a contradiction with a delay on it. Write what this change means for
+> behaviour into the handoff: the states involved, the keyboard behaviour if any, and what is shown
+> when there is nothing to show. Then add a line to a **change log** at the top of the handoff,
+> newest first: the date, what changed, and what it replaced. Keep that log inside the handoff rather
+> than in a file of its own — the same fact kept in two places goes stale in one. The log is how I
+> see what moved without re-reading the whole design.
 
 ---
 
