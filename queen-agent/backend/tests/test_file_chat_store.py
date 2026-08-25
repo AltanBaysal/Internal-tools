@@ -1,7 +1,8 @@
+import json
 from dataclasses import replace
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
-from backend.features.workspace.domain.chat import Chat, Message
+from backend.features.workspace.domain.chat import Chat, Message, ToolCall
 from backend.services.store.store import Store
 
 
@@ -83,3 +84,50 @@ def test_entries_that_are_not_chat_files_are_skipped(tmp_path):
     store.add("p1", _chat())
     raw.write_text("p1/chats/notes.txt", "stray")
     assert [chat.id for chat in store.list_for("p1")] == ["c1"]
+
+
+# --- the calls a message carries (Madde 66) ------------------------------------------------------
+
+
+def _answered(*calls):
+    return replace(
+        _chat(),
+        messages=(
+            Message(role="ai", at="2026-08-09T11:05:00+00:00", text="Read it.", calls=calls),
+        ),
+    )
+
+
+def test_the_calls_an_answer_made_survive_a_round_trip(tmp_path):
+    chat = _answered(ToolCall("read_file", "plan.md"), ToolCall("list_files", ""))
+    FileChatStore(Store(str(tmp_path))).add("p1", chat)
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == chat
+
+
+def test_a_message_that_called_nothing_writes_no_field(tmp_path):
+    # An empty list is noise on disk, exactly as an empty file list is.
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _chat())
+    assert "calls" not in raw.read_text("p1/chats/c1.json")
+
+
+def test_a_call_with_no_target_writes_no_target(tmp_path):
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _answered(ToolCall("list_files", "")))
+    assert "target" not in raw.read_text("p1/chats/c1.json")
+
+
+def test_a_chat_written_before_calls_existed_reads_back_empty(tmp_path):
+    # No migration: the field is absent, and absent is what empty means.
+    raw = Store(str(tmp_path))
+    raw.write_text(
+        "p1/chats/c1.json",
+        json.dumps(
+            {
+                "title": "Hello",
+                "createdAt": "2026-08-09T11:04:00+00:00",
+                "messages": [{"role": "ai", "at": "2026-08-09T11:04:00+00:00", "text": "hi"}],
+            }
+        ),
+    )
+    assert FileChatStore(raw).get("p1", "c1").messages[0].calls == ()

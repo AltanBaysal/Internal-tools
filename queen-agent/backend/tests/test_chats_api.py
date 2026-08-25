@@ -263,6 +263,32 @@ def _silent_with_a_file():
     return ScriptedEngine([[{"tool_calls": [_tool_call("create_file", name="plan.md", content="x")]}], []])
 
 
+def test_a_call_travels_as_its_own_event(tmp_path):
+    # Madde 66: the line has to arrive while the answer is still running, not only with the record.
+    client = _client(tmp_path, engine=ScriptedEngine([[{"tool_calls": [_tool_call("list_files")]}], [{"text": "none"}]]))
+    pid, cid = _started(client)
+    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    assert "event: call" in body
+    assert '"tool": "list_files"' in body
+    assert body.index("event: call") < body.index("event: done")
+
+
+def test_the_stored_chat_hands_back_the_calls(tmp_path):
+    client = _client(
+        tmp_path,
+        engine=ScriptedEngine(
+            [
+                [{"tool_calls": [_tool_call("create_file", name="plan.md", content="x")]}],
+                [{"text": "Saved."}],
+            ]
+        ),
+    )
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer")
+    kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
+    assert kept["messages"][-1]["calls"] == [{"tool": "create_file", "target": "plan.md"}]
+
+
 def test_a_silent_turn_that_made_a_file_closes_the_stream_cleanly(tmp_path):
     # What the user reported as a network error: the model worked without speaking and the stream
     # broke instead of ending.

@@ -5,6 +5,22 @@ TITLE_LIMIT = 42
 
 
 @dataclass(frozen=True)
+class ToolCall:
+    """One step a turn took: which tool, and the file it was about.
+
+    One type for two jobs -- it is yielded while the answer streams and it is what the message
+    keeps. Two types would be the same fact under two names, and they would drift.
+
+    The result is deliberately absent. What a read returned is the file itself, and that is already
+    on disk; copying it here would leave the same text in two places for one of them to go stale.
+    """
+
+    tool: str
+    # Empty when the call was about nothing in particular -- listing a directory has no file.
+    target: str = ""
+
+
+@dataclass(frozen=True)
 class Message:
     role: str  # "user" or "ai"
     at: str  # ISO 8601; the browser is what turns it into 11:04

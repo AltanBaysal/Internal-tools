@@ -531,6 +531,50 @@ function sseResponse(text) {
   };
 }
 
+test("a call arrives in the stream and is still there once the record lands", async () => {
+  // Madde 66's handover. The stream draws the line before any record exists, and the record that
+  // follows carries the same call -- so what the browser piled up has to be dropped rather than
+  // added to, or the same step reads as two.
+  const owed = {
+    id: "c1",
+    title: "hello",
+    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
+  };
+  const answered = {
+    ...owed,
+    messages: [
+      ...owed.messages,
+      {
+        role: "ai",
+        at: new Date().toISOString(),
+        text: "Done.",
+        calls: [{ tool: "read_file", target: "plan.md" }],
+      },
+    ],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/answer") && options?.method === "POST") {
+      return Promise.resolve(
+        sseResponse(
+          `event: call\ndata: {"tool":"read_file","target":"plan.md"}\n\n` +
+            `event: chunk\ndata: {"text":"Do"}\n\n` +
+            `event: done\ndata: ${JSON.stringify(answered)}\n\n`,
+        ),
+      );
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
+  expect(screen.getAllByText("read_file")).toHaveLength(1);
+});
+
 test("a chat that is owed an answer streams one and keeps the server's record", async () => {
   const owed = {
     id: "c1",

@@ -6,7 +6,7 @@ import pytest
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
-from backend.features.workspace.domain.chat import Chat
+from backend.features.workspace.domain.chat import Chat, ToolCall
 from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage, EngineFailed
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, FileWritten
@@ -365,3 +365,56 @@ def test_a_chat_that_chose_nothing_asks_for_nothing(tmp_path):
     engine = ScriptedEngine([[{"text": "hi"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW))
     assert engine.asked_for is None
+
+
+# --- the calls a turn made, seen and kept (Madde 66) ---------------------------------------------
+
+
+def _lines(produced):
+    return [piece for piece in produced if isinstance(piece, ToolCall)]
+
+
+def test_each_call_leaves_a_line_as_it_happens(tmp_path):
+    rounds = [[{"tool_calls": [call("list_files")]}], [{"text": "Nothing yet."}]]
+    _, _, _, produced = _run(tmp_path, rounds)
+    assert _lines(produced) == [ToolCall("list_files", "")]
+
+
+def test_the_line_says_which_file_was_touched(tmp_path):
+    rounds = [
+        [{"tool_calls": [call("create_file", name="plan.md", content="x")]}],
+        [{"tool_calls": [call("read_file", call_id="t2", name="plan.md")]}],
+        [{"text": "Read it."}],
+    ]
+    _, _, _, produced = _run(tmp_path, rounds)
+    assert _lines(produced) == [
+        ToolCall("create_file", "plan.md"),
+        ToolCall("read_file", "plan.md"),
+    ]
+
+
+def test_the_answer_remembers_the_calls_it_made(tmp_path):
+    # The other half of the item: a line that only exists while the answer streams leaves the chat
+    # as blind tomorrow as it is today.
+    rounds = [[{"tool_calls": [call("list_files")]}], [{"text": "done"}]]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    assert chats.get("p1", "c1").messages[-1].calls == (ToolCall("list_files", ""),)
+
+
+def test_an_answer_that_called_nothing_remembers_none(tmp_path):
+    chats, _, _, _ = _run(tmp_path, [[{"text": "Hello"}]])
+    assert chats.get("p1", "c1").messages[-1].calls == ()
+
+
+def test_reading_the_same_file_twice_is_two_lines(tmp_path):
+    # Files fold a repeat away, because a name born twice is still one file. Calls do not: reading
+    # the same file twice really is two steps, and hiding one would misreport the turn.
+    rounds = [
+        [{"tool_calls": [call("create_file", name="plan.md", content="x")]}],
+        [{"tool_calls": [call("read_file", call_id="t2", name="plan.md")]}],
+        [{"tool_calls": [call("read_file", call_id="t3", name="plan.md")]}],
+        [{"text": "done"}],
+    ]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    kept = chats.get("p1", "c1").messages[-1].calls
+    assert kept.count(ToolCall("read_file", "plan.md")) == 2

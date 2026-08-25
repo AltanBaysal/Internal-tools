@@ -26,6 +26,58 @@ test("with nothing open the layout says nothing", () => {
   expect(container.querySelector(".chat-layout--reading")).toBeNull();
 });
 
+// --- the calls a turn made (Madde 66) ------------------------------------------------------------
+
+const ANSWERED = {
+  ...CHAT,
+  messages: [
+    CHAT.messages[0],
+    {
+      ...CHAT.messages[1],
+      calls: [
+        { tool: "list_files", target: "" },
+        { tool: "read_file", target: "aylin.json" },
+      ],
+    },
+  ],
+};
+
+test("a stored answer draws the calls it made", () => {
+  // The half the item is really about: someone reading the chat a week later sees that the answer
+  // looked before it spoke.
+  const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  const lines = [...container.querySelectorAll(".tool-call")];
+  expect(lines).toHaveLength(2);
+  expect(screen.getByText("read_file")).toBeTruthy();
+  expect(screen.getByText("aylin.json")).toBeTruthy();
+});
+
+test("a call about no file in particular draws no empty target", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  // Listing a directory has no file, so the row is the tool's name and nothing else -- no dangling
+  // separator standing where a name would have been.
+  expect(container.querySelectorAll(".tool-call")[0].textContent.trim()).toBe("list_files");
+});
+
+test("an answer that called nothing draws no list at all", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".tool-calls")).toBeNull();
+});
+
+test("a call seen while the answer is still running is drawn as it arrives", () => {
+  // Same road the file cards take: what the stream reports is drawn before any record exists.
+  const { container } = render(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      thinking
+      streamingCalls={[{ tool: "read_file", target: "plan.md" }]}
+    />,
+  );
+  expect(container.querySelector(".tool-call")).toBeTruthy();
+  expect(screen.getByText("plan.md")).toBeTruthy();
+});
+
 test("the rail's rows can be deleted from the chat", () => {
   // Same road as the project screen: the screen only hands the way to ask further along.
   const remove = vi.fn();

@@ -238,3 +238,47 @@ def test_a_python_source_is_refused_so_it_is_not_written_over(tmp_path):
     files = _with(tmp_path, "frames.py", STRUCTURE)
     assert "frames.py" in _call(files, "build_prompts", name="frames.py")
     assert files.read("p1", "frames.py") == STRUCTURE
+
+
+# --- what a call reports about itself (Madde 66) -------------------------------------------------
+#
+# The chat draws a line per call, and the line needs the file the call was about. The name is asked
+# for here rather than worked out by the caller: cleaning a name and settling a clash are this
+# module's rules, and a second copy of them would drift on the first change to either.
+
+
+def _target(files, tool, **arguments):
+    return run_tool(files, "p1", tool, json.dumps(arguments)).target
+
+
+def test_a_read_reports_the_cleaned_name_rather_than_the_asked_one(tmp_path):
+    files = _with(tmp_path, "plan.md", "body")
+    assert _target(files, "read_file", name="notes/plan.md") == "plan.md"
+
+
+def test_a_created_file_reports_the_name_it_actually_got(tmp_path):
+    # The record says what happened, not what the model wished for.
+    files = _with(tmp_path, "plan.md", "body")
+    assert _target(files, "create_file", name="plan.md", content="again") == "plan-2.md"
+
+
+def test_listing_has_no_target_to_report(tmp_path):
+    # Empty rather than invented: the call really is about nothing in particular.
+    assert _target(_files(tmp_path), "list_files") == ""
+
+
+def test_an_edit_reports_the_file_it_changed(tmp_path):
+    files = _with(tmp_path, "plan.md", "one two")
+    assert _target(files, "edit_file", name="plan.md", old="one", new="1") == "plan.md"
+
+
+def test_a_build_reports_the_structure_it_built_from(tmp_path):
+    # The source rather than the output: the file card already names what was written, and the line
+    # saying the same thing twice would carry nothing.
+    files = _with(tmp_path, "frames.json", STRUCTURE)
+    assert _target(files, "build_prompts", name="frames.json") == "frames.json"
+
+
+def test_a_call_that_missed_still_reports_its_target(tmp_path):
+    # A miss is a step that happened. Whether it succeeded is the answer's story, not the line's.
+    assert _target(_files(tmp_path), "read_file", name="gone.md") == "gone.md"
