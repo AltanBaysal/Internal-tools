@@ -36,6 +36,9 @@ class Message:
     # read again later, and a step that only existed while the answer streamed leaves that reader
     # exactly as blind as before.
     calls: tuple = ()
+    # Whether the user cut this answer short. Half a sentence with no mark cannot be told from a
+    # model that finished on one, and the chat is read again later by someone who was not there.
+    stopped: bool = False
 
 
 @dataclass(frozen=True)

@@ -291,6 +291,30 @@ def test_the_stored_chat_hands_back_the_calls(tmp_path):
     assert kept["messages"][-1]["calls"] == [{"tool": "create_file", "target": "plan.md"}]
 
 
+def test_a_running_answer_can_be_asked_to_stop(tmp_path):
+    # Madde 67. The request arrives on its own connection while the answer is still streaming --
+    # which it can, because the server handles requests concurrently.
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    assert client.post(f"/api/projects/{pid}/chats/{cid}/stop").status_code == 200
+
+
+def test_stopping_a_chat_that_is_not_there_is_a_404(tmp_path):
+    client = _client(tmp_path)
+    pid, _ = _started(client)
+    assert client.post(f"/api/projects/{pid}/chats/nope/stop").status_code == 404
+
+
+def test_the_stored_chat_says_which_answer_was_stopped(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
+    # This one ran to the end, so the field is there and it is false -- the browser draws from what
+    # it is handed and should not have to check whether a field exists.
+    assert kept["messages"][-1]["stopped"] is False
+
+
 def test_a_silent_turn_that_made_a_file_closes_the_stream_cleanly(tmp_path):
     # What the user reported as a network error: the model worked without speaking and the stream
     # broke instead of ending.

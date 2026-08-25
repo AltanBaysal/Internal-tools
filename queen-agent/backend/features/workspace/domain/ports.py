@@ -59,6 +59,19 @@ class Engine(Protocol):
         """
 
 
+class Stops(Protocol):
+    """Who asked for a running answer to stop. Lives as long as the answer, never on disk."""
+
+    def want(self, project_id: str, chat_id: str) -> None:
+        """Ask the answer running for this chat to stop at its next chance."""
+
+    def wanted(self, project_id: str, chat_id: str) -> bool:
+        """Has a stop been asked for and not yet acted on."""
+
+    def clear(self, project_id: str, chat_id: str) -> None:
+        """Forget the request. Left standing, it would cut the next answer as it is born."""
+
+
 class FileStore(Protocol):
     def list_names(self, project_id: str) -> list[str]:
         """The names of the files a project holds."""

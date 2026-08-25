@@ -40,6 +40,36 @@ def call(tool, call_id="t1", **arguments):
     return {"id": call_id, "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
 
+class NeverStops:
+    """The stop registry as most tests need it: nobody ever asks."""
+
+    def wanted(self, project_id, chat_id):
+        return False
+
+    def clear(self, project_id, chat_id):
+        pass
+
+
+NEVER = NeverStops()
+
+
+class StopsAfter:
+    """Wants a stop once it has been asked `after` times -- a stop arriving mid-answer, made
+    deterministic. A real one is flipped by another thread, which a test cannot schedule."""
+
+    def __init__(self, after=1):
+        self.after = after
+        self.asked = 0
+        self.cleared = []
+
+    def wanted(self, project_id, chat_id):
+        self.asked += 1
+        return self.asked > self.after
+
+    def clear(self, project_id, chat_id):
+        self.cleared.append((project_id, chat_id))
+
+
 class ScriptedEngine:
     """Each round is a list of pieces the engine hands back."""
 
@@ -68,10 +98,10 @@ def _seeded(tmp_path):
     return chats, files
 
 
-def _run(tmp_path, rounds, **kwargs):
+def _run(tmp_path, rounds, stops=NEVER, **kwargs):
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine(rounds, **kwargs)
-    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, stops))
     return chats, files, engine, produced
 
 
@@ -178,7 +208,7 @@ def test_building_prompts_announces_itself_twice(tmp_path):
     chats, files = _seeded(tmp_path)
     files.write("p1", "frames.json", STRUCTURE)
     rounds = [[{"tool_calls": [call("build_prompts", name="frames.json")]}], [{"text": "done"}]]
-    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
+    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER))
     # A file is born here too, so it gets the same dashed card and the same filled one.
     assert isinstance(produced[0], FileStarted)
     assert produced[1] == FileWritten("frames.py")
@@ -191,7 +221,7 @@ def test_editing_a_file_announces_nothing(tmp_path):
         [{"tool_calls": [call("edit_file", name="plan.md", old="alpha", new="beta")]}],
         [{"text": "done"}],
     ]
-    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
+    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER))
     # An edit is not a birth: a card would claim a file the user already has is new.
     assert not any(isinstance(piece, (FileStarted, FileWritten)) for piece in produced)
     assert files.read("p1", "plan.md") == "beta"
@@ -211,7 +241,7 @@ def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
         ],
         [{"text": "done"}],
     ]
-    list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW))
+    list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER))
     # The card says a file exists, not how many times it was written.
     assert chats.get("p1", "c1").messages[-1].files == ("frames.py",)
 
@@ -259,7 +289,7 @@ def _said_with(tmp_path, *turns):
     for number, (text, skill) in enumerate(turns):
         append_message(chats, "p1", "c1", text, f"2026-08-09T12:0{number}:00.000+00:00", skill=skill)
     engine = ScriptedEngine([[{"text": "ok"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
     return chats, engine.seen[0]
 
 
@@ -290,7 +320,7 @@ def test_a_reply_in_between_does_not_bring_it_back(tmp_path):
     append_message(chats, "p1", "c1", "here it is", NOW, role="ai")
     append_message(chats, "p1", "c1", "again", NOW, skill="create-scenario")
     engine = ScriptedEngine([[{"text": "ok"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
     # Answers carry no skill, and letting them count would repeat the instruction every turn.
     assert _instructions(engine.seen[0]) == [instruction_for("create-scenario")]
 
@@ -340,21 +370,21 @@ def test_a_stream_that_breaks_writes_nothing(tmp_path):
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "half"}]], blow_up_after=0)
     with pytest.raises(EngineFailed):
-        list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+        list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
     assert [m.text for m in chats.get("p1", "c1").messages] == ["hi"]
 
 
 def test_an_unknown_chat_is_reported_before_anything_streams(tmp_path):
     chats, files = _seeded(tmp_path)
     with pytest.raises(ChatNotFound):
-        list(stream_answer(chats, files, ScriptedEngine([]), "p1", "nope", NOW))
+        list(stream_answer(chats, files, ScriptedEngine([]), "p1", "nope", NOW, NEVER))
 
 
 def test_the_answer_is_asked_for_with_the_chats_own_model(tmp_path):
     chats, files = _seeded(tmp_path)
     chats.replace("p1", replace(chats.get("p1", "c1"), model="grok-4.3"))
     engine = ScriptedEngine([[{"text": "hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
     assert engine.asked_for == "grok-4.3"
 
 
@@ -363,7 +393,7 @@ def test_a_chat_that_chose_nothing_asks_for_nothing(tmp_path):
     # setting, and the domain has no business knowing what it says.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
     assert engine.asked_for is None
 
 
@@ -418,3 +448,44 @@ def test_reading_the_same_file_twice_is_two_lines(tmp_path):
     chats, _, _, _ = _run(tmp_path, rounds)
     kept = chats.get("p1", "c1").messages[-1].calls
     assert kept.count(ToolCall("read_file", "plan.md")) == 2
+
+
+# --- stopping an answer that is already running (Madde 67) ---------------------------------------
+
+TWO_ROUNDS = [[{"text": "Half a "}, {"tool_calls": [call("list_files")]}], [{"text": "sentence."}]]
+
+
+def test_a_stop_ends_the_answer_without_asking_the_model_again(tmp_path):
+    _, _, engine, _ = _run(tmp_path, TWO_ROUNDS, stops=StopsAfter(after=1))
+    assert len(engine.seen) == 1
+
+
+def test_what_was_already_said_is_kept(tmp_path):
+    # The owner's choice: stopping is something you decide, and what you had read stays yours.
+    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=StopsAfter(after=1))
+    assert chats.get("p1", "c1").messages[-1].text == "Half a"
+
+
+def test_a_stopped_answer_says_it_was_stopped(tmp_path):
+    # Half a sentence with no mark cannot be told from a model that finished on one.
+    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=StopsAfter(after=1))
+    assert chats.get("p1", "c1").messages[-1].stopped is True
+
+
+def test_an_answer_that_runs_to_the_end_is_not_marked(tmp_path):
+    chats, _, _, _ = _run(tmp_path, [[{"text": "All of it."}]])
+    assert chats.get("p1", "c1").messages[-1].stopped is False
+
+
+def test_stopping_before_a_word_writes_no_message(tmp_path):
+    # Nothing to keep. The chat is left exactly as it was -- still owed an answer, and the browser
+    # is what refuses to ask for one again.
+    chats, _, _, _ = _run(tmp_path, [[{"text": "never reached"}]], stops=StopsAfter(after=0))
+    assert [m.role for m in chats.get("p1", "c1").messages] == ["user"]
+
+
+def test_the_request_is_cleared_when_the_answer_ends(tmp_path):
+    # Left standing it would cut the next answer as it was born.
+    stops = StopsAfter(after=1)
+    _run(tmp_path, TWO_ROUNDS, stops=stops)
+    assert stops.cleared == [("p1", "c1")]

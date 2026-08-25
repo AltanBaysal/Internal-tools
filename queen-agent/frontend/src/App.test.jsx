@@ -531,6 +531,77 @@ function sseResponse(text) {
   };
 }
 
+// A stream that hands over its first frames, then waits to be released before the rest. The one-shot
+// helper cannot serve a test that has to press something *while* the answer is running.
+function gatedSse(first, rest) {
+  const encoder = new TextEncoder();
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  let stage = 0;
+  const response = {
+    ok: true,
+    status: 200,
+    body: {
+      getReader: () => ({
+        read: async () => {
+          if (stage === 0) {
+            stage = 1;
+            return { done: false, value: encoder.encode(first) };
+          }
+          if (stage === 1) {
+            stage = 2;
+            await gate;
+            return { done: false, value: encoder.encode(rest) };
+          }
+          return { done: true };
+        },
+      }),
+    },
+  };
+  return { response, release: () => release() };
+}
+
+test("a stopped answer is not asked for all over again", async () => {
+  // Madde 67's third claim, and the one an item like this loses quietly: a chat whose last word is
+  // the user's is owed an answer, and the browser asks for one by itself. Stopped with nothing kept,
+  // the chat is still owed -- so without a stopped state the answer restarts a second later.
+  const owed = {
+    id: "c1",
+    title: "hello",
+    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
+  };
+  const stream = gatedSse(
+    `event: chunk\ndata: {"text":"Half a "}\n\n`,
+    `event: done\ndata: ${JSON.stringify(owed)}\n\n`,
+  );
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/answer") && options?.method === "POST") {
+      return Promise.resolve(stream.response);
+    }
+    if (path.endsWith("/stop") && options?.method === "POST") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText(/Half a/)).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+  await act(async () => {
+    stream.release();
+  });
+
+  const asked = fetch.mock.calls.filter(([path]) => String(path).endsWith("/answer"));
+  expect(asked).toHaveLength(1);
+});
+
 test("a call arrives in the stream and is still there once the record lands", async () => {
   // Madde 66's handover. The stream draws the line before any record exists, and the record that
   // follows carries the same call -- so what the browser piled up has to be dropped rather than

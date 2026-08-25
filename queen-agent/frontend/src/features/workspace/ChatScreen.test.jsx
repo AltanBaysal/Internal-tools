@@ -64,6 +64,31 @@ test("an answer that called nothing draws no list at all", () => {
   expect(container.querySelector(".tool-calls")).toBeNull();
 });
 
+// --- stopping a running answer (Madde 67) --------------------------------------------------------
+
+test("an answer that is running can be stopped", () => {
+  const onStop = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking onStop={onStop} />);
+  fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+  expect(onStop).toHaveBeenCalled();
+});
+
+test("with nothing running there is nothing to stop", () => {
+  // No dead control beside an idle composer.
+  render(<ChatScreen project={PROJECT} chat={CHAT} onStop={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+});
+
+test("a stopped answer is drawn as one", () => {
+  // Half a sentence with no mark reads as a model that finished on one.
+  const stopped = {
+    ...CHAT,
+    messages: [CHAT.messages[0], { ...CHAT.messages[1], text: "Half a", stopped: true }],
+  };
+  const { container } = render(<ChatScreen project={PROJECT} chat={stopped} />);
+  expect(container.querySelector(".msg--stopped")).toBeTruthy();
+});
+
 test("a call seen while the answer is still running is drawn as it arrives", () => {
   // Same road the file cards take: what the stream reports is drawn before any record exists.
   const { container } = render(

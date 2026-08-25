@@ -117,6 +117,23 @@ def test_a_call_with_no_target_writes_no_target(tmp_path):
     assert "target" not in raw.read_text("p1/chats/c1.json")
 
 
+def test_a_stopped_answer_survives_a_round_trip(tmp_path):
+    chat = replace(
+        _chat(),
+        messages=(
+            Message(role="ai", at="2026-08-09T11:05:00+00:00", text="Half a", stopped=True),
+        ),
+    )
+    FileChatStore(Store(str(tmp_path))).add("p1", chat)
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == chat
+
+
+def test_an_answer_that_was_not_stopped_writes_no_field(tmp_path):
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _chat())
+    assert "stopped" not in raw.read_text("p1/chats/c1.json")
+
+
 def test_a_chat_written_before_calls_existed_reads_back_empty(tmp_path):
     # No migration: the field is absent, and absent is what empty means.
     raw = Store(str(tmp_path))
@@ -131,3 +148,5 @@ def test_a_chat_written_before_calls_existed_reads_back_empty(tmp_path):
         ),
     )
     assert FileChatStore(raw).get("p1", "c1").messages[0].calls == ()
+    # The same absence, one field over: nothing written before today was ever stopped.
+    assert FileChatStore(raw).get("p1", "c1").messages[0].stopped is False
