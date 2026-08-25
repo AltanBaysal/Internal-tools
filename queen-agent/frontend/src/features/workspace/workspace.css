@@ -1017,6 +1017,31 @@
 /* Inside the block that is still pending, right under the dots. It carries the skeleton of the card
    about to be born rather than being a note about it, which is why it holds a badge slot and stops
    at the width a file card would take. */
+/* What the turn did before it spoke. Mono and muted, the same family as the label above a message:
+   both are notes about the text rather than the text itself. No accent -- the accent marks the
+   primary action, and a step already taken is a record, not something to press. */
+.tool-calls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.tool-call {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+/* The separator is drawn here rather than in the markup: as an element it would stand in for a name
+   that is not there, and listing a directory really is a call about no file in particular. */
+.tool-call__target::before {
+  content: "·";
+  margin: 0 6px;
+}
+
 .creating {
   align-self: flex-start;
   display: flex;

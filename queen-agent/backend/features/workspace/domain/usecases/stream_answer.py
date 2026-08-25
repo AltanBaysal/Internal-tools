@@ -3,6 +3,7 @@
 The generator yields text pieces and finally the updated Chat. Telling them apart by type is
 simpler than carrying a separate "this one is the last" flag.
 """
+from backend.features.workspace.domain.chat import ToolCall
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
@@ -41,11 +42,13 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
     if chat is None:
         raise ChatNotFound(chat_id)
 
-    # Local to this answer and never written to the chat: tool calls, their results and a skill's
-    # instruction are the model's own bookkeeping, and the design has nowhere to draw them.
+    # Local to this answer and never written to the chat: what the model was told and what the tools
+    # answered back is bookkeeping. What the turn *did* is not -- that is `made`, and it reaches the
+    # record.
     conversation = _conversation(chat)
     said = []
     born = []
+    made = []
 
     try:
         for _ in range(MAX_ROUNDS):
@@ -78,6 +81,13 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
                 if result.created and result.created not in born:
                     born.append(result.created)
                     yield FileWritten(result.created)
+                # After the tool has run, because the target is not settled until then -- the same
+                # reason the filled card waits. Behind the card rather than in front of it, so the
+                # filled card stays next to the dashed one it replaces. A repeat is kept: reading
+                # one file twice is two steps, and folding one away would misreport the turn.
+                step = ToolCall(tool, result.target)
+                made.append(step)
+                yield step
                 conversation.append(
                     {"role": "tool", "tool_call_id": call["id"], "content": result.text}
                 )
@@ -88,5 +98,5 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
 
     # Everything said across the rounds becomes one message: the user read one answer.
     yield append_message(
-        chat_store, project_id, chat_id, "".join(said), now, role="ai", files=born
+        chat_store, project_id, chat_id, "".join(said), now, role="ai", files=born, calls=made
     )

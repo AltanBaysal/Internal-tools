@@ -1,7 +1,7 @@
 """FileChatStore -- the only place that knows the chats/<id>.json schema."""
 import json
 
-from backend.features.workspace.domain.chat import Chat, Message
+from backend.features.workspace.domain.chat import Chat, Message, ToolCall
 from backend.features.workspace.domain.naming import unique_name
 
 CHATS_DIR = "chats"
@@ -71,6 +71,16 @@ def _message_json(message):
         stored["files"] = list(message.files)
     if message.skill:
         stored["skill"] = message.skill
+    if message.calls:
+        stored["calls"] = [_call_json(call) for call in message.calls]
+    return stored
+
+
+def _call_json(call):
+    # The same rule one level down: a call about no file in particular writes no target.
+    stored = {"tool": call.tool}
+    if call.target:
+        stored["target"] = call.target
     return stored
 
 
@@ -90,6 +100,10 @@ def _as_chat(chat_id, raw):
                 # Chats written before these fields existed simply have neither.
                 files=tuple(message.get("files", ())),
                 skill=message.get("skill", ""),
+                calls=tuple(
+                    ToolCall(call["tool"], call.get("target", ""))
+                    for call in message.get("calls", ())
+                ),
             )
             for message in raw["messages"]
         ),

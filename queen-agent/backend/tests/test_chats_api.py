@@ -284,7 +284,9 @@ def test_the_stored_chat_hands_back_the_calls(tmp_path):
         ),
     )
     pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer")
+    # Read rather than fired: the answer is written by the generator, and nothing runs until the
+    # body is consumed.
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     assert kept["messages"][-1]["calls"] == [{"tool": "create_file", "target": "plan.md"}]
 

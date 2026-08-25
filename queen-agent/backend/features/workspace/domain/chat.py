@@ -32,6 +32,10 @@ class Message:
     # stays honest: changing the selection later must not make an older turn look as though the new
     # skill produced it.
     skill: str = ""
+    # The steps this turn took before it spoke. Kept for the same reason the files are: the chat is
+    # read again later, and a step that only existed while the answer streamed leaves that reader
+    # exactly as blind as before.
+    calls: tuple = ()
 
 
 @dataclass(frozen=True)

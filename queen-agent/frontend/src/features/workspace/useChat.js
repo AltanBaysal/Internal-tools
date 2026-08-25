@@ -23,6 +23,9 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
   const [streamingText, setStreamingText] = useState("");
   const [creatingFile, setCreatingFile] = useState(false);
   const [createdFiles, setCreatedFiles] = useState([]);
+  // What the turn has done so far. Held only while the answer runs: the record that arrives at the
+  // end carries the same steps, and drawing from both sources would read one step as two.
+  const [streamingCalls, setStreamingCalls] = useState([]);
 
   // Kept in a ref rather than a dependency: the caller may hand over a fresh function on every
   // render, and that must not rebuild `ask` and restart the effect below.
@@ -55,9 +58,11 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     setStreamingText("");
     setCreatingFile(false);
     setCreatedFiles([]);
+    setStreamingCalls([]);
     try {
       await streamEvents(`/api/projects/${projectId}/chats/${chatId}/answer`, (frame) => {
         if (frame.event === "chunk") setStreamingText((text) => text + frame.data.text);
+        else if (frame.event === "call") setStreamingCalls((calls) => [...calls, frame.data]);
         else if (frame.event === "file-start") setCreatingFile(true);
         else if (frame.event === "file") {
           setCreatedFiles((names) => [...names, frame.data.name]);
@@ -78,6 +83,7 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
       setStreamingText("");
       setCreatingFile(false);
       setCreatedFiles([]);
+      setStreamingCalls([]);
       setThinking(false);
     }
   }, [projectId, chatId]);
@@ -149,6 +155,7 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     streamingText,
     creatingFile,
     createdFiles,
+    streamingCalls,
     send,
     retry: ask,
   };

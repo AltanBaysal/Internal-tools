@@ -20,6 +20,26 @@ function extensionOf(name) {
   return name.slice(dot + 1, dot + 1 + CHIP_LENGTH).toLowerCase();
 }
 
+// What the turn did before it spoke. Above the answer, because that is the order it happened in.
+//
+// No accent: the accent marks the primary action, and a step that has already happened is a record
+// rather than something to press. The separator before a target is drawn in CSS rather than as an
+// element -- a bullet standing where a missing name would have been announces something that is not
+// there, and listing a directory genuinely has no file.
+function ToolCalls({ calls }) {
+  if (!calls?.length) return null;
+  return (
+    <div className="tool-calls">
+      {calls.map((call, index) => (
+        <div className="tool-call" key={`${call.tool}-${call.target}-${index}`}>
+          <span className="tool-call__name">{call.tool}</span>
+          {call.target ? <span className="tool-call__target">{call.target}</span> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // The skeleton of the card about to be born: an empty badge slot where the chip will go, and no
 // name -- the model's wish is not the name until it has been cleaned and a clash resolved.
 function CreatingFile() {
@@ -69,6 +89,7 @@ export default function ChatScreen({
   streamingText,
   creatingFile,
   createdFiles = [],
+  streamingCalls = [],
   picker,
   onPicker,
   onBack,
@@ -150,6 +171,8 @@ export default function ChatScreen({
                     ? clockTime(message.at)
                     : `QueenAgent · ${clockTime(message.at)}`}
                 </div>
+                {/* Only an answer has steps; a question is what was typed and nothing else. */}
+                {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
                 {/* What the user typed stays what they typed -- `**test**` keeps its asterisks. */}
                 {message.role === "user" ? (
                   <div className="msg__bubble">{message.text}</div>
@@ -178,6 +201,7 @@ export default function ChatScreen({
             {streamingText ? (
               <div className="msg msg--ai" data-testid="streaming">
                 <div className="msg__label">{waitingLabel}</div>
+                <ToolCalls calls={streamingCalls} />
                 <div className="msg__text">
                   {/* Formatted from the first frame: raw first and formatted afterwards would read
                       as a flicker rather than a stream. */}
@@ -192,6 +216,7 @@ export default function ChatScreen({
               // design refuses a fake partial answer.
               <div className="msg msg--ai msg--waiting" data-testid="thinking">
                 <div className="msg__label">{waitingLabel}</div>
+                <ToolCalls calls={streamingCalls} />
                 <div className="dots">
                   <span className="dots__dot" />
                   <span className="dots__dot" />

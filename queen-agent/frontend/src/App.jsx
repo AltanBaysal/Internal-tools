@@ -335,6 +335,7 @@ export default function App() {
             streamingText={chat.streamingText}
             creatingFile={chat.creatingFile}
             createdFiles={chat.createdFiles}
+            streamingCalls={chat.streamingCalls}
             onBack={() => openProject(route.projectId)}
             picker={picker}
             onPicker={togglePicker}

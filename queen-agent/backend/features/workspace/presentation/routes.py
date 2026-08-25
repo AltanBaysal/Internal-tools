@@ -13,6 +13,7 @@ from backend.features.workspace.domain.errors import (
     InvalidProjectName,
     ProjectNotFound,
 )
+from backend.features.workspace.domain.chat import ToolCall
 from backend.features.workspace.domain.tools import FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
@@ -216,6 +217,8 @@ def _sse(pieces, default_model):
                 yield _frame("file-start", {})
             elif isinstance(piece, FileWritten):
                 yield _frame("file", {"name": piece.name})
+            elif isinstance(piece, ToolCall):
+                yield _frame("call", {"tool": piece.tool, "target": piece.target})
             else:
                 yield _frame("done", _chat_json(piece, default_model))
     except EngineFailed as failure:
@@ -278,6 +281,9 @@ def _chat_json(chat, default_model):
                 "text": message.text,
                 "files": list(message.files),
                 "skill": message.skill,
+                # Always present, unlike on disk: the browser draws from what it is handed, and an
+                # absent field would make every reader check for it.
+                "calls": [{"tool": call.tool, "target": call.target} for call in message.calls],
             }
             for message in chat.messages
         ],

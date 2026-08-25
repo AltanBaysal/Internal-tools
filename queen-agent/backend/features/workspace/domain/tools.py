@@ -16,9 +16,13 @@ from backend.features.workspace.domain.build_prompts import (
 from backend.features.workspace.domain.errors import BadStructure
 from backend.features.workspace.domain.naming import unique_name
 
-# What the model is told, and separately whether a file was born. Parsing the sentence back out
-# would be fragile.
-ToolResult = namedtuple("ToolResult", "text created")
+# What the model is told, separately whether a file was born, and separately the file the call was
+# about. Parsing the sentence back out would be fragile.
+#
+# `target` is answered here rather than by the caller because cleaning a name and settling a clash
+# are this module's rules: worked out anywhere else they would be a second copy, and the copy would
+# drift on the first change to either. Empty when the call was about no file in particular.
+ToolResult = namedtuple("ToolResult", "text created target", defaults=("",))
 
 
 @dataclass(frozen=True)
@@ -147,15 +151,19 @@ def run_tool(file_store, project_id, name, arguments):
         return ToolResult("\n".join(names) if names else "This project has no files yet.", None)
 
     if name == "read_file":
-        content = file_store.read(project_id, safe_name(args.get("name")))
+        wanted = safe_name(args.get("name"))
+        content = file_store.read(project_id, wanted)
+        # The target stands whether or not the file was there: asking for a file that does not
+        # exist is still a step the turn took.
         return ToolResult(
-            content if content is not None else "There is no file by that name.", None
+            content if content is not None else "There is no file by that name.", None, wanted
         )
 
     if name == "create_file":
         wanted = unique_name(file_store.list_names(project_id), safe_name(args.get("name")))
         written = file_store.write(project_id, wanted, args.get("content", ""))
-        return ToolResult(f"Saved as {written}.", written)
+        # The name it got, not the one it asked for -- the record says what happened.
+        return ToolResult(f"Saved as {written}.", written, written)
 
     if name == "edit_file":
         return _edit(file_store, project_id, args)
@@ -171,53 +179,57 @@ def _edit(file_store, project_id, args):
     wanted = safe_name(args.get("name"))
     content = file_store.read(project_id, wanted)
     if content is None:
-        return ToolResult("There is no file by that name.", None)
+        return ToolResult("There is no file by that name.", None, wanted)
 
     old = args.get("old") or ""
     if not old:
-        return ToolResult("An edit needs the text to replace.", None)
+        return ToolResult("An edit needs the text to replace.", None, wanted)
 
     found = content.count(old)
     if found == 0:
         # No search for something close: a near miss edited silently is worse than a refusal.
-        return ToolResult(f"That text is not in {wanted}.", None)
+        return ToolResult(f"That text is not in {wanted}.", None, wanted)
     if found > 1:
         return ToolResult(
             f"That text appears {found} times in {wanted}; include more of what surrounds it.",
             None,
+            wanted,
         )
 
     file_store.write(project_id, wanted, content.replace(old, args.get("new") or "", 1))
     # No name handed back: the file was already there, and a card would call it new.
-    return ToolResult(f"Edited {wanted}.", None)
+    return ToolResult(f"Edited {wanted}.", None, wanted)
 
 
 def _build(file_store, project_id, args):
     """The structure is the model's; the prompts are the code's."""
     source = safe_name(args.get("name"))
     content = file_store.read(project_id, source)
+    # The source rather than the output, all the way through: the file card already names what was
+    # written, and a line repeating it would carry nothing the card does not.
     if content is None:
-        return ToolResult("There is no file by that name.", None)
+        return ToolResult("There is no file by that name.", None, source)
 
     target = prompts_name(source)
     if target == source:
         return ToolResult(
             f"{source} would be written over by its own output; a structure belongs in a .json file.",
             None,
+            source,
         )
 
     try:
         structure = json.loads(content)
     except json.JSONDecodeError as broken:
         # The parser's own sentence. A guessed cause would send the model looking in the wrong place.
-        return ToolResult(f"{source} is not valid JSON: {broken}", None)
+        return ToolResult(f"{source} is not valid JSON: {broken}", None, source)
 
     try:
         prompts = build_prompts(structure)
     except BadStructure as refused:
-        return ToolResult(str(refused), None)
+        return ToolResult(str(refused), None, source)
 
     # Written over on purpose: this file is derived, and regenerating it after an edit is the whole
     # point. Numbering it would leave a pile with no way to tell which one is now.
     written = file_store.write(project_id, target, render_module(prompts))
-    return ToolResult(f"Wrote {len(prompts)} prompts to {written}.", written)
+    return ToolResult(f"Wrote {len(prompts)} prompts to {written}.", written, source)
