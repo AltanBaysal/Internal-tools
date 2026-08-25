@@ -73,6 +73,9 @@ def _message_json(message):
         stored["skill"] = message.skill
     if message.calls:
         stored["calls"] = [_call_json(call) for call in message.calls]
+    # Only the true one is written: almost no answer is stopped, and a false everywhere is noise.
+    if message.stopped:
+        stored["stopped"] = True
     return stored
 
 
@@ -104,6 +107,7 @@ def _as_chat(chat_id, raw):
                     ToolCall(call["tool"], call.get("target", ""))
                     for call in message.get("calls", ())
                 ),
+                stopped=message.get("stopped", False),
             )
             for message in raw["messages"]
         ),

@@ -37,7 +37,7 @@ def _conversation(chat):
     return built
 
 
-def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
+def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stops):
     chat = chat_store.get(project_id, chat_id)
     if chat is None:
         raise ChatNotFound(chat_id)
@@ -49,6 +49,7 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
     said = []
     born = []
     made = []
+    cut_short = False
 
     try:
         for _ in range(MAX_ROUNDS):
@@ -56,6 +57,11 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
             # None rather than a name when the chat never chose: which model speaks for it is the
             # engine's own setting, and the domain has no business knowing what that says.
             for piece in engine.stream(conversation, tools=TOOL_SPECS, model=chat.model or None):
+                # Asked before the piece rather than after it: what the user pressed stop on is
+                # everything they had already read, and nothing past it.
+                if stops.wanted(project_id, chat_id):
+                    cut_short = True
+                    break
                 if "text" in piece:
                     spoken.append(piece["text"])
                     said.append(piece["text"])
@@ -63,7 +69,8 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
                 else:
                     calls.extend(piece["tool_calls"])
 
-            if not calls:
+            # Reaching a stop is an end, not a failure -- the same way the round limit is.
+            if cut_short or not calls:
                 break
 
             conversation.append(
@@ -92,11 +99,29 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now):
                     {"role": "tool", "tool_call_id": call["id"], "content": result.text}
                 )
     except Exception as failure:
-        # Half an answer is never kept: the design's line is that an answer either exists or does
-        # not, and a file cannot be born of an unfinished thought.
+        # Half an answer that nobody asked to end is never kept: the design's line is that an answer
+        # either exists or does not, and a file cannot be born of an unfinished thought. A stop is
+        # the other case -- somebody decided, and what they had read is theirs.
         raise EngineFailed(str(failure)) from failure
+    finally:
+        # However this ended. Left standing, the flag would cut the next answer as it was born.
+        stops.clear(project_id, chat_id)
+
+    if cut_short and not "".join(said).strip() and not born:
+        # Nothing to keep, so nothing is written -- but the stream still closes with the record, so
+        # that a reader never has to tell "ended" from "dropped".
+        yield chat_store.get(project_id, chat_id)
+        return
 
     # Everything said across the rounds becomes one message: the user read one answer.
     yield append_message(
-        chat_store, project_id, chat_id, "".join(said), now, role="ai", files=born, calls=made
+        chat_store,
+        project_id,
+        chat_id,
+        "".join(said),
+        now,
+        role="ai",
+        files=born,
+        calls=made,
+        stopped=cut_short,
     )

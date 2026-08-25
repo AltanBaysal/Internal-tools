@@ -96,6 +96,7 @@ export default function ChatScreen({
   onSend,
   onModelChange,
   onSkillChange,
+  onStop,
   onRetry,
 }) {
   // Stamped once, when the wait starts. There is nothing on the server to read it from yet, and the
@@ -162,7 +163,13 @@ export default function ChatScreen({
             {chat.messages.map((message, index) => (
               <div
                 key={`${message.at}-${index}`}
-                className={message.role === "user" ? "msg msg--user" : "msg msg--ai"}
+                className={
+                  message.role === "user"
+                    ? "msg msg--user"
+                    : /* An answer the user cut short says so: half a sentence with no mark reads
+                         as a model that finished on one. */
+                      `msg msg--ai${message.stopped ? " msg--stopped" : ""}`
+                }
               >
                 {/* No name over the user's own bubble: the design draws one but never says where it
                     comes from, and the bubble sitting on the right already says who wrote it. */}
@@ -277,6 +284,14 @@ export default function ChatScreen({
                Escape closes them in a fixed order. */
             foot={
               <>
+                {/* Only while there is something to stop. No accent -- the accent marks the primary
+                    action, and that is Send; no red either, because cutting your own answer short
+                    is not destruction. */}
+                {thinking ? (
+                  <button type="button" className="stop" onClick={onStop}>
+                    Stop
+                  </button>
+                ) : null}
                 <SkillPicker
                   skill={chat.skill}
                   open={picker === "skills"}

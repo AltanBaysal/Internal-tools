@@ -6,7 +6,16 @@ from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage
 
 
 def append_message(
-    chat_store, project_id, chat_id, text, now, role="user", files=(), skill="", calls=()
+    chat_store,
+    project_id,
+    chat_id,
+    text,
+    now,
+    role="user",
+    files=(),
+    skill="",
+    calls=(),
+    stopped=False,
 ):
     chat = chat_store.get(project_id, chat_id)
     if chat is None:
@@ -20,7 +29,13 @@ def append_message(
         raise EmptyMessage()
     # The title belongs to the message that started the chat and never moves.
     message = Message(
-        role=role, at=now, text=trimmed, files=tuple(files), skill=skill, calls=tuple(calls)
+        role=role,
+        at=now,
+        text=trimmed,
+        files=tuple(files),
+        skill=skill,
+        calls=tuple(calls),
+        stopped=stopped,
     )
     updated = replace(chat, messages=chat.messages + (message,))
     chat_store.replace(project_id, updated)

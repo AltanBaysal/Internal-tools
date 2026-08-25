@@ -5,6 +5,7 @@ import pytest
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
+from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -55,6 +56,7 @@ def _tool_call(tool, **arguments):
 
 
 def _client(tmp_path, engine=None, default_model="grok-4.5"):
+    # A fresh registry per client, like the stores: one test's stop must not reach another's answer.
     store = Store(str(tmp_path))
     app = create_app(
         dist_dir=str(tmp_path),
@@ -65,6 +67,7 @@ def _client(tmp_path, engine=None, default_model="grok-4.5"):
                 FileFileStore(store),
                 engine or FakeEngine(),
                 default_model,
+                MemoryStops(),
             ),
         ),
     )

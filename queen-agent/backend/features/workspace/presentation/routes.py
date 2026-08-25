@@ -33,7 +33,7 @@ from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
 
-def make_workspace_bp(project_store, chat_store, file_store, engine, default_model):
+def make_workspace_bp(project_store, chat_store, file_store, engine, default_model, stops):
     workspace_bp = Blueprint("workspace", __name__)
 
     @workspace_bp.get("/api/model")
@@ -153,11 +153,23 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, default_mod
             return jsonify({"error": "chat not found"}), 404
         return Response(
             _sse(
-                stream_answer(chat_store, file_store, engine, project_id, chat_id, now=_now()),
+                stream_answer(
+                    chat_store, file_store, engine, project_id, chat_id, _now(), stops
+                ),
                 default_model,
             ),
             mimetype="text/event-stream",
         )
+
+    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/stop")
+    def post_stop(project_id, chat_id):
+        # Its own request on its own connection: the answer it stops is still streaming down
+        # another one, and the server serves the two at the same time.
+        if chat_store.get(project_id, chat_id) is None:
+            return jsonify({"error": "chat not found"}), 404
+        stops.want(project_id, chat_id)
+        # Asked for, not done: the answer stops at its next chance, which has not come yet.
+        return jsonify({})
 
     @workspace_bp.get("/api/projects/<project_id>/files")
     def get_files(project_id):
@@ -284,6 +296,7 @@ def _chat_json(chat, default_model):
                 # Always present, unlike on disk: the browser draws from what it is handed, and an
                 # absent field would make every reader check for it.
                 "calls": [{"tool": call.tool, "target": call.target} for call in message.calls],
+                "stopped": message.stopped,
             }
             for message in chat.messages
         ],

@@ -3,6 +3,7 @@ from backend import config
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
+from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.data.xai_engine import XaiEngine
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -27,6 +28,9 @@ app = create_app(
             FileFileStore(store),
             engine,
             config.XAI_MODEL,
+            # One registry for the whole app: two of them would be two requests unable to find
+            # each other.
+            MemoryStops(),
         ),
     ),
 )

@@ -26,6 +26,10 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
   // What the turn has done so far. Held only while the answer runs: the record that arrives at the
   // end carries the same steps, and drawing from both sources would read one step as two.
   const [streamingCalls, setStreamingCalls] = useState([]);
+  // Stopped by the user, and it has to outlive the stream it stopped. A stop with nothing worth
+  // keeping writes no answer, so the chat is still owed one and the effect below would ask again --
+  // the same shape `error` already has, and for the same reason.
+  const [stopped, setStopped] = useState(false);
 
   // Kept in a ref rather than a dependency: the caller may hand over a fresh function on every
   // render, and that must not rebuild `ask` and restart the effect below.
@@ -38,6 +42,8 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     setChat(null);
     setError(null);
     setMissing(false);
+    // Another chat is another conversation: what was stopped here says nothing about it.
+    setStopped(false);
     getJson(`/api/projects/${projectId}/chats/${chatId}`)
       .then((loaded) => {
         if (!cancelled) setChat(loaded);
@@ -92,9 +98,18 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     // Not while one is already running, and not after a failure -- otherwise a broken engine would
     // be asked again forever. Not while the connection is gone either: the chat stays owed an
     // answer, so this effect asks for it by itself the moment the connection is back.
-    if (!online || thinking || error || !isOwedAnAnswer(chat)) return;
+    if (!online || thinking || error || stopped || !isOwedAnAnswer(chat)) return;
     ask();
-  }, [chat, thinking, error, online, ask]);
+  }, [chat, thinking, error, stopped, online, ask]);
+
+  // Marked before the request goes out: the stream may end between asking and being told, and the
+  // effect above must never see a moment where the answer is over and nothing says why.
+  const stop = useCallback(async () => {
+    setStopped(true);
+    // The server's answer carries nothing; what matters is that the flag is set before the running
+    // turn looks at it again. A refusal is not worth a message -- the stream ends either way.
+    await postJson(`/api/projects/${projectId}/chats/${chatId}/stop`, {}).catch(() => {});
+  }, [projectId, chatId]);
 
   // The skill travels with the message rather than being read off the chat on the server: what
   // governed a turn is settled when the turn is sent.
@@ -108,6 +123,8 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
           : current,
       );
       setRefused(null);
+      // A new sentence is a new question: what was stopped before has nothing to do with it.
+      setStopped(false);
       try {
         setChat(
           await postJson(`/api/projects/${projectId}/chats/${chatId}/messages`, { text, skill }),
@@ -157,6 +174,7 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     createdFiles,
     streamingCalls,
     send,
+    stop,
     retry: ask,
   };
 }

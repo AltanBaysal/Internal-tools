@@ -344,6 +344,7 @@ export default function App() {
             /* A draft has nothing to write to yet, so picking only moves the session's own. */
             onModelChange={drafting ? setLastModel : chooseModel}
             onSkillChange={drafting ? setLastSkill : chooseSkill}
+            onStop={chat.stop}
             onRetry={chat.retry}
           />
         ) : null}

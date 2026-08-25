@@ -5,6 +5,7 @@ import pytest
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
+from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.domain.file import extension_of
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.presentation.routes import make_workspace_bp
@@ -28,6 +29,7 @@ def _client(tmp_path):
                 FileFileStore(store),
                 FakeEngine(),
                 "grok-4.5",
+                MemoryStops(),
             ),
         ),
     )

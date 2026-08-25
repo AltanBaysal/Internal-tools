@@ -17,10 +17,15 @@ class MemoryStops:
         self._lock = threading.Lock()
 
     def want(self, project_id, chat_id):
-        raise NotImplementedError
+        with self._lock:
+            self._wanted.add((project_id, chat_id))
 
     def wanted(self, project_id, chat_id):
-        raise NotImplementedError
+        with self._lock:
+            return (project_id, chat_id) in self._wanted
 
     def clear(self, project_id, chat_id):
-        raise NotImplementedError
+        # Discard rather than remove: every answer clears on its way out, and most were never
+        # stopped.
+        with self._lock:
+            self._wanted.discard((project_id, chat_id))
