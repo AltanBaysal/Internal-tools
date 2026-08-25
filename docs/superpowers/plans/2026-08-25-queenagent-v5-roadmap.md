@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **10 madde, 2 blok** — 65'ten 74'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **11 madde, 2 blok** — 65'ten 75'e.
 
 ---
 
@@ -28,12 +28,12 @@ Koşu ikiye ayrılıyor, ve ayrım **kimin koştuğu**:
 
 - **Blok 1 (65-69) tek başına koşulur.** Beş madde; her biri kapalı uçlu, kararı verilmiş,
   bir öncekine yaslanıyor. Kullanıcı bunları koşunun sonunda topluca dener.
-- **Blok 2 (70-74) kullanıcıyla beraber, adım adım koşulur** *(kullanıcı kararı, 25 Ağustos)*.
-  Beşinin de ya çıktının doğruluğuna ya modelin davranışına dokunduğu için karar aralarında
+- **Blok 2 (70-75) kullanıcıyla beraber, adım adım koşulur** *(kullanıcı kararı, 25 Ağustos)*.
+  Altısının da ya çıktının doğruluğuna ya modelin davranışına dokunduğu için karar aralarında
   veriliyor, sonunda değil.
 
-Blok 2'nin kendi içindeki sıra kullanıcının söylediği sıradır; araya giren tek madde Grok Build ve
-onun yeri zorunlu (aşağıda).
+Blok 2'nin kendi içindeki sıra kullanıcının söylediği sıradır; araya giren iki madde Grok Build ile
+prompt dili, ve ikisinin de yeri zorunlu (aşağıda).
 
 ### Tasarım bu koşuda kodu takip ediyor *(kullanıcı kararı, 25 Ağustos)*
 
@@ -57,6 +57,9 @@ bir tur gelir. Bu, o turun sürpriz olmadığının kaydıdır.
   bitmeden model değiştirilirse sohbetler pencereye sığmaz. **71 → 72**.
 - **Taban yönerge, skillerden önce.** Skillerin üstündeki fazlalık ancak taban onu söylemeye
   başladıktan sonra bırakılabilir. **73 → 74**.
+- **Prompt dili, skiller toplanmadan önce.** Promptun neye benzeyeceğini söyleyen metin skillerin
+  içinde duruyor. Dil değişmeden skiller tek akışta toplanırsa aynı metin iki kez yazılır.
+  **75 → 74**.
 
 ### Backlog karşılığı
 
@@ -71,6 +74,7 @@ bir tur gelir. Bu, o turun sürpriz olmadığının kaydıdır.
 | Context yönetimi ve işi böldürme | 71 |
 | Grok Build varsayılan ve tek model | 72 |
 | Agentic davranışı arttıran sistem promptu | 73 |
+| Promptlar SDXL promptu gibi değil, cümle şeklinde çıksın | 75 |
 | Skiller tek bir akışta toplansın | 74 |
 | Prompt listesi karışıyor | **bu koşuda yok** — backlog'da kalıyor |
 
@@ -197,6 +201,20 @@ sırasıdır; Grok Build araya giriyor çünkü şartı bir önceki madde.
 - **Nasıl görülür:** hiçbir skill seçilmeden dosyaya dayanan bir iş isteniyor; model yazmadan önce
   bakıyor ve sonunda ne yaptığını söylüyor.
 
+### Madde 75 — Promptlar cümle olarak çıkar
+
+- **Ne çalışır:** bugün hem karakter dosyaları hem kare promptları SDXL etiketi olarak yazılıyor —
+  virgülle ayrılmış kısa parçalar; skill metni bunu "asla cümle değil" diye söylüyor, prompt listesini
+  kuran kod da parçaları virgülle birleştiriyor. Prompt dili değişir: çıkan şey etiket dizisi değil,
+  düz cümledir.
+- **Nasıl görülür:** bir kare listesinden prompt üretiliyor ve dosyadaki her satır virgüllü etiketler
+  değil, okunan bir cümle.
+- **Sırası:** 74'ten önce — bağ yukarıda. Kullanıcının listesinde bu madde yoktu; buraya prompt
+  dilinin skillerin içinde yazılı olması yüzünden girdi.
+- **Spec'te karara bağlanacak:** kalite etiketlerinin cümlede ne olacağı; bugün diskte duran etiket
+  biçimindeki karakter ve yapı dosyalarına ne olacağı — dönüştürülecek mi, yoksa iki biçim birden mi
+  okunacak; ve 70'in getirdiği kişi sayısının cümlede nasıl söyleneceği.
+
 ### Madde 74 — Skiller tek akışta toplanır
 
 - **Ne çalışır:** altı skill var ve hangisinin ne zaman geleceğini kullanıcı seçiyor. Bir kısmı
@@ -204,8 +222,8 @@ sırasıdır; Grok Build araya giriyor çünkü şartı bir önceki madde.
   promptlar, kontrol. Gereksizler düşer ve geri kalan tek bir akışa iner.
 - **Nasıl görülür:** bir senaryodan prompt listesine kadar olan yol tek bir akışla yürüyor; kullanıcı
   arada skill değiştirmiyor.
-- **Şartı:** 73 — taban yönerge ortak davranışı söylemeye başlamadan skillerden fazlalık
-  bırakılamaz.
+- **Şartı:** 73 ve 75 — taban yönerge ortak davranışı söylemeye başlamadan skillerden fazlalık
+  bırakılamaz, prompt dili belli olmadan da tek akışın metni bir kez yazılamaz.
 - **Spec'te karara bağlanacak:** hangi skillerin düşeceği. Bir aday şimdiden belli — promptları elle
   yazan yol, yapıdan kuran yolla aynı işi yapıyor ve karakteri elle kopyaladığı için FOUNDATION'ın
   5. ilkesiyle çarpışıyor. Karar yine de spec'te, beraber verilir.
@@ -226,6 +244,7 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | Bugünkü yapı dosyalarındaki sayı etiketleri temizlenecek mi | 70 |
 | Bağlamın hangi yolla yönetileceği | 71 — 68'in ölçüsüne bakarak |
 | Model seçici kalkacak mı, eski kayıtlardaki model adlarına ne olacak | 72 |
+| Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
 | Hangi skiller düşecek | 74 |
 
 ## Kapsam dışı

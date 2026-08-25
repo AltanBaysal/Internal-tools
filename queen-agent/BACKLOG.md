@@ -69,6 +69,12 @@ seçicilerin durduğu boş sohbet ekranına yalnız sidebar'daki "+ New chat" il
 verildi: açılış doğrudan taslak sohbet ekranına düşecek, proje ekranı ayrı bir kapı olarak kalacak.
 Yeni bir ekran yazılmıyor — o ekran zaten var, değişen yalnız açılış adresi.
 
+### Promptlar SDXL promptu gibi değil, cümle şeklinde çıksın
+
+Bugün hem karakter dosyaları hem kare promptları virgülle ayrılmış kısa etiketler; skill metni bunu
+açıkça "asla cümle değil" diye söylüyor, kod da parçaları virgülle birleştiriyor. İstenen, promptun
+etiket dizisi olarak değil düz cümle olarak çıkması.
+
 ### Cached token olayını çöz, sistemi optimize et
 
 Servisin döndürdüğü tüketim bilgisi hiçbir yerde okunmuyor; önbellekten gelen token ile yeniden
