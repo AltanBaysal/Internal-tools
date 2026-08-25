@@ -131,7 +131,7 @@ kaynak commit'iyle aynı commit'te. Defterin klon hücresi artık `main`'e bakı
 
 - **Fotoğraflar iki koşu arasında yeniden iniyor** (29). Cloudflare her koşuda yeni adres veriyor,
   tarayıcı önbelleği adresi anahtar sayıyor. Çözüm sabit adres; bu koşunun işi değil, kaydı
-  [backlog](../backlog.md)'da. Koşu *içinde* önbellek çalışıyor: galeri kaydırması ve detaydan dönüş
+  [backlog](../../../queen-editor/BACKLOG.md)'da. Koşu *içinde* önbellek çalışıyor: galeri kaydırması ve detaydan dönüş
   ağa çıkmıyor.
 - **Export ekranı** bu koşuda hiç açılmadı — kullanıcı düzgün bulduğu için tüm export farkları
   düştü. Ekran hâlâ değişmedi; 37. madde exportun *çıktısını* değiştiriyor ve turda 8. bölümde
@@ -141,5 +141,5 @@ kaynak commit'iyle aynı commit'te. Defterin klon hücresi artık `main`'e bakı
 
 ## Turdan sonra
 
-Çıkan her şey yazıya geçip [backlog](../backlog.md)'a eklenir — 30. maddenin "bitti sayılır" şartı
+Çıkan her şey yazıya geçip [backlog](../../../queen-editor/BACKLOG.md)'a eklenir — 30. maddenin "bitti sayılır" şartı
 budur.

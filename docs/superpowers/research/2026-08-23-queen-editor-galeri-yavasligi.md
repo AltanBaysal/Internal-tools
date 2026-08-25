@@ -63,7 +63,7 @@ kırık değil; ona verilecek tamamlanmış dosya yok.
 > tamamen inmiş bir fotoğraf bile bir sonraki koşuda yabancı sayılıyor. Yol haritası v14 madde 29
 > bunun için açıldı ve aynı gün düştü: sebep ölçülmeden kabul edildi, çünkü tarayıcıda bayt saklayan
 > her depo origin'e göre bölünüyor ve sıralanacak ikinci bir aday yok. Tek kapı adresi sabitlemek,
-> o da defterin tünel satırıyla kullanıcının alan adında — [backlog](../backlog.md).
+> o da defterin tünel satırıyla kullanıcının alan adında — [backlog](../../../queen-editor/BACKLOG.md).
 
 > ### Ders: ölçmeden sıralama yazılmaz
 >

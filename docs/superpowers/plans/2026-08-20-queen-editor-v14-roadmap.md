@@ -177,7 +177,7 @@ yok: tarayıcıda bayt saklayan **her** depo — HTTP önbelleği, Cache Storage
 göre bölünüyor, origin de konak adının kendisi. Adres değişince hepsi birden yabancılaşıyor, yani
 "kendi önbelleğimizi yazalım" diye bir aile hiç yok. Sabit adres seçeneklerden biri değil, **tek
 kapı** — ve o kapı defterin tünel satırıyla kullanıcının alan adında duruyor, uygulamanın kodunda
-değil. Kayıt [backlog](../backlog.md)'a geçti.
+değil. Kayıt [backlog](../../../queen-editor/BACKLOG.md)'a geçti.
 
 **Foto rotasının `immutable` başlığı yerinde kalıyor.** Bugün yarısı zaten çalışıyor: koşu içinde
 galeri kaydırması ve detaydan dönüş ağa hiç çıkmıyor. Silmek bunu geri götürür ve yer de
@@ -221,7 +221,7 @@ sustuğu yanlış cümle ilk kez ekrana çıkar.
 **Galeri seçiminin hatırlanması 34'ten çıkarıldı — kullanıcı kararı, 24 Ağustos.** Seçim modundayken
 bir kareyi açmanın yolu yok: seçim varken karta tıklamak kareyi açmıyor, seçime ekliyor. Yani
 "detaydan dönünce seçim kayboluyor" diye bir durum hiç oluşmuyor. Seçimin gerçekten kaybolduğu tek
-yol export ekranına gidip dönmek, ve o ayrı bir kapı. Kaydı [backlog](../backlog.md)'a geçti.
+yol export ekranına gidip dönmek, ve o ayrı bir kapı. Kaydı [backlog](../../../queen-editor/BACKLOG.md)'a geçti.
 
 **35, detay sayfasının kuralıyla çelişmiyor.** Orada yazı *başka bir kareye geçilince* ölüyor
 (madde 76) — panel ise tek bir forma ait ve hiçbir yere geçmiyor. Aynı soruya iki cevap değil, iki
@@ -240,4 +240,4 @@ başladı ve K bölümünü doğurup durdu; K bitince aynı listeden sürer.)*
 
 | # | İş | Bitti sayılır | Kaynak |
 |---|---|---|---|
-| 30 | **Colab turu — koşunun tek testi ve en sonu.** Dal yayınlanır ve defter koşulur; kullanıcı koşunun **tamamını** birden dener. H ve I bölümlerinin maddeleri de bu turda görülür. | Kullanıcı turu yapmış; çıkan her şey yazıya geçmiş ve [backlog](../backlog.md)'a eklenmiş. | İstek 1.1 |
+| 30 | **Colab turu — koşunun tek testi ve en sonu.** Dal yayınlanır ve defter koşulur; kullanıcı koşunun **tamamını** birden dener. H ve I bölümlerinin maddeleri de bu turda görülür. | Kullanıcı turu yapmış; çıkan her şey yazıya geçmiş ve [backlog](../../../queen-editor/BACKLOG.md)'a eklenmiş. | İstek 1.1 |

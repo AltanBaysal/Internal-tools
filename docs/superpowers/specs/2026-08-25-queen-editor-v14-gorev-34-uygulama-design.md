@@ -62,7 +62,7 @@ anlatıyor.
 ## Kapsam dışı
 
 - **Test dosyası değişmiyor.**
-- **Galeri seçimi** — kullanıcı kararıyla 34'ten çıktı, kaydı [backlog](../backlog.md)'da.
+- **Galeri seçimi** — kullanıcı kararıyla 34'ten çıktı, kaydı [backlog](../../../queen-editor/BACKLOG.md)'da.
 - **Yazılmış ama gönderilmemiş metin** — 35. madde.
 
 ## Derlenmiş çıktı

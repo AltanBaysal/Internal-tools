@@ -77,6 +77,6 @@ doğuyor; dışarıdan geçirilen bir şey yok, dolayısıyla ekran seviyesinde 
 
 - **Galeri seçiminin hatırlanması** — kullanıcı kararıyla 34'ten çıkarıldı; seçim modundayken bir
   kareyi açmanın yolu olmadığı için tarif edilen durum hiç oluşmuyor. Kaydı
-  [backlog](../backlog.md)'da.
+  [backlog](../../../queen-editor/BACKLOG.md)'da.
 - **Yazılmış ama gönderilmemiş metin** — 35. madde.
 - **Kod bu döngüde değişmiyor.** Testler kırmızı bırakılır.
