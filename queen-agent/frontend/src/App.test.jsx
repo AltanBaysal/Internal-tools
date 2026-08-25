@@ -101,7 +101,7 @@ test("the fork asks the browser where we are, not the render it was built from",
   expect(window.location.pathname).toBe("/p/p2");
 });
 
-test("/settings is an address like any other unknown one: the fork lands it on a project", async () => {
+test("/settings is an address like any other unknown one: the fork lands it on the draft chat", async () => {
   // Madde 62's trap. Deleting the route alone would leave the address parsing to the fork while the
   // fork's own guard still asked for a literal "/" -- no redirect, no screen, a blank page. The two
   // pieces are each correct on their own and open a hole together.
@@ -109,8 +109,8 @@ test("/settings is an address like any other unknown one: the fork lands it on a
   window.history.pushState(null, "", "/settings");
   render(<App />);
 
-  await screen.findByText("Old", { selector: ".screen__title" });
-  expect(window.location.pathname).toBe("/p/p1");
+  await screen.findByText("New chat", { selector: ".chat__title" });
+  expect(window.location.pathname).toBe("/p/p1/c/new");
 });
 
 test("the app never asks the server for settings", async () => {
@@ -145,15 +145,48 @@ test("the shell wears the step it was measured at", () => {
   expect(screen.getByTestId("app-shell").className).toContain("app-shell--compact");
 });
 
-test("the app opens on the first project", async () => {
-  // "/" is a fork, not a screen: with a project to show, the app lands inside it.
+test("the app opens on the first project's draft chat", async () => {
+  // "/" is a fork, not a screen: with a project to show, the app lands inside that project's draft
+  // chat. The project screen was the old landing and it offers neither picker, so a skill could not
+  // be chosen until a message had already been sent.
   stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  // The sidebar row and the project title read the same array, so the name stands in both. Counted
-  // by where it stands rather than how many times: the stub answers every request with the same
-  // array, so a file row carrying the name too is the stub's doing, not the app's.
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  // The sidebar row reads the project list, so the name stands there whichever screen is open.
   expect(screen.getByText("Thesis", { selector: ".sidebar__row-name" })).toBeTruthy();
+  // Named by what is drawn rather than by what is missing: the draft carries its own title, and the
+  // project screen's title is the thing that must not be here.
+  expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
+  expect(screen.queryByText("Thesis", { selector: ".screen__title" })).toBeNull();
+});
+
+test("a skill can be picked before anything is typed", async () => {
+  // The item's whole point. The address being right is not the same as the address being useful:
+  // landing on a screen that carries the picker is what closes this, and only pressing it proves it.
+  stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(screen.getByText("Create scenario", { selector: ".menu__item-name" }));
+
+  // The draft has no record on the server, so the choice is held for the chat it will be born as --
+  // what the screen owes is only that the button now says what was picked.
+  await waitFor(() =>
+    expect(screen.getByText("Create scenario", { selector: ".picker__name" })).toBeTruthy(),
+  );
+});
+
+test("the project screen is still reached from the sidebar", async () => {
+  // The item's cost. Without this, "the landing moved" and "the project screen is gone" are the
+  // same green.
+  stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+
+  fireEvent.click(screen.getByText("Thesis", { selector: ".sidebar__row-name" }));
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   expect(screen.getByText("Thesis", { selector: ".screen__title" })).toBeTruthy();
 });
 
@@ -172,7 +205,7 @@ test("the fork is not written into the history", async () => {
   stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
 
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
   // Pushed, the back button would land on the fork and be thrown forward again.
   expect(replace).toHaveBeenCalled();
   expect(push).not.toHaveBeenCalled();
