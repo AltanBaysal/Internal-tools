@@ -119,7 +119,9 @@ test("the app never asks the server for settings", async () => {
   const fetch = stubProjects([PROJECT]);
   render(<App />);
 
-  await screen.findByText("Old", { selector: ".screen__title" });
+  // Any drawn screen will do -- the claim is about a call made on mount. Since Madde 65 the screen
+  // the fork draws is the draft chat.
+  await screen.findByText("New chat", { selector: ".chat__title" });
   const asked = fetch.mock.calls.filter(([path]) => String(path).startsWith("/api/settings"));
   expect(asked).toEqual([]);
 });
@@ -241,10 +243,15 @@ function serverWith(projects) {
 const openMenuFor = (name) =>
   fireEvent.click(screen.getByRole("button", { name: `More for ${name}` }));
 
+// Every test below opens at a project's own address rather than letting the fork place it. Since
+// Madde 65 the fork lands on the draft chat, and these are tests about the project screen -- waiting
+// for a landing that no longer comes here would only be testing Madde 65 a ninth time.
+
 test("the sidebar menu and the header open the same question", async () => {
   serverWith(TWO);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
 
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
@@ -257,8 +264,9 @@ test("the sidebar menu and the header open the same question", async () => {
 
 test("the box counts what goes with the project", async () => {
   serverWith(TWO);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   expect(
@@ -268,8 +276,9 @@ test("the box counts what goes with the project", async () => {
 
 test("one of a thing is one, not one of them", async () => {
   serverWith(TWO);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
   openMenuFor("Notes");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   expect(screen.getByText(/The 1 chat and 0 files/)).toBeTruthy();
@@ -277,8 +286,9 @@ test("one of a thing is one, not one of them", async () => {
 
 test("cancelling asks the server nothing", async () => {
   const fetch = serverWith(TWO);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -288,8 +298,9 @@ test("cancelling asks the server nothing", async () => {
 
 test("deleting the project you are in moves to the first one left", async () => {
   serverWith(TWO);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
@@ -299,8 +310,9 @@ test("deleting the project you are in moves to the first one left", async () => 
 
 test("deleting the last project leaves the empty screen", async () => {
   serverWith([TWO[0]]);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
@@ -309,8 +321,9 @@ test("deleting the last project leaves the empty screen", async () => {
 
 test("deleting another project leaves where you are alone", async () => {
   serverWith(TWO);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
   openMenuFor("Notes");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
@@ -321,8 +334,9 @@ test("deleting another project leaves where you are alone", async () => {
 
 test("a deleted project is not offered back", async () => {
   serverWith(TWO);
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
   openMenuFor("Notes");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
@@ -333,8 +347,9 @@ test("a deleted project is not offered back", async () => {
 
 test("Escape closes the menu first, then the question", async () => {
   serverWith(TWO);
+  window.history.pushState(null, "", "/p/p1");
   const { container } = render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  await screen.findByText("Thesis", { selector: ".screen__title" });
 
   openMenuFor("Thesis");
   expect(container.querySelector(".menu")).toBeTruthy();

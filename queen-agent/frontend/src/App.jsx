@@ -126,7 +126,10 @@ export default function App() {
     // fork too, and one of them used to be a screen. Deleting that screen without widening this
     // question would have left /settings redirecting nowhere and drawing nothing.
     if (landing && parsePath(window.location.pathname).view === "root") {
-      navigate(`/p/${landing}`, { replace: true });
+      // Into the project's draft chat rather than the project screen: the project screen's composer
+      // carries neither picker, so landing there means a skill cannot be chosen until a message has
+      // already been sent. The project screen keeps its own door in the sidebar.
+      navigate(`/p/${landing}/c/new`, { replace: true });
     }
   }, [landing, navigate]);
 
