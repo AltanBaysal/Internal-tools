@@ -62,6 +62,13 @@ Model bir turda dosya listeleyip okuyup düzenleyebiliyor ama bu adımların hi�
 yazılmıyor; yalnızca yeni bir dosya doğduğunda bir kart çıkıyor. Sohbet kaydına hiç düşmediği için
 kullanıcı ne yapıldığını sonradan da göremiyor.
 
+### Uygulama açılınca taslak sohbet ekranı gelsin
+
+Uygulama bugün ilk projenin ekranına düşüyor ve oradaki yazma kutusunda skill ile model seçici yok;
+seçicilerin durduğu boş sohbet ekranına yalnız sidebar'daki "+ New chat" ile giriliyor. Karar
+verildi: açılış doğrudan taslak sohbet ekranına düşecek, proje ekranı ayrı bir kapı olarak kalacak.
+Yeni bir ekran yazılmıyor — o ekran zaten var, değişen yalnız açılış adresi.
+
 ### Cached token olayını çöz, sistemi optimize et
 
 Servisin döndürdüğü tüketim bilgisi hiçbir yerde okunmuyor; önbellekten gelen token ile yeniden
