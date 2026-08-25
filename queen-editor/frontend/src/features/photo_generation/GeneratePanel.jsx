@@ -10,9 +10,42 @@ const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "u
 const PLACEHOLDER = '["ilk prompt", "ikinci prompt"]';
 
 const MAX_VARIANTS = 26;
+// What the box starts at in a project that has never saved a count. Two rather than four (İstek 8):
+// four was the number the app was born with, and fewer variants of one prompt is what the work
+// actually looks like. A name rather than a bare string inside the initial state, because "why this
+// number" is the whole of what this line says.
+const FIRST_VARIANTS = "2";
 // Long enough to still be there when the eyes come back from the gallery, short enough to be gone
 // before the next batch is typed. The design named two different numbers; this one is the user's.
 const CONFIRM_MS = 10000;
+
+// What each project's boxes were last holding. Opening a frame's detail replaces the whole project
+// screen, so this panel is torn down and built again on every step in and out; without this the
+// boxes would come back on what was last sent, and everything typed since would be gone (madde 35).
+// Keyed by project: half-written work belongs to one project, never to the app.
+//
+// Memory only, like the seven stores before it: a reload fills the boxes from the record again.
+const REMEMBERED = new Map();
+
+/** What the four boxes open with.
+ *
+ * A draft the user left behind wins over the project's record. The record is only written when the
+ * queue button is pressed, so a draft is by definition the newer of the two -- it is exactly what
+ * was typed after the last send.
+ *
+ * This is also the one place the record's shape becomes the boxes' shape: the boxes carry text, the
+ * record carries a number that may be null and a model that may be empty.
+ */
+function opening(project, settings) {
+  const draft = REMEMBERED.get(project);
+  if (draft) return draft;
+  return {
+    prompts: settings.prompts,
+    negative: settings.negative,
+    model: settings.model || "",
+    variants: settings.variants === null ? FIRST_VARIANTS : String(settings.variants),
+  };
+}
 
 /** What the box may hold while it is being typed in.
  *
@@ -41,18 +74,18 @@ function boxLabel(message) {
 // Artboard 04: a pure form -- prompt list, one shared negative, variant count, and the button that
 // puts them at the end of the queue. What the run has to say is not here: progress, pauses,
 // failures and the finish card all live in the queue panel (QueuePanel.jsx).
-export default function GeneratePanel({ job, error, errorField, busyElsewhere, settings,
+export default function GeneratePanel({ job, error, errorField, busyElsewhere, settings, project,
                                         models = null, modelsError = null, producer = null,
                                         onGenerate, onClearError, onInstall }) {
-  // Initial values only: the screen mounts after the settings have loaded, so there is nothing to
-  // sync afterwards and typing is never overwritten.
-  const [prompts, setPrompts] = useState(settings.prompts);
-  const [negative, setNegative] = useState(settings.negative);
-  const [model, setModel] = useState(settings.model || "");
-  // Text, not a number: the field has to survive being cleared while typing.
-  const [variants, setVariants] = useState(
-    settings.variants === null ? "4" : String(settings.variants),
-  );
+  // Read at mount and never again: the store lives at module level, and asking it on every render
+  // would make the render itself impure. One question, four answers.
+  const [boxes] = useState(() => opening(project, settings));
+  // Initial values only: nothing is synced afterwards, so typing is never overwritten. The boxes
+  // all carry text -- the variant one has to survive being cleared while it is typed in.
+  const [prompts, setPrompts] = useState(boxes.prompts);
+  const [negative, setNegative] = useState(boxes.negative);
+  const [model, setModel] = useState(boxes.model);
+  const [variants, setVariants] = useState(boxes.variants);
   const [submitting, setSubmitting] = useState(false);
   // How many frames the last submission added, straight from the server; null once it has faded.
   const [added, setAdded] = useState(null);
@@ -60,6 +93,14 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const fade = useRef(null);
 
   useEffect(() => () => clearTimeout(fade.current), []);
+
+  // Whatever the boxes hold is what a later mount starts from. One effect rather than a write in
+  // each of the four setters: the model box has a second writer -- it fills itself from the
+  // renderer's list when nothing was saved -- and a store written in five places would be five
+  // chances to forget one.
+  useEffect(() => {
+    REMEMBERED.set(project, { prompts, negative, model, variants });
+  }, [project, prompts, negative, model, variants]);
 
   // Nothing saved yet: the field has to show a real choice rather than a blank, so the first model
   // the renderer lists is taken. Only ever fills an empty box -- a saved choice is never moved.

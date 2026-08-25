@@ -9,6 +9,8 @@ production starts a daemon thread, tests run the job inline and stay determinist
 """
 import threading
 
+from backend.features.photo_generation.domain.running_name import RunningName
+
 
 def _thread_spawn(fn):
     threading.Thread(target=fn, daemon=True).start()
@@ -20,6 +22,9 @@ class PhotoRunner:
         self._lock = threading.Lock()
         self._state = {"status": "idle"}
         self._stop = False
+        # Which folder the job is writing into. Held here because the runner is the one object every
+        # way into the queue already carries, so nothing else has to be threaded a holder.
+        self.named = RunningName()
 
     def status(self):
         with self._lock:
@@ -39,6 +44,7 @@ class PhotoRunner:
                 return False
             self._state = {"status": "running", "project": project}
             self._stop = False      # a stale request must not kill the run that just started
+        self.named.took(project)
         self._spawn(lambda: self._run(project, job))
         return True
 
@@ -55,6 +61,17 @@ class PhotoRunner:
             if self._state.get("status") != "running":
                 self._state = {"status": "idle"}
                 self._stop = False
+
+    def rename(self, old, new):
+        """Follow a project that was renamed under the worker.
+
+        Only the stamp: the folder and the job's own name are the holder's business. The screen
+        decides whether a run is its own by comparing the status's project with the page's, so a
+        stale stamp would hide a run from the very page watching it.
+        """
+        with self._lock:
+            if self._state.get("project") == old:
+                self._state = {**self._state, "project": new}
 
     def request_stop(self):
         with self._lock:

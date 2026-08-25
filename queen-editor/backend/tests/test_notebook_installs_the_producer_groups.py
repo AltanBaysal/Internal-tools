@@ -1,12 +1,12 @@
-"""The notebook installs what the panel counts.
+"""What the notebook's text has to say.
 
-The app reads a producer's group off the disk and the notebook is what puts it there
-(FOUNDATION 9). Nothing connects the two lists at runtime, so a file added to the group and
-forgotten in the notebook would leave the panel saying "kurulu değil" for good, with nobody able to
-see why. This test is that connection.
+The notebook is the only thing that installs, configures and serves this app, and none of that
+can run here -- a Colab cell does not execute in pytest. What text can still answer is whether
+the notebook still says the things it must: every file the panel counts is named (FOUNDATION 9),
+each producer sits behind its own switch, the outside world is probed before the heavy work,
+and the tunnel is opened the way that measured fast.
 
-The notebook is read, never run: a Colab cell cannot execute here. What text can still answer is
-exactly what matters -- is every counted file named, and is each group behind its own switch.
+The notebook is read, never run.
 """
 import json
 import os
@@ -170,3 +170,24 @@ def test_the_key_is_trimmed_where_it_is_read():
     before the probe uses it and before it is handed to the app."""
     assert 'XAI_API_KEY = (userdata.get("XAI_API_KEY") or "").strip()' in _source(), \
         "Secret'tan okunan anahtar kırpılmıyor"
+
+
+def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
+    """cloudflared speaks QUIC by default, and QUIC rides on UDP. Colab's network throttles UDP and
+    leaves TCP alone: on 2026-08-24 the same photo took 17.74 s over the default tunnel and 0.18 s
+    over one started with this flag -- same machine, same minute, ninety times apart. Without it a
+    gallery of 81 photos is unusable and nothing in the app explains why."""
+    flask_cell = _cell("# === Start Flask")
+
+    assert '"--protocol", "http2"' in flask_cell, \
+        "cloudflared varsayılan QUIC ile açılıyor — Colab'ın ağı UDP'yi kısıyor"
+
+
+def test_the_protocol_flag_says_what_it_is_standing_in_for():
+    """One word in an argument list, and nothing about it says a default was overruled. A reader
+    who cannot see what it replaced is a reader who deletes it as noise -- and the gallery goes
+    ninety times slower with no error anywhere. The reason has to travel next to the flag."""
+    flask_cell = _cell("# === Start Flask")
+
+    assert "QUIC" in flask_cell, \
+        "Bayrağın neyin yerine geçtiği yazılmamış — sebebi olmayan bayrak silinir"

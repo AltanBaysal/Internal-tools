@@ -6,12 +6,13 @@ lives in exactly one place (the domain).
 """
 from flask import Blueprint, jsonify, request, send_from_directory
 
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.export_runner import MODES
+from backend.features.photo_generation.domain.frame_list import InvalidFrames
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
+from backend.features.photo_generation.domain.production_mode import InvalidMode
 from backend.features.photo_generation.domain.usecases.queue_layer import InvalidScope
-from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing
-from backend.features.photo_generation.domain.usecases.remove_frames import InvalidFiles
+from backend.features.photo_generation.domain.usecases.regenerate import LayerMissing, NoNextFrame
 from backend.features.photo_generation.domain.usecases.resume_batch import NothingToResume
 from backend.features.photo_generation.domain.usecases.retry_frame import FrameMissing
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
@@ -35,7 +36,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
                                     regenerate, remove_layer, list_frames, list_models, save_order,
                                     export_summary, export_state, run_export, cancel_export,
-                                    remove_frames, photo_dir):
+                                    remove_frames, copy_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
     bp = Blueprint("photo_generation", __name__)
 
@@ -134,13 +135,16 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # selection.
         files = body.get("files")
         try:
-            # No "variants" key means one per frame: a client older than the box asks for exactly
-            # what it always asked for.
-            added = queue_layer(project, kind, files=files, variants=body.get("variants", 1))
+            # No "variants" key means one per frame, and no "mode" key means a plain video: a
+            # client older than either box asks for exactly what it always asked for.
+            added = queue_layer(project, kind, files=files, variants=body.get("variants", 1),
+                                mode=body.get("mode", production_mode.STANDARD))
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except InvalidScope as exc:
             return jsonify({"error": str(exc), "field": "files"}), 400
+        except InvalidMode as exc:
+            return jsonify({"error": str(exc), "field": "mode"}), 400
         except InvalidVariants as exc:
             return jsonify({"error": str(exc), "field": "variants"}), 400
         except Busy as exc:
@@ -156,10 +160,12 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": f"Silinebilir bir katman değil: {kind}"}), 404
         body = request.get_json(silent=True) or {}
         try:
-            # What really left the disk goes back: a layer the frame did not carry costs nothing
-            # and is not an error.
-            return jsonify(remove_layer(project, body.get("frame"), kind))
-        except (ProjectMissing, FrameMissing) as exc:
+            # What really left the disk goes back: a layer a frame did not carry costs nothing and
+            # is not an error, and neither is a name the gallery no longer knows.
+            return jsonify(remove_layer(project, body.get("frames"), kind))
+        except InvalidFrames as exc:
+            return jsonify({"error": str(exc)}), 400
+        except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except OSError as exc:
             # The operating system's own words -- never guess the cause.
@@ -174,16 +180,23 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         if layer not in queue.ORDER:
             return jsonify({"error": f"Böyle bir katman yok: {layer}"}), 404
         prompt = body.get("prompt")
+        negative = body.get("negative")
         try:
             # The frame is named by its identity: a copy frame shares its source's picture, so a
             # file name would not say which of the two was asked for. A non-string prompt counts as
-            # no words at all -- what goes down is exactly what the user was shown.
+            # no words at all -- what goes down is exactly what the user was shown, and the negative
+            # travels the same way.
             frame = regenerate(project, body.get("frame"), layer,
-                               prompt if isinstance(prompt, str) else "")
+                               prompt if isinstance(prompt, str) else "",
+                               negative if isinstance(negative, str) else "",
+                               mode=body.get("mode", production_mode.STANDARD))
         except (ProjectMissing, FrameMissing) as exc:
             return jsonify({"error": str(exc)}), 404
         except LayerMissing as exc:
             return jsonify({"error": str(exc)}), 400
+        except (InvalidMode, NoNextFrame) as exc:
+            # The same shape the queue's own refusal takes: both say the mode is what went wrong.
+            return jsonify({"error": str(exc), "field": "mode"}), 400
         except Busy as exc:
             return jsonify({"error": str(exc)}), 409
         # The new frame's name goes back: the screen has just been told that its work landed
@@ -251,13 +264,29 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             # What really happened goes back, split in two: a photo left the disk, a frame that was
             # never produced only left the queue. Frames that had already gone are not an error.
             return jsonify(remove_frames(project, body.get("frames")))
-        except InvalidFiles as exc:
+        except InvalidFrames as exc:
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except OSError as exc:
             # The operating system's own words -- never guess the cause.
             return jsonify({"error": str(exc)}), 500
+
+    # Beside the delete above, and the same shape: a list of identities in the body, because a copy
+    # frame shares its source's picture and a file name would not say which of the two was asked
+    # for.
+    @bp.post("/api/projects/<project>/frames/copy")
+    def copy(project):
+        body = request.get_json(silent=True) or {}
+        try:
+            answer = copy_frames(project, body.get("frames"))
+        except InvalidFrames as exc:
+            return jsonify({"error": str(exc)}), 400
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        # The gallery comes back with the twins: the screen would ask for exactly this in a second
+        # round-trip, and until it lands the copies it was just told about are nowhere.
+        return jsonify({**answer, "frames": list_frames(project)})
 
     @bp.get("/photos/<project>/<filename>")
     def serve_photo(project, filename):

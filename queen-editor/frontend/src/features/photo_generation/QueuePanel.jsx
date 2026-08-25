@@ -33,7 +33,9 @@ function splitReason(text) {
 // the engine is still turning. Only the two states where work is in flight pulse.
 const DOT = {
   running: { color: "var(--accent)", alive: true },
-  pausing: { color: "var(--accent)", alive: true },
+  // Still beating while the pause is on its way -- the engine is still turning -- but no longer in
+  // the colour that means work is flowing (Fark 43).
+  pausing: { color: "var(--ink-3)", alive: true },
   paused: { color: "var(--ink-3)", alive: false },
   stopped: { color: "var(--danger)", alive: false },
   waiting: { color: "var(--ink-3)", alive: false },
@@ -74,47 +76,73 @@ const KIND_ORDER = ["photo", "video", "audio"];
 // end of the run.
 const LAYER_WORD = { photo: "foto", video: "video", audio: "ses" };
 
-// The button on the waiting card names the producer it would install, so pressing it is not a leap
-// of faith.
-const PRODUCER_NAME = { photo: "Fotoğraf üreticisini", video: "Video üreticisini",
-                        audio: "Ses üreticisini" };
-
 // The run card wears what it is saying. Every other state stays neutral.
 const CARD_TONE = {
   done: { borderColor: "var(--ok)", background: "var(--ok-bg)" },
   stopped: { borderColor: "var(--danger)", background: "var(--danger-bg)" },
 };
 
+// The panel's own waiting, in its own column: the same shape the photo panel takes while the
+// project record is in flight (madde 31).
+const WAITING = { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" };
+
 // One kind's share of the queue. The card the engine has in hand is the one worth looking at; the
-// rest wait their turn and step back rather than compete with it.
-function KindCard({ layer, owed, alive }) {
+// rest wait their turn and step back rather than compete with it -- unless they have something to
+// say, and a warning written at .55 is a warning nobody reads (Fark 38).
+function KindCard({ layer, owed, alive, producer, onInstall }) {
   const kind = KINDS[layer];
+  const missing = Boolean(producer) && !producer.installed;
   return (
     <div data-kind={layer} className="wf-stroke"
          style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8,
-                  ...(alive ? { borderColor: "var(--accent)" } : { opacity: 0.55 }) }}>
+                  ...(alive ? { borderColor: "var(--accent)" }
+                    : missing ? {} : { opacity: 0.55 }) }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span aria-hidden="true" className={alive ? "qe-dot qe-dot--alive" : "qe-dot"}
               style={{ background: alive ? "var(--accent)" : "var(--ink-3)" }} />
         <Note size={12} style={{ color: alive ? "var(--ink-2)" : "var(--ink-3)" }}>
-          {kind.title} · {alive ? "üretiliyor" : "sırada"}
+          {/* Three states, three words (Fark 41). "sırada" says a turn is coming; a kind with no
+              producer cannot have one until something lands on the machine. */}
+          {kind.title} — {alive ? "üretiliyor" : missing ? "bekliyor" : "sırada"}
         </Note>
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        {/* The biggest number on the screen wears the accent colour, like every other counter. */}
-        <Mono size={26} style={{ color: "var(--accent)" }}>{owed}</Mono>
+        {/* The accent stays on the heading row, where the dot is: three numbers in the same loud
+            colour made the panel one big counter and said nothing about which one is moving
+            (Fark 42). */}
+        <Mono size={26} style={{ color: alive ? "var(--ink)" : "var(--ink-3)" }}>{owed}</Mono>
         <Note size={13} style={{ color: "var(--ink-2)" }}>{kind.unit}</Note>
       </div>
+      {missing && (
+        // The answer has been in hand since startup -- what is installed cannot change while the
+        // app is up -- so there is no reason to hold it back until the engine reaches this kind.
+        // The producer is not named again: the card's own heading already says which one it is.
+        <>
+          <Note size={12} style={{ color: "var(--ink-2)" }}>Üretici kurulu değil.</Note>
+          {/* Kur installs nothing (FOUNDATION 9): it writes the one sentence the app can answer
+              with onto that producer's row, and the sentence belongs where the button is. */}
+          {producer.note && (
+            <Note size={12} style={{ color: "var(--ink-3)" }}>{producer.note}</Note>
+          )}
+          <Btn sm hl onClick={() => onInstall(layer)} style={{ justifyContent: "center" }}>Kur</Btn>
+        </>
+      )}
     </div>
   );
 }
 
 // Artboard 05: a card per kind of work, then whatever the run itself has to say. Everything the
 // run has to say lives here; the form panel next door only submits work.
-export default function QueuePanel({ job, error, errorField, busyElsewhere, project, stopping,
-                                     queue, failures, producerReady, onStop, onResume, onCancel,
-                                     onRetryAll, onInstall }) {
+export default function QueuePanel({ job, known, error, errorField, busyElsewhere, project,
+                                     stopping, queue, failures, producers, onStop, onResume,
+                                     onCancel, onRetryAll, onInstall }) {
   const [clearing, setClearing] = useState(false);
+
+  // idle is a placeholder, not an answer: before the server has reported anything there is no true
+  // sentence to write about the queue, and this panel used to write the loudest wrong one -- that
+  // the queue is empty, over a run that may well be flowing (madde 33). Below the hook rather than
+  // above it, because hooks run unconditionally.
+  if (!known) return <div style={WAITING}><span className="wf-spinner" /></div>;
 
   // Another project's finished batch must not talk into this panel (state leaks across projects
   // otherwise -- the worker is global but the words on screen are this project's).
@@ -141,6 +169,15 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
   const stopped = halted && job.error ? splitReason(job.error) : null;
   // Nothing failed: the engine for the job at the head of the queue is simply not on this machine.
   const waitingFor = mine && job.status === "waiting" ? job.waitingFor : null;
+  // Nothing on this screen starts work by itself -- not a queue a dead session left owing frames,
+  // and not one that stopped for a producer that has since arrived (user's decision, 2026-08-13).
+  // A machine that starts rendering while nobody is looking is the one thing the user asked us to
+  // stop doing. What is owed is still owed: the queue lives on disk, and the button below carries
+  // it on. It is offered only once the producer is really here, because resuming without it would
+  // stop at the same frame. Read from the rows the panel already has rather than taken as a
+  // second-hand answer: one rule, one owner.
+  const producerReady = Boolean(waitingFor)
+    && (producers || []).some((row) => row.id === waitingFor && row.installed);
   // A run that died with its session leaves frames owed and nobody who remembers why.
   const abandoned = !halted && !paused && !running && !waitingFor && owed > 0;
   const finished = mine && job.status === "done" && owed === 0;
@@ -156,13 +193,16 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
     : "empty";
 
   // The queue can only be emptied when nothing is being rendered: a frame in flight has no line in
-  // the log yet, so it would read as owed and get pulled out from underneath the worker.
-  const canClear = (paused || halted || abandoned) && owed > 0;
+  // the log yet, so it would read as owed and get pulled out from underneath the worker. A queue
+  // waiting for a producer has nothing in hand either, so the way out belongs there too (Fark 47).
+  const canClear = (paused || halted || abandoned || Boolean(waitingFor)) && owed > 0;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: 1, minHeight: 0 }}>
       {cards.map((card) => (
         <KindCard key={card.layer} layer={card.layer} owed={card.owed}
+                  producer={(producers || []).find((row) => row.id === card.layer)}
+                  onInstall={onInstall}
                   // Only while the run is really flowing, and only for the kind whose job the
                   // worker has in hand. A plan written before jobs had types is a photo job.
                   alive={running && !stopping
@@ -178,12 +218,14 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Dot state={state} />
           <Mono size={12} style={{ color: state === "stopped" ? "var(--danger)"
-            : state === "done" ? "var(--ok)" : "var(--ink-2)" }}>{TITLE[state]}</Mono>
+            : state === "done" ? "var(--ok)"
+            : state === "pausing" ? "var(--ink-3)" : "var(--ink-2)" }}>{TITLE[state]}</Mono>
         </div>
 
         {state === "done" ? (
           // Good news only: what failed has a card of its own, and one sentence cannot carry both.
-          <Note size={12} style={{ color: "var(--ok)" }}>{job.done} kare üretildi</Note>
+          // The heading is what carries the news; this line is a fact under it (Fark 44).
+          <Note size={12} style={{ color: "var(--ink-3)" }}>{job.done} kare üretildi</Note>
         ) : state === "empty" ? (
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Fotoğraf üret panelinden kare gönder.
@@ -202,16 +244,11 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
                 <Icon.Regen /> Kaldığı yerden devam et
               </Btn>
             ) : (
-              <>
-                <Note size={12} style={{ color: "var(--ink-3)" }}>
-                  Üretici kurulduktan sonra kuyruğu sen sürdürürsün.
-                </Note>
-                {/* Straight into the install, with nothing asked: the user queued this work, so
-                    what they want is not in question. */}
-                <Btn hl onClick={() => onInstall(waitingFor)} style={{ justifyContent: "center" }}>
-                  {PRODUCER_NAME[waitingFor]} kur
-                </Btn>
-              </>
+              // The way in to the install is on the card of the kind that is missing it, not here:
+              // this card speaks for the run, and what is missing belongs to one kind (Fark 38).
+              <Note size={12} style={{ color: "var(--ink-3)" }}>
+                Üretici kurulduktan sonra kuyruğu sen sürdürürsün.
+              </Note>
             )}
           </>
         ) : null}
@@ -237,9 +274,10 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
       </div>
       )}
 
-      {/* Its own card, outside the run's: what failed is true whether the queue is flowing, paused
-          or finished, and the run's card is not drawn at all during a run. */}
-      {failed > 0 && (
+      {/* Its own card, outside the run's -- and only once the queue is through (Fark 46): a total
+          that is still growing is not a total, and every red frame is already red in the gallery
+          with a Tekrar dene of its own. */}
+      {failed > 0 && state === "done" && (
         <div className="wf-stroke"
              style={{ padding: 14, display: "flex", flexDirection: "column", gap: 8,
                       borderColor: "var(--danger)", background: "var(--danger-bg)" }}>
@@ -251,7 +289,7 @@ export default function QueuePanel({ job, error, errorField, busyElsewhere, proj
           <Btn sm onClick={onRetryAll}
                style={{ alignSelf: "flex-start", color: "var(--danger)",
                         borderColor: "var(--danger)", background: "none" }}>
-            <Icon.Regen /> Hepsini tekrar dene
+            <Icon.Regen /> Tekrar dene
           </Btn>
         </div>
       )}

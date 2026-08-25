@@ -8,7 +8,13 @@ A copy frame keeps its source's prompt number and takes the next variant, so its
 what produced the picture (design v3, madde 97).
 """
 from backend.features.photo_generation.domain import queue
-from backend.features.photo_generation.domain.photo_name import frame_id, number_of, variant_of
+from backend.features.photo_generation.domain.photo_name import (
+    copy_id,
+    copy_parts,
+    frame_id,
+    number_of,
+    variant_of,
+)
 
 
 def next_id(ids, number):
@@ -22,6 +28,19 @@ def next_id(ids, number):
     used = [variant_of(fid) for fid in ids if number_of(fid) == number]
     used = [variant for variant in used if variant is not None]
     return frame_id(number, max(used) + 1 if used else 0)
+
+
+def next_copy_id(ids, source):
+    """The identity a twin of `source` takes; `ids` is every identity the project has used.
+
+    One past the highest copy index that base has ever carried, never a gap -- next_id's rule, for
+    next_id's reason: the name of a deleted twin stays claimed. Counted against the base rather than
+    the source, so copying a copy gives C2_P11_1 rather than a nested name.
+    """
+    base = copy_parts(source)[1]
+    used = [copy_parts(fid)[0] for fid in ids if copy_parts(fid)[1] == base]
+    used = [index for index in used if index is not None]
+    return copy_id(base, max(used) + 1 if used else 1)
 
 
 def known_ids(record, plan_store, project):
@@ -59,18 +78,41 @@ def placed(gallery, born):
     return sequence
 
 
-def carry_layers(record, project, copy, frame, kind, now):
-    """Give the new frame everything below the layer that is about to be made.
+# What a carried layer keeps about how it was made: the frame's own map, and the field the row
+# takes. One file, two frames holding it -- without these the twin's tile would read video while the
+# original reads loop, and its detail page could not say where the video arrived.
+CARRIED = (("modes", "mode"), ("endsOn", "endsOn"))
 
-    A video copy shares the picture, a sound copy shares the picture and the video (madde 102). The
-    rows point at the source's own files: one picture, two frames holding it.
+
+def _carry(record, project, copy, frame, slots, now):
+    """Write the new frame's rows for `slots`, pointing at the source's own files.
+
+    The rows are the source's: one picture, two frames holding it (madde 102).
     """
     words = frame.get("prompts", {})
-    for under in queue.ORDER[:queue.ORDER.index(kind)]:
+    failed = frame.get("failed", [])
+    for under in slots:
         file = frame.get("layers", {}).get(under)
-        if not file:
+        # A layer that blew up still names a file in the frame's map, but that file is not on disk:
+        # a done row about it on the new frame would say it is.
+        if not file or under in failed:
             continue
+        made = {field: frame.get(source, {})[under]
+                for source, field in CARRIED if frame.get(source, {}).get(under)}
         record.append(project, {"file": file, "frame": copy, "layer": under,
                                 "status": queue.DONE, "prompt": words.get(under, ""),
                                 "negative": frame.get("negative", ""),
-                                "seed": frame.get("seed"), "createdAt": now()})
+                                "seed": frame.get("seed"), "createdAt": now(), **made})
+
+
+def carry_layers(record, project, copy, frame, kind, now):
+    """Give the new frame everything below the layer that is about to be made.
+
+    A video copy shares the picture, a sound copy shares the picture and the video (madde 102).
+    """
+    _carry(record, project, copy, frame, queue.ORDER[:queue.ORDER.index(kind)], now)
+
+
+def carry_all(record, project, copy, frame, now):
+    """Give the new frame every layer its source holds -- a twin with nothing left to produce."""
+    _carry(record, project, copy, frame, queue.ORDER, now)

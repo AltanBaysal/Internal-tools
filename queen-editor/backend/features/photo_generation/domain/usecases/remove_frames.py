@@ -25,16 +25,12 @@ The frame being rendered needs no guard: it writes its own line when it lands, a
 about a slot wins, so a removal that raced it is undone by the photo itself.
 """
 from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain.frame_list import checked
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 
 
-class InvalidFiles(Exception):
-    """The body was not a list of frame identities."""
-
-
 def remove_frames(record, store, plan_store, order_store, now, project, frames):
-    if not isinstance(frames, list) or any(not isinstance(fid, str) for fid in frames):
-        raise InvalidFiles("Silinecek kare listesi metin dizisi olmalı.")
+    checked(frames, "Silinecek")
     # Raises ProjectMissing when there is no such project.
     gallery = {frame["id"]: frame
                for frame in list_frames(record, store, plan_store, order_store, project)}

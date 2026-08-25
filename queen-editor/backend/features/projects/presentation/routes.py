@@ -5,8 +5,8 @@ from backend.features.projects.domain.usecases.create_project import InvalidName
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
-def make_projects_blueprint(list_projects, create_project, check_name, delete_project, get_settings,
-                            save_settings):
+def make_projects_blueprint(list_projects, create_project, check_name, delete_project,
+                            rename_project, get_settings, save_settings):
     """Every argument is a use case already bound to a store (see main.py)."""
     bp = Blueprint("projects", __name__)
 
@@ -53,6 +53,23 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             return jsonify({"error": str(exc)}), 500
         # 204: the client reloads the list, which is the only thing that changed.
         return "", 204
+
+    @bp.post("/api/projects/<project>/rename")
+    def post_rename_project(project):
+        name = (request.get_json(silent=True) or {}).get("name", "")
+        try:
+            rename_project(project, name)
+        except InvalidName as exc:
+            return jsonify({"error": str(exc)}), 400
+        except NameTaken as exc:
+            return jsonify({"error": str(exc)}), 409
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        # The name is the whole answer: the screen re-reads the list, which is where the date and
+        # the order come from.
+        return jsonify({"name": name})
 
     @bp.get("/api/projects/<project>/settings")
     def get_project_settings(project):

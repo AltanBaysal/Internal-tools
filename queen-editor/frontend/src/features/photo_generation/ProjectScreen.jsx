@@ -6,6 +6,7 @@ import { useProducers } from "../producers/useProducers.js";
 import Gallery from "./Gallery.jsx";
 import SidePanel from "./SidePanel.jsx";
 import { useGeneration } from "./useGeneration.js";
+import { useKeptScroll } from "./useKeptScroll.js";
 import { useModels } from "./useModels.js";
 
 const HEADER = {
@@ -23,38 +24,27 @@ const HINT = { position: "absolute", top: "calc(100% + 8px)", right: 0, width: 3
 
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
-export default function ProjectScreen({ project, settings, onSaveSettings }) {
-  const { job, frames, error, errorField, stopping, queue, failures, current, currentLayer,
+export default function ProjectScreen({ project, settings, settingsError, onRetrySettings,
+                                        onSaveSettings }) {
+  const { job, known, frames, error, errorField, stopping, queue, failures, current, currentLayer,
           retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
-          reorder, removePhotos } = useGeneration(project);
+          reorder, removePhotos, copyPhotos, removeLayer } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
   const { models, error: modelsError } = useModels();
   // The machine's own question, not this project's: which producers are here.
   const producers = useProducers();
+  // The gallery's own scroll box, kept across the steps in and out of a frame's page.
+  const box = useKeptScroll(project);
   const [saveError, setSaveError] = useState(null);
   const [hinting, setHinting] = useState(false);
   // The worker is global: a batch started from another project blocks this one (the server 409s).
   const busyElsewhere = job.status === "running" && job.project !== project;
   const running = job.status === "running" && !busyElsewhere;
-  // Whose run the status describes: another project's queue must not draw tiles into this gallery.
-  const mine = job.project === project;
 
   // The gallery's own selection, echoed here so the video panel can scope itself to it. Read-only:
   // the gallery stays its owner.
   const [selected, setSelected] = useState([]);
-
-  // Nothing on this screen starts work by itself -- not a queue a dead session left owing frames,
-  // and not one that stopped for a producer that has since arrived (user's decision, 2026-08-13).
-  // Both used to resume on their own, and a machine that starts rendering while nobody is looking
-  // is the one thing the user asked us to stop doing. What is owed is still owed: the queue lives
-  // on disk, and the queue panel offers the button that carries it on.
-  //
-  // Whether the queue could go on at all: its producer has to be on this machine. The panel shows
-  // the way on only when this is true, because resuming without it would stop at the same frame.
-  const waitingFor = mine && job.status === "waiting" ? job.waitingFor : null;
-  const producerReady = Boolean(waitingFor)
-    && (producers.producers || []).some((row) => row.id === waitingFor && row.installed);
 
   // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
@@ -111,23 +101,25 @@ export default function ProjectScreen({ project, settings, onSaveSettings }) {
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
-        <div style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+        <div data-scroll ref={box} style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
           {/* Whether the queue is moving is the gallery's business too: an owed layer reads as
               queued while it flows and as waiting once it has stopped, and only this screen knows
               which -- the worker is global, so a neighbour's batch moves nothing here. */}
           <Gallery project={project} frames={frames} current={current} currentLayer={currentLayer}
                    running={running}
-                   onReorder={reorder} onDelete={removePhotos} onRetry={retry}
+                   onReorder={reorder} onDelete={removePhotos} onCopy={copyPhotos}
+                   onRemoveLayer={removeLayer} onRetry={retry}
                    onSelectionChange={setSelected} />
         </div>
-        <SidePanel job={job} error={saveError || error} errorField={errorField}
-                   busyElsewhere={busyElsewhere} settings={settings} project={project}
+        <SidePanel job={job} known={known} error={saveError || error} errorField={errorField}
+                   busyElsewhere={busyElsewhere} settings={settings}
+                   settingsError={settingsError} onRetrySettings={onRetrySettings}
+                   project={project}
                    stopping={stopping} queue={queue} failures={failures}
                    models={models} modelsError={modelsError} producers={producers}
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
-                   onClearError={clearError} onRetryAll={retryAll}
-                   producerReady={producerReady} />
+                   onClearError={clearError} onRetryAll={retryAll} />
       </div>
 
     </div>

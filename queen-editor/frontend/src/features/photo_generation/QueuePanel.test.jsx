@@ -5,11 +5,16 @@ import QueuePanel from "./QueuePanel.jsx";
 
 const DEAD = "Sunucuya ulaşılamadı — bağlantıyı kontrol et.\nZaman aşımı (10 sn)";
 const RUNNING = { status: "running", project: "düğün", done: 7, failed: 0, total: 48 };
+// The producer list as the app asks for it once at startup: what is installed cannot change while
+// the process is up, because installing happens in the notebook before it starts.
+const MISSING = [{ id: "photo", name: "Fotoğraf üreticisi", installed: true },
+                 { id: "audio", name: "Ses üreticisi", installed: false }];
 
 function renderPanel(props) {
   return render(
     <QueuePanel
       job={RUNNING}
+      known
       error={null}
       busyElsewhere={false}
       project="düğün"
@@ -31,7 +36,7 @@ describe("QueuePanel — a flowing queue", () => {
   it("draws the kind's own card and no run card of its own", () => {
     renderPanel();
 
-    expect(screen.getByText("Foto · üretiliyor")).toBeTruthy();
+    expect(screen.getByText("Foto — üretiliyor")).toBeTruthy();
     expect(screen.getByText("2")).toBeTruthy();
     expect(screen.getByText("kare bekliyor")).toBeTruthy();
     expect(screen.getByText("Duraklat")).toBeTruthy();
@@ -92,6 +97,28 @@ describe("QueuePanel — a flowing queue", () => {
 
     expect(onStop).toHaveBeenCalled();
   });
+
+  it("colours the running kind's number as text and the waiting one's as a whisper", () => {
+    renderPanel({ job: { ...RUNNING, current: { id: "P0_0", type: "photo" } },
+                  queue: [{ layer: "photo", owed: 1 }, { layer: "video", owed: 3 }] });
+
+    // Fark 42: the accent stays on the heading row, where the dot is. Three numbers in the same
+    // loud colour made the panel one big counter and said nothing about which one is moving.
+    const number = (layer) => document.querySelector(`[data-kind="${layer}"] .wf-mono`);
+    expect(number("photo").style.color).toBe("var(--ink)");
+    expect(number("video").style.color).toBe("var(--ink-3)");
+  });
+
+  it("lets the dot fade while the pause is on its way", () => {
+    renderPanel({ stopping: true });
+
+    // Fark 43: still beating, because the engine is still turning -- but no longer in the colour
+    // that means work is flowing.
+    const dot = document.querySelector("[data-run-card] .qe-dot");
+    expect(dot.className).toContain("qe-dot--alive");
+    expect(dot.style.background).toBe("var(--ink-3)");
+    expect(screen.getAllByText("Duraklatılıyor…")[0].style.color).toBe("var(--ink-3)");
+  });
 });
 
 describe("QueuePanel — a paused queue", () => {
@@ -110,7 +137,7 @@ describe("QueuePanel — a paused queue", () => {
     renderPanel({ job: PAUSED, queue: [{ layer: "photo", owed: 3 }] });
 
     expect(screen.getByText("Duraklatıldı")).toBeTruthy();
-    expect(screen.getByText("Foto · sırada")).toBeTruthy();
+    expect(screen.getByText("Foto — sırada")).toBeTruthy();
   });
 
   it("keeps the destructive button at the foot of the panel", () => {
@@ -178,6 +205,15 @@ describe("QueuePanel — a finished queue", () => {
     expect(screen.getByText("20 kare üretildi")).toBeTruthy();
   });
 
+  it("keeps the green for the heading and says the count quietly", () => {
+    renderPanel({ job: { status: "done", project: "düğün", done: 20, failed: 0, total: 20 },
+                  queue: [] });
+
+    // Fark 44: the heading carries the good news; the number under it is a fact, not a second
+    // announcement.
+    expect(screen.getByText("Kuyruk tamamlandı").style.color).toBe("var(--ok)");
+    expect(screen.getByText("20 kare üretildi").style.color).toBe("var(--ink-3)");
+  });
 });
 
 describe("QueuePanel — an empty queue", () => {
@@ -205,20 +241,24 @@ describe("QueuePanel — the failures card", () => {
     expect(screen.getByText("20 kare üretildi")).toBeTruthy();
     expect(screen.queryByText(", 3 hatalı")).toBeNull();
     expect(screen.getByText("3 kare üretilemedi")).toBeTruthy();
-    expect(screen.getByText("Hepsini tekrar dene")).toBeTruthy();
+    expect(screen.getByText("Tekrar dene")).toBeTruthy();
   });
 
   it("breaks the total down only when more than one kind failed", () => {
-    renderPanel({ failures: [{ layer: "photo", count: 2 }, { layer: "video", count: 1 }] });
+    renderPanel({ job: { status: "done", project: "düğün", done: 20, failed: 3, total: 23 },
+                  queue: [],
+                  failures: [{ layer: "photo", count: 2 }, { layer: "video", count: 1 }] });
 
+    // The dot between the kinds stays: that one is a list, not a state (fark 41).
     expect(screen.getByText("3 kare üretilemedi — 2 foto · 1 video")).toBeTruthy();
   });
 
   it("puts every red job back in line at once, instead of pointing at the gallery", () => {
     const onRetryAll = vi.fn();
-    renderPanel({ failures: [{ layer: "photo", count: 3 }], onRetryAll });
+    renderPanel({ job: { status: "done", project: "düğün", done: 20, failed: 3, total: 23 },
+                  queue: [], failures: [{ layer: "photo", count: 3 }], onRetryAll });
 
-    fireEvent.click(screen.getByText("Hepsini tekrar dene"));
+    fireEvent.click(screen.getByText("Tekrar dene"));
 
     expect(onRetryAll).toHaveBeenCalled();
     expect(screen.queryByText(/galeride göster/)).toBeNull();
@@ -227,6 +267,18 @@ describe("QueuePanel — the failures card", () => {
   it("stays away when nothing failed", () => {
     renderPanel();
 
+    expect(screen.queryByText(/üretilemedi/)).toBeNull();
+  });
+
+  it("waits for the queue to finish before it says anything", () => {
+    const flowing = renderPanel({ failures: [{ layer: "photo", count: 3 }] });
+    expect(screen.queryByText(/üretilemedi/)).toBeNull();
+    flowing.unmount();
+
+    // Fark 46: paused too. A total that is still growing is not a total, and the red frames are
+    // already red in the gallery with a Tekrar dene each.
+    renderPanel({ job: { status: "paused", project: "düğün", done: 7, failed: 3, total: 48 },
+                  queue: [{ layer: "photo", owed: 2 }], failures: [{ layer: "photo", count: 3 }] });
     expect(screen.queryByText(/üretilemedi/)).toBeNull();
   });
 
@@ -256,6 +308,85 @@ describe("QueuePanel — the failures card", () => {
   });
 });
 
+describe("QueuePanel — a producer that is not on the machine", () => {
+  const BOTH = [{ layer: "photo", owed: 4 }, { layer: "audio", owed: 2 }];
+  const card = (layer) => document.querySelector(`[data-kind="${layer}"]`);
+
+  it("says so on the card of the kind it belongs to", () => {
+    renderPanel({ queue: BOTH, producers: MISSING });
+
+    // Fark 38: the answer has been in hand since startup, so there is no reason to keep it until
+    // the engine reaches that kind.
+    expect(card("audio").textContent).toContain("Üretici kurulu değil.");
+    expect(card("audio").textContent).toContain("Kur");
+  });
+
+  it("asks for that kind's producer when its Kur is pressed", () => {
+    const onInstall = vi.fn();
+    renderPanel({ queue: BOTH, producers: MISSING, onInstall });
+
+    fireEvent.click(card("audio").querySelector("button"));
+
+    expect(onInstall).toHaveBeenCalledWith("audio");
+  });
+
+  it("leaves the card that has something to say readable", () => {
+    // Video is the card to compare against: a job with no type is a photo job, so the photo card
+    // is the live one here and live cards are not dimmed either.
+    renderPanel({ queue: [{ layer: "video", owed: 1 }, { layer: "audio", owed: 2 }],
+                  producers: MISSING });
+
+    // A warning written at .55 is a warning nobody reads. Waiting its turn and having something to
+    // say are two different states, and only the first one steps back.
+    expect(card("audio").style.opacity).toBe("");
+    expect(card("video").style.opacity).toBe("0.55");
+  });
+
+  it("says nothing on the cards whose producers are here", () => {
+    renderPanel({ queue: BOTH, producers: MISSING });
+
+    expect(card("photo").textContent).not.toContain("Üretici kurulu değil.");
+  });
+
+  it("lets the queue go on flowing while the warning waits on its own card", () => {
+    renderPanel({ job: { ...RUNNING, current: { id: "P0_0", type: "photo" } },
+                  queue: BOTH, producers: MISSING });
+
+    // The roadmap's own acceptance sentence: photos flow, and the sound producer's absence is
+    // already on the sound card rather than taking the panel over.
+    expect(card("photo").querySelector(".qe-dot--alive")).toBeTruthy();
+    expect(card("audio").textContent).toContain("Üretici kurulu değil.");
+    expect(screen.queryByText("Bekliyor — üretici kurulu değil")).toBeNull();
+  });
+
+  it("prints the answer the app has on the same card", () => {
+    const noted = MISSING.map((row) => (row.id === "audio"
+      ? { ...row, note: "Bu üretici Colab defterinden kurulur — app.ipynb'de kutusunu işaretleyip "
+                        + "çalıştır." }
+      : row));
+    renderPanel({ queue: BOTH, producers: noted });
+
+    // Kur installs nothing (karar 5): it writes the one sentence the app can answer with, and the
+    // sentence belongs where the button is.
+    expect(card("audio").textContent).toContain("Colab defterinden kurulur");
+  });
+
+  it("says nothing at all before the list of producers has landed", () => {
+    renderPanel({ queue: BOTH, producers: null });
+
+    expect(card("audio").textContent).not.toContain("Üretici kurulu değil.");
+  });
+
+  it("reads the heading of a kind with nobody to do the work as waiting", () => {
+    renderPanel({ queue: BOTH, producers: MISSING });
+
+    // Fark 41: three states, three words. "sırada" says a turn is coming; this one's turn cannot
+    // come until something lands on the machine.
+    expect(card("audio").textContent).toContain("Ses — bekliyor");
+    expect(card("photo").textContent).toContain("Foto — üretiliyor");
+  });
+});
+
 describe("QueuePanel — a queue with nobody to do the work", () => {
   const WAITING = { status: "waiting", project: "düğün", waitingFor: "video" };
 
@@ -267,13 +398,13 @@ describe("QueuePanel — a queue with nobody to do the work", () => {
     expect(screen.queryByText("Üretim durdu")).toBeNull();
   });
 
-  it("offers the one button that would unblock it, by name", () => {
-    const onInstall = vi.fn();
-    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }], onInstall });
+  it("keeps no install button of its own: that one is on the kind's card", () => {
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }],
+                  producers: [{ id: "video", name: "Video üreticisi", installed: false }] });
 
-    fireEvent.click(screen.getByText("Video üreticisini kur"));
-
-    expect(onInstall).toHaveBeenCalledWith("video");
+    // Fark 38: the run card no longer carries what belongs to one kind.
+    expect(screen.queryByText("Video üreticisini kur")).toBeNull();
+    expect(document.querySelector('[data-kind="video"]').textContent).toContain("Kur");
   });
 
   it("promises no longer to carry itself on", () => {
@@ -285,14 +416,27 @@ describe("QueuePanel — a queue with nobody to do the work", () => {
 
   it("offers the way on only once the producer is really here", () => {
     const onResume = vi.fn();
-    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }],
-                  producerReady: true, onResume });
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }], onResume,
+                  producers: [{ id: "video", name: "Video üreticisi", installed: true }] });
 
     fireEvent.click(screen.getByText("Kaldığı yerden devam et"));
 
     expect(onResume).toHaveBeenCalled();
-    // The install button steps aside: what is missing is a press, not a model.
-    expect(screen.queryByText("Video üreticisini kur")).toBeNull();
+    // The panel reads the rows it already has rather than being told the answer twice.
+    expect(document.querySelector('[data-kind="video"]').textContent)
+      .not.toContain("Üretici kurulu değil.");
+  });
+
+  it("can be emptied while it waits", () => {
+    const onCancel = vi.fn();
+    renderPanel({ job: WAITING, queue: [{ layer: "video", owed: 5 }], onCancel });
+
+    // Fark 47: emptying is safe exactly when nothing is being rendered, and a queue waiting for a
+    // producer has nothing in hand -- so there is no reason for the way out to be missing here.
+    fireEvent.click(screen.getByText("Kuyruğu boşalt"));
+    fireEvent.click(screen.getByText("Boşalt"));
+
+    expect(onCancel).toHaveBeenCalled();
   });
 });
 
@@ -314,6 +458,20 @@ describe("QueuePanel — the connection", () => {
                   error: "Format hatası — liste okunamadı", errorField: "prompts" });
 
     expect(screen.queryByText("Format hatası — liste okunamadı")).toBeNull();
+  });
+
+  it("hands the evidence to the copy button", () => {
+    const evidence = [
+      "GET /api/projects/d%C3%BC%C4%9F%C3%BCn/frames",
+      "502 Bad Gateway",
+      "<html><body>error code: 1033</body></html>",
+    ].join("\n");
+
+    renderPanel({ error: `Sunucuya ulaşılamadı — bağlantıyı kontrol et.\n${evidence}` });
+
+    // Green today: describeError already splits at the first newline. It is written because
+    // nothing else says the proof can reach the clipboard, and that split is now load-bearing.
+    expect(document.querySelector("[data-raw]").textContent).toBe(evidence);
   });
 });
 
@@ -347,5 +505,18 @@ describe("QueuePanel — a stopped run with a lot to say", () => {
 
     expect(screen.getByText(RULE)).toBeTruthy();
     expect(document.querySelector("[data-raw]").textContent).toBe(NOISE);
+  });
+});
+
+describe("QueuePanel — before the server has said anything", () => {
+  it("says nothing about a queue it has not been told about", () => {
+    const { container } = renderPanel({ known: false, job: { status: "idle" }, queue: null });
+
+    // idle is a placeholder, not an answer. Saying the queue is empty over it is a claim that can
+    // be flatly wrong -- a run may be flowing on the other side of the first poll.
+    expect(screen.queryByText("Kuyruk boş")).toBeNull();
+    expect(screen.queryByText("Fotoğraf üret panelinden kare gönder.")).toBeNull();
+    // Its own waiting, in its own column -- the shape the photo panel already took (madde 31).
+    expect(container.querySelector(".wf-spinner")).toBeTruthy();
   });
 });

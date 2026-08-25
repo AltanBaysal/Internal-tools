@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { fileUrl } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
 import { Btn, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import { Rendering, StatusPill } from "./frame_status.jsx";
-import { PlayGlyph, SoundGlyph } from "./glyphs.jsx";
-import { lostLayers, owned } from "./layer_words.js";
+import { Rendering, StatusPills } from "./frame_status.jsx";
+import { LAYER_ACTIONS, layerConfirm, lostLayers, owned } from "./layer_words.js";
+import { TileImage } from "./TileImage.jsx";
 
 const PAD = { padding: 16 };
 const GRID = { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12,
@@ -23,13 +22,16 @@ const EMPTY = {
 const BADGE = { position: "absolute", top: 6, right: 6, background: "rgba(10,8,7,.75)",
                 color: "var(--ink-2)", padding: "2px 6px", borderRadius: 3, zIndex: 1 };
 // Madde 57's third plane: the order badge top right, the state pill top left, and what the frame
-// owns bottom right. It says the layer is finished -- an unfinished one is the pill's to tell.
-const OWNS = { position: "absolute", bottom: 6, right: 6, display: "flex", alignItems: "center",
-               gap: 6, background: "rgba(10,8,7,.75)", color: "var(--ink-2)", padding: "2px 5px",
-               borderRadius: 3, zIndex: 1, pointerEvents: "none" };
-// The badge's own drawing of each layer. The layers themselves and their words live next door, in
-// the module the delete confirms count with -- the tile and the window say the same thing.
-const GLYPH = { video: PlayGlyph, audio: SoundGlyph };
+// owns bottom left -- the corner across from it is left empty on purpose, so no two of them ever
+// land on each other (Fark 60). It says the layer is finished; an unfinished one is the pill's to
+// tell.
+const OWNS = { position: "absolute", bottom: 6, left: 6, display: "flex", alignItems: "center",
+               gap: 4, zIndex: 1, pointerEvents: "none" };
+// A box per layer rather than two words sharing one (Fark 62), and the word stands in it alone --
+// no icon rides with it (Fark 61, karar 21). The layers themselves and their words live next door,
+// in the module the delete confirms count with -- the tile and the window say the same thing.
+const OWN = { background: "rgba(10,8,7,.75)", color: "var(--ink-2)", padding: "2px 5px",
+              borderRadius: 3 };
 const DRAGGED = { transform: "rotate(-3deg) scale(1.04) translate(14px, -10px)",
                   filter: "drop-shadow(0 12px 24px rgba(0,0,0,.55))", zIndex: 5,
                   position: "relative" };
@@ -52,47 +54,67 @@ const TINT = { position: "absolute", inset: 0, background: "rgba(167,139,250,.18
 // than floating over the gallery (madde 108).
 const BAR_RAIL = { position: "sticky", bottom: 28, display: "flex", justifyContent: "center",
                    pointerEvents: "none", zIndex: 10, marginTop: -64 };
-const BAR = { display: "flex", alignItems: "center", gap: 14, padding: "10px 18px",
-              borderColor: "var(--accent)", pointerEvents: "auto" };
+// 10, not 14: the bar was drawn for three buttons and carries six now (Fark 83). Nothing in it may
+// break in two -- nowrap keeps a label on one line, and with it a flex item cannot shrink below its
+// own text either. The other half of never wrapping, items falling to a second row, is what flex
+// already does by default.
+const BAR = { display: "flex", alignItems: "center", gap: 10, padding: "10px 18px",
+              borderColor: "var(--accent)", pointerEvents: "auto", whiteSpace: "nowrap" };
+// Red text, red border, no fill -- the app-wide destructive standard (madde 83). Three of the bar's
+// buttons wear it now.
+const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", background: "none" };
+// Which window is open, or none. A name rather than a flag: there are three of them -- the frames'
+// own and one per layer -- and only one can be up at a time.
+const FRAMES = "frames";
 
 // A layer that blew up on a frame that still has its picture: the way back rides an overlay CSS
-// only brings down under the pointer, so the photo is never hidden for good (madde 67).
+// only brings down under the pointer, so the photo is never hidden for good (madde 67). The app's
+// own brown black rather than a pure one -- the tone every other label on this card already stands
+// on (Fark 75). How much of the photo shows through does not change.
 const VEIL = { position: "absolute", inset: 0, display: "flex", alignItems: "center",
-               justifyContent: "center", background: "rgba(0,0,0,.55)",
+               justifyContent: "center", background: "rgba(10,8,7,.55)",
                borderRadius: "var(--r-sm)", zIndex: 3 };
 
 /** The way back from a failed render.
  *
  * Pressed once: the queue has taken it and the card only changes on the next poll, so the button
  * says so itself rather than sitting there ready for a second press (madde 69).
+ *
+ * `ground` is what it stands on. Under the veil that is the card's own colour, so the button reads
+ * as a button rather than as a hole cut in the overlay (Fark 75). In the middle of an empty red
+ * card it is already standing on a card, and a second ground there would be a box inside a box --
+ * which is why none is the default and the one that wants one says so.
  */
-function RetryButton({ frame, sent, onRetry }) {
+function RetryButton({ frame, sent, ground = "transparent", onRetry }) {
   return (
     <Btn sm disabled={sent}
          onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!sent) onRetry(frame); }}
-         style={{ color: "var(--danger)", borderColor: "var(--danger)", background: "transparent" }}>
+         style={{ color: "var(--danger)", borderColor: "var(--danger)", background: ground }}>
       {sent ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene</>}
     </Btn>
   );
 }
 
-/** The one thing worth saying about a frame's state, or nothing at all.
+/** Everything worth saying about a frame's state, in the order it is read.
  *
- * Running first, then what blew up, then what is still owed: a frame can be several of these at
- * once -- its photo failed while its video waits -- and two pills in one corner make the card
- * unreadable. The rest is the detail page's to show.
+ * Running first, then what blew up, then what is still owed. Only the debt is ever more than one: a
+ * frame's video and its sound can both be waiting, and the corner stacks them (Fark 64). What the
+ * worker is holding is a single job, and a card naming it beside two more would bury the picture
+ * under it.
+ *
+ * No ceiling is written here because the queue is one: a frame whose photo has not landed takes no
+ * layer job at all (queue_layer.frames_in_scope), so a photo's debt and a layer's never meet on one
+ * frame and two is as high as this list goes.
  *
  * `flowing` is the queue's own state, not this frame's: an owed layer reads as queued while the
  * worker is moving through the list and as waiting once it has stopped. The debt is the same
  * either way; only the promise differs.
  */
 function statusOf(frame, rendering, flowing) {
-  if (rendering) return { layer: rendering, state: "running" };
+  if (rendering) return [{ layer: rendering, state: "running" }];
   const failed = (frame.failed || [])[0];
-  if (failed) return { layer: failed, state: "failed" };
-  const owed = (frame.owed || [])[0];
-  if (owed) return { layer: owed, state: flowing ? "pending" : "waiting" };
-  return null;
+  if (failed) return [{ layer: failed, state: "failed" }];
+  return (frame.owed || []).map((layer) => ({ layer, state: flowing ? "pending" : "waiting" }));
 }
 
 function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck, children }) {
@@ -118,16 +140,10 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
         )}
         {pill}
         {owns.length > 0 && (
-          <span style={OWNS}>
-            {owns.map(({ layer, word }) => {
-              const Glyph = GLYPH[layer];
-              return (
-                <span key={layer} style={{ display: "flex", alignItems: "center", gap: 3 }}>
-                  <Glyph size={9} />
-                  <Mono size={9}>{word}</Mono>
-                </span>
-              );
-            })}
+          <span data-owns style={OWNS}>
+            {owns.map(({ layer, word }) => (
+              <Mono key={layer} size={9} data-own style={OWN}>{word}</Mono>
+            ))}
           </span>
         )}
         {selected && <div style={TINT} />}
@@ -148,7 +164,7 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
 export default function Gallery({ project, frames, current, currentLayer, running, onReorder,
-                                  onDelete, onRetry, onSelectionChange }) {
+                                  onDelete, onCopy, onRemoveLayer, onRetry, onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -161,7 +177,7 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   // Derived rather than a flag of its own, because the two drifting apart is exactly what left a
   // gallery covered in rings after its bar had already gone.
   const selecting = selected.length > 0;
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState(null);
   const [deleting, setDeleting] = useState(false);
   // Which frames have just been sent back. The screen's own memory: the server keeps no "asked for"
   // flag, and the next poll brings the frame back as a waiting one anyway.
@@ -175,7 +191,17 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
 
   useEffect(() => {
     if (!selecting) return undefined;
-    const onKey = (e) => { if (e.key === "Escape" && !confirming) closeSelection(); };
+    const onKey = (e) => {
+      // The window owns the keyboard while it is up: both of these belong to the gallery behind it.
+      if (confirming) return;
+      if (e.key === "Escape") closeSelection();
+      if (e.key.toLowerCase() === "d" && e.ctrlKey) {
+        // The browser's own bookmark shortcut, taken: over a selection Ctrl + D means duplicate,
+        // and a bookmark window is never what was meant.
+        e.preventDefault();
+        handleCopy();
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   });
@@ -199,7 +225,41 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
     setDeleting(true);
     onDelete(selected).then(() => {
       setDeleting(false);
-      setConfirming(false);
+      setConfirming(null);
+      closeSelection();
+    });
+  }
+
+  // Who is in the selection, split by what they are: only a produced frame owns layers to twin or
+  // files to delete. Worked out above the empty gallery's own answers, because the shortcut is
+  // listened for from up here -- and a list that has not arrived yet holds nobody.
+  const byId = new Map((frames || []).map((frame) => [frame.id, frame]));
+  const chosenPhotos = selected.filter((fid) => byId.get(fid)?.status === "done");
+  const chosenQueued = selected.filter((fid) => byId.get(fid)?.status !== "done");
+
+  function handleCopy() {
+    // Only the produced ones multiply: a pending frame has no layer to twin (Fark 79).
+    if (!chosenPhotos.length) return;
+    onCopy(chosenPhotos).then((copies) => {
+      // The selection moving onto the twins is how the copy is noticed -- there is no notification
+      // of its own. A refused request answers with nothing and the selection stays where it was.
+      if (copies?.length) setSelected(copies);
+    });
+  }
+
+  // Which of the selection really carries a layer, in the gallery's own words: a layer that blew up
+  // holds its slot but is not one the frame owns, and the tile shows no badge for it either. One
+  // answer read three times -- whether the button is drawn, what its window counts, and what the
+  // request carries.
+  const holding = (layer) => selected.filter(
+    (fid) => owned(byId.get(fid) || {}).some((row) => row.layer === layer));
+
+  function handleRemoveLayer() {
+    const layer = confirming;
+    setDeleting(true);
+    onRemoveLayer(holding(layer), layer).then(() => {
+      setDeleting(false);
+      setConfirming(null);
       closeSelection();
     });
   }
@@ -227,9 +287,6 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   // Everything but the frame the worker is holding can be selected: a disabled ring would raise
   // "why can I not select this?", and a ring that is simply not there raises nothing.
   const selectable = frames.filter((frame) => frame.id !== current);
-  const byId = new Map(frames.map((frame) => [frame.id, frame]));
-  const chosenPhotos = selected.filter((fid) => byId.get(fid)?.status === "done");
-  const chosenQueued = selected.filter((fid) => byId.get(fid)?.status !== "done");
   // Three windows, because a pending frame is not a produced one: telling someone that 5 frames
   // will be deleted when 3 of them do not exist yet would be a lie, and "cannot be undone" is only
   // true of the ones that do. The mixed one is the title alone -- with both halves named there, a
@@ -250,16 +307,32 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                 + "Bu işlem geri alınamaz.",
           label: "Sil", width: 320 };
 
+  // Who is moving, as one answer for the whole drag: a selected card takes the selection with it,
+  // an unselected one goes alone. In the gallery's own order rather than the selection's, because
+  // the selection is a list of presses -- picking a block from the bottom up would otherwise turn
+  // it over on landing.
+  const dragged = dragIndex === null ? null : frames[dragIndex].id;
+  const moving = dragged === null
+    ? []
+    : selected.includes(dragged)
+      ? frames.map((frame) => frame.id).filter((fid) => selected.includes(fid))
+      : [dragged];
+
   function handleDrop() {
-    const from = dragIndex;
     const to = overIndex;
+    const block = moving;
     setDragIndex(null);
     setOverIndex(null);
-    if (from === null || to === null || from === to) return;
+    if (to === null || !block.length) return;
+    const ids = frames.map((frame) => frame.id);
+    // Everything moving comes out, then goes back in starting at the slot's index. One card is this
+    // rule with a single element, which is why dragging one has not changed.
+    const next = ids.filter((fid) => !block.includes(fid));
+    next.splice(to, 0, ...block);
+    // Compared, not counted: dropping the second card of a block on its first leaves the sequence
+    // exactly as it was while the two indices still differ.
+    if (next.every((fid, index) => fid === ids[index])) return;
     // The whole sequence is sent, pending frames included: the order covers them too now.
-    const next = frames.map((frame) => frame.id);
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
     onReorder(next);
   }
 
@@ -285,7 +358,7 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
           // The badge counts up from the bottom: the oldest frame is 1, the newest is N, and a new
           // frame on top never renumbers the ones below it.
           const badge = frames.length - index;
-          const dragging = index === dragIndex;
+          const dragging = moving.includes(frame.id);
           const isSlot = index === overIndex && dragIndex !== null && !dragging;
           return (
             <div
@@ -299,9 +372,9 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
               // whether a press may become a drag, so a tile armed 250 ms later was never a drag
               // source at all -- the gallery simply could not be reordered. Every card can be
               // picked up whatever became of it, because the sequence a drag makes is the sequence
-              // the queue produces in. While selecting, a press is a selection instead -- one
-              // gesture cannot mean two things.
-              draggable={!selecting}
+              // the queue produces in. A selection does not close this: a completed drag never ends
+              // in a click, so a press can still mean a selection without the two colliding.
+              draggable
               onDragStart={() => setDragIndex(index)}
               onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
               onDrop={handleDrop}
@@ -318,12 +391,12 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
               ) : (
                 <Tile name={frame.file} badge={badge} muted={!produced}
                       danger={state === "failed"}
-                      pill={<StatusPill {...(statusOf(frame, rendering, running) || {})} />}
+                      pill={<StatusPills states={statusOf(frame, rendering, running)} />}
                       owns={owns}
                       veil={brokenLayer && (
                         <div data-veil className="qe-veil" style={VEIL}>
                           <RetryButton frame={frame.id} sent={retried.includes(frame.id)}
-                                       onRetry={sendBack} />
+                                       ground="var(--bg-2)" onRetry={sendBack} />
                         </div>
                       )}
                       onCheck={state === "running" ? undefined : () => toggle(frame.id)}
@@ -341,11 +414,16 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                        if (!selecting) navigate(photoPath(project, frame.id));
                      }}>
                     {state === "done" ? (
-                      <img src={fileUrl(project, frame.file)} alt={frame.file}
-                           loading="lazy" decoding="async" draggable={false}
-                           style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
-                                    border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
-                                    display: "block" }} />
+                      /* The picture asks a queue before it downloads: every tile is a request
+                         through the same tunnel, and one at a time keeps the poll's own request
+                         from waiting behind a project's worth of photos. Every tile asks as soon
+                         as it is drawn, so the gallery fills in frame order however the page is
+                         scrolled. */
+                      <TileImage project={project} file={frame.file}
+                                 decoding="async" draggable={false}
+                                 style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover",
+                                          border: "1px solid var(--border)",
+                                          borderRadius: "var(--r-sm)", display: "block" }} />
                     ) : state === "running" ? (
                       <Rendering style={{ aspectRatio: "1/1" }} />
                     ) : state === "failed" ? (
@@ -388,23 +466,45 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                    : selectable.map((frame) => frame.id))}>
               Tümünü seç
             </Btn>
-            <Btn sm onClick={() => setConfirming(true)}
-                 style={{ color: "var(--danger)", borderColor: "var(--danger)",
-                          background: "none" }}>
+            {/* Only while the selection holds something produced: a bar over nothing but pending
+                frames offers no copy at all, because there is nothing to twin (Fark 79). Frameless,
+                like the button beside it -- the destructive one is the only outlined one here. */}
+            {chosenPhotos.length > 0 && (
+              <Btn sm ghost onClick={handleCopy}>Kopyala</Btn>
+            )}
+            <Btn sm onClick={() => setConfirming(FRAMES)} style={DANGER}>
               {/* One word in all three cases (madde 65): what really happens is the opening
                   window's to say, and it says it differently every time. */}
               <Icon.Trash /> Sil
             </Btn>
+            {/* One per layer, to the right of Sil and dressed like it. Two conditions: nothing in
+                the selection may still be waiting -- what these take off is a finished stack, and
+                the queue is still writing into that one (Fark 82) -- and something has to carry the
+                layer, because a window asking about no frames at all is not a window (Fark 80). */}
+            {chosenQueued.length === 0
+              && LAYER_ACTIONS.map(({ layer, label }) => holding(layer).length > 0 && (
+                <Btn key={layer} sm onClick={() => setConfirming(layer)} style={DANGER}>
+                  <Icon.Trash /> {label}
+                </Btn>
+              ))}
             <Btn sm ghost onClick={closeSelection}>Vazgeç</Btn>
           </div>
         </div>
       )}
 
-      {confirming && (
+      {confirming === FRAMES && (
         <ConfirmModal title={confirm.title} body={confirm.body} confirmLabel={confirm.label}
                       width={confirm.width}
                       busyLabel="Siliniyor…" danger busy={deleting}
-                      onCancel={() => setConfirming(false)} onConfirm={handleDelete} />
+                      onCancel={() => setConfirming(null)} onConfirm={handleDelete} />
+      )}
+
+      {confirming && confirming !== FRAMES && (
+        /* The layer's own window: what goes, what stays, and who is being skipped. Its words and
+           its width both come from the module the tile badges come from. */
+        <ConfirmModal {...layerConfirm(confirming, holding(confirming).length, selected.length)}
+                      confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={deleting}
+                      onCancel={() => setConfirming(null)} onConfirm={handleRemoveLayer} />
       )}
     </div>
   );

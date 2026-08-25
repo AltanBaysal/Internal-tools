@@ -67,6 +67,16 @@ def _reasons(cells):
             if cells[slot].get("error")}
 
 
+def _per_layer(cells, field):
+    """{layer: the field's value} -- only the layers whose line carried it.
+
+    Both of this shape's users answer the same kind of question about one layer at a time: which
+    mode made it, and which picture it arrived at. Written as maps rather than fields named for the
+    video, because both would have to be renamed the day a second layer gains a mode.
+    """
+    return {slot: cell[field] for slot, cell in cells.items() if cell.get(field)}
+
+
 def list_frames(record, store, plan_store, order_store, project):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
@@ -101,7 +111,8 @@ def list_frames(record, store, plan_store, order_store, project):
                        "file": photo["file"] if photo else photo_file(fid),
                        "layers": _taken_files(cells),
                        "owed": owed.get(fid, []), "failed": _failed_layers(cells),
-                       "errors": _reasons(cells),
+                       "errors": _reasons(cells), "modes": _per_layer(cells, "mode"),
+                       "endsOn": _per_layer(cells, "endsOn"),
                        "prompts": _words(said.get(fid, {}), frame.get("prompt")),
                        "status": status if status in SHOWN else "pending"})
 
@@ -112,7 +123,8 @@ def list_frames(record, store, plan_store, order_store, project):
             cells = slots.get(fid, {})
             frames.append({**row, "id": fid, "layers": _taken_files(cells),
                            "owed": owed.get(fid, []), "failed": _failed_layers(cells),
-                           "errors": _reasons(cells),
+                           "errors": _reasons(cells), "modes": _per_layer(cells, "mode"),
+                           "endsOn": _per_layer(cells, "endsOn"),
                            "prompts": _words(said.get(fid, {}), row.get("prompt")),
                            "status": queue.DONE})
 

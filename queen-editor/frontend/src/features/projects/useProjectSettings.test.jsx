@@ -31,13 +31,16 @@ describe("useProjectSettings", () => {
   });
 
   it("carries the server's text on failure", async () => {
-    getSettings.mockRejectedValue(new Error("Proje bulunamadı: düğün"));
+    getSettings.mockRejectedValue(new Error("Proje bulunamadı: okunamayan"));
 
-    const { result } = renderHook(() => useProjectSettings("düğün"));
+    // Its own project name: what a record answered with is remembered for the length of a visit,
+    // so a name another test has already filled would make this a refresh rather than a first
+    // read -- and a refresh that falls over deliberately keeps what is on screen.
+    const { result } = renderHook(() => useProjectSettings("okunamayan"));
     await settle();
 
     expect(result.current.status).toBe("error");
-    expect(result.current.error).toBe("Proje bulunamadı: düğün");
+    expect(result.current.error).toBe("Proje bulunamadı: okunamayan");
   });
 
   it("swallows a late answer for the previous project after a quick switch", async () => {
@@ -59,5 +62,66 @@ describe("useProjectSettings", () => {
     });
 
     expect(result.current.settings.prompts).toBe("İKİNCİ");
+  });
+
+  it("opens ready the second time the same project is looked at", async () => {
+    getSettings.mockResolvedValue({ prompts: "İLK", negative: "", variants: 2 });
+
+    const first = renderHook(() => useProjectSettings("hatirlanan"));
+    await settle();
+    first.unmount();
+
+    // Opening a frame tears this hook down and building it again is the whole of coming back.
+    // There is nothing to wait for: the answer is in hand.
+    const { result } = renderHook(() => useProjectSettings("hatirlanan"));
+    expect(result.current.status).toBe("ready");
+    expect(result.current.settings.prompts).toBe("İLK");
+  });
+
+  it("still waits for a project nothing has answered for", async () => {
+    getSettings.mockResolvedValue({ prompts: "İLK", negative: "", variants: 2 });
+
+    const first = renderHook(() => useProjectSettings("dolduran"));
+    await settle();
+    first.unmount();
+
+    // What is remembered is one project's own answer, never another's.
+    const { result } = renderHook(() => useProjectSettings("bos"));
+    expect(result.current.status).toBe("loading");
+  });
+
+  it("refreshes what it remembered, without a wait on screen", async () => {
+    getSettings.mockResolvedValue({ prompts: "ESKİ", negative: "", variants: 2 });
+
+    const first = renderHook(() => useProjectSettings("tazelenen"));
+    await settle();
+    first.unmount();
+
+    getSettings.mockResolvedValue({ prompts: "YENİ", negative: "", variants: 2 });
+    const { result } = renderHook(() => useProjectSettings("tazelenen"));
+    // Remembering is not believing forever: the record is asked for again, and the screen simply
+    // does not go blank while the answer is on its way.
+    expect(result.current.settings.prompts).toBe("ESKİ");
+    await settle();
+
+    expect(result.current.settings.prompts).toBe("YENİ");
+    expect(result.current.status).toBe("ready");
+  });
+
+  it("keeps what it remembered when the refresh cannot be read", async () => {
+    getSettings.mockResolvedValue({ prompts: "DURAN", negative: "", variants: 2 });
+
+    const first = renderHook(() => useProjectSettings("duran"));
+    await settle();
+    first.unmount();
+
+    getSettings.mockRejectedValue(new Error("Sunucuya ulaşılamadı."));
+    const { result } = renderHook(() => useProjectSettings("duran"));
+    await settle();
+
+    // A refresh that fell over costs the user nothing, and emptying the screen over it would be
+    // the opposite of quiet. The dead tunnel is the status poll's to report, and it does.
+    expect(result.current.status).toBe("ready");
+    expect(result.current.settings.prompts).toBe("DURAN");
   });
 });

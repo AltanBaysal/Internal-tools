@@ -44,6 +44,31 @@ def test_make_dir_returns_none_when_name_taken(tmp_path):
     assert storage.make_dir("düğün") is None
 
 
+def test_renaming_a_folder_takes_everything_in_it(tmp_path):
+    storage = DriveStorage(str(tmp_path))
+    storage.make_dir("düğün")
+    storage.write_text("düğün", "plan.jsonl", "bir satır")
+
+    assert storage.rename_dir("düğün", "nikah") is not False
+
+    assert storage.read_text("nikah", "plan.jsonl") == "bir satır"
+    assert not storage.dir_exists("düğün")
+
+
+def test_renaming_onto_a_name_that_is_taken_moves_nothing(tmp_path):
+    # Two answers because the caller has two different sentences for them: None is a clash, False is
+    # a folder that was not there. The mtime that comes back on success is what make_dir answers.
+    storage = DriveStorage(str(tmp_path))
+    storage.make_dir("düğün")
+    storage.make_dir("nikah")
+
+    assert storage.rename_dir("düğün", "nikah") is None
+    assert storage.rename_dir("yok", "başka") is False
+
+    assert storage.dir_exists("düğün")
+    assert storage.dir_exists("nikah")
+
+
 def test_list_dirs_returns_name_and_mtime(tmp_path):
     storage = DriveStorage(str(tmp_path))
     storage.make_dir("düğün")

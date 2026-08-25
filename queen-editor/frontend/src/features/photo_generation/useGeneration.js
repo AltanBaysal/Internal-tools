@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   cancelGeneration,
+  copyFrames,
   generateBatch,
   getStatus,
   listFrames,
@@ -15,6 +16,7 @@ import {
   saveOrder,
   stopGeneration,
 } from "../../shared/api.js";
+import { failureText } from "../../shared/failure_text.js";
 
 const POLL_MS = 2000;
 
@@ -73,7 +75,7 @@ export function useGeneration(project) {
   const refreshFrames = useCallback(() => {
     listFrames(project)
       .then((data) => { if (alive.current && !savingOrder.current) setFrames(data); })
-      .catch((err) => { if (alive.current) setError(err.message); });
+      .catch((err) => { if (alive.current) setError(failureText(err)); });
   }, [project]);
 
   const poll = useCallback(() => {
@@ -97,7 +99,7 @@ export function useGeneration(project) {
       })
       .catch((err) => {
         if (!alive.current) return;
-        setError(err.message);
+        setError(failureText(err));
         // One bad poll must not kill the chain -- otherwise the screen freezes as "fake alive"
         // and never notices the tunnel coming back.
         clearTimeout(timer.current);
@@ -157,7 +159,7 @@ export function useGeneration(project) {
         })
         .catch((err) => {
           if (!alive.current) return null;
-          setError(err.message);
+          setError(failureText(err));
           setErrorField(err.field || null);
           return null;
         });
@@ -169,7 +171,7 @@ export function useGeneration(project) {
     clearError();
     return resumeBatch(project)
       .then(() => { if (alive.current) startPolling(); })
-      .catch((err) => { if (alive.current) setError(err.message); });
+      .catch((err) => { if (alive.current) setError(failureText(err)); });
   }, [project, startPolling, clearError]);
 
   // Emptying the queue does not start anything: it only changes what is owed, so the screen has to
@@ -177,20 +179,20 @@ export function useGeneration(project) {
   const cancel = useCallback(() => (
     cancelGeneration(project)
       .then(() => { if (alive.current) poll(); })
-      .catch((err) => { if (alive.current) setError(err.message); })
+      .catch((err) => { if (alive.current) setError(failureText(err)); })
   ), [project, poll]);
 
   // One frame, put back in line with the prompt and seed the plan gave it.
   const retry = useCallback((frame) => (
     retryFrame(project, frame)
       .then(() => { if (alive.current) startPolling(); })
-      .catch((err) => { if (alive.current) setError(err.message); })
+      .catch((err) => { if (alive.current) setError(failureText(err)); })
   ), [project, startPolling]);
 
   // Hang a layer on every frame in scope. Resolves with the server's answer so the panel can quote
   // how many the queue took, or null when it was refused.
-  const queueLayer = useCallback((kind, files, variants) => (
-    postLayer(project, kind, files, variants)
+  const queueLayer = useCallback((kind, files, variants, mode) => (
+    postLayer(project, kind, files, variants, mode)
       .then((body) => {
         if (!alive.current) return null;
         startPolling(body?.frames);
@@ -198,7 +200,7 @@ export function useGeneration(project) {
       })
       .catch((err) => {
         if (!alive.current) return null;
-        setError(err.message);
+        setError(failureText(err));
         return null;
       })
   ), [project, startPolling]);
@@ -206,8 +208,8 @@ export function useGeneration(project) {
   // One layer of one frame, made again from the words on screen. Resolves with the server's answer
   // -- it names the frame the result will land on, which is never this one -- or null when it was
   // refused; the page has to tell those apart to know whether to say anything.
-  const regenerate = useCallback((frame, kind, prompt) => (
-    regenerateFrame(project, frame, kind, prompt)
+  const regenerate = useCallback((frame, kind, prompt, mode, negative) => (
+    regenerateFrame(project, frame, kind, prompt, mode, negative)
       .then((body) => {
         if (!alive.current) return null;
         startPolling();
@@ -215,15 +217,15 @@ export function useGeneration(project) {
       })
       .catch((err) => {
         if (!alive.current) return null;
-        setError(err.message);
+        setError(failureText(err));
         return null;
       })
   ), [project, startPolling]);
 
-  // One layer off one frame. Nothing starts running, so the screen only has to read the gallery
-  // again -- the frame stays where it is and comes back with one layer fewer.
-  const removeLayer = useCallback((frame, kind) => (
-    deleteLayer(project, frame, kind)
+  // One layer off the frames named. Nothing starts running, so the screen only has to read the
+  // gallery again -- the frames stay where they are and come back with one layer fewer.
+  const removeLayer = useCallback((frames, kind) => (
+    deleteLayer(project, frames, kind)
       .then((body) => {
         if (!alive.current) return null;
         poll();
@@ -231,7 +233,7 @@ export function useGeneration(project) {
       })
       .catch((err) => {
         if (!alive.current) return null;
-        setError(err.message);
+        setError(failureText(err));
         return null;
       })
   ), [project, poll]);
@@ -240,14 +242,14 @@ export function useGeneration(project) {
   const retryAll = useCallback(() => (
     retryFailed(project)
       .then(() => { if (alive.current) startPolling(); })
-      .catch((err) => { if (alive.current) setError(err.message); })
+      .catch((err) => { if (alive.current) setError(failureText(err)); })
   ), [project, startPolling]);
 
   const stop = useCallback(() => {
     setStopPressed(true);                     // instant feedback; the server confirms via polls
     return stopGeneration()
       .then((state) => { if (alive.current) setJob(state); })
-      .catch((err) => { if (alive.current) setError(err.message); });
+      .catch((err) => { if (alive.current) setError(failureText(err)); });
   }, []);
 
   // Optimistic: the tiles move the moment they are dropped, because the drag already showed the
@@ -266,12 +268,28 @@ export function useGeneration(project) {
         .catch((err) => {
           savingOrder.current = false;
           if (!alive.current) return;
-          setError(`Sıra kaydedilemedi.\n${err.message}`);
+          setError(`Sıra kaydedilemedi.\n${failureText(err)}`);
           refreshFrames();
         });
     },
     [project, refreshFrames],
   );
+
+  // Twins of the frames named. Nothing is produced, so nothing starts running -- the answer carries
+  // the gallery they landed in, which is one round-trip instead of two. Resolves with the twins'
+  // own names so the screen can move the selection onto them, or null when it was refused.
+  const copyPhotos = useCallback((frames) => (
+    copyFrames(project, frames)
+      .then((body) => {
+        if (!alive.current) return null;
+        if (body?.frames) setFrames(body.frames);
+        return body?.copies || [];
+      })
+      .catch((err) => {
+        if (alive.current) setError(failureText(err));
+        return null;
+      })
+  ), [project]);
 
   // Only what the server says really went leaves the screen: a name that was already gone changes
   // nothing here, and the gallery keeps matching Drive. Both lists count -- a photo that left the
@@ -291,7 +309,7 @@ export function useGeneration(project) {
       .catch((err) => {
         // The server's own sentence, with no framing of ours wrapped around it -- the card that
         // shows it supplies the heading, and it is the only side that knows what was attempted.
-        if (alive.current) setError(err.message);
+        if (alive.current) setError(failureText(err));
         return null;
       })
   ), [project]);
@@ -338,5 +356,5 @@ export function useGeneration(project) {
   return { job: told, known, frames, error, errorField, stopping, queue, failures,
            current, currentLayer,
            retryAll, queueLayer, regenerate, removeLayer,
-           generate, stop, resume, cancel, retry, clearError, reorder, removePhotos };
+           generate, stop, resume, cancel, retry, clearError, reorder, removePhotos, copyPhotos };
 }

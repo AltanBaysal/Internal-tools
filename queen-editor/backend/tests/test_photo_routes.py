@@ -6,6 +6,7 @@ from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
 from backend.features.photo_generation.domain.usecases.run_export import start_export
@@ -37,7 +38,7 @@ class FakeGenerator:
     def models(self):
         return list(self.installed)
 
-    def generate(self, prompt, negative, seed, model="", source=None):
+    def generate(self, prompt, negative, seed, model="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
         return b"PNGDATA"
 
@@ -51,7 +52,7 @@ class StopsAfter:
         self.count = count
         self.calls = 0
 
-    def generate(self, prompt, negative, seed, model="", source=None):
+    def generate(self, prompt, negative, seed, model="", source=None, end=None):
         self.calls += 1
         if self.calls > self.count:
             self.runner.request_stop()
@@ -120,6 +121,8 @@ def make_client(tmp_path, generator=None, runner=None):
         cancel_export=lambda: [export_runner.cancel(mode) for mode in MODES],
         remove_frames=partial(remove_frames, record, store, plan_store, order_store,
                               lambda: "2026-08-05T10:00:00+00:00"),
+        copy_frames=partial(copy_frames, record, store, plan_store, order_store,
+                            lambda: "2026-08-05T10:00:00+00:00"),
         photo_dir=store.photo_dir,
     )
     app = create_app(dist_dir=str(dist), blueprints=[blueprint])
@@ -247,7 +250,7 @@ def test_adding_to_the_running_projects_own_queue_is_accepted(tmp_path):
 
 def test_failed_batch_shows_the_real_error_in_status(tmp_path):
     class Broken:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             raise RuntimeError("node 9 (CheckpointLoaderSimple): dosya yok")
 
     client, _ = make_client(tmp_path, generator=Broken())
@@ -374,7 +377,7 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     class BlowsUpOnTheFirstPrompt:
         """Drops the same job every time it is offered -- three attempts, then red."""
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             if prompt == "a":
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
@@ -464,7 +467,7 @@ def test_retry_without_a_file_puts_every_red_frame_back(tmp_path):
         def __init__(self):
             self.forgiving = False
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             if not self.forgiving:
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
@@ -502,6 +505,54 @@ def test_the_videos_endpoint_refuses_an_impossible_variant_count(tmp_path):
     assert resp.get_json()["field"] == "variants"
 
 
+def video_jobs(drive, project="düğün"):
+    plan = json.loads((drive / project / "plan.json").read_text(encoding="utf-8"))
+    return [frame for frame in plan["frames"] if frame["type"] == "video"]
+
+
+def test_the_videos_endpoint_carries_the_production_mode(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"mode": "loop"})
+
+    assert resp.status_code == 202
+    # The plan line is where the mode has to land: the renderer reads it hours later, long after
+    # the panel that chose it is gone.
+    assert [job["mode"] for job in video_jobs(drive)] == ["loop"]
+
+
+def test_a_layer_queued_with_no_mode_is_a_plain_one(tmp_path):
+    # A client older than the row asks for exactly what it always asked for -- the same reading the
+    # variant count already gets.
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    client.post("/api/projects/düğün/layers/video", json={})
+
+    assert [job["mode"] for job in video_jobs(drive)] == ["standard"]
+
+
+def test_the_videos_endpoint_refuses_a_mode_nobody_knows(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    resp = client.post("/api/projects/düğün/layers/video", json={"mode": "kelebek"})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "mode"
+
+
+def test_a_sound_cannot_be_asked_to_end_anywhere(tmp_path):
+    # Only a video ends on a picture. Letting the word through would hide the mistake behind a
+    # sound that came out fine.
+    client, _ = make_client(tmp_path)
+
+    resp = client.post("/api/projects/düğün/layers/audio", json={"mode": "loop"})
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "mode"
+
+
 def test_an_unknown_layer_is_not_a_place_to_queue_anything(tmp_path):
     client, _ = make_client(tmp_path)
 
@@ -520,9 +571,13 @@ def test_a_copy_frame_shares_its_sources_photo_file(tmp_path):
     assert {row["file"] for row in rows} == {"P0_0.png"}
 
 
-def regenerate_request(client, frame, layer="photo", prompt="a", project="düğün"):
-    return client.post(f"/api/projects/{project}/regenerate",
-                       json={"frame": frame, "layer": layer, "prompt": prompt})
+def regenerate_request(client, frame, layer="photo", prompt="a", project="düğün", mode=None):
+    body = {"frame": frame, "layer": layer, "prompt": prompt}
+    if mode is not None:
+        # Left out rather than sent as null: what the older screen sends is a body with no mode at
+        # all, and that shape has to keep working.
+        body["mode"] = mode
+    return client.post(f"/api/projects/{project}/regenerate", json=body)
 
 
 def test_regenerate_answers_with_the_new_frames_name(tmp_path):
@@ -545,6 +600,44 @@ def test_a_frame_made_again_joins_the_gallery_beside_its_source(tmp_path):
     assert [(row["id"], row["file"]) for row in rows] == [("P1_0", "P1_0.png"),
                                                           ("P0_0", "P0_0.png")]
     assert (drive / "düğün" / "P1_0.png").exists()
+
+
+def test_a_regenerate_mode_nobody_knows_is_refused(tmp_path):
+    """Proof that the body's mode reaches the rule at all: an unknown one could not be refused if
+    the route were dropping the field."""
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = regenerate_request(client, "P0_0", layer="video", mode="kelebek")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]
+
+
+def test_the_body_negative_reaches_the_new_frames_line(tmp_path):
+    """Proof that the box's own words travel: an unchanged prompt would otherwise keep the source's
+    negative, and the screen would be promising an edit that never left it."""
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    client.post("/api/projects/düğün/regenerate",
+                json={"frame": "P0_0", "layer": "photo", "prompt": "a",
+                      "negative": "bulanık, gürültü"})
+
+    rows = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert rows[0]["negative"] == "bulanık, gürültü"
+
+
+def test_linking_a_frame_with_nothing_after_it_is_refused_with_a_reason(tmp_path):
+    """One frame in the gallery, so it is the film's last. The screen never sends this; the answer
+    still has to be a refusal rather than a job that will fail later."""
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = regenerate_request(client, "P0_0", layer="video", mode="linked")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"]
 
 
 def test_regenerating_a_frame_the_gallery_does_not_know_returns_404(tmp_path):
@@ -571,8 +664,8 @@ def test_regenerating_a_layer_that_does_not_exist_returns_404(tmp_path):
     assert regenerate_request(client, "P0_0", layer="foto").status_code == 404
 
 
-def delete_layer_request(client, frame, layer="video", project="düğün"):
-    return client.post(f"/api/projects/{project}/layers/{layer}/delete", json={"frame": frame})
+def delete_layer_request(client, frames, layer="video", project="düğün"):
+    return client.post(f"/api/projects/{project}/layers/{layer}/delete", json={"frames": frames})
 
 
 def give_it_a_video(drive, frame="P0_0", project="düğün"):
@@ -594,7 +687,7 @@ def test_deleting_a_video_leaves_the_frame_in_the_gallery(tmp_path):
     generate(client, prompts='["a"]', variants=1)
     give_it_a_video(drive)
 
-    resp = delete_layer_request(client, "P0_0")
+    resp = delete_layer_request(client, ["P0_0"])
 
     assert resp.status_code == 200
     assert resp.get_json() == {"deleted": ["P0_0_V1_0.mp4"]}
@@ -607,14 +700,44 @@ def test_the_photo_layer_is_not_deleted_this_way(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
 
-    assert delete_layer_request(client, "P0_0", layer="photo").status_code == 404
+    assert delete_layer_request(client, ["P0_0"], layer="photo").status_code == 404
 
 
-def test_deleting_a_layer_of_an_unknown_frame_returns_404(tmp_path):
+def test_deleting_a_layer_of_an_unknown_frame_is_skipped(tmp_path):
     client, _ = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
 
-    assert delete_layer_request(client, "P9_9").status_code == 404
+    resp = delete_layer_request(client, ["P9_9"])
+
+    # Skipped rather than refused: one name that is already gone must not undo the rest.
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": []}
+
+
+def test_deleting_one_layer_off_many_frames_in_one_press(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+    give_it_a_video(drive, "P0_0")
+    give_it_a_video(drive, "P1_0")
+
+    resp = delete_layer_request(client, ["P0_0", "P1_0"])
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": ["P0_0_V1_0.mp4", "P1_0_V1_0.mp4"]}
+    # The frames and their pictures stay exactly where they were: only the layer fell.
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [frame["layers"] for frame in gallery] == [{"photo": "P1_0.png"},
+                                                      {"photo": "P0_0.png"}]
+
+
+def test_a_layer_delete_body_that_is_not_a_list_of_identities_is_refused(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    resp = delete_layer_request(client, "P0_0")
+
+    assert resp.status_code == 400
+    assert "metin dizisi" in resp.get_json()["error"]
 
 
 def test_retry_of_a_frame_the_plan_does_not_know_returns_404(tmp_path):
@@ -664,8 +787,48 @@ def test_cancel_empties_the_queue_and_leaves_the_photos(tmp_path):
     assert client.post("/api/projects/düğün/resume").status_code == 409
 
 
+def copy_frames_request(client, frames, project="düğün"):
+    return client.post(f"/api/projects/{project}/frames/copy", json={"frames": frames})
+
+
 def delete_photos_request(client, frames, project="düğün"):
     return client.post(f"/api/projects/{project}/frames/delete", json={"frames": frames})
+
+
+def test_the_copy_route_answers_with_the_twins_and_the_gallery_they_landed_in(tmp_path):
+    client, _drive = make_client(tmp_path)
+    generate(client, prompts='["a", "b"]', variants=1)
+
+    answer = copy_frames_request(client, ["P0_0"])
+
+    assert answer.status_code == 200
+    body = answer.get_json()
+    assert body["copies"] == ["C1_P0_0"]
+    # The gallery comes back with it: the screen would ask for exactly this in a second round-trip.
+    assert [f["id"] for f in body["frames"]] == ["P1_0", "C1_P0_0", "P0_0"]
+
+
+def test_deleting_one_twin_leaves_the_others_picture_on_the_disk(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+    copy_frames_request(client, ["P0_0"])
+
+    delete_photos_request(client, ["C1_P0_0"])
+
+    # One picture, two frames holding it: the last of them to let go is what unlinks it.
+    assert (drive / "düğün" / "P0_0.png").exists()
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [f["id"] for f in gallery] == ["P0_0"]
+
+
+def test_a_copy_body_that_is_not_a_list_of_identities_is_refused(tmp_path):
+    client, _drive = make_client(tmp_path)
+    generate(client, prompts='["a"]', variants=1)
+
+    answer = copy_frames_request(client, "P0_0")
+
+    assert answer.status_code == 400
+    assert "metin dizisi" in answer.get_json()["error"]
 
 
 def test_deleting_photos_removes_them_from_the_gallery_and_the_folder(tmp_path):

@@ -15,11 +15,13 @@ from backend.features.photo_generation.data.comfy_photo_generator import ComfyPh
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.run_loop import make_job
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 PHOTO_GRAPH = os.path.join(ROOT, "workflow_api.json")
 VIDEO_GRAPH = os.path.join(ROOT, "workflow_video_api.json")
+FIRST_LAST_GRAPH = os.path.join(ROOT, "workflow_video_first_last_api.json")
 
 
 class PhotoComfy:
@@ -134,7 +136,12 @@ class Plan:
 
 
 class Runner:
-    """The two things the loop asks of a runner, and nothing else."""
+    """The three things the loop asks of a runner, and nothing else."""
+
+    def __init__(self):
+        # Which folder the job writes into: a project can be renamed under a run, so the loop reads
+        # the name from here rather than keeping the string it was handed.
+        self.named = RunningName()
 
     def stop_requested(self):
         return False
@@ -161,9 +168,26 @@ FRAMES = [
 def producers_over(video_comfy, ffmpeg, tmp_path):
     return {
         layers.PHOTO: ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60),
-        layers.VIDEO: ComfyVideoGenerator(video_comfy, VIDEO_GRAPH, timeout=60),
+        layers.VIDEO: ComfyVideoGenerator(video_comfy, VIDEO_GRAPH, FIRST_LAST_GRAPH, timeout=60),
         layers.AUDIO: MMAudioGenerator(Sampler(), ffmpeg, tmp_dir=str(tmp_path)),
     }
+
+
+def test_a_producer_with_no_end_frame_takes_the_argument_anyway(tmp_path):
+    """The queue has one call shape, not three: whatever the loop hands a producer, every producer
+    takes. A photo is made from its words and a sound from the video under it -- neither has an
+    ending picture, and both are still handed the argument."""
+    ffmpeg = Ffmpeg()
+
+    photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
+        "kraliçe tahtta", "blurry", 1, end=("P1_0.png", b"PNG"))
+    # A real seed, because the sound engine no longer invents one: the loop picks it before the
+    # render so the number can also be written on the produced layer's row.
+    sound = MMAudioGenerator(Sampler(), ffmpeg, tmp_dir=str(tmp_path)).generate(
+        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), end=("P1_0.png", b"PNG"))
+
+    assert photo == b"PNG"
+    assert sound == b"RIFFwav"
 
 
 def test_the_queue_runs_the_three_real_producers_end_to_end(tmp_path):

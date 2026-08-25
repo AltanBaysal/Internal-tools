@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono } from "../../vendor/kit.jsx";
 import AgentPanel from "./AgentPanel.jsx";
 import GeneratePanel from "./GeneratePanel.jsx";
@@ -47,10 +48,29 @@ const RAIL = {
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 
+// The panel's own waiting: the ring stands where the boxes will be, so the column keeps its shape
+// while the record is in flight. The screen behind it is not waiting for anything (madde 31).
+const WAITING = { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" };
+
 // Which panel gets which icon. The drawings live in glyphs.jsx, because the photo one is also the
 // icon its own submit button carries.
 const GLYPH = { photo: PhotoGlyph, video: VideoGlyph, audio: SoundGlyph, queue: QueueGlyph,
                 agent: AgentGlyph, producers: ProducersGlyph };
+
+// Which panel each project's column was last showing. Opening a frame's detail replaces the whole
+// project screen, so this component is torn down and built again on every step in and out; without
+// this the column would reopen on the form every time (madde 34). Keyed by project: which panel is
+// being watched is the user's work in one project, never a fact about the app.
+//
+// Memory only, like the gallery's own stores: a reload opens the column on the form again.
+const REMEMBERED = new Map();
+
+// Where a mount starts. Asked with has() rather than read with a fallback, because a closed column
+// is null and so is having nothing remembered -- `?? "photo"` here would reopen a column the user
+// closed on purpose, which is this item's own mistake in the other direction.
+function opening(project) {
+  return REMEMBERED.has(project) ? REMEMBERED.get(project) : "photo";
+}
 
 // Adding a panel later means adding a row here -- the rail is drawn from this list, not from three
 // hard-coded buttons. The id is the layer's own word, so it matches both the glyph's name and what
@@ -107,17 +127,24 @@ function RailButton({ panel, active, busy, onSelect }) {
 // v2's right column: one panel at a time, the rail on its right. Three jobs that used to share a
 // single surface -- submitting work, watching the queue, and the agent that has not been designed
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
-export default function SidePanel({ job, error, errorField, busyElsewhere, settings, project,
-                                    stopping, queue, failures, models, modelsError, producers,
-                                    frames, selected, onQueueLayer,
-                                    onGenerate, onStop, onResume,
-                                    onCancel, onClearError, onRetryAll, producerReady }) {
+export default function SidePanel({ job, known, error, errorField, busyElsewhere, settings,
+                                    settingsError, project, stopping, queue, failures, models,
+                                    modelsError, producers, frames, selected, onQueueLayer,
+                                    onGenerate, onStop, onResume, onCancel, onClearError,
+                                    onRetryAll, onRetrySettings }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it. null means none of them -- pressing the open panel's own icon closes
   // it and gives the width back to the gallery, the way a code editor's side bar behaves.
-  const [open, setOpen] = useState("photo");
+  const [open, setOpen] = useState(() => opening(project));
   const toggle = (id) => setOpen((shown) => (shown === id ? null : id));
   const current = PANELS.find((panel) => panel.id === open);
+
+  // Whatever the column becomes is what a later mount starts from -- closed included. One effect
+  // rather than a write inside toggle: that one is a functional update, and a store written from
+  // inside it would be a side effect where there must be none.
+  useEffect(() => {
+    REMEMBERED.set(project, open);
+  }, [project, open]);
 
   return (
     <div style={COLUMN}>
@@ -130,27 +157,37 @@ export default function SidePanel({ job, error, errorField, busyElsewhere, setti
         <h2 style={{ margin: 0 }}>
           <Mono size={11} style={LABEL}>{current.heading || current.title}</Mono>
         </h2>
-        {open === "photo" && (
+        {/* The project record fills this panel's boxes and nothing else on the screen reads it, so
+            waiting for it is this column's business alone (madde 31). The failure is asked about
+            first: with an unreadable record there is no record either, and a ring that never stops
+            would promise something that is not coming. */}
+        {open === "photo" && (settingsError ? (
+          <StatusErrorCard text="Proje ayarları yüklenemedi" raw={settingsError}
+                           onRetry={onRetrySettings} />
+        ) : !settings ? (
+          <div style={WAITING}><span className="wf-spinner" /></div>
+        ) : (
           <GeneratePanel job={job} error={error} errorField={errorField}
-                         busyElsewhere={busyElsewhere} settings={settings}
+                         busyElsewhere={busyElsewhere} settings={settings} project={project}
                          models={models} modelsError={modelsError}
                          producer={(producers?.producers || []).find((p) => p.id === "photo")}
                          onGenerate={onGenerate} onClearError={onClearError}
                          onInstall={producers?.install} />
-        )}
+        ))}
         {/* One panel, two layers: the design asks for the same screen twice, so only the words and
             the scope rule differ (see LayerPanel). */}
         {(open === "video" || open === "audio") && (
           <LayerPanel layer={open} frames={frames} selected={selected}
                       producer={(producers?.producers || []).find((p) => p.id === open)}
-                      onQueue={(files, variants) => onQueueLayer(open, files, variants)}
+                      onQueue={(files, variants, mode) => onQueueLayer(open, files, variants, mode)}
                       onInstall={producers?.install} />
         )}
         {open === "queue" && (
-          <QueuePanel job={job} error={error} errorField={errorField}
+          <QueuePanel job={job} known={known} error={error} errorField={errorField}
                       busyElsewhere={busyElsewhere} project={project} stopping={stopping}
                       queue={queue} failures={failures} onStop={onStop} onResume={onResume}
-                      onCancel={onCancel} onRetryAll={onRetryAll} producerReady={producerReady}
+                      onCancel={onCancel} onRetryAll={onRetryAll}
+                      producers={producers?.producers || null}
                       onInstall={producers?.install} />
         )}
         {open === "agent" && <AgentPanel />}

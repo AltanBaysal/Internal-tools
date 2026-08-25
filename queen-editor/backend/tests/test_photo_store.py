@@ -61,3 +61,20 @@ def test_a_photos_bytes_can_be_read_back(tmp_path):
 
     assert store.read("düğün", "P0_0.png") == b"PNGDATA"
     assert store.read("düğün", "yok.png") is None
+
+
+def test_a_photo_already_in_the_export_is_not_written_again(tmp_path):
+    store = store_at(tmp_path)
+    (tmp_path / "düğün").mkdir()
+    store.save("düğün", "0_a.png", b"PNG")
+    folder = store.make_export_folder("düğün", "2026-08-12 14-32")
+    source = store.file_path("düğün", "0_a.png")
+
+    store.copy_photo(source, folder, "01.png")
+    # The design lets a merged export and a separate one run side by side, and a folder named down
+    # to the minute is one folder for both. The second one finds the picture already there.
+    store.copy_photo(source, folder, "01.png")
+
+    landed = tmp_path / "düğün" / "export" / "2026-08-12 14-32" / "photos" / "01.png"
+    assert landed.read_bytes() == b"PNG"
+    assert [path.name for path in landed.parent.iterdir()] == ["01.png"]

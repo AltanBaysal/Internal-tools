@@ -102,3 +102,22 @@ a.wf-btn {
 @keyframes qe-spin {
   to { transform: rotate(360deg); }
 }
+
+/* A scrolling box with a handle of its own instead of the window's (Fark 8). Only the WebKit
+   pseudo-elements are written: the app runs inside Colab's output frame, which is Chrome. A box
+   with nothing to scroll draws no handle at all, which is what makes the mark appear only once the
+   list has outgrown its area -- there is no condition to write. The track stays transparent so no
+   groove is drawn down the edge of a list that fits. */
+.qe-thin-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.qe-thin-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.qe-thin-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 3px;
+}
+.qe-thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--border-active);
+}

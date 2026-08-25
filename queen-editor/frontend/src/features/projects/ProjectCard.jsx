@@ -2,11 +2,16 @@ import { formatModified } from "../../shared/date.js";
 import { navigate, projectPath } from "../../shared/router.js";
 import { Btn, Hand, Icon, Mono } from "../../vendor/kit.jsx";
 
+// Red text, red border, no fill -- the app-wide destructive standard. The design's own texts
+// disagreed here: the rules document counts project delete among its examples, the card drawing
+// shows a bare icon. The difference list's first decision settled it for the rules document.
+const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", background: "none" };
+
 // The card opens the project screen; a real <button> so the keyboard can open it too, with the
 // wf-card look kept by resetting the button's own chrome. The trash is a sibling rather than a
 // child: a button inside a button is invalid HTML, and keeping them apart is also what stops a
 // click meant for deleting from opening the project.
-export default function ProjectCard({ name, modifiedAt, onDelete }) {
+export default function ProjectCard({ name, modifiedAt, onDelete, onRename }) {
   return (
     <div style={{ position: "relative" }}>
       <button
@@ -32,16 +37,21 @@ export default function ProjectCard({ name, modifiedAt, onDelete }) {
           {formatModified(modifiedAt)}
         </Mono>
       </button>
-      {/* The destructive standard says no filled red; inside a card it also means no box at all
-          (madde 3) -- the card's own line is already there, and a second one around the icon reads
-          as a button sitting on a button. The label the standard asks for lives on the confirm
-          window instead: a word here would crowd the card without saying anything the icon and the
-          colour do not (madde 9). */}
-      <Btn sm aria-label="Projeyi sil" onClick={onDelete}
-           style={{ position: "absolute", top: 10, right: 10, color: "var(--danger)",
-                    border: "none", background: "none", padding: "4px 8px" }}>
-        <Icon.Trash />
-      </Btn>
+      {/* Two icon buttons, 4px apart (Fark 5). The bin wears the destructive standard and the
+          pencil wears ghost -- a transparent line rather than no line, so the two keep the same box
+          and sit level; border:none took a pixel off every side and shifted them against each
+          other. The pencil stays bare on purpose (karar 43): a red frame is a mark, and it only
+          marks while what sits beside it has none. Renaming takes nothing away (Fark 3). Neither
+          carries a word -- the one the standard asks for is on the delete confirm, where there is
+          room for it (madde 9). */}
+      <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4 }}>
+        <Btn sm icon ghost aria-label="Projeyi yeniden adlandır" onClick={onRename}>
+          <Icon.Pencil />
+        </Btn>
+        <Btn sm icon aria-label="Projeyi sil" onClick={onDelete} style={DANGER}>
+          <Icon.Trash />
+        </Btn>
+      </div>
     </div>
   );
 }

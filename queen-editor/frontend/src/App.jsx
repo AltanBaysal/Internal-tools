@@ -1,24 +1,23 @@
-import ProjectLoading from "./features/photo_generation/ProjectLoading.jsx";
 import ProjectScreen from "./features/photo_generation/ProjectScreen.jsx";
 import ProjectsScreen from "./features/projects/ProjectsScreen.jsx";
 import { useProjectSettings } from "./features/projects/useProjectSettings.js";
 import ExportScreen from "./features/photo_generation/ExportScreen.jsx";
 import PhotoDetail from "./features/photo_generation/PhotoDetail.jsx";
 import { routeFromPath, useRoute } from "./shared/router.js";
-import { StatusErrorCard } from "./shared/StatusErrorCard.jsx";
 
+// The record fills the photo panel's boxes and nothing else on the screen reads it, so the screen
+// is drawn whatever became of it and the one panel that asked carries the waiting (madde 31).
+// The status is not passed on as a status: what a panel needs to know is whether it has the record,
+// and if not, whether something went wrong.
 function ProjectRoute({ project }) {
   const { status, settings, error, save, reload } = useProjectSettings(project);
-  if (status === "loading") return <ProjectLoading project={project} />;
-  if (status === "error") {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center",
-                    justifyContent: "center", padding: 32 }}>
-        <StatusErrorCard text="Proje ayarları yüklenemedi" raw={error} onRetry={reload} />
-      </div>
-    );
-  }
-  return <ProjectScreen project={project} settings={settings} onSaveSettings={save} />;
+  return (
+    <ProjectScreen project={project}
+                   settings={status === "ready" ? settings : null}
+                   settingsError={status === "error" ? error : null}
+                   onRetrySettings={reload}
+                   onSaveSettings={save} />
+  );
 }
 
 export default function App() {

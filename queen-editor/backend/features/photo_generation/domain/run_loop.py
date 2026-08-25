@@ -14,8 +14,19 @@ second map, exactly the way it finds the producer.
 """
 import time
 
-from backend.features.photo_generation.domain import layers, policy, queue
+from backend.features.photo_generation.domain import layers, policy, production_mode, queue, seed
 from backend.features.photo_generation.domain.photo_name import layer_file, photo_file
+
+
+class MissingEndFrame(RuntimeError):
+    """A linked video's target frame has no photo to end on.
+
+    frame_level, so policy treats it the way it treats a graph that blew up: this one tile turns red
+    and the queue goes on. The alternative -- quietly rendering a plain video instead -- would hand
+    the user something other than what they asked for and say nothing about it.
+    """
+
+    frame_level = True
 
 
 def _prompts_of(record, project, fid):
@@ -47,8 +58,51 @@ def _source_for(kind, store, slots, project, fid):
     return (cell["file"], store.read(project, cell["file"]))
 
 
+def _end_for(job, store, slots, project, fid, source):
+    """The picture this job's video arrives at, as (name, bytes); None when it arrives nowhere.
+
+    Read at the job's turn like the source is, and for the same reason: the file is on Drive and the
+    run may have started hours ago.
+
+    A loop ends on the frame's own picture -- the very file it is being made from -- so `source` is
+    handed back rather than read a second time.
+    """
+    mode = production_mode.of(job)
+    if mode == production_mode.STANDARD:
+        return None
+    if mode == production_mode.LOOP:
+        return source
+    target = job.get("linkedTo")
+    cell = slots.get(target, {}).get(layers.PHOTO) if target else None
+    if not cell:
+        # Deleted between the press and the render. Named in the message, because "the frame it was
+        # told to end on" is the one thing the user cannot work out from the tile.
+        raise MissingEndFrame(f"Bağlanacak karenin fotoğrafı yok: {target or '?'}")
+    return (cell["file"], store.read(project, cell["file"]))
+
+
+def _made_with(job, end):
+    """What the produced row says about how it was made, beyond its words and its seed.
+
+    The mode, and the name of the picture the video arrived at -- each only when there is one.
+
+    Which jobs carry a mode is the queue's rule (queue_layer puts the field on video jobs alone) and
+    it is not written a second time here, where the two could drift apart. A photo row saying
+    standard would be a field that means nothing on nearly every line it appears on.
+
+    The ending picture is named by the file the render was actually handed, not by the target's
+    identity. The detail page prints that name, and an identity resolved later can resolve to
+    nothing: the frame a video ends on can be deleted while the video stays.
+    """
+    made = {"mode": production_mode.of(job)} if job.get("mode") else {}
+    if end:
+        made["endsOn"] = end[0]
+    return made
+
+
 def make_job(runner, store, record, plan_store, producers, now, project,
-             clock=time.monotonic, log=None, order_store=None, writers=None):
+             clock=time.monotonic, log=None, order_store=None, writers=None,
+             new_seed=seed.random_seed, named=None):
     """Returns the callable PhotoRunner.start expects: it drains this project's queue.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
@@ -63,12 +117,27 @@ def make_job(runner, store, record, plan_store, producers, now, project,
     done in, read from its foot up. Without one the plan's sequence stands, which is what a project
     nobody has dragged in looks like anyway.
 
+    `new_seed` is where a job with no seed of its own gets one. Chosen here rather than inside a
+    producer because the number has to be written on the produced layer's row as well, and this is
+    the only place standing between the render and that row. A default rather than a required
+    argument: every caller reaches the queue through this function, and none of them has a reason to
+    know about seeds.
+
     `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
     says is decided here; where it lands is main.py's to choose, so the loop can be tested without
     capturing output and the clock can be faked instead of waited on.
+
+    `named` is where the project's name is read from, turn by turn: a project IS a folder and it can
+    be renamed under a run, so a name captured once would leave the next turn reading a folder that
+    is not there. It defaults to the runner's own holder -- the runner is what every way into the
+    queue already carries. A caller that hands its own is a test watching the run follow a move.
     """
+    if named is None:
+        named = runner.named
+        named.took(project)
 
     def snapshot():
+        project = named.now()
         return (plan_store.read(project)["frames"], record.slots(project),
                 order_store.read(project) if order_store else ())
 
@@ -80,10 +149,13 @@ def make_job(runner, store, record, plan_store, producers, now, project,
         # Attempts spent on the job in hand, which job they belong to, and the prompt written for
         # it. Memory only: a dead process must leave no count behind, and a restarted run deserves
         # three fresh tries.
-        attempts, holding, written = 0, None, None
+        attempts, holding, written, chosen = 0, None, None, None
         while True:
             if runner.stop_requested():
                 return summary("paused")
+            # Read again every turn: a rename moves the folder under the run, and this is what lets
+            # the next turn simply work in the new one.
+            project = named.now()
             jobs, slots, order = snapshot()
             owed = queue.open_jobs(jobs, slots, order)
             if not owed:
@@ -106,8 +178,14 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             name = layer_file(kind, fid, video=(slots.get(fid, {}).get(layers.VIDEO) or {}).get(
                 "file"))
             if name != holding:
-                # A different job: its predecessor's attempts and written prompt are not its own.
-                holding, attempts, written = name, 0, None
+                # A different job: its predecessor's attempts, written prompt and seed are not its
+                # own.
+                holding, attempts, written, chosen = name, 0, None, None
+            if chosen is None:
+                # A layer job is planned with no seed (queue_layer). Picked before the render, and
+                # once per job rather than once per attempt: all three tries share it, so the row
+                # names the number every one of them used.
+                chosen = current["seed"] if current["seed"] is not None else new_seed()
             # pending is what the gallery draws as "bekliyor": the queue behind the job being done.
             # failures names the tiles it draws red, each with its own Tekrar dene.
             runner.report({**queue.counts(jobs, slots), "current": current,
@@ -128,9 +206,14 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     if any(source.values()):
                         written = writer.write(source)
                 prompt = current["prompt"] or written or ""
-                data = producer.generate(prompt, current["negative"], current["seed"],
-                                         current["model"],
-                                         source=_source_for(kind, store, slots, project, fid))
+                # Held in a variable because a loop ends on the very file it is made from: reading
+                # it twice would be the same download from Drive twice, once per video.
+                under = _source_for(kind, store, slots, project, fid)
+                # Held because the row names it too: the picture the video arrives at is what the
+                # detail page prints for a linked one.
+                ending = _end_for(current, store, slots, project, fid, under)
+                data = producer.generate(prompt, current["negative"], chosen,
+                                         current["model"], source=under, end=ending)
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job
@@ -144,8 +227,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 if policy.is_frame_fault(exc):
                     # The renderer answered three times that this one job is what failed. The queue
                     # owes the rest nothing, so the tile turns red where it stands and work goes on.
-                    record.mark(project, fid, kind, name, queue.FAILED, now(),
-                                error=policy.frame_reason(exc, attempts))
+                    with named.steady() as project:
+                        record.mark(project, fid, kind, name, queue.FAILED, now(),
+                                    error=policy.frame_reason(exc, attempts))
                     attempts, holding = 0, None
                     continue
                 # No answer came at all, three times: the next job would fall the same way, so the
@@ -153,12 +237,17 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # from it rather than leaving a red tile the user has to rescue by hand.
                 return summary("error", error=f"{policy.stop_reason(attempts)}\n{exc}")
             rendered = clock()
-            filename = store.save(project, name, data)
-            # Only after the file exists: the line is what "this layer is here" means.
-            record.append(project, {"file": filename, "frame": fid, "layer": kind,
-                                    "status": queue.DONE,
-                                    "prompt": prompt, "negative": current["negative"],
-                                    "seed": current["seed"], "createdAt": now()})
+            # Together and under the gate: the storage layer creates a folder it is missing, so a
+            # save that resolved the old name after a rename would leave a ghost project beside the
+            # real one with this single file in it.
+            with named.steady() as project:
+                filename = store.save(project, name, data)
+                # Only after the file exists: the line is what "this layer is here" means.
+                record.append(project, {"file": filename, "frame": fid, "layer": kind,
+                                        "status": queue.DONE,
+                                        "prompt": prompt, "negative": current["negative"],
+                                        "seed": chosen, "createdAt": now(),
+                                        **_made_with(current, ending)})
             if log:
                 # Two numbers, never one: the render is the GPU's share and the writes are the
                 # pipeline's, and speed decisions need to tell them apart.

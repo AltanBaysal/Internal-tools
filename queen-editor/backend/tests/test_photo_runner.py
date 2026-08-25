@@ -17,6 +17,17 @@ def test_the_jobs_summary_becomes_the_state():
                                "done": 6, "failed": 0, "total": 6}
 
 
+def test_the_runner_follows_a_project_that_was_renamed_under_it():
+    # The screen compares the status's project with its own, so a stale stamp would hide a run from
+    # the very page watching it.
+    runner = PhotoRunner(spawn=lambda fn: None)
+    runner.start("düğün", lambda: {"status": "done"})
+
+    runner.rename("düğün", "nikah")
+
+    assert runner.status()["project"] == "nikah"
+
+
 def test_report_updates_progress_while_the_job_runs():
     runner = sync_runner()
     seen = []

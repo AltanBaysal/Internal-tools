@@ -19,3 +19,11 @@ class DriveProjectStore:
     def delete(self, name):
         """Remove the project folder with everything in it; False when there was nothing to remove."""
         return self.storage.delete_dir(name)
+
+    def rename(self, old, new):
+        """The renamed project, None when the new name is taken, False when the old one is gone."""
+        moved = self.storage.rename_dir(old, new)
+        # `is` and not truthiness: an mtime can be 0.0 and that is a success.
+        if moved is None or moved is False:
+            return moved
+        return Project(new, moved)

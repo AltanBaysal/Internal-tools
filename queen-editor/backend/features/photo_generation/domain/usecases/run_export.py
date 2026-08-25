@@ -1,4 +1,5 @@
-"""Write the project's videos out: one file per frame, or one file for all of them.
+"""Write the project's videos out: one file per frame, or one file for all of them -- and the
+pictures they were made from, in a folder of their own.
 
 The order is the gallery's, read from its foot up -- the same order the export summary counts and
 the same one the badge counts from. Numbering follows it: 01 is the start of the sequence.
@@ -31,6 +32,19 @@ def start_export(runner, store, record, plan_store, order_store, exporter, now, 
                                       exporter, now, project, mode))
 
 
+def _extension(filename):
+    """The picture's own suffix, dot included, or nothing at all.
+
+    The number belongs to the export and the suffix to the file: writing .png into the code would
+    name the first jpg wrongly, and nothing on screen would say so.
+
+    Read from the name rather than from the path -- a file's name is what this layer has, and where
+    it sits on disk is the store's business.
+    """
+    head, dot, tail = filename.rpartition(".")
+    return f".{tail}" if dot and head else ""
+
+
 def _audio_of(frame):
     """The sound laid over this frame's video, or None -- a failed one is not there."""
     if layers.AUDIO in frame.get("failed", []):
@@ -57,6 +71,13 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
             exporter.piece(store.file_path(project, frame["layers"][layers.VIDEO]),
                            _audio(store, project, frame), target)
             pieces.append(target)
+            # The picture goes in under its video's own number, so the photos folder reads as the
+            # same sequence and nothing has to be matched up by hand. A frame that somehow has no
+            # picture leaves none: its video is written all the same.
+            photo = frame.get("layers", {}).get(layers.PHOTO)
+            if photo:
+                store.copy_photo(store.file_path(project, photo), folder,
+                                 f"{index:02d}{_extension(photo)}")
             runner.report(mode, written=index)
         if mode == MERGED:
             runner.report(mode, state="merging")

@@ -1,6 +1,8 @@
-from backend.features.photo_generation.domain.copy_frame import next_id
+from backend.features.photo_generation.domain.copy_frame import next_copy_id, next_id
 from backend.features.photo_generation.domain.photo_name import (
     audio_file,
+    copy_id,
+    copy_parts,
     frame_id,
     frame_id_of,
     layer_file,
@@ -116,3 +118,32 @@ def test_a_gap_left_by_a_deleted_variant_is_not_reused():
 
 def test_the_first_copy_of_an_untouched_number_is_variant_zero():
     assert next_id({"P4_0"}, 11) == "P11_0"
+
+
+def test_a_twin_is_named_after_its_source_with_the_prefix_in_front():
+    # At the front, because a suffix would read as another layer round (madde 78).
+    assert copy_id("P11_1", 1) == "C1_P11_1"
+    assert copy_id("P11_1", 2) == "C2_P11_1"
+
+
+def test_a_twin_still_claims_its_sources_prompt_number_and_variant():
+    # It is holding the source's picture, and that picture was made by prompt 11.
+    assert (number_of("C1_P11_1"), variant_of("C1_P11_1")) == (11, 1)
+    # The legacy scheme reads the same way through the prefix.
+    assert (number_of("C2_11_b"), variant_of("C2_11_b")) == (11, 1)
+
+
+def test_a_name_with_no_prefix_is_its_own_base():
+    assert copy_parts("P11_1") == (None, "P11_1")
+    assert copy_parts("C1_P11_1") == (1, "P11_1")
+    # A copy of a copy is another copy of the same base -- the prefix never nests.
+    assert copy_parts("C2_P11_1") == (2, "P11_1")
+
+
+def test_a_twin_takes_the_next_copy_index_its_base_has_ever_carried():
+    # Counting from one, never reusing a gap: a deleted twin keeps its line in the record, so its
+    # name stays claimed -- next_id's rule, for the same reason.
+    assert next_copy_id({"P11_1"}, "P11_1") == "C1_P11_1"
+    assert next_copy_id({"P11_1", "C1_P11_1", "C3_P11_1"}, "P11_1") == "C4_P11_1"
+    # Copying the copy counts against the same base rather than nesting the prefix.
+    assert next_copy_id({"P11_1", "C1_P11_1"}, "C1_P11_1") == "C2_P11_1"

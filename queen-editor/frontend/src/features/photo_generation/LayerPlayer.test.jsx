@@ -71,4 +71,46 @@ describe("LayerPlayer", () => {
 
     expect(audio.currentTime).toBe(3);
   });
+
+  it("brings the clock inside the video", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+
+    // Fark 114: the times and the line sat under the video in a framed row of their own, so the
+    // player read as two things stacked rather than one.
+    expect(document.querySelector("[data-scene] [data-track]")).toBeTruthy();
+    expect(document.querySelector("[data-track]").style.position).toBe("absolute");
+  });
+
+  it("takes the frame off the progress line", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+
+    // A line over a picture needs no box around it: the picture is the contrast.
+    expect(document.querySelector("[data-progress]").parentElement.className)
+      .not.toContain("wf-stroke");
+  });
+
+  it("brings the waveform inside the video too", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" />);
+
+    expect(document.querySelector("[data-scene] [data-bar]")).toBeTruthy();
+  });
+
+  it("draws the bars nobody has reached yet in translucent white", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" />);
+
+    // Fark 115: the faintest ink is a tone for text on the panel's own ground, and these bars
+    // stand on a picture.
+    expect(document.querySelectorAll("[data-bar]")[45].style.background)
+      .toMatch(/rgba\(255,\s*255,\s*255/);
+  });
+
+  it("gives the play button an outline and a drawn glyph", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+
+    // Fark 116: the mark inside it was a text character, which is a different shape in every font
+    // the browser might fall back to.
+    const button = screen.getByRole("button", { name: "Oynat" });
+    expect(button.style.borderStyle).toBe("solid");
+    expect(button.querySelector("[data-glyph=play]")).toBeTruthy();
+  });
 });

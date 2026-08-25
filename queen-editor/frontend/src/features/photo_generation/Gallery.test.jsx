@@ -14,6 +14,24 @@ vi.mock("../../shared/router.js", () => ({
   photoPath: (project, file) => `/projects/${encodeURIComponent(project)}/photos/${file}`,
 }));
 
+// The tiles ask a shared queue before they download, and jsdom never loads a picture -- with the
+// real one the first tile would hold the only slot for the whole file. The fake grants nothing by
+// itself, and the order of its list is the order the tiles asked in.
+const queue = vi.hoisted(() => {
+  const waiting = [];
+  return {
+    waiting,
+    ask(grant) {
+      const ticket = { grant, done: () => {} };
+      waiting.push(ticket);
+      return ticket;
+    },
+    forget: () => { waiting.length = 0; },
+  };
+});
+
+vi.mock("../../shared/image_queue.js", () => ({ imageQueue: queue }));
+
 // What the server answers with: a frame's identity and status, plus which of its layers are still
 // owed and which blew up. The identity is what the gallery keys everything by; the file is only
 // what it shows. These fixtures name a frame after its own picture, which is the ordinary case --
@@ -31,6 +49,7 @@ const withVideo = (file, extra = {}) => done(file, {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  queue.forget();
 });
 
 // jsdom has no DataTransfer, so the component must not depend on one: it tracks the dragged tile
@@ -103,6 +122,22 @@ describe("Gallery ordering", () => {
     expect(onReorder).not.toHaveBeenCalled();
   });
 
+  it("puts the tiles in the queue in the order the frames are in", () => {
+    renderGallery();
+
+    act(() => queue.waiting[0].grant());
+
+    // The item's own promise: the gallery fills from the first frame to the last, whichever way
+    // the page was scrolled. FIFO is the queue's own test and asking at build is the tile's; what
+    // only this can say is that the first ticket belongs to the first frame.
+    expect(screen.getByAltText("2_a.png").getAttribute("src")).toBeTruthy();
+    expect(screen.getByAltText("1_a.png").getAttribute("src")).toBeNull();
+
+    act(() => queue.waiting[1].grant());
+
+    expect(screen.getByAltText("1_a.png").getAttribute("src")).toBeTruthy();
+  });
+
   it("goes to the detail page when a frame is clicked", () => {
     renderGallery();
 
@@ -111,6 +146,111 @@ describe("Gallery ordering", () => {
       `/projects/${encodeURIComponent("düğün")}/photos/2_a`);
   });
 
+});
+
+describe("Gallery — dragging a selection", () => {
+  // Five, not three: a scattered selection needs cards left standing between its members, and with
+  // three there is only one such card.
+  const FIVE = [done("4_a.png"), done("3_a.png"), done("2_a.png"), done("1_a.png"),
+                done("0_a.png")];
+
+  function selectAll(...names) {
+    names.forEach((name) => fireEvent.click(checkOf(name)));
+  }
+
+  it("takes the whole selection along when one of its cards is dragged", () => {
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("4_a.png", "3_a.png");
+
+    dragTile("4_a.png", "2_a.png");
+
+    expect(onReorder).toHaveBeenCalledWith(["2_a", "1_a", "4_a", "3_a", "0_a"]);
+  });
+
+  it("keeps the block in the gallery's order, not the order it was clicked in", () => {
+    // The selection is a list of presses; the sequence is the gallery's. Reading the presses would
+    // reverse a block whenever the user picked its cards from the bottom up.
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("0_a.png", "4_a.png");
+
+    dragTile("4_a.png", "2_a.png");
+
+    expect(onReorder).toHaveBeenCalledWith(["3_a", "2_a", "4_a", "0_a", "1_a"]);
+  });
+
+  it("gathers a scattered selection where it was dropped and closes the gap behind it", () => {
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("4_a.png", "2_a.png", "0_a.png");
+
+    dragTile("4_a.png", "3_a.png");
+
+    expect(onReorder).toHaveBeenCalledWith(["3_a", "4_a", "2_a", "0_a", "1_a"]);
+  });
+
+  it("moves only the card that was dragged when it is not in the selection", () => {
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("4_a.png", "3_a.png");
+
+    dragTile("0_a.png", "2_a.png");
+
+    expect(onReorder).toHaveBeenCalledWith(["4_a", "3_a", "0_a", "2_a", "1_a"]);
+  });
+
+  it("leaves the selection where it was when an unselected card is dragged", () => {
+    renderGallery({ frames: FIVE });
+    selectAll("4_a.png", "3_a.png");
+
+    dragTile("0_a.png", "2_a.png");
+
+    expect(screen.getByText("2 seçili")).toBeTruthy();
+  });
+
+  it("lets a card be picked up at all while frames are selected", () => {
+    // Until now dragging was switched off for the whole gallery as soon as anything was selected,
+    // which is the reason the sequence could not be moved without breaking the selection first.
+    renderGallery({ frames: FIVE });
+    selectAll("4_a.png");
+
+    expect(tileOf("4_a.png").getAttribute("draggable")).toBe("true");
+  });
+
+  it("puts the dragged look on every card in the block", () => {
+    renderGallery({ frames: FIVE });
+    selectAll("4_a.png", "3_a.png");
+
+    fireEvent.dragStart(tileOf("4_a.png"));
+
+    expect(tileOf("3_a.png").style.transform).toContain("rotate(-3deg)");
+    expect(tileOf("2_a.png").style.transform).toBe("");
+  });
+
+  it("adds nothing to the screen while the block is moving", () => {
+    // No count badge, no stack, no ghost card: the design asks for the single-card effect applied
+    // to the selection and nothing more.
+    renderGallery({ frames: FIVE });
+    selectAll("4_a.png", "3_a.png");
+    const before = document.querySelectorAll("[data-tile]").length;
+
+    fireEvent.dragStart(tileOf("4_a.png"));
+
+    expect(document.querySelectorAll("[data-tile]").length).toBe(before);
+  });
+
+  it("does not go to the server when the block lands where it already was", () => {
+    // from and to differ here -- the second card of the block was dropped on the first -- and the
+    // sequence still comes out unchanged. Comparing indices would miss it.
+    const onReorder = vi.fn();
+    renderGallery({ frames: FIVE, onReorder });
+    selectAll("4_a.png", "3_a.png");
+
+    dragTile("3_a.png", "4_a.png");
+
+    expect(onReorder).not.toHaveBeenCalled();
+  });
 });
 
 describe("Gallery — one sequence, four states", () => {
@@ -123,6 +263,9 @@ describe("Gallery — one sequence, four states", () => {
   ];
 
   const pillOf = (name) => tileOf(name).querySelector("[data-pill]");
+  // The box the pills stand in. A frame can owe two layers, and the second label reads under the
+  // first rather than beside it -- so the corner is a box of its own, not the pill's own position.
+  const cornerOf = (name) => tileOf(name).querySelector("[data-corner]");
 
   it("says the layer and the state in one pill, in the corner", () => {
     renderGallery({ frames: MIXED, current: "3_a", running: true });
@@ -132,25 +275,38 @@ describe("Gallery — one sequence, four states", () => {
     expect(pillOf("2_a.png").textContent).toBe("foto hata");
   });
 
-  it("writes a waiting frame's label in the brightest ink there is", () => {
-    // 9px over a photograph: the palette's third grey is not a quiet label there, it is one nobody
-    // can read. The other two states carry their own bright colours already.
+  it("writes a waiting frame's label in a quieter ink than the ones that carry a colour", () => {
+    // The design's soft tone, read as the palette's second grey rather than its third: the badge in
+    // the opposite corner already carries that one at this very size, so it is the faint tone whose
+    // readability this card has already proved. The other two states say what they are in colour.
     renderGallery({ frames: MIXED, current: "3_a" });
 
-    expect(pillOf("4_a.png").style.color).toBe("var(--ink)");
+    expect(pillOf("4_a.png").style.color).toBe("var(--ink-2)");
     expect(pillOf("3_a.png").style.color).toBe("var(--accent)");
     expect(pillOf("2_a.png").style.color).toBe("var(--danger)");
+  });
+
+  it("gives the label a lighter ground and more room inside it", () => {
+    // Measure belongs to the mould and colour to the state: a stack of two must not show two
+    // different grounds, so the ground and the padding change on every pill and the ink only on the
+    // one the design speaks of. The digits are matched loosely -- what is fixed is the tone, not
+    // how a browser spells it back.
+    renderGallery({ frames: MIXED, current: "3_a" });
+
+    expect(pillOf("4_a.png").style.background).toMatch(/10,\s*8,\s*7,\s*0?\.7\)/);
+    expect(pillOf("4_a.png").style.padding).toBe("3px 7px");
   });
 
   it("puts the state pill in the top left, where the design asks for it", () => {
     // It used to sit at the bottom because the select ring owned this corner and appeared under
     // the pointer, so the pill had to get out of the way. The ring moved to the other side
-    // (2026-08-13), and the corner is the pill's again.
+    // (2026-08-13), and the corner is the pill's again. The corner is the box now, not the pill: a
+    // frame can be waiting for two layers and both of them stand in it (Fark 64).
     renderGallery({ frames: MIXED, current: "3_a", running: true });
 
-    expect(pillOf("4_a.png").style.top).toBe("6px");
-    expect(pillOf("4_a.png").style.left).toBe("6px");
-    expect(pillOf("4_a.png").style.bottom).toBe("");
+    expect(cornerOf("4_a.png").style.top).toBe("6px");
+    expect(cornerOf("4_a.png").style.left).toBe("6px");
+    expect(cornerOf("4_a.png").style.bottom).toBe("");
   });
 
   const badgeOf = (name) => tileOf(name).querySelector(".qe-badge");
@@ -189,12 +345,12 @@ describe("Gallery — one sequence, four states", () => {
     // The whole point of the new layout: something appearing is not something moving, so nothing
     // in the card shifts under the pointer.
     renderGallery({ frames: MIXED, current: null });
-    const before = pillOf("4_a.png").style.top;
+    const before = cornerOf("4_a.png").style.top;
 
     fireEvent.click(checkOf("4_a.png"));
 
-    expect(pillOf("4_a.png").style.top).toBe(before);
-    expect(pillOf("4_a.png").style.top).toBe("6px");
+    expect(cornerOf("4_a.png").style.top).toBe(before);
+    expect(cornerOf("4_a.png").style.top).toBe("6px");
   });
 
   it("gives a produced frame no pill -- the photo is the answer", () => {
@@ -203,12 +359,30 @@ describe("Gallery — one sequence, four states", () => {
     expect(pillOf("1_a.png")).toBeNull();
   });
 
-  it("never puts two pills on one frame", () => {
-    renderGallery({ frames: MIXED, current: "3_a" });
+  it("gives a frame that owes two layers a label for each", () => {
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video", "audio"] })], running: true });
 
-    for (const frame of MIXED) {
-      expect(tileOf(frame.file).querySelectorAll("[data-pill]").length).toBeLessThan(2);
-    }
+    expect([...tileOf("P0_0.png").querySelectorAll("[data-pill]")].map((one) => one.textContent))
+      .toEqual(["video kuyrukta", "ses kuyrukta"]);
+  });
+
+  it("stacks the second label under the first", () => {
+    // In the queue's own order, which is the order owed already comes in: the labels read the way
+    // the work will happen.
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video", "audio"] })], running: true });
+
+    expect(cornerOf("P0_0.png").style.flexDirection).toBe("column");
+    expect(cornerOf("P0_0.png").querySelectorAll("[data-pill]")).toHaveLength(2);
+  });
+
+  it("says one thing while a layer is being made, however much is still owed", () => {
+    // Only the debt became a list. What the worker is holding is one job, and a card naming it
+    // beside two more would bury the picture under it.
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video", "audio"] })],
+                    current: "P0_0", currentLayer: "video", running: true });
+
+    expect([...tileOf("P0_0.png").querySelectorAll("[data-pill]")].map((one) => one.textContent))
+      .toEqual(["video üretiliyor"]);
   });
 
   it("keeps every frame in its own place whatever became of it", () => {
@@ -403,6 +577,24 @@ describe("Gallery selection mode", () => {
     expect(screen.getByText("1 seçili").closest("[style*='sticky']").style.bottom).toBe("28px");
   });
 
+  it("narrows the space between the bar's items", () => {
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+
+    // Six buttons now, and 14 was a bar with three (Fark 83).
+    expect(screen.getByText("1 seçili").parentElement.style.gap).toBe("10px");
+  });
+
+  it("keeps every button's words on one line", () => {
+    renderGallery();
+    fireEvent.click(checkOf("1_a.png"));
+
+    // Whether the bar really fits on one line is a question jsdom cannot answer -- it computes no
+    // layout. What it can hold is the rule that keeps a label from breaking in two, and that also
+    // stops a flex item shrinking below its own text.
+    expect(screen.getByText("1 seçili").parentElement.style.whiteSpace).toBe("nowrap");
+  });
+
   it("takes the bar away when the selection is emptied", () => {
     renderGallery();
     fireEvent.click(checkOf("1_a.png"));
@@ -452,6 +644,250 @@ describe("Gallery selection mode", () => {
     fireEvent.click(screen.getByText("Tümünü seç"));
 
     expect(inSelectMode()).toBe(0);
+  });
+});
+
+describe("Gallery — copying a card", () => {
+  const twins = (copies) => vi.fn().mockResolvedValue(copies);
+
+  it("puts Kopyala in the bar, to the left of Sil", () => {
+    renderGallery({ onCopy: twins(["C1_1_a"]) });
+    fireEvent.click(checkOf("1_a.png"));
+
+    const bar = screen.getByText("1 seçili").parentElement;
+    // Trimmed: Sil carries its trash glyph, so its text starts with a space. What is being read
+    // here is the order of the words, not the spacing around them.
+    const words = [...bar.querySelectorAll("button")].map((one) => one.textContent.trim());
+    expect(words).toEqual(["Tümünü seç", "Kopyala", "Sil", "Vazgeç"]);
+  });
+
+  it("draws no Kopyala when only frames that are not produced are selected", () => {
+    renderGallery({ frames: [pending("2_a.png"), done("1_a.png")], onCopy: twins([]) });
+    fireEvent.click(checkOf("2_a.png"));
+
+    // Nothing in the selection owns a layer, so there is nothing to press (Fark 79).
+    expect(screen.queryByText("Kopyala")).toBeNull();
+    expect(screen.getByText("Sil")).toBeTruthy();
+  });
+
+  it("copies only the produced frames of a mixed selection", async () => {
+    const onCopy = twins(["C1_1_a"]);
+    renderGallery({ frames: [pending("2_a.png"), done("1_a.png")], onCopy });
+    fireEvent.click(checkOf("2_a.png"));
+    fireEvent.click(checkOf("1_a.png"));
+
+    await act(async () => { fireEvent.click(screen.getByText("Kopyala")); });
+
+    expect(onCopy).toHaveBeenCalledWith(["1_a"]);
+  });
+
+  it("moves the selection onto the twins", async () => {
+    const onCopy = twins(["C1_1_a"]);
+    renderGallery({ frames: [done("2_a.png"), done("C1_1_a.png"), done("1_a.png")], onCopy });
+    fireEvent.click(checkOf("1_a.png"));
+
+    await act(async () => { fireEvent.click(screen.getByText("Kopyala")); });
+
+    // How the copy is noticed: no notification of its own (Fark 77).
+    expect(screen.getByText("1 seçili")).toBeTruthy();
+    expect(checkOf("C1_1_a.png").className).toContain("qe-check--on");
+    expect(checkOf("1_a.png").className).not.toContain("qe-check--on");
+  });
+
+  it("copies with Ctrl + D as well as with the button", async () => {
+    const onCopy = twins(["C1_1_a"]);
+    renderGallery({ onCopy });
+    fireEvent.click(checkOf("1_a.png"));
+
+    await act(async () => { fireEvent.keyDown(window, { key: "d", ctrlKey: true }); });
+
+    expect(onCopy).toHaveBeenCalledWith(["1_a"]);
+  });
+
+  it("takes Ctrl + D away from the browser", () => {
+    renderGallery({ onCopy: twins(["C1_1_a"]) });
+    fireEvent.click(checkOf("1_a.png"));
+
+    // Left alone it opens the bookmark window, which is never what was meant over a selection.
+    const taken = !fireEvent.keyDown(window, { key: "d", ctrlKey: true, cancelable: true });
+
+    expect(taken).toBe(true);
+  });
+
+  it("leaves Ctrl + D alone while the confirm window is open", () => {
+    const onCopy = twins(["C1_1_a"]);
+    renderGallery({ onCopy });
+    fireEvent.click(checkOf("1_a.png"));
+    fireEvent.click(screen.getByText("Sil"));
+
+    fireEvent.keyDown(window, { key: "d", ctrlKey: true });
+
+    // The window owns the keyboard while it is up -- the same rule Esc follows.
+    expect(onCopy).not.toHaveBeenCalled();
+  });
+
+  it("presses nothing when the shortcut is used on a selection with nothing to copy", () => {
+    const onCopy = twins([]);
+    renderGallery({ frames: [pending("2_a.png"), done("1_a.png")], onCopy });
+    fireEvent.click(checkOf("2_a.png"));
+
+    fireEvent.keyDown(window, { key: "d", ctrlKey: true });
+
+    expect(onCopy).not.toHaveBeenCalled();
+  });
+});
+
+describe("Gallery — taking a layer off many frames", () => {
+  // A frame that carries all three layers. withVideo spreads its extra after its own map, so this
+  // replaces that map rather than adding to it.
+  const withSound = (file) => withVideo(file, {
+    layers: { photo: file, video: file.replace(".png", "_V1_0.mp4"),
+              audio: file.replace(".png", "_V1_0_S1_0.wav") },
+  });
+  // Three frames, three answers to "does it carry this layer": both, video only, neither.
+  const MIXED = [withSound("2_a.png"), withVideo("1_a.png"), done("0_a.png")];
+  const remover = () => vi.fn().mockResolvedValue({ deleted: [] });
+
+  function pick(...names) {
+    names.forEach((name) => fireEvent.click(checkOf(name)));
+  }
+
+  it("puts the two layer buttons to the right of Sil", () => {
+    renderGallery({ frames: MIXED, onCopy: vi.fn(), onRemoveLayer: remover() });
+    pick("2_a.png");
+
+    const bar = screen.getByText("1 seçili").parentElement;
+    const words = [...bar.querySelectorAll("button")].map((one) => one.textContent.trim());
+    expect(words).toEqual(["Tümünü seç", "Kopyala", "Sil", "Videoları sil", "Sesleri sil",
+                           "Vazgeç"]);
+  });
+
+  it("draws no Videoları sil when nothing selected carries a video", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("0_a.png");
+
+    // A window asking about 0 frames is not a window, so the button is simply not there.
+    expect(screen.queryByText("Videoları sil")).toBeNull();
+    expect(screen.queryByText("Sesleri sil")).toBeNull();
+  });
+
+  it("draws no Sesleri sil when nothing selected carries a sound", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("1_a.png");
+
+    expect(screen.getByText("Videoları sil")).toBeTruthy();
+    expect(screen.queryByText("Sesleri sil")).toBeNull();
+  });
+
+  it("counts only the frames that carry the layer", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png", "0_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+
+    expect(screen.getByText("2 karenin videosu silinsin mi?")).toBeTruthy();
+  });
+
+  it("names the frames it will skip", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png", "0_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+
+    // First, because it is what explains the number in the title.
+    expect(screen.getByText(
+      "Seçili 3 kareden videosu olmayan 1 kare atlanır. "
+      + "Kareler ve fotoğrafları kalır. Videoya bindirilen sesler de gider.")).toBeTruthy();
+  });
+
+  it("says nothing about skipping when every selected frame carries the layer", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+
+    expect(screen.queryByText(/atlanır/)).toBeNull();
+  });
+
+  it("promises the video stays when the sound is the one going", () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png");
+
+    fireEvent.click(screen.getByText("Sesleri sil"));
+
+    expect(screen.getByText("1 karenin sesi silinsin mi?")).toBeTruthy();
+    expect(screen.getByText("Kareler, fotoğrafları ve videoları kalır.")).toBeTruthy();
+  });
+
+  it("sends only the frames that carry the layer", async () => {
+    const onRemoveLayer = remover();
+    renderGallery({ frames: MIXED, onRemoveLayer });
+    pick("2_a.png", "1_a.png", "0_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+    // The window's own Sil is the last one on screen; the bar's is the first.
+    await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
+
+    expect(onRemoveLayer).toHaveBeenCalledWith(["2_a", "1_a"], "video");
+  });
+
+  it("sends nothing when the window is cancelled", () => {
+    const onRemoveLayer = remover();
+    renderGallery({ frames: MIXED, onRemoveLayer });
+    pick("2_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+    // The window's own Vazgeç, not the bar's -- what is being cancelled is the deletion, and the
+    // selection behind it stays.
+    fireEvent.click(screen.getAllByText("Vazgeç").at(-1));
+
+    expect(onRemoveLayer).not.toHaveBeenCalled();
+    expect(screen.queryByText("1 karenin videosu silinsin mi?")).toBeNull();
+  });
+
+  it("closes the selection once the layer is gone", async () => {
+    renderGallery({ frames: MIXED, onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+    await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
+
+    expect(screen.queryByText("2 seçili")).toBeNull();
+  });
+
+  it("does not count a video that blew up", () => {
+    // The tile shows no video badge for a red layer, and the window has to agree with the tile.
+    renderGallery({ frames: [withVideo("2_a.png"), withVideo("1_a.png", { failed: ["video"] })],
+                    onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png");
+
+    fireEvent.click(screen.getByText("Videoları sil"));
+
+    expect(screen.getByText("1 karenin videosu silinsin mi?")).toBeTruthy();
+    expect(screen.getByText(/videosu olmayan 1 kare atlanır/)).toBeTruthy();
+  });
+
+  it("draws no layer buttons while a frame that is not produced is in the selection", () => {
+    // What these two take off is a finished stack, and the queue is still writing into that one.
+    renderGallery({ frames: [withSound("2_a.png"), pending("1_a.png")],
+                    onRemoveLayer: remover() });
+    pick("2_a.png", "1_a.png");
+
+    expect(screen.queryByText("Videoları sil")).toBeNull();
+    expect(screen.queryByText("Sesleri sil")).toBeNull();
+    // The frames themselves can still go, and the produced one can still be copied.
+    expect(screen.getByText("Sil")).toBeTruthy();
+    expect(screen.getByText("Kopyala")).toBeTruthy();
+  });
+
+  it("leaves three buttons in the bar when only frames that are not produced are selected", () => {
+    renderGallery({ frames: [pending("2_a.png"), pending("1_a.png")],
+                    onCopy: vi.fn(), onRemoveLayer: remover() });
+    pick("2_a.png");
+
+    const bar = screen.getByText("1 seçili").parentElement;
+    const words = [...bar.querySelectorAll("button")].map((one) => one.textContent.trim());
+    expect(words).toEqual(["Tümünü seç", "Sil", "Vazgeç"]);
   });
 });
 
@@ -637,14 +1073,6 @@ describe("Gallery — picking a tile up", () => {
     expect(tileOf("9_a.png").draggable).toBe(true);
   });
 
-  it("lets nothing be dragged while a selection is open", () => {
-    renderGallery();
-
-    fireEvent.click(checkOf("0_a.png"));
-
-    // One gesture cannot mean two things: while frames are being picked, a press is a pick.
-    expect(tileOf("1_a.png").draggable).toBe(false);
-  });
 });
 
 describe("Gallery — a layer that blew up", () => {
@@ -657,6 +1085,30 @@ describe("Gallery — a layer that blew up", () => {
     expect(screen.getByAltText("P0_0.png")).toBeTruthy();
     expect(tileOf("P0_0.png").querySelector("[data-veil]")).toBeTruthy();
     expect(screen.getByText("Tekrar dene")).toBeTruthy();
+  });
+
+  it("brings the veil down in the app's own brown black", () => {
+    // The tone every other label on this card already stands on, rather than a pure black that
+    // belongs to no palette here. Only the tone changes; how much of the photo shows through does
+    // not.
+    renderGallery({ frames: [brokenVideo], onRetry: () => {} });
+
+    expect(tileOf("P0_0.png").querySelector("[data-veil]").style.background)
+      .toMatch(/10,\s*8,\s*7/);
+  });
+
+  it("stands the way back on the card's own ground", () => {
+    renderGallery({ frames: [brokenVideo], onRetry: () => {} });
+
+    expect(screen.getByText("Tekrar dene").closest("button").style.background).toBe("var(--bg-2)");
+  });
+
+  it("leaves the button on an empty red card without one", () => {
+    // The ground belongs to the veil's button alone: this one already stands on a card of its own,
+    // and a second ground would be a box drawn inside a box.
+    renderGallery({ frames: [broken("P0_0.png")], onRetry: () => {} });
+
+    expect(screen.getByText("Tekrar dene").closest("button").style.background).toBe("transparent");
   });
 
   it("keeps the middle of an empty red card for its own button", () => {
@@ -689,20 +1141,52 @@ describe("Gallery — a layer that blew up", () => {
 });
 
 describe("Gallery — what a frame owns", () => {
+  const ownsOf = (name) => tileOf(name).querySelector("[data-owns]");
+  const badgesOf = (name) => [...tileOf(name).querySelectorAll("[data-own]")];
+  const HAS_BOTH = withVideo("P0_0.png", {
+    layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" } });
+
   it("marks a frame that has a video", () => {
     renderGallery({ frames: [withVideo("P0_0.png")] });
 
     expect(screen.getByText("video")).toBeTruthy();
-    expect(document.querySelector("[data-glyph=play]")).toBeTruthy();
   });
 
   it("marks a frame that has a sound as well", () => {
-    renderGallery({ frames: [withVideo("P0_0.png", {
-      layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" } })] });
+    renderGallery({ frames: [HAS_BOTH] });
 
     expect(screen.getByText("video")).toBeTruthy();
     expect(screen.getByText("ses")).toBeTruthy();
-    expect(document.querySelector("[data-glyph=sound]")).toBeTruthy();
+  });
+
+  it("puts what the frame owns in the bottom left, and leaves the corner across from it empty",
+     () => {
+       // Four corners, four meanings: the state pill top left, the number and the select ring top
+       // right, what the frame owns bottom left. The fourth is left empty on purpose, so no two of
+       // them ever land on each other.
+       renderGallery({ frames: [withVideo("P0_0.png")] });
+
+       expect(ownsOf("P0_0.png").style.bottom).toBe("6px");
+       expect(ownsOf("P0_0.png").style.left).toBe("6px");
+       expect(ownsOf("P0_0.png").style.right).toBe("");
+     });
+
+  it("writes the word by itself -- no icon rides with it", () => {
+    renderGallery({ frames: [HAS_BOTH] });
+
+    expect(screen.getByText("video")).toBeTruthy();
+    expect(screen.getByText("ses")).toBeTruthy();
+    expect(document.querySelector("[data-glyph=play]")).toBeNull();
+    expect(document.querySelector("[data-glyph=sound]")).toBeNull();
+  });
+
+  it("gives each layer a box of its own", () => {
+    // Two words inside one dark box read as one thing the frame has. Each layer carries its own
+    // box, with a thin space between them.
+    renderGallery({ frames: [HAS_BOTH] });
+
+    expect(badgesOf("P0_0.png").map((one) => one.textContent)).toEqual(["video", "ses"]);
+    expect(ownsOf("P0_0.png").style.gap).toBe("4px");
   });
 
   it("does not call a failed sound something the frame owns", () => {
@@ -725,6 +1209,46 @@ describe("Gallery — what a frame owns", () => {
 
     expect(screen.queryByText("video")).toBeNull();
     expect(screen.getByText("video hata")).toBeTruthy();
+  });
+
+  it("marks a loop video with its own word", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", { modes: { video: "loop" } })] });
+
+    expect(screen.getByText("loop")).toBeTruthy();
+  });
+
+  it("never shows both words on one frame", () => {
+    // They share the corner: the badge is one row per layer, and loop takes the video row's word
+    // rather than standing beside it.
+    renderGallery({ frames: [withVideo("P0_0.png", { modes: { video: "loop" } })] });
+
+    expect(screen.queryByText("video")).toBeNull();
+  });
+
+  it("leaves a video made the plain way saying video", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", { modes: { video: "standard" } })] });
+
+    expect(screen.getByText("video")).toBeTruthy();
+    expect(screen.queryByText("loop")).toBeNull();
+  });
+
+  it("adds the sound beside the loop, not instead of it", () => {
+    renderGallery({ frames: [withVideo("P0_0.png", {
+      layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" },
+      modes: { video: "loop" } })] });
+
+    expect(screen.getByText("loop")).toBeTruthy();
+    expect(screen.getByText("ses")).toBeTruthy();
+  });
+
+  it("says nothing about a loop video that blew up", () => {
+    // A failed layer holds its slot but is not owned -- that tile is the pill's to speak for, and
+    // the mode must not smuggle a word past that rule.
+    renderGallery({ frames: [withVideo("P0_0.png", { modes: { video: "loop" },
+                                                     failed: ["video"] })] });
+
+    expect(screen.queryByText("loop")).toBeNull();
+    expect(screen.queryByText("video")).toBeNull();
   });
 
   it("keeps the photo on screen while the video is queued", () => {

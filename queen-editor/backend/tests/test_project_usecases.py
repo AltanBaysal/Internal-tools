@@ -9,6 +9,7 @@ from backend.features.projects.domain.usecases.create_project import (
 from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing, get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
+from backend.features.projects.domain.usecases.rename_project import rename_project
 from backend.features.projects.domain.usecases.save_settings import save_settings
 
 
@@ -27,6 +28,17 @@ class FakeStore:
         project = Project(name, 100.0)
         self.projects.append(project)
         return project
+
+    def rename(self, old, new):
+        """The renamed project, None when the new name is taken, False when the old one is gone."""
+        if any(p.name == new for p in self.projects):
+            return None
+        found = next((p for p in self.projects if p.name == old), None)
+        if found is None:
+            return False
+        self.projects = [Project(new, p.modified_at) if p.name == old else p
+                         for p in self.projects]
+        return next(p for p in self.projects if p.name == new)
 
 
 class RecordingStore(FakeStore):
@@ -90,6 +102,51 @@ def test_create_project_raises_when_name_taken():
     with pytest.raises(NameTaken) as exc:
         create_project(store, "düğün")
     assert str(exc.value) == "Bu ad zaten kullanılıyor. Başka bir ad dene."
+
+
+# The port the projects feature knows nothing behind: production follows the folder there
+# (photo_generation's own use case). Here it only has to run what it was handed.
+def straight(old, new, do):
+    return do()
+
+
+def test_rename_moves_the_project_and_leaves_the_rest_alone():
+    store = FakeStore([Project("düğün", 100.0), Project("nikah", 200.0)])
+
+    rename_project(store, straight, "düğün", "kına")
+
+    assert sorted(p.name for p in store.list()) == ["kına", "nikah"]
+
+
+def test_rename_rejects_a_name_that_breaks_a_rule_without_touching_the_store():
+    store = FakeStore([Project("düğün", 100.0)])
+    with pytest.raises(InvalidName) as exc:
+        rename_project(store, straight, "düğün", "foto/deneme")
+    assert "kullanılamaz" in str(exc.value)
+    assert [p.name for p in store.list()] == ["düğün"]
+
+
+def test_rename_says_the_same_sentence_creating_says_when_the_name_is_taken():
+    # One sentence for one situation: the user meets the same words whichever window they are in.
+    store = FakeStore([Project("düğün", 100.0), Project("nikah", 200.0)])
+    with pytest.raises(NameTaken) as exc:
+        rename_project(store, straight, "düğün", "nikah")
+    assert str(exc.value) == "Bu ad zaten kullanılıyor. Başka bir ad dene."
+
+
+def test_saving_a_project_under_its_own_name_is_not_a_clash():
+    # The design says so outright: the window closes and nothing moves.
+    store = FakeStore([Project("düğün", 100.0)])
+
+    rename_project(store, straight, "düğün", "düğün")
+
+    assert [p.name for p in store.list()] == ["düğün"]
+
+
+def test_renaming_a_project_that_is_not_there_says_so():
+    with pytest.raises(ProjectMissing) as exc:
+        rename_project(FakeStore(), straight, "yok", "başka")
+    assert str(exc.value) == "Proje yok: yok"
 
 
 class FakeSettingsStore:

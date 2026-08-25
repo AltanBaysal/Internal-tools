@@ -302,3 +302,39 @@ describe("ProjectScreen — a report nobody on this page watched", () => {
     expect(screen.getByText("Kuyruk boş")).toBeTruthy();
   });
 });
+
+describe("ProjectScreen — coming back to where the gallery was", () => {
+  const boxOf = () => document.querySelector("[data-scroll]");
+
+  it("opens the gallery at the place the screen was left at", () => {
+    const first = renderScreen("kayma");
+    boxOf().scrollTop = 640;
+
+    first.unmount();
+    renderScreen("kayma");
+
+    // The list was already remembered across mounts; this is the other half of standing still.
+    expect(boxOf().scrollTop).toBe(640);
+  });
+});
+
+describe("ProjectScreen — the queue panel before the first answer", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("keeps it quiet until the server has said something", async () => {
+    // The answer never lands: what the panel says now is what it says with nothing reported.
+    getStatus.mockImplementation(() => new Promise(() => {}));
+    renderScreen("sessiz");
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+
+    fireEvent.click(screen.getByLabelText("Kuyruğu takip et"));
+
+    // useGeneration has carried this answer all along and nobody was reading it. The wire is the
+    // whole of this item, and a wire that is missing fails quietly -- which is why it is tested
+    // from the screen and not only from the panel.
+    expect(screen.queryByText("Kuyruk boş")).toBeNull();
+  });
+});

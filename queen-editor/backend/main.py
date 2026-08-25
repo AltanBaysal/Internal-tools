@@ -1,6 +1,5 @@
 """Composition root -- build services, wire them into features, start Flask.
 Run as: python -m backend.main"""
-import random
 import time
 from datetime import datetime, timezone
 from functools import partial
@@ -15,11 +14,12 @@ from backend.features.photo_generation.data.xai_prompt_writer import (
     AudioPromptWriter,
     VideoPromptWriter,
 )
-from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain import layers, seed
 from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
+from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
@@ -27,6 +27,7 @@ from backend.features.photo_generation.domain.usecases.run_export import start_e
 from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
+from backend.features.photo_generation.domain.usecases.follow_rename import follow_rename
 from backend.features.photo_generation.domain.usecases.halt_project import halt_project
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
@@ -48,6 +49,7 @@ from backend.features.projects.domain.usecases.create_project import create_proj
 from backend.features.projects.domain.usecases.delete_project import delete_project
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
+from backend.features.projects.domain.usecases.rename_project import rename_project
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
 from backend.features.producers.domain.model_groups import GROUPS, audio_weights
@@ -69,6 +71,7 @@ _photo_store = DrivePhotoStore(_storage)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
 _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
+                                       config.VIDEO_FIRST_LAST_WORKFLOW_PATH,
                                        config.VIDEO_TIMEOUT)
 # Sound is the one producer that is not a ComfyUI graph: MMAudio runs inside this process. Where
 # its weights live is the producers feature's answer, so the path is taken from the group it
@@ -100,6 +103,10 @@ _projects_bp = make_projects_blueprint(
     delete_project=partial(delete_project, _project_store,
                            partial(halt_project, _photo_runner, _comfy_client.interrupt,
                                    time.sleep)),
+    # Renaming meets the worker too, but the other way round: the production is not stopped, it is
+    # carried over to the folder's new name.
+    rename_project=partial(rename_project, _project_store,
+                           partial(follow_rename, _photo_runner)),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
 )
@@ -128,7 +135,7 @@ def _timing(line):
 
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
-                        _producers, lambda: random.randint(0, 2**31 - 1),
+                        _producers, seed.random_seed,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing, order_store=_order_store, writers=_writers),
     get_status=partial(get_status, _photo_runner),
@@ -153,7 +160,7 @@ _photo_bp = make_photo_generation_blueprint(
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing, writers=_writers),
     regenerate=partial(regenerate, _photo_runner, _photo_store, _photo_record, _plan_store,
-                       _order_store, _producers, lambda: random.randint(0, 2**31 - 1),
+                       _order_store, _producers, seed.random_seed,
                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                        log=_timing, writers=_writers),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
@@ -170,6 +177,8 @@ _photo_bp = make_photo_generation_blueprint(
     cancel_export=_cancel_export,
     remove_frames=partial(remove_frames, _photo_record, _photo_store, _plan_store, _order_store,
                           lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+    copy_frames=partial(copy_frames, _photo_record, _photo_store, _plan_store, _order_store,
+                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     photo_dir=_photo_store.photo_dir,
 )
 

@@ -1,6 +1,8 @@
+from contextlib import contextmanager
+
 import pytest
 
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.domain.photo_name import (
     frame_id,
     frame_id_of,
@@ -8,15 +10,15 @@ from backend.features.photo_generation.domain.photo_name import (
     number_of,
     photo_file,
 )
+from backend.features.photo_generation.domain.frame_list import InvalidFrames
 from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.run_loop import make_job
-from backend.features.photo_generation.domain.usecases.remove_frames import (
-    InvalidFiles,
-    remove_frames,
-)
+from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
+from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.production_mode import InvalidMode
 from backend.features.photo_generation.domain.usecases.queue_layer import (
     frames_in_scope,
     queue_layer,
@@ -24,6 +26,7 @@ from backend.features.photo_generation.domain.usecases.queue_layer import (
 from backend.features.photo_generation.domain.usecases.regenerate import (
     FrameMissing,
     LayerMissing,
+    NoNextFrame,
     regenerate,
 )
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
@@ -102,6 +105,9 @@ class FakeGenerator:
     def __init__(self, fail_on=(), installed=("nova.safetensors",)):
         self.calls = []
         self.sources = []
+        # Kept apart from sources: what a layer is made from and where it arrives are two different
+        # questions, and one list holding both could not answer either.
+        self.ends = []
         self.models_called = 0
         self.fail_on = list(fail_on)
         self.installed = list(installed)
@@ -110,9 +116,10 @@ class FakeGenerator:
         self.models_called += 1
         return list(self.installed)
 
-    def generate(self, prompt, negative, seed, model="", source=None):
+    def generate(self, prompt, negative, seed, model="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
         self.sources.append(source)
+        self.ends.append(end)
         if prompt in self.fail_on:
             raise FrameFault(f"node 41: {prompt}")
         return b"PNG"
@@ -124,12 +131,16 @@ class FakePlanStore:
         self.appended = []                # each append call's frames, in order
         self.frames = list(frames or [])
         self.negative = negative          # the pre-per-frame field older plans still carry
+        self.read_for = None              # the project name the last read was made under
 
     def append(self, project, frames):
         self.appended.append(frames)
         self.frames = self.frames + list(frames)
 
     def read(self, project):
+        # Which project was asked for last: a run that follows a renamed folder is only visible
+        # here, because the plan lives inside the folder and its name is the whole address.
+        self.read_for = project
         # Mirrors DrivePlanStore: a frame without its own negative falls back to the old field, one
         # planned before models could be chosen carries none at all, and one planned before
         # identities were written down keeps the one it was born with.
@@ -174,6 +185,10 @@ class FakeRecord:
             cell = {"status": row.get("status", "done"), "file": row["file"]}
             if isinstance(row.get("error"), str):
                 cell["error"] = row["error"]
+            if isinstance(row.get("mode"), str):
+                cell["mode"] = row["mode"]
+            if isinstance(row.get("endsOn"), str):
+                cell["endsOn"] = row["endsOn"]
             folded.setdefault(self._frame_of(row), {})[self._layer_of(row)] = cell
         return folded
 
@@ -280,9 +295,9 @@ def test_progress_is_reported_before_each_frame():
     seen = []
     original = generator.generate
 
-    def spy(prompt, negative, seed, model="", source=None):
+    def spy(prompt, negative, seed, model="", source=None, end=None):
         seen.append(runner.status())
-        return original(prompt, negative, seed, model, source)
+        return original(prompt, negative, seed, model, source, end)
 
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
@@ -299,7 +314,7 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             if self.calls <= 3:
                 raise FrameFault("node 41: OOM")
@@ -317,7 +332,7 @@ def test_a_job_the_producer_drops_is_tried_three_times_before_it_turns_red():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             if prompt == "patlak":
                 raise FrameFault("node 41: OOM")
@@ -336,7 +351,7 @@ def test_a_dropped_job_writes_nothing_until_its_attempts_run_out():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             if self.calls == 1:
                 raise FrameFault("node 41: OOM")
@@ -354,7 +369,7 @@ def test_each_job_gets_its_own_three_drops():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             raise FrameFault("node 41: OOM")
 
@@ -369,7 +384,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
     """The old rule counted three failed frames in a row; the new one counts attempts on ONE frame,
     so a queue of bad prompts turns red to the end instead of stopping partway."""
     class AlwaysBroken:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             raise FrameFault("node 41: OOM")
 
     store, runner = FakeStore(), sync_runner()
@@ -382,7 +397,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
 def test_a_loader_failure_is_no_longer_special():
     """It used to stop the run on the first frame. ComfyUI answered, so it is now the frame's."""
     class BrokenLoader:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             raise FrameFault("node 9 (CheckpointLoaderSimple): dosya yok")
 
     runner = sync_runner()
@@ -396,7 +411,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
         def __init__(self):
             self.calls = []
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls.append(prompt)
             raise RuntimeError("Connection refused")
 
@@ -415,7 +430,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
 
 def test_a_frame_the_run_gave_up_on_is_still_owed():
     class Unreachable:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             raise RuntimeError("Connection refused")
 
     record, plan_store = FakeRecord(), FakePlanStore()
@@ -431,7 +446,7 @@ def test_an_attempt_that_lands_costs_the_frame_nothing():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             if self.calls <= 2:
                 raise RuntimeError("Connection refused")
@@ -451,7 +466,7 @@ def test_every_frame_gets_its_own_three_attempts():
             self.failed = set()
             self.calls = []
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls.append(prompt)
             if prompt not in self.failed:
                 self.failed.add(prompt)
@@ -473,7 +488,7 @@ def test_stop_request_ends_the_batch_between_frames():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             self.calls += 1
             runner.request_stop()
             return b"PNG"
@@ -490,7 +505,7 @@ def test_frame_killed_by_user_stop_is_not_a_failure():
     store, runner = FakeStore(), sync_runner()
 
     class StoppingGenerator:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             runner.request_stop()          # the user's stop lands mid-render
             raise RuntimeError("interrupted")
 
@@ -722,6 +737,45 @@ def test_a_frames_taken_layers_are_published():
     frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
 
     assert frames[0]["layers"] == {"photo": "0_a.png", "video": "0_a_v0.mp4"}
+
+
+def test_the_gallery_says_which_mode_made_each_layer():
+    """The tile's loop badge and the detail page's information row both ask this one question, so
+    the frame answers it once."""
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "mode": "loop"})
+
+    frames = list_frames(record, FakeStore(), planned((0, "a", "ilk")), FakeOrderStore(), "düğün")
+
+    assert frames[0]["modes"] == {"video": "loop"}
+
+
+def test_a_layer_with_no_mode_on_its_line_is_left_out_of_the_map():
+    # Shaped like errors: only the layers that have one are in it, so a missing key is the answer
+    # rather than a value standing for absence.
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    frames = list_frames(record, FakeStore(), planned((0, "a", "ilk")), FakeOrderStore(), "düğün")
+
+    assert frames[0]["modes"] == {}
+
+
+def test_the_gallery_says_where_a_linked_video_ended():
+    """Keyed by layer like modes and errors: the frame answers per layer, so the page asking about
+    one never has to know which layers the others are."""
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "mode": "linked", "endsOn": "1_a.png"})
+
+    frames = list_frames(record, FakeStore(), planned((0, "a", "ilk")), FakeOrderStore(), "düğün")
+
+    assert frames[0]["endsOn"] == {"video": "1_a.png"}
 
 
 def test_a_frame_whose_video_is_queued_is_still_one_frame():
@@ -1065,7 +1119,7 @@ class FailsTwice:
     def __init__(self):
         self.calls = []
 
-    def generate(self, prompt, negative, seed, model="", source=None):
+    def generate(self, prompt, negative, seed, model="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
         if len(self.calls) < 3:
             raise FrameFault(f"node 41: {prompt}")
@@ -1093,8 +1147,10 @@ def test_a_video_job_with_no_prompt_has_one_written_from_the_photos():
                  lambda: "t", "düğün", writers={layers.VIDEO: writer})
 
     assert writer.calls == [{"photo": "kırmızı elbiseli kadın"}]
-    # Produced with the written text, and the record says the layer was made with it.
-    assert generator.calls == [("kadın başını yavaşça çeviriyor", "", None, "")]
+    # Produced with the written text, and the record says the layer was made with it. The seed is
+    # left out: the engine picks one for a job that carries none, so it is not this test's to know.
+    assert [(call[0], call[1], call[3]) for call in generator.calls] == [
+        ("kadın başını yavaşça çeviriyor", "", "")]
     video = [row for row in record.rows if row.get("layer") == "video"][0]
     assert video["prompt"] == "kadın başını yavaşça çeviriyor"
 
@@ -1172,7 +1228,8 @@ def test_a_job_that_carries_its_own_prompt_never_reaches_the_model():
                  lambda: "t", "düğün", writers={layers.VIDEO: writer})
 
     assert writer.calls == []
-    assert generator.calls == [("elini kaldırıyor", "", None, "")]
+    assert [(call[0], call[1], call[3]) for call in generator.calls] == [
+        ("elini kaldırıyor", "", "")]
 
 
 def test_a_frame_with_no_photo_prompt_is_not_worth_an_ask():
@@ -1183,7 +1240,7 @@ def test_a_frame_with_no_photo_prompt_is_not_worth_an_ask():
                  lambda: "t", "düğün", writers={layers.VIDEO: writer})
 
     assert writer.calls == []
-    assert generator.calls == [("", "", None, "")]
+    assert [(call[0], call[1], call[3]) for call in generator.calls] == [("", "", "")]
 
 
 def test_the_three_attempts_of_one_job_spend_a_single_ask():
@@ -1221,6 +1278,291 @@ def video_project(*frames):
         record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
                                 "layer": "photo", "status": "done"})
     return store, record, plan_store
+
+
+def queue_video(store, record, plan_store, mode, order=(), files=None):
+    """Queue a video job the way the panel would, and hand back the plan lines it wrote."""
+    added = queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(order),
+                        {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                        files=files, mode=mode)
+    return added, (plan_store.appended[-1] if plan_store.appended else [])
+
+
+def test_a_video_job_carries_the_mode_it_was_queued_with():
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+
+    _added, jobs = queue_video(store, record, plan_store, production_mode.LOOP)
+
+    # The mode is on the job, not on the batch: the queue holds work from several presses at once,
+    # and a batch-level answer would be read by whichever job happened to be next.
+    assert [job["mode"] for job in jobs] == ["loop", "loop"]
+
+
+def test_a_linked_video_job_names_the_frame_it_ends_on():
+    """Resolved as the job is queued rather than as it is rendered: the queue runs for hours and the
+    gallery can be dragged while it does, so a target read later would not be the one the user was
+    looking at when they pressed the button."""
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+
+    _added, jobs = queue_video(store, record, plan_store, production_mode.LINKED)
+
+    # The gallery is newest-first, so 1_a is above 0_a and the frame after 0_a is 1_a.
+    by_id = {job["id"]: job for job in jobs}
+    assert by_id["0_a"]["linkedTo"] == "1_a"
+
+
+def test_the_last_frame_takes_no_linked_job_but_the_rest_do():
+    """The frame at the top of the gallery has no next one. Production is not blocked over it: that
+    one frame stays out and the rest go in, and fixing the selection is one press away."""
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+
+    added, jobs = queue_video(store, record, plan_store, production_mode.LINKED)
+
+    assert added == 1
+    assert [job["id"] for job in jobs] == ["0_a"]
+
+
+def test_a_linked_batch_with_nowhere_to_end_takes_nothing():
+    store, record, plan_store = video_project((0, "a"))
+
+    added, _jobs = queue_video(store, record, plan_store, production_mode.LINKED)
+
+    # Nothing owed and nothing started -- exactly what an empty scope already answers.
+    assert added == 0
+    assert plan_store.appended == []
+
+
+def test_a_sound_job_carries_no_mode_at_all():
+    """A sound is laid over the whole of a video and arrives nowhere. Writing "standard" on its line
+    would be a field claiming an answer to a question the layer never asks."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO)
+
+    assert "mode" not in plan_store.appended[-1][0]
+
+
+def test_a_mode_nobody_knows_is_refused():
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(InvalidMode):
+        queue_video(store, record, plan_store, "kelebek")
+
+
+def test_a_sound_cannot_be_asked_to_end_anywhere():
+    # Only a video ends on a picture. Ignoring the argument would hide the caller's mistake behind
+    # a sound that came out fine.
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(InvalidMode):
+        queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                    {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO,
+                    mode=production_mode.LOOP)
+
+
+def render_one_video(mode, linked_to=None, gallery=((0, "a"), (1, "a")), photos=("0_a", "1_a")):
+    """One video job, planned by hand with the mode already on it, run to completion.
+
+    Planned by hand rather than through queue_layer: what is under test here is the engine reading
+    a mode, and going through the queue would make one test answer for two rules at once.
+    """
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(number) for number, _letter in gallery])
+    for fid in photos:
+        record.append("düğün", {"file": f"{fid}.png", "frame": fid, "layer": "photo",
+                                "status": "done"})
+        store.files[f"{fid}.png"] = f"{fid} bytes".encode()
+    job = {"id": "0_a", "type": "video", "number": 0, "variant": 0, "prompt": "p", "negative": "",
+           "seed": None, "model": "", "mode": mode}
+    if linked_to is not None:
+        job["linkedTo"] = linked_to
+    plan_store.append("düğün", [job])
+    generator = FakeGenerator()
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", "düğün")()
+    return generator, record
+
+
+def test_a_plain_video_is_produced_with_no_ending_frame():
+    generator, _record = render_one_video(production_mode.STANDARD)
+
+    assert generator.ends == [None]
+
+
+def test_a_loop_video_ends_on_its_own_picture():
+    """A loop is a video that arrives where it started, so the ending picture is the frame's own --
+    the very file it is being made from."""
+    generator, _record = render_one_video(production_mode.LOOP)
+
+    assert generator.ends == [("0_a.png", b"0_a bytes")]
+    assert generator.sources == [("0_a.png", b"0_a bytes")]
+
+
+def test_a_linked_video_ends_on_the_next_frames_picture():
+    generator, _record = render_one_video(production_mode.LINKED, linked_to="1_a")
+
+    assert generator.sources == [("0_a.png", b"0_a bytes")]
+    assert generator.ends == [("1_a.png", b"1_a bytes")]
+
+
+def test_a_linked_video_whose_target_lost_its_photo_turns_that_frame_red():
+    """The frame it was told to end on is gone -- deleted between the press and the render. One
+    frame's trouble, so the tile turns red and the queue goes on; falling back to a plain video
+    would hand the user something other than what they asked for and say nothing about it."""
+    # The gallery holds one frame and the job still points at 1_a: that is what deletion leaves
+    # behind. A gallery that still listed 1_a would leave its own photo job owed, and the run would
+    # stop waiting for a photo producer this test does not have -- the video would never be reached.
+    generator, record = render_one_video(production_mode.LINKED, linked_to="1_a",
+                                         gallery=((0, "a"),), photos=("0_a",))
+
+    assert generator.ends == []          # nothing was ever rendered for this job
+    video = record.slots("düğün")["0_a"]["video"]
+    assert video["status"] == queue.FAILED
+
+
+def video_row(record):
+    """The produced video's own line -- the one the gallery and the detail page read back."""
+    return [row for row in record.rows
+            if row.get("layer") == "video" and row.get("status") == "done"][0]
+
+
+def test_a_loop_video_says_on_its_row_that_it_is_one():
+    """Until now the mode reached the render and stopped there. The tile has no other way of
+    knowing: the file it holds is a video like any other."""
+    _generator, record = render_one_video(production_mode.LOOP)
+
+    assert video_row(record)["mode"] == production_mode.LOOP
+
+
+def test_a_plain_video_says_so_on_its_row_as_well():
+    # Both written, because the tile and the detail page have to tell the two apart -- an absent
+    # field would mean plain and unknown at the same time.
+    _generator, record = render_one_video(production_mode.STANDARD)
+
+    assert video_row(record)["mode"] == production_mode.STANDARD
+
+
+def test_a_job_that_names_no_mode_leaves_the_field_off_its_row():
+    """Which jobs carry a mode is the queue's rule (queue_layer puts it on video jobs alone), and
+    the loop does not write that rule a second time. A photo row saying standard would be a field
+    that means nothing on nearly every line it appears on."""
+    _generator, record = render_seedless(lambda: 777)
+
+    assert "mode" not in video_row(record)
+
+
+def test_a_linked_video_names_the_picture_it_ended_on():
+    """The detail page prints this name. Recorded rather than resolved later from the target's
+    identity: the frame it points at can be deleted while the video it made stays, and then there
+    would be no name to print for a video that really did arrive somewhere."""
+    _generator, record = render_one_video(production_mode.LINKED, linked_to="1_a")
+
+    assert video_row(record)["endsOn"] == "1_a.png"
+
+
+def test_a_loop_video_names_its_own_picture():
+    # One rule rather than one per mode: whatever the render was handed as an ending picture is what
+    # the row names. Teaching the engine which modes have an ending would be the modes' own rule
+    # written a second time.
+    _generator, record = render_one_video(production_mode.LOOP)
+
+    assert video_row(record)["endsOn"] == "0_a.png"
+
+
+def test_a_plain_video_names_no_ending_picture():
+    _generator, record = render_one_video(production_mode.STANDARD)
+
+    assert "endsOn" not in video_row(record)
+
+
+def render_seedless(new_seed, jobs=1):
+    """`jobs` seedless video jobs on their own frames, run to completion.
+
+    Video rather than sound because a video job is the one that plans no seed and has a producer a
+    test can hold; what the loop does about a missing seed is the same whatever the layer is.
+    """
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(number) for number in range(jobs)])
+    planned = []
+    for number in range(jobs):
+        fid = f"{number}_a"
+        record.append("düğün", {"file": f"{fid}.png", "frame": fid, "layer": "photo",
+                                "status": "done"})
+        store.files[f"{fid}.png"] = b"PNG"
+        planned.append({"id": fid, "type": "video", "number": number, "variant": 0,
+                        "prompt": "p", "negative": "", "seed": None, "model": ""})
+    plan_store.append("düğün", planned)
+    generator = FakeGenerator()
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", "düğün", new_seed=new_seed)()
+    return generator, record
+
+
+def video_seeds(record):
+    """The seed written on every produced video row, in the order the rows were written."""
+    return [row["seed"] for row in record.rows
+            if row.get("layer") == "video" and row.get("status") == "done"]
+
+
+def test_a_seedless_job_is_produced_with_a_seed_the_engine_chose():
+    """A layer job is planned without one (queue_layer), and until now that None travelled all the
+    way into the render: the sound engine invented a number of its own and the video graph kept its
+    -1, which rgthree only randomises in the browser widget."""
+    generator, _record = render_seedless(lambda: 777)
+
+    assert [call[2] for call in generator.calls] == [777]
+
+
+def test_the_seed_a_job_was_produced_with_is_written_down():
+    """The whole madde in one line: the number that rendered the layer is the number on its row, so
+    the row can be produced again."""
+    generator, record = render_seedless(lambda: 777)
+
+    assert video_seeds(record) == [call[2] for call in generator.calls]
+
+
+def test_a_job_that_carried_its_own_seed_keeps_it():
+    # A photo job is planned with a seed of its own. Choosing a second one for it would quietly
+    # produce a different picture from the one the plan describes.
+    store, generator = FakeStore(), FakeGenerator()
+    record = FakeRecord()
+    run_batch(sync_runner(), store, generator, text='["a"]', variants=1, record=record)
+
+    assert [call[2] for call in generator.calls] == [42]
+
+
+def test_the_three_attempts_of_one_job_share_one_seed():
+    """Otherwise "produce this row again with its seed" would name a number only the last attempt
+    used, and the two earlier renders would be unreproducible."""
+    seeds = iter([1, 2, 3])
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    store.files["0_a.png"] = b"PNG"
+    plan_store.append("düğün", [{"id": "0_a", "type": "video", "number": 0, "variant": 0,
+                                 "prompt": "p", "negative": "", "seed": None, "model": ""}])
+    # Fails every time, so the job spends all three of its attempts and three calls are recorded.
+    generator = FakeGenerator(fail_on=["p"])
+
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", "düğün", new_seed=lambda: next(seeds))()
+
+    assert len(generator.calls) == 3
+    assert len({call[2] for call in generator.calls}) == 1
+
+
+def test_two_seedless_jobs_get_seeds_of_their_own():
+    """Two variants of one frame must not come out identical: asking for a second would buy
+    nothing."""
+    seeds = iter([777, 888])
+    generator, _record = render_seedless(lambda: next(seeds), jobs=2)
+
+    assert sorted(call[2] for call in generator.calls) == [777, 888]
 
 
 def test_a_video_job_is_planned_for_every_frame_that_has_none():
@@ -1377,7 +1719,7 @@ def test_a_selected_frame_that_has_a_video_is_still_in_scope():
                {"id": "1_a", "file": "1_a.png", "status": "done", "layers": {}}]
 
     assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a.png"])] == ["0_a"]
-    # The panel's row is called "Videosu olmayanlar": with no selection it means exactly that.
+    # The panel's row is called "Videosu olmayan kareler": with no selection it means exactly that.
     assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO)] == ["1_a"]
 
 
@@ -1433,6 +1775,33 @@ def test_a_sound_copy_carries_the_photo_and_the_video():
     assert copy["video"]["file"] == "0_a_V1_0.mp4"
     # And the words each of them was made from come with them.
     assert record.prompts("düğün")["P0_1"] == {"photo": "p", "video": "kadın dönüyor"}
+
+
+def test_a_sound_copy_carries_the_videos_mode_too():
+    """One file, two frames holding it. Without the mode the twin's tile would read video while the
+    original reads loop -- two answers about the same video."""
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor", "mode": "loop"})
+
+    queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO, variants=2)
+
+    assert record.slots("düğün")["P0_1"]["video"]["mode"] == "loop"
+
+
+def test_a_sound_copy_carries_where_the_video_ended_too():
+    # The twin holds the same video file, so its detail page has to be able to say the same thing
+    # about it.
+    store, record, plan_store = video_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor", "mode": "linked",
+                            "endsOn": "1_a.png"})
+
+    queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.AUDIO, variants=2)
+
+    assert record.slots("düğün")["P0_1"]["video"]["endsOn"] == "1_a.png"
 
 
 def test_a_video_copy_still_carries_only_the_photo():
@@ -1562,6 +1931,166 @@ def test_nothing_is_written_to_the_order_file_when_no_copy_is_born():
     assert order.order == []
 
 
+def twin_project(*frames):
+    """A project whose named frames are produced photos, with a store and an order file.
+
+    The order file is written here rather than left empty: what a copy has to prove is where it
+    lands, and a gallery nobody has dragged has no sequence of its own to land in.
+    """
+    store, record, plan_store = video_project(*frames)
+    order = FakeOrderStore([f"{number}_a" for number, _letter in reversed(frames)])
+    return store, record, plan_store, order
+
+
+def copy_of(record, store, plan_store, order, names, project="düğün"):
+    return copy_frames(record, store, plan_store, order, lambda: "t", project, names)
+
+
+def test_a_twin_carries_every_layer_its_source_holds():
+    store, record, plan_store, order = twin_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0_S1_0.wav", "frame": "0_a", "layer": "audio",
+                            "status": "done"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    # Everything, not everything below something: the twin has nothing left to produce.
+    assert list(record.slots("düğün")["C1_0_a"]) == ["photo", "video", "audio"]
+
+
+def test_a_twins_rows_point_at_its_sources_own_files():
+    store, record, plan_store, order = twin_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    twin = record.slots("düğün")["C1_0_a"]
+    assert twin["photo"]["file"] == "0_a.png"
+    assert twin["video"]["file"] == "0_a_V1_0.mp4"
+    assert store.saved == []                     # one picture on disk, two frames holding it
+
+
+def test_a_twin_carries_the_words_each_layer_was_made_from():
+    store, record, plan_store, order = twin_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": "kadın dönüyor"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert record.prompts("düğün")["C1_0_a"] == {"photo": "p", "video": "kadın dönüyor"}
+
+
+def test_a_twin_carries_the_videos_mode_and_where_it_ended():
+    store, record, plan_store, order = twin_project((0, "a"), (1, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "mode": "linked", "endsOn": "1_a.png"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    twin = record.slots("düğün")["C1_0_a"]["video"]
+    assert (twin["mode"], twin["endsOn"]) == ("linked", "1_a.png")
+
+
+def test_nothing_is_owed_on_a_twin():
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    # No plan line at all: an exact twin has nothing left to make, so the queue never hears of it.
+    assert plan_store.appended == []
+    twin = [f for f in list_frames(record, store, plan_store, order, "düğün")
+            if f["id"] == "C1_0_a"][0]
+    assert (twin["owed"], twin["status"]) == ([], "done")
+
+
+def test_a_twin_lands_directly_above_its_source():
+    store, record, plan_store, order = twin_project((0, "a"), (1, "a"))
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert order.order == ["1_a", "C1_0_a", "0_a"]
+    assert [f["id"] for f in list_frames(record, store, plan_store, order, "düğün")] == [
+        "1_a", "C1_0_a", "0_a"]
+
+
+def test_the_answer_names_the_twins_that_were_born():
+    store, record, plan_store, order = twin_project((0, "a"), (1, "a"))
+
+    answer = copy_of(record, store, plan_store, order, ["0_a", "1_a"])
+
+    # The screen moves the selection onto them, so it has to be told their names.
+    assert answer == {"copies": ["C1_0_a", "C1_1_a"]}
+
+
+def test_a_second_copy_is_a_copy_of_the_copy_rather_than_a_nested_name():
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+    answer = copy_of(record, store, plan_store, order, ["C1_0_a"])
+
+    assert answer == {"copies": ["C2_0_a"]}
+    # And it sits above the one it was made from, not above the original.
+    assert order.order == ["C2_0_a", "C1_0_a", "0_a"]
+
+
+def test_a_frame_that_is_not_produced_yet_is_skipped():
+    # There is nothing to twin: a pending frame owns no layer at all (Fark 79).
+    store, record = FakeStore(), FakeRecord()
+    plan_store, order = FakePlanStore(frames=[frame(0)]), FakeOrderStore()
+
+    answer = copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert answer == {"copies": []}
+    assert record.rows == []
+
+
+def test_an_identity_the_gallery_does_not_know_is_skipped_rather_than_refused():
+    # Another tab can delete a frame while this selection sits open; refusing the whole press over
+    # one name that is already gone would leave the rest undone.
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    answer = copy_of(record, store, plan_store, order, ["7_z", "0_a"])
+
+    assert answer == {"copies": ["C1_0_a"]}
+
+
+def test_a_layer_that_blew_up_is_not_carried_into_the_twin():
+    # The red video names a file that is not on disk; a done row about it would claim it is.
+    store, record, plan_store, order = twin_project((0, "a"))
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "failed", "error": "node 41"})
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert list(record.slots("düğün")["C1_0_a"]) == ["photo"]
+
+
+def test_nothing_is_written_to_the_order_file_when_nothing_was_copied():
+    store, record = FakeStore(), FakeRecord()
+    plan_store, order = FakePlanStore(frames=[frame(0)]), FakeOrderStore()
+
+    copy_of(record, store, plan_store, order, ["0_a"])
+
+    assert order.order == []
+
+
+@pytest.mark.parametrize("names", ["0_a", [7], None])
+def test_copying_needs_a_list_of_identities(names):
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    with pytest.raises(InvalidFrames):
+        copy_of(record, store, plan_store, order, names)
+
+
+def test_copying_in_a_project_that_is_not_there_is_refused():
+    store, record, plan_store, order = twin_project((0, "a"))
+
+    with pytest.raises(ProjectMissing):
+        copy_of(record, store, plan_store, order, ["0_a"], project="yok")
+
+
 def test_the_video_variant_count_has_the_same_ceiling_as_a_photo_batch():
     store, record, plan_store = video_project((0, "a"))
 
@@ -1581,6 +2110,38 @@ def test_an_empty_scope_starts_nothing():
                         {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün",
                         layers.VIDEO) == 0
     assert runner.status()["status"] == "idle"
+
+
+class MovingName:
+    """The holder a run reads its project's name from -- the whole of the protocol make_job needs.
+
+    Written here rather than imported: what this test is about is that the run asks again every
+    turn, and a fake that answers differently after a move is the only way to see it.
+    """
+
+    def __init__(self, name):
+        self.name = name
+
+    def now(self):
+        return self.name
+
+    @contextmanager
+    def steady(self):
+        yield self.name
+
+
+def test_a_run_reads_the_project_name_again_every_turn():
+    """A rename moves the folder under a run, and the run has to follow it: the name is read from a
+    holder rather than captured once, so the turn after the move works in the new folder."""
+    store, record, plan_store = video_project((0, "a"))
+    named = MovingName("düğün")
+
+    job = make_job(sync_runner(), store, record, plan_store,
+                   {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", named=named)
+    named.name = "başka"
+    job()
+
+    assert plan_store.read_for == "başka"
 
 
 def test_regenerating_with_the_same_prompt_stays_in_the_family():
@@ -1616,6 +2177,30 @@ def test_only_the_words_count_as_a_change():
     assert born == "P0_1"
 
 
+def test_the_new_photo_carries_the_negative_it_was_given():
+    # Fark 98: the negative became the user's too, so what goes down is the box's own words and not
+    # the line the source frame happened to be made from.
+    store, record, plan_store = video_project((0, "a"))
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.PHOTO, "p", negative="bulanık, gürültü")
+
+    assert plan_store.appended[-1][0]["negative"] == "bulanık, gürültü"
+
+
+def test_a_layer_over_the_photo_carries_no_negative_whatever_it_is_given():
+    # Only a photo is made from a prompt and a negative of its own; the layers over it are made from
+    # what is under them. The editable box is the photo tab's alone and this is the rule behind it.
+    store, record, plan_store = video_project((0, "a"))
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.VIDEO, "p", negative="bulanık")
+
+    assert plan_store.appended[-1][0]["negative"] == ""
+
+
 def test_the_new_frame_stands_next_to_its_source():
     store, record, plan_store = video_project((0, "a"), (1, "a"))
     order = FakeOrderStore()
@@ -1638,6 +2223,66 @@ def test_a_frame_made_again_is_produced_under_its_own_name():
     # The source is left exactly as it was: "üret = ekle" holds here too (madde 77).
     assert record.slots("düğün")["0_a"]["photo"] == {"status": "done", "file": "0_a.png"}
     assert record.prompts("düğün")[born] == {"photo": "p"}
+
+
+def make_video_again(fid, mode=None, gallery=((0, "a"), (1, "a"))):
+    """One frame's video made again, with the mode the form would have sent.
+
+    A video rather than a photo: the mode belongs to a video and nothing else, and a photo job would
+    answer for a rule it does not have.
+    """
+    store, record, plan_store = video_project(*gallery)
+    extra = {} if mode is None else {"mode": mode}
+    born = regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                      {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                      "düğün", fid, layers.VIDEO, "p", **extra)
+    return born, plan_store.appended[-1][0]
+
+
+def test_a_video_made_again_is_planned_in_the_mode_it_was_asked_for():
+    """The whole madde in one line: pressing the button without touching the box has to keep the
+    video's own mode, and the form can only keep it by sending it."""
+    _born, job = make_video_again("0_a", production_mode.LOOP)
+
+    assert job["mode"] == production_mode.LOOP
+
+
+def test_a_linked_video_made_again_is_planned_with_its_target():
+    # Resolved here rather than sent by the screen: the gallery is already open on this side, and a
+    # target coming from outside would be the same rule living in two places.
+    _born, job = make_video_again("0_a", production_mode.LINKED)
+
+    assert job["linkedTo"] == "1_a"
+
+
+def test_linking_the_last_frame_of_the_film_is_refused():
+    """The screen closes the button before this can be pressed. The server refuses anyway: planning
+    a job with nothing to end on would send it to a render that fails on a target it cannot name."""
+    with pytest.raises(NoNextFrame):
+        make_video_again("1_a", production_mode.LINKED)
+
+
+def test_a_mode_nobody_knows_is_refused():
+    with pytest.raises(production_mode.InvalidMode):
+        make_video_again("0_a", "kelebek")
+
+
+def test_a_mode_on_a_layer_that_ends_nowhere_is_refused():
+    # Only a video arrives at a picture. Ignoring the argument would hide the caller's mistake
+    # behind a photo that came out fine.
+    store, record, plan_store = video_project((0, "a"))
+
+    with pytest.raises(production_mode.InvalidMode):
+        regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                   {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+                   "düğün", "0_a", layers.PHOTO, "p", mode=production_mode.LOOP)
+
+
+def test_a_video_made_again_with_no_mode_named_is_planned_without_one():
+    # Every caller before this madde named none, and the plan has to keep reading back the same way.
+    _born, job = make_video_again("0_a")
+
+    assert "mode" not in job
 
 
 def test_regenerating_a_video_gives_the_new_frame_the_sources_photo():
@@ -1739,7 +2384,7 @@ def test_deleting_a_video_takes_the_sound_over_it():
     store, record, plan_store = layered_project()
 
     gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                        "düğün", "0_a", layers.VIDEO)
+                        "düğün", ["0_a"], layers.VIDEO)
 
     assert gone == {"deleted": ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav"]}
     assert sorted(store.deleted) == ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav"]
@@ -1753,7 +2398,7 @@ def test_deleting_a_sound_leaves_the_video_alone():
     store, record, plan_store = layered_project()
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "0_a", layers.AUDIO)
+                 "düğün", ["0_a"], layers.AUDIO)
 
     assert store.deleted == ["0_a_V1_0_S1_0.wav"]
     assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
@@ -1763,7 +2408,7 @@ def test_a_layer_the_frame_does_not_carry_costs_nothing():
     store, record, plan_store = layered_project(audio=False)
 
     assert remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                        "düğün", "0_a", layers.AUDIO) == {"deleted": []}
+                        "düğün", ["0_a"], layers.AUDIO) == {"deleted": []}
     assert store.deleted == []
 
 
@@ -1779,7 +2424,7 @@ def test_a_file_another_frame_still_holds_is_left_on_disk_when_a_layer_goes():
     with_a_copy(record)
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "0_a", layers.VIDEO)
+                 "düğün", ["0_a"], layers.VIDEO)
 
     assert store.deleted == []
     assert record.slots("düğün")["P0_1"]["video"]["status"] == "done"
@@ -1791,7 +2436,7 @@ def test_the_copy_is_the_one_that_loses_its_layer_when_the_copy_is_named():
     with_a_copy(record)
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "P0_1", layers.VIDEO)
+                 "düğün", ["P0_1"], layers.VIDEO)
 
     assert record.slots("düğün")["P0_1"]["video"]["status"] == "deleted"
     assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
@@ -1804,25 +2449,91 @@ def test_a_job_still_owed_above_the_deleted_layer_leaves_the_queue():
                                  "prompt": "", "negative": "", "seed": None, "model": ""}])
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "0_a", layers.VIDEO)
+                 "düğün", ["0_a"], layers.VIDEO)
 
     assert record.slots("düğün")["0_a"]["audio"]["status"] == "removed"
     assert owed_files(record, plan_store) == []
 
 
-def test_deleting_a_layer_of_a_frame_the_gallery_does_not_know_is_refused():
+def two_layered(audio=True):
+    """Two produced frames, each carrying a photo and a video (and a sound by default)."""
+    store, record, plan_store = video_project((0, "a"), (1, "a"))
+    for number in (0, 1):
+        record.append("düğün", {"file": f"{number}_a_V1_0.mp4", "frame": f"{number}_a",
+                                "layer": "video", "status": "done"})
+        if audio:
+            record.append("düğün", {"file": f"{number}_a_V1_0_S1_0.wav", "frame": f"{number}_a",
+                                    "layer": "audio", "status": "done"})
+    return store, record, plan_store
+
+
+def test_one_layer_comes_off_every_frame_named():
+    store, record, plan_store = two_layered()
+
+    gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", ["0_a", "1_a"], layers.VIDEO)
+
+    assert gone == {"deleted": ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav",
+                                "1_a_V1_0.mp4", "1_a_V1_0_S1_0.wav"]}
+    # The frames keep their places and their pictures: only the layer fell.
+    assert [record.slots("düğün")[fid]["photo"]["status"] for fid in ("0_a", "1_a")] == [
+        "done", "done"]
+    assert [record.slots("düğün")[fid]["video"]["status"] for fid in ("0_a", "1_a")] == [
+        "deleted", "deleted"]
+
+
+def test_a_file_two_frames_share_goes_when_both_let_go_in_one_press():
+    # The whole press is worked out before a line is written, which is the only way this can be
+    # right: read one frame at a time, the second would still see the first holding the file.
+    store, record, plan_store = layered_project(audio=False)
+    with_a_copy(record)
+
+    gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", ["0_a", "P0_1"], layers.VIDEO)
+
+    assert gone == {"deleted": ["0_a_V1_0.mp4"]}
+    assert store.deleted == ["0_a_V1_0.mp4"]
+
+
+def test_a_layer_asked_off_an_identity_the_gallery_does_not_know_is_skipped():
+    # Another tab can delete a frame while the confirm sits open; refusing the whole press over one
+    # name that is already gone would leave the rest undone.
     store, record, plan_store = layered_project()
 
-    with pytest.raises(FrameMissing):
+    gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", ["yok", "0_a"], layers.VIDEO)
+
+    assert gone == {"deleted": ["0_a_V1_0.mp4", "0_a_V1_0_S1_0.wav"]}
+
+
+@pytest.mark.parametrize("names", ["0_a", [7], None])
+def test_taking_a_layer_off_needs_a_list_of_identities(names):
+    store, record, plan_store = layered_project()
+
+    with pytest.raises(InvalidFrames):
         remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                     "düğün", "yok", layers.VIDEO)
+                     "düğün", names, layers.VIDEO)
+
+
+def test_a_sound_still_owed_is_dropped_on_every_frame_the_video_left():
+    store, record, plan_store = two_layered(audio=False)
+    plan_store.append("düğün", [{"id": fid, "type": "audio", "number": number, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": None, "model": ""}
+                                for number, fid in ((0, "0_a"), (1, "1_a"))])
+
+    remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                 "düğün", ["0_a", "1_a"], layers.VIDEO)
+
+    assert [record.slots("düğün")[fid]["audio"]["status"] for fid in ("0_a", "1_a")] == [
+        "removed", "removed"]
+    assert owed_files(record, plan_store) == []
 
 
 def test_the_gallery_stops_reporting_a_deleted_layer():
     store, record, plan_store = layered_project()
 
     remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
-                 "düğün", "0_a", layers.VIDEO)
+                 "düğün", ["0_a"], layers.VIDEO)
 
     frame = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
     assert frame["layers"] == {"photo": "0_a.png"}
@@ -2045,7 +2756,7 @@ def test_removing_takes_the_named_frame_not_the_one_sharing_its_picture():
 
 
 def test_a_body_that_is_not_a_list_of_names_is_rejected():
-    with pytest.raises(InvalidFiles):
+    with pytest.raises(InvalidFrames):
         remove_frames(FakeRecord(), FakeStore(), FakePlanStore(), FakeOrderStore(), stamped,
                       "düğün", "0_a.png")
 
@@ -2101,7 +2812,7 @@ def test_the_plan_is_appended_before_the_first_frame_renders():
     plan_store, runner = FakePlanStore(), sync_runner()
 
     class ChecksThePlan:
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             assert plan_store.appended, "the batch started before the plan was appended to"
             return b"PNG"
 
@@ -2192,12 +2903,12 @@ def test_frames_added_while_the_loop_runs_are_produced_in_the_same_run():
     plan_store, record, generator, seen = FakePlanStore(), FakeRecord(), FakeGenerator(), []
     rendering = generator.generate
 
-    def spy(prompt, negative, seed, model="", source=None):
+    def spy(prompt, negative, seed, model="", source=None, end=None):
         seen.append(prompt)
         if prompt == "ilk":
             plan_store.append("düğün", [{"number": 9, "letter": "a", "prompt": "sonradan",
                                          "negative": "", "seed": 7, "model": ""}])
-        return rendering(prompt, negative, seed, model, source)
+        return rendering(prompt, negative, seed, model, source, end)
 
     generator.generate = spy
     run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,
@@ -2428,7 +3139,7 @@ def test_the_loop_finishes_photos_before_it_starts_videos():
         def __init__(self, kind):
             self.kind = kind
 
-        def generate(self, prompt, negative, seed, model="", source=None):
+        def generate(self, prompt, negative, seed, model="", source=None, end=None):
             done.append(self.kind)
             return b"X"
 
