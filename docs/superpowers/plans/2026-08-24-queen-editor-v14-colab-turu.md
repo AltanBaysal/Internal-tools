@@ -10,8 +10,9 @@ göze bakılacak olan var. Parantez içindeki sayılar yol haritasının madde n
 
 ## Turdan önce
 
-Dal `origin`'e itilmiş, derlenmiş ön yüz en son kaynak commit'iyle aynı commit'te. Defterin klon
-hücresi bu dala bakıyor — `queen-editor/app.ipynb` yüklenip koşulur, başka ayar yok.
+Koşu 25 Ağustos'ta `main`'e merge edildi ve `main` `origin`'e itilmiş; derlenmiş ön yüz en son
+kaynak commit'iyle aynı commit'te. Defterin klon hücresi artık `main`'e bakıyor —
+`queen-editor/app.ipynb` yüklenip koşulur, başka ayar yok.
 
 ## 1 · Açılışta — bu koşunun en büyük iki işi
 
