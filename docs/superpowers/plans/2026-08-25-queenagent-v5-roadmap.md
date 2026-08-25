@@ -1,6 +1,6 @@
 # QueenAgent v5 Yol Haritası — görmek, ölçmek, sadeleşmek
 
-**Tarih:** 2026-08-25 · **Branch:** `feat/queenagent-v5` (açılacak) ·
+**Tarih:** 2026-08-25 · **Branch:** `feat/queenagent-v5` ·
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
@@ -34,6 +34,17 @@ Koşu ikiye ayrılıyor, ve ayrım **kimin koştuğu**:
 
 Blok 2'nin kendi içindeki sıra kullanıcının söylediği sıradır; araya giren tek madde Grok Build ve
 onun yeri zorunlu (aşağıda).
+
+### Tasarım bu koşuda kodu takip ediyor *(kullanıcı kararı, 25 Ağustos)*
+
+66, 67 ve 68 tasarımda hiç karşılığı olmayan üç eleman doğuruyor, ve normalde bu deponun kuralı
+tersidir: tasarım görsel şartnamedir, kod onu izler. Bu koşuda beklenmiyor — elemanlar önce kodda
+doğuyor, [tasarım promptları](2026-08-25-queenagent-v5-tasarim-promptlari.md) sonra atılıyor ve
+tasarım koda uyduruluyor.
+
+Bedeli önden biliniyor ve kabul edildi: renkler ve ölçüler var olan görsel dilden türetiliyor ama
+kararı veren tasarım değil, kod. Tasarım döndüğünde farklar çıkarsa ilgili maddenin üstüne ikinci
+bir tur gelir. Bu, o turun sürpriz olmadığının kaydıdır.
 
 ### Sırayı zorlayan bağlar
 
