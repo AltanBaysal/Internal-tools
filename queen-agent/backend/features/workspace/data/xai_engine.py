@@ -10,11 +10,11 @@ class XaiEngine:
     def __init__(self, client):
         self._client = client
 
-    def complete(self, messages, tools=None, model=None):
-        return self._client.complete(self._for_xai(messages), tools=tools, model=model)
+    def complete(self, messages, tools=None):
+        return self._client.complete(self._for_xai(messages), tools=tools)
 
-    def stream(self, messages, tools=None, model=None):
-        return self._client.stream(self._for_xai(messages), tools=tools, model=model)
+    def stream(self, messages, tools=None):
+        return self._client.stream(self._for_xai(messages), tools=tools)
 
     @staticmethod
     def _for_xai(messages):

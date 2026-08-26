@@ -92,8 +92,8 @@ class XaiClient:
         # The one line that reaches the network, and the one thing a test replaces.
         self._opener = opener
 
-    def complete(self, messages, tools=None, model=None):
-        request = self._request({"messages": messages}, tools, model)
+    def complete(self, messages, tools=None):
+        request = self._request({"messages": messages}, tools)
         try:
             with self._opener(request) as response:
                 payload = json.loads(response.read().decode("utf-8"))
@@ -106,7 +106,7 @@ class XaiClient:
             raise XaiFailed(str(failure.reason)) from failure
         return payload["choices"][0]["message"]
 
-    def stream(self, messages, tools=None, model=None):
+    def stream(self, messages, tools=None):
         # The counts come only if asked for, and only to a stream -- so the ask sits beside the
         # stream flag rather than in _request, which serves both roads. Without it every frame's
         # usage field comes back null and the answer costs nothing that anyone can read.
@@ -117,7 +117,6 @@ class XaiClient:
                 "stream_options": {"include_usage": True},
             },
             tools,
-            model,
         )
         try:
             with self._opener(request) as response:
@@ -142,14 +141,15 @@ class XaiClient:
         except urllib.error.URLError as failure:
             raise XaiFailed(str(failure.reason)) from failure
 
-    def _request(self, body, tools, model=None):
+    def _request(self, body, tools):
         api_key = self._read_key()
         # Not a guessed cause: there is nothing to send, and that is something known here rather
         # than read off a 401 from the other end.
         if not api_key:
             raise XaiNotConfigured("No API key is set.")
-        # The caller's model wins; the configured one is what answers when nobody asked.
-        payload = {"model": model or self._model, **body}
+        # One model, named once where this client is built. There used to be a per-call one that
+        # won over it, back when a chat could pick its own.
+        payload = {"model": self._model, **body}
         if tools:
             payload["tools"] = tools
         return urllib.request.Request(

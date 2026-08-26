@@ -5,23 +5,14 @@ CONVERSATION = [{"role": "user", "content": "a"}, {"role": "ai", "content": "b"}
 
 
 class FakeClient:
-    # Tolerates a model without recording one: nothing passes it since Madde 82, and a fake that
-    # refused it would make the translation tests below fail over a signature rather than a
-    # translation.
+    # No model since Madde 82: this client would be built knowing which one. An engine that still
+    # passed one would die here rather than quietly working.
     def __init__(self):
         self.seen = None
 
-    def complete(self, messages, tools=None, model=None):
+    def complete(self, messages, tools=None):
         self.seen = messages
         return {"role": "assistant", "content": "hi"}
-
-    def stream(self, messages, tools=None, model=None):
-        self.seen = messages
-        return iter(["hi"])
-
-
-class StrictClient(FakeClient):
-    """A client that refuses a model, so an engine still passing one dies loudly."""
 
     def stream(self, messages, tools=None):
         self.seen = messages
@@ -46,6 +37,6 @@ def test_streaming_is_prepared_the_same_way():
 def test_the_engine_hands_over_no_model():
     # Madde 82: which model answers belongs to the wiring, and the wiring is one line in config.py.
     # The engine translates roles and nothing else.
-    client = StrictClient()
+    client = FakeClient()
     list(XaiEngine(client).stream(CONVERSATION))
     assert client.seen is not None

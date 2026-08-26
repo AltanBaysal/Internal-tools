@@ -49,9 +49,9 @@ class FileChatStore:
             "createdAt": chat.created_at,
             "messages": [_message_json(message) for message in chat.messages],
         }
-        # A chat that picked no model writes no field, exactly as a message with no files does.
-        if chat.model:
-            stored["model"] = chat.model
+        # A chat that selected no skill writes no field, exactly as a message with no files does.
+        # Chats written before Madde 82 carry a model key here; nothing puts one back, so it drops
+        # the first time such a chat is written again.
         if chat.skill:
             stored["skill"] = chat.skill
         self._store.write_text(
@@ -111,8 +111,8 @@ def _as_chat(chat_id, raw):
         id=chat_id,
         title=raw["title"],
         created_at=raw["createdAt"],
-        # Chats written before these fields existed picked nothing, which is what empty means.
-        model=raw.get("model", ""),
+        # Chats written before this field existed selected nothing, which is what empty means. A
+        # model key sitting beside it is simply not read.
         skill=raw.get("skill", ""),
         messages=tuple(
             Message(

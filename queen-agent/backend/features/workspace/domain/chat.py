@@ -75,12 +75,9 @@ class Chat:
     title: str
     created_at: str
     messages: tuple = ()
-    # Which model answers here. Empty means the chat never picked one, and the app's default speaks
-    # for it -- so a chat that made no choice keeps following the setting when the setting moves,
-    # and the records written before this field existed need no migration.
-    model: str = ""
-    # The skill selected right now. Empty is the ordinary state -- unlike a model, a chat may have
-    # no skill at all, and pressing the selected one again puts it back here.
+    # The skill selected right now. Empty is the ordinary state: a chat may have no skill at all,
+    # and pressing the selected one again puts it back here. The only thing about a chat that is
+    # chosen -- which model answers is one line in config.py since Madde 82.
     skill: str = ""
 
     @property

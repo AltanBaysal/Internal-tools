@@ -21,8 +21,8 @@ ROOT = os.environ.get("QUEENAGENT_ROOT", os.path.join(os.path.expanduser("~"), "
 # answer fails.
 XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
 
-# What a chat that picked no model of its own answers with. Every chat may carry its own choice, so
-# this is the starting point rather than the only model.
+# What every chat answers with. Since Madde 82 this is the only place a model is named: a chat no
+# longer carries one and nothing on the way to the engine can override it.
 #
 # Grok Build since Madde 72: $1/$2 per 1M against grok-4.3's $1.25/$2.50, and 256k of context
 # against its 1M. The window is a quarter of what it was and the runs here are long -- a structure

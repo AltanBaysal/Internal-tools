@@ -58,9 +58,7 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
             # This round's bill so far. None until the engine says anything about it, so an engine
             # that measures nothing leaves the total alone rather than adding zeroes to it.
             round_spent = None
-            # None rather than a name when the chat never chose: which model speaks for it is the
-            # engine's own setting, and the domain has no business knowing what that says.
-            for piece in engine.stream(conversation, tools=TOOL_SPECS, model=chat.model or None):
+            for piece in engine.stream(conversation, tools=TOOL_SPECS):
                 # Asked before the piece rather than after it: what the user pressed stop on is
                 # everything they had already read, and nothing past it.
                 if stops.wanted(project_id, chat_id):

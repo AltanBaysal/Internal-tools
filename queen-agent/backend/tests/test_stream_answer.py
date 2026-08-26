@@ -78,9 +78,9 @@ class ScriptedEngine:
         self.blow_up_after = blow_up_after
         self.seen = []
 
-    # Tolerates a model without recording one: nothing passes it since Madde 82, and a fake that
-    # refused it would make every test in this file fail over one caller's signature.
-    def stream(self, messages, tools=None, model=None):
+    # No model since Madde 82: the engine is built knowing which one. A use case that still passed
+    # one would die here rather than quietly working.
+    def stream(self, messages, tools=None):
         self.seen.append(list(messages))
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
             raise RuntimeError("connection dropped")
@@ -380,25 +380,11 @@ def test_an_unknown_chat_is_reported_before_anything_streams(tmp_path):
         list(stream_answer(chats, files, ScriptedEngine([]), "p1", "nope", NOW, NEVER))
 
 
-class StrictEngine:
-    """An engine that refuses a model, so a caller still passing one dies loudly.
-
-    Its own class rather than a change to ScriptedEngine: that one is shared by every test in this
-    file, and tightening it would make them all fail over a single caller's signature.
-    """
-
-    def __init__(self):
-        self.seen = []
-
-    def stream(self, messages, tools=None):
-        self.seen.append(list(messages))
-        yield {"text": "hi"}
-
-
 def test_the_engine_is_asked_without_a_model(tmp_path):
-    # Madde 82: which model answers belongs to the wiring, not to the chat.
+    # Madde 82: which model answers belongs to the wiring, not to the chat. ScriptedEngine.stream
+    # refuses one, so a use case that passed a model would die here.
     chats, files = _seeded(tmp_path)
-    engine = StrictEngine()
+    engine = ScriptedEngine([[{"text": "hi"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
     assert len(engine.seen) == 1
 

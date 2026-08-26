@@ -2,7 +2,7 @@ import pytest
 
 from backend.features.workspace.domain.chat import Chat, Message
 from backend.features.workspace.domain.errors import ChatNotFound
-from backend.features.workspace.domain.usecases.set_chat_choices import set_chat_choices
+from backend.features.workspace.domain.usecases.set_chat_skill import set_chat_skill
 
 
 class FakeChatStore:
@@ -30,7 +30,7 @@ def _chat(**fields):
 
 def test_the_chat_keeps_the_skill_it_was_given():
     store = FakeChatStore(_chat())
-    changed = set_chat_choices(store, "p1", "c1", skill="split-shots")
+    changed = set_chat_skill(store, "p1", "c1", "split-shots")
     assert changed.skill == "split-shots"
     assert store.replaced == [("p1", changed)]
 
@@ -39,7 +39,7 @@ def test_what_was_already_said_is_not_touched():
     # Changing the skill mid-conversation answers the next question differently; it does not rewrite
     # the ones already answered.
     store = FakeChatStore(_chat())
-    changed = set_chat_choices(store, "p1", "c1", skill="verify")
+    changed = set_chat_skill(store, "p1", "c1", "verify")
     assert changed.messages == _chat().messages
     assert changed.title == "Hello"
 
@@ -48,11 +48,11 @@ def test_an_empty_skill_clears_the_selection():
     # Pressing the selected skill again clears it. Empty is an ordinary state for a skill, which is
     # why the argument is taken as given rather than guarded by a sentinel.
     store = FakeChatStore(_chat(skill="verify"))
-    assert set_chat_choices(store, "p1", "c1", skill="").skill == ""
+    assert set_chat_skill(store, "p1", "c1", "").skill == ""
 
 
 def test_a_chat_that_is_not_there_changes_nothing():
     store = FakeChatStore()
     with pytest.raises(ChatNotFound):
-        set_chat_choices(store, "p1", "nope", skill="verify")
+        set_chat_skill(store, "p1", "nope", "verify")
     assert store.replaced == []

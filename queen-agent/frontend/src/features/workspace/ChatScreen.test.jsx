@@ -583,7 +583,7 @@ test("picking a skill is passed up rather than kept here", () => {
     <ChatScreen
       project={PROJECT}
       chat={CHAT}
-      picker="skills"
+      skillsOpen
       onSkillChange={onSkillChange}
     />,
   );

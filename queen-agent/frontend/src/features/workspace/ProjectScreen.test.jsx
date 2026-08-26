@@ -216,7 +216,7 @@ test("picking a skill is passed up rather than kept here", () => {
   // There is no chat yet, so there is no record to write to. The choice belongs to the session, and
   // App is what holds it.
   const onSkillChange = vi.fn();
-  render(<ProjectScreen project={PROJECT} picker="skills" onSkillChange={onSkillChange} />);
+  render(<ProjectScreen project={PROJECT} skillsOpen onSkillChange={onSkillChange} />);
   fireEvent.click(screen.getByText("Create scenario", { selector: ".menu__item-name" }));
   expect(onSkillChange).toHaveBeenCalledWith("create-scenario");
 });
@@ -228,14 +228,14 @@ test("the model's name is here to be read, not pressed", () => {
   expect(screen.queryByRole("button", { name: /Grok Build/ })).toBeNull();
 });
 
-test("which picker is open is told to the screen rather than decided by it", () => {
-  // Escape closes them in a fixed order and one listener owns it, so the open one cannot be a
-  // secret this screen keeps.
-  const onPicker = vi.fn();
-  render(<ProjectScreen project={PROJECT} onPicker={onPicker} />);
+test("whether the picker is open is told to the screen rather than decided by it", () => {
+  // Escape closes it in a fixed order with everything else and one listener owns that, so being
+  // open cannot be a secret this screen keeps.
+  const onToggleSkills = vi.fn();
+  render(<ProjectScreen project={PROJECT} onToggleSkills={onToggleSkills} />);
   expect(screen.queryByText("Create scenario", { selector: ".menu__item-name" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  expect(onPicker).toHaveBeenCalledWith("skills");
+  expect(onToggleSkills).toHaveBeenCalled();
 });
 
 test("the screen starts with its title", () => {

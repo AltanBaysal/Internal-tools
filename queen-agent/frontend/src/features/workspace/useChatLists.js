@@ -17,8 +17,8 @@ export function useProjectChats(projectId) {
   };
 }
 
-export function startChatInProject(projectId, text, model = "", skill = "") {
-  return postJson(`/api/projects/${projectId}/chats`, { text, model, skill });
+export function startChatInProject(projectId, text, skill = "") {
+  return postJson(`/api/projects/${projectId}/chats`, { text, skill });
 }
 
 export function deleteChat(projectId, chatId) {

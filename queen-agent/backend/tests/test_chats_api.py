@@ -25,9 +25,9 @@ class FakeEngine:
             raise RuntimeError(self.blow_up)
         return {"role": "assistant", "content": self.answer}
 
-    # Tolerates a model without recording one: nothing passes it since Madde 82, and a fake that
-    # refused it would make every test in this file fail over one caller's signature.
-    def stream(self, messages, tools=None, model=None):
+    # No model since Madde 82: there is one, and the client is built knowing it. A caller that
+    # still passed one would die here rather than quietly working.
+    def stream(self, messages, tools=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         self.seen = [dict(message) for message in messages]
@@ -45,7 +45,7 @@ class ScriptedEngine:
     def __init__(self, rounds):
         self.rounds = list(rounds)
 
-    def stream(self, messages, tools=None, model=None):
+    def stream(self, messages, tools=None):
         pieces = self.rounds.pop(0) if self.rounds else []
         for piece in pieces:
             yield piece
@@ -55,7 +55,7 @@ def _tool_call(tool, **arguments):
     return {"id": "t1", "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
 
-def _client(tmp_path, engine=None, default_model="grok-4.5"):
+def _client(tmp_path, engine=None):
     # A fresh registry per client, like the stores: one test's stop must not reach another's answer.
     store = Store(str(tmp_path))
     app = create_app(
@@ -66,7 +66,6 @@ def _client(tmp_path, engine=None, default_model="grok-4.5"):
                 FileChatStore(store),
                 FileFileStore(store),
                 engine or FakeEngine(),
-                default_model,
                 MemoryStops(),
             ),
         ),
@@ -417,25 +416,11 @@ def test_a_patch_carrying_only_a_model_is_refused(tmp_path):
     assert client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "x"}).status_code == 400
 
 
-class StrictEngine:
-    """An engine that refuses a model, so a caller still passing one dies loudly.
-
-    Its own class rather than a change to FakeEngine: that one is shared by every test in this
-    file, and tightening it would make them all fail over a single caller's signature.
-    """
-
-    def __init__(self):
-        self.seen = None
-
-    def stream(self, messages, tools=None):
-        self.seen = [dict(message) for message in messages]
-        yield {"text": "hi"}
-
-
 def test_the_engine_is_asked_without_a_model(tmp_path):
     # There is one model and the wiring names it once, in config.py. Nothing on the way to the
-    # engine gets to say otherwise.
-    engine = StrictEngine()
+    # engine gets to say otherwise -- FakeEngine.stream refuses one, so a route that passed a model
+    # would die here rather than quietly working.
+    engine = FakeEngine()
     client = _client(tmp_path, engine=engine)
     pid, cid = _started(client)
     client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()

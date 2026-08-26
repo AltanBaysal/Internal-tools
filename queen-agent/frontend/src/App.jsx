@@ -58,15 +58,12 @@ export default function App() {
     if (next === null) setRailCollapsed(true);
     else setRailWidth(next);
   };
-  // The last model picked, and what the next chat is born with. Held for the session rather than
+  // The last skill picked, and what the next chat is born with. Held for the session rather than
   // written to disk: a chat's own choice is on the server, and this is only the starting point.
-  // Empty until the server says what it is set to.
-  const [lastModel, setLastModel] = useState("");
-  // The same rule for the skill: the chat's own is on the server, this is where the next one starts.
   const [lastSkill, setLastSkill] = useState("");
-  // Which picker is open, "model" | "skills" | null. Here rather than inside a picker, because
-  // Escape closes them in a fixed order and one has to close the other.
-  const [picker, setPicker] = useState(null);
+  // Whether the Skills menu is open. Here rather than inside the picker, because Escape closes it
+  // in a fixed order with everything else that can be open.
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const { projectChats, reloadProjectChats, loadingChats, chatsError } = useProjectChats(
     route.projectId,
   );
@@ -88,23 +85,6 @@ export default function App() {
     () => Promise.all([reloadFiles(), reloadProjects()]),
     online,
   );
-
-  // Which model a chat that picked nothing answers with is a setting, and only the server knows it.
-  // Asked once: it cannot change while the app is open.
-  useEffect(() => {
-    let cancelled = false;
-    getJson("/api/model")
-      .then((answer) => {
-        // Only as a starting point: a pick made in the meantime is the newer answer.
-        if (!cancelled && answer?.default) setLastModel((picked) => picked || answer.default);
-      })
-      // A default nobody could fetch is not worth a message on the screen: the chat's own record
-      // carries a resolved name anyway, and only a draft is left saying "Model".
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const openProject = (id) => navigate(`/p/${id}`);
   const openChat = (projectId, chatId, options) =>
@@ -142,13 +122,13 @@ export default function App() {
       if (menuFor) setMenuFor(null);
       else if (confirming) setConfirming(null);
       // The design's order, fark 67: project menu → confirm box → Skills → model → open panel.
-      else if (picker === "skills") setPicker(null);
-      else if (picker === "model") setPicker(null);
+      // Four now: Madde 82 took the model picker out, and the ones around it did not move.
+      else if (skillsOpen) setSkillsOpen(false);
       else if (reading.name) reading.close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [menuFor, confirming, picker, reading.name, reading.close]);
+  }, [menuFor, confirming, skillsOpen, reading.name, reading.close]);
 
   // The screen reads its project out of the list the app already holds; asking the server a second
   // time would be asking for an answer we have.
@@ -233,28 +213,21 @@ export default function App() {
 
   // The draft address is not a place to come back to, so the chat that replaces it does exactly
   // that; starting one from the project screen is an ordinary step and is pushed.
-  // A chat's own choices live on the server; the last ones made also become what the next chat
+  // A chat's own choice lives on the server; the last one made also becomes what the next chat
   // starts from, and that much is the session's.
   //
-  // Neither of these closes the menu: pressing a row already ends it, in Menu, whether or not the
-  // press changed anything. Clearing the picker here too put two updates in one batch -- the clear
-  // landed first, and the toggle, reading a closed menu, opened it straight back up.
-  const chooseModel = async (model) => {
-    setLastModel(model);
-    await chat.choose({ model });
-  };
-
+  // This does not close the menu: pressing a row already ends it, in Menu, whether or not the press
+  // changed anything. Clearing it here too put two updates in one batch -- the clear landed first,
+  // and the toggle, reading a closed menu, opened it straight back up.
   const chooseSkill = async (skill) => {
     setLastSkill(skill);
     await chat.choose({ skill });
   };
 
-  // One value, two menus: opening either closes whatever was open, and pressing the open one shuts
-  // it. "Two menus close each other" needs no rule of its own.
-  const togglePicker = (which) => setPicker((open) => (open === which ? null : which));
+  const toggleSkills = () => setSkillsOpen((open) => !open);
 
   const startChat = async (text) => {
-    const started = await startChatInProject(route.projectId, text, lastModel, lastSkill);
+    const started = await startChatInProject(route.projectId, text, lastSkill);
     await Promise.all([reloadProjectChats(), reloadProjects()]);
     openChat(route.projectId, started.id, { replace: drafting });
   };
@@ -305,13 +278,11 @@ export default function App() {
             filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
-            /* No chat here to write a choice to, so both are the session's -- the same values the
-               draft chat is born with, and the same ones startChat already sends. */
-            model={lastModel}
+            /* No chat here to write a choice to, so it is the session's -- the same value the
+               draft chat is born with, and the same one startChat already sends. */
             skill={lastSkill}
-            picker={picker}
-            onPicker={togglePicker}
-            onModelChange={setLastModel}
+            skillsOpen={skillsOpen}
+            onToggleSkills={toggleSkills}
             onSkillChange={setLastSkill}
             onRename={() => askForName(route.projectId)}
             onDelete={() => askToDelete(route.projectId)}
@@ -324,8 +295,8 @@ export default function App() {
         {!firstLoad && route.view === "chat" ? (
           <ChatScreen
             project={project}
-            /* A draft has no record yet, so the choices it would be born with are the session's. */
-            chat={drafting ? { ...DRAFT, model: lastModel, skill: lastSkill } : chat.chat}
+            /* A draft has no record yet, so the choice it would be born with is the session's. */
+            chat={drafting ? { ...DRAFT, skill: lastSkill } : chat.chat}
             files={files}
             loadingFiles={loadingFiles}
             filesError={filesError}
@@ -345,12 +316,11 @@ export default function App() {
             createdFiles={chat.createdFiles}
             streamingCalls={chat.streamingCalls}
             onBack={() => openProject(route.projectId)}
-            picker={picker}
-            onPicker={togglePicker}
+            skillsOpen={skillsOpen}
+            onToggleSkills={toggleSkills}
             /* The skill goes with the message: what governed a turn is settled when it is sent. */
             onSend={drafting ? startChat : (text) => chat.send(text, lastSkill)}
             /* A draft has nothing to write to yet, so picking only moves the session's own. */
-            onModelChange={drafting ? setLastModel : chooseModel}
             onSkillChange={drafting ? setLastSkill : chooseSkill}
             onStop={chat.stop}
             onRetry={chat.retry}

@@ -4,7 +4,7 @@ import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FileRail from "./FileRail.jsx";
 import Markdown from "./Markdown.jsx";
-import ModelPicker from "./ModelPicker.jsx";
+import ModelLabel from "./ModelLabel.jsx";
 import Skeleton from "./Skeleton.jsx";
 import SkillPicker from "./SkillPicker.jsx";
 
@@ -118,11 +118,10 @@ export default function ChatScreen({
   creatingFile,
   createdFiles = [],
   streamingCalls = [],
-  picker,
-  onPicker,
+  skillsOpen,
+  onToggleSkills,
   onBack,
   onSend,
-  onModelChange,
   onSkillChange,
   onStop,
   onRetry,
@@ -316,9 +315,10 @@ export default function ChatScreen({
             rows={2}
             placeholder="Reply..."
             action="Send"
-            /* karar 1's order: Skills · model · Send. Both choices belong to the chat on the
-               server, so the screen asks and App sends; which picker is open is App's too, because
-               Escape closes them in a fixed order. */
+            /* karar 1's order: Skills · model · Send. The middle one stopped being a control in
+               Madde 82 -- one model, nothing to pick. The skill does belong to the chat on the
+               server, so the screen asks and App sends; whether its menu is open is App's too,
+               because Escape closes it in a fixed order with the rest. */
             /* Stopping is the send button's other state rather than a control of its own: while an
                answer runs there is nothing to send. No red -- cutting your own answer short is not
                destruction. */
@@ -328,16 +328,11 @@ export default function ChatScreen({
               <>
                 <SkillPicker
                   skill={chat.skill}
-                  open={picker === "skills"}
-                  onToggle={() => onPicker?.("skills")}
+                  open={skillsOpen}
+                  onToggle={onToggleSkills}
                   onChange={onSkillChange}
                 />
-                <ModelPicker
-                  model={chat.model}
-                  open={picker === "model"}
-                  onToggle={() => onPicker?.("model")}
-                  onChange={onModelChange}
-                />
+                <ModelLabel />
               </>
             }
             onSubmit={onSend}

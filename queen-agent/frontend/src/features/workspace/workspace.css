@@ -226,7 +226,7 @@
   z-index: 14;
 }
 
-/* The label a menu stands under. The sidebar's has none; the model's says MODEL. */
+/* The label a menu stands under. The sidebar's has none; the Skills one says SKILLS. */
 .menu__header {
   display: block;
   padding: 6px 10px 4px;
@@ -1557,8 +1557,16 @@
   padding-top: 6px;
 }
 
-/* The model button, and from Madde 27 the Skills one beside it. Quiet until it is pointed at: it
-   says which model is answering, and saying it is most of its job. */
+/* The model's name, sitting where its picker used to. Not a control since Madde 82: it reads like
+   the button beside it and does nothing, so it takes the picker's spacing without its hover. */
+.model-label {
+  padding: 6px 9px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* The Skills button. Quiet until it is pointed at: it says which skill is governing, and saying it
+   is most of its job. It was the model's button too until Madde 82. */
 .picker {
   display: inline-flex;
   align-items: center;

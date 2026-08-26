@@ -27,7 +27,6 @@ app = create_app(
             FileChatStore(store),
             FileFileStore(store),
             engine,
-            config.XAI_MODEL,
             # One registry for the whole app: two of them would be two requests unable to find
             # each other.
             MemoryStops(),
