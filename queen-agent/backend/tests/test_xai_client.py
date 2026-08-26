@@ -220,6 +220,51 @@ def test_counts_without_a_cache_breakdown_read_as_nothing_cached():
     ]
 
 
+def test_a_streaming_request_asks_for_the_counts():
+    # Madde 76: they do not arrive unless asked for. The API reference is plain about it -- without
+    # this option every chunk's usage field comes back null, which is exactly what happened.
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return _Lines([b"data: [DONE]"])
+
+    list(_client(opener).stream(MESSAGES))
+    assert seen["body"]["stream_options"] == {"include_usage": True}
+
+
+def test_a_request_that_is_not_a_stream_does_not_ask():
+    # There is nothing to stream an extra chunk into, and an endpoint that does not know the option
+    # answers 400 rather than ignoring it. It belongs beside the stream flag, not above it.
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return _Response({"choices": [{"message": {"content": "hi"}}]})
+
+    _client(opener).complete(MESSAGES)
+    assert "stream_options" not in seen["body"]
+
+
+def test_the_closing_counts_frame_does_not_bring_the_answer_down():
+    # The counts arrive in one extra frame before [DONE], and that frame has nothing to say -- its
+    # choices list is empty. Reading it as though a choice were there ends the whole answer, not
+    # just the number.
+    frame = {
+        "choices": [],
+        "usage": {
+            "prompt_tokens": 41,
+            "completion_tokens": 2,
+            "prompt_tokens_details": {"cached_tokens": 12},
+        },
+    }
+    lines = [b"data: " + _delta_line("Hi"), b"data: " + json.dumps(frame).encode("utf-8"), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"text": "Hi"},
+        {"usage": {"sent": 41, "cached": 12, "answered": 2}},
+    ]
+
+
 def test_a_stream_that_says_nothing_about_counts_hands_over_nothing():
     # The guard on every fake engine in the suite: an engine that never mentions spending must not
     # start producing a third kind of piece.

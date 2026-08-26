@@ -536,10 +536,21 @@ def test_an_answer_nobody_measured_spent_nothing(tmp_path):
 
 
 def test_a_stopped_answer_still_says_what_it_spent(tmp_path):
-    # The conversation went out and was paid for before the user pressed anything. Counts arriving
-    # with every piece are what make this readable: a single figure at the end of the stream would
-    # be cut off with the rest, and the input is the expensive half.
+    # Whatever was measured before the cut is kept, and the fold happens before the stop is acted
+    # on so that it can be. The window is narrow -- the engine reports once, at the end of the
+    # round -- but a stop landing between that frame and the end of the loop is a real moment, and
+    # dropping the figure there would throw away something already paid for.
     rounds = [[spent(1200, 900, 5), {"text": "Half a "}, {"text": "never reached"}]]
     chats, _, _, _ = _run(tmp_path, rounds, stops=StopsAfter(after=2))
     assert _kept(chats).text == "Half a"
     assert _kept(chats).usage == Usage(1200, 900, 5)
+
+
+def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tmp_path):
+    # Madde 76, and the honest record of a limit rather than a guard on a behaviour. The engine
+    # reports once, in a frame just before the stream closes; an answer cut short never reaches it.
+    # So a stopped answer usually says nothing about what it spent, even though it spent it.
+    rounds = [[{"text": "Half a "}, {"text": "never reached"}, spent(1200, 900, 5)]]
+    chats, _, _, _ = _run(tmp_path, rounds, stops=StopsAfter(after=1))
+    assert _kept(chats).text == "Half a"
+    assert _kept(chats).usage == Usage()
