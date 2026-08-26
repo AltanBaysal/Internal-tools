@@ -558,3 +558,9 @@ test("the grip is on the rail's left edge and says it can be pulled", () => {
   expect(grip).toContain("cursor: col-resize");
   expect(grip).toContain("left: 0");
 });
+
+test("the gauge pushes the rest of the foot to the far end", () => {
+  // Madde 92. Not `space-between` on the foot: Skills, the model's name and Send are three separate
+  // items in that row, and spreading the row would put its whole width between them.
+  expect(rule(".composer__gauge")).toContain("margin-right: auto");
+});

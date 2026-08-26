@@ -730,3 +730,12 @@ test("the user's own message never carries a count", () => {
   expect(screen.getByText("11:04").className).toBe("msg__stamp");
   expect(container.querySelector(".msg--user").textContent).not.toContain("tokens");
 });
+
+// --- the context gauge (Madde 92) ----------------------------------------------------------------
+
+test("the chat screen draws the gauge from the record it read", () => {
+  // The same measurement the stamp under the answer shows, read from the one place the record's
+  // shape is built. Nothing here counts anything a second time.
+  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, context: { sent: 41000, ceiling: 50000 } }} />);
+  expect(screen.getByRole("img").style.getPropertyValue("--filled")).toBe("0.82");
+});

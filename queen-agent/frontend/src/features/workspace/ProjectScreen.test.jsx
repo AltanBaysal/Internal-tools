@@ -278,3 +278,10 @@ test("the screen carries no description to click", () => {
   render(<ProjectScreen project={PROJECT} />);
   expect(screen.queryByText("Source summaries.")).toBeNull();
 });
+
+test("the draft screen has no gauge", () => {
+  // Madde 92: the composer is the same component on both screens, but there is no chat here and so
+  // nothing to measure. An empty circle would be a mark that is always there and reads as nothing.
+  render(<ProjectScreen project={PROJECT} />);
+  expect(screen.queryByRole("img")).toBeNull();
+});

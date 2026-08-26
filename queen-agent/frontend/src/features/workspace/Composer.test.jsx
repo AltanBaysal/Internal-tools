@@ -109,6 +109,22 @@ test("with nothing to put there the foot is Send alone", () => {
   expect(container.querySelectorAll(".composer__foot button").length).toBe(1);
 });
 
+// Madde 92: the foot grows a second end. Skills, the model's name and Send have been on the right
+// since karar 1; the gauge goes to the other one, because it is read rather than pressed and
+// standing among the three would make it look like a fourth thing to press.
+test("the gauge stands at the far end of the foot from Send", () => {
+  const { container } = render(
+    <Composer
+      action="Send"
+      gauge={<span data-testid="gauge" />}
+      foot={<button type="button">Grok 4.5</button>}
+    />,
+  );
+  const foot = container.querySelector(".composer__foot");
+  expect(foot.firstChild.className).toBe("composer__gauge");
+  expect(foot.querySelector('[data-testid="gauge"]')).toBeTruthy();
+});
+
 // --- one button, two jobs (Madde 79) -------------------------------------------------------------
 //
 // While an answer is running there is nothing to send, so the button that sends is the one free to

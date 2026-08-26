@@ -608,3 +608,47 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
         "role": "system",
         "content": instruction_for("create-scenario"),
     }
+
+
+# --- the ceiling on a chat's context (Madde 92) --------------------------------------------------
+
+
+def _spending(tmp_path, sent):
+    """A client whose one answer reports having sent this many tokens."""
+    engine = ScriptedEngine(
+        [[{"text": "Done."}, {"usage": {"sent": sent, "cached": 0, "answered": 5}}]]
+    )
+    return _client(tmp_path, engine)
+
+
+def test_a_full_chat_refuses_a_new_sentence(tmp_path):
+    # The ceiling stops the turn before anything is written: a refused sentence that reached the
+    # disk would leave the chat waiting for an answer nobody can give it.
+    client = _spending(tmp_path, 60_000)
+    pid, cid = _started(client)
+    before = len(_record(client, pid, cid)["messages"])
+    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"})
+    assert refused.status_code == 400
+    assert "ceiling" in refused.get_json()["error"]
+    assert len(_record(client, pid, cid)["messages"]) == before
+
+
+def test_a_full_chat_refuses_a_second_attempt_too(tmp_path):
+    # Trying again is sending the same oversized request a second time. The reason has to be the
+    # ceiling rather than whatever else the door might have said first -- otherwise the screen
+    # tells the user something true and useless.
+    client = _spending(tmp_path, 60_000)
+    pid, cid = _started(client)
+    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
+    assert refused.status_code == 400
+    assert "ceiling" in refused.get_json()["error"]
+
+
+def test_the_record_says_how_much_of_the_ceiling_it_has_used(tmp_path):
+    # Both numbers, because the gauge draws a share and a share needs its denominator. A second
+    # copy of the ceiling living in the browser is the thing that would go stale.
+    from backend.features.workspace.domain.chat import CONTEXT_CEILING
+
+    client = _spending(tmp_path, 41_000)
+    pid, cid = _started(client)
+    assert _record(client, pid, cid)["context"] == {"sent": 41_000, "ceiling": CONTEXT_CEILING}
