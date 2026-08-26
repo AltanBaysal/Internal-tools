@@ -104,6 +104,24 @@ test("only the handle offers to be pressed", () => {
   expect(rule(".tool-calls__handle")).toContain("cursor: pointer");
 });
 
+test("a call card sits back rather than forward", () => {
+  // The file card is lit brighter than the page because it is a door and has to come forward. A
+  // call opens nothing, so its fill goes under the page's own tone instead of above it -- and the
+  // tone is the softest one the palette already holds rather than a new one.
+  expect(rule(".tool-call")).toContain("background: #f4efe7");
+  expect(rule(".tool-call")).not.toContain("var(--surface)");
+  expect(rule(".tool-calls__handle")).toContain("background: #f4efe7");
+  expect(rule(".tool-calls__handle")).not.toContain("var(--surface)");
+});
+
+test("a call reads in the stopped line's voice", () => {
+  // The measure the owner named: the same grey as the word under an answer that was cut short.
+  expect(rule(".tool-call__head")).toContain("color: var(--muted)");
+  expect(rule(".tool-call__head")).not.toContain("var(--ink)");
+  expect(rule(".tool-calls__summary")).toContain("color: var(--muted)");
+  expect(rule(".tool-calls__summary")).not.toContain("var(--ink)");
+});
+
 test("the two lines the stamp replaces are gone", () => {
   // Madde 83 folded a label above the message and a count below it into one line under it. Either
   // name left behind would style something nothing draws any more.

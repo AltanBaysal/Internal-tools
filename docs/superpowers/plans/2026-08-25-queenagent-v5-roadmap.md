@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **20 madde, 4 blok** — 65'ten 84'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **21 madde, 4 blok** — 65'ten 85'e.
 
 ---
 
@@ -317,6 +317,21 @@ sıradaki geliyor *(kullanıcı kararı, 26 Ağustos: "adım adım gidelim artı
   olmayan çağrının parantezi de yok)* aynen duruyor. Açık/kapalı **diske yazılmaz**: bir bakış
   tercihi, sohbet hakkında bir olgu değil.
 
+### Madde 85 — Çağrı kartı geriye oturur
+
+- **Ne çalışır:** 84 kartı dosya kartının iskeletiyle kurdu ve kart ekranda fazla canlı duruyor.
+  İki sebebi var: zemini `--surface` *(`#fffdfa`)*, yani sayfadan **daha parlak** — kart sayfanın
+  üstünde duruyor; ve metni `--ink`, neredeyse siyah. Kart geriye oturur: zemin sayfadan bir tık
+  koyu bir tona iner, metin `Stopped` satırının grisine.
+- **Nasıl görülür:** çağrı kartları hâlâ kart ama cevabın önüne geçmiyor; yazıları durdurulmuş bir
+  turun altındaki `Stopped` ile aynı ağırlıkta okunuyor.
+- **Kararı verilmiş** *(kullanıcı kararı, 26 Ağustos)*: **zemin kalkmıyor**, susuyor. Çerçevesiz bir
+  kart önerildi ve kullanıcı reddetti — kart kart kalacak, yalnız geriye oturacak.
+- **Neden dosya kartından ayrışıyor:** dosya kartı bir kapı ve öne çıkması gerekiyor, o yüzden
+  sayfadan parlak. Çağrı kartı bir kayıt; aynı iskeleti giyer ama aynı ışığı almaz.
+- **Değişmeyen:** iskelet. Kenarlık, 12px köşe, 340px sınır, kapının basılabilirliği — 84'ün stil
+  kilidi ikisinde de yeşil kalıyor. Bu madde yalnız iki renge dokunuyor.
+
 ---
 
 # Blok 2 — Beraber, adım adım
@@ -441,8 +456,8 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
 | Hangi skiller düşecek | 74 |
 
-76, 77, 79, 80, 81, 82, 83 ve 84 bu tabloda yok: sekizinin de kararı verilmiş, verilecek bir şey
-kalmadı. 81'in
+76'dan 85'e kadar olanlar bu tabloda yok: onunun da kararı verilmiş, verilecek bir şey kalmadı.
+81'in
 sorusu vardı — kelimeden önce durdurulan turun diske yazılıp yazılmayacağı — ve maddeye gelindiğinde
 kullanıcıyla konuşulup kapandı.
 
