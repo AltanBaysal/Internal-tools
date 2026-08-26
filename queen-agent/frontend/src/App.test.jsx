@@ -489,7 +489,13 @@ test("the first message in a draft creates the chat and takes its address", asyn
   const chat = { id: "c1", title: "Write the intro", messages: [], lastActivity: "x" };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path === "/api/projects/p1/messages" && options?.method === "POST") {
-      return Promise.resolve({ ok: true, status: 201, json: async () => chat });
+      // Madde 88: the answer comes back down this same request, and its first frame is what says
+      // which chat was born.
+      return Promise.resolve(
+        sseResponse(
+          `event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: ${JSON.stringify(chat)}\n\n`,
+        ),
+      );
     }
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => chat });
@@ -623,7 +629,8 @@ test("nothing asks for an answer by itself when a chat is opened", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByText("hello")).toBeTruthy());
+  // The title says "hello" too, so the bubble is asked for by name.
+  await waitFor(() => expect(screen.getByText("hello", { selector: ".msg__bubble" })).toBeTruthy());
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(0);
 });
 
@@ -1512,7 +1519,11 @@ test("the skill picked in a draft survives landing in the chat it created", asyn
   const born = { id: "c1", title: "Write it", skill: "verify-prompts", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve({ ok: true, status: 201, json: async () => born });
+      return Promise.resolve(
+        sseResponse(
+          `event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: ${JSON.stringify(born)}\n\n`,
+        ),
+      );
     }
     if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => born });

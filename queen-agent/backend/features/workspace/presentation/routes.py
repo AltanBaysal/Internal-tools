@@ -13,7 +13,7 @@ from backend.features.workspace.domain.errors import (
     InvalidProjectName,
     ProjectNotFound,
 )
-from backend.features.workspace.domain.chat import ToolCall
+from backend.features.workspace.domain.chat import ToolCall, is_owed_an_answer
 from backend.features.workspace.domain.tools import FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
@@ -75,44 +75,52 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
             return jsonify({"error": "chat not found"}), 404
         return jsonify(_chat_json(chat))
 
-    # One door for every sentence a user says. Which chat it lands in is a field in the body rather
-    # than a piece of the address, because it is allowed to be empty -- and an empty piece of a path
-    # is a different address, not an empty value.
+    # One door, and one meaning: advance this chat. Which chat is a field in the body rather than a
+    # piece of the address, because it is allowed to be empty -- and an empty piece of a path is a
+    # different address, not an empty value.
+    #
+    # Text writes a message first; no text answers what is already waiting, which is what Try again
+    # sends. The answer leaves down this same connection, so the browser never opens a second one
+    # and nothing starts a turn by itself.
     @workspace_bp.post("/api/projects/<project_id>/messages")
     def post_message(project_id):
         payload = request.get_json(silent=True) or {}
         wanted = payload.get("chat", "")
-        try:
-            chat = append_message(
-                chat_store,
-                project_id,
-                wanted,
-                payload.get("text", ""),
-                now=_now(),
-                skill=payload.get("skill", ""),
-                project_store=project_store,
-                # Minted whether or not it is used: the alternative is a second branch inside the
-                # rule, asking the route for an id only once it knows it is making a chat.
-                new_id=_new_id("c"),
-            )
-        except ProjectNotFound:
-            return jsonify({"error": "project not found"}), 404
-        except ChatNotFound:
-            return jsonify({"error": "chat not found"}), 404
-        except EmptyMessage:
-            return jsonify({"error": "a message needs text"}), 400
-        # A chat that was just born is a creation; a sentence added to one is not.
-        return jsonify(_chat_json(chat)), 200 if wanted else 201
-
-    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/answer")
-    def post_answer(project_id, chat_id):
-        # No body: the chat as it stands is the question. Both a first message and a follow-up
-        # arrive here, so there is one answering path rather than two.
-        if chat_store.get(project_id, chat_id) is None:
-            # The only failure that can still be a status code: nothing has gone out yet.
-            return jsonify({"error": "chat not found"}), 404
+        # Absent is not blank. A blank sentence is somebody leaning on the space bar and is
+        # refused; no sentence at all means they are asking for the answer, not sending one.
+        if "text" in payload:
+            try:
+                chat = append_message(
+                    chat_store,
+                    project_id,
+                    wanted,
+                    payload["text"],
+                    now=_now(),
+                    skill=payload.get("skill", ""),
+                    project_store=project_store,
+                    # Minted whether or not it is used: the alternative is a second branch inside
+                    # the rule, asking the route for an id only once it knows it is making a chat.
+                    new_id=_new_id("c"),
+                )
+            except ProjectNotFound:
+                return jsonify({"error": "project not found"}), 404
+            except ChatNotFound:
+                return jsonify({"error": "chat not found"}), 404
+            except EmptyMessage:
+                return jsonify({"error": "a message needs text"}), 400
+        else:
+            chat = chat_store.get(project_id, wanted) if wanted else None
+            if chat is None:
+                return jsonify({"error": "there is nothing here to answer"}), 400
+            if not is_owed_an_answer(chat):
+                return jsonify({"error": "this chat has already been answered"}), 400
+        # Every refusal is settled by here, which is why they can still be status codes: nothing
+        # has gone out yet. Past this line a fault can only travel inside the stream.
         return Response(
-            _sse(stream_answer(chat_store, file_store, engine, project_id, chat_id, _now(), stops)),
+            _sse(
+                chat.id,
+                stream_answer(chat_store, file_store, engine, project_id, chat.id, _now(), stops),
+            ),
             mimetype="text/event-stream",
         )
 
@@ -174,8 +182,12 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
     return workspace_bp
 
 
-def _sse(pieces):
+def _sse(chat_id, pieces):
     """Wrap the use case's output as events, telling them apart by type."""
+    # First, before the model has said a word: the id cannot come back as a field any more, and the
+    # browser needs it to change the address. Sent every time rather than only when it is news --
+    # no condition here, and the browser acts only if it differs from what it holds.
+    yield _frame("chat", {"chat": chat_id})
     try:
         for piece in pieces:
             if isinstance(piece, str):

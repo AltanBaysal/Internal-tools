@@ -1,4 +1,4 @@
-import { deleteJson, postJson } from "../../shared/api.js";
+import { deleteJson } from "../../shared/api.js";
 import { useList } from "../../shared/useList.js";
 
 // One question, one list: both the sidebar and the project screen ask what this project holds. The
@@ -17,10 +17,8 @@ export function useProjectChats(projectId) {
   };
 }
 
-export function startChatInProject(projectId, text, skill = "") {
-  // No chat named: Madde 87's way of saying there is not one yet, and the server makes it.
-  return postJson(`/api/projects/${projectId}/messages`, { text, skill });
-}
+// Starting a chat is not a separate call any more: since Madde 88 the draft sends through the same
+// road as a reply, and the answer streams back down it.
 
 export function deleteChat(projectId, chatId) {
   return deleteJson(`/api/projects/${projectId}/chats/${chatId}`);

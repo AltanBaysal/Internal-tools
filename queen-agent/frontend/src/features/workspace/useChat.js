@@ -3,16 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getJson, postJson } from "../../shared/api.js";
 import { streamEvents } from "../../shared/sse.js";
 
-// A chat whose last message is the user's is owed an answer. Stating it that way means the message
-// that opens a chat and a follow-up inside one travel the same road: send, then ask.
-function isOwedAnAnswer(chat) {
-  const last = chat?.messages[chat.messages.length - 1];
-  // A message still in flight does not count -- asking for an answer before the question has
-  // reached disk would answer the wrong conversation.
-  return Boolean(last) && last.role === "user" && !last.pending;
-}
-
-export function useChat(projectId, chatId, onFileCreated, online = true) {
+export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   const [chat, setChat] = useState(null);
   const [error, setError] = useState(null);
   // Kept apart from `error` on purpose: a message that was never sent and an answer that never came
@@ -26,24 +17,24 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
   // What the turn has done so far. Held only while the answer runs: the record that arrives at the
   // end carries the same steps, and drawing from both sources would read one step as two.
   const [streamingCalls, setStreamingCalls] = useState([]);
-  // Stopped by the user, and it has to outlive the stream it stopped. A stop with nothing worth
-  // keeping writes no answer, so the chat is still owed one and the effect below would ask again --
-  // the same shape `error` already has, and for the same reason.
-  const [stopped, setStopped] = useState(false);
 
-  // Kept in a ref rather than a dependency: the caller may hand over a fresh function on every
-  // render, and that must not rebuild `ask` and restart the effect below.
+  // Kept in refs rather than dependencies: the caller may hand over fresh functions on every
+  // render, and that must not rebuild `send`.
   const announce = useRef(onFileCreated);
   announce.current = onFileCreated;
+  const born = useRef(onChatBorn);
+  born.current = onChatBorn;
+  // Which chat a stream is running into. The first frame moves the address, and the effect below
+  // must not answer that move by throwing away what is still arriving.
+  const streamingInto = useRef(null);
 
   useEffect(() => {
     if (!projectId || !chatId) return undefined;
+    if (chatId === streamingInto.current) return undefined;
     let cancelled = false;
     setChat(null);
     setError(null);
     setMissing(false);
-    // Another chat is another conversation: what was stopped here says nothing about it.
-    setStopped(false);
     getJson(`/api/projects/${projectId}/chats/${chatId}`)
       .then((loaded) => {
         if (!cancelled) setChat(loaded);
@@ -58,101 +49,101 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     };
   }, [projectId, chatId]);
 
-  const ask = useCallback(async () => {
-    setThinking(true);
-    setError(null);
-    setStreamingText("");
-    setCreatingFile(false);
-    setCreatedFiles([]);
-    setStreamingCalls([]);
-    try {
-      await streamEvents(`/api/projects/${projectId}/chats/${chatId}/answer`, (frame) => {
-        if (frame.event === "chunk") setStreamingText((text) => text + frame.data.text);
-        else if (frame.event === "call") setStreamingCalls((calls) => [...calls, frame.data]);
-        else if (frame.event === "file-start") setCreatingFile(true);
-        else if (frame.event === "file") {
-          setCreatedFiles((names) => [...names, frame.data.name]);
-          setCreatingFile(false);
-          // The file exists on disk this instant, so every list that shows it is now out of date.
-          announce.current?.();
-        }
-        // What the browser piled up is a guess; what the server wrote is the record, so the record
-        // replaces it rather than being reconciled with it.
-        else if (frame.event === "done") setChat(frame.data);
-        else if (frame.event === "error") setError(frame.data.error);
-      });
-    } catch (failure) {
-      setError(failure.message);
-    } finally {
-      // The cards drawn from the stream go too: the stored answer carries the same names, and a
-      // stream that broke wrote no answer at all.
-      setStreamingText("");
-      setCreatingFile(false);
-      setCreatedFiles([]);
-      setStreamingCalls([]);
-      setThinking(false);
-    }
-  }, [projectId, chatId]);
-
-  useEffect(() => {
-    // Not while one is already running, and not after a failure -- otherwise a broken engine would
-    // be asked again forever. Not while the connection is gone either: the chat stays owed an
-    // answer, so this effect asks for it by itself the moment the connection is back.
-    if (!online || thinking || error || stopped || !isOwedAnAnswer(chat)) return;
-    ask();
-  }, [chat, thinking, error, stopped, online, ask]);
-
-  // Marked before the request goes out: the stream may end between asking and being told, and the
-  // effect above must never see a moment where the answer is over and nothing says why.
-  const stop = useCallback(async () => {
-    setStopped(true);
-    // The server's answer carries nothing; what matters is that the flag is set before the running
-    // turn looks at it again. A refusal is not worth a message -- the stream ends either way.
-    await postJson(`/api/projects/${projectId}/chats/${chatId}/stop`, {}).catch(() => {});
-  }, [projectId, chatId]);
-
-  // The skill travels with the message rather than being read off the chat on the server: what
-  // governed a turn is settled when the turn is sent.
+  // One road for both jobs since Madde 88: a sentence and a second attempt are the same request
+  // with and without text, and the answer comes back down it either way. Nothing here runs by
+  // itself -- what used to ask on a reload and on a reconnection is a rule on the server now.
+  //
+  // The skill travels with the message rather than being read off the chat: what governed a turn
+  // is settled when the turn is sent.
   const send = useCallback(
-    async (text, skill = "") => {
+    async (text = null, skill = "") => {
       const at = new Date().toISOString();
-      // The bubble appears before the server answers -- the design says so in as many words.
-      setChat((current) =>
-        current
-          ? { ...current, messages: [...current.messages, { role: "user", at, text, pending: true }] }
-          : current,
-      );
-      setRefused(null);
-      // A new sentence is a new question: what was stopped before has nothing to do with it.
-      setStopped(false);
-      try {
-        setChat(
-          await postJson(`/api/projects/${projectId}/messages`, { chat: chatId, text, skill }),
-        );
-      } catch (failure) {
-        // Refused: the optimistic bubble is taken back out so the screen never claims something
-        // was said when it was not.
+      if (text !== null) {
+        // The bubble appears before the server answers -- the design says so in as many words. In
+        // a draft there is no record to add it to, so one is stood up to hold it.
         setChat((current) =>
           current
             ? {
                 ...current,
-                messages: current.messages.filter(
-                  (message) => !(message.at === at && message.text === text),
-                ),
+                messages: [...current.messages, { role: "user", at, text, pending: true }],
               }
-            : current,
+            : { id: null, title: text, messages: [{ role: "user", at, text, pending: true }] },
         );
+      }
+      setRefused(null);
+      setError(null);
+      setThinking(true);
+      setStreamingText("");
+      setCreatingFile(false);
+      setCreatedFiles([]);
+      setStreamingCalls([]);
+      // No text at all is how Try again asks: the question is already on disk and must not be
+      // written a second time. A blank one would be refused, which is a different thing.
+      const body = text === null ? { chat: chatId } : { chat: chatId ?? "", text, skill };
+      try {
+        await streamEvents(
+          `/api/projects/${projectId}/messages`,
+          (frame) => {
+            if (frame.event === "chat") {
+              streamingInto.current = frame.data.chat;
+              if (frame.data.chat !== chatId) born.current?.(frame.data.chat);
+            } else if (frame.event === "chunk") {
+              setStreamingText((current) => current + frame.data.text);
+            } else if (frame.event === "call") {
+              setStreamingCalls((calls) => [...calls, frame.data]);
+            } else if (frame.event === "file-start") setCreatingFile(true);
+            else if (frame.event === "file") {
+              setCreatedFiles((names) => [...names, frame.data.name]);
+              setCreatingFile(false);
+              // The file exists on disk this instant, so every list that shows it is out of date.
+              announce.current?.();
+            }
+            // What the browser piled up is a guess; what the server wrote is the record, so the
+            // record replaces it rather than being reconciled with it.
+            else if (frame.event === "done") setChat(frame.data);
+            else if (frame.event === "error") setError(frame.data.error);
+          },
+          body,
+        );
+      } catch (failure) {
+        // Refused before a byte came back, so nothing was written: the optimistic bubble is taken
+        // back out and the screen never claims something was said when it was not.
+        if (text !== null) {
+          setChat((current) =>
+            current
+              ? {
+                  ...current,
+                  messages: current.messages.filter(
+                    (message) => !(message.at === at && message.text === text),
+                  ),
+                }
+              : current,
+          );
+        }
         setRefused(failure.message);
-        // Thrown on rather than swallowed: the composer is holding the only copy of the sentence,
-        // and it has to know to keep it.
-        throw failure;
+        // Thrown on rather than swallowed, but only when there was a sentence: the composer is
+        // holding the only copy of it and has to know to keep it. Try again carries none, and a
+        // throw there would be nobody's to catch.
+        if (text !== null) throw failure;
+      } finally {
+        // The cards drawn from the stream go too: the stored answer carries the same names, and a
+        // stream that broke wrote no answer at all.
+        setStreamingText("");
+        setCreatingFile(false);
+        setCreatedFiles([]);
+        setStreamingCalls([]);
+        setThinking(false);
       }
     },
     [projectId, chatId],
   );
 
-  // Try again asks for the answer once more; it never re-sends the message, because the chat is
-  // still owed one and the user's sentence must not be written twice.
+  const stop = useCallback(async () => {
+    // The server's answer carries nothing; what matters is that the flag is set before the running
+    // turn looks at it again. A refusal is not worth a message -- the stream ends either way.
+    await postJson(`/api/projects/${projectId}/chats/${chatId}/stop`, {}).catch(() => {});
+  }, [projectId, chatId]);
+
   return {
     chat,
     error,
@@ -165,6 +156,7 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     streamingCalls,
     send,
     stop,
-    retry: ask,
+    // Try again is the same road with no sentence on it.
+    retry: () => send(null),
   };
 }

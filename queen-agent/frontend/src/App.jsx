@@ -13,7 +13,6 @@ import Skeleton from "./features/workspace/Skeleton.jsx";
 import { useChat } from "./features/workspace/useChat.js";
 import {
   deleteChat,
-  startChatInProject,
   useProjectChats,
 } from "./features/workspace/useChatLists.js";
 import { useFile } from "./features/workspace/useFile.js";
@@ -79,17 +78,23 @@ export default function App() {
   const reading = useFile(route.projectId);
   // A file that has just been born changes two answers at once: the list itself, and the count on
   // the project's card.
-  const chat = useChat(
-    route.projectId,
-    drafting ? null : route.chatId,
-    () => Promise.all([reloadFiles(), reloadProjects()]),
-    online,
-  );
-
   const openProject = (id) => navigate(`/p/${id}`);
   const openChat = (projectId, chatId, options) =>
     navigate(`/p/${projectId}/c/${chatId}`, options);
   const openDraft = () => navigate(`/p/${route.projectId}/c/new`);
+
+  const chat = useChat(
+    route.projectId,
+    drafting ? null : route.chatId,
+    () => Promise.all([reloadFiles(), reloadProjects()]),
+    // Madde 88: the stream's first frame names its chat. When that is a chat this screen was not
+    // on, it has just been born -- the address follows it while the answer is still arriving, and
+    // the lists that count chats are out of date.
+    (id) => {
+      openChat(route.projectId, id, { replace: true });
+      return Promise.all([reloadProjectChats(), reloadProjects()]);
+    },
+  );
 
   // "/" is a fork, not a screen. It is read once the list has arrived -- an empty array cannot tell
   // "there is none" from "not here yet", and deciding early shows the wrong screen for a moment.
@@ -215,12 +220,6 @@ export default function App() {
   // that; starting one from the project screen is an ordinary step and is pushed.
   const toggleSkills = () => setSkillsOpen((open) => !open);
 
-  const startChat = async (text) => {
-    const started = await startChatInProject(route.projectId, text, lastSkill);
-    await Promise.all([reloadProjectChats(), reloadProjects()]);
-    openChat(route.projectId, started.id, { replace: drafting });
-  };
-
   return (
     <div ref={shell} className={`app-shell ${steps}`.trim()} data-testid="app-shell">
       <Sidebar
@@ -275,7 +274,7 @@ export default function App() {
             onSkillChange={setLastSkill}
             onRename={() => askForName(route.projectId)}
             onDelete={() => askToDelete(route.projectId)}
-            onSend={startChat}
+            onSend={(text) => chat.send(text, lastSkill)}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             onDeleteChat={askToDeleteChat}
           />
@@ -309,7 +308,7 @@ export default function App() {
             skill={lastSkill}
             skillsOpen={skillsOpen}
             onToggleSkills={toggleSkills}
-            onSend={drafting ? startChat : (text) => chat.send(text, lastSkill)}
+            onSend={(text) => chat.send(text, lastSkill)}
             onSkillChange={setLastSkill}
             onStop={chat.stop}
             onRetry={chat.retry}

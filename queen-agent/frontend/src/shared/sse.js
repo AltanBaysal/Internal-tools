@@ -1,7 +1,7 @@
 import { failureFrom } from "./failure.js";
 
-// EventSource can only GET, and the answer endpoint is a POST, so the stream is read straight off
-// the response body instead.
+// EventSource can only GET, and the door a message goes through is a POST, so the stream is read
+// straight off the response body instead.
 
 export function parseFrame(frame) {
   let event = null;
@@ -19,8 +19,14 @@ export function parseFrame(frame) {
   }
 }
 
-export async function streamEvents(path, onEvent) {
-  const response = await fetch(path, { method: "POST" });
+// A body since Madde 88: the request that carries the sentence is the one the answer comes back
+// down, so what used to be a bare POST now says what it is sending.
+export async function streamEvents(path, onEvent, body) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body ?? {}),
+  });
   if (!response.ok) throw await failureFrom(response);
 
   const reader = response.body.getReader();

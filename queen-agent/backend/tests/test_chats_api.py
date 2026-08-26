@@ -77,13 +77,6 @@ def _project(client):
     return client.post("/api/projects").get_json()["id"]
 
 
-def _started(client, text="hello"):
-    # Every chat is born inside a project now, so both ids come back together.
-    pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/messages", json={"text": text}).get_json()["id"]
-    return pid, cid
-
-
 def _frames(body):
     # The event names in order, so a test can say what the stream said without matching bytes.
     return [line[len("event: ") :] for line in body.splitlines() if line.startswith("event: ")]
@@ -94,16 +87,21 @@ def _named(body):
     return json.loads(body.split("data: ", 1)[1].splitlines()[0])["chat"]
 
 
-def _answered(client, text="hello", engine_says=None):
-    # A chat made through the door -- which since Madde 88 means it has been answered too, because
-    # there is no way to write a message without the answer following it down the same connection.
-    #
-    # Its own seeding rather than _started's: that helper still reads a JSON body, and moving it
-    # would drop every test in this file for one reason and hide this turn's reds. It moves with
-    # the code, in the implementation tour.
+def _started(client, text="hello"):
+    # Every chat is born inside a project, so both ids come back together. And since Madde 88 it is
+    # born answered too: there is no way to write a message without the answer following it down
+    # the same connection.
     pid = _project(client)
     body = client.post(f"/api/projects/{pid}/messages", json={"text": text}).get_data(as_text=True)
     return pid, _named(body)
+
+
+def _first_turn(client, text="hello"):
+    # The chat, and the stream its first turn produced. Since Madde 88 those are one request, so a
+    # test that wants to look at a stream sends a sentence rather than asking for an answer.
+    pid = _project(client)
+    body = client.post(f"/api/projects/{pid}/messages", json={"text": text}).get_data(as_text=True)
+    return pid, _named(body), body
 
 
 def _last_record(body):
@@ -133,7 +131,7 @@ def test_the_one_door_creates_a_chat_when_none_is_named(tmp_path):
 def test_the_one_door_appends_when_a_chat_is_named(tmp_path):
     # The same address, and the only difference is one field in the body.
     client = _client(tmp_path)
-    pid, cid = _answered(client, "Write the intro")
+    pid, cid = _started(client, "Write the intro")
     body = client.post(
         f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"}
     ).get_data(as_text=True)
@@ -172,7 +170,7 @@ def test_the_first_frame_names_the_chat_on_a_follow_up_too(tmp_path):
     # Sent every time rather than only when it is news: no condition on the server, and the browser
     # changes the address only when what it hears differs from what it holds.
     client = _client(tmp_path)
-    pid, cid = _answered(client)
+    pid, cid = _started(client)
     body = client.post(
         f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"}
     ).get_data(as_text=True)
@@ -184,7 +182,7 @@ def test_the_separate_answering_door_is_gone(tmp_path):
     # 405 rather than 404: the SPA fallback claims every path for GET, so an address with no rule
     # of its own still exists -- it just does not know POST.
     client = _client(tmp_path)
-    pid, cid = _answered(client)
+    pid, cid = _started(client)
     assert client.post(f"/api/projects/{pid}/chats/{cid}/answer").status_code == 405
 
 
@@ -216,7 +214,7 @@ def test_asking_again_for_a_chat_that_was_already_answered_is_400(tmp_path):
     # Nothing is waiting, so answering anyway would write a second reply to a question that has
     # one. The rule the browser used to hold, in the one place a request has to pass.
     client = _client(tmp_path)
-    pid, cid = _answered(client)
+    pid, cid = _started(client)
     again = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
     assert again.status_code == 400
     assert len(client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]) == 2
@@ -225,7 +223,7 @@ def test_asking_again_for_a_chat_that_was_already_answered_is_400(tmp_path):
 def test_a_blank_sentence_is_refused_before_the_stream_starts(tmp_path):
     # Blank is not the same as absent, and no stream begins for it.
     client = _client(tmp_path)
-    pid, cid = _answered(client)
+    pid, cid = _started(client)
     refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "   "})
     assert refused.status_code == 400
     assert refused.mimetype != "text/event-stream"
@@ -245,7 +243,7 @@ def test_the_old_appending_door_is_gone(tmp_path):
     # claims every path for GET, so an address with no rule of its own still exists -- it just does
     # not know POST.
     client = _client(tmp_path)
-    pid, cid = _answered(client)
+    pid, cid = _started(client)
     sent = client.post(f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "more"})
     assert sent.status_code == 405
 
@@ -291,8 +289,7 @@ def test_the_start_chat_use_case_is_gone():
 
 def test_a_chat_can_be_deleted_and_stops_being_listed(tmp_path):
     client = _client(tmp_path)
-    pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
+    pid, cid = _started(client, "hi")
     assert client.delete(f"/api/projects/{pid}/chats/{cid}").status_code == 200
     assert client.get(f"/api/projects/{pid}/chats").get_json() == []
     assert client.get(f"/api/projects/{pid}/chats/{cid}").status_code == 404
@@ -300,8 +297,7 @@ def test_a_chat_can_be_deleted_and_stops_being_listed(tmp_path):
 
 def test_deleting_a_chat_leaves_the_project_its_files(tmp_path):
     client = _client(tmp_path)
-    pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
+    pid, cid = _started(client, "hi")
     FileFileStore(Store(str(tmp_path))).write(pid, "plan.md", "body")
     client.delete(f"/api/projects/{pid}/chats/{cid}")
     # A file belongs to the project; the chat that produced it going away changes nothing.
@@ -327,10 +323,10 @@ def test_the_list_comes_newest_first_and_carries_no_messages(tmp_path):
 
 def test_one_chat_carries_its_messages(tmp_path):
     client = _client(tmp_path)
-    pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_json()["id"]
+    pid, cid = _started(client)
     body = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
-    assert [m["text"] for m in body["messages"]] == ["hello"]
+    # A chat is born answered since Madde 88: one request wrote both of these.
+    assert [m["text"] for m in body["messages"]] == ["hello", "Done."]
 
 
 def test_an_unknown_chat_is_404(tmp_path):
@@ -378,10 +374,7 @@ def test_a_projects_chats_come_back_newest_first(tmp_path):
 
 def test_the_answer_arrives_as_a_stream_of_events(tmp_path):
     client = _client(tmp_path)
-    pid, cid = _started(client)
-    resp = client.post(f"/api/projects/{pid}/chats/{cid}/answer")
-    assert resp.mimetype == "text/event-stream"
-    body = resp.get_data(as_text=True)
+    pid, cid, body = _first_turn(client)
     assert body.index("event: chunk") < body.index("event: done")
     assert '"text": "Done."' in body
     # The record the browser ends up trusting is the one the server wrote.
@@ -391,8 +384,7 @@ def test_the_answer_arrives_as_a_stream_of_events(tmp_path):
 
 def test_a_broken_engine_speaks_inside_the_stream(tmp_path):
     client = _client(tmp_path, engine=FakeEngine(blow_up="401 bad key"))
-    pid, cid = _started(client)
-    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    pid, cid, body = _first_turn(client)
     # The status code was settled when the first byte left, so the fault travels as an event.
     assert "event: error" in body
     assert "401 bad key" in body
@@ -407,8 +399,7 @@ def _silent_with_a_file():
 def test_a_call_travels_as_its_own_event(tmp_path):
     # Madde 66: the line has to arrive while the answer is still running, not only with the record.
     client = _client(tmp_path, engine=ScriptedEngine([[{"tool_calls": [_tool_call("list_files")]}], [{"text": "none"}]]))
-    pid, cid = _started(client)
-    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    _pid, _cid, body = _first_turn(client)
     assert "event: call" in body
     assert '"tool": "list_files"' in body
     assert body.index("event: call") < body.index("event: done")
@@ -424,10 +415,9 @@ def test_the_stored_chat_hands_back_the_calls(tmp_path):
             ]
         ),
     )
-    pid, cid = _started(client)
     # Read rather than fired: the answer is written by the generator, and nothing runs until the
-    # body is consumed.
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    # body is consumed -- which _first_turn does.
+    pid, cid, _body = _first_turn(client)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     # Every field, always present -- the browser draws what it is handed, and an absent one would
     # make each reader check before drawing. Madde 78 adds the third.
@@ -452,8 +442,7 @@ def test_stopping_a_chat_that_is_not_there_is_a_404(tmp_path):
 
 def test_the_stored_chat_says_which_answer_was_stopped(tmp_path):
     client = _client(tmp_path)
-    pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    pid, cid, _body = _first_turn(client)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     # This one ran to the end, so the field is there and it is false -- the browser draws from what
     # it is handed and should not have to check whether a field exists.
@@ -465,8 +454,7 @@ def test_the_stored_chat_says_what_the_answer_spent(tmp_path):
         [[{"text": "Done."}, {"usage": {"sent": 12400, "cached": 9100, "answered": 842}}]]
     )
     client = _client(tmp_path, engine=engine)
-    pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    pid, cid, _body = _first_turn(client)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     assert kept["messages"][-1]["usage"] == {"sent": 12400, "cached": 9100, "answered": 842}
 
@@ -475,8 +463,7 @@ def test_an_unmeasured_answer_still_carries_the_field(tmp_path):
     # Always present, unlike on disk: the browser draws from what it is handed, and an absent field
     # would make every reader check for it first.
     client = _client(tmp_path)
-    pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    pid, cid, _body = _first_turn(client)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     assert kept["messages"][-1]["usage"] == {"sent": 0, "cached": 0, "answered": 0}
 
@@ -485,8 +472,7 @@ def test_a_silent_turn_that_made_a_file_closes_the_stream_cleanly(tmp_path):
     # What the user reported as a network error: the model worked without speaking and the stream
     # broke instead of ending.
     client = _client(tmp_path, engine=_silent_with_a_file())
-    pid, cid = _started(client)
-    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    pid, cid, body = _first_turn(client)
     assert "event: file" in body
     assert "event: done" in body
     assert "event: error" not in body
@@ -494,8 +480,7 @@ def test_a_silent_turn_that_made_a_file_closes_the_stream_cleanly(tmp_path):
 
 def test_the_record_keeps_the_silent_answer(tmp_path):
     client = _client(tmp_path, engine=_silent_with_a_file())
-    pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+    pid, cid, _body = _first_turn(client)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
     assert [m["text"] for m in kept] == ["hello", ""]
     assert kept[-1]["files"] == ["plan.md"]
@@ -505,24 +490,24 @@ def test_a_turn_that_produced_nothing_says_so_inside_the_stream(tmp_path):
     # Neither a word nor a file, so there is no answer -- and saying so is the server's job, not
     # the browser's guess about the connection.
     client = _client(tmp_path, engine=ScriptedEngine([[]]))
-    pid, cid = _started(client)
-    body = client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    pid, cid, body = _first_turn(client)
     assert "event: error" in body
     assert "The model returned nothing." in body
 
 
 def test_a_turn_that_produced_nothing_writes_nothing(tmp_path):
     client = _client(tmp_path, engine=ScriptedEngine([[]]))
-    pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+    pid, cid, _body = _first_turn(client)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
     assert [m["text"] for m in kept] == ["hello"]
 
 
-def test_answering_an_unknown_chat_is_404(tmp_path):
+def test_answering_an_unknown_chat_is_400(tmp_path):
+    # A chat that is not there cannot be waiting for anything, so this is not a missing address --
+    # it is a request that means nothing. Since Madde 88 the door decides that before it streams.
     client = _client(tmp_path)
     pid = _project(client)
-    assert client.post(f"/api/projects/{pid}/chats/nope/answer").status_code == 404
+    assert client.post(f"/api/projects/{pid}/messages", json={"chat": "nope"}).status_code == 400
 
 
 def test_a_new_chat_shows_up_in_the_project_count(tmp_path):
@@ -567,8 +552,7 @@ def test_the_engine_is_asked_without_a_model(tmp_path):
     # would die here rather than quietly working.
     engine = FakeEngine()
     client = _client(tmp_path, engine=engine)
-    pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+    pid, cid, _body = _first_turn(client)
     assert engine.seen is not None
 
 
@@ -577,9 +561,11 @@ def test_a_chat_carries_no_skill(tmp_path):
     # was sent with keeps it -- that is the message, not the chat.
     client = _client(tmp_path)
     pid = _project(client)
-    born = client.post(
-        f"/api/projects/{pid}/messages", json={"text": "hello", "skill": "create-scenario"}
-    ).get_json()
+    born = _last_record(
+        client.post(
+            f"/api/projects/{pid}/messages", json={"text": "hello", "skill": "create-scenario"}
+        ).get_data(as_text=True)
+    )
     assert "skill" not in born
     assert born["messages"][0]["skill"] == "create-scenario"
 
@@ -587,10 +573,11 @@ def test_a_chat_carries_no_skill(tmp_path):
 def test_a_message_carries_the_skill_it_was_sent_with(tmp_path):
     client = _client(tmp_path)
     pid, cid = _started(client)
-    chat = client.post(
+    body = client.post(
         f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more", "skill": "verify"}
-    ).get_json()
-    assert [m["skill"] for m in chat["messages"]] == ["", "verify"]
+    ).get_data(as_text=True)
+    # The first turn's pair carries none; the sentence just sent carries the one it was sent with.
+    assert [m["skill"] for m in _last_record(body)["messages"]][:3] == ["", "", "verify"]
 
 
 def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
@@ -599,15 +586,13 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     # to the engine is one road, and this is where it is checked end to end.
     plain, with_skill = FakeEngine(), FakeEngine()
     client = _client(tmp_path, engine=plain)
-    pid, cid = _started(client)
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
+    pid, cid, _body = _first_turn(client)
 
     other = _client(tmp_path / "second", engine=with_skill)
     opid = _project(other)
-    ocid = other.post(
+    other.post(
         f"/api/projects/{opid}/messages", json={"text": "hello", "skill": "create-scenario"}
-    ).get_json()["id"]
-    other.post(f"/api/projects/{opid}/chats/{ocid}/answer").get_data()
+    ).get_data()
 
     assert not [piece for piece in plain.seen if piece["role"] == "system"]
     assert with_skill.seen[0] == {

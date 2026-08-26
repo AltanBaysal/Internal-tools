@@ -88,3 +88,12 @@ def chat_title(text):
         return trimmed
     # Only a message that actually lost something is marked as cut.
     return trimmed[:TITLE_LIMIT] + "…"
+
+
+def is_owed_an_answer(chat):
+    """Whether the last thing said in this chat was the user's.
+
+    This lived in the browser until Madde 88, where it could run without anybody asking -- on a
+    reload, and on a connection coming back. Here it can only be reached by a request.
+    """
+    return bool(chat.messages) and chat.messages[-1].role == "user"
