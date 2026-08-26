@@ -1320,6 +1320,44 @@ function withChat() {
   return fetch;
 }
 
+// Its own fake rather than withChat's: this one serves a chat whose record carries a skill, which
+// is the only way the picker and the session can disagree.
+function withStoredSkill(stored = "verify-prompts") {
+  const chat = { id: "c1", title: "Write the intro", skill: stored, messages: [] };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    // Today's app still PATCHes here. The fake answers it so a failure is the assertion below
+    // rather than a screen that crashed on a shape it did not expect.
+    if (String(path).endsWith("/chats/c1") && options?.method === "PATCH") {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...chat, ...JSON.parse(options.body) }),
+      });
+    }
+    if (String(path).endsWith("/chats/c1/messages") && options?.method === "POST") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    if (String(path).endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    }
+    if (String(path).endsWith("/chats")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => [
+          { id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() },
+        ],
+      });
+    }
+    if (String(path).endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
 test("the app never asks which model to use", async () => {
   // The setting has one value and the wiring names it once, in config.py. There is nothing for the
   // browser to fetch and nothing for it to hold.
@@ -1350,8 +1388,9 @@ test("a chat is born without a model", async () => {
 
 // --- which skill is selected ---------------------------------------------------------------------
 
-test("picking a skill writes it to the chat it was picked in", async () => {
-  const fetch = withChat();
+test("picking a skill asks the server for nothing", async () => {
+  // Madde 86: there is no field to write, so there is no request. The choice is the session's.
+  const fetch = withStoredSkill("");
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
@@ -1360,10 +1399,72 @@ test("picking a skill writes it to the chat it was picked in", async () => {
   fireEvent.click(screen.getByText("Verify prompts"));
 
   await waitFor(() => expect(screen.getByRole("button", { name: /Verify prompts/ })).toBeTruthy());
-  const patch = fetch.mock.calls
-    .filter(([, options]) => options?.method === "PATCH")
-    .map(([, options]) => JSON.parse(options.body));
-  expect(patch).toContainEqual({ skill: "verify-prompts" });
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === "PATCH")).toHaveLength(0);
+});
+
+test("a chat that stored a skill does not put it in the picker", async () => {
+  // Opening an old chat says nothing about what this session picked -- and this session picked
+  // nothing yet, so the picker is where it started.
+  withStoredSkill();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  expect(screen.queryByRole("button", { name: /Verify prompts/ })).toBeNull();
+});
+
+test("what the picker shows is what the message carries", async () => {
+  // The bug Madde 86 closes: the picker read the record, the send read the session, and a chat
+  // opened after a reload made the two say different things at the same moment.
+  const fetch = withStoredSkill();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "more" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => {
+    const sent = fetch.mock.calls.find(
+      ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
+    );
+    expect(sent).toBeTruthy();
+    expect(JSON.parse(sent[1].body).skill).toBe("");
+  });
+  expect(screen.queryByRole("button", { name: /Verify prompts/ })).toBeNull();
+});
+
+test("the skill picked in a draft survives landing in the chat it created", async () => {
+  // The accepted cost, written down: the choice belongs to the session, so it crosses into the
+  // chat that was just born even though that chat's record says otherwise.
+  const born = { id: "c1", title: "Write it", skill: "verify-prompts", messages: [] };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).endsWith("/chats") && options?.method === "POST") {
+      return Promise.resolve({ ok: true, status: 201, json: async () => born });
+    }
+    if (String(path).endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => born });
+    }
+    if (String(path).endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    if (String(path).endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/new");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(screen.getByText("Split into frames", { selector: ".menu__item-name" }));
+
+  const box = screen.getByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "Write it" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+  expect(screen.getByRole("button", { name: /Split into frames/ })).toBeTruthy();
 });
 
 test("a new chat is born with the last skill picked in this session", async () => {

@@ -46,15 +46,13 @@ def test_a_chat_is_born_with_the_skill_that_was_selected():
         now="2026-08-09T11:04:00+00:00",
         skill="create-scenario",
     )
-    assert chat.skill == "create-scenario"
-    # And the message that started it remembers what governed it.
+    # The message that started it is where the skill lands: Madde 86 left the chat itself without
+    # one, so the record says what governed the turn rather than what is selected now.
     assert chat.messages[0].skill == "create-scenario"
 
 
 def test_a_chat_started_without_a_skill_carries_none():
-    chat = _start("Hello")
-    assert chat.skill == ""
-    assert chat.messages[0].skill == ""
+    assert _start("Hello").messages[0].skill == ""
 
 
 def test_a_short_message_is_the_title_as_it_is():

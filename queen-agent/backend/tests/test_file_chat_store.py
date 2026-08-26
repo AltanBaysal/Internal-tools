@@ -26,9 +26,20 @@ def test_the_id_is_the_file_name_and_is_not_repeated_inside(tmp_path):
     assert "c1" not in raw.read_text("p1/chats/c1.json")
 
 
-def test_the_skill_a_chat_selected_is_written_and_read_back(tmp_path):
-    FileChatStore(Store(str(tmp_path))).add("p1", replace(_chat(), skill="generate-prompts"))
-    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1").skill == "generate-prompts"
+def test_a_chat_that_still_carries_a_skill_on_disk_is_read_without_it(tmp_path):
+    # Madde 86 took the field out. Every chat written before it has a skill key sitting in its
+    # JSON; nothing reads it, and nothing puts one back -- the same shape Madde 82 left behind.
+    raw = Store(str(tmp_path))
+    raw.write_text(
+        "p1/chats/old.json",
+        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "skill": "verify-prompts",'
+        ' "messages": [{"role": "user", "at": "2026-08-09T11:04:00+00:00", "text": "hi",'
+        ' "skill": "verify-prompts"}]}',
+    )
+    old = FileChatStore(raw).get("p1", "old")
+    assert not hasattr(old, "skill")
+    # A different field with the same name, and this one is still read.
+    assert old.messages[0].skill == "verify-prompts"
 
 
 def test_the_skill_a_message_was_sent_with_survives_the_disk(tmp_path):
@@ -40,7 +51,7 @@ def test_the_skill_a_message_was_sent_with_survives_the_disk(tmp_path):
     assert FileChatStore(Store(str(tmp_path))).get("p1", "c1").messages[0].skill == "verify"
 
 
-def test_a_chat_and_a_message_with_no_skill_write_no_field(tmp_path):
+def test_a_message_with_no_skill_writes_no_field(tmp_path):
     raw = Store(str(tmp_path))
     FileChatStore(raw).add("p1", _chat())
     assert "skill" not in raw.read_text("p1/chats/c1.json")
@@ -51,9 +62,10 @@ def test_a_chat_written_before_skills_existed_still_reads(tmp_path):
     raw = Store(str(tmp_path))
     raw.write_text(
         "p1/chats/old.json",
-        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "messages": []}',
+        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00",'
+        ' "messages": [{"role": "user", "at": "2026-08-09T11:04:00+00:00", "text": "hi"}]}',
     )
-    assert FileChatStore(raw).get("p1", "old").skill == ""
+    assert FileChatStore(raw).get("p1", "old").messages[0].skill == ""
 
 
 def test_a_chat_that_still_carries_a_model_on_disk_is_read_without_it(tmp_path):

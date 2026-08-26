@@ -107,17 +107,6 @@ def test_an_unknown_project_is_404(tmp_path):
     assert client.post("/api/projects/nope/chats", json={"text": "hi"}).status_code == 404
 
 
-def test_a_chat_cannot_be_renamed(tmp_path):
-    # Renaming lives on the project alone. PATCH exists now -- it is how the model and the skill are
-    # changed -- so the refusal has to be in what it understands rather than in the method being
-    # absent.
-    client = _client(tmp_path)
-    pid, cid = _started(client)
-    resp = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": "Something else"})
-    assert resp.status_code == 400
-    assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["title"] == "hello"
-
-
 def test_the_chat_rename_use_case_is_gone():
     with pytest.raises(ModuleNotFoundError):
         import backend.features.workspace.domain.usecases.rename_chat  # noqa: F401
@@ -408,12 +397,18 @@ def test_a_chat_carries_no_model(tmp_path):
     assert "model" not in client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
 
 
-def test_a_patch_carrying_only_a_model_is_refused(tmp_path):
-    # The one field a chat still carries is its skill. A model arriving here is not a change that
-    # failed quietly -- it is a request this route no longer understands.
+def test_a_chat_cannot_be_patched(tmp_path):
+    # Madde 86 took the route out: a chat carries nothing that changes. The address still answers
+    # GET, so Flask's answer is not 404 -- it is that this address does not know this method.
+    #
+    # This is also where renaming a chat is refused, which used to need a test of its own: while
+    # PATCH existed the refusal had to be about the body it did not understand. Now the method is
+    # simply absent, and one answer covers both.
     client = _client(tmp_path)
     pid, cid = _started(client)
-    assert client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "x"}).status_code == 400
+    assert client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": "verify"}).status_code == 405
+    assert client.patch(f"/api/projects/{pid}/chats/{cid}", json={"title": "Else"}).status_code == 405
+    assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["title"] == "hello"
 
 
 def test_the_engine_is_asked_without_a_model(tmp_path):
@@ -427,13 +422,15 @@ def test_the_engine_is_asked_without_a_model(tmp_path):
     assert engine.seen is not None
 
 
-def test_a_chat_is_born_with_the_skill_it_was_sent(tmp_path):
+def test_a_chat_carries_no_skill(tmp_path):
+    # Madde 86: the field is gone from the record, so it is gone from the wire too. What the skill
+    # was sent with keeps it -- that is the message, not the chat.
     client = _client(tmp_path)
     pid = _project(client)
     born = client.post(
         f"/api/projects/{pid}/chats", json={"text": "hello", "skill": "create-scenario"}
     ).get_json()
-    assert born["skill"] == "create-scenario"
+    assert "skill" not in born
     assert born["messages"][0]["skill"] == "create-scenario"
 
 
@@ -444,16 +441,6 @@ def test_a_message_carries_the_skill_it_was_sent_with(tmp_path):
         f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "more", "skill": "verify"}
     ).get_json()
     assert [m["skill"] for m in chat["messages"]] == ["", "verify"]
-
-
-def test_the_skill_can_be_changed_and_cleared(tmp_path):
-    client = _client(tmp_path)
-    pid, cid = _started(client)
-    chosen = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": "verify"})
-    assert chosen.get_json()["skill"] == "verify"
-    # Pressing the selected one again clears it: a chat may have no skill at all.
-    cleared = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": ""})
-    assert cleared.get_json()["skill"] == ""
 
 
 def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):

@@ -660,9 +660,18 @@ test("while an answer runs the row ends in Stop, and there is no fourth button",
   expect(buttons[1].getAttribute("aria-label")).toBe("Stop");
 });
 
-test("a chat with a skill selected says which one", () => {
-  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "verify-prompts" }} />);
-  expect(screen.getByRole("button", { name: /Verify prompts/ })).toBeTruthy();
+test("the picker shows the skill it is handed, not the chat's", () => {
+  // Madde 86: the selection is the session's, and the session is App's. This screen is handed one,
+  // the way ProjectScreen has always been handed one. A skill sitting in an old record is history,
+  // not a selection.
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={{ ...CHAT, skill: "verify-prompts" }}
+      skill="split-into-frames"
+    />,
+  );
+  expect(screen.getByRole("button", { name: /Split into frames/ })).toBeTruthy();
 });
 
 test("picking a skill is passed up rather than kept here", () => {
