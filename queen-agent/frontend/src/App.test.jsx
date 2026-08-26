@@ -1791,6 +1791,62 @@ test("Escape closes the picker", async () => {
   expect(screen.queryByText("SKILLS")).toBeNull();
 });
 
+// --- which mode a turn is sent in (Madde 91) -----------------------------------------------------
+
+test("the mode in force is what the message is sent with", async () => {
+  const fetch = withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() =>
+    expect(screen.getByText("Edit", { selector: ".picker__name" })).toBeTruthy(),
+  );
+
+  fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
+  fireEvent.click(screen.getByText("Ask", { selector: ".menu__item-name" }));
+  const box = screen.getByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => {
+    const sent = fetch.mock.calls.find(
+      ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
+    );
+    expect(sent).toBeTruthy();
+    expect(JSON.parse(sent[1].body).mode).toBe("ask");
+  });
+});
+
+test("opening one picker closes the other", async () => {
+  // One value owns which picker is open rather than one boolean each: two booleans can both be
+  // true, and then two menus stand over the same corner of the screen.
+  withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  expect(screen.getByText("SKILLS")).toBeTruthy();
+  fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
+  expect(screen.queryByText("SKILLS")).toBeNull();
+  expect(screen.getByText("MODE")).toBeTruthy();
+});
+
+test("Escape closes the mode picker too", async () => {
+  // The order fark 67 settled had two pickers in it and lost one in Madde 82. A second picker is
+  // back, so the same key has to reach it.
+  withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() =>
+    expect(screen.getByText("Edit", { selector: ".picker__name" })).toBeTruthy(),
+  );
+
+  fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
+  expect(screen.getByText("MODE")).toBeTruthy();
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByText("MODE")).toBeNull();
+});
+
 test("a draft says which model will answer it", async () => {
   // Nothing has been sent yet and there is still one model, so the name is there from the start.
   withChat();

@@ -169,6 +169,12 @@ her dizilişte önceki maddenin işi sonraki tarafından atılıyor.
 - **Plan kipi ne yapar:** işi maddelere böler, planı bir dosyaya yazar, ve **tur orada biter.**
   Kullanıcı planı okur, isterse dosyanın kendisinde düzeltir, sonra yürütür. Kötü bir plan sekiz tur
   yanmadan yakalanır, ve düzeltmek için sohbette tartışmak gerekmez.
+- **Planı yazan ayrı bir araç** *(kullanıcı kararı, 27 Ağustos)*: `write_plan`. Plan kipinin elinde
+  okuma araçları ve yalnız bu var — yani plandan başka bir şey yazacak aracı yok. Kural bir sayaçta
+  değil, araç kümesinin kendisinde duruyor: `create_file` verilseydi model aynı turda planı da
+  teslimatı da yazabilirdi, ki maddenin şikâyet ettiği tam olarak bu. Araç yaratır ya da üstüne
+  yazar *("eldeki planı güncelleyebilir veya plan oluşturabilir")*, ve adı `-plan.md` ile bitmeye
+  zorlanır.
 - **Kararı verilmiş** *(kullanıcı kararı, 26 Ağustos)*: plan bir skill değil, bir kiptir. Skill
   olsaydı yedinci bir seçenek olurdu — oysa Madde 74 seçenekleri bire indiriyor — ve *"uzun iş
   vermeden önce plan skill'ini seçmeyi hatırla"* diye bir kural doğardı. Kip, hatırlanacak bir şey
@@ -176,8 +182,8 @@ her dizilişte önceki maddenin işi sonraki tarafından atılıyor.
 - **Kararı verilmiş:** bir görevin ürünü **dosyadır**, sohbet mesajı değil. Temiz bağlam, önceki
   görevin sohbette ne dediğini bilmez; yalnız diskte ne bıraktığını bilir. İstisnası olamaz, çünkü
   ihlali sessizdir — sonraki görev aradığını bulamaz ve kimse sebebini söylemez.
-- **Değişmeyen:** araçların kendisi. Beş araç aynı; değişen yalnız hangilerinin o kipte isteğe
-  konduğu.
+- **Değişmeyen:** var olan beş araç. Değişen, hangilerinin o kipte isteğe konduğu — ve yanına
+  altıncı olarak `write_plan` giriyor, yukarıdaki karar gereği.
 - **Yanında düşen:** skill metinlerindeki yapma-etme cümleleri, ve uzun işi gruplara bölmeyi rica
   eden paragraflar — plan yürüyen kod olunca üçü de gereksizleşiyor.
 - **Sırası:** şartı yok, tek başına koşabilir — işi araçların isteğe konmasını koda almak, ve o iş

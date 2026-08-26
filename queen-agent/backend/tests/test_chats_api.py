@@ -44,8 +44,11 @@ class ScriptedEngine:
 
     def __init__(self, rounds):
         self.rounds = list(rounds)
+        # Which tools each round was offered. Since Madde 91 that is what a mode turns into.
+        self.tools = []
 
     def stream(self, messages, tools=None, on_open=None):
+        self.tools.append([spec["function"]["name"] for spec in tools or []])
         pieces = self.rounds.pop(0) if self.rounds else []
         for piece in pieces:
             yield piece
@@ -652,3 +655,29 @@ def test_the_record_says_how_much_of_the_ceiling_it_has_used(tmp_path):
     client = _spending(tmp_path, 41_000)
     pid, cid = _started(client)
     assert _record(client, pid, cid)["context"] == {"sent": 41_000, "ceiling": CONTEXT_CEILING}
+
+
+# --- the mode a turn was sent in (Madde 91) ------------------------------------------------------
+
+
+def test_the_mode_reaches_the_request_as_a_tool_list(tmp_path):
+    # The browser sends a word; what it turns into is which tools the model is offered. Read off
+    # the engine, because that is the only place the word becomes a consequence.
+    engine = ScriptedEngine([[{"text": "Done."}]])
+    client = _client(tmp_path, engine)
+    pid = _project(client)
+    client.post(f"/api/projects/{pid}/messages", json={"text": "hello", "mode": "ask"}).get_data()
+    assert engine.tools == [["list_files", "read_file"]]
+
+
+def test_the_mode_is_not_written_to_the_record(tmp_path):
+    # Unlike the skill, which the record keeps because a later turn rebuilds its instruction from
+    # it. Nothing ever reads a mode back, and a field nothing reads is a question every later
+    # reader has to answer for themselves.
+    client = _client(tmp_path)
+    pid = _project(client)
+    body = client.post(
+        f"/api/projects/{pid}/messages", json={"text": "hello", "mode": "plan"}
+    ).get_data(as_text=True)
+    kept = _record(client, pid, _named(body))
+    assert not any("mode" in message for message in kept["messages"])

@@ -93,11 +93,14 @@ class ScriptedEngine:
         self.blow_up_after = blow_up_after
         self.seen = []
         self.handed = []
+        # Which tools each round was offered. Since Madde 91 that is the mode's whole consequence.
+        self.tools = []
 
     # No model since Madde 82: the engine is built knowing which one. A use case that still passed
     # one would die here rather than quietly working.
     def stream(self, messages, tools=None, on_open=None):
         self.seen.append(list(messages))
+        self.tools.append([spec["function"]["name"] for spec in tools or []])
         if on_open:
             on_open(self._cut)
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
@@ -609,3 +612,37 @@ def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tm
     chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
     assert _kept(chats).text == "Half a"
     assert _kept(chats).usage == Usage()
+
+
+# --- which tools the mode puts in the request (Madde 91) -----------------------------------------
+
+
+def _in_mode(tmp_path, rounds, mode):
+    chats, files = _seeded(tmp_path)
+    engine = ScriptedEngine(rounds)
+    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, mode))
+    return chats, engine, produced
+
+
+def test_the_mode_decides_which_tools_the_request_carries(tmp_path):
+    _, engine, _ = _in_mode(tmp_path, [[{"text": "Hi"}]], "ask")
+    assert set(engine.tools[0]) == {"list_files", "read_file"}
+
+
+def test_a_turn_that_names_no_mode_carries_all_five(tmp_path):
+    # The retry road sends no mode of its own, and neither does any caller written before this.
+    chats, files = _seeded(tmp_path)
+    engine = ScriptedEngine([[{"text": "Hi"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
+    assert "create_file" in engine.tools[0]
+
+
+def test_in_plan_mode_the_turn_ends_when_the_plan_is_written(tmp_path):
+    # The plan is on disk and the next move is the user's: they read it, fix it in the file itself,
+    # then run it in edit mode. A second round here would be the model running its own plan.
+    rounds = [
+        [{"tool_calls": [call("write_plan", name="bar-scene", content="1. ...")]}],
+        [{"text": "never reached"}],
+    ]
+    _, engine, _ = _in_mode(tmp_path, rounds, "plan")
+    assert len(engine.seen) == 1

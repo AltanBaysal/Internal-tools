@@ -107,6 +107,39 @@ def test_creating_reports_the_name_actually_used(tmp_path):
     assert _call(files, "read_file", name="plan.md") == "first"
 
 
+# --- the plan tool (Madde 91) --------------------------------------------------------------------
+
+
+def test_a_plan_is_written_under_a_name_that_says_it_is_one(tmp_path):
+    # Two jobs in one rule: a plan is recognisable on disk, and the tool cannot be turned into a way
+    # of writing the very deliverable it was supposed to be planning.
+    files = _files(tmp_path)
+    assert "bar-scene-plan.md" in _call(files, "write_plan", name="bar-scene.md", content="1. ...")
+    assert _call(files, "read_file", name="bar-scene-plan.md") == "1. ..."
+    # A name that already says it is a plan is not made to say it twice.
+    assert "bar-scene-plan.md" in _call(files, "write_plan", name="bar-scene-plan.md", content="x")
+
+
+def test_writing_a_plan_again_replaces_it(tmp_path):
+    # Unlike create_file, which never overwrites. A second plan sitting in bar-scene-plan-2.md would
+    # lose which of the two is the one to follow.
+    files = _files(tmp_path)
+    _call(files, "write_plan", name="bar-scene", content="first")
+    _call(files, "write_plan", name="bar-scene", content="second")
+    assert _call(files, "read_file", name="bar-scene-plan.md") == "second"
+    assert _call(files, "list_files") == "bar-scene-plan.md"
+
+
+def test_only_the_first_plan_reports_a_born_file(tmp_path):
+    # The card says a file came into being. A second write changes one that was already there --
+    # the same rule edit_file follows.
+    files = _files(tmp_path)
+    born = run_tool(files, "p1", "write_plan", json.dumps({"name": "a", "content": "x"}))
+    again = run_tool(files, "p1", "write_plan", json.dumps({"name": "a", "content": "y"}))
+    assert born.created == "a-plan.md"
+    assert again.created is None
+
+
 def test_an_unknown_tool_does_not_bring_the_loop_down(tmp_path):
     assert "no tool called" in run_tool(_files(tmp_path), "p1", "delete_everything", "{}").text
 
@@ -139,6 +172,9 @@ def test_every_tool_is_declared_to_the_model():
         "create_file",
         "edit_file",
         "build_prompts",
+        # Sixth since Madde 91, and declared here with the rest: which modes offer it is a separate
+        # question, asked in modes.py.
+        "write_plan",
     }
 
 

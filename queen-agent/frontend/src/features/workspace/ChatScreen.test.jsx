@@ -739,3 +739,13 @@ test("the chat screen draws the gauge from the record it read", () => {
   render(<ChatScreen project={PROJECT} chat={{ ...CHAT, context: { sent: 41000, ceiling: 50000 } }} />);
   expect(screen.getByRole("img").style.getPropertyValue("--filled")).toBe("0.82");
 });
+
+// --- the mode a turn is sent in (Madde 91) -------------------------------------------------------
+
+test("the foot puts the mode before the skill", () => {
+  // Mode · Skills · model · Send. What the model may do at all is a question that comes before
+  // which job it is doing, so the row reads outermost first.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} mode="plan" />);
+  const names = [...container.querySelectorAll(".composer__foot .picker__name")];
+  expect(names.map((name) => name.textContent)).toEqual(["Plan", "Skills"]);
+});
