@@ -117,6 +117,19 @@ def test_a_call_with_no_target_writes_no_target(tmp_path):
     assert "target" not in raw.read_text("p1/chats/c1.json")
 
 
+def test_how_a_call_went_survives_a_round_trip(tmp_path):
+    chat = _answered(ToolCall("read_file", "plan.md", "45 lines"))
+    FileChatStore(Store(str(tmp_path))).add("p1", chat)
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == chat
+
+
+def test_a_call_with_nothing_to_say_writes_no_outcome(tmp_path):
+    # The same rule one field over: a call recorded before this existed carries none.
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _answered(ToolCall("list_files", "")))
+    assert "outcome" not in raw.read_text("p1/chats/c1.json")
+
+
 def test_a_stopped_answer_survives_a_round_trip(tmp_path):
     chat = replace(
         _chat(),

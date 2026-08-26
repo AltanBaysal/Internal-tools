@@ -13,11 +13,15 @@ class ToolCall:
 
     The result is deliberately absent. What a read returned is the file itself, and that is already
     on disk; copying it here would leave the same text in two places for one of them to go stale.
+    The outcome below is not that: it is a sentence about what happened, which is nowhere else.
     """
 
     tool: str
     # Empty when the call was about nothing in particular -- listing a directory has no file.
     target: str = ""
+    # A few words on how the call went -- "45 lines", "Saved", "No file by that name". Written by
+    # the tool, because the tool is what knows. Empty on calls recorded before this existed.
+    outcome: str = ""
 
 
 @dataclass(frozen=True)

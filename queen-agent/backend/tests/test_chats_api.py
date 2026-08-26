@@ -291,7 +291,11 @@ def test_the_stored_chat_hands_back_the_calls(tmp_path):
     # body is consumed.
     client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
     kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
-    assert kept["messages"][-1]["calls"] == [{"tool": "create_file", "target": "plan.md"}]
+    # Every field, always present -- the browser draws what it is handed, and an absent one would
+    # make each reader check before drawing. Madde 78 adds the third.
+    assert kept["messages"][-1]["calls"] == [
+        {"tool": "create_file", "target": "plan.md", "outcome": "Saved"}
+    ]
 
 
 def test_a_running_answer_can_be_asked_to_stop(tmp_path):

@@ -22,7 +22,10 @@ from backend.features.workspace.domain.naming import unique_name
 # `target` is answered here rather than by the caller because cleaning a name and settling a clash
 # are this module's rules: worked out anywhere else they would be a second copy, and the copy would
 # drift on the first change to either. Empty when the call was about no file in particular.
-ToolResult = namedtuple("ToolResult", "text created target", defaults=("",))
+#
+# `outcome` is a few words for a reader rather than for the model: what the call amounted to, said
+# in one line. Never the result itself -- a read's result is the file, and that is already on disk.
+ToolResult = namedtuple("ToolResult", "text created target outcome", defaults=("", ""))
 
 
 @dataclass(frozen=True)

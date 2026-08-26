@@ -282,3 +282,51 @@ def test_a_build_reports_the_structure_it_built_from(tmp_path):
 def test_a_call_that_missed_still_reports_its_target(tmp_path):
     # A miss is a step that happened. Whether it succeeded is the answer's story, not the line's.
     assert _target(_files(tmp_path), "read_file", name="gone.md") == "gone.md"
+
+
+# --- how the call went, in a few words (Madde 78) ------------------------------------------------
+#
+# The line under the call. Written by the tool because the tool is what knows, and never the result
+# itself: what a read returned is the file, and that is already on disk.
+
+
+def _outcome(files, tool, **arguments):
+    return run_tool(files, "p1", tool, json.dumps(arguments)).outcome
+
+
+def test_listing_says_how_many_files_there_are(tmp_path):
+    files = _files(tmp_path)
+    _call(files, "create_file", name="plan.md", content="a")
+    _call(files, "create_file", name="notes.md", content="b")
+    assert _outcome(files, "list_files") == "2 files"
+
+
+def test_listing_nothing_says_so_rather_than_counting_to_zero(tmp_path):
+    assert _outcome(_files(tmp_path), "list_files") == "No files"
+
+
+def test_reading_says_how_much_was_read(tmp_path):
+    files = _with(tmp_path, "plan.md", "one\ntwo\nthree")
+    assert _outcome(files, "read_file", name="plan.md") == "3 lines"
+
+
+def test_creating_says_it_was_saved(tmp_path):
+    # Not the name: the line above already carries it, and a second copy would go stale on the
+    # first change to either.
+    assert _outcome(_files(tmp_path), "create_file", name="plan.md", content="a") == "Saved"
+
+
+def test_an_edit_says_it_changed_the_file(tmp_path):
+    files = _with(tmp_path, "plan.md", "one two")
+    assert _outcome(files, "edit_file", name="plan.md", old="one", new="1") == "Edited"
+
+
+def test_a_build_says_how_many_prompts_it_wrote(tmp_path):
+    files = _with(tmp_path, "frames.json", STRUCTURE)
+    assert _outcome(files, "build_prompts", name="frames.json") == "2 prompts"
+
+
+def test_a_call_that_was_refused_says_why(tmp_path):
+    # Reading a file that is not there is something the turn really did, and hiding it would make
+    # the record read as though the answer had what it asked for.
+    assert _outcome(_files(tmp_path), "read_file", name="gone.md") == "No file by that name"

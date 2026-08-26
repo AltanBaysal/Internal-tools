@@ -436,6 +436,14 @@ def test_an_answer_that_called_nothing_remembers_none(tmp_path):
     assert chats.get("p1", "c1").messages[-1].calls == ()
 
 
+def test_the_kept_call_says_how_it_went(tmp_path):
+    # Madde 78. The tests above pin the tool and the file; none of them asks whether the line under
+    # the call survived, and that is the half a reader a week later is looking at.
+    rounds = [[{"tool_calls": [call("list_files")]}], [{"text": "done"}]]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    assert chats.get("p1", "c1").messages[-1].calls[0].outcome == "No files"
+
+
 def test_reading_the_same_file_twice_is_two_lines(tmp_path):
     # Files fold a repeat away, because a name born twice is still one file. Calls do not: reading
     # the same file twice really is two steps, and hiding one would misreport the turn.

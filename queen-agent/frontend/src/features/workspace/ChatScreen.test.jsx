@@ -35,8 +35,8 @@ const ANSWERED = {
     {
       ...CHAT.messages[1],
       calls: [
-        { tool: "list_files", target: "" },
-        { tool: "read_file", target: "aylin.json" },
+        { tool: "list_files", target: "", outcome: "No files" },
+        { tool: "read_file", target: "aylin.json", outcome: "45 lines" },
       ],
     },
   ],
@@ -48,15 +48,59 @@ test("a stored answer draws the calls it made", () => {
   const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
   const lines = [...container.querySelectorAll(".tool-call")];
   expect(lines).toHaveLength(2);
-  expect(screen.getByText("read_file")).toBeTruthy();
-  expect(screen.getByText("aylin.json")).toBeTruthy();
 });
 
-test("a call about no file in particular draws no empty target", () => {
+// --- the shape of the line (Madde 78) ------------------------------------------------------------
+//
+// Madde 66 put the calls on the screen and into the record; both stand. What changed is the drawing,
+// and the shape asked for is the one Claude Code uses: a marker, the tool with its subject in
+// brackets, and an indented line under it saying how it went.
+
+test("a call is drawn as its tool with the file in brackets", () => {
+  // Asked for by its text: a missing line then names what was looked for, rather than failing
+  // later on a null nobody can read.
+  render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  expect(screen.getByText("⏺ read_file(aylin.json)").className).toBe("tool-call__head");
+});
+
+test("a call about no file in particular is drawn without empty brackets", () => {
+  // Listing a directory really is about no file, and a pair of empty brackets would announce
+  // something that is not there.
+  render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  expect(screen.getByText("⏺ list_files").className).toBe("tool-call__head");
+});
+
+test("how the call went is drawn under it", () => {
   const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
-  // Listing a directory has no file, so the row is the tool's name and nothing else -- no dangling
-  // separator standing where a name would have been.
-  expect(container.querySelectorAll(".tool-call")[0].textContent.trim()).toBe("list_files");
+  const said = [...container.querySelectorAll(".tool-call__outcome")].map(
+    (line) => line.textContent,
+  );
+  expect(said).toEqual(["⎿ No files", "⎿ 45 lines"]);
+});
+
+test("a call with nothing to say draws no second line", () => {
+  // What a chat recorded before Madde 78 looks like. An empty indent would claim a result that was
+  // never written down.
+  const older = {
+    ...CHAT,
+    messages: [CHAT.messages[0], { ...CHAT.messages[1], calls: [{ tool: "list_files" }] }],
+  };
+  const { container } = render(<ChatScreen project={PROJECT} chat={older} />);
+  expect(screen.getByText("⏺ list_files")).toBeTruthy();
+  expect(container.querySelector(".tool-call__outcome")).toBeNull();
+});
+
+test("a call still streaming is drawn the same way", () => {
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      thinking
+      streamingCalls={[{ tool: "read_file", target: "aylin.json", outcome: "45 lines" }]}
+    />,
+  );
+  expect(screen.getByText("⏺ read_file(aylin.json)")).toBeTruthy();
+  expect(screen.getByText("⎿ 45 lines")).toBeTruthy();
 });
 
 test("an answer that called nothing draws no list at all", () => {
