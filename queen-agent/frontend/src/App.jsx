@@ -213,17 +213,6 @@ export default function App() {
 
   // The draft address is not a place to come back to, so the chat that replaces it does exactly
   // that; starting one from the project screen is an ordinary step and is pushed.
-  // A chat's own choice lives on the server; the last one made also becomes what the next chat
-  // starts from, and that much is the session's.
-  //
-  // This does not close the menu: pressing a row already ends it, in Menu, whether or not the press
-  // changed anything. Clearing it here too put two updates in one batch -- the clear landed first,
-  // and the toggle, reading a closed menu, opened it straight back up.
-  const chooseSkill = async (skill) => {
-    setLastSkill(skill);
-    await chat.choose({ skill });
-  };
-
   const toggleSkills = () => setSkillsOpen((open) => !open);
 
   const startChat = async (text) => {
@@ -295,8 +284,7 @@ export default function App() {
         {!firstLoad && route.view === "chat" ? (
           <ChatScreen
             project={project}
-            /* A draft has no record yet, so the choice it would be born with is the session's. */
-            chat={drafting ? { ...DRAFT, skill: lastSkill } : chat.chat}
+            chat={drafting ? DRAFT : chat.chat}
             files={files}
             loadingFiles={loadingFiles}
             filesError={filesError}
@@ -316,12 +304,13 @@ export default function App() {
             createdFiles={chat.createdFiles}
             streamingCalls={chat.streamingCalls}
             onBack={() => openProject(route.projectId)}
+            /* The selection is the session's since Madde 86: one value, and both screens are
+               handed it. What governed a turn is settled when the message is sent. */
+            skill={lastSkill}
             skillsOpen={skillsOpen}
             onToggleSkills={toggleSkills}
-            /* The skill goes with the message: what governed a turn is settled when it is sent. */
             onSend={drafting ? startChat : (text) => chat.send(text, lastSkill)}
-            /* A draft has nothing to write to yet, so picking only moves the session's own. */
-            onSkillChange={drafting ? setLastSkill : chooseSkill}
+            onSkillChange={setLastSkill}
             onStop={chat.stop}
             onRetry={chat.retry}
           />

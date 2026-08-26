@@ -146,6 +146,7 @@ export default function ChatScreen({
   creatingFile,
   createdFiles = [],
   streamingCalls = [],
+  skill,
   skillsOpen,
   onToggleSkills,
   onBack,
@@ -340,9 +341,10 @@ export default function ChatScreen({
             placeholder="Reply..."
             action="Send"
             /* karar 1's order: Skills · model · Send. The middle one stopped being a control in
-               Madde 82 -- one model, nothing to pick. The skill does belong to the chat on the
-               server, so the screen asks and App sends; whether its menu is open is App's too,
-               because Escape closes it in a fixed order with the rest. */
+               Madde 82 -- one model, nothing to pick. The skill is handed in rather than read off
+               the chat: since Madde 86 the selection is the session's, and the session is App's.
+               Whether the menu is open is App's too, because Escape closes it in a fixed order
+               with the rest. */
             /* Stopping is the send button's other state rather than a control of its own: while an
                answer runs there is nothing to send. No red -- cutting your own answer short is not
                destruction. */
@@ -351,7 +353,7 @@ export default function ChatScreen({
             foot={
               <>
                 <SkillPicker
-                  skill={chat.skill}
+                  skill={skill}
                   open={skillsOpen}
                   onToggle={onToggleSkills}
                   onChange={onSkillChange}

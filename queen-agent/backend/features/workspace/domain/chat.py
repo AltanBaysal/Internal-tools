@@ -75,10 +75,6 @@ class Chat:
     title: str
     created_at: str
     messages: tuple = ()
-    # The skill selected right now. Empty is the ordinary state: a chat may have no skill at all,
-    # and pressing the selected one again puts it back here. The only thing about a chat that is
-    # chosen -- which model answers is one line in config.py since Madde 82.
-    skill: str = ""
 
     @property
     def last_activity(self):

@@ -25,7 +25,6 @@ from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.read_file import read_file
-from backend.features.workspace.domain.usecases.set_chat_skill import set_chat_skill
 from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
@@ -83,20 +82,8 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
             return jsonify({"error": "a message needs text"}), 400
         return jsonify(_chat_json(chat)), 201
 
-    @workspace_bp.patch("/api/projects/<project_id>/chats/<chat_id>")
-    def patch_chat(project_id, chat_id):
-        payload = request.get_json(silent=True) or {}
-        # The skill is the only thing about a chat that changes. A title arriving here is not a
-        # rename that failed quietly, and neither is a model: both are requests this route does not
-        # understand.
-        if "skill" not in payload:
-            return jsonify({"error": "a chat only carries a skill"}), 400
-        try:
-            chat = set_chat_skill(chat_store, project_id, chat_id, payload["skill"])
-        except ChatNotFound:
-            return jsonify({"error": "chat not found"}), 404
-        return jsonify(_chat_json(chat))
-
+    # There is no PATCH here. Since Madde 86 nothing about a chat changes after it is written: the
+    # skill is the session's and rides on each message, and a chat is never renamed.
     @workspace_bp.get("/api/projects/<project_id>/chats")
     def get_chats(project_id):
         return jsonify([_chat_summary(chat) for chat in list_chats(chat_store, project_id)])
@@ -255,8 +242,6 @@ def _chat_summary(chat):
         "title": chat.title,
         "createdAt": chat.created_at,
         "lastActivity": chat.last_activity,
-        # No default stands in for an absent skill: having none is an ordinary state.
-        "skill": chat.skill,
     }
 
 

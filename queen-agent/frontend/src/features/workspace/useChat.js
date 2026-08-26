@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getJson, patchJson, postJson } from "../../shared/api.js";
+import { getJson, postJson } from "../../shared/api.js";
 import { streamEvents } from "../../shared/sse.js";
 
 // A chat whose last message is the user's is owed an answer. Stating it that way means the message
@@ -151,20 +151,10 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
     [projectId, chatId],
   );
 
-  // The record on the server is the truth about what a chat answers with, so a choice goes there
-  // and what comes back replaces what is held here. One road for both: the endpoint takes either.
-  const choose = useCallback(
-    async (choice) => {
-      setChat(await patchJson(`/api/projects/${projectId}/chats/${chatId}`, choice));
-    },
-    [projectId, chatId],
-  );
-
   // Try again asks for the answer once more; it never re-sends the message, because the chat is
   // still owed one and the user's sentence must not be written twice.
   return {
     chat,
-    choose,
     error,
     refused,
     missing,
