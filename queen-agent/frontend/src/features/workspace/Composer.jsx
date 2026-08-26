@@ -1,9 +1,14 @@
 import { useState } from "react";
 
+// The two marks the one button wears. Written here rather than inline: the running state picks
+// between them, and a reader should see both at once to know they are a pair.
+const SEND = "↑";
+const STOP = "⏹";
+
 // The draft lives here rather than in App: it is the box's momentary state, not something a screen
 // keeps. Only the finished text leaves, through onSubmit.
-// `foot` is what stands to the left of Send. karar 1 settled that order -- Skills · model · Send --
-// and the box holds the room without knowing what goes in it.
+// `foot` is what stands to the left of the button. karar 1 settled that order -- Skills · model ·
+// send -- and the box holds the room without knowing what goes in it.
 //
 // `running` says an answer is on its way, and it turns the one action button into a stop. There is
 // nothing to send while one is running, so the button that sends is the one free to stop -- and a
@@ -55,11 +60,16 @@ export default function Composer({ rows, placeholder, action, foot, running, onS
           type="button"
           className={live ? "composer__send composer__send--ready" : "composer__send"}
           disabled={!live}
+          /* The word is gone from the face, so the name is written where it can still be read:
+             aria-label for a screen reader, title for a mouse resting on it. With aria-label set
+             the name is not computed from what is inside, so the mark cannot leak into it. */
+          aria-label={running ? "Stop" : action}
+          title={running ? "Stop" : action}
           /* Split above submit rather than inside it: submit owns the draft's rules and has no
              reason to learn about stopping. */
           onClick={running ? onStop : submit}
         >
-          {running ? "Stop" : action}
+          {running ? STOP : SEND}
         </button>
       </div>
     </div>

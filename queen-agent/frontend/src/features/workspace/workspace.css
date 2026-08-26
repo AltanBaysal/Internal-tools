@@ -1585,13 +1585,21 @@
   width: 296px;
 }
 
+/* A mark rather than a word, so the box stops being as wide as its label. Fixed, because the two
+   marks are not the same width and the row would shift the moment an answer started running. The
+   size is the pickers' beside it, so the foot stays level. */
 .composer__send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
   border: none;
   border-radius: var(--radius-control);
-  padding: 8px 16px;
   font-family: inherit;
-  font-size: 13.5px;
-  font-weight: 500;
+  font-size: 16px;
+  line-height: 1;
   background: #e5dfd5;
   color: #a79e93;
   cursor: not-allowed;
