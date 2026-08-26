@@ -55,17 +55,22 @@ function shorten(count) {
   return count < 1000 ? String(count) : `${(count / 1000).toFixed(1)}k`;
 }
 
-// What the turn cost, under the answer that cost it -- last, because the cards above are what the
-// answer produced and this is a note about the answer itself.
+// The note that closes a message: when it was said, and -- for an answer that was measured -- what
+// it cost. Under the message rather than over it, because a note about a thing is read after it.
+// One line rather than two at the two ends, and no name in it: the sidebar carries the name, and
+// which side a message sits on says who wrote it.
 //
 // One number out of the three the record keeps. The other two say what the cache saved, and that is
-// a question about how requests are built rather than something a reader of the chat is asking.
-// Nothing is drawn at zero: an answer from before this existed reads back as zero, and a line under
-// it would claim a measurement nobody took.
-function TokenCount({ usage }) {
+// a question about how requests are built rather than something a reader of the chat is asking. The
+// count drops at zero -- an answer from before this existed reads back as zero, and a number there
+// would claim a measurement nobody took. The time never drops: it was said at a time either way.
+function Stamp({ at, usage }) {
+  // The wait is stamped by an effect, so the first draw of a pending box has no time yet. Nothing
+  // rather than an empty line.
+  if (!at) return null;
   const spent = (usage?.sent ?? 0) + (usage?.answered ?? 0);
-  if (!spent) return null;
-  return <div className="token-count">{shorten(spent)} tokens</div>;
+  const when = clockTime(at);
+  return <div className="msg__stamp">{spent ? `${when} · ${shorten(spent)} tokens` : when}</div>;
 }
 
 // The skeleton of the card about to be born: an empty badge slot where the chip will go, and no
@@ -170,7 +175,6 @@ export default function ChatScreen({
   // was said. The card claims something else, that the file exists and is called this, so it is
   // drawn from the crossing of the two: once the file is deleted it simply stops having a card.
   const onDisk = new Set(files.map((file) => file.name));
-  const waitingLabel = askedAt ? `QueenAgent · ${clockTime(askedAt)}` : "QueenAgent";
 
   return (
     /* A narrow shell hides the conversation while a file is open, and CSS cannot look at a later
@@ -198,13 +202,6 @@ export default function ChatScreen({
                       `msg msg--ai${message.stopped ? " msg--stopped" : ""}`
                 }
               >
-                {/* No name over the user's own bubble: the design draws one but never says where it
-                    comes from, and the bubble sitting on the right already says who wrote it. */}
-                <div className="msg__label">
-                  {message.role === "user"
-                    ? clockTime(message.at)
-                    : `QueenAgent · ${clockTime(message.at)}`}
-                </div>
                 {/* Only an answer has steps; a question is what was typed and nothing else. */}
                 {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
                 {/* What the user typed stays what they typed -- `**test**` keeps its asterisks. */}
@@ -236,14 +233,15 @@ export default function ChatScreen({
                       ))}
                   </div>
                 ) : null}
-                {/* Only under an answer: spending is what an answer does, and a number under the
-                    question would read as its price. */}
-                {message.role === "ai" ? <TokenCount usage={message.usage} /> : null}
+                {/* Closes the turn. Only an answer carries a count: spending is what an answer
+                    does, and a number under the question would read as its price. The server sends
+                    the user's own message a usage of zeros, so this would hold without the check --
+                    but a rule that leans on someone else's zeros breaks the day they change. */}
+                <Stamp at={message.at} usage={message.role === "ai" ? message.usage : null} />
               </div>
             ))}
             {streamingText ? (
               <div className="msg msg--ai" data-testid="streaming">
-                <div className="msg__label">{waitingLabel}</div>
                 <ToolCalls calls={streamingCalls} />
                 <div className="msg__text">
                   {/* Formatted from the first frame: raw first and formatted afterwards would read
@@ -251,6 +249,9 @@ export default function ChatScreen({
                   <Markdown text={streamingText} caret />
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
+                {/* The count arrives in a single frame at the very end, so an answer still running
+                    carries only its time -- and that is the whole answer to "when did I ask". */}
+                <Stamp at={askedAt} />
               </div>
             ) : null}
 
@@ -258,7 +259,6 @@ export default function ChatScreen({
               // Three blinking dots and nothing else, and only until the first piece lands: the
               // design refuses a fake partial answer.
               <div className="msg msg--ai msg--waiting" data-testid="thinking">
-                <div className="msg__label">{waitingLabel}</div>
                 <ToolCalls calls={streamingCalls} />
                 <div className="dots">
                   <span className="dots__dot" />
@@ -266,6 +266,7 @@ export default function ChatScreen({
                   <span className="dots__dot" />
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
+                <Stamp at={askedAt} />
               </div>
             ) : null}
 

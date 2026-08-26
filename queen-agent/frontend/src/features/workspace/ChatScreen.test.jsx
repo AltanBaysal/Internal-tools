@@ -221,9 +221,11 @@ test("a user message is stamped with the time and nothing else", () => {
 test("an answer is stamped with the time and nothing else either", () => {
   // The name used to sit above every answer and it said nothing new: the sidebar carries it, and an
   // answer sitting on the left already says whose turn this was.
-  render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
   expect(screen.getByText("11:05").className).toBe("msg__stamp");
-  expect(screen.queryByText(/QueenAgent/)).toBeNull();
+  // Asked of the conversation rather than of the screen: the rail's empty state names QueenAgent
+  // too, and that sentence is not the repetition this is about.
+  expect(container.querySelector(".chat__column").textContent).not.toContain("QueenAgent");
 });
 
 test("the stamp closes a message rather than opening it", () => {
