@@ -710,8 +710,10 @@ test("a call arrives in the stream and is still there once the record lands", as
 
   render(<App />);
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
-  // Since Madde 78 the line is one string, brackets included. The claim is unchanged: one step,
-  // drawn once, however many places reported it.
+  // Since Madde 84 the record's calls sit behind a door, so the claim is asked of what is behind
+  // it. Unchanged otherwise, and it is the whole point of the test: one step, kept once, though two
+  // places reported it -- the live stream and the record that followed.
+  fireEvent.click(screen.getByRole("button", { name: /1 step/ }));
   expect(screen.getAllByText("⏺ read_file(plan.md)")).toHaveLength(1);
 });
 

@@ -227,7 +227,7 @@ test("a stop before the first word is still a message on screen", () => {
 
 test("a call seen while the answer is still running is drawn as it arrives", () => {
   // Same road the file cards take: what the stream reports is drawn before any record exists.
-  const { container } = render(
+  render(
     <ChatScreen
       project={PROJECT}
       chat={CHAT}
@@ -235,9 +235,10 @@ test("a call seen while the answer is still running is drawn as it arrives", () 
       streamingCalls={[{ tool: "read_file", target: "plan.md" }]}
     />,
   );
-  expect(container.querySelector(".tool-call")).toBeTruthy();
   // One string rather than neighbouring fragments since Madde 78: the brackets are part of the
-  // line's text, not an element beside it.
+  // line's text, not an element beside it. Since 84 it reaches the screen on the shut handle rather
+  // than on a card of its own -- what this claims is that it reaches the screen at all, and which
+  // element carries it is the neighbouring test's business.
   expect(screen.getByText("⏺ read_file(plan.md)")).toBeTruthy();
 });
 
