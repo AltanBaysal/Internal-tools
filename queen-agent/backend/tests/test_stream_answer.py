@@ -77,11 +77,11 @@ class ScriptedEngine:
         self.rounds = list(rounds)
         self.blow_up_after = blow_up_after
         self.seen = []
-        self.asked_for = "not asked"
 
+    # Tolerates a model without recording one: nothing passes it since Madde 82, and a fake that
+    # refused it would make every test in this file fail over one caller's signature.
     def stream(self, messages, tools=None, model=None):
         self.seen.append(list(messages))
-        self.asked_for = model
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
             raise RuntimeError("connection dropped")
         pieces = self.rounds.pop(0) if self.rounds else []
@@ -380,21 +380,27 @@ def test_an_unknown_chat_is_reported_before_anything_streams(tmp_path):
         list(stream_answer(chats, files, ScriptedEngine([]), "p1", "nope", NOW, NEVER))
 
 
-def test_the_answer_is_asked_for_with_the_chats_own_model(tmp_path):
-    chats, files = _seeded(tmp_path)
-    chats.replace("p1", replace(chats.get("p1", "c1"), model="grok-4.3"))
-    engine = ScriptedEngine([[{"text": "hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
-    assert engine.asked_for == "grok-4.3"
+class StrictEngine:
+    """An engine that refuses a model, so a caller still passing one dies loudly.
+
+    Its own class rather than a change to ScriptedEngine: that one is shared by every test in this
+    file, and tightening it would make them all fail over a single caller's signature.
+    """
+
+    def __init__(self):
+        self.seen = []
+
+    def stream(self, messages, tools=None):
+        self.seen.append(list(messages))
+        yield {"text": "hi"}
 
 
-def test_a_chat_that_chose_nothing_asks_for_nothing(tmp_path):
-    # None, not a name: which model answers for a chat that never picked one is the engine's own
-    # setting, and the domain has no business knowing what it says.
+def test_the_engine_is_asked_without_a_model(tmp_path):
+    # Madde 82: which model answers belongs to the wiring, not to the chat.
     chats, files = _seeded(tmp_path)
-    engine = ScriptedEngine([[{"text": "hi"}]])
+    engine = StrictEngine()
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
-    assert engine.asked_for is None
+    assert len(engine.seen) == 1
 
 
 # --- the calls a turn made, seen and kept (Madde 66) ---------------------------------------------

@@ -79,26 +79,17 @@ def test_the_request_carries_the_model_the_messages_and_the_bearer():
     assert "tools" not in seen["body"]
 
 
-def test_a_model_given_for_the_call_replaces_the_configured_one():
-    seen = {}
-
-    def opener(request):
-        seen["body"] = json.loads(request.data.decode("utf-8"))
-        return _Response({"choices": [{"message": {"content": "hi"}}]})
-
-    _client(opener).complete(MESSAGES, model="grok-4.3")
-    assert seen["body"]["model"] == "grok-4.3"
-
-
-def test_streaming_carries_its_own_model_too():
+def test_a_stream_carries_the_configured_model_too():
+    # Madde 82: the model is what the client was built with, on both roads. There is no per-call
+    # one to override it -- passing one would die on the signature.
     seen = {}
 
     def opener(request):
         seen["body"] = json.loads(request.data.decode("utf-8"))
         return io.BytesIO(b"data: [DONE]\n")
 
-    list(_client(opener).stream(MESSAGES, model="grok-build-0.1"))
-    assert seen["body"]["model"] == "grok-build-0.1"
+    list(_client(opener).stream(MESSAGES))
+    assert seen["body"]["model"] == "grok-4.5"
 
 
 def test_tools_are_sent_when_given():

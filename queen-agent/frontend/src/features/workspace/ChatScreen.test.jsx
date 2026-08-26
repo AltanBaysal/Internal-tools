@@ -540,36 +540,36 @@ test("the rail is drawn at the width the app is holding, and reports a drag back
   expect(onResizeRail).toHaveBeenCalledWith(440);
 });
 
-test("the composer says which model this chat answers with", () => {
-  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-build-0.1" }} />);
-  expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy();
+test("the composer says which model answers, without offering a choice", () => {
+  // Madde 82: one model, and nothing on a chat says which. The name is there to be read.
+  render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(screen.getByText("Grok Build")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Grok Build/ })).toBeNull();
 });
 
 test("the foot carries Skills, the model and Send, in that order", () => {
   // karar 1's order, complete at last.
-  const { container } = render(
-    <ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-build-0.1" }} />,
-  );
-  const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok Build⌄", "↑"]);
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  const foot = container.querySelector(".composer__foot");
+  // karar 1's order stands; the middle one stopped being a control in Madde 82.
+  expect(foot.textContent).toBe("Skills⌄Grok Build↑");
+  const buttons = [...foot.querySelectorAll("button")];
+  expect(buttons.length).toBe(2);
   // Madde 80 took the word off the button; the name it answers to is asked for separately now.
-  expect(buttons[2].getAttribute("aria-label")).toBe("Send");
+  expect(buttons[1].getAttribute("aria-label")).toBe("Send");
 });
 
 test("while an answer runs the row ends in Stop, and there is no fourth button", () => {
   // Madde 79, in one sentence. Madde 67 put Stop beside Send; the two are one control now, because
   // an answer that is running is exactly when there is nothing to send.
   const { container } = render(
-    <ChatScreen
-      project={PROJECT}
-      chat={{ ...CHAT, model: "grok-build-0.1" }}
-      thinking
-      onStop={vi.fn()}
-    />,
+    <ChatScreen project={PROJECT} chat={CHAT} thinking onStop={vi.fn()} />,
   );
-  const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok Build⌄", "⏹"]);
-  expect(buttons[2].getAttribute("aria-label")).toBe("Stop");
+  const foot = container.querySelector(".composer__foot");
+  expect(foot.textContent).toBe("Skills⌄Grok Build⏹");
+  const buttons = [...foot.querySelectorAll("button")];
+  expect(buttons.length).toBe(2);
+  expect(buttons[1].getAttribute("aria-label")).toBe("Stop");
 });
 
 test("a chat with a skill selected says which one", () => {
@@ -589,21 +589,6 @@ test("picking a skill is passed up rather than kept here", () => {
   );
   fireEvent.click(screen.getByText("Split into frames"));
   expect(onSkillChange).toHaveBeenCalledWith("split-into-frames");
-});
-
-test("picking another one is passed up rather than kept here", () => {
-  // Which model a chat uses lives on the server. The screen asks; App sends.
-  const onModelChange = vi.fn();
-  render(
-    <ChatScreen
-      project={PROJECT}
-      chat={{ ...CHAT, model: "grok-4.3" }}
-      picker="model"
-      onModelChange={onModelChange}
-    />,
-  );
-  fireEvent.click(screen.getByText("Grok Build"));
-  expect(onModelChange).toHaveBeenCalledWith("grok-build-0.1");
 });
 
 // --- what the answer spent (Madde 68) ------------------------------------------------------------

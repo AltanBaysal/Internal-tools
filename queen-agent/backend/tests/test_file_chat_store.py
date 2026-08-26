@@ -26,18 +26,6 @@ def test_the_id_is_the_file_name_and_is_not_repeated_inside(tmp_path):
     assert "c1" not in raw.read_text("p1/chats/c1.json")
 
 
-def test_the_model_a_chat_chose_is_written_and_read_back(tmp_path):
-    FileChatStore(Store(str(tmp_path))).add("p1", replace(_chat(), model="grok-4.3"))
-    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1").model == "grok-4.3"
-
-
-def test_a_chat_that_chose_nothing_writes_no_model(tmp_path):
-    # An empty field is noise on disk, exactly as an empty file list is.
-    raw = Store(str(tmp_path))
-    FileChatStore(raw).add("p1", _chat())
-    assert "model" not in raw.read_text("p1/chats/c1.json")
-
-
 def test_the_skill_a_chat_selected_is_written_and_read_back(tmp_path):
     FileChatStore(Store(str(tmp_path))).add("p1", replace(_chat(), skill="generate-prompts"))
     assert FileChatStore(Store(str(tmp_path))).get("p1", "c1").skill == "generate-prompts"
@@ -58,16 +46,29 @@ def test_a_chat_and_a_message_with_no_skill_write_no_field(tmp_path):
     assert "skill" not in raw.read_text("p1/chats/c1.json")
 
 
-def test_a_chat_written_before_models_existed_still_reads(tmp_path):
+def test_a_chat_written_before_skills_existed_still_reads(tmp_path):
     # There are records on disk already. They have no such field and must not need a migration.
     raw = Store(str(tmp_path))
     raw.write_text(
         "p1/chats/old.json",
         '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "messages": []}',
     )
+    assert FileChatStore(raw).get("p1", "old").skill == ""
+
+
+def test_a_chat_that_still_carries_a_model_on_disk_is_read_without_it(tmp_path):
+    # Madde 82 took the field out. Every chat written before it has a model key sitting in its
+    # JSON, and reading one must not fail over a word nothing asks about any more -- it simply
+    # drops the next time the chat is written.
+    raw = Store(str(tmp_path))
+    raw.write_text(
+        "p1/chats/old.json",
+        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "messages": [],'
+        ' "model": "grok-4.3"}',
+    )
     old = FileChatStore(raw).get("p1", "old")
-    assert old.model == ""
-    assert old.skill == ""
+    assert old.title == "Old"
+    assert not hasattr(old, "model")
 
 
 def test_an_unknown_chat_is_none(tmp_path):

@@ -18,7 +18,6 @@ class FakeEngine:
     def __init__(self, answer="Done.", blow_up=None):
         self.answer = answer
         self.blow_up = blow_up
-        self.asked_for = "not asked"
         self.seen = None
 
     def complete(self, messages, tools=None):
@@ -26,10 +25,11 @@ class FakeEngine:
             raise RuntimeError(self.blow_up)
         return {"role": "assistant", "content": self.answer}
 
+    # Tolerates a model without recording one: nothing passes it since Madde 82, and a fake that
+    # refused it would make every test in this file fail over one caller's signature.
     def stream(self, messages, tools=None, model=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
-        self.asked_for = model
         self.seen = [dict(message) for message in messages]
         yield {"text": self.answer}
 
@@ -394,54 +394,52 @@ def test_a_new_chat_shows_up_in_the_project_count(tmp_path):
     assert client.get("/api/projects").get_json()[0]["chats"] == 1
 
 
-def test_a_chat_is_born_with_the_model_it_was_sent(tmp_path):
-    client = _client(tmp_path)
-    pid = _project(client)
-    born = client.post(
-        f"/api/projects/{pid}/chats", json={"text": "hello", "model": "grok-4.3"}
-    ).get_json()
-    assert born["model"] == "grok-4.3"
+# --- one model, and nothing on a chat says which (Madde 82) --------------------------------------
 
 
-def test_a_chat_that_picked_nothing_answers_with_the_default(tmp_path):
-    # Resolved on the way out: the client always has a name to draw, and the record on disk is
-    # still free to follow the setting.
-    client = _client(tmp_path, default_model="grok-4.5")
-    pid, cid = _started(client)
-    assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["model"] == "grok-4.5"
+def test_the_model_endpoint_is_gone(tmp_path):
+    # One model, so there is nothing to ask about. Flask answers a route nobody registered, and
+    # that answer is the test.
+    assert _client(tmp_path).get("/api/model").status_code == 404
 
 
-def test_the_model_can_be_changed_mid_conversation(tmp_path):
+def test_a_chat_carries_no_model(tmp_path):
     client = _client(tmp_path)
     pid, cid = _started(client)
-    changed = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "grok-build-0.1"})
-    assert changed.status_code == 200
-    assert changed.get_json()["model"] == "grok-build-0.1"
-    # And it stays: the next reader sees the pick, not the default.
-    assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["model"] == "grok-build-0.1"
+    assert "model" not in client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
 
 
-def test_changing_the_model_of_a_chat_that_is_not_there_is_404(tmp_path):
+def test_a_patch_carrying_only_a_model_is_refused(tmp_path):
+    # The one field a chat still carries is its skill. A model arriving here is not a change that
+    # failed quietly -- it is a request this route no longer understands.
     client = _client(tmp_path)
-    pid = _project(client)
-    assert client.patch(f"/api/projects/{pid}/chats/nope", json={"model": "grok-4.3"}).status_code == 404
-
-
-def test_the_answer_is_asked_for_with_the_chats_own_model(tmp_path):
-    engine = FakeEngine()
-    client = _client(tmp_path, engine=engine)
     pid, cid = _started(client)
-    client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "grok-4.3"})
-    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
-    assert engine.asked_for == "grok-4.3"
+    assert client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "x"}).status_code == 400
 
 
-def test_a_chat_that_picked_nothing_lets_the_engine_decide(tmp_path):
-    engine = FakeEngine()
+class StrictEngine:
+    """An engine that refuses a model, so a caller still passing one dies loudly.
+
+    Its own class rather than a change to FakeEngine: that one is shared by every test in this
+    file, and tightening it would make them all fail over a single caller's signature.
+    """
+
+    def __init__(self):
+        self.seen = None
+
+    def stream(self, messages, tools=None):
+        self.seen = [dict(message) for message in messages]
+        yield {"text": "hi"}
+
+
+def test_the_engine_is_asked_without_a_model(tmp_path):
+    # There is one model and the wiring names it once, in config.py. Nothing on the way to the
+    # engine gets to say otherwise.
+    engine = StrictEngine()
     client = _client(tmp_path, engine=engine)
     pid, cid = _started(client)
     client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data()
-    assert engine.asked_for is None
+    assert engine.seen is not None
 
 
 def test_a_chat_is_born_with_the_skill_it_was_sent(tmp_path):
@@ -468,18 +466,9 @@ def test_the_skill_can_be_changed_and_cleared(tmp_path):
     pid, cid = _started(client)
     chosen = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": "verify"})
     assert chosen.get_json()["skill"] == "verify"
-    # Pressing the selected one again clears it -- a skill may be absent, a model may not.
+    # Pressing the selected one again clears it: a chat may have no skill at all.
     cleared = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": ""})
     assert cleared.get_json()["skill"] == ""
-
-
-def test_changing_one_choice_leaves_the_other_alone(tmp_path):
-    client = _client(tmp_path)
-    pid, cid = _started(client)
-    client.patch(f"/api/projects/{pid}/chats/{cid}", json={"model": "grok-4.3"})
-    changed = client.patch(f"/api/projects/{pid}/chats/{cid}", json={"skill": "verify"}).get_json()
-    assert changed["model"] == "grok-4.3"
-    assert changed["skill"] == "verify"
 
 
 def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):

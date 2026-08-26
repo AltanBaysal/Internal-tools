@@ -1275,25 +1275,17 @@ test("offline, no answer is asked for; back online, one is", async () => {
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
 });
 
-// --- which model answers -----------------------------------------------------------------------
+// --- one model, and nothing asks about it (Madde 82) ---------------------------------------------
 
-// Since Madde 72 the one model offered is Grok Build, so that is what a chat here answers with
-// unless a test asks for an older one -- a chat on grok-4.3 is what the disk actually holds from
-// before, and the only starting point from which picking a model is still a move.
-function withModel(model = "grok-build-0.1") {
+// Named for what it sets up rather than for the model it used to carry: a project with one chat in
+// it, answering whatever the server is wired to.
+function withChat() {
   const chats = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
-  let chat = { id: "c1", title: "Write the intro", messages: [], model };
+  let chat = { id: "c1", title: "Write the intro", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path === "/api/model") {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({ default: "grok-build-0.1" }),
-      });
-    }
     if (path.endsWith("/chats/c1") && options?.method === "PATCH") {
       // Merged, the way the server merges: it writes the field it was given and leaves the other
-      // alone. Taking only model dropped a picked skill and blanked the model on a skill PATCH.
+      // alone -- the shape the server has, and the one a chat carrying more than a skill needed.
       chat = { ...chat, ...JSON.parse(options.body) };
       return Promise.resolve({ ok: true, status: 200, json: async () => chat });
     }
@@ -1304,14 +1296,14 @@ function withModel(model = "grok-build-0.1") {
       return Promise.resolve({
         ok: true,
         status: 201,
-        json: async () => ({ id: "c2", title: "new", messages: [], model: "" }),
+        json: async () => ({ id: "c2", title: "new", messages: [] }),
       });
     }
     if (path.includes("/chats/")) {
       return Promise.resolve({
         ok: true,
         status: 200,
-        json: async () => ({ id: "c2", title: "new", messages: [], model: "grok-4.3" }),
+        json: async () => ({ id: "c2", title: "new", messages: [] }),
       });
     }
     if (path.endsWith("/chats")) {
@@ -1326,55 +1318,38 @@ function withModel(model = "grok-build-0.1") {
   return fetch;
 }
 
-test("picking a model writes it to the chat it was picked in", async () => {
-  // The button reads the raw id: grok-4.3 has no row in the menu since Madde 72, and a display
-  // name for a model nobody can pick would imply it is still on offer.
-  const fetch = withModel("grok-4.3");
+test("the app never asks which model to use", async () => {
+  // The setting has one value and the wiring names it once, in config.py. There is nothing for the
+  // browser to fetch and nothing for it to hold.
+  const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /grok-4.3/ })).toBeTruthy());
-
-  fireEvent.click(screen.getByRole("button", { name: /grok-4.3/ }));
-  fireEvent.click(screen.getByText("Grok Build"));
-
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
-  const patch = fetch.mock.calls.find(([, options]) => options?.method === "PATCH");
-  expect(JSON.parse(patch[1].body)).toEqual({ model: "grok-build-0.1" });
+  await waitFor(() => expect(screen.getByText("Grok Build")).toBeTruthy());
+  expect(fetch.mock.calls.filter(([path]) => String(path) === "/api/model")).toHaveLength(0);
 });
 
-test("a new chat is born with the last model picked in this session", async () => {
-  // The pick sticks to the chat on disk; the last one also becomes what the next chat starts from,
-  // and that much is the session's, not the disk's.
-  const fetch = withModel("grok-4.3");
-  window.history.pushState(null, "", "/p/p1/c/c1");
+test("a chat is born without a model", async () => {
+  // Nothing to send: there is one, and the server already knows which.
+  const fetch = withChat();
+  window.history.pushState(null, "", "/p/p1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /grok-4.3/ })).toBeTruthy());
-  fireEvent.click(screen.getByRole("button", { name: /grok-4.3/ }));
-  fireEvent.click(screen.getByText("Grok Build"));
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
-
-  fireEvent.click(screen.getByRole("button", { name: "← Old" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  const box = screen.getByPlaceholderText("Start a new chat in this project...");
+  const box = await screen.findByPlaceholderText("Start a new chat in this project...");
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
-  await waitFor(() =>
-    expect(
-      fetch.mock.calls.some(
-        ([path, options]) =>
-          options?.method === "POST" &&
-          path.endsWith("/chats") &&
-          JSON.parse(options.body).model === "grok-build-0.1",
-      ),
-    ).toBe(true),
-  );
+  await waitFor(() => {
+    const born = fetch.mock.calls.find(
+      ([path, options]) => options?.method === "POST" && String(path).endsWith("/chats"),
+    );
+    expect(born).toBeTruthy();
+    expect(JSON.parse(born[1].body)).not.toHaveProperty("model");
+  });
 });
 
 // --- which skill is selected ---------------------------------------------------------------------
 
 test("picking a skill writes it to the chat it was picked in", async () => {
-  const fetch = withModel();
+  const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
@@ -1390,7 +1365,7 @@ test("picking a skill writes it to the chat it was picked in", async () => {
 });
 
 test("a new chat is born with the last skill picked in this session", async () => {
-  const fetch = withModel();
+  const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
@@ -1416,48 +1391,10 @@ test("a new chat is born with the last skill picked in this session", async () =
   );
 });
 
-test("one menu closes the other", async () => {
-  withModel();
-  window.history.pushState(null, "", "/p/p1/c/c1");
-  render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
-
-  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  expect(screen.getByText("SKILLS")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
-  expect(screen.queryByText("SKILLS")).toBeNull();
-  expect(screen.getByText("MODEL")).toBeTruthy();
-});
-
-test("picking a model closes the menu", async () => {
+test("picking a skill closes the menu", async () => {
   // Closing was written twice -- once in Menu, once in App -- and the two landed in the same batch,
   // so the toggle re-opened what the other had just closed.
-  withModel("grok-4.3");
-  window.history.pushState(null, "", "/p/p1/c/c1");
-  render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /grok-4.3/ })).toBeTruthy());
-
-  fireEvent.click(screen.getByRole("button", { name: /grok-4.3/ }));
-  fireEvent.click(screen.getByText("Grok Build", { selector: ".menu__item-name" }));
-  await waitFor(() => expect(screen.queryByText("MODEL")).toBeNull());
-});
-
-test("pressing the model already in use closes the menu and asks the server nothing", async () => {
-  // The row that changes nothing still ends the menu's business: closing belongs to the press, not
-  // to whether something moved.
-  const fetch = withModel();
-  window.history.pushState(null, "", "/p/p1/c/c1");
-  render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
-
-  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
-  fireEvent.click(screen.getByText("Grok Build", { selector: ".menu__item-name" }));
-  await waitFor(() => expect(screen.queryByText("MODEL")).toBeNull());
-  expect(fetch.mock.calls.filter(([, options]) => options?.method === "PATCH")).toEqual([]);
-});
-
-test("picking a skill closes the menu", async () => {
-  withModel();
+  withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
@@ -1467,40 +1404,38 @@ test("picking a skill closes the menu", async () => {
   await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
 });
 
-test("in a draft, picking a model closes the menu too", async () => {
+test("in a draft, picking a skill closes the menu too", async () => {
   // A draft has no chat to write to, so it takes a different path out of the same menu.
-  withModel();
+  withChat();
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
-  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
-  fireEvent.click(screen.getByText("Grok Build", { selector: ".menu__item-name" }));
-  await waitFor(() => expect(screen.queryByText("MODEL")).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(screen.getByText("Create scenario", { selector: ".menu__item-name" }));
+  await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
 });
 
-test("Escape closes the pickers in the design's order", async () => {
-  // fark 67: project menu -> confirm box -> Skills -> model -> open panel. The two pickers are the
-  // links that could not be wired until both existed.
-  withModel();
+test("Escape closes the picker", async () => {
+  // fark 67 put five things in order: project menu -> confirm box -> Skills -> model -> open panel.
+  // Madde 82 took the model out and the order is four; the ones around it did not move.
+  withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
-  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
-  fireEvent.keyDown(window, { key: "Escape" });
-  expect(screen.queryByText("MODEL")).toBeNull();
-
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  expect(screen.getByText("SKILLS")).toBeTruthy();
   fireEvent.keyDown(window, { key: "Escape" });
   expect(screen.queryByText("SKILLS")).toBeNull();
 });
 
-test("with nothing picked yet a draft follows the server's own setting", async () => {
-  withModel();
+test("a draft says which model will answer it", async () => {
+  // Nothing has been sent yet and there is still one model, so the name is there from the start.
+  withChat();
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Grok Build")).toBeTruthy());
 });
 
 test("an empty prompt sends nothing", async () => {

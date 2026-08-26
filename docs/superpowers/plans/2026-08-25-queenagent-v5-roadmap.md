@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **17 madde, 4 blok** — 65'ten 81'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **18 madde, 4 blok** — 65'ten 82'ye.
 
 ---
 
@@ -267,6 +267,23 @@ sıradaki geliyor *(kullanıcı kararı, 26 Ağustos: "adım adım gidelim artı
 - **Kararı verilmiş** *(kullanıcı kararı, 26 Ağustos)*: boş ve `stopped` işaretli cevap **diske
   yazılır**. Bedeli biliniyor ve kabul edildi — 67'nin *"cevap ya vardır ya yoktur"* kuralı esniyor.
   Kural yeni hâliyle şu: bir mesaj ya bir söz, ya bir dosya, **ya da bir durdurma** taşır.
+
+### Madde 82 — Model seçme sistemi kalkar, tıklanamaz bir etiket kalır
+
+- **Ne çalışır:** 72 modeli teke indirdi ama etrafındaki bütün makine duruyor — sohbet kaydında bir
+  `model` alanı, onu okuyup yazan bir uç nokta, bir menü, bir liste, bir isim çözücü, ve sunucudan
+  ekrana kadar taşınan bir varsayılan. Tek model varken hepsi boşa çalışıyor. Sistem sökülür; yazma
+  kutusunun ayağında **tıklanamayan bir etiket** kalır *(kullanıcı kararı, 26 Ağustos)*.
+- **Nasıl görülür:** ayakta `Grok Build` yazıyor ve basılmıyor, menü açılmıyor. Yeni sohbet de eski
+  sohbet de Grok Build ile cevaplıyor.
+- **Eski kayıtlar:** diskteki `"model": "grok-4.3"` anahtarı JSON'da kalıyor ama **kimse okumuyor** —
+  o sohbetler de Grok Build'e gidiyor. Göç yazılmıyor; sohbet bir daha yazıldığında anahtar
+  kendiliğinden düşüyor. Kullanıcının *"grok-4.3 kullanmıyoruz"* şartı böyle sağlanıyor.
+- **Modelin adı tek yerde kalıyor:** `config.py`. Etiketin insan okuyan hâli ön yüzde yazılı, ve
+  ikisi birlikte hareket eder. Bedeli: ortamdan `XAI_MODEL` ezilirse etiket bunu söylemez. Bu bir
+  geliştirici işi ve geliştirici kendi ezdiğini bilir.
+- **Yanında gelen iki sadeleşme:** açık menü durumu ikiliye iniyor *(geriye tek menü kaldı)*, ve
+  Escape sırası kısalıyor — `fark 67`'nin beşli sırası dörde düşüyor.
 
 ---
 

@@ -201,12 +201,15 @@ test("a chat row offers no rename", () => {
 test("the composer here carries both pickers, in the chat screen's order", () => {
   // The same order as the chat screen -- two orders for the same three controls is the same thing
   // learned twice.
-  const { container } = render(<ProjectScreen project={PROJECT} model="grok-build-0.1" />);
-  const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok Build⌄", "↑"]);
+  const { container } = render(<ProjectScreen project={PROJECT} />);
+  const foot = container.querySelector(".composer__foot");
+  // The same order as the chat screen; the middle one stopped being a control in Madde 82.
+  expect(foot.textContent).toBe("Skills⌄Grok Build↑");
+  const buttons = [...foot.querySelectorAll("button")];
+  expect(buttons.length).toBe(2);
   // Madde 80 took the word off the button. The mark is the chat screen's, the name is this
   // screen's own -- opening a chat is not replying to one.
-  expect(buttons[2].getAttribute("aria-label")).toBe("Start");
+  expect(buttons[1].getAttribute("aria-label")).toBe("Start");
 });
 
 test("picking a skill is passed up rather than kept here", () => {
@@ -218,18 +221,11 @@ test("picking a skill is passed up rather than kept here", () => {
   expect(onSkillChange).toHaveBeenCalledWith("create-scenario");
 });
 
-test("picking a model is passed up rather than kept here", () => {
-  const onModelChange = vi.fn();
-  render(
-    <ProjectScreen
-      project={PROJECT}
-      model="grok-4.3"
-      picker="model"
-      onModelChange={onModelChange}
-    />,
-  );
-  fireEvent.click(screen.getByText("Grok Build"));
-  expect(onModelChange).toHaveBeenCalledWith("grok-build-0.1");
+test("the model's name is here to be read, not pressed", () => {
+  // Madde 82: one model, so this screen has one choice to make and it is the skill.
+  render(<ProjectScreen project={PROJECT} />);
+  expect(screen.getByText("Grok Build")).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Grok Build/ })).toBeNull();
 });
 
 test("which picker is open is told to the screen rather than decided by it", () => {
