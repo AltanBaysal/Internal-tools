@@ -4,9 +4,17 @@ import { useState } from "react";
 // keeps. Only the finished text leaves, through onSubmit.
 // `foot` is what stands to the left of Send. karar 1 settled that order -- Skills · model · Send --
 // and the box holds the room without knowing what goes in it.
-export default function Composer({ rows, placeholder, action, foot, onSubmit }) {
+//
+// `running` says an answer is on its way, and it turns the one action button into a stop. There is
+// nothing to send while one is running, so the button that sends is the one free to stop -- and a
+// control with two states keeps both of them here, where the button already lives.
+export default function Composer({ rows, placeholder, action, foot, running, onStop, onSubmit }) {
   const [draft, setDraft] = useState("");
   const ready = draft.trim().length > 0;
+  // An empty draft is what blocks sending; blocking a stop with it would kill the control in the
+  // very case it exists for. The accent follows: while an answer runs, stopping is the only action
+  // there is, so it is the primary one.
+  const live = running || ready;
 
   const submit = async () => {
     // onSubmit is optional: this component owns the draft rules, and where a message goes is
@@ -45,11 +53,13 @@ export default function Composer({ rows, placeholder, action, foot, onSubmit }) 
         {foot}
         <button
           type="button"
-          className={ready ? "composer__send composer__send--ready" : "composer__send"}
-          disabled={!ready}
-          onClick={submit}
+          className={live ? "composer__send composer__send--ready" : "composer__send"}
+          disabled={!live}
+          /* Split above submit rather than inside it: submit owns the draft's rules and has no
+             reason to learn about stopping. */
+          onClick={running ? onStop : submit}
         >
-          {action}
+          {running ? "Stop" : action}
         </button>
       </div>
     </div>

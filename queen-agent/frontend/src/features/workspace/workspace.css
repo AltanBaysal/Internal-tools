@@ -1019,24 +1019,6 @@
    at the width a file card would take. */
 /* Stopping your own answer is neither the primary action nor a destructive one, so it takes neither
    the accent nor the red: a quiet outlined control that sits beside the pickers. */
-.stop {
-  display: inline-flex;
-  align-items: center;
-  height: 30px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--ink);
-  font-family: var(--font-body);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.stop:hover {
-  border-color: var(--muted);
-}
-
 /* An answer that was cut short. Marked at its edge rather than by dimming the text -- the words are
    the user's to keep, and greying them would suggest they are worth less. */
 .msg--stopped .msg__text {

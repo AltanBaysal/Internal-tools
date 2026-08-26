@@ -313,16 +313,13 @@ export default function ChatScreen({
             /* karar 1's order: Skills · model · Send. Both choices belong to the chat on the
                server, so the screen asks and App sends; which picker is open is App's too, because
                Escape closes them in a fixed order. */
+            /* Stopping is the send button's other state rather than a control of its own: while an
+               answer runs there is nothing to send. No red -- cutting your own answer short is not
+               destruction. */
+            running={thinking}
+            onStop={onStop}
             foot={
               <>
-                {/* Only while there is something to stop. No accent -- the accent marks the primary
-                    action, and that is Send; no red either, because cutting your own answer short
-                    is not destruction. */}
-                {thinking ? (
-                  <button type="button" className="stop" onClick={onStop}>
-                    Stop
-                  </button>
-                ) : null}
                 <SkillPicker
                   skill={chat.skill}
                   open={picker === "skills"}
