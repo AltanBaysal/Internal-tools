@@ -40,6 +40,25 @@ function ToolCalls({ calls }) {
   );
 }
 
+// A thousand and up loses its exact digits. The number answers "was this turn expensive", and four
+// significant figures do not help with that question.
+function shorten(count) {
+  return count < 1000 ? String(count) : `${(count / 1000).toFixed(1)}k`;
+}
+
+// What the turn cost, under the answer that cost it -- last, because the cards above are what the
+// answer produced and this is a note about the answer itself.
+//
+// One number out of the three the record keeps. The other two say what the cache saved, and that is
+// a question about how requests are built rather than something a reader of the chat is asking.
+// Nothing is drawn at zero: an answer from before this existed reads back as zero, and a line under
+// it would claim a measurement nobody took.
+function TokenCount({ usage }) {
+  const spent = (usage?.sent ?? 0) + (usage?.answered ?? 0);
+  if (!spent) return null;
+  return <div className="token-count">{shorten(spent)} tokens</div>;
+}
+
 // The skeleton of the card about to be born: an empty badge slot where the chip will go, and no
 // name -- the model's wish is not the name until it has been cleaned and a clash resolved.
 function CreatingFile() {
@@ -203,6 +222,9 @@ export default function ChatScreen({
                       ))}
                   </div>
                 ) : null}
+                {/* Only under an answer: spending is what an answer does, and a number under the
+                    question would read as its price. */}
+                {message.role === "ai" ? <TokenCount usage={message.usage} /> : null}
               </div>
             ))}
             {streamingText ? (

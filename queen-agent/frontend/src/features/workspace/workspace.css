@@ -1062,6 +1062,16 @@
   color: var(--muted);
 }
 
+/* What the turn cost. Same family as the steps above the answer and the label above that: all three
+   are notes about the text rather than the text itself, so they read as one register. Sits under
+   the answer with a little air, because it closes the turn rather than introducing anything. */
+.token-count {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
 /* The separator is drawn here rather than in the markup: as an element it would stand in for a name
    that is not there, and listing a directory really is a call about no file in particular. */
 .tool-call__target::before {

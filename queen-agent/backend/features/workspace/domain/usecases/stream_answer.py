@@ -3,7 +3,7 @@
 The generator yields text pieces and finally the updated Chat. Telling them apart by type is
 simpler than carrying a separate "this one is the last" flag.
 """
-from backend.features.workspace.domain.chat import ToolCall
+from backend.features.workspace.domain.chat import ToolCall, Usage
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
@@ -49,11 +49,15 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
     said = []
     born = []
     made = []
+    spent = Usage()
     cut_short = False
 
     try:
         for _ in range(MAX_ROUNDS):
             spoken, calls = [], []
+            # This round's bill so far. None until the engine says anything about it, so an engine
+            # that measures nothing leaves the total alone rather than adding zeroes to it.
+            round_spent = None
             # None rather than a name when the chat never chose: which model speaks for it is the
             # engine's own setting, and the domain has no business knowing what that says.
             for piece in engine.stream(conversation, tools=TOOL_SPECS, model=chat.model or None):
@@ -66,8 +70,23 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
                     spoken.append(piece["text"])
                     said.append(piece["text"])
                     yield piece["text"]
+                elif "usage" in piece:
+                    # Replaced rather than added: within one call the engine restates a running
+                    # total, so adding them would multiply the bill by however many pieces arrived.
+                    round_spent = piece["usage"]
                 else:
                     calls.extend(piece["tool_calls"])
+
+            # Before the stop is acted on, because a round that was cut short still sent its whole
+            # conversation and was still charged for it -- and the sending is the expensive half.
+            # Rounds add where pieces replaced: each round is its own call and its own bill, and
+            # that growth is the thing this number exists to show.
+            if round_spent:
+                spent = Usage(
+                    spent.sent + round_spent["sent"],
+                    spent.cached + round_spent["cached"],
+                    spent.answered + round_spent["answered"],
+                )
 
             # Reaching a stop is an end, not a failure -- the same way the round limit is.
             if cut_short or not calls:
@@ -124,4 +143,5 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
         files=born,
         calls=made,
         stopped=cut_short,
+        usage=spent,
     )

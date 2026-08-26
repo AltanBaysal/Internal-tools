@@ -297,6 +297,13 @@ def _chat_json(chat, default_model):
                 # absent field would make every reader check for it.
                 "calls": [{"tool": call.tool, "target": call.target} for call in message.calls],
                 "stopped": message.stopped,
+                # The breakdown travels even though the screen draws one number out of it: what the
+                # cache actually saved is the question the context work will be answering.
+                "usage": {
+                    "sent": message.usage.sent,
+                    "cached": message.usage.cached,
+                    "answered": message.usage.answered,
+                },
             }
             for message in chat.messages
         ],

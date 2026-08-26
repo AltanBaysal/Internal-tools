@@ -21,12 +21,8 @@ _DATA = b"data: "
 _DONE = object()
 
 
-def _delta(raw):
-    """One SSE line -> {"text": ...} or {"tool_calls": [...]}, the done sentinel, or None.
-
-    Two kinds of thing come down the same wire, so each piece names which it is rather than leaving
-    the reader to guess from its type.
-    """
+def _parsed(raw):
+    """One SSE line -> the frame it carries, the done sentinel, or None."""
     line = raw.strip()
     if not line.startswith(_DATA):
         return None  # keep-alives, blank separators and comments carry no content
@@ -34,10 +30,18 @@ def _delta(raw):
     if payload == b"[DONE]":
         return _DONE
     try:
-        frame = json.loads(payload)
+        return json.loads(payload)
     except json.JSONDecodeError:
         # One malformed frame must not bring the whole answer down.
         return None
+
+
+def _spoken(frame):
+    """What the model said in this frame: {"text": ...}, {"tool_calls": [...]}, or None.
+
+    Two kinds of thing come down the same wire, so each piece names which it is rather than leaving
+    the reader to guess from its type.
+    """
     delta = frame.get("choices", [{}])[0].get("delta", {})
     # A function call is documented to arrive whole in a single chunk, so there is nothing to
     # stitch together here.
@@ -46,6 +50,27 @@ def _delta(raw):
     if delta.get("content"):
         return {"text": delta["content"]}
     return None
+
+
+def _spent(frame):
+    """What the answer has cost so far, in our own words rather than the service's, or None.
+
+    Read off a frame rather than the closing one because the service puts it on every chunk, and
+    a count that only arrived at the end would be lost whenever an answer is cut short -- where the
+    input has already been sent and already been paid for.
+
+    `cached_tokens` sits inside the prompt rather than beside it, so it can never exceed `sent` and
+    the difference is what was paid for a second time. Nothing here computes that difference: a
+    number that restates two others goes stale on its own.
+    """
+    counts = frame.get("usage")
+    if not counts:
+        return None
+    return {
+        "sent": counts.get("prompt_tokens", 0),
+        "cached": counts.get("prompt_tokens_details", {}).get("cached_tokens", 0),
+        "answered": counts.get("completion_tokens", 0),
+    }
 
 
 class XaiClient:
@@ -79,11 +104,20 @@ class XaiClient:
         try:
             with self._opener(request) as response:
                 for raw in response:
-                    piece = _delta(raw)
-                    if piece is _DONE:
+                    frame = _parsed(raw)
+                    if frame is _DONE:
                         return
-                    if piece:
-                        yield piece
+                    if frame is None:
+                        continue
+                    # One frame can carry both, and really does: the counts ride along with the
+                    # words. Words first -- the counts are what those words cost, and a cost does
+                    # not arrive before the thing it is for.
+                    said = _spoken(frame)
+                    if said:
+                        yield said
+                    counts = _spent(frame)
+                    if counts:
+                        yield {"usage": counts}
         except urllib.error.HTTPError as failure:
             body = failure.read().decode("utf-8", "replace")
             raise XaiFailed(f"{failure.code} {body}") from failure

@@ -1,7 +1,7 @@
 """Append a message to an existing chat."""
 from dataclasses import replace
 
-from backend.features.workspace.domain.chat import Message
+from backend.features.workspace.domain.chat import Message, Usage
 from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage
 
 
@@ -16,6 +16,7 @@ def append_message(
     skill="",
     calls=(),
     stopped=False,
+    usage=Usage(),
 ):
     chat = chat_store.get(project_id, chat_id)
     if chat is None:
@@ -36,6 +37,7 @@ def append_message(
         skill=skill,
         calls=tuple(calls),
         stopped=stopped,
+        usage=usage,
     )
     updated = replace(chat, messages=chat.messages + (message,))
     chat_store.replace(project_id, updated)

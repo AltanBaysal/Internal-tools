@@ -1,7 +1,7 @@
 """FileChatStore -- the only place that knows the chats/<id>.json schema."""
 import json
 
-from backend.features.workspace.domain.chat import Chat, Message, ToolCall
+from backend.features.workspace.domain.chat import Chat, Message, ToolCall, Usage
 from backend.features.workspace.domain.naming import unique_name
 
 CHATS_DIR = "chats"
@@ -76,6 +76,14 @@ def _message_json(message):
     # Only the true one is written: almost no answer is stopped, and a false everywhere is noise.
     if message.stopped:
         stored["stopped"] = True
+    # An all-zero object is noise too, and it is what a message nobody measured carries -- the
+    # user's own sentences included, since spending is what an answer does.
+    if message.usage != Usage():
+        stored["usage"] = {
+            "sent": message.usage.sent,
+            "cached": message.usage.cached,
+            "answered": message.usage.answered,
+        }
     return stored
 
 
@@ -85,6 +93,14 @@ def _call_json(call):
     if call.target:
         stored["target"] = call.target
     return stored
+
+
+def _as_usage(raw):
+    # Field by field rather than **raw: a chat on disk can be edited by hand, and a key this app
+    # does not know would turn a stray edit into a crash instead of something ignored.
+    if not raw:
+        return Usage()
+    return Usage(raw.get("sent", 0), raw.get("cached", 0), raw.get("answered", 0))
 
 
 def _as_chat(chat_id, raw):
@@ -108,6 +124,7 @@ def _as_chat(chat_id, raw):
                     for call in message.get("calls", ())
                 ),
                 stopped=message.get("stopped", False),
+                usage=_as_usage(message.get("usage")),
             )
             for message in raw["messages"]
         ),
