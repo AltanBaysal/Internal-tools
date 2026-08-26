@@ -106,3 +106,49 @@ test("with nothing to put there the foot is Send alone", () => {
   const { container } = render(<Composer action="Send" />);
   expect(container.querySelectorAll(".composer__foot button").length).toBe(1);
 });
+
+// --- one button, two jobs (Madde 79) -------------------------------------------------------------
+//
+// While an answer is running there is nothing to send, so the button that sends is the one free to
+// stop. Madde 67 put a second button beside it; this replaces both with one.
+
+test("while an answer runs the button stops instead of sending", () => {
+  render(<Composer action="Send" running onStop={vi.fn()} />);
+  expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+});
+
+test("stopping does not wait for a draft", () => {
+  // An empty draft is what blocks sending. Blocking a stop with it would make the control useless
+  // in the very case it exists for -- nothing has been typed and the answer is running away.
+  const onStop = vi.fn();
+  render(<Composer action="Send" running onStop={onStop} />);
+  const button = screen.getByRole("button", { name: "Stop" });
+  expect(button.disabled).toBe(false);
+  fireEvent.click(button);
+  expect(onStop).toHaveBeenCalled();
+});
+
+test("pressing it while an answer runs sends nothing", () => {
+  // Two jobs on one button, and the wrong one firing would send a sentence the user was still
+  // writing.
+  const onSubmit = vi.fn();
+  render(
+    <Composer
+      action="Send"
+      placeholder="Ask anything"
+      running
+      onStop={vi.fn()}
+      onSubmit={onSubmit}
+    />,
+  );
+  fireEvent.change(screen.getByPlaceholderText("Ask anything"), { target: { value: "half a th" } });
+  fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+  expect(onSubmit).not.toHaveBeenCalled();
+});
+
+test("with nothing running the button is what it always was", () => {
+  const { button } = draw();
+  expect(button.disabled).toBe(true);
+  expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+});

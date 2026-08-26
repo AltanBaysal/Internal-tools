@@ -524,6 +524,16 @@ test("the foot carries Skills, the model and Send, in that order", () => {
   expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "Send"]);
 });
 
+test("while an answer runs the row ends in Stop, and there is no fourth button", () => {
+  // Madde 79, in one sentence. Madde 67 put Stop beside Send; the two are one control now, because
+  // an answer that is running is exactly when there is nothing to send.
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.6" }} thinking onStop={vi.fn()} />,
+  );
+  const buttons = [...container.querySelectorAll(".composer__foot button")];
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "Stop"]);
+});
+
 test("a chat with a skill selected says which one", () => {
   render(<ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "verify-prompts" }} />);
   expect(screen.getByRole("button", { name: /Verify prompts/ })).toBeTruthy();
