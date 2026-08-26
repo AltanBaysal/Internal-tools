@@ -379,9 +379,9 @@ def _blocked_read():
 
 
 def test_a_cut_wakes_a_read_that_is_blocked_on_the_socket():
-    # The one thing no fake can answer: whether the cut really reaches the socket. `close()` would
-    # not -- the buffered reader's lock belongs to the thread doing the reading, so closing waits
-    # for the very read it means to interrupt. Shutting the socket down goes past the buffer.
+    # The one thing no fake can answer: whether the cut really reaches the socket. Which call does
+    # the waking is not the same on every platform, and this is what measured it -- so a run on a
+    # machine where it is different fails here rather than in front of somebody pressing stop.
     reader, outcome = _blocked_read()
     outcome["cut"]()
     # A deadline rather than a plain join: a cut that never landed has to fail the run, not hang it.

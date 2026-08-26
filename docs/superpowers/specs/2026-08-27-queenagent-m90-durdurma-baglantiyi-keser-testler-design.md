@@ -30,8 +30,9 @@ Cevabı koşturan thread işletim sistemi seviyesinde bir okumada bloke duruyor.
 uyandırmaz: tamponlu okuyucunun kilidi zaten o thread'in elinde, ve kapatmaya çalışan thread tam da
 kesmek istediği okumayı beklemeye başlar. İki thread birbirini kilitler.
 
-Uyandıran çağrı `socket.shutdown()`. Tampona hiç uğramaz, doğrudan sokete iner, ve bloke okuma
-akışın bittiği bilgisiyle geri döner.
+Uyandıran şey sokete doğrudan inmek — tampona hiç uğramadan. *(Hangi çağrının uyandırdığı uygulama
+turunda ölçüldü ve iki platformda farklı çıktı; bu belgenin yazıldığı andaki `shutdown` tahmini
+orada düzeltildi.)*
 
 `urllib` soketi dışarı vermiyor, o yüzden istemci ona kendi iniyor: `response.fp.raw._sock`.
 CPython'ın iç isimleri — söz verilmemiş bir yol *(kullanıcı kararı, 27 Ağustos)*. Zincirin herhangi

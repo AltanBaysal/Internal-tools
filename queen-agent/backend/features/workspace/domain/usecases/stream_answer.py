@@ -58,29 +58,38 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
             # This round's bill so far. None until the engine says anything about it, so an engine
             # that measures nothing leaves the total alone rather than adding zeroes to it.
             round_spent = None
-            for piece in engine.stream(conversation, tools=TOOL_SPECS):
-                # Asked before the piece rather than after it: what the user pressed stop on is
-                # everything they had already read, and nothing past it.
-                if stops.wanted(project_id, chat_id):
-                    cut_short = True
-                    break
-                if "text" in piece:
-                    spoken.append(piece["text"])
-                    said.append(piece["text"])
-                    yield piece["text"]
-                elif "usage" in piece:
-                    # Replaced rather than added. Today the engine says this once, as the stream
-                    # closes, so the rule idles -- but a figure is a total for the call rather than
-                    # a share since the last, and an engine that reported as it went would have its
-                    # bill multiplied by the number of pieces if these were summed.
-                    round_spent = piece["usage"]
-                else:
-                    calls.extend(piece["tool_calls"])
+            try:
+                for piece in engine.stream(
+                    conversation,
+                    tools=TOOL_SPECS,
+                    # Only the transport holds a socket, so only it can hand out a way to cut one.
+                    on_open=lambda cut: stops.hold(project_id, chat_id, cut),
+                ):
+                    if "text" in piece:
+                        spoken.append(piece["text"])
+                        said.append(piece["text"])
+                        yield piece["text"]
+                    elif "usage" in piece:
+                        # Replaced rather than added. Today the engine says this once, as the
+                        # stream closes, so the rule idles -- but a figure is a total for the call
+                        # rather than a share since the last, and an engine that reported as it
+                        # went would have its bill multiplied by the number of pieces if these
+                        # were summed.
+                        round_spent = piece["usage"]
+                    else:
+                        calls.extend(piece["tool_calls"])
+            except Exception:
+                # A connection that died because we cut it is a stop; the same words from a network
+                # that dropped are a fault. Nothing in the failure says which, so the record is
+                # asked before it is believed.
+                if not stops.wanted(project_id, chat_id):
+                    raise
+                cut_short = True
 
-            # Before the stop is acted on, because a round that was cut short still sent its whole
-            # conversation and was still charged for it. The window is narrow -- the engine reports
-            # as the stream closes, so a cut answer usually never hears the figure at all -- but
-            # what did arrive was really spent, and dropping it here would throw it away.
+            # After the round however it ended, because a round that was cut short still sent its
+            # whole conversation and was still charged for it. The window is narrow -- the engine
+            # reports as the stream closes, so a cut answer usually never hears the figure at all
+            # -- but what did arrive was really spent, and dropping it here would throw it away.
             # Rounds add where pieces replaced: each round is its own call and its own bill, and
             # that growth is the thing this number exists to show.
             if round_spent:
@@ -89,6 +98,12 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
                     spent.cached + round_spent["cached"],
                     spent.answered + round_spent["answered"],
                 )
+
+            # Asked once, at the end, rather than before every frame: since Madde 90 a stop cuts
+            # the connection, so a round that was stopped is over by the time this runs. What this
+            # catches is the round that ended quietly with the press landing just as it did.
+            if not cut_short and stops.wanted(project_id, chat_id):
+                cut_short = True
 
             # Reaching a stop is an end, not a failure -- the same way the round limit is.
             if cut_short or not calls:

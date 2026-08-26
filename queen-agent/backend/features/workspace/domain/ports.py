@@ -51,11 +51,18 @@ class Engine(Protocol):
         """
 
     def stream(
-        self, messages: list[dict], tools: list[dict] | None = None, model: str | None = None
+        self,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        model: str | None = None,
+        on_open=None,
     ):
         """Answer a conversation piece by piece.
 
         Yields {"text": str} as words arrive and {"tool_calls": [...]} when the model asks for one.
+
+        `on_open` is handed a callable that cuts the connection this answer is reading, as soon as
+        there is one to cut. An engine with no connection to cut never calls it.
 
         Also yields {"usage": {"sent": int, "cached": int, "answered": int}} when the engine says
         what the answer cost -- once, as the stream closes. Should it ever say so more than once,
@@ -66,16 +73,20 @@ class Engine(Protocol):
 
 
 class Stops(Protocol):
-    """Who asked for a running answer to stop. Lives as long as the answer, never on disk."""
+    """The one cancel. What is held is the running answer's connection, never a note on disk."""
+
+    def hold(self, project_id: str, chat_id: str, cut) -> None:
+        """Take the way to cut this answer's connection. Cuts at once if a stop is already waiting."""
 
     def want(self, project_id: str, chat_id: str) -> None:
-        """Ask the answer running for this chat to stop at its next chance."""
+        """Stop the answer running for this chat, by cutting the connection it is reading."""
 
     def wanted(self, project_id: str, chat_id: str) -> bool:
-        """Has a stop been asked for and not yet acted on."""
+        """Was this answer's connection cut by us. The only thing that tells a stop from a fault."""
 
     def clear(self, project_id: str, chat_id: str) -> None:
-        """Forget the request. Left standing, it would cut the next answer as it is born."""
+        """Forget the request and the connection both. Left standing, either would reach the
+        next answer -- one by cutting it as it is born, the other by naming a stranger's socket."""
 
 
 class FileStore(Protocol):

@@ -4,7 +4,9 @@ Knows no prompt, no chat and no file: it takes a message list and returns the as
 Built on urllib rather than a third-party client because one POST and one SSE stream do not earn a
 dependency, an install step and a version to keep up with.
 """
+import http.client
 import json
+import socket
 import urllib.error
 import urllib.request
 
@@ -34,6 +36,38 @@ def _parsed(raw):
     except json.JSONDecodeError:
         # One malformed frame must not bring the whole answer down.
         return None
+
+
+def _cut(response):
+    """Wake a read blocked on this response's socket, from the thread that wants it to end.
+
+    Not `response.close()`: the buffered reader's lock belongs to the thread doing the reading, so
+    closing from another thread waits for exactly the read it is trying to interrupt. This goes
+    past the buffer, to the socket.
+
+    Both calls, because the two roads QueenAgent runs on wake on different ones -- measured on 27
+    August rather than assumed. Windows leaves a blocked read sitting through a `shutdown` and
+    comes back only once the handle is really closed; Linux is the other way round. And the closing
+    goes through `detach`, because the socket's own `close` would not close anything: the file the
+    response reads through holds a count on it, and the handle outlives the call.
+
+    urllib does not hand the socket out, so this walks down to it through CPython's own naming.
+    Nobody promised that shape, and a link that is not there ends the attempt rather than the run.
+    """
+    sock = getattr(getattr(getattr(response, "fp", None), "raw", None), "_sock", None)
+    if sock is None:
+        return
+    try:
+        sock.shutdown(socket.SHUT_RDWR)
+    except OSError:
+        # Already gone. The answer finishing on its own and the press landing really do race.
+        pass
+    try:
+        handle = sock.detach()
+        if handle != -1:
+            socket.socket(fileno=handle).close()
+    except OSError:
+        pass
 
 
 def _spoken(frame):
@@ -106,7 +140,7 @@ class XaiClient:
             raise XaiFailed(str(failure.reason)) from failure
         return payload["choices"][0]["message"]
 
-    def stream(self, messages, tools=None):
+    def stream(self, messages, tools=None, on_open=None):
         # The counts come only if asked for, and only to a stream -- so the ask sits beside the
         # stream flag rather than in _request, which serves both roads. Without it every frame's
         # usage field comes back null and the answer costs nothing that anyone can read.
@@ -120,6 +154,10 @@ class XaiClient:
         )
         try:
             with self._opener(request) as response:
+                # Before a single line is read: the wait this hands a way out of is the wait before
+                # the first word, and a cut offered after it would miss exactly that stretch.
+                if on_open:
+                    on_open(lambda: _cut(response))
                 for raw in response:
                     frame = _parsed(raw)
                     if frame is _DONE:
@@ -140,6 +178,14 @@ class XaiClient:
             raise XaiFailed(f"{failure.code} {body}") from failure
         except urllib.error.URLError as failure:
             raise XaiFailed(str(failure.reason)) from failure
+        except http.client.IncompleteRead as failure:
+            # A chunked body that stopped in the middle -- one of the two shapes a cut socket
+            # leaves behind. Python's own words: who cut it is not something this layer knows.
+            raise XaiFailed(str(failure)) from failure
+        except OSError as failure:
+            # The other shape: a handle closed under a read that was waiting on it. Also what a
+            # connection dropping mid-answer looks like, and the two are not told apart here.
+            raise XaiFailed(str(failure)) from failure
 
     def _request(self, body, tools):
         api_key = self._read_key()
