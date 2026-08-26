@@ -104,13 +104,10 @@ def _first_turn(client, text="hello"):
     return pid, _named(body), body
 
 
-def _last_record(body):
-    # The chat the done frame carried. Everything the stream said before it was a guess; this is
-    # what was written.
-    for block in body.split("\n\n"):
-        if block.startswith("event: done"):
-            return json.loads(block.split("data: ", 1)[1])
-    raise AssertionError("the stream carried no done frame")
+def _record(client, project_id, chat_id):
+    # What the turn wrote. Asked for separately since Madde 89: the stream says a turn is over, and
+    # the record has one home.
+    return client.get(f"/api/projects/{project_id}/chats/{chat_id}").get_json()
 
 
 def test_the_one_door_creates_a_chat_when_none_is_named(tmp_path):
@@ -118,11 +115,8 @@ def test_the_one_door_creates_a_chat_when_none_is_named(tmp_path):
     # chat yet, so the server makes one -- a chat is still born with its first message. Madde 88
     # made the answer to that request a stream, so the record is read off the closing frame.
     client = _client(tmp_path)
-    pid = _project(client)
-    body = client.post(f"/api/projects/{pid}/messages", json={"text": "Write the intro"}).get_data(
-        as_text=True
-    )
-    made = _last_record(body)
+    pid, cid = _started(client, "Write the intro")
+    made = _record(client, pid, cid)
     assert made["title"] == "Write the intro"
     assert made["id"].startswith("c")
     assert [(m["role"], m["text"]) for m in made["messages"]][0] == ("user", "Write the intro")
@@ -132,14 +126,12 @@ def test_the_one_door_appends_when_a_chat_is_named(tmp_path):
     # The same address, and the only difference is one field in the body.
     client = _client(tmp_path)
     pid, cid = _started(client, "Write the intro")
-    body = client.post(
-        f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"}
-    ).get_data(as_text=True)
-    said = [m["text"] for m in _last_record(body)["messages"]]
+    client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"}).get_data()
+    kept = _record(client, pid, cid)
     # The first turn answered itself, so the new sentence is the third thing in the record.
-    assert said[:3] == ["Write the intro", "Done.", "and more"]
+    assert [m["text"] for m in kept["messages"]][:3] == ["Write the intro", "Done.", "and more"]
     # The title belongs to the message that started the chat and never moves.
-    assert _last_record(body)["title"] == "Write the intro"
+    assert kept["title"] == "Write the intro"
 
 
 def test_a_sentence_is_answered_in_the_same_request(tmp_path):
@@ -577,11 +569,12 @@ def test_a_chat_carries_no_skill(tmp_path):
     # was sent with keeps it -- that is the message, not the chat.
     client = _client(tmp_path)
     pid = _project(client)
-    born = _last_record(
+    cid = _named(
         client.post(
             f"/api/projects/{pid}/messages", json={"text": "hello", "skill": "create-scenario"}
         ).get_data(as_text=True)
     )
+    born = _record(client, pid, cid)
     assert "skill" not in born
     assert born["messages"][0]["skill"] == "create-scenario"
 
@@ -589,11 +582,11 @@ def test_a_chat_carries_no_skill(tmp_path):
 def test_a_message_carries_the_skill_it_was_sent_with(tmp_path):
     client = _client(tmp_path)
     pid, cid = _started(client)
-    body = client.post(
+    client.post(
         f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more", "skill": "verify"}
-    ).get_data(as_text=True)
+    ).get_data()
     # The first turn's pair carries none; the sentence just sent carries the one it was sent with.
-    assert [m["skill"] for m in _last_record(body)["messages"]][:3] == ["", "", "verify"]
+    assert [m["skill"] for m in _record(client, pid, cid)["messages"]][:3] == ["", "", "verify"]
 
 
 def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):

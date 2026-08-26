@@ -99,12 +99,27 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
               announce.current?.();
             }
             // What the browser piled up is a guess; what the server wrote is the record, so the
-            // record replaces it rather than being reconciled with it.
-            else if (frame.event === "done") setChat(frame.data);
+            // The closing frame carries nothing since Madde 89: it says the turn is over, and what
+            // the turn wrote is read below.
             else if (frame.event === "error") setError(frame.data.error);
           },
           body,
         );
+        // The record has one home, so the turn ends by reading it -- before the finally below
+        // clears what streamed, or the transcript blinks empty between the two. Whatever the turn
+        // ended as: a fault still leaves the user's own sentence on disk, and it has to stay on
+        // the screen.
+        const landed = streamingInto.current ?? chatId;
+        if (landed) {
+          try {
+            setChat(await getJson(`/api/projects/${projectId}/chats/${landed}`));
+          } catch (unreadable) {
+            // A fault already reported is the turn's real one, and replacing it with this would
+            // show the wrong cause. Otherwise the read speaks for itself: the answer was written,
+            // and what was lost is the showing of it.
+            setError((current) => current ?? unreadable.message);
+          }
+        }
       } catch (failure) {
         // Refused before a byte came back, so nothing was written: the optimistic bubble is taken
         // back out and the screen never claims something was said when it was not.

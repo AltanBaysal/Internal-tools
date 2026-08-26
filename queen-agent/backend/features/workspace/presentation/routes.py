@@ -202,7 +202,9 @@ def _sse(chat_id, pieces):
                     {"tool": piece.tool, "target": piece.target, "outcome": piece.outcome},
                 )
             else:
-                yield _frame("done", _chat_json(piece))
+                # The record has one home since Madde 89, and it is get_chat. This frame says the
+                # turn is over; what it wrote is a question asked separately.
+                yield _frame("done", {})
     except EngineFailed as failure:
         # The status code was settled the moment the first byte left, so a fault after that can
         # only travel inside the stream.

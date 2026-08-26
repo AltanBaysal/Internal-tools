@@ -643,6 +643,7 @@ test("a call arrives in the stream and is still there once the record lands", as
     title: "hello",
     messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
   };
+  let read = 0;
   const answered = {
     ...owed,
     messages: [
@@ -661,13 +662,19 @@ test("a call arrives in the stream and is still there once the record lands", as
         sseResponse(
           `event: chat\ndata: {"chat":"c1"}\n\n` +
             `event: call\ndata: {"tool":"read_file","target":"plan.md"}\n\n` +
-            `event: chunk\ndata: {"text":"Do"}\n\n` +
-            `event: done\ndata: ${JSON.stringify(answered)}\n\n`,
+            `event: chunk\ndata: {"text":"Do"}\n\nevent: done\ndata: {}\n\n`,
         ),
       );
     }
     if (path.endsWith("/chats/c1")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+      // Madde 89: the record is read back when the turn closes, so the second read is the one
+      // carrying what was written.
+      read += 1;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => (read > 1 ? answered : owed),
+      });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
   });
@@ -698,17 +705,23 @@ test("sending a sentence streams the answer and keeps the server's record", asyn
       { role: "ai", at: new Date().toISOString(), text: "Done." },
     ],
   };
+  let read = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve(
         sseResponse(
           `event: chat\ndata: {"chat":"c1"}\n\n` +
-            `event: chunk\ndata: {"text":"Do"}\n\nevent: done\ndata: ${JSON.stringify(answered)}\n\n`,
+            `event: chunk\ndata: {"text":"Do"}\n\nevent: done\ndata: {}\n\n`,
         ),
       );
     }
     if (path.endsWith("/chats/c1")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => empty });
+      read += 1;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => (read > 1 ? answered : empty),
+      });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
   });
