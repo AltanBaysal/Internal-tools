@@ -2,7 +2,7 @@ import json
 from dataclasses import replace
 
 from backend.features.workspace.data.file_chat_store import FileChatStore
-from backend.features.workspace.domain.chat import Chat, Message, ToolCall
+from backend.features.workspace.domain.chat import Chat, Message, ToolCall, Usage
 from backend.services.store.store import Store
 
 
@@ -150,3 +150,31 @@ def test_a_chat_written_before_calls_existed_reads_back_empty(tmp_path):
     assert FileChatStore(raw).get("p1", "c1").messages[0].calls == ()
     # The same absence, one field over: nothing written before today was ever stopped.
     assert FileChatStore(raw).get("p1", "c1").messages[0].stopped is False
+    # And one more: nothing written before today was ever measured.
+    assert FileChatStore(raw).get("p1", "c1").messages[0].usage == Usage()
+
+
+# --- what the answer spent (Madde 68) ------------------------------------------------------------
+
+
+def test_what_an_answer_spent_survives_a_round_trip(tmp_path):
+    chat = replace(
+        _chat(),
+        messages=(
+            Message(
+                role="ai",
+                at="2026-08-09T11:05:00+00:00",
+                text="Here it is.",
+                usage=Usage(sent=12400, cached=9100, answered=842),
+            ),
+        ),
+    )
+    FileChatStore(Store(str(tmp_path))).add("p1", chat)
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == chat
+
+
+def test_an_answer_nobody_measured_writes_no_field(tmp_path):
+    # An all-zero object is noise on disk, exactly as an empty file list is.
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _chat())
+    assert "usage" not in raw.read_text("p1/chats/c1.json")

@@ -6,7 +6,7 @@ import pytest
 from backend.features.workspace.data.file_chat_store import FileChatStore
 from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
-from backend.features.workspace.domain.chat import Chat, ToolCall
+from backend.features.workspace.domain.chat import Chat, ToolCall, Usage
 from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage, EngineFailed
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, FileWritten
@@ -489,3 +489,57 @@ def test_the_request_is_cleared_when_the_answer_ends(tmp_path):
     stops = StopsAfter(after=1)
     _run(tmp_path, TWO_ROUNDS, stops=stops)
     assert stops.cleared == [("p1", "c1")]
+
+
+# --- what the answer spent (Madde 68) ------------------------------------------------------------
+
+
+def spent(sent, cached, answered):
+    """A piece the engine hands over the same way it hands over words."""
+    return {"usage": {"sent": sent, "cached": cached, "answered": answered}}
+
+
+def _kept(chats):
+    return chats.get("p1", "c1").messages[-1]
+
+
+def test_the_answer_remembers_what_it_spent(tmp_path):
+    chats, _, _, _ = _run(tmp_path, [[{"text": "Hello"}, spent(1200, 900, 42)]])
+    assert _kept(chats).usage == Usage(1200, 900, 42)
+
+
+def test_what_two_rounds_spent_is_added_up(tmp_path):
+    # Each round is its own stream and its own bill: the second one resends the whole conversation,
+    # which is exactly the growth this item exists to make visible.
+    rounds = [
+        [{"tool_calls": [call("list_files")]}, spent(1000, 600, 10)],
+        [{"text": "done"}, spent(1500, 1200, 20)],
+    ]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    assert _kept(chats).usage == Usage(2500, 1800, 30)
+
+
+def test_counts_repeated_inside_one_round_are_not_added_twice(tmp_path):
+    # Inside one stream the service restates a running total rather than reporting a share, so the
+    # newest reading replaces the one before it. Adding them would multiply the bill by the number
+    # of chunks that happened to arrive.
+    rounds = [[spent(1200, 900, 1), {"text": "Hi"}, spent(1200, 900, 2)]]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    assert _kept(chats).usage == Usage(1200, 900, 2)
+
+
+def test_an_answer_nobody_measured_spent_nothing(tmp_path):
+    # Zero is what unknown looks like, and it is the same zero an answer from before this existed
+    # reads back as. Nothing is drawn for either.
+    chats, _, _, _ = _run(tmp_path, [[{"text": "Hello"}]])
+    assert _kept(chats).usage == Usage()
+
+
+def test_a_stopped_answer_still_says_what_it_spent(tmp_path):
+    # The conversation went out and was paid for before the user pressed anything. Counts arriving
+    # with every piece are what make this readable: a single figure at the end of the stream would
+    # be cut off with the rest, and the input is the expensive half.
+    rounds = [[spent(1200, 900, 5), {"text": "Half a "}, {"text": "never reached"}]]
+    chats, _, _, _ = _run(tmp_path, rounds, stops=StopsAfter(after=2))
+    assert _kept(chats).text == "Half a"
+    assert _kept(chats).usage == Usage(1200, 900, 5)

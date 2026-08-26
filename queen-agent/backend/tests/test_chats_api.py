@@ -318,6 +318,27 @@ def test_the_stored_chat_says_which_answer_was_stopped(tmp_path):
     assert kept["messages"][-1]["stopped"] is False
 
 
+def test_the_stored_chat_says_what_the_answer_spent(tmp_path):
+    engine = ScriptedEngine(
+        [[{"text": "Done."}, {"usage": {"sent": 12400, "cached": 9100, "answered": 842}}]]
+    )
+    client = _client(tmp_path, engine=engine)
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
+    assert kept["messages"][-1]["usage"] == {"sent": 12400, "cached": 9100, "answered": 842}
+
+
+def test_an_unmeasured_answer_still_carries_the_field(tmp_path):
+    # Always present, unlike on disk: the browser draws from what it is handed, and an absent field
+    # would make every reader check for it first.
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/answer").get_data(as_text=True)
+    kept = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
+    assert kept["messages"][-1]["usage"] == {"sent": 0, "cached": 0, "answered": 0}
+
+
 def test_a_silent_turn_that_made_a_file_closes_the_stream_cleanly(tmp_path):
     # What the user reported as a network error: the model worked without speaking and the stream
     # broke instead of ending.

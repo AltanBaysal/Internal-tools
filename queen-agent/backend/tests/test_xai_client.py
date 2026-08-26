@@ -172,6 +172,62 @@ def test_a_tool_call_arrives_whole_in_one_frame():
     ]
 
 
+# --- what the answer spent, read off the wire (Madde 68) -----------------------------------------
+
+
+def _usage_line(prompt, cached, completion, text=None):
+    """One frame the way xAI really sends it: counts at the top, content beside them.
+
+    Verified against xAI's documentation (26 August) rather than written from memory -- usage rides
+    on every chunk, no stream_options is needed to ask for it, and cached_tokens sits inside
+    prompt_tokens_details.
+    """
+    frame = {
+        "choices": [{"delta": {"content": text} if text else {}}],
+        "usage": {
+            "prompt_tokens": prompt,
+            "completion_tokens": completion,
+            "prompt_tokens_details": {"cached_tokens": cached},
+        },
+    }
+    return b"data: " + json.dumps(frame).encode("utf-8")
+
+
+def test_a_frame_carrying_counts_hands_them_over():
+    # xAI's names are transport; the words the rest of the app uses are decided here, exactly as
+    # delta.content already becomes "text".
+    lines = [_usage_line(41, 12, 2), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"usage": {"sent": 41, "cached": 12, "answered": 2}}
+    ]
+
+
+def test_a_frame_can_carry_both_words_and_counts():
+    # The real stream does exactly this, and a frame that could only be one thing would drop
+    # whichever half lost.
+    lines = [_usage_line(41, 12, 2, text="Hi"), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"text": "Hi"},
+        {"usage": {"sent": 41, "cached": 12, "answered": 2}},
+    ]
+
+
+def test_counts_without_a_cache_breakdown_read_as_nothing_cached():
+    frame = {"choices": [{"delta": {}}], "usage": {"prompt_tokens": 41, "completion_tokens": 2}}
+    lines = [b"data: " + json.dumps(frame).encode("utf-8"), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"usage": {"sent": 41, "cached": 0, "answered": 2}}
+    ]
+
+
+def test_a_stream_that_says_nothing_about_counts_hands_over_nothing():
+    # The guard on every fake engine in the suite: an engine that never mentions spending must not
+    # start producing a third kind of piece.
+    lines = [b"data: " + _delta_line("a"), b"data: [DONE]"]
+    produced = list(_client(lambda request: _Lines(lines)).stream(MESSAGES))
+    assert not any("usage" in piece for piece in produced)
+
+
 def test_streaming_asks_for_a_stream():
     seen = {}
 

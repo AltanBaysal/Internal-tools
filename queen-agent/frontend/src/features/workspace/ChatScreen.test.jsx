@@ -511,3 +511,41 @@ test("picking another one is passed up rather than kept here", () => {
   fireEvent.click(screen.getByText("Grok Build"));
   expect(onModelChange).toHaveBeenCalledWith("grok-build-0.1");
 });
+
+// --- what the answer spent (Madde 68) ------------------------------------------------------------
+
+const withUsage = (usage) => ({
+  ...CHAT,
+  messages: [CHAT.messages[0], { ...CHAT.messages[1], usage }],
+});
+
+test("an answer says what it spent", () => {
+  // One number rather than the breakdown: the owner asked for a plain total under each answer, and
+  // what it is made of stays on disk for the context work rather than being drawn here.
+  render(
+    <ChatScreen project={PROJECT} chat={withUsage({ sent: 12400, cached: 9100, answered: 842 })} />,
+  );
+  // Asked for by its text rather than by its class: a missing element then names what was looked
+  // for, instead of failing later on a null nobody can read.
+  expect(screen.getByText("13.2k tokens").className).toBe("token-count");
+});
+
+test("a small answer is not dressed up as a big one", () => {
+  render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />);
+  expect(screen.getByText("342 tokens").className).toBe("token-count");
+});
+
+test("an answer nobody measured says nothing", () => {
+  // Zero is what an answer from before this existed reads back as, and a line under it would claim
+  // a measurement that was never taken.
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={withUsage({ sent: 0, cached: 0, answered: 0 })} />,
+  );
+  expect(container.querySelector(".token-count")).toBeNull();
+});
+
+test("the user's own message never carries one", () => {
+  // Spending is what an answer does. A number under the question would read as its price.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".msg--user .token-count")).toBeNull();
+});

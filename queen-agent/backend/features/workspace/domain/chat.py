@@ -21,6 +21,26 @@ class ToolCall:
 
 
 @dataclass(frozen=True)
+class Usage:
+    """What one answer spent, in tokens.
+
+    Three numbers rather than four: what was paid for a second time is `sent - cached`, and a field
+    that restates something already on disk is a field that goes stale on its own.
+
+    Zero everywhere means nobody measured -- an answer from before this existed, or an engine that
+    said nothing about it. That is deliberately the same as spending nothing, because both draw
+    nothing and neither is worth a second way of saying "unknown".
+    """
+
+    # Everything the request carried: the whole conversation, every instruction, every tool result.
+    sent: int = 0
+    # The part of `sent` the service already had. A subset of it, never an addition -- so this can
+    # never be larger than `sent`, and the difference is what was paid for again.
+    cached: int = 0
+    answered: int = 0
+
+
+@dataclass(frozen=True)
 class Message:
     role: str  # "user" or "ai"
     at: str  # ISO 8601; the browser is what turns it into 11:04
@@ -39,6 +59,10 @@ class Message:
     # Whether the user cut this answer short. Half a sentence with no mark cannot be told from a
     # model that finished on one, and the chat is read again later by someone who was not there.
     stopped: bool = False
+    # What this answer cost. On the message rather than summed on the chat, because the question it
+    # answers is which turn was expensive -- and a chat's total can be added up from these, while a
+    # total cannot be taken apart.
+    usage: Usage = Usage()
 
 
 @dataclass(frozen=True)
