@@ -101,7 +101,7 @@ test("the fork asks the browser where we are, not the render it was built from",
   expect(window.location.pathname).toBe("/p/p2");
 });
 
-test("/settings is an address like any other unknown one: the fork lands it on the draft chat", async () => {
+test("/settings is an address like any other unknown one: the fork lands it on the project", async () => {
   // Madde 62's trap. Deleting the route alone would leave the address parsing to the fork while the
   // fork's own guard still asked for a literal "/" -- no redirect, no screen, a blank page. The two
   // pieces are each correct on their own and open a hole together.
@@ -109,8 +109,9 @@ test("/settings is an address like any other unknown one: the fork lands it on t
   window.history.pushState(null, "", "/settings");
   render(<App />);
 
-  await screen.findByText("New chat", { selector: ".chat__title" });
-  expect(window.location.pathname).toBe("/p/p1/c/new");
+  // PROJECT is the one the fork lands on, and it is called Old.
+  await screen.findByText("Old", { selector: ".screen__title" });
+  expect(window.location.pathname).toBe("/p/p1");
 });
 
 test("the app never asks the server for settings", async () => {
@@ -119,9 +120,8 @@ test("the app never asks the server for settings", async () => {
   const fetch = stubProjects([PROJECT]);
   render(<App />);
 
-  // Any drawn screen will do -- the claim is about a call made on mount. Since Madde 65 the screen
-  // the fork draws is the draft chat.
-  await screen.findByText("New chat", { selector: ".chat__title" });
+  // Any drawn screen will do -- the claim is about a call made on mount.
+  await screen.findByText("Old", { selector: ".screen__title" });
   const asked = fetch.mock.calls.filter(([path]) => String(path).startsWith("/api/settings"));
   expect(asked).toEqual([]);
 });
@@ -147,49 +147,86 @@ test("the shell wears the step it was measured at", () => {
   expect(screen.getByTestId("app-shell").className).toContain("app-shell--compact");
 });
 
-test("the app opens on the first project's draft chat", async () => {
-  // "/" is a fork, not a screen: with a project to show, the app lands inside that project's draft
-  // chat. The project screen was the old landing and it offers neither picker, so a skill could not
-  // be chosen until a message had already been sent.
+test("the app opens on the first project's screen", async () => {
+  // "/" is a fork, not a screen: with a project to show, the app lands on it. Madde 65 sent the
+  // landing to the draft chat instead, because the project screen carried no picker -- Madde 77 put
+  // the pickers here and gave the landing back.
   stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   // The sidebar row reads the project list, so the name stands there whichever screen is open.
   expect(screen.getByText("Thesis", { selector: ".sidebar__row-name" })).toBeTruthy();
-  // Named by what is drawn rather than by what is missing: the draft carries its own title, and the
-  // project screen's title is the thing that must not be here.
-  expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
-  expect(screen.queryByText("Thesis", { selector: ".screen__title" })).toBeNull();
+  // Named by what is drawn rather than by what is missing: the project screen carries the project's
+  // title, and the draft's own title is the thing that must not be here.
+  expect(screen.getByText("Thesis", { selector: ".screen__title" })).toBeTruthy();
+  expect(screen.queryByText("New chat", { selector: ".chat__title" })).toBeNull();
 });
 
 test("a skill can be picked before anything is typed", async () => {
-  // The item's whole point. The address being right is not the same as the address being useful:
-  // landing on a screen that carries the picker is what closes this, and only pressing it proves it.
+  // The item's whole point, and the question Madde 65 answered in the wrong place. The landing has
+  // to carry the picker; only pressing it proves that it does.
   stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Create scenario", { selector: ".menu__item-name" }));
 
-  // The draft has no record on the server, so the choice is held for the chat it will be born as --
-  // what the screen owes is only that the button now says what was picked.
+  // No chat exists yet, so the choice is held for the one that will be born -- what the screen owes
+  // is that the button now says what was picked.
   await waitFor(() =>
     expect(screen.getByText("Create scenario", { selector: ".picker__name" })).toBeTruthy(),
   );
 });
 
-test("the project screen is still reached from the sidebar", async () => {
-  // The item's cost. Without this, "the landing moved" and "the project screen is gone" are the
-  // same green.
+test("the skill picked on the project screen is what the chat is born with", async () => {
+  // The half that separates a label from a behaviour. Without it, a picker that changes its own
+  // caption and nothing else reads exactly like a working one.
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).endsWith("/chats") && options?.method === "POST") {
+      return Promise.resolve({
+        ok: true,
+        status: 201,
+        json: async () => ({ id: "c9", title: "Write it", messages: [] }),
+      });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    json: async () => [{ id: "p1", name: "Thesis", chats: 0, files: 0 }],
+  }).mockImplementation(fetch));
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(screen.getByText("Create scenario", { selector: ".menu__item-name" }));
+  fireEvent.change(screen.getByPlaceholderText("Start a new chat in this project..."), {
+    target: { value: "Write it" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Start" }));
+
+  await waitFor(() => {
+    const started = fetch.mock.calls.find(
+      ([path, options]) => String(path).endsWith("/chats") && options?.method === "POST",
+    );
+    expect(started).toBeTruthy();
+    expect(JSON.parse(started[1].body).skill).toBe("create-scenario");
+  });
+});
+
+test("the draft chat is still reached from the sidebar", async () => {
+  // The item's cost, the other way round from Madde 65. Now that the project screen is the landing,
+  // "the landing moved back" and "the draft chat is gone" would be the same green without this.
   stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
-
-  fireEvent.click(screen.getByText("Thesis", { selector: ".sidebar__row-name" }));
-
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  expect(screen.getByText("Thesis", { selector: ".screen__title" })).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "New chat" }));
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
 });
 
 test("with no projects the fork draws the empty screen and stays at /", async () => {
@@ -207,7 +244,7 @@ test("the fork is not written into the history", async () => {
   stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
 
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   // Pushed, the back button would land on the fork and be thrown forward again.
   expect(replace).toHaveBeenCalled();
   expect(push).not.toHaveBeenCalled();
@@ -243,9 +280,9 @@ function serverWith(projects) {
 const openMenuFor = (name) =>
   fireEvent.click(screen.getByRole("button", { name: `More for ${name}` }));
 
-// Every test below opens at a project's own address rather than letting the fork place it. Since
-// Madde 65 the fork lands on the draft chat, and these are tests about the project screen -- waiting
-// for a landing that no longer comes here would only be testing Madde 65 a ninth time.
+// Every test below opens at a project's own address rather than letting the fork place it. The fork
+// lands on the project screen again since Madde 77, so waiting for it would work -- and would only
+// be testing the landing a ninth time. Pushing the address says what these tests are about.
 
 test("the sidebar menu and the header open the same question", async () => {
   serverWith(TWO);

@@ -192,12 +192,51 @@ test("a chat row offers no rename", () => {
   expect(screen.queryByRole("button", { name: "Rename Write the intro" })).toBeNull();
 });
 
-test("the composer here carries neither picker", () => {
-  // The design puts them on the chat composer alone. A chat started from here is born with the last
-  // picks of the session, which is a rule App keeps rather than a control this screen shows.
-  render(<ProjectScreen project={PROJECT} />);
-  expect(screen.queryByRole("button", { name: /Grok/ })).toBeNull();
-  expect(screen.queryByRole("button", { name: /Skills/ })).toBeNull();
+// --- the pickers, moved here (Madde 77) ----------------------------------------------------------
+//
+// They used to be on the chat composer alone, and this file had a test saying so. That is what
+// Madde 65 tried to work around by landing somewhere else; the screen was not missing a visit, it
+// was missing these two controls.
+
+test("the composer here carries both pickers, in the chat screen's order", () => {
+  // The same order as the chat screen -- two orders for the same three controls is the same thing
+  // learned twice.
+  const { container } = render(<ProjectScreen project={PROJECT} model="grok-4.6" />);
+  const buttons = [...container.querySelectorAll(".composer__foot button")];
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "Start"]);
+});
+
+test("picking a skill is passed up rather than kept here", () => {
+  // There is no chat yet, so there is no record to write to. The choice belongs to the session, and
+  // App is what holds it.
+  const onSkillChange = vi.fn();
+  render(<ProjectScreen project={PROJECT} picker="skills" onSkillChange={onSkillChange} />);
+  fireEvent.click(screen.getByText("Create scenario", { selector: ".menu__item-name" }));
+  expect(onSkillChange).toHaveBeenCalledWith("create-scenario");
+});
+
+test("picking a model is passed up rather than kept here", () => {
+  const onModelChange = vi.fn();
+  render(
+    <ProjectScreen
+      project={PROJECT}
+      model="grok-4.6"
+      picker="model"
+      onModelChange={onModelChange}
+    />,
+  );
+  fireEvent.click(screen.getByText("Grok Build"));
+  expect(onModelChange).toHaveBeenCalledWith("grok-build-0.1");
+});
+
+test("which picker is open is told to the screen rather than decided by it", () => {
+  // Escape closes them in a fixed order and one listener owns it, so the open one cannot be a
+  // secret this screen keeps.
+  const onPicker = vi.fn();
+  render(<ProjectScreen project={PROJECT} onPicker={onPicker} />);
+  expect(screen.queryByText("Create scenario", { selector: ".menu__item-name" })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  expect(onPicker).toHaveBeenCalledWith("skills");
 });
 
 test("the screen starts with its title", () => {
