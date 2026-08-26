@@ -2,7 +2,9 @@ import { relativeTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
+import ModelPicker from "./ModelPicker.jsx";
 import Skeleton from "./Skeleton.jsx";
+import SkillPicker from "./SkillPicker.jsx";
 
 export default function ProjectScreen({
   project,
@@ -14,6 +16,12 @@ export default function ProjectScreen({
   filesError,
   reading,
   deleting,
+  model,
+  skill,
+  picker,
+  onPicker,
+  onModelChange,
+  onSkillChange,
   onRename,
   onDelete,
   onSend,
@@ -50,6 +58,25 @@ export default function ProjectScreen({
             rows={2}
             placeholder="Start a new chat in this project..."
             action="Start"
+            /* The same two, in the same order as the chat screen. This is where the first sentence
+               of a chat is written, so it is where the choices governing it have to be reachable --
+               and no chat exists yet, so both belong to the session rather than to a record. */
+            foot={
+              <>
+                <SkillPicker
+                  skill={skill}
+                  open={picker === "skills"}
+                  onToggle={() => onPicker?.("skills")}
+                  onChange={onSkillChange}
+                />
+                <ModelPicker
+                  model={model}
+                  open={picker === "model"}
+                  onToggle={() => onPicker?.("model")}
+                  onChange={onModelChange}
+                />
+              </>
+            }
             onSubmit={onSend}
           />
 

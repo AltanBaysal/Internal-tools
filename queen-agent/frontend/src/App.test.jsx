@@ -182,13 +182,16 @@ test("a skill can be picked before anything is typed", async () => {
 test("the skill picked on the project screen is what the chat is born with", async () => {
   // The half that separates a label from a behaviour. Without it, a picker that changes its own
   // caption and nothing else reads exactly like a working one.
+  const born = { id: "c9", title: "Write it", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (String(path).endsWith("/chats") && options?.method === "POST") {
-      return Promise.resolve({
-        ok: true,
-        status: 201,
-        json: async () => ({ id: "c9", title: "Write it", messages: [] }),
-      });
+      return Promise.resolve({ ok: true, status: 201, json: async () => born });
+    }
+    // The chat the app moves to once it exists. Answering with a list here would hand the screen
+    // something shaped like nothing it can draw, and the test would pass over a console full of
+    // crashes.
+    if (String(path).endsWith("/chats/c9")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => born });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
   });
@@ -223,7 +226,8 @@ test("the draft chat is still reached from the sidebar", async () => {
   render(<App />);
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
-  fireEvent.click(screen.getByRole("button", { name: "New chat" }));
+  // The button wears a + before its words, so it is asked for by what it contains.
+  fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
 
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
   expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();

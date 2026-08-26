@@ -126,10 +126,10 @@ export default function App() {
     // fork too, and one of them used to be a screen. Deleting that screen without widening this
     // question would have left /settings redirecting nowhere and drawing nothing.
     if (landing && parsePath(window.location.pathname).view === "root") {
-      // Into the project's draft chat rather than the project screen: the project screen's composer
-      // carries neither picker, so landing there means a skill cannot be chosen until a message has
-      // already been sent. The project screen keeps its own door in the sidebar.
-      navigate(`/p/${landing}/c/new`, { replace: true });
+      // The project screen. It was sent to the draft chat for a while, because the pickers lived
+      // only on the chat composer and a skill could not be chosen until a message had been sent --
+      // which moved the landing instead of fixing the screen. The pickers are here now.
+      navigate(`/p/${landing}`, { replace: true });
     }
   }, [landing, navigate]);
 
@@ -305,6 +305,14 @@ export default function App() {
             filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
+            /* No chat here to write a choice to, so both are the session's -- the same values the
+               draft chat is born with, and the same ones startChat already sends. */
+            model={lastModel}
+            skill={lastSkill}
+            picker={picker}
+            onPicker={togglePicker}
+            onModelChange={setLastModel}
+            onSkillChange={setLastSkill}
             onRename={() => askForName(route.projectId)}
             onDelete={() => askToDelete(route.projectId)}
             onSend={startChat}
