@@ -84,10 +84,12 @@ def _started(client, text="hello"):
     return pid, cid
 
 
-def test_a_chat_is_created_with_its_first_message(tmp_path):
+def test_the_one_door_creates_a_chat_when_none_is_named(tmp_path):
+    # Madde 87: one address for every sentence a user says. No chat in the body means there is no
+    # chat yet, so the server makes one -- a chat is still born with its first message.
     client = _client(tmp_path)
     pid = _project(client)
-    resp = client.post(f"/api/projects/{pid}/chats", json={"text": "Write the intro"})
+    resp = client.post(f"/api/projects/{pid}/messages", json={"text": "Write the intro"})
     assert resp.status_code == 201
     body = resp.get_json()
     assert body["title"] == "Write the intro"
@@ -95,21 +97,75 @@ def test_a_chat_is_created_with_its_first_message(tmp_path):
     assert [(m["role"], m["text"]) for m in body["messages"]] == [("user", "Write the intro")]
 
 
-def test_an_empty_message_is_refused(tmp_path):
+def test_the_one_door_appends_when_a_chat_is_named(tmp_path):
+    # The same address, and the only difference is one field in the body.
     client = _client(tmp_path)
     pid = _project(client)
-    assert client.post(f"/api/projects/{pid}/chats", json={"text": "   "}).status_code == 400
+    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "Write the intro"}).get_json()[
+        "id"
+    ]
+    resp = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"})
+    assert resp.status_code == 200
+    body = resp.get_json()
+    assert [m["text"] for m in body["messages"]] == ["Write the intro", "and more"]
+    # The title belongs to the message that started the chat and never moves.
+    assert body["title"] == "Write the intro"
+
+
+def test_the_old_creating_door_is_gone(tmp_path):
+    # That address is a list of chats and answers GET, so Flask's answer is not 404 -- it is that
+    # this address does not know this method.
+    client = _client(tmp_path)
+    pid = _project(client)
+    assert client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).status_code == 405
+
+
+def test_the_old_appending_door_is_gone(tmp_path):
+    # Nothing is registered at that address any more, so this one really is a 404.
+    client = _client(tmp_path)
+    pid = _project(client)
+    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
+    sent = client.post(f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "more"})
+    assert sent.status_code == 404
+
+
+def test_a_chat_that_is_not_there_is_404_and_nothing_is_created(tmp_path):
+    # Empty means there is no chat yet. A name that is simply wrong is not the same thing, and
+    # creating one here would turn a typo into a second chat nobody asked for.
+    client = _client(tmp_path)
+    pid = _project(client)
+    sent = client.post(f"/api/projects/{pid}/messages", json={"chat": "nope", "text": "hi"})
+    assert sent.status_code == 404
     assert client.get(f"/api/projects/{pid}/chats").get_json() == []
 
 
-def test_an_unknown_project_is_404(tmp_path):
+def test_an_empty_message_is_refused(tmp_path):
+    # Both ways in: with nothing to append to, and with a chat waiting for it.
     client = _client(tmp_path)
-    assert client.post("/api/projects/nope/chats", json={"text": "hi"}).status_code == 404
+    pid = _project(client)
+    assert client.post(f"/api/projects/{pid}/messages", json={"text": "   "}).status_code == 400
+    assert client.get(f"/api/projects/{pid}/chats").get_json() == []
+    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
+    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": " "})
+    assert refused.status_code == 400
+
+
+def test_an_unknown_project_is_404(tmp_path):
+    assert (
+        _client(tmp_path).post("/api/projects/nope/messages", json={"text": "hi"}).status_code == 404
+    )
 
 
 def test_the_chat_rename_use_case_is_gone():
     with pytest.raises(ModuleNotFoundError):
         import backend.features.workspace.domain.usecases.rename_chat  # noqa: F401
+
+
+def test_the_start_chat_use_case_is_gone():
+    # append_message took creating over: one rule for a message arriving, whether or not there is a
+    # chat to put it in. The same shape as the rename use case that went before it.
+    with pytest.raises(ModuleNotFoundError):
+        import backend.features.workspace.domain.usecases.start_chat  # noqa: F401
 
 
 
@@ -438,7 +494,7 @@ def test_a_message_carries_the_skill_it_was_sent_with(tmp_path):
     client = _client(tmp_path)
     pid, cid = _started(client)
     chat = client.post(
-        f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "more", "skill": "verify"}
+        f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more", "skill": "verify"}
     ).get_json()
     assert [m["skill"] for m in chat["messages"]] == ["", "verify"]
 

@@ -1334,7 +1334,9 @@ function withStoredSkill(stored = "verify-prompts") {
         json: async () => ({ ...chat, ...JSON.parse(options.body) }),
       });
     }
-    if (String(path).endsWith("/chats/c1/messages") && options?.method === "POST") {
+    // Both doors: the one the app uses today and the one Madde 87 moves it to. Kept together so a
+    // test about the address fails on its own assertion rather than on a request that went nowhere.
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve({ ok: true, status: 200, json: async () => chat });
     }
     if (String(path).endsWith("/chats/c1")) {
@@ -1430,6 +1432,64 @@ test("what the picker shows is what the message carries", async () => {
     expect(JSON.parse(sent[1].body).skill).toBe("");
   });
   expect(screen.queryByRole("button", { name: /Verify prompts/ })).toBeNull();
+});
+
+// --- one door for every sentence (Madde 87) ------------------------------------------------------
+
+test("the first sentence goes through the one door with no chat named", async () => {
+  // Madde 87: the browser stopped choosing between two addresses. A draft has no chat yet, and
+  // that is a field in the body rather than a different endpoint.
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
+      return Promise.resolve({
+        ok: true,
+        status: 201,
+        json: async () => ({ id: "c1", title: "hello", messages: [] }),
+      });
+    }
+    if (String(path).endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    if (String(path).endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Start a new chat in this project...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => {
+    const sent = fetch.mock.calls.find(
+      ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
+    );
+    expect(sent).toBeTruthy();
+    expect(String(sent[0])).toBe("/api/projects/p1/messages");
+    expect(JSON.parse(sent[1].body).chat).toBeFalsy();
+  });
+});
+
+test("a reply goes through the same door and names its chat", async () => {
+  // The other half: same address, and the chat's id is what tells the two apart.
+  const fetch = withStoredSkill("");
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "more" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => {
+    const sent = fetch.mock.calls.find(
+      ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
+    );
+    expect(sent).toBeTruthy();
+    expect(String(sent[0])).toBe("/api/projects/p1/messages");
+    expect(JSON.parse(sent[1].body).chat).toBe("c1");
+  });
 });
 
 test("the skill picked in a draft survives landing in the chat it created", async () => {

@@ -27,6 +27,46 @@ def _seeded(tmp_path):
     return projects, chats
 
 
+def test_with_no_chat_named_the_rule_creates_one(tmp_path):
+    # Madde 87: start_chat's job moved here. A message with no chat to land in makes the chat, and
+    # the id it is given is the id it gets -- minting one is the route's job, not this rule's.
+    projects, chats = _stores(tmp_path)
+    create_project(projects, new_id="p1", now="2026-08-09T11:04:00.000+00:00")
+    chat = append_message(
+        chats,
+        "p1",
+        "",
+        "Write the intro",
+        "2026-08-09T11:04:00.000+00:00",
+        skill="create-scenario",
+        project_store=projects,
+        new_id="c9",
+    )
+    assert chat.id == "c9"
+    assert chat.title == "Write the intro"
+    assert [(m.role, m.text, m.skill) for m in chat.messages] == [
+        ("user", "Write the intro", "create-scenario")
+    ]
+    # And it is on disk, not only in what came back.
+    assert [c.id for c in list_chats(chats, "p1")] == ["c9"]
+
+
+def test_with_no_chat_named_an_empty_message_is_still_refused(tmp_path):
+    projects, chats = _stores(tmp_path)
+    create_project(projects, new_id="p1", now="2026-08-09T11:04:00.000+00:00")
+    with pytest.raises(EmptyMessage):
+        append_message(
+            chats,
+            "p1",
+            "",
+            "   ",
+            "2026-08-09T11:04:00.000+00:00",
+            project_store=projects,
+            new_id="c9",
+        )
+    assert list_chats(chats, "p1") == []
+
+
 def test_a_message_lands_at_the_end_and_the_title_stays(tmp_path):
     _, chats = _seeded(tmp_path)
     chat = append_message(chats, "p1", "c1", "and a second one", "2026-08-09T11:06:00.000+00:00")
