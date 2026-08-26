@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **16 madde, 4 blok** — 65'ten 80'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **17 madde, 4 blok** — 65'ten 81'e.
 
 ---
 
@@ -249,6 +249,22 @@ sıradaki geliyor *(kullanıcı kararı, 26 Ağustos: "adım adım gidelim artı
   `--radius-control` ile yuvarlanıyor ve bunu bir test tutuyor, yani ikon düğmesi de yuvarlak değil
   köşeli kalır. Daire bu dilde yalnız nokta demek.
 
+### Madde 81 — Durdurulan tur durdurulduğunu söyler
+
+- **Ne çalışır:** durdurulan cevabın bugün tek işareti metnine çekilen gri bir sol çizgi; hiçbir yerde
+  kelime yok, ve altı ay sonra bakan o çizgiyi okuyamıyor. Bir de daha kötüsü var: ilk kelime
+  gelmeden durdurulursa diske hiçbir şey yazılmıyor, yani basıyorsun ve ekranda hiçbir iz kalmıyor.
+  Durdurulan tur bunu **yazıyla** söyler, ve kelimeden önce durdurulan tur da bir kayıt bırakır.
+- **Nasıl görülür:** uzun bir cevap ortasında durduruluyor ve altında durdurulduğu yazıyor; sayfa
+  yenilendiğinde o yazı hâlâ duruyor. İlk kelime gelmeden durdurulan turda da aynı yazı çıkıyor.
+- **Beraberinde kapanan bir delik:** kelimeden önce durdurulunca sohbetin son mesajı kullanıcınınki
+  kalıyor, yani sohbet hâlâ bir cevap borçlu sayılıyor. Bunu tutan tek şey tarayıcıdaki bayrak, ve o
+  bayrak yenilemede sıfırlanıyor — bugün **durdurup yenileyince cevap kendi kendine baştan
+  başlıyor**. Boş bir kayıt yazılınca bu kendiliğinden kapanıyor.
+- **Kararı verilmiş** *(kullanıcı kararı, 26 Ağustos)*: boş ve `stopped` işaretli cevap **diske
+  yazılır**. Bedeli biliniyor ve kabul edildi — 67'nin *"cevap ya vardır ya yoktur"* kuralı esniyor.
+  Kural yeni hâliyle şu: bir mesaj ya bir söz, ya bir dosya, **ya da bir durdurma** taşır.
+
 ---
 
 # Blok 2 — Beraber, adım adım
@@ -366,7 +382,9 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
 | Hangi skiller düşecek | 74 |
 
-76, 77, 79 ve 80 bu tabloda yok: dördünün de kararı verilmiş, verilecek bir şey kalmadı.
+76, 77, 79, 80 ve 81 bu tabloda yok: beşinin de kararı verilmiş, verilecek bir şey kalmadı. 81'in
+sorusu vardı — kelimeden önce durdurulan turun diske yazılıp yazılmayacağı — ve maddeye gelindiğinde
+kullanıcıyla konuşulup kapandı.
 
 ## Kapsam dışı
 

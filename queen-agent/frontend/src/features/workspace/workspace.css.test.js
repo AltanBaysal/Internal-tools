@@ -72,6 +72,14 @@ test("the composer sits inside the card band", () => {
   expect(CSS).not.toContain("border-radius: 16px");
 });
 
+test("the stopped line reads as a note, not as the answer", () => {
+  // Same register as the steps above the answer and the count below it: all three are notes about
+  // the text rather than the text itself.
+  const line = rule(".msg__stopped");
+  expect(line).toContain("var(--font-mono)");
+  expect(line).toContain("color: var(--muted)");
+});
+
 test("the send button is a fixed square", () => {
   // Madde 80 put a mark on it instead of a word, so it stops being as wide as its label. The two
   // marks must take the same room, or the button would widen and narrow as an answer runs.

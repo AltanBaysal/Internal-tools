@@ -485,11 +485,16 @@ def test_an_answer_that_runs_to_the_end_is_not_marked(tmp_path):
     assert chats.get("p1", "c1").messages[-1].stopped is False
 
 
-def test_stopping_before_a_word_writes_no_message(tmp_path):
-    # Nothing to keep. The chat is left exactly as it was -- still owed an answer, and the browser
-    # is what refuses to ask for one again.
+def test_stopping_before_a_word_still_writes_that_it_was_stopped(tmp_path):
+    # Nothing was said and nothing was made, but something happened: somebody stopped it. Written
+    # down, because a press that leaves no trace reads as a press that did nothing -- and because
+    # the chat's last word would otherwise still be the user's, which means owed an answer, which
+    # means the browser asks for one again the moment the page is reloaded.
     chats, _, _, _ = _run(tmp_path, [[{"text": "never reached"}]], stops=StopsAfter(after=0))
-    assert [m.role for m in chats.get("p1", "c1").messages] == ["user"]
+    kept = chats.get("p1", "c1").messages
+    assert [m.role for m in kept] == ["user", "ai"]
+    assert kept[-1].text == ""
+    assert kept[-1].stopped is True
 
 
 def test_the_request_is_cleared_when_the_answer_ends(tmp_path):

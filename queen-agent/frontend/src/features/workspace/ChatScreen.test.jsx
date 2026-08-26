@@ -133,6 +133,34 @@ test("a stopped answer is drawn as one", () => {
   expect(container.querySelector(".msg--stopped")).toBeTruthy();
 });
 
+test("a stopped answer says so in words", () => {
+  // The grey rule down the side means something to whoever put it there. The word means the same
+  // thing to everybody.
+  const stopped = {
+    ...CHAT,
+    messages: [CHAT.messages[0], { ...CHAT.messages[1], text: "Half a", stopped: true }],
+  };
+  render(<ChatScreen project={PROJECT} chat={stopped} />);
+  expect(screen.getByText("Stopped")).toBeTruthy();
+});
+
+test("an answer that ran to the end says nothing", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(screen.queryByText("Stopped")).toBeNull();
+});
+
+test("a stop before the first word is still a message on screen", () => {
+  // Madde 81's own case. Nothing was said, so there is no text block to draw -- an empty one would
+  // put the grey rule beside nothing at all.
+  const stopped = {
+    ...CHAT,
+    messages: [CHAT.messages[0], { ...CHAT.messages[1], text: "", stopped: true }],
+  };
+  const { container } = render(<ChatScreen project={PROJECT} chat={stopped} />);
+  expect(screen.getByText("Stopped")).toBeTruthy();
+  expect(container.querySelector(".msg__text")).toBeNull();
+});
+
 test("a call seen while the answer is still running is drawn as it arrives", () => {
   // Same road the file cards take: what the stream reports is drawn before any record exists.
   const { container } = render(

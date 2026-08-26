@@ -643,6 +643,32 @@ test("a stopped answer is not asked for all over again", async () => {
   expect(asked).toHaveLength(1);
 });
 
+test("a chat whose last word is a stopped answer is not asked again", async () => {
+  // Madde 81's payoff, and the reason the empty record is written at all. Before it, a chat stopped
+  // before its first word had the user's message as its last -- owed an answer, and asked for one
+  // the moment the page came back.
+  const stopped = {
+    id: "c1",
+    title: "hello",
+    messages: [
+      { role: "user", at: new Date().toISOString(), text: "hello" },
+      { role: "ai", at: new Date().toISOString(), text: "", stopped: true },
+    ],
+  };
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (String(path).endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => stopped });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Stopped")).toBeTruthy());
+  expect(fetch.mock.calls.filter(([path]) => String(path).endsWith("/answer"))).toHaveLength(0);
+});
+
 test("a call arrives in the stream and is still there once the record lands", async () => {
   // Madde 66's handover. The stream draws the line before any record exists, and the record that
   // follows carries the same call -- so what the browser piled up has to be dropped rather than
