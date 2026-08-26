@@ -99,7 +99,9 @@ test("with no handler attached Enter does nothing and nothing breaks", () => {
 test("the foot has room to the left of Send", () => {
   const { container } = render(<Composer action="Send" foot={<button type="button">Grok 4.5</button>} />);
   const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Grok 4.5", "Send"]);
+  expect(buttons.map((button) => button.textContent)).toEqual(["Grok 4.5", "↑"]);
+  // Madde 80 took the word off the button, so the order alone no longer says which one it is.
+  expect(buttons[1].getAttribute("aria-label")).toBe("Send");
 });
 
 test("with nothing to put there the foot is Send alone", () => {
@@ -151,4 +153,33 @@ test("with nothing running the button is what it always was", () => {
   const { button } = draw();
   expect(button.disabled).toBe(true);
   expect(screen.queryByRole("button", { name: "Stop" })).toBeNull();
+});
+
+// --- a mark instead of a word (Madde 80) ---------------------------------------------------------
+//
+// What the button does is unchanged; what stands on it is not. The name moves to aria-label, so it
+// stops being visible rather than stopping existing. The proof of that is the rest of this file:
+// every test above finds the button by { name: "Send" }.
+
+test("the button carries an arrow, not the word", () => {
+  const { button } = draw();
+  expect(button.textContent).toBe("↑");
+});
+
+test("hovering says what the arrow does", () => {
+  // A mark has to explain itself, and the mouse is the only place left to ask.
+  expect(draw().button.getAttribute("title")).toBe("Send");
+});
+
+test("while an answer runs the arrow becomes a stop", () => {
+  render(<Composer action="Send" running onStop={vi.fn()} />);
+  const button = screen.getByRole("button", { name: "Stop" });
+  expect(button.textContent).toBe("⏹");
+  expect(button.getAttribute("title")).toBe("Stop");
+});
+
+test("the project screen's button is the same arrow under another name", () => {
+  // Both mean "send what I wrote", so the mark is the same. What differs is the name.
+  render(<Composer action="Start" placeholder="Start a new chat in this project..." />);
+  expect(screen.getByRole("button", { name: "Start" }).textContent).toBe("↑");
 });

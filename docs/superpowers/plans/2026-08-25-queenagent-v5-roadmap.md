@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **15 madde, 3 blok** — 65'ten 79'a.
+**Numaralar** v4'ten devam eder (64'te bitti). **16 madde, 4 blok** — 65'ten 80'e.
 
 ---
 
@@ -22,21 +22,26 @@ yazılmaması, karakterin her karede aynı okunması, işin parçalara bölünme
 Koşu bu ikisini sırayla kapatıyor: önce ekran ne olduğunu söylesin ve ölçü gelsin; sonra o ölçüye
 bakarak bağlam, model ve yönerge birlikte elden geçsin.
 
-## Üç blok
+## Dört blok
 
-Koşu üçe ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
+Koşu dörde ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
 
 - **Blok 1 (65-68) tek başına koşuldu — bitti.** Dört madde; her biri kapalı uçlu, kararı verilmiş,
   bir öncekine yaslanıyor. Kullanıcı dördünü koşunun sonunda topluca denedi, ve o deneme Blok 3'ü
   doğurdu.
-- **Blok 3 (76-79) tek başına koşulur.** Denemenin çıkardığı dört madde: bir hata ve üç ekran işi.
-  Blok 2'den önce, çünkü biri Blok 2'nin şartı ve üçü bugün yanlış duran şeyler.
+- **Blok 3 (76-79) tek başına koşuldu — bitti.** Denemenin çıkardığı dört madde: bir hata ve üç
+  ekran işi. Blok 2'den önce koştu, çünkü biri Blok 2'nin şartı ve üçü o gün yanlış duran şeylerdi.
+- **Blok 4 (80-) madde madde koşulur** *(kullanıcı kararı, 26 Ağustos)*. Blok 3 denenirken çıkan
+  ekran düzeltmeleri. Blok 3'ten farkı yalnız tempo: *"adım adım gidelim artık"* — kullanıcı bir
+  düzeltme veriyor, o madde iki turda bitiyor, sonra sıradaki geliyor. **Bu blok açık uçlu**:
+  deneme sürdükçe madde ekleniyor, ve numaralar sondan veriliyor.
 - **Blok 2 (69-75) kullanıcıyla beraber, adım adım koşulur** *(kullanıcı kararı, 25 Ağustos)*.
   Yedisinin de ya çıktının doğruluğuna ya modelin davranışına dokunduğu için karar aralarında
   veriliyor, sonunda değil.
 
-**Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci koşuyor; numarasını
-kaydırmak, ona atıf yapan her cümleyi yalan yapardı — maddelerin numaralarında olduğu gibi.
+**Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
+koşuyor; numaralarını kaydırmak, onlara atıf yapan her cümleyi yalan yapardı — maddelerin
+numaralarında olduğu gibi.
 
 **69 Blok 1'den Blok 2'ye geçti** *(kullanıcı kararı, 26 Ağustos)*. Numarası yerinde kaldı, yeri
 değişti — yazılı spec'ler numarayı anıyor. Sebep maddenin kendi açık sorusu: üstüne yazmama kuralı
@@ -166,14 +171,16 @@ yazılı, ve düzeltmelerin kendisi Blok 3'te.
 
 ---
 
-# Blok 3 — Denemenin çıkardıkları · tek başına
+# Blok 3 — Denemenin çıkardıkları · tek başına · **bitti**
 
 Blok 1 denendi ve dört şey çıktı: bir hata, bir yanlış çözüm, iki beğenilmemiş çizim. Dördü de
 kapalı uçlu — hata bir sebebe bağlandı, kalan üçünü kullanıcı kendi cümleleriyle tarif etti — o
-yüzden tek başına koşuluyor *(kullanıcı kararı, 26 Ağustos)*.
+yüzden tek başına koşuldu *(kullanıcı kararı, 26 Ağustos)*.
 
-**Blok 2'den önce**, çünkü 76 Blok 2'nin şartı ve kalan üçü bugün ekranda yanlış duruyor. Yanlış
+**Blok 2'den önce**, çünkü 76 Blok 2'nin şartı ve kalan üçü o gün ekranda yanlış duruyordu. Yanlış
 duran bir ekranın üstüne yeni iş koymak, ikisini birden düzeltmek zorunda bırakır.
+
+Dördü de yeşil ve commit'li. Denemesi Blok 4'ü doğurdu.
 
 ### Madde 76 — Token gerçekten görünür
 
@@ -218,6 +225,29 @@ duran bir ekranın üstüne yeni iş koymak, ikisini birden düzeltmek zorunda b
   basıldığında cevap kesiliyor ve düğme gönderme hâline dönüyor.
 - **Değişmeyen:** durdurmanın kendisi. 67'nin arka ucu, yarım metni saklaması ve kendiliğinden
   yeniden başlamaması aynen duruyor.
+
+---
+
+# Blok 4 — İkinci denemenin çıkardıkları · madde madde
+
+Blok 3 denenirken çıkan ekran düzeltmeleri. Blok 3'ün dördü nasıl geldiyse öyle geliyorlar —
+kullanıcının kendi cümlesiyle, denerken. **Fark tempo:** biri veriliyor, iki turda bitiyor, sonra
+sıradaki geliyor *(kullanıcı kararı, 26 Ağustos: "adım adım gidelim artık")*.
+
+**Blok açık uçlu.** Deneme sürdükçe madde ekleniyor; numaralar sondan veriliyor ve hiçbiri kaymıyor.
+
+### Madde 80 — Gönder ve durdur düğmesi ikon taşır
+
+- **Ne çalışır:** 79 iki düğmeyi tek düğmede topladı ama düğme hâlâ `Send` / `Start` / `Stop` yazıyor.
+  Yazı ikona bırakır: hazırken bir gönderme oku, cevap akarken bir durdurma karesi. Düğmenin adı
+  gitmez — görünmez olur, ve ekran okuyucuya da fareyle üstünde bekleyene de aynı kelimeyi söyler.
+- **Nasıl görülür:** yazma kutusunun sağında kelime değil ikon duruyor; üstüne gelince ne yaptığı
+  yazıyor. Cevap akarken ok kareye dönüyor, basılınca cevap kesiliyor ve kare oka dönüyor.
+- **Değişmeyen:** düğmenin ne yaptığı. 79'un iki durumu, 67'nin durdurması, boş taslakta kapalı
+  olması — üçü de aynen duruyor. Bu madde yalnız düğmenin üstündeki şeye dokunuyor.
+- **Kararı verilmiş:** ikonun şekli deponun kendi görsel dilinden geliyor — her denetim
+  `--radius-control` ile yuvarlanıyor ve bunu bir test tutuyor, yani ikon düğmesi de yuvarlak değil
+  köşeli kalır. Daire bu dilde yalnız nokta demek.
 
 ---
 
@@ -336,7 +366,7 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
 | Hangi skiller düşecek | 74 |
 
-76, 77 ve 79 bu tabloda yok: üçünün de kararı verilmiş, verilecek bir şey kalmadı.
+76, 77, 79 ve 80 bu tabloda yok: dördünün de kararı verilmiş, verilecek bir şey kalmadı.
 
 ## Kapsam dışı
 
@@ -356,9 +386,10 @@ Her madde, iki cümlelik bir işte bile, iki tam turdan geçer — önce yalnız
 commit'lenir, sonra kod yazılıp yeşile döndürülür. İkisinin de kendi spec'i ve kendi planı olur.
 
 **Blok 1 durmadan koşuldu**, kullanıcı dördünü sonunda topluca denedi — ve o deneme Blok 3'ü
-doğurdu, yani yöntem çalıştı. **Blok 3 de durmadan koşulur**, aynı şekilde sonunda denenir.
-**Blok 2'de her madde kullanıcıyla açılır**: spec'in açık soruları o maddeye gelindiğinde
-konuşulur, sonra koşulur.
+doğurdu, yani yöntem çalıştı. **Blok 3 de durmadan koşuldu** ve aynı şekilde denendi; o deneme de
+Blok 4'ü doğurdu. **Blok 4'te madde tek tek gelir**: kullanıcı bir düzeltme söylüyor, o madde iki
+turda bitiyor, sonra sıradaki konuşuluyor. **Blok 2'de her madde kullanıcıyla açılır**: spec'in
+açık soruları o maddeye gelindiğinde konuşulur, sonra koşulur.
 
 Ön yüze dokunan her madde `dist`i **kaynağıyla aynı commit'te** derleyip commit'ler; FOUNDATION'ın
 3. kararı ve `test_dist_is_committed.py` bunu zaten zorluyor. Yerel yol birincil: `python main.py`.

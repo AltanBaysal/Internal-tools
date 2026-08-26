@@ -521,7 +521,9 @@ test("the foot carries Skills, the model and Send, in that order", () => {
   // karar 1's order, complete at last.
   const { container } = render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.6" }} />);
   const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "Send"]);
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "↑"]);
+  // Madde 80 took the word off the button; the name it answers to is asked for separately now.
+  expect(buttons[2].getAttribute("aria-label")).toBe("Send");
 });
 
 test("while an answer runs the row ends in Stop, and there is no fourth button", () => {
@@ -531,7 +533,8 @@ test("while an answer runs the row ends in Stop, and there is no fourth button",
     <ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.6" }} thinking onStop={vi.fn()} />,
   );
   const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "Stop"]);
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "⏹"]);
+  expect(buttons[2].getAttribute("aria-label")).toBe("Stop");
 });
 
 test("a chat with a skill selected says which one", () => {

@@ -203,7 +203,10 @@ test("the composer here carries both pickers, in the chat screen's order", () =>
   // learned twice.
   const { container } = render(<ProjectScreen project={PROJECT} model="grok-4.6" />);
   const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "Start"]);
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "↑"]);
+  // Madde 80 took the word off the button. The mark is the chat screen's, the name is this
+  // screen's own -- opening a chat is not replying to one.
+  expect(buttons[2].getAttribute("aria-label")).toBe("Start");
 });
 
 test("picking a skill is passed up rather than kept here", () => {

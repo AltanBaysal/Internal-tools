@@ -72,6 +72,14 @@ test("the composer sits inside the card band", () => {
   expect(CSS).not.toContain("border-radius: 16px");
 });
 
+test("the send button is a fixed square", () => {
+  // Madde 80 put a mark on it instead of a word, so it stops being as wide as its label. The two
+  // marks must take the same room, or the button would widen and narrow as an answer runs.
+  const send = rule(".composer__send");
+  expect(send).toContain("width: 32px");
+  expect(send).toContain("height: 32px");
+});
+
 test("the extension chip is a fixed square", () => {
   // However long the extension, the row's alignment does not move.
   const chip = rule(".file-chip");
