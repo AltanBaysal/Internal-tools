@@ -27,7 +27,7 @@ class FakeEngine:
 
     # No model since Madde 82: there is one, and the client is built knowing it. A caller that
     # still passed one would die here rather than quietly working.
-    def stream(self, messages, tools=None):
+    def stream(self, messages, tools=None, on_open=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         self.seen = [dict(message) for message in messages]
@@ -45,7 +45,7 @@ class ScriptedEngine:
     def __init__(self, rounds):
         self.rounds = list(rounds)
 
-    def stream(self, messages, tools=None):
+    def stream(self, messages, tools=None, on_open=None):
         pieces = self.rounds.pop(0) if self.rounds else []
         for piece in pieces:
             yield piece

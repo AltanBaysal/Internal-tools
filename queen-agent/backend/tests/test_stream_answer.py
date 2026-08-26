@@ -43,6 +43,9 @@ def call(tool, call_id="t1", **arguments):
 class NeverStops:
     """The stop registry as most tests need it: nobody ever asks."""
 
+    def hold(self, project_id, chat_id, cut):
+        pass
+
     def wanted(self, project_id, chat_id):
         return False
 
@@ -53,21 +56,33 @@ class NeverStops:
 NEVER = NeverStops()
 
 
-class StopsAfter:
-    """Wants a stop once it has been asked `after` times -- a stop arriving mid-answer, made
-    deterministic. A real one is flipped by another thread, which a test cannot schedule."""
+class Cut:
+    """The registry after a stop: however this answer ended, we are the ones who ended it.
 
-    def __init__(self, after=1):
-        self.after = after
-        self.asked = 0
+    Since Madde 90 nothing counts here. The flag is not asked frame by frame any more -- the cut
+    ends the round on its own, and the only question left is whose cut it was.
+    """
+
+    def __init__(self):
+        self.held = []
         self.cleared = []
 
+    def hold(self, project_id, chat_id, cut):
+        self.held.append((project_id, chat_id, cut))
+
     def wanted(self, project_id, chat_id):
-        self.asked += 1
-        return self.asked > self.after
+        return True
 
     def clear(self, project_id, chat_id):
         self.cleared.append((project_id, chat_id))
+
+
+CUT = object()
+"""Where the connection dies inside a round.
+
+In production it is a socket that was shut down and a chunked body that stopped in the middle; here
+it is a piece the engine refuses to get past.
+"""
 
 
 class ScriptedEngine:
@@ -77,16 +92,26 @@ class ScriptedEngine:
         self.rounds = list(rounds)
         self.blow_up_after = blow_up_after
         self.seen = []
+        self.handed = []
 
     # No model since Madde 82: the engine is built knowing which one. A use case that still passed
     # one would die here rather than quietly working.
-    def stream(self, messages, tools=None):
+    def stream(self, messages, tools=None, on_open=None):
         self.seen.append(list(messages))
+        if on_open:
+            on_open(self._cut)
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
             raise RuntimeError("connection dropped")
         pieces = self.rounds.pop(0) if self.rounds else []
         for piece in pieces:
+            if piece is CUT:
+                # What Python says when a chunked body stops in the middle. Nothing in the words
+                # says who did it, which is the whole difficulty this item deals with.
+                raise RuntimeError("IncompleteRead(0 bytes read)")
             yield piece
+
+    def _cut(self):
+        self.handed.append("cut")
 
 
 def _seeded(tmp_path):
@@ -457,20 +482,41 @@ TWO_ROUNDS = [[{"text": "Half a "}, {"tool_calls": [call("list_files")]}], [{"te
 
 
 def test_a_stop_ends_the_answer_without_asking_the_model_again(tmp_path):
-    _, _, engine, _ = _run(tmp_path, TWO_ROUNDS, stops=StopsAfter(after=1))
+    # The first round asked for a tool, which is what would normally open a second one.
+    _, _, engine, _ = _run(tmp_path, TWO_ROUNDS, stops=Cut())
     assert len(engine.seen) == 1
 
 
 def test_what_was_already_said_is_kept(tmp_path):
     # The owner's choice: stopping is something you decide, and what you had read stays yours.
-    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=StopsAfter(after=1))
+    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=Cut())
     assert chats.get("p1", "c1").messages[-1].text == "Half a"
 
 
 def test_a_stopped_answer_says_it_was_stopped(tmp_path):
     # Half a sentence with no mark cannot be told from a model that finished on one.
-    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=StopsAfter(after=1))
+    chats, _, _, _ = _run(tmp_path, TWO_ROUNDS, stops=Cut())
     assert chats.get("p1", "c1").messages[-1].stopped is True
+
+
+def test_the_running_answer_hands_the_registry_a_way_to_cut_it(tmp_path):
+    # Madde 90. The registry is reached from the thread carrying the stop and holds no socket of
+    # its own; this is the one moment where the two meet.
+    stops = Cut()
+    _, _, engine, _ = _run(tmp_path, [[{"text": "Hi"}]], stops=stops)
+    assert [(project, chat) for project, chat, _ in stops.held] == [("p1", "c1")]
+    stops.held[0][2]()
+    assert engine.handed == ["cut"]
+
+
+def test_a_connection_we_cut_is_a_stop_rather_than_a_failure(tmp_path):
+    # Our own cut and a network that dropped arrive as the same words -- nothing in the failure
+    # says who ended it. The registry is the only thing that knows, so it is asked before the
+    # failure is believed.
+    chats, _, _, _ = _run(tmp_path, [[{"text": "Half a "}, CUT]], stops=Cut())
+    kept = chats.get("p1", "c1").messages[-1]
+    assert kept.text == "Half a"
+    assert kept.stopped is True
 
 
 def test_an_answer_that_runs_to_the_end_is_not_marked(tmp_path):
@@ -483,7 +529,10 @@ def test_stopping_before_a_word_still_writes_that_it_was_stopped(tmp_path):
     # down, because a press that leaves no trace reads as a press that did nothing -- and because
     # the chat's last word would otherwise still be the user's, which means owed an answer, which
     # means the browser asks for one again the moment the page is reloaded.
-    chats, _, _, _ = _run(tmp_path, [[{"text": "never reached"}]], stops=StopsAfter(after=0))
+    #
+    # This is the press Madde 90 was written for: it lands while the model is still thinking, and
+    # the connection dies before a single word has come down it.
+    chats, _, _, _ = _run(tmp_path, [[CUT]], stops=Cut())
     kept = chats.get("p1", "c1").messages
     assert [m.role for m in kept] == ["user", "ai"]
     assert kept[-1].text == ""
@@ -492,7 +541,7 @@ def test_stopping_before_a_word_still_writes_that_it_was_stopped(tmp_path):
 
 def test_the_request_is_cleared_when_the_answer_ends(tmp_path):
     # Left standing it would cut the next answer as it was born.
-    stops = StopsAfter(after=1)
+    stops = Cut()
     _run(tmp_path, TWO_ROUNDS, stops=stops)
     assert stops.cleared == [("p1", "c1")]
 
@@ -546,8 +595,8 @@ def test_a_stopped_answer_still_says_what_it_spent(tmp_path):
     # on so that it can be. The window is narrow -- the engine reports once, at the end of the
     # round -- but a stop landing between that frame and the end of the loop is a real moment, and
     # dropping the figure there would throw away something already paid for.
-    rounds = [[spent(1200, 900, 5), {"text": "Half a "}, {"text": "never reached"}]]
-    chats, _, _, _ = _run(tmp_path, rounds, stops=StopsAfter(after=2))
+    rounds = [[spent(1200, 900, 5), {"text": "Half a "}, CUT]]
+    chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
     assert _kept(chats).text == "Half a"
     assert _kept(chats).usage == Usage(1200, 900, 5)
 
@@ -556,7 +605,7 @@ def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tm
     # Madde 76, and the honest record of a limit rather than a guard on a behaviour. The engine
     # reports once, in a frame just before the stream closes; an answer cut short never reaches it.
     # So a stopped answer usually says nothing about what it spent, even though it spent it.
-    rounds = [[{"text": "Half a "}, {"text": "never reached"}, spent(1200, 900, 5)]]
-    chats, _, _, _ = _run(tmp_path, rounds, stops=StopsAfter(after=1))
+    rounds = [[{"text": "Half a "}, CUT, spent(1200, 900, 5)]]
+    chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
     assert _kept(chats).text == "Half a"
     assert _kept(chats).usage == Usage()

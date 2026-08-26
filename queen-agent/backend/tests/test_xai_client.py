@@ -1,5 +1,7 @@
 import io
 import json
+import socket
+import threading
 import urllib.error
 
 import pytest
@@ -282,3 +284,116 @@ def test_a_dead_connection_is_reported_too():
     with pytest.raises(XaiFailed) as failure:
         _client(opener).complete(MESSAGES)
     assert "connection refused" in str(failure.value)
+
+
+# --- cutting a stream that is still open (Madde 90) ----------------------------------------------
+
+
+def test_a_stream_hands_over_the_way_to_cut_it_before_it_reads_a_line():
+    # Handed over the moment the response is open, not once words start arriving: the whole point
+    # of this item is the wait before the first word, and a cut offered after it would miss exactly
+    # the stretch it was written for.
+    order = []
+
+    class _Watched(_Lines):
+        def __iter__(self):
+            order.append("read")
+            return super().__iter__()
+
+    list(
+        _client(lambda request: _Watched([b"data: [DONE]"])).stream(
+            MESSAGES, on_open=lambda cut: order.append("open")
+        )
+    )
+    assert order == ["open", "read"]
+
+
+def test_cutting_a_response_that_hides_no_socket_is_quiet():
+    # Every fake in this suite is such a response. The way down to the socket is CPython's own
+    # naming and nobody promised it, so a link that is not there ends the attempt rather than the
+    # run.
+    held = []
+    list(_client(lambda request: _Lines([b"data: [DONE]"])).stream(MESSAGES, on_open=held.append))
+    held[0]()
+
+
+def _silent_server():
+    """A server that answers and then says nothing -- a model that is still thinking.
+
+    Chunked on purpose: that is how an SSE stream really arrives, and it is what decides how a cut
+    comes back. It leaves the reader inside recv with no frame to come back for, which is the only
+    place this can be tested from.
+    """
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(1)
+    done = threading.Event()
+
+    def serve():
+        connection, _ = listener.accept()
+        connection.recv(65536)
+        connection.sendall(
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: text/event-stream\r\n"
+            b"Transfer-Encoding: chunked\r\n\r\n"
+        )
+        # Not one chunk follows. The deadline is only so that a test that fails leaves nothing
+        # running behind it.
+        done.wait(10)
+        connection.close()
+        listener.close()
+
+    threading.Thread(target=serve, daemon=True).start()
+    return listener.getsockname()[1], done
+
+
+def _blocked_read():
+    """Start a real stream against the silent server and hand back what it takes to end it.
+
+    The reading thread is a daemon: a cut that never reaches the socket leaves it blocked for good,
+    and the run still has to be able to finish and say so.
+    """
+    port, done = _silent_server()
+    client = XaiClient(lambda: "key", "grok-4.5", f"http://127.0.0.1:{port}")
+    outcome = {}
+    opened = threading.Event()
+
+    def hand_over(cut):
+        outcome["cut"] = cut
+        opened.set()
+
+    def read():
+        try:
+            list(client.stream(MESSAGES, on_open=hand_over))
+            outcome["ended"] = "quietly"
+        except BaseException as failure:
+            outcome["ended"] = failure
+        done.set()
+
+    reader = threading.Thread(target=read, daemon=True)
+    reader.start()
+    # Carries whatever went wrong instead of just saying it did: what the reading thread hit is the
+    # only thing that explains why nothing was ever handed over.
+    assert opened.wait(5), f"the response never opened: {outcome.get('ended')}"
+    return reader, outcome
+
+
+def test_a_cut_wakes_a_read_that_is_blocked_on_the_socket():
+    # The one thing no fake can answer: whether the cut really reaches the socket. `close()` would
+    # not -- the buffered reader's lock belongs to the thread doing the reading, so closing waits
+    # for the very read it means to interrupt. Shutting the socket down goes past the buffer.
+    reader, outcome = _blocked_read()
+    outcome["cut"]()
+    # A deadline rather than a plain join: a cut that never landed has to fail the run, not hang it.
+    reader.join(5)
+    assert not reader.is_alive()
+
+
+def test_a_stream_cut_in_the_middle_comes_back_as_a_failure():
+    # A socket shut down between frames leaves a half-read chunked body, and Python says so. It
+    # travels in the client's own currency and carries Python's words: who cut it is not something
+    # this layer knows, so it does not say.
+    reader, outcome = _blocked_read()
+    outcome["cut"]()
+    reader.join(5)
+    assert isinstance(outcome["ended"], XaiFailed)

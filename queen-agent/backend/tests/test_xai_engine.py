@@ -9,13 +9,15 @@ class FakeClient:
     # passed one would die here rather than quietly working.
     def __init__(self):
         self.seen = None
+        self.on_open = None
 
     def complete(self, messages, tools=None):
         self.seen = messages
         return {"role": "assistant", "content": "hi"}
 
-    def stream(self, messages, tools=None):
+    def stream(self, messages, tools=None, on_open=None):
         self.seen = messages
+        self.on_open = on_open
         return iter(["hi"])
 
 
@@ -32,6 +34,18 @@ def test_streaming_is_prepared_the_same_way():
     list(XaiEngine(client).stream(CONVERSATION))
     assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
     assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
+
+
+def test_the_way_to_cut_the_answer_travels_down_to_the_client():
+    # Madde 90. The engine translates roles and nothing else, and that includes not swallowing
+    # this: only the client holds a socket, so only the client can hand out a way to cut one.
+    client = FakeClient()
+
+    def handed(cut):
+        pass
+
+    list(XaiEngine(client).stream(CONVERSATION, on_open=handed))
+    assert client.on_open is handed
 
 
 def test_the_engine_hands_over_no_model():
