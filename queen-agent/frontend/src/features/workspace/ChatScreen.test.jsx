@@ -205,17 +205,37 @@ test("nothing is written under the composer", () => {
   expect(screen.queryByText("save the answer as a file")).toBeNull();
 });
 
-test("a user message is labelled with the time and nothing else", () => {
+// --- the stamp under a message (Madde 83) --------------------------------------------------------
+//
+// One note under the message rather than two at its two ends, and no name in it: the sidebar carries
+// the name, and which side a message sits on says who wrote it.
+
+test("a user message is stamped with the time and nothing else", () => {
   // The design draws the person's own name there but never says where it comes from, and there is
   // no such setting. Who wrote it is already clear from the bubble sitting on the right.
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByText("11:04")).toBeTruthy();
+  expect(screen.getByText("11:04").className).toBe("msg__stamp");
   expect(screen.queryByText(/You/)).toBeNull();
 });
 
-test("an answer is labelled QueenAgent", () => {
+test("an answer is stamped with the time and nothing else either", () => {
+  // The name used to sit above every answer and it said nothing new: the sidebar carries it, and an
+  // answer sitting on the left already says whose turn this was.
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByText("QueenAgent · 11:05")).toBeTruthy();
+  expect(screen.getByText("11:05").className).toBe("msg__stamp");
+  expect(screen.queryByText(/QueenAgent/)).toBeNull();
+});
+
+test("the stamp closes a message rather than opening it", () => {
+  // A note belongs under the thing it is about. Above, it is read before there is anything to read
+  // it against -- and it was two notes at two ends, which is the same note said twice.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  const messages = [...container.querySelectorAll(".msg")];
+  expect(messages).toHaveLength(2);
+  expect(messages.map((msg) => msg.lastElementChild.className)).toEqual([
+    "msg__stamp",
+    "msg__stamp",
+  ]);
 });
 
 test("both messages are drawn", () => {
@@ -302,13 +322,13 @@ test("a file on its way shows a dashed card with no name on it", () => {
   expect(screen.getByText("creating file…")).toBeTruthy();
 });
 
-test("the waiting label carries the time the wait began", () => {
-  // Today the clock only appears once the answer has been saved; the design wants the label and the
+test("the waiting stamp carries the time the wait began", () => {
+  // Today the clock only appears once the answer has been saved; the design wants the stamp and the
   // dots on screen together, time and all.
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
   render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
-  expect(screen.getByText("QueenAgent · 14:32")).toBeTruthy();
+  expect(screen.getByText("14:32").className).toBe("msg__stamp");
   vi.useRealTimers();
 });
 
@@ -319,7 +339,8 @@ test("that time does not move while the answer arrives", () => {
   vi.setSystemTime(new Date(2026, 7, 9, 14, 35));
   rerender(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here" />);
   // It answers "when was this asked for", and that answer stopped being new at 14:32.
-  expect(screen.getByText("QueenAgent · 14:32")).toBeTruthy();
+  expect(screen.getByText("14:32")).toBeTruthy();
+  expect(screen.queryByText("14:35")).toBeNull();
   vi.useRealTimers();
 });
 
@@ -592,13 +613,16 @@ test("picking a skill is passed up rather than kept here", () => {
 });
 
 // --- what the answer spent (Madde 68) ------------------------------------------------------------
+//
+// The number is 68's; where it is drawn is 83's. It rides in the stamp under the answer now, after
+// the time and one separator, rather than on a line of its own.
 
 const withUsage = (usage) => ({
   ...CHAT,
   messages: [CHAT.messages[0], { ...CHAT.messages[1], usage }],
 });
 
-test("an answer says what it spent", () => {
+test("an answer says what it spent, beside when it was said", () => {
   // One number rather than the breakdown: the owner asked for a plain total under each answer, and
   // what it is made of stays on disk for the context work rather than being drawn here.
   render(
@@ -606,25 +630,27 @@ test("an answer says what it spent", () => {
   );
   // Asked for by its text rather than by its class: a missing element then names what was looked
   // for, instead of failing later on a null nobody can read.
-  expect(screen.getByText("13.2k tokens").className).toBe("token-count");
+  expect(screen.getByText("11:05 · 13.2k tokens").className).toBe("msg__stamp");
 });
 
 test("a small answer is not dressed up as a big one", () => {
   render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />);
-  expect(screen.getByText("342 tokens").className).toBe("token-count");
+  expect(screen.getByText("11:05 · 342 tokens").className).toBe("msg__stamp");
 });
 
-test("an answer nobody measured says nothing", () => {
-  // Zero is what an answer from before this existed reads back as, and a line under it would claim
-  // a measurement that was never taken.
-  const { container } = render(
-    <ChatScreen project={PROJECT} chat={withUsage({ sent: 0, cached: 0, answered: 0 })} />,
-  );
-  expect(container.querySelector(".token-count")).toBeNull();
+test("an answer nobody measured still says when it was said", () => {
+  // Zero is what an answer from before this existed reads back as, and a count under it would claim
+  // a measurement nobody took. The time is not a measurement -- it was said at a time either way.
+  render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 0, cached: 0, answered: 0 })} />);
+  expect(screen.getByText("11:05").className).toBe("msg__stamp");
+  expect(screen.queryByText(/tokens/)).toBeNull();
 });
 
-test("the user's own message never carries one", () => {
+test("the user's own message never carries a count", () => {
   // Spending is what an answer does. A number under the question would read as its price.
-  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(container.querySelector(".msg--user .token-count")).toBeNull();
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />,
+  );
+  expect(screen.getByText("11:04").className).toBe("msg__stamp");
+  expect(container.querySelector(".msg--user").textContent).not.toContain("tokens");
 });

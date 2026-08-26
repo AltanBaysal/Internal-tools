@@ -80,6 +80,22 @@ test("the stopped line reads as a note, not as the answer", () => {
   expect(line).toContain("color: var(--muted)");
 });
 
+test("the stamp reads as a note in the same voice as the line above it", () => {
+  // What it says is a clock and maybe a count. Neither has a case, so the uppercase the label above
+  // the message used to carry goes with the label.
+  const stamp = rule(".msg__stamp");
+  expect(stamp).toContain("var(--font-mono)");
+  expect(stamp).toContain("color: var(--muted)");
+  expect(stamp).not.toContain("text-transform");
+});
+
+test("the two lines the stamp replaces are gone", () => {
+  // Madde 83 folded a label above the message and a count below it into one line under it. Either
+  // name left behind would style something nothing draws any more.
+  expect(CSS).not.toContain(".msg__label");
+  expect(CSS).not.toContain(".token-count");
+});
+
 test("the send button is a fixed square", () => {
   // Madde 80 put a mark on it instead of a word, so it stops being as wide as its label. The two
   // marks must take the same room, or the button would widen and narrow as an answer runs.

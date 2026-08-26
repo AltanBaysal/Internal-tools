@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **18 madde, 4 blok** — 65'ten 82'ye.
+**Numaralar** v4'ten devam eder (64'te bitti). **19 madde, 4 blok** — 65'ten 83'e.
 
 ---
 
@@ -285,6 +285,20 @@ sıradaki geliyor *(kullanıcı kararı, 26 Ağustos: "adım adım gidelim artı
 - **Yanında gelen iki sadeleşme:** açık menü durumu ikiliye iniyor *(geriye tek menü kaldı)*, ve
   Escape sırası kısalıyor — `fark 67`'nin beşli sırası dörde düşüyor.
 
+### Madde 83 — Mesajın damgası altına iner
+
+- **Ne çalışır:** bir cevap bugün iki not taşıyor ve ikisi mesajın iki ucunda duruyor — üstte
+  `QUEENAGENT · 11:05`, altta `13.2k tokens`. `QueenAgent` her cevapta tekrarlanıyor, oysa kenar
+  çubuğunda zaten yazılı ve cevabın solda oluşu onu ikinci kez söylüyor. İki satır tek satır olur,
+  mesajın altına iner, ve ad düşer: `11:05 · 13.2k tokens`.
+- **Nasıl görülür:** bir cevabın üstünde hiçbir şey yok, altında saat ve sayı tek satırda yazıyor;
+  kullanıcının kendi mesajının saati de baloncuğunun altında duruyor.
+- **Kararı verilmiş** *(kullanıcı kararı, 26 Ağustos)*: kullanıcının mesajının damgası da alta
+  iniyor. Bir sohbette birinin damgası üstte, ötekininki altta olsaydı kaza gibi okunurdu.
+- **Değişmeyen:** sayının kendisi. Neyin toplandığı, binden sonra kısaltılması, önbellek payının
+  çizilmemesi — üçü de 68 ile 76'nın kararı ve aynen duruyor. Bu madde yalnız damganın nerede
+  durduğuna ve ne yazdığına dokunuyor.
+
 ---
 
 # Blok 2 — Beraber, adım adım
@@ -409,7 +423,8 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
 | Hangi skiller düşecek | 74 |
 
-76, 77, 79, 80 ve 81 bu tabloda yok: beşinin de kararı verilmiş, verilecek bir şey kalmadı. 81'in
+76, 77, 79, 80, 81, 82 ve 83 bu tabloda yok: yedisinin de kararı verilmiş, verilecek bir şey
+kalmadı. 81'in
 sorusu vardı — kelimeden önce durdurulan turun diske yazılıp yazılmayacağı — ve maddeye gelindiğinde
 kullanıcıyla konuşulup kapandı.
 
