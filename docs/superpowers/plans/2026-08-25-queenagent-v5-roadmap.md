@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **19 madde, 4 blok** — 65'ten 83'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **20 madde, 4 blok** — 65'ten 84'e.
 
 ---
 
@@ -299,6 +299,24 @@ sıradaki geliyor *(kullanıcı kararı, 26 Ağustos: "adım adım gidelim artı
   çizilmemesi — üçü de 68 ile 76'nın kararı ve aynen duruyor. Bu madde yalnız damganın nerede
   durduğuna ve ne yazdığına dokunuyor.
 
+### Madde 84 — Tool call'lar karta döner ve tek kapının arkasına girer
+
+- **Ne çalışır:** çağrılar bugün mono, gri, kenarlıksız iki satır — 78 onları bilerek sessiz yaptı ve
+  ekranda yeterince iyi durmuyorlar. Her çağrı bir **kart** olur, ve kartlar tek bir kapının arkasına
+  girer: kapalıyken cevabın üstünde tek satırlık bir kart durur, basılınca hepsi alt alta açılır.
+- **Nasıl görülür:** dosyaya dayanan bir soru soruluyor; cevap akarken üstte tek kart var ve o an ne
+  yapıldığını yazıyor. Cevap bitince aynı kart `5 steps` diyor; basılınca beş kart açılıyor, tekrar
+  basılınca kapanıyor.
+- **Kararı verilmiş** *(kullanıcı kararı, 26 Ağustos)*: kartlar **tam ağırlık** — deponun dosya kartı
+  neyse o. Kapalıyken akan turda **son çağrı**, bitmiş turda **adım sayısı** görünür. Tutamak da bir
+  kart.
+- **Ayrım:** basılan kart bir kapı, basılmayan kart bir kayıt. Tutamak `<button>`, çağrı kartları
+  değil — imleç değişmez, hover'da oynamaz. `⎿` düşüyor: kartın sınırı onun işini yapıyor. Rozet
+  yok — dosya kartındaki kare bir uzantı taşıyor, çağrının uzantısı yok.
+- **Değişmeyen:** ne kaydedildiği ve kalıcı olduğu. 66'nın kaydı ve 78'in parantez kararı *(konusu
+  olmayan çağrının parantezi de yok)* aynen duruyor. Açık/kapalı **diske yazılmaz**: bir bakış
+  tercihi, sohbet hakkında bir olgu değil.
+
 ---
 
 # Blok 2 — Beraber, adım adım
@@ -423,7 +441,7 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
 | Hangi skiller düşecek | 74 |
 
-76, 77, 79, 80, 81, 82 ve 83 bu tabloda yok: yedisinin de kararı verilmiş, verilecek bir şey
+76, 77, 79, 80, 81, 82, 83 ve 84 bu tabloda yok: sekizinin de kararı verilmiş, verilecek bir şey
 kalmadı. 81'in
 sorusu vardı — kelimeden önce durdurulan turun diske yazılıp yazılmayacağı — ve maddeye gelindiğinde
 kullanıcıyla konuşulup kapandı.

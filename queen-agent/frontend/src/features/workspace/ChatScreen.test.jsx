@@ -42,24 +42,44 @@ const ANSWERED = {
   ],
 };
 
-test("a stored answer draws the calls it made", () => {
+// --- one door in front of them (Madde 84) --------------------------------------------------------
+//
+// Madde 66 put the calls on the screen and into the record, and 78 settled what a call reads as.
+// Both stand. What changed is that a call is a card now, and the cards live behind one handle: shut,
+// a running turn says which step it is on and a finished one says how many there were.
+
+test("a stored answer keeps the calls it made, behind one card", () => {
   // The half the item is really about: someone reading the chat a week later sees that the answer
-  // looked before it spoke.
+  // looked before it spoke. It is behind a door now rather than spread over the answer, and the
+  // door says how many steps it hides.
   const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
-  const lines = [...container.querySelectorAll(".tool-call")];
-  expect(lines).toHaveLength(2);
+  expect(container.querySelectorAll(".tool-call")).toHaveLength(0);
+  expect(screen.getByRole("button", { name: /2 steps/ })).toBeTruthy();
+});
+
+test("opening the card lists every call the turn made", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  fireEvent.click(screen.getByRole("button", { name: /2 steps/ }));
+  expect(container.querySelectorAll(".tool-call")).toHaveLength(2);
+});
+
+test("pressing it again puts them away", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  fireEvent.click(screen.getByRole("button", { name: /2 steps/ }));
+  fireEvent.click(screen.getByRole("button", { name: /2 steps/ }));
+  expect(container.querySelectorAll(".tool-call")).toHaveLength(0);
 });
 
 // --- the shape of the line (Madde 78) ------------------------------------------------------------
 //
-// Madde 66 put the calls on the screen and into the record; both stand. What changed is the drawing,
-// and the shape asked for is the one Claude Code uses: a marker, the tool with its subject in
-// brackets, and an indented line under it saying how it went.
+// The shape asked for is the one Claude Code uses: a marker, the tool with its subject in brackets,
+// and how it went. What 84 took away is the ⎿ under it -- the card boundary says that now.
 
 test("a call is drawn as its tool with the file in brackets", () => {
   // Asked for by its text: a missing line then names what was looked for, rather than failing
   // later on a null nobody can read.
   render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  fireEvent.click(screen.getByRole("button", { name: /2 steps/ }));
   expect(screen.getByText("⏺ read_file(aylin.json)").className).toBe("tool-call__head");
 });
 
@@ -67,40 +87,84 @@ test("a call about no file in particular is drawn without empty brackets", () =>
   // Listing a directory really is about no file, and a pair of empty brackets would announce
   // something that is not there.
   render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  fireEvent.click(screen.getByRole("button", { name: /2 steps/ }));
   expect(screen.getByText("⏺ list_files").className).toBe("tool-call__head");
 });
 
-test("how the call went is drawn under it", () => {
+test("how the call went sits on the same card, not under it", () => {
+  // The mark used to say "the result of the thing above". The card says it now: everything inside
+  // one card belongs to one call.
   const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  fireEvent.click(screen.getByRole("button", { name: /2 steps/ }));
   const said = [...container.querySelectorAll(".tool-call__outcome")].map(
     (line) => line.textContent,
   );
-  expect(said).toEqual(["⎿ No files", "⎿ 45 lines"]);
+  expect(said).toEqual(["No files", "45 lines"]);
 });
 
-test("a call with nothing to say draws no second line", () => {
-  // What a chat recorded before Madde 78 looks like. An empty indent would claim a result that was
+test("a call with nothing to say leaves that side of the card empty", () => {
+  // What a chat recorded before Madde 78 looks like. A blank half would claim a result that was
   // never written down.
   const older = {
     ...CHAT,
     messages: [CHAT.messages[0], { ...CHAT.messages[1], calls: [{ tool: "list_files" }] }],
   };
   const { container } = render(<ChatScreen project={PROJECT} chat={older} />);
+  fireEvent.click(screen.getByRole("button", { name: /1 step/ }));
   expect(screen.getByText("⏺ list_files")).toBeTruthy();
   expect(container.querySelector(".tool-call__outcome")).toBeNull();
 });
 
-test("a call still streaming is drawn the same way", () => {
-  render(
-    <ChatScreen
-      project={PROJECT}
-      chat={CHAT}
-      thinking
-      streamingCalls={[{ tool: "read_file", target: "aylin.json", outcome: "45 lines" }]}
-    />,
+// --- what the handle says while the answer runs (Madde 84) ---------------------------------------
+
+const RUNNING = [
+  { tool: "list_files", target: "", outcome: "No files" },
+  { tool: "read_file", target: "aylin.json" },
+];
+
+test("while the answer runs the closed card says what it is doing now", () => {
+  // The one thing a reader wants while they wait: not how many steps there have been, but which one
+  // is happening. A call still in flight has no outcome yet, and that is the live half.
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking streamingCalls={RUNNING} />);
+  expect(screen.getByRole("button", { name: /read_file\(aylin\.json\)/ })).toBeTruthy();
+  expect(screen.queryByText(/2 steps/)).toBeNull();
+});
+
+test("opening a running turn switches the handle to the count", () => {
+  // Open, the last call is on a card of its own right below -- so the handle stops repeating it and
+  // says what it is a door to.
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} thinking streamingCalls={RUNNING} />,
   );
-  expect(screen.getByText("⏺ read_file(aylin.json)")).toBeTruthy();
-  expect(screen.getByText("⎿ 45 lines")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /read_file\(aylin\.json\)/ }));
+  expect(screen.getByRole("button", { name: /2 steps/ })).toBeTruthy();
+  expect(container.querySelectorAll(".tool-call")).toHaveLength(2);
+});
+
+test("a call card is a record rather than a door", () => {
+  // The handle is pressable because it opens something. A step that already happened opens nothing,
+  // so it is not a button -- Madde 78's rule, kept while the drawing changes around it.
+  const { container } = render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  fireEvent.click(screen.getByRole("button", { name: /2 steps/ }));
+  expect(container.querySelector(".tool-call").tagName).toBe("DIV");
+});
+
+test("the handle says whether it is open", () => {
+  render(<ChatScreen project={PROJECT} chat={ANSWERED} />);
+  const handle = screen.getByRole("button", { name: /2 steps/ });
+  expect(handle.getAttribute("aria-expanded")).toBe("false");
+  fireEvent.click(handle);
+  expect(handle.getAttribute("aria-expanded")).toBe("true");
+});
+
+test("one call is one step rather than one steps", () => {
+  // An interface that writes "1 steps" looks like it never read the number.
+  const once = {
+    ...CHAT,
+    messages: [CHAT.messages[0], { ...CHAT.messages[1], calls: [{ tool: "list_files" }] }],
+  };
+  render(<ChatScreen project={PROJECT} chat={once} />);
+  expect(screen.getByText("⏺ 1 step")).toBeTruthy();
 });
 
 test("an answer that called nothing draws no list at all", () => {

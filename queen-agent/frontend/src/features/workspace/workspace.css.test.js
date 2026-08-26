@@ -89,6 +89,21 @@ test("the stamp reads as a note in the same voice as the line above it", () => {
   expect(stamp).not.toContain("text-transform");
 });
 
+test("a call is drawn on the card the repo already has", () => {
+  // Not a second card language: the file card settled what a card looks like here, and a call
+  // borrows its skeleton rather than inventing one beside it.
+  const card = rule(".tool-call");
+  expect(card).toContain("border-radius: 12px");
+  expect(card).toContain("border: 1px solid var(--line)");
+  expect(card).toContain("max-width: 340px");
+});
+
+test("only the handle offers to be pressed", () => {
+  // A card you can press does something; a card you cannot is a record. Madde 78's rule, kept.
+  expect(rule(".tool-call")).not.toContain("cursor");
+  expect(rule(".tool-calls__handle")).toContain("cursor: pointer");
+});
+
 test("the two lines the stamp replaces are gone", () => {
   // Madde 83 folded a label above the message and a count below it into one line under it. Either
   // name left behind would style something nothing draws any more.
