@@ -74,8 +74,11 @@ gönderilmedi ve gönderilmeyecek — yerine geçen şey kullanıcının kendi c
   bir sorunu optimize etmeyi yasaklıyor. **68 → 76 → 71**. Bağ önce 68'e yazılmıştı; 68 boruyu
   döşedi ama sayı gelmedi, yani ölçü hâlâ kurulmadı. Şartı bugün 76 taşıyor, ve bu Blok 3'ün neden
   Blok 2'den önce koştuğunun tek cümlelik sebebi.
-- **Bağlam, modelden önce.** Grok Build'in penceresi 256k, bugünkü bağlam 300-500k. Bağlam işi
-  bitmeden model değiştirilirse sohbetler pencereye sığmaz. **71 → 72**.
+- **~~Bağlam, modelden önce.~~** Grok Build'in penceresi 256k, bugünkü bağlam 300-500k. Bağlam işi
+  bitmeden model değiştirilirse sohbetler pencereye sığmaz. **71 → 72** — **kullanıcı kararıyla
+  kaldırıldı (26 Ağustos)**. Endişe söylendi, sayılarıyla: varsayılan Grok 4.3'ün penceresi 1M, Grok
+  Build'inki 256k, yani dörtte bir. Kullanıcı yine de istedi. Bağ yanlış değil; kaldıran şey
+  kullanıcının kararı, ve 71 geldiğinde çözeceği sorun aynı sorun.
 - **Taban yönerge, skillerden önce.** Skillerin üstündeki fazlalık ancak taban onu söylemeye
   başladıktan sonra bırakılabilir. **73 → 74**.
 - **Prompt dili, skiller toplanmadan önce.** Promptun neye benzeyeceğini söyleyen metin skillerin
@@ -273,6 +276,10 @@ Bu yedi madde kullanıcıyla birlikte koşulur *(kullanıcı kararı, 25 Ağusto
 kendi sırasıdır; Grok Build araya giriyor çünkü şartı bir önceki madde, 69 ise Blok 1'den buraya
 geçti.
 
+**72 sıradan çıkıp öne alındı** *(kullanıcı kararı, 26 Ağustos)* — Blok 4'ün arasında koşuldu.
+Numarası ve bloğu yerinde: blok kimin koştuğunu söylüyor, ve 72 de kullanıcıyla açıldı. Kalan altı
+madde sırasını koruyor.
+
 ### Madde 69 — Doküman güncellenir, yeniden yaratılmaz
 
 - **Ne çalışır:** model var olan bir dosyayı düzeltmesi gerektiğinde yenisini yazıyor; yaratma işlemi
@@ -316,14 +323,17 @@ geçti.
 
 ### Madde 72 — Grok Build varsayılan ve tek model
 
-- **Ne çalışır:** sohbetler bugün başka bir modelle açılıyor ve menüde altı model duruyor. Grok Build
-  hem varsayılan hem tek model olur; tek model kalınca model seçicinin de bir işi kalmaz.
-- **Nasıl görülür:** yeni bir sohbet Grok Build ile açılıyor; ekranda seçilecek bir model kalmıyor.
-- **Şartı:** 71. Grok Build'in penceresi 256k, bugünkü bağlam 300-500k — bağlam işi bitmeden bu madde
-  açılırsa sohbetler pencereye sığmaz. Kullanıcının listesinde bu madde yoktu; buraya bu şart
-  yüzünden girdi, çünkü şartı sona giden bir maddedir.
-- **Spec'te karara bağlanacak:** model seçicinin tamamen kalkması mı yoksa görünmez olması mı; ve
-  bugünkü sohbetlerin kayıtlarında duran model adlarına ne olacağı.
+- **Ne çalışır:** sohbetler bugün Grok 4.3 ile açılıyor ve menüde altı model duruyor. Grok Build hem
+  varsayılan hem menüdeki tek satır olur.
+- **Nasıl görülür:** yeni bir sohbet Grok Build ile açılıyor; menü açıldığında tek satır var.
+- **Sırası öne alındı** *(kullanıcı kararı, 26 Ağustos)*. Şartı 71'di ve o şart hâlâ doğru — pencere
+  1M'den 256k'ya iniyor, yani uzun bir iş sığmayabilir. Endişe sayılarıyla söylendi, kullanıcı yine
+  de istedi, ve karar kullanıcınındır. Sığmayan iş çıkarsa hata verecek ve 76'nın sayısı sebebini
+  gösterecek.
+- **Kapsamı kullanıcı daralttı** *(26 Ağustos: "başka bir şey istemiyorum")*. İki dosya değişiyor:
+  varsayılan ve menü listesi. **Model seçici kalkmıyor** — tek satırla duruyor. **Eski sohbetlerin
+  kayıtlarındaki model adları temizlenmiyor** — o sohbetler kendi modelleriyle cevaplamaya devam
+  ediyor ve düğmelerinde ham id görünüyor. İkisi de bilinen ve kabul edilen sonuç.
 
 ### Madde 73 — Agentic davranış taban yönergeye iner
 
@@ -378,7 +388,7 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | Üstüne yazma kuralı nerede istisna tutacak | 69 |
 | Bugünkü yapı dosyalarındaki sayı etiketleri temizlenecek mi | 70 |
 | Bağlamın hangi yolla yönetileceği | 71 — **76**'nın ölçüsüne bakarak |
-| Model seçici kalkacak mı, eski kayıtlardaki model adlarına ne olacak | 72 |
+| ~~Model seçici kalkacak mı, eski kayıtlardaki model adlarına ne olacak~~ | 72 — kapandı: ikisi de olduğu gibi kalıyor |
 | Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
 | Hangi skiller düşecek | 74 |
 

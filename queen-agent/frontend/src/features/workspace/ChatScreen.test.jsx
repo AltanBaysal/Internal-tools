@@ -541,15 +541,17 @@ test("the rail is drawn at the width the app is holding, and reports a drag back
 });
 
 test("the composer says which model this chat answers with", () => {
-  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.3" }} />);
-  expect(screen.getByRole("button", { name: /Grok 4.3/ })).toBeTruthy();
+  render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-build-0.1" }} />);
+  expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy();
 });
 
 test("the foot carries Skills, the model and Send, in that order", () => {
   // karar 1's order, complete at last.
-  const { container } = render(<ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.6" }} />);
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-build-0.1" }} />,
+  );
   const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "↑"]);
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok Build⌄", "↑"]);
   // Madde 80 took the word off the button; the name it answers to is asked for separately now.
   expect(buttons[2].getAttribute("aria-label")).toBe("Send");
 });
@@ -558,10 +560,15 @@ test("while an answer runs the row ends in Stop, and there is no fourth button",
   // Madde 79, in one sentence. Madde 67 put Stop beside Send; the two are one control now, because
   // an answer that is running is exactly when there is nothing to send.
   const { container } = render(
-    <ChatScreen project={PROJECT} chat={{ ...CHAT, model: "grok-4.6" }} thinking onStop={vi.fn()} />,
+    <ChatScreen
+      project={PROJECT}
+      chat={{ ...CHAT, model: "grok-build-0.1" }}
+      thinking
+      onStop={vi.fn()}
+    />,
   );
   const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok 4.6⌄", "⏹"]);
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills⌄", "Grok Build⌄", "⏹"]);
   expect(buttons[2].getAttribute("aria-label")).toBe("Stop");
 });
 
@@ -590,7 +597,7 @@ test("picking another one is passed up rather than kept here", () => {
   render(
     <ChatScreen
       project={PROJECT}
-      chat={{ ...CHAT, model: "grok-4.6" }}
+      chat={{ ...CHAT, model: "grok-4.3" }}
       picker="model"
       onModelChange={onModelChange}
     />,
