@@ -115,7 +115,7 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
                 # reason the filled card waits. Behind the card rather than in front of it, so the
                 # filled card stays next to the dashed one it replaces. A repeat is kept: reading
                 # one file twice is two steps, and folding one away would misreport the turn.
-                step = ToolCall(tool, result.target)
+                step = ToolCall(tool, result.target, result.outcome)
                 made.append(step)
                 yield step
                 conversation.append(

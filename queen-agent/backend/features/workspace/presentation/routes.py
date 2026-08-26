@@ -230,7 +230,10 @@ def _sse(pieces, default_model):
             elif isinstance(piece, FileWritten):
                 yield _frame("file", {"name": piece.name})
             elif isinstance(piece, ToolCall):
-                yield _frame("call", {"tool": piece.tool, "target": piece.target})
+                yield _frame(
+                    "call",
+                    {"tool": piece.tool, "target": piece.target, "outcome": piece.outcome},
+                )
             else:
                 yield _frame("done", _chat_json(piece, default_model))
     except EngineFailed as failure:
@@ -295,7 +298,10 @@ def _chat_json(chat, default_model):
                 "skill": message.skill,
                 # Always present, unlike on disk: the browser draws from what it is handed, and an
                 # absent field would make every reader check for it.
-                "calls": [{"tool": call.tool, "target": call.target} for call in message.calls],
+                "calls": [
+                    {"tool": call.tool, "target": call.target, "outcome": call.outcome}
+                    for call in message.calls
+                ],
                 "stopped": message.stopped,
                 # The breakdown travels even though the screen draws one number out of it: what the
                 # cache actually saved is the question the context work will be answering.

@@ -22,18 +22,27 @@ function extensionOf(name) {
 
 // What the turn did before it spoke. Above the answer, because that is the order it happened in.
 //
+// Two layers: what was called, and how it went. The brackets carry the file rather than a separator
+// element -- a call about no file in particular really has none, and a mark standing where a name
+// would have been announces something that is not there. Written as one string per line so the
+// text reads as a whole rather than as neighbouring fragments.
+//
 // No accent: the accent marks the primary action, and a step that has already happened is a record
-// rather than something to press. The separator before a target is drawn in CSS rather than as an
-// element -- a bullet standing where a missing name would have been announces something that is not
-// there, and listing a directory genuinely has no file.
+// rather than something to press.
 function ToolCalls({ calls }) {
   if (!calls?.length) return null;
   return (
     <div className="tool-calls">
       {calls.map((call, index) => (
         <div className="tool-call" key={`${call.tool}-${call.target}-${index}`}>
-          <span className="tool-call__name">{call.tool}</span>
-          {call.target ? <span className="tool-call__target">{call.target}</span> : null}
+          <span className="tool-call__head">
+            {`⏺ ${call.tool}${call.target ? `(${call.target})` : ""}`}
+          </span>
+          {/* Absent on anything recorded before outcomes existed, and an empty indent there would
+              claim a result nobody wrote down. */}
+          {call.outcome ? (
+            <span className="tool-call__outcome">{`⎿ ${call.outcome}`}</span>
+          ) : null}
         </div>
       ))}
     </div>

@@ -131,6 +131,11 @@ TOOL_SPECS = [
 ]
 
 
+def counted(many, word):
+    """"1 line", "45 lines". One of a thing is one of it, not one of them."""
+    return f"{many} {word}" if many == 1 else f"{many} {word}s"
+
+
 def safe_name(raw):
     """A name from the model never reaches the disk as it is."""
     # Only the last segment survives: the model cannot open a folder, because the design has no
@@ -147,26 +152,36 @@ def run_tool(file_store, project_id, name, arguments):
     try:
         args = json.loads(arguments or "{}")
     except json.JSONDecodeError:
-        return ToolResult("Those arguments were not valid JSON.", None)
+        return ToolResult("Those arguments were not valid JSON.", None, "", "Bad arguments")
 
     if name == "list_files":
         names = file_store.list_names(project_id)
-        return ToolResult("\n".join(names) if names else "This project has no files yet.", None)
+        # Counting to zero does not say "there are none": the two are different sentences and the
+        # reader wants the second one.
+        return ToolResult(
+            "\n".join(names) if names else "This project has no files yet.",
+            None,
+            "",
+            counted(len(names), "file") if names else "No files",
+        )
 
     if name == "read_file":
         wanted = safe_name(args.get("name"))
         content = file_store.read(project_id, wanted)
         # The target stands whether or not the file was there: asking for a file that does not
         # exist is still a step the turn took.
-        return ToolResult(
-            content if content is not None else "There is no file by that name.", None, wanted
-        )
+        if content is None:
+            return ToolResult("There is no file by that name.", None, wanted, "No file by that name")
+        # How much was read is nowhere on disk, so it cannot go stale -- it is a note about this
+        # moment rather than a copy of something that lives elsewhere.
+        return ToolResult(content, None, wanted, counted(len(content.splitlines()), "line"))
 
     if name == "create_file":
         wanted = unique_name(file_store.list_names(project_id), safe_name(args.get("name")))
         written = file_store.write(project_id, wanted, args.get("content", ""))
-        # The name it got, not the one it asked for -- the record says what happened.
-        return ToolResult(f"Saved as {written}.", written, written)
+        # The name it got, not the one it asked for -- the record says what happened. Not repeated
+        # in the outcome: the line above already carries it.
+        return ToolResult(f"Saved as {written}.", written, written, "Saved")
 
     if name == "edit_file":
         return _edit(file_store, project_id, args)
@@ -174,7 +189,7 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "build_prompts":
         return _build(file_store, project_id, args)
 
-    return ToolResult(f"There is no tool called {name}.", None)
+    return ToolResult(f"There is no tool called {name}.", None, "", "Unknown tool")
 
 
 def _edit(file_store, project_id, args):
@@ -182,26 +197,29 @@ def _edit(file_store, project_id, args):
     wanted = safe_name(args.get("name"))
     content = file_store.read(project_id, wanted)
     if content is None:
-        return ToolResult("There is no file by that name.", None, wanted)
+        return ToolResult("There is no file by that name.", None, wanted, "No file by that name")
 
     old = args.get("old") or ""
     if not old:
-        return ToolResult("An edit needs the text to replace.", None, wanted)
+        return ToolResult("An edit needs the text to replace.", None, wanted, "Nothing to replace")
 
     found = content.count(old)
     if found == 0:
         # No search for something close: a near miss edited silently is worse than a refusal.
-        return ToolResult(f"That text is not in {wanted}.", None, wanted)
+        return ToolResult(f"That text is not in {wanted}.", None, wanted, "Not found")
     if found > 1:
         return ToolResult(
             f"That text appears {found} times in {wanted}; include more of what surrounds it.",
             None,
             wanted,
+            # Reached only above one, so the plural is not a question here -- and "matchs" is what
+            # the counted() rule would have produced.
+            f"{found} matches",
         )
 
     file_store.write(project_id, wanted, content.replace(old, args.get("new") or "", 1))
     # No name handed back: the file was already there, and a card would call it new.
-    return ToolResult(f"Edited {wanted}.", None, wanted)
+    return ToolResult(f"Edited {wanted}.", None, wanted, "Edited")
 
 
 def _build(file_store, project_id, args):
@@ -211,7 +229,7 @@ def _build(file_store, project_id, args):
     # The source rather than the output, all the way through: the file card already names what was
     # written, and a line repeating it would carry nothing the card does not.
     if content is None:
-        return ToolResult("There is no file by that name.", None, source)
+        return ToolResult("There is no file by that name.", None, source, "No file by that name")
 
     target = prompts_name(source)
     if target == source:
@@ -219,20 +237,26 @@ def _build(file_store, project_id, args):
             f"{source} would be written over by its own output; a structure belongs in a .json file.",
             None,
             source,
+            "Refused",
         )
 
     try:
         structure = json.loads(content)
     except json.JSONDecodeError as broken:
         # The parser's own sentence. A guessed cause would send the model looking in the wrong place.
-        return ToolResult(f"{source} is not valid JSON: {broken}", None, source)
+        return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
 
     try:
         prompts = build_prompts(structure)
     except BadStructure as refused:
-        return ToolResult(str(refused), None, source)
+        return ToolResult(str(refused), None, source, "Refused")
 
     # Written over on purpose: this file is derived, and regenerating it after an edit is the whole
     # point. Numbering it would leave a pile with no way to tell which one is now.
     written = file_store.write(project_id, target, render_module(prompts))
-    return ToolResult(f"Wrote {len(prompts)} prompts to {written}.", written, source)
+    return ToolResult(
+        f"Wrote {len(prompts)} prompts to {written}.",
+        written,
+        source,
+        counted(len(prompts), "prompt"),
+    )

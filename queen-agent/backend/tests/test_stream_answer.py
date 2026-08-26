@@ -407,7 +407,7 @@ def _lines(produced):
 def test_each_call_leaves_a_line_as_it_happens(tmp_path):
     rounds = [[{"tool_calls": [call("list_files")]}], [{"text": "Nothing yet."}]]
     _, _, _, produced = _run(tmp_path, rounds)
-    assert _lines(produced) == [ToolCall("list_files", "")]
+    assert _lines(produced) == [ToolCall("list_files", "", "No files")]
 
 
 def test_the_line_says_which_file_was_touched(tmp_path):
@@ -418,8 +418,8 @@ def test_the_line_says_which_file_was_touched(tmp_path):
     ]
     _, _, _, produced = _run(tmp_path, rounds)
     assert _lines(produced) == [
-        ToolCall("create_file", "plan.md"),
-        ToolCall("read_file", "plan.md"),
+        ToolCall("create_file", "plan.md", "Saved"),
+        ToolCall("read_file", "plan.md", "1 line"),
     ]
 
 
@@ -428,7 +428,7 @@ def test_the_answer_remembers_the_calls_it_made(tmp_path):
     # as blind tomorrow as it is today.
     rounds = [[{"tool_calls": [call("list_files")]}], [{"text": "done"}]]
     chats, _, _, _ = _run(tmp_path, rounds)
-    assert chats.get("p1", "c1").messages[-1].calls == (ToolCall("list_files", ""),)
+    assert chats.get("p1", "c1").messages[-1].calls == (ToolCall("list_files", "", "No files"),)
 
 
 def test_an_answer_that_called_nothing_remembers_none(tmp_path):
@@ -455,7 +455,7 @@ def test_reading_the_same_file_twice_is_two_lines(tmp_path):
     ]
     chats, _, _, _ = _run(tmp_path, rounds)
     kept = chats.get("p1", "c1").messages[-1].calls
-    assert kept.count(ToolCall("read_file", "plan.md")) == 2
+    assert kept.count(ToolCall("read_file", "plan.md", "1 line")) == 2
 
 
 # --- stopping an answer that is already running (Madde 67) ---------------------------------------

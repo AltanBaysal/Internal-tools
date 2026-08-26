@@ -88,10 +88,13 @@ def _message_json(message):
 
 
 def _call_json(call):
-    # The same rule one level down: a call about no file in particular writes no target.
+    # The same rule one level down: a call about no file in particular writes no target, and one
+    # recorded before outcomes existed writes no outcome.
     stored = {"tool": call.tool}
     if call.target:
         stored["target"] = call.target
+    if call.outcome:
+        stored["outcome"] = call.outcome
     return stored
 
 
@@ -120,7 +123,7 @@ def _as_chat(chat_id, raw):
                 files=tuple(message.get("files", ())),
                 skill=message.get("skill", ""),
                 calls=tuple(
-                    ToolCall(call["tool"], call.get("target", ""))
+                    ToolCall(call["tool"], call.get("target", ""), call.get("outcome", ""))
                     for call in message.get("calls", ())
                 ),
                 stopped=message.get("stopped", False),

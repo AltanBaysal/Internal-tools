@@ -684,7 +684,9 @@ test("a call arrives in the stream and is still there once the record lands", as
 
   render(<App />);
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
-  expect(screen.getAllByText("read_file")).toHaveLength(1);
+  // Since Madde 78 the line is one string, brackets included. The claim is unchanged: one step,
+  // drawn once, however many places reported it.
+  expect(screen.getAllByText("⏺ read_file(plan.md)")).toHaveLength(1);
 });
 
 test("a chat that is owed an answer streams one and keeps the server's record", async () => {

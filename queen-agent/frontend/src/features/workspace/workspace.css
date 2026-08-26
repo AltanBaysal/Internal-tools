@@ -1056,10 +1056,16 @@
 
 .tool-call {
   display: flex;
-  align-items: baseline;
+  flex-direction: column;
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
+}
+
+/* Indented under the call it belongs to, so the pair reads as one step rather than as two lines
+   that happen to be adjacent. */
+.tool-call__outcome {
+  padding-left: 14px;
 }
 
 /* What the turn cost. Same family as the steps above the answer and the label above that: all three
@@ -1070,13 +1076,6 @@
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
-}
-
-/* The separator is drawn here rather than in the markup: as an element it would stand in for a name
-   that is not there, and listing a directory really is a call about no file in particular. */
-.tool-call__target::before {
-  content: "·";
-  margin: 0 6px;
 }
 
 .creating {

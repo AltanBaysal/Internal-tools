@@ -144,7 +144,9 @@ test("a call seen while the answer is still running is drawn as it arrives", () 
     />,
   );
   expect(container.querySelector(".tool-call")).toBeTruthy();
-  expect(screen.getByText("plan.md")).toBeTruthy();
+  // One string rather than neighbouring fragments since Madde 78: the brackets are part of the
+  // line's text, not an element beside it.
+  expect(screen.getByText("⏺ read_file(plan.md)")).toBeTruthy();
 });
 
 test("the rail's rows can be deleted from the chat", () => {
