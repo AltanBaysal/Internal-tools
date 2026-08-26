@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **11 madde, 2 blok** — 65'ten 75'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **15 madde, 3 blok** — 65'ten 79'a.
 
 ---
 
@@ -22,15 +22,21 @@ yazılmaması, karakterin her karede aynı okunması, işin parçalara bölünme
 Koşu bu ikisini sırayla kapatıyor: önce ekran ne olduğunu söylesin ve ölçü gelsin; sonra o ölçüye
 bakarak bağlam, model ve yönerge birlikte elden geçsin.
 
-## İki blok
+## Üç blok
 
-Koşu ikiye ayrılıyor, ve ayrım **kimin koştuğu**:
+Koşu üçe ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
 
-- **Blok 1 (65-68) tek başına koşulur.** Dört madde; her biri kapalı uçlu, kararı verilmiş,
-  bir öncekine yaslanıyor. Kullanıcı bunları koşunun sonunda topluca dener.
+- **Blok 1 (65-68) tek başına koşuldu — bitti.** Dört madde; her biri kapalı uçlu, kararı verilmiş,
+  bir öncekine yaslanıyor. Kullanıcı dördünü koşunun sonunda topluca denedi, ve o deneme Blok 3'ü
+  doğurdu.
+- **Blok 3 (76-79) tek başına koşulur.** Denemenin çıkardığı dört madde: bir hata ve üç ekran işi.
+  Blok 2'den önce, çünkü biri Blok 2'nin şartı ve üçü bugün yanlış duran şeyler.
 - **Blok 2 (69-75) kullanıcıyla beraber, adım adım koşulur** *(kullanıcı kararı, 25 Ağustos)*.
   Yedisinin de ya çıktının doğruluğuna ya modelin davranışına dokunduğu için karar aralarında
   veriliyor, sonunda değil.
+
+**Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci koşuyor; numarasını
+kaydırmak, ona atıf yapan her cümleyi yalan yapardı — maddelerin numaralarında olduğu gibi.
 
 **69 Blok 1'den Blok 2'ye geçti** *(kullanıcı kararı, 26 Ağustos)*. Numarası yerinde kaldı, yeri
 değişti — yazılı spec'ler numarayı anıyor. Sebep maddenin kendi açık sorusu: üstüne yazmama kuralı
@@ -51,13 +57,18 @@ Bedeli önden biliniyor ve kabul edildi: renkler ve ölçüler var olan görsel 
 kararı veren tasarım değil, kod. Tasarım döndüğünde farklar çıkarsa ilgili maddenin üstüne ikinci
 bir tur gelir. Bu, o turun sürpriz olmadığının kaydıdır.
 
+**O tur geldi, ve tasarım claude.ai/design'dan değil kullanıcıdan döndü** *(26 Ağustos)*. 66 ile
+67'nin ekrandaki hâli beğenilmedi; ikisi de Blok 3'te yeniden çiziliyor. Beş tasarım promptu
+gönderilmedi ve gönderilmeyecek — yerine geçen şey kullanıcının kendi cümleleri.
+
 ### Sırayı zorlayan bağlar
 
 - **Görmek, durdurmaktan önce.** Neyin sürdüğü ekranda yokken durdurma düğmesi neyi kestiğini
   söyleyemez. **66 → 67**.
 - **Ölçü, optimizasyondan önce.** [FOUNDATION](../../../queen-agent/FOUNDATION.md) 3. ilke ölçülmemiş
-  bir sorunu optimize etmeyi yasaklıyor. **68 → 71**, ve bu tek başına ölçüm maddesinin neden Blok
-  1'de kaldığını açıklıyor: Blok 2 ona yaslanıyor.
+  bir sorunu optimize etmeyi yasaklıyor. **68 → 76 → 71**. Bağ önce 68'e yazılmıştı; 68 boruyu
+  döşedi ama sayı gelmedi, yani ölçü hâlâ kurulmadı. Şartı bugün 76 taşıyor, ve bu Blok 3'ün neden
+  Blok 2'den önce koştuğunun tek cümlelik sebebi.
 - **Bağlam, modelden önce.** Grok Build'in penceresi 256k, bugünkü bağlam 300-500k. Bağlam işi
   bitmeden model değiştirilirse sohbetler pencereye sığmaz. **71 → 72**.
 - **Taban yönerge, skillerden önce.** Skillerin üstündeki fazlalık ancak taban onu söylemeye
@@ -87,9 +98,15 @@ bir tur gelir. Bu, o turun sürpriz olmadığının kaydıdır.
 şartı. Görünmek isteyen yarısı, "tool call'lar görünsün" maddesiyle aynı işe baktığı için 66'da
 birleşiyor.
 
+**Blok 3'ün dördü bu tablonun dışında.** Backlog'dan gelmediler — Blok 1 denendiğinde çıktılar.
+Backlog da değişmiyor: orada duran maddeler hâlâ duruyor, bunlar onların üstüne gelen düzeltmeler.
+
 ---
 
-# Blok 1 — Tek başına
+# Blok 1 — Tek başına · **bitti**
+
+Dördü de koşuldu ve yeşil. Deneme dönüşünde üçünün üstüne bir düzeltme geldi — her birinin altında
+yazılı, ve düzeltmelerin kendisi Blok 3'te.
 
 ### Madde 65 — Uygulama taslak sohbet ekranına açılır
 
@@ -100,6 +117,8 @@ birleşiyor.
 - **Nasıl görülür:** uygulama açılıyor ve hiçbir şey yazmadan skill seçilebiliyor; proje ekranına
   sidebar'dan girilmeye devam ediliyor.
 - **Yok:** yeni bir ekran — o ekran zaten var, değişen yalnız açılış adresi.
+- **Denemede geri alındı** *(26 Ağustos)*: doğru teşhis, yanlış çözüm. Sorun seçicilerin proje
+  ekranında olmaması; açılışı kaçırmak onu çözmüyor, sadece bir ekranı saklıyor. **77'ye devrediyor.**
 
 ### Madde 66 — Tool call'lar sohbette görünür
 
@@ -111,6 +130,8 @@ birleşiyor.
 - **Spec'te karara bağlanacak:** çağrıların sohbet kaydına yazılıp yazılmayacağı — yazılırsa kaydın
   biçimi değişir ve eski sohbetlerin bunu taşımadığı hesaba katılmalı. Bir de çağrının ne kadarının
   gösterileceği: adı mı, aldığı değerler de mi.
+- **Denemede:** davranış doğru, görünüm beğenilmedi *(26 Ağustos)*. Kayıt ve kalıcılık duruyor;
+  değişen yalnız satırın çizimi. **78'e devrediyor.**
 
 ### Madde 67 — Çalışan cevap durdurulur
 
@@ -122,6 +143,8 @@ birleşiyor.
 - **Spec'te karara bağlanacak:** durdurulan cevabın yarısına ne olacağı. Bugünkü kural "cevap ya
   vardır ya yoktur" — yarım metin diske yazılmıyor. Durdurmak bu kuralı doğrudan sorguya çekiyor:
   kullanıcının okuduğu yarım cevap kaybolacak mı, yoksa durdurma onu kalıcı mı kılacak.
+- **Denemede:** durdurma çalışıyor, ayrı bir düğme olması beğenilmedi *(26 Ağustos)*. Gönder düğmesi
+  zaten o anda işlevsiz duruyor. **79'a devrediyor.**
 
 ### Madde 68 — Token tüketimi okunur
 
@@ -135,7 +158,66 @@ birleşiyor.
   sorunu optimize etmeyi yasaklıyor. Bu madde o ölçüyü kurar, yani beraber koşulacak bloğa elimizde
   bir sayıyla giriyoruz.
 - **Spec'te karara bağlanacak:** sayının nerede duracağı — her cevabın altında mı, sohbetin
-  toplamında mı, ikisinde de mi.
+  toplamında mı, ikisinde de mi. *Karar: her cevabın altında, tek sayı (26 Ağustos).*
+- **Denemede ekranda hiçbir sayı çıkmadı** *(26 Ağustos)*. Sebep bu belgede yazılı bir yanlışta:
+  "servis her cevapta söylüyor" cümlesi xAI'nin akış kılavuzundan alınmıştı, API referansı tersini
+  söylüyor — istekte `stream_options` gönderilmeden **her karenin `usage` alanı `null`**. Yani boru
+  döşendi ama ölçü kurulmadı; **76 kuruyor**, ve 71'in şartı oraya geçti.
+
+---
+
+# Blok 3 — Denemenin çıkardıkları · tek başına
+
+Blok 1 denendi ve dört şey çıktı: bir hata, bir yanlış çözüm, iki beğenilmemiş çizim. Dördü de
+kapalı uçlu — hata bir sebebe bağlandı, kalan üçünü kullanıcı kendi cümleleriyle tarif etti — o
+yüzden tek başına koşuluyor *(kullanıcı kararı, 26 Ağustos)*.
+
+**Blok 2'den önce**, çünkü 76 Blok 2'nin şartı ve kalan üçü bugün ekranda yanlış duruyor. Yanlış
+duran bir ekranın üstüne yeni iş koymak, ikisini birden düzeltmek zorunda bırakır.
+
+### Madde 76 — Token gerçekten görünür
+
+- **Ne çalışır:** 68 tüketimi okuyup saklayan yolu kurdu ama ekranda hiçbir sayı çıkmıyor. Sebep
+  istekte: xAI akan bir cevapta tüketimi ancak `stream_options` ile istenirse gönderiyor, yoksa her
+  karenin `usage` alanı `null` geliyor. İstenir hâle gelir ve sayı görünür.
+- **Nasıl görülür:** bir soru soruluyor ve cevabın altında sayı çıkıyor; aynı sohbette ikinci soruda
+  önbellekten gelen payın büyüdüğü kayıttan okunuyor.
+- **Beraberinde düzelen bir söz:** 68'in belgeleri "sayı her parçada geliyor" diyor ve buna
+  dayanarak "durdurulan cevap da harcadığını söyler" diyor. Sayı tek karede, en sonda geliyor —
+  durdurulan cevap ona ulaşmıyor. Söz koda uydurulur, tersi değil.
+- **Şartı olduğu madde:** 71. Bağlam işi bir optimizasyon, ve ölçü buradan geliyor.
+
+### Madde 77 — Seçiciler proje ekranına iner, açılış eskiye döner
+
+- **Ne çalışır:** 65 açılışı taslak sohbete kaçırmıştı, ama asıl sorun proje ekranının yazma
+  kutusunda skill ve model seçicinin olmaması. Açılış eski hâline döner ve seçiciler proje ekranına
+  gelir — böylece ilk cümle yazılırken de seçilebilirler.
+- **Nasıl görülür:** uygulama proje ekranına açılıyor, ve oradaki yazma kutusunda hiçbir şey
+  yazmadan skill seçilebiliyor.
+- **Neden geri alma:** 65'in teşhisi doğruydu, çözümü değil. Bir ekranı atlamak, o ekranın eksiğini
+  kapatmıyor — sadece görünmez kılıyor.
+
+### Madde 78 — Tool call satırı yeniden çizilir
+
+- **Ne çalışır:** çağrılar sohbette görünüyor ve kayıtta kalıyor, ama satırın çizimi beğenilmedi.
+  Claude Code'un biçimine geçer: çağrının başında bir işaret, aracın adı, parantez içinde konusu, ve
+  altında ne olduğunu söyleyen girintili bir satır.
+- **Nasıl görülür:** dosyaya dayanan bir soru soruluyor ve her adım okunur bir satır olarak
+  düşüyor; sayfa yenilendiğinde satırlar aynı biçimde duruyor.
+- **Değişmeyen:** ne kaydedildiği ve kalıcı olduğu. 66'nın davranışı doğru; bu madde yalnız çizime
+  dokunuyor.
+- **Spec'te karara bağlanacak:** alt satırın ne söyleyeceği — bugün kayıtta çağrının sonucu yok,
+  yalnız aracın adı ve konusu var. Sonucu göstermek kaydın biçimini değiştirir.
+
+### Madde 79 — Gönder düğmesi cevap akarken durdurmaya döner
+
+- **Ne çalışır:** durdurma bugün ayrı bir düğme ve gönder düğmesinin yanında duruyor. Oysa cevap
+  akarken gönderilecek bir şey yok; o düğme zaten işlevsiz. İkisi tek düğme olur — cevap akarken
+  durdurur, boştayken gönderir.
+- **Nasıl görülür:** cevap akarken yazma kutusunda tek bir düğme var ve durdurmayı söylüyor;
+  basıldığında cevap kesiliyor ve düğme gönderme hâline dönüyor.
+- **Değişmeyen:** durdurmanın kendisi. 67'nin arka ucu, yarım metni saklaması ve kendiliğinden
+  yeniden başlamaması aynen duruyor.
 
 ---
 
@@ -243,21 +325,27 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 
 | Soru | Nerede kapanır |
 |---|---|
-| Tool call'lar sohbet kaydına yazılacak mı, ne kadarı gösterilecek | 66 |
-| Durdurulan cevabın yarısı kaydedilecek mi | 67 |
-| Tüketim sayısı nerede duracak | 68 |
+| ~~Tool call'lar sohbet kaydına yazılacak mı, ne kadarı gösterilecek~~ | 66 — kapandı |
+| ~~Durdurulan cevabın yarısı kaydedilecek mi~~ | 67 — kapandı |
+| ~~Tüketim sayısı nerede duracak~~ | 68 — kapandı |
+| Tool call satırının alt satırı ne söyleyecek | 78 |
 | Üstüne yazma kuralı nerede istisna tutacak | 69 |
 | Bugünkü yapı dosyalarındaki sayı etiketleri temizlenecek mi | 70 |
-| Bağlamın hangi yolla yönetileceği | 71 — 68'in ölçüsüne bakarak |
+| Bağlamın hangi yolla yönetileceği | 71 — **76**'nın ölçüsüne bakarak |
 | Model seçici kalkacak mı, eski kayıtlardaki model adlarına ne olacak | 72 |
 | Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
 | Hangi skiller düşecek | 74 |
+
+76, 77 ve 79 bu tabloda yok: üçünün de kararı verilmiş, verilecek bir şey kalmadı.
 
 ## Kapsam dışı
 
 **Prompt listesinin tek ve tanımlı bir yeri olması** *(kullanıcı kararı, 25 Ağustos)* — listeden
 çıkarıldı, backlog'da kalıyor. Not: 69 üstüne yazma kuralını değiştirdiğinde bu maddenin bir kısmı
 kendiliğinden kapanabilir; kalanı backlog'da beklemeye devam eder.
+
+**Beş tasarım promptunun gönderilmesi** *(26 Ağustos)* — [belgesi](2026-08-25-queenagent-v5-tasarim-promptlari.md)
+duruyor ama gönderilmiyor. Tasarım kullanıcıdan döndü, ve 78 ile 79 onun cümlelerini uyguluyor.
 
 Ayrıca: Grok Build dışında model eklemek · sohbet arama · çok kullanıcı ve paylaşım · defterin
 kendisi (v4'te kapandı, bu koşuda değişmiyor) · Drive'ın yavaşlığı (ölçülmemiş, FOUNDATION 3).
@@ -267,8 +355,10 @@ kendisi (v4'te kapandı, bu koşuda değişmiyor) · Drive'ın yavaşlığı (ö
 Her madde, iki cümlelik bir işte bile, iki tam turdan geçer — önce yalnız testler yazılıp kırmızı
 commit'lenir, sonra kod yazılıp yeşile döndürülür. İkisinin de kendi spec'i ve kendi planı olur.
 
-**Blok 1 durmadan koşulur**, kullanıcı dördünü sonunda topluca dener. **Blok 2'de her madde
-kullanıcıyla açılır**: spec'in açık soruları o maddeye gelindiğinde konuşulur, sonra koşulur.
+**Blok 1 durmadan koşuldu**, kullanıcı dördünü sonunda topluca denedi — ve o deneme Blok 3'ü
+doğurdu, yani yöntem çalıştı. **Blok 3 de durmadan koşulur**, aynı şekilde sonunda denenir.
+**Blok 2'de her madde kullanıcıyla açılır**: spec'in açık soruları o maddeye gelindiğinde
+konuşulur, sonra koşulur.
 
 Ön yüze dokunan her madde `dist`i **kaynağıyla aynı commit'te** derleyip commit'ler; FOUNDATION'ın
 3. kararı ve `test_dist_is_committed.py` bunu zaten zorluyor. Yerel yol birincil: `python main.py`.
