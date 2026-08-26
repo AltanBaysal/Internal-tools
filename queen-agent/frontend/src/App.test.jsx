@@ -184,7 +184,7 @@ test("the skill picked on the project screen is what the chat is born with", asy
   // caption and nothing else reads exactly like a working one.
   const born = { id: "c9", title: "Write it", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/chats") && options?.method === "POST") {
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve({ ok: true, status: 201, json: async () => born });
     }
     // The chat the app moves to once it exists. Answering with a list here would hand the screen
@@ -212,7 +212,7 @@ test("the skill picked on the project screen is what the chat is born with", asy
 
   await waitFor(() => {
     const started = fetch.mock.calls.find(
-      ([path, options]) => String(path).endsWith("/chats") && options?.method === "POST",
+      ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
     );
     expect(started).toBeTruthy();
     expect(JSON.parse(started[1].body).skill).toBe("create-scenario");
@@ -488,7 +488,7 @@ test("New chat opens an empty chat in the project it was pressed in", async () =
 test("the first message in a draft creates the chat and takes its address", async () => {
   const chat = { id: "c1", title: "Write the intro", messages: [], lastActivity: "x" };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path === "/api/projects/p1/chats" && options?.method === "POST") {
+    if (path === "/api/projects/p1/messages" && options?.method === "POST") {
       return Promise.resolve({ ok: true, status: 201, json: async () => chat });
     }
     if (path.endsWith("/chats/c1")) {
@@ -1294,7 +1294,7 @@ function withChat() {
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => chat });
     }
-    if (path.endsWith("/chats") && options?.method === "POST") {
+    if (path.endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve({
         ok: true,
         status: 201,
@@ -1381,7 +1381,7 @@ test("a chat is born without a model", async () => {
 
   await waitFor(() => {
     const born = fetch.mock.calls.find(
-      ([path, options]) => options?.method === "POST" && String(path).endsWith("/chats"),
+      ([path, options]) => options?.method === "POST" && String(path).endsWith("/messages"),
     );
     expect(born).toBeTruthy();
     expect(JSON.parse(born[1].body)).not.toHaveProperty("model");
@@ -1497,7 +1497,7 @@ test("the skill picked in a draft survives landing in the chat it created", asyn
   // chat that was just born even though that chat's record says otherwise.
   const born = { id: "c1", title: "Write it", skill: "verify-prompts", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/chats") && options?.method === "POST") {
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve({ ok: true, status: 201, json: async () => born });
     }
     if (String(path).endsWith("/chats/c1")) {
@@ -1547,7 +1547,7 @@ test("a new chat is born with the last skill picked in this session", async () =
       fetch.mock.calls.some(
         ([path, options]) =>
           options?.method === "POST" &&
-          path.endsWith("/chats") &&
+          path.endsWith("/messages") &&
           JSON.parse(options.body).skill === "split-into-frames",
       ),
     ).toBe(true),

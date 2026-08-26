@@ -80,7 +80,7 @@ def _project(client):
 def _started(client, text="hello"):
     # Every chat is born inside a project now, so both ids come back together.
     pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/chats", json={"text": text}).get_json()["id"]
+    cid = client.post(f"/api/projects/{pid}/messages", json={"text": text}).get_json()["id"]
     return pid, cid
 
 
@@ -114,19 +114,22 @@ def test_the_one_door_appends_when_a_chat_is_named(tmp_path):
 
 def test_the_old_creating_door_is_gone(tmp_path):
     # That address is a list of chats and answers GET, so Flask's answer is not 404 -- it is that
-    # this address does not know this method.
+    # this address does not know this method. The rule table is what says the door went; a status
+    # code alone cannot, because the SPA fallback answers GET for every path there is.
     client = _client(tmp_path)
     pid = _project(client)
     assert client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).status_code == 405
 
 
 def test_the_old_appending_door_is_gone(tmp_path):
-    # Nothing is registered at that address any more, so this one really is a 404.
+    # 405 rather than 404, and for the same reason the creating door gives one: the SPA fallback
+    # claims every path for GET, so an address with no rule of its own still exists -- it just does
+    # not know POST.
     client = _client(tmp_path)
     pid = _project(client)
     cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
     sent = client.post(f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "more"})
-    assert sent.status_code == 404
+    assert sent.status_code == 405
 
 
 def test_a_chat_that_is_not_there_is_404_and_nothing_is_created(tmp_path):
@@ -173,7 +176,7 @@ def test_the_start_chat_use_case_is_gone():
 def test_a_chat_can_be_deleted_and_stops_being_listed(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).get_json()["id"]
+    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
     assert client.delete(f"/api/projects/{pid}/chats/{cid}").status_code == 200
     assert client.get(f"/api/projects/{pid}/chats").get_json() == []
     assert client.get(f"/api/projects/{pid}/chats/{cid}").status_code == 404
@@ -182,7 +185,7 @@ def test_a_chat_can_be_deleted_and_stops_being_listed(tmp_path):
 def test_deleting_a_chat_leaves_the_project_its_files(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hi"}).get_json()["id"]
+    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
     FileFileStore(Store(str(tmp_path))).write(pid, "plan.md", "body")
     client.delete(f"/api/projects/{pid}/chats/{cid}")
     # A file belongs to the project; the chat that produced it going away changes nothing.
@@ -198,8 +201,8 @@ def test_deleting_a_chat_that_is_not_there_is_a_404(tmp_path):
 def test_the_list_comes_newest_first_and_carries_no_messages(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)
-    client.post(f"/api/projects/{pid}/chats", json={"text": "first"})
-    client.post(f"/api/projects/{pid}/chats", json={"text": "second"})
+    client.post(f"/api/projects/{pid}/messages", json={"text": "first"})
+    client.post(f"/api/projects/{pid}/messages", json={"text": "second"})
     listed = client.get(f"/api/projects/{pid}/chats").get_json()
     assert [row["title"] for row in listed] == ["second", "first"]
     # The list screen does not draw messages, so sending them would be for nothing.
@@ -209,7 +212,7 @@ def test_the_list_comes_newest_first_and_carries_no_messages(tmp_path):
 def test_one_chat_carries_its_messages(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/chats", json={"text": "hello"}).get_json()["id"]
+    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_json()["id"]
     body = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()
     assert [m["text"] for m in body["messages"]] == ["hello"]
 
@@ -247,37 +250,12 @@ def test_opening_a_project_and_a_chat_together_is_gone():
         import backend.features.workspace.domain.usecases.start_chat_in_new_project  # noqa: F401
 
 
-def test_a_message_is_appended_to_an_existing_chat(tmp_path):
-    client = _client(tmp_path)
-    pid, cid = _started(client, "first")
-    body = client.post(f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "second"}).get_json()
-    assert [m["text"] for m in body["messages"]] == ["first", "second"]
-
-
-def test_appending_to_an_unknown_chat_is_404(tmp_path):
-    client = _client(tmp_path)
-    pid = _project(client)
-    assert (
-        client.post(f"/api/projects/{pid}/chats/nope/messages", json={"text": "hi"}).status_code
-        == 404
-    )
-
-
-def test_appending_nothing_is_400(tmp_path):
-    client = _client(tmp_path)
-    pid, cid = _started(client, "first")
-    assert (
-        client.post(f"/api/projects/{pid}/chats/{cid}/messages", json={"text": " "}).status_code
-        == 400
-    )
-
-
 def test_a_projects_chats_come_back_newest_first(tmp_path):
     # The sidebar and the project screen read this one list; there is no wider one to read.
     client = _client(tmp_path)
     pid = _project(client)
-    client.post(f"/api/projects/{pid}/chats", json={"text": "older"})
-    client.post(f"/api/projects/{pid}/chats", json={"text": "newer"})
+    client.post(f"/api/projects/{pid}/messages", json={"text": "older"})
+    client.post(f"/api/projects/{pid}/messages", json={"text": "newer"})
     listed = client.get(f"/api/projects/{pid}/chats").get_json()
     assert [row["title"] for row in listed] == ["newer", "older"]
 
@@ -434,7 +412,7 @@ def test_answering_an_unknown_chat_is_404(tmp_path):
 def test_a_new_chat_shows_up_in_the_project_count(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)
-    client.post(f"/api/projects/{pid}/chats", json={"text": "hello"})
+    client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})
     assert client.get("/api/projects").get_json()[0]["chats"] == 1
 
 
@@ -484,7 +462,7 @@ def test_a_chat_carries_no_skill(tmp_path):
     client = _client(tmp_path)
     pid = _project(client)
     born = client.post(
-        f"/api/projects/{pid}/chats", json={"text": "hello", "skill": "create-scenario"}
+        f"/api/projects/{pid}/messages", json={"text": "hello", "skill": "create-scenario"}
     ).get_json()
     assert "skill" not in born
     assert born["messages"][0]["skill"] == "create-scenario"
@@ -511,7 +489,7 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     other = _client(tmp_path / "second", engine=with_skill)
     opid = _project(other)
     ocid = other.post(
-        f"/api/projects/{opid}/chats", json={"text": "hello", "skill": "create-scenario"}
+        f"/api/projects/{opid}/messages", json={"text": "hello", "skill": "create-scenario"}
     ).get_json()["id"]
     other.post(f"/api/projects/{opid}/chats/{ocid}/answer").get_data()
 

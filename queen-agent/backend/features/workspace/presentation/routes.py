@@ -25,7 +25,6 @@ from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.read_file import read_file
-from backend.features.workspace.domain.usecases.start_chat import start_chat
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
 
@@ -63,25 +62,6 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
         # There is no way back, so the name is only a record of what happened on disk.
         return jsonify({"trashed": trashed})
 
-    @workspace_bp.post("/api/projects/<project_id>/chats")
-    def post_chat(project_id):
-        payload = request.get_json(silent=True) or {}
-        try:
-            chat = start_chat(
-                chat_store,
-                project_store,
-                project_id,
-                payload.get("text", ""),
-                new_id=_new_id("c"),
-                now=_now(),
-                skill=payload.get("skill", ""),
-            )
-        except ProjectNotFound:
-            return jsonify({"error": "project not found"}), 404
-        except EmptyMessage:
-            return jsonify({"error": "a message needs text"}), 400
-        return jsonify(_chat_json(chat)), 201
-
     # There is no PATCH here. Since Madde 86 nothing about a chat changes after it is written: the
     # skill is the session's and rides on each message, and a chat is never renamed.
     @workspace_bp.get("/api/projects/<project_id>/chats")
@@ -95,23 +75,34 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
             return jsonify({"error": "chat not found"}), 404
         return jsonify(_chat_json(chat))
 
-    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/messages")
-    def post_message(project_id, chat_id):
+    # One door for every sentence a user says. Which chat it lands in is a field in the body rather
+    # than a piece of the address, because it is allowed to be empty -- and an empty piece of a path
+    # is a different address, not an empty value.
+    @workspace_bp.post("/api/projects/<project_id>/messages")
+    def post_message(project_id):
         payload = request.get_json(silent=True) or {}
+        wanted = payload.get("chat", "")
         try:
             chat = append_message(
                 chat_store,
                 project_id,
-                chat_id,
+                wanted,
                 payload.get("text", ""),
                 now=_now(),
                 skill=payload.get("skill", ""),
+                project_store=project_store,
+                # Minted whether or not it is used: the alternative is a second branch inside the
+                # rule, asking the route for an id only once it knows it is making a chat.
+                new_id=_new_id("c"),
             )
+        except ProjectNotFound:
+            return jsonify({"error": "project not found"}), 404
         except ChatNotFound:
             return jsonify({"error": "chat not found"}), 404
         except EmptyMessage:
             return jsonify({"error": "a message needs text"}), 400
-        return jsonify(_chat_json(chat))
+        # A chat that was just born is a creation; a sentence added to one is not.
+        return jsonify(_chat_json(chat)), 200 if wanted else 201
 
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/answer")
     def post_answer(project_id, chat_id):

@@ -7,7 +7,7 @@ from backend.features.workspace.domain.errors import ChatNotFound, FileNotFound
 from backend.features.workspace.domain.usecases.delete_chat import delete_chat
 from backend.features.workspace.domain.usecases.delete_file import delete_file
 from backend.features.workspace.domain.usecases.create_project import create_project
-from backend.features.workspace.domain.usecases.start_chat import start_chat
+from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.services.store.store import Store
 
 
@@ -53,7 +53,8 @@ def _seeded(tmp_path):
     projects, chats = FileProjectStore(store), FileChatStore(store)
     now = "2026-08-09T11:04:00.000+00:00"
     create_project(projects, new_id="p1", now=now)
-    start_chat(chats, projects, "p1", "hi", "c1", now)
+    # Naming no chat is what asks for one, since Madde 87.
+    append_message(chats, "p1", "", "hi", now, project_store=projects, new_id="c1")
     return chats
 
 
@@ -90,13 +91,14 @@ def test_a_deleted_chat_is_moved_rather_than_destroyed(tmp_path):
 def test_the_same_chat_id_deleted_twice_does_not_lose_the_first(tmp_path):
     chats = _seeded(tmp_path)
     delete_chat(chats, "p1", "c1")
-    start_chat(
+    append_message(
         chats,
-        FileProjectStore(Store(str(tmp_path))),
         "p1",
+        "",
         "again",
-        "c1",
         "2026-08-09T12:00:00.000+00:00",
+        project_store=FileProjectStore(Store(str(tmp_path))),
+        new_id="c1",
     )
     delete_chat(chats, "p1", "c1")
     # The same rule the files follow: the trash keeps everything it is handed.

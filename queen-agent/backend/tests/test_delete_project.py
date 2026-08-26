@@ -6,7 +6,7 @@ from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.domain.errors import ProjectNotFound
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.delete_project import delete_project
-from backend.features.workspace.domain.usecases.start_chat import start_chat
+from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.services.store.store import Store
 
 
@@ -14,13 +14,15 @@ def _project_with_contents(tmp_path, project_id="p1"):
     store = Store(str(tmp_path))
     projects = FileProjectStore(store)
     create_project(projects, new_id=project_id, now="2026-08-09T10:00:00+00:00")
-    start_chat(
+    # Naming no chat is what asks for one, since Madde 87.
+    append_message(
         FileChatStore(store),
-        projects,
         project_id,
+        "",
         "hello",
+        "2026-08-09T11:04:00+00:00",
+        project_store=projects,
         new_id="c1",
-        now="2026-08-09T11:04:00+00:00",
     )
     FileFileStore(store).write(project_id, "plan.md", "body")
     return projects, store

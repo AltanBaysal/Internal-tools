@@ -127,7 +127,7 @@ export function useChat(projectId, chatId, onFileCreated, online = true) {
       setStopped(false);
       try {
         setChat(
-          await postJson(`/api/projects/${projectId}/chats/${chatId}/messages`, { text, skill }),
+          await postJson(`/api/projects/${projectId}/messages`, { chat: chatId, text, skill }),
         );
       } catch (failure) {
         // Refused: the optimistic bubble is taken back out so the screen never claims something

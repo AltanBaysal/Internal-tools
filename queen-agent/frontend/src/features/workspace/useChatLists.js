@@ -18,7 +18,8 @@ export function useProjectChats(projectId) {
 }
 
 export function startChatInProject(projectId, text, skill = "") {
-  return postJson(`/api/projects/${projectId}/chats`, { text, skill });
+  // No chat named: Madde 87's way of saying there is not one yet, and the server makes it.
+  return postJson(`/api/projects/${projectId}/messages`, { text, skill });
 }
 
 export function deleteChat(projectId, chatId) {
