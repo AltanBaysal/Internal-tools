@@ -382,6 +382,22 @@ def test_the_answer_arrives_as_a_stream_of_events(tmp_path):
     assert [m["text"] for m in kept["messages"]] == ["hello", "Done."]
 
 
+def test_the_closing_frame_carries_nothing(tmp_path):
+    # Madde 89: the record has one home, and it is the read endpoint. The stream says a turn is
+    # over; what the turn wrote is a question asked separately.
+    client = _client(tmp_path)
+    _pid, _cid, body = _first_turn(client)
+    closing = [block for block in body.split("\n\n") if block.startswith("event: done")]
+    assert closing == ["event: done\ndata: {}"]
+
+
+def test_no_frame_in_the_stream_carries_the_record(tmp_path):
+    # Not only the last one: a shape that leaks anywhere is a second place it can drift from.
+    client = _client(tmp_path)
+    _pid, _cid, body = _first_turn(client)
+    assert "messages" not in body
+
+
 def test_a_broken_engine_speaks_inside_the_stream(tmp_path):
     client = _client(tmp_path, engine=FakeEngine(blow_up="401 bad key"))
     pid, cid, body = _first_turn(client)

@@ -1486,10 +1486,13 @@ test("the draft streams its first answer and moves to the new address", async ()
       return Promise.resolve(
         sseResponse(
           `event: chat\ndata: {"chat":"c1"}\n\n` +
-            `event: chunk\ndata: {"text":"Done."}\n\n` +
-            `event: done\ndata: ${JSON.stringify(answered)}\n\n`,
+            `event: chunk\ndata: {"text":"Done."}\n\nevent: done\ndata: {}\n\n`,
         ),
       );
+    }
+    // Read once when the turn closes, since Madde 89 -- and not before.
+    if (String(path).endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => answered });
     }
     if (String(path).endsWith("/files")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => [] });
@@ -1509,8 +1512,165 @@ test("the draft streams its first answer and moves to the new address", async ()
 
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
   expect(screen.getByText("Done.")).toBeTruthy();
-  // The address changed under a running stream and nothing went back to disk to re-read it.
-  expect(fetch.mock.calls.filter(([path]) => String(path).endsWith("/chats/c1"))).toHaveLength(0);
+  // Read once, at the end of the turn -- Madde 89. Twice would mean the loading effect stepped in
+  // while the answer was still arriving, which is the thing 88's guard exists to prevent.
+  await waitFor(() =>
+    expect(fetch.mock.calls.filter(([path]) => String(path).endsWith("/chats/c1"))).toHaveLength(1),
+  );
+});
+
+// --- the record has one home (Madde 89) ----------------------------------------------------------
+
+test("when the turn ends the record is read, and what it says is what is drawn", async () => {
+  // What streamed is a guess and what was written is the record, so the screen ends up showing the
+  // one the server can still hand back. The two are made to differ here on purpose.
+  const empty = { id: "c1", title: "hello", messages: [] };
+  const written = {
+    id: "c1",
+    title: "hello",
+    messages: [
+      { role: "user", at: new Date().toISOString(), text: "hello" },
+      { role: "ai", at: new Date().toISOString(), text: "What the record says." },
+    ],
+  };
+  let read = 0;
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
+      return Promise.resolve(
+        sseResponse(
+          `event: chat\ndata: {"chat":"c1"}\n\n` +
+            `event: chunk\ndata: {"text":"What the stream said."}\n\n` +
+            `event: done\ndata: {}\n\n`,
+        ),
+      );
+    }
+    if (String(path).endsWith("/chats/c1")) {
+      read += 1;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => (read > 1 ? written : empty),
+      });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => expect(screen.getByText("What the record says.")).toBeTruthy());
+  expect(screen.queryByText("What the stream said.")).toBeNull();
+});
+
+test("a chat that was just born is read by the id the first frame gave", async () => {
+  const written = {
+    id: "c1",
+    title: "hello",
+    messages: [
+      { role: "user", at: new Date().toISOString(), text: "hello" },
+      { role: "ai", at: new Date().toISOString(), text: "Done." },
+    ],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
+      return Promise.resolve(
+        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
+      );
+    }
+    if (String(path).endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => written });
+    }
+    if (String(path).endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    if (String(path).endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/new");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
+});
+
+test("a turn that ended in a fault is read back too", async () => {
+  // The answer never came, but the question did reach disk -- and it has to stay on the screen.
+  const written = {
+    id: "c1",
+    title: "hello",
+    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
+      return Promise.resolve(
+        sseResponse(
+          `event: chat\ndata: {"chat":"c1"}\n\nevent: error\ndata: {"error":"401 bad key"}\n\n`,
+        ),
+      );
+    }
+    if (String(path).endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => written });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => expect(screen.getByText("401 bad key")).toBeTruthy());
+  expect(screen.getByText("hello", { selector: ".msg__bubble" })).toBeTruthy();
+  // Twice: once on opening, once when the turn closed.
+  await waitFor(() =>
+    expect(fetch.mock.calls.filter(([path]) => String(path).endsWith("/chats/c1"))).toHaveLength(2),
+  );
+});
+
+test("a record that cannot be read back says so in the read's own words", async () => {
+  const empty = { id: "c1", title: "hello", messages: [] };
+  let read = 0;
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
+      return Promise.resolve(
+        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
+      );
+    }
+    if (String(path).endsWith("/chats/c1")) {
+      read += 1;
+      if (read > 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          text: async () => JSON.stringify({ error: "the disk went away" }),
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => empty });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  // The read's own sentence, not a guess about what went wrong.
+  await waitFor(() => expect(screen.getByText("the disk went away")).toBeTruthy());
 });
 
 test("the skill picked in a draft survives landing in the chat it created", async () => {
