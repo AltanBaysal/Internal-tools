@@ -211,11 +211,17 @@ export default function ChatScreen({
                 {/* What the user typed stays what they typed -- `**test**` keeps its asterisks. */}
                 {message.role === "user" ? (
                   <div className="msg__bubble">{message.text}</div>
-                ) : (
+                ) : /* Only when there is something to draw: an answer stopped before its first
+                       word would otherwise put the rule down the side of nothing at all. */
+                message.text ? (
                   <div className="msg__text">
                     <Markdown text={message.text} />
                   </div>
-                )}
+                ) : null}
+                {/* Where the text stops and why. Above the cards and the count -- those are notes
+                    about the turn, this is the end of the sentence. Nobody but the user can stop
+                    an answer, so the word says what happened and invents no cause for it. */}
+                {message.stopped ? <div className="msg__stopped">Stopped</div> : null}
                 {/* One turn can produce more than one file, so the card is not a single slot. */}
                 {message.files?.some((name) => onDisk.has(name)) ? (
                   <div className="file-cards">

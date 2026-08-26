@@ -130,13 +130,10 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
         # However this ended. Left standing, the flag would cut the next answer as it was born.
         stops.clear(project_id, chat_id)
 
-    if cut_short and not "".join(said).strip() and not born:
-        # Nothing to keep, so nothing is written -- but the stream still closes with the record, so
-        # that a reader never has to tell "ended" from "dropped".
-        yield chat_store.get(project_id, chat_id)
-        return
-
-    # Everything said across the rounds becomes one message: the user read one answer.
+    # Everything said across the rounds becomes one message: the user read one answer. A stop that
+    # landed before the first word writes one too, empty -- a press that leaves no trace reads as a
+    # press that did nothing, and the chat's last word would otherwise still be the user's, which
+    # means owed an answer, which means asked for again on the next reload.
     yield append_message(
         chat_store,
         project_id,
