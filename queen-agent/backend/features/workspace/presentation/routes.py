@@ -13,7 +13,13 @@ from backend.features.workspace.domain.errors import (
     InvalidProjectName,
     ProjectNotFound,
 )
-from backend.features.workspace.domain.chat import ToolCall, is_owed_an_answer
+from backend.features.workspace.domain.chat import (
+    CONTEXT_CEILING,
+    ToolCall,
+    is_full,
+    is_owed_an_answer,
+    last_sent,
+)
 from backend.features.workspace.domain.tools import FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
@@ -86,6 +92,15 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
     def post_message(project_id):
         payload = request.get_json(silent=True) or {}
         wanted = payload.get("chat", "")
+        # Read once, up here: both roads out of this door are stopped by the same ceiling, and the
+        # road without text was doing this lookup anyway.
+        existing = chat_store.get(project_id, wanted) if wanted else None
+        # Asked before anything else this door might refuse for. A full chat that is also already
+        # answered is both, and what the user needs to hear is the one that stops them.
+        if existing is not None and is_full(existing):
+            return jsonify(
+                {"error": "this chat has reached its context ceiling -- start a new chat to keep going"}
+            ), 400
         # Absent is not blank. A blank sentence is somebody leaning on the space bar and is
         # refused; no sentence at all means they are asking for the answer, not sending one.
         if "text" in payload:
@@ -109,7 +124,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
             except EmptyMessage:
                 return jsonify({"error": "a message needs text"}), 400
         else:
-            chat = chat_store.get(project_id, wanted) if wanted else None
+            chat = existing
             if chat is None:
                 return jsonify({"error": "there is nothing here to answer"}), 400
             if not is_owed_an_answer(chat):
@@ -253,6 +268,9 @@ def _chat_summary(chat):
 def _chat_json(chat):
     return {
         **_chat_summary(chat),
+        # The ceiling travels with the number: the gauge draws a share, and a share needs its
+        # denominator. A second copy of the ceiling living in the browser is what would go stale.
+        "context": {"sent": last_sent(chat), "ceiling": CONTEXT_CEILING},
         "messages": [
             {
                 "role": message.role,

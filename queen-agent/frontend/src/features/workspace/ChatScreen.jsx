@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { clockTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
+import ContextGauge from "./ContextGauge.jsx";
 import FileRail from "./FileRail.jsx";
 import Markdown from "./Markdown.jsx";
 import ModelLabel from "./ModelLabel.jsx";
@@ -340,6 +341,10 @@ export default function ChatScreen({
             rows={2}
             placeholder="Reply..."
             action="Send"
+            /* Read off the record like everything else on this screen: the same number the stamp
+               under the last answer shows, and nothing counts it a second time. A record written
+               before Madde 92 carries none, and then there is no circle. */
+            gauge={<ContextGauge sent={chat.context?.sent} ceiling={chat.context?.ceiling} />}
             /* karar 1's order: Skills · model · Send. The middle one stopped being a control in
                Madde 82 -- one model, nothing to pick. The skill is handed in rather than read off
                the chat: since Madde 86 the selection is the session's, and the session is App's.

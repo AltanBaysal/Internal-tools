@@ -97,3 +97,33 @@ def is_owed_an_answer(chat):
     reload, and on a connection coming back. Here it can only be reached by a request.
     """
     return bool(chat.messages) and chat.messages[-1].role == "user"
+
+
+CONTEXT_CEILING = 50_000
+"""How much one chat may send before it stops taking new turns.
+
+Not a capacity limit -- the window is 256k, so this is a fifth of it. It is a quality one: models
+get worse as the input grows and what sits in the middle of a long request goes unread, so fitting
+is not the same as being read. Above 200k the input also costs twice as much.
+"""
+
+
+def last_sent(chat):
+    """What the most recent answer sent to the model, or 0 if none ever did.
+
+    A turn's size is only known once its answer comes back, so this is one turn stale on purpose --
+    a request is stopped by the size of the one before it. At this ceiling the difference does not
+    matter: no single turn is large enough to cross it on its own.
+
+    Walked from the end rather than read off the last message: a question whose answer never came
+    can be sitting there, and a question has no number of its own.
+    """
+    for message in reversed(chat.messages):
+        if message.role == "ai":
+            return message.usage.sent
+    return 0
+
+
+def is_full(chat):
+    """Whether this chat has reached the ceiling and may not take another turn."""
+    return last_sent(chat) >= CONTEXT_CEILING

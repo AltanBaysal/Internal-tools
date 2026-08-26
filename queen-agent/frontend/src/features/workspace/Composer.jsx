@@ -7,13 +7,23 @@ const STOP = "⏹";
 
 // The draft lives here rather than in App: it is the box's momentary state, not something a screen
 // keeps. Only the finished text leaves, through onSubmit.
-// `foot` is what stands to the left of the button. karar 1 settled that order -- Skills · model ·
-// send -- and the box holds the room without knowing what goes in it.
+// The foot has two ends since Madde 92, and the box holds the room for both without knowing what
+// goes in either. `foot` is the right one -- karar 1 settled that order, Skills · model · send.
+// `gauge` is the left one, and it is empty wherever there is nothing to measure.
 //
 // `running` says an answer is on its way, and it turns the one action button into a stop. There is
 // nothing to send while one is running, so the button that sends is the one free to stop -- and a
 // control with two states keeps both of them here, where the button already lives.
-export default function Composer({ rows, placeholder, action, foot, running, onStop, onSubmit }) {
+export default function Composer({
+  rows,
+  placeholder,
+  action,
+  gauge,
+  foot,
+  running,
+  onStop,
+  onSubmit,
+}) {
   const [draft, setDraft] = useState("");
   const ready = draft.trim().length > 0;
   // An empty draft is what blocks sending; blocking a stop with it would kill the control in the
@@ -55,6 +65,9 @@ export default function Composer({ rows, placeholder, action, foot, running, onS
         onKeyDown={onKeyDown}
       />
       <div className="composer__foot">
+        {/* The other end. Empty on the draft screen, where there is no chat to measure -- and then
+            the slot is not drawn at all and the row stays as it was. */}
+        {gauge ? <div className="composer__gauge">{gauge}</div> : null}
         {foot}
         <button
           type="button"

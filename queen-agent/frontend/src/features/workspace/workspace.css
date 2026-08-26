@@ -1612,6 +1612,27 @@
   padding-top: 6px;
 }
 
+/* The foot's other end since Madde 92. Not `justify-content: space-between` on the foot itself:
+   Skills, the model's name and Send are three separate items in that row, and spreading the row
+   would put its whole width between them. */
+.composer__gauge {
+  display: inline-flex;
+  align-items: center;
+  margin-right: auto;
+}
+
+/* Reads at a glance and takes no room: the app's own orange, filling clockwise from the top.
+   `--filled` is a share between 0 and 1 and the component is what settles it. */
+.context-gauge {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--accent) calc(var(--filled) * 360deg),
+    #ded7cd calc(var(--filled) * 360deg)
+  );
+}
+
 /* The model's name, sitting where its picker used to. Not a control since Madde 82: it reads like
    the button beside it and does nothing, so it takes the picker's spacing without its hover. */
 .model-label {
