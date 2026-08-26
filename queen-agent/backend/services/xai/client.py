@@ -42,7 +42,13 @@ def _spoken(frame):
     Two kinds of thing come down the same wire, so each piece names which it is rather than leaving
     the reader to guess from its type.
     """
-    delta = frame.get("choices", [{}])[0].get("delta", {})
+    # An empty list is a frame with nothing to say, exactly as an empty delta is. The closing frame
+    # that carries the counts comes that way, and reading it as though a choice were there would
+    # end the whole answer rather than lose one number.
+    choices = frame.get("choices") or []
+    if not choices:
+        return None
+    delta = choices[0].get("delta", {})
     # A function call is documented to arrive whole in a single chunk, so there is nothing to
     # stitch together here.
     if delta.get("tool_calls"):
@@ -53,11 +59,12 @@ def _spoken(frame):
 
 
 def _spent(frame):
-    """What the answer has cost so far, in our own words rather than the service's, or None.
+    """What the answer cost, in our own words rather than the service's, or None.
 
-    Read off a frame rather than the closing one because the service puts it on every chunk, and
-    a count that only arrived at the end would be lost whenever an answer is cut short -- where the
-    input has already been sent and already been paid for.
+    Only one frame in a stream carries this, and only when the request asked for it: the service
+    adds a closing frame just before the stream ends and leaves every other frame's usage null.
+    Asked here of every frame anyway -- which frame it lands on is the service's business, and a
+    reader that insisted on the last one would break the day it moved.
 
     `cached_tokens` sits inside the prompt rather than beside it, so it can never exceed `sent` and
     the difference is what was paid for a second time. Nothing here computes that difference: a
@@ -100,7 +107,18 @@ class XaiClient:
         return payload["choices"][0]["message"]
 
     def stream(self, messages, tools=None, model=None):
-        request = self._request({"messages": messages, "stream": True}, tools, model)
+        # The counts come only if asked for, and only to a stream -- so the ask sits beside the
+        # stream flag rather than in _request, which serves both roads. Without it every frame's
+        # usage field comes back null and the answer costs nothing that anyone can read.
+        request = self._request(
+            {
+                "messages": messages,
+                "stream": True,
+                "stream_options": {"include_usage": True},
+            },
+            tools,
+            model,
+        )
         try:
             with self._opener(request) as response:
                 for raw in response:

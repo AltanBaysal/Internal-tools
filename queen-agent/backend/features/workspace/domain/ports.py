@@ -57,10 +57,11 @@ class Engine(Protocol):
 
         Yields {"text": str} as words arrive and {"tool_calls": [...]} when the model asks for one.
 
-        Also yields {"usage": {"sent": int, "cached": int, "answered": int}} whenever the engine
-        says what the answer has cost. It may say so many times, and each figure is the running
-        total for this one call rather than the share since the last -- so the newest replaces the
-        one before it. An engine that never mentions spending simply never yields this.
+        Also yields {"usage": {"sent": int, "cached": int, "answered": int}} when the engine says
+        what the answer cost -- once, as the stream closes. Should it ever say so more than once,
+        each figure is the total for this one call rather than the share since the last, so the
+        newest replaces the one before it. An engine that never mentions spending never yields
+        this, and every fake in the tests is such an engine.
         """
 
 

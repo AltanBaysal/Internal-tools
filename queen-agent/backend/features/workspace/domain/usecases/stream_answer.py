@@ -71,14 +71,18 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
                     said.append(piece["text"])
                     yield piece["text"]
                 elif "usage" in piece:
-                    # Replaced rather than added: within one call the engine restates a running
-                    # total, so adding them would multiply the bill by however many pieces arrived.
+                    # Replaced rather than added. Today the engine says this once, as the stream
+                    # closes, so the rule idles -- but a figure is a total for the call rather than
+                    # a share since the last, and an engine that reported as it went would have its
+                    # bill multiplied by the number of pieces if these were summed.
                     round_spent = piece["usage"]
                 else:
                     calls.extend(piece["tool_calls"])
 
             # Before the stop is acted on, because a round that was cut short still sent its whole
-            # conversation and was still charged for it -- and the sending is the expensive half.
+            # conversation and was still charged for it. The window is narrow -- the engine reports
+            # as the stream closes, so a cut answer usually never hears the figure at all -- but
+            # what did arrive was really spent, and dropping it here would throw it away.
             # Rounds add where pieces replaced: each round is its own call and its own bill, and
             # that growth is the thing this number exists to show.
             if round_spent:
