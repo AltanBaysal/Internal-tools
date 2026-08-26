@@ -26,11 +26,16 @@ bakarak bağlam, model ve yönerge birlikte elden geçsin.
 
 Koşu ikiye ayrılıyor, ve ayrım **kimin koştuğu**:
 
-- **Blok 1 (65-69) tek başına koşulur.** Beş madde; her biri kapalı uçlu, kararı verilmiş,
+- **Blok 1 (65-68) tek başına koşulur.** Dört madde; her biri kapalı uçlu, kararı verilmiş,
   bir öncekine yaslanıyor. Kullanıcı bunları koşunun sonunda topluca dener.
-- **Blok 2 (70-75) kullanıcıyla beraber, adım adım koşulur** *(kullanıcı kararı, 25 Ağustos)*.
-  Altısının da ya çıktının doğruluğuna ya modelin davranışına dokunduğu için karar aralarında
+- **Blok 2 (69-75) kullanıcıyla beraber, adım adım koşulur** *(kullanıcı kararı, 25 Ağustos)*.
+  Yedisinin de ya çıktının doğruluğuna ya modelin davranışına dokunduğu için karar aralarında
   veriliyor, sonunda değil.
+
+**69 Blok 1'den Blok 2'ye geçti** *(kullanıcı kararı, 26 Ağustos)*. Numarası yerinde kaldı, yeri
+değişti — yazılı spec'ler numarayı anıyor. Sebep maddenin kendi açık sorusu: üstüne yazmama kuralı
+kullanıcının emeğini korumak için var, ve onu gevşetmenin nereye kadar doğru olduğu tek başına
+verilecek bir karar değil.
 
 Blok 2'nin kendi içindeki sıra kullanıcının söylediği sıradır; araya giren iki madde Grok Build ile
 prompt dili, ve ikisinin de yeri zorunlu (aşağıda).
@@ -86,8 +91,6 @@ birleşiyor.
 
 # Blok 1 — Tek başına
 
-## Faz 1 — Açılış ve görünürlük
-
 ### Madde 65 — Uygulama taslak sohbet ekranına açılır
 
 - **Ne çalışır:** uygulama bugün ilk projenin ekranına düşüyor ve oradaki yazma kutusunda skill ile
@@ -134,7 +137,13 @@ birleşiyor.
 - **Spec'te karara bağlanacak:** sayının nerede duracağı — her cevabın altında mı, sohbetin
   toplamında mı, ikisinde de mi.
 
-## Faz 2 — Dosyalar
+---
+
+# Blok 2 — Beraber, adım adım
+
+Bu yedi madde kullanıcıyla birlikte koşulur *(kullanıcı kararı, 25 Ağustos)*. Sıra kullanıcının
+kendi sırasıdır; Grok Build araya giriyor çünkü şartı bir önceki madde, 69 ise Blok 1'den buraya
+geçti.
 
 ### Madde 69 — Doküman güncellenir, yeniden yaratılmaz
 
@@ -144,15 +153,12 @@ birleşiyor.
   gerçekten düzeltme olması sağlanır — yönergeye bir cümle daha ekleyerek değil.
 - **Nasıl görülür:** bir senaryo yazdırılıp arkasından düzeltiliyor; projede tek bir senaryo dosyası
   kalıyor ve içinde düzeltilmiş hâli duruyor.
+- **Neden kod:** üstüne yazan bir yol zaten var — `edit_file` dosyayı yerinde değiştiriyor. Eksik
+  olan onu kullanmanın modelin seçimine bırakılmış olması, ve yönergeye "onu kullan" yazmak
+  FOUNDATION'ın 5. ilkesine çarpıyor: modelin her seferinde tekrarlaması gereken şeyi kod yapar.
 - **Spec'te karara bağlanacak:** numaralı kopya üretmenin hangi durumlarda hâlâ doğru olduğu —
-  bugünkü kural kullanıcının emeğini korumak için var ve tamamen kaldırılması o ilkeye dokunur.
-
----
-
-# Blok 2 — Beraber, adım adım
-
-Bu beş madde kullanıcıyla birlikte koşulur *(kullanıcı kararı, 25 Ağustos)*. Sıra kullanıcının kendi
-sırasıdır; Grok Build araya giriyor çünkü şartı bir önceki madde.
+  bugünkü kural kullanıcının emeğini korumak için var (1. ilke) ve tamamen kaldırılması o ilkeye
+  dokunur. Bu soru maddeyi Blok 2'ye taşıdı.
 
 ### Madde 70 — Karede iki karakter varsa prompt iki kişiyi söyler
 
@@ -261,7 +267,7 @@ kendisi (v4'te kapandı, bu koşuda değişmiyor) · Drive'ın yavaşlığı (ö
 Her madde, iki cümlelik bir işte bile, iki tam turdan geçer — önce yalnız testler yazılıp kırmızı
 commit'lenir, sonra kod yazılıp yeşile döndürülür. İkisinin de kendi spec'i ve kendi planı olur.
 
-**Blok 1 durmadan koşulur**, kullanıcı beşini sonunda topluca dener. **Blok 2'de her madde
+**Blok 1 durmadan koşulur**, kullanıcı dördünü sonunda topluca dener. **Blok 2'de her madde
 kullanıcıyla açılır**: spec'in açık soruları o maddeye gelindiğinde konuşulur, sonra koşulur.
 
 Ön yüze dokunan her madde `dist`i **kaynağıyla aynı commit'te** derleyip commit'ler; FOUNDATION'ın
