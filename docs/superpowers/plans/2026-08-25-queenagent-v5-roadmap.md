@@ -340,6 +340,10 @@ Bu yedi madde kullanıcıyla birlikte koşulur *(kullanıcı kararı, 25 Ağusto
 kendi sırasıdır; Grok Build araya giriyor çünkü şartı bir önceki madde, 69 ise Blok 1'den buraya
 geçti.
 
+**Kalan altısının ortak haritası:** [Blok 2'nin sistem haritası](../specs/2026-08-26-queenagent-blok2-sistem-haritasi-design.md)
+*(kullanıcı isteği, 26 Ağustos)* — akışın tamamı, altı şikâyetin o akışta nereye düştüğü, ve
+altısını üç kuvvete indiren okuma. Her maddenin spec'i ondan türer.
+
 **72 sıradan çıkıp öne alındı** *(kullanıcı kararı, 26 Ağustos)* — Blok 4'ün arasında koşuldu.
 Numarası ve bloğu yerinde: blok kimin koştuğunu söylüyor, ve 72 de kullanıcıyla açıldı. Kalan altı
 madde sırasını koruyor.
