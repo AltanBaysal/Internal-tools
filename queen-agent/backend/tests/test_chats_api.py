@@ -84,32 +84,151 @@ def _started(client, text="hello"):
     return pid, cid
 
 
+def _frames(body):
+    # The event names in order, so a test can say what the stream said without matching bytes.
+    return [line[len("event: ") :] for line in body.splitlines() if line.startswith("event: ")]
+
+
+def _named(body):
+    # The chat the stream's first frame named.
+    return json.loads(body.split("data: ", 1)[1].splitlines()[0])["chat"]
+
+
+def _answered(client, text="hello", engine_says=None):
+    # A chat made through the door -- which since Madde 88 means it has been answered too, because
+    # there is no way to write a message without the answer following it down the same connection.
+    #
+    # Its own seeding rather than _started's: that helper still reads a JSON body, and moving it
+    # would drop every test in this file for one reason and hide this turn's reds. It moves with
+    # the code, in the implementation tour.
+    pid = _project(client)
+    body = client.post(f"/api/projects/{pid}/messages", json={"text": text}).get_data(as_text=True)
+    return pid, _named(body)
+
+
+def _last_record(body):
+    # The chat the done frame carried. Everything the stream said before it was a guess; this is
+    # what was written.
+    for block in body.split("\n\n"):
+        if block.startswith("event: done"):
+            return json.loads(block.split("data: ", 1)[1])
+    raise AssertionError("the stream carried no done frame")
+
+
 def test_the_one_door_creates_a_chat_when_none_is_named(tmp_path):
     # Madde 87: one address for every sentence a user says. No chat in the body means there is no
-    # chat yet, so the server makes one -- a chat is still born with its first message.
+    # chat yet, so the server makes one -- a chat is still born with its first message. Madde 88
+    # made the answer to that request a stream, so the record is read off the closing frame.
     client = _client(tmp_path)
     pid = _project(client)
-    resp = client.post(f"/api/projects/{pid}/messages", json={"text": "Write the intro"})
-    assert resp.status_code == 201
-    body = resp.get_json()
-    assert body["title"] == "Write the intro"
-    assert body["id"].startswith("c")
-    assert [(m["role"], m["text"]) for m in body["messages"]] == [("user", "Write the intro")]
+    body = client.post(f"/api/projects/{pid}/messages", json={"text": "Write the intro"}).get_data(
+        as_text=True
+    )
+    made = _last_record(body)
+    assert made["title"] == "Write the intro"
+    assert made["id"].startswith("c")
+    assert [(m["role"], m["text"]) for m in made["messages"]][0] == ("user", "Write the intro")
 
 
 def test_the_one_door_appends_when_a_chat_is_named(tmp_path):
     # The same address, and the only difference is one field in the body.
     client = _client(tmp_path)
-    pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "Write the intro"}).get_json()[
-        "id"
-    ]
-    resp = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"})
-    assert resp.status_code == 200
-    body = resp.get_json()
-    assert [m["text"] for m in body["messages"]] == ["Write the intro", "and more"]
+    pid, cid = _answered(client, "Write the intro")
+    body = client.post(
+        f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"}
+    ).get_data(as_text=True)
+    said = [m["text"] for m in _last_record(body)["messages"]]
+    # The first turn answered itself, so the new sentence is the third thing in the record.
+    assert said[:3] == ["Write the intro", "Done.", "and more"]
     # The title belongs to the message that started the chat and never moves.
-    assert body["title"] == "Write the intro"
+    assert _last_record(body)["title"] == "Write the intro"
+
+
+def test_a_sentence_is_answered_in_the_same_request(tmp_path):
+    # Madde 88: one request. The message is written and the answer streams back down the
+    # connection that brought it -- nothing opens a second one.
+    client = _client(tmp_path)
+    pid = _project(client)
+    resp = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"})
+    assert resp.mimetype == "text/event-stream"
+    body = resp.get_data(as_text=True)
+    assert "Done." in body
+    assert _frames(body)[-1] == "done"
+
+
+def test_the_first_frame_names_the_chat_that_was_born(tmp_path):
+    # The id cannot come back as a field any more, because the body is a sequence of events. It
+    # comes first, and the server knows it before the model has said a word.
+    client = _client(tmp_path)
+    pid = _project(client)
+    body = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_data(
+        as_text=True
+    )
+    assert _frames(body)[0] == "chat"
+    assert json.loads(body.split("data: ", 1)[1].splitlines()[0])["chat"].startswith("c")
+
+
+def test_the_first_frame_names_the_chat_on_a_follow_up_too(tmp_path):
+    # Sent every time rather than only when it is news: no condition on the server, and the browser
+    # changes the address only when what it hears differs from what it holds.
+    client = _client(tmp_path)
+    pid, cid = _answered(client)
+    body = client.post(
+        f"/api/projects/{pid}/messages", json={"chat": cid, "text": "more"}
+    ).get_data(as_text=True)
+    assert _frames(body)[0] == "chat"
+    assert _named(body) == cid
+
+
+def test_the_separate_answering_door_is_gone(tmp_path):
+    # 405 rather than 404: the SPA fallback claims every path for GET, so an address with no rule
+    # of its own still exists -- it just does not know POST.
+    client = _client(tmp_path)
+    pid, cid = _answered(client)
+    assert client.post(f"/api/projects/{pid}/chats/{cid}/answer").status_code == 405
+
+
+def test_a_body_with_no_text_asks_again_without_writing_the_sentence_twice(tmp_path):
+    # Try again. It can only be reached where a turn left no answer behind, so the engine here
+    # fails: the question stays on disk owed, and asking again must not write it a second time.
+    client = _client(tmp_path, engine=FakeEngine(blow_up="boom"))
+    pid = _project(client)
+    first = client.post(f"/api/projects/{pid}/messages", json={"text": "hello"}).get_data(
+        as_text=True
+    )
+    cid = _named(first)
+    again = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
+    # It went through -- it is a stream carrying the same fault, not a refusal.
+    assert again.mimetype == "text/event-stream"
+    assert "error" in _frames(again.get_data(as_text=True))
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [m["text"] for m in said] == ["hello"]
+
+
+def test_a_body_with_neither_a_chat_nor_text_is_400(tmp_path):
+    # There is nothing to write and nothing to answer, so there is nothing this request means.
+    client = _client(tmp_path)
+    pid = _project(client)
+    assert client.post(f"/api/projects/{pid}/messages", json={}).status_code == 400
+
+
+def test_asking_again_for_a_chat_that_was_already_answered_is_400(tmp_path):
+    # Nothing is waiting, so answering anyway would write a second reply to a question that has
+    # one. The rule the browser used to hold, in the one place a request has to pass.
+    client = _client(tmp_path)
+    pid, cid = _answered(client)
+    again = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
+    assert again.status_code == 400
+    assert len(client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]) == 2
+
+
+def test_a_blank_sentence_is_refused_before_the_stream_starts(tmp_path):
+    # Blank is not the same as absent, and no stream begins for it.
+    client = _client(tmp_path)
+    pid, cid = _answered(client)
+    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "   "})
+    assert refused.status_code == 400
+    assert refused.mimetype != "text/event-stream"
 
 
 def test_the_old_creating_door_is_gone(tmp_path):
@@ -126,8 +245,7 @@ def test_the_old_appending_door_is_gone(tmp_path):
     # claims every path for GET, so an address with no rule of its own still exists -- it just does
     # not know POST.
     client = _client(tmp_path)
-    pid = _project(client)
-    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
+    pid, cid = _answered(client)
     sent = client.post(f"/api/projects/{pid}/chats/{cid}/messages", json={"text": "more"})
     assert sent.status_code == 405
 
@@ -142,15 +260,13 @@ def test_a_chat_that_is_not_there_is_404_and_nothing_is_created(tmp_path):
     assert client.get(f"/api/projects/{pid}/chats").get_json() == []
 
 
-def test_an_empty_message_is_refused(tmp_path):
-    # Both ways in: with nothing to append to, and with a chat waiting for it.
+def test_an_empty_first_sentence_is_refused_and_makes_no_chat(tmp_path):
+    # The other half of this -- a blank sentence sent into a chat that exists -- is its own test
+    # since Madde 88, because what it must not do is start a stream.
     client = _client(tmp_path)
     pid = _project(client)
     assert client.post(f"/api/projects/{pid}/messages", json={"text": "   "}).status_code == 400
     assert client.get(f"/api/projects/{pid}/chats").get_json() == []
-    cid = client.post(f"/api/projects/{pid}/messages", json={"text": "hi"}).get_json()["id"]
-    refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": " "})
-    assert refused.status_code == 400
 
 
 def test_an_unknown_project_is_404(tmp_path):

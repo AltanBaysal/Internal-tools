@@ -604,27 +604,17 @@ function gatedSse(first, rest) {
   return { response, release: () => release() };
 }
 
-test("a stopped answer is not asked for all over again", async () => {
-  // Madde 67's third claim, and the one an item like this loses quietly: a chat whose last word is
-  // the user's is owed an answer, and the browser asks for one by itself. Stopped with nothing kept,
-  // the chat is still owed -- so without a stopped state the answer restarts a second later.
+test("nothing asks for an answer by itself when a chat is opened", async () => {
+  // Madde 88 replaced two tests with this one. Both of them proved that a particular kind of chat
+  // was spared the browser's own asking -- one stopped mid-word, one stopped before it. There is
+  // no asking to be spared from now: opening a chat sends nothing, whatever its last word was.
   const owed = {
     id: "c1",
     title: "hello",
     messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
   };
-  const stream = gatedSse(
-    `event: chunk\ndata: {"text":"Half a "}\n\n`,
-    `event: done\ndata: ${JSON.stringify(owed)}\n\n`,
-  );
-  const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/answer") && options?.method === "POST") {
-      return Promise.resolve(stream.response);
-    }
-    if (path.endsWith("/stop") && options?.method === "POST") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
-    }
-    if (path.endsWith("/chats/c1")) {
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (String(path).endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => owed });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
@@ -633,40 +623,8 @@ test("a stopped answer is not asked for all over again", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByText(/Half a/)).toBeTruthy());
-  fireEvent.click(screen.getByRole("button", { name: "Stop" }));
-  await act(async () => {
-    stream.release();
-  });
-
-  const asked = fetch.mock.calls.filter(([path]) => String(path).endsWith("/answer"));
-  expect(asked).toHaveLength(1);
-});
-
-test("a chat whose last word is a stopped answer is not asked again", async () => {
-  // Madde 81's payoff, and the reason the empty record is written at all. Before it, a chat stopped
-  // before its first word had the user's message as its last -- owed an answer, and asked for one
-  // the moment the page came back.
-  const stopped = {
-    id: "c1",
-    title: "hello",
-    messages: [
-      { role: "user", at: new Date().toISOString(), text: "hello" },
-      { role: "ai", at: new Date().toISOString(), text: "", stopped: true },
-    ],
-  };
-  const fetch = vi.fn().mockImplementation((path) => {
-    if (String(path).endsWith("/chats/c1")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => stopped });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
-  });
-  vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1/c/c1");
-
-  render(<App />);
-  await waitFor(() => expect(screen.getByText("Stopped")).toBeTruthy());
-  expect(fetch.mock.calls.filter(([path]) => String(path).endsWith("/answer"))).toHaveLength(0);
+  await waitFor(() => expect(screen.getByText("hello")).toBeTruthy());
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(0);
 });
 
 test("a call arrives in the stream and is still there once the record lands", async () => {
@@ -691,10 +649,11 @@ test("a call arrives in the stream and is still there once the record lands", as
     ],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/answer") && options?.method === "POST") {
+    if (path.endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve(
         sseResponse(
-          `event: call\ndata: {"tool":"read_file","target":"plan.md"}\n\n` +
+          `event: chat\ndata: {"chat":"c1"}\n\n` +
+            `event: call\ndata: {"tool":"read_file","target":"plan.md"}\n\n` +
             `event: chunk\ndata: {"text":"Do"}\n\n` +
             `event: done\ndata: ${JSON.stringify(answered)}\n\n`,
         ),
@@ -709,6 +668,10 @@ test("a call arrives in the stream and is still there once the record lands", as
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
+  // Madde 88: the answer comes of sending, not of arriving.
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
   // Since Madde 84 the record's calls sit behind a door, so the claim is asked of what is behind
   // it. Unchanged otherwise, and it is the whole point of the test: one step, kept once, though two
@@ -717,26 +680,28 @@ test("a call arrives in the stream and is still there once the record lands", as
   expect(screen.getAllByText("⏺ read_file(plan.md)")).toHaveLength(1);
 });
 
-test("a chat that is owed an answer streams one and keeps the server's record", async () => {
-  const owed = {
-    id: "c1",
-    title: "hello",
-    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
-  };
+test("sending a sentence streams the answer and keeps the server's record", async () => {
+  // Madde 88: one request. The sentence goes out and the answer comes back down the same
+  // connection, so the count below is the whole claim -- nothing opened a second one.
+  const empty = { id: "c1", title: "hello", messages: [] };
   const answered = {
-    ...owed,
-    messages: [...owed.messages, { role: "ai", at: new Date().toISOString(), text: "Done." }],
+    ...empty,
+    messages: [
+      { role: "user", at: new Date().toISOString(), text: "hello" },
+      { role: "ai", at: new Date().toISOString(), text: "Done." },
+    ],
   };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/answer") && options?.method === "POST") {
+    if (path.endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve(
         sseResponse(
-          `event: chunk\ndata: {"text":"Do"}\n\nevent: done\ndata: ${JSON.stringify(answered)}\n\n`,
+          `event: chat\ndata: {"chat":"c1"}\n\n` +
+            `event: chunk\ndata: {"text":"Do"}\n\nevent: done\ndata: ${JSON.stringify(answered)}\n\n`,
         ),
       );
     }
     if (path.endsWith("/chats/c1")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+      return Promise.resolve({ ok: true, status: 200, json: async () => empty });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
   });
@@ -744,7 +709,12 @@ test("a chat that is owed an answer streams one and keeps the server's record", 
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
 });
 
 test("a file born mid-answer reaches the rail without a reload", async () => {
@@ -763,11 +733,12 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
   // The directory is the list, so the stub answers differently once the file has been written.
   let onDisk = [];
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/answer") && options?.method === "POST") {
+    if (path.endsWith("/messages") && options?.method === "POST") {
       onDisk = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
       return Promise.resolve(
         sseResponse(
-          'event: file-start\ndata: {}\n\n' +
+          'event: chat\ndata: {"chat":"c1"}\n\n' +
+            'event: file-start\ndata: {}\n\n' +
             'event: file\ndata: {"name":"outline.md"}\n\n' +
             `event: done\ndata: ${JSON.stringify(answered)}\n\n`,
         ),
@@ -785,23 +756,26 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "write the outline" } });
+  fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("outline.md"));
 });
 
-test("a fault inside the stream shows the card and Try again asks again", async () => {
-  const owed = {
-    id: "c1",
-    title: "hello",
-    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
-  };
+test("a fault inside the stream shows the card and Try again asks through the one door", async () => {
+  // Madde 88 kept the button and took away the finger that pressed it. It goes to the same
+  // address as a sentence does, and carries no sentence: the question is already on disk.
+  const empty = { id: "c1", title: "hello", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/answer") && options?.method === "POST") {
+    if (path.endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve(
-        sseResponse('event: error\ndata: {"error":"401 bad key"}\n\n'),
+        sseResponse(
+          'event: chat\ndata: {"chat":"c1"}\n\nevent: error\ndata: {"error":"401 bad key"}\n\n',
+        ),
       );
     }
     if (path.endsWith("/chats/c1")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+      return Promise.resolve({ ok: true, status: 200, json: async () => empty });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
   });
@@ -809,29 +783,28 @@ test("a fault inside the stream shows the card and Try again asks again", async 
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByText("401 bad key")).toBeTruthy());
-  const before = fetch.mock.calls.filter(([path]) => path.endsWith("/answer")).length;
 
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
-  await waitFor(() =>
-    expect(fetch.mock.calls.filter(([path]) => path.endsWith("/answer")).length).toBe(before + 1),
-  );
-  // Try again never re-sends the message: the chat is still owed an answer.
-  expect(fetch.mock.calls.some(([path]) => path.endsWith("/messages"))).toBe(false);
+  await waitFor(() => {
+    const posts = fetch.mock.calls.filter(([, options]) => options?.method === "POST");
+    expect(posts).toHaveLength(2);
+    // No sentence in it: the one on disk must not be written twice.
+    expect(JSON.parse(posts[1][1].body)).toEqual({ chat: "c1" });
+  });
 });
 
-test("a broken engine is reported once and not asked again", async () => {
-  const owed = {
-    id: "c1",
-    title: "hello",
-    messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
-  };
+test("a broken engine is reported and nothing asks again by itself", async () => {
+  const empty = { id: "c1", title: "hello", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/answer") && options?.method === "POST") {
+    if (path.endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve({ ok: false, status: 502, text: async () => "" });
     }
     if (path.endsWith("/chats/c1")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+      return Promise.resolve({ ok: true, status: 200, json: async () => empty });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
   });
@@ -839,10 +812,13 @@ test("a broken engine is reported once and not asked again", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
   await waitFor(() => expect(screen.getByText(/HTTP 502/)).toBeTruthy());
-  const asked = fetch.mock.calls.filter(([path]) => path.endsWith("/answer")).length;
-  // A chat that is owed an answer must not turn a broken engine into an endless retry.
-  expect(asked).toBe(1);
+  // Asking again is the user's to do. A broken engine used to become an endless retry here.
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
 });
 
 // The app speaks one deletion language now: ask, then delete. The browser's box is gone from it.
@@ -1242,22 +1218,16 @@ test("offline, the strip shows and the composer stays open", async () => {
   await waitFor(() => expect(screen.queryByTestId("offline")).toBeNull());
 });
 
-test("offline, no answer is asked for; back online, one is", async () => {
+test("offline nothing is sent, and coming back online sends nothing either", async () => {
+  // The second half used to be the point: a chat owed an answer got one the moment the connection
+  // returned. Madde 88 took that away -- an answer is something the user asks for, and a
+  // connection coming back is not them asking.
   const owed = {
     id: "c1",
     title: "hello",
     messages: [{ role: "user", at: new Date().toISOString(), text: "hello" }],
   };
-  const answered = {
-    ...owed,
-    messages: [...owed.messages, { role: "ai", at: new Date().toISOString(), text: "Done." }],
-  };
-  const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.endsWith("/answer") && options?.method === "POST") {
-      return Promise.resolve(
-        sseResponse(`event: done\ndata: ${JSON.stringify(answered)}\n\n`),
-      );
-    }
+  const fetch = vi.fn().mockImplementation((path) => {
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => owed });
     }
@@ -1270,11 +1240,11 @@ test("offline, no answer is asked for; back online, one is", async () => {
   render(<App />);
   // The title says "hello" too, so the bubble is asked for by name.
   await waitFor(() => expect(screen.getByText("hello", { selector: ".msg__bubble" })).toBeTruthy());
-  expect(fetch.mock.calls.some(([path]) => path.endsWith("/answer"))).toBe(false);
+  expect(fetch.mock.calls.some(([, options]) => options?.method === "POST")).toBe(false);
 
-  // The chat is still owed an answer, so the connection coming back is the whole mechanism.
   goOffline(false);
-  await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
+  await waitFor(() => expect(screen.queryByTestId("offline")).toBeNull());
+  expect(fetch.mock.calls.some(([, options]) => options?.method === "POST")).toBe(false);
 });
 
 // --- one model, and nothing asks about it (Madde 82) ---------------------------------------------
@@ -1490,6 +1460,50 @@ test("a reply goes through the same door and names its chat", async () => {
     expect(String(sent[0])).toBe("/api/projects/p1/messages");
     expect(JSON.parse(sent[1].body).chat).toBe("c1");
   });
+});
+
+test("the draft streams its first answer and moves to the new address", async () => {
+  // Madde 88: the first frame carries the id, so the address changes while the answer is still
+  // arriving. What has already arrived stays on the screen rather than being reloaded away -- the
+  // hook knows it is streaming into that chat and does not go back to disk for it.
+  const answered = {
+    id: "c1",
+    title: "hello",
+    messages: [
+      { role: "user", at: new Date().toISOString(), text: "hello" },
+      { role: "ai", at: new Date().toISOString(), text: "Done." },
+    ],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (String(path).endsWith("/messages") && options?.method === "POST") {
+      return Promise.resolve(
+        sseResponse(
+          `event: chat\ndata: {"chat":"c1"}\n\n` +
+            `event: chunk\ndata: {"text":"Done."}\n\n` +
+            `event: done\ndata: ${JSON.stringify(answered)}\n\n`,
+        ),
+      );
+    }
+    if (String(path).endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    if (String(path).endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/new");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+  expect(screen.getByText("Done.")).toBeTruthy();
+  // The address changed under a running stream and nothing went back to disk to re-read it.
+  expect(fetch.mock.calls.filter(([path]) => String(path).endsWith("/chats/c1"))).toHaveLength(0);
 });
 
 test("the skill picked in a draft survives landing in the chat it created", async () => {
