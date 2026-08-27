@@ -9,7 +9,9 @@ cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kap
 **Bu belge üç ayrı belgeden birleşti** *(kullanıcı kararı, 27 Ağustos)*. Blok 5 *"v5.5 Yol Haritası"*
 adıyla 26 Ağustos'ta, Blok 6 akış koşusu adıyla 27 Ağustos'ta yazılmıştı. Üçü de aynı branch'te, aynı
 sayaçla, biri ötekinin bıraktığı yerden ilerliyordu — ayrı dosyalarda durmaları yalnız okumayı
-zorlaştırıyordu. Taşınırken **tek kelime değişmedi** ve **hiçbir numara kaymadı**.
+zorlaştırıyordu. Madde metinleri olduğu gibi taşındı ve **hiçbir numara kaymadı**; değişen yalnız
+belge içi atıflar *("v5.5'in 94'ü" artık "Blok 5'in 94'ü")*, ve maddelerin üstüne düşen düzeltme
+notları her zamanki gibi duruyor.
 
 ---
 
@@ -385,8 +387,8 @@ devredildi; 75 iptal oldu; 71'in işini Blok 5 yaptı. Yedi maddenin hiçbiri ko
 > şikâyeti sayı değil **sıra** — iki tarif yan yana durduğu için birbirine bulaşıyor *(K1–K5)*; bu
 > hiç yazılmamıştı.
 >
-> **Açık sorusu da beraber gitti:** diskte duran yapı dosyalarına ne olacağı. Karar defterinin açık
-> listesinde duruyor. Aşağıdaki metin 25 Ağustos'un kaydı.
+> **Açık sorusu da beraber gitti ve orada kapandı:** diskte duran yapı dosyaları oldukları gibi
+> kalıyor, kod eksik alanı atlıyor *(K26)*. Aşağıdaki metin 25 Ağustos'un kaydı.
 
 - **Ne çalışır:** iki karakterli bir kare bugün görüntü modeline "bir kız" etiketini iki kez
   gönderiyor, oysa iki kişi için beklenen ayrı bir etiket. Kaç kişi olduğunu artık **kod** söyler:
@@ -502,7 +504,7 @@ devredildi; 75 iptal oldu; 71'in işini Blok 5 yaptı. Yedi maddenin hiçbiri ko
 > Bu blok *"v5.5 Yol Haritası — sadeleştirme"* adıyla 26 Ağustos'ta ayrı bir belgede yazıldı ve
 > 27 Ağustos'ta buraya taşındı. **Kaynağı** kullanıcının konuşma sırasında söyledikleri.
 
-İki dert var, ve ikisi de v5'in bitirdiği ekranın altında duruyor.
+İki dert var, ve ikisi de ilk dört bloğun bitirdiği ekranın altında duruyor.
 
 **Birincisi makinenin kendisi:** aynı şeyin iki yerde durduğu, kodun sözleşmesinin yalan söylediği,
 bir şeyin olduğunu hiçbir yerin söylemediği yerler. 86'dan 90'a kadar olanlar bunlar.
@@ -512,7 +514,7 @@ istenmesi, bağlamın sınırsız büyümesi, yönergenin konuşmanın ortasınd
 olanlar bunlar, ve hepsi 26 Ağustos'ta yapılan araştırmadan çıktı — ajan araçlarının uzun
 konuşmaları nasıl kaldırdığı, işi neden böldükleri, bağlamın uzadıkça niye kalite kaybettirdiği.
 
-**Bu blok v5'in Blok 2'sinden önce koşuldu** *(kullanıcı kararı, 26 Ağustos)*. Tek istisna 73 —
+**Bu blok Blok 2'nin kalanından önce koşuldu** *(kullanıcı kararı, 26 Ağustos)*. Tek istisna 73 —
 94'ün şartı olduğu için bu bloğun içine, 94'ten hemen önce girdi.
 
 **Nasıl koşuldu** *(kullanıcı kararı, 26 Ağustos: "roadmapı nasıl koşuyorsak")*: madde madde. Bir
