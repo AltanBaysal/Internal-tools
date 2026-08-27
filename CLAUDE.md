@@ -30,6 +30,10 @@ python queen-agent/main.py           # http://127.0.0.1:8100 — restart it afte
 a decision with two readings or no way back, and ask it in plain text: one question, numbered
 options, a recommendation.
 
+**An item ending is not a stop.** With nothing to ask, the next item starts in the same breath —
+finishing one and waiting for permission to begin the next is the stop this rule forbids. One
+approval carries the whole run.
+
 **YOU MUST run every task as two full superpowers tours**, down to a two-line deletion:
 
 1. **Test tour** — spec, plan, then implement *the tests only*. Run the suite, see them fail,
