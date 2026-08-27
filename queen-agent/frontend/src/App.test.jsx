@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import App from "./App.jsx";
@@ -1978,6 +1978,64 @@ test("a turn that ends unanswered takes the card with it", async () => {
   await waitFor(() => expect(screen.queryByText("QueenAgent wants to run create_file")).toBeNull());
   expect(fetch.mock.calls.some(([path]) => String(path).endsWith("/permission"))).toBe(false);
 });
+
+// --- the selection the browser keeps (Madde 100) -------------------------------------------------
+
+async function reborn() {
+  /* The app mounted a second time over the same browser. A reload is what this stands for: React
+     state is gone and only what was written down survives. */
+  cleanup();
+  render(<App />);
+  return waitFor(() =>
+    expect(screen.getByRole("button", { name: /Skills|Generate/ })).toBeTruthy(),
+  );
+}
+
+async function picked() {
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  return waitFor(() =>
+    expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy(),
+  );
+}
+
+test("a skill picked survives the app being mounted again", async () => {
+  withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  await picked();
+
+  await reborn();
+  expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy();
+});
+
+test("the message sent after a reload carries the remembered skill", async () => {
+  // The point of the item: mid-flow, a turn that goes without its instruction is a turn nobody
+  // asked for, and nothing on screen would have said so.
+  withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  await picked();
+
+  const fetch = withChat();
+  await reborn();
+  const box = screen.getByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "carry on" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => {
+    const sent = fetch.mock.calls.find(
+      ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
+    );
+    expect(sent).toBeTruthy();
+    expect(JSON.parse(sent[1].body).skill).toBe("generate-prompts-plus");
+  });
+});
+
+// Letting the skill go is not asked about here. On this screen an empty selection and no selection
+// draw the same button, so the claim cannot fail whatever the code does -- and a test that cannot
+// fail is noise. It is asked where the two are told apart: the hook's own test, with a fallback
+// that is not the empty string.
 
 test("Escape closes the mode picker too", async () => {
   // The order fark 67 settled had two pickers in it and lost one in Madde 82. A second picker is
