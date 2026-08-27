@@ -56,6 +56,88 @@ class NeverStops:
 NEVER = NeverStops()
 
 
+class NeverAsked:
+    """The permission registry as most tests need it: in edit mode nothing ever reaches here.
+
+    Raising rather than answering is the point -- a turn that started asking in a mode that asks for
+    nothing is a broken gate, and a fake that quietly said yes would hide it.
+    """
+
+    def answer(self, project_id, chat_id, allowed, reason):
+        raise AssertionError("the turn answered its own question")
+
+    def wait(self, project_id, chat_id, tick):
+        raise AssertionError("nothing in this mode should have been asked")
+
+    def wake(self, project_id, chat_id):
+        raise AssertionError("nothing in this mode should have been asked")
+
+    def clear(self, project_id, chat_id):
+        # Every turn clears on its way out, asked or not.
+        pass
+
+
+UNASKED = NeverAsked()
+
+
+class Answers:
+    """A registry with its decisions written out, one per question.
+
+    A None in the list is a tick that passed with nobody answering, which is what makes the beat
+    visible. Running out raises: a gate that asked forever would otherwise spin this test until the
+    suite was killed.
+    """
+
+    def __init__(self, *decisions, on_wait=None):
+        self.decisions = list(decisions)
+        self.on_wait = on_wait
+        self.asked = []
+        self.cleared = []
+
+    def answer(self, project_id, chat_id, allowed, reason):
+        raise AssertionError("the turn answered its own question")
+
+    def wait(self, project_id, chat_id, tick):
+        self.asked.append((project_id, chat_id))
+        if self.on_wait:
+            self.on_wait()
+        if not self.decisions:
+            raise AssertionError("the turn asked more than this test answers")
+        return self.decisions.pop(0)
+
+    def wake(self, project_id, chat_id):
+        pass
+
+    def clear(self, project_id, chat_id):
+        self.cleared.append((project_id, chat_id))
+
+
+class StopsWhileWaiting:
+    """A stop that lands while the turn is paused on a question.
+
+    Cut says yes to `wanted` from the first breath, which ends the round before the tool loop is
+    ever reached -- so it cannot describe this moment. Here the press happens on the way into the
+    wait, which is the one stretch of a turn with no socket to cut.
+    """
+
+    def __init__(self):
+        self.pressed = False
+        self.woke = None
+
+    def hold(self, project_id, chat_id, cut):
+        self.woke = cut
+
+    def want(self, project_id, chat_id):
+        self.pressed = True
+        self.woke()
+
+    def wanted(self, project_id, chat_id):
+        return self.pressed
+
+    def clear(self, project_id, chat_id):
+        pass
+
+
 class Cut:
     """The registry after a stop: however this answer ended, we are the ones who ended it.
 
@@ -132,6 +214,34 @@ def _run(tmp_path, rounds, stops=NEVER, **kwargs):
     engine = ScriptedEngine(rounds, **kwargs)
     produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, stops))
     return chats, files, engine, produced
+
+
+def allowed():
+    from backend.features.workspace.domain.permission import Decision
+
+    return Decision(True, "")
+
+
+def refused(reason=""):
+    from backend.features.workspace.domain.permission import Decision
+
+    return Decision(False, reason)
+
+
+def _gated(tmp_path, rounds, stops=NEVER, permissions=UNASKED, mode="ask", **kwargs):
+    """_run's sibling, with the registry the turn reads its answer from.
+
+    Its own helper for one turn only: _run's shape belongs to the tests already written, and
+    breaking every one of them would bury this turn's reds. They meet in the implementation tour.
+    """
+    chats, files = _seeded(tmp_path)
+    engine = ScriptedEngine(rounds, **kwargs)
+    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, stops, permissions, mode))
+    return chats, files, engine, produced
+
+
+def _write_round(name="plan.md"):
+    return [{"tool_calls": [call("create_file", name=name, content="x")]}]
 
 
 def test_a_round_without_tools_ends_the_loop(tmp_path):
@@ -615,6 +725,159 @@ def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tm
     chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
     assert _kept(chats).text == "Half a"
     assert _kept(chats).usage == Usage()
+
+
+# --- permission asked in the middle of a turn (Madde 99) -----------------------------------------
+
+
+def test_a_call_the_mode_does_not_cover_is_asked_about(tmp_path):
+    permissions = Answers(allowed())
+    _gated(tmp_path, [_write_round(), [{"text": "done"}]], permissions=permissions)
+    assert permissions.asked == [("p1", "c1")]
+
+
+def test_the_question_carries_the_tool_and_its_arguments(tmp_path):
+    # Raw, the way the model wrote them. Parsing here would be a second parser beside run_tool's,
+    # and the two would drift on the first change to either.
+    from backend.features.workspace.domain.permission import PermissionWanted
+
+    _, _, _, produced = _gated(
+        tmp_path, [_write_round(), [{"text": "done"}]], permissions=Answers(allowed())
+    )
+    asked = [piece for piece in produced if isinstance(piece, PermissionWanted)]
+    assert asked == [
+        PermissionWanted("create_file", json.dumps({"name": "plan.md", "content": "x"}))
+    ]
+
+
+def test_an_allowed_call_runs(tmp_path):
+    _, files, _, _ = _gated(
+        tmp_path, [_write_round(), [{"text": "done"}]], permissions=Answers(allowed())
+    )
+    assert files.list_names("p1") == ["plan.md"]
+
+
+def test_an_allowed_call_changes_the_mode_for_the_rest_of_the_turn(tmp_path):
+    # One answer for two writes. Measured by the registry running out if it is asked twice, which
+    # is exactly what a mode that did not change would do.
+    rounds = [
+        [
+            {
+                "tool_calls": [
+                    call("create_file", call_id="a", name="one.md", content="x"),
+                    call("create_file", call_id="b", name="two.md", content="y"),
+                ]
+            }
+        ],
+        [{"text": "done"}],
+    ]
+    permissions = Answers(allowed())
+    _, files, _, _ = _gated(tmp_path, rounds, permissions=permissions)
+    assert len(permissions.asked) == 1
+    assert sorted(files.list_names("p1")) == ["one.md", "two.md"]
+
+
+def test_a_refused_call_does_not_run(tmp_path):
+    _, files, _, _ = _gated(
+        tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
+    )
+    assert files.list_names("p1") == []
+
+
+def test_a_refused_call_tells_the_model_why(tmp_path):
+    # A wall with nothing written on it is a wall the model walks into again.
+    _, _, engine, _ = _gated(
+        tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
+    )
+    said = engine.seen[1][-1]
+    assert said["role"] == "tool"
+    assert said["tool_call_id"] == "t1"
+    assert "create_file" in said["content"]
+    assert "mode has not changed" in said["content"]
+
+
+def test_the_users_own_reason_reaches_the_model(tmp_path):
+    _, _, engine, _ = _gated(
+        tmp_path,
+        [_write_round(), [{"text": "ok"}]],
+        permissions=Answers(refused("that file is mine")),
+    )
+    assert "that file is mine" in engine.seen[1][-1]["content"]
+
+
+def test_a_refused_call_is_still_a_card(tmp_path):
+    # Madde 84 and 85 do not bend for a refusal: what the turn did is what the chat shows. No file
+    # name, because no file was touched.
+    chats, _, _, _ = _gated(
+        tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
+    )
+    assert chats.get("p1", "c1").messages[-1].calls == (ToolCall("create_file", "", "Not allowed"),)
+
+
+def test_a_refusal_does_not_end_the_turn(tmp_path):
+    _, _, engine, _ = _gated(
+        tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
+    )
+    assert len(engine.seen) == 2
+
+
+def test_a_stop_while_waiting_ends_the_turn(tmp_path):
+    stops = StopsWhileWaiting()
+    permissions = Answers(None, on_wait=lambda: stops.want("p1", "c1"))
+    chats, files, engine, _ = _gated(
+        tmp_path,
+        [_write_round(), [{"text": "never"}]],
+        stops=stops,
+        permissions=permissions,
+    )
+    assert files.list_names("p1") == []
+    assert len(engine.seen) == 1
+    assert chats.get("p1", "c1").messages[-1].stopped
+
+
+def test_a_tick_with_no_answer_beats_and_keeps_waiting(tmp_path):
+    # The beat is what keeps a tunnel from closing a silent stream, and what notices a tab that
+    # went away. Then the answer arrives and the turn carries on as if nothing happened.
+    from backend.features.workspace.domain.permission import Waiting
+
+    _, files, _, produced = _gated(
+        tmp_path, [_write_round(), [{"text": "done"}]], permissions=Answers(None, allowed())
+    )
+    assert [piece for piece in produced if isinstance(piece, Waiting)] == [Waiting()]
+    assert files.list_names("p1") == ["plan.md"]
+
+
+def test_edit_mode_never_reaches_the_registry(tmp_path):
+    # UNASKED raises when it is touched, so this is measured rather than asserted.
+    _, files, _, _ = _gated(tmp_path, [_write_round(), [{"text": "done"}]], mode="edit")
+    assert files.list_names("p1") == ["plan.md"]
+
+
+def test_every_mode_is_offered_every_tool(tmp_path):
+    # The mode stopped being the request's tool list here. What it decides now is which of them run
+    # without a question.
+    from backend.features.workspace.domain.tools import TOOL_SPECS
+
+    _, _, engine, _ = _gated(tmp_path, [[{"text": "hi"}]])
+    assert engine.tools == [[spec["function"]["name"] for spec in TOOL_SPECS]]
+
+
+def test_the_question_comes_before_the_dashed_card(tmp_path):
+    # The other way round the card would stand there through the whole wait, saying a file is on
+    # its way while nobody has agreed to it yet.
+    from backend.features.workspace.domain.permission import PermissionWanted
+
+    _, _, _, produced = _gated(
+        tmp_path, [_write_round(), [{"text": "done"}]], permissions=Answers(allowed())
+    )
+    kinds = [type(piece) for piece in produced]
+    assert kinds.index(PermissionWanted) < kinds.index(FileStarted)
+
+
+def test_the_registry_is_cleared_however_the_turn_ends(tmp_path):
+    permissions = Answers(refused())
+    _gated(tmp_path, [_write_round(), [{"text": "ok"}]], permissions=permissions)
+    assert permissions.cleared == [("p1", "c1")]
 
 
 # --- which tools the mode puts in the request (Madde 91) -----------------------------------------

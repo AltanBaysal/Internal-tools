@@ -1,49 +1,56 @@
-"""What each mode puts in the request. The rule that used to be a sentence in a skill's text.
+"""What a mode lets through without asking. The rule that used to be a sentence in a skill's text.
 
 The modes are named here the way the wire names them, and the module is imported inside each test
 rather than at the top: a module that does not exist yet fails this whole file's collection, and
 then none of the turn's other reds are visible anywhere in the suite.
 """
-# read_schema joined them in Madde 96: it opens no file and changes nothing, so no mode has a
-# reason to withhold it.
-READS = {"list_files", "read_file", "read_schema"}
+READS = ("list_files", "read_file", "read_schema")
+WRITES = ("create_file", "edit_file", "build_prompts", "build_character_prompts", "write_plan")
 
 
-def _offered(mode):
-    from backend.features.workspace.domain.modes import tools_for
+def _asks(mode, tool):
+    from backend.features.workspace.domain.modes import needs_permission
 
-    return {spec["function"]["name"] for spec in tools_for(mode)}
-
-
-def test_ask_mode_can_only_read():
-    # The item in one line: a model in this mode does not create a file because it has no tool that
-    # creates one -- not because it was asked nicely and held itself back.
-    assert _offered("ask") == READS
+    return needs_permission(mode, tool)
 
 
-def test_plan_mode_can_write_a_plan_and_nothing_else():
+def test_ask_mode_asks_before_it_writes():
+    # The item in one line: since Madde 99 the model is offered the tool either way, and the gate
+    # is the running of it rather than the list it was handed.
+    assert all(_asks("ask", tool) for tool in WRITES)
+
+
+def test_ask_mode_reads_without_asking():
+    # read_schema is among them since Madde 96: it opens no file and changes nothing.
+    assert not any(_asks("ask", tool) for tool in READS)
+
+
+def test_edit_mode_asks_for_nothing():
+    # The mode's whole meaning. Asked of every tool there is rather than of a list written here --
+    # a ninth tool must join this claim by existing, not by somebody remembering to add it.
+    from backend.features.workspace.domain.tools import TOOL_SPECS
+
+    assert not any(_asks("edit", spec["function"]["name"]) for spec in TOOL_SPECS)
+
+
+def test_plan_mode_writes_a_plan_without_asking_and_asks_for_the_rest():
     # Given create_file it could write the plan and the deliverable in the same turn, which is
     # doing the work instead of planning it.
-    assert _offered("plan") == READS | {"write_plan"}
-
-
-def test_edit_mode_can_write_a_plan_too():
-    # Madde 97: the flow works in this mode because it writes files, and it keeps its place in a
-    # plan. Without the tool here its first step cannot be taken at all.
-    assert _offered("edit") == READS | {
-        "create_file",
-        "edit_file",
-        "build_prompts",
-        "build_character_prompts",
-        "write_plan",
-    }
+    assert not _asks("plan", "write_plan")
+    assert _asks("plan", "create_file")
 
 
 def test_a_mode_nobody_knows_is_the_default_one():
-    # An older browser, or a body with no mode in it at all. Losing the tools silently would look
-    # exactly like a model that decided not to use them.
-    assert _offered("") == _offered("edit")
-    assert _offered("something-else") == _offered("edit")
+    # An older browser, or a body with no mode in it at all. A question nobody expected would stop
+    # a turn that used to run.
+    assert not _asks("", "create_file")
+    assert not _asks("something-else", "create_file")
+
+
+def test_a_tool_nobody_knows_is_never_asked_about():
+    # It will not run whatever the answer is, so asking would put a name this app does not have in
+    # front of the user and make them approve it.
+    assert not _asks("ask", "delete_everything")
 
 
 def test_only_a_written_plan_ends_the_turn():

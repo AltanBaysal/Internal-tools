@@ -662,14 +662,17 @@ def test_the_record_says_how_much_of_the_ceiling_it_has_used(tmp_path):
 # --- the mode a turn was sent in (Madde 91) ------------------------------------------------------
 
 
-def test_the_mode_reaches_the_request_as_a_tool_list(tmp_path):
-    # The browser sends a word; what it turns into is which tools the model is offered. Read off
-    # the engine, because that is the only place the word becomes a consequence.
+def test_every_mode_is_offered_every_tool(tmp_path):
+    # Until Madde 99 the mode was the request's tool list. Now everything is offered and the mode
+    # decides what runs without asking -- so the word's consequence moved, and this is where it is
+    # no longer visible.
+    from backend.features.workspace.domain.tools import TOOL_SPECS
+
     engine = ScriptedEngine([[{"text": "Done."}]])
     client = _client(tmp_path, engine)
     pid = _project(client)
     client.post(f"/api/projects/{pid}/messages", json={"text": "hello", "mode": "ask"}).get_data()
-    assert engine.tools == [["list_files", "read_schema", "read_file"]]
+    assert engine.tools == [[spec["function"]["name"] for spec in TOOL_SPECS]]
 
 
 def test_the_mode_is_not_written_to_the_record(tmp_path):
@@ -683,3 +686,85 @@ def test_the_mode_is_not_written_to_the_record(tmp_path):
     ).get_data(as_text=True)
     kept = _record(client, pid, _named(body))
     assert not any("mode" in message for message in kept["messages"])
+
+
+# --- the door the answer comes in by (Madde 99) --------------------------------------------------
+
+
+def _asking(tmp_path):
+    """A client whose second turn wants to write, and a first turn to be born in.
+
+    The chat has to exist before an answer can be left at its door, and a chat is born by being
+    answered -- so the first round is an ordinary sentence with no tool in it.
+    """
+    engine = ScriptedEngine(
+        [
+            [{"text": "hi"}],
+            [{"tool_calls": [_tool_call("create_file", name="plan.md", content="x")]}],
+            [{"text": "ok"}],
+        ]
+    )
+    return _client(tmp_path, engine)
+
+
+def _write(client, pid, cid):
+    return client.post(
+        f"/api/projects/{pid}/messages", json={"chat": cid, "text": "write it", "mode": "ask"}
+    ).get_data(as_text=True)
+
+
+def test_the_answer_left_at_the_door_lets_the_turn_finish(tmp_path):
+    # Answered before the question is asked, on purpose: the registry carries that race already,
+    # and the alternative here is a second thread whose timing decides whether the test passes.
+    client = _asking(tmp_path)
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
+    body = _write(client, pid, cid)
+    assert _frames(body) == ["chat", "permission", "file-start", "file", "call", "chunk", "done"]
+    assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == [
+        "plan.md"
+    ]
+
+
+def test_the_question_names_the_tool_and_its_arguments(tmp_path):
+    client = _asking(tmp_path)
+    pid, cid = _started(client)
+    client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
+    body = _write(client, pid, cid)
+    asked = json.loads(body.split("event: permission\ndata: ", 1)[1].splitlines()[0])
+    assert asked["tool"] == "create_file"
+    assert json.loads(asked["arguments"]) == {"name": "plan.md", "content": "x"}
+
+
+def test_a_refusal_at_the_door_writes_no_file_and_the_turn_still_ends(tmp_path):
+    client = _asking(tmp_path)
+    pid, cid = _started(client)
+    client.post(
+        f"/api/projects/{pid}/chats/{cid}/permission",
+        json={"allowed": False, "reason": "not that one"},
+    )
+    body = _write(client, pid, cid)
+    assert _frames(body) == ["chat", "permission", "call", "chunk", "done"]
+    assert client.get(f"/api/projects/{pid}/files").get_json() == []
+
+
+def test_answering_a_chat_that_is_not_there_is_a_404(tmp_path):
+    # The words as well as the number: an address nobody serves answers 404 too, and without the
+    # body this test would pass today for a reason that has nothing to do with the item.
+    client = _client(tmp_path)
+    pid = _project(client)
+    answered = client.post(f"/api/projects/{pid}/chats/nope/permission", json={"allowed": True})
+    assert answered.status_code == 404
+    assert answered.get_json() == {"error": "chat not found"}
+
+
+def test_the_beat_is_a_frame_the_browser_drops(tmp_path):
+    # parseFrame keeps only what carries an event line, so a beat has to carry none. Measured on
+    # this side because the front end is Madde 102's work and nothing here touches it. Reached
+    # through _sse rather than over HTTP: a real beat costs fifteen seconds of waiting.
+    from backend.features.workspace.domain.permission import Waiting
+    from backend.features.workspace.presentation.routes import _sse
+
+    written = "".join(_sse("c1", iter([Waiting()])))
+    beat = written.split("\n\n")[1]
+    assert beat and not beat.startswith("event:")
