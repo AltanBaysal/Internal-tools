@@ -2,8 +2,8 @@
 
 **Tarih:** 2026-08-28 · **Branch:** `feat/queenagent-v5` ·
 **Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 99 ·
-**Ne yapar:** Madde 99'un tasarımını açar ve yol haritasının beklediği bölünmeyi verir —
-**99, 102, 103**. Numaralar kaymıyor; yeni olanlar sondan alınıyor.
+**Ne yapar:** Madde 99'un tasarımını açar ve yol haritasının beklediği bölünmeyi verir — **99 ve
+102**. Numaralar kaymıyor; yeni olan sondan alınıyor.
 
 ---
 
@@ -131,44 +131,40 @@ düğmeye gerek yok: çıkış kapısı zaten orada.
 ## Bölünme
 
 Yol haritası bunu bekliyordu: *"Spec'i açıldığında birden fazla maddeye bölünmesi beklenen sonuç."*
-Üçe iniyor, ve sınırlar bir gözden geçirenin birini kabul edip ötekini reddedebileceği yerlerden
-geçiyor.
+İkiye iniyor: **arka yüz**, sonra **ekran**.
+
+**Neden üçe değil.** İlk kesim alan katmanını sunumdan ayırıyordu — kareler ayrı bir maddeye
+kalacaktı. Kalamıyor: `_sse`'nin son dalı tanımadığı her nesneyi *"tur bitti"* diye okuyor, yani
+akışa giren yeni bir nesne o dala düşer ve tarayıcı turu erken kapatır. Kareler 99'a girmek
+zorunda; girdiklerinde geriye kalan tek kapı kendi başına bir madde etmiyor, ve maddenin kendi
+*"nasıl görülür"* cümlesi zaten uçtan uca konuşuyor.
 
 ### Madde 99 — Kapı çalıştırma anına iner
 
-Alan katmanı ve kaydı. Kip sormadan çalışabilenlerin listesi oluyor, bütün araçlar modele
-veriliyor, izinsiz çağrı turu duraklatıyor, onay kipi değiştiriyor, red modele açıklamayla dönüyor,
-ve bekleyiş Stop ile bitiyor. Nabız burada bir nesne olarak doğuyor.
+Arka yüzün tamamı. Kip sormadan çalışabilenlerin listesi oluyor, bütün araçlar modele veriliyor,
+izinsiz çağrı turu duraklatıyor, soru ve nabız kareleri akışa çıkıyor, cevap kendi kapısından
+giriyor, onay kipi değiştiriyor, red modele açıklamayla dönüyor, ve bekleyiş Stop ile bitiyor.
 
-**Nasıl görülür:** sahte bir izin kaydıyla, soru kipinde dosya yazan bir çağrının önce sorduğu,
-onaylanınca çalıştığı, reddedilince çalışmadığı ve modele açıklama gittiği testlerle.
+**Nasıl görülür:** Flask istemcisiyle uçtan uca — soru kipinde dosya yazan bir iş isteniyor, akışta
+`permission` karesi çıkıyor, kapıya verilen onay turu sürdürüyor ve dosya doğuyor; red dosyayı
+doğurmuyor ve modele açıklama gidiyor.
 
-### Madde 102 — Soru kapıdan geçer
-
-Sunum katmanı. Soru karesi ve nabız karesi `_sse`'den çıkıyor, izin kapısı açılıyor, kayıt
-`main.py`'de kuruluyor.
-
-**Nasıl görülür:** Flask istemcisiyle — akışta `permission` karesi görünüyor, kapıya verilen cevap
-turu sürdürüyor, olmayan sohbet 404 alıyor.
-
-**Şartı:** 99.
-
-### Madde 103 — Ekran sorar
+### Madde 102 — Ekran sorar
 
 Ön yüz. Kart, iki düğme, sebep kutusu, ve onayla birlikte kip seçicisinin kayması. `dist` aynı
 commit'te derleniyor.
 
-**Nasıl görülür:** soru karesi geldiğinde kart çıkıyor; Allow kapıya `allowed: true` gönderiyor ve
-seçici edit'e geçiyor; Deny kutudaki sebebi taşıyor.
+**Nasıl görülür:** soru karesi geldiğinde kart çıkıyor; Allow kapıya onayı gönderiyor ve seçici
+edit'e geçiyor; Deny kutudaki sebebi taşıyor.
 
-**Şartı:** 102.
+**Şartı:** 99.
 
 ## Sıra
 
-99 → 102 → 103, kesintisiz. Yol haritasında 100 ve 101 aradaki numaraları tutuyor ama işin sırası
-bu değil: 100 ve 101 bu üçünün ardından geliyor. 101 *(akış skill'i)* izin işine bağlı değil —
-edit kipinde zaten çalışıyor — ama 103 bittikten sonra doğması, akışın yanlış kipte takılan
-kullanıcıya cevabı olan bir dünyada doğması demek.
+99 → 102, kesintisiz. Yol haritasında 100 ve 101 aradaki numaraları tutuyor ama işin sırası bu
+değil: ikisi de bu ikilinin ardından geliyor. 101 *(akış skill'i)* izin işine bağlı değil — edit
+kipinde zaten çalışıyor — ama 102 bittikten sonra doğması, akışın yanlış kipte takılan kullanıcıya
+cevabı olan bir dünyada doğması demek.
 
 ## Dokunulmayan
 
