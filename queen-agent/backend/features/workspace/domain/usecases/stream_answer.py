@@ -18,23 +18,42 @@ from backend.features.workspace.domain.usecases.append_message import append_mes
 
 
 def _conversation(chat):
-    """Every message, with a skill's instruction dropped in front of the turn it governs.
+    """Every message, and nothing else.
 
-    Once, not on every request: the instruction is a piece of the conversation rather than a header
-    on it. Only the user's messages are watched -- an answer carries no skill, and letting one count
-    would make the instruction reappear on every single turn.
+    The skill's instruction used to be dropped in here, in front of the turn it governed. Since
+    Madde 93 it does not travel inside the conversation at all -- it rides at the end of the
+    request, and `_asked` is what puts it there.
     """
-    active = ""
-    built = []
-    for message in chat.messages:
-        if message.role == "user" and message.skill != active:
-            active = message.skill
-            # A rule fades the further back it sits, so a skill taken up again is stated again.
-            instruction = instruction_for(active)
-            if instruction:
-                built.append({"role": "system", "content": instruction})
-        built.append({"role": message.role, "content": message.text})
-    return built
+    return [{"role": message.role, "content": message.text} for message in chat.messages]
+
+
+def _current_skill(chat):
+    """Which skill governs the turn being answered: the newest user message's.
+
+    Walked from the end rather than read off the last message, for the same reason last_sent is: a
+    record does not always end with the question that is waiting for an answer.
+    """
+    for message in reversed(chat.messages):
+        if message.role == "user":
+            return message.skill
+    return ""
+
+
+def _asked(conversation, instruction):
+    """The request as it goes out: the conversation, and the instruction behind all of it.
+
+    Two measures put it there. Attention: accuracy is highest at the two ends of a context and
+    falls by more than a third in the middle. Cache: what is fixed leads so the prefix holds, and
+    what changes trails so only it goes stale.
+
+    Built fresh on every round rather than once, because `conversation` grows -- each round appends
+    what the model said and what the tools answered. An instruction placed inside it once would sit
+    behind those from the second round on, and the reason this exists would stop holding after the
+    first one.
+    """
+    if not instruction:
+        return conversation
+    return conversation + [{"role": "system", "content": instruction}]
 
 
 def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stops, mode=EDIT):
@@ -46,6 +65,9 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
     # answered back is bookkeeping. What the turn *did* is not -- that is `made`, and it reaches the
     # record.
     conversation = _conversation(chat)
+    # Read once: which skill governs the turn being answered is settled before the first round, and
+    # no round changes it.
+    instruction = instruction_for(_current_skill(chat))
     said = []
     born = []
     made = []
@@ -64,7 +86,7 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
             round_spent = None
             try:
                 for piece in engine.stream(
-                    conversation,
+                    _asked(conversation, instruction),
                     tools=tools_for(mode),
                     # Only the transport holds a socket, so only it can hand out a way to cut one.
                     on_open=lambda cut: stops.hold(project_id, chat_id, cut),
