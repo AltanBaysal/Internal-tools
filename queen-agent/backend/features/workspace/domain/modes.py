@@ -21,7 +21,10 @@ _OFFERED = {
     # Reading, and one way to write -- a plan. Given create_file it could write the plan and the
     # deliverable in the same turn, which is doing the work instead of planning it.
     PLAN: READS + ("write_plan",),
-    EDIT: READS + ("create_file", "edit_file", "build_prompts"),
+    # write_plan is here too since Madde 97: in this mode a plan is an ordinary file, which is
+    # exactly why the tool belongs -- the flow writes one to keep its place and carries on in the
+    # same turn.
+    EDIT: READS + ("create_file", "edit_file", "build_prompts", "write_plan"),
 }
 
 
