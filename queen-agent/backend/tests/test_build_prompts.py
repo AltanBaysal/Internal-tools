@@ -45,6 +45,20 @@ def _structure(**changes):
     return structure
 
 
+def _tried(structure, character):
+    # Imported inside rather than at the top: a name that does not exist yet fails this whole
+    # file's collection, and a collection error stops the suite before any other red is seen.
+    from backend.features.workspace.domain.build_prompts import build_character_prompts
+
+    return build_character_prompts(structure, character)
+
+
+def _try_name(source, character):
+    from backend.features.workspace.domain.build_prompts import character_prompts_name
+
+    return character_prompts_name(source, character)
+
+
 def _prompts_of(module_text):
     # Parsed rather than run: what matters is that the file the user copies out is valid Python and
     # says what it was meant to say.
@@ -304,6 +318,55 @@ def test_the_old_list_form_makes_its_first_name_the_leading_character():
 def test_a_frame_with_nobody_in_it_still_says_how_many():
     built = build_prompts(_structure(frames=[_frame(people="no humans", characters={})]))
     assert built == [f"{QUALITY}, no humans, {BEDROOM}, an action, a camera"]
+
+
+def test_a_character_is_tried_once_for_every_outfit():
+    # Character times outfits, in the order the map wrote them. No model in it: the same joining
+    # that builds a frame builds this, so what is seen here is what a frame will show.
+    assert _tried(_structure(), "aylin") == [
+        f"{QUALITY}, {AYLIN}, {GECELIK}",
+        f"{QUALITY}, {AYLIN}, {GUNLUK}",
+        f"{QUALITY}, {AYLIN}, {TAKIM}",
+    ]
+
+
+def test_a_file_with_no_outfits_gives_the_identity_once():
+    structure = _structure()
+    del structure["outfits"]
+    assert _tried(structure, "aylin") == [f"{QUALITY}, {AYLIN}"]
+
+
+def test_a_try_without_quality_still_builds():
+    structure = _structure()
+    del structure["quality"]
+    assert _tried(structure, "aylin")[0] == f"{AYLIN}, {GECELIK}"
+
+
+def test_trying_a_character_nobody_knows_names_what_is_known():
+    # The same sentence a frame gets, minus the frame number: there is no frame here.
+    with pytest.raises(BadStructure) as refused:
+        _tried(_structure(), "aylinn")
+    said = str(refused.value)
+    assert "aylinn" in said and "aylin" in said and "deniz" in said
+    assert "frame" not in said
+
+
+@pytest.mark.parametrize(
+    "source,character,expected",
+    [
+        ("bar-scene.json", "aylin", "bar-scene-aylin.py"),
+        ("intro-frames.json", "deniz", "intro-frames-deniz.py"),
+        ("noextension", "aylin", "noextension-aylin.py"),
+    ],
+)
+def test_the_try_is_named_after_the_source_and_the_character(source, character, expected):
+    assert _try_name(source, character) == expected
+
+
+def test_a_character_name_with_spaces_still_makes_a_clean_file_name():
+    # The name comes from the model like every other one, and a file name is not the place to find
+    # out what it did with it.
+    assert _try_name("bar-scene.json", "yan karakter") == "bar-scene-yan-karakter.py"
 
 
 @pytest.mark.parametrize(

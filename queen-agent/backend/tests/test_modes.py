@@ -34,6 +34,7 @@ def test_edit_mode_can_write_a_plan_too():
         "create_file",
         "edit_file",
         "build_prompts",
+        "build_character_prompts",
         "write_plan",
     }
 

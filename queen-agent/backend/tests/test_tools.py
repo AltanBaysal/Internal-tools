@@ -228,6 +228,9 @@ def test_every_tool_is_declared_to_the_model():
         # Seventh since Madde 96. The shape of a structure file stopped being a paragraph in a
         # skill's text; it is fetched when a file is about to be written.
         "read_schema",
+        # Eighth since Madde 98: the same joining, one character at a time, so a character can be
+        # looked at before it enters a frame.
+        "build_character_prompts",
     }
 
 
@@ -291,6 +294,42 @@ def test_building_reports_a_born_file(tmp_path):
     files = _with(tmp_path, "intro-frames.json", STRUCTURE)
     built = run_tool(files, "p1", "build_prompts", json.dumps({"name": "intro-frames.json"}))
     assert built.created == "intro-frames.py"
+
+
+def test_trying_a_character_writes_a_file_named_after_both(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "build_character_prompts", name="scene.json", character="aylin")
+    assert "scene-aylin.py" in files.list_names("p1")
+
+
+def test_trying_a_character_reports_a_born_file(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    result = run_tool(
+        files,
+        "p1",
+        "build_character_prompts",
+        json.dumps({"name": "scene.json", "character": "aylin"}),
+    )
+    assert result.created == "scene-aylin.py"
+
+
+def test_trying_a_character_nobody_knows_writes_nothing(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    said = _call(files, "build_character_prompts", name="scene.json", character="ghost")
+    assert "ghost" in said
+    assert files.list_names("p1") == ["scene.json"]
+
+
+def test_a_character_try_says_how_many_prompts_it_wrote(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    result = run_tool(
+        files,
+        "p1",
+        "build_character_prompts",
+        json.dumps({"name": "scene.json", "character": "aylin"}),
+    )
+    # One outfit in this structure, so the singular is the answer -- counted() decides that.
+    assert result.outcome == "1 prompt"
 
 
 def test_building_again_writes_over_its_own_output(tmp_path):
