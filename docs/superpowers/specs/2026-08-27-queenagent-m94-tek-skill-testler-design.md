@@ -1,7 +1,7 @@
 # Madde 94 — Tek skill kalır, beşi silinir · **test turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası, Madde 94](../plans/2026-08-26-queenagent-v5-5-roadmap.md)
+**Kaynak:** [v5 yol haritası, Blok 5, Madde 94](../plans/2026-08-25-queenagent-v5-roadmap.md)
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod yazılmaz.
 
 ---

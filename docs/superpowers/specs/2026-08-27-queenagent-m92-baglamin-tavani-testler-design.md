@@ -1,7 +1,7 @@
 # Madde 92 — Bağlamın tavanı olur, ve tavana çarpmak bir olaydır · **test turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 92 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 92 ·
 **Şartı:** Madde 76 — sayı zaten ölçülüyor
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.
 

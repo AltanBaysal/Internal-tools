@@ -1,7 +1,7 @@
 # Madde 93 — Yönerge isteğin sonuna iner, sabit olan başta kalır · **test turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 93 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 93 ·
 **Üstüne geldiği:** [Madde 91](2026-08-27-queenagent-m91-kip-gelir-uygulama-design.md)
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.
 

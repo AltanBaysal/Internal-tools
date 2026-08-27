@@ -1,7 +1,7 @@
 # Madde 87 — Mesaj tek kapıdan girer, sohbeti sunucu yaratır · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 87 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 87 ·
 **Üstüne geldiği:** [Madde 86](2026-08-26-queenagent-m86-skill-oturumun-kipi-uygulama-design.md) —
 sohbetin durumunu söktü; bu madde sohbetin **kapısını** birleştiriyor.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod yazılmaz, ve tur kırmızı

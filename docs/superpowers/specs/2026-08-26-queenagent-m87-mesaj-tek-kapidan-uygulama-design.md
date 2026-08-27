@@ -1,7 +1,7 @@
 # Madde 87 — Mesaj tek kapıdan girer · **uygulama turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 87 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 87 ·
 **Turun birincisi:** [test turu](2026-08-26-queenagent-m87-mesaj-tek-kapidan-testler-design.md) —
 on üç kırmızı commit'lendi *(`4c8de91`)*.
 **Tur:** ikiden ikincisi — bu belge **kodu** tarif eder.

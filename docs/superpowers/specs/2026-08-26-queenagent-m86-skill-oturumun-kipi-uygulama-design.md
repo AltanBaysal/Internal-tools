@@ -1,7 +1,7 @@
 # Madde 86 — Skill sohbetin değil oturumun kipi olur · **uygulama turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 86 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 86 ·
 **Turun birincisi:** [test turu](2026-08-26-queenagent-m86-skill-oturumun-kipi-testler-design.md) —
 dokuz kırmızı commit'lendi *(`04674a8`)*.
 **Tur:** ikiden ikincisi — bu belge **kodu** tarif eder. Test yazılmaz; commit'lenmiş dokuz kırmızı

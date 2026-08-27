@@ -1,7 +1,7 @@
 # Madde 88 — Cevabı sunucu başlatır · **uygulama turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 88 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 88 ·
 **Turun birincisi:** [test turu](2026-08-26-queenagent-m88-cevabi-sunucu-baslatir-testler-design.md) —
 on sekiz kırmızı commit'lendi *(`b39d92e`)*.
 **Tur:** ikiden ikincisi — bu belge **kodu** tarif eder.

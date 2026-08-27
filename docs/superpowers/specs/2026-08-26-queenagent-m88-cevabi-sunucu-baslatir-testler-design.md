@@ -1,7 +1,7 @@
 # Madde 88 — Cevabı sunucu başlatır, tarayıcı değil · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 88 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 88 ·
 **Üstüne geldiği:** [Madde 87](2026-08-26-queenagent-m87-mesaj-tek-kapidan-uygulama-design.md) —
 kapıyı birleştirdi; bu madde o kapıdan **geri ne geldiğini** değiştiriyor.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.

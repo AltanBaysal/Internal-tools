@@ -1,7 +1,7 @@
 # Akış skill'i — kullanıcının yaşadığı yol
 
 **Tarih:** 27 Ağustos 2026 · **Durum:** kararları verilmiş, koşusu
-[v6 yol haritasında](superpowers/plans/2026-08-27-queenagent-v6-roadmap.md).
+[v5 yol haritasının Blok 6'sında](superpowers/plans/2026-08-25-queenagent-v5-roadmap.md).
 
 **Kardeş belgeler:** [karar defteri](2026-08-27-queenagent-skill-kararlari.md) ·
 [problemler](2026-08-27-queenagent-skill-problemleri.md)

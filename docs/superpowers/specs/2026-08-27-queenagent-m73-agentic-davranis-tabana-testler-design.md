@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
 **Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Madde 73 ·
-**Neden burada:** [v5.5](../plans/2026-08-26-queenagent-v5-5-roadmap.md) tek istisna olarak içine aldı — 94'ün şartı
+**Neden burada:** Blok 5 tek istisna olarak içine aldı — 94'ün şartı
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.
 
 ---

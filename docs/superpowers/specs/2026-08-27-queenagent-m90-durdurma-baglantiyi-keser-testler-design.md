@@ -1,7 +1,7 @@
 # Madde 90 — Durdurma tek yoldan iner ve bağlantıyı keser · **test turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 90 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 90 ·
 **Üstüne geldiği:** [Madde 89](2026-08-27-queenagent-m89-sohbetin-sekli-tek-yerde-uygulama-design.md)
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.
 

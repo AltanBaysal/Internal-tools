@@ -1,7 +1,7 @@
 # Madde 86 — Skill sohbetin değil oturumun kipi olur · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5.5 yol haritası](../plans/2026-08-26-queenagent-v5-5-roadmap.md) — Madde 86 ·
+**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 5, Madde 86 ·
 **Üstüne geldiği:** [Madde 82](2026-08-26-queenagent-m82-model-secimi-sokulur-testler-design.md) —
 model seçimini söktü, skill'i *"orada gerçekten bir seçim var"* diyerek bıraktı. Bu madde o cümleyi
 sınıyor: seçim gerçek, ama seçimin **sunucuda saklanması** gerçek değil.
