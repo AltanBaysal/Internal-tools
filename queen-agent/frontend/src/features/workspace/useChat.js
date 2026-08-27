@@ -155,8 +155,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   );
 
   const stop = useCallback(async () => {
-    // The server's answer carries nothing; what matters is that the flag is set before the running
-    // turn looks at it again. A refusal is not worth a message -- the stream ends either way.
+    // The server's answer carries nothing; what matters is that the running turn's connection is
+    // cut. A refusal is not worth a message -- the stream ends either way.
     await postJson(`/api/projects/${projectId}/chats/${chatId}/stop`, {}).catch(() => {});
   }, [projectId, chatId]);
 
