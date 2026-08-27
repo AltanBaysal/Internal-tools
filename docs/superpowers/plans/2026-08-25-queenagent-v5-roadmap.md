@@ -81,9 +81,10 @@ gönderilmedi ve gönderilmeyecek — yerine geçen şey kullanıcının kendi c
   kullanıcının kararı, ve 71 geldiğinde çözeceği sorun aynı sorun.
 - **Taban yönerge, skillerden önce.** Skillerin üstündeki fazlalık ancak taban onu söylemeye
   başladıktan sonra bırakılabilir. **73 → 74**.
-- **Prompt dili, skiller toplanmadan önce.** Promptun neye benzeyeceğini söyleyen metin skillerin
+- **~~Prompt dili, skiller toplanmadan önce.~~** Promptun neye benzeyeceğini söyleyen metin skillerin
   içinde duruyor. Dil değişmeden skiller tek akışta toplanırsa aynı metin iki kez yazılır.
-  **75 → 74**.
+  **75 → 74** — **bağ düştü (27 Ağustos)**. Şart yanlış değildi, ama 75 iptal oldu: dil değişmiyor,
+  etiket kalıyor *(K9)*. Yani şartın sorduğu soru cevaplandı, ve 74'ü bekleten bir şey kalmadı.
 
 ### Backlog karşılığı
 
@@ -341,8 +342,11 @@ kendi sırasıdır; Grok Build araya giriyor çünkü şartı bir önceki madde,
 geçti.
 
 **72 sıradan çıkıp öne alındı** *(kullanıcı kararı, 26 Ağustos)* — Blok 4'ün arasında koşuldu.
-Numarası ve bloğu yerinde: blok kimin koştuğunu söylüyor, ve 72 de kullanıcıyla açıldı. Kalan altı
-madde sırasını koruyor.
+Numarası ve bloğu yerinde: blok kimin koştuğunu söylüyor, ve 72 de kullanıcıyla açıldı.
+
+**Blok bitti, ve onunla v5 de bitti** *(27 Ağustos)*. 69, 72 ve 73 koşuldu; 74 v5.5'in 94'üne, 70
+skill task'ına devredildi; 75 iptal oldu; 71'in işini v5.5 yaptı. Yedi maddenin hiçbiri koşulmayı
+beklemiyor.
 
 ### Madde 69 — Doküman güncellenir, yeniden yaratılmaz
 
@@ -359,7 +363,21 @@ madde sırasını koruyor.
   bugünkü kural kullanıcının emeğini korumak için var (1. ilke) ve tamamen kaldırılması o ilkeye
   dokunur. Bu soru maddeyi Blok 2'ye taşıdı.
 
-### Madde 70 — Karede iki karakter varsa prompt iki kişiyi söyler
+### Madde 70 — Karede iki karakter varsa prompt iki kişiyi söyler · **skill task'ına devredildi**
+
+> **Bu madde tek başına koşulmuyor** *(kullanıcı kararı, 27 Ağustos)*. İçeriği bütünüyle skill
+> yapısını kapsayan tek task'a girdi; kararları [karar defterinde](../../2026-08-27-queenagent-skill-kararlari.md).
+> Devrin sebebi yalnız kapsam değil: sıra düzeltmesi de `people` alanı da aynı iki yere dokunuyor —
+> `build_prompts.py` ve prompt+ metni — yani ayrı koşulsalar biri ötekinin işini bozardı.
+>
+> **Devrederken iki yeri düzeltildi.** *"Kaç kişi olduğunu artık kod söyler: kareye giren karakterler
+> sayılır"* yanlış: kod sayamaz, çünkü bir karakterin ne olduğu şemada hiçbir alanda durmuyor ve o
+> alan bilerek açılmadı. Sayıyı model yazar, kod yerleştirir *(K6–K8)*. İkincisi, maddenin asıl
+> şikâyeti sayı değil **sıra** — iki tarif yan yana durduğu için birbirine bulaşıyor *(K1–K5)*; bu
+> hiç yazılmamıştı.
+>
+> **Açık sorusu da beraber gitti:** diskte duran yapı dosyalarına ne olacağı. Karar defterinin açık
+> listesinde duruyor. Aşağıdaki metin 25 Ağustos'un kaydı.
 
 - **Ne çalışır:** iki karakterli bir kare bugün görüntü modeline "bir kız" etiketini iki kez
   gönderiyor, oysa iki kişi için beklenen ayrı bir etiket. Kaç kişi olduğunu artık **kod** söyler:
@@ -372,7 +390,21 @@ madde sırasını koruyor.
 - **Spec'te karara bağlanacak:** bugün yazılmış yapı dosyalarındaki sayı etiketlerine ne olacağı —
   temizlenecek mi, olduğu gibi bırakılıp üstüne mi yazılacak.
 
-### Madde 71 — Bağlam yönetilir, iş bölünür
+### Madde 71 — Bağlam yönetilir, iş bölünür · **v5.5'te çözüldü**
+
+> **Bu madde koşulmuyor: işi v5.5 yaptı** *(kullanıcı kararı, 27 Ağustos)*. Üç madde şikâyetin üç
+> yarısını da kapattı:
+>
+> - **92** bağlama bir tavan koydu — 50k — ve tavana çarpan tur duruyor. Sınırsız büyüme bitti.
+> - **93** yönergeyi isteğin sonuna indirdi; sabit olan başta kaldığı için önek korunuyor ve
+>   önbellek işliyor.
+> - **91** plan kipini getirdi. *"Uzun iş parçalara bölünsün"* ricası, planı dosyaya yazan bir
+>   araca dönüştü — yani tutan bir şey var artık.
+>
+> **Backlog'a geri dönmüyor.** İki şey bilerek yapılmadı ve yapılmıyor: özetleme, ve okumayı alt
+> ajana taşımak. İkisi de bu maddenin çözdüğü sorunun ilacı değil, onun ötesindeki bir iş — ve
+> bugünkü ölçüyle gerek görülmedi. İstenirse yeni bir madde olarak doğar. Madde silinmiyor,
+> numarası kaymıyor. Aşağıdaki metin 25 Ağustos'un kaydı.
 
 - **Ne çalışır:** bağlam çok hızlı büyüyor, 300-500k'yı buluyor: bir cevap on altı tura kadar
   dönerken her turda sohbetin tamamı yeniden gönderiliyor. Uzun işin parçalara bölünmesi bugün yalnız
@@ -409,7 +441,19 @@ madde sırasını koruyor.
 - **Nasıl görülür:** hiçbir skill seçilmeden dosyaya dayanan bir iş isteniyor; model yazmadan önce
   bakıyor ve sonunda ne yaptığını söylüyor.
 
-### Madde 75 — Promptlar cümle olarak çıkar
+### Madde 75 — Promptlar cümle olarak çıkar · **iptal**
+
+> **Bu madde koşulmuyor: dediği şey yanlış** *(kullanıcı kararı, 27 Ağustos — K9)*. Metin
+> *"çıkan şey etiket dizisi değil, düz cümledir"* diyor; kullanıcı bunun tersini söyledi —
+> *"promptların cümle ile çıkması problem, SDXL promptları cümle değil."* Kullanılan modeller SDXL
+> temelli ve SDXL etiketle çalışır.
+>
+> Madde backlog'un belirsiz yazılmış bir satırından doğmuştu: *"Promptlar SDXL promptu gibi değil,
+> cümle şeklinde çıksın."* Cümle iki türlü okunuyor, ve yol haritasına yanlış okuma geçmiş.
+>
+> **Sonucu:** `build_prompts` yaşıyor ve biçim değiştirmiyor *(K10)*. 74'ün *"prompt dili belli
+> olmadan tek akışın metni yazılamaz"* şartı bu kararla zaten karşılandı. Madde silinmiyor, çünkü
+> numaralar kaymıyor. Aşağıdaki metin 25 Ağustos'un kaydı.
 
 - **Ne çalışır:** bugün hem karakter dosyaları hem kare promptları SDXL etiketi olarak yazılıyor —
   virgülle ayrılmış kısa parçalar; skill metni bunu "asla cümle değil" diye söylüyor, prompt listesini
@@ -453,13 +497,15 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | ~~Tool call'lar sohbet kaydına yazılacak mı, ne kadarı gösterilecek~~ | 66 — kapandı |
 | ~~Durdurulan cevabın yarısı kaydedilecek mi~~ | 67 — kapandı |
 | ~~Tüketim sayısı nerede duracak~~ | 68 — kapandı |
-| Tool call satırının alt satırı ne söyleyecek | 78 |
-| Üstüne yazma kuralı nerede istisna tutacak | 69 |
-| Bugünkü yapı dosyalarındaki sayı etiketleri temizlenecek mi | 70 |
-| Bağlamın hangi yolla yönetileceği | 71 — **76**'nın ölçüsüne bakarak |
+| ~~Tool call satırının alt satırı ne söyleyecek~~ | 78 — kapandı: çağrının sonucunu söylüyor |
+| ~~Üstüne yazma kuralı nerede istisna tutacak~~ | 69 — kapandı: istisna yok. `create_file` alınmış bir adı reddediyor ve `edit_file`'ı gösteriyor; numaralı kopya düştü |
+| ~~Bugünkü yapı dosyalarındaki sayı etiketleri temizlenecek mi~~ | **Kapandı** — [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) K26, K27: dosyalar olduğu gibi kalıyor, tanımda kalan etiketi kural kitabı yakalıyor |
+| ~~Bağlamın hangi yolla yönetileceği~~ | **Kapandı** — v5.5'in 92, 93 ve 91'i cevapladı |
 | ~~Model seçici kalkacak mı, eski kayıtlardaki model adlarına ne olacak~~ | 72 — kapandı: ikisi de olduğu gibi kalıyor |
-| Diskte duran etiket biçimli dosyalar dönüştürülecek mi | 75 |
-| Hangi skiller düşecek | 74 |
+| ~~Diskte duran dosyalar dönüştürülecek mi~~ | **Kapandı** — K26: dönüştürülmüyor, kod eksik alanı atlıyor |
+| ~~Hangi skiller düşecek~~ | 94 — kapandı: prompt+ dışında hepsi. Yerine gelen akış skill'i, skill task'ının işi *(K16)* |
+
+**Tabloda açık satır kalmadı** *(27 Ağustos)*. v5'in sorduğu her şey ya koşuldu ya karara bağlandı.
 
 76'dan 85'e kadar olanlar bu tabloda yok: onunun da kararı verilmiş, verilecek bir şey kalmadı.
 81'in

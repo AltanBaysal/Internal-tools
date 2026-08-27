@@ -206,9 +206,10 @@ her dizilişte önceki maddenin işi sonraki tarafından atılıyor.
   girdi fiyatı ikiye katlanıyor — 1M token başına $1.00 yerine $2.00, önbellekten gelen için $0.20
   yerine $0.40. Bugünkü 300-500k'lık bağlam hem pencereye sığmıyor hem de iki katı ödüyor.
 - **Kararı verilmiş** *(kullanıcı kararı, 26 Ağustos)*: tavana çarpınca istek atmak **engellenir** ve
-  ekranda yeni bir sohbet açması söylenir. Özetleme yapılmaz — *şimdilik*. Özet, konuşmayı sürdürmenin
-  yolu ama kendi başına bir iş; bu madde yalnız tavanı ve durmayı getiriyor. Özetlemeyi getirmek
-  isteyen gün, 71'in işi.
+  ekranda yeni bir sohbet açması söylenir. Özetleme yapılmaz. Özet, konuşmayı sürdürmenin yolu ama
+  kendi başına bir iş; bu madde yalnız tavanı ve durmayı getiriyor. *(Buraya önce "şimdilik" ve
+  "71'in işi" yazılmıştı. 71 düştü — işini 92, 93 ve 91 yaptı — ve özetleme kullanıcı kararıyla
+  planlanmıyor. İstenirse yeni bir madde olarak doğar; bekleyen bir kaydı yok.)*
 - **Hangi sayıya bakılır** *(kullanıcı kararı, 26 Ağustos)*: bir turun büyüklüğü ancak cevap dönünce
   öğreniliyor, o yüzden tavan **bir önceki cevabın** sayısına bakar. Yani ölçü bir tur eski, ve
   tavana çarpan istek aslında bir önceki isteğin boyuyla durduruluyor. 50k'lık tavanda bu fark
