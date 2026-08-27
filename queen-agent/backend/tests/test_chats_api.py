@@ -607,7 +607,9 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     ).get_data()
 
     assert not [piece for piece in plain.seen if piece["role"] == "system"]
-    assert with_skill.seen[0] == {
+    # At the end since Madde 93, where it used to be in front of the message it governed. The
+    # claim is unchanged -- the road from the composer to the engine is one road.
+    assert with_skill.seen[-1] == {
         "role": "system",
         "content": instruction_for("create-scenario"),
     }

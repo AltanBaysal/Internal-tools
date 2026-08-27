@@ -326,56 +326,54 @@ def _instructions(conversation):
     return [piece["content"] for piece in conversation if piece["role"] == "system"]
 
 
-def test_a_skill_puts_its_instruction_right_before_the_message(tmp_path):
+def test_the_instruction_is_the_last_thing_in_the_request(tmp_path):
+    # Two measures point at the same place. Attention: accuracy is highest at the two ends of a
+    # context and falls by more than a third in the middle. Cache: what is fixed stays at the front
+    # so the prefix holds, and what changes sits at the end so only it goes stale.
     _, conversation = _said_with(tmp_path, ("write me a scenario", "create-scenario"))
-    assert conversation[-2] == {
+    assert conversation[-1] == {
         "role": "system",
         "content": instruction_for("create-scenario"),
     }
-    assert conversation[-1]["content"] == "write me a scenario"
+    assert conversation[-2]["content"] == "write me a scenario"
 
 
-def test_the_same_skill_twice_running_says_it_once(tmp_path):
-    _, conversation = _said_with(
-        tmp_path, ("one", "create-scenario"), ("and again", "create-scenario")
-    )
-    # Resending the same text every turn would break the conversation and pay for it twice.
-    assert _instructions(conversation) == [instruction_for("create-scenario")]
-
-
-def test_a_reply_in_between_does_not_bring_it_back(tmp_path):
-    chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "one", NOW, skill="create-scenario")
-    append_message(chats, "p1", "c1", "here it is", NOW, role="ai")
-    append_message(chats, "p1", "c1", "again", NOW, skill="create-scenario")
-    engine = ScriptedEngine([[{"text": "ok"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
-    # Answers carry no skill, and letting them count would repeat the instruction every turn.
-    assert _instructions(engine.seen[0]) == [instruction_for("create-scenario")]
-
-
-def test_changing_the_skill_brings_the_new_one_in_once(tmp_path):
-    _, conversation = _said_with(
-        tmp_path, ("one", "create-scenario"), ("now split it", "split-into-frames")
-    )
-    assert _instructions(conversation) == [
-        instruction_for("create-scenario"),
-        instruction_for("split-into-frames"),
-    ]
-
-
-def test_a_skill_left_and_taken_up_again_is_said_again(tmp_path):
+def test_only_the_current_skill_is_sent_whatever_came_before(tmp_path):
+    # However many times the selection changed, one instruction goes and it is this turn's. Before
+    # Madde 93 a chat that had changed skill four times carried four texts, the oldest of them
+    # forty messages back -- and the model had to find the newest copy among them.
     _, conversation = _said_with(
         tmp_path,
         ("one", "create-scenario"),
-        ("just chatting", ""),
-        ("another scenario", "create-scenario"),
+        ("and again", "create-scenario"),
+        ("now split it", "split-into-frames"),
     )
-    # The rule fades the further back it sits, so coming back to it says it again.
-    assert _instructions(conversation) == [
-        instruction_for("create-scenario"),
-        instruction_for("create-scenario"),
-    ]
+    assert _instructions(conversation) == [instruction_for("split-into-frames")]
+
+
+def test_no_instruction_stands_among_the_messages(tmp_path):
+    # The other half of the same move: the block did not just get a new place, the old places are
+    # empty. Measured on the messages rather than on the whole request, because the one at the end
+    # is the one that is supposed to be there.
+    _, conversation = _said_with(
+        tmp_path, ("one", "create-scenario"), ("now split it", "split-into-frames")
+    )
+    # Three, because the chat was born with a message of its own before these two.
+    assert [piece["role"] for piece in conversation[:-1]] == ["user", "user", "user"]
+
+
+def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
+    # An answer runs up to sixteen rounds and each sends its own request. Left where it was, the
+    # block would sit behind the tool exchanges from the second round on -- and the reason this
+    # item exists would stop holding after the first one.
+    chats, files = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", "check the files", NOW, skill="verify-prompts")
+    engine = ScriptedEngine([[{"tool_calls": [call("list_files")]}], [{"text": "clean"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
+    second = engine.seen[1]
+    assert second[-1] == {"role": "system", "content": instruction_for("verify-prompts")}
+    # And what it moved past: the round that asked for the tool, and the tool's answer.
+    assert [piece["role"] for piece in second[-3:-1]] == ["assistant", "tool"]
 
 
 def test_a_chat_without_a_skill_is_told_nothing_extra(tmp_path):

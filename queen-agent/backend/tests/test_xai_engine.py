@@ -29,6 +29,17 @@ def test_the_system_prompt_leads_and_the_roles_are_translated():
     assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
 
 
+def test_the_fixed_part_leads_and_the_last_word_stays_last():
+    # Madde 93's shape, end to end: what is fixed at the front, what changes at the back. The
+    # engine adds to the front and reorders nothing -- if it ever sorted or grouped by role, the
+    # instruction would land in the middle again and nothing else would notice.
+    client = FakeClient()
+    tail = {"role": "system", "content": "the instruction"}
+    XaiEngine(client).complete(CONVERSATION + [tail])
+    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
+    assert client.seen[-1] == tail
+
+
 def test_streaming_is_prepared_the_same_way():
     client = FakeClient()
     list(XaiEngine(client).stream(CONVERSATION))
