@@ -69,6 +69,26 @@ def test_the_structured_instruction_shows_the_frames_characters_as_a_map():
     assert '"characters": { "aylin": [' in said
 
 
+def test_the_structured_instruction_keeps_the_count_out_of_the_character():
+    # How many people are in a frame belongs to the frame: the same character is alone in one and
+    # beside someone in the next. Carried in the entry it is wrong half the time, and written twice
+    # when two people share a frame.
+    assert '"aylin": "1girl' not in instruction_for("generate-prompts-plus")
+
+
+def test_the_structured_instruction_shows_the_count_in_the_action():
+    said = instruction_for("generate-prompts-plus")
+    assert '"action": "1girl' in said
+    # Named in the text as well as shown, because the shown one is only ever the single case.
+    assert "2girls" in said
+
+
+def test_the_structured_instruction_says_which_character_comes_first():
+    # Code builds the order, but the model writes the map -- and which name it writes first is what
+    # decides who stays at the front of the prompt.
+    assert "the first character" in instruction_for("generate-prompts-plus").lower()
+
+
 def test_the_structured_instruction_says_what_belongs_where():
     said = instruction_for("generate-prompts-plus").lower()
     # The rule that makes the split make sense, rather than two maps and no reason.
