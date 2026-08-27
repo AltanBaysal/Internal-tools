@@ -41,22 +41,16 @@ class ChatStore(Protocol):
 
 
 class Engine(Protocol):
-    def complete(
-        self, messages: list[dict], tools: list[dict] | None = None, model: str | None = None
-    ) -> dict:
-        """Answer a conversation. Messages carry the domain's own roles: user and ai.
+    """Something that answers a conversation.
 
-        The model travels with the call because it belongs to the chat, not to the wiring; None
-        leaves the choice to whatever the engine was configured with.
-        """
+    Which model it answers with is not asked here: there is one, and config.py names it once. That
+    belongs to whatever the engine was built with, not to the call.
+    """
 
-    def stream(
-        self,
-        messages: list[dict],
-        tools: list[dict] | None = None,
-        model: str | None = None,
-        on_open=None,
-    ):
+    def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
+        """Answer a conversation. Messages carry the domain's own roles: user and ai."""
+
+    def stream(self, messages: list[dict], tools: list[dict] | None = None, on_open=None):
         """Answer a conversation piece by piece.
 
         Yields {"text": str} as words arrive and {"tool_calls": [...]} when the model asks for one.
