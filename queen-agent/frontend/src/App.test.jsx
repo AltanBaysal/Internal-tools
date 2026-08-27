@@ -737,6 +737,40 @@ test("sending a sentence streams the answer and keeps the server's record", asyn
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
 });
 
+test("a call frame takes the dashed card down", async () => {
+  // The dashed card lives between "the model asked" and "the tool answered", and a call frame is
+  // the second. Until Madde 69 only a born file took it down, so a tool that wrote nothing left it
+  // spinning until the turn ended -- rare then, and the ordinary case now that create_file refuses
+  // a name that is taken.
+  const owed = { id: "c1", title: "hello", messages: [] };
+  const { response, release } = gatedSse(
+    'event: chat\ndata: {"chat":"c1"}\n\n' +
+      "event: file-start\ndata: {}\n\n" +
+      'event: call\ndata: {"tool":"create_file","target":"plan.md","outcome":"Already there"}\n\n',
+    `event: done\ndata: ${JSON.stringify(owed)}\n\n`,
+  );
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") return Promise.resolve(response);
+    if (path.endsWith("/chats/c1"))
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "fix the plan" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  // The handle is what says the tool answered -- while a turn runs it carries the newest call, and
+  // the outcome itself is behind the door. Waiting for it is what makes the dashed card's absence
+  // mean something: without it this would also pass on a card that never went up.
+  await waitFor(() => expect(screen.getByText("⏺ create_file(plan.md)")).toBeTruthy());
+  expect(screen.queryByText("creating file…")).toBeNull();
+  release();
+});
+
 test("a file born mid-answer reaches the rail without a reload", async () => {
   const owed = {
     id: "c1",

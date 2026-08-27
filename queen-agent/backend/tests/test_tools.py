@@ -99,12 +99,45 @@ def test_reading_a_file_that_is_not_there_is_an_answer_not_a_crash(tmp_path):
     assert "no file by that name" in _call(_files(tmp_path), "read_file", name="ghost.md")
 
 
-def test_creating_reports_the_name_actually_used(tmp_path):
-    files = _files(tmp_path)
-    _call(files, "create_file", name="plan.md", content="first")
-    assert "plan-2.md" in _call(files, "create_file", name="plan.md", content="second")
-    # Nothing was overwritten: both are still there.
+# --- creating over a name that is taken (Madde 69) ------------------------------------------------
+#
+# It used to number: plan.md became plan-2.md and the project held two versions of one document. The
+# way to change a file that exists is edit_file, and until now reaching for it was the model's own
+# choice -- which is the kind of thing FOUNDATION 5 says code decides.
+
+
+def test_creating_over_a_name_that_is_taken_writes_nothing(tmp_path):
+    files = _with(tmp_path, "plan.md", "first")
+    _call(files, "create_file", name="plan.md", content="second")
     assert _call(files, "read_file", name="plan.md") == "first"
+    # And no copy beside it: refusing means one document, which was the whole point.
+    assert _call(files, "list_files") == "plan.md"
+
+
+def test_a_refused_create_points_at_the_tool_that_can_do_it(tmp_path):
+    # The tool result is the instruction. Saying only "there is already one" would leave the model
+    # to guess the next move, and guessing is what put it here.
+    files = _with(tmp_path, "plan.md", "first")
+    assert "edit_file" in _call(files, "create_file", name="plan.md", content="second")
+
+
+def test_a_refused_create_brings_no_file_into_being(tmp_path):
+    # No card: nothing was born. The same rule edit_file follows.
+    files = _with(tmp_path, "plan.md", "first")
+    refused = run_tool(files, "p1", "create_file", json.dumps({"name": "plan.md", "content": "x"}))
+    assert refused.created is None
+
+
+def test_a_refused_create_names_the_file_that_was_in_the_way(tmp_path):
+    # The call was about that file, and the card says which. It used to name plan-2.md -- a file
+    # that only existed because of the numbering this item took away.
+    files = _with(tmp_path, "plan.md", "first")
+    assert _target(files, "create_file", name="plan.md", content="second") == "plan.md"
+
+
+def test_a_refused_create_does_not_say_it_saved(tmp_path):
+    files = _with(tmp_path, "plan.md", "first")
+    assert _outcome(files, "create_file", name="plan.md", content="second") == "Already there"
 
 
 # --- the plan tool (Madde 91) --------------------------------------------------------------------
@@ -290,12 +323,6 @@ def _target(files, tool, **arguments):
 def test_a_read_reports_the_cleaned_name_rather_than_the_asked_one(tmp_path):
     files = _with(tmp_path, "plan.md", "body")
     assert _target(files, "read_file", name="notes/plan.md") == "plan.md"
-
-
-def test_a_created_file_reports_the_name_it_actually_got(tmp_path):
-    # The record says what happened, not what the model wished for.
-    files = _with(tmp_path, "plan.md", "body")
-    assert _target(files, "create_file", name="plan.md", content="again") == "plan-2.md"
 
 
 def test_listing_has_no_target_to_report(tmp_path):
