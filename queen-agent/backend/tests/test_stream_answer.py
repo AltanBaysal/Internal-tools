@@ -156,19 +156,22 @@ def test_a_tool_call_is_run_and_the_answer_goes_back_to_the_model(tmp_path):
 
 
 def test_two_calls_in_one_round_are_both_run(tmp_path):
+    # Two names rather than the same one twice. The claim is that the loop runs both calls; it used
+    # to rest that on the numbered copy the second one produced, and since Madde 69 a create over a
+    # name that is taken writes nothing. Two files is the same claim measured without that lean.
     rounds = [
         [
             {
                 "tool_calls": [
                     call("create_file", call_id="a", name="plan.md", content="x"),
-                    call("create_file", call_id="b", name="plan.md", content="y"),
+                    call("create_file", call_id="b", name="notes.md", content="y"),
                 ]
             }
         ],
         [{"text": "done"}],
     ]
     _, files, _, _ = _run(tmp_path, rounds)
-    assert sorted(files.list_names("p1")) == ["plan-2.md", "plan.md"]
+    assert sorted(files.list_names("p1")) == ["notes.md", "plan.md"]
 
 
 def test_text_from_every_round_becomes_one_message(tmp_path):

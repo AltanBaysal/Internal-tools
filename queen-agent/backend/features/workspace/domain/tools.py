@@ -14,7 +14,6 @@ from backend.features.workspace.domain.build_prompts import (
     render_module,
 )
 from backend.features.workspace.domain.errors import BadStructure
-from backend.features.workspace.domain.naming import unique_name
 
 # What the model is told, separately whether a file was born, and separately the file the call was
 # about. Parsing the sentence back out would be fragile.
@@ -76,7 +75,8 @@ TOOL_SPECS = [
             "name": "create_file",
             "description": (
                 "Save a document into this project. Reach for it only when the user asked for "
-                "something worth keeping as a file."
+                "something worth keeping as a file. Refuses a name that is already taken: to "
+                "change a file that exists, use edit_file."
             ),
             "parameters": {
                 "type": "object",
@@ -209,10 +209,22 @@ def run_tool(file_store, project_id, name, arguments):
         return ToolResult(content, None, wanted, counted(len(content.splitlines()), "line"))
 
     if name == "create_file":
-        wanted = unique_name(file_store.list_names(project_id), safe_name(args.get("name")))
+        wanted = safe_name(args.get("name"))
+        # Asked of the names rather than by reading the file: the question is whether the name is
+        # taken, and pulling a whole document back to learn that is work nobody needs.
+        if wanted in file_store.list_names(project_id):
+            # The sentence is the instruction. Saying only that one exists would leave the next
+            # move to a guess, and a guess is what put the model here.
+            return ToolResult(
+                f"There is already a file called {wanted}. Use edit_file to change it, or pick "
+                "another name for a new document.",
+                None,
+                wanted,
+                "Already there",
+            )
         written = file_store.write(project_id, wanted, args.get("content", ""))
-        # The name it got, not the one it asked for -- the record says what happened. Not repeated
-        # in the outcome: the line above already carries it.
+        # The name it got, which is the cleaned one rather than whatever the model wished for. Not
+        # repeated in the outcome: the line above already carries it.
         return ToolResult(f"Saved as {written}.", written, written, "Saved")
 
     if name == "write_plan":
@@ -240,7 +252,7 @@ def run_tool(file_store, project_id, name, arguments):
 
 
 def _edit(file_store, project_id, args):
-    """create_file never overwrites, so without this there is no way to change anything."""
+    """create_file refuses a name that is taken, so this is the only way to change anything."""
     wanted = safe_name(args.get("name"))
     content = file_store.read(project_id, wanted)
     if content is None:

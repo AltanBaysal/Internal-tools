@@ -92,6 +92,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
               setStreamingText((current) => current + frame.data.text);
             } else if (frame.event === "call") {
               setStreamingCalls((calls) => [...calls, frame.data]);
+              // The dashed card lives between "the model asked" and "the tool answered", and this
+              // frame is the second. Only a born file used to take it down, so a tool that wrote
+              // nothing left it up until the turn ended.
+              setCreatingFile(false);
             } else if (frame.event === "file-start") setCreatingFile(true);
             else if (frame.event === "file") {
               setCreatedFiles((names) => [...names, frame.data.name]);
