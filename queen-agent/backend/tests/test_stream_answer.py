@@ -629,7 +629,7 @@ def _in_mode(tmp_path, rounds, mode):
 
 def test_the_mode_decides_which_tools_the_request_carries(tmp_path):
     _, engine, _ = _in_mode(tmp_path, [[{"text": "Hi"}]], "ask")
-    assert set(engine.tools[0]) == {"list_files", "read_file"}
+    assert set(engine.tools[0]) == {"list_files", "read_file", "read_schema"}
 
 
 def test_a_turn_that_names_no_mode_carries_all_five(tmp_path):

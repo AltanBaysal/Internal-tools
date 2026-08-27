@@ -669,7 +669,7 @@ def test_the_mode_reaches_the_request_as_a_tool_list(tmp_path):
     client = _client(tmp_path, engine)
     pid = _project(client)
     client.post(f"/api/projects/{pid}/messages", json={"text": "hello", "mode": "ask"}).get_data()
-    assert engine.tools == [["list_files", "read_file"]]
+    assert engine.tools == [["list_files", "read_schema", "read_file"]]
 
 
 def test_the_mode_is_not_written_to_the_record(tmp_path):
