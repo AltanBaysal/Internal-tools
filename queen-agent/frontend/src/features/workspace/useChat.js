@@ -17,6 +17,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   // What the turn has done so far. Held only while the answer runs: the record that arrives at the
   // end carries the same steps, and drawing from both sources would read one step as two.
   const [streamingCalls, setStreamingCalls] = useState([]);
+  // The question a paused turn is waiting on: {tool, args}, or null. The frame says `arguments` and
+  // this says `args` -- a language rule rather than a rename, since `arguments` cannot be
+  // destructured as a prop inside a module.
+  const [permission, setPermission] = useState(null);
 
   // Kept in refs rather than dependencies: the caller may hand over fresh functions on every
   // render, and that must not rebuild `send`.
@@ -102,6 +106,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
               setCreatingFile(false);
               // The file exists on disk this instant, so every list that shows it is out of date.
               announce.current?.();
+            } else if (frame.event === "permission") {
+              // The turn has stopped and is reading for an answer. Nothing else about the screen
+              // changes: it is still running, so the send button is still a stop.
+              setPermission({ tool: frame.data.tool, args: frame.data.arguments });
             }
             // What the browser piled up is a guess; what the server wrote is the record, so the
             // The closing frame carries nothing since Madde 89: it says the turn is over, and what
@@ -152,6 +160,9 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
         setCreatingFile(false);
         setCreatedFiles([]);
         setStreamingCalls([]);
+        // However the turn ended. A question left standing would hang over the next turn, offering
+        // to allow something nobody is waiting on any more.
+        setPermission(null);
         setThinking(false);
       }
     },
@@ -164,6 +175,22 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
     await postJson(`/api/projects/${projectId}/chats/${chatId}/stop`, {}).catch(() => {});
   }, [projectId, chatId]);
 
+  const answer = useCallback(
+    async (allowed, reason) => {
+      // The card goes first: the turn carries on down the stream that is already open, and waiting
+      // for the door to reply would leave the question on screen after it was settled.
+      setPermission(null);
+      // The chat the stream went into rather than the address: a chat born by this very message
+      // has no address yet, and the answer would knock at chats/null.
+      const landed = streamingInto.current ?? chatId;
+      await postJson(
+        `/api/projects/${projectId}/chats/${landed}/permission`,
+        allowed ? { allowed: true } : { allowed: false, reason },
+      ).catch(() => {});
+    },
+    [projectId, chatId],
+  );
+
   return {
     chat,
     error,
@@ -174,8 +201,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
     creatingFile,
     createdFiles,
     streamingCalls,
+    permission,
     send,
     stop,
+    answer,
     // Try again is the same road with no sentence on it.
     retry: () => send(null),
   };

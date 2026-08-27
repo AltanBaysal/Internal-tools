@@ -17,7 +17,7 @@ import {
 } from "./features/workspace/useChatLists.js";
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
-import { DEFAULT_MODE } from "./features/workspace/modes.js";
+import { DEFAULT_MODE, EDIT } from "./features/workspace/modes.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
 import { getJson } from "./shared/api.js";
@@ -327,6 +327,16 @@ export default function App() {
             onSend={(text) => chat.send(text, lastSkill, lastMode)}
             onSkillChange={setLastSkill}
             onStop={chat.stop}
+            /* The question is the hook's; the mode is the session's, and the session is here. One
+               button moves both, and useChat never learns there is such a thing as a mode. */
+            permission={chat.permission}
+            onAllow={() => {
+              chat.answer(true, "");
+              /* The answer settles this one call; the picker settles the next turn. Left on ask,
+                 the very next message would raise the same question again. */
+              setLastMode(EDIT);
+            }}
+            onDeny={(reason) => chat.answer(false, reason)}
             onRetry={chat.retry}
           />
         ) : null}

@@ -7,6 +7,7 @@ import FileRail from "./FileRail.jsx";
 import Markdown from "./Markdown.jsx";
 import ModelLabel from "./ModelLabel.jsx";
 import ModePicker from "./ModePicker.jsx";
+import PermissionCard from "./PermissionCard.jsx";
 import Skeleton from "./Skeleton.jsx";
 import SkillPicker from "./SkillPicker.jsx";
 
@@ -148,6 +149,9 @@ export default function ChatScreen({
   creatingFile,
   createdFiles = [],
   streamingCalls = [],
+  permission,
+  onAllow,
+  onDeny,
   skill,
   skillsOpen,
   onToggleSkills,
@@ -313,6 +317,17 @@ export default function ChatScreen({
                         />
                 ))}
               </div>
+            ) : null}
+
+            {/* Where the turn stopped: the answer's text is still above it, or the dots are, and
+                the question stands underneath them. */}
+            {permission ? (
+              <PermissionCard
+                tool={permission.tool}
+                args={permission.args}
+                onAllow={onAllow}
+                onDeny={onDeny}
+              />
             ) : null}
 
             {/* A message that was never sent has no answer to try again for -- it has a sentence to
