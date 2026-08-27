@@ -632,7 +632,7 @@ def test_the_mode_decides_which_tools_the_request_carries(tmp_path):
     assert set(engine.tools[0]) == {"list_files", "read_file", "read_schema"}
 
 
-def test_a_turn_that_names_no_mode_carries_all_five(tmp_path):
+def test_a_turn_that_names_no_mode_carries_the_writing_tools(tmp_path):
     # The retry road sends no mode of its own, and neither does any caller written before this.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "Hi"}]])

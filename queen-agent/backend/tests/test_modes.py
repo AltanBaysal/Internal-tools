@@ -27,9 +27,15 @@ def test_plan_mode_can_write_a_plan_and_nothing_else():
     assert _offered("plan") == READS | {"write_plan"}
 
 
-def test_edit_mode_carries_the_five_it_always_had():
-    # And not write_plan: in this mode a plan is an ordinary file, and edit_file changes it.
-    assert _offered("edit") == READS | {"create_file", "edit_file", "build_prompts"}
+def test_edit_mode_can_write_a_plan_too():
+    # Madde 97: the flow works in this mode because it writes files, and it keeps its place in a
+    # plan. Without the tool here its first step cannot be taken at all.
+    assert _offered("edit") == READS | {
+        "create_file",
+        "edit_file",
+        "build_prompts",
+        "write_plan",
+    }
 
 
 def test_a_mode_nobody_knows_is_the_default_one():
