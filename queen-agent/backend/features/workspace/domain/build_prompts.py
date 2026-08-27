@@ -5,6 +5,7 @@ that cannot be talked out of the rules. Assembly is exactly what a model must no
 character copied into forty frames drifts, a character resolved by code cannot.
 """
 from backend.features.workspace.domain.errors import BadStructure
+from backend.features.workspace.domain.naming import folded
 
 
 def build_prompts(structure):
@@ -53,6 +54,32 @@ def build_prompts(structure):
     return built
 
 
+def build_character_prompts(structure, character):
+    """One character on their own, once for every outfit the file names.
+
+    The same joining a frame goes through, so what is seen here is what a frame will show. No count:
+    how many people are in a picture is a frame's own field, and there is no frame here.
+    """
+    if not isinstance(structure, dict):
+        raise BadStructure(
+            "A structure file is a JSON object with characters, locations and frames."
+        )
+
+    characters = structure.get("characters") or {}
+    if character not in characters:
+        # The sentence a frame gets, without the frame number: there is no frame to name.
+        raise BadStructure(
+            f"{character} is not in characters; known: {', '.join(sorted(characters)) or 'nothing'}"
+        )
+
+    quality = structure.get("quality", "")
+    identity = characters[character]
+    outfits = structure.get("outfits") or {}
+    if not outfits:
+        return [_tags([quality, identity])]
+    return [_tags([quality, identity, worn]) for worn in outfits.values()]
+
+
 def render_module(prompts):
     """The file the user copies out of: triple quotes, trailing comma, one name to import."""
     lines = ["PROMPTS = ["]
@@ -65,6 +92,13 @@ def prompts_name(source):
     """The output is the source under a new extension, so a project can hold several scenarios."""
     stem, dot, _ = source.rpartition(".")
     return f"{stem if dot else source}.py"
+
+
+def character_prompts_name(source, character):
+    """Named after both, so two characters can be tried side by side and neither one lands in the
+    scene's own list."""
+    stem, dot, _ = source.rpartition(".")
+    return f"{stem if dot else source}-{folded(character)}.py"
 
 
 def _worn(field):

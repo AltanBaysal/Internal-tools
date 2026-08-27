@@ -9,7 +9,9 @@ from collections import namedtuple
 from dataclasses import dataclass
 
 from backend.features.workspace.domain.build_prompts import (
+    build_character_prompts,
     build_prompts,
+    character_prompts_name,
     prompts_name,
     render_module,
 )
@@ -47,7 +49,7 @@ DEFAULT_NAME = "note.md"
 
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
 # here: the file was already there. write_plan is, because the first plan of a name is new.
-WRITES_FILES = {"create_file", "build_prompts", "write_plan"}
+WRITES_FILES = {"create_file", "build_prompts", "build_character_prompts", "write_plan"}
 
 TOOL_SPECS = [
     {
@@ -137,6 +139,25 @@ TOOL_SPECS = [
                     "name": {"type": "string", "description": "The structure file's name."}
                 },
                 "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "build_character_prompts",
+            "description": (
+                "Build a try list for one character: the same joining a frame gets, once for every "
+                "outfit the structure names. Writes a Python file named after the structure and "
+                "the character, replacing what it wrote last time."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "The structure file's name."},
+                    "character": {"type": "string", "description": "Which character to try."},
+                },
+                "required": ["name", "character"],
             },
         },
     },
@@ -266,6 +287,9 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "build_prompts":
         return _build(file_store, project_id, args)
 
+    if name == "build_character_prompts":
+        return _try_character(file_store, project_id, args)
+
     return ToolResult(f"There is no tool called {name}.", None, "", "Unknown tool")
 
 
@@ -330,6 +354,35 @@ def _build(file_store, project_id, args):
 
     # Written over on purpose: this file is derived, and regenerating it after an edit is the whole
     # point. Numbering it would leave a pile with no way to tell which one is now.
+    written = file_store.write(project_id, target, render_module(prompts))
+    return ToolResult(
+        f"Wrote {len(prompts)} prompts to {written}.",
+        written,
+        source,
+        counted(len(prompts), "prompt"),
+    )
+
+
+def _try_character(file_store, project_id, args):
+    """One character, looked at before it enters a frame. The reading is _build's, the assembling
+    is the other constructor's."""
+    source = safe_name(args.get("name"))
+    content = file_store.read(project_id, source)
+    if content is None:
+        return ToolResult("There is no file by that name.", None, source, "No file by that name")
+
+    try:
+        structure = json.loads(content)
+    except json.JSONDecodeError as broken:
+        return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
+
+    character = str(args.get("character") or "")
+    try:
+        prompts = build_character_prompts(structure, character)
+    except BadStructure as refused:
+        return ToolResult(str(refused), None, source, "Refused")
+
+    target = character_prompts_name(source, character)
     written = file_store.write(project_id, target, render_module(prompts))
     return ToolResult(
         f"Wrote {len(prompts)} prompts to {written}.",
