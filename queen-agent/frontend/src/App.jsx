@@ -21,6 +21,7 @@ import { DEFAULT_MODE, EDIT } from "./features/workspace/modes.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
 import { getJson } from "./shared/api.js";
+import { useRemembered } from "./shared/remembered.js";
 import { useOnline } from "./shared/useOnline.js";
 import { parsePath, useRoute } from "./shared/useRoute.js";
 import { useShellWidth } from "./shared/useShellWidth.js";
@@ -58,9 +59,10 @@ export default function App() {
     if (next === null) setRailCollapsed(true);
     else setRailWidth(next);
   };
-  // The last skill picked, and what the next chat is born with. Held for the session rather than
-  // written to disk: a chat's own choice is on the server, and this is only the starting point.
-  const [lastSkill, setLastSkill] = useState("");
+  // The last skill picked, and what the next chat is born with. Remembered by the browser since
+  // Madde 100: a five-step flow that loses its skill on a reload sends the next turn with no
+  // instruction, and nothing on screen says so.
+  const [lastSkill, setLastSkill] = useRemembered("skill", "");
   // The last mode picked, and what the next turn is sent in. Held for the session like the skill,
   // and unlike it never written anywhere: nothing on the server reads a mode back.
   const [lastMode, setLastMode] = useState(DEFAULT_MODE);
