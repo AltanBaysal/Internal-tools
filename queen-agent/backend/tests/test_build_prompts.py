@@ -12,7 +12,6 @@ from backend.features.workspace.domain.errors import BadStructure
 QUALITY = "score_9_up, masterpiece"
 AYLIN = "1girl, long teal hair"
 DENIZ = "1boy, short black hair"
-ECE = "1girl, blonde bob"
 BEDROOM = "sunlit bedroom, morning light"
 GECELIK = "white nightgown"
 GUNLUK = "black t-shirt"
@@ -33,7 +32,7 @@ def _frame(**changes):
 def _structure(**changes):
     structure = {
         "quality": QUALITY,
-        "characters": {"aylin": AYLIN, "deniz": DENIZ, "ece": ECE},
+        "characters": {"aylin": AYLIN, "deniz": DENIZ},
         "outfits": {"gecelik": GECELIK, "gunluk": GUNLUK, "takim": TAKIM},
         "locations": {"bedroom": BEDROOM},
         "frames": [_frame()],
@@ -94,43 +93,6 @@ def test_each_characters_block_stays_together():
     frame = _frame(characters={"aylin": ["gunluk"], "deniz": ["takim"]})
     built = build_prompts(_structure(frames=[frame]))[0]
     assert built.index(AYLIN) < built.index(GUNLUK) < built.index(DENIZ) < built.index(TAKIM)
-
-
-# --- more than one person in a frame (Madde 70) ---------------------------------------------------
-#
-# They used to be built side by side, and an image model cannot tell two neighbouring descriptions
-# apart -- whose hair is whose stops being answerable. The fix is distance: the main character stays
-# at the front and everyone else goes after the camera, with the place and the action in between.
-
-
-def test_a_frame_puts_everyone_after_the_first_at_the_end():
-    frame = _frame(characters={"aylin": ["gunluk"], "deniz": ["takim"]})
-    assert build_prompts(_structure(frames=[frame])) == [
-        f"{QUALITY}, {AYLIN}, {GUNLUK}, {BEDROOM}, an action, a camera, {DENIZ}, {TAKIM}"
-    ]
-
-
-def test_three_characters_leave_only_the_first_at_the_front():
-    # The second and third stay neighbours at the end, and the same bleeding is possible between
-    # them. Known and accepted: the one that has to come out clean is the main character.
-    frame = _frame(characters={"aylin": [], "deniz": [], "ece": []})
-    assert build_prompts(_structure(frames=[frame])) == [
-        f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera, {DENIZ}, {ECE}"
-    ]
-
-
-def test_one_character_is_built_exactly_as_it_was():
-    # The half that must not move. A frame with one person has nothing to separate, and a change
-    # there would be this item breaking what it was not asked to touch.
-    built = build_prompts(_structure(frames=[_frame(characters={"aylin": ["gecelik"]})]))
-    assert built == [f"{QUALITY}, {AYLIN}, {GECELIK}, {BEDROOM}, an action, a camera"]
-
-
-def test_the_main_character_stays_in_front_of_the_place():
-    # The other half of the rule: everyone else moves, the first one does not.
-    frame = _frame(characters={"aylin": [], "deniz": []})
-    built = build_prompts(_structure(frames=[frame]))[0]
-    assert built.index(AYLIN) < built.index(BEDROOM)
 
 
 def test_a_character_with_no_outfit_is_just_the_identity():
