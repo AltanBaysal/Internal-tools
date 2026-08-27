@@ -10,7 +10,7 @@ satırı üstü çizilir ve yerine yenisi yazılır — silinmez, çünkü ona a
 
 **Kardeş belgeler:**
 [problemler ve gerekçeleri](2026-08-27-queenagent-skill-problemleri.md) ·
-[akış nasıl yaşanır](2026-08-27-queenagent-akis-nasil-yasanir.md)
+[akış tasarımı](2026-08-27-queenagent-akis-tasarimi.md)
 
 ---
 
@@ -64,9 +64,9 @@ anlamı yok.
 | K16 | **İki skill olacak.** `generate-prompts-plus` bugünkü işini sürdürüyor; yanına **onu besleyen bir akış skill'i** geliyor. | Yeni yapı |
 | K17 | **Akış tek metin, ve kullanıcı arada skill değiştirmiyor.** Bu, silinen üç skill'i geri getirmek değil — Madde 74'ün asıl istediği buydu. | Yeni yapı |
 | K18 | **Akış sorarak ilerler:** karakterler, mekânlar, ve her ikisi için *"promptun var mı"*. Varsa alır, yoksa kullanıcı anlatır ve akış kurar. | Yeni yapı |
-| K19 | **Akış tek karakterlik deneme kurabilir** — kullanıcı görmek isterse. Küçük bir yapı dosyası artı `build_prompts`; **yeni araç gerekmiyor**. | Yeni yapı |
+| K19 | ~~**Akış tek karakterlik deneme kurabilir** — küçük bir yapı dosyası artı `build_prompts`; yeni araç gerekmiyor.~~ **Değişti — K36:** deneme kendi aracını alıyor. | Yeni yapı |
 | K20 | **JSON asıl kaynak.** Akış hem haritaları hem `frames`'i yapı dosyasına yazar; md kullanıcının kendi dilinde okuduğu açıklamadır. | Yeni yapı |
-| K21 | **Akış bir plan yazar ve kendisi takip eder.** Kullanıcının onaylaması gereken bir kapı değil; dosyada durmasının sebebi kullanıcının görebilmesi. | [Akış belgesi](2026-08-27-queenagent-akis-nasil-yasanir.md) |
+| K21 | **Akış bir plan yazar ve kendisi takip eder.** Kullanıcının onaylaması gereken bir kapı değil; dosyada durmasının sebebi kullanıcının görebilmesi. | [Akış tasarımı](2026-08-27-queenagent-akis-tasarimi.md) |
 
 ## D · Kararların açığa çıkardığı iş
 
@@ -75,15 +75,44 @@ Bunlar karar değil, kararların **şartı** — koda bakarak bulundu.
 | # | İş | Nereden çıktı |
 |---|---|---|
 | K22 | **`write_plan` `edit` kipine eklenecek.** Akış `edit` kipinde çalışıyor ve o kipte `write_plan` elinde yok. Turu bitirme kuralı sorun çıkarmıyor: `ends_the_turn` yalnız `plan` kipinde tetikleniyor. | K21 |
-| K23 | **`GENERATE_PROMPTS_PLUS` metni güncellenecek:** sayı karakter tanımından çıkıyor *(K6)*, ilk ismin ana karakter olduğu yazılıyor *(K1)*, şema örneği buna göre düzeliyor, ve kural kitabı altıncı maddesini alıyor *(K27)*. | K1, K6, K27 |
+| K23 | **`GENERATE_PROMPTS_PLUS` metni güncellenecek:** sayı karakter tanımından çıkıyor *(K6)*, ilk ismin ana karakter olduğu yazılıyor *(K1)*, şema örneği buna göre düzeliyor, ve kural kitabı altıncı maddesini alıyor *(K27)*. **K28'den sonra bu işin çoğu metnin değil şemanın:** şema ve kural kitabı araca taşındığı için prompt+ metni ikisini de taşımıyor. | K1, K6, K27, K28 |
 | K24 | **Skill seçicide ikinci satır doğacak.** Bugün tek satır var; akış skill'i ikinciyi getiriyor. Madde 94 seçiciyi tam da bunun için bırakmıştı. | K16 |
+
+## E · Akışın kendisi
+
+Hepsi 27 Ağustos, ve tasarımın anlatıldığı yer
+[akış tasarımı](2026-08-27-queenagent-akis-tasarimi.md).
+
+| # | Karar | Nerede tartışıldı |
+|---|---|---|
+| K28 | **Şema ve kural kitabı skill metinlerinde durmaz.** `read_schema` aracı ikisini birden döndürür; iki skill de yazmadan önce onu çağırır. Sebebi: yönerge her turda yeniden gönderiliyor *(Madde 93)*, oysa şema yalnız yazma anında lazım. | Kullanıcı kararı |
+| K29 | **Akış dallanmaz.** Her adımın tek çıktısı var, ve o çıktı kullanıcının ne kadar anlattığına göre değişmez — değişen yalnız adımın kaç tur sürdüğü. | Kullanıcı kararı |
+| K30 | **Her adım kendi içinde döngü.** Kullanıcı onaylayana kadar bir sonrakine geçilmez. | Kullanıcı kararı |
+| K31 | **Madde 94'te silinen dört bilginin hiçbiri geri gelmiyor.** Gerekçe kullanıcının kendi ölçümü: *"çok kötü çalışıyorlardı."* Problem 4 böylece kapandı. | Kullanıcı kararı |
+| K32 | **Promptları akış kendisi kurar.** Kullanıcı sonda prompt+'a geçmiyor. prompt+ yerinde: elinde yapı dosyası olanın **var olanı güncelleyen** yolu. | Kullanıcı kararı |
+| K33 | **Sahneler iki yere birden yazılır** — `frames`'e etiket olarak, md'ye cümle olarak. Kayma bedeli biliniyor ve kullanıcıya bırakıldı. | Kullanıcı kararı |
+| K34 | **Anlatılmayan karakter ve mekân için yer tutucu yazılır** — `1girl, long hair, plain clothes`, `plain background`. Akış tarif bekleyerek durmaz. | Kullanıcı kararı |
+| K35 | **Skill'in adı `Start a scenario`.** Çıkan şey tek sahne değil, senaryo: karakterler, mekânlar, N sahne, prompt listesi. | Kullanıcı kararı |
+| K36 | **`build_character_prompts` aracı gelir.** Karakter × kıyafetler, düz bir `PROMPTS` listesi, `build_prompts` ile aynı kurucu. İçinde model yok. K19'un yerine geçiyor. | Kullanıcı kararı |
+
+## F · Yetki ve seçim
+
+| # | Karar | Nerede tartışıldı |
+|---|---|---|
+| K37 | **Yazma araçları her kipte modele verilir; kip artık *sormadan çalışabilenlerin* listesi.** Kipin izin vermediği bir çağrı **tur ortasında** kullanıcıya sorulur, ve akış cevabı bekler. | Kullanıcı kararı, 27 Ağustos |
+| K38 | **Onay kipi değiştirir, red turu bitirmez.** Red modele bir açıklamayla döner — kip değişmedi, bu araç bu kipte yok, yazmadan devam et — ve **kullanıcı kendi sebebini de yazabilir**. | Kullanıcı kararı, 27 Ağustos |
+| K39 | **Skill seçimi tarayıcıda hatırlanır.** Madde 86 bunu bilerek dışarıda bırakmıştı; beş adımlık bir akış gerekçeyi değiştiriyor — yenilemeden sonra yönergesiz giden bir tur akışı sessizce bozuyor. | Kullanıcı kararı, 27 Ağustos |
+
+**K37'nin Madde 91 ile ilişkisi:** yetki hâlâ kodda. Model izin almadan yazamıyor; değişen tek şey
+kapının araç listesinden değil çalıştırma anından geçmesi. Yönergeye *"yazma"* diye bir cümle
+girmiyor.
 
 ---
 
 ## Yol haritasıyla çelişenler
 
-Bu kararların ikisi v5 yol haritasının yazılı hâlini yanlışlıyor. **Numaralar kaymıyor**; maddelerin
-üstüne düzeltme notu düşüyor — 74'ün 94'e devredilmesinde olduğu gibi.
+Bu kararlar koşulmuş maddelerin yazılı hâlini yanlışlıyor ya da genişletiyor. **Numaralar kaymıyor**;
+maddelerin üstüne düzeltme notu düşüyor — 74'ün 94'e devredilmesinde olduğu gibi.
 
 **Madde 70'in yazılı hâli:** *"Kaç kişi olduğunu artık kod söyler: kareye giren karakterler sayılır."*
 **Yanlış** — K8. Kod sayamaz, çünkü bir karakterin ne olduğu hiçbir alanda durmuyor. Sayıyı model
@@ -93,18 +122,28 @@ değil, **sıra** *(K3)*.
 **Madde 75'in yazılı hâli:** *"Prompt dili değişir: çıkan şey etiket dizisi değil, düz cümledir."*
 **Yanlış** — K9. Etiket kalıyor.
 
+**Madde 86'nın yazılı hâli:** *"Tarayıcı hafızasına da yazılmaz: sildiğimiz karmaşıklığı başka bir
+yere taşımak olurdu."* **Değişti** — K39. Gerekçe yanlış değildi, ama beş adımlık bir akış onu
+geçersiz kılıyor: yenilemeden sonra yönergesiz giden bir tur akışı sessizce bozuyor. 86'nın asıl
+korktuğu şey — ekranın bir şey deyip isteğin başka bir şey taşıması — geri gelmiyor, çünkü
+hatırlanan değer ikisinin de okuduğu tek değer.
+
+**Madde 91'in kip tanımı genişliyor** — K37. Kip artık modele *hangi araçların verildiğini* değil,
+*hangilerinin sormadan çalışabildiğini* söylüyor. 91'in kuralı yerinde: yetki koda bağlı, yönergeye
+değil.
+
 ---
 
 ## Hâlâ açık
 
 | Soru | Durum |
 |---|---|
-| Şema `people` dışında başka ne alıyor | Açık |
+| Şema `people` dışında başka ne alıyor | Açık — 95'in spec'inde kapanır |
 | ~~Diskteki yapı dosyaları ne olacak~~ | **Kapandı — K26:** oldukları gibi kalıyorlar |
 | ~~Karakter tanımının içinde kalan sayı ve `solo` etiketi ne olacak~~ | **Kapandı — K27:** kural kitabının altıncı maddesi |
-| Akış skill'inin metni ne diyecek, ve nereye kadar soruyor | Açık |
-| Madde 94'ün sildiği dört bilgiden hangisi geri geliyor, hangi metnin içine | Açık — Problem 4 |
-| Bu iş kaç maddeye bölünüp hangi sırayla koşulacak | Açık |
+| ~~Akış skill'inin metni ne diyecek, ve nereye kadar soruyor~~ | **Kapandı — K28-K35:** beş adım, her biri onaya kadar döngü, şema metinde değil araçta |
+| ~~Madde 94'ün sildiği dört bilgiden hangisi geri geliyor, hangi metnin içine~~ | **Kapandı — K31:** hiçbiri |
+| ~~Bu iş kaç maddeye bölünüp hangi sırayla koşulacak~~ | **Kapandı:** yol haritası, maddeler 95'ten başlıyor |
 
 ## Kapsam dışı
 

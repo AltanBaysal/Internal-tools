@@ -143,8 +143,11 @@ Gerçekten giden dört şey:
 Bugün bir kullanıcı *"senaryoyu karelere böl"* dediğinde model yalnız taban yönergeyle çalışıyor ve
 karenin ne olduğunu her seferinde yeniden kuruyor. Seçenek 2'nin kabul edilmiş bedeli buydu.
 
-**Soru:** yeni skill yapısı bu dördünün hangilerini geri alıyor, ve nereye — kalan metnin içine mi,
-yeni bir skill'e mi?
+**Kapandı — hiçbiri geri gelmiyor** *(kullanıcı kararı, 27 Ağustos — K31)*. Gerekçe kullanıcının
+kendi ölçümü: *"çok kötü çalışıyorlardı."* Yolun metinsiz kalan kısmını dolduran şey silinen
+metinler değil, akış skill'inin kendisi
+*([tasarım](2026-08-27-queenagent-akis-tasarimi.md))* — ve yapı dosyasının şeması artık hiçbir
+metnin içinde değil, bir araçtan geliyor *(K28)*.
 
 ---
 
@@ -268,13 +271,12 @@ karakter, ve içinde yalnız onun olduğu tek bir kare — sonra `build_prompts`
    değiştirmiyor.
 2. ~~**`BREAK` kullanılacak mı**~~ — **kapandı:** bu koşuda hayır, düz string prompt üretiliyor.
    İş iki backlog'a geçti; şartı queen-editor'ün `36` numaralı düğümü açması.
-3. **Kaç skill olacak** — tek metin mi kalıyor, yoksa senaryo/kare/karakter için yenileri mi doğuyor.
-   **Açık.**
+3. ~~**Kaç skill olacak**~~ — **kapandı:** iki. prompt+ bugünkü işini sürdürüyor, yanına
+   `Start a scenario` geliyor *(K16, K35)*.
 4. **Şema ne kadar değişiyor** — `people` alanı girdi *(Problem 2)*. Ana karakter için alan
-   **girmiyor** *(Problem 1)*. Başka bir şey var mı, açık.
-5. **Diskteki dosyalar** — bugünkü yapı dosyaları `people` alanı taşımıyor ve karakterlerinin içinde
-   sayı var. Dönüştürülecek mi, iki biçim birden mi okunacak, yoksa oldukları gibi mi bırakılacak.
-   **Açık.**
+   **girmiyor** *(Problem 1)*. Başka bir şey var mı, Madde 95'in spec'inde kapanır.
+5. ~~**Diskteki dosyalar**~~ — **kapandı:** oldukları gibi kalıyorlar, kod eksik alanı atlıyor
+   *(K26)*.
 
 ## Kapsam dışı
 
