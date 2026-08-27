@@ -210,10 +210,9 @@ def _seeded(tmp_path):
 
 
 def _run(tmp_path, rounds, stops=NEVER, **kwargs):
-    chats, files = _seeded(tmp_path)
-    engine = ScriptedEngine(rounds, **kwargs)
-    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, stops))
-    return chats, files, engine, produced
+    # The same run with nothing to ask. Edit mode is what the app defaults to and it stops for
+    # nothing, so UNASKED raising is a guard here rather than an inconvenience.
+    return _gated(tmp_path, rounds, stops=stops, mode="edit", **kwargs)
 
 
 def allowed():
@@ -350,7 +349,7 @@ def test_building_prompts_announces_itself_twice(tmp_path):
     chats, files = _seeded(tmp_path)
     files.write("p1", "frames.json", STRUCTURE)
     rounds = [[{"tool_calls": [call("build_prompts", name="frames.json")]}], [{"text": "done"}]]
-    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER))
+    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER, UNASKED))
     # A file is born here too, so it gets the same dashed card and the same filled one.
     assert isinstance(produced[0], FileStarted)
     assert produced[1] == FileWritten("frames.py")
@@ -363,7 +362,7 @@ def test_editing_a_file_announces_nothing(tmp_path):
         [{"tool_calls": [call("edit_file", name="plan.md", old="alpha", new="beta")]}],
         [{"text": "done"}],
     ]
-    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER))
+    produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER, UNASKED))
     # An edit is not a birth: a card would claim a file the user already has is new.
     assert not any(isinstance(piece, (FileStarted, FileWritten)) for piece in produced)
     assert files.read("p1", "plan.md") == "beta"
@@ -383,7 +382,7 @@ def test_a_name_born_twice_in_one_turn_is_remembered_once(tmp_path):
         ],
         [{"text": "done"}],
     ]
-    list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER))
+    list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER, UNASKED))
     # The card says a file exists, not how many times it was written.
     assert chats.get("p1", "c1").messages[-1].files == ("frames.py",)
 
@@ -431,7 +430,7 @@ def _said_with(tmp_path, *turns):
     for number, (text, skill) in enumerate(turns):
         append_message(chats, "p1", "c1", text, f"2026-08-09T12:0{number}:00.000+00:00", skill=skill)
     engine = ScriptedEngine([[{"text": "ok"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     return chats, engine.seen[0]
 
 
@@ -484,7 +483,7 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     chats, files = _seeded(tmp_path)
     append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="generate-prompts-plus")
     engine = ScriptedEngine([[{"tool_calls": [call("list_files")]}], [{"text": "clean"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     second = engine.seen[1]
     assert second[-1] == {"role": "system", "content": instruction_for("generate-prompts-plus")}
     # And what it moved past: the round that asked for the tool, and the tool's answer.
@@ -512,14 +511,14 @@ def test_a_stream_that_breaks_writes_nothing(tmp_path):
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "half"}]], blow_up_after=0)
     with pytest.raises(EngineFailed):
-        list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
+        list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     assert [m.text for m in chats.get("p1", "c1").messages] == ["hi"]
 
 
 def test_an_unknown_chat_is_reported_before_anything_streams(tmp_path):
     chats, files = _seeded(tmp_path)
     with pytest.raises(ChatNotFound):
-        list(stream_answer(chats, files, ScriptedEngine([]), "p1", "nope", NOW, NEVER))
+        list(stream_answer(chats, files, ScriptedEngine([]), "p1", "nope", NOW, NEVER, UNASKED))
 
 
 def test_the_engine_is_asked_without_a_model(tmp_path):
@@ -527,7 +526,7 @@ def test_the_engine_is_asked_without_a_model(tmp_path):
     # refuses one, so a use case that passed a model would die here.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     assert len(engine.seen) == 1
 
 
@@ -880,26 +879,25 @@ def test_the_registry_is_cleared_however_the_turn_ends(tmp_path):
     assert permissions.cleared == [("p1", "c1")]
 
 
-# --- which tools the mode puts in the request (Madde 91) -----------------------------------------
+# --- what a mode decides (Madde 91, and Madde 99) ------------------------------------------------
+#
+# What the mode decided used to be which tools the request carried, and the test for that is gone:
+# since Madde 99 every request carries all of them. Its replacement lives with this turn's own
+# reds, as test_every_mode_is_offered_every_tool.
 
 
 def _in_mode(tmp_path, rounds, mode):
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine(rounds)
-    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, mode))
+    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, mode))
     return chats, engine, produced
-
-
-def test_the_mode_decides_which_tools_the_request_carries(tmp_path):
-    _, engine, _ = _in_mode(tmp_path, [[{"text": "Hi"}]], "ask")
-    assert set(engine.tools[0]) == {"list_files", "read_file", "read_schema"}
 
 
 def test_a_turn_that_names_no_mode_carries_the_writing_tools(tmp_path):
     # The retry road sends no mode of its own, and neither does any caller written before this.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "Hi"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     assert "create_file" in engine.tools[0]
 
 

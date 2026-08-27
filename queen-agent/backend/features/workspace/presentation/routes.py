@@ -20,6 +20,7 @@ from backend.features.workspace.domain.chat import (
     is_owed_an_answer,
     last_sent,
 )
+from backend.features.workspace.domain.permission import PermissionWanted, Waiting
 from backend.features.workspace.domain.tools import FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
@@ -34,7 +35,7 @@ from backend.features.workspace.domain.usecases.read_file import read_file
 from backend.features.workspace.domain.usecases.stream_answer import stream_answer
 
 
-def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
+def make_workspace_bp(project_store, chat_store, file_store, engine, stops, permissions):
     workspace_bp = Blueprint("workspace", __name__)
 
     @workspace_bp.get("/api/projects")
@@ -142,8 +143,9 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
                     chat.id,
                     _now(),
                     stops,
-                    # Travels with the request and ends there: which tools were offered is decided
-                    # now, and nothing ever reads it back.
+                    permissions,
+                    # Travels with the request and ends there: what runs without a question is
+                    # decided now, and nothing ever reads it back.
                     payload.get("mode", ""),
                 ),
             ),
@@ -158,6 +160,19 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
             return jsonify({"error": "chat not found"}), 404
         stops.want(project_id, chat_id)
         # Asked for, not done: the answer stops at its next chance, which has not come yet.
+        return jsonify({})
+
+    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/permission")
+    def post_permission(project_id, chat_id):
+        # The stop's sibling: its own request on its own connection, because the turn it answers is
+        # still streaming down another one.
+        if chat_store.get(project_id, chat_id) is None:
+            return jsonify({"error": "chat not found"}), 404
+        payload = request.get_json(silent=True) or {}
+        permissions.answer(
+            project_id, chat_id, bool(payload.get("allowed")), payload.get("reason", "")
+        )
+        # Left, not acted on: what the decision amounts to is seen in the stream it unblocks.
         return jsonify({})
 
     @workspace_bp.get("/api/projects/<project_id>/files")
@@ -227,6 +242,12 @@ def _sse(chat_id, pieces):
                     "call",
                     {"tool": piece.tool, "target": piece.target, "outcome": piece.outcome},
                 )
+            elif isinstance(piece, PermissionWanted):
+                yield _frame("permission", {"tool": piece.tool, "arguments": piece.arguments})
+            elif isinstance(piece, Waiting):
+                # No event line, which is why the browser's parser drops it -- and dropping it is
+                # the whole job. This frame exists to be bytes on a connection that has gone quiet.
+                yield ": waiting\n\n"
             else:
                 # The record has one home since Madde 89, and it is get_chat. This frame says the
                 # turn is over; what it wrote is a question asked separately.

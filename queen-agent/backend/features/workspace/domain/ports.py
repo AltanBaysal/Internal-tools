@@ -3,6 +3,7 @@ from typing import Protocol
 
 from backend.features.workspace.domain.chat import Chat
 from backend.features.workspace.domain.file import File, FileBody
+from backend.features.workspace.domain.permission import Decision
 from backend.features.workspace.domain.project import Project
 
 
@@ -81,6 +82,32 @@ class Stops(Protocol):
     def clear(self, project_id: str, chat_id: str) -> None:
         """Forget the request and the connection both. Left standing, either would reach the
         next answer -- one by cutting it as it is born, the other by naming a stranger's socket."""
+
+
+class Permissions(Protocol):
+    """The answer a paused turn is waiting for. Held in memory, exactly like a stop.
+
+    What has to survive a restart is the message, and it does. A question lives as long as the turn
+    that asked it: if the process dies the turn dies with it, and there is nothing left to answer.
+    """
+
+    def answer(self, project_id: str, chat_id: str, allowed: bool, reason: str) -> None:
+        """Leave the user's decision. Wakes the turn if one is waiting, and keeps it if not."""
+
+    def wait(self, project_id: str, chat_id: str, tick: float) -> Decision | None:
+        """Block until the decision arrives or `tick` seconds pass, and spend what is found.
+
+        None means nothing was decided -- the tick ran out, or somebody woke the wait. Spending is
+        what keeps a second question in the same turn a question.
+        """
+
+    def wake(self, project_id: str, chat_id: str) -> None:
+        """End the wait without a decision. What a stop reaches for: there is no socket to cut
+        while a turn is paused here."""
+
+    def clear(self, project_id: str, chat_id: str) -> None:
+        """Forget the question and the answer. Left standing, an answer would settle the next
+        turn's question before anybody was asked."""
 
 
 class FileStore(Protocol):

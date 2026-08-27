@@ -5,10 +5,12 @@ simpler than carrying a separate "this one is the last" flag.
 """
 from backend.features.workspace.domain.chat import ToolCall, Usage
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
-from backend.features.workspace.domain.modes import EDIT, ends_the_turn, tools_for
+from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
+from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
+    TOOL_SPECS,
     WRITES_FILES,
     FileStarted,
     FileWritten,
@@ -56,7 +58,43 @@ def _asked(conversation, instruction):
     return conversation + [{"role": "system", "content": instruction}]
 
 
-def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stops, mode=EDIT):
+HEARTBEAT_SECONDS = 15
+"""How often a paused turn writes something.
+
+Not a timeout: the wait itself has no end. Nothing is holding the other side of the model's
+connection -- the tool call arrives with the round's last frame and that request is closed by the
+time the gate opens -- and the service documents no limit of its own. What this number says is how
+often the browser hears from us while nothing happens: a stream gone quiet inside a tunnel is a
+stream a tunnel may close, and a browser that went away is only discovered by writing to it.
+Comfortably under the idle window proxies usually keep, and not measured against any one of them.
+"""
+
+
+def _waited_on(permissions, stops, project_id, chat_id, call):
+    """Hold the turn until the user decides, or until somebody stops it.
+
+    A generator, because the beat has to leave down the same connection the answer is arriving on.
+    What it hands back is the decision, or None when the wait ended without one.
+
+    The stop is handed a way to wake this wait rather than a way to cut a socket: the model's
+    request closed with the round, so there is nothing left to cut, and without this the stop
+    button would do nothing for as long as the question stood. `hold` carries the other half -- a
+    press that landed before we got here runs the moment it is given.
+    """
+    yield PermissionWanted(call["function"]["name"], call["function"]["arguments"])
+    stops.hold(project_id, chat_id, lambda: permissions.wake(project_id, chat_id))
+    while True:
+        decision = permissions.wait(project_id, chat_id, HEARTBEAT_SECONDS)
+        if decision is not None:
+            return decision
+        if stops.wanted(project_id, chat_id):
+            return None
+        yield Waiting()
+
+
+def stream_answer(
+    chat_store, file_store, engine, project_id, chat_id, now, stops, permissions, mode=EDIT
+):
     chat = chat_store.get(project_id, chat_id)
     if chat is None:
         raise ChatNotFound(chat_id)
@@ -87,7 +125,9 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
             try:
                 for piece in engine.stream(
                     _asked(conversation, instruction),
-                    tools=tools_for(mode),
+                    # Every tool, in every mode. Since Madde 99 the mode is not what the request
+                    # carries -- it is which of them run out of it without a question.
+                    tools=TOOL_SPECS,
                     # Only the transport holds a socket, so only it can hand out a way to cut one.
                     on_open=lambda cut: stops.hold(project_id, chat_id, cut),
                 ):
@@ -140,6 +180,31 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
             )
             for call in calls:
                 tool = call["function"]["name"]
+                if needs_permission(mode, tool):
+                    decision = yield from _waited_on(permissions, stops, project_id, chat_id, call)
+                    if decision is None:
+                        # The wait ended with nobody deciding, which leaves one reason: a stop.
+                        cut_short = True
+                        break
+                    if not decision.allowed:
+                        # The card goes up all the same -- what the turn did is what the chat
+                        # shows, and being refused is something it did. No file name: nothing was
+                        # touched.
+                        step = ToolCall(tool, "", "Not allowed")
+                        made.append(step)
+                        yield step
+                        conversation.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": call["id"],
+                                "content": refusal_text(tool, decision.reason),
+                            }
+                        )
+                        continue
+                    # What the rest of this turn runs in. The next call is not asked about again,
+                    # and a plan written from here on is an ordinary write -- the user said yes to
+                    # working, and ending the turn there would take that back.
+                    mode = EDIT
                 # The dashed card goes up before the tool runs: the name is not settled until it
                 # has, and the design's card carries no name anyway.
                 if tool in WRITES_FILES:
@@ -163,7 +228,10 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
                 if ends_the_turn(mode, tool):
                     done = True
                     break
-            if done:
+            # cut_short as well as done: a stop landing inside the tool loop is asked about only at
+            # the top of the next round, so without this the turn would send one more request
+            # before noticing.
+            if done or cut_short:
                 break
     except Exception as failure:
         # Half an answer that nobody asked to end is never kept: the design's line is that an answer
@@ -171,8 +239,10 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
         # the other case -- somebody decided, and what they had read is theirs.
         raise EngineFailed(str(failure)) from failure
     finally:
-        # However this ended. Left standing, the flag would cut the next answer as it was born.
+        # However this ended. Left standing, the flag would cut the next answer as it was born, and
+        # a decision nobody spent would settle the next question before it was asked.
         stops.clear(project_id, chat_id)
+        permissions.clear(project_id, chat_id)
 
     # Everything said across the rounds becomes one message: the user read one answer. A stop that
     # landed before the first word writes one too, empty -- a press that leaves no trace reads as a
