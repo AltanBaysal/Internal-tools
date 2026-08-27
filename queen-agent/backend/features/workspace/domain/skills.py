@@ -7,118 +7,17 @@ typed "thanks". What to do comes from the user's own sentence.
 
 The instruction texts are English, like the rest of QueenAgent's own words. What the model writes
 back follows the user's language (prompt.py); the exception is what an image model reads -- the
-prompts and the structure file -- and the two skills that produce those say so in as many words.
+prompts and the structure file -- and the skill that produces those says so in as many words.
+
+One text since Madde 94. Five others stood here and were deleted: what they said about how to work
+now sits in prompt.py, where it holds whatever is selected, and what they said about their own task
+either lives in the text below or went with them on purpose. The picker still exists and still has
+an empty state -- having no skill selected is ordinary, and the list will grow again.
 """
 
-CREATE_SCENARIO = (
-    "When the user asks for a scenario, this is what one is here: a short outline of a story, "
-    "written as bullet points, running from beginning to end. One line per beat, in order.\n"
-    "\n"
-    "Keep it short. This step is not the finished story -- it is where the user sees what you "
-    "understood of theirs, and a page of prose hides a misunderstanding that a list makes "
-    "obvious.\n"
-    "\n"
-    "Stay out of the frame list's territory. No numbered frames, no camera or lighting language, "
-    "no scene headings, no long description of how anything looks. The detail is added by the steps "
-    "that come after this one, and a scenario that already carries it leaves them nothing to do.\n"
-    "\n"
-    "Write it in the chat and save it with create_file. Name the file after what the scenario is "
-    "about, as in bar-scene.md -- one project holds several scenarios, and a fixed name loses "
-    "which is which.\n"
-    "\n"
-    "When the user corrects something afterwards, change the file too with edit_file. A correction "
-    "that only lands in the chat leaves two scenarios, and the one on disk is the one the next "
-    "step reads."
-)
-
-CREATE_CHARACTER_PROMPT = (
-    "When the user asks for a character prompt, this is the shape of one: SDXL tags -- short "
-    "comma-separated phrases, never sentences.\n"
-    "\n"
-    "A character carries only what does not change from frame to frame: who they are, hair, eyes, "
-    "build. Clothing is not one of those -- it changes between frames, so it lives in the structure "
-    "file's outfits map and is named by the frame. Leave the pose, the place, the camera and the "
-    "mood out for the same reason: they belong to a frame, and a character that carries them "
-    "cannot be reused. Leave the quality and score tags out as well; they are added once, "
-    "elsewhere.\n"
-    "\n"
-    "How many candidates to write is the user's call. If they said a number, write that many. If "
-    "they did not, ask before writing -- a guess is either more than they wanted or fewer.\n"
-    "\n"
-    "If the user pastes a prompt they liked, read it as an example of the format: how dense the "
-    "tags are, what order they come in, what language they use. Take the shape, not the contents. "
-    "What belongs to a frame -- the pose, the place, the camera, the quality and score tags -- is "
-    "left behind.\n"
-    "\n"
-    "Write the candidates to a file with create_file, not into the chat. The file is JSON in the "
-    "same shape as a structure file's maps, so it can be pasted straight in:\n"
-    "\n"
-    "{\n"
-    '  "characters": { "aylin": "1girl, pale skin, long black hair, green eyes" },\n'
-    '  "outfits": { "gunluk": "oversized black t-shirt, black thong" }\n'
-    "}\n"
-    "\n"
-    "Name the file after the character, as in aylin.json. Several candidates go in the same file "
-    "under numbered names -- aylin-1, aylin-2 -- and what differs between them is said in one line "
-    "in the chat, where the person choosing reads it.\n"
-    "\n"
-    "Clothing goes in outfits, named after the garment rather than whoever wears it, never inside "
-    "the character's own entry. If no clothing was asked for, leave outfits out altogether rather "
-    "than writing an empty one."
-)
-
-SPLIT_INTO_FRAMES = (
-    "When the user asks for a scenario to be split into frames, read the scenario first with "
-    "read_file if the project holds one.\n"
-    "\n"
-    "A frame is one or two sentences: who is in it, what is happening, from what camera. Not a "
-    "paragraph of prose. Number them.\n"
-    "\n"
-    "How many frames there are is settled together with the user. Propose a number, say what it is "
-    "based on, and wait -- do not decide it alone.\n"
-    "\n"
-    "Give them in small batches, a few frames at a time, rather than the whole list in one answer. "
-    "Quality falls away towards the end of a long stretch, and batches leave the user room to "
-    "correct one before the next is written.\n"
-    "\n"
-    "Write the list in the language the user writes in. This one is read by a person, not by an "
-    "image model -- what an image model reads is the prompt, and putting it into English is the "
-    "job of the skills that write prompts. The structure file and the PROMPTS list stay English; "
-    "this list does not.\n"
-    "\n"
-    "Write it in the chat and save it with create_file. Name the file after what the scenario is "
-    "about and end the name with -frames, as in bar-scene-frames.md, so it sits beside the "
-    "scenario it came from. When the user corrects a frame afterwards, change the file too with "
-    "edit_file -- a correction that only lands in the chat leaves the file saying something else."
-)
-
-GENERATE_PROMPTS = (
-    "When the user asks for the prompts of a frame list, this skill writes each one whole: no "
-    "structure file, and no call to build_prompts.\n"
-    "\n"
-    "A prompt is SDXL tags in this order, the same order every time: the quality tags, then the "
-    "characters, then the place, then what is happening, then the camera.\n"
-    "\n"
-    "The prompts are English whatever language the chat is in -- an image model reads them, not a "
-    "person.\n"
-    "\n"
-    "They go into a Python file with create_file, in this shape:\n"
-    "\n"
-    "PROMPTS = [\n"
-    '    """the first prompt""",\n'
-    '    """the second prompt""",\n'
-    "]\n"
-    "\n"
-    "Name the file after the scenario and end the name with -plain, as in intro-plain.py, so it can "
-    "sit beside the one built from a structure without either replacing the other.\n"
-    "\n"
-    "Do not try the whole list in one answer. Write the first few frames with create_file and add "
-    "the rest with edit_file, a few at a time: quality falls away towards the end of a long "
-    "stretch, and an interruption then costs one batch rather than everything."
-)
-
-# One text, two readers: the structured skill checks itself against it before it builds, and Verify
-# applies it whenever it is asked to. Two copies would come apart on the first change to either.
+# Its own constant rather than a paragraph in the text below: these are the rules, and keeping them
+# in one place is what makes them countable and quotable. Verify was the second reader until Madde
+# 94; the one that stayed applies them before it builds.
 RULEBOOK = (
     "1. A frame describing a character or a place in plain words when the maps already hold an "
     "entry for it. This is the one worth hunting: it is the silent copy coming back.\n"
@@ -181,26 +80,8 @@ GENERATE_PROMPTS_PLUS = (
     "not."
 )
 
-VERIFY_PROMPTS = (
-    "When the user asks for the prompts to be checked, read this project's structure files with "
-    "list_files and read_file, and hold them against these rules:\n"
-    "\n" + RULEBOOK + "\n"
-    "\n"
-    "Report what you find: which file, which frame, which rule. Say plainly when a file is clean "
-    "-- silence is not an answer.\n"
-    "\n"
-    "Do not fix anything. Do not create a file and do not edit one. Rule 3 in particular is not "
-    "yours to settle: which of the two texts is the right one is the user's own call. Fixing "
-    "happens when the user asks for it, and not before."
-)
-
 INSTRUCTIONS = {
-    "create-scenario": CREATE_SCENARIO,
-    "create-character-prompt": CREATE_CHARACTER_PROMPT,
-    "split-into-frames": SPLIT_INTO_FRAMES,
-    "generate-prompts": GENERATE_PROMPTS,
     "generate-prompts-plus": GENERATE_PROMPTS_PLUS,
-    "verify-prompts": VERIFY_PROMPTS,
 }
 
 
