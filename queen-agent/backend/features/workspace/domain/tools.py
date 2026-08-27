@@ -14,6 +14,7 @@ from backend.features.workspace.domain.build_prompts import (
     render_module,
 )
 from backend.features.workspace.domain.errors import BadStructure
+from backend.features.workspace.domain.schema import SCHEMA
 
 # What the model is told, separately whether a file was born, and separately the file the call was
 # about. Parsing the sentence back out would be fragile.
@@ -54,6 +55,17 @@ TOOL_SPECS = [
         "function": {
             "name": "list_files",
             "description": "List the names of the files this project already holds.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_schema",
+            "description": (
+                "What a structure file looks like and the rules it has to hold. Read it before "
+                "writing or changing one; no instruction repeats it."
+            ),
             "parameters": {"type": "object", "properties": {}},
         },
     },
@@ -196,6 +208,12 @@ def run_tool(file_store, project_id, name, arguments):
             "",
             counted(len(names), "file") if names else "No files",
         )
+
+    if name == "read_schema":
+        # No arguments: there is one shape, so asking which one would be a question with a single
+        # answer. The outcome is what was answered with rather than the answer -- a read says how
+        # many lines, not the file.
+        return ToolResult(SCHEMA, None, "", "Schema")
 
     if name == "read_file":
         wanted = safe_name(args.get("name"))
