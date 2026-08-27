@@ -3,6 +3,7 @@ import Composer from "./Composer.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
 import ModelLabel from "./ModelLabel.jsx";
+import ModePicker from "./ModePicker.jsx";
 import Skeleton from "./Skeleton.jsx";
 import SkillPicker from "./SkillPicker.jsx";
 
@@ -20,6 +21,10 @@ export default function ProjectScreen({
   skillsOpen,
   onToggleSkills,
   onSkillChange,
+  mode,
+  modeOpen,
+  onToggleMode,
+  onModeChange,
   onRename,
   onDelete,
   onSend,
@@ -57,10 +62,16 @@ export default function ProjectScreen({
             placeholder="Start a new chat in this project..."
             action="Start"
             /* The same order as the chat screen. This is where the first sentence of a chat is
-               written, so it is where the one choice governing it has to be reachable -- and no
-               chat exists yet, so it belongs to the session rather than to a record. */
+               written, so it is where the choices governing it have to be reachable -- and no chat
+               exists yet, so both belong to the session rather than to a record. */
             foot={
               <>
+                <ModePicker
+                  mode={mode}
+                  open={modeOpen}
+                  onToggle={onToggleMode}
+                  onChange={onModeChange}
+                />
                 <SkillPicker
                   skill={skill}
                   open={skillsOpen}

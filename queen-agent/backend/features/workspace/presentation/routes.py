@@ -134,7 +134,18 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops):
         return Response(
             _sse(
                 chat.id,
-                stream_answer(chat_store, file_store, engine, project_id, chat.id, _now(), stops),
+                stream_answer(
+                    chat_store,
+                    file_store,
+                    engine,
+                    project_id,
+                    chat.id,
+                    _now(),
+                    stops,
+                    # Travels with the request and ends there: which tools were offered is decided
+                    # now, and nothing ever reads it back.
+                    payload.get("mode", ""),
+                ),
             ),
             mimetype="text/event-stream",
         )

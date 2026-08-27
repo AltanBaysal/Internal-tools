@@ -198,18 +198,19 @@ test("a chat row offers no rename", () => {
 // Madde 65 tried to work around by landing somewhere else; the screen was not missing a visit, it
 // was missing these two controls.
 
-test("the composer here carries both pickers, in the chat screen's order", () => {
-  // The same order as the chat screen -- two orders for the same three controls is the same thing
+test("the composer here carries every picker, in the chat screen's order", () => {
+  // The same order as the chat screen -- two orders for the same controls is the same thing
   // learned twice.
   const { container } = render(<ProjectScreen project={PROJECT} />);
   const foot = container.querySelector(".composer__foot");
-  // The same order as the chat screen; the middle one stopped being a control in Madde 82.
-  expect(foot.textContent).toBe("Skills⌄Grok Build↑");
+  // The same order as the chat screen; the model stopped being a control in Madde 82, and Madde 91
+  // put the mode in front of the row.
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build↑");
   const buttons = [...foot.querySelectorAll("button")];
-  expect(buttons.length).toBe(2);
+  expect(buttons.length).toBe(3);
   // Madde 80 took the word off the button. The mark is the chat screen's, the name is this
   // screen's own -- opening a chat is not replying to one.
-  expect(buttons[1].getAttribute("aria-label")).toBe("Start");
+  expect(buttons[2].getAttribute("aria-label")).toBe("Start");
 });
 
 test("picking a skill is passed up rather than kept here", () => {

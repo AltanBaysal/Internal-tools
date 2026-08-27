@@ -635,29 +635,30 @@ test("the composer says which model answers, without offering a choice", () => {
   expect(screen.queryByRole("button", { name: /Grok Build/ })).toBeNull();
 });
 
-test("the foot carries Skills, the model and Send, in that order", () => {
+test("the foot carries the mode, Skills, the model and Send, in that order", () => {
   // karar 1's order, complete at last.
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
   const foot = container.querySelector(".composer__foot");
-  // karar 1's order stands; the middle one stopped being a control in Madde 82.
-  expect(foot.textContent).toBe("Skills⌄Grok Build↑");
+  // karar 1's order stands; the model stopped being a control in Madde 82, and Madde 91 put the
+  // mode in front of the row -- what the model may do at all comes before which job it is doing.
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build↑");
   const buttons = [...foot.querySelectorAll("button")];
-  expect(buttons.length).toBe(2);
+  expect(buttons.length).toBe(3);
   // Madde 80 took the word off the button; the name it answers to is asked for separately now.
-  expect(buttons[1].getAttribute("aria-label")).toBe("Send");
+  expect(buttons[2].getAttribute("aria-label")).toBe("Send");
 });
 
-test("while an answer runs the row ends in Stop, and there is no fourth button", () => {
+test("while an answer runs the row ends in Stop, and nothing is added beside it", () => {
   // Madde 79, in one sentence. Madde 67 put Stop beside Send; the two are one control now, because
   // an answer that is running is exactly when there is nothing to send.
   const { container } = render(
     <ChatScreen project={PROJECT} chat={CHAT} thinking onStop={vi.fn()} />,
   );
   const foot = container.querySelector(".composer__foot");
-  expect(foot.textContent).toBe("Skills⌄Grok Build⏹");
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build⏹");
   const buttons = [...foot.querySelectorAll("button")];
-  expect(buttons.length).toBe(2);
-  expect(buttons[1].getAttribute("aria-label")).toBe("Stop");
+  expect(buttons.length).toBe(3);
+  expect(buttons[2].getAttribute("aria-label")).toBe("Stop");
 });
 
 test("the picker shows the skill it is handed, not the chat's", () => {

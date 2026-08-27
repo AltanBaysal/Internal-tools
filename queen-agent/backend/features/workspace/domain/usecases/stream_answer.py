@@ -5,10 +5,10 @@ simpler than carrying a separate "this one is the last" flag.
 """
 from backend.features.workspace.domain.chat import ToolCall, Usage
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
+from backend.features.workspace.domain.modes import EDIT, ends_the_turn, tools_for
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
-    TOOL_SPECS,
     WRITES_FILES,
     FileStarted,
     FileWritten,
@@ -37,7 +37,7 @@ def _conversation(chat):
     return built
 
 
-def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stops):
+def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stops, mode=EDIT):
     chat = chat_store.get(project_id, chat_id)
     if chat is None:
         raise ChatNotFound(chat_id)
@@ -51,6 +51,10 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
     made = []
     spent = Usage()
     cut_short = False
+    # The turn reached its own end -- today that is plan mode, where the plan is on disk and the
+    # next move is the user's. Kept apart from cut_short: a stopped turn is written down as
+    # stopped, and this one simply finished.
+    done = False
 
     try:
         for _ in range(MAX_ROUNDS):
@@ -61,7 +65,7 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
             try:
                 for piece in engine.stream(
                     conversation,
-                    tools=TOOL_SPECS,
+                    tools=tools_for(mode),
                     # Only the transport holds a socket, so only it can hand out a way to cut one.
                     on_open=lambda cut: stops.hold(project_id, chat_id, cut),
                 ):
@@ -134,6 +138,11 @@ def stream_answer(chat_store, file_store, engine, project_id, chat_id, now, stop
                 conversation.append(
                     {"role": "tool", "tool_call_id": call["id"], "content": result.text}
                 )
+                if ends_the_turn(mode, tool):
+                    done = True
+                    break
+            if done:
+                break
     except Exception as failure:
         # Half an answer that nobody asked to end is never kept: the design's line is that an answer
         # either exists or does not, and a file cannot be born of an unfinished thought. A stop is

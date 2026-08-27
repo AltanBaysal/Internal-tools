@@ -46,8 +46,8 @@ MAX_ROUNDS = 16
 DEFAULT_NAME = "note.md"
 
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
-# here: the file was already there.
-WRITES_FILES = {"create_file", "build_prompts"}
+# here: the file was already there. write_plan is, because the first plan of a name is new.
+WRITES_FILES = {"create_file", "build_prompts", "write_plan"}
 
 TOOL_SPECS = [
     {
@@ -128,6 +128,29 @@ TOOL_SPECS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_plan",
+            "description": (
+                "Break the work into numbered steps and save the plan. Writes over the plan of "
+                "that name if there is one, so read it first and hand back the whole plan rather "
+                "than the part you changed. The turn ends here: the user reads the plan, fixes it "
+                "in the file if they want to, and runs it themselves."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "What the plan is for, as in bar-scene.",
+                    },
+                    "content": {"type": "string", "description": "The plan itself."},
+                },
+                "required": ["name", "content"],
+            },
+        },
+    },
 ]
 
 
@@ -145,6 +168,15 @@ def safe_name(raw):
     if not name:
         return DEFAULT_NAME
     return name if "." in name else f"{name}.md"
+
+
+def plan_name(name):
+    """A plan is named so that it reads as one, and so the tool cannot write anything else.
+
+    Runs after safe_name: cleaning what came from the model is that one's job, naming is this one's.
+    """
+    stem = name.rsplit(".", 1)[0]
+    return f"{stem}.md" if stem.endswith("-plan") else f"{stem}-plan.md"
 
 
 def run_tool(file_store, project_id, name, arguments):
@@ -182,6 +214,21 @@ def run_tool(file_store, project_id, name, arguments):
         # The name it got, not the one it asked for -- the record says what happened. Not repeated
         # in the outcome: the line above already carries it.
         return ToolResult(f"Saved as {written}.", written, written, "Saved")
+
+    if name == "write_plan":
+        wanted = plan_name(safe_name(args.get("name")))
+        # Overwrites where create_file numbers. A second plan sitting in bar-scene-plan-2.md would
+        # lose which of the two is the one to follow.
+        born = file_store.read(project_id, wanted) is None
+        written = file_store.write(project_id, wanted, args.get("content", ""))
+        # A card only the first time: after that the file was already there, which is the rule
+        # edit_file follows too.
+        return ToolResult(
+            f"Saved as {written}.",
+            written if born else None,
+            written,
+            "Saved" if born else "Rewritten",
+        )
 
     if name == "edit_file":
         return _edit(file_store, project_id, args)

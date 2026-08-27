@@ -54,9 +54,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   // itself -- what used to ask on a reload and on a reconnection is a rule on the server now.
   //
   // The skill travels with the message rather than being read off the chat: what governed a turn
-  // is settled when the turn is sent.
+  // is settled when the turn is sent. The mode travels the same way and is kept nowhere -- what it
+  // decides is which tools the request carries, and that is decided the moment it is sent.
   const send = useCallback(
-    async (text = null, skill = "") => {
+    async (text = null, skill = "", mode = "") => {
       const at = new Date().toISOString();
       if (text !== null) {
         // The bubble appears before the server answers -- the design says so in as many words. In
@@ -79,7 +80,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
       setStreamingCalls([]);
       // No text at all is how Try again asks: the question is already on disk and must not be
       // written a second time. A blank one would be refused, which is a different thing.
-      const body = text === null ? { chat: chatId } : { chat: chatId ?? "", text, skill };
+      const body = text === null ? { chat: chatId } : { chat: chatId ?? "", text, skill, mode };
       try {
         await streamEvents(
           `/api/projects/${projectId}/messages`,

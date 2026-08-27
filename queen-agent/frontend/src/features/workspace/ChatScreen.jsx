@@ -6,6 +6,7 @@ import ContextGauge from "./ContextGauge.jsx";
 import FileRail from "./FileRail.jsx";
 import Markdown from "./Markdown.jsx";
 import ModelLabel from "./ModelLabel.jsx";
+import ModePicker from "./ModePicker.jsx";
 import Skeleton from "./Skeleton.jsx";
 import SkillPicker from "./SkillPicker.jsx";
 
@@ -150,6 +151,10 @@ export default function ChatScreen({
   skill,
   skillsOpen,
   onToggleSkills,
+  mode,
+  modeOpen,
+  onToggleMode,
+  onModeChange,
   onBack,
   onSend,
   onSkillChange,
@@ -345,10 +350,11 @@ export default function ChatScreen({
                under the last answer shows, and nothing counts it a second time. A record written
                before Madde 92 carries none, and then there is no circle. */
             gauge={<ContextGauge sent={chat.context?.sent} ceiling={chat.context?.ceiling} />}
-            /* karar 1's order: Skills · model · Send. The middle one stopped being a control in
-               Madde 82 -- one model, nothing to pick. The skill is handed in rather than read off
-               the chat: since Madde 86 the selection is the session's, and the session is App's.
-               Whether the menu is open is App's too, because Escape closes it in a fixed order
+            /* karar 1's order, with Madde 91's mode in front of it: Mode · Skills · model · Send.
+               What the model may do at all comes before which job it is doing. The model stopped
+               being a control in Madde 82 -- one model, nothing to pick. Both selections are
+               handed in rather than read off the chat: they are the session's, and the session is
+               App's. Which picker is open is App's too, because Escape closes it in a fixed order
                with the rest. */
             /* Stopping is the send button's other state rather than a control of its own: while an
                answer runs there is nothing to send. No red -- cutting your own answer short is not
@@ -357,6 +363,12 @@ export default function ChatScreen({
             onStop={onStop}
             foot={
               <>
+                <ModePicker
+                  mode={mode}
+                  open={modeOpen}
+                  onToggle={onToggleMode}
+                  onChange={onModeChange}
+                />
                 <SkillPicker
                   skill={skill}
                   open={skillsOpen}

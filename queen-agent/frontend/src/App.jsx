@@ -17,6 +17,7 @@ import {
 } from "./features/workspace/useChatLists.js";
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
+import { DEFAULT_MODE } from "./features/workspace/modes.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
 import { getJson } from "./shared/api.js";
@@ -60,9 +61,14 @@ export default function App() {
   // The last skill picked, and what the next chat is born with. Held for the session rather than
   // written to disk: a chat's own choice is on the server, and this is only the starting point.
   const [lastSkill, setLastSkill] = useState("");
-  // Whether the Skills menu is open. Here rather than inside the picker, because Escape closes it
-  // in a fixed order with everything else that can be open.
-  const [skillsOpen, setSkillsOpen] = useState(false);
+  // The last mode picked, and what the next turn is sent in. Held for the session like the skill,
+  // and unlike it never written anywhere: nothing on the server reads a mode back.
+  const [lastMode, setLastMode] = useState(DEFAULT_MODE);
+  // Which picker is open, if either: null, "skills" or "mode". One value rather than a boolean
+  // each, because two booleans can both be true and then two menus stand over the same corner of
+  // the screen. Here rather than inside a picker, because App's one listener owns Escape and it
+  // can only close what it can see.
+  const [pickerOpen, setPickerOpen] = useState(null);
   const { projectChats, reloadProjectChats, loadingChats, chatsError } = useProjectChats(
     route.projectId,
   );
@@ -126,14 +132,15 @@ export default function App() {
       // Escape closes what is open, innermost first, and never steps backwards.
       if (menuFor) setMenuFor(null);
       else if (confirming) setConfirming(null);
-      // The design's order, fark 67: project menu → confirm box → Skills → model → open panel.
-      // Four now: Madde 82 took the model picker out, and the ones around it did not move.
-      else if (skillsOpen) setSkillsOpen(false);
+      // The design's order, fark 67: project menu → confirm box → the open picker → open panel.
+      // It named two pickers, Madde 82 took one out and Madde 91 put another back; only one of
+      // them can be open at a time, so they take one place in the order between them.
+      else if (pickerOpen) setPickerOpen(null);
       else if (reading.name) reading.close();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [menuFor, confirming, skillsOpen, reading.name, reading.close]);
+  }, [menuFor, confirming, pickerOpen, reading.name, reading.close]);
 
   // The screen reads its project out of the list the app already holds; asking the server a second
   // time would be asking for an answer we have.
@@ -218,7 +225,8 @@ export default function App() {
 
   // The draft address is not a place to come back to, so the chat that replaces it does exactly
   // that; starting one from the project screen is an ordinary step and is pushed.
-  const toggleSkills = () => setSkillsOpen((open) => !open);
+  // Opening one closes the other, by construction rather than by remembering to.
+  const togglePicker = (which) => setPickerOpen((open) => (open === which ? null : which));
 
   return (
     <div ref={shell} className={`app-shell ${steps}`.trim()} data-testid="app-shell">
@@ -269,12 +277,16 @@ export default function App() {
             /* No chat here to write a choice to, so it is the session's -- the same value the
                draft chat is born with, and the same one startChat already sends. */
             skill={lastSkill}
-            skillsOpen={skillsOpen}
-            onToggleSkills={toggleSkills}
+            skillsOpen={pickerOpen === "skills"}
+            onToggleSkills={() => togglePicker("skills")}
             onSkillChange={setLastSkill}
+            mode={lastMode}
+            modeOpen={pickerOpen === "mode"}
+            onToggleMode={() => togglePicker("mode")}
+            onModeChange={setLastMode}
             onRename={() => askForName(route.projectId)}
             onDelete={() => askToDelete(route.projectId)}
-            onSend={(text) => chat.send(text, lastSkill)}
+            onSend={(text) => chat.send(text, lastSkill, lastMode)}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             onDeleteChat={askToDeleteChat}
           />
@@ -306,9 +318,13 @@ export default function App() {
             /* The selection is the session's since Madde 86: one value, and both screens are
                handed it. What governed a turn is settled when the message is sent. */
             skill={lastSkill}
-            skillsOpen={skillsOpen}
-            onToggleSkills={toggleSkills}
-            onSend={(text) => chat.send(text, lastSkill)}
+            skillsOpen={pickerOpen === "skills"}
+            onToggleSkills={() => togglePicker("skills")}
+            mode={lastMode}
+            modeOpen={pickerOpen === "mode"}
+            onToggleMode={() => togglePicker("mode")}
+            onModeChange={setLastMode}
+            onSend={(text) => chat.send(text, lastSkill, lastMode)}
             onSkillChange={setLastSkill}
             onStop={chat.stop}
             onRetry={chat.retry}
