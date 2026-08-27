@@ -27,19 +27,23 @@ def build_prompts(structure):
     misses, built = [], []
     for number, frame in enumerate(frames, start=1):
         # The order is fixed here rather than in the file: a structure that could reorder itself
-        # would answer "why did this frame come out different" with "it varies".
-        parts = [structure.get("quality", "")]
-        # One character at a time, identity then what they wear: the only thing telling an image
-        # model whose clothes are whose is that the two sit next to each other.
-        for name, worn in _worn(frame.get("characters")):
-            parts.append(_looked_up(name, characters, "characters", number, misses))
-            for outfit in worn:
-                parts.append(_looked_up(outfit, outfits, "outfits", number, misses))
+        # would answer "why did this frame come out different" with "it varies". It also keeps two
+        # descriptions apart -- whoever leads opens the prompt, everyone else closes it, and the
+        # place, the action and the camera sit in between so the two do not bleed together.
+        #
+        # The count is placed, never worked out: the code knows who entered the frame but not what
+        # they are, and no field says so.
+        parts = [structure.get("quality", ""), frame.get("people", "")]
+        # Whoever the frame wrote first leads it. No field names them -- the order already carries
+        # it, and a second place saying the same thing is a place that can disagree.
+        in_frame = _worn(frame.get("characters"))
+        parts.extend(_block(in_frame[:1], characters, outfits, number, misses))
         place = frame.get("location") or ""
         if place:
             parts.append(_looked_up(place, locations, "locations", number, misses))
         parts.append(frame.get("action", ""))
         parts.append(frame.get("camera", ""))
+        parts.extend(_block(in_frame[1:], characters, outfits, number, misses))
         built.append(_tags(parts))
 
     # Every miss at once and nothing written: one pass fixes them all, and a dirty structure never
@@ -77,6 +81,20 @@ def _worn(field):
             for name, worn in field.items()
         ]
     return [(name, []) for name in field or []]
+
+
+def _block(people, characters, outfits, number, misses):
+    """One character then what they wear, name after name.
+
+    Its own function because the frame is built in two halves and this shape appears in both: the
+    one in front and everyone left behind them. The neighbour rule -- an identity and its outfits
+    touching -- is what tells an image model whose clothes are whose, and it is written once.
+    """
+    parts = []
+    for name, worn in people:
+        parts.append(_looked_up(name, characters, "characters", number, misses))
+        parts.extend(_looked_up(outfit, outfits, "outfits", number, misses) for outfit in worn)
+    return parts
 
 
 def _looked_up(name, known, field, number, misses):
