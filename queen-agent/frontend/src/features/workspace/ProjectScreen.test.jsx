@@ -218,8 +218,8 @@ test("picking a skill is passed up rather than kept here", () => {
   // App is what holds it.
   const onSkillChange = vi.fn();
   render(<ProjectScreen project={PROJECT} skillsOpen onSkillChange={onSkillChange} />);
-  fireEvent.click(screen.getByText("Create scenario", { selector: ".menu__item-name" }));
-  expect(onSkillChange).toHaveBeenCalledWith("create-scenario");
+  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  expect(onSkillChange).toHaveBeenCalledWith("generate-prompts-plus");
 });
 
 test("the model's name is here to be read, not pressed", () => {
@@ -234,7 +234,7 @@ test("whether the picker is open is told to the screen rather than decided by it
   // open cannot be a secret this screen keeps.
   const onToggleSkills = vi.fn();
   render(<ProjectScreen project={PROJECT} onToggleSkills={onToggleSkills} />);
-  expect(screen.queryByText("Create scenario", { selector: ".menu__item-name" })).toBeNull();
+  expect(screen.queryByText("Generate prompts+", { selector: ".menu__item-name" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   expect(onToggleSkills).toHaveBeenCalled();
 });

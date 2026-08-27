@@ -665,14 +665,14 @@ test("the picker shows the skill it is handed, not the chat's", () => {
   // Madde 86: the selection is the session's, and the session is App's. This screen is handed one,
   // the way ProjectScreen has always been handed one. A skill sitting in an old record is history,
   // not a selection.
+  // The two values are the record's and none: since Madde 94 the menu holds one name, so the
+  // disagreement is shown the other way round -- a stored skill against a session that picked
+  // nothing.
   render(
-    <ChatScreen
-      project={PROJECT}
-      chat={{ ...CHAT, skill: "verify-prompts" }}
-      skill="split-into-frames"
-    />,
+    <ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "generate-prompts-plus" }} skill="" />,
   );
-  expect(screen.getByRole("button", { name: /Split into frames/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
 });
 
 test("picking a skill is passed up rather than kept here", () => {
@@ -685,8 +685,8 @@ test("picking a skill is passed up rather than kept here", () => {
       onSkillChange={onSkillChange}
     />,
   );
-  fireEvent.click(screen.getByText("Split into frames"));
-  expect(onSkillChange).toHaveBeenCalledWith("split-into-frames");
+  fireEvent.click(screen.getByText("Generate prompts+"));
+  expect(onSkillChange).toHaveBeenCalledWith("generate-prompts-plus");
 });
 
 // --- what the answer spent (Madde 68) ------------------------------------------------------------

@@ -125,7 +125,7 @@ kimsenin tanımadığı bir adı taşıyan eski bir kayıt oluyorlar.
 
 ## Beklenen kırmızı
 
-**Arka uç 7, ön yüz 1.** Sekiz.
+**Arka uç 7, ön yüz 2.** Dokuz — sayım [planda](../plans/2026-08-27-queenagent-m94-test-plan.md).
 
 **İki kırmızı bu maddenin değildir:** `test_notebook`'un ikisi.
 

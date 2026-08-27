@@ -187,9 +187,9 @@ test("nothing selected is the button's own word", () => {
 in its name`, `the skill that splits says frames`, `the scenario row says what a scenario is now`,
 `the rows that write a file say so`.
 
-`a deleted skill keeps its id on the screen` yeni ama **bugün de yeşil** — `skillName`'in `?? id`
-kolu zaten orada. Silmeden sonra o kolun ilk gerçek kullanıcısı oluyor, ve testi olmayan bir kol
-sessizce kaybolur.
+`a deleted skill keeps its id on the screen` yeni ve **bugün kırmızı** — ilk yazımı yeşil olacağını
+söylüyordu, oysa `verify-prompts` hâlâ listede, yani `skillName` onun etiketini buluyor. Silmeden
+sonra `?? id` koluna düşecek, ve testi olmayan bir kol sessizce kaybolur.
 
 ## 5 · `frontend/src/features/workspace/SkillPicker.test.jsx`
 
@@ -255,9 +255,11 @@ Dokuz yerde ölçü taşınıyor; hiçbirinin iddiası değişmiyor.
 | `test_only_one_skill_is_offered` | 1 | `INSTRUCTIONS` altı satır |
 | `test_the_rulebook_has_one_reader_now` | 1 | `verify-prompts` de taşıyor |
 | `the one skill left is the one that builds` | 1 | `SKILLS` altı satır |
+| `a deleted skill keeps its id on the screen` | 1 | `verify-prompts` hâlâ listede, etiketi bulunuyor |
 
-**Toplam sekiz.** Sayı koşarak değil bugünkü `skills.py` ve `skills.js`'ten türetiliyor: altı
-yönerge, altı menü satırı, ve kural kitabı iki metnin içinde.
+**Toplam dokuz.** Sayı bugünkü `skills.py` ve `skills.js`'ten türetildi: altı yönerge, altı menü
+satırı, ve kural kitabı iki metnin içinde. Son satır koşulduktan sonra eklendi — türetme onu yeşil
+sanmıştı.
 
 **İki kırmızı bu maddenin değildir:** `test_notebook`'un ikisi.
 

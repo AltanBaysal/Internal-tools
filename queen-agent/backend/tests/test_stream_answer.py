@@ -330,25 +330,27 @@ def test_the_instruction_is_the_last_thing_in_the_request(tmp_path):
     # Two measures point at the same place. Attention: accuracy is highest at the two ends of a
     # context and falls by more than a third in the middle. Cache: what is fixed stays at the front
     # so the prefix holds, and what changes sits at the end so only it goes stale.
-    _, conversation = _said_with(tmp_path, ("write me a scenario", "create-scenario"))
+    _, conversation = _said_with(tmp_path, ("write me the prompts", "generate-prompts-plus"))
     assert conversation[-1] == {
         "role": "system",
-        "content": instruction_for("create-scenario"),
+        "content": instruction_for("generate-prompts-plus"),
     }
-    assert conversation[-2]["content"] == "write me a scenario"
+    assert conversation[-2]["content"] == "write me the prompts"
 
 
 def test_only_the_current_skill_is_sent_whatever_came_before(tmp_path):
     # However many times the selection changed, one instruction goes and it is this turn's. Before
     # Madde 93 a chat that had changed skill four times carried four texts, the oldest of them
     # forty messages back -- and the model had to find the newest copy among them.
+    # The two values are the skill and no skill: since Madde 94 the menu holds one name, and letting
+    # a selection go is the other thing a user can do with it.
     _, conversation = _said_with(
         tmp_path,
-        ("one", "create-scenario"),
-        ("and again", "create-scenario"),
-        ("now split it", "split-into-frames"),
+        ("one", "generate-prompts-plus"),
+        ("and again", "generate-prompts-plus"),
+        ("never mind", ""),
     )
-    assert _instructions(conversation) == [instruction_for("split-into-frames")]
+    assert _instructions(conversation) == []
 
 
 def test_no_instruction_stands_among_the_messages(tmp_path):
@@ -356,7 +358,7 @@ def test_no_instruction_stands_among_the_messages(tmp_path):
     # empty. Measured on the messages rather than on the whole request, because the one at the end
     # is the one that is supposed to be there.
     _, conversation = _said_with(
-        tmp_path, ("one", "create-scenario"), ("now split it", "split-into-frames")
+        tmp_path, ("one", "generate-prompts-plus"), ("and the rest", "generate-prompts-plus")
     )
     # Three, because the chat was born with a message of its own before these two.
     assert [piece["role"] for piece in conversation[:-1]] == ["user", "user", "user"]
@@ -367,11 +369,11 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     # block would sit behind the tool exchanges from the second round on -- and the reason this
     # item exists would stop holding after the first one.
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "check the files", NOW, skill="verify-prompts")
+    append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="generate-prompts-plus")
     engine = ScriptedEngine([[{"tool_calls": [call("list_files")]}], [{"text": "clean"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER))
     second = engine.seen[1]
-    assert second[-1] == {"role": "system", "content": instruction_for("verify-prompts")}
+    assert second[-1] == {"role": "system", "content": instruction_for("generate-prompts-plus")}
     # And what it moved past: the round that asked for the tool, and the tool's answer.
     assert [piece["role"] for piece in second[-3:-1]] == ["assistant", "tool"]
 
@@ -388,7 +390,7 @@ def test_a_skill_nobody_knows_adds_nothing_and_still_answers(tmp_path):
 
 
 def test_the_instruction_is_never_written_to_the_chat(tmp_path):
-    chats, _ = _said_with(tmp_path, ("write me a scenario", "create-scenario"))
+    chats, _ = _said_with(tmp_path, ("write me the prompts", "generate-prompts-plus"))
     # The transcript is what the user reads: user sentences and answers, nothing else.
     assert [m.role for m in chats.get("p1", "c1").messages] == ["user", "user", "ai"]
 

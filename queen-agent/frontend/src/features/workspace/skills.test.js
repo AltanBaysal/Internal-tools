@@ -2,29 +2,11 @@ import { expect, test } from "vitest";
 
 import { SKILLS, skillName } from "./skills.js";
 
-// The design drew four placeholders -- Web search, Deep research, Data & tables, Code -- for a
-// product that does something else. These six are the real set, settled with the user.
-test("the six skills are the ones that were agreed", () => {
-  expect(SKILLS.map((skill) => skill.id)).toEqual([
-    "create-scenario",
-    "create-character-prompt",
-    "split-into-frames",
-    "generate-prompts",
-    "generate-prompts-plus",
-    "verify-prompts",
-  ]);
-});
-
-test("the skill that checks carries no frame in its name", () => {
-  // It reads the material the prompts are made of, not the frames themselves.
-  const verify = SKILLS.find((skill) => skill.id === "verify-prompts");
-  expect(verify.name).toBe("Verify prompts");
-  expect(verify.detail).toBe("Check the structure files against the rules.");
-});
-
-test("the skill that splits says frames", () => {
-  const split = SKILLS.find((skill) => skill.id === "split-into-frames");
-  expect(split.name).toBe("Split into frames");
+// Madde 94: five of the six were deleted. What is left is the one that builds a prompt from parts,
+// and the menu is one row -- not none, because having no skill selected is an ordinary state and
+// more rows will come.
+test("the one skill left is the one that builds", () => {
+  expect(SKILLS.map((skill) => skill.id)).toEqual(["generate-prompts-plus"]);
 });
 
 test("each row says what it does", () => {
@@ -35,25 +17,17 @@ test("each row says what it does", () => {
 });
 
 test("no row promises to stay in the chat any more", () => {
-  // Both of them write a file now, and a menu that says otherwise is the app telling a lie.
+  // It writes a file, and a menu that says otherwise is the app telling a lie.
   expect(SKILLS.filter((skill) => /stays in the chat/i.test(skill.detail))).toEqual([]);
-});
-
-test("the scenario row says what a scenario is now", () => {
-  // Madde 41 turned it into bullets and gave it a file; the row still promised 10-15 sentences.
-  const scenario = SKILLS.find((skill) => skill.id === "create-scenario");
-  expect(scenario.detail).not.toMatch(/10-15/);
-  expect(scenario.detail).toMatch(/file/i);
-});
-
-test("the rows that write a file say so", () => {
-  const writing = SKILLS.filter((skill) => /file/i.test(skill.detail)).map((skill) => skill.id);
-  expect(writing).toContain("create-character-prompt");
-  expect(writing).toContain("split-into-frames");
 });
 
 test("a name is the label, not the id", () => {
   expect(skillName("generate-prompts-plus")).toBe("Generate prompts+");
+});
+
+test("a deleted skill keeps its id on the screen rather than vanishing", () => {
+  // An old record can still name one. The button says something rather than going blank.
+  expect(skillName("verify-prompts")).toBe("verify-prompts");
 });
 
 test("nothing selected is the button's own word", () => {

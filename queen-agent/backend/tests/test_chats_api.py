@@ -603,7 +603,7 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     other = _client(tmp_path / "second", engine=with_skill)
     opid = _project(other)
     other.post(
-        f"/api/projects/{opid}/messages", json={"text": "hello", "skill": "create-scenario"}
+        f"/api/projects/{opid}/messages", json={"text": "hello", "skill": "generate-prompts-plus"}
     ).get_data()
 
     assert not [piece for piece in plain.seen if piece["role"] == "system"]
@@ -611,7 +611,7 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     # claim is unchanged -- the road from the composer to the engine is one road.
     assert with_skill.seen[-1] == {
         "role": "system",
-        "content": instruction_for("create-scenario"),
+        "content": instruction_for("generate-prompts-plus"),
     }
 
 
