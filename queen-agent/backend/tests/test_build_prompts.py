@@ -16,6 +16,10 @@ BEDROOM = "sunlit bedroom, morning light"
 GECELIK = "white nightgown"
 GUNLUK = "black t-shirt"
 TAKIM = "dark grey suit"
+PEOPLE = "1girl, 1boy"
+# No count inside the identity: where the count belongs is the frame's own field, and this one is
+# written the way the maps are meant to read from Madde 95 on.
+EDA = "freckles, green eyes"
 
 
 def _frame(**changes):
@@ -223,6 +227,83 @@ def test_the_module_uses_triple_quotes_and_a_trailing_comma():
 def test_a_prompt_with_quotes_or_a_backslash_still_parses():
     tricky = ['a """quoted""" tag', "a back\\slash", 'ends with a quote"']
     assert _prompts_of(render_module(tricky)) == tricky
+
+
+def test_the_people_tag_is_written_right_after_quality():
+    built = build_prompts(_structure(frames=[_frame(people="1girl")]))
+    assert built == [f"{QUALITY}, 1girl, {AYLIN}, {BEDROOM}, an action, a camera"]
+
+
+def test_a_frame_without_a_people_tag_still_splits():
+    # Files written before the field existed carry no count. What is missing is skipped -- the way a
+    # missing quality is skipped -- and the order still opens up around the camera.
+    built = build_prompts(_structure(frames=[_frame(characters={"aylin": [], "deniz": []})]))
+    assert built == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera, {DENIZ}"]
+
+
+def test_an_empty_people_tag_adds_nothing():
+    # A count written blank must not leave a gap behind, the way an empty quality does not.
+    built = build_prompts(_structure(frames=[_frame(people=" ")]))
+    assert built == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+
+
+def test_who_leads_is_decided_frame_by_frame():
+    # The same two people can be in front in one frame and behind in the next: what decides is the
+    # order this frame wrote them in, nothing carried over from the maps.
+    frames = [
+        _frame(characters={"aylin": [], "deniz": []}),
+        _frame(characters={"deniz": [], "aylin": []}),
+    ]
+    built = build_prompts(_structure(frames=frames))
+    assert built[0].index(AYLIN) < built[0].index("a camera") < built[0].index(DENIZ)
+    assert built[1].index(DENIZ) < built[1].index("a camera") < built[1].index(AYLIN)
+
+
+def test_the_second_character_lands_past_the_camera():
+    frame = _frame(people=PEOPLE, characters={"aylin": [], "deniz": []})
+    assert build_prompts(_structure(frames=[frame])) == [
+        f"{QUALITY}, {PEOPLE}, {AYLIN}, {BEDROOM}, an action, a camera, {DENIZ}"
+    ]
+
+
+def test_the_leading_characters_outfit_comes_before_the_place():
+    # The whole front half in one chain: identity, its outfit, then the place -- and whoever is left
+    # is nowhere near them.
+    frame = _frame(people=PEOPLE, characters={"aylin": ["gecelik"], "deniz": []})
+    built = build_prompts(_structure(frames=[frame]))[0]
+    assert (
+        built.index(AYLIN)
+        < built.index(GECELIK)
+        < built.index(BEDROOM)
+        < built.index("a camera")
+        < built.index(DENIZ)
+    )
+
+
+def test_the_outfit_of_whoever_comes_last_follows_them_past_the_camera():
+    frame = _frame(people=PEOPLE, characters={"aylin": [], "deniz": ["takim"]})
+    built = build_prompts(_structure(frames=[frame]))[0]
+    assert built.index("a camera") < built.index(DENIZ) < built.index(TAKIM)
+
+
+def test_the_second_and_third_stay_side_by_side_at_the_end():
+    # The accepted cost of the new order: the two behind can still bleed into each other. What the
+    # order protects is the one in front.
+    structure = _structure(
+        characters={"aylin": AYLIN, "deniz": DENIZ, "eda": EDA},
+        frames=[_frame(people="2girls, 1boy", characters={"aylin": [], "deniz": [], "eda": []})],
+    )
+    assert build_prompts(structure)[0].endswith(f"{DENIZ}, {EDA}")
+
+
+def test_the_old_list_form_makes_its_first_name_the_leading_character():
+    built = build_prompts(_structure(frames=[_frame(characters=["aylin", "deniz"])]))[0]
+    assert built.index(AYLIN) < built.index("a camera") < built.index(DENIZ)
+
+
+def test_a_frame_with_nobody_in_it_still_says_how_many():
+    built = build_prompts(_structure(frames=[_frame(people="no humans", characters={})]))
+    assert built == [f"{QUALITY}, no humans, {BEDROOM}, an action, a camera"]
 
 
 @pytest.mark.parametrize(
