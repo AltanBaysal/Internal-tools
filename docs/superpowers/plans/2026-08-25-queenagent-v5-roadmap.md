@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **37 madde, 6 blok** — 65'ten 101'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **39 madde, 6 blok** — 65'ten 103'e.
 
 **Bu belge üç ayrı belgeden birleşti** *(kullanıcı kararı, 27 Ağustos)*. Blok 5 *"v5.5 Yol Haritası"*
 adıyla 26 Ağustos'ta, Blok 6 akış koşusu adıyla 27 Ağustos'ta yazılmıştı. Üçü de aynı branch'te, aynı
@@ -48,8 +48,10 @@ Koşu altıya ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belged
 - **Blok 5 (86-94) madde madde koşuldu — bitti.** Sadeleşme: makinenin kendi fazlalıkları ve modelin
   nasıl çalıştığı. Blok 2'nin kalanından **önce** koşuldu *(kullanıcı kararı, 26 Ağustos)*, ve
   koştuğunda Blok 2'nin bekleyen üç maddesinin işini de yaptı.
-- **Blok 6 (95-101) madde madde koşulur.** Akış: kullanıcıyı sorarak yürüten ikinci skill, ve altına
-  gereken üç zemin. Bu bloğun tamamı 27 Ağustos'ta konuşulan kararlardan türüyor.
+- **Blok 6 (95-103) madde madde koşulur.** Akış: kullanıcıyı sorarak yürüten ikinci skill, ve altına
+  gereken üç zemin. Bu bloğun tamamı 27 Ağustos'ta konuşulan kararlardan türüyor. **102 ve 103,
+  99'un spec'i açılınca doğdu** *(28 Ağustos)* — yol haritasının o maddede beklediği bölünme. Koşma
+  sırası 99 → 102 → 103 → 100 → 101; numaralar her zamanki gibi sondan verildi.
 
 **Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
 koşuyor; numaralarını kaydırmak, onlara atıf yapan her cümleyi yalan yapardı — maddelerin
@@ -837,7 +839,17 @@ akış şemayı araçtan okuyor, planını `edit` kipinde yazıyor, denemeyi ken
   yazılıyor, sahnenin listesine karışmıyor.
 - **Şartı:** 95 — aynı kurucuyu paylaşıyor.
 
-### Madde 99 — İzin tur ortasında sorulur, onay kipi değiştirir
+### Madde 99 — Kapı çalıştırma anına iner
+
+> **Spec'i açıldı ve madde üçe bölündü** *(28 Ağustos,
+> [izin tasarımı](../specs/2026-08-28-queenagent-izin-tasarimi-design.md))*. Aşağıdaki metin
+> bölünmeden önce yazıldı ve olduğu gibi duruyor; anlattığı işin **alan katmanı** 99'da kaldı,
+> kapı 102'ye ve ekran 103'e gitti. Başlık yeni sınıra göre değişti — eski adı *"İzin tur ortasında
+> sorulur, onay kipi değiştirir"*, ve o ad artık üç maddenin toplamını anlatıyor.
+>
+> **Bekleyişin üç kararı** *(kullanıcı kararı, 28 Ağustos)*: bekleyiş süresiz — depoda zaten hiçbir
+> yerde zaman aşımı yok, ve xAI de sunucu tarafında bir sınır belgelemiyor. Çıkış kapısı sayı değil
+> **Stop**. Ve beklerken **nabız** atılıyor, tünel boruyu kesmesin diye.
 
 - **Ne çalışır:** kip bugün modele hangi araçların verildiğini söylüyor, ve verilmeyen araç
   çağrılamıyor. Doğru bir kural, ama bir yan etkisi var: yanlış kipte duran kullanıcı ilk adımda
@@ -854,6 +866,9 @@ akış şemayı araçtan okuyor, planını `edit` kipinde yazıyor, denemeyi ken
   ortasında beklemesi gerekiyor. Spec'i açıldığında birden fazla maddeye bölünmesi beklenen sonuç;
   numaralar kaymaz, yeni numaralar sondan verilir.
 - **Değişmeyen:** çağrı kartları. Reddedilen çağrı da sohbette görünüyor *(Madde 84, 85)*.
+- **Bölünmeden sonra 99'un sınırı:** alan katmanı ve izin kaydı. Sahte bir kayıtla görülüyor — soru
+  kipinde yazan bir çağrı önce soruyor, onaylanınca çalışıyor, reddedilince çalışmıyor ve modele
+  açıklama gidiyor.
 
 ### Madde 100 — Skill seçimi yenilemeden sonra hatırlanır
 
@@ -887,6 +902,30 @@ akış şemayı araçtan okuyor, planını `edit` kipinde yazıyor, denemeyi ken
   cümle. Biri elle düzeltilip öteki unutulursa ayrışıyorlar; kod bunu kovalamıyor.
 - **Şartı:** 96, 97, 98.
 - **İlişkisi:** 74 ve 94. 94 seçiciyi tam da bunun için bırakmıştı.
+
+### Madde 102 — Soru kapıdan geçer
+
+- **Ne çalışır:** 99 turu duraklatıyor ama duraklamayı kimse göremiyor: soru tarayıcıya çıkmıyor ve
+  cevabın gireceği bir kapı yok. Soru karesi akışa giriyor, izin kapısı açılıyor, kayıt uygulamanın
+  kuruluşuna ekleniyor.
+- **Nasıl görülür:** akışta izin karesi görünüyor, kapıya verilen cevap duran turu sürdürüyor, ve
+  olmayan bir sohbete verilen cevap 404 alıyor.
+- **Yanında gelen:** nabız. Beklerken düzenli aralıkla bir yorum karesi gidiyor — tünelin susan
+  akışı kesmemesi için, ve sekmesi kapanmış bir turun toplanabilmesi için.
+- **Değişmeyen:** durdurma kapısı. İzin kapısı onun kardeşi, yerine geçmiyor.
+- **Şartı:** 99.
+
+### Madde 103 — Ekran sorar
+
+- **Ne çalışır:** cevabı verecek olan kullanıcı, ve bugün soruyu göreceği bir yer yok. Duraklayan
+  turun altında bir kart çıkıyor: hangi araç, hangi argümanlarla, ve iki düğme.
+- **Nasıl görülür:** izin karesi geldiğinde kart çıkıyor; Allow kapıya onayı gönderiyor ve kip
+  seçicisi edit'e kayıyor; Deny sebep kutusundaki cümleyi taşıyor.
+- **Kararı verilmiş** *(K38)*: sebep kutusu Deny'ın yanında. Onaylarken söylenecek bir şey yok.
+- **Değişmeyen:** gönder düğmesi. Kart dururken tur çalışıyor sayılıyor, yani düğme Stop —
+  bekleyişin çıkış kapısı zaten o.
+- **Yanında gelen:** `dist` aynı commit'te derleniyor.
+- **Şartı:** 102.
 
 ---
 
