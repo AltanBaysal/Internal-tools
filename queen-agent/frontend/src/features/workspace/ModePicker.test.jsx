@@ -26,3 +26,14 @@ test("pressing the mode already in force does not clear it", () => {
   fireEvent.click(screen.getByText("Ask", { selector: ".menu__item-name" }));
   expect(onChange).toHaveBeenCalledWith("ask");
 });
+
+test("ask mode no longer claims nothing is written", () => {
+  // It was true until Madde 99 and is not now: a write in this mode stops and asks. A line saying
+  // otherwise sends the user looking for a bug that is a feature.
+  render(<ModePicker mode="ask" open />);
+  const said = screen
+    .getByText("Ask", { selector: ".menu__item-name" })
+    .closest(".menu__item").textContent;
+  expect(said).not.toContain("Nothing is written");
+  expect(said).toContain("asks");
+});
