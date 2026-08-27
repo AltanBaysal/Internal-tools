@@ -198,6 +198,23 @@ def test_the_build_tool_tells_the_model_it_assembles_frames():
     assert "frame" in said and "shot" not in said
 
 
+def test_the_schema_tool_hands_back_the_shape_and_the_rules(tmp_path):
+    from backend.features.workspace.domain.schema import SCHEMA
+
+    # No arguments at all: there is one shape, and asking which one would be a question with a
+    # single answer.
+    assert _call(_files(tmp_path), "read_schema") == SCHEMA
+
+
+def test_the_schema_tool_brings_no_file_into_being(tmp_path):
+    assert run_tool(_files(tmp_path), "p1", "read_schema", "{}").created is None
+
+
+def test_the_schema_tool_says_what_it_answered_with(tmp_path):
+    # A reader's line rather than the answer itself, like every other outcome.
+    assert run_tool(_files(tmp_path), "p1", "read_schema", "{}").outcome == "Schema"
+
+
 def test_every_tool_is_declared_to_the_model():
     assert {spec["function"]["name"] for spec in TOOL_SPECS} == {
         "list_files",
@@ -208,6 +225,9 @@ def test_every_tool_is_declared_to_the_model():
         # Sixth since Madde 91, and declared here with the rest: which modes offer it is a separate
         # question, asked in modes.py.
         "write_plan",
+        # Seventh since Madde 96. The shape of a structure file stopped being a paragraph in a
+        # skill's text; it is fetched when a file is about to be written.
+        "read_schema",
     }
 
 

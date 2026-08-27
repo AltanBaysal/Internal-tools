@@ -4,7 +4,9 @@ The modes are named here the way the wire names them, and the module is imported
 rather than at the top: a module that does not exist yet fails this whole file's collection, and
 then none of the turn's other reds are visible anywhere in the suite.
 """
-READS = {"list_files", "read_file"}
+# read_schema joined them in Madde 96: it opens no file and changes nothing, so no mode has a
+# reason to withhold it.
+READS = {"list_files", "read_file", "read_schema"}
 
 
 def _offered(mode):
