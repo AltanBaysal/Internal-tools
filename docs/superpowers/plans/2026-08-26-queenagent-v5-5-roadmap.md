@@ -255,8 +255,10 @@ her dizilişte önceki maddenin işi sonraki tarafından atılıyor.
 - **Ne çalışır:** bugün altı skill var ve hangisinin ne zaman geleceğini kullanıcı seçiyor. Beşi
   silinir; geriye yapıdan prompt kuran tek skill kalır — kodun promptu birleştirdiği, modelin elle
   yazmasının yasak olduğu yol.
-- **Nasıl görülür:** seçilecek bir skill listesi yok; bir senaryodan prompt listesine kadar olan yol
-  tek bir metinle yürüyor.
+- **Nasıl görülür:** seçicide tek satır var; bir senaryodan prompt listesine kadar olan yol taban
+  yönerge artı tek bir metinle yürüyor, ve metni olan yalnız son ayak. *(94'ün spec'inde düzeltildi,
+  27 Ağustos: ilk yazımı "seçilecek bir skill listesi yok" diyordu ve maddenin kendi "Seçici kalıyor"
+  satırıyla çelişiyordu.)*
 - **Kararı verilmiş** *(kullanıcı kararı, 26 Ağustos)*: prompt+ dışında hepsi gider. Bu, v5'in 74'ünün
   *"hangi skiller düşecek"* açık sorusunun cevabı — hepsi, biri hariç.
 - **Zaten fazlalık olan biri:** promptları elle yazan yol, yapıdan kuran yolla aynı işi yapıyor ve
@@ -280,8 +282,8 @@ her dizilişte önceki maddenin işi sonraki tarafından atılıyor.
 
 | Soru | Nerede kapanır |
 |---|---|
-| v5'in 74'ü ile bu koşunun 94'ü aynı işi iki belgede anlatıyor — ikisi de "skiller ne olacak" diyor, ikisinin de açık sorusu aynı. Hangisi ötekine devredecek? | 94'e gelinmeden önce |
-| 94'ün silmesiyle kaybolacak bilgiden hangisi kalan skill'e, hangisi taban yönergeye taşınacak | 94'ün spec'inde, 73 koşulduktan sonra |
+| ~~v5'in 74'ü ile bu koşunun 94'ü aynı işi iki belgede anlatıyor. Hangisi ötekine devredecek?~~ | **94 devraldı** — 74 açık bir soruydu, 94 o sorunun cevabını taşıyor |
+| ~~94'ün silmesiyle kaybolacak bilgiden hangisi kalan skill'e, hangisi taban yönergeye taşınacak~~ | **Hiçbiri** *(kullanıcı kararı, 27 Ağustos)* — kalan metin bugünkü hâliyle kalıyor. Kaybın tek tek sayımı [94'ün spec'inde](../specs/2026-08-27-queenagent-m94-tek-skill-testler-design.md) |
 
 **Numara sorusu kapandı:** sayaç tek. Bu koşu 86'dan 94'e kadarını aldı, ve bundan sonra hangi
 belgeye madde eklenirse eklensin 95'ten devam eder. v5.5 önce koştuğu için Blok 4'ün açık uçlu olması

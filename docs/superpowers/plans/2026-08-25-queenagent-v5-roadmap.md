@@ -423,7 +423,12 @@ madde sırasını koruyor.
   biçimindeki karakter ve yapı dosyalarına ne olacağı — dönüştürülecek mi, yoksa iki biçim birden mi
   okunacak; ve 70'in getirdiği kişi sayısının cümlede nasıl söyleneceği.
 
-### Madde 74 — Skiller tek akışta toplanır
+### Madde 74 — Skiller tek akışta toplanır · **94'e devredildi**
+
+> **Bu madde koşulmuyor.** v5.5'in [Madde 94](2026-08-26-queenagent-v5-5-roadmap.md)'ü aynı işi
+> anlatıyor ve 74'ün *"hangi skiller düşecek"* açık sorusunun cevabını taşıyor: prompt+ dışında
+> hepsi *(kullanıcı kararı, 26 Ağustos)*. Bir karar, kendisini soran soruyu kapatır. 74 silinmiyor,
+> çünkü numaralar kaymıyor ve yazılmış spec'ler onlara atıf yapıyor. Aşağıdaki metin o günün kaydı.
 
 - **Ne çalışır:** altı skill var ve hangisinin ne zaman geleceğini kullanıcı seçiyor. Bir kısmı
   gerçekten gereksiz; kalanlar da birbirini izleyen tek bir zincir — senaryo, kareler, karakter,
