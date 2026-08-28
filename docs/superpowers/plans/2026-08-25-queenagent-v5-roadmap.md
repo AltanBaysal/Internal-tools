@@ -1108,6 +1108,58 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
+# Blok 8 — Örnek öğretmendir · madde madde
+
+> Blok 7 kapandıktan sonra üçüncü denemenin `senaryo.json`'ı bir kez daha, bu sefer gerçek SDXL
+> promptlarının yanına konarak okundu *(28 Ağustos)*. Değerler artık cümle değil — Madde 95 sonrası
+> biçim düzeltmesi tuttu — ama iki kalıntı duruyor, ve ikisi de tek bir yerden besleniyor: şemanın
+> kendi örneği.
+>
+> **Dışarıdan gelen ölçü.** SDXL rehberlerinin kuralı birebir *"Avoid natural sentences and
+> articles"*, kamera açıları da danbooru yazımıyla `from side` / `from above` / `from behind`
+> — bizim örneğimiz ikisini de tutmuyor. Kaynaklar:
+> [PixAI SDXL rehberi](https://blog.pixai.art/en/general-guide-of-writing-prompts-for-sdxl-models/),
+> [Danbooru açı tag'leri](https://danbooru.donmai.us/wiki_pages/angle),
+> [Nova Anime3D XL](https://civitai.com/models/1518336/nova-anime3d-xl) *(kullanıcının modeli,
+> Illustrious tabanlı)*. Model-agnostik kalınır: yazılan şey biçimdir, bir ailenin doktrini değil.
+>
+> **Kalite zinciri bu bloğun dışında.** Nova'nın sayfası başka bir zincir öneriyor; koddaki
+> `DEFAULT_QUALITY` kullanıcının çalışan zinciri ve ancak onun sözüyle değişir.
+
+### Madde 114 — Şemanın örneği model sözlüğüyle yazılır
+
+- **Ne çalışır:** şema *"The example is the measure"* diyor ve kural defterinin 7. maddesi artikeli
+  açıkça yasaklıyor — ama örneğin kendisi artikel taşıyor *(`standing by the window`)*, kamera
+  düzyazısı da *(`from the side`)*, ve örnekteki bir kamera hiç tag değil *(`from slightly above`)*.
+  Öğretmen kuralın tersini öğretiyor. Koşudaki `sitting on the couch`, `walking together in the
+  park`, `on the bed`, `looking at the moon and city lights` bunun doğrudan kopyası.
+- **Nasıl görülür:** şemanın örneğinde ve kamera düzyazısında artikel kalmıyor — `by the window` ile
+  `from the side` metinde geçmiyor, yerlerini `standing by window`, `from side` ve `from above`
+  alıyor. Biçim paragrafı artikelin düştüğünü kendi küçük örneğiyle söylüyor. On sahnelik bir
+  senaryoda action ve camera değerleri artikelsiz çıkıyor.
+- **Bilerek yapılmayan:** `cowboy shot` girmiyor. Gerçek danbooru tag'i o, ama "shot" süpürme pinini
+  gevşetmek gerekirdi ve `medium shot` çalışıyor. Karakter değerlerindeki `in her mid 20s` de
+  duruyor — kullanıcının çalışan promptunun üslubu *(araştırma belgesi §5c)*.
+- **İlişkisi:** 95 biçimi öğretti, bu madde öğreteni kuralına uyduruyor. 111 kamera düzyazısını
+  yazdı, sözlüğü burada tag'e dönüyor. 109 örneğin ikinci karesini ekledi — artikel oradan girdi.
+
+### Madde 115 — Action yalnız kadrajda görüneni taşır
+
+- **Ne çalışır:** koşunun kalan yarısı biçim değil içerik. `facing each other after argument,
+  reconciling` ve `one cutting vegetables, other making coffee` — *"after argument"* resimde
+  görünmez, *"one … other …"* ise Türkçe sahne cümlesinin yeniden anlatımı. Sahne listesi hikâyeyi
+  taşır, kare yalnız kadrajı taşır; bu ayrımı bugün hiçbir metin söylemiyor.
+- **Nasıl görülür:** hikâyeden gelen bir sahne — *"küçük bir tartışmadan sonra barışıyorlar"* —
+  kadrajda görünene çevriliyor *(oturuş, el teması, ifade, bakış)*, ve neden-sonuç sözü action'a
+  girmiyor. Kural defteri bunu ayrı bir madde olarak yakalıyor.
+- **Bilerek yapılmayan:** sahne listesi değişmiyor. Hikâye onun işi ve kullanıcının okuduğu şey o;
+  ayıklama kareyi yazarken olur.
+- **İlişkisi:** 108 yazma işini prompt+'a taşıdı, 113 düzenlemeyi ekledi, 114 biçimi düzeltiyor —
+  bu madde içeriği. prompt+'ın *"the sentence is a brief, never text to copy"* cümlesi mekanizmayı
+  tutuyor, kuralı değil.
+
+---
+
 ## Açık sorular
 
 Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
