@@ -38,6 +38,23 @@ def test_the_schema_says_what_belongs_where():
     assert "changes" in said and "outfits" in said
 
 
+def test_an_outfit_entry_dresses_one_person():
+    # 28 Aug: one entry said "dark pants for man, black dress for woman" and the code handed the
+    # whole text to both -- the man came out in the dress. The schema pushed sharing and never
+    # said that two people dressed differently are two entries.
+    said = _schema().lower()
+    assert "dresses one person" in said
+    assert "two entries" in said
+
+
+def test_the_example_shows_two_people_in_different_clothes():
+    # The example is the teacher: the failure it has to rule out is one entry covering both, so
+    # the second frame stands two characters side by side, each with their own outfit.
+    said = _schema()
+    assert '"people": "1boy, 1girl"' in said
+    assert "deniz" in said
+
+
 def test_the_schema_names_the_structure_file_after_frames():
     assert "intro-frames.json" in _schema()
 
@@ -101,6 +118,11 @@ def test_the_rulebook_has_a_sixth_rule_about_the_count():
 def test_the_rulebook_calls_a_sentence_a_violation():
     said = _rulebook()
     assert "7." in said and "fragments" in said.lower()
+
+
+def test_the_rulebook_catches_one_entry_dressing_two_people():
+    said = _rulebook()
+    assert "8." in said and "for the man" in said.lower()
 
 
 def test_what_the_tool_hands_back_carries_both():
