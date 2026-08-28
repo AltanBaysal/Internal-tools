@@ -1205,6 +1205,23 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 - **İlişkisi:** 101 onay döngüsünü, 108 kapanış adımını yazdı; bu madde ikisinin arasında açık
   kalan kapıyı kapatıyor. 112'nin tek-soru kuralı duruyor — sorulan soru yine tek.
 
+### Madde 118 — Akış kurucuyu çağırmaz
+
+- **Ne çalışır:** akış sahne listesini yazdıktan sonra kullanıcıyı prompt+'a göndermedi;
+  `build_prompts`'u kendisi çalıştırmayı teklif etti, yanına karakter önizlemesi koydu ve
+  *"onaylıyor musun, yoksa bir değişiklik var mı?"* diye kapattı. Oysa devir adımı onay beklemeyen
+  son sözdür, ve akışın bıraktığı dosyada frames bilerek boş — kurucu çağrılsa boş liste üretirdi.
+  Yasak işin kendisine göre yazılır: kurucu da prompt+'ındır, akış `build_prompts`'u çağırmaz, ve
+  devir mesajı teklif değil bildirimdir — bir şey önermez, bir şey sormaz.
+- **Nasıl görülür:** sahne listesi onaylanınca kapanış iki dosyayı adıyla söylüyor, prompt+'ı
+  gösteriyor ve duruyor; build_prompts teklifi de seçenek menüsü de soru işareti de yok.
+- **Sebebi biliniyor** *(metin okumasından, koşuda doğrulanır)*: 108'in yasağı adıyla frame
+  yazmayı söylüyor ve model adı konmuş yasağın etrafından dolaştı — frame yazmadı, kurmayı önerdi.
+  Taban yönergenin *"ask the one question that decides what happens next"* cümlesi de kapanışı
+  soruya çevirmeye itiyor; devir adımında o soru yoktur, çünkü sıradaki hamle skill menüsünde.
+- **İlişkisi:** 108 frame'leri kapattı, bu madde kurucuyu. 112 seçenek menüsünü yasaklamıştı —
+  buradaki teklif o menünün tek maddelik hâli.
+
 ---
 
 ## Açık sorular
