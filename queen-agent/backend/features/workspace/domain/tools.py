@@ -121,8 +121,9 @@ TOOL_SPECS = [
             "name": "edit_file",
             "description": (
                 "Change part of a file that already exists. The text you give as old must appear "
-                "exactly once and match what is on disk now, so read the file first and include "
-                "enough of what surrounds it to be sure."
+                "exactly once and match what is on disk now: read the file first if this turn has "
+                "not seen it -- what this turn read or wrote is already in front of you -- and "
+                "include enough of what surrounds it to be sure."
             ),
             "parameters": {
                 "type": "object",
@@ -183,8 +184,9 @@ TOOL_SPECS = [
             "name": "write_plan",
             "description": (
                 "Break the work into numbered steps and save the plan. Writes over the plan of "
-                "that name if there is one, so read it first and hand back the whole plan rather "
-                "than the part you changed. A turn asked only to plan ends with this call -- the "
+                "that name if there is one, so hand back the whole plan rather than the part you "
+                "changed -- read it first if this turn has not seen it. A turn asked only to "
+                "plan ends with this call -- the "
                 "user reads the plan, fixes it in the file if they want to, and runs it "
                 "themselves. A plan that is the first step of a larger job is an ordinary step: "
                 "carry on from it."
