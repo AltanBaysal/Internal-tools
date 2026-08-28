@@ -31,6 +31,13 @@ test("both list kinds are lists", () => {
   expect(draw("1. one\n2. two").querySelectorAll("ol li").length).toBe(2);
 });
 
+test("blank-separated numbered items count on in one ol", () => {
+  // Three separate <ol>s each count from 1, and the answer read 1, 1, 1.
+  const container = draw("1. one\n\n2. two\n\n3. three");
+  expect(container.querySelectorAll("ol").length).toBe(1);
+  expect(container.querySelectorAll("ol li").length).toBe(3);
+});
+
 test("a table is a table with a head", () => {
   const container = draw("| a | b |\n| --- | --- |\n| 1 | 2 |");
   expect(container.querySelectorAll("thead th").length).toBe(2);

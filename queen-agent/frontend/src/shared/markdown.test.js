@@ -75,6 +75,24 @@ test("a numbered list is ordered", () => {
   expect(block.items.length).toBe(2);
 });
 
+test("numbered items separated by blank lines are one list", () => {
+  // 28 Aug: a model writes a blank between its numbered items, and split into three <ol>s the
+  // browser counted 1, 1, 1.
+  const block = only("1. one\n\n2. two\n\n3. three");
+  expect(block.type).toBe("list");
+  expect(block.items.length).toBe(3);
+});
+
+test("bulleted items separated by blank lines are one list too", () => {
+  const block = only("- one\n\n- two");
+  expect(block.items.length).toBe(2);
+});
+
+test("a blank line still ends the list when what follows is no item", () => {
+  const blocks = parseBlocks("1. one\n\nafter");
+  expect(blocks.map((block) => block.type)).toEqual(["list", "paragraph"]);
+});
+
 test("an indented item belongs to the one above it", () => {
   // Drawn flat, a nested bullet reads as literal text inside its parent -- broken, not missing.
   const block = only("- one\n  - deeper\n- two");
