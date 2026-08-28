@@ -1274,6 +1274,23 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
   yenilenince de öyle.
 - **İlişkisi:** 13 markdown çizimini getirdi; bu onun bir düzeltmesi.
 
+### Madde 123 — Skill metinleri persona ile açılır ve tarif biçiminde kısalır
+
+- **Ne çalışır:** beş koşunun yaması üst üste bindi ve iki skill metni yasak biriktirerek uzadı —
+  akış ~700 kelimeye dayandı, ve uzayan metinde zayıf model ortadakini okumuyor; 108→118 de
+  gösterdi ki adı konmuş yasağın etrafı dolaşılıyor. İki metin yeniden yazılır: başa persona
+  *(kullanıcının cümlesi: "sen uzman bir senaryo yazarısın... zemini kurup uzman prompt yazarına
+  bırakacağız")*, gövde yasak listesi değil adım tarifi, hedef yarıya yakın uzunluk. Kazanılmış
+  davranışların hepsi kalır: mevcut pin testleri bekçi olarak korunur, kırmızıyı yeni pinler verir
+  — iki persona açılışı ve kelime tavanı.
+- **Nasıl görülür:** aynı senaryo koşusu aynı davranışları gösteriyor — adım onayları, devrin
+  kapsamı, teklifsiz kapanış, beşli parti — ve metinler belirgin kısalmış.
+- **Kendi dalında koşulur** *(kullanıcı kararı, 29 Ağustos)*: `feat/queenagent-m123-skill-rewrite`.
+  Denenip beğenilirse v5'e merge edilir; beğenilmezse dal ölür ve numara kaydıyla kalır — çalışan
+  ritüele dokunulduğu için *(107'nin uyarısı)* deneme dala alındı.
+- **İlişkisi:** 101, 108, 112, 113, 117, 118 ve 120'nin davranışları aynen korunur; değişen yalnız
+  anlatım. Sonrasında yazılan skillerin writing-skills gözüyle bir daha okunması ayrıca konuşuldu.
+
 ---
 
 ## Açık sorular
