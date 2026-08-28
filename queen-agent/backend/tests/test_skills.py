@@ -274,3 +274,20 @@ def test_the_plan_carries_the_context_too():
     said = _flow()
     assert "opens with one line of context" in said
     assert "inherits the work" in said
+
+
+def test_the_flow_opens_as_a_persona():
+    # Madde 123, the user's own framing: you are an expert scenario writer laying the ground,
+    # and an expert prompt writer takes over. A role holds a weak model better than a rule list.
+    assert _flow().startswith("You are an expert scenario writer")
+
+
+def test_the_builder_opens_as_a_persona():
+    assert instruction_for("generate-prompts-plus").startswith("You are an expert SDXL prompt writer")
+
+
+def test_the_texts_stay_short_enough_to_be_read():
+    # Five runs of patches doubled the texts, and a weak model stops reading the middle. The cap
+    # is the guard against swelling back: from here a sentence enters only by deleting one.
+    assert len(_flow().split()) <= 450
+    assert len(instruction_for("generate-prompts-plus").split()) <= 300
