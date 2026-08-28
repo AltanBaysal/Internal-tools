@@ -44,3 +44,25 @@ export function useRemembered(name, fallback) {
 
   return [value, setValue];
 }
+
+// What does not parse never happened: storage is shared with every past version of the app, and a
+// map that will not read is an empty map rather than a crash.
+function parsedMap(text) {
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+  } catch {
+    // Nothing to do and nothing to say.
+  }
+  return {};
+}
+
+// A map under one name: an entry per chat, so what one chat picks never stands in another
+// (Madde 105). The write goes through the functional form -- two picks in one breath must not
+// undo each other.
+export function useRememberedMap(name) {
+  const [kept, setKept] = useRemembered(name, "{}");
+  const remember = (key, value) =>
+    setKept((current) => JSON.stringify({ ...parsedMap(current), [key]: value }));
+  return [parsedMap(kept), remember];
+}

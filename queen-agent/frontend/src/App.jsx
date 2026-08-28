@@ -21,7 +21,7 @@ import { DEFAULT_MODE, EDIT } from "./features/workspace/modes.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
 import { getJson } from "./shared/api.js";
-import { useRemembered } from "./shared/remembered.js";
+import { useRememberedMap } from "./shared/remembered.js";
 import { useOnline } from "./shared/useOnline.js";
 import { parsePath, useRoute } from "./shared/useRoute.js";
 import { useShellWidth } from "./shared/useShellWidth.js";
@@ -59,10 +59,14 @@ export default function App() {
     if (next === null) setRailCollapsed(true);
     else setRailWidth(next);
   };
-  // The last skill picked, and what the next chat is born with. Remembered by the browser since
-  // Madde 100: a five-step flow that loses its skill on a reload sends the next turn with no
-  // instruction, and nothing on screen says so.
-  const [lastSkill, setLastSkill] = useRemembered("skill", "");
+  // The selection is the chat's own since Madde 105 -- one browser key, an entry per chat, so what
+  // is picked in one chat never stands in another. Remembered for the reason Madde 100 gave: a
+  // five-step flow that loses its skill on a reload sends the next turn with no instruction.
+  const [chatSkills, rememberChatSkill] = useRememberedMap("chat-skills");
+  // What the next chat is born with. The draft's and the project screen's picker hold a chat that
+  // does not exist yet; the birth writes the value into the newborn's entry and lets it go, so the
+  // next draft starts with nothing.
+  const [draftSkill, setDraftSkill] = useState("");
   // The last mode picked, and what the next turn is sent in. Held for the session like the skill,
   // and unlike it never written anywhere: nothing on the server reads a mode back.
   const [lastMode, setLastMode] = useState(DEFAULT_MODE);
@@ -77,6 +81,12 @@ export default function App() {
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
   const drafting = route.view === "chat" && route.chatId === "new";
+  // One value on the screen and in the request, Madde 86's rule at the chat's boundary.
+  const skillInForce = drafting ? draftSkill : (chatSkills[route.chatId] ?? "");
+  const changeSkill = (value) => {
+    if (drafting) setDraftSkill(value);
+    else rememberChatSkill(route.chatId, value);
+  };
   const { files, reloadFiles, loadingFiles, filesError, deleting } = useFiles(
     route.projectId,
     reloadProjects,
@@ -99,6 +109,10 @@ export default function App() {
     // on, it has just been born -- the address follows it while the answer is still arriving, and
     // the lists that count chats are out of date.
     (id) => {
+      // The skill that governed the birth becomes the newborn's own selection, and the draft lets
+      // it go -- Madde 105.
+      if (draftSkill) rememberChatSkill(id, draftSkill);
+      setDraftSkill("");
       openChat(route.projectId, id, { replace: true });
       return Promise.all([reloadProjectChats(), reloadProjects()]);
     },
@@ -276,19 +290,19 @@ export default function App() {
             filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
-            /* No chat here to write a choice to, so it is the session's -- the same value the
-               draft chat is born with, and the same one startChat already sends. */
-            skill={lastSkill}
+            /* No chat here to write a choice to: the picker holds what the next chat will be born
+               with -- the same value the draft's own picker holds. */
+            skill={draftSkill}
             skillsOpen={pickerOpen === "skills"}
             onToggleSkills={() => togglePicker("skills")}
-            onSkillChange={setLastSkill}
+            onSkillChange={setDraftSkill}
             mode={lastMode}
             modeOpen={pickerOpen === "mode"}
             onToggleMode={() => togglePicker("mode")}
             onModeChange={setLastMode}
             onRename={() => askForName(route.projectId)}
             onDelete={() => askToDelete(route.projectId)}
-            onSend={(text) => chat.send(text, lastSkill, lastMode)}
+            onSend={(text) => chat.send(text, draftSkill, lastMode)}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             onDeleteChat={askToDeleteChat}
           />
@@ -317,17 +331,17 @@ export default function App() {
             createdFiles={chat.createdFiles}
             streamingCalls={chat.streamingCalls}
             onBack={() => openProject(route.projectId)}
-            /* The selection is the session's since Madde 86: one value, and both screens are
-               handed it. What governed a turn is settled when the message is sent. */
-            skill={lastSkill}
+            /* The selection is the chat's own since Madde 105; the draft holds the birth value
+               instead. What governed a turn is still settled when the message is sent. */
+            skill={skillInForce}
             skillsOpen={pickerOpen === "skills"}
             onToggleSkills={() => togglePicker("skills")}
             mode={lastMode}
             modeOpen={pickerOpen === "mode"}
             onToggleMode={() => togglePicker("mode")}
             onModeChange={setLastMode}
-            onSend={(text) => chat.send(text, lastSkill, lastMode)}
-            onSkillChange={setLastSkill}
+            onSend={(text) => chat.send(text, skillInForce, lastMode)}
+            onSkillChange={changeSkill}
             onStop={chat.stop}
             /* The question is the hook's; the mode is the session's, and the session is here. One
                button moves both, and useChat never learns there is such a thing as a mode. */
