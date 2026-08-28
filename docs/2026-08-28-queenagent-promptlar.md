@@ -1,14 +1,14 @@
 # QueenAgent — modele giden her metin
 
 **Tarih:** 28 Ağustos 2026, son eşleme 29 Ağustos *(Blok 9: 116-122 ve Madde 123'ün yeniden
-yazımı; Blok 10: 107, 125, 126, 127 — bu kopya `feat/queenagent-m123-skill-rewrite` dalının
-hâli)*. Yaşayan asılları kodda —
-`prompt.py`, `tools.py`, `skills.py`, `schema.py`, `permission.py` — ve kod değişirse doğru olan
-onlardır, bu belge değil.
+yazımı; Blok 10: 107, 125, 126, 127; Blok 11: 129 — bu kopya
+`feat/queenagent-m123-skill-rewrite` dalının hâli)*. Yaşayan asılları kodda —
+`prompt.py`, `tools.py`, `skills.py`, `schema.py`, `permission.py`, `context_box.py` — ve kod
+değişirse doğru olan onlardır, bu belge değil.
 
 Sıra bir isteğin anatomisi: önce her istekte gidenler *(taban → araçlar)*, sonra konuşmanın
-arkasına binen dosya adları, sonra skill seçiliyken en sona binen iki metin, en sonda tur
-ortasında gelenler *(şema, red)*.
+arkasına binenler *(dosya adları → bağlam kabı)*, sonra skill seçiliyken en sona binen iki metin,
+en sonda tur ortasında gelenler *(şema, red)*.
 
 ---
 
@@ -159,7 +159,25 @@ görülmesi gerekiyor; skill metninin önünde, çünkü son söz Madde 93'te on
 
 ---
 
-## 4 · Skill metinleri — seçiliyken isteğin en sonunda
+## 4 · Bağlam kabı — adların hemen ardında, okunmuş dosya varsa
+
+*`stream_answer.py`'nin `_boxed`'ı ve `context_box.py` · Madde 129. Sohbetin `read_file` ile
+açtığı son 5 dosya, ve çekildiyse şema. Kap **ad** tutuyor, içerik değil: her istekte diskten
+okunuyor, dolayısıyla hep güncel — modelin kendi yazdığını geri okumasının sebebi böylece
+kalkıyor. Turlar arası yaşıyor; ikinci mesajda dosya zaten modelin önünde. Okunmuş hiçbir dosya
+yoksa kap hiç gönderilmiyor.*
+
+> Files you have opened in this chat, with their contents as they are now:
+>
+> \--- bar-scene.json ---
+> *(dosyanın o andaki hâli)*
+>
+> \--- prompt structure schema ---
+> *(şema metni — yalnız çekildiyse)*
+
+---
+
+## 5 · Skill metinleri — seçiliyken isteğin en sonunda
 
 *`skills.py` · Madde 93'ten beri konuşmanın içinde değil, isteğin sonunda ayrı bir system mesajı
 olarak gidiyor — dikkat iki uçta en yüksek, ve sabit baş önbelleği koruyor. Sıra seçicinin
@@ -195,7 +213,7 @@ sırası: akış önce.*
 
 ---
 
-## 5 · Şema — tur ortasında, `read_prompt_structure_schema` çağrılınca
+## 6 · Şema — tur ortasında, `read_prompt_structure_schema` çağrılınca
 
 *`schema.py` · Hiçbir istekte kendiliğinden gitmiyor; model yazmadan önce çağırıyor ve cevap
 olarak bunu alıyor. Madde 96'nın kararı: her turda taşınan metin her turda doğru olanı taşır,
@@ -263,7 +281,7 @@ dosyanın şekli yalnız yazma anında lazım.*
 
 ---
 
-## 6 · Red metni — tur ortasında, kullanıcı Deny deyince
+## 7 · Red metni — tur ortasında, kullanıcı Deny deyince
 
 *`permission.py` · İzin verilmeyen çağrının cevabı olarak modele döner. Son cümle yalnız
 kullanıcı sebep yazdıysa ekleniyor, kullanıcının kendi cümlesiyle.*
