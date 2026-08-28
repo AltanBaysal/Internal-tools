@@ -4,9 +4,11 @@ The generator yields text pieces and finally the updated Chat. Telling them apar
 simpler than carrying a separate "this one is the last" flag.
 """
 from backend.features.workspace.domain.chat import ToolCall, Usage
+from backend.features.workspace.domain.context_box import files_opened, schema_was_read
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
+from backend.features.workspace.domain.schema import SCHEMA
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
@@ -52,7 +54,34 @@ def _named(names):
     return "The project's files right now: " + ", ".join(names)
 
 
-def _asked(conversation, names, instruction):
+def _boxed(file_store, project_id, chat, steps):
+    """What this chat has opened, with the contents it has on disk right now (Madde 129).
+
+    Read here rather than remembered from when the tool ran: that is the whole of it -- a copy
+    would go stale the moment the file was written to, and staleness is what sent the model back
+    to read the same file three times.
+
+    A name whose file is gone is skipped without a word: the box holds names, and a heading with
+    nothing under it reads as an empty file. Nothing at all means no box -- an empty heading is a
+    line the model has to read before finding out it is empty.
+    """
+    blocks = []
+    for name in files_opened(chat, steps):
+        content = file_store.read(project_id, name)
+        if content is None:
+            continue
+        blocks.append(f"--- {name} ---\n{content}")
+    if schema_was_read(chat, steps):
+        blocks.append(f"--- prompt structure schema ---\n{SCHEMA}")
+    if not blocks:
+        return ""
+    return (
+        "Files you have opened in this chat, with their contents as they are now:\n\n"
+        + "\n\n".join(blocks)
+    )
+
+
+def _asked(conversation, names, box, instruction):
     """The request as it goes out: the conversation, then what the project holds, then the
     instruction behind all of it.
 
@@ -60,8 +89,9 @@ def _asked(conversation, names, instruction):
     a context and falls by more than a third in the middle. Cache: what is fixed leads so the
     prefix holds, and what changes trails so only it goes stale.
 
-    The names ride between the two. Behind the conversation because a file born in this turn has to
-    be seen by the next round; in front of the instruction because Madde 93 gave it the last word.
+    The names and the opened files ride between the two. Behind the conversation because a file
+    born or changed in this turn has to be seen by the next round; in front of the instruction
+    because Madde 93 gave it the last word.
 
     Built fresh on every round rather than once, because `conversation` grows -- each round appends
     what the model said and what the tools answered. An instruction placed inside it once would sit
@@ -69,6 +99,8 @@ def _asked(conversation, names, instruction):
     first one.
     """
     asked = conversation + [{"role": "system", "content": _named(names)}]
+    if box:
+        asked = asked + [{"role": "system", "content": box}]
     if not instruction:
         return asked
     return asked + [{"role": "system", "content": instruction}]
@@ -140,9 +172,15 @@ def stream_answer(
             round_spent = None
             try:
                 for piece in engine.stream(
-                    # The names are read here rather than before the loop: a round that wrote a
-                    # file changes the answer, and the next round has to hear the new one.
-                    _asked(conversation, file_store.list_names(project_id), instruction),
+                    # Both are read here rather than before the loop: a round that wrote a file
+                    # changes the answer, and the next round has to hear the new one. `made`
+                    # carries this turn's steps, which reach the record only when it is written.
+                    _asked(
+                        conversation,
+                        file_store.list_names(project_id),
+                        _boxed(file_store, project_id, chat, made),
+                        instruction,
+                    ),
                     # Every tool, in every mode. Since Madde 99 the mode is not what the request
                     # carries -- it is which of them run out of it without a question.
                     tools=TOOL_SPECS,

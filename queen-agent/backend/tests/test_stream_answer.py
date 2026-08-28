@@ -694,9 +694,12 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     second = engine.seen[1]
     assert second[-1] == {"role": "system", "content": instruction_for("generate-prompts-plus")}
-    # And what it moved past: the round that asked for the tool, and the tool's answer. The file
-    # names stand between them and it since Madde 127, so the pair sits one further back.
-    assert [piece["role"] for piece in second[-4:-2]] == ["assistant", "tool"]
+    # And what it moved past: the round that asked for the tool, and the tool's answer. Counted
+    # from the conversation's own end rather than from the request's -- what the request adds
+    # behind it has grown twice already (the names in 127, the box in 129) and each time this
+    # line had to be renumbered for a claim that never changed.
+    spoken = [piece for piece in second if piece["role"] in ("assistant", "tool")]
+    assert [piece["role"] for piece in spoken[-2:]] == ["assistant", "tool"]
 
 
 def test_a_chat_without_a_skill_is_told_nothing_extra(tmp_path):
