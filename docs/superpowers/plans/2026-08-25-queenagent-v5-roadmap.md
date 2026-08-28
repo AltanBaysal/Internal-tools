@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **38 madde, 6 blok** — 65'ten 102'ye.
+**Numaralar** v4'ten devam eder (64'te bitti). **39 madde, 6 blok** — 65'ten 103'e.
 
 **Bu belge üç ayrı belgeden birleşti** *(kullanıcı kararı, 27 Ağustos)*. Blok 5 *"v5.5 Yol Haritası"*
 adıyla 26 Ağustos'ta, Blok 6 akış koşusu adıyla 27 Ağustos'ta yazılmıştı. Üçü de aynı branch'te, aynı
@@ -48,10 +48,11 @@ Koşu altıya ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belged
 - **Blok 5 (86-94) madde madde koşuldu — bitti.** Sadeleşme: makinenin kendi fazlalıkları ve modelin
   nasıl çalıştığı. Blok 2'nin kalanından **önce** koşuldu *(kullanıcı kararı, 26 Ağustos)*, ve
   koştuğunda Blok 2'nin bekleyen üç maddesinin işini de yaptı.
-- **Blok 6 (95-102) madde madde koşuldu — bitti.** Akış: kullanıcıyı sorarak yürüten ikinci skill,
+- **Blok 6 (95-103) madde madde koşuldu — bitti.** Akış: kullanıcıyı sorarak yürüten ikinci skill,
   ve altına gereken üç zemin. Bu bloğun tamamı 27 Ağustos'ta konuşulan kararlardan türüyor. **102,
   99'un spec'i açılınca doğdu** *(28 Ağustos)* — yol haritasının o maddede beklediği bölünme. Koşma
-  sırası 99 → 102 → 100 → 101; numara her zamanki gibi sondan verildi.
+  sırası 99 → 102 → 100 → 101; numara her zamanki gibi sondan verildi. **103 koşu kapandıktan sonra
+  doğdu** *(28 Ağustos)* — akış çizimine karşı okununca — ve tek başına koşuldu.
 
 **Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
 koşuyor; numaralarını kaydırmak, onlara atıf yapan her cümleyi yalan yapardı — maddelerin
@@ -784,9 +785,10 @@ söyleyen bir şey yok, ve kullanıcı her seferinde boş sayfadan başlıyor.
 Bu blok o yolu getiriyor — **Start a scenario** — ve yolun altındaki üç zemini düzeltiyor: promptun
 kendi sırası, şemanın nerede durduğu, ve modelin yazma yetkisinin nasıl sorulduğu.
 
-**Koşma sırası:** 95 → 96 → 97 → 98 → 99 → 102 → 100 → 101. Sona kalan 101, çünkü şartı öteki
-yedisi: akış şemayı araçtan okuyor, planını `edit` kipinde yazıyor, denemeyi kendi aracıyla kuruyor.
-102 araya 99'un hemen ardından girdi — 99'un sorduğu soruyu ekranda gösteren madde o.
+**Koşma sırası:** 95 → 96 → 97 → 98 → 99 → 102 → 100 → 101 → 103. Sona kalan 101, çünkü şartı
+öteki yedisi: akış şemayı araçtan okuyor, planını `edit` kipinde yazıyor, denemeyi kendi aracıyla
+kuruyor. 102 araya 99'un hemen ardından girdi — 99'un sorduğu soruyu ekranda gösteren madde o. 103
+ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve tek bir çatışma çıktı.
 
 ### Madde 95 — Promptun sırası düzelir, kişi sayısı yerine oturur
 
@@ -916,6 +918,22 @@ yedisi: akış şemayı araçtan okuyor, planını `edit` kipinde yazıyor, dene
 - **Yanında gelen:** `dist` aynı commit'te derleniyor.
 - **Şartı:** 99.
 
+### Madde 103 — write_plan turun sonunu kipe değil işe bağlar
+
+> **Koşu kapandıktan sonra doğdu** *(28 Ağustos)*: akış çizimine karşı okundu, ve çizimle kodun tek
+> çatışması bu tek cümle çıktı.
+
+- **Ne çalışır:** `write_plan`'ın modele giden açıklaması *"tur burada biter: kullanıcı planı okur,
+  isterse düzeltir, kendisi koşar"* diyor — her istekte, her kipte. Madde 97'den beri bu yalnız plan
+  kipinde doğru: edit kipinde plan yazan tur devam ediyor, ve akış ilk sorusunu aynı turda soruyor.
+  97'nin spec'i bunu kelimesiyle yazmış, araç açıklaması ise hiç tartılmamıştı. Model kipi görmüyor;
+  cümle bu yüzden kipe değil işe bağlanır — yalnız plan istenen tur biter, büyük bir işin ilk adımı
+  olan plan sıradan bir adımdır ve tur sürer.
+- **Nasıl görülür:** akış başlatıldığında model planı yazıp karakterleri **aynı turda** soruyor;
+  plan kipinde hiçbir şey değişmiyor — turu kesen zaten sunucu *(`ends_the_turn` ellenmiyor)*.
+- **Değişmeyen:** sunucunun kuralı ve kipler. Yanlış olan modele söylenen cümleydi, kod değil.
+- **Şartı:** 97, 101.
+
 ---
 
 ## Açık sorular
@@ -948,8 +966,8 @@ bağlandı. Son üçü Blok 6'nındı, ve üçü de kendi maddesinin spec'inde k
 sorusu vardı — kelimeden önce durdurulan turun diske yazılıp yazılmayacağı — ve maddeye gelindiğinde
 kullanıcıyla konuşulup kapandı.
 
-**Numara sorusu kapandı:** sayaç tek. Bu belge 65'ten 102'ye kadarını aldı, ve bundan sonra madde
-nereye eklenirse eklensin 103'ten devam eder.
+**Numara sorusu kapandı:** sayaç tek. Bu belge 65'ten 103'e kadarını aldı, ve bundan sonra madde
+nereye eklenirse eklensin 104'ten devam eder.
 
 ## Kapsam dışı
 
