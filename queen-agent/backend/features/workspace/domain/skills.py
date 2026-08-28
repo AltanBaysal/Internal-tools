@@ -21,8 +21,8 @@ the shape of a file is only true of the turn that writes one.
 """
 
 GENERATE_PROMPTS_PLUS = (
-    "When the user wants the prompts of a scenario built, this is the skill that builds them. A "
-    "prompt is never written out by hand: characters, outfits and places live in the structure "
+    "When the user wants the prompts of a scenario built or changed, this is the skill for both. "
+    "A prompt is never written out by hand: characters, outfits and places live in the structure "
     "file's maps, a frame only names them, and build_prompts assembles every frame from those "
     "parts in a fixed order -- which is why a character reads the same in frame three and frame "
     "forty. The work here is getting that file right and then calling the builder.\n"
@@ -55,7 +55,14 @@ GENERATE_PROMPTS_PLUS = (
     "Then call build_prompts with the structure file's name. It resolves the names and assembles "
     "every frame in a fixed order. Do not assemble a prompt yourself and do not write the Python "
     "file by hand: assembled by hand, a character drifts from frame to frame; assembled by code, "
-    "it cannot."
+    "it cannot.\n"
+    "\n"
+    "When the user comes back unhappy with a prompt, changing it is the same road: find the frame "
+    "it came from -- the built list runs in the frames' order -- fix what is wrong with "
+    "edit_file, and call build_prompts again. What is wrong is either the frame's own action or "
+    "camera, or the entry in a map the frame names: a map entry is the one edit that reaches "
+    "every frame naming it. The prompt file is written from the structure file every time, so it "
+    "is rebuilt rather than patched, and never edited by hand."
 )
 
 START_A_SCENARIO = (

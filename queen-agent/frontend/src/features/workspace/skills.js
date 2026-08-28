@@ -14,7 +14,7 @@ export const SKILLS = [
   {
     id: "generate-prompts-plus",
     name: "Generate prompts+",
-    detail: "Build the prompts from a structure file you already have.",
+    detail: "Build the prompts from a structure file you already have, and change them later.",
   },
 ];
 
