@@ -1379,6 +1379,69 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
+# Blok 11 — Aracın sözleşmesi ne derse o olur · madde madde
+
+> Yedinci deneme *(29 Ağustos, Blok 10 koşulmuş dalda)*: prompt+ turu 16 adım ve 335k `sent`
+> tuttu. Blok 10'un kazandıkları duruyor — tur `list_files` ile açılmadı, iki dosyanın adı da
+> doğru yazıldı *(uydurma yok)*, şema tam bir kez çekildi. Kalan israf tek bir kalıpta: her
+> `edit_file`'dan sonra bir `read_file`, beş kez, ve sonunda aynı 156 satırlık dosya üst üste
+> üç kez.
+>
+> **Dersi 125'in sınırı.** Tanımdaki *"bu turda görmediysen oku"* cümlesi tutmadı, çünkü aynı
+> tanımın bir cümle önünde duran şart okumayı gerektiriyor: *old metin diskte tam olarak bir kez
+> geçmeli.* Kareler birbirine benziyor, model her batch'te bu şartı tutturabildiğinden emin
+> olmak için okuyor — ve haklı. Modele okuma dememek yetmiyorsa, okumayı gerektiren sözleşme
+> değişir.
+>
+> **Maliyeti bileşik.** 156 satırlık her okuma sonucu tur boyunca konuşmada duruyor ve sonraki
+> her isteğe yeniden biniyor; 335k bunun toplamı, tek bir isteğin boyu değil.
+
+### Madde 128 — Kare eklemenin kendi aracı olur
+
+- **Ne çalışır:** `add_frames(name, frames)`: kod yapı dosyasını okur, verilen kareleri `frames`
+  listesinin sonuna ekler, yazar. Çapa yok, *"tam bir kez"* şartı yok — dolayısıyla okuma
+  gerekçesi de yok. `build_prompts`'un zaten yürüdüğü yol *(FOUNDATION 5: kararı kod verir)*, ve
+  prompt+'ın beşerli ritmi metinden koda geçmez: uzun cevabın sonunda kalite düşer, o yüzden
+  model yine parça parça çağırır — ama her parça arasında okumaz.
+- **Nasıl görülür:** 25 karelik bir senaryo kurulurken `read_file` yalnız açılıştaki çifte
+  gidiyor; kare ekleme adımlarının arasında hiç okuma yok.
+- **Değişmeyen:** `edit_file` durur — var olan bir kareyi düzeltmek ve harita girdisi değiştirmek
+  hâlâ onun işi *(113'ün düzenleme yolu)*. `build_prompts` ve şema aynen kalır.
+- **İlişkisi:** 125 tanımı düzeltti, bu madde tanımın gerektirdiği okumayı ortadan kaldırıyor.
+  96 ve 98'in kalıbı: modelin elle yaptığı iş koda iniyor.
+
+### Madde 129 — Bayat okuma tur içinde düşer
+
+- **Ne çalışır:** aynı dosyanın eski `read_file` sonucu, üzerine yazıldığı anda yanlış bilgidir;
+  ama tur boyunca konuşmada durup her isteğe yeniden biniyor. Aynı dosyaya ait daha yeni bir
+  okuma varsa, eskisinin içeriği tek cümlelik bir yer tutucuya iner. Mesajın kendisi silinmez:
+  bir `tool` mesajı, kendisini çağıran `tool_calls` girdisinin karşılığıdır ve kaybolursa istek
+  geçersiz olur.
+- **Nasıl görülür:** aynı dosyayı iki kez okuyan bir turda ikinci isteğin boyu birinciyi
+  tekrarlamıyor; ekrandaki sayı okuma başına şişmiyor.
+- **Kaynak:** Anthropic'in kendi kılavuzundaki *tool result clearing* — *"why would the agent need
+  to see the raw result again?"* Madde 124'ün araştırma notu bunu ölçüme bağlamıştı; ölçü artık
+  var *(335k)*.
+- **Bilerek yapılmayan:** turlar arası bir şey değişmez — araç sonuçları zaten taşınmıyor. Yazma
+  sonuçları da düşmez: onlar zaten tek cümle.
+- **İlişkisi:** 92 tavanı koydu, 124 önbelleği taktı; bu madde turun kendi içinde şişmeyi kesiyor.
+  128 okuma sayısını azaltıyor, bu madde kalanların bedelini.
+
+### Madde 130 — prompt+ turu da menüyle bitmez
+
+- **Ne çalışır:** yedinci denemenin kapanışı üç şıklı bir menüydü — *"bir kareyi değiştirelim ·
+  sadece belirli kareleri göster · başka bir şey ekle"* — ve öncesinde model `build_prompts`'un
+  yazdığı dosyayı okuyup 25 promptu cevaba döktü. Dosya zaten projede. Madde 112 bu kuralı taban
+  yönergeye yazdı; prompt+ turunda tutmuyor, çünkü skill metni isteğin son sözü ve kapanış
+  hakkında bir şey söylemiyor. prompt+ kendi kapanışını söyler: kurulan dosya cevabın kendisidir,
+  promptlar geri basılmaz, menü açılmaz.
+- **Nasıl görülür:** kurma turu dosyayı adıyla söyleyip bitiyor; ne prompt listesi ne şık listesi.
+- **Yer nereden geliyor:** 128 prompt+'ın kare ekleme cümlesini kısaltıyor; kelime tavanı bu
+  madde için orada açılıyor *(123'ün kuralı: bir cümle ancak bir cümle silinerek girer)*.
+- **İlişkisi:** 112 tabanı, 118 akışın kapanışını yazdı; bu üçüncüsü.
+
+---
+
 ## Açık sorular
 
 Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
