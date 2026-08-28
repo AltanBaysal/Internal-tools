@@ -254,6 +254,34 @@ def test_every_tool_is_declared_to_the_model():
     }
 
 
+# --- the reads the descriptions used to demand (Madde 125) ---------------------------------------
+#
+# Madde 107 told the base never to read back your own writing, and the trial that followed did it
+# anyway -- because these two descriptions ride inside the very call the model is about to make and
+# ordered it in so many words. A rule the tool contradicts is a rule the tool wins.
+
+
+def _said_by(tool):
+    return next(spec for spec in TOOL_SPECS if spec["function"]["name"] == tool)["function"][
+        "description"
+    ]
+
+
+def test_the_edit_tool_asks_for_a_read_only_when_the_turn_has_not_seen_the_file():
+    said = _said_by("edit_file")
+    assert "if this turn has not seen it" in said
+    assert "already in front of you" in said
+    # The unconditional order, which is what produced create_file -> read_file -> edit_file.
+    assert "so read the file first" not in said
+
+
+def test_the_plan_tool_does_not_demand_a_read_of_what_the_turn_just_wrote():
+    # One step closing cost three plan writes in the trial: write_plan, edit_file, write_plan.
+    said = _said_by("write_plan")
+    assert "if this turn has not seen it" in said
+    assert "so read it first" not in said
+
+
 def test_write_plan_ends_only_the_turn_that_was_asked_to_plan():
     # Madde 103. The server ends the turn after write_plan in plan mode alone (Madde 97), and the
     # flow writes a plan as its first step and asks its first question in the same turn. The model
