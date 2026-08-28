@@ -48,10 +48,10 @@ Koşu altıya ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belged
 - **Blok 5 (86-94) madde madde koşuldu — bitti.** Sadeleşme: makinenin kendi fazlalıkları ve modelin
   nasıl çalıştığı. Blok 2'nin kalanından **önce** koşuldu *(kullanıcı kararı, 26 Ağustos)*, ve
   koştuğunda Blok 2'nin bekleyen üç maddesinin işini de yaptı.
-- **Blok 6 (95-102) madde madde koşulur.** Akış: kullanıcıyı sorarak yürüten ikinci skill, ve altına
-  gereken üç zemin. Bu bloğun tamamı 27 Ağustos'ta konuşulan kararlardan türüyor. **102, 99'un
-  spec'i açılınca doğdu** *(28 Ağustos)* — yol haritasının o maddede beklediği bölünme. Koşma sırası
-  99 → 102 → 100 → 101; numara her zamanki gibi sondan verildi.
+- **Blok 6 (95-102) madde madde koşuldu — bitti.** Akış: kullanıcıyı sorarak yürüten ikinci skill,
+  ve altına gereken üç zemin. Bu bloğun tamamı 27 Ağustos'ta konuşulan kararlardan türüyor. **102,
+  99'un spec'i açılınca doğdu** *(28 Ağustos)* — yol haritasının o maddede beklediği bölünme. Koşma
+  sırası 99 → 102 → 100 → 101; numara her zamanki gibi sondan verildi.
 
 **Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
 koşuyor; numaralarını kaydırmak, onlara atıf yapan her cümleyi yalan yapardı — maddelerin
@@ -771,7 +771,7 @@ her dizilişte önceki maddenin işi sonraki tarafından atılıyor.
 
 ---
 
-# Blok 6 — Akış
+# Blok 6 — Akış · madde madde · **bitti**
 
 > Bu blok 27 Ağustos'ta ayrı bir belge olarak yazıldı ve aynı gün buraya taşındı. **Kaynağı**
 > [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) ve
@@ -784,8 +784,9 @@ söyleyen bir şey yok, ve kullanıcı her seferinde boş sayfadan başlıyor.
 Bu blok o yolu getiriyor — **Start a scenario** — ve yolun altındaki üç zemini düzeltiyor: promptun
 kendi sırası, şemanın nerede durduğu, ve modelin yazma yetkisinin nasıl sorulduğu.
 
-**Koşma sırası:** 95 → 96 → 97 → 98 → 99 → 100 → 101. Sona kalan 101, çünkü şartı öteki altısı:
-akış şemayı araçtan okuyor, planını `edit` kipinde yazıyor, denemeyi kendi aracıyla kuruyor.
+**Koşma sırası:** 95 → 96 → 97 → 98 → 99 → 102 → 100 → 101. Sona kalan 101, çünkü şartı öteki
+yedisi: akış şemayı araçtan okuyor, planını `edit` kipinde yazıyor, denemeyi kendi aracıyla kuruyor.
+102 araya 99'un hemen ardından girdi — 99'un sorduğu soruyu ekranda gösteren madde o.
 
 ### Madde 95 — Promptun sırası düzelir, kişi sayısı yerine oturur
 
@@ -935,21 +936,20 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | ~~Hangi skiller düşecek~~ | 94 — kapandı: prompt+ dışında hepsi. Yerine gelen akış skill'i Madde 101 *(K16)* |
 | ~~v5'in 74'ü ile 94 aynı işi iki belgede anlatıyor. Hangisi ötekine devredecek?~~ | **94 devraldı** — 74 açık bir soruydu, 94 o sorunun cevabını taşıyor |
 | ~~94'ün silmesiyle kaybolacak bilgiden hangisi kalan skill'e, hangisi taban yönergeye taşınacak~~ | **Hiçbiri** *(kullanıcı kararı, 27 Ağustos)* — kalan metin bugünkü hâliyle kalıyor. Kaybın tek tek sayımı [94'ün spec'inde](../specs/2026-08-27-queenagent-m94-tek-skill-testler-design.md) |
-| Şema kişi sayısı dışında başka ne alıyor | 95 |
-| İzin sorusunun ekranda nasıl göründüğü ve bekleyen turun nasıl taşındığı | 99 |
-| Akış metninin adımları hangi cümlelerle söylediği | 101 |
+| ~~Şema kişi sayısı dışında başka ne alıyor~~ | 95 — kapandı |
+| ~~İzin sorusunun ekranda nasıl göründüğü ve bekleyen turun nasıl taşındığı~~ | 99 ve 102 — kapandı |
+| ~~Akış metninin adımları hangi cümlelerle söylediği~~ | 101 — kapandı |
 
-**65'ten 94'e kadar açık satır kalmadı** *(27 Ağustos)*: koşulmuş maddelerin sorduğu her şey ya
-koşuldu ya karara bağlandı. Açık duran üçü de Blok 6'nın, ve üçü de kendi maddesinin spec'inde
-kapanıyor.
+**Açık satır kalmadı** *(28 Ağustos)*: 65'ten 102'ye kadar sorulan her şey ya koşuldu ya karara
+bağlandı. Son üçü Blok 6'nındı, ve üçü de kendi maddesinin spec'inde kapandı.
 
 76'dan 85'e kadar olanlar bu tabloda yok: onunun da kararı verilmiş, verilecek bir şey kalmadı.
 81'in
 sorusu vardı — kelimeden önce durdurulan turun diske yazılıp yazılmayacağı — ve maddeye gelindiğinde
 kullanıcıyla konuşulup kapandı.
 
-**Numara sorusu kapandı:** sayaç tek. Bu belge 65'ten 101'e kadarını aldı, ve bundan sonra madde
-nereye eklenirse eklensin 102'den devam eder.
+**Numara sorusu kapandı:** sayaç tek. Bu belge 65'ten 102'ye kadarını aldı, ve bundan sonra madde
+nereye eklenirse eklensin 103'ten devam eder.
 
 ## Kapsam dışı
 
