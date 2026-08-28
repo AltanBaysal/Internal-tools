@@ -168,8 +168,10 @@ TOOL_SPECS = [
             "description": (
                 "Break the work into numbered steps and save the plan. Writes over the plan of "
                 "that name if there is one, so read it first and hand back the whole plan rather "
-                "than the part you changed. The turn ends here: the user reads the plan, fixes it "
-                "in the file if they want to, and runs it themselves."
+                "than the part you changed. A turn asked only to plan ends with this call -- the "
+                "user reads the plan, fixes it in the file if they want to, and runs it "
+                "themselves. A plan that is the first step of a larger job is an ordinary step: "
+                "carry on from it."
             ),
             "parameters": {
                 "type": "object",
