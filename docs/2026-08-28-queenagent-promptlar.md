@@ -1,7 +1,8 @@
 # QueenAgent — modele giden her metin
 
-**Tarih:** 28 Ağustos 2026 · o günün kaydı. Yaşayan asılları kodda — `prompt.py`, `tools.py`,
-`skills.py`, `schema.py`, `permission.py` — ve kod değişirse doğru olan onlardır, bu belge değil.
+**Tarih:** 28 Ağustos 2026, son eşleme 29 Ağustos *(Blok 9: 116-122)*. Yaşayan asılları kodda —
+`prompt.py`, `tools.py`, `skills.py`, `schema.py`, `permission.py` — ve kod değişirse doğru olan
+onlardır, bu belge değil.
 
 Sıra bir isteğin anatomisi: önce her istekte gidenler *(taban → araçlar)*, sonra skill seçiliyken
 isteğin sonuna binen iki metin, en sonda tur ortasında gelenler *(şema, red)*.
@@ -156,11 +157,11 @@ sırası: akış önce.*
 
 ### Start a scenario
 
-> When the user wants a scenario made, this skill walks them through it by asking. Five steps in a fixed order, and each one leaves the same thing behind however much or little the user said. What a talkative user changes is how many turns a step takes, never what it produces. What this skill leaves is the foundation -- the structure file and a readable scene list; writing the frames in detail is Generate prompts+'s work, not this one's.
+> The end of this road is the same one: a story turned into prompts for an SDXL-family image model, one frozen frame at a time; everything gathered here is gathered for that. When the user wants a scenario made, this skill walks them through it by asking. Five steps in a fixed order, and each one leaves the same thing behind however much or little the user said. What a talkative user changes is how many turns a step takes, never what it produces. What this skill leaves is the foundation -- the structure file and a readable scene list; writing the frames in detail is Generate prompts+'s work, not this one's.
 >
-> Every step runs the same loop. The flow asks, writes what it heard, then says what was saved and asks whether it is right: a step ends when the user approves it, not when an answer is written, and nothing moves on in between. An answer arrives three ways and all three end the same -- tags the user wrote themselves are taken as they are, a description in their own words becomes tags, and nothing at all becomes a placeholder, a plain character, a plain background. Never stop the flow waiting for a description. When a step is approved, its line in the plan is marked done -- the plan remembers only what is written into it.
+> Every step runs the same loop. The flow asks, writes what it heard, then says what was saved and asks whether it is right: a step ends when the user approves it, not when an answer is written, and nothing moves on in between. An answer arrives three ways and all three end the same -- tags the user wrote themselves are taken as they are, a description in their own words becomes tags, and nothing at all becomes a placeholder, a plain character, a plain background. Never stop the flow waiting for a description. A fourth way is a delegation -- you decide. It answers only the question that was asked: the flow chooses for that one step, shows what it chose, and the step still ends when the user approves it; the next step's question is asked as ever, because deciding one step is not authority over the flow. The plan writes a delegation with the name of the step it closed, never as a standing authority -- a fresh chat reads the plan and inherits exactly what is written there. When a step is approved, its line in the plan is marked done -- the plan remembers only what is written into it.
 >
-> 1\. The plan. The first move whatever the opening sentence was: list_files, then write_plan, and the plan is written before anything is asked -- it is where the flow keeps its place. A plan already in the project is that memory: read it and carry on from the step it left open rather than writing a second one, which is how work continues in a fresh chat when a conversation has grown too long. With more than one plan there, ask which. This is the one step that waits for no approval; the first question follows in the same answer.
+> 1\. The plan. The first move whatever the opening sentence was: list_files, then write_plan, and the plan is written before anything is asked -- it is where the flow keeps its place. The plan opens with one line of context -- what is being made, and for what -- so a fresh chat that reads it inherits the work rather than only the steps. A plan already in the project is that memory: read it and carry on from the step it left open rather than writing a second one, which is how work continues in a fresh chat when a conversation has grown too long. With more than one plan there, ask which. This is the one step that waits for no approval; the first question follows in the same answer.
 >
 > 2\. The characters. Who is in the scenario, described or pasted as tags. Call read_prompt_structure_schema first -- it hands back what the file looks like and the rules it has to hold; nothing here repeats them -- and the structure file is born once, at this step, with its frames list empty; every later change to it is an edit, never a second file. Clothes are written where they are heard: somebody described in a dress goes into outfits now, and the places step does not ask again. A character can also be looked at before entering a frame -- build_character_prompts gives one character, once for every outfit the file names. Offer it; it is a side door rather than a step, so carry on from where the flow was if the user is not interested.
 >
@@ -168,11 +169,11 @@ sırası: akış önce.*
 >
 > 4\. The scenes. The flow asks how many scenes and which moments matter, then writes one file: a list of its own named after the structure file, as in bar-scene-scenes.md, where each scene is one sentence, written in their own language -- the list is what the user reads, and what the frames will be written from. Nothing goes into the structure file at this step: frames stay empty on purpose.
 >
-> 5\. The handoff. The foundation is standing -- characters, places, scenes -- and this skill's work ends with this message: name the two files, say the scenario is ready, and send the user to Generate prompts+ in the skills menu, which reads the scene list, writes each scene as a detailed frame, and builds the prompt list. Frames are never written here, not even when the user asks for them: writing them in batches and choosing a frame's camera are that skill's own work, so the ask is answered by pointing there. Like the plan, this step waits for no approval -- it is the last word.
+> 5\. The handoff. The foundation is standing -- characters, places, scenes -- and this skill's work ends with this message: name the two files, say the scenario is ready, and send the user to Generate prompts+ in the skills menu, which reads the scene list, writes each scene as a detailed frame, and builds the prompt list. Frames are never written here, not even when the user asks for them: writing them in batches and choosing a frame's camera are that skill's own work, so the ask is answered by pointing there. build_prompts is never called here either: the builder is that skill's too, and the file this flow leaves holds no frames for it to build from. The handoff offers nothing and asks nothing -- it states what is standing and where the work continues, and the next move is the user's in the skills menu. Like the plan, this step waits for no approval -- it is the last word.
 
 ### Generate prompts+
 
-> When the user wants the prompts of a scenario built or changed, this is the skill for both. A prompt is never written out by hand: characters, outfits and places live in the structure file's maps, a frame only names them, and build_prompts assembles every frame from those parts in a fixed order -- which is why a character reads the same in frame three and frame forty. The work here is getting that file right and then calling the builder.
+> All of this serves one end: the user is turning a story into prompts for an SDXL-family image model, and every prompt renders one single frozen frame of it. When the user wants the prompts of a scenario built or changed, this is the skill for both. A prompt is never written out by hand: characters, outfits and places live in the structure file's maps, a frame only names them, and build_prompts assembles every frame from those parts in a fixed order -- which is why a character reads the same in frame three and frame forty. The work here is getting that file right and then calling the builder.
 >
 > It picks up where Start a scenario stops, and it also stands alone. A scenario left by the flow is a structure file and a scene list named after it, as in bar-scene.json and bar-scene-scenes.md: find the pair with list_files, read both, and turn each sentence into a frame in the list's order -- a frame's characters and its location come from the maps the file already holds. With more than one scenario there, ask which. Standing alone, the same work starts one step earlier: the skeleton first -- the quality tags, the maps, and an empty frames list -- with create_file.
 >
@@ -196,6 +197,8 @@ sırası: akış önce.*
 olarak bunu alıyor. Madde 96'nın kararı: her turda taşınan metin her turda doğru olanı taşır,
 dosyanın şekli yalnız yazma anında lazım.*
 
+> Every prompt built from this file goes to an SDXL-family image model. The model reads tags, never sentences, and one prompt renders one single still picture -- a frozen instant. Nothing that needs time to be seen reaches the picture: no motion, no sound, no before and after. A movement is written as the pose it passes through -- mid-stride, leaning in, head thrown back.
+>
 > The structure is one JSON file per scenario, named after it, as in intro-frames.json:
 >
 > ```
@@ -231,7 +234,7 @@ dosyanın şekli yalnız yazma anında lazım.*
 >
 > An action holds only what the camera sees. A scene sentence carries why something is happening and what came before it; a frame carries neither, because nothing in the picture shows them. A cause is written as what it looks like -- turned away, downcast eyes, tense shoulders -- or it is left out.
 >
-> A camera is two decisions: how much of the body is in the picture -- close-up, upper body, medium shot, full body -- and where it is looking from -- from side, from above, from behind, looking at viewer. Both are written, and the pair is chosen for the scene rather than kept from the frame before.
+> A camera is two decisions: how much of the body is in the picture -- close-up, upper body, medium shot, full body -- and where it is looking from -- from side, from above, from behind, looking at viewer. Both are written, both halves come from the lists just given -- a half that is not in them is not a tag -- and the pair is chosen for the scene rather than kept from the frame before.
 >
 > The quality chain is not in this file: code puts it at the front of every prompt, the same way for every scenario. Write a quality field only when this one needs a different chain -- what is written there is used instead.
 >
@@ -248,6 +251,11 @@ dosyanın şekli yalnız yazma anında lazım.*
 > 7. A value written as a sentence -- articles, a subject doing a verb -- when fragments are what an image model reads. Break it into short comma-separated fragments.
 > 8. One outfit entry covering two people -- or, for the man, for the woman. Whoever names it is handed the whole text, so split it into one entry per set of clothes.
 > 9. A cause or a moment outside the frame written into an action -- after the argument, later, again. Nothing in the picture shows it, so write what it looks like instead.
+> 10. A movement or a span of time inside an action -- moving, back and forth, slowly. One prompt is one frozen instant; write the pose the movement passes through.
+> 11. Camera language inside an action -- full body view, upper body visible -- when camera is its own field. Two framings fight, and the picture obeys neither.
+> 12. A story role naming a character inside an action -- stepson, lover, boss. The camera sees a person, not a relationship, and the frame's characters map already says who is in it.
+> 13. An or inside any value. The model draws one picture; an or is a coin it cannot toss. Pick one, or make two frames.
+> 14. An outfit named after its wearer, or two entries carrying the same text for two wearers. The garment names the outfit, and one garment is one entry, whoever wears it.
 
 ---
 
