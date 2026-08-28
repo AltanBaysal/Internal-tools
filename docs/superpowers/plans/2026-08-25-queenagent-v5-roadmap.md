@@ -1317,6 +1317,65 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
+# Blok 10 — Ritüel metinle ölmedi · madde madde
+
+> Altıncı deneme *(29 Ağustos, 107 ve 124 koşulmuş dalda)*: iki mesajlık bir koşunun ikinci turu
+> 12 adım ve ~120k `sent` tuttu. Adımlar tek tek okundu ve israfın üç kaynağı çıktı: model olmayan
+> bir dosya adı uydurdu ve aynı planı art arda iki kez okudu *(adlar hiçbir istekte hazır değil)*;
+> kendi yazdığı dosyayı her yazımdan sonra geri okudu *(araç tanımları bunu emrediyor — taban
+> yönergenin yeni cümlesiyle çelişerek)*; planı bir turda üç kez yazdı. 107'nin dersi: zayıf model
+> düzyazı ricayı değil, önüne konanı ve araç tanımını dinliyor — o yüzden bu blok yasak eklemiyor,
+> ya çelişkiyi kaldırıyor ya işi fiziken gereksizleştiriyor. Tasarım kullanıcıyla konuşuldu
+> *(brainstorming, 29 Ağustos)*; tam gömme — bütün dosya içeriklerinin her isteğe konması —
+> reddedildi: *"read filesı hala kendi yapsın karışmaması için"*, içerik JIT kalır *(124'ün
+> araştırma notuyla uyumlu)*.
+
+### Madde 125 — Araç tanımları tabanla barışır
+
+- **Ne çalışır:** taban artık *"never to check your own writing"* derken, her istekte giden iki
+  araç tanımı tersini emrediyor: `edit_file` koşulsuz *"so read the file first"* diyor,
+  `write_plan` *"read it first and hand back the whole plan"*. Denemedeki `create_file` →
+  `read_file` → `edit_file` zinciri bu emrin doğrudan ürünü. İki tanım koşullanır: bu turda
+  görülmemiş dosya önce okunur, bu turda kendi yazdığın zaten aynen eldedir.
+- **Nasıl görülür:** bir turda doğan ya da düzenlenen dosya aynı turda geri okunmuyor; okumalar
+  yalnız turun görmediği dosyalara gidiyor.
+- **İlişkisi:** 107 tabanın cümlesini yazdı; bu madde araç tanımlarını o cümleye uyduruyor.
+  Çelişki 107'nin koşusunda görülmedi çünkü tanımlar 107'nin kapsamı dışındaydı.
+
+### Madde 126 — Plan işaretlemesi tek dokunuştur
+
+- **Ne çalışır:** denemede tek adımın kapanışı plana üç yazım mal oldu — `write_plan`,
+  `edit_file`, tekrar `write_plan`. Akış metninin *"marked done"* cümlesi işaretlemenin ne
+  olduğunu söylemiyor, model iki mekanizmayı da deniyor. Cümle netleşir: işaretleme tek bir
+  `edit_file`'dır, tam yeniden yazım değil — kelime tavanının içinde kalarak.
+- **Nasıl görülür:** bir adım onaylanınca plana tek bir düzenleme gidiyor; `write_plan` yalnız
+  planın doğduğu ilk turda görünüyor.
+- **İlişkisi:** 101 döngüyü, 117 devrin kaydını yazdı; 125 `write_plan` tanımını düzeltiyor, bu
+  madde akış tarafını.
+
+### Madde 127 — Dosya adları isteğin kuyruğunda hazırdır, `list_files` kalkar
+
+- **Ne çalışır:** adlar hiçbir istekte hazır olmadığı için model ya her turu `list_files` ile
+  açıyor ya da ad uyduruyor *(`plan.md`)*. `stream_answer` her raundda `file_store`'dan adları
+  çeker ve isteğin sonuna, skill metninin hemen önüne bir system satırı koyar — *"The project's
+  files right now: bar-scene.json, bar-scene-scenes.md"*, boş projede *"This project holds no
+  files yet."* Sona binmesi 93'ün kalıbı: başa binse her dosya doğumu konuşmanın prefix cache'ini
+  öldürür; sonda prefix sağlam kalır ve `create_file`'dan sonraki raund taze listeyi görür.
+  `list_files` aracı tamamen kalkar — spec'i de `run_tool` dalı da: liste hep öndeyken araç ölü
+  ağırlık, ve duran araç çağrılmaya devam eder *(kullanıcı kararı, 29 Ağustos)*. Ona değinen üç
+  metin güncellenir: taban *("Use list_files to see what exists")*, akışın 1. adımı *("opens with
+  list_files, then write_plan" → yalnız `write_plan`)*, prompt+ *("find them with list_files")*.
+- **Nasıl görülür:** taze bir turda model ad uydurmuyor ve hiçbir tur listeleme adımıyla
+  açılmıyor; tur başına istek sayısı düşüyor, `cached` payı 124'ün ölçüsüyle büyük okunuyor.
+- **Bilerek yapılmayan:** dosya *içerikleri* gömülmüyor — `read_file` durur, okuma modelin JIT
+  işidir; turlar arası araç sonucu taşınmaz *(124'ün araştırma notu)*. Üretilmiş `.py` dosyaları
+  da yalnız adıyla görünür.
+- **İlişkisi:** 93 kuyruk kalıbını kurdu, 107 ilk-tur cümlesini yazdı *(pin değişir: `write_plan`
+  kalır, `list_files` düşer)*, 124 cache anahtarını taktı — bu madde anahtarın koruduğu prefix'i
+  kısaltmadan adları ulaştırıyor.
+
+---
+
 ## Açık sorular
 
 Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
