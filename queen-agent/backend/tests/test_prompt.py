@@ -74,6 +74,15 @@ def test_the_base_says_what_it_did_even_when_it_did_nothing():
     assert "nothing" in SYSTEM_PROMPT.lower()
 
 
+def test_a_turn_does_not_end_with_a_menu_of_options():
+    # 28 Aug: every answer closed with five things the user could ask for next. A turn ends with
+    # the one question that decides what happens, or with nothing -- a list is the work handed
+    # back rather than an ending.
+    said = SYSTEM_PROMPT.lower()
+    assert "list of things you could do next" in said
+    assert "ask the one question" in said
+
+
 @pytest.mark.parametrize(
     "task",
     ["scenario", "frame", "character", "prompt", "sdxl", "outfit", "structure file"],
