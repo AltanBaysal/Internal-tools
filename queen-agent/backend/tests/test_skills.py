@@ -286,6 +286,15 @@ def test_the_builder_opens_as_a_persona():
     assert instruction_for("generate-prompts-plus").startswith("You are an expert SDXL prompt writer")
 
 
+def test_a_finished_step_is_marked_with_one_edit():
+    # Madde 126: closing one step cost three plan writes in the trial -- write_plan, edit_file,
+    # write_plan -- because "marked done" never said which of the two it meant, and write_plan
+    # rewrites the whole file. The birth of the plan stays write_plan's; marking is one line.
+    said = _flow()
+    assert "marked done with one edit_file" in said
+    assert "never a rewrite" in said
+
+
 # --- the ritual openings (Madde 107) --------------------------------------------------------------
 #
 # The same trial from the skills' side: every turn opened with list_files and write_plan, and the
