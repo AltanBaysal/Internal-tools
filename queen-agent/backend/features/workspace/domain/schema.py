@@ -106,7 +106,18 @@ RULEBOOK = (
     "8. One outfit entry covering two people -- or, for the man, for the woman. Whoever names it "
     "is handed the whole text, so split it into one entry per set of clothes.\n"
     "9. A cause or a moment outside the frame written into an action -- after the argument, "
-    "later, again. Nothing in the picture shows it, so write what it looks like instead."
+    "later, again. Nothing in the picture shows it, so write what it looks like instead.\n"
+    "10. A movement or a span of time inside an action -- moving, back and forth, slowly. One "
+    "prompt is one frozen instant; write the pose the movement passes through.\n"
+    "11. Camera language inside an action -- full body view, upper body visible -- when camera "
+    "is its own field. Two framings fight, and the picture obeys neither.\n"
+    "12. A story role naming a character inside an action -- stepson, lover, boss. The camera "
+    "sees a person, not a relationship, and the frame's characters map already says who is in "
+    "it.\n"
+    "13. An or inside any value. The model draws one picture; an or is a coin it cannot toss. "
+    "Pick one, or make two frames.\n"
+    "14. An outfit named after its wearer, or two entries carrying the same text for two "
+    "wearers. The garment names the outfit, and one garment is one entry, whoever wears it."
 )
 
 SCHEMA = (
