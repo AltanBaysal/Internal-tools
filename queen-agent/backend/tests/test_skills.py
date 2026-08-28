@@ -259,3 +259,18 @@ def test_the_handoff_offers_nothing_and_asks_nothing():
     # The closing message came back as an offer wearing a question mark. "It is the last word"
     # was already pinned; this pins that no offer and no question ride on it.
     assert "offers nothing and asks nothing" in _flow()
+
+
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_every_skill_opens_with_what_the_work_is_for(skill):
+    # 29 Aug, the user's own sentence: if we never give the model the context of what we are
+    # doing, where would it know it from? Neither text said what the prompts are for.
+    assert "prompts for an SDXL-family image model" in instruction_for(skill)
+
+
+def test_the_plan_carries_the_context_too():
+    # The plan is the fresh chat's memory; a plan that holds only steps hands over the steps
+    # and not the work.
+    said = _flow()
+    assert "opens with one line of context" in said
+    assert "inherits the work" in said
