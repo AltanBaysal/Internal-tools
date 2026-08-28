@@ -83,6 +83,26 @@ def test_a_turn_does_not_end_with_a_menu_of_options():
     assert "ask the one question" in said
 
 
+# --- the ritual reads (Madde 107) -----------------------------------------------------------------
+#
+# One trial: a one-line message cost eight tool calls. The base text said a file seen earlier is
+# not a file read now, and the model heard a rule to re-read everything every turn -- its own
+# writing included. The fresh read belongs to the file somebody else may have moved.
+
+
+def test_a_fresh_read_is_for_what_someone_else_may_have_changed():
+    said = SYSTEM_PROMPT.lower()
+    assert "somebody else may have changed" in said
+    assert "never to check your own writing" in said
+    assert "not the same as reading it now" not in said
+
+
+def test_the_base_reads_nothing_the_answer_does_not_need():
+    # The other half of the same trial: files the question never touched were read anyway,
+    # because nothing said the reading has a boundary.
+    assert "nothing the answer does not need" in SYSTEM_PROMPT.lower()
+
+
 @pytest.mark.parametrize(
     "task",
     ["scenario", "frame", "character", "prompt", "sdxl", "outfit", "structure file"],

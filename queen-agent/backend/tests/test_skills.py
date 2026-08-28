@@ -286,6 +286,29 @@ def test_the_builder_opens_as_a_persona():
     assert instruction_for("generate-prompts-plus").startswith("You are an expert SDXL prompt writer")
 
 
+# --- the ritual openings (Madde 107) --------------------------------------------------------------
+#
+# The same trial from the skills' side: every turn opened with list_files and write_plan, and the
+# schema was fetched again for every edit. The opening moves belong to a chat's first turn, and
+# the schema to the one turn that gives the file its shape.
+
+
+def test_the_opening_moves_belong_to_the_first_turn():
+    said = _flow()
+    assert "A chat's first turn" in said
+    assert "carry on from what the chat already knows" in said
+
+
+def test_the_flow_fetches_the_schema_once():
+    said = _flow()
+    assert "once, before the birth" in said
+    assert "do not fetch it again" in said
+
+
+def test_the_builder_fetches_the_schema_once():
+    assert "once, before the first write" in instruction_for("generate-prompts-plus")
+
+
 def test_the_texts_stay_short_enough_to_be_read():
     # Five runs of patches doubled the texts, and a weak model stops reading the middle. The cap
     # is the guard against swelling back: from here a sentence enters only by deleting one.
