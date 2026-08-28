@@ -61,6 +61,11 @@ STRUCTURE = (
     "the eyes look; a camera carries the framing and the angle. The example is the measure: "
     "match its density.\n"
     "\n"
+    "An action holds only what the camera sees. A scene sentence carries why something is "
+    "happening and what came before it; a frame carries neither, because nothing in the picture "
+    "shows them. A cause is written as what it looks like -- turned away, downcast eyes, tense "
+    "shoulders -- or it is left out.\n"
+    "\n"
     "A camera is two decisions: how much of the body is in the picture -- close-up, upper body, "
     "medium shot, full body -- and where it is looking from -- from side, from above, from "
     "behind, looking at viewer. Both are written, and the pair is chosen for the scene rather "
@@ -92,7 +97,9 @@ RULEBOOK = (
     "7. A value written as a sentence -- articles, a subject doing a verb -- when fragments are "
     "what an image model reads. Break it into short comma-separated fragments.\n"
     "8. One outfit entry covering two people -- or, for the man, for the woman. Whoever names it "
-    "is handed the whole text, so split it into one entry per set of clothes."
+    "is handed the whole text, so split it into one entry per set of clothes.\n"
+    "9. A cause or a moment outside the frame written into an action -- after the argument, "
+    "later, again. Nothing in the picture shows it, so write what it looks like instead."
 )
 
 SCHEMA = (
