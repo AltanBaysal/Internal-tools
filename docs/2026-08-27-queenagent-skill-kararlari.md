@@ -89,7 +89,7 @@ Hepsi 27 Ağustos, ve tasarımın anlatıldığı yer
 | K29 | **Akış dallanmaz.** Her adımın tek çıktısı var, ve o çıktı kullanıcının ne kadar anlattığına göre değişmez — değişen yalnız adımın kaç tur sürdüğü. | Kullanıcı kararı |
 | K30 | **Her adım kendi içinde döngü.** Kullanıcı onaylayana kadar bir sonrakine geçilmez. | Kullanıcı kararı |
 | K31 | **Madde 94'te silinen dört bilginin hiçbiri geri gelmiyor.** Gerekçe kullanıcının kendi ölçümü: *"çok kötü çalışıyorlardı."* Problem 4 böylece kapandı. | Kullanıcı kararı |
-| K32 | **Promptları akış kendisi kurar.** Kullanıcı sonda prompt+'a geçmiyor. prompt+ yerinde: elinde yapı dosyası olanın **var olanı güncelleyen** yolu. | Kullanıcı kararı |
+| K32 | **Promptları akış kendisi kurar.** Kullanıcı sonda prompt+'a geçmiyor. prompt+ yerinde: elinde yapı dosyası olanın **var olanı güncelleyen** yolu. *(28 Ağustos'ta K40 ile devrildi.)* | Kullanıcı kararı |
 | K33 | **Sahneler iki yere birden yazılır** — `frames`'e etiket olarak, md'ye cümle olarak. Kayma bedeli biliniyor ve kullanıcıya bırakıldı. | Kullanıcı kararı |
 | K34 | **Anlatılmayan karakter ve mekân için yer tutucu yazılır** — `1girl, long hair, plain clothes`, `plain background`. Akış tarif bekleyerek durmaz. | Kullanıcı kararı |
 | K35 | **Skill'in adı `Start a scenario`.** Çıkan şey tek sahne değil, senaryo: karakterler, mekânlar, N sahne, prompt listesi. | Kullanıcı kararı |
@@ -106,6 +106,12 @@ Hepsi 27 Ağustos, ve tasarımın anlatıldığı yer
 **K37'nin Madde 91 ile ilişkisi:** yetki hâlâ kodda. Model izin almadan yazamıyor; değişen tek şey
 kapının araç listesinden değil çalıştırma anından geçmesi. Yönergeye *"yazma"* diye bir cümle
 girmiyor.
+
+## G · Bölünme düzeltmesi (28 Ağustos)
+
+| # | Karar | Nerede tartışıldı |
+|---|---|---|
+| K40 | **K32 devrildi: akış temeli bırakır, işçiliği prompt+ yazar.** Akış yapı dosyasını karakter ve mekânlarla, sahneleri de yapı dosyasının adını taşıyan tek cümlelik bir listeyle bırakır *(`bar-scene.json` ↔ `bar-scene-scenes.md`)*; `frames` bilerek boş kalır ve `build_prompts`'ı akış çağırmaz. prompt+ çifti adıyla bulur, cümleleri sırayla detaylı frame'lere çevirir ve kurar — cümleden az frame, kalan iştir, kaldığı yerden sürer. Sebep: aksiyon/kamera yazmak detay işçiliği, akışın soru temposuna ağır. **K33'ün yönü de döndü:** md artık kopya değil kaynak, `frames` ondan türüyor; kayma bedeli build'den sonrasına kaldı. | Kullanıcı kararı, 28 Ağustos |
 
 ---
 

@@ -886,6 +886,11 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ### Madde 101 — Start a scenario doğar
 
+> **Bölünme 28 Ağustos'ta değişti** *(kullanıcı kararı — K40, K32'yi devirdi)*: akış promptları
+> kurmaz. Bıraktığı şey temel — karakter ve mekânları taşıyan yapı dosyası *(frames boş)* + tek
+> cümlelik sahne listesi *(`bar-scene-scenes.md`)* — ve son sözü kullanıcıyı prompt+'a yönlendirir;
+> frame'leri o yazar, `build_prompts`'ı o çağırır. Aşağıdaki metin 27 Ağustos'un kaydı.
+
 - **Ne çalışır:** kullanıcıyı sorarak yürüten ikinci skill gelir. Karakterleri sorar, mekânları
   sorar, sahneleri yazar, promptları kurar — ve nerede kaldığını bir plan dosyasında tutar.
 - **Nasıl görülür:** seçicide ikinci satır var; seçilip bir cümle yazıldığında plan dosyası doğuyor,

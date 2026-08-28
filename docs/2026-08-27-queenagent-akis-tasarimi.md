@@ -6,6 +6,12 @@
 **Kardeş belgeler:** [karar defteri](2026-08-27-queenagent-skill-kararlari.md) ·
 [problemler](2026-08-27-queenagent-skill-problemleri.md)
 
+> **Bölünme 28 Ağustos'ta değişti** *(kullanıcı kararı — K40, K32'yi devirdi)*: sahneler adımı
+> yalnız listeyi yazar *(`bar-scene-scenes.md`)*, `frames` bilerek boş kalır, ve 5. adım akıştan
+> çıktı — `build_prompts`'ı artık **prompt+** çağırır: listeyi okur, frame'leri sırayla detaylı
+> yazar, kurar. Sebep: aksiyon/kamera yazmak detay işçiliği, akışın soru temposuna ağır. Aşağıdaki
+> çizim ve adımlar 27 Ağustos'un kaydı; yürürlükteki metinler `skills.py`'de.
+
 ---
 
 ## İki kural
