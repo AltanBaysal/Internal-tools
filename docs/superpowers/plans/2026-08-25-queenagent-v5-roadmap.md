@@ -53,12 +53,12 @@ Koşu yediye ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgede
   99'un spec'i açılınca doğdu** *(28 Ağustos)* — yol haritasının o maddede beklediği bölünme. Koşma
   sırası 99 → 102 → 100 → 101; numara her zamanki gibi sondan verildi. **103 koşu kapandıktan sonra
   doğdu** *(28 Ağustos)* — akış çizimine karşı okununca — ve tek başına koşuldu.
-- **Blok 7 (104-113) madde madde koşulur.** Üçüncü denemenin çıkardıkları: prompt yüzeyi koşusundan
-  sonra defter denendi *(28 Ağustos)*. **104-106 aynı gün koşuldu — bitti**; üçü de sohbet
-  ekranındandı. **107-113 aynı günün ikinci denemesinden**, ve hepsi akışın kendisinden: devir,
-  promptu bozan iki yapı hatası, iki üslup işi, ve prompt+'ın eksik yarısı. **107 koşulmuyor**
-  *(kullanıcı kararı)*. Blok 4 gibi açık uçlu: deneme sürdükçe madde eklenir, numaralar sondan
-  verilir.
+- **Blok 7 (104-113) madde madde koşuldu — 107 hariç bitti.** Üçüncü denemenin çıkardıkları: prompt
+  yüzeyi koşusundan sonra defter denendi *(28 Ağustos)*. **104-106** sohbet ekranındandı;
+  **108-113** aynı günün ikinci denemesinden, ve hepsi akışın kendisinden: devir, promptu bozan iki
+  yapı hatası, iki üslup işi, ve prompt+'ın eksik yarısı. Sekizinin sekizi aynı gün, ikişer turda
+  koşuldu. **107 koşulmuyor** *(kullanıcı kararı: akış stabil, ritüele dokunmak onu bozabilir)*.
+  Blok 4 gibi açık uçlu: deneme sürdükçe madde eklenir, numaralar sondan verilir.
 
 **Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
 koşuyor; numaralarını kaydırmak, onlara atıf yapan her cümleyi yalan yapardı — maddelerin
@@ -947,7 +947,7 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
-# Blok 7 — Üçüncü denemenin çıkardıkları · madde madde
+# Blok 7 — Üçüncü denemenin çıkardıkları · madde madde · **bitti (107 hariç)**
 
 > Prompt yüzeyi koşusu kapandıktan sonra defter denendi *(28 Ağustos)*, ve üçü de sohbet ekranından
 > çıktı. Blok 3 ve 4 gibi backlog'dan gelmiyorlar — backlog değişmiyor. Kök nedenler burada
