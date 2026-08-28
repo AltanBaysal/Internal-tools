@@ -79,16 +79,6 @@ def test_a_name_with_no_extension_is_numbered_the_same_way():
     assert unique_name(["p1", "p1-2"], "p1") == "p1-3"
 
 
-def test_listing_an_empty_project_says_so_in_words(tmp_path):
-    assert "no files yet" in _call(_files(tmp_path), "list_files")
-
-
-def test_listing_names_the_files(tmp_path):
-    files = _files(tmp_path)
-    _call(files, "create_file", name="plan.md", content="a")
-    assert _call(files, "list_files") == "plan.md"
-
-
 def test_reading_gives_the_contents(tmp_path):
     files = _files(tmp_path)
     _call(files, "create_file", name="plan.md", content="the body")
@@ -111,7 +101,7 @@ def test_creating_over_a_name_that_is_taken_writes_nothing(tmp_path):
     _call(files, "create_file", name="plan.md", content="second")
     assert _call(files, "read_file", name="plan.md") == "first"
     # And no copy beside it: refusing means one document, which was the whole point.
-    assert _call(files, "list_files") == "plan.md"
+    assert files.list_names("p1") == ["plan.md"]
 
 
 def test_a_refused_create_points_at_the_tool_that_can_do_it(tmp_path):
@@ -160,7 +150,7 @@ def test_writing_a_plan_again_replaces_it(tmp_path):
     _call(files, "write_plan", name="bar-scene", content="first")
     _call(files, "write_plan", name="bar-scene", content="second")
     assert _call(files, "read_file", name="bar-scene-plan.md") == "second"
-    assert _call(files, "list_files") == "bar-scene-plan.md"
+    assert files.list_names("p1") == ["bar-scene-plan.md"]
 
 
 def test_only_the_first_plan_reports_a_born_file(tmp_path):
@@ -178,16 +168,16 @@ def test_an_unknown_tool_does_not_bring_the_loop_down(tmp_path):
 
 
 def test_broken_arguments_are_answered_not_raised(tmp_path):
-    assert "not valid JSON" in run_tool(_files(tmp_path), "p1", "list_files", "{oops").text
+    assert "not valid JSON" in run_tool(_files(tmp_path), "p1", "read_file", "{oops").text
 
 
 def test_only_creating_reports_a_born_file(tmp_path):
     files = _files(tmp_path)
     created = run_tool(files, "p1", "create_file", json.dumps({"name": "a", "content": "x"}))
-    listed = run_tool(files, "p1", "list_files", "{}")
+    read = run_tool(files, "p1", "read_file", json.dumps({"name": "a.md"}))
     # What the model is told and whether a file was born are two questions, so they travel apart.
     assert created.created == "a.md"
-    assert listed.created is None
+    assert read.created is None
 
 
 def test_the_build_tool_tells_the_model_it_assembles_frames():
@@ -234,9 +224,21 @@ def test_the_schema_tool_defines_the_term_it_hands_back():
     assert "before writing or changing" in said
 
 
+def test_the_listing_tool_is_gone():
+    # Madde 127: the names ride in every request now, so there is nothing left for this tool to
+    # answer -- and a tool that is still declared keeps being called. Taking it away is what makes
+    # the call impossible rather than merely discouraged.
+    assert "list_files" not in {spec["function"]["name"] for spec in TOOL_SPECS}
+
+
+def test_the_listing_tool_is_unknown_to_the_runner(tmp_path):
+    # The other half: a record written before this madde can still carry the name, and the turn
+    # that replays it must get an answer rather than a crash.
+    assert "no tool called" in run_tool(_files(tmp_path), "p1", "list_files", "{}").text
+
+
 def test_every_tool_is_declared_to_the_model():
     assert {spec["function"]["name"] for spec in TOOL_SPECS} == {
-        "list_files",
         "read_file",
         "create_file",
         "edit_file",
@@ -443,9 +445,9 @@ def test_a_read_reports_the_cleaned_name_rather_than_the_asked_one(tmp_path):
     assert _target(files, "read_file", name="notes/plan.md") == "plan.md"
 
 
-def test_listing_has_no_target_to_report(tmp_path):
+def test_a_call_about_no_file_has_no_target_to_report(tmp_path):
     # Empty rather than invented: the call really is about nothing in particular.
-    assert _target(_files(tmp_path), "list_files") == ""
+    assert _target(_files(tmp_path), "read_prompt_structure_schema") == ""
 
 
 def test_an_edit_reports_the_file_it_changed(tmp_path):
@@ -473,17 +475,6 @@ def test_a_call_that_missed_still_reports_its_target(tmp_path):
 
 def _outcome(files, tool, **arguments):
     return run_tool(files, "p1", tool, json.dumps(arguments)).outcome
-
-
-def test_listing_says_how_many_files_there_are(tmp_path):
-    files = _files(tmp_path)
-    _call(files, "create_file", name="plan.md", content="a")
-    _call(files, "create_file", name="notes.md", content="b")
-    assert _outcome(files, "list_files") == "2 files"
-
-
-def test_listing_nothing_says_so_rather_than_counting_to_zero(tmp_path):
-    assert _outcome(_files(tmp_path), "list_files") == "No files"
 
 
 def test_reading_says_how_much_was_read(tmp_path):

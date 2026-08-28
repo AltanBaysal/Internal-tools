@@ -97,6 +97,13 @@ def test_a_fresh_read_is_for_what_someone_else_may_have_changed():
     assert "not the same as reading it now" not in said
 
 
+def test_the_base_is_handed_the_names_rather_than_asking_for_them():
+    # Madde 127. Asking for what exists was a whole round, every turn -- and the turn that did not
+    # ask invented a name instead. The names are true every turn, so they ride in every request.
+    assert "listed for you in every request" in SYSTEM_PROMPT
+    assert "list_files" not in SYSTEM_PROMPT
+
+
 def test_the_base_reads_nothing_the_answer_does_not_need():
     # The other half of the same trial: files the question never touched were read anyway,
     # because nothing said the reading has a boundary.

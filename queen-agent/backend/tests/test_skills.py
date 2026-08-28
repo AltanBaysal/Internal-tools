@@ -308,6 +308,15 @@ def test_the_opening_moves_belong_to_the_first_turn():
     assert "carry on from what the chat already knows" in said
 
 
+def test_no_instruction_reaches_for_the_listing_tool():
+    # Madde 127: the tool is gone, and a text still naming it would send the model after something
+    # that cannot answer. The flow's first turn keeps write_plan; the listing that stood before it
+    # is what the request now carries on its own.
+    for skill, said in INSTRUCTIONS.items():
+        assert "list_files" not in said, skill
+    assert "first turn opens with write_plan" in _flow()
+
+
 def test_the_flow_fetches_the_schema_once():
     said = _flow()
     assert "once, before the birth" in said

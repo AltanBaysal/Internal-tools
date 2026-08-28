@@ -411,10 +411,13 @@ def _silent_with_a_file():
 
 def test_a_call_travels_as_its_own_event(tmp_path):
     # Madde 66: the line has to arrive while the answer is still running, not only with the record.
-    client = _client(tmp_path, engine=ScriptedEngine([[{"tool_calls": [_tool_call("list_files")]}], [{"text": "none"}]]))
+    engine = ScriptedEngine(
+        [[{"tool_calls": [_tool_call("read_prompt_structure_schema")]}], [{"text": "none"}]]
+    )
+    client = _client(tmp_path, engine=engine)
     _pid, _cid, body = _first_turn(client)
     assert "event: call" in body
-    assert '"tool": "list_files"' in body
+    assert '"tool": "read_prompt_structure_schema"' in body
     assert body.index("event: call") < body.index("event: done")
 
 

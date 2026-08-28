@@ -4,7 +4,7 @@ The modes are named here the way the wire names them, and the module is imported
 rather than at the top: a module that does not exist yet fails this whole file's collection, and
 then none of the turn's other reds are visible anywhere in the suite.
 """
-READS = ("list_files", "read_file", "read_prompt_structure_schema")
+READS = ("read_file", "read_prompt_structure_schema")
 WRITES = ("create_file", "edit_file", "build_prompts", "build_character_prompts", "write_plan")
 
 
@@ -18,6 +18,16 @@ def test_ask_mode_asks_before_it_writes():
     # The item in one line: since Madde 99 the model is offered the tool either way, and the gate
     # is the running of it rather than the list it was handed.
     assert all(_asks("ask", tool) for tool in WRITES)
+
+
+def test_no_mode_lists_a_tool_that_is_gone():
+    # Madde 127 took the listing tool away. A name left in this module's own list would read as a
+    # tool that exists and is simply never asked about -- the one thing this file is about.
+    from backend.features.workspace.domain.modes import READS
+    from backend.features.workspace.domain.tools import TOOL_SPECS
+
+    assert set(READS) <= {spec["function"]["name"] for spec in TOOL_SPECS}
+    assert "list_files" not in READS
 
 
 def test_ask_mode_reads_without_asking():
