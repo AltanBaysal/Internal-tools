@@ -9,7 +9,7 @@ from backend.web.app import create_app
 
 
 class FakeEngine:
-    def stream(self, messages, tools=None, on_open=None):
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         yield {"text": "Done."}
 
 

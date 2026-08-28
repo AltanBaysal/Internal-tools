@@ -277,6 +277,37 @@ def test_streaming_asks_for_a_stream():
     assert seen["body"]["stream"] is True
 
 
+# --- naming the conversation so the cache can find it (Madde 124) --------------------------------
+#
+# xAI's prefix cache is automatic, but the x-grok-conv-id header is what routes a request to the
+# cache its conversation has been building. Without it the Colab trial paid full price for the
+# same prefix, turn after turn.
+
+
+def test_a_stream_names_the_conversation_it_belongs_to():
+    seen = {}
+
+    def opener(request):
+        seen["conv"] = request.get_header("X-grok-conv-id")
+        return _Lines([b"data: [DONE]"])
+
+    list(_client(opener).stream(MESSAGES, conversation_id="c1"))
+    assert seen["conv"] == "c1"
+
+
+def test_an_empty_conversation_id_sends_no_header():
+    # A caller with no conversation to name sends nothing: an empty id is not a name, and the
+    # service should never be handed one to group requests under.
+    seen = {}
+
+    def opener(request):
+        seen["conv"] = request.get_header("X-grok-conv-id")
+        return _Lines([b"data: [DONE]"])
+
+    list(_client(opener).stream(MESSAGES, conversation_id=""))
+    assert seen["conv"] is None
+
+
 def test_a_dead_connection_is_reported_too():
     def opener(request):
         raise urllib.error.URLError("connection refused")

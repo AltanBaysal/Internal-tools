@@ -177,12 +177,15 @@ class ScriptedEngine:
         self.handed = []
         # Which tools each round was offered. Since Madde 91 that is the mode's whole consequence.
         self.tools = []
+        # Which conversation each round said it belonged to (Madde 124).
+        self.conversation_ids = []
 
     # No model since Madde 82: the engine is built knowing which one. A use case that still passed
     # one would die here rather than quietly working.
-    def stream(self, messages, tools=None, on_open=None):
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         self.seen.append(list(messages))
         self.tools.append([spec["function"]["name"] for spec in tools or []])
+        self.conversation_ids.append(conversation_id)
         if on_open:
             on_open(self._cut)
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
@@ -237,6 +240,13 @@ def _gated(tmp_path, rounds, stops=NEVER, permissions=UNASKED, mode="ask", **kwa
     engine = ScriptedEngine(rounds, **kwargs)
     produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, stops, permissions, mode))
     return chats, files, engine, produced
+
+
+def test_the_engine_is_told_which_chat_is_asking(tmp_path):
+    # Madde 124: the chat is the conversation, and its id is the name the service's cache files
+    # this turn's prefix under. A request that never says whose it is starts cold every time.
+    _, _, engine, _ = _run(tmp_path, [[{"text": "hi"}]])
+    assert engine.conversation_ids == ["c1"]
 
 
 def _write_round(name="plan.md"):

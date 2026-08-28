@@ -10,14 +10,16 @@ class FakeClient:
     def __init__(self):
         self.seen = None
         self.on_open = None
+        self.conversation_id = None
 
     def complete(self, messages, tools=None):
         self.seen = messages
         return {"role": "assistant", "content": "hi"}
 
-    def stream(self, messages, tools=None, on_open=None):
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         self.seen = messages
         self.on_open = on_open
+        self.conversation_id = conversation_id
         return iter(["hi"])
 
 
@@ -57,6 +59,14 @@ def test_the_way_to_cut_the_answer_travels_down_to_the_client():
 
     list(XaiEngine(client).stream(CONVERSATION, on_open=handed))
     assert client.on_open is handed
+
+
+def test_the_conversation_id_travels_down_to_the_client():
+    # Madde 124. The engine translates roles and nothing else -- the name a conversation goes to
+    # the cache under passes through it untouched.
+    client = FakeClient()
+    list(XaiEngine(client).stream(CONVERSATION, conversation_id="c7"))
+    assert client.conversation_id == "c7"
 
 
 def test_the_engine_hands_over_no_model():
