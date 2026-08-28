@@ -310,6 +310,122 @@ def test_the_names_ride_behind_the_conversation_and_before_the_instruction(tmp_p
     assert seen[-3]["role"] == "user"
 
 
+# --- the context box: what was read, as it is now (Madde 129) ------------------------------------
+#
+# A read's result froze where it was written: the file moved on and the message did not, so the
+# model read it again -- three times in the trial, each copy riding every later request. The box
+# holds names and reads the contents from disk, so there is one entry and it is never stale.
+
+
+def _box(seen):
+    """The one message carrying the opened files' contents, out of a round's messages."""
+    return next(
+        (
+            message["content"]
+            for message in seen
+            if message["role"] == "system" and message["content"].startswith("Files you have opened")
+        ),
+        "",
+    )
+
+
+def test_the_request_carries_the_contents_of_what_was_read(tmp_path):
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "the body of the plan")
+    rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    # Not in the first round -- nothing had been read yet -- and in the second, whole.
+    assert _box(engine.seen[0]) == ""
+    assert "plan.md" in _box(engine.seen[1])
+    assert "the body of the plan" in _box(engine.seen[1])
+
+
+def test_the_box_is_refreshed_from_disk_every_round(tmp_path):
+    # The claim that makes the read-back unnecessary: what the box shows is what is on disk now,
+    # not what the read returned when it ran.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "first")
+    rounds = [
+        [{"tool_calls": [call("read_file", name="plan.md")]}],
+        [{"tool_calls": [call("edit_file", name="plan.md", old="first", new="second")]}],
+        [{"text": "done"}],
+    ]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert "first" in _box(engine.seen[1])
+    assert "second" in _box(engine.seen[2])
+    assert "first" not in _box(engine.seen[2])
+
+
+def test_a_file_read_in_an_earlier_turn_is_still_in_the_box(tmp_path):
+    # Across turns, not only rounds: the trial opened every turn by reading the same pair again.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "the body")
+    append_message(
+        chats, "p1", "c1", "read it", NOW, role="ai", calls=(ToolCall("read_file", "plan.md", "1 line"),)
+    )
+    append_message(chats, "p1", "c1", "and now?", NOW)
+    engine = ScriptedEngine([[{"text": "here"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert "the body" in _box(engine.seen[0])
+
+
+def test_a_deleted_file_falls_out_of_the_box(tmp_path):
+    # Quietly: the box holds a name, and a name with nothing behind it is simply not shown. An
+    # empty heading would read as an empty file.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "gone.md", "for now")
+    append_message(
+        chats, "p1", "c1", "read it", NOW, role="ai", calls=(ToolCall("read_file", "gone.md", "1 line"),)
+    )
+    append_message(chats, "p1", "c1", "and now?", NOW)
+    files.delete("p1", "gone.md")
+    engine = ScriptedEngine([[{"text": "here"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert "gone.md" not in _box(engine.seen[0])
+
+
+def test_the_schema_reaches_the_box_too(tmp_path):
+    # One text for the whole app, so it travels by name rather than by lookup. Fetched once in a
+    # chat, it is in front of the model from then on.
+    chats, files = _seeded(tmp_path)
+    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    from backend.features.workspace.domain.schema import SCHEMA
+
+    assert SCHEMA in _box(engine.seen[1])
+
+
+def test_the_box_rides_between_the_names_and_the_instruction(tmp_path):
+    # Madde 93's order still holds: the instruction closes the request. The names and the box are
+    # the request's own words, behind the conversation and in front of it.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "the body")
+    stored = chats.get("p1", "c1")
+    chats.replace(
+        "p1", replace(stored, messages=(replace(stored.messages[0], skill="start-a-scenario"),))
+    )
+    append_message(
+        chats, "p1", "c1", "read it", NOW, role="ai", calls=(ToolCall("read_file", "plan.md", "1 line"),)
+    )
+    append_message(chats, "p1", "c1", "carry on", NOW, skill="start-a-scenario")
+    engine = ScriptedEngine([[{"text": "here"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    seen = engine.seen[0]
+    assert seen[-1]["content"] == instruction_for("start-a-scenario")
+    assert seen[-2]["content"].startswith("Files you have opened")
+    assert _files_line([seen[-3]])
+
+
+def test_a_chat_that_read_nothing_carries_no_box(tmp_path):
+    # Nothing to say is said by saying nothing: an empty heading is a line the model has to read
+    # before finding out it is empty.
+    _, _, engine, _ = _run(tmp_path, [[{"text": "hi"}]])
+    assert _box(engine.seen[0]) == ""
+
+
 def test_the_engine_is_told_which_chat_is_asking(tmp_path):
     # Madde 124: the chat is the conversation, and its id is the name the service's cache files
     # this turn's prefix under. A request that never says whose it is starts cold every time.
