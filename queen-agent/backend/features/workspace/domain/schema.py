@@ -9,6 +9,12 @@ be written, so a turn that writes nothing does not pay for it. The instruction t
 """
 
 STRUCTURE = (
+    "Every prompt built from this file goes to an SDXL-family image model. The model reads tags, "
+    "never sentences, and one prompt renders one single still picture -- a frozen instant. "
+    "Nothing that needs time to be seen reaches the picture: no motion, no sound, no before and "
+    "after. A movement is written as the pose it passes through -- mid-stride, leaning in, head "
+    "thrown back.\n"
+    "\n"
     "The structure is one JSON file per scenario, named after it, as in intro-frames.json:\n"
     "\n"
     "{\n"
@@ -68,7 +74,8 @@ STRUCTURE = (
     "\n"
     "A camera is two decisions: how much of the body is in the picture -- close-up, upper body, "
     "medium shot, full body -- and where it is looking from -- from side, from above, from "
-    "behind, looking at viewer. Both are written, and the pair is chosen for the scene rather "
+    "behind, looking at viewer. Both are written, both halves come from the lists just given -- "
+    "a half that is not in them is not a tag -- and the pair is chosen for the scene rather "
     "than kept from the frame before.\n"
     "\n"
     "The quality chain is not in this file: code puts it at the front of every prompt, the same "
