@@ -1363,8 +1363,11 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
   öldürür; sonda prefix sağlam kalır ve `create_file`'dan sonraki raund taze listeyi görür.
   `list_files` aracı tamamen kalkar — spec'i de `run_tool` dalı da: liste hep öndeyken araç ölü
   ağırlık, ve duran araç çağrılmaya devam eder *(kullanıcı kararı, 29 Ağustos)*. Ona değinen üç
-  metin güncellenir: taban *("Use list_files to see what exists")*, akışın 1. adımı *("opens with
-  list_files, then write_plan" → yalnız `write_plan`)*, prompt+ *("find them with list_files")*.
+  metin güncellenir: taban *("Use list_files to see what exists")* yerine adların her isteğin
+  sonunda zaten önünde durduğunu söyleyen cümleyi alır; akışın 1. adımı *("opens with list_files,
+  then write_plan")* yalnız `write_plan`'a iner; prompt+ *("find them with list_files")* çifti
+  listeden adıyla bulur. Tur içi hafızanın öğretimi 125'in koşullu cümlesinde: bu turda okuduğun
+  ya da yazdığın zaten aynen elinde.
 - **Nasıl görülür:** taze bir turda model ad uydurmuyor ve hiçbir tur listeleme adımıyla
   açılmıyor; tur başına istek sayısı düşüyor, `cached` payı 124'ün ölçüsüyle büyük okunuyor.
 - **Bilerek yapılmayan:** dosya *içerikleri* gömülmüyor — `read_file` durur, okuma modelin JIT
