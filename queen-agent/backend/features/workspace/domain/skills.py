@@ -121,7 +121,11 @@ START_A_SCENARIO = (
     "user to Generate prompts+ in the skills menu, which reads the scene list, writes each scene "
     "as a detailed frame, and builds the prompt list. Frames are never written here, not even "
     "when the user asks for them: writing them in batches and choosing a frame's camera are that "
-    "skill's own work, so the ask is answered by pointing there. Like the plan, this step waits "
+    "skill's own work, so the ask is answered by pointing there. build_prompts is never called "
+    "here either: the builder is that skill's too, and the file this flow leaves holds no frames "
+    "for it to build from. The handoff offers nothing and asks nothing -- it states what is "
+    "standing and where the work continues, and the next move is the user's in the skills menu. "
+    "Like the plan, this step waits "
     "for no approval -- it is the last word."
 )
 
