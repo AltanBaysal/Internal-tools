@@ -1222,6 +1222,58 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 - **İlişkisi:** 108 frame'leri kapattı, bu madde kurucuyu. 112 seçenek menüsünü yasaklamıştı —
   buradaki teklif o menünün tek maddelik hâli.
 
+### Madde 119 — Şema okurunu söyler
+
+- **Ne çalışır:** beşinci denemenin yapı dosyası hareket yönetmenliği taşıyor — `head moving back
+  and forth`, `riding with hips moving` — çünkü promptların kime gittiğini modelin okuduğu hiçbir
+  metin söylemiyor. *"Modeller SDXL temelli, etiketle çalışır"* bilgisi *(K9)* yalnız yol
+  haritasında ve karar defterinde duruyor — modelin asla görmediği iki belgede — ve bir karenin
+  **tek bir donmuş fotoğraf** olduğu hiçbir yerde yazmıyor; *"camera"* kelimesi tek başına videoyu
+  da çağrıştırıyor. Şema iki olguyla açılır: her prompt SDXL ailesinden, etiket okuyan bir görüntü
+  modeline gider, ve bir kare tek bir donmuş andır — hareket, zaman, ses taşımaz. Kamera çifti de
+  şemanın kendi listelerinden seçilir: `from side profile` diye bir tag yok.
+- **Nasıl görülür:** on karelik bir senaryoda action'larda hareket ve zaman sözü çıkmıyor,
+  kamera değerleri şemadaki listelerden geliyor.
+- **İlişkisi:** 114 örneği sözlüğe uydurdu, 115 kadraj kuralını yazdı — ikisinin de varsaydığı
+  olguyu bu madde söylüyor. 121 aynı sızıntıların defter girdileri.
+
+### Madde 120 — İşin bağlamı skillere ve plana iner
+
+- **Ne çalışır:** kullanıcının kendi cümlesiyle: *"modele ne yaptığımızın contextini vermezsek
+  nereden bilecek?"* İki skill metni de işin ne olduğunu söylemeden başlıyor — akış *"walks them
+  through it by asking"* diyor ama neye doğru yürüdüğünü söylemiyor, prompt+ *"builds the
+  prompts"* diyor ama promptun neye gittiğini söylemiyor. Her skill metni işi söyleyerek açılır:
+  kullanıcı bir hikâyeyi SDXL ailesinden bir görüntü modelinin tek tek çizeceği donmuş karelere
+  çeviriyor. Akışın yazdığı plan da bir bağlam satırıyla doğar — ne yapılıyor, kim için — ki planı
+  okuyan taze sohbet adımları değil işi devralsın.
+- **Nasıl görülür:** taze bir sohbet yarım planı açıp devam ettiğinde bağlamı plandan okuyor;
+  her iki skill'in ilk cümleleri işin kendisini söylüyor.
+- **İlişkisi:** 117 plana devrin nasıl yazılacağını söyledi — plan zaten taze sohbetin hafızası;
+  bu madde o hafızaya işin kendisini koyuyor. 119 aynı olgunun şemadaki yarısı.
+
+### Madde 121 — Action sızıntıları kural defterine girer
+
+- **Ne çalışır:** beşinci denemenin dosyasında dört sızıntı var ve hiçbirini defter yakalamıyor:
+  action'da hareket (`head moving back and forth`), action'da kamera sözü (`full body view`,
+  `upper body visible`), action'da rol-akrabalık adı (`stepson thrusting` — kamera akrabalık
+  görmez, kim olduğunu characters haritası söylüyor), ve `or` (`hands gripping wall or body` —
+  8. madde onu yalnız outfits için yasaklamıştı). Bir de giysi adının giyene göre konması
+  (`milf_pink`, `male_nude` — düzyazıda kural vardı, model es geçti, defterin sayılabilir
+  listesine iner; aynı metni taşıyan iki girdi tek giysidir). Hepsi kural defterine girer —
+  defter, dosya yazılmadan önce *"buna karşı kontrol et"* denilen liste.
+- **Nasıl görülür:** aynı senaryo yeniden kurulduğunda action'larda hareket, kamera sözü, rol adı
+  ve `or` çıkmıyor; nude tek girdi.
+- **İlişkisi:** 119 olguyu öğretiyor, bu madde zayıf model için çitleri sayıyor — 108→118 gösterdi
+  ki ikisi de gerekiyor. 109'un `or` yasağının genelleşmiş hâli.
+
+### Madde 122 — Numaralı liste bire takılmıyor
+
+- **Ne çalışır:** sohbetteki markdown'da numaralı liste `1 2 3` yerine `1 1 1` çıkıyor. Kök neden
+  bu belgede yazılmıyor — koşusunda bulunur *(Blok 9 kuralı)*.
+- **Nasıl görülür:** üç maddelik numaralı bir liste içeren cevap ekranda 1, 2, 3 sayıyor; sayfa
+  yenilenince de öyle.
+- **İlişkisi:** 13 markdown çizimini getirdi; bu onun bir düzeltmesi.
+
 ---
 
 ## Açık sorular
