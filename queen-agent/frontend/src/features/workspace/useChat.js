@@ -31,6 +31,20 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   // Which chat a stream is running into. The first frame moves the address, and the effect below
   // must not answer that move by throwing away what is still arriving.
   const streamingInto = useRef(null);
+  // The same fact for the screen: state rather than a ref, because what the hook returns is gated
+  // on it and the gate has to move a render (Madde 106).
+  const [streamingChatId, setStreamingChatId] = useState(null);
+  // The chat the screen is on now, read where a stream ends: a turn that lands elsewhere must not
+  // repaint this one.
+  const live = useRef(chatId);
+  live.current = chatId;
+  // The record the hook holds now, read by the loading effect: the birth guard may only skip the
+  // load when what is held already belongs here.
+  const held = useRef(null);
+  held.current = chat;
+  // The send that owns the shared stream states -- the newest one. An older stream keeps running
+  // on the server; what it may not do is draw on, or clear, a screen that is no longer its own.
+  const owner = useRef(null);
 
   useEffect(() => {
     // No chat at this address: the draft, or no chat screen at all. Dropped rather than kept -- a
@@ -42,7 +56,13 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
       setMissing(false);
       return undefined;
     }
-    if (chatId === streamingInto.current) return undefined;
+    // Madde 88's birth guard, narrowed by Madde 106: skip the load only while what is held
+    // already belongs here -- the stood-up draft record (id null) or this chat's own. A return
+    // from another chat holds that chat's record, and the transcript comes back from disk.
+    if (chatId === streamingInto.current && held.current) {
+      const heldId = held.current.id;
+      if (heldId === null || heldId === chatId) return undefined;
+    }
     let cancelled = false;
     setChat(null);
     setError(null);
@@ -71,6 +91,11 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   const send = useCallback(
     async (text = null, skill = "", mode = "") => {
       const at = new Date().toISOString();
+      const token = {};
+      owner.current = token;
+      // Where this turn lands. Starts as the chat it was sent from; the first frame can name a
+      // newborn instead. Local, so a send that lost the screen still knows its own chat.
+      let target = chatId;
       if (text !== null) {
         // The bubble appears before the server answers -- the design says so in as many words. In
         // a draft there is no record to add it to, so one is stood up to hold it.
@@ -90,6 +115,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
       setCreatingFile(false);
       setCreatedFiles([]);
       setStreamingCalls([]);
+      streamingInto.current = chatId;
+      setStreamingChatId(chatId);
       // No text at all is how Try again asks: the question is already on disk and must not be
       // written a second time. A blank one would be refused, which is a different thing.
       const body = text === null ? { chat: chatId } : { chat: chatId ?? "", text, skill, mode };
@@ -98,9 +125,21 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
           `/api/projects/${projectId}/messages`,
           (frame) => {
             if (frame.event === "chat") {
-              streamingInto.current = frame.data.chat;
-              if (frame.data.chat !== chatId) born.current?.(frame.data.chat);
-            } else if (frame.event === "chunk") {
+              target = frame.data.chat;
+              if (owner.current !== token) return;
+              streamingInto.current = target;
+              setStreamingChatId(target);
+              if (target !== chatId) born.current?.(target);
+              return;
+            }
+            // A newer send owns the screen: this stream still lands on disk and is read from
+            // there, but it draws nothing any more -- except a born file, which is true for
+            // every screen.
+            if (owner.current !== token) {
+              if (frame.event === "file") announce.current?.();
+              return;
+            }
+            if (frame.event === "chunk") {
               setStreamingText((current) => current + frame.data.text);
             } else if (frame.event === "call") {
               setStreamingCalls((calls) => [...calls, frame.data]);
@@ -119,26 +158,31 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
               // changes: it is still running, so the send button is still a stop.
               setPermission({ tool: frame.data.tool, args: frame.data.arguments });
             }
-            // What the browser piled up is a guess; what the server wrote is the record, so the
             // The closing frame carries nothing since Madde 89: it says the turn is over, and what
             // the turn wrote is read below.
-            else if (frame.event === "error") setError(frame.data.error);
+            else if (frame.event === "error") {
+              // The turn's fault belongs to the chat it ran in: standing elsewhere, the screen
+              // does not wear it -- the unanswered message in the record says it on a visit.
+              if ((target ?? null) === (live.current ?? null)) setError(frame.data.error);
+            }
           },
           body,
         );
         // The record has one home, so the turn ends by reading it -- before the finally below
         // clears what streamed, or the transcript blinks empty between the two. Whatever the turn
         // ended as: a fault still leaves the user's own sentence on disk, and it has to stay on
-        // the screen.
-        const landed = streamingInto.current ?? chatId;
+        // the screen. Read either way; what it may not do is dress a screen standing in another
+        // chat (Madde 106) -- that chat's own visit reads the same record.
+        const landed = target ?? chatId;
         if (landed) {
           try {
-            setChat(await getJson(`/api/projects/${projectId}/chats/${landed}`));
+            const record = await getJson(`/api/projects/${projectId}/chats/${landed}`);
+            if (landed === live.current) setChat(record);
           } catch (unreadable) {
             // A fault already reported is the turn's real one, and replacing it with this would
             // show the wrong cause. Otherwise the read speaks for itself: the answer was written,
             // and what was lost is the showing of it.
-            setError((current) => current ?? unreadable.message);
+            if (landed === live.current) setError((current) => current ?? unreadable.message);
           }
         }
       } catch (failure) {
@@ -156,22 +200,31 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
               : current,
           );
         }
-        setRefused(failure.message);
+        if ((target ?? null) === (live.current ?? null)) setRefused(failure.message);
         // Thrown on rather than swallowed, but only when there was a sentence: the composer is
         // holding the only copy of it and has to know to keep it. Try again carries none, and a
         // throw there would be nobody's to catch.
         if (text !== null) throw failure;
       } finally {
-        // The cards drawn from the stream go too: the stored answer carries the same names, and a
-        // stream that broke wrote no answer at all.
-        setStreamingText("");
-        setCreatingFile(false);
-        setCreatedFiles([]);
-        setStreamingCalls([]);
-        // However the turn ended. A question left standing would hang over the next turn, offering
-        // to allow something nobody is waiting on any more.
-        setPermission(null);
-        setThinking(false);
+        // Only the send that owns the screen clears it: an older stream sweeping these would wipe
+        // one that is still drawing (Madde 106).
+        if (owner.current === token) {
+          // The cards drawn from the stream go too: the stored answer carries the same names, and
+          // a stream that broke wrote no answer at all.
+          setStreamingText("");
+          setCreatingFile(false);
+          setCreatedFiles([]);
+          setStreamingCalls([]);
+          // However the turn ended. A question left standing would hang over the next turn,
+          // offering to allow something nobody is waiting on any more.
+          setPermission(null);
+          setThinking(false);
+          // Cleared so a later visit loads from disk: while a stream runs its chat reads from
+          // these states, and once it ends the record is the only home (Madde 89).
+          streamingInto.current = null;
+          setStreamingChatId(null);
+          owner.current = null;
+        }
       }
     },
     [projectId, chatId],
@@ -199,17 +252,21 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
     [projectId, chatId],
   );
 
+  // What the stream draws belongs to the chat it runs into (Madde 106): standing elsewhere, none
+  // of it shows -- and coming back, it shows again. The draft is its own chat here: null equals
+  // null until the first frame names the newborn, and the address follows it.
+  const visible = streamingChatId === (chatId ?? null);
   return {
     chat,
     error,
     refused,
     missing,
-    thinking,
-    streamingText,
-    creatingFile,
-    createdFiles,
-    streamingCalls,
-    permission,
+    thinking: visible && thinking,
+    streamingText: visible ? streamingText : "",
+    creatingFile: visible && creatingFile,
+    createdFiles: visible ? createdFiles : [],
+    streamingCalls: visible ? streamingCalls : [],
+    permission: visible ? permission : null,
     send,
     stop,
     answer,
