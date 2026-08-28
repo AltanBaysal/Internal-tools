@@ -21,7 +21,7 @@ def _rulebook():
 
 @pytest.mark.parametrize(
     "field",
-    ["quality", "characters", "outfits", "locations", "frames", "people", "action", "camera"],
+    ["characters", "outfits", "locations", "frames", "people", "action", "camera"],
 )
 def test_the_schema_shows_every_field_rather_than_describing_it(field):
     assert f'"{field}"' in _schema()
@@ -36,6 +36,18 @@ def test_the_schema_says_what_belongs_where():
     said = _schema().lower()
     # The rule that makes the split make sense, rather than two maps and no reason.
     assert "changes" in said and "outfits" in said
+
+
+def test_the_example_carries_no_quality_field():
+    # Madde 110: what the example shows is what gets copied, and this one was copying a chain that
+    # mixed two model families into every scenario.
+    assert '"quality"' not in _schema()
+
+
+def test_the_schema_says_where_the_quality_chain_comes_from():
+    said = _schema().lower()
+    assert "quality chain is not in this file" in said
+    assert "code puts it at the front" in said
 
 
 def test_an_outfit_entry_dresses_one_person():

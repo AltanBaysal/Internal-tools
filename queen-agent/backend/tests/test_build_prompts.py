@@ -152,10 +152,26 @@ def test_a_structure_with_no_outfits_map_still_builds():
     assert build_prompts(structure) == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
 
 
-def test_a_structure_without_quality_still_builds():
+def test_a_structure_without_quality_gets_the_chain_from_code():
+    # Madde 110: the chain is the same in every scenario, so the file no longer carries it -- and
+    # a model that never writes it cannot write a wrong one.
+    from backend.features.workspace.domain.build_prompts import DEFAULT_QUALITY
+
     structure = _structure()
     del structure["quality"]
-    assert build_prompts(structure) == [f"{AYLIN}, {BEDROOM}, an action, a camera"]
+    assert build_prompts(structure) == [
+        f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"
+    ]
+
+
+def test_a_file_that_writes_its_own_quality_keeps_it():
+    # The door left open: a scenario that needs another chain writes the field, and code steps
+    # aside rather than adding a second one.
+    from backend.features.workspace.domain.build_prompts import DEFAULT_QUALITY
+
+    built = build_prompts(_structure())[0]
+    assert built.startswith(f"{QUALITY}, ")
+    assert DEFAULT_QUALITY not in built
 
 
 def test_loose_commas_and_spaces_are_tidied_away():
@@ -336,10 +352,12 @@ def test_a_file_with_no_outfits_gives_the_identity_once():
     assert _tried(structure, "aylin") == [f"{QUALITY}, {AYLIN}"]
 
 
-def test_a_try_without_quality_still_builds():
+def test_a_try_without_quality_gets_the_chain_from_code():
+    from backend.features.workspace.domain.build_prompts import DEFAULT_QUALITY
+
     structure = _structure()
     del structure["quality"]
-    assert _tried(structure, "aylin")[0] == f"{AYLIN}, {GECELIK}"
+    assert _tried(structure, "aylin")[0] == f"{DEFAULT_QUALITY}, {AYLIN}, {GECELIK}"
 
 
 def test_trying_a_character_nobody_knows_names_what_is_known():
