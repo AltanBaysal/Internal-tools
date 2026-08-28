@@ -521,6 +521,34 @@ test("the first message in a draft creates the chat and takes its address", asyn
   expect(push).not.toHaveBeenCalled();
 });
 
+test("a newborn chat is named by the trimmed first message, not the whole of it", async () => {
+  // Madde 116: the record stood up for the draft carried the whole message as its title. The
+  // server's trimmed name only arrives when the turn ends -- minutes later in a flow run -- so
+  // the window this test stands in is the turn still running after the first frame moved the
+  // address.
+  const first = "m".repeat(80);
+  const { response } = gatedSse('event: chat\ndata: {"chat":"c1"}\n\n', "event: done\ndata: {}\n\n");
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path === "/api/projects/p1/messages" && options?.method === "POST") {
+      return Promise.resolve(response);
+    }
+    if (path === "/api/projects/p1/chats") {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/new");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByPlaceholderText("Reply...")).toBeTruthy());
+  fireEvent.change(screen.getByPlaceholderText("Reply..."), { target: { value: first } });
+  fireEvent.keyDown(screen.getByPlaceholderText("Reply..."), { key: "Enter" });
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+  expect(document.querySelector(".chat__title").textContent).toBe("m".repeat(42) + "…");
+});
+
 test("the user bubble shows before the server answers, and a refusal hands the words back", async () => {
   const chat = { id: "c1", title: "Hi", messages: [], lastActivity: "x" };
   let refuse;

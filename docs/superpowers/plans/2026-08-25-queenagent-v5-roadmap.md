@@ -1167,6 +1167,12 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ### Madde 116 — Sohbetin adı ilk mesajın kısaltılmışı olur
 
+> **Hangisi olduğu koşuda bulundu** *(28 Ağustos)*: ad `chat_title`'dan gelmiyor — turun sonuna
+> kadar. Taslaktan doğan sohbet için ekran iyimser bir kayıt ayağa dikiyor ve onun `title`'ı
+> mesajın tamamı; sunucunun kırpılmış adı ancak tur bitip kayıt geri okununca geliyor, akışın ilk
+> turu ise dakikalar sürüyor. Kenar çubuğu sunucudan okuduğu için zaten doğruydu; yanlış duran yer
+> sohbet başlığıydı. Ayrıntı [spec'te](../specs/2026-08-28-queenagent-m116-sohbet-adi-testler-design.md).
+
 - **Ne çalışır:** yeni sohbet açılıp ilk mesaj gönderilince kenar çubuğundaki ad mesajın tamamı
   çıkıyor. Beklenen, ilk mesajın kısa bir başlığa inmesi. **Kodda kısaltma zaten var** —
   `chat.py`'de `TITLE_LIMIT = 42` ve `chat_title` sınırı aşanı `…` ile kesiyor, `append_message` de
