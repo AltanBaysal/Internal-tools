@@ -17,9 +17,9 @@ ASK = "ask"
 EDIT = "edit"
 DEFAULT = EDIT
 
-# read_schema joined them in Madde 96: it opens no file and changes nothing, so no mode has a
-# reason to stop for it.
-READS = ("list_files", "read_file", "read_schema")
+# The schema reader joined them in Madde 96: it opens no file and changes nothing, so no mode has
+# a reason to stop for it.
+READS = ("list_files", "read_file", "read_prompt_structure_schema")
 
 _WITHOUT_ASKING = {
     ASK: READS,

@@ -9,7 +9,7 @@ export const SKILLS = [
   {
     id: "start-a-scenario",
     name: "Start a scenario",
-    detail: "Answer a few questions and get the characters, the scenes and their prompts.",
+    detail: "Answer a few questions and get the characters, the places and the scene list.",
   },
   {
     id: "generate-prompts-plus",

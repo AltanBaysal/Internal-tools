@@ -3,8 +3,8 @@
 Its own module rather than a paragraph in skills.py: that file says what a skill does, this one says
 what the file being written is. Two questions, and the second one gets a second asker in Madde 101.
 
-Fetched rather than recited -- read_schema hands it back when a file is about to be written, so a
-turn that writes nothing does not pay for it. The instruction travels at the end of every request
+Fetched rather than recited -- read_prompt_structure_schema hands it back when a file is about to
+be written, so a turn that writes nothing does not pay for it. The instruction travels at the end of every request
 (Madde 93); this does not travel at all until it is asked for.
 """
 
@@ -13,13 +13,15 @@ STRUCTURE = (
     "\n"
     "{\n"
     '  "quality": "score_9_up, masterpiece, best quality, absurdres",\n'
-    '  "characters": { "aylin": "long teal hair, green eyes, mature female" },\n'
+    '  "characters": { "aylin": "woman in her mid 20s, long teal hair, green eyes, mature '
+    'female" },\n'
     '  "outfits": { "gunluk": "jeans, black t-shirt", "atki": "red knit scarf" },\n'
-    '  "locations": { "bedroom": "sunlit bedroom, morning light, ..." },\n'
+    '  "locations": { "bedroom": "sunlit bedroom, morning light, natural light, indoors" },\n'
     '  "frames": [\n'
     '    { "people": "1girl", "characters": { "aylin": ["gunluk", "atki"] },\n'
     '      "location": "bedroom",\n'
-    '      "action": "sitting on the edge of the bed, holding a letter",\n'
+    '      "action": "sitting on edge of bed, holding letter, pensive expression, light blush, '
+    'looking down",\n'
     '      "camera": "medium shot, from slightly above" }\n'
     "  ]\n"
     "}\n"
@@ -33,16 +35,21 @@ STRUCTURE = (
     "An outfit is named after the garment rather than whoever wears it, because two characters can "
     "wear the same one.\n"
     "\n"
-    "people says how many are in the frame -- 1girl, or 1boy, 1girl, or 2girls. Every frame carries "
-    "it, a frame with one character included, and it is never inside a character's own entry: the "
-    "same character stands alone in one frame and beside someone in the next. Write it and leave "
-    "the placing alone -- code puts it where it goes.\n"
+    "people says how many are in the frame -- 1girl; 1boy, 1girl; 2girls. Every frame carries it, "
+    "even a frame with one character, and it is never inside a character's own entry: the same "
+    "character stands alone in one frame and beside someone in the next. Write it and leave the "
+    "placing alone -- code puts it where it goes.\n"
     "\n"
     "A frame's characters is a map: the key is the character, the value is the outfits they wear in "
-    "that frame. Someone wearing nothing named has an empty list, and a frame with nobody in it is "
-    "an empty map. The first name a frame lists leads the prompt -- it opens the frame, and whoever "
-    "comes after is placed past the camera so two descriptions do not bleed into each other. Write "
-    "whoever the frame is about first.\n"
+    "that frame. A character with no outfit named has an empty list, and a frame with nobody in it "
+    "is an empty map. The first name a frame lists leads the prompt: it opens the prompt, and "
+    "everyone after it is placed at the end, after the camera tags, so two descriptions do not "
+    "bleed into each other. Write whoever the frame is about first.\n"
+    "\n"
+    "Every value in this file is written the same way: short comma-separated fragments -- tags "
+    "and brief phrases -- never a sentence telling the story. An action carries the pose, the "
+    "expression and where the eyes look; a camera carries the framing and the angle. The example "
+    "is the measure: match its density.\n"
     "\n"
     "Everything in this file is English -- an image model reads it."
 )
@@ -53,20 +60,26 @@ RULEBOOK = (
     "1. A frame describing a character or a place in plain words when the maps already hold an "
     "entry for it. This is the one worth hunting: it is the silent copy coming back.\n"
     "2. Clothing written inside a character's own entry, or inside a frame's action, when outfits "
-    "is where it belongs. Both are rule 1 wearing different clothes: the text copied in instead of "
-    "the name named.\n"
+    "is where it belongs. Both are rule 1 in another form: the text copied in instead of the name "
+    "being used.\n"
     "3. Quality tags written inside a frame's own fields. Code adds them once, so they would be "
     "printed twice.\n"
     "4. The same name carrying different text in two structure files in this project. Copying is "
     "allowed; a copy that has drifted is not.\n"
     "5. A name defined in a map and used by no frame -- a note, not a violation.\n"
     "6. A count or a solo tag inside a character's own entry, when the frame's people is where it "
-    "belongs. Nothing strips one for you: a tag written on purpose would go without a word, and "
-    "which tag is a count can only be guessed at from a list of names that is never finished."
+    "belongs. Nothing strips it for you -- code cannot tell a count from any other tag, so move "
+    "it yourself.\n"
+    "7. A value written as a sentence -- articles, a subject doing a verb -- when fragments are "
+    "what an image model reads. Break it into short comma-separated fragments."
 )
 
 SCHEMA = (
     STRUCTURE
-    + "\n\nBefore building, hold the file against these rules and fix what you find:\n\n"
+    # "Writing or changing", not "building": since K40 the writer and the builder are different
+    # skills, and the rulebook's best catches are writing-time mistakes -- a check tied to
+    # building would let the flow skip it.
+    + "\n\nBefore writing or changing the file, hold it against these rules and fix what you "
+    "find:\n\n"
     + RULEBOOK
 )

@@ -59,8 +59,8 @@ def test_no_instruction_calls_a_frame_a_shot():
 
 
 def test_the_instruction_no_longer_carries_the_schema():
-    # It went to read_schema. Left here it would be paid for every turn, and copied again the day a
-    # second skill writes the same file.
+    # It went to the schema tool. Left here it would be paid for every turn, and copied again the
+    # day a second skill writes the same file.
     said = instruction_for("generate-prompts-plus")
     assert '"frames"' not in said and '"outfits"' not in said
 
@@ -75,7 +75,7 @@ def test_the_instruction_reads_the_schema_before_it_builds():
     # The order is part of the instruction: the shape is fetched, the file is written, and only then
     # is anything built from it.
     said = instruction_for("generate-prompts-plus")
-    assert said.index("read_schema") < said.index("build_prompts with")
+    assert said.index("read_prompt_structure_schema") < said.index("build_prompts with")
 
 
 def test_the_structured_instruction_writes_the_skeleton_then_batches_of_five():
@@ -111,7 +111,7 @@ def test_the_flow_writes_the_plan_before_it_asks_anything():
     # different every time, and has nowhere to keep its place.
     said = _flow()
     assert "write_plan" in said
-    assert said.index("write_plan") < said.index("read_schema")
+    assert said.index("write_plan") < said.index("read_prompt_structure_schema")
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
@@ -134,21 +134,56 @@ def test_what_nobody_described_becomes_a_placeholder():
 
 
 def test_the_scenes_step_writes_a_readable_list_too():
-    # K33, and its known cost: the same scene lives as tags in the structure file and as a sentence
-    # in the list. Nothing in the code keeps the two together.
-    assert "one sentence" in _flow()
-
-
-def test_the_flow_builds_the_prompts_itself():
-    # K32. The last step is the flow's own move -- the user does not change skill to finish what
-    # they started.
+    # K33 turned around by K40: the list is no longer a copy of the frames, it is their source --
+    # and it follows the reader, because every neighbouring text is English and without a word the
+    # list would drift there too.
     said = _flow()
-    assert "build_prompts" in said
-    assert "does not change skill" in said
+    assert "one sentence" in said
+    assert "their own language" in said
 
 
-def test_the_flow_reads_the_schema_before_it_writes_the_structure():
-    # The same order the other skill keeps, for the same reason: the shape is fetched when it is
-    # needed rather than carried in every request.
+def test_a_finished_step_reaches_the_plan():
+    # The flow promises a fresh chat can carry on from the step left open. A plan nobody updates
+    # shows no step as open, so the promise stands only if ending a step writes into the plan.
+    assert "marked done" in _flow()
+
+
+def test_the_structure_file_is_born_once():
+    # The observed failure wears two masks here: everything gathered in chat and written at the
+    # end, or a new file per step. One birth at the characters step rules out both -- and the
+    # schema is read before the birth, the same order the other skill keeps.
     said = _flow()
-    assert said.index("read_schema") < said.index("build_prompts")
+    assert "born once" in said
+    assert "never a second file" in said
+    assert said.index("read_prompt_structure_schema") < said.index("born once")
+
+
+def test_the_flow_hands_the_frames_to_the_builder():
+    # K40 overturned K32 (28 Aug): writing action and camera detail is heavy work, and the flow's
+    # asking rhythm is not where it belongs. The flow leaves the foundation and names its heir --
+    # the frames stay out of the structure file on purpose.
+    said = _flow()
+    assert "Generate prompts+" in said
+    assert "frames stay empty" in said
+
+
+def test_the_scene_list_is_named_after_the_structure_file():
+    # The discovery mechanism: prompt+ finds the pair by name with list_files, so the convention
+    # has to be pinned or the handoff rests on a guess.
+    assert "bar-scene-scenes.md" in _flow()
+
+
+def test_the_builder_picks_up_where_the_flow_stops():
+    # The other half of K40: the flow leaves a scene list, and this skill reads it, writes the
+    # frames in its order, and resumes by shortfall -- fewer frames than sentences is work left.
+    said = instruction_for("generate-prompts-plus")
+    assert "Start a scenario" in said
+    assert "scene list" in said
+    assert "first sentence with no frame" in said
+
+
+def test_the_sentence_is_a_brief_never_the_frames_text():
+    # The observed failure: scene sentences retold as the action, word for word. The brief line
+    # holds the door: the sentence briefs the frame, the frame's text is this skill's own.
+    said = instruction_for("generate-prompts-plus")
+    assert "never text to copy into the frame" in said

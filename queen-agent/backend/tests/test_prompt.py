@@ -28,10 +28,12 @@ def test_the_base_looks_before_it_writes():
 
 def test_the_base_asks_rather_than_inventing():
     # Sat in three skill texts, each in its own words. A guess is either more than the user wanted
-    # or less, and nothing on the screen says which one happened.
+    # or less, and nothing on the screen says which one happened. Since 28 Aug the same rule covers
+    # the request itself: what was not understood is asked about, not worked around.
     said = SYSTEM_PROMPT.lower()
     assert "ask" in said
     assert "invent" in said
+    assert "not sure" in said
 
 
 def test_the_base_works_in_pieces_and_lands_each_one():
@@ -42,12 +44,28 @@ def test_the_base_works_in_pieces_and_lands_each_one():
     assert "before the next" in said
 
 
+def test_the_base_edits_what_exists_rather_than_rebirthing_it():
+    # The observed failure: the model reaches for creation because creation is the only writing it
+    # was told about, and code can only refuse the same name -- a file reborn under a second name
+    # walks right past the wall. The preference has to live where the name is picked.
+    assert "edit_file" in SYSTEM_PROMPT
+    assert "never reborn" in SYSTEM_PROMPT.lower()
+
+
 def test_the_base_puts_a_correction_on_disk_too():
     # A correction that only lands in the chat leaves the file saying the older thing, and the file
     # is what the next step reads.
     said = SYSTEM_PROMPT.lower()
     assert "correction" in said
     assert "chat" in said and "file" in said
+
+
+def test_the_base_starts_a_long_job_with_the_plan():
+    # Skill-less chats had no reason to plan; the flow got one in its own text and the base got
+    # nothing. The plan file is where a job keeps its place -- which is also how a chat that grew
+    # too long is survived.
+    assert "write_plan" in SYSTEM_PROMPT
+    assert "keeps its place" in SYSTEM_PROMPT.lower()
 
 
 def test_the_base_says_what_it_did_even_when_it_did_nothing():

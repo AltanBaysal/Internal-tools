@@ -4,7 +4,7 @@ The modes are named here the way the wire names them, and the module is imported
 rather than at the top: a module that does not exist yet fails this whole file's collection, and
 then none of the turn's other reds are visible anywhere in the suite.
 """
-READS = ("list_files", "read_file", "read_schema")
+READS = ("list_files", "read_file", "read_prompt_structure_schema")
 WRITES = ("create_file", "edit_file", "build_prompts", "build_character_prompts", "write_plan")
 
 
@@ -21,7 +21,7 @@ def test_ask_mode_asks_before_it_writes():
 
 
 def test_ask_mode_reads_without_asking():
-    # read_schema is among them since Madde 96: it opens no file and changes nothing.
+    # The schema reader is among them since Madde 96: it opens no file and changes nothing.
     assert not any(_asks("ask", tool) for tool in READS)
 
 

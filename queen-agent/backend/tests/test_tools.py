@@ -203,16 +203,35 @@ def test_the_schema_tool_hands_back_the_shape_and_the_rules(tmp_path):
 
     # No arguments at all: there is one shape, and asking which one would be a question with a
     # single answer.
-    assert _call(_files(tmp_path), "read_schema") == SCHEMA
+    assert _call(_files(tmp_path), "read_prompt_structure_schema") == SCHEMA
 
 
 def test_the_schema_tool_brings_no_file_into_being(tmp_path):
-    assert run_tool(_files(tmp_path), "p1", "read_schema", "{}").created is None
+    assert run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").created is None
 
 
 def test_the_schema_tool_says_what_it_answered_with(tmp_path):
     # A reader's line rather than the answer itself, like every other outcome.
-    assert run_tool(_files(tmp_path), "p1", "read_schema", "{}").outcome == "Schema"
+    assert run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").outcome == "Schema"
+
+
+def test_create_file_names_both_formats_a_file_can_take():
+    # The param used to say ending in .md while the schema says a structure file is .json -- two
+    # opposite instructions to the same model. Pinned so the contradiction cannot quietly return.
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "create_file")
+    said = spec["function"]["parameters"]["properties"]["name"]["description"]
+    assert ".md for a document" in said
+    assert ".json for a structure file" in said
+
+
+def test_the_schema_tool_defines_the_term_it_hands_back():
+    # The model meets the words structure file in three descriptions before any skill text
+    # explains them. The definition has to ride with the name, or a skill-less chat reads a term
+    # nothing anchors.
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "read_prompt_structure_schema")
+    said = spec["function"]["description"]
+    assert "one JSON per scenario" in said
+    assert "before writing or changing" in said
 
 
 def test_every_tool_is_declared_to_the_model():
@@ -226,8 +245,9 @@ def test_every_tool_is_declared_to_the_model():
         # question, asked in modes.py.
         "write_plan",
         # Seventh since Madde 96. The shape of a structure file stopped being a paragraph in a
-        # skill's text; it is fetched when a file is about to be written.
-        "read_schema",
+        # skill's text; it is fetched when a file is about to be written. Renamed 28 Aug so the
+        # name says whose schema it reads.
+        "read_prompt_structure_schema",
         # Eighth since Madde 98: the same joining, one character at a time, so a character can be
         # looked at before it enters a frame.
         "build_character_prompts",

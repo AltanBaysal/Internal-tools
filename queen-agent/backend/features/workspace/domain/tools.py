@@ -56,17 +56,24 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "list_files",
-            "description": "List the names of the files this project already holds.",
+            "description": (
+                "List the names of the files this project already holds -- names only; read_file "
+                "reads one."
+            ),
             "parameters": {"type": "object", "properties": {}},
         },
     },
     {
         "type": "function",
         "function": {
-            "name": "read_schema",
+            "name": "read_prompt_structure_schema",
             "description": (
-                "What a structure file looks like and the rules it has to hold. Read it before "
-                "writing or changing one; no instruction repeats it."
+                "What a structure file looks like and the rules it has to hold, shown with an "
+                "example. A structure file is the one JSON per scenario that prompts are built "
+                "from: the characters, outfits and locations written once, and the frames that "
+                "name them. Call it before writing or changing one -- no instruction repeats "
+                "the schema, so never write one from memory. It takes no arguments; there is "
+                "one schema for the whole app."
             ),
             "parameters": {"type": "object", "properties": {}},
         },
@@ -89,13 +96,19 @@ TOOL_SPECS = [
             "name": "create_file",
             "description": (
                 "Save a document into this project. Reach for it only when the user asked for "
-                "something worth keeping as a file. Refuses a name that is already taken: to "
-                "change a file that exists, use edit_file."
+                "something worth keeping -- a draft, a report, a summary they will come back to. "
+                "Refuses a name that is already taken: to change a file that exists, use "
+                "edit_file."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "A short file name ending in .md."},
+                    "name": {
+                        "type": "string",
+                        "description": (
+                            "A short file name: .md for a document, .json for a structure file."
+                        ),
+                    },
                     "content": {"type": "string", "description": "The document itself."},
                 },
                 "required": ["name", "content"],
@@ -108,7 +121,8 @@ TOOL_SPECS = [
             "name": "edit_file",
             "description": (
                 "Change part of a file that already exists. The text you give as old must appear "
-                "exactly once, so include enough of what surrounds it to be sure."
+                "exactly once and match what is on disk now, so read the file first and include "
+                "enough of what surrounds it to be sure."
             ),
             "parameters": {
                 "type": "object",
@@ -147,15 +161,17 @@ TOOL_SPECS = [
         "function": {
             "name": "build_character_prompts",
             "description": (
-                "Build a try list for one character: the same joining a frame gets, once for every "
-                "outfit the structure names. Writes a Python file named after the structure and "
-                "the character, replacing what it wrote last time."
+                "Build a preview list for one character: one prompt for every outfit the "
+                "structure names, joined the same way a frame's prompt is. Reach for it when the "
+                "user wants to look at one character on its own, before any frame. Writes a "
+                "Python file named after the structure and the character, replacing what it "
+                "wrote last time."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "The structure file's name."},
-                    "character": {"type": "string", "description": "Which character to try."},
+                    "character": {"type": "string", "description": "Which character to preview."},
                 },
                 "required": ["name", "character"],
             },
@@ -232,7 +248,7 @@ def run_tool(file_store, project_id, name, arguments):
             counted(len(names), "file") if names else "No files",
         )
 
-    if name == "read_schema":
+    if name == "read_prompt_structure_schema":
         # No arguments: there is one shape, so asking which one would be a question with a single
         # answer. The outcome is what was answered with rather than the answer -- a read says how
         # many lines, not the file.

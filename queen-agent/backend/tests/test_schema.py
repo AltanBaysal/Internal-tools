@@ -1,4 +1,4 @@
-"""What read_schema hands back: the shape of a structure file, and the rules it has to hold.
+"""What read_prompt_structure_schema hands back: the shape of a structure file, and its rules.
 
 The module is imported inside each test rather than at the top -- a module that does not exist yet
 fails this whole file's collection, and then none of the turn's other reds are visible anywhere in
@@ -59,6 +59,22 @@ def test_the_schema_keeps_the_count_out_of_a_character():
     assert "never inside a character" in said
 
 
+def test_the_schema_teaches_the_form_of_a_value():
+    # 28 Aug: the observed failure -- values written as narrated sentences. The form was only
+    # ever shown by the example; a weak model needs it said.
+    said = _schema().lower()
+    assert "comma-separated fragments" in said
+    assert "never a sentence" in said
+
+
+def test_the_example_reads_at_working_density():
+    # The example gets copied, so the example is the teacher: expression and gaze in the action,
+    # and no placeholder left to copy.
+    said = _schema()
+    assert "pensive expression" in said
+    assert "..." not in said
+
+
 def test_the_rulebook_calls_clothing_in_the_wrong_place_a_violation():
     said = _rulebook().lower()
     assert "clothing" in said
@@ -80,6 +96,11 @@ def test_the_rulebook_has_a_sixth_rule_about_the_count():
     # not strip it -- guessing which tag is a count needs a list of names that is never complete.
     said = _rulebook()
     assert "6." in said and "solo" in said.lower()
+
+
+def test_the_rulebook_calls_a_sentence_a_violation():
+    said = _rulebook()
+    assert "7." in said and "fragments" in said.lower()
 
 
 def test_what_the_tool_hands_back_carries_both():
