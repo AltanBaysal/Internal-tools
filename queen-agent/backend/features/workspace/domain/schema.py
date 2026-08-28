@@ -23,12 +23,12 @@ STRUCTURE = (
     '      "location": "bedroom",\n'
     '      "action": "sitting on edge of bed, holding letter, pensive expression, light blush, '
     'looking down",\n'
-    '      "camera": "medium shot, from slightly above" },\n'
+    '      "camera": "medium shot, from above" },\n'
     '    { "people": "1boy, 1girl",\n'
     '      "characters": { "aylin": ["gunluk"], "deniz": ["ceket"] },\n'
     '      "location": "bedroom",\n'
-    '      "action": "standing by the window, talking, looking at each other, soft smiles",\n'
-    '      "camera": "upper body, from the side" }\n'
+    '      "action": "standing by window, talking, looking at each other, soft smiles",\n'
+    '      "camera": "upper body, from side" }\n'
     "  ]\n"
     "}\n"
     "\n"
@@ -56,12 +56,13 @@ STRUCTURE = (
     "bleed into each other. Write whoever the frame is about first.\n"
     "\n"
     "Every value in this file is written the same way: short comma-separated fragments -- tags "
-    "and brief phrases -- never a sentence telling the story. An action carries the pose, the "
-    "expression and where the eyes look; a camera carries the framing and the angle. The example "
-    "is the measure: match its density.\n"
+    "and brief phrases -- never a sentence telling the story. An article is not a tag, so it is "
+    "dropped: sitting on couch, by window. An action carries the pose, the expression and where "
+    "the eyes look; a camera carries the framing and the angle. The example is the measure: "
+    "match its density.\n"
     "\n"
     "A camera is two decisions: how much of the body is in the picture -- close-up, upper body, "
-    "medium shot, full body -- and where it is looking from -- from the side, from above, from "
+    "medium shot, full body -- and where it is looking from -- from side, from above, from "
     "behind, looking at viewer. Both are written, and the pair is chosen for the scene rather "
     "than kept from the frame before.\n"
     "\n"
