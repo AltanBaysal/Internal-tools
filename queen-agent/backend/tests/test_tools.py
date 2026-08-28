@@ -234,6 +234,17 @@ def test_every_tool_is_declared_to_the_model():
     }
 
 
+def test_write_plan_ends_only_the_turn_that_was_asked_to_plan():
+    # Madde 103. The server ends the turn after write_plan in plan mode alone (Madde 97), and the
+    # flow writes a plan as its first step and asks its first question in the same turn. The model
+    # never sees the mode, so the description binds the ending to the ask instead: a turn asked
+    # only to plan ends, a plan that is step one of a larger job carries on.
+    plan = next(spec for spec in TOOL_SPECS if spec["function"]["name"] == "write_plan")
+    said = plan["function"]["description"]
+    assert "asked only to plan" in said
+    assert "carry on" in said
+
+
 def test_the_round_limit_carries_the_longest_chain():
     # list, read, a skeleton, several batches of frames, a self-check and the build. Pinned,
     # because a limit that quietly cuts the chain short looks like a model that gave up.
