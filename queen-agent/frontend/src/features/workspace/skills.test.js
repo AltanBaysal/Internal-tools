@@ -16,6 +16,13 @@ test("the two rows tell each other apart", () => {
   expect(builder.detail).toMatch(/already have/i);
 });
 
+test("the builder's row says it changes prompts too", () => {
+  // Madde 113: the skill builds and edits. A row that only says "build" sends somebody looking
+  // for an editor that is not there.
+  const builder = SKILLS.find((skill) => skill.id === "generate-prompts-plus");
+  expect(builder.detail).toMatch(/change/i);
+});
+
 test("each row says what it does", () => {
   for (const skill of SKILLS) {
     expect(skill.name.length).toBeGreaterThan(0);

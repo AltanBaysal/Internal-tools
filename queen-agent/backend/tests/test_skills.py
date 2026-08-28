@@ -91,6 +91,19 @@ def test_the_structured_instruction_forbids_assembling_a_prompt_by_hand():
     assert "build_prompts" in said
 
 
+def test_the_builder_changes_what_exists_too():
+    # Madde 94's record gave prompt+ the job of updating what exists; the sentence never reached
+    # the text, so the skill read as a one-way builder -- and Madde 108 now sends people here.
+    said = instruction_for("generate-prompts-plus")
+    assert "or changed" in said
+    assert "build_prompts again" in said
+
+
+def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
+    # The prompt file is derived: patched by hand it stops matching the structure it came from.
+    assert "rebuilt rather than patched" in instruction_for("generate-prompts-plus")
+
+
 def test_no_instruction_carries_the_rulebook_any_more():
     # It was one text with two readers until Madde 94 took the checking skill away, and one reader
     # until Madde 96 moved it out of the texts entirely. Whoever writes a file fetches it.
