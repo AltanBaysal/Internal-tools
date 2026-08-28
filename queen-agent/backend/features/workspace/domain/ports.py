@@ -51,10 +51,20 @@ class Engine(Protocol):
     def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
         """Answer a conversation. Messages carry the domain's own roles: user and ai."""
 
-    def stream(self, messages: list[dict], tools: list[dict] | None = None, on_open=None):
+    def stream(
+        self,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        on_open=None,
+        conversation_id: str = "",
+    ):
         """Answer a conversation piece by piece.
 
         Yields {"text": str} as words arrive and {"tool_calls": [...]} when the model asks for one.
+
+        `conversation_id` names the conversation these messages continue, so a service that caches
+        by conversation can find what earlier calls built. Empty means unnamed, and is sent as
+        nothing.
 
         `on_open` is handed a callable that cuts the connection this answer is reading, as soon as
         there is one to cut. An engine with no connection to cut never calls it.

@@ -130,6 +130,9 @@ def stream_answer(
                     tools=TOOL_SPECS,
                     # Only the transport holds a socket, so only it can hand out a way to cut one.
                     on_open=lambda cut: stops.hold(project_id, chat_id, cut),
+                    # The chat is the conversation: its id is the name the service's cache files
+                    # this turn's prefix under (Madde 124).
+                    conversation_id=chat_id,
                 ):
                     if "text" in piece:
                         spoken.append(piece["text"])

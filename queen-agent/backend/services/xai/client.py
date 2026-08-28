@@ -140,7 +140,7 @@ class XaiClient:
             raise XaiFailed(str(failure.reason)) from failure
         return payload["choices"][0]["message"]
 
-    def stream(self, messages, tools=None, on_open=None):
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         # The counts come only if asked for, and only to a stream -- so the ask sits beside the
         # stream flag rather than in _request, which serves both roads. Without it every frame's
         # usage field comes back null and the answer costs nothing that anyone can read.
@@ -151,6 +151,7 @@ class XaiClient:
                 "stream_options": {"include_usage": True},
             },
             tools,
+            conversation_id=conversation_id,
         )
         try:
             with self._opener(request) as response:
@@ -187,7 +188,7 @@ class XaiClient:
             # connection dropping mid-answer looks like, and the two are not told apart here.
             raise XaiFailed(str(failure)) from failure
 
-    def _request(self, body, tools):
+    def _request(self, body, tools, conversation_id=""):
         api_key = self._read_key()
         # Not a guessed cause: there is nothing to send, and that is something known here rather
         # than read off a 401 from the other end.
@@ -198,12 +199,18 @@ class XaiClient:
         payload = {"model": self._model, **body}
         if tools:
             payload["tools"] = tools
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        # A header rather than a body field: the cache's key is the body's prefix, and an id inside
+        # the body would change the very thing it is meant to route to. Only a real name goes -- an
+        # empty one would file every caller with no conversation under the same entry.
+        if conversation_id:
+            headers["x-grok-conv-id"] = conversation_id
         return urllib.request.Request(
             f"{self._base_url}/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
+            headers=headers,
             method="POST",
         )

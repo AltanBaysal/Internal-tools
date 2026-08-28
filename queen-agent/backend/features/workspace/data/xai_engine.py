@@ -13,8 +13,13 @@ class XaiEngine:
     def complete(self, messages, tools=None):
         return self._client.complete(self._for_xai(messages), tools=tools)
 
-    def stream(self, messages, tools=None, on_open=None):
-        return self._client.stream(self._for_xai(messages), tools=tools, on_open=on_open)
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+        return self._client.stream(
+            self._for_xai(messages),
+            tools=tools,
+            on_open=on_open,
+            conversation_id=conversation_id,
+        )
 
     @staticmethod
     def _for_xai(messages):
