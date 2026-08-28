@@ -1160,6 +1160,25 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
+# Blok 9 — Dördüncü denemenin çıkardıkları · madde madde
+
+> Blok 8 kapandıktan sonra defter yeniden denendi *(28 Ağustos)*. Kök nedenler burada yazılmıyor:
+> her biri kendi koşusunda araştırılır *(kullanıcının sözü: önce yaz, çözerken araştır)*.
+
+### Madde 116 — Sohbetin adı ilk mesajın kısaltılmışı olur
+
+- **Ne çalışır:** yeni sohbet açılıp ilk mesaj gönderilince kenar çubuğundaki ad mesajın tamamı
+  çıkıyor. Beklenen, ilk mesajın kısa bir başlığa inmesi. **Kodda kısaltma zaten var** —
+  `chat.py`'de `TITLE_LIMIT = 42` ve `chat_title` sınırı aşanı `…` ile kesiyor, `append_message` de
+  sohbeti doğururken onu çağırıyor. Yani görünen davranış koddaki kuralla çelişiyor: ya ad oradan
+  gelmiyor, ya kesilmiş metin ekranda kesilmiş görünmüyor *(satır sonları duruyor olabilir —
+  `chat_title` yalnız kırpıyor, satırları tek satıra indirmiyor)*. Hangisi olduğu koşuda bulunur.
+- **Nasıl görülür:** uzun ve çok satırlı bir ilk mesajla açılan sohbetin kenar çubuğundaki adı tek
+  satır ve kısa; mesajın tamamı başlıkta durmuyor.
+- **İlişkisi:** 104 — doğan sohbetin adresi ve kaydı orada, ad da aynı doğumda yazılıyor.
+
+---
+
 ## Açık sorular
 
 Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
