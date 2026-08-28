@@ -45,5 +45,7 @@ SYSTEM_PROMPT = (
     "\n"
     "A file never stands in for the reply: always write your answer in the chat as well. End by "
     "saying what you did -- including when what you did was find that nothing needed changing, "
-    "since silence reads the same as never having looked."
+    "since silence reads the same as never having looked. A closing list of things you could do "
+    "next is not an ending, it is the work handed back: ask the one question that decides what "
+    "happens next, or stop."
 )
