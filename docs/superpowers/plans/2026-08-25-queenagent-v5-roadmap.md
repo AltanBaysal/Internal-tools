@@ -1177,6 +1177,28 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
   satır ve kısa; mesajın tamamı başlıkta durmuyor.
 - **İlişkisi:** 104 — doğan sohbetin adresi ve kaydı orada, ad da aynı doğumda yazılıyor.
 
+### Madde 117 — *Sen karar ver* yalnız sorulduğu adımı kapatır
+
+- **Ne çalışır:** akışta mekân sorusu *"yatak odası, açık renkler, sen karar ver"* ile cevaplandı
+  ve model bunu akışın tamamının yetkisi olarak okudu: mekân adımı onaysız kapandı, sahne adımının
+  *"kaç sahne, hangi anlar"* sorusu hiç sorulmadı, ve plana karar adsız yazıldı — *"user said sen
+  karar ver"* — yani planı okuyan taze bir sohbet de aynı geniş yetkiyi miras alıyor. *Sen karar
+  ver* cevabın dördüncü geliş yolu olur: yalnız sorulduğu adımı kapatır, sonraki adımın sorusu yine
+  sorulur, kararı bırakılan adım yine seçileni gösterip onayla biter, ve plana hangi adımı
+  kapattıysa o adla yazılır.
+- **Nasıl görülür:** mekân sorusuna *"sen karar ver"* deniyor; akış mekânı kendi seçip gösteriyor
+  ve onay istiyor, sahnelere gelince sayıyı ve anları yine soruyor.
+- **Sebebi bu maddeyi açan konuşmada bulundu** *(28 Ağustos — blokun "önce yaz" sırası bozulmadı,
+  araştırma soruyu getiren konuşmanın kendisiydi)*: akış metni cevabın üç geliş yolunu sayıyor —
+  etiket, tarif, hiç — ve kararın bırakılması üçünden biri değil; kapsamını söyleyen cümle
+  olmayınca model en geniş okumayı seçti, plan da o okumayı kalıcılaştırdı.
+- **Bilerek yapılmayan:** taban yönerge ve prompt+ ellenmez. Skill'siz sohbette *"sen karar ver"*
+  gerçekten işin tamamını devreder ve taban yönergenin *"Ask rather than invent"* cümlesi bunu
+  doğru karşılıyor; prompt+ da zaten kendi başına koşmak için yazıldı — *"asking is for names
+  never settled, not for craft"*.
+- **İlişkisi:** 101 onay döngüsünü, 108 kapanış adımını yazdı; bu madde ikisinin arasında açık
+  kalan kapıyı kapatıyor. 112'nin tek-soru kuralı duruyor — sorulan soru yine tek.
+
 ---
 
 ## Açık sorular
