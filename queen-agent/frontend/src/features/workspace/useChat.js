@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getJson, postJson } from "../../shared/api.js";
 import { streamEvents } from "../../shared/sse.js";
 
+import { chatTitle } from "./chatTitle.js";
+
 export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   const [chat, setChat] = useState(null);
   const [error, setError] = useState(null);
@@ -105,7 +107,13 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
                 ...current,
                 messages: [...current.messages, { role: "user", at, text, pending: true }],
               }
-            : { id: null, title: text, messages: [{ role: "user", at, text, pending: true }] },
+            : {
+                id: null,
+                // The server names the newborn the same way, so the name the window shows now is
+                // the name the record comes back with when the turn ends.
+                title: chatTitle(text),
+                messages: [{ role: "user", at, text, pending: true }],
+              },
         );
       }
       setRefused(null);
