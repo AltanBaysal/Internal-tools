@@ -235,3 +235,35 @@ def test_a_camera_half_comes_from_the_lists():
     # "from side profile" three times in one file: the vocabulary read as examples, not as the
     # set to choose from.
     assert "come from the lists" in _schema().lower()
+
+
+def test_the_rulebook_catches_a_movement_in_an_action():
+    # 28 Aug: head moving back and forth -- stage direction for a video that will never exist.
+    said = _rulebook()
+    assert "10." in said and "frozen instant" in said
+
+
+def test_the_rulebook_catches_camera_language_in_an_action():
+    # full body view in the action while the camera field said medium shot: two framings fight.
+    said = _rulebook()
+    assert "11." in said and "full body view" in said
+
+
+def test_the_rulebook_catches_a_story_role_in_an_action():
+    # stepson thrusting: the camera sees a person, not a relationship, and who is in the frame
+    # is the characters map's word.
+    said = _rulebook()
+    assert "12." in said and "stepson" in said.lower()
+
+
+def test_the_rulebook_catches_an_or_in_any_value():
+    # Rule 8 banned it in outfits; hands gripping wall or body walked around the fence.
+    said = _rulebook()
+    assert "13." in said and "any value" in said
+
+
+def test_the_rulebook_catches_an_outfit_named_after_its_wearer():
+    # milf_pink, male_nude: the prose said garments name outfits, and prose was not enough --
+    # the rulebook is the list the writer is told to check against.
+    said = _rulebook()
+    assert "14." in said and "named after its wearer" in said
