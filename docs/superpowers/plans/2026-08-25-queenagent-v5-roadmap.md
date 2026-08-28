@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **39 madde, 6 blok** — 65'ten 103'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **42 madde, 7 blok** — 65'ten 106'ya.
 
 **Bu belge üç ayrı belgeden birleşti** *(kullanıcı kararı, 27 Ağustos)*. Blok 5 *"v5.5 Yol Haritası"*
 adıyla 26 Ağustos'ta, Blok 6 akış koşusu adıyla 27 Ağustos'ta yazılmıştı. Üçü de aynı branch'te, aynı
@@ -29,9 +29,9 @@ yazılmaması, karakterin her karede aynı okunması, işin parçalara bölünme
 Koşu bu ikisini sırayla kapatıyor: önce ekran ne olduğunu söylesin ve ölçü gelsin; sonra o ölçüye
 bakarak bağlam, model ve yönerge birlikte elden geçsin.
 
-## Altı blok
+## Yedi blok
 
-Koşu altıya ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
+Koşu yediye ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
 
 - **Blok 1 (65-68) tek başına koşuldu — bitti.** Dört madde; her biri kapalı uçlu, kararı verilmiş,
   bir öncekine yaslanıyor. Kullanıcı dördünü koşunun sonunda topluca denedi, ve o deneme Blok 3'ü
@@ -53,6 +53,10 @@ Koşu altıya ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belged
   99'un spec'i açılınca doğdu** *(28 Ağustos)* — yol haritasının o maddede beklediği bölünme. Koşma
   sırası 99 → 102 → 100 → 101; numara her zamanki gibi sondan verildi. **103 koşu kapandıktan sonra
   doğdu** *(28 Ağustos)* — akış çizimine karşı okununca — ve tek başına koşuldu.
+- **Blok 7 (104-106) madde madde koşuldu — bitti.** Üçüncü denemenin çıkardıkları: prompt yüzeyi
+  koşusundan sonra defter denendi *(28 Ağustos)* ve üçü de sohbet ekranından çıktı. Aynı gün üçü de
+  iki turda koşuldu. Blok 4 gibi açık uçlu: deneme sürdükçe madde eklenir, numaralar sondan
+  verilir.
 
 **Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
 koşuyor; numaralarını kaydırmak, onlara atıf yapan her cümleyi yalan yapardı — maddelerin
@@ -941,6 +945,51 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
+# Blok 7 — Üçüncü denemenin çıkardıkları · madde madde · **bitti**
+
+> Prompt yüzeyi koşusu kapandıktan sonra defter denendi *(28 Ağustos)*, ve üçü de sohbet ekranından
+> çıktı. Blok 3 ve 4 gibi backlog'dan gelmiyorlar — backlog değişmiyor. Kök nedenler burada
+> yazılmıyor: her biri kendi koşusunda araştırılır *(kullanıcının sözü: önce yaz, çözerken araştır)*.
+>
+> **Üçü de aynı gün koşuldu.** Kök nedenler koşuda bulundu ve her maddenin kendi testler
+> tasarımında duruyor: 104 taslağa geçişte bırakılmayan kayıt, 105 oturuma yazılan seçim, 106
+> sohbete anahtarsız akış durumu — 104 ile 106 beklendiği gibi aynı mahalle çıktı ama iki ayrı
+> düzeltme istedi.
+
+### Madde 104 — Yeni sohbet gönderilen ilk mesajla kendi adresinde kalır
+
+- **Ne çalışır:** yeni sohbet açılıp ilk mesaj atıldığında ekran orada kalmıyor — kullanıcı eski bir
+  sohbete ışınlanıyor. Doğru davranış: ilk mesaj sohbeti doğurur, adres doğana geçer, cevap oraya
+  akar.
+- **Nasıl görülür:** projede eski sohbetler varken New chat açılıp bir cümle gönderiliyor; ekran
+  yeni doğan sohbette kalıyor, cevap orada akıyor, kenar çubuğunda seçili satır o.
+- **İlişkisi:** 88 — adresi akışın ilk karesi taşıyor; ışınlanmanın mahallesi bu. 106 ile muhtemelen
+  tek kök.
+
+### Madde 105 — Skill seçimi sohbetin olur
+
+- **Ne çalışır:** seçim bugün oturumun *(Madde 86)* ve tarayıcı hatırlıyor *(Madde 100)* — bir
+  sohbette seçilen skill başka sohbete geçince de seçili duruyor. Seçim seçildiği sohbete özel olur:
+  her sohbet kendi seçimini taşır, birinde akış seçmek ötekini değiştirmez.
+- **Nasıl görülür:** bir sohbette Start a scenario seçiliyor, başka sohbete geçiliyor — seçici orada
+  o sohbetin kendi hâlini gösteriyor; geri dönülünce ilk sohbetin seçimi yerinde.
+- **Devirdiği karar:** 86'nın *"seçim oturumundur"* kuralı *(kullanıcı kararı, 28 Ağustos)*. 100'ün
+  hatırlaması yeni sınıra uyar: hatırlanan, sohbetin kendi seçimi. Taslak sohbetin ve proje
+  ekranının ne taşıyacağı maddenin kendi koşusunda kararlaştırılır.
+
+### Madde 106 — Akan cevap kendi sohbetinin ekranında kalır
+
+- **Ne çalışır:** bir sohbet cevap üretirken başka sohbete geçilince akan metin oraya taşınıyor —
+  öteki sohbetin ekranında eski sohbetin akışı görünüyor. Akan cevap yalnız kendi sohbetinde
+  görünür; geçilen sohbet kendi kaydını gösterir.
+- **Nasıl görülür:** uzun bir cevap sürerken başka sohbete geçiliyor — ekran o sohbetin kendi
+  geçmişini gösteriyor, akan satır yok; ilk sohbete dönülünce akış, bitmişse yazılmış cevap orada.
+- **Değişmeyen:** sunucu tarafı. Cevap yazılmaya devam ediyor *(Madde 88'in tek-istek akışı
+  yerinde)*; iş ekranın hangi sohbette ne gösterdiğinde.
+- **İlişkisi:** 104 ile muhtemelen tek kök; koşuda birlikte açılır.
+
+---
+
 ## Açık sorular
 
 Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
@@ -1014,8 +1063,8 @@ commit'lenir, sonra kod yazılıp yeşile döndürülür. İkisinin de kendi spe
 doğurdu, yani yöntem çalıştı. **Blok 3 de durmadan koşuldu** ve aynı şekilde denendi; o deneme de
 Blok 4'ü doğurdu. **Blok 4'te madde tek tek gelir**: kullanıcı bir düzeltme söylüyor, o madde iki
 turda bitiyor, sonra sıradaki konuşuluyor. **Blok 2'de her madde kullanıcıyla açılır**: spec'in
-açık soruları o maddeye gelindiğinde konuşulur, sonra koşulur. **Blok 5 ve Blok 6 da Blok 4'ün
-ritminde**: bir madde iki turda biter, sonra sıradaki konuşulur.
+açık soruları o maddeye gelindiğinde konuşulur, sonra koşulur. **Blok 5, Blok 6 ve Blok 7 de Blok
+4'ün ritminde**: bir madde iki turda biter, sonra sıradaki konuşulur.
 
 Ön yüze dokunan her madde `dist`i **kaynağıyla aynı commit'te** derleyip commit'ler; FOUNDATION'ın
 3. kararı ve `test_dist_is_committed.py` bunu zaten zorluyor. Yerel yol birincil: `python main.py`.
