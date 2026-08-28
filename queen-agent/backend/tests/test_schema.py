@@ -145,6 +145,21 @@ def test_the_schema_says_an_article_is_not_a_tag():
     assert "an article is not a tag" in _schema().lower()
 
 
+def test_the_schema_keeps_the_story_out_of_an_action():
+    # Madde 115: the run wrote "facing each other after argument, reconciling". The argument is
+    # not in the picture -- it came over from the Turkish scene sentence, which is where it
+    # belongs. Saying what an action carries was not enough; the ban has to be said.
+    said = _schema().lower()
+    assert "only what the camera sees" in said
+    assert "what came before" in said
+
+
+def test_the_schema_turns_a_cause_into_what_it_looks_like():
+    # A ban on its own empties the frame. The cause is kept -- written as the thing a camera can
+    # actually see.
+    assert "downcast eyes" in _schema()
+
+
 def test_the_rulebook_calls_clothing_in_the_wrong_place_a_violation():
     said = _rulebook().lower()
     assert "clothing" in said
@@ -176,6 +191,11 @@ def test_the_rulebook_calls_a_sentence_a_violation():
 def test_the_rulebook_catches_one_entry_dressing_two_people():
     said = _rulebook()
     assert "8." in said and "for the man" in said.lower()
+
+
+def test_the_rulebook_catches_a_cause_written_into_an_action():
+    said = _rulebook()
+    assert "9." in said and "cause" in said.lower()
 
 
 def test_what_the_tool_hands_back_carries_both():
