@@ -4,7 +4,7 @@
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **42 madde, 7 blok** — 65'ten 106'ya.
+**Numaralar** v4'ten devam eder (64'te bitti). **49 madde, 7 blok** — 65'ten 113'e.
 
 **Bu belge üç ayrı belgeden birleşti** *(kullanıcı kararı, 27 Ağustos)*. Blok 5 *"v5.5 Yol Haritası"*
 adıyla 26 Ağustos'ta, Blok 6 akış koşusu adıyla 27 Ağustos'ta yazılmıştı. Üçü de aynı branch'te, aynı
@@ -53,9 +53,11 @@ Koşu yediye ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgede
   99'un spec'i açılınca doğdu** *(28 Ağustos)* — yol haritasının o maddede beklediği bölünme. Koşma
   sırası 99 → 102 → 100 → 101; numara her zamanki gibi sondan verildi. **103 koşu kapandıktan sonra
   doğdu** *(28 Ağustos)* — akış çizimine karşı okununca — ve tek başına koşuldu.
-- **Blok 7 (104-106) madde madde koşuldu — bitti.** Üçüncü denemenin çıkardıkları: prompt yüzeyi
-  koşusundan sonra defter denendi *(28 Ağustos)* ve üçü de sohbet ekranından çıktı. Aynı gün üçü de
-  iki turda koşuldu. Blok 4 gibi açık uçlu: deneme sürdükçe madde eklenir, numaralar sondan
+- **Blok 7 (104-113) madde madde koşulur.** Üçüncü denemenin çıkardıkları: prompt yüzeyi koşusundan
+  sonra defter denendi *(28 Ağustos)*. **104-106 aynı gün koşuldu — bitti**; üçü de sohbet
+  ekranındandı. **107-113 aynı günün ikinci denemesinden**, ve hepsi akışın kendisinden: devir,
+  promptu bozan iki yapı hatası, iki üslup işi, ve prompt+'ın eksik yarısı. **107 koşulmuyor**
+  *(kullanıcı kararı)*. Blok 4 gibi açık uçlu: deneme sürdükçe madde eklenir, numaralar sondan
   verilir.
 
 **Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
@@ -945,7 +947,7 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
-# Blok 7 — Üçüncü denemenin çıkardıkları · madde madde · **bitti**
+# Blok 7 — Üçüncü denemenin çıkardıkları · madde madde
 
 > Prompt yüzeyi koşusu kapandıktan sonra defter denendi *(28 Ağustos)*, ve üçü de sohbet ekranından
 > çıktı. Blok 3 ve 4 gibi backlog'dan gelmiyorlar — backlog değişmiyor. Kök nedenler burada
@@ -987,6 +989,122 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 - **Değişmeyen:** sunucu tarafı. Cevap yazılmaya devam ediyor *(Madde 88'in tek-istek akışı
   yerinde)*; iş ekranın hangi sohbette ne gösterdiğinde.
 - **İlişkisi:** 104 ile muhtemelen tek kök; koşuda birlikte açılır.
+
+> **İkinci deneme, aynı gün** *(28 Ağustos)*: 104-106 kapandıktan sonra akış uçtan uca koşuldu ve
+> üç şey çıktı. Bugünkü biçim işi kanıtlandı — `action` değerleri cümle değil, parça — ve
+> adlandırma sözleşmesi *(`senaryo.json` ↔ `senaryo-scenes.md`)* kendiliğinden tuttu. Aşağıdaki
+> üçü, o koşunun bıraktıkları.
+
+### Madde 107 — Tur ritüeli iner
+
+> **Bu koşuda koşulmuyor** *(kullanıcı kararı, 28 Ağustos)*: akış bugünkü hâliyle stabil çalışıyor,
+> ve ritüele dokunmak çalışan bir şeyi bozma riski taşıyor. Madde duruyor; token gerçekten canını
+> yaktığında koşulur.
+
+- **Ne çalışır:** akış her turda baştan başlıyor: `list_files` + planı okuma her turda tekrar,
+  şema tek koşuda **altı kez**, ve model kendi yazdığını hemen geri okuyor. *"Bitti mi?"* sorusu
+  yedi araç adımı sürüyor. Adım = ayrı istek, ve her istek büyüyen bağlamın tamamını ödüyor; iki
+  turda 50k token bu yüzden. Ritüel turun başından iner: ilk tur bir kez kurar, sonraki turlar
+  bağlamdan sürer.
+- **Nasıl görülür:** aynı senaryonun ilk iki turu belirgin az adımla koşuyor — şema yapı dosyası
+  yazılmadan hemen önce bir kez çağrılıyor, plan adım kapanınca bir kez yazılıyor, ve yazılan
+  dosya geri okunmuyor.
+- **Kararı verilmiş:** metin işi, kod değişmiyor. Sebebi bilinen dört cümle *(akışın 1. adımı,
+  2. adımın şema çağrısı, planın hafıza cümlesi, taban yönergenin taze-okuma cümlesi)* zayıf
+  modelde aşırı çalışıyor — hepsi doğru, hiçbiri fiyatıyla tartılmamıştı.
+- **Değişmeyen:** planın hafıza olması *(yarım kalan iş yeni sohbetten sürer)* ve taze okumanın
+  kendisi — sınır, **dosyayı başkası değiştirmiş olabilecekse** okumaktır.
+- **İlişkisi:** 93, 96, 101.
+
+### Madde 108 — Devir beşinci adım olur
+
+- **Ne çalışır:** akış sahne listesinden sonra durmadı: Generate prompts+'ı hiç göstermedi,
+  frame'leri *"yazayım mı?"* diye kendisi teklif etti, planına beşinci bir adım yazdı ve
+  frame'lerin onunu tek `edit_file`'da yazdı *(beşli parti kuralı prompt+'ın metninde)*. Devir
+  numaralı bir adım olur ve plana beşinci satır olarak girer — iki dosyayı adıyla söyler,
+  prompt+'ı gösterir, durur.
+- **Nasıl görülür:** sahne listesi onaylanınca kapanış iki dosyayı adıyla söylüyor, senaryonun
+  hazır olduğunu söylüyor ve prompt+'ı gösteriyor; *"frame'leri yaz"* denince akış yönlendiriyor,
+  kendisi yazmıyor.
+- **Kararı verilmiş — kullanıcı ısrar ederse akış yine yazmaz:** yönlendirir. Partili yazım ve
+  craft izni prompt+'ta duruyor; onun turnusolu bu koşuda görüldü — tek nefeste on frame.
+- **Sebebi biliniyor:** devir cümlesi numaralı listenin **dışında** ve emir kipinde değil; 4. adım
+  ise *"the frames will be written from"* diyerek devamı ima ediyor. Zayıf model listeyi bitirince
+  duruyor, ve listeye en yakın imayı takip ediyor.
+- **İlişkisi:** K40, 101. Gösterdiği skill'in düzenleyici yarısı **113**'te.
+
+### Madde 109 — Kıyafet giyenin olur
+
+- **Ne çalışır:** iki karakterli senaryoda model tek `outfits` girdisi yazdı ve ikisine birden
+  verdi: `"...dark pants for man, black dress for woman"` ve `"...t-shirt or blouse"`. Kod metni
+  ikisine de aynen bastığı için **beşinci karede erkek siyah elbise giyiyor**, ve `or` / `for man`
+  bir görüntü modeline çöp gidiyor. Şema *"iki karakter aynı kıyafeti giyebilir"* diyor; farklı
+  giyinen bir çiftin **iki ayrı girdi** istediğini hiçbir yer söylemiyor.
+- **Nasıl görülür:** iki karakterli bir senaryoda kıyafetler kişiye göre ayrı girdiler oluyor, ve
+  üretilen promptların hiçbirinde `or` ya da `for man` geçmiyor.
+- **Kararı verilmiş:** ertelenen örnek işinin şartı gerçekleşti — kullanıcının sözü *"structure'da
+  hata olursa o zaman tekrardan düşünürüz"*. Kalabalık ikinci kare örneği bu maddeyle geri
+  geliyor; iki karakterin ayrı kıyafet girdileriyle durduğu bir kare, kuralı anlatan cümleden daha
+  çok iş görüyor.
+- **Değişmeyen:** kod. `build_prompts` adı ne buluyorsa onu basıyor *(K26'nın çizgisi)*; iş
+  şemanın düzyazısında, kural kitabında ve örnekte.
+- **İlişkisi:** 95, 96.
+
+### Madde 110 — Kalite etiketleri koddan gelir
+
+- **Ne çalışır:** `quality` bugün dosyanın alanı, yani modelin yazdığı şey — ve model onu şemadaki
+  örnekten kopyalıyor. Örnekteki dizi iki ayrı model ailesinin karışımı, dolayısıyla her senaryo o
+  karışımı taşıyor. Kalite zinciri senaryodan senaryoya değişmiyor: koda iner. Kod prompt kurarken
+  en başa ekler ve dosya alanı taşımaz. Bir senaryo başka bir zincir isterse alan yine yazılabilir,
+  ve yazılmışsa kod onu kullanır.
+- **Nasıl görülür:** akışın kurduğu yapı dosyasında `quality` alanı yok, ama üretilen promptların
+  hepsi kalite zinciriyle başlıyor. Alan elle yazılan bir dosyada promptlar o zinciri taşıyor.
+- **Kararı verilmiş** *(kullanıcı kararı, 28 Ağustos: "hep aynı olur, prompttan çıkarıp otomatik
+  jsona atalım")*. Yazmayan model yanlış zincir de yazamaz — kopyalama sorununu kökten kapatıyor.
+- **Varsayılan zincir kullanıcının kendi çalışan promptundan gelir**
+  *([araştırma belgesi §5c](../research/2026-08-18-queenagent-beceriler-tasarim-kararlari.md))*. Tek
+  sabit, tek yerde: model ailesi değişirse orası değişir, dosyalar değişmez.
+- **Değişmeyen:** birleştirme sırası — kalite en başta, bir kez *(Madde 95)* — ve kural kitabının
+  "kalite etiketleri karenin kendi alanlarında tekrarlanmaz" maddesi.
+- **İlişkisi:** 95, 96. 109 ile aynı dosyalara dokunuyor; ikisi sırayla koşulur.
+
+### Madde 111 — Kamera tek tipten çıkar
+
+- **Ne çalışır:** on karelik bir senaryonun yedisi düz `medium shot` çıktı. prompt+ metni kamerayı
+  kendi işi sayıyor ama neye benzediğini söylemiyor, ve şemanın örneği tek bir kamera gösteriyor.
+  Çekim ölçüsü ile açı ayrı ayrı seçilir, ve komşu kareler birbirinden ayrışır.
+- **Nasıl görülür:** on sahnelik bir senaryoda kamera değerleri çeşitleniyor — ölçü *(yakın, orta,
+  boy)* ve açı *(yandan, yukarıdan, arkadan)* — ve aynı değer arka arkaya tekrarlamıyor.
+- **Bilerek yapılmayan:** koda kamera listesi girmiyor. Kod ne yazıldıysa onu basar; iş metnin.
+- **İlişkisi:** 109 ile aynı iki dosya.
+
+### Madde 112 — Cevabın sonuna seçenek listesi eklenmez
+
+- **Ne çalışır:** model her turun sonuna beş şıklı bir menü yazıyor — *"promptları görmek ister
+  misin · birkaçını değiştirelim mi · başka bir şey mi"*. Akış zaten adım başına tek soru soruyor;
+  menü hem cevabı uzatıyor hem kullanıcıyı seçmeye zorluyor. Bir tur tek soruyla biter.
+- **Nasıl görülür:** adım sonlarında tek bir soru var, altında şık listesi yok.
+- **İlişkisi:** taban yönergenin *"End by saying what you did"* cümlesi ile akış metninin onay
+  döngüsü; ikisinden hangisine yazılacağı maddenin spec'inde kapanır.
+
+### Madde 113 — prompt+ var olanı da düzenler
+
+- **Ne çalışır:** prompt+'ın metni yalnız baştan kurmayı anlatıyor — açılışı *"this is the skill
+  that builds them"*, gövdesi iskeletten listeye giden yol. *"Bu promptu beğenmedim, üçüncü kareyi
+  değiştir"* senaryosu hiçbir yerde geçmiyor, ve metinde görmediği işi zayıf model ya reddeder ya
+  baştan kurar. Skill iki işi birden söyler: kurar **ve** değiştirir.
+- **Nasıl görülür:** var olan bir senaryoda *"üçüncü karenin kamerası yakın olsun"* denince o kare
+  `edit_file` ile düzeltiliyor ve `build_prompts` yeniden çağrılıyor; prompt dosyası elle
+  yamanmıyor, baştan kuruluyor. Bir harita girdisi değişince onu anan bütün kareler değişiyor.
+- **Kararı verilmiş — ayrı bir düzenleme skill'i yok** *(kullanıcı kararı, 28 Ağustos)*: aynı
+  dosya, aynı araçlar, aynı kurucu, aynı şema; ikinci bir metin şemayı ve elle-kurma yasağını
+  kopyalardı, ve kopya sapar *(96'nın gerekçesi)*.
+- **Kaydı zaten vardı:** Madde 94, prompt+'ın işini *"var olanı güncellemek"* diye yazmıştı; o
+  cümle skill metnine hiç geçmemiş. Bu madde onu geçiriyor.
+- **Yanında gelen:** seçicideki satır. Bugün *"Build the prompts from a structure file you already
+  have"* diyor, yani düzenleyici arayan kullanıcıyı başka yere bakmaya gönderiyor — `dist`
+  kaynağıyla aynı commit'te derlenir.
+- **İlişkisi:** 94, 108. 108 kullanıcıyı buraya yolluyor; burası da onu karşılayabilmeli.
 
 ---
 
