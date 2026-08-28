@@ -206,3 +206,32 @@ def test_what_the_tool_hands_back_carries_both():
 def test_the_schema_never_calls_a_frame_a_shot():
     # The same sweep the instructions get: the word survives only as camera language.
     assert "shot" not in _schema().lower().replace("medium shot", "")
+
+
+def test_the_schema_names_its_reader():
+    # 28 Aug: the file carried stage direction -- head moving back and forth -- because nothing
+    # the model reads says who the prompts are for. The fact lived in the roadmap and the
+    # decision notebook, two documents the model never sees.
+    said = _schema()
+    assert "SDXL-family" in said
+    assert "tags, never sentences" in said
+
+
+def test_the_schema_says_a_frame_is_one_frozen_instant():
+    # "The camera sees" alone also describes a video camera, and the model wrote for one.
+    said = _schema().lower()
+    assert "one single still picture" in said
+    assert "frozen instant" in said
+    assert "no motion" in said
+
+
+def test_a_movement_is_written_as_the_pose_it_passes_through():
+    # The ban alone would empty the frame -- the movement is kept, written as what a still
+    # camera can hold, the way the cause became downcast eyes.
+    assert "the pose it passes through" in _schema().lower()
+
+
+def test_a_camera_half_comes_from_the_lists():
+    # "from side profile" three times in one file: the vocabulary read as examples, not as the
+    # set to choose from.
+    assert "come from the lists" in _schema().lower()
