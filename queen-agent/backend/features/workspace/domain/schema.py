@@ -14,15 +14,22 @@ STRUCTURE = (
     "{\n"
     '  "quality": "score_9_up, masterpiece, best quality, absurdres",\n'
     '  "characters": { "aylin": "woman in her mid 20s, long teal hair, green eyes, mature '
-    'female" },\n'
-    '  "outfits": { "gunluk": "jeans, black t-shirt", "atki": "red knit scarf" },\n'
+    'female",\n'
+    '                  "deniz": "man in his late 20s, short black hair, brown eyes, stubble" },\n'
+    '  "outfits": { "gunluk": "jeans, black t-shirt", "atki": "red knit scarf",\n'
+    '               "ceket": "denim jacket, white t-shirt" },\n'
     '  "locations": { "bedroom": "sunlit bedroom, morning light, natural light, indoors" },\n'
     '  "frames": [\n'
     '    { "people": "1girl", "characters": { "aylin": ["gunluk", "atki"] },\n'
     '      "location": "bedroom",\n'
     '      "action": "sitting on edge of bed, holding letter, pensive expression, light blush, '
     'looking down",\n'
-    '      "camera": "medium shot, from slightly above" }\n'
+    '      "camera": "medium shot, from slightly above" },\n'
+    '    { "people": "1boy, 1girl",\n'
+    '      "characters": { "aylin": ["gunluk"], "deniz": ["ceket"] },\n'
+    '      "location": "bedroom",\n'
+    '      "action": "standing by the window, talking, looking at each other, soft smiles",\n'
+    '      "camera": "upper body, from the side" }\n'
     "  ]\n"
     "}\n"
     "\n"
@@ -33,7 +40,10 @@ STRUCTURE = (
     "What a character always is goes in characters; what changes from frame to frame goes in "
     "outfits. Clothing is the thing that changes, so it never belongs in a character's own entry. "
     "An outfit is named after the garment rather than whoever wears it, because two characters can "
-    "wear the same one.\n"
+    "wear the same one. An entry dresses one person: the text it holds is copied whole to whoever "
+    "names it, so two people dressed differently are two entries. One entry trying to cover both "
+    "-- or, for the man, for the woman -- puts the man in the dress and the woman in the "
+    "trousers.\n"
     "\n"
     "people says how many are in the frame -- 1girl; 1boy, 1girl; 2girls. Every frame carries it, "
     "even a frame with one character, and it is never inside a character's own entry: the same "
@@ -71,7 +81,9 @@ RULEBOOK = (
     "belongs. Nothing strips it for you -- code cannot tell a count from any other tag, so move "
     "it yourself.\n"
     "7. A value written as a sentence -- articles, a subject doing a verb -- when fragments are "
-    "what an image model reads. Break it into short comma-separated fragments."
+    "what an image model reads. Break it into short comma-separated fragments.\n"
+    "8. One outfit entry covering two people -- or, for the man, for the woman. Whoever names it "
+    "is handed the whole text, so split it into one entry per set of clothes."
 )
 
 SCHEMA = (
