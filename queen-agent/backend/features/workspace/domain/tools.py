@@ -40,8 +40,8 @@ class FileWritten:
     name: str
 
 
-# The longest sensible chain is the structured prompt run: list, read, write the skeleton, add the
-# frames in batches, check itself, build. Sixteen rounds carry it; an unbounded loop would burn both
+# The longest sensible chain is the structured prompt run: read the pair, write the skeleton, add
+# the frames in batches, check itself, build. Sixteen rounds carry it; an unbounded loop would burn both
 # money and time. Reaching the limit is a stop, not a failure -- which is why the number has to be
 # generous: a chain cut short looks exactly like a model that gave up.
 MAX_ROUNDS = 16
@@ -52,17 +52,6 @@ DEFAULT_NAME = "note.md"
 WRITES_FILES = {"create_file", "build_prompts", "build_character_prompts", "write_plan"}
 
 TOOL_SPECS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "list_files",
-            "description": (
-                "List the names of the files this project already holds -- names only; read_file "
-                "reads one."
-            ),
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
     {
         "type": "function",
         "function": {
@@ -238,17 +227,6 @@ def run_tool(file_store, project_id, name, arguments):
         args = json.loads(arguments or "{}")
     except json.JSONDecodeError:
         return ToolResult("Those arguments were not valid JSON.", None, "", "Bad arguments")
-
-    if name == "list_files":
-        names = file_store.list_names(project_id)
-        # Counting to zero does not say "there are none": the two are different sentences and the
-        # reader wants the second one.
-        return ToolResult(
-            "\n".join(names) if names else "This project has no files yet.",
-            None,
-            "",
-            counted(len(names), "file") if names else "No files",
-        )
 
     if name == "read_prompt_structure_schema":
         # No arguments: there is one shape, so asking which one would be a question with a single

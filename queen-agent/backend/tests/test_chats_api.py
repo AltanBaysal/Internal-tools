@@ -611,7 +611,13 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
         f"/api/projects/{opid}/messages", json={"text": "hello", "skill": "generate-prompts-plus"}
     ).get_data()
 
-    assert not [piece for piece in plain.seen if piece["role"] == "system"]
+    # No instruction with no skill selected. The file names are not one: since Madde 127 they ride
+    # in every request either way, so they are dropped before the count.
+    assert not [
+        piece
+        for piece in plain.seen
+        if piece["role"] == "system" and "project" not in piece["content"]
+    ]
     # At the end since Madde 93, where it used to be in front of the message it governed. The
     # claim is unchanged -- the road from the composer to the engine is one road.
     assert with_skill.seen[-1] == {

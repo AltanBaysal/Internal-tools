@@ -41,21 +41,37 @@ def _current_skill(chat):
     return ""
 
 
-def _asked(conversation, instruction):
-    """The request as it goes out: the conversation, and the instruction behind all of it.
+def _named(names):
+    """What the project holds, in one line for the model (Madde 127).
 
-    Two measures put it there. Attention: accuracy is highest at the two ends of a context and
-    falls by more than a third in the middle. Cache: what is fixed leads so the prefix holds, and
-    what changes trails so only it goes stale.
+    Counting to zero does not say "there are none": the two are different sentences, and a model
+    reading an empty list would go looking for the tool that used to answer this.
+    """
+    if not names:
+        return "This project holds no files yet."
+    return "The project's files right now: " + ", ".join(names)
+
+
+def _asked(conversation, names, instruction):
+    """The request as it goes out: the conversation, then what the project holds, then the
+    instruction behind all of it.
+
+    Two measures put the instruction at the end. Attention: accuracy is highest at the two ends of
+    a context and falls by more than a third in the middle. Cache: what is fixed leads so the
+    prefix holds, and what changes trails so only it goes stale.
+
+    The names ride between the two. Behind the conversation because a file born in this turn has to
+    be seen by the next round; in front of the instruction because Madde 93 gave it the last word.
 
     Built fresh on every round rather than once, because `conversation` grows -- each round appends
     what the model said and what the tools answered. An instruction placed inside it once would sit
     behind those from the second round on, and the reason this exists would stop holding after the
     first one.
     """
+    asked = conversation + [{"role": "system", "content": _named(names)}]
     if not instruction:
-        return conversation
-    return conversation + [{"role": "system", "content": instruction}]
+        return asked
+    return asked + [{"role": "system", "content": instruction}]
 
 
 HEARTBEAT_SECONDS = 15
@@ -124,7 +140,9 @@ def stream_answer(
             round_spent = None
             try:
                 for piece in engine.stream(
-                    _asked(conversation, instruction),
+                    # The names are read here rather than before the loop: a round that wrote a
+                    # file changes the answer, and the next round has to hear the new one.
+                    _asked(conversation, file_store.list_names(project_id), instruction),
                     # Every tool, in every mode. Since Madde 99 the mode is not what the request
                     # carries -- it is which of them run out of it without a question.
                     tools=TOOL_SPECS,

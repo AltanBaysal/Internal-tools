@@ -514,7 +514,16 @@ def _said_with(tmp_path, *turns):
 
 
 def _instructions(conversation):
-    return [piece["content"] for piece in conversation if piece["role"] == "system"]
+    """The skill instructions a request carries -- never the file names.
+
+    Since Madde 127 those ride as a system message of their own, in every request, whether or not
+    a skill is selected. Counting them here would read as an instruction nobody selected.
+    """
+    return [
+        piece["content"]
+        for piece in conversation
+        if piece["role"] == "system" and not _files_line([piece])
+    ]
 
 
 def test_the_instruction_is_the_last_thing_in_the_request(tmp_path):
@@ -526,7 +535,9 @@ def test_the_instruction_is_the_last_thing_in_the_request(tmp_path):
         "role": "system",
         "content": instruction_for("generate-prompts-plus"),
     }
-    assert conversation[-2]["content"] == "write me the prompts"
+    # Two back rather than one since Madde 127: the file names sit between the conversation and
+    # the instruction, and the instruction is still what closes the request.
+    assert conversation[-3]["content"] == "write me the prompts"
 
 
 def test_only_the_current_skill_is_sent_whatever_came_before(tmp_path):
@@ -551,8 +562,10 @@ def test_no_instruction_stands_among_the_messages(tmp_path):
     _, conversation = _said_with(
         tmp_path, ("one", "generate-prompts-plus"), ("and the rest", "generate-prompts-plus")
     )
-    # Three, because the chat was born with a message of its own before these two.
-    assert [piece["role"] for piece in conversation[:-1]] == ["user", "user", "user"]
+    # Three, because the chat was born with a message of its own before these two. The file names
+    # are dropped rather than counted: they are the request's, not the conversation's.
+    said = [piece for piece in conversation[:-1] if not _files_line([piece])]
+    assert [piece["role"] for piece in said] == ["user", "user", "user"]
 
 
 def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
@@ -565,8 +578,9 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     second = engine.seen[1]
     assert second[-1] == {"role": "system", "content": instruction_for("generate-prompts-plus")}
-    # And what it moved past: the round that asked for the tool, and the tool's answer.
-    assert [piece["role"] for piece in second[-3:-1]] == ["assistant", "tool"]
+    # And what it moved past: the round that asked for the tool, and the tool's answer. The file
+    # names stand between them and it since Madde 127, so the pair sits one further back.
+    assert [piece["role"] for piece in second[-4:-2]] == ["assistant", "tool"]
 
 
 def test_a_chat_without_a_skill_is_told_nothing_extra(tmp_path):
@@ -867,7 +881,9 @@ def test_a_refused_call_tells_the_model_why(tmp_path):
     _, _, engine, _ = _gated(
         tmp_path, [_write_round(), [{"text": "ok"}]], permissions=Answers(refused())
     )
-    said = engine.seen[1][-1]
+    # The conversation's last word, which since Madde 127 is no longer the request's: the file
+    # names ride behind it.
+    said = [piece for piece in engine.seen[1] if piece["role"] == "tool"][-1]
     assert said["role"] == "tool"
     assert said["tool_call_id"] == "t1"
     assert "create_file" in said["content"]
@@ -880,7 +896,8 @@ def test_the_users_own_reason_reaches_the_model(tmp_path):
         [_write_round(), [{"text": "ok"}]],
         permissions=Answers(refused("that file is mine")),
     )
-    assert "that file is mine" in engine.seen[1][-1]["content"]
+    refusal = [piece for piece in engine.seen[1] if piece["role"] == "tool"][-1]
+    assert "that file is mine" in refusal["content"]
 
 
 def test_a_refused_call_is_still_a_card(tmp_path):
