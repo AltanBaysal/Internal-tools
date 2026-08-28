@@ -1000,6 +1000,11 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 > **Bu koşuda koşulmuyor** *(kullanıcı kararı, 28 Ağustos)*: akış bugünkü hâliyle stabil çalışıyor,
 > ve ritüele dokunmak çalışan bir şeyi bozma riski taşıyor. Madde duruyor; token gerçekten canını
 > yaktığında koşulur.
+>
+> **Şart gerçekleşti ve madde koşuldu** *(29 Ağustos, kullanıcı onayı)*: altıncı denemede tek bir
+> *"nerde kaldık"* turu 8 adım koştu — list_files, plan, üç preview dosyası, şema — ve 19.2k
+> gösterdi. `feat/queenagent-m123-skill-rewrite` dalında, 123'ün kısalttığı metinlerin üstünde
+> koşuldu; teşhisteki dört cümle düzeltildi, kod değişmedi. Cache tarafındaki kardeşi **124**.
 
 - **Ne çalışır:** akış her turda baştan başlıyor: `list_files` + planı okuma her turda tekrar,
   şema tek koşuda **altı kez**, ve model kendi yazdığını hemen geri okuyor. *"Bitti mi?"* sorusu
@@ -1290,6 +1295,25 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
   ritüele dokunulduğu için *(107'nin uyarısı)* deneme dala alındı.
 - **İlişkisi:** 101, 108, 112, 113, 117, 118 ve 120'nin davranışları aynen korunur; değişen yalnız
   anlatım. Sonrasında yazılan skillerin writing-skills gözüyle bir daha okunması ayrıca konuşuldu.
+
+### Madde 124 — İstek cache anahtarını taşır
+
+- **Ne çalışır:** xAI'nin prefix cache'i otomatik ama isabet garanti değil: girdiler bellek
+  baskısıyla düşüyor ve istekler farklı sunuculara gidebiliyor; dokümanın kendi cümlesi *"use
+  x-grok-conv-id to maximize cache hit rates"*. Client bugün yalnız `Authorization` ve
+  `Content-Type` gönderiyor — bir turun on-yirmi isteği aynı cache'e yönlendirilmiyor. Sohbet
+  kimliği `stream_answer`'dan motora, motordan client'a iner ve her istek `x-grok-conv-id`
+  başlığını taşır; kimliği olmayan yol *(ad üretimi gibi)* başlıksız kalır.
+- **Nasıl görülür:** aynı sohbetin ikinci sorusundan itibaren cevabın altındaki sayının
+  önbellekten gelen payı kayıttan belirgin büyük okunuyor — ölçüyü 68/76 kurmuştu.
+- **Kaynak:** [xAI prompt caching](https://docs.x.ai/developers/advanced-api-usage/prompt-caching/how-it-works)
+  *(29 Ağustos'ta okundu)*. Araştırmanın diğer yarısı bir maddeye dönmedi: araç sonuçlarını
+  turlar arası taşımak Anthropic'in kendi kılavuzunda da tersine çevrilmiş durumda *(tool result
+  clearing — "why would the agent need to see the raw result again?")*; QueenAgent'ın turlar arası
+  silmesi o felsefeyle uyumlu, ve FOUNDATION 3 ölçülmemişken büyütmeyi yasaklıyor. Önce 107+124,
+  sonra ölçüm.
+- **İlişkisi:** 93 prefix'i sabitledi, 68/76 ölçüyü kurdu, 107 istek sayısını indirdi; bu madde
+  kalan isteklerin ucuza inmesi. `feat/queenagent-m123-skill-rewrite` dalında koşuldu.
 
 ---
 
