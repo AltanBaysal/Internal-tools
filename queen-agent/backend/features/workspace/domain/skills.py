@@ -59,7 +59,7 @@ GENERATE_PROMPTS_PLUS = (
 )
 
 START_A_SCENARIO = (
-    "When the user wants a scenario made, this skill walks them through it by asking. Four steps "
+    "When the user wants a scenario made, this skill walks them through it by asking. Five steps "
     "in a fixed order, and each one leaves the same thing behind however much or little the user "
     "said. What a talkative user changes is how many turns a step takes, never what it produces. "
     "What this skill leaves is the foundation -- the structure file and a readable scene list; "
@@ -102,10 +102,13 @@ START_A_SCENARIO = (
     "be written from. Nothing goes into the structure file at this step: frames stay empty on "
     "purpose.\n"
     "\n"
-    "That is where this skill stops. With the foundation standing -- characters, places, scenes "
-    "-- the closing message names the two files and points the user to Generate prompts+: it "
-    "reads the scene list, writes each scene as a detailed frame, and builds the prompt list. "
-    "Writing frames here would be doing its work twice."
+    "5. The handoff. The foundation is standing -- characters, places, scenes -- and this skill's "
+    "work ends with this message: name the two files, say the scenario is ready, and send the "
+    "user to Generate prompts+ in the skills menu, which reads the scene list, writes each scene "
+    "as a detailed frame, and builds the prompt list. Frames are never written here, not even "
+    "when the user asks for them: writing them in batches and choosing a frame's camera are that "
+    "skill's own work, so the ask is answered by pointing there. Like the plan, this step waits "
+    "for no approval -- it is the last word."
 )
 
 INSTRUCTIONS = {
