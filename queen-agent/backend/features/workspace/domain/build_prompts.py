@@ -7,6 +7,14 @@ character copied into forty frames drifts, a character resolved by code cannot.
 from backend.features.workspace.domain.errors import BadStructure
 from backend.features.workspace.domain.naming import folded
 
+# The chain every prompt opens with. In code rather than in each structure file since Madde 110: it
+# is the same in every scenario, and a model writing it meant a model copying it out of the schema
+# example -- which is how a chain mixing two model families reached real files. A scenario that
+# needs a different one writes quality in its own file and this steps aside.
+DEFAULT_QUALITY = (
+    "score_9_up, score_9, score_8_up, masterpiece, best quality, raw, high quality, 4k, absurdres"
+)
+
 
 def build_prompts(structure):
     """Every frame as one prompt, or a sentence saying why none of them can be built."""
@@ -34,7 +42,7 @@ def build_prompts(structure):
         #
         # The count is placed, never worked out: the code knows who entered the frame but not what
         # they are, and no field says so.
-        parts = [structure.get("quality", ""), frame.get("people", "")]
+        parts = [structure.get("quality") or DEFAULT_QUALITY, frame.get("people", "")]
         # Whoever the frame wrote first leads it. No field names them -- the order already carries
         # it, and a second place saying the same thing is a place that can disagree.
         in_frame = _worn(frame.get("characters"))
@@ -72,7 +80,7 @@ def build_character_prompts(structure, character):
             f"{character} is not in characters; known: {', '.join(sorted(characters)) or 'nothing'}"
         )
 
-    quality = structure.get("quality", "")
+    quality = structure.get("quality") or DEFAULT_QUALITY
     identity = characters[character]
     outfits = structure.get("outfits") or {}
     if not outfits:

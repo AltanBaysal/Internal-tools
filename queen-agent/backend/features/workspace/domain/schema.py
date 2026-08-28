@@ -12,7 +12,6 @@ STRUCTURE = (
     "The structure is one JSON file per scenario, named after it, as in intro-frames.json:\n"
     "\n"
     "{\n"
-    '  "quality": "score_9_up, masterpiece, best quality, absurdres",\n'
     '  "characters": { "aylin": "woman in her mid 20s, long teal hair, green eyes, mature '
     'female",\n'
     '                  "deniz": "man in his late 20s, short black hair, brown eyes, stubble" },\n'
@@ -60,6 +59,10 @@ STRUCTURE = (
     "and brief phrases -- never a sentence telling the story. An action carries the pose, the "
     "expression and where the eyes look; a camera carries the framing and the angle. The example "
     "is the measure: match its density.\n"
+    "\n"
+    "The quality chain is not in this file: code puts it at the front of every prompt, the same "
+    "way for every scenario. Write a quality field only when this one needs a different chain -- "
+    "what is written there is used instead.\n"
     "\n"
     "Everything in this file is English -- an image model reads it."
 )
