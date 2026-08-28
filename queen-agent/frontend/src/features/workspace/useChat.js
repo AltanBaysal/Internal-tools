@@ -33,7 +33,15 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   const streamingInto = useRef(null);
 
   useEffect(() => {
-    if (!projectId || !chatId) return undefined;
+    // No chat at this address: the draft, or no chat screen at all. Dropped rather than kept -- a
+    // held record is the chat that was left, the draft's first bubble lands on it, and the birth
+    // then shows that transcript at the newborn's address (Madde 104).
+    if (!projectId || !chatId) {
+      setChat(null);
+      setError(null);
+      setMissing(false);
+      return undefined;
+    }
     if (chatId === streamingInto.current) return undefined;
     let cancelled = false;
     setChat(null);
