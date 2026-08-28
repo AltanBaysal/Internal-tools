@@ -209,12 +209,12 @@ dosyanın şekli yalnız yazma anında lazım.*
 >     { "people": "1girl", "characters": { "aylin": ["gunluk", "atki"] },
 >       "location": "bedroom",
 >       "action": "sitting on edge of bed, holding letter, pensive expression, light blush, looking down",
->       "camera": "medium shot, from slightly above" },
+>       "camera": "medium shot, from above" },
 >     { "people": "1boy, 1girl",
 >       "characters": { "aylin": ["gunluk"], "deniz": ["ceket"] },
 >       "location": "bedroom",
->       "action": "standing by the window, talking, looking at each other, soft smiles",
->       "camera": "upper body, from the side" }
+>       "action": "standing by window, talking, looking at each other, soft smiles",
+>       "camera": "upper body, from side" }
 >   ]
 > }
 > ```
@@ -227,9 +227,11 @@ dosyanın şekli yalnız yazma anında lazım.*
 >
 > A frame's characters is a map: the key is the character, the value is the outfits they wear in that frame. A character with no outfit named has an empty list, and a frame with nobody in it is an empty map. The first name a frame lists leads the prompt: it opens the prompt, and everyone after it is placed at the end, after the camera tags, so two descriptions do not bleed into each other. Write whoever the frame is about first.
 >
-> Every value in this file is written the same way: short comma-separated fragments -- tags and brief phrases -- never a sentence telling the story. An action carries the pose, the expression and where the eyes look; a camera carries the framing and the angle. The example is the measure: match its density.
+> Every value in this file is written the same way: short comma-separated fragments -- tags and brief phrases -- never a sentence telling the story. An article is not a tag, so it is dropped: sitting on couch, by window. An action carries the pose, the expression and where the eyes look; a camera carries the framing and the angle. The example is the measure: match its density.
 >
-> A camera is two decisions: how much of the body is in the picture -- close-up, upper body, medium shot, full body -- and where it is looking from -- from the side, from above, from behind, looking at viewer. Both are written, and the pair is chosen for the scene rather than kept from the frame before.
+> An action holds only what the camera sees. A scene sentence carries why something is happening and what came before it; a frame carries neither, because nothing in the picture shows them. A cause is written as what it looks like -- turned away, downcast eyes, tense shoulders -- or it is left out.
+>
+> A camera is two decisions: how much of the body is in the picture -- close-up, upper body, medium shot, full body -- and where it is looking from -- from side, from above, from behind, looking at viewer. Both are written, and the pair is chosen for the scene rather than kept from the frame before.
 >
 > The quality chain is not in this file: code puts it at the front of every prompt, the same way for every scenario. Write a quality field only when this one needs a different chain -- what is written there is used instead.
 >
@@ -245,6 +247,7 @@ dosyanın şekli yalnız yazma anında lazım.*
 > 6. A count or a solo tag inside a character's own entry, when the frame's people is where it belongs. Nothing strips it for you -- code cannot tell a count from any other tag, so move it yourself.
 > 7. A value written as a sentence -- articles, a subject doing a verb -- when fragments are what an image model reads. Break it into short comma-separated fragments.
 > 8. One outfit entry covering two people -- or, for the man, for the woman. Whoever names it is handed the whole text, so split it into one entry per set of clothes.
+> 9. A cause or a moment outside the frame written into an action -- after the argument, later, again. Nothing in the picture shows it, so write what it looks like instead.
 
 ---
 

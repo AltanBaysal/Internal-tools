@@ -1108,7 +1108,7 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
-# Blok 8 — Örnek öğretmendir · madde madde
+# Blok 8 — Örnek öğretmendir · madde madde · **bitti**
 
 > Blok 7 kapandıktan sonra üçüncü denemenin `senaryo.json`'ı bir kez daha, bu sefer gerçek SDXL
 > promptlarının yanına konarak okundu *(28 Ağustos)*. Değerler artık cümle değil — Madde 95 sonrası
