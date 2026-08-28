@@ -246,3 +246,16 @@ def test_the_plan_records_a_delegation_with_the_step_it_closed():
     # The plan wrote "user said you decide" with no step name, and the fresh chat that read it
     # inherited an authority the user never gave.
     assert "never as a standing authority" in _flow()
+
+
+def test_the_flow_never_calls_the_builder():
+    # 28 Aug: told never to write a frame, the flow offered to run build_prompts instead -- a ban
+    # that names the deed invites the road around it. The builder is the other skill's too, and
+    # the file this flow leaves holds no frames for it to build from.
+    assert "build_prompts is never called here" in _flow()
+
+
+def test_the_handoff_offers_nothing_and_asks_nothing():
+    # The closing message came back as an offer wearing a question mark. "It is the last word"
+    # was already pinned; this pins that no offer and no question ride on it.
+    assert "offers nothing and asks nothing" in _flow()
