@@ -1395,6 +1395,14 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 >
 > **Maliyeti bileşik.** 156 satırlık her okuma sonucu tur boyunca konuşmada duruyor ve sonraki
 > her isteğe yeniden biniyor; 335k bunun toplamı, tek bir isteğin boyu değil.
+>
+> **Önce araştırıldı** *(kullanıcının sözü: "bunları yapmadan önce araştır")* —
+> [araç tasarımı araştırması](../research/2026-08-29-queenagent-arac-tasarimi-arastirma.md).
+> Üç şey çıktı: sorun bu araç ailesinin bilinen davranışı *(ölçülmüş: Claude Code, Cursor ve
+> Codex oturumlarında token'ın %42'si kaçınılabilir işlemlerde, başı çeken kalem tekrarlı
+> okuma)*; kök neden string eşleşmeli düzenlemenin kendisi, yani yasak değil **şart**
+> değişmeli; ve bayat sonuçları temizlemenin bir bedeli var — önbelleklenmiş prefix'i geçersiz
+> kılıyor. Bu üçüncüsü Madde 129'un sırasını değiştirdi.
 
 ### Madde 128 — Kare eklemenin kendi aracı olur
 
@@ -1405,27 +1413,52 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
   model yine parça parça çağırır — ama her parça arasında okumaz.
 - **Nasıl görülür:** 25 karelik bir senaryo kurulurken `read_file` yalnız açılıştaki çifte
   gidiyor; kare ekleme adımlarının arasında hiç okuma yok.
+- **Aracın cevabı sayı taşır:** kaç kare eklendi, dosya artık kaç kare tutuyor. İki iş birden
+  görüyor — model durumu okumadan bilir, ve eklemenin bilinen tuzağı *(idempotent değildir; aynı
+  çağrı iki kez koşarsa kareler iki kez girer)* modelin gözü önünde kalır.
+- **Araştırmanın işaret ettiği yol bu:** Amazon Science'ın CODESTRUCT'ı string düzenleme yerine
+  *ayrık, iyi tanımlı işlemler* öneriyor, ve trueline-mcp aynı sorunu çapaya kimlik takarak
+  çözüyor. Bizde ikincisine gerek yok: hedef dosya zaten yapılandırılmış, eklenen şey serbest
+  metin değil şeması yazılı bir nesne.
 - **Değişmeyen:** `edit_file` durur — var olan bir kareyi düzeltmek ve harita girdisi değiştirmek
   hâlâ onun işi *(113'ün düzenleme yolu)*. `build_prompts` ve şema aynen kalır.
 - **İlişkisi:** 125 tanımı düzeltti, bu madde tanımın gerektirdiği okumayı ortadan kaldırıyor.
   96 ve 98'in kalıbı: modelin elle yaptığı iş koda iniyor.
 
-### Madde 129 — Bayat okuma tur içinde düşer
+### Madde 129 — Okunan dosyalar bir bağlam kabında, hep güncel durur
 
-- **Ne çalışır:** aynı dosyanın eski `read_file` sonucu, üzerine yazıldığı anda yanlış bilgidir;
-  ama tur boyunca konuşmada durup her isteğe yeniden biniyor. Aynı dosyaya ait daha yeni bir
-  okuma varsa, eskisinin içeriği tek cümlelik bir yer tutucuya iner. Mesajın kendisi silinmez:
-  bir `tool` mesajı, kendisini çağıran `tool_calls` girdisinin karşılığıdır ve kaybolursa istek
-  geçersiz olur.
-- **Nasıl görülür:** aynı dosyayı iki kez okuyan bir turda ikinci isteğin boyu birinciyi
-  tekrarlamıyor; ekrandaki sayı okuma başına şişmiyor.
-- **Kaynak:** Anthropic'in kendi kılavuzundaki *tool result clearing* — *"why would the agent need
-  to see the raw result again?"* Madde 124'ün araştırma notu bunu ölçüme bağlamıştı; ölçü artık
-  var *(335k)*.
-- **Bilerek yapılmayan:** turlar arası bir şey değişmez — araç sonuçları zaten taşınmıyor. Yazma
-  sonuçları da düşmez: onlar zaten tek cümle.
-- **İlişkisi:** 92 tavanı koydu, 124 önbelleği taktı; bu madde turun kendi içinde şişmeyi kesiyor.
-  128 okuma sayısını azaltıyor, bu madde kalanların bedelini.
+> **Tasarımı kullanıcının kendi cümlesiyle döndü** *(29 Ağustos)*: *"tool call olunca biz ordan
+> döneriz + ekleriz contexte, sonraki turlarda ordan kullanır direkt"* ve *"bir de her tool
+> çıktısı değil, çıktısı anlam taşıyanlar — read file gibi, read schema gibi."* İlk taslak eski
+> sonucu **silmeyi** öneriyordu; bu daha iyisi: eskisini silmek yerine tek bir yerde **güncel**
+> tutmak. Silinen bilgiyi model yeniden okumak zorunda kalır, güncel tutulanı okumaz.
+
+- **Ne çalışır:** bir `read_file` sonucu konuşmaya yazıldığı yerde donuyor — dosya sonra değişse
+  de o mesaj ilk okunan hâli taşımaya devam ediyor. Model bunu bildiği için tekrar okuyor, ve
+  ikinci kopya da yanına ekleniyor; yedinci denemede aynı dosya üç kez, her biri tur boyunca her
+  isteğe binerek. Bunun yerine: bu sohbetin okuduğu dosyalar bir **kapta** toplanır, ve kap her
+  istekte diskten tazelenerek isteğin sonunda gider. Kap turlar arası yaşar — ikinci mesajda
+  model dosyayı yeniden okumaz, zaten önündedir.
+- **Kapta ad durur, içerik değil.** Kabın kendisi kayıttan türetilir: `Message.calls` hangi aracın
+  hangi dosyaya dokunduğunu zaten yazıyor *(Madde 66 ve 78)*, ve içerik her istekte diskten
+  okunur. Yeni bir disk alanı yok, göç yok — ve içerik hiçbir zaman kopyalanmadığı için
+  bayatlayamaz. Silinen dosya kaptan kendiliğinden düşer.
+- **Ne girer:** çıktısı anlam taşıyanlar — `read_file` ve `read_prompt_structure_schema`.
+  `create_file`, `edit_file`, `build_prompts` girmez: onların çıktısı zaten tek cümle. Okunmuş
+  bir dosya sonradan yazılırsa kap onu güncel gösterir; okunmamış bir dosya yazılmakla kaba
+  girmez.
+- **Kaç tane:** son 5 *(kullanıcı kararı)*. Sohbet uzadıkça kap büyümez.
+- **Nasıl görülür:** aynı dosyayı iki kez okuyan bir tur ikinci kopyayı taşımıyor; bir turda
+  yazılan dosyanın yeni hâli sonraki raundda kapta görünüyor; ikinci mesaj `read_file` ile
+  açılmıyor.
+- **Önbellek:** kap isteğin sonunda, zaten her raundda değişen bölgede — konuşmanın kendisi
+  değişmediği için Madde 124'ün anahtarladığı prefix bozulmaz. Anthropic'in `clear_tool_uses`'ı
+  ortadaki mesajı düzenlediği için prefix'i geçersiz kılıyor ve `clear_at_least` ile kendini
+  korumak zorunda kalıyor *([araştırma](../research/2026-08-29-queenagent-arac-tasarimi-arastirma.md))*;
+  kap o bedeli hiç ödemiyor.
+- **İlişkisi:** 127 adları isteğe koydu, bu madde içerikleri — ikisi de aynı yerde, isteğin
+  kuyruğunda. 92 tavanı koydu, 124 önbelleği taktı. 128'in `add_frames`'i bu maddeden sonra
+  hâlâ değerli *(çapayı geri yazmak çıktı token'ı yakar)* ama artık zorunlu değil.
 
 ### Madde 130 — prompt+ turu da menüyle bitmez
 
