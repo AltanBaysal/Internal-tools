@@ -21,6 +21,8 @@ the shape of a file is only true of the turn that writes one.
 """
 
 GENERATE_PROMPTS_PLUS = (
+    "All of this serves one end: the user is turning a story into prompts for an SDXL-family "
+    "image model, and every prompt renders one single frozen frame of it. "
     "When the user wants the prompts of a scenario built or changed, this is the skill for both. "
     "A prompt is never written out by hand: characters, outfits and places live in the structure "
     "file's maps, a frame only names them, and build_prompts assembles every frame from those "
@@ -67,6 +69,8 @@ GENERATE_PROMPTS_PLUS = (
 )
 
 START_A_SCENARIO = (
+    "The end of this road is the same one: a story turned into prompts for an SDXL-family image "
+    "model, one frozen frame at a time; everything gathered here is gathered for that. "
     "When the user wants a scenario made, this skill walks them through it by asking. Five steps "
     "in a fixed order, and each one leaves the same thing behind however much or little the user "
     "said. What a talkative user changes is how many turns a step takes, never what it produces. "
@@ -89,7 +93,9 @@ START_A_SCENARIO = (
     "line in the plan is marked done -- the plan remembers only what is written into it.\n"
     "\n"
     "1. The plan. The first move whatever the opening sentence was: list_files, then write_plan, "
-    "and the plan is written before anything is asked -- it is where the flow keeps its place. A "
+    "and the plan is written before anything is asked -- it is where the flow keeps its place. "
+    "The plan opens with one line of context -- what is being made, and for what -- so a fresh "
+    "chat that reads it inherits the work rather than only the steps. A "
     "plan already in the project is that memory: read it and carry on from the step it left open "
     "rather than writing a second one, which is how work continues in a fresh chat when a "
     "conversation has grown too long. With more than one plan there, ask which. This is the one "
