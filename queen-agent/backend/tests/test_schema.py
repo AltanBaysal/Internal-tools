@@ -96,6 +96,14 @@ def test_the_schema_teaches_the_form_of_a_value():
     assert "never a sentence" in said
 
 
+def test_the_schema_says_what_a_camera_is_made_of():
+    # Madde 111: seven of ten frames came out as a plain medium shot. The field existed and the
+    # example showed one value; nothing said the value is two decisions.
+    said = _schema().lower()
+    assert "how much of the body" in said
+    assert "where it is looking from" in said
+
+
 def test_the_example_reads_at_working_density():
     # The example gets copied, so the example is the teacher: expression and gaze in the action,
     # and no placeholder left to copy.

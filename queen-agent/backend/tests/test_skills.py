@@ -217,3 +217,11 @@ def test_the_sentence_is_a_brief_never_the_frames_text():
     # holds the door: the sentence briefs the frame, the frame's text is this skill's own.
     said = instruction_for("generate-prompts-plus")
     assert "never text to copy into the frame" in said
+
+
+def test_the_builder_varies_the_camera_between_frames():
+    # Ten scenes came back as one framing. The craft licence was there; the reason to use it was
+    # not.
+    said = instruction_for("generate-prompts-plus")
+    assert "the same framing and angle" in said
+    assert "differ in at least one" in said
