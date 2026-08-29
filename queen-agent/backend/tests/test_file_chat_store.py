@@ -199,6 +199,40 @@ def test_what_an_answer_spent_survives_a_round_trip(tmp_path):
     assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == chat
 
 
+def test_the_size_the_last_round_carried_survives_a_round_trip(tmp_path):
+    # Madde 133. The ceiling reads this number rather than the total, and it cannot be worked back
+    # out of one -- a reload that dropped it would hand a full chat another turn.
+    chat = replace(
+        _chat(),
+        messages=(
+            Message(
+                role="ai",
+                at="2026-08-09T11:05:00+00:00",
+                text="Here it is.",
+                usage=Usage(sent=48800, cached=31000, answered=1200, context=11400),
+            ),
+        ),
+    )
+    FileChatStore(Store(str(tmp_path))).add("p1", chat)
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == chat
+
+
+def test_a_stored_usage_from_before_the_field_reads_zero(tmp_path):
+    # A guard. Every chat on disk carries the three numbers and not the fourth, no migration is
+    # written, and zero has meant unmeasured since Madde 76 -- which is what keeps those chats open
+    # rather than closing them on a number nobody recorded.
+    raw = Store(str(tmp_path))
+    raw.write_text(
+        "p1/chats/old.json",
+        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "messages": ['
+        '{"role": "ai", "at": "2026-08-09T11:05:00+00:00", "text": "hi",'
+        ' "usage": {"sent": 12400, "cached": 9100, "answered": 842}}]}',
+    )
+    stored = FileChatStore(raw).get("p1", "old").messages[0].usage
+    assert stored.sent == 12400
+    assert stored.context == 0
+
+
 def test_an_answer_nobody_measured_writes_no_field(tmp_path):
     # An all-zero object is noise on disk, exactly as an empty file list is.
     raw = Store(str(tmp_path))

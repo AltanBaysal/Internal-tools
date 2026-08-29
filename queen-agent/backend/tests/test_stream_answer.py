@@ -914,8 +914,9 @@ def _kept(chats):
 
 
 def test_the_answer_remembers_what_it_spent(tmp_path):
+    # One round, so what it spent and what it left behind are the same number (Madde 133).
     chats, _, _, _ = _run(tmp_path, [[{"text": "Hello"}, spent(1200, 900, 42)]])
-    assert _kept(chats).usage == Usage(1200, 900, 42)
+    assert _kept(chats).usage == Usage(1200, 900, 42, 1200)
 
 
 def test_what_two_rounds_spent_is_added_up(tmp_path):
@@ -926,7 +927,22 @@ def test_what_two_rounds_spent_is_added_up(tmp_path):
         [{"text": "done"}, spent(1500, 1200, 20)],
     ]
     chats, _, _, _ = _run(tmp_path, rounds)
-    assert _kept(chats).usage == Usage(2500, 1800, 30)
+    assert _kept(chats).usage == Usage(2500, 1800, 30, 1500)
+
+
+def test_the_turn_remembers_what_its_last_round_carried(tmp_path):
+    # Madde 133. The three totals answer what this answer cost; the fourth answers how big the
+    # conversation got, and only the fourth can tell a chat when to stop. Six rounds of eight
+    # thousand is not a request of forty-eight -- the eighth trial closed a chat on that mistake.
+    rounds = [
+        [{"tool_calls": [call("read_prompt_structure_schema")]}, spent(8000, 0, 10)],
+        [{"tool_calls": [call("read_file", name="plan.md")]}, spent(9000, 7000, 10)],
+        [{"text": "done"}, spent(10_000, 8000, 20)],
+    ]
+    chats, _, _, _ = _run(tmp_path, rounds)
+    kept = _kept(chats).usage
+    assert kept.sent == 27_000
+    assert kept.context == 10_000
 
 
 def test_counts_repeated_inside_one_round_are_not_added_twice(tmp_path):
