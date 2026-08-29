@@ -518,8 +518,12 @@ def _try_character(file_store, project_id, args):
 
     target = character_prompts_name(source, character)
     written = file_store.write(project_id, target, render_module(prompts))
+    # Handed back as well as written (Madde 135). This tool is a look -- the user wants to see the
+    # character before it enters a frame -- and a look that answers only with a file name sends the
+    # model straight back to read it. build_prompts stays silent for the opposite reason: its list
+    # is there to sit in the file, and Madde 130 keeps it out of the chat.
     return ToolResult(
-        f"Wrote {len(prompts)} prompts to {written}.",
+        f"Wrote {counted(len(prompts), 'prompt')} to {written}:\n\n" + "\n\n".join(prompts),
         written,
         source,
         counted(len(prompts), "prompt"),
