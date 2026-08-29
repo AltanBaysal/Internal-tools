@@ -338,6 +338,16 @@ def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():
     assert "five" in said
 
 
+def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():
+    # Madde 134. Step 1 says the first turn opens with write_plan, and two sentences later that a
+    # plan already there is the memory to read. The model did both: it wrote one, and then a plan
+    # really was already there -- its own. The sentence means a plan from before this chat and
+    # never said so, and the eighth trial paid a whole round for the gap.
+    said = _flow()
+    assert "already there when the chat opened" in said
+    assert "A plan already there is that memory" not in said
+
+
 def test_prompt_plus_closes_with_the_file_rather_than_a_menu():
     # Madde 130. The base already forbids the closing menu (112), but the skill text is the last
     # thing in the request (93) and said nothing about closing -- so the trial's build turn read
