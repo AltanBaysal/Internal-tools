@@ -84,7 +84,7 @@ söylüyor. Madde 127'den beri yedi: `list_files` kalktı, çünkü adlar zaten 
     "type": "function",
     "function": {
       "name": "edit_file",
-      "description": "Change part of a file that already exists. The text you give as old must appear exactly once and match what is on disk now: read the file first if this turn has not seen it -- what this turn read or wrote is already in front of you -- and include enough of what surrounds it to be sure.",
+      "description": "Change part of a file that already exists. The text you give as old must appear exactly once and match what is on disk now, without the line numbers a read shows it with: read the file first if this turn has not seen it -- what this turn read or wrote is already in front of you -- and include enough of what surrounds it to be sure.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -167,13 +167,19 @@ okunuyor, dolayısıyla hep güncel — modelin kendi yazdığını geri okumas�
 kalkıyor. Turlar arası yaşıyor; ikinci mesajda dosya zaten modelin önünde. Okunmuş hiçbir dosya
 yoksa kap hiç gönderilmiyor.*
 
+*Madde 131'den beri dosya blokları **satır numaralı** — `read_file` neyi nasıl gösteriyorsa kapta
+da öyle duruyor, çünkü kap geldiğinden beri modelin dosyaya baktığı yer burası ve iki ayrı biçim
+çapasının hangisine uyacağını seçtirirdi. Şema bloğu ham: numara çapa seçmek için var, ve şemaya
+çapa yazılmıyor.*
+
 > Files you have opened in this chat, with their contents as they are now:
 >
 > \--- bar-scene.json ---
-> *(dosyanın o andaki hâli)*
+> *(dosyanın o andaki hâli, `cat -n` biçiminde — numara altı karakterlik alana sağa yaslı,
+> ardından sekme)*
 >
 > \--- prompt structure schema ---
-> *(şema metni — yalnız çekildiyse)*
+> *(şema metni, numarasız — yalnız çekildiyse)*
 
 ---
 
