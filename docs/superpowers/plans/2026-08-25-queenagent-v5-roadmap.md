@@ -6,8 +6,12 @@ alındı *(kullanıcı kararı, 29 Ağustos)*, ve 124'ten 132'ye kadar olanlar o
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **71 madde, 12 blok** — 65'ten 135'e. *(Açılışta 49
+**Numaralar** v4'ten devam eder (64'te bitti). **72 madde, 12 blok** — 65'ten 136'ya. *(Açılışta 49
 madde ve 7 bloktu; Blok 8'den 12'ye kadar olanlar sonraki beş denemeden doğdu ve sondan eklendi.)*
+
+**Koşu kapandı** *(29 Ağustos)*. On iki bloğun on ikisi bitti, açık soru kalmadı, ve dal
+`main`'e alındı — defterin `BRANCH`'i de aynı commit'te `main`'e döndü, çünkü başkasının çalıştırdığı
+defter yayınlanmış olanı klonlar. Buradan sonrası yeni bir yol haritasıdır; bu belge artık kayıt.
 
 **Bu belge üç ayrı belgeden birleşti** *(kullanıcı kararı, 27 Ağustos)*. Blok 5 *"v5.5 Yol Haritası"*
 adıyla 26 Ağustos'ta, Blok 6 akış koşusu adıyla 27 Ağustos'ta yazılmıştı. Üçü de aynı branch'te, aynı
@@ -1702,8 +1706,8 @@ kullanıcıyla konuşulup kapandı.
 
 **Numara sorusu kapandı:** sayaç tek. Cümle 28 Ağustos'ta *"bu belge 65'ten 103'e kadarını aldı,
 bundan sonra 104'ten devam eder"* diye yazılmıştı; dört blok daha eklendi ve kural aynen işledi.
-Bugünkü hâli: belge **65'ten 132'ye** kadarını aldı, ve bundan sonra madde nereye eklenirse
-eklensin **133'ten** devam eder.
+Bugünkü hâli: belge **65'ten 136'ya** kadarını aldı, ve bundan sonra madde nereye eklenirse
+eklensin **137'den** devam eder.
 
 ## Kapsam dışı
 
