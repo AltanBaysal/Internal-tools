@@ -256,6 +256,9 @@ def test_every_tool_is_declared_to_the_model():
         # Eighth since Madde 98: the same joining, one character at a time, so a character can be
         # looked at before it enters a frame.
         "build_character_prompts",
+        # Madde 128. Appending to a JSON list through edit_file made the model quote the previous
+        # frame back to reach the end of it; the end of a list is something code knows.
+        "add_frames",
     }
 
 
@@ -631,3 +634,111 @@ def test_the_edit_tool_tells_the_model_the_flag_is_there():
     # 108 and 118 both showed it going around what it was not shown.
     said = _said_by("edit_file")
     assert "replace_all" in said
+
+
+# --- adding frames without an anchor (Madde 128) --------------------------------------------------
+#
+# Appending to a JSON list is not an append: the list closes with a bracket and the new frame goes
+# before it. So edit_file made the model quote the previous frame back word for word -- once in old
+# and once in new, in the most expensive token class -- and near-identical frames made that anchor
+# collide besides. Nothing here takes a position from the model, so there is no position to get
+# wrong: the end of a list is a fact the code holds. NotebookEdit is the same shape for a
+# structured file, and build_prompts already walks it here.
+
+FRAME = {
+    "characters": {"aylin": ["gecelik"]},
+    "location": "bedroom",
+    "action": "three",
+    "camera": "wide",
+}
+
+
+def test_add_frames_appends_to_the_end_of_the_list(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "add_frames", name="scene.json", frames=[FRAME])
+    frames = json.loads(files.read("p1", "scene.json"))["frames"]
+    assert len(frames) == 3
+    assert frames[2]["action"] == "three"
+    # The two that were there stay where they were: the built list runs in the frames' order.
+    assert [frame["action"] for frame in frames[:2]] == ["one", "two"]
+
+
+def test_add_frames_says_how_many_it_added_and_how_many_there_are_now(tmp_path):
+    # Two numbers rather than one. The model learns the state from the answer instead of reading
+    # the file back, and the second number is what makes a doubled call visible.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    assert _call(files, "add_frames", name="scene.json", frames=[FRAME, FRAME]) == (
+        "Added 2 frames to scene.json; it holds 4 now."
+    )
+
+
+def test_add_frames_says_on_the_card_how_many_it_added(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    assert _outcome(files, "add_frames", name="scene.json", frames=[FRAME]) == "1 frame"
+
+
+def test_add_frames_leaves_the_maps_alone(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "add_frames", name="scene.json", frames=[FRAME])
+    after = json.loads(files.read("p1", "scene.json"))
+    before = json.loads(STRUCTURE)
+    for key in ("quality", "characters", "outfits", "locations"):
+        assert after[key] == before[key]
+
+
+def test_add_frames_writes_readable_turkish_rather_than_escapes(tmp_path):
+    # The user opens this file and fixes it by hand, and a wall of ı is a file they cannot
+    # read. Their work is the first principle, and it includes being able to see it.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "add_frames", name="scene.json", frames=[{**FRAME, "action": "başını çeviriyor"}])
+    assert "başını çeviriyor" in files.read("p1", "scene.json")
+
+
+def test_add_frames_refuses_a_file_that_is_not_there(tmp_path):
+    assert "no file by that name" in _call(
+        _files(tmp_path), "add_frames", name="ghost.json", frames=[FRAME]
+    )
+
+
+def test_add_frames_carries_the_parsers_own_sentence_when_the_json_is_broken(tmp_path):
+    # A guessed cause would send the model looking in the wrong place -- _build's rule.
+    files = _with(tmp_path, "scene.json", "{ not json")
+    answer = _call(files, "add_frames", name="scene.json", frames=[FRAME])
+    assert "not valid JSON" in answer
+    assert "Expecting" in answer
+
+
+def test_add_frames_refuses_a_structure_with_no_frames_list(tmp_path):
+    files = _with(tmp_path, "scene.json", json.dumps({"characters": {"aylin": "1girl"}}))
+    assert "no frames list" in _call(files, "add_frames", name="scene.json", frames=[FRAME])
+
+
+def test_add_frames_refuses_a_frames_argument_that_is_not_a_list(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    assert "list of frames" in _call(files, "add_frames", name="scene.json", frames="three")
+    assert files.read("p1", "scene.json") == STRUCTURE
+
+
+def test_adding_nothing_writes_nothing(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    assert "unchanged" in _call(files, "add_frames", name="scene.json", frames=[])
+    assert files.read("p1", "scene.json") == STRUCTURE
+
+
+def test_add_frames_brings_no_file_into_being(tmp_path):
+    # No card: the file was already there. The rule edit_file follows.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    added = run_tool(
+        files, "p1", "add_frames", json.dumps({"name": "scene.json", "frames": [FRAME]})
+    )
+    assert added.created is None
+
+
+def test_calling_add_frames_twice_puts_the_frames_in_twice(tmp_path):
+    # Appending is not idempotent, and pretending otherwise would have the tool guess which of two
+    # identical frames was meant. Left visible instead, in the second number of the answer.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "add_frames", name="scene.json", frames=[FRAME])
+    answer = _call(files, "add_frames", name="scene.json", frames=[FRAME])
+    assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 4
+    assert "holds 4 now" in answer

@@ -327,6 +327,17 @@ def test_the_builder_fetches_the_schema_once():
     assert "once, before the first write" in instruction_for("generate-prompts-plus")
 
 
+def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():
+    # Madde 128. The text was the whole reason the model reached for edit_file to append: it said
+    # so in as many words, and a weak model follows what it is shown.
+    said = instruction_for("generate-prompts-plus")
+    assert "add_frames" in said
+    assert "Add frames with edit_file" not in said
+    # The batches stay. They are not about anchors -- quality falls away at the end of a long
+    # answer -- so the rhythm belongs in the text even once the tool needs no read between them.
+    assert "five" in said
+
+
 def test_the_texts_stay_short_enough_to_be_read():
     # Five runs of patches doubled the texts, and a weak model stops reading the middle. The cap
     # is the guard against swelling back: from here a sentence enters only by deleting one.
