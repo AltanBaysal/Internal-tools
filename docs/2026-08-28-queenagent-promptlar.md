@@ -114,6 +114,21 @@ söylüyor. Madde 127'den beri yedi: `list_files` kalktı, çünkü adlar zaten 
   {
     "type": "function",
     "function": {
+      "name": "add_frames",
+      "description": "Add frames to the end of a structure file's frames list. Where they go is not yours to give -- the end of a list is something the code knows -- so there is no text to quote back and nothing to read first. The answer says how many went in and how many the file holds now: adding twice adds twice, and that second number is how you see it. To change a frame that is already there, use edit_file.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "The structure file's name." },
+          "frames": { "type": "array", "items": { "type": "object" }, "description": "The frames to add, each shaped as the schema says. A list even when there is one of them." }
+        },
+        "required": ["name", "frames"]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
       "name": "build_character_prompts",
       "description": "Build a preview list for one character: one prompt for every outfit the structure names, joined the same way a frame's prompt is. Reach for it when the user wants to look at one character on its own, before any frame. Writes a Python file named after the structure and the character, replacing what it wrote last time.",
       "parameters": {
@@ -214,9 +229,9 @@ sırası: akış önce.*
 >
 > A sentence is the scene's brief, never text to copy into the frame -- the action and the camera are your craft. Names come from the chat or the file; asking is for names never settled, not for craft. Neighbouring frames differ in at least one of framing and angle: the same framing and angle twice is one picture twice.
 >
-> Add frames with edit_file in batches of five, each on disk before the next; then call build_prompts with the file's name. Do not assemble a prompt or write the Python file by hand.
+> Add frames with add_frames, in batches of five; then call build_prompts with the file's name. Do not assemble a prompt or write the Python file by hand.
 >
-> A complaint about a prompt is an edit to the frame it came from -- the built list runs in the frames' order -- or to the map entry it names, the one edit reaching every frame; then build_prompts again. The prompt file is rebuilt rather than patched.
+> A complaint about a prompt is edit_file on the frame it came from -- the built list runs in the frames' order -- or on the map entry it names, the one edit reaching every frame; then build_prompts again. The prompt file is rebuilt rather than patched.
 
 ---
 

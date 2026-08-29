@@ -30,7 +30,16 @@ _WITHOUT_ASKING = {
     # nothing. write_plan is among them since Madde 97 -- in this mode a plan is an ordinary file,
     # which is why the flow can write one to keep its place and carry on in the same turn.
     EDIT: READS
-    + ("create_file", "edit_file", "build_prompts", "build_character_prompts", "write_plan"),
+    + (
+        "create_file",
+        "edit_file",
+        "build_prompts",
+        "build_character_prompts",
+        "write_plan",
+        # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
+        # their gate in front of it while this mode keeps none.
+        "add_frames",
+    ),
 }
 
 _KNOWN = {spec["function"]["name"] for spec in TOOL_SPECS}

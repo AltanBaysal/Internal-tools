@@ -44,12 +44,12 @@ GENERATE_PROMPTS_PLUS = (
     "for names never settled, not for craft. Neighbouring frames differ in at least one of "
     "framing and angle: the same framing and angle twice is one picture twice.\n"
     "\n"
-    "Add frames with edit_file in batches of five, each on disk before the next; then "
+    "Add frames with add_frames, in batches of five; then "
     "call build_prompts with the file's name. Do not assemble a prompt or write the Python file "
     "by hand.\n"
     "\n"
-    "A complaint about a prompt is an edit to the frame it came from -- the built list runs in "
-    "the frames' order -- or to the map entry it names, the one edit reaching every frame; then "
+    "A complaint about a prompt is edit_file on the frame it came from -- the built list runs in "
+    "the frames' order -- or on the map entry it names, the one edit reaching every frame; then "
     "build_prompts again. The prompt file is rebuilt rather than patched."
 )
 

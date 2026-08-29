@@ -141,6 +141,34 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
+            "name": "add_frames",
+            "description": (
+                "Add frames to the end of a structure file's frames list. Where they go is not "
+                "yours to give -- the end of a list is something the code knows -- so there is no "
+                "text to quote back and nothing to read first. The answer says how many went in "
+                "and how many the file holds now: adding twice adds twice, and that second number "
+                "is how you see it. To change a frame that is already there, use edit_file."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "The structure file's name."},
+                    "frames": {
+                        "type": "array",
+                        "description": (
+                            "The frames to add, each shaped as the schema says. A list even when "
+                            "there is one of them."
+                        ),
+                        "items": {"type": "object"},
+                    },
+                },
+                "required": ["name", "frames"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "build_prompts",
             "description": (
                 "Build the prompt list from a structure file. Code assembles every frame in a fixed "
@@ -311,6 +339,9 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "edit_file":
         return _edit(file_store, project_id, args)
 
+    if name == "add_frames":
+        return _add_frames(file_store, project_id, args)
+
     if name == "build_prompts":
         return _build(file_store, project_id, args)
 
@@ -363,6 +394,66 @@ def _edit(file_store, project_id, args):
     # habit Madde 129 and 131 have been taking a reason away from at a time.
     return ToolResult(
         f"Edited {wanted} in {counted(found, 'place')}.", None, wanted, f"Edited {found} places"
+    )
+
+
+def _add_frames(file_store, project_id, args):
+    """The end of a list is something code knows, so the model never has to point at it.
+
+    Appending through edit_file meant quoting the previous frame back -- once as the anchor and once
+    inside its replacement -- because a JSON list closes with a bracket and the new frame goes
+    before it. Nothing here takes a position, so there is no position to get wrong.
+    """
+    source = safe_name(args.get("name"))
+    content = file_store.read(project_id, source)
+    if content is None:
+        return ToolResult("There is no file by that name.", None, source, "No file by that name")
+
+    try:
+        structure = json.loads(content)
+    except json.JSONDecodeError as broken:
+        # The parser's own sentence, as in _build: a guessed cause sends the model somewhere else.
+        return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
+
+    coming = args.get("frames")
+    if not isinstance(coming, list):
+        return ToolResult(
+            "add_frames takes a list of frames, even when there is one of them.",
+            None,
+            source,
+            "Refused",
+        )
+
+    # Asked of a dictionary only: a file whose top level is something else has no frames either, and
+    # an AttributeError would tell the model nothing it could act on.
+    frames = structure.get("frames") if isinstance(structure, dict) else None
+    if not isinstance(frames, list):
+        return ToolResult(
+            f"{source} has no frames list to add to; a structure file carries one.",
+            None,
+            source,
+            "Refused",
+        )
+
+    if not coming:
+        # Nothing to do is not a failure, and writing the file to say so would touch a document for
+        # no reason at all.
+        return ToolResult(
+            f"No frames were given, so {source} is unchanged.", None, source, "Nothing to add"
+        )
+
+    frames.extend(coming)
+    # Indented for the person who opens this file and fixes it by hand, and ensure_ascii off so
+    # their own language survives the round trip -- their work is the first principle.
+    file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
+    # Both numbers: what this call did, and where the file stands after it. Appending is not
+    # idempotent, and the second is what keeps a doubled call in front of the model rather than in
+    # a read it would have to make.
+    return ToolResult(
+        f"Added {counted(len(coming), 'frame')} to {source}; it holds {len(frames)} now.",
+        None,
+        source,
+        counted(len(coming), "frame"),
     )
 
 
