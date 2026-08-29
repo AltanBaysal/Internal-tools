@@ -1379,7 +1379,12 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
-# Blok 11 — Aracın sözleşmesi ne derse o olur · madde madde
+# Blok 11 — Aracın sözleşmesi ne derse o olur · madde madde · **bitti**
+
+> **Beşi de koşuldu** *(29 Ağustos)*, sırası 129 → 131 → 132 → 128 → 130. Kalan iş kullanıcının:
+> sekizinci deneme. 128'in gerekçesi hâlâ ölçülmemiş — deneme onu doğrularsa madde yerinde kalır,
+> doğrulamazsa `add_frames` sökülür ve 131 ile 132 yerinde kalır. Ayrı maddeler olmalarının sebebi
+> buydu.
 
 > Yedinci deneme *(29 Ağustos, Blok 10 koşulmuş dalda)*: prompt+ turu 16 adım ve 335k `sent`
 > tuttu. Blok 10'un kazandıkları duruyor — tur `list_files` ile açılmadı, iki dosyanın adı da
