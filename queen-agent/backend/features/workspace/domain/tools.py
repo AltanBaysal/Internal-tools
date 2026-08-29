@@ -110,7 +110,8 @@ TOOL_SPECS = [
             "name": "edit_file",
             "description": (
                 "Change part of a file that already exists. The text you give as old must appear "
-                "exactly once and match what is on disk now: read the file first if this turn has "
+                "exactly once and match what is on disk now, without the line numbers a read "
+                "shows it with: read the file first if this turn has "
                 "not seen it -- what this turn read or wrote is already in front of you -- and "
                 "include enough of what surrounds it to be sure."
             ),
@@ -201,6 +202,22 @@ def counted(many, word):
     return f"{many} {word}" if many == 1 else f"{many} {word}s"
 
 
+def numbered(content):
+    """The contents with a line number in front of each line, the way `cat -n` writes them.
+
+    Shown rather than stored: the file on disk carries no column, and an edit matches the file. The
+    column is there so the model can see for itself whether the text it is about to use as an anchor
+    occurs once -- a judgement it was making by eye over near-identical frames, and a wrong guess
+    cost a whole round.
+
+    Padded rather than bare, because a ragged left edge is worse than none: at line 10 the text
+    would step right and stay there for the rest of the file. Empty content answers empty -- zero
+    lines, zero numbers, since a lone 1 would put a line in front of the model that the file
+    does not have.
+    """
+    return "\n".join(f"{n:>6}\t{line}" for n, line in enumerate(content.splitlines(), 1))
+
+
 def safe_name(raw):
     """A name from the model never reaches the disk as it is."""
     # Only the last segment survives: the model cannot open a folder, because the design has no
@@ -242,8 +259,11 @@ def run_tool(file_store, project_id, name, arguments):
         if content is None:
             return ToolResult("There is no file by that name.", None, wanted, "No file by that name")
         # How much was read is nowhere on disk, so it cannot go stale -- it is a note about this
-        # moment rather than a copy of something that lives elsewhere.
-        return ToolResult(content, None, wanted, counted(len(content.splitlines()), "line"))
+        # moment rather than a copy of something that lives elsewhere. Counted on the file rather
+        # than on what was shown: the column is for the model, not part of the document.
+        return ToolResult(
+            numbered(content), None, wanted, counted(len(content.splitlines()), "line")
+        )
 
     if name == "create_file":
         wanted = safe_name(args.get("name"))

@@ -100,7 +100,9 @@ def test_reading_a_file_that_is_not_there_is_an_answer_not_a_crash(tmp_path):
 def test_creating_over_a_name_that_is_taken_writes_nothing(tmp_path):
     files = _with(tmp_path, "plan.md", "first")
     _call(files, "create_file", name="plan.md", content="second")
-    assert _call(files, "read_file", name="plan.md") == "first"
+    # Asked of the store rather than through read_file: the subject here is what is on disk, and
+    # since Madde 131 the tool hands back a numbered view of it rather than the document.
+    assert files.read("p1", "plan.md") == "first"
     # And no copy beside it: refusing means one document, which was the whole point.
     assert files.list_names("p1") == ["plan.md"]
 
@@ -139,7 +141,7 @@ def test_a_plan_is_written_under_a_name_that_says_it_is_one(tmp_path):
     # of writing the very deliverable it was supposed to be planning.
     files = _files(tmp_path)
     assert "bar-scene-plan.md" in _call(files, "write_plan", name="bar-scene.md", content="1. ...")
-    assert _call(files, "read_file", name="bar-scene-plan.md") == "1. ..."
+    assert files.read("p1", "bar-scene-plan.md") == "1. ..."
     # A name that already says it is a plan is not made to say it twice.
     assert "bar-scene-plan.md" in _call(files, "write_plan", name="bar-scene-plan.md", content="x")
 
@@ -150,7 +152,7 @@ def test_writing_a_plan_again_replaces_it(tmp_path):
     files = _files(tmp_path)
     _call(files, "write_plan", name="bar-scene", content="first")
     _call(files, "write_plan", name="bar-scene", content="second")
-    assert _call(files, "read_file", name="bar-scene-plan.md") == "second"
+    assert files.read("p1", "bar-scene-plan.md") == "second"
     assert files.list_names("p1") == ["bar-scene-plan.md"]
 
 

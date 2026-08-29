@@ -16,6 +16,7 @@ from backend.features.workspace.domain.tools import (
     WRITES_FILES,
     FileStarted,
     FileWritten,
+    numbered,
     run_tool,
 )
 from backend.features.workspace.domain.usecases.append_message import append_message
@@ -70,8 +71,14 @@ def _boxed(file_store, project_id, chat, steps):
         content = file_store.read(project_id, name)
         if content is None:
             continue
-        blocks.append(f"--- {name} ---\n{content}")
+        # Numbered here as well as in the tool's own answer (Madde 131). Since the box arrived the
+        # model looks at a file here rather than reading it twice, so a bare copy here would be the
+        # one it actually reads -- and two shapes of one file would leave it choosing which of them
+        # its anchor has to match.
+        blocks.append(f"--- {name} ---\n{numbered(content)}")
     if schema_was_read(chat, steps):
+        # Not numbered: the column is for picking an anchor, and no anchor is ever written into the
+        # schema. It is one text for the whole app rather than a file on disk.
         blocks.append(f"--- prompt structure schema ---\n{SCHEMA}")
     if not blocks:
         return ""
