@@ -1570,8 +1570,12 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 # Blok 12 — Sekizinci denemenin çıkardıkları · madde madde · **bitti**
 
-> **Üçü de koşuldu** *(29 Ağustos)*, sırası 133 → 134 → 135. Blok 4 gibi açık uçlu: dokuzuncu
-> deneme madde çıkarırsa 136'dan devam eder.
+> **Dördü de koşuldu** *(29 Ağustos)*, sırası 133 → 134 → 135 → 136. Blok 4 gibi açık uçlu:
+> dokuzuncu deneme madde çıkarırsa 137'den devam eder.
+>
+> **136 denemeden değil, 135'in koşusundan doğdu** — aynı hata `_build`'da da duruyordu ve orası
+> 135'in kapsamı dışındaydı. Kapsam dışında görülen bir şey kendi maddesini alır; sessizce
+> düzeltilirse ne testi ne kaydı olur.
 
 > Sekizinci deneme *(29 Ağustos, Blok 11 koşulmuş dalda)*: iki mesajlık bir sohbet **50k tavanına
 > çarpıp kapandı**. Turlar 6 ve 5 adımdı, kartlarında 48.8k ve 51.4k yazıyordu.
@@ -1646,6 +1650,22 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
   liste dosyada durmak için.
 - **İlişkisi:** 98 aracı getirdi, 130 kapanışı yazdı, 128 ile 129 aynı israfın öteki yarılarını
   aldı.
+
+### Madde 136 — Tek kare tek prompt sayılır
+
+- **Ne çalışır:** `build_prompts`'un cevabı `f"Wrote {len(prompts)} prompts to ..."` diyor — ham
+  sayı, sabit çoğul. Tek kareli bir senaryoda ekranda **`Wrote 1 prompts`** yazıyor. Aynı
+  `return`'ün bir satır altındaki `outcome` doğru sayıyor, çünkü `counted()` çağırıyor: bir sonuç,
+  iki farklı gramer.
+- **Nasıl görülür:** tek kareli bir yapıdan prompt kurulduğunda cevap `1 prompt` diyor; iki
+  karelide `2 prompts` demeye devam ediyor.
+- **135'in kapsamı dışındaydı ve o yüzden ayrı madde.** Aynı hata `build_character_prompts`'ta da
+  vardı ve orada düzeldi; buraya uzanmak istenmemiş bir değişiklik olurdu. Kullanıcıya raporlandı,
+  kullanıcı istedi *(29 Ağustos)*.
+- **Değişmeyen:** cevabın geri kalanı. `build_prompts` promptlarını hâlâ geri vermiyor — 130'un
+  kuralı ve 135'in sınırı yerinde; değişen tek şey bir kelimenin tekili.
+- **İlişkisi:** 135, ve `counted()`'ın kendi cümlesi: *"One of a thing is one of it, not one of
+  them."*
 
 ---
 

@@ -771,6 +771,24 @@ def test_a_character_preview_still_writes_its_file(tmp_path):
     assert files.read("p1", "scene-aylin.py")
 
 
+def test_a_build_of_one_frame_counts_it_as_one(tmp_path):
+    # Madde 136. The sentence printed a bare number beside a fixed plural, so a one-frame scenario
+    # read "Wrote 1 prompts" -- while the outcome one line below it said "1 prompt", because that
+    # one goes through counted(). One result, two grammars.
+    one = json.loads(STRUCTURE)
+    one["frames"] = one["frames"][:1]
+    files = _with(tmp_path, "one.json", json.dumps(one))
+    answer = _call(files, "build_prompts", name="one.json")
+    assert "1 prompt " in answer
+    assert "1 prompts" not in answer
+
+
+def test_a_build_of_more_than_one_still_says_prompts(tmp_path):
+    # A guard: counted() is not a rewrite of the sentence, only of the number in it.
+    files = _with(tmp_path, "frames.json", STRUCTURE)
+    assert "2 prompts" in _call(files, "build_prompts", name="frames.json")
+
+
 def test_the_scene_builder_still_does_not_hand_back_its_prompts(tmp_path):
     # A guard, and the limit of this item. Madde 130 says the built prompts are never printed back,
     # and twenty-five of them inside a tool answer is the invitation to print them. A preview is
