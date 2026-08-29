@@ -568,3 +568,66 @@ def test_the_edit_tool_tells_the_model_to_drop_the_numbers():
     # the code -- the same place Claude Code's Edit puts it.
     said = _said_by("edit_file")
     assert "without the line numbers" in said
+
+
+# --- an edit that can take every match (Madde 132) ------------------------------------------------
+#
+# A repeating anchor left one way out: grow it and start again, which is a whole round and a fatter
+# anchor. Claude Code offers the other one -- "or sets replace_all: true to replace them all" -- and
+# the job it is for is already in the run: a map entry's name repeats through every frame that
+# calls on it (Madde 113). The refusal stays the default, because replacing more than was meant is
+# the user's file quietly saying something else (FOUNDATION 1).
+
+
+def test_replace_all_changes_every_occurrence(tmp_path):
+    files = _with(tmp_path, "plan.md", "aylin here, aylin there, aylin everywhere")
+    _call(files, "edit_file", name="plan.md", old="aylin", new="deniz", replace_all=True)
+    assert files.read("p1", "plan.md") == "deniz here, deniz there, deniz everywhere"
+
+
+def test_replace_all_says_how_many_places_it_changed(tmp_path):
+    # The model learns the count from the answer rather than by reading the file back, which is the
+    # habit Madde 129 and 131 have been taking away one reason at a time.
+    files = _with(tmp_path, "plan.md", "one one one")
+    assert _outcome(files, "edit_file", name="plan.md", old="one", new="two", replace_all=True) == (
+        "Edited 3 places"
+    )
+
+
+def test_the_flag_on_a_single_occurrence_reads_like_an_ordinary_edit(tmp_path):
+    # A guard: asking for all of something there is one of is not a different event, and a card
+    # saying "1 place" would make it look like one.
+    files = _with(tmp_path, "plan.md", "only here")
+    assert _outcome(files, "edit_file", name="plan.md", old="only", new="just", replace_all=True) == (
+        "Edited"
+    )
+
+
+def test_without_the_flag_a_text_that_repeats_is_still_refused(tmp_path):
+    # A guard, and the decision itself: the default stays the refusal.
+    files = _with(tmp_path, "plan.md", "one one one")
+    assert "appears 3 times" in _call(files, "edit_file", name="plan.md", old="one", new="two")
+    assert files.read("p1", "plan.md") == "one one one"
+
+
+def test_the_flag_does_not_rescue_a_text_that_is_not_there(tmp_path):
+    # A guard: the flag multiplies a match, it does not conjure one.
+    files = _with(tmp_path, "plan.md", "one one one")
+    answer = _call(files, "edit_file", name="plan.md", old="seven", new="two", replace_all=True)
+    assert "not in plan.md" in answer
+
+
+def test_the_edit_tool_takes_the_flag_as_a_parameter():
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "edit_file")
+    flag = spec["function"]["parameters"]["properties"]["replace_all"]
+    assert flag["type"] == "boolean"
+    # Not required: the default is the refusal, and a required flag would make the model state an
+    # intent on every ordinary edit.
+    assert "replace_all" not in spec["function"]["parameters"]["required"]
+
+
+def test_the_edit_tool_tells_the_model_the_flag_is_there():
+    # A parameter the description never mentions is a parameter a weak model does not reach for --
+    # 108 and 118 both showed it going around what it was not shown.
+    said = _said_by("edit_file")
+    assert "replace_all" in said
