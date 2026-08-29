@@ -6,8 +6,8 @@ alındı *(kullanıcı kararı, 29 Ağustos)*, ve 124'ten 132'ye kadar olanlar o
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **68 madde, 11 blok** — 65'ten 132'ye. *(Açılışta 49
-madde ve 7 bloktu; Blok 8'den 11'e kadar olanlar sonraki dört denemeden doğdu ve sondan eklendi.)*
+**Numaralar** v4'ten devam eder (64'te bitti). **71 madde, 12 blok** — 65'ten 135'e. *(Açılışta 49
+madde ve 7 bloktu; Blok 8'den 12'ye kadar olanlar sonraki beş denemeden doğdu ve sondan eklendi.)*
 
 **Bu belge üç ayrı belgeden birleşti** *(kullanıcı kararı, 27 Ağustos)*. Blok 5 *"v5.5 Yol Haritası"*
 adıyla 26 Ağustos'ta, Blok 6 akış koşusu adıyla 27 Ağustos'ta yazılmıştı. Üçü de aynı branch'te, aynı
@@ -32,9 +32,9 @@ yazılmaması, karakterin her karede aynı okunması, işin parçalara bölünme
 Koşu bu ikisini sırayla kapatıyor: önce ekran ne olduğunu söylesin ve ölçü gelsin; sonra o ölçüye
 bakarak bağlam, model ve yönerge birlikte elden geçsin.
 
-## On bir blok
+## On iki blok
 
-Koşu on bire ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
+Koşu on ikiye ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
 
 - **Blok 1 (65-68) tek başına koşuldu — bitti.** Dört madde; her biri kapalı uçlu, kararı verilmiş,
   bir öncekine yaslanıyor. Kullanıcı dördünü koşunun sonunda topluca denedi, ve o deneme Blok 3'ü
@@ -78,6 +78,9 @@ Koşu on bire ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belged
   eşleşmeyi alabiliyor, kare eklemenin kendi aracı oluyor, ve prompt+ kapanışını söylüyor.
   **131 ile 132 karşılaştırmadan doğdu** *(29 Ağustos)* ve numaraları sondan verildi; koşma sırası
   129 → 131 → 132 → 128 → 130.
+- **Blok 12 (133-135) madde madde koşulur.** Sekizinci deneme: iki mesajlık bir sohbet tavana
+  çarptı, ve sebebi tavanın turun raundlarını toplayıp bağlam sanması. Yanında iki geri okuma daha
+  çıktı. Blok 4 gibi açık uçlu.
 
 **Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
 koşuyor; numaralarını kaydırmak, onlara atıf yapan her cümleyi yalan yapardı — maddelerin
@@ -1562,6 +1565,84 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
   yaptırırdı, ve o dosya kullanıcının *(1. ilke)*.
 - **İlişkisi:** 131 çapayı seçmeyi kolaylaştırıyor, bu madde çakıştığında çıkışı açıyor. İkisi de
   128'in iki bedelinden birine dokunuyor, araç eklemeden.
+
+---
+
+# Blok 12 — Sekizinci denemenin çıkardıkları · madde madde
+
+> Sekizinci deneme *(29 Ağustos, Blok 11 koşulmuş dalda)*: iki mesajlık bir sohbet **50k tavanına
+> çarpıp kapandı**. Turlar 6 ve 5 adımdı, kartlarında 48.8k ve 51.4k yazıyordu.
+>
+> **Sayılar doğru, tavanın onları okuması yanlış.** `usage.sent` bir turun *bütün raundlarının
+> toplamı* — `stream_answer` her raundu üstüne ekliyor — ve tavan o toplamı bağlam boyu sanıyor.
+> Sohbetin gerçek bağlamı ~10-12k'ydı, yani tavanın beşte biri. `last_sent`'in kendi docstring'i
+> varsayımı yazmış: *"no single turn is large enough to cross it on its own"*, ve bir tur
+> raundları toplandığı için tek başına geçebiliyor.
+>
+> **Ölçü dışarıdan da bakıldı** *(kullanıcının sözü: "araştır claude ne kadar harcıyor")*. Claude
+> Code'un taze bir oturumu daha ilk prompt yazılmadan ~4.2k sistem promptu ve ~1.8k CLAUDE.md
+> taşıyor; dosya okumaları 1.1k-2.4k; beş orta boy dosyaya atıf 30k'yı buluyor. QueenAgent'ın
+> istek başına ~8-10k'sı aynı mertebede — **anormal olan harcama değil, tavanın onu okuma
+> biçimi.** Kaynaklar:
+> [Claude Code Context Window](https://getunblocked.com/blog/claude-code-context-window/),
+> [Token Efficiency 2026](https://www.futureproofing.dev/resources/ai-native-team/claude-code-vs-cursor-token-efficiency-2026).
+>
+> Aynı koşu iki geri okuma daha gösterdi, ve ikisi 134 ile 135. Blok 4 gibi açık uçlu.
+
+### Madde 133 — Tavan bağlamı okur, kart harcamayı göstermeye devam eder
+
+- **Ne çalışır:** `usage.sent` turun raundlarının toplamı, ve üç yer birden onu okuyor — kartın
+  altındaki sayı, composer'ın dairesi, ve tavanın kendisi. Biri doğru okuyor, ikisi yanlış:
+  tavan bir **bağlam** tavanı, ve sabitin kendi açıklaması bunu söylüyor *("models get worse as
+  the input grows and what sits in the middle of a long request goes unread")* — o cümle tek bir
+  isteğin boyu hakkında. `Usage` ikinci bir sayı taşır: turun **son raundunun** `sent`'i, yani tur
+  bittiğindeki bağlam boyu. Tavan ve daire onu okur.
+- **Nasıl görülür:** altı adımlık bir turun kartında hâlâ turun toplamı yazıyor; dairenin doluluğu
+  ondan küçük; ve iki mesajlık bir sohbet tavana çarpmıyor.
+- **Kararı verilmiş** *(kullanıcı kararı, 29 Ağustos)*: **kart turun toplamını gösterir** — bir
+  cevabın kaça mal olduğu sorusunun cevabı o. **Daire bağlamı gösterir**, çünkü göstergenin tek
+  işi durmadan önce yaklaştığını söylemek, ve tavanla aynı şeyi ölçmezse o işi yapamaz. İki
+  sayının farklı olması doğru: biri harcama, öteki doluluk.
+- **Tavan 50k'da kalır** *(kullanıcı kararı, 29 Ağustos)*. Gerekçesi zaten gerçek bağlam için
+  yazılmıştı — pencerenin beşte biri, ve uzun girdide düşen kalite. Bugüne kadar yaklaşık beşte
+  bir sıkılıkta çalıştı; düzeltince sohbetler kabaca beş kat uzuyor, ve bu bilinen ve kabul edilen
+  sonuç.
+- **Sayı saklanır, türetilemez:** toplamdan son raundu geri çıkarmanın yolu yok. Eski kayıtlar 0
+  okur, yani hiçbiri dolu sayılmaz — göç yazılmıyor, alan bir sonraki turda kendiliğinden doluyor,
+  ve müsamahakâr taraf doğru taraf: bir sohbeti yanlışlıkla kapatmaktansa bir tur geç kapatmak.
+- **Ön yüz değişmiyor.** Uç zaten `context: {sent, ceiling}` gönderiyor ve gösterge onu okuyor;
+  değişen yalnız o alanın hangi sayıyı taşıdığı. `dist` derlenmiyor.
+- **İlişkisi:** 92 tavanı koydu, 68 ile 76 ölçüyü kurdu, 83 kartı yerleştirdi. Bu madde ikisinin
+  aynı sayıya bakmasını bitiriyor.
+
+### Madde 134 — Akış yazdığı planı geri okumaz
+
+- **Ne çalışır:** akış planı `write_plan` ile yazdıktan hemen sonra aynı dosyayı `read_file` ile
+  geri okudu. 125 tanımı koşullu yapmıştı — *"read it first if this turn has not seen it"* — ve
+  tur onu az önce yazmıştı. Şüphe akış metninde: 1. adım *"A plan already there is that memory:
+  read it and carry on from the step it left open"* diyor, ve model kendi yazdığını *"already
+  there"* saymış olabilir. **Kök neden koşuda doğrulanır** *(Blok 9 kuralı: önce yaz, çözerken
+  araştır)*.
+- **Nasıl görülür:** akışın ilk turu planı yazıp okumadan devam ediyor; **var olan** bir planla
+  açılan taze bir sohbet onu yine okuyor.
+- **Değişmeyen:** planın hafıza olması. Yarım kalan iş yeni sohbetten sürüyor ve o sohbet planı
+  okuyor — kalkan yalnız kendi yazdığını okumak.
+- **İlişkisi:** 107 ritüeli indirdi, 125 tanımları düzeltti, 126 işaretlemeyi tek dokunuşa indirdi.
+  Bu dördüncüsü, ve aynı kalıp: yasak eklemek değil, çelişkiyi kaldırmak.
+
+### Madde 135 — Karakter önizlemesi promptu cevabında taşır
+
+- **Ne çalışır:** `build_character_prompts` *"Wrote 1 prompts to ..."* diyor ve kurduğu promptu
+  taşımıyor, o yüzden model önizlemeyi kullanıcıya göstermek için dosyayı `read_file` ile geri
+  okudu. Suç modelin değil: Madde 98 bu aracı **bir bakış** diye tanımladı, ve bakılacak şeyi
+  döndürmeyen bir bakış bir okuma daha demek. Araç kurduğu promptları cevabında verir.
+- **Nasıl görülür:** bir karakter önizlemesi isteniyor ve model promptu dosyayı okumadan
+  gösteriyor.
+- **`build_prompts` bunu almaz.** 130 promptların geri basılmamasını söylüyor, ve 25 promptu
+  cevaba koymak tam da onu davet ederdi. Ayrım işin kendisinde: önizleme bakılmak için var, kurulan
+  liste dosyada durmak için.
+- **İlişkisi:** 98 aracı getirdi, 130 kapanışı yazdı, 128 ile 129 aynı israfın öteki yarılarını
+  aldı.
 
 ---
 
