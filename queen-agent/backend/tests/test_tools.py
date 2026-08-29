@@ -734,6 +734,53 @@ def test_add_frames_brings_no_file_into_being(tmp_path):
     assert added.created is None
 
 
+# --- a look that hands back what there is to look at (Madde 135) ---------------------------------
+#
+# The preview said "Wrote 1 prompts to ...-lara.py" and stopped there, so the model read the file
+# back to show the user the thing they had asked to see. Madde 98 called this tool a look; a look
+# that returns nothing to look at costs a round every time it is taken.
+
+
+def test_a_character_preview_hands_back_the_prompts_it_built(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    answer = _call(files, "build_character_prompts", name="scene.json", character="aylin")
+    assert "long teal hair" in answer
+    assert "white nightgown" in answer
+
+
+def test_a_character_preview_counts_one_prompt_as_one(tmp_path):
+    # counted() rather than a bare number, which is what the outcome has used all along -- the
+    # sentence was the one place still saying "1 prompts".
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    answer = _call(files, "build_character_prompts", name="scene.json", character="aylin")
+    assert "1 prompt " in answer
+    assert "1 prompts" not in answer
+
+
+def test_a_character_preview_still_writes_its_file(tmp_path):
+    # A guard. Handing the prompts back is in addition to the file, not instead of it: the card
+    # names it and the user finds it in the project afterwards.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    built = run_tool(
+        files,
+        "p1",
+        "build_character_prompts",
+        json.dumps({"name": "scene.json", "character": "aylin"}),
+    )
+    assert built.created == "scene-aylin.py"
+    assert files.read("p1", "scene-aylin.py")
+
+
+def test_the_scene_builder_still_does_not_hand_back_its_prompts(tmp_path):
+    # A guard, and the limit of this item. Madde 130 says the built prompts are never printed back,
+    # and twenty-five of them inside a tool answer is the invitation to print them. A preview is
+    # there to be looked at; a built list is there to sit in the file.
+    files = _with(tmp_path, "frames.json", STRUCTURE)
+    answer = _call(files, "build_prompts", name="frames.json")
+    assert "frames.py" in answer
+    assert "long teal hair" not in answer
+
+
 def test_calling_add_frames_twice_puts_the_frames_in_twice(tmp_path):
     # Appending is not idempotent, and pretending otherwise would have the tool guess which of two
     # identical frames was meant. Left visible instead, in the second number of the answer.
