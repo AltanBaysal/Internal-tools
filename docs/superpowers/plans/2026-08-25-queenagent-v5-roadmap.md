@@ -1568,7 +1568,10 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
-# Blok 12 — Sekizinci denemenin çıkardıkları · madde madde
+# Blok 12 — Sekizinci denemenin çıkardıkları · madde madde · **bitti**
+
+> **Üçü de koşuldu** *(29 Ağustos)*, sırası 133 → 134 → 135. Blok 4 gibi açık uçlu: dokuzuncu
+> deneme madde çıkarırsa 136'dan devam eder.
 
 > Sekizinci deneme *(29 Ağustos, Blok 11 koşulmuş dalda)*: iki mesajlık bir sohbet **50k tavanına
 > çarpıp kapandı**. Turlar 6 ve 5 adımdı, kartlarında 48.8k ve 51.4k yazıyordu.
