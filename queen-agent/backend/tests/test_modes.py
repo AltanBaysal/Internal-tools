@@ -5,7 +5,16 @@ rather than at the top: a module that does not exist yet fails this whole file's
 then none of the turn's other reds are visible anywhere in the suite.
 """
 READS = ("read_file", "read_prompt_structure_schema")
-WRITES = ("create_file", "edit_file", "build_prompts", "build_character_prompts", "write_plan")
+WRITES = (
+    "create_file",
+    "edit_file",
+    "build_prompts",
+    "build_character_prompts",
+    "write_plan",
+    # Madde 128. It takes no position from the model, but it still changes the user's file, so the
+    # quieter modes keep their gate in front of it.
+    "add_frames",
+)
 
 
 def _asks(mode, tool):
