@@ -113,7 +113,9 @@ TOOL_SPECS = [
                 "exactly once and match what is on disk now, without the line numbers a read "
                 "shows it with: read the file first if this turn has "
                 "not seen it -- what this turn read or wrote is already in front of you -- and "
-                "include enough of what surrounds it to be sure."
+                "include enough of what surrounds it to be sure. When you mean every occurrence "
+                "rather than one -- a map entry renamed through all the frames that call on it -- "
+                "pass replace_all instead of growing the text."
             ),
             "parameters": {
                 "type": "object",
@@ -123,6 +125,13 @@ TOOL_SPECS = [
                     "new": {
                         "type": "string",
                         "description": "What takes its place. Empty takes the text out.",
+                    },
+                    "replace_all": {
+                        "type": "boolean",
+                        "description": (
+                            "Change every occurrence. Left out, text that appears more than once "
+                            "is refused rather than guessed at."
+                        ),
                     },
                 },
                 "required": ["name", "old", "new"],
@@ -325,10 +334,16 @@ def _edit(file_store, project_id, args):
     found = content.count(old)
     if found == 0:
         # No search for something close: a near miss edited silently is worse than a refusal.
+        # Before the flag is looked at: it multiplies a match rather than conjuring one.
         return ToolResult(f"That text is not in {wanted}.", None, wanted, "Not found")
-    if found > 1:
+
+    # Every match only when it was asked for. Doing it by default would change more than was meant
+    # and nothing on the screen would say so -- and the file is the user's (1st principle).
+    every = bool(args.get("replace_all"))
+    if found > 1 and not every:
         return ToolResult(
-            f"That text appears {found} times in {wanted}; include more of what surrounds it.",
+            f"That text appears {found} times in {wanted}; include more of what surrounds it, "
+            "or pass replace_all to change every one.",
             None,
             wanted,
             # Reached only above one, so the plural is not a question here -- and "matchs" is what
@@ -336,9 +351,19 @@ def _edit(file_store, project_id, args):
             f"{found} matches",
         )
 
-    file_store.write(project_id, wanted, content.replace(old, args.get("new") or "", 1))
+    new = args.get("new") or ""
+    written = content.replace(old, new) if every else content.replace(old, new, 1)
+    file_store.write(project_id, wanted, written)
     # No name handed back: the file was already there, and a card would call it new.
-    return ToolResult(f"Edited {wanted}.", None, wanted, "Edited")
+    if found == 1:
+        # Asking for all of something there is one of is not a different event, and "1 place" would
+        # draw it as one.
+        return ToolResult(f"Edited {wanted}.", None, wanted, "Edited")
+    # The count rather than a read-back: the model learns what it did from the answer, which is the
+    # habit Madde 129 and 131 have been taking a reason away from at a time.
+    return ToolResult(
+        f"Edited {wanted} in {counted(found, 'place')}.", None, wanted, f"Edited {found} places"
+    )
 
 
 def _build(file_store, project_id, args):

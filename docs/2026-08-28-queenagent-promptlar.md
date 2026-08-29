@@ -84,13 +84,14 @@ söylüyor. Madde 127'den beri yedi: `list_files` kalktı, çünkü adlar zaten 
     "type": "function",
     "function": {
       "name": "edit_file",
-      "description": "Change part of a file that already exists. The text you give as old must appear exactly once and match what is on disk now, without the line numbers a read shows it with: read the file first if this turn has not seen it -- what this turn read or wrote is already in front of you -- and include enough of what surrounds it to be sure.",
+      "description": "Change part of a file that already exists. The text you give as old must appear exactly once and match what is on disk now, without the line numbers a read shows it with: read the file first if this turn has not seen it -- what this turn read or wrote is already in front of you -- and include enough of what surrounds it to be sure. When you mean every occurrence rather than one -- a map entry renamed through all the frames that call on it -- pass replace_all instead of growing the text.",
       "parameters": {
         "type": "object",
         "properties": {
           "name": { "type": "string", "description": "The file's name." },
           "old": { "type": "string", "description": "The exact text to replace." },
-          "new": { "type": "string", "description": "What takes its place. Empty takes the text out." }
+          "new": { "type": "string", "description": "What takes its place. Empty takes the text out." },
+          "replace_all": { "type": "boolean", "description": "Change every occurrence. Left out, text that appears more than once is refused rather than guessed at." }
         },
         "required": ["name", "old", "new"]
       }
