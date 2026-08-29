@@ -82,7 +82,8 @@ def test_a_name_with_no_extension_is_numbered_the_same_way():
 def test_reading_gives_the_contents(tmp_path):
     files = _files(tmp_path)
     _call(files, "create_file", name="plan.md", content="the body")
-    assert _call(files, "read_file", name="plan.md") == "the body"
+    # Numbered since Madde 131: the contents are all still there, with the column in front of them.
+    assert _call(files, "read_file", name="plan.md") == "     1\tthe body"
 
 
 def test_reading_a_file_that_is_not_there_is_an_answer_not_a_crash(tmp_path):
@@ -502,3 +503,66 @@ def test_a_call_that_was_refused_says_why(tmp_path):
     # Reading a file that is not there is something the turn really did, and hiding it would make
     # the record read as though the answer had what it asked for.
     assert _outcome(_files(tmp_path), "read_file", name="gone.md") == "No file by that name"
+
+
+# --- a read that hands back line numbers (Madde 131) ----------------------------------------------
+#
+# The anchor an edit takes has to occur exactly once, and the model was judging that by eye over an
+# unnumbered wall of near-identical frames. It judged wrong, `_edit` answered "appears 3 times", and
+# the retry cost a whole round. Claude Code's Read hands back `cat -n`, and its Edit carries the
+# same uniqueness rule -- what was missing here is not the rule but the column in front of it.
+
+
+def test_a_read_hands_back_numbered_lines(tmp_path):
+    files = _with(tmp_path, "plan.md", "alpha\nbeta\ngamma")
+    assert _call(files, "read_file", name="plan.md") == (
+        "     1\talpha\n     2\tbeta\n     3\tgamma"
+    )
+
+
+def test_the_numbers_are_right_aligned_so_the_text_starts_in_one_column(tmp_path):
+    # Padding rather than a bare number: left-aligned, the text would step right at line 10 and the
+    # model would be reading a ragged edge for the rest of the file.
+    files = _with(tmp_path, "long.md", "\n".join(str(n) for n in range(1, 11)))
+    lines = _call(files, "read_file", name="long.md").splitlines()
+    assert lines[8] == "     9\t9"
+    assert lines[9] == "    10\t10"
+    assert lines[8].index("\t") == lines[9].index("\t")
+
+
+def test_an_empty_file_reads_as_nothing_rather_than_a_first_line(tmp_path):
+    # A guard, green before the change: a lone "1" would put a line in front of the model that the
+    # file does not have, and an edit anchored on nothing is the next thing that happens.
+    files = _with(tmp_path, "empty.md", "")
+    assert _call(files, "read_file", name="empty.md") == ""
+
+
+def test_the_outcome_still_counts_the_lines_it_read(tmp_path):
+    # A guard: the outcome counts the file's lines, not the width of what was shown.
+    files = _with(tmp_path, "plan.md", "alpha\nbeta\ngamma")
+    assert _outcome(files, "read_file", name="plan.md") == "3 lines"
+
+
+def test_the_schema_is_handed_back_unnumbered(tmp_path):
+    # A guard, and the reason is the rule: numbers exist so an anchor can be picked, and no anchor
+    # is ever written into the schema. It is one text for the whole app, not a file on disk.
+    from backend.features.workspace.domain.schema import SCHEMA
+
+    assert _call(_files(tmp_path), "read_prompt_structure_schema") == SCHEMA
+
+
+def test_an_edit_matches_the_disk_and_not_the_numbered_view(tmp_path):
+    # A guard on the seam: what the model was shown carries a column the file does not have, and
+    # matching against the shown form would edit a file nobody has.
+    files = _with(tmp_path, "plan.md", "alpha\nbeta")
+    _call(files, "read_file", name="plan.md")
+    assert "not in plan.md" in _call(files, "edit_file", name="plan.md", old="     2\tbeta", new="x")
+    assert "Edited plan.md" in _call(files, "edit_file", name="plan.md", old="beta", new="delta")
+    assert files.read("p1", "plan.md") == "alpha\ndelta"
+
+
+def test_the_edit_tool_tells_the_model_to_drop_the_numbers():
+    # The bridge between a numbered read and an unnumbered match lives in the description, not in
+    # the code -- the same place Claude Code's Edit puts it.
+    said = _said_by("edit_file")
+    assert "without the line numbers" in said

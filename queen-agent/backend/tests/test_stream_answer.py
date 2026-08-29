@@ -395,7 +395,35 @@ def test_the_schema_reaches_the_box_too(tmp_path):
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
     from backend.features.workspace.domain.schema import SCHEMA
 
+    # Unnumbered, and Madde 131 leaves it so: numbers are there to pick an anchor, and no anchor is
+    # ever written into the schema.
     assert SCHEMA in _box(engine.seen[1])
+
+
+def test_the_box_numbers_the_lines_it_shows(tmp_path):
+    # Madde 131. Since 129 the box is where a file is actually looked at -- the model does not read
+    # it a second time -- so numbering the tool's own answer alone would number the copy nobody
+    # reads.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "alpha\nbeta")
+    rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert "     1\talpha\n     2\tbeta" in _box(engine.seen[1])
+
+
+def test_the_box_and_a_read_show_a_file_the_same_way(tmp_path):
+    # One file, one shape. Two would leave the model deciding which of them its anchor has to
+    # match, and the wrong pick is a refused edit.
+    from backend.features.workspace.domain.tools import run_tool
+
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "alpha\nbeta")
+    rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    handed_back = run_tool(files, "p1", "read_file", json.dumps({"name": "plan.md"})).text
+    assert handed_back in _box(engine.seen[1])
 
 
 def test_the_box_rides_between_the_names_and_the_instruction(tmp_path):
