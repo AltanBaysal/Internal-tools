@@ -1404,7 +1404,42 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 > değişmeli; ve bayat sonuçları temizlemenin bir bedeli var — önbelleklenmiş prefix'i geçersiz
 > kılıyor. Bu üçüncüsü Madde 129'un sırasını değiştirdi.
 
+> **129 koştuktan sonra araçlar Claude Code'unkilerle yan yana kondu** *(29 Ağustos, kullanıcının
+> sözü: "kesinlikle claude gibi olsun read ve edit, adamlar uğraşıp çözmüş")*. Karşılaştırma iki
+> şey gösterdi. Birincisi: `edit_file`'ın *"tam bir kez geçmeli"* şartı bizim icadımız değil —
+> Anthropic'in kendi text editor aracı da aynısını söylüyor *("`old_str`: must match exactly,
+> including whitespace and indentation")*, ve Claude Code'un `Edit`'i de. Yani şart kalıyor,
+> etrafındaki iki kolaylık eksik: **satır numaralı okuma** ve **`replace_all`**. 131 ile 132
+> bunlar.
+>
+> İkincisi 128'i ilgilendiriyor: **Claude Code'un satır numaralı bir insert aracı yok.** Anthropic
+> onu API'sindeki text editor aracına koymuş *(`insert_line`, `insert_text`)* ama kendi kod
+> ajanına vermemiş. Verdiği tek insert `NotebookEdit`'inki, ve o **satır değil `cell_id`** ile
+> çalışıyor — yani yapılandırılmış bir dosyaya yapı-farkındalıklı insert. `add_frames` o kalıbın
+> bizdeki karşılığı, `insert_lines` ise Claude Code'da karşılığı olmayan bir araç olurdu.
+> Kaynaklar: [text editor tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/text-editor-tool),
+> [Claude Code tools reference](https://code.claude.com/docs/en/tools-reference).
+
 ### Madde 128 — Kare eklemenin kendi aracı olur
+
+> **Gerekçesi değişti, kendisi değişmedi** *(kullanıcı kararı, 29 Ağustos)*. Madde okumayı
+> ortadan kaldırmak için yazılmıştı — *"çapa yok, dolayısıyla okuma gerekçesi de yok"* — ve
+> okumanın gerekçesini **129 zaten kaldırdı**: kap her istekte dosyanın güncel hâlini modelin
+> önüne koyuyor, yani çapayı doğrulamak için okumaya gerek kalmıyor. Madde artık okuma için değil,
+> geriye kalan iki bedel için koşuluyor: **çapanın çıktı token'ı** *(diskte duran metin `old`'da
+> bir, `new`'da bir daha yazılıyor — en pahalı token sınıfında)* ve **çakışma retleri**, ki
+> kareler birbirine benzediği için *"appears 3 times"* gerçek bir yol.
+>
+> **İkisi de ölçülmedi, ve bu biliniyor:** elimizdeki 335k 129 öncesinin sayısı, ve 129'dan sonra
+> deneme koşulmadı. Kullanıcı yine de istedi, ve karar kullanıcınındır. Sebebi araç
+> karşılaştırmasından: `NotebookEdit`'in insert'i satır numarasıyla değil **`cell_id`** ile
+> çalışıyor — yapılandırılmış bir dosyaya yapı-farkındalıklı ekleme, Anthropic'in de verdiği
+> biçim. Ve madde bir hız işi olmasa bile bir **hata sınıfını** kapatıyor: konumu model vermediği
+> için yanlış veremiyor.
+>
+> **Koşma sırası: 131 → 132 → 128 → 130.** 131 ile 132 var olan araçların biçimini düzeltiyor, 128
+> yeni aracı getiriyor, 130 en sonda — kelime tavanı 128'in kısalttığı cümleden açılıyor.
+> Numaralar kaymıyor: 131 ile 132 sondan verildi, koşma sırası belgedeki sıra değil bu satır.
 
 - **Ne çalışır:** `add_frames(name, frames)`: kod yapı dosyasını okur, verilen kareleri `frames`
   listesinin sonuna ekler, yazar. Çapa yok, *"tam bir kez"* şartı yok — dolayısıyla okuma
@@ -1473,6 +1508,37 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
   madde için orada açılıyor *(123'ün kuralı: bir cümle ancak bir cümle silinerek girer)*.
 - **İlişkisi:** 112 tabanı, 118 akışın kapanışını yazdı; bu üçüncüsü.
 
+### Madde 131 — `read_file` satır numarasıyla döner
+
+- **Ne çalışır:** okuma bugün ham metin veriyor, yani model dosyayı satır numarası olmadan
+  görüyor — ve `edit_file`'ın çapasını seçerken bir metnin dosyada kaç kez geçtiğini ancak gözüyle
+  tarayarak kestiriyor. Kareler birbirine benzediği için kestirim tutmuyor ve *"appears 3 times"*
+  reddi geliyor. Claude Code'un `Read`'i `cat -n` biçiminde dönüyor. Okuma numaralı döner, ve
+  **129'un kabı da aynı biçimde** — yoksa aynı dosya modelin önünde iki ayrı şekilde durur.
+- **Nasıl görülür:** bir dosya okunduğunda her satır numarasıyla geliyor, bağlam kabındaki aynı
+  dosya da numaralı, ve `edit_file` numarasız metinle eşleşmeye devam ediyor.
+- **Köprü araç tanımında:** çapayı yazarken satır numarası önekinin atılacağı `edit_file`'ın
+  tanımına bir cümle olarak girer. Claude Code'un Edit'i de bunu tanımında söylüyor — numaralı
+  okuma ile numarasız eşleşme arasındaki bağ kodda değil, modele söylenen cümlede duruyor.
+- **Değişmeyen:** eşleşmenin kendisi. `_edit` diskteki ham içerikte arıyor, ve şart yerinde
+  kalıyor — Anthropic'in kendi aracı da aynı şartı koyuyor.
+- **İlişkisi:** 129 kabı kurdu, bu madde kabın ve okumanın biçimini tek biçimde birleştiriyor.
+  132 aynı derdin öteki yarısı.
+
+### Madde 132 — `edit_file` `replace_all` alır
+
+- **Ne çalışır:** çapa birden çok kez geçiyorsa düzenleme reddediliyor ve modelin tek çıkışı
+  çapayı büyütüp baştan denemek — bir raunt yanıyor, ve büyüyen çapa daha çok çıktı token'ı
+  demek. Claude Code'da ret tek çıkış değil: *"Claude either supplies a longer string with enough
+  surrounding context, or sets `replace_all: true` to replace them all."* Araç aynı bayrağı alır.
+- **Nasıl görülür:** aynı metnin üç yerde geçtiği bir dosyada `replace_all` ile tek çağrıda üçü de
+  değişiyor; bayraksız çağrı hâlâ *"appears 3 times"* diyor.
+- **Kararı verilmiş:** varsayılan **ret**. Bayrak verilmemişse bugünkü davranış aynen duruyor —
+  sessizce hepsini değiştirmek, tek bir yeri düzeltmek isteyen modele fark ettirmeden fazlasını
+  yaptırırdı, ve o dosya kullanıcının *(1. ilke)*.
+- **İlişkisi:** 131 çapayı seçmeyi kolaylaştırıyor, bu madde çakıştığında çıkışı açıyor. İkisi de
+  128'in iki bedelinden birine dokunuyor, araç eklemeden.
+
 ---
 
 ## Açık sorular
@@ -1496,6 +1562,7 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | ~~Şema kişi sayısı dışında başka ne alıyor~~ | 95 — kapandı |
 | ~~İzin sorusunun ekranda nasıl göründüğü ve bekleyen turun nasıl taşındığı~~ | 99 ve 102 — kapandı |
 | ~~Akış metninin adımları hangi cümlelerle söylediği~~ | 101 — kapandı |
+| ~~Kare eklemek kendi aracını mı ister, yoksa `edit_file` yeter mi~~ | **128 — kapandı** *(kullanıcı kararı, 29 Ağustos)*: kendi aracını ister. 129 okuma gerekçesini kaldırdı ama çapanın çıktı token'ı ve çakışma retleri duruyor, ve konumu koda almak bir hata sınıfını kapatıyor |
 
 **Açık satır kalmadı** *(28 Ağustos)*: 65'ten 102'ye kadar sorulan her şey ya koşuldu ya karara
 bağlandı. Son üçü Blok 6'nındı, ve üçü de kendi maddesinin spec'inde kapandı.
@@ -1535,6 +1602,23 @@ sayfasından doğrulandı, 26 Ağustos)*. Etrafından dolaşmaya değmez.
 
 **`BREAK`** — kalabalık karede karakterleri ayırmanın bilinen ilacı, ve şartı queen-editor'ün bir
 düğüm açması. İki backlog'da duruyor *(K12–K15)*.
+
+**Okumanın tavanı ve sayfalanması** *(29 Ağustos, araç karşılaştırması)* — Claude Code'un `Read`'i
+büyük bir dosyayı kapatıp `PARTIAL view` notuyla `offset` ile `limit`'i gösteriyor; bizim
+`read_file`'ın tavanı yok, ve 129'dan beri okunmuş dosya her isteğe biniyor. Madde yazılmadı çünkü
+**ölçü yok**: bugüne kadar görülen en büyük dosya 156 satır, ve 92'nin tavanı bağlamın tamamını
+zaten koruyor *(FOUNDATION 3)*. Büyük bir dosya bir turu tıkarsa madde olarak doğar.
+
+**Tam dosyayı üstüne yazan bir yol** *(29 Ağustos)* — Claude Code'un `Write`'ı var olan dosyayı
+üstüne yazıyor; bizde `create_file` alınmış adı reddediyor, yani tek değiştirme yolu `edit_file`
+*(plan dosyaları hariç — `write_plan` üstüne yazıyor)*. Fark gerçek: küçük bir dosyada beş
+düzenleme yerine tek yazım daha ucuz olurdu. Ama bu **Madde 69'un kararı** ve kullanıcının emeğini
+koruyor; değişmesi 69'un yeniden açılmasını ister, ve bu koşuda açılmıyor.
+
+**İçerik araması** *(29 Ağustos)* — Claude Code'da `Glob` ile `Grep` var, bizde ne arama ne
+listeleme *(127 `list_files`'ı da kaldırdı)*. Gerek görülmedi: bir proje birkaç dosya tutuyor ve
+adları 127'den beri her isteğin sonunda duruyor. Adlar bir satıra sığmayacak kadar çoğalırsa
+yeniden bakılır.
 
 Ayrıca: Grok Build dışında model eklemek · sohbet arama · çok kullanıcı ve paylaşım · defterin
 kendisi (v4'te kapandı, bu koşuda değişmiyor) · Drive'ın yavaşlığı (ölçülmemiş, FOUNDATION 3).
