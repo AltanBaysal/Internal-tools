@@ -338,6 +338,16 @@ def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():
     assert "five" in said
 
 
+def test_prompt_plus_closes_with_the_file_rather_than_a_menu():
+    # Madde 130. The base already forbids the closing menu (112), but the skill text is the last
+    # thing in the request (93) and said nothing about closing -- so the trial's build turn read
+    # its own output back, printed 25 prompts into the chat, and offered three choices over a file
+    # already sitting in the project. A text that goes quiet is a text a weak model writes over.
+    said = instruction_for("generate-prompts-plus")
+    assert "The built file is the answer" in said
+    assert "never printed back" in said
+
+
 def test_the_texts_stay_short_enough_to_be_read():
     # Five runs of patches doubled the texts, and a weak model stops reading the middle. The cap
     # is the guard against swelling back: from here a sentence enters only by deleting one.
