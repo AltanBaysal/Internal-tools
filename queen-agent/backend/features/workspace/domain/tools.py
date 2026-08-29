@@ -490,7 +490,7 @@ def _build(file_store, project_id, args):
     # point. Numbering it would leave a pile with no way to tell which one is now.
     written = file_store.write(project_id, target, render_module(prompts))
     return ToolResult(
-        f"Wrote {len(prompts)} prompts to {written}.",
+        f"Wrote {counted(len(prompts), 'prompt')} to {written}.",
         written,
         source,
         counted(len(prompts), "prompt"),
