@@ -1,10 +1,13 @@
 # QueenAgent v5 Yol Haritası — görmek, ölçmek, sadeleşmek
 
-**Tarih:** 2026-08-25 · **Branch:** `feat/queenagent-v5` ·
+**Tarih:** 2026-08-25 · **Branch:** `feat/queenagent-v5`, ve **123'ten sonrası
+`feat/queenagent-m123-skill-rewrite`** — o madde çalışan bir ritüele dokunduğu için kendi dalına
+alındı *(kullanıcı kararı, 29 Ağustos)*, ve 124'ten 132'ye kadar olanlar orada koşuldu ·
 **Kaynak:** [queen-agent/BACKLOG.md](../../../queen-agent/BACKLOG.md) — kullanıcının kendi
 cümleleriyle yazılmış maddeler. Bu belge onlardan türer; ters yön yok. Kapsam ya da karar değişirse
 önce backlog düzelir.
-**Numaralar** v4'ten devam eder (64'te bitti). **49 madde, 7 blok** — 65'ten 113'e.
+**Numaralar** v4'ten devam eder (64'te bitti). **68 madde, 11 blok** — 65'ten 132'ye. *(Açılışta 49
+madde ve 7 bloktu; Blok 8'den 11'e kadar olanlar sonraki dört denemeden doğdu ve sondan eklendi.)*
 
 **Bu belge üç ayrı belgeden birleşti** *(kullanıcı kararı, 27 Ağustos)*. Blok 5 *"v5.5 Yol Haritası"*
 adıyla 26 Ağustos'ta, Blok 6 akış koşusu adıyla 27 Ağustos'ta yazılmıştı. Üçü de aynı branch'te, aynı
@@ -29,9 +32,9 @@ yazılmaması, karakterin her karede aynı okunması, işin parçalara bölünme
 Koşu bu ikisini sırayla kapatıyor: önce ekran ne olduğunu söylesin ve ölçü gelsin; sonra o ölçüye
 bakarak bağlam, model ve yönerge birlikte elden geçsin.
 
-## Yedi blok
+## On bir blok
 
-Koşu yediye ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
+Koşu on bire ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgedeki sıradır:
 
 - **Blok 1 (65-68) tek başına koşuldu — bitti.** Dört madde; her biri kapalı uçlu, kararı verilmiş,
   bir öncekine yaslanıyor. Kullanıcı dördünü koşunun sonunda topluca denedi, ve o deneme Blok 3'ü
@@ -53,12 +56,28 @@ Koşu yediye ayrılıyor, ve ayrım **kimin koştuğu**. Koşma sırası belgede
   99'un spec'i açılınca doğdu** *(28 Ağustos)* — yol haritasının o maddede beklediği bölünme. Koşma
   sırası 99 → 102 → 100 → 101; numara her zamanki gibi sondan verildi. **103 koşu kapandıktan sonra
   doğdu** *(28 Ağustos)* — akış çizimine karşı okununca — ve tek başına koşuldu.
-- **Blok 7 (104-113) madde madde koşuldu — 107 hariç bitti.** Üçüncü denemenin çıkardıkları: prompt
+- **Blok 7 (104-113) madde madde koşuldu — bitti.** Üçüncü denemenin çıkardıkları: prompt
   yüzeyi koşusundan sonra defter denendi *(28 Ağustos)*. **104-106** sohbet ekranındandı;
   **108-113** aynı günün ikinci denemesinden, ve hepsi akışın kendisinden: devir, promptu bozan iki
   yapı hatası, iki üslup işi, ve prompt+'ın eksik yarısı. Sekizinin sekizi aynı gün, ikişer turda
-  koşuldu. **107 koşulmuyor** *(kullanıcı kararı: akış stabil, ritüele dokunmak onu bozabilir)*.
+  koşuldu. **107 önce ertelendi** *(28 Ağustos: akış stabil, ritüele dokunmak onu bozabilir)*
+  **ve 29 Ağustos'ta koşuldu** — altıncı denemede token canı yakınca şartı gerçekleşti.
   Blok 4 gibi açık uçlu: deneme sürdükçe madde eklenir, numaralar sondan verilir.
+- **Blok 8 (114-115) madde madde koşuldu — bitti.** Üçüncü denemenin yapı dosyası gerçek SDXL
+  promptlarının yanına konunca çıkan iki kalıntı, ve ikisi de tek bir yerden besleniyordu: şemanın
+  kendi örneği. Öğreten, kuralının tersini öğretiyordu.
+- **Blok 9 (116-124) madde madde koşuldu — bitti.** Dördüncü deneme. Yedisi akışın ve şemanın
+  metinlerinden, biri markdown çiziminden, ve sonuncusu ölçüden: **123** skill metinlerini persona
+  ile yeniden yazdı ve kendi dalını açtı *(`feat/queenagent-m123-skill-rewrite`)*, **124** önbellek
+  anahtarını taktı.
+- **Blok 10 (125-127) madde madde koşuldu — bitti.** Altıncı deneme: 123'ün kısalttığı metinlerin
+  üstünde ritüel ölmemişti. Bu blok yasak eklemiyor — ya çelişkiyi kaldırıyor *(araç tanımları
+  tabanla barışıyor)* ya işi fiziken gereksizleştiriyor *(adlar isteğin kuyruğunda)*.
+- **Blok 11 (128-132) madde madde koşuldu — bitti.** Yedinci deneme ve onun üstüne yapılan araç
+  karşılaştırması. Aracın sözleşmesi değişiyor: okuma satır numarası veriyor, düzenleme her
+  eşleşmeyi alabiliyor, kare eklemenin kendi aracı oluyor, ve prompt+ kapanışını söylüyor.
+  **131 ile 132 karşılaştırmadan doğdu** *(29 Ağustos)* ve numaraları sondan verildi; koşma sırası
+  129 → 131 → 132 → 128 → 130.
 
 **Blok numarası yazıldığı anı söylüyor, koşulacağı anı değil.** Blok 3 ikinci, Blok 4 üçüncü
 koşuyor; numaralarını kaydırmak, onlara atıf yapan her cümleyi yalan yapardı — maddelerin
@@ -122,7 +141,7 @@ gönderilmedi ve gönderilmeyecek — yerine geçen şey kullanıcının kendi c
 | Agentic davranışı arttıran sistem promptu | 73 |
 | Promptlar SDXL promptu gibi değil, cümle şeklinde çıksın | 75 |
 | Skiller tek bir akışta toplansın | 74 |
-| Prompt listesi karışıyor | **bu koşuda yok** — backlog'da kalıyor |
+| Prompt listesi karışıyor | **bu koşuda yok** — kaydı aşağıda, Kapsam dışı'nda |
 
 "Çalışan cevap durdurulamıyor" iki madde oluyor: içindeki iki şikâyet ayrı işler ve biri ötekinin
 şartı. Görünmek isteyen yarısı, "tool call'lar görünsün" maddesiyle aynı işe baktığı için 66'da
@@ -947,7 +966,7 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
-# Blok 7 — Üçüncü denemenin çıkardıkları · madde madde · **bitti (107 hariç)**
+# Blok 7 — Üçüncü denemenin çıkardıkları · madde madde · **bitti**
 
 > Prompt yüzeyi koşusu kapandıktan sonra defter denendi *(28 Ağustos)*, ve üçü de sohbet ekranından
 > çıktı. Blok 3 ve 4 gibi backlog'dan gelmiyorlar — backlog değişmiyor. Kök nedenler burada
@@ -1165,7 +1184,7 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
-# Blok 9 — Dördüncü denemenin çıkardıkları · madde madde
+# Blok 9 — Dördüncü denemenin çıkardıkları · madde madde · **bitti**
 
 > Blok 8 kapandıktan sonra defter yeniden denendi *(28 Ağustos)*. Kök nedenler burada yazılmıyor:
 > her biri kendi koşusunda araştırılır *(kullanıcının sözü: önce yaz, çözerken araştır)*.
@@ -1317,7 +1336,7 @@ ondan da sonra, koşu kapanmışken doğdu: akış çizimine karşı okundu ve t
 
 ---
 
-# Blok 10 — Ritüel metinle ölmedi · madde madde
+# Blok 10 — Ritüel metinle ölmedi · madde madde · **bitti**
 
 > Altıncı deneme *(29 Ağustos, 107 ve 124 koşulmuş dalda)*: iki mesajlık bir koşunun ikinci turu
 > 12 adım ve ~120k `sent` tuttu. Adımlar tek tek okundu ve israfın üç kaynağı çıktı: model olmayan
@@ -1577,14 +1596,23 @@ bağlandı. Son üçü Blok 6'nındı, ve üçü de kendi maddesinin spec'inde k
 sorusu vardı — kelimeden önce durdurulan turun diske yazılıp yazılmayacağı — ve maddeye gelindiğinde
 kullanıcıyla konuşulup kapandı.
 
-**Numara sorusu kapandı:** sayaç tek. Bu belge 65'ten 103'e kadarını aldı, ve bundan sonra madde
-nereye eklenirse eklensin 104'ten devam eder.
+**Numara sorusu kapandı:** sayaç tek. Cümle 28 Ağustos'ta *"bu belge 65'ten 103'e kadarını aldı,
+bundan sonra 104'ten devam eder"* diye yazılmıştı; dört blok daha eklendi ve kural aynen işledi.
+Bugünkü hâli: belge **65'ten 132'ye** kadarını aldı, ve bundan sonra madde nereye eklenirse
+eklensin **133'ten** devam eder.
 
 ## Kapsam dışı
 
 **Prompt listesinin tek ve tanımlı bir yeri olması** *(kullanıcı kararı, 25 Ağustos)* — listeden
-çıkarıldı, backlog'da kalıyor. Not: 69 üstüne yazma kuralını değiştirdiğinde bu maddenin bir kısmı
-kendiliğinden kapanabilir; kalanı backlog'da beklemeye devam eder.
+çıkarıldı. İlk yazımı *"backlog'da kalıyor"* diyordu, ve
+[BACKLOG.md](../../../queen-agent/BACKLOG.md) onu hiç taşımadı — orada tek madde `BREAK`. Cümle
+koda değil kendine uyduruldu *(29 Ağustos)*: maddenin tek kaydı bu satır.
+
+**Bir kısmı kendiliğinden kapandı:** 69'dan beri `create_file` alınmış bir adı reddedip
+`edit_file`'ı gösteriyor, yani aynı listenin numaralı ikinci kopyası artık doğmuyor. Kalanı
+listenin *nerede* duracağıydı, ve `build_prompts` onu da bir yere bağladı — çıktı yapı dosyasının
+adından türeyen tek bir dosya, ve her koşuda üstüne yazılıyor. Bugün ayakta bir şikâyet yok;
+çıkarsa yeni bir madde olarak doğar.
 
 **Beş tasarım promptunun gönderilmesi** *(26 Ağustos)* — [belgesi](2026-08-25-queenagent-v5-tasarim-promptlari.md)
 duruyor ama gönderilmiyor. Tasarım kullanıcıdan döndü, ve 78 ile 79 onun cümlelerini uyguluyor.
