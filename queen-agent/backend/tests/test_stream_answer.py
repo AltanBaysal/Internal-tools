@@ -951,7 +951,9 @@ def test_counts_repeated_inside_one_round_are_not_added_twice(tmp_path):
     # of chunks that happened to arrive.
     rounds = [[spent(1200, 900, 1), {"text": "Hi"}, spent(1200, 900, 2)]]
     chats, _, _, _ = _run(tmp_path, rounds)
-    assert _kept(chats).usage == Usage(1200, 900, 2)
+    # And the fourth number is the same reading, not the sum of the two frames: one round asked
+    # once, however many times the service restated it.
+    assert _kept(chats).usage == Usage(1200, 900, 2, 1200)
 
 
 def test_an_answer_nobody_measured_spent_nothing(tmp_path):
@@ -969,7 +971,9 @@ def test_a_stopped_answer_still_says_what_it_spent(tmp_path):
     rounds = [[spent(1200, 900, 5), {"text": "Half a "}, CUT]]
     chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
     assert _kept(chats).text == "Half a"
-    assert _kept(chats).usage == Usage(1200, 900, 5)
+    # The size that reached the record is real too: the request went out at that size whether or
+    # not the answer to it was allowed to finish.
+    assert _kept(chats).usage == Usage(1200, 900, 5, 1200)
 
 
 def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tmp_path):

@@ -81,6 +81,8 @@ def _message_json(message):
             "sent": message.usage.sent,
             "cached": message.usage.cached,
             "answered": message.usage.answered,
+            # The ceiling reads this one, and it cannot be worked back out of the total (Madde 133).
+            "context": message.usage.context,
         }
     return stored
 
@@ -101,7 +103,12 @@ def _as_usage(raw):
     # does not know would turn a stray edit into a crash instead of something ignored.
     if not raw:
         return Usage()
-    return Usage(raw.get("sent", 0), raw.get("cached", 0), raw.get("answered", 0))
+    # A chat written before Madde 133 has three keys and not the fourth, and reads back as zero
+    # there -- unmeasured, which is what keeps it open rather than closing it on a number nobody
+    # ever recorded. No migration: the field fills itself on the chat's next turn.
+    return Usage(
+        raw.get("sent", 0), raw.get("cached", 0), raw.get("answered", 0), raw.get("context", 0)
+    )
 
 
 def _as_chat(chat_id, raw):

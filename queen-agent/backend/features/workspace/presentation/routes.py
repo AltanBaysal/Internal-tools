@@ -18,7 +18,7 @@ from backend.features.workspace.domain.chat import (
     ToolCall,
     is_full,
     is_owed_an_answer,
-    last_sent,
+    last_context,
 )
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting
 from backend.features.workspace.domain.tools import FileStarted, FileWritten
@@ -302,7 +302,12 @@ def _chat_json(chat):
         **_chat_summary(chat),
         # The ceiling travels with the number: the gauge draws a share, and a share needs its
         # denominator. A second copy of the ceiling living in the browser is what would go stale.
-        "context": {"sent": last_sent(chat), "ceiling": CONTEXT_CEILING},
+        #
+        # The key stays `sent` while the number behind it became the last round's (Madde 133):
+        # read as the context's sent it is still true, and renaming it would rebuild the frontend
+        # to say the same thing. The gauge is handed the number the ceiling actually stops on --
+        # a gauge measuring something else cannot warn about the wall it is not watching.
+        "context": {"sent": last_context(chat), "ceiling": CONTEXT_CEILING},
         "messages": [
             {
                 "role": message.role,

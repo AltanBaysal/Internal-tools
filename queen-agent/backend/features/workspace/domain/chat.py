@@ -42,6 +42,11 @@ class Usage:
     # never be larger than `sent`, and the difference is what was paid for again.
     cached: int = 0
     answered: int = 0
+    # What the turn's *last* round sent, which is where the conversation stood when it ended. The
+    # three above answer what this answer cost; this one answers how big the request had grown, and
+    # only it can tell a chat when to stop -- a turn of six rounds spends six requests' worth, and
+    # that sum is not the size of any of them (Madde 133).
+    context: int = 0
 
 
 @dataclass(frozen=True)
@@ -108,22 +113,25 @@ is not the same as being read. Above 200k the input also costs twice as much.
 """
 
 
-def last_sent(chat):
-    """What the most recent answer sent to the model, or 0 if none ever did.
+def last_context(chat):
+    """How big the conversation had grown when the last answer finished, or 0 if none has.
+
+    The last round's size rather than the turn's total. Those were the same reader until Madde 133,
+    and the trial that separated them closed a chat at 51.4k whose request had never passed 12k --
+    six rounds of ten thousand is not a request of sixty. What the turn cost is still on the
+    message, and the card still draws it; this is the other question.
 
     A turn's size is only known once its answer comes back, so this is one turn stale on purpose --
-    a request is stopped by the size of the one before it. At this ceiling the difference does not
-    matter: no single turn is large enough to cross it on its own.
-
-    Walked from the end rather than read off the last message: a question whose answer never came
-    can be sitting there, and a question has no number of its own.
+    a request is stopped by the size of the one before it. Walked from the end rather than read off
+    the last message: a question whose answer never came can be sitting there, and a question has
+    no number of its own.
     """
     for message in reversed(chat.messages):
         if message.role == "ai":
-            return message.usage.sent
+            return message.usage.context
     return 0
 
 
 def is_full(chat):
     """Whether this chat has reached the ceiling and may not take another turn."""
-    return last_sent(chat) >= CONTEXT_CEILING
+    return last_context(chat) >= CONTEXT_CEILING

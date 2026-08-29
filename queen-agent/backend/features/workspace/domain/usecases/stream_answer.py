@@ -229,6 +229,10 @@ def stream_answer(
                     spent.sent + round_spent["sent"],
                     spent.cached + round_spent["cached"],
                     spent.answered + round_spent["answered"],
+                    # Replaced rather than added (Madde 133). The three above are a bill and add up;
+                    # this one is a measurement of one request, and each round's is bigger than the
+                    # last because the conversation grew. The final reading is where it ended.
+                    round_spent["sent"],
                 )
 
             # Asked once, at the end, rather than before every frame: since Madde 90 a stop cuts
