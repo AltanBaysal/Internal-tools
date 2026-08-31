@@ -34,9 +34,11 @@ kaldırılır — skill seçilmemiş bir sohbette kapanış cümlesi o kapıdan 
 `python -m pytest queen-agent -q` — 647 + 6, tam beklenen sayı. Altı kırmızının altısı da yazıldığı
 gibi yeşile döndü ve hiçbir bekçi düşmedi; testlere dokunulmadı.
 
-**`npm test --prefix queen-agent/frontend` yine koşulamadı:** Node hâlâ kurulu değil. Madde ön yüze
-dokunmuyor ve `dist` derlenmedi, ama komut koşulmadığı için yeşil olduğu **görülmedi** — Node
-kurulunca koşulacak. Bu turun tek doğrulanmamış satırı.
+`npm test --prefix queen-agent/frontend` — **568 yeşil, 35 dosya.** Node aynı gün kuruldu ve komut
+koşuldu. Madde ön yüze dokunmadığı ve `dist` derlenmediği için beklenen buydu; artık varsayılmıyor,
+görüldü.
+
+İki komut da koşuldu, doğrulanmamış satır kalmadı.
 
 ## F. Yeşil commit.
 
