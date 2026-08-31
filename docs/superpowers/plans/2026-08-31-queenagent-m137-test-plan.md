@@ -50,11 +50,23 @@ yapamayacağını yapmaya devam ediyor. Test kuralı ölçüyor, mekanizmayı de
 
 `test_the_round_limit_carries_the_longest_chain` — `MAX_ROUNDS == 16` değişmiyor, ve yeşil kalmalı.
 
-## D. İki komut koşulur, sayılar buraya yazılır.
+## D. Koşuldu: **6 kırmızı, 647 yeşil.**
 
-Beklenen: **altı kırmızı** *(`test_prompt.py`'de iki, `test_stream_answer.py`'de dört)*, geri kalan
-yeşil, frontend hiç etkilenmiyor. Bekçilerden biri kırmızıya düşerse madde yanlış okunmuş demektir
-ve tasarıma dönülür.
+`python -m pytest queen-agent -q` — planlanan altısı, ve yalnız onlar. Fonksiyon-içi import kararı
+tuttu: iki dosyanın geri kalan testleri toplanıp yeşil koştu, hiçbiri maskelenmedi.
+
+Beşi `ImportError: cannot import name 'LAST_ROUND'` — sabit henüz yok. Altıncısı,
+`test_the_last_round_is_offered_no_tools`, gerçek bir `AssertionError` veriyor ve maddenin cümlesini
+sayıyla söylüyor: **son raunt bugün sekiz araç teklif ediliyor**, boş liste bekleniyor. Kırmızıların
+tek doğru olanı bu — ötekiler bir adın yokluğunu, bu bir davranışın yanlışlığını gösteriyor.
+
+**Üç bekçi de yeşil:** `test_the_loop_stops_at_the_round_limit_and_still_writes`,
+`test_a_silent_turn_that_runs_out_of_rounds_is_not_an_answer_either` *(beklendiği gibi — sahte motor
+`tools` argümanını yok sayıyor)* ve `test_the_round_limit_carries_the_longest_chain`.
+
+**`npm test --prefix queen-agent/frontend` koşulamadı:** cihazda Node kurulu değil *(31 Ağustos,
+kullanıcı bilgisayarı sıfırladı; Python aynı gün kuruldu)*. Bu madde ön yüze dokunmuyor, ama komut
+koşulmadığı için yeşil olduğu **görülmedi** — Node kurulunca koşulacak.
 
 ## E. Kırmızı commit.
 

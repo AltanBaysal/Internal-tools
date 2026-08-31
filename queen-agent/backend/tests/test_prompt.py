@@ -110,6 +110,38 @@ def test_the_base_reads_nothing_the_answer_does_not_need():
     assert "nothing the answer does not need" in SYSTEM_PROMPT.lower()
 
 
+# --- what the turn's last round is told (Madde 137) -----------------------------------------------
+#
+# Imported inside each test rather than at the top of the file: until the constant exists a module
+# level import would stop this file being collected at all, and the fourteen guards above would read
+# as errors of this item's making. The same shape allowed() and refused() use in test_stream_answer.
+#
+# The text is only half the item -- the round really is handed no tools, and test_stream_answer
+# measures that. What is guarded here is that the sentence says the two things the failure asked
+# for: that nothing more will run, and what the closing answer owes the reader.
+
+
+def test_the_last_round_notice_says_no_tool_will_run():
+    # Why it says so rather than only asking for a summary: the model is not stopping early, it is
+    # being told the road ends here. A sentence that said wrap up would leave it free to spend the
+    # round on one more call -- which is the failure this item comes from.
+    from backend.features.workspace.domain.prompt import LAST_ROUND
+
+    said = LAST_ROUND.lower()
+    assert "last round" in said
+    assert "no tool" in said
+
+
+def test_the_last_round_notice_asks_what_is_left():
+    # The user's own two words for what a closing answer owes them. Saying only what was done
+    # leaves the reader to work out where it stopped, and the next message is where they pick it up.
+    from backend.features.workspace.domain.prompt import LAST_ROUND
+
+    said = LAST_ROUND.lower()
+    assert "what is left" in said
+    assert "next step" in said
+
+
 @pytest.mark.parametrize(
     "task",
     ["scenario", "frame", "character", "prompt", "sdxl", "outfit", "structure file"],

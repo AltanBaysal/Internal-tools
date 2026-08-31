@@ -730,6 +730,79 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     assert [piece["role"] for piece in spoken[-2:]] == ["assistant", "tool"]
 
 
+# --- the last round closes the turn rather than asking for more (Madde 137) -----------------------
+#
+# Where this comes from: a run of seventy tool calls that ended in nothing. Sixteen rounds went on
+# tools, no word was said, and append_message refused the whole turn -- the rule is right, and what
+# was missing is that the sixteenth round was handed exactly what the first was. So the model
+# answered it the way it answered the first, with another call, and no round was left to read the
+# result.
+#
+# LAST_ROUND is imported inside each test for the reason test_prompt gives: until it exists, a
+# module level import would stop this file being collected and bury sixty-odd greens in errors.
+
+
+def _asking_forever(count):
+    """A script that speaks a little and asks for a tool every round, `count` rounds long.
+
+    The word matters: a turn that says nothing and makes nothing is refused before any of these
+    could look at it, and what is under test here is the request rather than that rule.
+    """
+    return [
+        [{"text": "."}, {"tool_calls": [call("read_prompt_structure_schema")]}] for _ in range(count)
+    ]
+
+
+def test_the_last_round_is_offered_no_tools(tmp_path):
+    # The half of the item that does not depend on the model reading anything. A notice on its own
+    # would be a request, and the failure it answers is a model misreading where the turn stands --
+    # the same misreading would carry it straight past the sentence. A round with no tools in it has
+    # nothing left to disobey with.
+    _, _, engine, _ = _run(tmp_path, _asking_forever(MAX_ROUNDS))
+    assert engine.tools[-1] == []
+    # And only the last one: every round before it is still working, and a turn that lost its tools
+    # early would finish sooner while looking like it had finished.
+    assert all(engine.tools[:-1])
+
+
+def test_the_last_round_says_it_is_the_last(tmp_path):
+    # The other half. Without the words the model produces an answer because it has no choice,
+    # which is not the same as an answer that knows it is closing something.
+    from backend.features.workspace.domain.prompt import LAST_ROUND
+
+    _, _, engine, _ = _run(tmp_path, _asking_forever(MAX_ROUNDS))
+    assert engine.seen[-1][-1] == {"role": "system", "content": LAST_ROUND}
+
+
+def test_the_notice_is_the_requests_last_word(tmp_path):
+    # Madde 93 put the instruction at the end because what is fixed leads and what changes trails.
+    # The instruction is fixed for the whole turn; this sentence shows up in one round out of
+    # sixteen. The same reasoning that gave 93 the last word takes it back here -- so the order is
+    # extended rather than broken, and the test names both to say which one moved.
+    from backend.features.workspace.domain.prompt import LAST_ROUND
+
+    chats, files = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="generate-prompts-plus")
+    engine = ScriptedEngine(_asking_forever(MAX_ROUNDS))
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    assert [piece["content"] for piece in engine.seen[-1][-2:]] == [
+        instruction_for("generate-prompts-plus"),
+        LAST_ROUND,
+    ]
+
+
+def test_a_turn_that_ends_early_never_sees_the_notice(tmp_path):
+    # The boundary. Reaching the limit is what this sentence is for, and most turns never do -- one
+    # that spoke and stopped was never running out of anything, and telling it so would be a lie
+    # about its own turn.
+    from backend.features.workspace.domain.prompt import LAST_ROUND
+
+    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "Done."}]]
+    _, _, engine, _ = _run(tmp_path, rounds)
+    assert not any(LAST_ROUND in piece["content"] for seen in engine.seen for piece in seen)
+    assert all(engine.tools)
+
+
 def test_a_chat_without_a_skill_is_told_nothing_extra(tmp_path):
     _, conversation = _said_with(tmp_path, ("hello", ""))
     assert _instructions(conversation) == []
