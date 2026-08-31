@@ -41,9 +41,10 @@ class FileWritten:
 
 
 # The longest sensible chain is the structured prompt run: read the pair, write the skeleton, add
-# the frames in batches, check itself, build. Sixteen rounds carry it; an unbounded loop would burn both
-# money and time. Reaching the limit is a stop, not a failure -- which is why the number has to be
-# generous: a chain cut short looks exactly like a model that gave up.
+# the frames in batches, check itself, build. Fifteen rounds carry it and the sixteenth closes the
+# turn (Madde 137); an unbounded loop would burn both money and time. Reaching the limit is a stop,
+# not a failure -- which is why the number has to be generous: a chain cut short looks exactly like
+# a model that gave up.
 MAX_ROUNDS = 16
 DEFAULT_NAME = "note.md"
 

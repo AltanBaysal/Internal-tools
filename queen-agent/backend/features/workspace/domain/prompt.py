@@ -1,4 +1,4 @@
-"""What QueenAgent is told about itself before every answer.
+"""What QueenAgent is told about itself: before every answer, and once at the end of a long one.
 
 A product behaviour rather than a transport detail, so it lives in the domain.
 
@@ -51,3 +51,23 @@ SYSTEM_PROMPT = (
     "next is not an ending, it is the work handed back: ask the one question that decides what "
     "happens next, or stop."
 )
+
+LAST_ROUND = (
+    "This is the last round of this turn. No tool will run after it, so nothing you ask for here "
+    "comes back -- answer now with what you already have. Say what you did, what is left, and what "
+    "the next step would be: the work carries on in the user's next message, and this answer is "
+    "the only place they can read where it stood."
+)
+"""What the turn's final round is told, on top of everything above (Madde 137).
+
+Kept out of SYSTEM_PROMPT rather than folded into it. That text opens every request and is the
+fixed head the service files this conversation's cached prefix under; a sentence about where the
+turn stands would change it on the one round that differs and cost the prefix on all of them. This
+rides at the tail instead, where what changes belongs.
+
+The words are half of it -- the round really is handed no tools, and stream_answer does that. Told
+without being enforced this would be a request, and a model that has misread how much turn is left
+is exactly the reader who would spend the round on one more call. Enforced without being told, the
+model would answer because it had no choice, which is not the same as an answer that knows it is
+closing something and says where the work stopped.
+"""

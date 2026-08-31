@@ -8,6 +8,7 @@ from backend.features.workspace.domain.context_box import files_opened, schema_w
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
+from backend.features.workspace.domain.prompt import LAST_ROUND
 from backend.features.workspace.domain.schema import SCHEMA
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
@@ -88,9 +89,9 @@ def _boxed(file_store, project_id, chat, steps):
     )
 
 
-def _asked(conversation, names, box, instruction):
+def _asked(conversation, names, box, instruction, last=False):
     """The request as it goes out: the conversation, then what the project holds, then the
-    instruction behind all of it.
+    instruction behind all of it, and on the final round the notice that closes the turn.
 
     Two measures put the instruction at the end. Attention: accuracy is highest at the two ends of
     a context and falls by more than a third in the middle. Cache: what is fixed leads so the
@@ -104,13 +105,23 @@ def _asked(conversation, names, box, instruction):
     what the model said and what the tools answered. An instruction placed inside it once would sit
     behind those from the second round on, and the reason this exists would stop holding after the
     first one.
+
+    The closing notice goes behind the instruction, by the same measure that put the instruction
+    last. Madde 93's rule is that what is fixed leads and what changes trails: the instruction is
+    settled before the first round and holds for the whole turn, while this shows up in one round
+    out of sixteen. The order is extended rather than broken.
     """
     asked = conversation + [{"role": "system", "content": _named(names)}]
     if box:
         asked = asked + [{"role": "system", "content": box}]
-    if not instruction:
-        return asked
-    return asked + [{"role": "system", "content": instruction}]
+    # Each piece its own condition and one return at the end. An early exit on a missing
+    # instruction used to stand here, and the notice could never have got past it -- a chat with no
+    # skill selected is the ordinary case rather than the exception.
+    if instruction:
+        asked = asked + [{"role": "system", "content": instruction}]
+    if last:
+        asked = asked + [{"role": "system", "content": LAST_ROUND}]
+    return asked
 
 
 HEARTBEAT_SECONDS = 15
@@ -172,7 +183,12 @@ def stream_answer(
     done = False
 
     try:
-        for _ in range(MAX_ROUNDS):
+        for index in range(MAX_ROUNDS):
+            # The round the turn ends on, whatever it has or has not finished. It is told so and it
+            # is handed no tools, because a round that looks like every other one gets answered like
+            # every other one -- with a call whose result no round is left to read, and a turn that
+            # never spoke (Madde 137).
+            last = index == MAX_ROUNDS - 1
             spoken, calls = [], []
             # This round's bill so far. None until the engine says anything about it, so an engine
             # that measures nothing leaves the total alone rather than adding zeroes to it.
@@ -187,10 +203,13 @@ def stream_answer(
                         file_store.list_names(project_id),
                         _boxed(file_store, project_id, chat, made),
                         instruction,
+                        last,
                     ),
                     # Every tool, in every mode. Since Madde 99 the mode is not what the request
-                    # carries -- it is which of them run out of it without a question.
-                    tools=TOOL_SPECS,
+                    # carries -- it is which of them run out of it without a question. The closing
+                    # round is the one exception, and it is not about the mode: nothing it asked for
+                    # could come back, so it is offered nothing to ask with.
+                    tools=None if last else TOOL_SPECS,
                     # Only the transport holds a socket, so only it can hand out a way to cut one.
                     on_open=lambda cut: stops.hold(project_id, chat_id, cut),
                     # The chat is the conversation: its id is the name the service's cache files
