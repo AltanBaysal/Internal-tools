@@ -13,8 +13,10 @@ import os
 
 from backend.features.producers.domain.model_groups import GROUPS
 
-NOTEBOOK = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "app.ipynb")
+TOOL = os.path.dirname(          # queen-editor
+    os.path.dirname(             # backend
+        os.path.dirname(os.path.abspath(__file__))))  # tests
+NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 
 # Which CONFIG checkbox owns which producer.
 SWITCH = {"photo": "INSTALL_PHOTO", "video": "INSTALL_VIDEO", "audio": "INSTALL_AUDIO"}
@@ -41,6 +43,18 @@ def _cell(marker):
         if marker in source:
             return source
     return ""
+
+
+def test_the_notebook_carries_the_tool_s_own_name():
+    """Colab shows a notebook by its file name alone -- the title inside it never reaches the tab.
+    Two tools open at once are told apart by that name and nothing else, and Run all in the wrong
+    tab clones the wrong repo and starts the wrong app. Read from the folder rather than written
+    down, so renaming a tool carries the rule with it.
+    """
+    found = sorted(name for name in os.listdir(TOOL) if name.endswith(".ipynb"))
+
+    assert found == [os.path.basename(TOOL).replace("-", "") + ".ipynb"], \
+        f"Defterin adı aracının adı değil: {found}"
 
 
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():

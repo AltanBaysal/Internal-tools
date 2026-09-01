@@ -40,6 +40,13 @@ describe("useProducers", () => {
     expect(listProducers).toHaveBeenCalledTimes(1);
   });
 
+  it("names the notebook the user actually has to open", () => {
+    // The sentence IS the whole answer Kur gives, and it sends the user to a file by name. Pinned
+    // here and nowhere else: every other test reads the constant, so it would agree with whatever
+    // name the constant carried -- including one that is not in the repo any more.
+    expect(COLAB_INSTALL).toContain("queeneditor.ipynb");
+  });
+
   it("answers Kur with where the install happens, and asks the server nothing", async () => {
     const { result } = renderHook(() => useProducers());
     await settle();

@@ -361,8 +361,8 @@ describe("QueuePanel — a producer that is not on the machine", () => {
 
   it("prints the answer the app has on the same card", () => {
     const noted = MISSING.map((row) => (row.id === "audio"
-      ? { ...row, note: "Bu üretici Colab defterinden kurulur — app.ipynb'de kutusunu işaretleyip "
-                        + "çalıştır." }
+      ? { ...row, note: "Bu üretici Colab defterinden kurulur — queeneditor.ipynb'de kutusunu "
+                        + "işaretleyip çalıştır." }
       : row));
     renderPanel({ queue: BOTH, producers: noted });
 

@@ -11,15 +11,13 @@ line breaks instead of the code the cell runs.
 import json
 import os
 
-NOTEBOOK = os.path.join(
-    os.path.dirname(          # queen-agent
-        os.path.dirname(      # backend
-            os.path.dirname(os.path.abspath(__file__)))),  # tests
-    # Not app.ipynb: queen-editor's notebook is called that, and Colab shows a notebook by its file
-    # name alone. Two tabs both saying app.ipynb are two tabs nobody can tell apart, and pressing
-    # Run all in the wrong one clones the wrong repo and starts the wrong app.
-    "queenagent.ipynb",
-)
+TOOL = os.path.dirname(          # queen-agent
+    os.path.dirname(             # backend
+        os.path.dirname(os.path.abspath(__file__))))  # tests
+# Not app.ipynb: queen-editor's notebook is called that, and Colab shows a notebook by its file
+# name alone. Two tabs both saying app.ipynb are two tabs nobody can tell apart, and pressing
+# Run all in the wrong one clones the wrong repo and starts the wrong app.
+NOTEBOOK = os.path.join(TOOL, "queenagent.ipynb")
 
 CONFIG = "# === CONFIG ==="
 CLONE = "# === Clone ==="
@@ -56,6 +54,18 @@ def test_the_notebook_is_there_and_parses():
     every test below fail identically and none of them says why."""
     assert os.path.exists(NOTEBOOK), f"Defter yok: {NOTEBOOK}"
     assert _cells(), "Defterde hiç hücre yok"
+
+
+def test_the_notebook_carries_the_tool_s_own_name():
+    """Colab shows a notebook by its file name alone -- the title inside it never reaches the tab.
+    Two tools open at once are told apart by that name and nothing else, and Run all in the wrong
+    tab clones the wrong repo and starts the wrong app. Read from the folder rather than written
+    down, so renaming a tool carries the rule with it.
+    """
+    found = sorted(name for name in os.listdir(TOOL) if name.endswith(".ipynb"))
+
+    assert found == [os.path.basename(TOOL).replace("-", "") + ".ipynb"], \
+        f"Defterin adı aracının adı değil: {found}"
 
 
 def test_drive_is_mounted_before_anything_else():
