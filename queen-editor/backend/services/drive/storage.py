@@ -1,6 +1,6 @@
 """Folder operations under one root -- knows no project, no JSON, no schema.
 
-On Colab `root` sits inside the mounted Drive (see app.ipynb); locally it is any folder.
+On Colab `root` sits inside the mounted Drive (see queeneditor.ipynb); locally it is any folder.
 A missing root is NOT created here: that would silently write to Colab's local disk when the
 Drive mount failed, so the error must reach the caller.
 """

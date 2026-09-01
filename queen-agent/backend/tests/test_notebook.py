@@ -14,9 +14,6 @@ import os
 TOOL = os.path.dirname(          # queen-agent
     os.path.dirname(             # backend
         os.path.dirname(os.path.abspath(__file__))))  # tests
-# Not app.ipynb: queen-editor's notebook is called that, and Colab shows a notebook by its file
-# name alone. Two tabs both saying app.ipynb are two tabs nobody can tell apart, and pressing
-# Run all in the wrong one clones the wrong repo and starts the wrong app.
 NOTEBOOK = os.path.join(TOOL, "queenagent.ipynb")
 
 CONFIG = "# === CONFIG ==="

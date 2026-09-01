@@ -6,7 +6,7 @@ import { failureText } from "../../shared/failure_text.js";
 /** What Kur answers now. The app installs nothing: the models come down in the Colab notebook,
  *  before this process starts (FOUNDATION 9). */
 export const COLAB_INSTALL =
-  "Bu üretici Colab defterinden kurulur — app.ipynb'de kutusunu işaretleyip çalıştır.";
+  "Bu üretici Colab defterinden kurulur — queeneditor.ipynb'de kutusunu işaretleyip çalıştır.";
 
 // What is installed cannot change while the app is up -- installing happens in the notebook, which
 // runs before the server does. So the list is asked for once, and never polled.

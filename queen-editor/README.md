@@ -5,12 +5,12 @@ carry a video and a sound layer on top of it, and the export joins them into one
 on. Photos and videos are rendered by ComfyUI, sound by MMAudio inside the app's own process, and
 everything lands in Google Drive.
 
-Runs on Google Colab: `app.ipynb` mounts Drive, clones this repo, installs the producers, starts
-Flask and prints a cloudflared link. Colab never builds — it only serves.
+Runs on Google Colab: `queeneditor.ipynb` mounts Drive, clones this repo, installs the producers,
+starts Flask and prints a cloudflared link. Colab never builds — it only serves.
 
 ## Before the first run
 
-Upload `queen-editor/app.ipynb` to Colab (**File → Upload notebook**), then add these in the
+Upload `queen-editor/queeneditor.ipynb` to Colab (**File → Upload notebook**), then add these in the
 **Secrets** panel (🔑, left sidebar) with **Notebook access** on. They live in your Colab account:
 set once, nothing to paste again and nothing to commit.
 

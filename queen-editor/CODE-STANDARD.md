@@ -31,15 +31,15 @@ shared file, no shared Drive folder. What we inherit is knowledge, not code:
 | The ComfyUI graphs — copied into `queen-editor/workflow_api.json` and `workflow_video_api.json` as our own files | Reading `collab-toolbox`'s copies, or Drive's copy of either |
 | Injection node ids — photo (`"3"`, `"4"`, `"40"`, `"45"`), video (`"287"`, `"233:240"`, `"210"`) | `api.ipynb`'s or `photo_to_video.ipynb`'s CONFIG cell |
 | MMAudio's settings — architecture, fine-tune, steps, cfg, solver, negative, chunk lengths — written into our own files | Importing anything from `mmaudio_generate.ipynb`, or running it. Sound is the one engine we call as a library rather than through ComfyUI ([FOUNDATION 6](FOUNDATION.md)) |
-| Setup cells — custom nodes, headless ComfyUI, the model downloads — copied **verbatim** into `app.ipynb`, because that machinery is proven | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
-| Which model files each pipeline needs: the **names** into `features/producers/` so the panel can answer whether they are here, the **addresses** into `app.ipynb` where they are fetched ([FOUNDATION 9](FOUNDATION.md)) | Two places knowing one address. The app carries no URL at all — a producer's group is a reading list, and reading it is all the app does with it |
+| Setup cells — custom nodes, headless ComfyUI, the model downloads — copied **verbatim** into `queeneditor.ipynb`, because that machinery is proven | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
+| Which model files each pipeline needs: the **names** into `features/producers/` so the panel can answer whether they are here, the **addresses** into `queeneditor.ipynb` where they are fetched ([FOUNDATION 9](FOUNDATION.md)) | Two places knowing one address. The app carries no URL at all — a producer's group is a reading list, and reading it is all the app does with it |
 | Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is **ours**: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/superpowers/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
 
 Every direct subfolder of our Drive root is a project, so the root must be ours alone: point it at
 the notebook's folder and its `output/` shows up as a phantom project card. The root is never
-hardcoded — the server reads `QE_DRIVE_ROOT`, and `app.ipynb`'s CONFIG cell is the one place that
-names the folder (`DRIVE_FOLDER`, currently `queenEditor`). Renaming it is a one-line change there,
-so do not repeat the name in comments, docstrings or here.
+hardcoded — the server reads `QE_DRIVE_ROOT`, and `queeneditor.ipynb`'s CONFIG cell is the one
+place that names the folder (`DRIVE_FOLDER`, currently `queenEditor`). Renaming it is a one-line
+change there, so do not repeat the name in comments, docstrings or here.
 
 The batch behaviour is the notebook's, the code is ours: same rules, written into `services/comfy/`
 (HTTP transport) and `features/photo_generation/` (node ids, file names, the worker), where they can
