@@ -64,6 +64,25 @@ def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
     assert missing == [], f"Defter bu dosyaları indirmiyor: {missing}"
 
 
+def test_the_notebook_installs_the_encoder_the_graph_asks_for():
+    """ComfyUI validates every node it is sent, so a graph naming an encoder the notebook never
+    installed does not degrade -- it fails every single render. The graph and the notebook are one
+    thing, and this is the seam where that is checked before Colab charges an install for it."""
+    assert "pamparamm/ComfyUI-ppm" in _source(), \
+        "Grafiğin istediği kodlayıcıyı veren paket defterde kurulmuyor"
+
+
+def test_the_notebook_says_how_many_custom_nodes_it_installs():
+    """The count sits in two places -- the list itself and the heading above it -- and a copy is what
+    goes stale. Read from the list rather than written down here, so adding a node fails this test
+    until the sentence a reader sees agrees with what the cell actually clones."""
+    listed = _cell("CUSTOM_NODES = [").count('.git"),')
+    heading = _cell("## ComfyUI + Custom Node")
+
+    assert listed, "CUSTOM_NODES listesi okunamadı"
+    assert f"({listed})" in heading, f"Başlıktaki sayı listeyle uyuşmuyor: {listed} satır"
+
+
 def test_every_producer_has_a_checkbox_of_its_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
     Default False, so nothing heavy starts by accident."""
