@@ -342,9 +342,9 @@
         1
       ]
     },
-    "class_type": "CLIPTextEncode",
+    "class_type": "CLIPTextEncodeBREAK",
     "_meta": {
-      "title": "CLIP Text Encode (Positive)"
+      "title": "CLIP Text Encode (Positive, BREAK)"
     }
   },
   "37": {
