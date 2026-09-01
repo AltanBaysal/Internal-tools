@@ -14,5 +14,13 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: "./src/test-setup.js",
+    // A worker carries a jsdom of its own, so a worker per core leaves every test file's
+    // environment queuing for one machine's memory. In queen-agent's suite a test that reads 99ms
+    // alone read 5107ms in that crowd, and the timeout measures the wall clock, so it called a
+    // finished test stuck. Measured there on 1 September: every core 18-22s and red, half 8.3s and
+    // green. No red was seen on this side, but the configuration, the file count and the machine
+    // are the same, and the two tools do not carry different rules without a reason. A proportion
+    // rather than a count, because a number that fits one machine would bind every other one.
+    maxWorkers: "50%",
   },
 });

@@ -17,5 +17,12 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: "./src/test-setup.js",
+    // A worker carries a jsdom of its own, so a worker per core leaves thirty-five environments
+    // queuing for one machine's memory. A test that reads 99ms alone read 5107ms in that crowd,
+    // and the timeout measures the wall clock, so it called a finished test stuck. Measured on 1
+    // September: every core 18-22s and red, two workers 20.6s and green, half 8.3s and green --
+    // fewer workers is both steadier and faster. A proportion rather than a count, because a
+    // number that fits this machine would bind every other one.
+    maxWorkers: "50%",
   },
 });
