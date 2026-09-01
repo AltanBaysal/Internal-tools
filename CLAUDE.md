@@ -17,12 +17,9 @@ npm test --prefix queen-editor/frontend
 # otherwise — and on the notebook side nothing is seeable until it is pushed.
 npm run build --prefix queen-agent/frontend
 npm run build --prefix queen-editor/frontend
-
-# QueenAgent also runs locally, and that is its primary road.
-python queen-agent/main.py           # http://127.0.0.1:8100 — restart it after a backend change
-
-# queen-editor has no local run: it lives on Colab and the user runs the notebook.
 ```
+
+How a tool is installed and run is its own README's, not this file's.
 
 ## Workflow
 
