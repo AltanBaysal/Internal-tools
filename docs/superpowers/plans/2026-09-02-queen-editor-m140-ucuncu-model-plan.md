@@ -85,7 +85,19 @@ seçenin ne ödediği. Modeller başlığındaki `~2+7n` de doğru kalıyor.
 Defterin *"Foto modeli eklemek"* notu üç yeri sayıyor — satır, kutu, kontrol — ve bu ekleme tam
 olarak o üçünü yapıyor, yani not doğrulanmış oluyor.
 
-### G. Koşulur, **sayı koşudan alınır.** Yeşil commit.
+### G. Koşuldu: **733 yeşil, 0 kırmızı.**
+
+`python -m pytest queen-editor -q` — tek kırmızı döndü, hiçbir bekçi düşmedi. Üç bekçinin üçü de
+üçüncü adı kendiliğinden kapsadı: eşleşme testi yeni kutu-satır çiftini gördü, kapalı gelme testi
+yeni kutuyu da saydı, kontrol testi beklediği satırı üç isimle kurup buldu. **Mekanizmanın sayıdan
+bağımsız olduğunun kanıtı bu koşu.**
+
+`npm test --prefix queen-editor/frontend` — **28 dosya, 587 yeşil.**
+
+Ayrıca `PHOTO_MODELS`'ın yorumundaki `(Madde 142)` göndermesi düzeldi: 142 düşürüldü, yorum artık
+düşürülmüş kaydı gösteriyor.
+
+### Yeşil commit.
 
 `queeneditor.ipynb` ve bu turun belgeleri. `dist` derlenmiyor: ön yüz değişmiyor.
 
