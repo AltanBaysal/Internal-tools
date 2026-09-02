@@ -113,17 +113,27 @@ davranış sessizce serbest kalır.
 geçiyor. İkisi de basılmıyor — bugünkü `test_the_xai_key_is_never_printed` kilidi ikinciyi de
 kapsayacak şekilde genişliyor.
 
-**Durduran assert "en az biri" oluyor.** Bugün `assert XAI_API_KEY` sert duruyor. İkisini birden
-şart koşmak yalnız Grok'la çalışmak isteyeni durdururdu; hiçbirini koşmamak uygulamayı işe
-yaramaz hâlde başlatırdı. İkisi de yoksa defter duruyor, biri varsa devam ediyor — anahtarı olmayan
-bir model seçilirse istek `XaiNotConfigured`'ın kendi cümlesiyle düşüyor.
+**İkisi de şart, biri eksikse defter duruyor** *(kullanıcı kararı, 2 Eylül)*. Bugünkü
+`assert XAI_API_KEY`'in yanına ikincisi geliyor, aynı sertlikte ve aynı biçimde — hangi secret'ın
+hangi adla ekleneceğini söyleyen kendi cümlesiyle.
+
+Bir ara *"en az biri yetsin"* diye yazılmıştı ve kullanıcı reddetti. Gerekçe menünün dürüstlüğü:
+uygulama üç satır çiziyor, ve tek anahtarla açılan bir koşuda o satırların ikisi seçildiği anda
+hata veriyor — yani menü olmayan bir şeyi vaat ediyor. Üç modeli birden sunmanın bedeli üç modelin
+de çalışabilir olması.
+
+**Kapsam dışı: anahtarın doğruluğunu sınamak.** Eksik anahtar burada yakalanıyor; **yanlış** anahtar
+yakalanmıyor — onu ancak bir istek söyler. queen-editor'ün defterinde bunu yapan bir `xai_probe`
+var, queen-agent'ta yok, ve bu maddede de doğmuyor: CONFIG hücresine ağ çağrısı koymak kendi
+gecikmesini ve kendi hata biçimini getirir. Kayda geçiyor, çünkü ileride yine sorulur.
 
 ## Kapsam dışı
 
 - **`services/xai/` ve `XAI_*` adlarının değişmesi.** Yol haritasında yazılı: ölçülecek şey iki
   modelin farkı, ve aynı commit'te depo geneline yayılan bir rename o ölçüyü gürültüye boğar.
-- **Menünün anahtarı olmayan sağlayıcıyı gizlemesi.** Liste frontend'de, frontend hangi anahtarın
-  var olduğunu bilmiyor — ve `skills.js` de böyle bir şey yapmıyor.
+- **Menünün anahtarı olmayan sağlayıcıyı gizlemesi.** İki sebeple gereksiz: liste frontend'de ve
+  frontend hangi anahtarın var olduğunu bilmiyor *(`skills.js` de böyle bir şey yapmıyor)*, ve
+  defter zaten ikisini birden şart koştuğu için Colab yolunda gizlenecek satır doğmuyor.
 - **Modelin ekranda mesaj başına gösterilmesi.** Alan kayda giriyor; çizilmesi ayrı bir iş ve
   istenmedi.
 - **200k eşiğinin ölçülmesi.** Yol haritasında duruyor; bu madde ondan bağımsız koşuyor.
