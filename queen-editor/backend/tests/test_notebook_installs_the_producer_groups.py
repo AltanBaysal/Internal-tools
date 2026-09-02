@@ -148,15 +148,23 @@ def test_the_form_separates_the_two_groups_of_boxes():
     assert divider < heading < first_box.start(), "Ayraç ve başlık kutuların önünde değil"
 
 
-def test_the_form_says_which_model_each_box_installs():
-    """A box named PHOTO_NOVAANIME does not tell anyone what it fetches. The lines that do were
-    plain # comments, which Colab never draws, so the person ticking the box could not read them.
-    Measured over the drawn part alone -- the name being somewhere in the cell is already true.
-    """
-    drawn = _drawn(_cell("# === CONFIG ==="))
+def test_the_form_leaves_the_model_section_at_its_heading():
+    """Every sentence that stood under this heading was a copy of something the run already says:
+    the guard below prints the pick-at-least-one rule in Turkish, the boxes show for themselves
+    that they come empty, and the download cell prints the disk cost computed from what was
+    actually ticked. A copy is the thing that goes stale, so the form keeps the heading and the run
+    keeps the sentences.
 
-    for name in ("nova3DCG", "novaOrange", "novaAnime"):
-        assert name in drawn, f"{name} formda tanıtılmıyor — yalnız yorumda kalmış"
+    Measured by what is left rather than by what is gone: a test naming the removed lines would
+    stay green on a form that grew three different ones.
+    """
+    drawn = _drawn(_cell("# === CONFIG ===")).splitlines()
+
+    assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
+    tail = drawn[drawn.index("#@markdown ---"):]
+
+    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri"], \
+        f"Model bölümü başlıktan ibaret değil: {tail}"
 
 
 def test_choosing_nothing_stops_the_notebook():
