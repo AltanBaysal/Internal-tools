@@ -165,6 +165,84 @@ def test_a_tool_call_arrives_whole_in_one_frame():
     ]
 
 
+# --- a tool call that arrives in pieces (Madde 148) ----------------------------------------------
+#
+# The comment above says xAI sends one whole call in one chunk, and it does. DeepSeek does not: it
+# fragments the call the way OpenAI documents, and only the first piece carries the name. Forwarded
+# raw, the later pieces reached stream_answer as calls of their own and `call["function"]["name"]`
+# died with a bare KeyError -- which is the whole of what the user saw.
+#
+# The fix belongs here rather than above: the layers above expect a whole call and are right to,
+# because fragmentation is a detail of carrying one.
+
+
+def _piece_line(index, arguments, call_id=None, name=None):
+    """One fragment the way DeepSeek really sends it: the first names the tool, the rest only grow
+    the arguments. `index` is what says which call a fragment belongs to."""
+    function = {"arguments": arguments}
+    if name is not None:
+        function["name"] = name
+    piece = {"index": index, "function": function}
+    if call_id is not None:
+        piece["id"] = call_id
+    frame = {"choices": [{"delta": {"tool_calls": [piece]}}]}
+    return b"data: " + json.dumps(frame).encode("utf-8")
+
+
+def test_a_call_split_across_frames_comes_out_whole():
+    lines = [
+        _piece_line(0, "", call_id="t1", name="write_plan"),
+        _piece_line(0, '{"na'),
+        _piece_line(0, 'me": "plan.md"}'),
+        b"data: [DONE]",
+    ]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"tool_calls": [{"id": "t1", "function": {"name": "write_plan", "arguments": '{"name": "plan.md"}'}}]}
+    ]
+
+
+def test_two_calls_in_one_turn_do_not_mix():
+    # Joined by index rather than by arrival: the field exists for this, and two tools asked for in
+    # one round interleave their fragments on the wire.
+    lines = [
+        _piece_line(0, "", call_id="t1", name="read_file"),
+        _piece_line(1, "", call_id="t2", name="write_plan"),
+        _piece_line(0, '{"a": 1}'),
+        _piece_line(1, '{"b": 2}'),
+        b"data: [DONE]",
+    ]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {
+            "tool_calls": [
+                {"id": "t1", "function": {"name": "read_file", "arguments": '{"a": 1}'}},
+                {"id": "t2", "function": {"name": "write_plan", "arguments": '{"b": 2}'}},
+            ]
+        }
+    ]
+
+
+def test_words_still_arrive_as_they_are_said_and_the_call_closes_the_stream():
+    # A model may speak before it reaches for a tool. The words must not wait for the call to be
+    # finished -- they are what the user is watching.
+    lines = [
+        b"data: " + _delta_line("Right"),
+        _piece_line(0, "", call_id="t1", name="write_plan"),
+        _piece_line(0, "{}"),
+        b"data: [DONE]",
+    ]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"text": "Right"},
+        {"tool_calls": [{"id": "t1", "function": {"name": "write_plan", "arguments": "{}"}}]},
+    ]
+
+
+def test_a_stream_that_called_nothing_says_nothing_about_tools():
+    # An empty list is not "no tools": stream_answer reads anything that is not text or usage as a
+    # call, so an empty one would be taken for a round that asked for something.
+    lines = [b"data: " + _delta_line("just words"), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [{"text": "just words"}]
+
+
 # --- what the answer spent, read off the wire (Madde 68) -----------------------------------------
 
 
