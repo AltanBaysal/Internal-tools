@@ -79,6 +79,9 @@ function confirmButton() {
 
 const LAYERED = {
   id: "P0_0", file: "P0_0.png", status: "done", prompt: "kırmızı elbise", negative: "bulanık",
+  // The plan row's own shape: list_frames spreads that row into the frame, so the name arrives with
+  // the extension it is stored under and trimming it is the panel's job.
+  model: "novaAnimeXL_ilV190.safetensors",
   layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" },
   failed: [], owed: [],
   prompts: { photo: "kırmızı elbise", video: "kadın dönüyor", audio: "kumaş hışırtısı" },
@@ -306,6 +309,47 @@ describe("PhotoDetail — the layer tabs", () => {
 
     expect([...document.querySelectorAll("[data-field]")].map((one) => one.textContent))
       .toEqual(["Sıra", "Dosya adı"]);
+  });
+
+  it("says which model the frame was made with", async () => {
+    // Madde 140 made the checkpoint a choice, and three of them render into one gallery. Nothing on
+    // screen said which one a frame came from, so a comparison could only be read from memory.
+    await open("P0_0", { frames: [LAYERED] });
+
+    expect(screen.getByText("Model").parentElement.textContent).toContain("novaAnimeXL_ilV190");
+    // Without this the line above would pass on the stored name as well: it is a prefix match, and
+    // the extension is noise in a 300px column that already carries a file name of its own.
+    expect(screen.queryByText(/\.safetensors/)).toBeNull();
+  });
+
+  it("draws no model row for a frame that never carried one", async () => {
+    // Frames planned before models could be chosen carry none, and no record says which checkpoint
+    // the graph shipped that day. Naming one would be inventing it; the row is simply not drawn --
+    // the rule "Üretim modu" already follows.
+    await open("0_a", { frames: PHOTOS });
+
+    expect(screen.queryByText("Model")).toBeNull();
+  });
+
+  it("keeps the model on the photo tab alone", async () => {
+    // The model is the photo's: video and sound jobs are planned with none. On their tabs the name
+    // would read as the model that made THAT layer.
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    expect(screen.queryByText("Model")).toBeNull();
+
+    fireEvent.click(tab("Ses"));
+    expect(screen.queryByText("Model")).toBeNull();
+  });
+
+  it("keeps the photo tab's top group to its three rows", async () => {
+    // The video tab's own list is pinned above. This is the photo tab's, and it pins the order too:
+    // the model goes last, behind the two rows that say which frame this is.
+    await open("P0_0", { frames: [LAYERED] });
+
+    expect([...document.querySelectorAll("[data-field]")].map((one) => one.textContent))
+      .toEqual(["Sıra", "Dosya adı", "Model"]);
   });
 
   it("centres the one line a waiting box holds", async () => {
