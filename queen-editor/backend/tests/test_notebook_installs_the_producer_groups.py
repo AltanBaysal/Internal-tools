@@ -200,14 +200,17 @@ def test_the_photo_estimate_counts_only_what_the_group_always_takes():
         "Disk tabanı hâlâ bir checkpoint'in payını taşıyor"
 
 
-def test_the_notebook_offers_both_photo_models():
+def test_the_notebook_offers_every_photo_model():
     """Named rather than derived: this is the one place saying which models the notebook can fetch,
-    so a silent edit cannot quietly change what a run is able to install."""
+    so a silent edit cannot quietly change what a run is able to install. Reading the list itself
+    would only say that the list contains what it contains."""
     cell = _cell("PHOTO_MODELS = [")
 
-    assert "nova3DCGXL_ilV90.safetensors" in cell, "Taban model artık seçilebilir değil"
-    assert "novaOrangeXL_rexV10.safetensors" in cell, "İkinci model listede yok"
-    assert "2744564" in cell and "2945776" in cell, "Version id'lerden biri eksik"
+    for name in ("nova3DCGXL_ilV90.safetensors", "novaOrangeXL_rexV10.safetensors",
+                 "novaAnimeXL_ilV190.safetensors"):
+        assert name in cell, f"Defter bu modeli indirmiyor: {name}"
+    for version in ("2744564", "2945776", "2940478"):
+        assert version in cell, f"Civitai version id defterde yok: {version}"
 
 
 def test_the_disk_is_measured_before_the_download_starts():
