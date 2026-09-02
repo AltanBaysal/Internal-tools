@@ -141,24 +141,22 @@ def test_an_unticked_group_costs_no_bytes():
                 f"{name} kendi anahtarının arkasında değil"
 
 
-def test_every_extra_photo_model_has_a_checkbox_of_its_own():
+def test_every_photo_model_has_a_checkbox_of_its_own():
     """The switch has to sit in CONFIG -- Colab draws #@param only where it is written -- and the row
     saying what to fetch sits in the model cell. Two lists, and a name in one but not the other is
     either a box that downloads nothing or a download nobody can turn off.
 
-    The group's own checkpoint is not among these: the graph's export names it and the app falls
-    back to it, so it comes with INSTALL_PHOTO and is never a choice. These are the ones on top.
+    Every checkpoint is here, the group's own included: which models come down is the user's pick.
     """
     boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
-    rows = re.findall(r"^\s*\((PHOTO_\w+),", _cell("PHOTO_EXTRA = ["), re.M)
+    rows = re.findall(r"^\s*\((PHOTO_\w+),", _cell("PHOTO_MODELS = ["), re.M)
 
-    assert boxes, "CONFIG'de tek bir ek model kutusu yok"
+    assert boxes, "CONFIG'de tek bir model kutusu yok"
     assert sorted(boxes) == sorted(rows), f"Kutular {sorted(boxes)}, satırlar {sorted(rows)}"
 
 
-def test_the_extra_photo_models_come_switched_off():
-    """A run that touches none of the boxes downloads exactly what it downloaded before this item
-    existed. That is the claim that makes the rest of it safe to add.
+def test_every_photo_model_comes_switched_off():
+    """Photo ticked draws the boxes empty and picks nothing heavy for anyone.
 
     The first assertion is not spare: with no PHOTO_* line at all the second one holds for free.
     """
@@ -166,33 +164,50 @@ def test_the_extra_photo_models_come_switched_off():
     boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
     on = re.findall(r"^(PHOTO_\w+) = True  #@param", config, re.M)
 
-    assert boxes, "CONFIG'de tek bir ek model kutusu yok"
-    assert on == [], f"Ek model açık geliyor: {on}"
+    assert boxes, "CONFIG'de tek bir model kutusu yok"
+    assert on == [], f"Model açık geliyor: {on}"
+
+
+def test_choosing_photo_without_a_model_stops_the_notebook():
+    """Photo ticked and every model box empty means a renderer with nothing to render with. Asked in
+    CONFIG like every other gate: a second here beats ten minutes after ComfyUI's install.
+
+    The expected line is built from the boxes rather than written down, so a model added without
+    being added to the guard fails here instead of silently reopening the hole.
+    """
+    config = _cell("# === CONFIG ===")
+    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
+    guard = "assert not INSTALL_PHOTO or " + " or ".join(boxes)
+
+    assert boxes, "CONFIG'de tek bir model kutusu yok"
+    assert guard in config, f"Beklenen kontrol yok:\n{guard}"
 
 
 def test_an_unticked_photo_model_costs_no_bytes():
     """The rule the three producer boxes already follow, one level down: a row is reached only
     through its own switch."""
-    assert "in PHOTO_EXTRA if on" in _cell("PHOTO_EXTRA = ["), \
-        "PHOTO_EXTRA satırları kendi anahtarıyla süzülmüyor"
+    assert "in PHOTO_MODELS if on" in _cell("PHOTO_MODELS = ["), \
+        "PHOTO_MODELS satırları kendi anahtarıyla süzülmüyor"
 
 
-def test_the_photo_estimate_grows_with_the_models_that_were_chosen():
-    """The disk check measures against this number and stops the run before a byte is fetched. A
-    fixed number under a download that varies is the one way that check can lie."""
+def test_the_photo_estimate_counts_only_what_the_group_always_takes():
+    """The base is the four files the graph's branches read -- the lora, the upscaler, the detector,
+    the SAM. The checkpoints are the user's pick, so counting one of them into the base would warn a
+    single-model run about disk it was never going to use."""
     assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
         "SIZES foto için hâlâ sabit bir sayı taşıyor"
-    assert "for on, gib" in _cell("PHOTO_GIB ="), \
-        "PHOTO_GIB seçilen modellerden toplanmıyor"
+    assert "PHOTO_GIB = 2 +" in _cell("PHOTO_GIB ="), \
+        "Disk tabanı hâlâ bir checkpoint'in payını taşıyor"
 
 
-def test_the_notebook_fetches_the_model_this_item_chose():
-    """Named rather than derived: this is the one place that says which model 140 added, so a silent
-    edit in the notebook cannot quietly change what a run installs."""
-    source = _source()
+def test_the_notebook_offers_both_photo_models():
+    """Named rather than derived: this is the one place saying which models the notebook can fetch,
+    so a silent edit cannot quietly change what a run is able to install."""
+    cell = _cell("PHOTO_MODELS = [")
 
-    assert "novaOrangeXL_rexV10.safetensors" in source, "Yeni model defterde yok"
-    assert "2945776" in source, "Civitai version id defterde yok"
+    assert "nova3DCGXL_ilV90.safetensors" in cell, "Taban model artık seçilebilir değil"
+    assert "novaOrangeXL_rexV10.safetensors" in cell, "İkinci model listede yok"
+    assert "2744564" in cell and "2945776" in cell, "Version id'lerden biri eksik"
 
 
 def test_the_disk_is_measured_before_the_download_starts():
