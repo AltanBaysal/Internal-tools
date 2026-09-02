@@ -1,9 +1,13 @@
-"""Which model files each producer needs, by folder and name.
+"""Which model files each producer needs, by folder and name -- or by folder and kind.
 
 A **reading** list, not an installing one: the app never downloads a model. Where the files come
 from and how they are fetched is the notebook's business (FOUNDATION 9), and the addresses live
 there so that two places never claim to know them. What this file answers is the one question the
 app still asks -- is this producer's group on the machine?
+
+A row has one of two shapes, and which one says what it is asking:
+  {"folder", "name"}   -- exactly this file, because the graph loads it by that name
+  {"folder", "suffix"} -- any file of this kind, because which one is the user's pick
 
 The names are inherited from collab-toolbox as knowledge, not as a dependency: they are the names
 the graphs load by, so a rename here has to follow the graph rather than the source.
@@ -16,7 +20,12 @@ GROUPS = {
     # SAM at startup, and the bypassed Ultimate SD Upscale reads Remacri the moment it is switched
     # on. Two of five would make "the photo producer is installed" a lie.
     "photo": [
-        {"folder": "checkpoints", "name": "nova3DCGXL_ilV90.safetensors"},
+        # Which checkpoint is here is the user's pick since Madde 140 -- the notebook draws a box
+        # per model and every one of them is empty by default. So the row names a kind rather than
+        # a file: the graph renders with whichever it was handed, and the panel asks whether there
+        # is anything to hand it. Naming one made the panel call the producer uninstalled for
+        # anyone who picked a different model.
+        {"folder": "checkpoints", "suffix": ".safetensors"},
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},
         # UltralyticsDetectorProvider lists this one as "bbox/<name>", so the folder is nested.
