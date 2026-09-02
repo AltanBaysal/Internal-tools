@@ -46,6 +46,15 @@ def _cell(marker):
     return ""
 
 
+def _drawn(cell):
+    """The part of a CONFIG cell Colab draws into the form: #@markdown lines only.
+
+    A plain # comment never reaches the form, so a test reading the whole cell would pass on text
+    the person ticking the box cannot see.
+    """
+    return "\n".join(line for line in cell.splitlines() if line.startswith("#@markdown"))
+
+
 def test_the_notebook_carries_the_tool_s_own_name():
     """Colab shows a notebook by its file name alone -- the title inside it never reaches the tab.
     Two tools open at once are told apart by that name and nothing else, and Run all in the wrong
@@ -107,6 +116,47 @@ def test_every_producer_has_a_checkbox_of_its_own():
     for kind in GROUPS:
         assert f'{SWITCH[kind]} = False  #@param {{type:"boolean"}}' in source, \
             f"{kind}: CONFIG'de kapalı gelen bir onay kutusu yok"
+
+
+def test_the_form_names_the_producer_boxes_too():
+    """Labelling one block of boxes and leaving the other bare would read as if the bare one
+    belonged to the labelled one -- the same confusion, moved up a line."""
+    config = _cell("# === CONFIG ===")
+    heading = config.find("#@markdown ### Üreticiler")
+    first_box = config.find("INSTALL_PHOTO = ")
+
+    assert heading != -1, "Üreticiler başlığı yok"
+    assert heading < first_box, "Başlık kutuların önünde değil"
+
+
+def test_the_form_separates_the_two_groups_of_boxes():
+    """Colab draws #@param lines into the form and #@markdown text along with them, while a plain
+    # comment never reaches it. The two blocks of boxes ran together there with nothing saying
+    where one ended.
+
+    Pinned by position rather than by wording: the words stay free to change, the structure cannot
+    quietly go away.
+    """
+    config = _cell("# === CONFIG ===")
+    divider = config.find("#@markdown ---")
+    heading = config.find("#@markdown ### Fotoğraf modelleri")
+    first_box = re.search(r"^PHOTO_\w+ = (?:True|False)  #@param", config, re.M)
+
+    assert divider != -1, "Formda iki grubu ayıran çizgi yok"
+    assert heading != -1, "Fotoğraf modelleri başlığı yok"
+    assert first_box, "CONFIG'de tek bir model kutusu yok"
+    assert divider < heading < first_box.start(), "Ayraç ve başlık kutuların önünde değil"
+
+
+def test_the_form_says_which_model_each_box_installs():
+    """A box named PHOTO_NOVAANIME does not tell anyone what it fetches. The lines that do were
+    plain # comments, which Colab never draws, so the person ticking the box could not read them.
+    Measured over the drawn part alone -- the name being somewhere in the cell is already true.
+    """
+    drawn = _drawn(_cell("# === CONFIG ==="))
+
+    for name in ("nova3DCG", "novaOrange", "novaAnime"):
+        assert name in drawn, f"{name} formda tanıtılmıyor — yalnız yorumda kalmış"
 
 
 def test_choosing_nothing_stops_the_notebook():
