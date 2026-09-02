@@ -10,6 +10,7 @@ The notebook is read, never run.
 """
 import json
 import os
+import re
 
 from backend.features.producers.domain.model_groups import GROUPS
 
@@ -83,6 +84,18 @@ def test_the_notebook_says_how_many_custom_nodes_it_installs():
     assert f"({listed})" in heading, f"Başlıktaki sayı listeyle uyuşmuyor: {listed} satır"
 
 
+def test_the_intro_agrees_with_the_custom_node_list():
+    """The count lives in three places -- the list, the heading over it, and the sentence that opens
+    the notebook. The third went stale when the list grew to 20 (Madde 138) because the test above
+    only ever read the heading."""
+    listed = _cell("CUSTOM_NODES = [").count('.git"),')
+    intro = _cell("# Queen Editor — Colab kurulumu")
+
+    assert listed, "CUSTOM_NODES listesi okunamadı"
+    assert f"({listed} custom node)" in intro, \
+        f"Giriş hücresindeki sayı listeyle uyuşmuyor: {listed} satır"
+
+
 def test_every_producer_has_a_checkbox_of_its_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
     Default False, so nothing heavy starts by accident."""
@@ -126,6 +139,60 @@ def test_an_unticked_group_costs_no_bytes():
         for name in names:
             assert f"{name} if {SWITCH[kind]} else []" in source, \
                 f"{name} kendi anahtarının arkasında değil"
+
+
+def test_every_extra_photo_model_has_a_checkbox_of_its_own():
+    """The switch has to sit in CONFIG -- Colab draws #@param only where it is written -- and the row
+    saying what to fetch sits in the model cell. Two lists, and a name in one but not the other is
+    either a box that downloads nothing or a download nobody can turn off.
+
+    The group's own checkpoint is not among these: the graph's export names it and the app falls
+    back to it, so it comes with INSTALL_PHOTO and is never a choice. These are the ones on top.
+    """
+    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
+    rows = re.findall(r"^\s*\((PHOTO_\w+),", _cell("PHOTO_EXTRA = ["), re.M)
+
+    assert boxes, "CONFIG'de tek bir ek model kutusu yok"
+    assert sorted(boxes) == sorted(rows), f"Kutular {sorted(boxes)}, satırlar {sorted(rows)}"
+
+
+def test_the_extra_photo_models_come_switched_off():
+    """A run that touches none of the boxes downloads exactly what it downloaded before this item
+    existed. That is the claim that makes the rest of it safe to add.
+
+    The first assertion is not spare: with no PHOTO_* line at all the second one holds for free.
+    """
+    config = _cell("# === CONFIG ===")
+    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
+    on = re.findall(r"^(PHOTO_\w+) = True  #@param", config, re.M)
+
+    assert boxes, "CONFIG'de tek bir ek model kutusu yok"
+    assert on == [], f"Ek model açık geliyor: {on}"
+
+
+def test_an_unticked_photo_model_costs_no_bytes():
+    """The rule the three producer boxes already follow, one level down: a row is reached only
+    through its own switch."""
+    assert "in PHOTO_EXTRA if on" in _cell("PHOTO_EXTRA = ["), \
+        "PHOTO_EXTRA satırları kendi anahtarıyla süzülmüyor"
+
+
+def test_the_photo_estimate_grows_with_the_models_that_were_chosen():
+    """The disk check measures against this number and stops the run before a byte is fetched. A
+    fixed number under a download that varies is the one way that check can lie."""
+    assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
+        "SIZES foto için hâlâ sabit bir sayı taşıyor"
+    assert "for on, gib" in _cell("PHOTO_GIB ="), \
+        "PHOTO_GIB seçilen modellerden toplanmıyor"
+
+
+def test_the_notebook_fetches_the_model_this_item_chose():
+    """Named rather than derived: this is the one place that says which model 140 added, so a silent
+    edit in the notebook cannot quietly change what a run installs."""
+    source = _source()
+
+    assert "novaOrangeXL_rexV10.safetensors" in source, "Yeni model defterde yok"
+    assert "2945776" in source, "Civitai version id defterde yok"
 
 
 def test_the_disk_is_measured_before_the_download_starts():
