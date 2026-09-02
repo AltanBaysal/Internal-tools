@@ -73,26 +73,77 @@ def _cut(response):
         pass
 
 
-def _spoken(frame):
-    """What the model said in this frame: {"text": ...}, {"tool_calls": [...]}, or None.
+def _delta(frame):
+    """This frame's delta, or an empty one.
 
-    Two kinds of thing come down the same wire, so each piece names which it is rather than leaving
-    the reader to guess from its type.
+    An empty choices list is a frame with nothing to say, exactly as an empty delta is. The closing
+    frame that carries the counts comes that way, and reading it as though a choice were there would
+    end the whole answer rather than lose one number.
     """
-    # An empty list is a frame with nothing to say, exactly as an empty delta is. The closing frame
-    # that carries the counts comes that way, and reading it as though a choice were there would
-    # end the whole answer rather than lose one number.
     choices = frame.get("choices") or []
     if not choices:
-        return None
-    delta = choices[0].get("delta", {})
-    # A function call is documented to arrive whole in a single chunk, so there is nothing to
-    # stitch together here.
-    if delta.get("tool_calls"):
-        return {"tool_calls": delta["tool_calls"]}
-    if delta.get("content"):
-        return {"text": delta["content"]}
-    return None
+        return {}
+    return choices[0].get("delta", {})
+
+
+def _said(frame):
+    """The words in this frame, or None."""
+    content = _delta(frame).get("content")
+    return {"text": content} if content else None
+
+
+def _fragments(frame):
+    """The tool-call pieces in this frame, or None.
+
+    Asked apart from the words since Madde 148. One frame can carry both, and while a single
+    function answered for the two of them which one got through was decided by the order the checks
+    happened to be written in.
+    """
+    return _delta(frame).get("tool_calls") or None
+
+
+class _Calls:
+    """Tool-call fragments, joined by index into whole calls (Madde 148).
+
+    xAI sends a function call whole in one chunk and documents that it does. DeepSeek fragments it
+    the way OpenAI does: the first piece names the tool, the rest only grow `arguments`. Forwarded
+    raw, those later pieces reached the layers above as calls of their own and died on a missing
+    name -- so the joining belongs here, where carrying the call is the job.
+
+    `index` is what says which call a piece belongs to; it is absent on a call that arrived whole,
+    and then there is exactly one and it is the first. It never reaches the finished record: what
+    reads a call wants its id and its function, and the index is this file's own bookkeeping.
+    """
+
+    def __init__(self):
+        self._by_index = {}
+        # First-seen order rather than the index's own number: the field is an identity, not a
+        # position, and nothing promises it counts up from zero.
+        self._order = []
+
+    def add(self, pieces):
+        for piece in pieces:
+            index = piece.get("index", 0)
+            if index not in self._by_index:
+                self._by_index[index] = {}
+                self._order.append(index)
+            held = self._by_index[index]
+            for key, value in piece.items():
+                if key == "index":
+                    continue
+                if key != "function":
+                    held[key] = value
+                    continue
+                function = held.setdefault("function", {})
+                for field, part in value.items():
+                    # Arguments grow; everything else is stated once and repeated at most.
+                    if field == "arguments":
+                        function["arguments"] = function.get("arguments", "") + part
+                    else:
+                        function[field] = part
+
+    def whole(self):
+        return [self._by_index[index] for index in self._order]
 
 
 def _spent(frame):
@@ -172,21 +223,36 @@ class XaiClient:
                 # the first word, and a cut offered after it would miss exactly that stretch.
                 if on_open:
                     on_open(lambda: _cut(response))
+                calls = _Calls()
                 for raw in response:
                     frame = _parsed(raw)
                     if frame is _DONE:
-                        return
+                        # Broken rather than returned since Madde 148: the joined calls are handed
+                        # over below, and returning here would drop them.
+                        break
                     if frame is None:
                         continue
-                    # One frame can carry both, and really does: the counts ride along with the
+                    # One frame can carry all three, and really does: the counts ride along with the
                     # words. Words first -- the counts are what those words cost, and a cost does
                     # not arrive before the thing it is for.
-                    said = _spoken(frame)
+                    said = _said(frame)
                     if said:
                         yield said
+                    fragments = _fragments(frame)
+                    if fragments:
+                        calls.add(fragments)
                     counts = _spent(frame)
                     if counts:
                         yield {"usage": counts}
+                # After the stream, because a call is whole only once it has stopped growing. Only
+                # when something was asked for: an empty list is not "no tools" to the layer above,
+                # which reads anything that is neither words nor counts as a call.
+                #
+                # Left behind on purpose when the stream raises: a cut turn is thrown away whole,
+                # and half an `arguments` is not valid JSON anyway.
+                whole = calls.whole()
+                if whole:
+                    yield {"tool_calls": whole}
         except urllib.error.HTTPError as failure:
             body = failure.read().decode("utf-8", "replace")
             raise XaiFailed(f"{failure.code} {body}") from failure
