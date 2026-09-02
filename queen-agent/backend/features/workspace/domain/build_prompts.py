@@ -15,6 +15,12 @@ DEFAULT_QUALITY = (
     "score_9_up, score_9, score_8_up, masterpiece, best quality, raw, high quality, 4k, absurdres"
 )
 
+# What goes between two character blocks. A feature of the interface that reads the prompt rather
+# than of the model: queen-editor's positive encoder splits on this literal string (Madde 138), and
+# an encoder that does not know it takes the word as one more tag. Spaces on either side rather than
+# commas, because the split leaves whatever touches it inside the chunk it opens.
+BREAK = " BREAK "
+
 
 def build_prompts(structure):
     """Every frame as one prompt, or a sentence saying why none of them can be built."""
@@ -42,18 +48,26 @@ def build_prompts(structure):
         #
         # The count is placed, never worked out: the code knows who entered the frame but not what
         # they are, and no field says so.
-        parts = [structure.get("quality") or DEFAULT_QUALITY, frame.get("people", "")]
+        lead = [structure.get("quality") or DEFAULT_QUALITY, frame.get("people", "")]
         # Whoever the frame wrote first leads it. No field names them -- the order already carries
         # it, and a second place saying the same thing is a place that can disagree.
         in_frame = _worn(frame.get("characters"))
-        parts.extend(_block(in_frame[:1], characters, outfits, number, misses))
+        lead.extend(_block(in_frame[:1], characters, outfits, number, misses))
         place = frame.get("location") or ""
         if place:
-            parts.append(_looked_up(place, locations, "locations", number, misses))
-        parts.append(frame.get("action", ""))
-        parts.append(frame.get("camera", ""))
-        parts.extend(_block(in_frame[1:], characters, outfits, number, misses))
-        built.append(_tags(parts))
+            lead.append(_looked_up(place, locations, "locations", number, misses))
+        lead.append(frame.get("action", ""))
+        lead.append(frame.get("camera", ""))
+        # Everyone behind the lead gets a block of their own rather than a comma. Distance alone
+        # only moves two descriptions apart; the break makes the encoder read them apart, and it
+        # costs nothing to give the third the same separation as the second (Madde 139).
+        blocks = [lead] + [
+            _block([person], characters, outfits, number, misses) for person in in_frame[1:]
+        ]
+        # Each block carries its own commas and the break never touches one. Empty blocks are
+        # dropped rather than joined: a prompt ending on a break, or holding two side by side,
+        # would open a chunk with nothing in it.
+        built.append(BREAK.join(tags for tags in map(_tags, blocks) if tags))
 
     # Every miss at once and nothing written: one pass fixes them all, and a dirty structure never
     # produces a list.
