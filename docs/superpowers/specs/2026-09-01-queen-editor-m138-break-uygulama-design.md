@@ -71,22 +71,26 @@ durur.
 
 ## Kabul kriteri — madde ne zaman bitmiş sayılır
 
-**Takım yeşil yetmiyor.** Testler dosyanın ne dediğini kanıtlıyor, düğümün ne yaptığını değil. Madde
-Colab'da şu karşılaştırma yapıldığında bitmiş sayılır:
+**Takım yeşil yetmiyor.** Testler dosyanın ne dediğini kanıtlıyor, düğümün ne yaptığını değil.
 
-**Aynı prompt, aynı seed, iki üretim** — biri `36` `CLIPTextEncodeBREAK` iken, öteki
-`CLIPTextEncode`'a geri alınmışken. Prompt içinde `BREAK` geçiyor.
+**İlk yazılan kriter koşulamazdı, ve düzeltildi** *(1 Eylül)*. *"Aynı prompt, aynı seed, iki
+üretim"* diyordu; seed'in sabitlenebildiği varsayılmıştı, kontrol edilmeden.
+[start_batch.py](../../../queen-editor/backend/features/photo_generation/domain/usecases/start_batch.py)
+kare başına `new_seed()` çağırıyor ve arayüzde seed alanı yok — yani iki üretim asla aynı seed'i
+paylaşmıyor. Varsayım koşuya uydurulur, tersi değil.
 
-- **İki kare aynıysa düğüm hiçbir şey yapmıyor** — `BREAK` yine kelime olarak kodlanmış demektir.
-- **Farklıysa bölme gerçekleşti.** Metin ve seed aynı olduğu için değişebilecek tek şey kodlamadır.
+**Fiilen koşulan karşılaştırma:** aynı düğüm, iki prompt — biri `BREAK`'li, öteki aynı metnin
+`BREAK` yerine virgül taşıyan hâli — her birinden birkaç varyant. Düğüm değiştirmeye gerek yok:
+`BREAK` bilen kodlayıcı, promptta `BREAK` yokken düz kodlayıcı gibi davranıyor. Seed'ler farklı,
+yani okunacak şey tek bir kare değil **dağılım**.
 
-Bu *"iyi mi oldu"*yu söylemez — ona gözle bakılır, ve iki karakterli bir kare gerekir. *"Gerçekten
-böldü mü"*yü kesin söyler.
+**Ve "gerçekten böldü mü" ayrıca test edilmiyor.** Düğümün kodu düz `text.split("BREAK")` yapıyor,
+ve ComfyUI kendisine gönderilen her düğümü doğruluyor — düğüm yoksa ya da adı yanlışsa üretim hiç
+başlamaz. Üretim bittiyse düğüm çalıştı. Geriye kalan tek soru faydası, ve onu gözle bakan
+kullanıcı cevaplıyor.
 
-**Ve iki koşu tek kurulumda yapılabiliyor:** adaptörün `_load()`'u grafiği **her render'da yeniden
-okuyor** *("Fresh copy per render")*, yani Colab oturumundaki
-`/content/Internal-tools/queen-editor/workflow_api.json` dosyasında sınıf adını değiştirmek yeter —
-sunucu yeniden başlatılmıyor, modeller yeniden inmiyor.
+**Sonuç — kullanıcı yargısı, 1 Eylül:** `BREAK`'li kareler daha iyi. Sayılmadı, kareler
+paylaşılmadı; kayda geçen şey kullanıcının kendi okuması. Madde bu yargıyla kapanıyor.
 
 ## Bilerek yapılmayanlar
 
