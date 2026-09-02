@@ -179,13 +179,15 @@ class ScriptedEngine:
         self.tools = []
         # Which conversation each round said it belonged to (Madde 124).
         self.conversation_ids = []
+        # Which model each round named (Madde 146). A list rather than one value: every round of a
+        # turn must name the same one, and only the list can show that it did.
+        self.models = []
 
-    # No model since Madde 82: the engine is built knowing which one. A use case that still passed
-    # one would die here rather than quietly working.
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
         self.seen.append(list(messages))
         self.tools.append([spec["function"]["name"] for spec in tools or []])
         self.conversation_ids.append(conversation_id)
+        self.models.append(model)
         if on_open:
             on_open(self._cut)
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
@@ -655,6 +657,47 @@ def _said_with(tmp_path, *turns):
     engine = ScriptedEngine([[{"text": "ok"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     return chats, engine.seen[0]
+
+
+# --- which model answers the turn (Madde 146) ----------------------------------------------------
+#
+# The reversal of Madde 82: there are three again, so which one speaks is an input rather than a
+# line in config.py. Read the way the skill is -- off the newest user message, because a record does
+# not always end with the question that is waiting for an answer.
+
+
+def _answered_by(tmp_path, *turns):
+    """Run one answer over a chat whose messages were sent with the given models."""
+    chats, files = _seeded(tmp_path)
+    for number, (text, model) in enumerate(turns):
+        append_message(chats, "p1", "c1", text, f"2026-08-09T12:0{number}:00.000+00:00", model=model)
+    engine = ScriptedEngine([[{"text": "ok"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    return engine
+
+
+def test_the_turn_is_answered_by_the_model_its_question_named(tmp_path):
+    engine = _answered_by(tmp_path, ("write me the prompts", "deepseek-v4-pro"))
+    assert engine.models == ["deepseek-v4-pro"]
+
+
+def test_only_the_current_model_is_used_whatever_came_before(tmp_path):
+    # However many times the selection changed, the turn is answered by this turn's -- the rule the
+    # skill keeps, and the reason the field is on the message rather than the chat.
+    engine = _answered_by(
+        tmp_path,
+        ("one", "grok-build-0.1"),
+        ("and again", "deepseek-v4-flash"),
+        ("now this", "deepseek-v4-pro"),
+    )
+    assert engine.models == ["deepseek-v4-pro"]
+
+
+def test_a_turn_whose_question_named_no_model_asks_for_none(tmp_path):
+    # Every message on disk before Madde 146. Nothing here guesses on the record's behalf: the
+    # empty string travels and config.engine_for is the one place that turns it into the default.
+    engine = _answered_by(tmp_path, ("hello", ""))
+    assert engine.models == [""]
 
 
 def _instructions(conversation):

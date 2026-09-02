@@ -141,26 +141,51 @@ def test_the_xai_key_travels_to_the_app_in_the_environment():
     assert '"XAI_API_KEY": XAI_API_KEY' in _cell(SERVE), "Anahtar uygulamaya geçirilmiyor"
 
 
+def test_the_deepseek_key_comes_from_secrets():
+    """Madde 146: a second provider, and its key takes the road the first one's takes."""
+    assert 'userdata.get("DEEPSEEK_API_KEY")' in _source(), "DeepSeek anahtarı Secrets'tan okunmuyor"
+
+
+def test_a_missing_deepseek_key_says_what_to_do():
+    """Both keys are required rather than one of them (kullanıcı kararı, 2 Eylül).
+
+    The composer draws three rows, so a run opened on a single key promises two models it cannot
+    answer with -- offering three is what obliges all three to work.
+    """
+    said = _cell("assert DEEPSEEK_API_KEY")
+    assert said, "DeepSeek anahtarı yokken defter sessizce devam ediyor"
+    assert "Secrets" in said and "DEEPSEEK_API_KEY" in said, "Ne yapılacağı söylenmiyor"
+
+
+def test_the_deepseek_key_travels_to_the_app_in_the_environment():
+    assert '"DEEPSEEK_API_KEY": DEEPSEEK_API_KEY' in _cell(SERVE), (
+        "DeepSeek anahtarı uygulamaya geçirilmiyor"
+    )
+
+
 def test_the_notebook_no_longer_points_at_a_settings_screen():
     """It used to close by telling the user to open Settings and paste the key. That screen no
     longer exists, and an instruction pointing at a screen that is not there is worse than none."""
     assert "Settings" not in _source(), "Defter hâlâ bir Settings ekranını işaret ediyor"
 
 
-def test_the_xai_key_is_never_printed():
+def test_no_api_key_is_ever_printed():
     """The sibling of the rule that keeps the clone URL out of the output, and a lock rather than a
-    test: nothing interpolates the key today, so it cannot fail yet.
+    test: nothing interpolates a key today, so it cannot fail yet.
 
     Asked about the value, not the name. The first version banned the string XAI_API_KEY from any
     print line and went red the moment the notebook told the user which secret to add -- which is a
     sentence the user needs. The name belongs in the output; only the value must never reach it, and
     it can only get there by interpolation or as the argument itself.
+
+    Over both keys since Madde 146: a rule written for one of two is a rule the second one escapes.
     """
-    for line in _source().splitlines():
-        if "print(" not in line:
-            continue
-        assert "{XAI_API_KEY" not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
-        assert "print(XAI_API_KEY" not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
+    for name in ("XAI_API_KEY", "DEEPSEEK_API_KEY"):
+        for line in _source().splitlines():
+            if "print(" not in line:
+                continue
+            assert "{" + name not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
+            assert f"print({name}" not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
 
 
 # --- Madde 56: the clone -------------------------------------------------------------------------

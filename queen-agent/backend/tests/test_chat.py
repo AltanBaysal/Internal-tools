@@ -22,6 +22,19 @@ def test_a_message_still_carries_the_skill_it_was_sent_with():
     assert "skill" in [field.name for field in fields(Message)]
 
 
+def test_a_message_carries_the_model_it_was_sent_with():
+    # Madde 146, and the field sits beside skill for the very same reason: changing the selection
+    # later must not make an older turn look as though the new model answered it. The chat's own
+    # root stays clear of it -- test_a_chat_carries_no_model above is the other half of this pair.
+    assert "model" in [field.name for field in fields(Message)]
+
+
+def test_a_message_written_before_the_field_carries_the_empty_model():
+    # Every message on disk today. Answering one has to go on working, and it does by resolving to
+    # the default -- the rule config.engine_for keeps.
+    assert Message(role="user", at="2026-09-02T10:00:00+00:00", text="hi").model == ""
+
+
 def test_a_chat_is_owed_an_answer_when_the_last_word_is_the_users():
     # Madde 88 moved this question out of the browser. It used to live in useChat, where it ran on
     # a reload and on a reconnection -- moments nobody had asked for an answer in.

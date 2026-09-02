@@ -20,18 +20,20 @@ class FakeEngine:
         self.answer = answer
         self.blow_up = blow_up
         self.seen = None
+        # Which model the turn named. Since Madde 146 that is an input again, and this is where a
+        # route that dropped it on the floor gets caught.
+        self.model = None
 
     def complete(self, messages, tools=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         return {"role": "assistant", "content": self.answer}
 
-    # No model since Madde 82: there is one, and the client is built knowing it. A caller that
-    # still passed one would die here rather than quietly working.
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         self.seen = [dict(message) for message in messages]
+        self.model = model
         yield {"text": self.answer}
 
 
@@ -48,7 +50,7 @@ class ScriptedEngine:
         # Which tools each round was offered. Since Madde 91 that is what a mode turns into.
         self.tools = []
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
         self.tools.append([spec["function"]["name"] for spec in tools or []])
         pieces = self.rounds.pop(0) if self.rounds else []
         for piece in pieces:
@@ -562,14 +564,40 @@ def test_a_chat_cannot_be_patched(tmp_path):
     assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["title"] == "hello"
 
 
-def test_the_engine_is_asked_without_a_model(tmp_path):
-    # There is one model and the wiring names it once, in config.py. Nothing on the way to the
-    # engine gets to say otherwise -- FakeEngine.stream refuses one, so a route that passed a model
-    # would die here rather than quietly working.
+def test_the_engine_is_asked_with_the_model_the_turn_named(tmp_path):
+    # The reversal of Madde 82's lock, and the whole road in one test: the composer's choice rides
+    # in on the message, is written onto it, and is read back off it when the turn is answered.
+    engine = FakeEngine()
+    client = _client(tmp_path, engine=engine)
+    pid = _project(client)
+    client.post(
+        f"/api/projects/{pid}/messages", json={"text": "hello", "model": "deepseek-v4-flash"}
+    ).get_data()
+    assert engine.model == "deepseek-v4-flash"
+
+
+def test_a_turn_that_named_no_model_asks_for_none(tmp_path):
+    # Every client that predates this field. The empty string travels and config.engine_for turns
+    # it into the default -- nothing here guesses on its behalf.
     engine = FakeEngine()
     client = _client(tmp_path, engine=engine)
     pid, cid, _body = _first_turn(client)
-    assert engine.seen is not None
+    assert engine.model == ""
+
+
+def test_a_chat_carries_no_model_but_its_messages_do(tmp_path):
+    # The wire half of the pair the store keeps. Madde 82 took `model` off the chat and it stays
+    # off; Madde 146 put one on the message, and the two share nothing but a name.
+    client = _client(tmp_path)
+    pid = _project(client)
+    cid = _named(
+        client.post(
+            f"/api/projects/{pid}/messages", json={"text": "hello", "model": "deepseek-v4-pro"}
+        ).get_data(as_text=True)
+    )
+    born = _record(client, pid, cid)
+    assert "model" not in born
+    assert born["messages"][0]["model"] == "deepseek-v4-pro"
 
 
 def test_a_chat_carries_no_skill(tmp_path):

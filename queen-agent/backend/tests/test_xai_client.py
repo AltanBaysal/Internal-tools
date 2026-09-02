@@ -205,6 +205,35 @@ def test_a_frame_can_carry_both_words_and_counts():
     ]
 
 
+def _deepseek_usage_line(prompt, hit, miss, completion):
+    """One frame the way DeepSeek really sends it (Madde 146).
+
+    Read off DeepSeek's own documentation (2 September) rather than written from memory: the two
+    cache counts sit flat beside prompt_tokens rather than nested, and there is no
+    prompt_tokens_details at all. `sent` and `answered` are named the same by both.
+    """
+    frame = {
+        "choices": [{"delta": {}}],
+        "usage": {
+            "prompt_tokens": prompt,
+            "completion_tokens": completion,
+            "prompt_cache_hit_tokens": hit,
+            "prompt_cache_miss_tokens": miss,
+        },
+    }
+    return b"data: " + json.dumps(frame).encode("utf-8")
+
+
+def test_deepseeks_cache_hit_is_read_as_cached():
+    # The same question in two shapes -- what did not have to be paid for a second time. Left
+    # unread, a DeepSeek run would report nothing cached forever and the prefix cache could never
+    # be told from a cold one.
+    lines = [_deepseek_usage_line(1200, 900, 300, 40), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"usage": {"sent": 1200, "cached": 900, "answered": 40}}
+    ]
+
+
 def test_counts_without_a_cache_breakdown_read_as_nothing_cached():
     frame = {"choices": [{"delta": {}}], "usage": {"prompt_tokens": 41, "completion_tokens": 2}}
     lines = [b"data: " + json.dumps(frame).encode("utf-8"), b"data: [DONE]"]
@@ -305,6 +334,23 @@ def test_an_empty_conversation_id_sends_no_header():
         return _Lines([b"data: [DONE]"])
 
     list(_client(opener).stream(MESSAGES, conversation_id=""))
+    assert seen["conv"] is None
+
+
+def test_deepseek_is_not_sent_the_grok_conversation_header():
+    # Madde 146. The header is xAI's own way of routing a request to its conversation's cache;
+    # DeepSeek matches prefixes by itself and documents nothing of the kind, so sending it there
+    # would be a made-up name on somebody else's wire.
+    seen = {}
+
+    def opener(request):
+        seen["conv"] = request.get_header("X-grok-conv-id")
+        return _Lines([b"data: [DONE]"])
+
+    client = XaiClient(
+        lambda: "key", "deepseek-v4-flash", "https://api.deepseek.com", opener=opener
+    )
+    list(client.stream(MESSAGES, conversation_id="c1"))
     assert seen["conv"] is None
 
 

@@ -36,12 +36,48 @@ def test_without_it_the_key_is_empty_rather_than_missing(monkeypatch):
         _reloaded()
 
 
+def test_the_deepseek_key_comes_from_the_environment(monkeypatch):
+    # The second provider's key travels the road the first one does, and the app cannot tell where
+    # either came from.
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds-from-the-environment")
+    try:
+        assert _reloaded().DEEPSEEK_API_KEY == "ds-from-the-environment"
+    finally:
+        monkeypatch.undo()
+        _reloaded()
+
+
 def test_the_default_model_is_grok_build():
     # Pinned like MAX_ROUNDS: this is a decision, and changing it without noticing changes what the
-    # user pays and what fits. Grok Build costs $1/$2 against grok-4.3's $1.25/$2.50, and carries
-    # 256k of context against its 1M -- a quarter of the room, chosen knowingly (Madde 72).
-    #
-    # An XAI_MODEL in the environment overrides this and the resolved value is what lands here, so
-    # on a machine that sets it this test fails and says something true: the default running here
-    # is not the one the repository ships.
-    assert config.XAI_MODEL == "grok-build-0.1"
+    # user pays and what fits. It is also what an old record resolves to -- every message written
+    # before Madde 146 names no model at all.
+    assert config.DEFAULT_MODEL == "grok-build-0.1"
+
+
+def test_the_three_models_resolve_to_their_provider():
+    assert config.MODELS["grok-build-0.1"]["base_url"] == "https://api.x.ai/v1"
+    # No /v1 on this one: it is DeepSeek's documented base, and the client appends
+    # /chat/completions to whatever it is given.
+    assert config.MODELS["deepseek-v4-flash"]["base_url"] == "https://api.deepseek.com"
+    assert config.MODELS["deepseek-v4-pro"]["base_url"] == "https://api.deepseek.com"
+
+
+def test_each_model_names_the_key_it_spends():
+    # Two providers, two keys. Which one a model costs is the model's own business rather than
+    # something the composition root is told twice.
+    assert config.MODELS["grok-build-0.1"]["key"] == "XAI_API_KEY"
+    assert config.MODELS["deepseek-v4-flash"]["key"] == "DEEPSEEK_API_KEY"
+    assert config.MODELS["deepseek-v4-pro"]["key"] == "DEEPSEEK_API_KEY"
+
+
+def test_a_known_model_resolves_to_its_own_wiring():
+    model, base_url, _ = config.engine_for("deepseek-v4-flash")
+    assert (model, base_url) == ("deepseek-v4-flash", "https://api.deepseek.com")
+
+
+def test_an_unknown_or_absent_model_falls_back_to_the_default():
+    # skills.py's instruction_for rule, and the same reason: a record can name something that has
+    # since been renamed, and a message written before this field names nothing at all. Neither may
+    # stop a chat from being answered.
+    assert config.engine_for("")[0] == "grok-build-0.1"
+    assert config.engine_for("grok-4.3")[0] == "grok-build-0.1"

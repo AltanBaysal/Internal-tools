@@ -628,24 +628,57 @@ test("the rail is drawn at the width the app is holding, and reports a drag back
   expect(onResizeRail).toHaveBeenCalledWith(440);
 });
 
-test("the composer says which model answers, without offering a choice", () => {
-  // Madde 82: one model, and nothing on a chat says which. The name is there to be read.
+test("the composer offers the choice of model", () => {
+  // The reversal of Madde 82's lock, and not a change of mind: that madde tore the machinery out
+  // because one model made it idle, and Madde 146 ended that premise by adding two.
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByText("Grok Build")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Grok Build/ })).toBeNull();
+  expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy();
+});
+
+test("the model picker shows what it is handed, not the chat's", () => {
+  // The selection is the session's and this screen is handed one, exactly as it is handed a skill.
+  // A model sitting in an old record is history, not a selection.
+  render(<ChatScreen project={PROJECT} chat={CHAT} model="deepseek-v4-pro" />);
+  expect(screen.getByRole("button", { name: /DeepSeek Pro/ })).toBeTruthy();
+});
+
+test("picking a model is passed up rather than kept here", () => {
+  const onModelChange = vi.fn();
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      model="grok-build-0.1"
+      modelOpen
+      onModelChange={onModelChange}
+    />,
+  );
+  fireEvent.click(screen.getByText("DeepSeek Flash"));
+  expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-flash");
+});
+
+test("whether the model menu is open is told to the screen rather than decided by it", () => {
+  // Escape closes it in a fixed order with everything else and App's one listener owns that, so
+  // being open is not this screen's to know.
+  const onToggleModel = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={CHAT} onToggleModel={onToggleModel} />);
+  expect(screen.queryByText("MODELS")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
+  expect(onToggleModel).toHaveBeenCalled();
 });
 
 test("the foot carries the mode, Skills, the model and Send, in that order", () => {
   // karar 1's order, complete at last.
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
   const foot = container.querySelector(".composer__foot");
-  // karar 1's order stands; the model stopped being a control in Madde 82, and Madde 91 put the
-  // mode in front of the row -- what the model may do at all comes before which job it is doing.
-  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build↑");
+  // karar 1's order stands; Madde 91 put the mode in front of the row -- what the model may do at
+  // all comes before which job it is doing. The model is a control again since Madde 146, so it
+  // wears a chevron like the two beside it.
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build⌄↑");
   const buttons = [...foot.querySelectorAll("button")];
-  expect(buttons.length).toBe(3);
+  expect(buttons.length).toBe(4);
   // Madde 80 took the word off the button; the name it answers to is asked for separately now.
-  expect(buttons[2].getAttribute("aria-label")).toBe("Send");
+  expect(buttons[3].getAttribute("aria-label")).toBe("Send");
 });
 
 test("while an answer runs the row ends in Stop, and nothing is added beside it", () => {
@@ -655,10 +688,10 @@ test("while an answer runs the row ends in Stop, and nothing is added beside it"
     <ChatScreen project={PROJECT} chat={CHAT} thinking onStop={vi.fn()} />,
   );
   const foot = container.querySelector(".composer__foot");
-  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build⏹");
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build⌄⏹");
   const buttons = [...foot.querySelectorAll("button")];
-  expect(buttons.length).toBe(3);
-  expect(buttons[2].getAttribute("aria-label")).toBe("Stop");
+  expect(buttons.length).toBe(4);
+  expect(buttons[3].getAttribute("aria-label")).toBe("Stop");
 });
 
 test("the picker shows the skill it is handed, not the chat's", () => {

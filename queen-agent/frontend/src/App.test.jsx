@@ -1413,8 +1413,9 @@ function withStoredSkill(stored = "generate-prompts-plus") {
 }
 
 test("the app never asks which model to use", async () => {
-  // The setting has one value and the wiring names it once, in config.py. There is nothing for the
-  // browser to fetch and nothing for it to hold.
+  // Still true after Madde 146, for a new reason. There were three models and no endpoint because
+  // the list the user sees lives in models.js, exactly as the skills' does: what the backend knows
+  // is what an id means, never which one is selected.
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
@@ -1422,8 +1423,9 @@ test("the app never asks which model to use", async () => {
   expect(fetch.mock.calls.filter(([path]) => String(path) === "/api/model")).toHaveLength(0);
 });
 
-test("a chat is born without a model", async () => {
-  // Nothing to send: there is one, and the server already knows which.
+test("a chat is born naming the model that will answer it", async () => {
+  // The reversal of Madde 82's lock. The selection is the session's and the server holds none, so
+  // the only way it can travel is on the message -- the road skill has taken since Madde 86.
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1");
   render(<App />);
@@ -1436,8 +1438,39 @@ test("a chat is born without a model", async () => {
       ([path, options]) => options?.method === "POST" && String(path).endsWith("/messages"),
     );
     expect(born).toBeTruthy();
-    expect(JSON.parse(born[1].body)).not.toHaveProperty("model");
+    expect(JSON.parse(born[1].body).model).toBe("grok-build-0.1");
   });
+});
+
+test("picking a model asks the server for nothing", async () => {
+  // The skill's rule, and the same reason: there is no field to write, so there is no request.
+  const fetch = withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
+  const before = fetch.mock.calls.length;
+  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
+  fireEvent.click(screen.getByText("DeepSeek Flash"));
+  await waitFor(() => expect(screen.getByRole("button", { name: /DeepSeek Flash/ })).toBeTruthy());
+  expect(fetch.mock.calls.length).toBe(before);
+});
+
+test("the model menu takes the one picker slot, and Escape closes it", async () => {
+  // Only one picker may stand open: two menus would sit over the same corner of the screen. The
+  // third one joins the pair rather than getting a flag of its own.
+  withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
+
+  fireEvent.click(screen.getByText("Skills", { selector: ".picker__name" }));
+  expect(screen.getByText("SKILLS")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
+  expect(screen.queryByText("SKILLS")).toBeNull();
+  expect(screen.getByText("MODELS")).toBeTruthy();
+
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(screen.queryByText("MODELS")).toBeNull();
 });
 
 // --- which skill is selected ---------------------------------------------------------------------
@@ -2437,7 +2470,8 @@ test("Escape closes the mode picker too", async () => {
 });
 
 test("a draft says which model will answer it", async () => {
-  // Nothing has been sent yet and there is still one model, so the name is there from the start.
+  // Nothing has been sent yet, so what the button shows is the session's own choice -- the chat it
+  // is about to become will be born with exactly that.
   withChat();
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);

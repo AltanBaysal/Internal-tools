@@ -57,6 +57,46 @@ def test_a_message_with_no_skill_writes_no_field(tmp_path):
     assert "skill" not in raw.read_text("p1/chats/c1.json")
 
 
+def test_the_model_a_message_was_sent_with_survives_the_disk(tmp_path):
+    # Madde 146. The road skill takes, because it is the same kind of thing: what governed a turn,
+    # written on the turn.
+    written = replace(
+        _chat(),
+        messages=(
+            Message(
+                role="user", at="2026-08-09T11:04:00+00:00", text="hi", model="deepseek-v4-pro"
+            ),
+        ),
+    )
+    FileChatStore(Store(str(tmp_path))).add("p1", written)
+    got = FileChatStore(Store(str(tmp_path))).get("p1", "c1")
+    assert got.messages[0].model == "deepseek-v4-pro"
+
+
+def test_a_message_with_no_model_writes_no_field(tmp_path):
+    # Every message written before Madde 146 has none, and one written after it without a choice
+    # should be no different on disk.
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _chat())
+    assert "model" not in raw.read_text("p1/chats/c1.json")
+
+
+def test_the_two_model_fields_are_not_the_same_field(tmp_path):
+    # The pair that keeps Madde 146 honest. Madde 82 took `model` off the CHAT and that stays gone;
+    # this madde put one on the MESSAGE. They share a name and nothing else, and a record carrying
+    # both must lose the first and keep the second -- exactly what the skill pair above does.
+    raw = Store(str(tmp_path))
+    raw.write_text(
+        "p1/chats/old.json",
+        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "model": "grok-4.3",'
+        ' "messages": [{"role": "user", "at": "2026-08-09T11:04:00+00:00", "text": "hi",'
+        ' "model": "deepseek-v4-flash"}]}',
+    )
+    old = FileChatStore(raw).get("p1", "old")
+    assert not hasattr(old, "model")
+    assert old.messages[0].model == "deepseek-v4-flash"
+
+
 def test_a_chat_written_before_skills_existed_still_reads(tmp_path):
     # There are records on disk already. They have no such field and must not need a migration.
     raw = Store(str(tmp_path))

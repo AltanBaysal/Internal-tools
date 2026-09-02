@@ -203,14 +203,14 @@ test("the composer here carries every picker, in the chat screen's order", () =>
   // learned twice.
   const { container } = render(<ProjectScreen project={PROJECT} />);
   const foot = container.querySelector(".composer__foot");
-  // The same order as the chat screen; the model stopped being a control in Madde 82, and Madde 91
-  // put the mode in front of the row.
-  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build↑");
+  // The same order as the chat screen; Madde 91 put the mode in front of the row, and Madde 146
+  // made the model a control again, so it wears a chevron like the two beside it.
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build⌄↑");
   const buttons = [...foot.querySelectorAll("button")];
-  expect(buttons.length).toBe(3);
+  expect(buttons.length).toBe(4);
   // Madde 80 took the word off the button. The mark is the chat screen's, the name is this
   // screen's own -- opening a chat is not replying to one.
-  expect(buttons[2].getAttribute("aria-label")).toBe("Start");
+  expect(buttons[3].getAttribute("aria-label")).toBe("Start");
 });
 
 test("picking a skill is passed up rather than kept here", () => {
@@ -222,11 +222,14 @@ test("picking a skill is passed up rather than kept here", () => {
   expect(onSkillChange).toHaveBeenCalledWith("generate-prompts-plus");
 });
 
-test("the model's name is here to be read, not pressed", () => {
-  // Madde 82: one model, so this screen has one choice to make and it is the skill.
-  render(<ProjectScreen project={PROJECT} />);
-  expect(screen.getByText("Grok Build")).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Grok Build/ })).toBeNull();
+test("the model is pressed here too, and the choice is passed up", () => {
+  // Madde 146: the chat a draft becomes is answered by whatever is picked here, so the draft screen
+  // needs the same control the chat screen has.
+  const onModelChange = vi.fn();
+  render(<ProjectScreen project={PROJECT} model="grok-build-0.1" modelOpen onModelChange={onModelChange} />);
+  expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy();
+  fireEvent.click(screen.getByText("DeepSeek Pro"));
+  expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-pro");
 });
 
 test("whether the picker is open is told to the screen rather than decided by it", () => {
