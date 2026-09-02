@@ -17,6 +17,9 @@ GECELIK = "white nightgown"
 GUNLUK = "black t-shirt"
 TAKIM = "dark grey suit"
 PEOPLE = "1girl, 1boy"
+# What separates two character blocks. Written once: the node reading it splits on the literal
+# string, so a typo here would be a typo in every assertion at the same time.
+BREAK = " BREAK "
 # No count inside the identity: where the count belongs is the frame's own field, and this one is
 # written the way the maps are meant to read from Madde 95 on.
 EDA = "freckles, green eyes"
@@ -268,7 +271,7 @@ def test_a_frame_without_a_people_tag_still_splits():
     # Files written before the field existed carry no count. What is missing is skipped -- the way a
     # missing quality is skipped -- and the order still opens up around the camera.
     built = build_prompts(_structure(frames=[_frame(characters={"aylin": [], "deniz": []})]))
-    assert built == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera, {DENIZ}"]
+    assert built == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera{BREAK}{DENIZ}"]
 
 
 def test_an_empty_people_tag_adds_nothing():
@@ -292,7 +295,7 @@ def test_who_leads_is_decided_frame_by_frame():
 def test_the_second_character_lands_past_the_camera():
     frame = _frame(people=PEOPLE, characters={"aylin": [], "deniz": []})
     assert build_prompts(_structure(frames=[frame])) == [
-        f"{QUALITY}, {PEOPLE}, {AYLIN}, {BEDROOM}, an action, a camera, {DENIZ}"
+        f"{QUALITY}, {PEOPLE}, {AYLIN}, {BEDROOM}, an action, a camera{BREAK}{DENIZ}"
     ]
 
 
@@ -316,14 +319,39 @@ def test_the_outfit_of_whoever_comes_last_follows_them_past_the_camera():
     assert built.index("a camera") < built.index(DENIZ) < built.index(TAKIM)
 
 
-def test_the_second_and_third_stay_side_by_side_at_the_end():
-    # The accepted cost of the new order: the two behind can still bleed into each other. What the
-    # order protects is the one in front.
+def test_the_two_behind_are_cut_off_from_each_other_too():
+    # The cost the ordering fix accepted -- the two behind still bleeding into each other -- is not
+    # worth accepting once a separator exists. One rule with no exception: every character block
+    # gets a break, so the third is as separate from the second as the second is from the lead.
     structure = _structure(
         characters={"aylin": AYLIN, "deniz": DENIZ, "eda": EDA},
         frames=[_frame(people="2girls, 1boy", characters={"aylin": [], "deniz": [], "eda": []})],
     )
-    assert build_prompts(structure)[0].endswith(f"{DENIZ}, {EDA}")
+    assert build_prompts(structure)[0].endswith(f"{DENIZ}{BREAK}{EDA}")
+
+
+def test_break_never_touches_a_comma():
+    # The node reading the prompt splits on the literal string, so a BREAK written as one more tag
+    # would leave every chunk opening and closing on a comma. Harmless to the model, unreadable to
+    # whoever opens the file -- and the reason the blocks are joined rather than listed.
+    frame = _frame(people=PEOPLE, characters={"aylin": ["gecelik"], "deniz": ["takim"]})
+    built = build_prompts(_structure(frames=[frame]))[0]
+
+    # Asserted first, and not only for company: without it the two below are vacuously true on a
+    # prompt that carries no BREAK at all, which is exactly what this file held before the item.
+    assert BREAK in built
+    assert ", BREAK" not in built
+    assert "BREAK," not in built
+
+
+def test_a_single_character_frame_carries_no_break():
+    # Nothing to separate: one block is one block.
+    assert "BREAK" not in build_prompts(_structure())[0]
+
+
+def test_a_character_tried_alone_carries_no_break():
+    # The try path builds one character on their own, so a second block never exists.
+    assert all("BREAK" not in prompt for prompt in _tried(_structure(), "aylin"))
 
 
 def test_the_old_list_form_makes_its_first_name_the_leading_character():
