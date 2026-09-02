@@ -226,9 +226,18 @@ test("the model is pressed here too, and the choice is passed up", () => {
   // Madde 146: the chat a draft becomes is answered by whatever is picked here, so the draft screen
   // needs the same control the chat screen has.
   const onModelChange = vi.fn();
-  render(<ProjectScreen project={PROJECT} model="grok-build-0.1" modelOpen onModelChange={onModelChange} />);
-  expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy();
-  fireEvent.click(screen.getByText("DeepSeek Pro"));
+  render(
+    <ProjectScreen
+      project={PROJECT}
+      model="grok-build-0.1"
+      modelOpen
+      onModelChange={onModelChange}
+    />,
+  );
+  // By its class rather than its role: with the menu standing open the same name is on the trigger
+  // and on the row it chose, and a bare role query cannot say which one is meant.
+  expect(screen.getByText("Grok Build", { selector: ".picker__name" })).toBeTruthy();
+  fireEvent.click(screen.getByText("DeepSeek Pro", { selector: ".menu__item-name" }));
   expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-pro");
 });
 

@@ -22,8 +22,23 @@ def _main():
 
 def test_the_key_is_taken_from_config():
     """One road, and this is where it is chosen. Stated as what the file DOES rather than only as
-    what it avoids: a rule written as an absence alone can never fail."""
-    assert "config.XAI_API_KEY" in _main(), "Anahtar config'ten alınmıyor"
+    what it avoids: a rule written as an absence alone can never fail.
+
+    Madde 146 moved the road without widening it. There are two keys now and a model is what says
+    which one it spends, so this file asks config.engine_for for a model's wiring instead of naming
+    a single constant -- and the key still reaches it from config and from nowhere else.
+    """
+    assert "config.engine_for" in _main(), "Anahtar config'ten alınmıyor"
+
+
+def test_the_composition_root_reads_no_environment_of_its_own():
+    """The other half of the one road, and the half that can actually fail now.
+
+    While a single constant was named here, reading the environment twice was hard to do by
+    accident. With a table of models it is not: the obvious shortcut is to fetch a key beside the
+    address, and then config's assignment and this file would part the day either moved.
+    """
+    assert "os.environ" not in _main(), "Bileşim kökü çevreyi kendisi okuyor"
 
 
 def test_no_settings_feature_is_wired_in():

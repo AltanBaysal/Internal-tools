@@ -21,6 +21,9 @@ class XaiFailed(Exception):
 
 _DATA = b"data: "
 _DONE = object()
+# What an xAI address looks like. The conversation header is that service's own, so the base URL is
+# asked before it is sent.
+_IS_XAI = "x.ai"
 
 
 def _parsed(raw):
@@ -103,13 +106,23 @@ def _spent(frame):
     `cached_tokens` sits inside the prompt rather than beside it, so it can never exceed `sent` and
     the difference is what was paid for a second time. Nothing here computes that difference: a
     number that restates two others goes stale on its own.
+
+    Two shapes since Madde 146, because the two services answer the same question differently: xAI
+    nests the figure under `prompt_tokens_details`, DeepSeek sends `prompt_cache_hit_tokens` flat
+    beside the total and no details object at all. `sent` and `answered` they name alike. Read
+    rather than chosen by provider: the frame says which shape it is, and asking it is one fact
+    where a lookup by address would be two.
     """
     counts = frame.get("usage")
     if not counts:
         return None
+    if "prompt_cache_hit_tokens" in counts:
+        cached = counts["prompt_cache_hit_tokens"]
+    else:
+        cached = counts.get("prompt_tokens_details", {}).get("cached_tokens", 0)
     return {
         "sent": counts.get("prompt_tokens", 0),
-        "cached": counts.get("prompt_tokens_details", {}).get("cached_tokens", 0),
+        "cached": cached,
         "answered": counts.get("completion_tokens", 0),
     }
 
@@ -206,7 +219,13 @@ class XaiClient:
         # A header rather than a body field: the cache's key is the body's prefix, and an id inside
         # the body would change the very thing it is meant to route to. Only a real name goes -- an
         # empty one would file every caller with no conversation under the same entry.
-        if conversation_id:
+        #
+        # And only to xAI, since Madde 146: this is that service's own way of routing a request to
+        # its conversation's cache. DeepSeek matches prefixes by itself and documents nothing of the
+        # kind, so sending it there would be a made-up name on somebody else's wire. The address is
+        # what decides, because the address is already what says which service this is -- a flag
+        # beside it would be the same fact written twice.
+        if conversation_id and _IS_XAI in self._base_url:
             headers["x-grok-conv-id"] = conversation_id
         return urllib.request.Request(
             f"{self._base_url}/chat/completions",

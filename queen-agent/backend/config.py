@@ -20,13 +20,43 @@ ROOT = os.environ.get("QUEENAGENT_ROOT", os.path.join(os.path.expanduser("~"), "
 # Empty rather than absent when it is unset: the app starts without a key and only asking for an
 # answer fails.
 XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
+# The second provider's key, since Madde 146, and it travels the same road. The notebook demands
+# both: the composer draws three rows, so a run opened on one key would promise two models it
+# cannot answer with.
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 
-# What every chat answers with. Since Madde 82 this is the only place a model is named: a chat no
-# longer carries one and nothing on the way to the engine can override it.
+# What each model id means to the transport, and nothing else. The list a person reads -- names and
+# prices -- is the frontend's (models.js), exactly as the skills' list is: what this side knows is
+# what an id resolves to, never which one is selected.
 #
-# Grok Build since Madde 72: $1/$2 per 1M against grok-4.3's $1.25/$2.50, and 256k of context
-# against its 1M. The window is a quarter of what it was and the runs here are long -- a structure
-# file, a scenario and a frame list pile up in one chat. That cost was named and accepted; the
-# context work is Madde 71. Prices verified against xAI's documentation on 2026-08-18.
-XAI_MODEL = os.environ.get("XAI_MODEL", "grok-build-0.1")
-XAI_BASE_URL = os.environ.get("XAI_BASE_URL", "https://api.x.ai/v1")
+# The key's NAME sits here rather than its value, so this stays a mapping and carries no secret.
+# engine_for is the one place that reads the environment.
+#
+# Madde 82 named one model here and Madde 146 made it three. That madde tore the picking machinery
+# out because a single model left it idle; two more ended the premise rather than overturned it.
+MODELS = {
+    "grok-build-0.1": {"base_url": "https://api.x.ai/v1", "key": "XAI_API_KEY"},
+    # No /v1: this is DeepSeek's own documented base, and the client appends /chat/completions to
+    # whatever it is handed.
+    "deepseek-v4-flash": {"base_url": "https://api.deepseek.com", "key": "DEEPSEEK_API_KEY"},
+    "deepseek-v4-pro": {"base_url": "https://api.deepseek.com", "key": "DEEPSEEK_API_KEY"},
+}
+
+# What answers when a turn named nothing -- which is every message written before Madde 146.
+DEFAULT_MODEL = "grok-build-0.1"
+
+
+def engine_for(model_id):
+    """Which model, over which address, spending which key.
+
+    An id nobody knows falls back to the default rather than raising, and so does an empty one:
+    a record can name a model that has since been dropped, and every message on disk from before
+    this field names none at all. Neither may stop a chat from being answered -- the rule
+    skills.instruction_for keeps for the same reason.
+    """
+    chosen = model_id if model_id in MODELS else DEFAULT_MODEL
+    wiring = MODELS[chosen]
+    # The module's own constant, looked up by the name the row carries -- not a second read of the
+    # environment. There is one road for a key and it is the assignment above; a row that fetched
+    # its own would be a second one, and the two would part the day either moved.
+    return chosen, wiring["base_url"], globals()[wiring["key"]]

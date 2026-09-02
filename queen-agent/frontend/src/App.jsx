@@ -18,6 +18,7 @@ import {
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
 import { DEFAULT_MODE, EDIT } from "./features/workspace/modes.js";
+import { DEFAULT_MODEL } from "./features/workspace/models.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
 import { getJson } from "./shared/api.js";
@@ -70,8 +71,13 @@ export default function App() {
   // The last mode picked, and what the next turn is sent in. Held for the session like the skill,
   // and unlike it never written anywhere: nothing on the server reads a mode back.
   const [lastMode, setLastMode] = useState(DEFAULT_MODE);
-  // Which picker is open, if either: null, "skills" or "mode". One value rather than a boolean
-  // each, because two booleans can both be true and then two menus stand over the same corner of
+  // The last model picked, and what the next turn is answered by. Held for the session like the
+  // mode rather than per chat like the skill: comparing two models is what this is for, and that is
+  // done by picking one and working, not by a chat remembering an old choice. The server holds none
+  // of it -- the value rides on each message and is written onto it (Madde 146).
+  const [lastModel, setLastModel] = useState(DEFAULT_MODEL);
+  // Which picker is open, if any: null, "skills", "mode" or "model". One value rather than a
+  // boolean each, because booleans can all be true and then menus stand over the same corner of
   // the screen. Here rather than inside a picker, because App's one listener owns Escape and it
   // can only close what it can see.
   const [pickerOpen, setPickerOpen] = useState(null);
@@ -300,9 +306,13 @@ export default function App() {
             modeOpen={pickerOpen === "mode"}
             onToggleMode={() => togglePicker("mode")}
             onModeChange={setLastMode}
+            model={lastModel}
+            modelOpen={pickerOpen === "model"}
+            onToggleModel={() => togglePicker("model")}
+            onModelChange={setLastModel}
             onRename={() => askForName(route.projectId)}
             onDelete={() => askToDelete(route.projectId)}
-            onSend={(text) => chat.send(text, draftSkill, lastMode)}
+            onSend={(text) => chat.send(text, draftSkill, lastMode, lastModel)}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             onDeleteChat={askToDeleteChat}
           />
@@ -340,7 +350,11 @@ export default function App() {
             modeOpen={pickerOpen === "mode"}
             onToggleMode={() => togglePicker("mode")}
             onModeChange={setLastMode}
-            onSend={(text) => chat.send(text, skillInForce, lastMode)}
+            model={lastModel}
+            modelOpen={pickerOpen === "model"}
+            onToggleModel={() => togglePicker("model")}
+            onModelChange={setLastModel}
+            onSend={(text) => chat.send(text, skillInForce, lastMode, lastModel)}
             onSkillChange={changeSkill}
             onStop={chat.stop}
             /* The question is the hook's; the mode is the session's, and the session is here. One

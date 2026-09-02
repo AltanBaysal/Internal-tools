@@ -2,7 +2,7 @@ import { relativeTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
-import ModelLabel from "./ModelLabel.jsx";
+import ModelPicker from "./ModelPicker.jsx";
 import ModePicker from "./ModePicker.jsx";
 import Skeleton from "./Skeleton.jsx";
 import SkillPicker from "./SkillPicker.jsx";
@@ -21,6 +21,10 @@ export default function ProjectScreen({
   skillsOpen,
   onToggleSkills,
   onSkillChange,
+  model,
+  modelOpen,
+  onToggleModel,
+  onModelChange,
   mode,
   modeOpen,
   onToggleMode,
@@ -78,7 +82,12 @@ export default function ProjectScreen({
                   onToggle={onToggleSkills}
                   onChange={onSkillChange}
                 />
-                <ModelLabel />
+                <ModelPicker
+                  model={model}
+                  open={modelOpen}
+                  onToggle={onToggleModel}
+                  onChange={onModelChange}
+                />
               </>
             }
             onSubmit={onSend}

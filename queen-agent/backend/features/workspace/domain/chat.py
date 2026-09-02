@@ -61,6 +61,11 @@ class Message:
     # stays honest: changing the selection later must not make an older turn look as though the new
     # skill produced it.
     skill: str = ""
+    # Which model answered this turn (Madde 146). Beside skill and for the very same reason, and it
+    # is what makes comparing two of them possible at all: a turn keeps the choice it was sent
+    # with, so a later selection cannot rewrite who said what. The chat's own root carries none --
+    # Madde 82 took that one out and it stays out; these two share a name and nothing else.
+    model: str = ""
     # The steps this turn took before it spoke. Kept for the same reason the files are: the chat is
     # read again later, and a step that only existed while the answer streamed leaves that reader
     # exactly as blind as before.

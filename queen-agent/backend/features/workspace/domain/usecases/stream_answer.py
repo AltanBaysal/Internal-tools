@@ -45,6 +45,20 @@ def _current_skill(chat):
     return ""
 
 
+def _current_model(chat):
+    """Which model answers the turn: the newest user message's (Madde 146).
+
+    Read the way the skill is, and walked from the end for the same reason -- a record does not
+    always end with the question that is waiting for an answer. Nothing here turns an empty one into
+    a name: config.engine_for is the single place that resolves a fallback, and a second guess here
+    would be a second answer to one question.
+    """
+    for message in reversed(chat.messages):
+        if message.role == "user":
+            return message.model
+    return ""
+
+
 def _named(names):
     """What the project holds, in one line for the model (Madde 127).
 
@@ -172,6 +186,9 @@ def stream_answer(
     # Read once: which skill governs the turn being answered is settled before the first round, and
     # no round changes it.
     instruction = instruction_for(_current_skill(chat))
+    # Read once, beside the instruction and for the same reason: which model answers is settled
+    # before the first round, and every round of the turn goes to that one.
+    model = _current_model(chat)
     said = []
     born = []
     made = []
@@ -215,6 +232,10 @@ def stream_answer(
                     # The chat is the conversation: its id is the name the service's cache files
                     # this turn's prefix under (Madde 124).
                     conversation_id=chat_id,
+                    # Which transport speaks (Madde 146). The same one every round, because the
+                    # turn is one answer -- half of it from another model would be one answer only
+                    # on the screen.
+                    model=model,
                 ):
                     if "text" in piece:
                         spoken.append(piece["text"])

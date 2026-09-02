@@ -779,7 +779,9 @@ test("the chat screen draws the gauge from the record it read", () => {
 test("the foot puts the mode before the skill", () => {
   // Mode · Skills · model · Send. What the model may do at all is a question that comes before
   // which job it is doing, so the row reads outermost first.
+  // All three since Madde 146: the model is a picker again, so it carries a name of its own here
+  // and the row can be read end to end rather than two thirds of it.
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} mode="plan" />);
   const names = [...container.querySelectorAll(".composer__foot .picker__name")];
-  expect(names.map((name) => name.textContent)).toEqual(["Plan", "Skills"]);
+  expect(names.map((name) => name.textContent)).toEqual(["Plan", "Skills", "Grok Build"]);
 });

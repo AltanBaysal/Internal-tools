@@ -7,19 +7,36 @@ ROLE_FOR_XAI = {"user": "user", "ai": "assistant"}
 
 
 class XaiEngine:
-    def __init__(self, client):
-        self._client = client
+    """One engine over a named set of transports, since Madde 146.
 
-    def complete(self, messages, tools=None):
-        return self._client.complete(self._for_xai(messages), tools=tools)
+    Which model answers is an input again rather than a line in config.py, and the map is here
+    because a transport is bound to its address and its key at construction -- picking one is
+    therefore picking a client, not passing a string down.
+    """
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
-        return self._client.stream(
+    def __init__(self, clients, default):
+        self._clients = clients
+        self._default = default
+
+    def complete(self, messages, tools=None, model=""):
+        return self._chosen(model).complete(self._for_xai(messages), tools=tools)
+
+    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
+        return self._chosen(model).stream(
             self._for_xai(messages),
             tools=tools,
             on_open=on_open,
             conversation_id=conversation_id,
         )
+
+    def _chosen(self, model):
+        """The transport the turn named, or the default.
+
+        The same fallback config.engine_for keeps, held again here because this is the layer a
+        record actually reaches: a message written before Madde 146 names no model at all, and one
+        written before Madde 82 names a model that is gone.
+        """
+        return self._clients.get(model) or self._clients[self._default]
 
     @staticmethod
     def _for_xai(messages):

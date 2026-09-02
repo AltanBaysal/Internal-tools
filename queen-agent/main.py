@@ -12,14 +12,22 @@ from backend.services.xai.client import XaiClient
 from backend.web.app import create_app
 
 store = Store(config.ROOT)
-# Where the key comes from is this file's decision, not the client's -- which is why it is still
-# handed over as a function even though the value now settles once, at startup.
+# One transport per model since Madde 146, built from the table rather than written out three
+# times: a fourth model is then a row in config.py and nothing here.
+#
+# Where the key comes from is still this file's decision, not the client's -- which is why it is
+# handed over as a function even though the value settles once, at startup. `engine_for` is asked
+# for each id in turn, so the address and the key a model spends stay its own.
 engine = XaiEngine(
-    XaiClient(
-        lambda: config.XAI_API_KEY,
-        config.XAI_MODEL,
-        config.XAI_BASE_URL,
-    )
+    {
+        model: XaiClient(
+            lambda wiring=config.engine_for(model): wiring[2],
+            model,
+            config.engine_for(model)[1],
+        )
+        for model in config.MODELS
+    },
+    default=config.DEFAULT_MODEL,
 )
 app = create_app(
     blueprints=(

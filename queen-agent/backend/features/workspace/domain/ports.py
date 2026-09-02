@@ -44,11 +44,14 @@ class ChatStore(Protocol):
 class Engine(Protocol):
     """Something that answers a conversation.
 
-    Which model it answers with is not asked here: there is one, and config.py names it once. That
-    belongs to whatever the engine was built with, not to the call.
+    Which model it answers with is asked here again since Madde 146: there are three, and the turn
+    names the one it wants. An id the engine does not know -- a record from before this field, or a
+    model since dropped -- is answered by its default rather than refused.
     """
 
-    def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
+    def complete(
+        self, messages: list[dict], tools: list[dict] | None = None, model: str = ""
+    ) -> dict:
         """Answer a conversation. Messages carry the domain's own roles: user and ai."""
 
     def stream(
@@ -57,6 +60,7 @@ class Engine(Protocol):
         tools: list[dict] | None = None,
         on_open=None,
         conversation_id: str = "",
+        model: str = "",
     ):
         """Answer a conversation piece by piece.
 

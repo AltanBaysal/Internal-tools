@@ -69,6 +69,10 @@ def _message_json(message):
         stored["files"] = list(message.files)
     if message.skill:
         stored["skill"] = message.skill
+    # The same rule, so a record written without a choice looks exactly as it did before Madde 146
+    # and no migration is owed.
+    if message.model:
+        stored["model"] = message.model
     if message.calls:
         stored["calls"] = [_call_json(call) for call in message.calls]
     # Only the true one is written: almost no answer is stopped, and a false everywhere is noise.
@@ -124,6 +128,7 @@ def _as_chat(chat_id, raw):
                 # Chats written before these fields existed simply have neither.
                 files=tuple(message.get("files", ())),
                 skill=message.get("skill", ""),
+                model=message.get("model", ""),
                 calls=tuple(
                     ToolCall(call["tool"], call.get("target", ""), call.get("outcome", ""))
                     for call in message.get("calls", ())
