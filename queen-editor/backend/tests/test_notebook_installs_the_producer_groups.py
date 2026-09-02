@@ -59,8 +59,11 @@ def test_the_notebook_carries_the_tool_s_own_name():
 
 
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
+    """A row naming a kind rather than a file is skipped here and covered by
+    test_the_notebook_offers_every_photo_model instead, which pins all three checkpoints by name and
+    by version id -- a tighter guard than this one, not a looser one."""
     missing = [row["name"] for group in GROUPS.values() for row in group
-               if row["name"] not in _source()]
+               if "name" in row and row["name"] not in _source()]
 
     assert missing == [], f"Defter bu dosyaları indirmiyor: {missing}"
 
