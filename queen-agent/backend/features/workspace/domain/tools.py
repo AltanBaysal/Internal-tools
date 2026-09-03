@@ -539,18 +539,33 @@ def _add_frames(file_store, project_id, args):
         return ToolResult(f"{unknown} Nothing was written.", None, source, "Refused")
 
     frames.append({field: args[field] for field in _FRAME_FIELDS if field in args})
+    _renumber(frames)
     # Indented for the person who opens this file and fixes it by hand, and ensure_ascii off so
     # their own language survives the round trip -- their work is the first principle.
     file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
-    # How many the file holds now: appending is not idempotent, and this is what keeps a doubled
-    # call in front of the model rather than in a read it would have to make. How many went in is no
-    # longer a question -- one call is one frame.
-    return ToolResult(
-        f"Added a frame to {source}; it holds {len(frames)} now.",
-        None,
-        source,
-        "1 frame",
-    )
+    # One number doing both jobs (Madde 153): which frame was just made, and how many there are.
+    # They cannot part company -- renumbering leaves no gaps -- so saying it twice would be noise,
+    # and a doubled call is still visible because the second answer says the next number.
+    return ToolResult(f"Added frame {len(frames)} to {source}.", None, source, "1 frame")
+
+
+def _renumber(frames):
+    """Press each frame's place in the list onto it, in front of everything else (Madde 153).
+
+    A stamp rather than an identity, and every write presses all of them again. That is what keeps
+    the number equal to the position: a removal moves everything below up rather than leaving a hole
+    for the model to read meaning into. It is what lets the user say "frame 15" and the tools find
+    it without quoting text back.
+
+    Rebuilt rather than assigned into, because a dict keeps a key where it was first written: on a
+    frame that already carries one, `frame = n` would update the number and leave it wherever it
+    sat. Being the first line is half of what this is for -- whoever opens the file should not have
+    to read into a frame to see which one it is.
+    """
+    for place, frame in enumerate(frames, start=1):
+        ordered = {"frame": place}
+        ordered.update((key, value) for key, value in frame.items() if key != "frame")
+        frames[place - 1] = ordered
 
 
 def _unknown_names(structure, characters):
