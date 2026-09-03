@@ -9,8 +9,11 @@ from backend.features.workspace.domain.naming import folded
 
 # The chain every prompt opens with. In code rather than in each structure file since Madde 110: it
 # is the same in every scenario, and a model writing it meant a model copying it out of the schema
-# example -- which is how a chain mixing two model families reached real files. A scenario that
-# needs a different one writes quality in its own file and this steps aside.
+# example -- which is how a chain mixing two model families reached real files.
+#
+# The one chain, since Madde 150. A file used to be able to name its own and win, and that door is
+# what kept the field -- and the field is what kept the model deciding something whose right answer
+# never changed. Another chain is a change here, where one edit reaches every scenario at once.
 DEFAULT_QUALITY = (
     "score_9_up, score_9, score_8_up, masterpiece, best quality, raw, high quality, 4k, absurdres"
 )
@@ -48,7 +51,7 @@ def build_prompts(structure):
         #
         # The count is placed, never worked out: the code knows who entered the frame but not what
         # they are, and no field says so.
-        lead = [structure.get("quality") or DEFAULT_QUALITY, frame.get("people", "")]
+        lead = [DEFAULT_QUALITY, frame.get("people", "")]
         # Whoever the frame wrote first leads it. No field names them -- the order already carries
         # it, and a second place saying the same thing is a place that can disagree.
         in_frame = _worn(frame.get("characters"))
@@ -94,12 +97,11 @@ def build_character_prompts(structure, character):
             f"{character} is not in characters; known: {', '.join(sorted(characters)) or 'nothing'}"
         )
 
-    quality = structure.get("quality") or DEFAULT_QUALITY
     identity = characters[character]
     outfits = structure.get("outfits") or {}
     if not outfits:
-        return [_tags([quality, identity])]
-    return [_tags([quality, identity, worn]) for worn in outfits.values()]
+        return [_tags([DEFAULT_QUALITY, identity])]
+    return [_tags([DEFAULT_QUALITY, identity, worn]) for worn in outfits.values()]
 
 
 def render_module(prompts):

@@ -78,10 +78,6 @@ STRUCTURE = (
     "a half that is not in them is not a tag -- and the pair is chosen for the scene rather "
     "than kept from the frame before.\n"
     "\n"
-    "The quality chain is not in this file: code puts it at the front of every prompt, the same "
-    "way for every scenario. Write a quality field only when this one needs a different chain -- "
-    "what is written there is used instead.\n"
-    "\n"
     "Everything in this file is English -- an image model reads it."
 )
 
@@ -93,8 +89,10 @@ RULEBOOK = (
     "2. Clothing written inside a character's own entry, or inside a frame's action, when outfits "
     "is where it belongs. Both are rule 1 in another form: the text copied in instead of the name "
     "being used.\n"
-    "3. Quality tags written inside a frame's own fields. Code adds them once, so they would be "
-    "printed twice.\n"
+    # 3 went with the field it policed (Madde 150). The number is left empty rather than closed up:
+    # these are cited by number in tests, comments and commit messages, and renumbering would point
+    # every one of them at a different rule. A dropped thing keeps its number here, the way Madde
+    # 142 did.
     "4. The same name carrying different text in two structure files in this project. Copying is "
     "allowed; a copy that has drifted is not.\n"
     "5. A name defined in a map and used by no frame -- a note, not a violation.\n"
