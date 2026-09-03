@@ -754,10 +754,11 @@ def test_add_frames_appends_to_the_end_of_the_list(tmp_path):
 
 
 def test_a_frame_is_built_from_flat_parameters(tmp_path):
-    # The whole of the madde in one assertion: the model named the fields, the code shaped them.
+    # The whole of the madde in one assertion: the model named the fields, the code shaped them --
+    # and since Madde 153 the code adds one field of its own, which the model never sent.
     files = _with(tmp_path, "scene.json", STRUCTURE)
     _add(files)
-    assert json.loads(files.read("p1", "scene.json"))["frames"][2] == FRAME
+    assert json.loads(files.read("p1", "scene.json"))["frames"][2] == {"frame": 3, **FRAME}
 
 
 def test_the_new_frame_carries_no_people_field(tmp_path):
