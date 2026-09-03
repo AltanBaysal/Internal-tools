@@ -40,6 +40,21 @@ def call(tool, call_id="t1", **arguments):
     return {"id": call_id, "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
 
+def a_call(call_id="t1"):
+    """Some tool call, for the tests that need a round rather than a particular tool.
+
+    read_prompt_structure_schema was this until Madde 159 retired it -- it took no arguments and
+    touched no file, which made it the quietest thing to script. A read of a name nobody has is the
+    nearest thing left: it costs a round, it needs no fixture, and files_opened skips a read that
+    found nothing, so the context box stays out of tests that are about rounds.
+    """
+    return call("read_file", call_id, name="ghost.md")
+
+
+# What that call leaves in the record.
+A_STEP = ToolCall("read_file", "ghost.md", "No file by that name")
+
+
 class NeverStops:
     """The stop registry as most tests need it: nobody ever asks."""
 
@@ -388,18 +403,15 @@ def test_a_deleted_file_falls_out_of_the_box(tmp_path):
     assert "gone.md" not in _box(engine.seen[0])
 
 
-def test_the_schema_reaches_the_box_too(tmp_path):
-    # One text for the whole app, so it travels by name rather than by lookup. Fetched once in a
-    # chat, it is in front of the model from then on.
+def test_the_box_holds_files_and_nothing_else(tmp_path):
+    # The schema used to ride here beside them, by name rather than by lookup, and Madde 159 took it
+    # away with the tool that fetched it. What the box carries is files, and a file is the only
+    # thing in this app whose contents can change under a message that already went out.
     chats, files = _seeded(tmp_path)
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
     engine = ScriptedEngine(rounds)
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    from backend.features.workspace.domain.schema import SCHEMA
-
-    # Unnumbered, and Madde 131 leaves it so: numbers are there to pick an anchor, and no anchor is
-    # ever written into the schema.
-    assert SCHEMA in _box(engine.seen[1])
+    assert "ghost.md" not in _box(engine.seen[1])
 
 
 def test_the_box_numbers_the_lines_it_shows(tmp_path):
@@ -509,21 +521,21 @@ def test_two_calls_in_one_round_are_both_run(tmp_path):
 
 
 def test_text_from_every_round_becomes_one_message(tmp_path):
-    rounds = [[{"text": "Looking. "}, {"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "Nothing."}]]
+    rounds = [[{"text": "Looking. "}, {"tool_calls": [a_call()]}], [{"text": "Nothing."}]]
     chats, _, _, _ = _run(tmp_path, rounds)
     stored = chats.get("p1", "c1").messages
     assert [(m.role, m.text) for m in stored] == [("user", "hi"), ("ai", "Looking. Nothing.")]
 
 
 def test_the_tool_traffic_is_never_written_to_the_chat(tmp_path):
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
     chats, _, _, _ = _run(tmp_path, rounds)
     # The chat is what the user reads, not the model's bookkeeping.
     assert [m.role for m in chats.get("p1", "c1").messages] == ["user", "ai"]
 
 
 def test_the_loop_stops_at_the_round_limit_and_still_writes(tmp_path):
-    forever = [[{"text": "."}, {"tool_calls": [call("read_prompt_structure_schema")]}] for _ in range(MAX_ROUNDS + 3)]
+    forever = [[{"text": "."}, {"tool_calls": [a_call()]}] for _ in range(MAX_ROUNDS + 3)]
     chats, _, engine, _ = _run(tmp_path, forever)
     assert len(engine.seen) == MAX_ROUNDS
     assert chats.get("p1", "c1").messages[-1].text == "." * MAX_ROUNDS
@@ -644,7 +656,7 @@ def test_a_turn_that_said_nothing_and_made_nothing_is_not_an_answer(tmp_path):
 
 def test_a_silent_turn_that_runs_out_of_rounds_is_not_an_answer_either(tmp_path):
     # Same rule down a different road: the loop stops at its limit rather than at a quiet round.
-    forever = [[{"tool_calls": [call("read_prompt_structure_schema")]}] for _ in range(MAX_ROUNDS + 3)]
+    forever = [[{"tool_calls": [a_call()]}] for _ in range(MAX_ROUNDS + 3)]
     with pytest.raises(EmptyMessage):
         _run(tmp_path, forever)
 
@@ -761,7 +773,7 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     # item exists would stop holding after the first one.
     chats, files = _seeded(tmp_path)
     append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="generate-prompts-plus")
-    engine = ScriptedEngine([[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "clean"}]])
+    engine = ScriptedEngine([[{"tool_calls": [a_call()]}], [{"text": "clean"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     second = engine.seen[1]
     assert second[-1] == {"role": "system", "content": instruction_for("generate-prompts-plus")}
@@ -792,7 +804,7 @@ def _asking_forever(count):
     could look at it, and what is under test here is the request rather than that rule.
     """
     return [
-        [{"text": "."}, {"tool_calls": [call("read_prompt_structure_schema")]}] for _ in range(count)
+        [{"text": "."}, {"tool_calls": [a_call()]}] for _ in range(count)
     ]
 
 
@@ -840,7 +852,7 @@ def test_a_turn_that_ends_early_never_sees_the_notice(tmp_path):
     # about its own turn.
     from backend.features.workspace.domain.prompt import LAST_ROUND
 
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "Done."}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "Done."}]]
     _, _, engine, _ = _run(tmp_path, rounds)
     assert not any(LAST_ROUND in piece["content"] for seen in engine.seen for piece in seen)
     assert all(engine.tools)
@@ -894,9 +906,9 @@ def _lines(produced):
 
 
 def test_each_call_leaves_a_line_as_it_happens(tmp_path):
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "Nothing yet."}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "Nothing yet."}]]
     _, _, _, produced = _run(tmp_path, rounds)
-    assert _lines(produced) == [ToolCall("read_prompt_structure_schema", "", "Schema")]
+    assert _lines(produced) == [A_STEP]
 
 
 def test_the_line_says_which_file_was_touched(tmp_path):
@@ -915,9 +927,9 @@ def test_the_line_says_which_file_was_touched(tmp_path):
 def test_the_answer_remembers_the_calls_it_made(tmp_path):
     # The other half of the item: a line that only exists while the answer streams leaves the chat
     # as blind tomorrow as it is today.
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
     chats, _, _, _ = _run(tmp_path, rounds)
-    assert chats.get("p1", "c1").messages[-1].calls == (ToolCall("read_prompt_structure_schema", "", "Schema"),)
+    assert chats.get("p1", "c1").messages[-1].calls == (A_STEP,)
 
 
 def test_an_answer_that_called_nothing_remembers_none(tmp_path):
@@ -928,9 +940,9 @@ def test_an_answer_that_called_nothing_remembers_none(tmp_path):
 def test_the_kept_call_says_how_it_went(tmp_path):
     # Madde 78. The tests above pin the tool and the file; none of them asks whether the line under
     # the call survived, and that is the half a reader a week later is looking at.
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
     chats, _, _, _ = _run(tmp_path, rounds)
-    assert chats.get("p1", "c1").messages[-1].calls[0].outcome == "Schema"
+    assert chats.get("p1", "c1").messages[-1].calls[0].outcome == "No file by that name"
 
 
 def test_reading_the_same_file_twice_is_two_lines(tmp_path):
@@ -949,7 +961,7 @@ def test_reading_the_same_file_twice_is_two_lines(tmp_path):
 
 # --- stopping an answer that is already running (Madde 67) ---------------------------------------
 
-TWO_ROUNDS = [[{"text": "Half a "}, {"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "sentence."}]]
+TWO_ROUNDS = [[{"text": "Half a "}, {"tool_calls": [a_call()]}], [{"text": "sentence."}]]
 
 
 def test_a_stop_ends_the_answer_without_asking_the_model_again(tmp_path):
@@ -1039,7 +1051,7 @@ def test_what_two_rounds_spent_is_added_up(tmp_path):
     # Each round is its own stream and its own bill: the second one resends the whole conversation,
     # which is exactly the growth this item exists to make visible.
     rounds = [
-        [{"tool_calls": [call("read_prompt_structure_schema")]}, spent(1000, 600, 10)],
+        [{"tool_calls": [a_call()]}, spent(1000, 600, 10)],
         [{"text": "done"}, spent(1500, 1200, 20)],
     ]
     chats, _, _, _ = _run(tmp_path, rounds)
@@ -1051,7 +1063,7 @@ def test_the_turn_remembers_what_its_last_round_carried(tmp_path):
     # conversation got, and only the fourth can tell a chat when to stop. Six rounds of eight
     # thousand is not a request of forty-eight -- the eighth trial closed a chat on that mistake.
     rounds = [
-        [{"tool_calls": [call("read_prompt_structure_schema")]}, spent(8000, 0, 10)],
+        [{"tool_calls": [a_call()]}, spent(8000, 0, 10)],
         [{"tool_calls": [call("read_file", name="plan.md")]}, spent(9000, 7000, 10)],
         [{"text": "done"}, spent(10_000, 8000, 20)],
     ]

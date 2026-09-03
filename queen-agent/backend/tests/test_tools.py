@@ -193,21 +193,20 @@ def test_the_build_tool_tells_the_model_it_assembles_frames():
     assert "frame" in said and "shot" not in said
 
 
-def test_the_schema_tool_hands_back_the_shape_and_the_rules(tmp_path):
-    from backend.features.workspace.domain.schema import SCHEMA
-
-    # No arguments at all: there is one shape, and asking which one would be a question with a
-    # single answer.
-    assert _call(_files(tmp_path), "read_prompt_structure_schema") == SCHEMA
-
-
-def test_the_schema_tool_brings_no_file_into_being(tmp_path):
-    assert run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").created is None
+def test_the_schema_tool_is_gone(tmp_path):
+    # Madde 159. Half of what it handed back described the file's shape, and that half died as the
+    # tools took the shape over -- the model was reading a JSON example of a form it can no longer
+    # write. What did not die is craft, and craft moved into the descriptions of the tools that
+    # write values.
+    assert "read_prompt_structure_schema" not in {s["function"]["name"] for s in TOOL_SPECS}
+    assert "no tool called" in _call(_files(tmp_path), "read_prompt_structure_schema").lower()
 
 
-def test_the_schema_tool_says_what_it_answered_with(tmp_path):
-    # A reader's line rather than the answer itself, like every other outcome.
-    assert run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").outcome == "Schema"
+def test_the_module_that_held_the_schema_is_gone():
+    # Imported inside, like everything else in this file that asks about a module: a bare import at
+    # the top of a test file is a collection error, and then no red in the turn is visible.
+    with pytest.raises(ImportError):
+        from backend.features.workspace.domain import schema  # noqa: F401
 
 
 def test_create_file_no_longer_offers_the_structure_extension():
@@ -218,16 +217,6 @@ def test_create_file_no_longer_offers_the_structure_extension():
     said = spec["function"]["parameters"]["properties"]["name"]["description"]
     assert ".json" not in said
     assert ".md" in said
-
-
-def test_the_schema_tool_defines_the_term_it_hands_back():
-    # The model meets the words structure file in three descriptions before any skill text
-    # explains them. The definition has to ride with the name, or a skill-less chat reads a term
-    # nothing anchors.
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "read_prompt_structure_schema")
-    said = spec["function"]["description"]
-    assert "one JSON per scenario" in said
-    assert "before writing or changing" in said
 
 
 def test_the_listing_tool_is_gone():
@@ -252,10 +241,9 @@ def test_every_tool_is_declared_to_the_model():
         # Sixth since Madde 91, and declared here with the rest: which modes offer it is a separate
         # question, asked in modes.py.
         "write_plan",
-        # Seventh since Madde 96. The shape of a structure file stopped being a paragraph in a
-        # skill's text; it is fetched when a file is about to be written. Renamed 28 Aug so the
-        # name says whose schema it reads.
-        "read_prompt_structure_schema",
+        # read_prompt_structure_schema stood here from Madde 96 until 159 retired it. The half of it
+        # that described the file's shape died as the tools took the shape over, and the half that
+        # was craft moved into the descriptions of the tools that write values.
         # Eighth since Madde 98: the same joining, one character at a time, so a character can be
         # looked at before it enters a frame.
         "build_character_prompts",
@@ -553,7 +541,9 @@ def test_a_read_reports_the_cleaned_name_rather_than_the_asked_one(tmp_path):
 
 
 def test_a_call_about_no_file_has_no_target_to_report(tmp_path):
-    # Empty rather than invented: the call really is about nothing in particular.
+    # Empty rather than invented: the call really is about nothing in particular. Asked of a name
+    # nobody knows since Madde 159 took the schema reader away -- it was the one tool that ran and
+    # named no file, and this claim is about the empty target rather than about that tool.
     assert _target(_files(tmp_path), "read_prompt_structure_schema") == ""
 
 
@@ -649,12 +639,80 @@ def test_the_outcome_still_counts_the_lines_it_read(tmp_path):
     assert _outcome(files, "read_file", name="plan.md") == "3 lines"
 
 
-def test_the_schema_is_handed_back_unnumbered(tmp_path):
-    # A guard, and the reason is the rule: numbers exist so an anchor can be picked, and no anchor
-    # is ever written into the schema. It is one text for the whole app, not a file on disk.
-    from backend.features.workspace.domain.schema import SCHEMA
+# --- the craft text, and the one place it lives (Madde 159) ---------------------------------------
+#
+# The schema tool handed back two halves. The shape half died as the tools took the shape over --
+# create_file cannot write a structure file, set_ and update_ build it, and the model can read the
+# result with read_file. What is left is craft: how a value is written for an image model. It sits
+# in the descriptions of the tools that write values, where the model reads it while choosing the
+# tool rather than at the top of a long context, and no round is spent fetching it.
 
-    assert _call(_files(tmp_path), "read_prompt_structure_schema") == SCHEMA
+
+def _craft():
+    from backend.features.workspace.domain.tools import CRAFT
+
+    return CRAFT
+
+
+def _description(tool):
+    return next(s for s in TOOL_SPECS if s["function"]["name"] == tool)["function"]["description"]
+
+
+@pytest.mark.parametrize(
+    "tool", ["set_character", "set_outfit", "set_location", "update_frame"]
+)
+def test_every_tool_that_writes_a_value_carries_the_craft_text(tool):
+    # One text, not split by tool (user decision, 3 Sep). set_character sees the frame rules too:
+    # harmless, and being one source it cannot go stale against itself.
+    assert _craft() in _description(tool)
+
+
+@pytest.mark.parametrize("tool", ["add_scene", "write_frame_prompt", "build_prompts"])
+def test_a_tool_that_writes_no_value_does_not_carry_it(tool):
+    # add_scene writes the user's own sentence and it never reaches a prompt; write_frame_prompt
+    # takes no fields at all. A rule carried where it cannot apply is a rule read where it cannot
+    # be used.
+    assert _craft() not in _description(tool)
+
+
+def test_the_sub_model_is_told_the_same_thing(tmp_path):
+    from backend.features.workspace.domain.tools import WRITING
+
+    # Madde 155 wrote this text a second time on purpose, with the schema still standing. One source
+    # now, so the two cannot drift into telling one model something the other was never told.
+    assert _craft() in WRITING
+
+
+def test_the_craft_text_teaches_the_form_of_a_value():
+    said = _craft().lower()
+    assert "tags" in said and "sentence" in said
+    # The two the trials actually produced: a narrated action, and a value hedging between two.
+    assert "no or" in said
+    assert "frozen instant" in said
+
+
+def test_the_craft_text_teaches_what_a_camera_is():
+    said = _craft().lower()
+    # Two decisions, both from the given lists, because a camera written as one leaves the other
+    # to the image model.
+    assert "close-up" in said and "from above" in said
+
+
+def test_the_craft_text_says_who_opens_a_prompt():
+    assert "first" in _craft().lower()
+
+
+def test_the_craft_text_leaves_the_count_and_the_quality_to_code():
+    said = _craft().lower()
+    assert "quality" in said and "count" in said
+
+
+def test_the_craft_text_says_nothing_about_the_shape_of_the_file():
+    # The half that died. A JSON example here would be the schema coming back in a place the model
+    # reads every turn, and it would describe a file it is no longer allowed to write by hand.
+    said = _craft()
+    assert "{" not in said and "}" not in said
+    assert '"frames"' not in said and "json" not in said.lower()
 
 
 def test_an_edit_matches_the_disk_and_not_the_numbered_view(tmp_path):

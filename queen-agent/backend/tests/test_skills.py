@@ -59,23 +59,17 @@ def test_no_instruction_calls_a_frame_a_shot():
 
 
 def test_the_instruction_no_longer_carries_the_schema():
-    # It went to the schema tool. Left here it would be paid for every turn, and copied again the
-    # day a second skill writes the same file.
+    # It went to the schema tool in Madde 96, and the shape half of that died in 159 as the tools
+    # took the shape over. Either way it is not here: carried in a skill's text it would be paid
+    # for every turn, and copied again the day a second skill writes the same file.
     said = instruction_for("generate-prompts-plus")
     assert '"frames"' not in said and '"outfits"' not in said
 
 
-def test_the_instruction_no_longer_carries_the_rulebook():
-    from backend.features.workspace.domain.schema import RULEBOOK
-
-    assert RULEBOOK not in instruction_for("generate-prompts-plus")
-
-
-def test_the_instruction_reads_the_schema_before_it_builds():
-    # The order is part of the instruction: the shape is fetched, the file is written, and only then
-    # is anything built from it.
-    said = instruction_for("generate-prompts-plus")
-    assert said.index("read_prompt_structure_schema") < said.index("build_prompts with")
+def test_no_instruction_fetches_a_schema_any_more():
+    # Madde 159. The tool is gone, and a text still naming it would spend the model's first round
+    # on a refusal.
+    assert not [skill for skill in INSTRUCTIONS if "schema" in INSTRUCTIONS[skill].lower()]
 
 
 def test_the_structured_instruction_hands_the_frames_to_the_writer():
@@ -111,10 +105,11 @@ def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
 
 def test_no_instruction_carries_the_rulebook_any_more():
     # It was one text with two readers until Madde 94 took the checking skill away, and one reader
-    # until Madde 96 moved it out of the texts entirely. Whoever writes a file fetches it.
-    from backend.features.workspace.domain.schema import RULEBOOK
-
-    assert not [skill for skill in INSTRUCTIONS if RULEBOOK in INSTRUCTIONS[skill]]
+    # until Madde 96 moved it out of the texts entirely. Madde 159 scattered what was left of it
+    # into the tools each rule is about, so the nail is on the rules rather than on the list: a
+    # numbered rulebook anywhere in a skill's text is the thing that must not come back.
+    for skill, said in INSTRUCTIONS.items():
+        assert "1. " not in said or "step" in said.lower(), skill
 
 
 # --- the flow that walks the user through it (Madde 101) -----------------------------------------
@@ -129,7 +124,9 @@ def test_the_flow_writes_the_plan_before_it_asks_anything():
     # different every time, and has nowhere to keep its place.
     said = _flow()
     assert "write_plan" in said
-    assert said.index("write_plan") < said.index("read_prompt_structure_schema")
+    # Before the characters, which is where the work actually starts. It used to be measured against
+    # the schema fetch that opened step 2; Madde 159 took that away and the step itself is the mark.
+    assert said.index("write_plan") < said.index("The characters")
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
@@ -176,12 +173,10 @@ def test_a_finished_step_reaches_the_plan():
 
 def test_the_structure_file_is_born_once():
     # The observed failure wears two masks here: everything gathered in chat and written at the
-    # end, or a new file per step. One birth at the characters step rules out both -- and the
-    # schema is read before the birth, the same order the other skill keeps.
+    # end, or a new file per step. One birth at the characters step rules out both.
     said = _flow()
     assert "born once" in said
     assert "never a second file" in said
-    assert said.index("read_prompt_structure_schema") < said.index("born once")
 
 
 def test_the_flow_hands_the_frames_to_the_builder():
@@ -320,8 +315,8 @@ def test_a_finished_step_is_marked_with_one_edit():
 # --- the ritual openings (Madde 107) --------------------------------------------------------------
 #
 # The same trial from the skills' side: every turn opened with list_files and write_plan, and the
-# schema was fetched again for every edit. The opening moves belong to a chat's first turn, and
-# the schema to the one turn that gives the file its shape.
+# schema was fetched again for every edit. The opening moves belong to a chat's first turn. The
+# second ritual answered itself in Madde 159 -- there is nothing left to fetch.
 
 
 def test_the_opening_moves_belong_to_the_first_turn():
@@ -339,14 +334,12 @@ def test_no_instruction_reaches_for_the_listing_tool():
     assert "first turn opens with write_plan" in _flow()
 
 
-def test_the_flow_fetches_the_schema_once():
-    said = _flow()
-    assert "once, before the birth" in said
-    assert "do not fetch it again" in said
-
-
-def test_the_builder_fetches_the_schema_once():
-    assert "once, before the first write" in instruction_for("generate-prompts-plus")
+def test_no_instruction_opens_with_a_fetch():
+    # The pair that told each skill to fetch the schema once, and where. Madde 159 left neither of
+    # them anything to fetch, and a text still sending the model after it would spend the first
+    # round of every run on a refusal.
+    for skill, said in INSTRUCTIONS.items():
+        assert "fetch" not in said.lower(), skill
 
 
 def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():

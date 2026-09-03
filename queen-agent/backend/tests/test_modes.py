@@ -4,7 +4,9 @@ The modes are named here the way the wire names them, and the module is imported
 rather than at the top: a module that does not exist yet fails this whole file's collection, and
 then none of the turn's other reds are visible anywhere in the suite.
 """
-READS = ("read_file", "read_prompt_structure_schema")
+# One since Madde 159. The schema reader stood beside read_file from 96 until the tools took the
+# file's shape over and there was nothing left for it to describe.
+READS = ("read_file",)
 WRITES = (
     "create_file",
     "edit_file",
@@ -56,8 +58,16 @@ def test_no_mode_lists_a_tool_that_is_gone():
 
 
 def test_ask_mode_reads_without_asking():
-    # The schema reader is among them since Madde 96: it opens no file and changes nothing.
+    # Reading opens no file and changes nothing, so no mode has a reason to stop for it.
     assert not any(_asks("ask", tool) for tool in READS)
+
+
+def test_reading_is_one_tool_now():
+    # Asked of the module rather than of this file's copy, because the claim is that the schema
+    # reader left the list in Madde 159 -- and a copy here agreeing with itself proves nothing.
+    from backend.features.workspace.domain.modes import READS as THEIRS
+
+    assert tuple(THEIRS) == READS
 
 
 def test_edit_mode_asks_for_nothing():

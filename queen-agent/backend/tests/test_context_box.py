@@ -96,17 +96,10 @@ def test_a_read_that_found_nothing_is_not_in_the_box():
     assert _opened(_chat([ToolCall("read_file", "ghost.md", "No file by that name")])) == []
 
 
-def _schema_read(chat, steps=()):
-    from backend.features.workspace.domain.context_box import schema_was_read
+def test_nothing_here_remembers_the_schema_any_more():
+    # Madde 159 retired the tool, and with it the one thing the box held that was not a file. The
+    # craft it carried lives in the descriptions of the tools that write values, where it is read
+    # while a tool is being chosen rather than fetched into the box first.
+    import backend.features.workspace.domain.context_box as box
 
-    return schema_was_read(chat, steps)
-
-
-def test_the_schema_is_remembered_separately():
-    # It is not a project file: one text for the whole app, and no name to look up on disk.
-    assert _schema_read(_chat([ToolCall("read_prompt_structure_schema", "", "Schema")]))
-    assert not _schema_read(_chat([_read("plan.md")]))
-
-
-def test_the_schema_is_remembered_from_this_turn_too():
-    assert _schema_read(_chat([]), steps=[ToolCall("read_prompt_structure_schema", "", "Schema")])
+    assert not hasattr(box, "schema_was_read")
