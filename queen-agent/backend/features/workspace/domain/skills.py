@@ -7,8 +7,8 @@ typed "thanks". What to do comes from the user's own sentence.
 
 The instruction texts are English, like the rest of QueenAgent's own words. What the model writes
 back follows the user's language (prompt.py); the exception is what an image model reads -- the
-prompts and the structure file -- and the craft text carried by each tool that writes a value says
-so in as many words (tools.py).
+prompts and the structure file -- and the SDXL prompt rules carried by each tool that writes a value
+say so in as many words (tools.py).
 
 Two texts since Madde 101. Five others stood here and were deleted in Madde 94: what they said about
 how to work now sits in prompt.py, where it holds whatever is selected, and what they said about
@@ -21,8 +21,8 @@ enters only by deleting one.
 
 What a structure file looks like is not here either, since Madde 96. It lived in schema.py and was
 fetched by a tool until Madde 159, when the tools took the shape over and there was nothing left to
-describe; what survived of that text is craft, and it rides in the description of each tool that
-writes a value. Either way a text travelling with every request carries what is true every turn, and
+describe; what survived of that text is the rules a prompt value is written by, and they ride in the
+description of each tool that writes a value. Either way a text travelling with every request carries what is true every turn, and
 the shape of a file is only true of the turn that writes one.
 """
 

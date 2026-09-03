@@ -93,8 +93,8 @@ KINDS = ("girl", "boy")
 AT_MOST = 100
 AT_ONCE = 5
 
-# How a value in a structure file is written, and the whole of what is left of the schema
-# (Madde 159).
+# The rules an SDXL prompt value is written by, and the whole of what is left of the schema
+# (Madde 159). Named for what it is: the first name, CRAFT, said nothing to whoever met it cold.
 #
 # read_prompt_structure_schema handed back two halves. The half describing the file's shape died as
 # the tools took the shape over: create_file cannot write one, the set_ and remove_ and update_
@@ -111,7 +111,7 @@ AT_ONCE = 5
 # What is bought is where the attention falls -- the rule sits beside the parameter it governs and
 # is read while the tool is being chosen, rather than at the top of a long context -- and a round,
 # since nothing is fetched.
-CRAFT = (
+SDXL_PROMPT_RULES = (
     "Every value here is read by an SDXL-family image model, which reads tags rather than "
     "sentences: short comma-separated fragments, no articles -- sitting on couch, by window. One "
     "prompt is one frozen instant, so nothing that needs time to be seen belongs in it: a movement "
@@ -134,8 +134,9 @@ CRAFT = (
 # request cannot see them, and asking for something it has no way to know would be a rule written
 # to be broken.
 #
-# Built on CRAFT since Madde 159. It carried its own copy of the craft while the schema still stood,
-# and two copies is two texts able to tell one model something the other was never told.
+# Built on SDXL_PROMPT_RULES since Madde 159. It carried its own copy of the rules while the schema
+# still stood, and two copies is two texts able to tell one model something the other was never
+# told.
 WRITING = (
     "You write prompts for an SDXL-family image model. You are given one scene in the user's own "
     "language and the maps of a scenario -- its characters, outfits and locations -- and you "
@@ -149,7 +150,7 @@ WRITING = (
     "location is one name. Every name you use must be one of the names you were given -- you "
     "choose from the maps, you never describe a person or a place in your own words, and you never "
     "invent a name.\n"
-    "\n" + CRAFT
+    "\n" + SDXL_PROMPT_RULES
 )
 
 TOOL_SPECS = [
@@ -286,7 +287,7 @@ TOOL_SPECS = [
                 "hair, build, age. Clothing never goes here, because clothing is what changes from "
                 "frame to frame: that belongs in set_outfit, and a frame names the two together. "
                 "A name that is already there is updated rather than added twice, and the answer "
-                "says how many frames the change reached.\n\n" + CRAFT
+                "says how many frames the change reached.\n\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -329,7 +330,7 @@ TOOL_SPECS = [
                 "entry dresses one person: the text is copied whole to whoever names it, so one "
                 "entry trying to cover two people puts the man in the dress and the woman in the "
                 "trousers. Two people dressed differently are two entries. A name that is already "
-                "there is updated rather than added twice.\n\n" + CRAFT
+                "there is updated rather than added twice.\n\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -362,7 +363,7 @@ TOOL_SPECS = [
                 "Write a place into a structure file. A frame names one of these and never "
                 "describes a place in its own words, so that the same room reads the same in every "
                 "frame it appears in. A name that is already there is updated rather than added "
-                "twice.\n\n" + CRAFT
+                "twice.\n\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -474,7 +475,7 @@ TOOL_SPECS = [
                 "every field you leave out stays exactly as it is. Its scene is corrected here too. "
                 "A frame whose prompt has never been written is refused: write_frame_prompt writes "
                 "that one from its scene. Reach for this when the user wants one frame different, "
-                "rather than rebuilding anything.\n\n" + CRAFT
+                "rather than rebuilding anything.\n\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
