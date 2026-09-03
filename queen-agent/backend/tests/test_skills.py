@@ -184,11 +184,11 @@ def test_the_structure_file_is_born_once():
 
 def test_the_flow_hands_the_frames_to_the_builder():
     # K40 overturned K32 (28 Aug): writing action and camera detail is heavy work, and the flow's
-    # asking rhythm is not where it belongs. The flow leaves the foundation and names its heir --
-    # the frames stay out of the structure file on purpose.
+    # asking rhythm is not where it belongs. Since Madde 155 the flow does open the frames -- but
+    # only as far as their sentences, and what the picture holds is still its heir's.
     said = _flow()
     assert "Generate prompts+" in said
-    assert "frames stay empty" in said
+    assert "no prompt to build from" in said
 
 
 def test_the_handoff_names_one_file():
@@ -200,12 +200,14 @@ def test_the_handoff_names_one_file():
 
 
 def test_the_builder_picks_up_where_the_flow_stops():
-    # The other half of K40: the flow leaves a scene list, and this skill reads it, writes the
-    # frames in its order, and resumes by shortfall -- fewer frames than sentences is work left.
+    # The other half of K40. The handover used to be a second file read by name and matched to the
+    # frames by position, and resuming meant counting the shortfall. Since Madde 155 the frames are
+    # already there with their sentences in them, so there is nothing to find and nothing to count:
+    # what is left over is what has no prompt yet, and the writer answers that by itself.
     said = instruction_for("generate-prompts-plus")
     assert "Start a scenario" in said
-    assert "scene list" in said
-    assert "first sentence with no frame" in said
+    assert "carry a scene each" in said
+    assert "picks up exactly those" in said
 
 
 def test_the_handoff_is_a_step_of_its_own():
@@ -226,18 +228,23 @@ def test_the_flow_never_writes_a_frame_even_when_asked():
 
 
 def test_the_sentence_is_a_brief_never_the_frames_text():
-    # The observed failure: scene sentences retold as the action, word for word. The brief line
-    # holds the door: the sentence briefs the frame, the frame's text is this skill's own.
-    said = instruction_for("generate-prompts-plus")
-    assert "never text to copy into the frame" in said
+    # The observed failure: scene sentences retold as the action, word for word. The line that
+    # holds that door moved with the work (Madde 155) -- the skill no longer writes a frame, so it
+    # is told to the model that does.
+    from backend.features.workspace.domain.tools import WRITING
+
+    assert "never text to copy" in WRITING
 
 
-def test_the_builder_varies_the_camera_between_frames():
-    # Ten scenes came back as one framing. The craft licence was there; the reason to use it was
-    # not.
-    said = instruction_for("generate-prompts-plus")
-    assert "the same framing and angle" in said
-    assert "differ in at least one" in said
+def test_the_writer_is_not_asked_for_what_it_cannot_see():
+    # Ten scenes came back as one framing, and the rule against it said neighbouring frames must
+    # differ. Madde 155 gave each frame a request that carries only its own scene, so the writer has
+    # no neighbour to differ from -- and a rule written to be broken teaches that rules can be. The
+    # file's whole shape is the main model's to see, and its to fix.
+    from backend.features.workspace.domain.tools import WRITING
+
+    assert "neighbour" not in WRITING.lower()
+    assert "the same framing and angle" not in instruction_for("generate-prompts-plus")
 
 
 def test_a_delegation_answers_only_the_question_that_was_asked():
