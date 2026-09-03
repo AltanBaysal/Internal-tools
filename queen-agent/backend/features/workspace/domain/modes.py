@@ -47,6 +47,12 @@ _WITHOUT_ASKING = {
         "set_character",
         "set_outfit",
         "set_location",
+        # Madde 157. The one kind of change calling the tool again cannot undo, which is the best
+        # reason there is for a gate to stand in front of it in the quieter modes.
+        "remove_character",
+        "remove_outfit",
+        "remove_location",
+        "remove_frame",
     ),
 }
 

@@ -370,6 +370,87 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
+            "name": "remove_character",
+            "description": (
+                "Take a character out of a structure file. Refused while any frame still names "
+                "them, and the answer says which frames those are -- change or remove those frames "
+                "first. Refused too if there is no character by that name, so a removal that "
+                "answers is a removal that happened."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "name": {"type": "string", "description": "Which character to remove."},
+                },
+                "required": ["file", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_outfit",
+            "description": (
+                "Take an outfit out of a structure file. Refused while any frame still has someone "
+                "wearing it, and the answer says which frames those are. Refused too if there is no "
+                "outfit by that name."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "name": {"type": "string", "description": "Which outfit to remove."},
+                },
+                "required": ["file", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_location",
+            "description": (
+                "Take a place out of a structure file. Refused while any frame still happens there, "
+                "and the answer says which frames those are. Refused too if there is no place by "
+                "that name."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "name": {"type": "string", "description": "Which place to remove."},
+                },
+                "required": ["file", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_frame",
+            "description": (
+                "Take one frame out of a structure file, by its number. Every frame after it moves "
+                "up, so the numbers you were told before this call are no longer the numbers -- the "
+                "answer says how many are left, and any frame you name after this is named from "
+                "that. Removes the frame whether or not its prompt is written."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "frame": {
+                        "type": "integer",
+                        "description": "Which frame to remove, as the number it carries.",
+                    },
+                },
+                "required": ["file", "frame"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "write_frame_prompt",
             "description": (
                 "Write the prompt of every frame that has a scene and no prompt yet. Each frame "
@@ -626,6 +707,18 @@ def run_tool(file_store, project_id, name, arguments, engine=None, model=""):
 
     if name == "set_location":
         return _set_entry(file_store, project_id, args, "locations")
+
+    if name == "remove_character":
+        return _remove_entry(file_store, project_id, args, "characters")
+
+    if name == "remove_outfit":
+        return _remove_entry(file_store, project_id, args, "outfits")
+
+    if name == "remove_location":
+        return _remove_entry(file_store, project_id, args, "locations")
+
+    if name == "remove_frame":
+        return _remove_frame(file_store, project_id, args)
 
     if name == "add_scene":
         return _add_scene(file_store, project_id, args)
@@ -934,23 +1027,145 @@ def _set_entry(file_store, project_id, args, which):
     # place and every frame naming it moves at once. Said only when something changed -- a name
     # nobody uses yet would answer a question that was not asked.
     return ToolResult(
-        f"Changed {key} in {which}; {counted(_naming(structure, which, key), 'frame')} name it.",
+        f"Changed {key} in {which}; "
+        f"{counted(len(_frames_naming(structure, which, key)), 'frame')} name it.",
         None,
         source,
         "Changed",
     )
 
 
-def _naming(structure, which, key):
-    """How many frames reach for this entry. Zero is an answer: a name defined and never used."""
-    frames = structure.get("frames") or []
-    if which == "locations":
-        return sum(1 for frame in frames if frame.get("location") == key)
-    reached = 0
-    for frame in frames:
+def _remove_entry(file_store, project_id, args, which):
+    """One name out of one map, if nothing is standing on it (Madde 157).
+
+    _set_entry's opposite, and it opens through _opened where that one reads the file itself: setting
+    a name works without ever looking at a frame, removing one cannot -- whether the name is still
+    used is the whole question, and the answer is in the frames.
+
+    Not a set_ with the value left out. An empty value meaning delete would let a model that simply
+    failed to fill a field wipe the entry in silence, and nothing here can be undone by calling it
+    again.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    key = str(args.get("name") or "").strip()
+    if not key:
+        return ToolResult(f"A {which[:-1]} needs a name.", None, source, "Refused")
+
+    entries = structure.get(which) or {}
+    if key not in entries:
+        # No silent success. A model told nothing happened will move on believing it did, and the
+        # thing it meant to remove is still there in the prompts. _looked_up's own sentence, so a
+        # name that is not there reads the same wherever it is met.
+        return ToolResult(
+            f"{key} is not in {which}; known: {', '.join(sorted(entries)) or 'nothing'}.",
+            None,
+            source,
+            "Not there",
+        )
+
+    used = _frames_naming(structure, which, key)
+    if used:
+        # Rule 5 of the fourteen, and now an answer at the moment it is about something. The numbers
+        # are the useful half: what the model does next is fix those frames.
+        return ToolResult(
+            f"{key} {_STILL[which]} {', '.join(str(place) for place in used)}. Nothing was removed.",
+            None,
+            source,
+            "Still in use",
+        )
+
+    del entries[key]
+    file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
+    return ToolResult(f"Removed {key} from {which}.", None, source, "Removed")
+
+
+def _remove_frame(file_store, project_id, args):
+    """One frame out of the list, and the ones after it move up (Madde 157).
+
+    No guard on a frame that is already written. Removing one is not an accident to catch, it is the
+    ordinary thing to do with a beat that left the scenario, and the number in the call says which.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    frames = structure["frames"]
+    number = _a_number(args.get("frame"))
+    if number is None:
+        return ToolResult(
+            "frame is the number of the frame to remove, as in 3.", None, source, "Refused"
+        )
+    # One comparison for both ends, which is what keeps frames[-1] from ever happening: a negative
+    # number is legal Python and would quietly take the last frame away.
+    if not 1 <= number <= len(frames):
+        return ToolResult(
+            f"{source} has no frames." if not frames
+            else f"{source} has {counted(len(frames), 'frame')}; there is no frame {number}.",
+            None,
+            source,
+            "No such frame",
+        )
+
+    del frames[number - 1]
+    _renumber(frames)
+    file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
+    # What is left, because the model names a frame by its number in the next breath and this is the
+    # only place it can learn that everything past the gap has moved.
+    left = (
+        "no frames left" if not frames else f"{counted(len(frames), 'frame')} left, renumbered from 1"
+    )
+    return ToolResult(
+        f"Removed frame {number} from {source}; {left}.", None, source, "Removed"
+    )
+
+
+def _a_number(given):
+    """A frame number, or None for anything that is not one.
+
+    A string of digits counts: models send 2 as "2" often enough that refusing it would be a refusal
+    about typing rather than about the file, and there is only one way to read it. A bool does not,
+    even though it is an int in Python -- True would take frame 1 away. A float does not either:
+    int(1.5) is 1, which is the quietest way there is to lose somebody's work.
+    """
+    if isinstance(given, bool):
+        return None
+    if isinstance(given, int):
+        return given
+    if isinstance(given, str) and given.strip().lstrip("-").isdigit():
+        return int(given)
+    return None
+
+
+# How a frame reaches each map, said as the middle of one sentence rather than as three sentences.
+# A character is in a frame, an outfit is worn in one, a place is where one happens -- three
+# relationships, and one verb for all of them would read as though they were the same thing.
+_STILL = {
+    "characters": "is still in frames",
+    "outfits": "is still worn in frames",
+    "locations": "is still the place in frames",
+}
+
+
+def _frames_naming(structure, which, key):
+    """Which frames reach for this entry, by number. Empty is an answer: a name never used.
+
+    The numbers rather than a count since Madde 157, because a removal is refused by naming them and
+    two walks over the same question would be two answers able to disagree. They come from the place
+    in the list rather than from the frame's own stamp: Madde 153 keeps the two equal and the list is
+    the one of them nothing can edit by hand.
+    """
+    reached = []
+    for place, frame in enumerate(structure.get("frames") or [], start=1):
+        if which == "locations":
+            if frame.get("location") == key:
+                reached.append(place)
+            continue
         for person, worn in _worn(frame.get("characters")):
             if (person == key) if which == "characters" else (key in worn):
-                reached += 1
+                reached.append(place)
                 break
     return reached
 
