@@ -1683,12 +1683,24 @@ def test_renaming_a_character_moves_the_key_and_every_frame_follows(tmp_path):
 
 
 def test_a_renamed_character_keeps_its_place_in_the_frame(tmp_path):
-    # Who leads a prompt is whoever the frame wrote first (build_prompts). A rename done by deleting
-    # the key and adding it back would move the second person to the end, and nothing on the screen
-    # would say the lead had changed.
+    # Who leads a prompt is whoever the frame wrote first (build_prompts). A dict keeps a key where
+    # it was first written, so entries[new] = entries.pop(old) adds a new key at the end -- and the
+    # person who opened the prompt would silently stop opening it.
+    #
+    # The FIRST of the two is renamed, and that is the whole test: renaming the second moves it to
+    # the end, which is where it already was, so pop and a rebuild agree and the bug walks through.
     files = _with(tmp_path, "scene.json", _crowded_with(characters={"aylin": ["gecelik"], "lara": []}))
-    _call(files, "set_character", file="scene.json", name="lara", new_name="leyla")
-    assert list(_frame_at(files, 1)["characters"]) == ["aylin", "leyla"]
+    _call(files, "set_character", file="scene.json", name="aylin", new_name="ayla")
+    assert list(_frame_at(files, 1)["characters"]) == ["ayla", "lara"]
+
+
+def test_a_renamed_character_keeps_its_place_in_the_map_too(tmp_path):
+    # Less load-bearing than the frame -- nothing reads the map's order -- but it is the file the
+    # user opens, and a name jumping to the bottom for having been renamed reads as a different
+    # entry.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "set_character", file="scene.json", name="aylin", new_name="ayla")
+    assert list(_map_of(files, "scene.json", "characters")) == ["ayla", "lara"]
 
 
 def test_renaming_an_outfit_follows_into_every_list_that_names_it(tmp_path):
