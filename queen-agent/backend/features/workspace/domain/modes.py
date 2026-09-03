@@ -39,6 +39,12 @@ _WITHOUT_ASKING = {
         # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
         # their gate in front of it while this mode keeps none.
         "add_frames",
+        # Madde 154. What create_file and edit_file used to do to a structure file, now done by
+        # tools that own its shape. Same standing as the two they replaced.
+        "create_structure",
+        "set_character",
+        "set_outfit",
+        "set_location",
     ),
 }
 

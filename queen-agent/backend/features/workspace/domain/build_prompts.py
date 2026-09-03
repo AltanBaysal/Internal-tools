@@ -97,7 +97,7 @@ def build_character_prompts(structure, character):
             f"{character} is not in characters; known: {', '.join(sorted(characters)) or 'nothing'}"
         )
 
-    identity = characters[character]
+    identity = _identity(characters[character])
     outfits = structure.get("outfits") or {}
     if not outfits:
         return [_tags([DEFAULT_QUALITY, identity])]
@@ -141,6 +141,17 @@ def _worn(field):
     return [(name, []) for name in field or []]
 
 
+def _identity(entry):
+    """The tags out of a character's entry, whichever shape it was written in.
+
+    Plain text is every file written before Madde 154; the map form carries a kind beside the tags,
+    for the count code works out rather than asks for. The kind never reaches a prompt -- girl beside
+    a frame's own 1girl would be the same thing said twice, in a place where saying it twice weights
+    it.
+    """
+    return entry.get("tags", "") if isinstance(entry, dict) else entry
+
+
 def _block(people, characters, outfits, number, misses):
     """One character then what they wear, name after name.
 
@@ -150,7 +161,7 @@ def _block(people, characters, outfits, number, misses):
     """
     parts = []
     for name, worn in people:
-        parts.append(_looked_up(name, characters, "characters", number, misses))
+        parts.append(_identity(_looked_up(name, characters, "characters", number, misses)))
         parts.extend(_looked_up(outfit, outfits, "outfits", number, misses) for outfit in worn)
     return parts
 

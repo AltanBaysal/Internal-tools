@@ -9,6 +9,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 
 from backend.features.workspace.domain.build_prompts import (
+    _worn,
     build_character_prompts,
     build_prompts,
     character_prompts_name,
@@ -57,7 +58,18 @@ _FRAME_FIELDS = ("characters", "location", "action", "camera")
 
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
 # here: the file was already there. write_plan is, because the first plan of a name is new.
-WRITES_FILES = {"create_file", "build_prompts", "build_character_prompts", "write_plan"}
+WRITES_FILES = {
+    "create_file",
+    "build_prompts",
+    "build_character_prompts",
+    "write_plan",
+    "create_structure",
+}
+
+# What a character can be, and the whole of it (Madde 154). A closed set because Madde 156 counts
+# with these and nothing else: free text here would not fail, it would quietly stop counting -- one
+# scenario's prompts short of a 1girl and nobody looking for why.
+KINDS = ("girl", "boy")
 
 TOOL_SPECS = [
     {
@@ -193,6 +205,137 @@ TOOL_SPECS = [
                     },
                 },
                 "required": ["name", "action", "camera"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_structure",
+            "description": (
+                "Start a new structure file: the one JSON per scenario that prompts are built "
+                "from. It comes out empty -- no characters, no outfits, no locations, no frames -- "
+                "and is filled with set_character, set_outfit, set_location and add_frames. Reach "
+                "for it once per scenario, before anything else; a name that is already taken is "
+                "refused rather than written over."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "description": "What the scenario is called, as in bar-scene.",
+                    },
+                },
+                "required": ["file"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_character",
+            "description": (
+                "Write a character into a structure file: who they are, in tags, and what kind of "
+                "person they are. This is what stays the same about them in every frame -- face, "
+                "hair, build, age. Clothing never goes here, because clothing is what changes from "
+                "frame to frame: that belongs in set_outfit, and a frame names the two together. "
+                "A name that is already there is updated rather than added twice, and the answer "
+                "says how many frames the change reached."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "name": {
+                        "type": "string",
+                        "description": (
+                            "What the frames will call this character, as in aylin. Short and "
+                            "lower case; it is a key, not something the picture shows."
+                        ),
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": list(KINDS),
+                        "description": (
+                            "girl or boy. Code counts the people in a frame from this, so it is "
+                            "never written into a frame or into the tags below."
+                        ),
+                    },
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "Who they are, as short comma-separated fragments: woman in her mid "
+                            "20s, long teal hair, green eyes. No sentence, no clothing, no count."
+                        ),
+                    },
+                },
+                "required": ["file", "name", "kind", "tags"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_outfit",
+            "description": (
+                "Write an outfit into a structure file. An outfit is named after the garment "
+                "rather than whoever wears it -- two characters can wear the same one -- and each "
+                "entry dresses one person: the text is copied whole to whoever names it, so one "
+                "entry trying to cover two people puts the man in the dress and the woman in the "
+                "trousers. Two people dressed differently are two entries. A name that is already "
+                "there is updated rather than added twice."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "name": {
+                        "type": "string",
+                        "description": (
+                            "What the frames will call this outfit, after the garment: denim-jacket "
+                            "rather than aylins-clothes."
+                        ),
+                    },
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "The clothes, as short comma-separated fragments: denim jacket, white "
+                            "t-shirt."
+                        ),
+                    },
+                },
+                "required": ["file", "name", "tags"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_location",
+            "description": (
+                "Write a place into a structure file. A frame names one of these and never "
+                "describes a place in its own words, so that the same room reads the same in every "
+                "frame it appears in. A name that is already there is updated rather than added "
+                "twice."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "name": {
+                        "type": "string",
+                        "description": "What the frames will call this place, as in bedroom.",
+                    },
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "The place, as short comma-separated fragments, with its light: sunlit "
+                            "bedroom, morning light, indoors."
+                        ),
+                    },
+                },
+                "required": ["file", "name", "tags"],
             },
         },
     },
@@ -338,6 +481,16 @@ def plan_name(name):
     return f"{stem}.md" if stem.endswith("-plan") else f"{stem}-plan.md"
 
 
+def structure_name(name):
+    """A structure file ends in .json, whatever the model called it (Madde 154).
+
+    plan_name's shape and plan_name's reason. safe_name gives an extensionless name .md, and a
+    structure file called bar-scene.md would be refused by every tool that owns its shape -- born
+    outside the door built for it.
+    """
+    return f"{name.rsplit('.', 1)[0]}.json"
+
+
 def run_tool(file_store, project_id, name, arguments):
     """Run one call and answer the model in words. A miss is an answer, not a crash."""
     try:
@@ -406,6 +559,18 @@ def run_tool(file_store, project_id, name, arguments):
 
     if name == "edit_file":
         return _edit(file_store, project_id, args)
+
+    if name == "create_structure":
+        return _create_structure(file_store, project_id, args)
+
+    if name == "set_character":
+        return _set_entry(file_store, project_id, args, "characters")
+
+    if name == "set_outfit":
+        return _set_entry(file_store, project_id, args, "outfits")
+
+    if name == "set_location":
+        return _set_entry(file_store, project_id, args, "locations")
 
     if name == "add_frames":
         return _add_frames(file_store, project_id, args)
@@ -547,6 +712,100 @@ def _add_frames(file_store, project_id, args):
     # They cannot part company -- renumbering leaves no gaps -- so saying it twice would be noise,
     # and a doubled call is still visible because the second answer says the next number.
     return ToolResult(f"Added frame {len(frames)} to {source}.", None, source, "1 frame")
+
+
+def _create_structure(file_store, project_id, args):
+    """The empty skeleton, and nothing else in it (Madde 154).
+
+    What create_file did for this kind of file until Madde 151 shut it. Empty rather than seeded
+    with an example: a file born with a character in it would be a file the model did not write, and
+    the first thing it would do is wonder whether to keep it.
+    """
+    wanted = structure_name(safe_name(args.get("file")))
+    if wanted in file_store.list_names(project_id):
+        # The sentence is the instruction. Writing over it would delete a scenario the user built,
+        # and say nothing about having done so.
+        return ToolResult(
+            f"There is already a file called {wanted}. Open it and add to it, or pick another "
+            "name for a new scenario.",
+            None,
+            wanted,
+            "Already there",
+        )
+    empty = {"characters": {}, "outfits": {}, "locations": {}, "frames": []}
+    written = file_store.write(
+        project_id, wanted, json.dumps(empty, indent=2, ensure_ascii=False)
+    )
+    return ToolResult(f"Started {written}.", written, written, "Started")
+
+
+def _set_entry(file_store, project_id, args, which):
+    """One name's text in one map. The three set_ tools are this function three times.
+
+    Split in front of the model and joined behind it, on purpose. What differs between a character,
+    an outfit and a place is what the model has to be told -- three names, three descriptions, three
+    rules it meets while doing the thing each rule is about. What they do is the same sentence, and
+    three copies of it would be three copies to keep in step.
+    """
+    source = safe_name(args.get("file"))
+    content = file_store.read(project_id, source)
+    if content is None:
+        # And nothing is created. bar-scene.json mistyped once would otherwise open a second
+        # scenario in silence, and the first anyone hears of it is prompts coming out short.
+        return ToolResult("There is no file by that name.", None, source, "No file by that name")
+
+    try:
+        structure = json.loads(content)
+    except json.JSONDecodeError as broken:
+        return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
+
+    key = str(args.get("name") or "").strip()
+    if not key:
+        return ToolResult(f"A {which[:-1]} needs a name.", None, source, "Refused")
+
+    if which == "characters":
+        kind = str(args.get("kind") or "").strip()
+        if kind not in KINDS:
+            return ToolResult(
+                f"kind is {' or '.join(KINDS)}; {kind or 'nothing'} is neither.",
+                None,
+                source,
+                "Refused",
+            )
+        value = {"kind": kind, "tags": args.get("tags", "")}
+    else:
+        value = args.get("tags", "")
+
+    entries = structure.setdefault(which, {})
+    stood = key in entries
+    entries[key] = value
+    file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
+
+    if not stood:
+        return ToolResult(f"Added {key} to {which}.", None, source, "Added")
+    # How far the change reached, which is the whole reason the maps exist: the text sits in one
+    # place and every frame naming it moves at once. Said only when something changed -- a name
+    # nobody uses yet would answer a question that was not asked.
+    return ToolResult(
+        f"Changed {key} in {which}; {counted(_naming(structure, which, key), 'frame')} name it.",
+        None,
+        source,
+        "Changed",
+    )
+
+
+def _naming(structure, which, key):
+    """How many frames reach for this entry. Zero is an answer: a name defined and never used."""
+    frames = structure.get("frames") or []
+    if which == "locations":
+        return sum(1 for frame in frames if frame.get("location") == key)
+    reached = 0
+    for frame in frames:
+        for person, worn in _worn(frame.get("characters")):
+            if (person == key) if which == "characters" else (key in worn):
+                reached += 1
+                break
+    return reached
 
 
 def _renumber(frames):
