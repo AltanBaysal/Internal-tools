@@ -639,19 +639,20 @@ def test_the_outcome_still_counts_the_lines_it_read(tmp_path):
     assert _outcome(files, "read_file", name="plan.md") == "3 lines"
 
 
-# --- the craft text, and the one place it lives (Madde 159) ---------------------------------------
+# --- the SDXL prompt rules, and the one place they live (Madde 159) -------------------------------
 #
 # The schema tool handed back two halves. The shape half died as the tools took the shape over --
 # create_file cannot write a structure file, set_ and update_ build it, and the model can read the
-# result with read_file. What is left is craft: how a value is written for an image model. It sits
-# in the descriptions of the tools that write values, where the model reads it while choosing the
-# tool rather than at the top of a long context, and no round is spent fetching it.
+# result with read_file. What is left is the rules: how a value is written for an image model. They
+# sit in the descriptions of the tools that write values, where the model reads them while choosing
+# the tool rather than at the top of a long context, and no round is spent fetching them. Named for
+# what they are (4 Sep): CRAFT said nothing to whoever met the word cold.
 
 
-def _craft():
-    from backend.features.workspace.domain.tools import CRAFT
+def _rules():
+    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
 
-    return CRAFT
+    return SDXL_PROMPT_RULES
 
 
 def _description(tool):
@@ -661,10 +662,10 @@ def _description(tool):
 @pytest.mark.parametrize(
     "tool", ["set_character", "set_outfit", "set_location", "update_frame"]
 )
-def test_every_tool_that_writes_a_value_carries_the_craft_text(tool):
+def test_every_tool_that_writes_a_value_carries_the_prompt_rules(tool):
     # One text, not split by tool (user decision, 3 Sep). set_character sees the frame rules too:
     # harmless, and being one source it cannot go stale against itself.
-    assert _craft() in _description(tool)
+    assert _rules() in _description(tool)
 
 
 @pytest.mark.parametrize("tool", ["add_scene", "write_frame_prompt", "build_prompts"])
@@ -672,7 +673,7 @@ def test_a_tool_that_writes_no_value_does_not_carry_it(tool):
     # add_scene writes the user's own sentence and it never reaches a prompt; write_frame_prompt
     # takes no fields at all. A rule carried where it cannot apply is a rule read where it cannot
     # be used.
-    assert _craft() not in _description(tool)
+    assert _rules() not in _description(tool)
 
 
 def test_the_sub_model_is_told_the_same_thing(tmp_path):
@@ -680,37 +681,37 @@ def test_the_sub_model_is_told_the_same_thing(tmp_path):
 
     # Madde 155 wrote this text a second time on purpose, with the schema still standing. One source
     # now, so the two cannot drift into telling one model something the other was never told.
-    assert _craft() in WRITING
+    assert _rules() in WRITING
 
 
-def test_the_craft_text_teaches_the_form_of_a_value():
-    said = _craft().lower()
+def test_the_prompt_rules_teach_the_form_of_a_value():
+    said = _rules().lower()
     assert "tags" in said and "sentence" in said
     # The two the trials actually produced: a narrated action, and a value hedging between two.
     assert "no or" in said
     assert "frozen instant" in said
 
 
-def test_the_craft_text_teaches_what_a_camera_is():
-    said = _craft().lower()
+def test_the_prompt_rules_teach_what_a_camera_is():
+    said = _rules().lower()
     # Two decisions, both from the given lists, because a camera written as one leaves the other
     # to the image model.
     assert "close-up" in said and "from above" in said
 
 
-def test_the_craft_text_says_who_opens_a_prompt():
-    assert "first" in _craft().lower()
+def test_the_prompt_rules_say_who_opens_a_prompt():
+    assert "first" in _rules().lower()
 
 
-def test_the_craft_text_leaves_the_count_and_the_quality_to_code():
-    said = _craft().lower()
+def test_the_prompt_rules_leave_the_count_and_the_quality_to_code():
+    said = _rules().lower()
     assert "quality" in said and "count" in said
 
 
-def test_the_craft_text_says_nothing_about_the_shape_of_the_file():
+def test_the_prompt_rules_say_nothing_about_the_shape_of_the_file():
     # The half that died. A JSON example here would be the schema coming back in a place the model
     # reads every turn, and it would describe a file it is no longer allowed to write by hand.
-    said = _craft()
+    said = _rules()
     assert "{" not in said and "}" not in said
     assert '"frames"' not in said and "json" not in said.lower()
 
