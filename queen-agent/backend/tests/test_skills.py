@@ -84,7 +84,9 @@ def test_the_structured_instruction_hands_the_frames_to_the_writer():
     # request each. What is left for this skill is deciding, not typing.
     said = instruction_for("generate-prompts-plus")
     assert "write_frame_prompt" in said
-    assert "create_file" in said and "edit_file" in said
+    # It used to name create_file and edit_file, back when a structure file was written as text.
+    # Madde 151 shut both on one, so naming them here would walk the model into a refusal.
+    assert "create_file" not in said and "edit_file" not in said
 
 
 def test_the_structured_instruction_forbids_assembling_a_prompt_by_hand():
