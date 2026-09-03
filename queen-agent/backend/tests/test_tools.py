@@ -1,4 +1,5 @@
 import json
+import re
 import threading
 import time
 
@@ -217,6 +218,21 @@ def test_create_file_no_longer_offers_the_structure_extension():
     said = spec["function"]["parameters"]["properties"]["name"]["description"]
     assert ".json" not in said
     assert ".md" in said
+
+
+def test_no_description_names_a_tool_that_is_gone():
+    # A description is read every turn, so a retired name in one teaches the model a call that comes
+    # back "There is no tool called ...". Madde 155 split add_frames in two and left its name behind
+    # in create_structure, where it sat until the prompt document was being written.
+    #
+    # The rule is checkable because of what a snake_case word in a description can be: either a tool
+    # the model may call, or a parameter it may pass. Anything else is a name for something that does
+    # not exist.
+    live = {spec["function"]["name"] for spec in TOOL_SPECS}
+    for spec in TOOL_SPECS:
+        known = live | set(spec["function"]["parameters"]["properties"])
+        for token in re.findall(r"\b[a-z]+(?:_[a-z]+)+\b", spec["function"]["description"]):
+            assert token in known, f"{spec['function']['name']} names {token}, which is not a tool"
 
 
 def test_the_listing_tool_is_gone():
