@@ -41,17 +41,6 @@ def test_the_composition_root_reads_no_environment_of_its_own():
     assert "os.environ" not in _main(), "Bileşim kökü çevreyi kendisi okuyor"
 
 
-def test_each_client_is_handed_its_own_extra():
-    """Madde 149: a row's extra body fields have to reach the transport that sends them.
-
-    Two fragments rather than one exact line: what matters is that the fourth thing engine_for
-    returns is read and passed on, not how the call happens to be formatted.
-    """
-    main = _main()
-    assert "extra=" in main, "İstemciye extra verilmiyor"
-    assert "[3]" in main, "engine_for'un dördüncü değeri hiç okunmuyor"
-
-
 def test_no_settings_feature_is_wired_in():
     """The engine used to read the key out of a saved settings file. That file was served back in
     plain text over a link with no password, which is why it is gone rather than merely unused."""

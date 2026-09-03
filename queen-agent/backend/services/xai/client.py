@@ -179,7 +179,7 @@ def _spent(frame):
 
 
 class XaiClient:
-    def __init__(self, read_key, model, base_url, extra=None, opener=urllib.request.urlopen):
+    def __init__(self, read_key, model, base_url, opener=urllib.request.urlopen):
         # A function rather than a string: where the key comes from is the composition root's
         # decision, and this class is built so that changing it never reaches here. It has changed
         # twice already -- an environment variable, then a settings file, then the environment
@@ -187,10 +187,6 @@ class XaiClient:
         self._read_key = read_key
         self._model = model
         self._base_url = base_url.rstrip("/")
-        # What this model's provider wants in the body on top of the ordinary fields (Madde 149).
-        # Turned into a dict here rather than asked about at every request: None cannot be spread,
-        # and one conversion beats a condition on the hot path.
-        self._extra = extra or {}
         # The one line that reaches the network, and the one thing a test replaces.
         self._opener = opener
 
@@ -279,13 +275,7 @@ class XaiClient:
             raise XaiNotConfigured("No API key is set.")
         # One model, named once where this client is built. There used to be a per-call one that
         # won over it, back when a chat could pick its own.
-        #
-        # The extra leads and this client's own fields follow, so `model` and `messages` cannot be
-        # taken over by it (Madde 149). Written as an order rather than a list of names a row may
-        # not use: such a list would be a second place to keep up to date, and the day it fell
-        # behind it would fail open. What a row can really add is everything the client does not
-        # write itself -- which is the whole reason the field exists.
-        payload = {**self._extra, "model": self._model, **body}
+        payload = {"model": self._model, **body}
         if tools:
             payload["tools"] = tools
         headers = {

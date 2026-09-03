@@ -24,7 +24,6 @@ engine = XaiEngine(
             lambda wiring=config.engine_for(model): wiring[2],
             model,
             config.engine_for(model)[1],
-            extra=config.engine_for(model)[3],
         )
         for model in config.MODELS
     },
