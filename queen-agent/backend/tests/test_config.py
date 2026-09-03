@@ -47,6 +47,16 @@ def test_the_deepseek_key_comes_from_the_environment(monkeypatch):
         _reloaded()
 
 
+def test_the_openrouter_key_comes_from_the_environment(monkeypatch):
+    # The third provider's key, since Madde 149, and it travels the road the other two do.
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-from-the-environment")
+    try:
+        assert _reloaded().OPENROUTER_API_KEY == "or-from-the-environment"
+    finally:
+        monkeypatch.undo()
+        _reloaded()
+
+
 def test_the_default_model_is_grok_build():
     # Pinned like MAX_ROUNDS: this is a decision, and changing it without noticing changes what the
     # user pays and what fits. It is also what an old record resolves to -- every message written
@@ -54,25 +64,68 @@ def test_the_default_model_is_grok_build():
     assert config.DEFAULT_MODEL == "grok-build-0.1"
 
 
-def test_the_three_models_resolve_to_their_provider():
+def test_the_five_models_resolve_to_their_provider():
     assert config.MODELS["grok-build-0.1"]["base_url"] == "https://api.x.ai/v1"
     # No /v1 on this one: it is DeepSeek's documented base, and the client appends
     # /chat/completions to whatever it is given.
     assert config.MODELS["deepseek-v4-flash"]["base_url"] == "https://api.deepseek.com"
     assert config.MODELS["deepseek-v4-pro"]["base_url"] == "https://api.deepseek.com"
+    # The same two weights reached a second way since Madde 149. The id carries a slash here, which
+    # no id did before; nothing in the app takes an id apart, so it costs nothing.
+    assert (
+        config.MODELS["deepseek/deepseek-v4-flash-0731"]["base_url"]
+        == "https://openrouter.ai/api/v1"
+    )
+    assert (
+        config.MODELS["deepseek/deepseek-v4-pro-0813"]["base_url"]
+        == "https://openrouter.ai/api/v1"
+    )
 
 
 def test_each_model_names_the_key_it_spends():
-    # Two providers, two keys. Which one a model costs is the model's own business rather than
+    # Three providers, three keys. Which one a model costs is the model's own business rather than
     # something the composition root is told twice.
     assert config.MODELS["grok-build-0.1"]["key"] == "XAI_API_KEY"
     assert config.MODELS["deepseek-v4-flash"]["key"] == "DEEPSEEK_API_KEY"
     assert config.MODELS["deepseek-v4-pro"]["key"] == "DEEPSEEK_API_KEY"
+    assert config.MODELS["deepseek/deepseek-v4-flash-0731"]["key"] == "OPENROUTER_API_KEY"
+    assert config.MODELS["deepseek/deepseek-v4-pro-0813"]["key"] == "OPENROUTER_API_KEY"
+
+
+PINNED = {"provider": {"order": ["deepinfra"], "allow_fallbacks": False}}
+
+
+def test_the_openrouter_rows_are_pinned_to_deepinfra():
+    """Nailed down rather than left to the router, and this is a terms assertion.
+
+    OpenRouter serves these weights from many providers and picks one; `allow_fallbacks` false is
+    what stops it. Which provider answers decides whose terms the request runs under, and at least
+    one of them forbids this work outright -- so a request that fell through would be running under
+    a contract that does not allow it.
+    """
+    assert config.MODELS["deepseek/deepseek-v4-flash-0731"]["extra"] == PINNED
+    assert config.MODELS["deepseek/deepseek-v4-pro-0813"]["extra"] == PINNED
+
+
+def test_a_row_that_goes_direct_carries_no_extra():
+    # Nothing to add to the body, so nothing is written -- rather than an empty dict everywhere,
+    # which would be a field saying nothing in three rows out of five.
+    for model in ("grok-build-0.1", "deepseek-v4-flash", "deepseek-v4-pro"):
+        assert "extra" not in config.MODELS[model]
 
 
 def test_a_known_model_resolves_to_its_own_wiring():
-    model, base_url, _ = config.engine_for("deepseek-v4-flash")
+    model, base_url, _, _ = config.engine_for("deepseek-v4-flash")
     assert (model, base_url) == ("deepseek-v4-flash", "https://api.deepseek.com")
+
+
+def test_engine_for_gives_the_extra_as_its_fourth_thing():
+    # Read through engine_for rather than off the table, because that is the one road the
+    # composition root travels -- a row's extra that never reached it would be a pin nobody sends.
+    assert config.engine_for("deepseek/deepseek-v4-flash-0731")[3] == PINNED
+    # And nothing where there is nothing, in whatever shape config settles on -- the point is that
+    # it does not carry another model's pin.
+    assert not config.engine_for("grok-build-0.1")[3]
 
 
 def test_an_unknown_or_absent_model_falls_back_to_the_default():
