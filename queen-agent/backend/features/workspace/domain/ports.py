@@ -54,6 +54,19 @@ class Engine(Protocol):
     ) -> dict:
         """Answer a conversation. Messages carry the domain's own roles: user and ai."""
 
+    def write_once(self, system: str, user: str, model: str = "") -> dict:
+        """One question, one answer. No tools, no conversation, nothing remembered (Madde 155).
+
+        Apart from `complete` because of what rides in front of it: every conversation is given the
+        app's own system prompt, a text about a chat assistant, its project and its tools. What
+        calls this wants the opposite -- a model that knows how to write one prompt and nothing
+        else -- so it brings its own `system` and that is the whole of what the model is told.
+
+        Answers {"text": str, "usage": {...} | None}, where usage is what the call cost when the
+        service says so. An engine that never mentions spending answers None, and the tests are
+        such engines.
+        """
+
     def stream(
         self,
         messages: list[dict],

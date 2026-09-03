@@ -191,10 +191,28 @@ class XaiClient:
         self._opener = opener
 
     def complete(self, messages, tools=None):
+        return self._answered(messages, tools)["choices"][0]["message"]
+
+    def complete_once(self, messages):
+        """The whole answer and what it cost, for a call that is not part of a conversation.
+
+        complete throws the usage away because a conversation's spending is counted from the stream
+        instead. A one-shot has no stream to count from, and Madde 155 makes dozens of these per
+        tool call -- unbilled, they would be spending nobody could see.
+        """
+        payload = self._answered(messages, None)
+        return {
+            "text": payload["choices"][0]["message"].get("content") or "",
+            # Sent by default on a plain completion; a service that says nothing answers None
+            # rather than zeroes, so a total is never quietly made up.
+            "usage": payload.get("usage"),
+        }
+
+    def _answered(self, messages, tools):
         request = self._request({"messages": messages}, tools)
         try:
             with self._opener(request) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+                return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as failure:
             # The service's own words: a 401 is not necessarily an expired key, and a wrong model
             # name answers 404 too. Guessing a cause here would print a lie.
@@ -202,7 +220,6 @@ class XaiClient:
             raise XaiFailed(f"{failure.code} {body}") from failure
         except urllib.error.URLError as failure:
             raise XaiFailed(str(failure.reason)) from failure
-        return payload["choices"][0]["message"]
 
     def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         # The counts come only if asked for, and only to a stream -- so the ask sits beside the

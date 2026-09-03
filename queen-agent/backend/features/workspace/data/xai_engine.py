@@ -21,6 +21,16 @@ class XaiEngine:
     def complete(self, messages, tools=None, model=""):
         return self._chosen(model).complete(self._for_xai(messages), tools=tools)
 
+    def write_once(self, system, user, model=""):
+        """One question with its own system prompt, and no tools (Madde 155).
+
+        _for_xai is deliberately not used: what it puts in front of every conversation is the app's
+        own system prompt, and this call wants a model that knows one job and nothing about a chat.
+        """
+        return self._chosen(model).complete_once(
+            [{"role": "system", "content": system}, {"role": "user", "content": user}]
+        )
+
     def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
         return self._chosen(model).stream(
             self._for_xai(messages),

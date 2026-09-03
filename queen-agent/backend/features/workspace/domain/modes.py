@@ -36,9 +36,11 @@ _WITHOUT_ASKING = {
         "build_prompts",
         "build_character_prompts",
         "write_plan",
-        # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
-        # their gate in front of it while this mode keeps none.
-        "add_frames",
+        # Madde 155. add_frames became these two. Both change the user's file, so ask and plan keep
+        # their gate in front of them -- and write_frame_prompt spends money besides, which is its
+        # own reason not to run unasked in a mode meant to be quiet.
+        "add_scene",
+        "write_frame_prompt",
         # Madde 154. What create_file and edit_file used to do to a structure file, now done by
         # tools that own its shape. Same standing as the two they replaced.
         "create_structure",

@@ -319,7 +319,19 @@ def stream_answer(
                 # has, and the design's card carries no name anyway.
                 if tool in WRITES_FILES:
                     yield FileStarted()
-                result = run_tool(file_store, project_id, tool, call["function"]["arguments"])
+                result = run_tool(
+                    file_store, project_id, tool, call["function"]["arguments"], engine, model
+                )
+                # What the tool spent asking on its own (Madde 155). Added rather than replaced:
+                # these are other requests, each with its own bill, and the round's own figure is a
+                # total for the round rather than for the turn.
+                if result.spent:
+                    spent = Usage(
+                        spent.sent + result.spent.get("sent", 0),
+                        spent.cached + result.spent.get("cached", 0),
+                        spent.answered + result.spent.get("answered", 0),
+                        spent.context,
+                    )
                 # A name born twice in one turn is still one file: the card says a file exists, not
                 # how many times it was written.
                 if result.created and result.created not in born:

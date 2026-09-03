@@ -6,6 +6,7 @@ not a detail of how a directory works.
 import json
 import re
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from backend.features.workspace.domain.build_prompts import (
@@ -28,7 +29,13 @@ from backend.features.workspace.domain.schema import SCHEMA
 #
 # `outcome` is a few words for a reader rather than for the model: what the call amounted to, said
 # in one line. Never the result itself -- a read's result is the file, and that is already on disk.
-ToolResult = namedtuple("ToolResult", "text created target outcome", defaults=("", ""))
+#
+# `spent` is what the tool itself paid, and it is None for every tool but one. Madde 155 gave a tool
+# the ability to ask the model on its own, dozens of times in a call: without a way home, that
+# spending would happen where the turn's total cannot see it.
+ToolResult = namedtuple(
+    "ToolResult", "text created target outcome spent", defaults=("", "", None)
+)
 
 
 @dataclass(frozen=True)
@@ -70,6 +77,48 @@ WRITES_FILES = {
 # with these and nothing else: free text here would not fail, it would quietly stop counting -- one
 # scenario's prompts short of a 1girl and nobody looking for why.
 KINDS = ("girl", "boy")
+
+# How many frames one call will write, and how many requests fly at once (Madde 155).
+#
+# The cap is there because a run is meant to be repeatable rather than complete: the tool fills what
+# is empty, so a file with more than this is finished by calling again. Five at once because a
+# provider answers a full pool with a 429 and this app does not retry -- a dropped request is a
+# dropped frame, and going fast is not worth losing one.
+AT_MOST = 100
+AT_ONCE = 5
+
+# What the model writing a frame's prompt is told, and the whole of what it is told (Madde 155).
+#
+# Its own text rather than the app's system prompt, which describes a chat assistant with a project
+# and tools -- everything this call is not. Nothing here about neighbouring frames either: the
+# request cannot see them, and asking for something it has no way to know would be a rule written
+# to be broken.
+WRITING = (
+    "You write prompts for an SDXL-family image model. You are given one scene in the user's own "
+    "language and the maps of a scenario -- its characters, outfits and locations -- and you "
+    "answer with the fields of one frame.\n"
+    "\n"
+    "The scene briefs the frame and is never text to copy into it: what the picture shows is "
+    "yours to decide, and a sentence retold as the action is a caption rather than a prompt.\n"
+    "\n"
+    "Answer with JSON and nothing else: characters, location, action, camera. characters maps a "
+    "character's name to the list of outfits they wear; whoever the frame is about goes first. "
+    "location is one name. Every name you use must be one of the names you were given -- you "
+    "choose from the maps, you never describe a person or a place in your own words, and you never "
+    "invent a name.\n"
+    "\n"
+    "action and camera are tags, never sentences: short comma-separated fragments, no articles. An "
+    "action holds only what the camera sees -- the pose, the expression, where the eyes look. Not "
+    "why it is happening and not what came before: a cause is written as what it looks like, or it "
+    "is left out. One prompt is one frozen instant, so a movement is written as the pose it passes "
+    "through. A camera is two decisions: how much of the body is in the picture -- close-up, upper "
+    "body, medium shot, full body -- and where it is looked at from -- from side, from above, from "
+    "behind, looking at viewer.\n"
+    "\n"
+    "No quality tags: code puts those in front of every prompt, and yours would be printed twice. "
+    "No count of people: code works that out. No or in any value -- one picture cannot be two. "
+    "Everything you write is English, whatever language the scene is in."
+)
 
 TOOL_SPECS = [
     {
@@ -161,50 +210,29 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "add_frames",
+            "name": "add_scene",
             "description": (
-                "Add one frame to the end of a structure file's frames list. Give the frame field "
-                "by field -- there is no JSON to write here and none to quote back, and where the "
-                "frame goes is not yours to give: the end of a list is something the code knows. "
-                "One call is one frame. Every name you use has to be in the file's maps already; a "
-                "name nobody knows is refused and nothing is written. The answer says how many "
-                "frames the file holds now, so a call made twice is visible without reading it "
-                "back. To change a frame that is already there, use edit_file."
+                "Open frames in a structure file, one per sentence, each carrying nothing but the "
+                "beat it is for. Write the sentences in the user's own language: they are the "
+                "brief, never the prompt, and no image model reads them. What the picture holds is "
+                "not decided here -- write_frame_prompt fills these in afterwards, one request per "
+                "frame. Give them all in one call, in the order they happen; the answer says which "
+                "numbers they got, and those are how you name a frame from then on."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "The structure file's name."},
-                    "characters": {
-                        "type": "object",
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "scenes": {
+                        "type": "array",
                         "description": (
-                            "Who is in the frame and what they wear: the character's name against "
-                            "the list of outfits they have on, both named from the file's maps. "
-                            "Whoever the frame is about goes first -- that one opens the prompt. "
-                            "An empty list is someone wearing nothing named; leave the whole thing "
-                            "out for a frame with nobody in it."
+                            "One sentence per scene, in order. What happens and who it is about -- "
+                            "a brief for whoever writes the frame, not tags."
                         ),
-                    },
-                    "location": {
-                        "type": "string",
-                        "description": "Where it happens, named from the file's locations map.",
-                    },
-                    "action": {
-                        "type": "string",
-                        "description": (
-                            "What is happening, as tags: the pose, the expression, where the eyes "
-                            "look. Only what the camera sees."
-                        ),
-                    },
-                    "camera": {
-                        "type": "string",
-                        "description": (
-                            "How much of the body is in the picture and where it is looked at "
-                            "from, as tags."
-                        ),
+                        "items": {"type": "string"},
                     },
                 },
-                "required": ["name", "action", "camera"],
+                "required": ["file", "scenes"],
             },
         },
     },
@@ -336,6 +364,28 @@ TOOL_SPECS = [
                     },
                 },
                 "required": ["file", "name", "tags"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_frame_prompt",
+            "description": (
+                "Write the prompt of every frame that has a scene and no prompt yet. Each frame "
+                "gets a request of its own, carrying that scene and the file's maps and nothing "
+                "else, so a long scenario costs no more attention per frame than a short one. It "
+                "takes no fields from you: what goes into a frame is worked out from its scene. "
+                "Frames that are already written are left alone, so calling it again after adding "
+                "scenes -- or after some frames came back empty -- picks up exactly what is left. "
+                "The answer says how many were written and how many were not."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                },
+                "required": ["file"],
             },
         },
     },
@@ -491,8 +541,13 @@ def structure_name(name):
     return f"{name.rsplit('.', 1)[0]}.json"
 
 
-def run_tool(file_store, project_id, name, arguments):
-    """Run one call and answer the model in words. A miss is an answer, not a crash."""
+def run_tool(file_store, project_id, name, arguments, engine=None, model=""):
+    """Run one call and answer the model in words. A miss is an answer, not a crash.
+
+    `engine` and `model` are optional because one tool out of a dozen asks the model something of
+    its own (Madde 155); everything else works with a store and a name. A caller that hands neither
+    gets a refusal from that tool rather than a crash from every other one.
+    """
     try:
         args = json.loads(arguments or "{}")
     except json.JSONDecodeError:
@@ -572,8 +627,11 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "set_location":
         return _set_entry(file_store, project_id, args, "locations")
 
-    if name == "add_frames":
-        return _add_frames(file_store, project_id, args)
+    if name == "add_scene":
+        return _add_scene(file_store, project_id, args)
+
+    if name == "write_frame_prompt":
+        return _write_frame_prompt(file_store, project_id, args, engine, model)
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
@@ -638,80 +696,169 @@ def _edit(file_store, project_id, args):
     )
 
 
-def _add_frames(file_store, project_id, args):
-    """One frame, taken apart field by field. The model names the fields; the shape is code's.
+def _opened(file_store, project_id, args):
+    """The file, parsed, with its frames list -- or the answer saying why not (Madde 155).
 
-    The end of a list is something code knows, so the model never has to point at it. Appending
-    through edit_file meant quoting the previous frame back -- once as the anchor and once inside
-    its replacement -- because a JSON list closes with a bracket and the new frame goes before it.
-    Nothing here takes a position, so there is no position to get wrong.
-
-    And since Madde 152 nothing here takes a shape either. The model used to hand over frame objects
-    it had built itself, which is the same as writing the file by hand with extra steps -- and Madde
-    151 shut that door. What this signature promises is its own: the file's shape can change behind
-    it without the model being taught anything again.
+    Four tools begin the same four lines. Written once so they cannot start disagreeing about what
+    a missing file or a broken one is called.
     """
-    source = safe_name(args.get("name"))
+    source = safe_name(args.get("file"))
     content = file_store.read(project_id, source)
     if content is None:
-        return ToolResult("There is no file by that name.", None, source, "No file by that name")
+        return source, None, ToolResult(
+            "There is no file by that name.", None, source, "No file by that name"
+        )
 
     try:
         structure = json.loads(content)
     except json.JSONDecodeError as broken:
         # The parser's own sentence, as in _build: a guessed cause sends the model somewhere else.
-        return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
+        return source, None, ToolResult(
+            f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON"
+        )
 
     # Asked of a dictionary only: a file whose top level is something else has no frames either, and
     # an AttributeError would tell the model nothing it could act on.
     frames = structure.get("frames") if isinstance(structure, dict) else None
     if not isinstance(frames, list):
-        return ToolResult(
+        return source, None, ToolResult(
             f"{source} has no frames list to add to; a structure file carries one.",
             None,
             source,
             "Refused",
         )
+    return source, structure, None
 
-    # A closed set, and one stranger stops the whole call. Writing the fields that were understood
-    # would leave the model believing in a frame that is not the one it asked for, and half a frame
-    # is worse than either -- so nothing is written and the answer says what was not recognised.
-    # The old frames list falls out here rather than needing a rule of its own.
-    stranger = next((key for key in args if key not in _FRAME_FIELDS and key != "name"), None)
-    if stranger is not None:
+
+def _add_scene(file_store, project_id, args):
+    """Frames opened from their sentences, carrying nothing else yet (Madde 155).
+
+    The scenes used to be a second file, matched to the frames by position -- and a paragraph of
+    instruction held that pairing together, with nothing able to see it slip. A sentence written
+    into the frame it belongs to has nothing left to match.
+
+    A plain list of strings, so the model builds no shape here either. Several at once because the
+    order the beats happen in is one thought, and asking for it a call at a time would spend the
+    turn's rounds on typing.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    coming = args.get("scenes")
+    if not isinstance(coming, list):
         return ToolResult(
-            f"add_frames has no {stranger} field; it takes "
-            f"{', '.join(sorted(_FRAME_FIELDS))}. Nothing was written.",
+            "add_scene takes a list of sentences, even when there is one of them.",
             None,
             source,
             "Refused",
         )
-
-    # A frame that says neither what is happening nor where it is looked at from is not a frame.
-    missing = [field for field in ("action", "camera") if not str(args.get(field) or "").strip()]
-    if missing:
+    if not coming:
+        return ToolResult("No scenes were given; nothing to open.", None, source, "Refused")
+    # All or nothing, as everywhere else in this module. Opening the ones that read as sentences
+    # would leave a file holding some of what was asked for and no way to tell which.
+    if any(not isinstance(scene, str) or not scene.strip() for scene in coming):
         return ToolResult(
-            f"A frame needs {' and '.join(missing)}. Nothing was written.",
-            None,
-            source,
-            "Refused",
+            "Every scene is a sentence. Nothing was written.", None, source, "Refused"
         )
 
-    # Looked up before anything is written (Madde 152). These misses used to surface when
-    # build_prompts ran, a call or two later, with the frame already on disk and the model moved on.
-    unknown = _unknown_names(structure, args.get("characters"))
-    if unknown:
-        return ToolResult(f"{unknown} Nothing was written.", None, source, "Refused")
-
-    frames.append({field: args[field] for field in _FRAME_FIELDS if field in args})
+    frames = structure["frames"]
+    was = len(frames)
+    frames.extend({"scene": scene} for scene in coming)
     _renumber(frames)
-    # Indented for the person who opens this file and fixes it by hand, and ensure_ascii off so
-    # their own language survives the round trip -- their work is the first principle.
     file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
-    # One number doing both jobs (Madde 153): which frame was just made, and how many there are.
-    # They cannot part company -- renumbering leaves no gaps -- so saying it twice would be noise,
-    # and a doubled call is still visible because the second answer says the next number.
-    return ToolResult(f"Added frame {len(frames)} to {source}.", None, source, "1 frame")
+    # The numbers, because from here on that is how the model names a frame -- and this answer is
+    # where it learns them.
+    span = f"frame {was + 1}" if len(coming) == 1 else f"frames {was + 1}-{len(frames)}"
+    return ToolResult(
+        f"Added {counted(len(coming), 'scene')} to {source} as {span}.",
+        None,
+        source,
+        counted(len(coming), "scene"),
+    )
+
+
+def _write_frame_prompt(file_store, project_id, args, engine, model):
+    """Every empty frame filled from a request of its own (Madde 155).
+
+    Not one request for the file. Sixteen rounds in the main chat could never have carried forty
+    frames, and each of those rounds would have re-sent the whole conversation to write one -- so
+    the attention spent per frame fell as the scenario grew. Here each frame is a small question
+    with the same shape: this scene, these maps, nothing else.
+
+    Nothing is retried. A frame whose request fell over, or whose answer would not parse, or which
+    named something no map knows, is left empty and counted -- and since the tool only fills what is
+    empty, calling it again is the retry.
+    """
+    if engine is None:
+        return ToolResult(
+            "write_frame_prompt cannot run without a model to ask.", None, "", "Refused"
+        )
+
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    frames = structure["frames"]
+    # A scene to write from and nothing written yet. Both halves matter: a frame with no brief would
+    # have the model inventing one, and a frame already written is somebody's work.
+    waiting = [
+        frame
+        for frame in frames
+        if str(frame.get("scene") or "").strip() and not str(frame.get("action") or "").strip()
+    ]
+    if not waiting:
+        return ToolResult(f"Every frame in {source} is written.", None, source, "Nothing to write")
+
+    left = max(0, len(waiting) - AT_MOST)
+    waiting = waiting[:AT_MOST]
+    # The invariant half first, the scene last: the provider's prefix cache can only hit on what
+    # every request shares, and it shares everything but the final line.
+    maps = json.dumps(
+        {which: structure.get(which) or {} for which in ("characters", "outfits", "locations")},
+        indent=2,
+        ensure_ascii=False,
+    )
+
+    def _written(frame):
+        try:
+            answer = engine.write_once(WRITING, f"{maps}\n\nScene: {frame['scene']}", model)
+            fields = json.loads(answer.get("text") or "")
+        except Exception:
+            # Whatever went wrong -- the connection, the service, an answer that is not JSON -- the
+            # frame stays empty and the ones around it are not punished for it. What the model needs
+            # is the count, and it is in the report.
+            return None, None
+        if not isinstance(fields, dict) or _unknown_names(structure, fields.get("characters")):
+            return None, None
+        return {field: fields[field] for field in _FRAME_FIELDS if field in fields}, answer.get(
+            "usage"
+        )
+
+    # The first alone, then the rest in waves. Alone because instruction and maps are identical in
+    # every request, and if they all left together none would find that prefix warm.
+    done = [_written(waiting[0])]
+    if len(waiting) > 1:
+        with ThreadPoolExecutor(max_workers=AT_ONCE) as pool:
+            done.extend(pool.map(_written, waiting[1:]))
+
+    spent, wrote = {}, 0
+    for frame, (fields, usage) in zip(waiting, done):
+        # Written by frame rather than in the order the answers came back: which request finished
+        # first is not something the file should be able to show.
+        if fields is not None:
+            frame.update(fields)
+            wrote += 1
+        for what, much in (usage or {}).items():
+            spent[what] = spent.get(what, 0) + much
+
+    file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
+    said = f"Wrote {counted(wrote, 'frame')} in {source}."
+    if wrote < len(waiting):
+        said += f" {counted(len(waiting) - wrote, 'frame')} left empty; call again to try them."
+    if left:
+        said += f" {counted(left, 'frame')} still waiting past this call's limit."
+    return ToolResult(said, None, source, counted(wrote, "frame"), spent or None)
 
 
 def _create_structure(file_store, project_id, args):
