@@ -27,6 +27,18 @@ BREAK = " BREAK "
 # No count inside the identity: where the count belongs is the frame's own field, and this one is
 # written the way the maps are meant to read from Madde 95 on.
 EDA = "freckles, green eyes"
+# The tags half of a character written with a kind, and none of them carries a count of its own.
+# AYLIN and DENIZ do -- harmless where the assertion is one exact string, useless where the question
+# is what the code worked the count out to be (Madde 156).
+AYLIN_TAGS = "long teal hair, green eyes"
+DENIZ_TAGS = "short black hair, stubble"
+EMRE_TAGS = "buzz cut, broad shoulders"
+TAGS = {"aylin": AYLIN_TAGS, "deniz": DENIZ_TAGS, "eda": EDA, "emre": EMRE_TAGS}
+
+
+def _kinds(**people):
+    """A characters map in the shape set_character writes it: a kind beside the tags (Madde 154)."""
+    return {name: {"kind": kind, "tags": TAGS[name]} for name, kind in people.items()}
 
 
 def _frame(**changes):
@@ -272,9 +284,13 @@ def test_a_prompt_with_quotes_or_a_backslash_still_parses():
 
 def test_a_character_written_with_a_kind_still_builds():
     # The shape set_character writes from Madde 154 on: what a character is, and what kind of one.
-    # The kind is for counting (Madde 156) and never reaches the prompt itself.
+    # From Madde 156 the kind is what the count is worked out from, and the tags are still carried
+    # through exactly as written -- this fixture's own 1girl comes out beside the worked-out one,
+    # because nothing here strips a tag it did not put there.
     structure = _structure(characters={"aylin": {"kind": "girl", "tags": AYLIN}})
-    assert build_prompts(structure) == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+    assert build_prompts(structure) == [
+        f"{QUALITY}, 1girl, {AYLIN}, {BEDROOM}, an action, a camera"
+    ]
 
 
 def test_a_character_written_as_plain_text_still_builds():
@@ -314,6 +330,110 @@ def test_an_empty_people_tag_adds_nothing():
     # A count written blank must not leave a gap behind, the way an empty quality does not.
     built = build_prompts(_structure(frames=[_frame(people=" ")]))
     assert built == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+
+
+def test_one_girl_is_counted_from_her_kind():
+    # Madde 156. Nothing in the frame says how many; the code looks up who is in it and reads their
+    # kind, which is exactly the gap set_character was given a kind to close.
+    structure = _structure(characters=_kinds(aylin="girl"))
+    assert build_prompts(structure) == [
+        f"{QUALITY}, 1girl, {AYLIN_TAGS}, {BEDROOM}, an action, a camera"
+    ]
+
+
+@pytest.mark.parametrize("order", [("aylin", "deniz"), ("deniz", "aylin")])
+def test_the_count_puts_the_boy_first_whichever_way_the_frame_leads(order):
+    # Two questions that look like one: who opens the prompt is the frame's own order, and the count
+    # has an order of its own -- the one an SDXL model was trained on. A frame led by the girl still
+    # counts 1boy, 1girl.
+    structure = _structure(
+        characters=_kinds(aylin="girl", deniz="boy"),
+        frames=[_frame(characters={name: [] for name in order})],
+    )
+    assert build_prompts(structure)[0].startswith(f"{QUALITY}, 1boy, 1girl, {TAGS[order[0]]}")
+
+
+def test_two_of_a_kind_are_counted_in_the_plural():
+    structure = _structure(
+        characters=_kinds(aylin="girl", eda="girl"),
+        frames=[_frame(characters={"aylin": [], "eda": []})],
+    )
+    built = build_prompts(structure)[0]
+    assert built.startswith(f"{QUALITY}, 2girls,")
+    assert "1girl" not in built
+
+
+def test_the_plural_holds_for_boys_too():
+    # Both kinds, because a plural that only ever ran on one of them is a rule with half a proof.
+    structure = _structure(
+        characters=_kinds(deniz="boy", emre="boy"),
+        frames=[_frame(characters={"deniz": [], "emre": []})],
+    )
+    assert build_prompts(structure)[0].startswith(f"{QUALITY}, 2boys,")
+
+
+def test_the_worked_out_count_lands_where_a_written_one_lands():
+    # The same slot, so nothing downstream has to know which way the count arrived.
+    written = build_prompts(_structure(frames=[_frame(people="1girl")]))[0]
+    worked_out = build_prompts(_structure(characters=_kinds(aylin="girl")))[0]
+    assert written.replace(AYLIN, AYLIN_TAGS) == worked_out
+
+
+def test_a_character_with_no_kind_is_left_out_of_the_count():
+    # Plain text is every character written before Madde 154, and no field in one says what they
+    # are. Counting whoever can be counted is right; guessing at the rest is not.
+    structure = _structure(
+        characters={"aylin": {"kind": "girl", "tags": AYLIN_TAGS}, "deniz": DENIZ_TAGS},
+        frames=[_frame(characters={"aylin": [], "deniz": []})],
+    )
+    built = build_prompts(structure)[0]
+    assert built.startswith(f"{QUALITY}, 1girl,")
+    assert "1boy" not in built
+
+
+def test_a_kind_the_code_does_not_know_is_not_counted():
+    # set_character refuses anything but girl or boy, so this only arrives through a hand-edited
+    # file. A kind with no tag to write is the same case as no kind at all.
+    structure = _structure(
+        characters={
+            "aylin": {"kind": "girl", "tags": AYLIN_TAGS},
+            "deniz": {"kind": "robot", "tags": DENIZ_TAGS},
+        },
+        frames=[_frame(characters={"aylin": [], "deniz": []})],
+    )
+    built = build_prompts(structure)[0]
+    assert built.startswith(f"{QUALITY}, 1girl,")
+    assert "robot" not in built
+
+
+def test_a_frame_with_nobody_in_it_gets_no_count_at_all():
+    # And no gap where one would have been: an empty count is dropped the way an empty field is.
+    structure = _structure(characters=_kinds(aylin="girl"), frames=[_frame(characters={})])
+    assert build_prompts(structure) == [f"{QUALITY}, {BEDROOM}, an action, a camera"]
+
+
+def test_a_written_count_wins_over_the_one_the_code_would_work_out():
+    # Every file already on the user's disk carries this field and no kinds. Working the count out
+    # over the top of it would answer their own writing with nothing.
+    structure = _structure(
+        characters=_kinds(aylin="girl", deniz="boy"),
+        frames=[_frame(people="2girls", characters={"aylin": [], "deniz": []})],
+    )
+    assert build_prompts(structure)[0].startswith(f"{QUALITY}, 2girls,")
+
+
+def test_the_kind_itself_never_reaches_the_prompt():
+    # girl beside the frame's own 1girl would be the same thing said twice, in a place where saying
+    # it twice weights it. The kind turns into the count and is not a tag of its own.
+    built = build_prompts(_structure(characters=_kinds(aylin="girl")))[0]
+    assert built.count("girl") == 1
+
+
+def test_a_preview_carries_no_count():
+    # How many are in a picture is a frame's question, and a preview has no frame. A kind on the
+    # entry does not become one here.
+    tried = _tried(_structure(characters=_kinds(aylin="girl")), "aylin")
+    assert all("1girl" not in prompt for prompt in tried)
 
 
 def test_who_leads_is_decided_frame_by_frame():

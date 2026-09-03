@@ -21,10 +21,17 @@ def _rulebook():
 
 @pytest.mark.parametrize(
     "field",
-    ["characters", "outfits", "locations", "frames", "people", "action", "camera"],
+    ["characters", "outfits", "locations", "frames", "action", "camera"],
 )
 def test_the_schema_shows_every_field_rather_than_describing_it(field):
     assert f'"{field}"' in _schema()
+
+
+def test_the_schema_never_shows_a_people_field():
+    # Madde 156: the count is worked out from each character's kind, so there is nothing here for
+    # the model to write. The nail is on the quoted field name rather than the word -- "two people
+    # dressed differently" is an outfit rule and has nothing to do with counting.
+    assert '"people"' not in _schema()
 
 
 def test_the_schema_shows_a_frames_characters_as_a_map():
@@ -58,7 +65,7 @@ def test_the_example_shows_two_people_in_different_clothes():
     # The example is the teacher: the failure it has to rule out is one entry covering both, so
     # the second frame stands two characters side by side, each with their own outfit.
     said = _schema()
-    assert '"people": "1boy, 1girl"' in said
+    assert '"aylin": ["gunluk"], "deniz": ["ceket"]' in said
     assert "deniz" in said
 
 
@@ -172,11 +179,13 @@ def test_the_rulebook_has_no_quality_rule():
     assert "quality" not in _rulebook().lower()
 
 
-def test_the_rulebook_has_a_sixth_rule_about_the_count():
-    # K27: a count or a solo tag inside a character's own entry is in the wrong place. The code does
-    # not strip it -- guessing which tag is a count needs a list of names that is never complete.
+def test_the_rulebook_has_no_count_rule():
+    # The sixth rule went with the field it policed (Madde 156), the way the third went with quality.
+    # It pointed at the frame's people as where a count belongs, and there is no such field any more
+    # -- a rule sending the model to a field that is gone teaches it the field is there.
     said = _rulebook()
-    assert "6." in said and "solo" in said.lower()
+    assert "6." not in said
+    assert "solo" not in said.lower()
 
 
 def test_the_rulebook_calls_a_sentence_a_violation():
