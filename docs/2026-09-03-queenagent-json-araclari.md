@@ -1,9 +1,26 @@
 # QueenAgent — yapı dosyası ve araçları (anlaşma notu)
 
-**Tarih:** 3 Eylül 2026 · **Durum:** konuşuluyor, henüz spec değil
+**Tarih:** 3 Eylül 2026 · **Durum:** ⚠️ **AŞILDI — tarihsel kayıt.** Bugün ne olduğunu
+[v7 yol haritası](superpowers/plans/2026-09-03-v7-roadmap.md) söyler, ve son sözü kod söyler.
 
-Bu belge bir spec değil. Konuştuğumuz şeyin **benim anladığım hâli** — üstünde anlaşalım diye
-yazıldı. Anlaşınca buradan spec'ler ve maddeler çıkacak.
+Bu belge konuşmanın ortasında yazıldı: anlaşalım diye. Anlaşıldı, ve tasarım **konuşmanın devamında
+değişti** — aşağıdaki üç şey artık doğru değil:
+
+- **`prompt` diye bir alt blok yok.** JSON'un şekli düz kaldı; kare `frame`, `scene` ve prompt
+  alanlarını yan yana taşıyor. Sebep, koşunun bağlayıcı kuralı: **modele bakan imzalar donuk,
+  dosyanın şekli serbest** — model dosyanın şeklini hiç bilmediği için onu gruplamanın modele bir
+  faydası kalmadı.
+- **Araçlar `action` parametresiyle birleşmedi.** Kaynak kaynak ayrıldılar — `set_character`,
+  `remove_outfit`, `update_frame` gibi. Araştırmanın *"birleştirin"* tavsiyesi **aynı kaynak**
+  üstündeki eylemler için; bunlar ayrı kaynaklar *(kullanıcı kararı, 3 Eylül: "remove_entry(file,
+  map, name) ama bu saçma olmaz mı")*. Araç sayısı 9 değil **17**.
+- **`copy` ve `move` yok** *(kullanıcı kararı, 3 Eylül: "sıra değiştirmeye gerek yok şimdilik")*, ve
+  `read` de yok — model dosyayı `read_file` ile görüyor.
+
+Sondaki *"cevabı seninle netleşecek üç şey"* de cevaplandı: iskeleti `create_structure` doğuruyor,
+çıktının uzantısı `.py` kaldı, ve Prompt+ kare kare çalışıyor *(`write_frame_prompt`)*.
+
+Geri kalanı — **neden** böyle olduğu — hâlâ doğru, ve belge onun için duruyor.
 
 ---
 
