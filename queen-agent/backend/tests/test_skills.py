@@ -78,11 +78,12 @@ def test_the_instruction_reads_the_schema_before_it_builds():
     assert said.index("read_prompt_structure_schema") < said.index("build_prompts with")
 
 
-def test_the_structured_instruction_writes_the_skeleton_then_one_frame_at_a_time():
-    # Batches of five until Madde 152, when the tool started taking a frame apart field by field --
-    # one call is one frame now, and a text still asking for five sends the model at a refusal.
+def test_the_structured_instruction_hands_the_frames_to_the_writer():
+    # Batches of five, then one call per frame, and from Madde 155 no calls of its own at all: the
+    # frames are already there carrying their scenes, and write_frame_prompt fills them from a
+    # request each. What is left for this skill is deciding, not typing.
     said = instruction_for("generate-prompts-plus")
-    assert "skeleton" in said and "one call per frame" in said
+    assert "write_frame_prompt" in said
     assert "create_file" in said and "edit_file" in said
 
 
@@ -148,13 +149,21 @@ def test_what_nobody_described_becomes_a_placeholder():
     assert "never stop the flow" in said.lower()
 
 
-def test_the_scenes_step_writes_a_readable_list_too():
-    # K33 turned around by K40: the list is no longer a copy of the frames, it is their source --
-    # and it follows the reader, because every neighbouring text is English and without a word the
-    # list would drift there too.
+def test_the_scenes_step_calls_the_tool_rather_than_writing_a_file():
+    # Madde 155. The list used to be a second file matched to the frames by position, and the
+    # matching took a paragraph of instruction nobody could see go wrong. A sentence written into
+    # the frame it is for has nothing left to match.
     said = _flow()
+    assert "add_scene" in said
     assert "one sentence" in said
-    assert "their own language" in said
+    assert "their own language" in said  # the brief follows the reader; it never reaches a prompt
+
+
+def test_no_step_writes_a_separate_scene_list(tmp_path):
+    # Both texts, because a file only one of them stopped writing is a file the other still looks
+    # for.
+    assert "-scenes" not in _flow()
+    assert "-scenes" not in instruction_for("generate-prompts-plus")
 
 
 def test_a_finished_step_reaches_the_plan():
@@ -182,10 +191,12 @@ def test_the_flow_hands_the_frames_to_the_builder():
     assert "frames stay empty" in said
 
 
-def test_the_scene_list_is_named_after_the_structure_file():
-    # The discovery mechanism: prompt+ finds the pair by name with list_files, so the convention
-    # has to be pinned or the handoff rests on a guess.
-    assert "bar-scene-scenes.md" in _flow()
+def test_the_handoff_names_one_file():
+    # There used to be a pair, found by name, and the convention had to be pinned or the handoff
+    # rested on a guess. One file since Madde 155, so there is nothing to pair.
+    said = _flow()
+    assert "bar-scene.json" in said
+    assert "bar-scene-scenes" not in said
 
 
 def test_the_builder_picks_up_where_the_flow_stops():
@@ -333,13 +344,13 @@ def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():
     # Madde 128. The text was the whole reason the model reached for edit_file to append: it said
     # so in as many words, and a weak model follows what it is shown.
     said = instruction_for("generate-prompts-plus")
-    assert "add_frames" in said
+    assert "write_frame_prompt" in said
     assert "Add frames with edit_file" not in said
-    # The rhythm outlived the batches. What it was for -- quality falling away at the end of a long
-    # answer -- is now the shape of the tool itself, so the text says one call per frame instead of
-    # five at a time (Madde 152).
+    # The rhythm outlived the batches and then outlived the calls. What it was for -- quality
+    # falling away at the end of a long answer -- is the shape of the tool now: one request per
+    # frame, none of them carrying the others (Madde 155).
     assert "five" not in said
-    assert "one call per frame" in said
+    assert "add_frames" not in said
 
 
 def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():

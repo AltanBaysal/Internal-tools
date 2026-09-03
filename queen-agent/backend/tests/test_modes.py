@@ -11,9 +11,10 @@ WRITES = (
     "build_prompts",
     "build_character_prompts",
     "write_plan",
-    # Madde 128. It takes no position from the model, but it still changes the user's file, so the
-    # quieter modes keep their gate in front of it.
-    "add_frames",
+    # Madde 155. add_frames became these two. Both change the user's file, so the quieter modes
+    # keep their gate in front of them -- and write_frame_prompt spends money besides.
+    "add_scene",
+    "write_frame_prompt",
     # Madde 154. The four that replaced what create_file and edit_file used to do to a structure
     # file: they write the user's work, so the quieter modes gate them the same way.
     "create_structure",

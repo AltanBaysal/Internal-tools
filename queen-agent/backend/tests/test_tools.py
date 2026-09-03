@@ -1,4 +1,6 @@
 import json
+import threading
+import time
 
 import pytest
 
@@ -257,9 +259,6 @@ def test_every_tool_is_declared_to_the_model():
         # Eighth since Madde 98: the same joining, one character at a time, so a character can be
         # looked at before it enters a frame.
         "build_character_prompts",
-        # Madde 128. Appending to a JSON list through edit_file made the model quote the previous
-        # frame back to reach the end of it; the end of a list is something code knows.
-        "add_frames",
         # Madde 154. One tool per part of a structure file, now that create_file and edit_file
         # cannot touch one. Three set_ rather than one taking a map: three resources, and each
         # carries a rule the others do not -- read where the model is using it.
@@ -267,6 +266,10 @@ def test_every_tool_is_declared_to_the_model():
         "set_character",
         "set_outfit",
         "set_location",
+        # Madde 155. add_frames became these two: one opens frames from their sentences, the other
+        # goes round the empty ones and writes each from a request of its own.
+        "add_scene",
+        "write_frame_prompt",
     }
 
 
@@ -406,10 +409,10 @@ def test_read_file_still_opens_a_structure_file(tmp_path):
 
 
 def test_the_door_is_not_in_front_of_the_structural_tools(tmp_path):
-    # add_frames writes the same file and must go on writing it: the door is about the model
+    # add_scene writes the same file and must go on writing it: the door is about the model
     # writing JSON by hand, not about the tools that own the shape.
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frames", name="scene.json", **FRAME)
+    _call(files, "add_scene", file="scene.json", scenes=["bir"])
     assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 3
 
 
@@ -722,237 +725,288 @@ def test_the_edit_tool_tells_the_model_the_flag_is_there():
     assert "replace_all" in said
 
 
-# --- adding frames without an anchor (Madde 128) --------------------------------------------------
+# --- a frame is born from its scene (Madde 155) ---------------------------------------------------
 #
-# Appending to a JSON list is not an append: the list closes with a bracket and the new frame goes
-# before it. So edit_file made the model quote the previous frame back word for word -- once in old
-# and once in new, in the most expensive token class -- and near-identical frames made that anchor
-# collide besides. Nothing here takes a position from the model, so there is no position to get
-# wrong: the end of a list is a fact the code holds. NotebookEdit is the same shape for a
-# structured file, and build_prompts already walks it here.
+# Two calls where there was one. add_scene opens frames carrying nothing but the sentence they are
+# for; write_frame_prompt goes round the empty ones and fills each from its own small request. What
+# splits them is that a frame can be planned without knowing what its picture holds -- and the
+# scenes used to live in a second file, matched to frames by position, which is a pairing nobody
+# could see go wrong.
 
-# Still a frame-shaped dict, but nothing hands one to the tool any more (Madde 152): the tool takes
-# a frame apart, field by field, and the tests that need one already on disk write it themselves.
 FRAME = {
+    "frame": 3,
     "characters": {"aylin": ["gecelik"]},
     "location": "bedroom",
     "action": "three",
     "camera": "wide",
 }
 
+# What the writer answers with: the fields update_frame takes, and nothing else. One shape for both
+# roads into a frame (Madde 155).
+WRITTEN = json.dumps(
+    {
+        "characters": {"aylin": ["gecelik"]},
+        "location": "bedroom",
+        "action": "sitting on edge of bed, looking down",
+        "camera": "medium shot, from above",
+    }
+)
 
-def _add(files, name="scene.json", **fields):
-    """One frame, called the way the model calls it (Madde 152).
 
-    A wrapper because a dozen tests make this same call and each would otherwise carry five
-    parameters it does not care about -- what a test changes should be the only thing it names.
+def _scened(tmp_path, *scenes):
+    """A structure whose frames carry a sentence each and no prompt at all."""
+    structure = json.loads(STRUCTURE)
+    structure["frames"] = [
+        {"frame": place, "scene": scene} for place, scene in enumerate(scenes, start=1)
+    ]
+    return _with(tmp_path, "scene.json", json.dumps(structure))
+
+
+def _frames_of(files, name="scene.json"):
+    return json.loads(files.read("p1", name))["frames"]
+
+
+class ScriptedWriter:
+    """Stands in for the model write_frame_prompt asks, one frame at a time.
+
+    Answers in the order it is called. A None in the script is a request that fell over, which is
+    the case the tool has to survive without losing the frames around it.
+
+    It also counts how many calls are in the air at once, because that is the only thing about the
+    waves that can be seen from outside: how long they take is not something a test should measure.
     """
-    return _call(files, "add_frames", name=name, **{**FRAME, **fields})
+
+    def __init__(self, answers, usage=None):
+        self.answers = list(answers)
+        self.seen = []
+        self.at_once = 0
+        self.seen_when_first_finished = None
+        self._live = 0
+        self._lock = threading.Lock()
+        self._usage = usage
+
+    def write_once(self, system, user, model=""):
+        with self._lock:
+            self._live += 1
+            self.at_once = max(self.at_once, self._live)
+            place = len(self.seen)
+            self.seen.append({"system": system, "user": user, "model": model})
+        # Long enough that a second request would overlap this one if it were allowed to.
+        time.sleep(0.01)
+        with self._lock:
+            self._live -= 1
+            if place == 0:
+                # Evidence of the warm-up: nobody else had started while the first was out.
+                self.seen_when_first_finished = len(self.seen)
+        answer = self.answers[place] if place < len(self.answers) else self.answers[-1]
+        if answer is None:
+            raise RuntimeError("the connection dropped")
+        return {"text": answer, "usage": self._usage}
 
 
-def test_add_frames_appends_to_the_end_of_the_list(tmp_path):
+def _write(files, writer, name="scene.json"):
+    return run_tool(
+        files, "p1", "write_frame_prompt", json.dumps({"file": name}), engine=writer
+    )
+
+
+def test_add_scene_opens_a_frame_for_each_sentence(tmp_path):
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    frames = json.loads(files.read("p1", "scene.json"))["frames"]
-    assert len(frames) == 3
-    assert frames[2]["action"] == "three"
-    # The two that were there stay where they were: the built list runs in the frames' order.
-    assert [frame["action"] for frame in frames[:2]] == ["one", "two"]
+    _call(files, "add_scene", file="scene.json", scenes=["Aylin mektubu okuyor", "Deniz kapıda"])
+    assert [frame.get("scene") for frame in _frames_of(files)[2:]] == [
+        "Aylin mektubu okuyor",
+        "Deniz kapıda",
+    ]
 
 
-def test_a_frame_is_built_from_flat_parameters(tmp_path):
-    # The whole of the madde in one assertion: the model named the fields, the code shaped them --
-    # and since Madde 153 the code adds one field of its own, which the model never sent.
+def test_a_scene_frame_carries_no_prompt_fields(tmp_path):
+    # Born with the brief and its number, nothing else. What the picture holds is a separate act,
+    # and a frame half-filled by whoever wrote the sentence is the pairing this madde takes apart.
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    assert json.loads(files.read("p1", "scene.json"))["frames"][2] == {"frame": 3, **FRAME}
+    _call(files, "add_scene", file="scene.json", scenes=["Aylin mektubu okuyor"])
+    assert set(_frames_of(files)[2]) == {"frame", "scene"}
 
 
-def test_the_new_frame_carries_no_people_field(tmp_path):
-    # The model stops writing it here and code starts counting it in Madde 156. In between the
-    # field is simply absent, and build_prompts has always been able to do without it.
+def test_add_scene_appends_and_renumbers(tmp_path):
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    assert "people" not in json.loads(files.read("p1", "scene.json"))["frames"][2]
+    _call(files, "add_scene", file="scene.json", scenes=["bir", "iki"])
+    assert [frame["frame"] for frame in _frames_of(files)] == [1, 2, 3, 4]
 
 
-def test_add_frames_asks_for_no_people_and_no_frames_list():
-    # A parameter the model can see is a parameter it will fill. people never enters the signature
-    # rather than entering and leaving later -- the run's binding rule.
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "add_frames")
-    asked = spec["function"]["parameters"]["properties"]
-    assert "people" not in asked
-    assert "frames" not in asked
-    assert {"characters", "location", "action", "camera"} <= set(asked)
-
-
-def test_add_frames_says_which_number_the_frame_got(tmp_path):
-    # One number doing both jobs (Madde 153): it addresses the frame the model just made and counts
-    # what the file holds, because renumbering leaves no gaps for the two to differ across. Saying
-    # it twice would be noise, and a doubled call is still visible -- the second says frame 4.
+def test_add_scene_says_which_numbers_the_scenes_got(tmp_path):
+    # The model addresses a frame by number from here on, and this answer is where it learns them.
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    assert _add(files) == "Added frame 3 to scene.json."
+    said = _call(files, "add_scene", file="scene.json", scenes=["bir", "iki"])
+    assert "3" in said and "4" in said
 
 
-def test_a_new_frame_carries_its_number(tmp_path):
+def test_add_scene_refuses_an_empty_list(tmp_path):
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    assert json.loads(files.read("p1", "scene.json"))["frames"][2]["frame"] == 3
-
-
-def test_the_frames_that_were_there_get_numbered_too(tmp_path):
-    # The stamp goes on all of them, not just the new one. A file written before this madde carries
-    # no numbers at all, and the first tool to touch its list is what gives them out.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    frames = json.loads(files.read("p1", "scene.json"))["frames"]
-    assert [frame["frame"] for frame in frames] == [1, 2, 3]
-
-
-def test_a_second_add_numbers_them_all_again(tmp_path):
-    # Pressed once rather than once each: the list is renumbered on every write, which is what makes
-    # the number always equal to the position -- the whole reason it can be a stamp and not an id.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    _add(files)
-    frames = json.loads(files.read("p1", "scene.json"))["frames"]
-    assert [frame["frame"] for frame in frames] == [1, 2, 3, 4]
-
-
-def test_the_number_leads_the_frame(tmp_path):
-    # First key, for the person who opens the file: finding which frame this is should not mean
-    # reading into it.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    written = json.loads(files.read("p1", "scene.json"))["frames"][2]
-    assert next(iter(written)) == "frame"
-
-
-def test_the_model_cannot_write_the_number_itself(tmp_path):
-    # Green before this madde and after it: frame is not a parameter, so Madde 152's closed set
-    # already refuses it. Kept because the number being code's alone is the point, and a field that
-    # quietly became writable would be invisible otherwise.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    said = _add(files, frame=9)
-    assert "frame" in said
+    assert "scene" in _call(files, "add_scene", file="scene.json", scenes=[])
     assert files.read("p1", "scene.json") == STRUCTURE
 
 
-def test_add_frames_says_on_the_card_that_a_frame_went_in(tmp_path):
+def test_add_scene_refuses_a_list_that_is_not_one(tmp_path):
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    assert _outcome(files, "add_frames", name="scene.json", **FRAME) == "1 frame"
+    assert "list" in _call(files, "add_scene", file="scene.json", scenes="bir")
+    assert files.read("p1", "scene.json") == STRUCTURE
 
 
-def test_add_frames_leaves_the_maps_alone(tmp_path):
+def test_add_scene_refuses_something_that_is_not_a_sentence(tmp_path):
+    # All or nothing, as everywhere else: one bad element and no frame is opened, rather than a
+    # file left holding some of what was asked for.
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    after = json.loads(files.read("p1", "scene.json"))
-    before = json.loads(STRUCTURE)
-    # quality among them on purpose: Madde 150 stopped reading the field, and this holds the tool
-    # to leaving an old file's copy of it where it is rather than tidying it away.
-    for key in ("quality", "characters", "outfits", "locations"):
-        assert after[key] == before[key]
+    assert "sentence" in _call(files, "add_scene", file="scene.json", scenes=["bir", 7])
+    assert files.read("p1", "scene.json") == STRUCTURE
 
 
-def test_add_frames_writes_readable_turkish_rather_than_escapes(tmp_path):
-    # The user opens this file and fixes it by hand, and a wall of ı is a file they cannot
-    # read. Their work is the first principle, and it includes being able to see it.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files, action="başını çeviriyor")
-    assert "başını çeviriyor" in files.read("p1", "scene.json")
+def test_add_scene_refuses_a_file_that_is_not_there(tmp_path):
+    assert "no file by that name" in _call(
+        _files(tmp_path), "add_scene", file="ghost.json", scenes=["bir"]
+    )
 
 
-def test_add_frames_refuses_a_file_that_is_not_there(tmp_path):
-    assert "no file by that name" in _add(_files(tmp_path), name="ghost.json")
-
-
-def test_add_frames_carries_the_parsers_own_sentence_when_the_json_is_broken(tmp_path):
-    # A guessed cause would send the model looking in the wrong place -- _build's rule.
-    files = _with(tmp_path, "scene.json", "{ not json")
-    answer = _add(files)
-    assert "not valid JSON" in answer
-    assert "Expecting" in answer
-
-
-# --- what the tool will not take (Madde 152) -----------------------------------------------------
+# --- the prompt is written one frame at a time (Madde 155) ----------------------------------------
 #
-# Every one of these asserts twice: the answer refused, and the file did not move. A refusal that
-# still wrote would be worse than none, and half a frame is worse than both.
+# The tool is a loop, and each turn of it is a request of its own: this frame's sentence, the file's
+# maps, and a system prompt about writing prompts. Nothing else -- not the conversation, not the
+# other frames, not the previous camera. Sixteen rounds in the main chat could never have carried
+# forty frames, and each of those rounds would have re-sent the whole conversation to write one.
 
 
-def test_one_unknown_field_refuses_the_whole_call(tmp_path):
+def test_an_empty_frame_is_filled_from_its_scene(tmp_path):
+    files = _scened(tmp_path, "Aylin mektubu okuyor")
+    _write(files, ScriptedWriter([WRITTEN]))
+    written = _frames_of(files)[0]
+    assert written["action"] == "sitting on edge of bed, looking down"
+    assert written["scene"] == "Aylin mektubu okuyor"  # the brief stays where it was
+
+
+def test_a_frame_that_is_already_written_is_left_alone(tmp_path):
+    # Which is what lets the call be made again: it fills the empty ones and passes over the rest,
+    # so a run that lost three frames is finished by running it once more.
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    said = _add(files, mood="tense")
-    assert "mood" in said
-    assert files.read("p1", "scene.json") == STRUCTURE
+    writer = ScriptedWriter([WRITTEN])
+    _write(files, writer)
+    assert writer.seen == []
 
 
-def test_the_old_nested_form_is_refused(tmp_path):
-    # No rule of its own: a frames list is simply a field this tool does not have any more.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    said = _call(files, "add_frames", name="scene.json", frames=[FRAME])
-    assert "frames" in said
-    assert files.read("p1", "scene.json") == STRUCTURE
+def test_a_frame_without_a_scene_is_left_alone(tmp_path):
+    # Nothing to write from. A request carrying no brief would be the model inventing a frame.
+    structure = json.loads(STRUCTURE)
+    structure["frames"] = [{"frame": 1}]
+    files = _with(tmp_path, "scene.json", json.dumps(structure))
+    writer = ScriptedWriter([WRITTEN])
+    _write(files, writer)
+    assert writer.seen == []
 
 
-def test_a_character_nobody_knows_refuses_the_frame(tmp_path):
-    # Caught while writing rather than at build time. Today the frame lands and the miss surfaces a
-    # call later, by which point the model has moved on.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    said = _add(files, characters={"lara": []})
-    assert "lara is not in characters" in said
-    assert "aylin" in said  # what is known, so the next move is not a guess
-    assert files.read("p1", "scene.json") == STRUCTURE
+def test_the_request_carries_the_scene_and_the_maps(tmp_path):
+    # And the maps because the writer picks from them: it names a character, not describes one.
+    files = _scened(tmp_path, "Aylin mektubu okuyor")
+    writer = ScriptedWriter([WRITTEN])
+    _write(files, writer)
+    asked = writer.seen[0]["user"]
+    assert "Aylin mektubu okuyor" in asked
+    assert "aylin" in asked and "gecelik" in asked and "bedroom" in asked
 
 
-def test_an_outfit_nobody_knows_refuses_the_frame(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    said = _add(files, characters={"aylin": ["palto"]})
-    assert "palto is not in outfits" in said
-    assert files.read("p1", "scene.json") == STRUCTURE
+def test_the_request_carries_nothing_of_the_other_frames(tmp_path):
+    # The whole saving, and the whole of the focus: two frames are two small questions rather than
+    # one growing one.
+    files = _scened(tmp_path, "birinci sahne", "ikinci sahne")
+    writer = ScriptedWriter([WRITTEN, WRITTEN])
+    _write(files, writer)
+    assert "ikinci sahne" not in writer.seen[0]["user"]
 
 
-def test_a_frame_without_an_action_is_refused(tmp_path):
-    # A frame that does not say what is happening is not a frame. This is what the empty-list answer
-    # used to guard, back when the tool took a list at all.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    said = _call(files, "add_frames", name="scene.json", characters={}, camera="wide")
-    assert "action" in said
-    assert files.read("p1", "scene.json") == STRUCTURE
+def test_a_name_the_writer_invented_leaves_that_frame_empty(tmp_path):
+    # The same check add_frames used to make, on the same road in: a name no map knows does not
+    # reach the file, whoever offered it. The frames around it are not punished for it.
+    invented = json.dumps({"characters": {"lara": []}, "action": "a", "camera": "b"})
+    files = _scened(tmp_path, "birinci", "ikinci")
+    _write(files, ScriptedWriter([invented, WRITTEN]))
+    frames = _frames_of(files)
+    assert "action" not in frames[0]
+    assert frames[1]["action"] == "sitting on edge of bed, looking down"
 
 
-def test_a_frame_without_a_camera_is_refused(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    said = _call(files, "add_frames", name="scene.json", characters={}, action="three")
-    assert "camera" in said
-    assert files.read("p1", "scene.json") == STRUCTURE
+def test_an_answer_that_is_not_json_leaves_that_frame_empty(tmp_path):
+    files = _scened(tmp_path, "birinci", "ikinci")
+    _write(files, ScriptedWriter(["I am afraid I cannot", WRITTEN]))
+    frames = _frames_of(files)
+    assert "action" not in frames[0]
+    assert "action" in frames[1]
 
 
-def test_a_character_can_enter_a_frame_wearing_nothing(tmp_path):
-    # What is refused is a name that does not exist, never the absence of one.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files, characters={"aylin": []})
-    assert json.loads(files.read("p1", "scene.json"))["frames"][2]["characters"] == {"aylin": []}
+def test_a_request_that_fell_over_leaves_that_frame_empty(tmp_path):
+    files = _scened(tmp_path, "birinci", "ikinci")
+    _write(files, ScriptedWriter([None, WRITTEN]))
+    assert "action" not in _frames_of(files)[0]
+    assert "action" in _frames_of(files)[1]
 
 
-def test_a_frame_with_nobody_in_it_is_allowed(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files, characters={})
-    assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 3
+def test_the_report_counts_what_was_written_and_what_was_left(tmp_path):
+    # Nothing is retried. The model is told what stands so it can decide -- run again, change the
+    # model in the composer, or fix the scene that keeps failing.
+    files = _scened(tmp_path, "birinci", "ikinci")
+    said = _write(files, ScriptedWriter([None, WRITTEN])).text
+    assert "1" in said and "empty" in said.lower()
 
 
-def test_add_frames_refuses_a_structure_with_no_frames_list(tmp_path):
-    # The maps are there for the names to check out against, so the refusal is about the list only.
-    kept = json.dumps({"characters": {"aylin": "1girl"}, "outfits": {"gecelik": "white nightgown"}})
-    files = _with(tmp_path, "scene.json", kept)
-    assert "no frames list" in _add(files)
+def test_running_again_fills_only_the_empty_ones(tmp_path):
+    files = _scened(tmp_path, "birinci", "ikinci")
+    _write(files, ScriptedWriter([None, WRITTEN]))
+    second = ScriptedWriter([WRITTEN])
+    _write(files, second)
+    assert len(second.seen) == 1
+    assert all("action" in frame for frame in _frames_of(files))
 
 
-def test_add_frames_brings_no_file_into_being(tmp_path):
-    # No card: the file was already there. The rule edit_file follows.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    added = run_tool(files, "p1", "add_frames", json.dumps({"name": "scene.json", **FRAME}))
-    assert added.created is None
+def test_no_more_than_five_requests_are_in_the_air(tmp_path):
+    # The provider answers a full pool with a 429 and this app does not retry, so a dropped request
+    # is a dropped frame. Five is fast without going near it.
+    files = _scened(tmp_path, *[f"sahne {n}" for n in range(12)])
+    writer = ScriptedWriter([WRITTEN])
+    _write(files, writer)
+    assert writer.at_once <= 5
+    assert len(writer.seen) == 12
+
+
+def test_the_first_request_goes_alone(tmp_path):
+    # It warms the provider's prefix cache -- instruction and maps are the same in all of them, and
+    # if they all left together none would find it warm.
+    files = _scened(tmp_path, *[f"sahne {n}" for n in range(12)])
+    writer = ScriptedWriter([WRITTEN])
+    _write(files, writer)
+    assert writer.seen_when_first_finished == 1
+
+
+def test_it_stops_at_a_hundred_requests(tmp_path):
+    files = _scened(tmp_path, *[f"sahne {n}" for n in range(105)])
+    writer = ScriptedWriter([WRITTEN])
+    said = _write(files, writer).text
+    assert len(writer.seen) == 100
+    assert "5" in said
+
+
+def test_what_the_sub_requests_spent_is_reported(tmp_path):
+    # Otherwise this tool spends from somewhere the bill cannot see.
+    files = _scened(tmp_path, "birinci", "ikinci")
+    writer = ScriptedWriter([WRITTEN], usage={"sent": 10, "cached": 2, "answered": 5})
+    assert _write(files, writer).spent == {"sent": 20, "cached": 4, "answered": 10}
+
+
+def test_without_an_engine_the_tool_refuses(tmp_path):
+    # An answer rather than a crash, the rule every miss in this module follows.
+    files = _scened(tmp_path, "birinci")
+    said = run_tool(files, "p1", "write_frame_prompt", json.dumps({"file": "scene.json"})).text
+    assert "cannot" in said.lower() or "no" in said.lower()
+
+
+def test_write_frame_prompt_refuses_a_file_that_is_not_there(tmp_path):
+    said = _write(_files(tmp_path), ScriptedWriter([WRITTEN]), name="ghost.json").text
+    assert "no file by that name" in said
 
 
 # --- the file is born and the maps are filled by tools of their own (Madde 154) -------------------
@@ -1160,11 +1214,11 @@ def test_the_scene_builder_still_does_not_hand_back_its_prompts(tmp_path):
     assert "long teal hair" not in answer
 
 
-def test_calling_add_frames_twice_puts_the_frames_in_twice(tmp_path):
+def test_calling_add_scene_twice_puts_the_scenes_in_twice(tmp_path):
     # Appending is not idempotent, and pretending otherwise would have the tool guess which of two
-    # identical frames was meant. Left visible instead, in the second number of the answer.
+    # identical sentences was meant. Left visible instead, in the numbers the answer names.
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    _add(files)
-    answer = _add(files)
+    _call(files, "add_scene", file="scene.json", scenes=["bir"])
+    answer = _call(files, "add_scene", file="scene.json", scenes=["bir"])
     assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 4
-    assert "frame 4" in answer
+    assert "4" in answer
