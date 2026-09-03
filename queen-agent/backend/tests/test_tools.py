@@ -270,6 +270,14 @@ def test_every_tool_is_declared_to_the_model():
         # goes round the empty ones and writes each from a request of its own.
         "add_scene",
         "write_frame_prompt",
+        # Madde 157. Four rather than one taking a map, for the reason the set_ tools are four: a
+        # single remove_entry would have the model remembering which of them wants to be told where
+        # to look. Removal is its own tool rather than a set_ with nothing in it -- an empty value
+        # meaning delete would let a model that failed to fill a field wipe the entry in silence.
+        "remove_character",
+        "remove_outfit",
+        "remove_location",
+        "remove_frame",
     }
 
 
@@ -1222,3 +1230,206 @@ def test_calling_add_scene_twice_puts_the_scenes_in_twice(tmp_path):
     answer = _call(files, "add_scene", file="scene.json", scenes=["bir"])
     assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 4
     assert "4" in answer
+
+
+# --- removing what a structure file holds (Madde 157) ---------------------------------------------
+#
+# A file with something used and something spare in every map, because removal is a question about
+# both at once: the used name is refused with its frames named, the spare one goes. Frame 2 is open
+# and unwritten, so the middle of the list is a frame rather than a hole.
+CROWDED = json.dumps(
+    {
+        "characters": {
+            "aylin": {"kind": "girl", "tags": "long teal hair"},
+            "lara": {"kind": "girl", "tags": "red hair"},
+        },
+        "outfits": {"gecelik": "white nightgown", "palto": "long coat"},
+        "locations": {"bedroom": "sunlit bedroom", "rooftop": "night, city lights"},
+        "frames": [
+            {
+                "frame": 1,
+                "scene": "bir",
+                "characters": {"aylin": ["gecelik"]},
+                "location": "bedroom",
+                "action": "one",
+                "camera": "wide",
+            },
+            {"frame": 2, "scene": "iki"},
+            {
+                "frame": 3,
+                "scene": "uc",
+                "characters": {"aylin": ["gecelik"]},
+                "location": "bedroom",
+                "action": "three",
+                "camera": "close",
+            },
+        ],
+    }
+)
+
+REMOVERS = ("remove_character", "remove_outfit", "remove_location", "remove_frame")
+
+
+@pytest.mark.parametrize(
+    "tool,which,name",
+    [
+        ("remove_character", "characters", "lara"),
+        ("remove_outfit", "outfits", "palto"),
+        ("remove_location", "locations", "rooftop"),
+    ],
+)
+def test_a_name_no_frame_uses_is_removed(tmp_path, tool, which, name):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, tool, file="scene.json", name=name)
+    assert name not in _map_of(files, "scene.json", which)
+    assert name in said
+
+
+@pytest.mark.parametrize(
+    "tool,which",
+    [
+        ("remove_character", "characters"),
+        ("remove_outfit", "outfits"),
+        ("remove_location", "locations"),
+    ],
+)
+def test_removing_a_name_nobody_has_is_refused(tmp_path, tool, which):
+    # Silent success is a model believing it deleted something. The sentence is the one
+    # build_prompts gives, so a name that is not there reads the same wherever it is met.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, tool, file="scene.json", name="ghost")
+    assert "ghost" in said and which in said
+    assert len(_map_of(files, "scene.json", which)) == 2
+
+
+@pytest.mark.parametrize(
+    "tool,which,name,verb",
+    [
+        ("remove_character", "characters", "aylin", "in"),
+        ("remove_outfit", "outfits", "gecelik", "worn"),
+        ("remove_location", "locations", "bedroom", "place"),
+    ],
+)
+def test_a_name_a_frame_uses_is_refused_and_its_frames_named(tmp_path, tool, which, name, verb):
+    # Rule 5 of the fourteen, and now the code's answer rather than a line in a list carried every
+    # turn. The numbers are the useful half: the model's next move is to fix those frames.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, tool, file="scene.json", name=name)
+    assert verb in said
+    assert "1, 3" in said
+    assert name in _map_of(files, "scene.json", which)
+
+
+@pytest.mark.parametrize("tool", REMOVERS)
+def test_removing_from_a_file_that_is_not_there_is_an_answer(tmp_path, tool):
+    files = _files(tmp_path)
+    said = _call(files, tool, file="ghost.json", name="lara", frame=1)
+    assert "no file by that name" in said.lower()
+
+
+@pytest.mark.parametrize("tool", REMOVERS)
+def test_removing_from_a_broken_file_says_what_the_parser_said(tmp_path, tool):
+    # A guessed cause sends the model somewhere else, and a broken file is the one case the
+    # structural tools cannot repair -- so the sentence has to be the parser's own.
+    files = _with(tmp_path, "scene.json", "{ not json")
+    said = _call(files, tool, file="scene.json", name="lara", frame=1)
+    assert "not valid json" in said.lower()
+
+
+def test_removing_an_outfit_leaves_a_character_of_the_same_name_alone(tmp_path):
+    # Names may repeat across maps: they are keys in different places, and nothing stops a scenario
+    # from having a character and a garment called the same thing.
+    same = json.loads(CROWDED)
+    same["outfits"]["lara"] = "a coat named after nobody"
+    files = _with(tmp_path, "scene.json", json.dumps(same))
+    _call(files, "remove_outfit", file="scene.json", name="lara")
+    assert "lara" not in _map_of(files, "scene.json", "outfits")
+    assert "lara" in _map_of(files, "scene.json", "characters")
+
+
+def test_removing_a_frame_renumbers_the_ones_left(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "remove_frame", file="scene.json", frame=2)
+    frames = _frames_of(files)
+    assert [frame["frame"] for frame in frames] == [1, 2]
+    # And the one that went is the one that was named. Numbers moving up must not move a different
+    # frame into the gap -- which is exactly what a test on the numbers alone would miss.
+    assert [frame["scene"] for frame in frames] == ["bir", "uc"]
+
+
+def test_the_answer_says_how_many_frames_are_left(tmp_path):
+    # The model names a frame by its number in the next breath, and this sentence is the only place
+    # it can learn that everything after the gap has moved.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    assert "2 frames" in _call(files, "remove_frame", file="scene.json", frame=1)
+
+
+def test_removing_a_frame_that_is_not_there_says_how_many_there_are(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "remove_frame", file="scene.json", frame=9)
+    assert "3" in said and "9" in said
+    assert len(_frames_of(files)) == 3
+
+
+@pytest.mark.parametrize("number", [0, -1])
+def test_a_frame_number_below_one_is_refused(tmp_path, number):
+    # The one that would pass unnoticed: frames[-1] is legal Python, and it would quietly take the
+    # last frame away when nothing of the sort was meant.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "remove_frame", file="scene.json", frame=number)
+    assert len(_frames_of(files)) == 3
+    # The number back in the sentence, so the refusal is about what was asked for rather than a
+    # general complaint -- and so this test cannot pass on a tool that does not exist yet.
+    assert str(number) in said
+
+
+def test_a_frame_number_written_as_digits_is_taken(tmp_path):
+    # Models send "2" for 2 often enough that refusing it would be a refusal about typing rather
+    # than about the file, and there is only one way to read it.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "remove_frame", file="scene.json", frame="2")
+    assert [frame["scene"] for frame in _frames_of(files)] == ["bir", "uc"]
+
+
+@pytest.mark.parametrize("number", ["iki", None, 1.5, ""])
+def test_something_that_is_not_a_frame_number_is_refused(tmp_path, number):
+    # 1.5 among them on purpose: int() would round it down and take frame 1 away, which is the
+    # quietest way there is to lose somebody's work.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "remove_frame", file="scene.json", frame=number)
+    assert len(_frames_of(files)) == 3
+    assert "number" in said.lower()
+
+
+def test_removing_the_last_frame_leaves_the_file_with_none(tmp_path):
+    one = json.loads(CROWDED)
+    one["frames"] = one["frames"][:1]
+    files = _with(tmp_path, "scene.json", json.dumps(one))
+    said = _call(files, "remove_frame", file="scene.json", frame=1)
+    assert _frames_of(files) == []
+    assert "no frames" in said.lower()
+
+
+def test_a_frame_that_is_already_written_is_removed_too(tmp_path):
+    # No guard on a written frame. Removing one is not an accident to be caught, it is the ordinary
+    # thing to do with a beat that left the scenario.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "remove_frame", file="scene.json", frame=1)
+    assert [frame["scene"] for frame in _frames_of(files)] == ["iki", "uc"]
+
+
+def test_removing_never_draws_a_card(tmp_path):
+    # A card announces a file that was born. Nothing is born here, and one drawn on a removal would
+    # put the scenario's name on the screen as though it had just started.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    for tool, arguments in (
+        ("remove_character", {"file": "scene.json", "name": "lara"}),
+        ("remove_outfit", {"file": "scene.json", "name": "palto"}),
+        ("remove_location", {"file": "scene.json", "name": "rooftop"}),
+        ("remove_frame", {"file": "scene.json", "frame": 1}),
+    ):
+        ran = run_tool(files, "p1", tool, json.dumps(arguments))
+        assert ran.created is None
+        # Asked as well, because created is None for a tool nobody knows too -- and this claim is
+        # about a removal that happened, not about a name run_tool did not recognise.
+        assert ran.outcome != "Unknown tool"

@@ -21,6 +21,12 @@ WRITES = (
     "set_character",
     "set_outfit",
     "set_location",
+    # Madde 157. Removal is the one that cannot be taken back by calling it again, so if anything
+    # belongs behind the gate it is these four.
+    "remove_character",
+    "remove_outfit",
+    "remove_location",
+    "remove_frame",
 )
 
 
