@@ -971,7 +971,7 @@ def test_calling_add_frames_twice_puts_the_frames_in_twice(tmp_path):
     # Appending is not idempotent, and pretending otherwise would have the tool guess which of two
     # identical frames was meant. Left visible instead, in the second number of the answer.
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "add_frames", name="scene.json", frames=[FRAME])
-    answer = _call(files, "add_frames", name="scene.json", frames=[FRAME])
+    _add(files)
+    answer = _add(files)
     assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 4
     assert "holds 4 now" in answer
