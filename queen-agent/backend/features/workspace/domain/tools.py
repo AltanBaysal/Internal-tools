@@ -95,9 +95,9 @@ TOOL_SPECS = [
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": (
-                            "A short file name: .md for a document, .json for a structure file."
-                        ),
+                        # No .json since Madde 151: this tool cannot write one, and an example
+                        # offering the extension would send the model at a closed door.
+                        "description": "A short file name, as in bar-scene.md.",
                     },
                     "content": {"type": "string", "description": "The document itself."},
                 },
@@ -267,6 +267,39 @@ def safe_name(raw):
     return name if "." in name else f"{name}.md"
 
 
+def is_structure(name):
+    """Whether this name belongs to a structure file (Madde 151).
+
+    Asked of the cleaned name rather than the raw one, so what the door looks at is what the disk
+    would get -- a path in front of it is safe_name's business and gone by here.
+
+    Case is folded because a door a model can walk around by shouting the extension is not a door,
+    and that is the kind of gap it finds while looking for one. The extension is the whole of the
+    question: this app already speaks that way -- _build refuses with "a structure belongs in a
+    .json file".
+    """
+    return name.lower().endswith(".json")
+
+
+# Said once, by both tools that used to be able to write one. What it does not say is which tool to
+# use instead: those do not exist yet, and naming one that is not there sends the model looking for
+# it -- or inventing it. The names go in when they arrive.
+_NOT_AS_TEXT = "{} is a structure file; it is not written or changed as text."
+
+
+def _reads_as_json(content):
+    """Whether this text still parses. A check rather than a source: what comes back is thrown away.
+
+    Costs nothing extra where it is called -- _edit has the file in hand a line earlier, and reading
+    it is work already done.
+    """
+    try:
+        json.loads(content)
+    except json.JSONDecodeError:
+        return False
+    return True
+
+
 def plan_name(name):
     """A plan is named so that it reads as one, and so the tool cannot write anything else.
 
@@ -305,6 +338,11 @@ def run_tool(file_store, project_id, name, arguments):
 
     if name == "create_file":
         wanted = safe_name(args.get("name"))
+        # Ahead of the taken-name check (Madde 151). Behind it, a name already on disk would answer
+        # "already there" instead, and the model would read the difference as a door that opens for
+        # a name nobody has used yet.
+        if is_structure(wanted):
+            return ToolResult(_NOT_AS_TEXT.format(wanted), None, wanted, "Refused")
         # Asked of the names rather than by reading the file: the question is whether the name is
         # taken, and pulling a whole document back to learn that is work nobody needs.
         if wanted in file_store.list_names(project_id):
@@ -358,6 +396,14 @@ def _edit(file_store, project_id, args):
     content = file_store.read(project_id, wanted)
     if content is None:
         return ToolResult("There is no file by that name.", None, wanted, "No file by that name")
+
+    # After the read, and both halves are needed (Madde 151). On the extension alone a file the user
+    # broke by hand would be refused too -- and since every structural tool dies at json.loads, that
+    # would leave nothing able to put the comma back. On the content alone a .md holding valid JSON
+    # would be shut. So: a structure file that still parses is the tools' to change; one that does
+    # not is text, and text is what this is for.
+    if is_structure(wanted) and _reads_as_json(content):
+        return ToolResult(_NOT_AS_TEXT.format(wanted), None, wanted, "Refused")
 
     old = args.get("old") or ""
     if not old:
