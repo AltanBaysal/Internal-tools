@@ -287,7 +287,9 @@ TOOL_SPECS = [
                 "hair, build, age. Clothing never goes here, because clothing is what changes from "
                 "frame to frame: that belongs in set_outfit, and a frame names the two together. "
                 "A name that is already there is updated rather than added twice, and the answer "
-                "says how many frames the change reached.\n\n" + SDXL_PROMPT_RULES
+                "says how many frames the change reached. On a character who is already there, send "
+                "only what you are changing -- anything you leave out stays as it is; a new one "
+                "needs both a kind and tags.\n\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -315,8 +317,16 @@ TOOL_SPECS = [
                             "20s, long teal hair, green eyes. No sentence, no clothing, no count."
                         ),
                     },
+                    "new_name": {
+                        "type": "string",
+                        "description": (
+                            "Only to rename: the character keeps everything it has and every frame "
+                            "naming it is rewritten to the new name. Refused if the new name is "
+                            "taken. Leave this out unless the name itself is changing."
+                        ),
+                    },
                 },
-                "required": ["file", "name", "kind", "tags"],
+                "required": ["file", "name"],
             },
         },
     },
@@ -330,7 +340,8 @@ TOOL_SPECS = [
                 "entry dresses one person: the text is copied whole to whoever names it, so one "
                 "entry trying to cover two people puts the man in the dress and the woman in the "
                 "trousers. Two people dressed differently are two entries. A name that is already "
-                "there is updated rather than added twice.\n\n" + SDXL_PROMPT_RULES
+                "there is updated rather than added twice, and on one that is there you send only "
+                "what you are changing.\n\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -347,11 +358,18 @@ TOOL_SPECS = [
                         "type": "string",
                         "description": (
                             "The clothes, as short comma-separated fragments: denim jacket, white "
-                            "t-shirt."
+                            "t-shirt. Required for an outfit that does not exist yet."
+                        ),
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": (
+                            "Only to rename: the outfit keeps its text and every frame wearing it "
+                            "is rewritten to the new name. Refused if the new name is taken."
                         ),
                     },
                 },
-                "required": ["file", "name", "tags"],
+                "required": ["file", "name"],
             },
         },
     },
@@ -363,7 +381,8 @@ TOOL_SPECS = [
                 "Write a place into a structure file. A frame names one of these and never "
                 "describes a place in its own words, so that the same room reads the same in every "
                 "frame it appears in. A name that is already there is updated rather than added "
-                "twice.\n\n" + SDXL_PROMPT_RULES
+                "twice, and on one that is there you send only what you are changing.\n\n"
+                + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -377,11 +396,19 @@ TOOL_SPECS = [
                         "type": "string",
                         "description": (
                             "The place, as short comma-separated fragments, with its light: sunlit "
-                            "bedroom, morning light, indoors."
+                            "bedroom, morning light, indoors. Required for a place that does not "
+                            "exist yet."
+                        ),
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": (
+                            "Only to rename: the place keeps its text and every frame happening "
+                            "there is rewritten to the new name. Refused if the new name is taken."
                         ),
                     },
                 },
-                "required": ["file", "name", "tags"],
+                "required": ["file", "name"],
             },
         },
     },
@@ -1056,49 +1083,106 @@ def _create_structure(file_store, project_id, args):
 
 
 def _set_entry(file_store, project_id, args, which):
-    """One name's text in one map. The three set_ tools are this function three times.
+    """One name's text in one map, and since Madde 161 the name itself.
 
     Split in front of the model and joined behind it, on purpose. What differs between a character,
     an outfit and a place is what the model has to be told -- three names, three descriptions, three
     rules it meets while doing the thing each rule is about. What they do is the same sentence, and
     three copies of it would be three copies to keep in step.
-    """
-    source = safe_name(args.get("file"))
-    content = file_store.read(project_id, source)
-    if content is None:
-        # And nothing is created. bar-scene.json mistyped once would otherwise open a second
-        # scenario in silence, and the first anyone hears of it is prompts coming out short.
-        return ToolResult("There is no file by that name.", None, source, "No file by that name")
 
-    try:
-        structure = json.loads(content)
-    except json.JSONDecodeError as broken:
-        return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
+    Renaming lives here rather than in a rename_ tool of its own for the reason remove_entry was
+    refused: putting several actions behind one tool is for actions on one resource, and a rename is
+    an action on the entry itself. It opens through _opened now, because rewriting the frames that
+    name the old key means the frames list is a real requirement -- _remove_entry moved for the same
+    reason in Madde 157.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
 
     key = str(args.get("name") or "").strip()
     if not key:
         return ToolResult(f"A {which[:-1]} needs a name.", None, source, "Refused")
 
-    if which == "characters":
-        kind = str(args.get("kind") or "").strip()
-        if kind not in KINDS:
-            return ToolResult(
-                f"kind is {' or '.join(KINDS)}; {kind or 'nothing'} is neither.",
-                None,
-                source,
-                "Refused",
-            )
-        value = {"kind": kind, "tags": args.get("tags", "")}
-    else:
-        value = args.get("tags", "")
+    # `in` rather than .get(), because an empty string is a value: it is the only way the model can
+    # clear a text it wrote before, and .get() would read that as nothing having been given.
+    kind = str(args["kind"]).strip() if args.get("kind") is not None else None
+    tags = args["tags"] if args.get("tags") is not None else None
+    moving = args.get("new_name")
 
     entries = structure.setdefault(which, {})
+    if key not in entries:
+        if moving is not None:
+            # A call carrying new_name means to move something, and the something is not here.
+            # Creating a fresh entry under either name would answer a question nobody asked.
+            return ToolResult(
+                f"{key} is not in {which}; known: {', '.join(sorted(entries)) or 'nothing'}. "
+                "Nothing was renamed.",
+                None,
+                source,
+                "Not there",
+            )
+        # Required on a name that does not exist, optional on one that does: half a character is not
+        # a character, and a kind is what Madde 156 counts a frame's people from.
+        if tags is None or (which == "characters" and kind is None):
+            wanted = "a kind and tags" if which == "characters" else "tags"
+            return ToolResult(
+                f"A new {which[:-1]} needs {wanted}.", None, source, "Refused"
+            )
+
+    if key in entries and kind is None and tags is None and moving is None:
+        # Silent success is a model believing it changed something. The same refusal update_frame
+        # and the remove_ tools give when a call asks for nothing.
+        return ToolResult(
+            f"Nothing was given to change about {key}.", None, source, "Nothing to change"
+        )
+
+    if kind is not None and kind not in KINDS:
+        return ToolResult(
+            f"kind is {' or '.join(KINDS)}; {kind or 'nothing'} is neither.",
+            None,
+            source,
+            "Refused",
+        )
+
+    # Every refusal about the new name lands before anything is written, as everywhere else here.
+    if moving is not None:
+        moving = str(moving).strip()
+        if not moving:
+            return ToolResult(f"A {which[:-1]} needs a name.", None, source, "Refused")
+        if moving == key:
+            return ToolResult(
+                f"{key} is already called that.", None, source, "Nothing to change"
+            )
+        if moving in entries:
+            # Two entries collapsing into one hands every frame naming either the same text, and
+            # whichever lost is gone without a word.
+            return ToolResult(
+                f"There is already a {which[:-1]} called {moving}.", None, source, "Already there"
+            )
+
     stood = key in entries
-    entries[key] = value
+    if not stood:
+        entries[key] = {"kind": kind, "tags": tags} if which == "characters" else tags
+    else:
+        entries[key] = _changed(entries[key], which, kind, tags)
+
+    followed = _renamed(structure, which, key, moving) if moving else 0
     file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
 
     if not stood:
         return ToolResult(f"Added {key} to {which}.", None, source, "Added")
+    if moving:
+        # What else moved with it, because a call can carry both and the answer is where the model
+        # reads what it just did.
+        also = " and changed its text" if kind is not None or tags is not None else ""
+        return ToolResult(
+            f"Renamed {key} to {moving} in {which}{also}; "
+            f"{counted(followed, 'frame')} followed.",
+            None,
+            source,
+            "Renamed",
+        )
     # How far the change reached, which is the whole reason the maps exist: the text sits in one
     # place and every frame naming it moves at once. Said only when something changed -- a name
     # nobody uses yet would answer a question that was not asked.
@@ -1109,6 +1193,81 @@ def _set_entry(file_store, project_id, args, which):
         source,
         "Changed",
     )
+
+
+def _changed(entry, which, kind, tags):
+    """An entry with the fields that were given written onto it, and the rest left alone.
+
+    update_frame's rule, so that four tools teach one. Only characters have two fields to keep apart;
+    a place or an outfit is its text.
+
+    A plain-text character given only tags stays plain text: a map with an empty kind would be a
+    field saying nothing, and _kind reads it as nothing either way. It becomes the map form the
+    moment a kind arrives, and the old text carries over as its tags.
+    """
+    if which != "characters":
+        return entry if tags is None else tags
+    if kind is None and not isinstance(entry, dict):
+        return entry if tags is None else tags
+    was = entry if isinstance(entry, dict) else {"kind": "", "tags": entry}
+    return {
+        "kind": was.get("kind", "") if kind is None else kind,
+        "tags": was.get("tags", "") if tags is None else tags,
+    }
+
+
+def _renamed(structure, which, old, new):
+    """The key moved, and every frame that named it moved with it. How many, is the answer.
+
+    Rebuilt rather than popped and re-added. Python keeps a key where it was first written, so
+    `entries[new] = entries.pop(old)` sends the new name to the end -- and in a frame's characters
+    map the order is not bookkeeping, it is who leads the prompt (build_prompts). _renumber rebuilds
+    for the same reason: a field whose position carries meaning cannot be moved by assignment.
+
+    Counted while walking rather than by _frames_naming afterwards, because afterwards the old name
+    is gone and there is nothing left to count.
+    """
+    entries = structure[which]
+    structure[which] = {(new if name == old else name): value for name, value in entries.items()}
+
+    followed = 0
+    for frame in structure.get("frames") or []:
+        if which == "locations":
+            if frame.get("location") == old:
+                frame["location"] = new
+                followed += 1
+            continue
+
+        people = frame.get("characters")
+        if which == "characters":
+            if isinstance(people, dict) and old in people:
+                # The same rebuild, and here it is load-bearing: whoever a frame names first opens
+                # its prompt, so a renamed lead must stay the lead.
+                frame["characters"] = {
+                    (new if name == old else name): worn for name, worn in people.items()
+                }
+                followed += 1
+            elif isinstance(people, list) and old in people:
+                frame["characters"] = [new if name == old else name for name in people]
+                followed += 1
+            continue
+
+        if not isinstance(people, dict):
+            continue
+        wearing = False
+        for name, worn in people.items():
+            if isinstance(worn, list) and old in worn:
+                # In place, because the order of the list is the order the clothes are written in.
+                people[name] = [new if outfit == old else outfit for outfit in worn]
+                wearing = True
+            elif worn == old:
+                # The slip _worn forgives -- one name written without its list -- kept in the shape
+                # it was written in.
+                people[name] = new
+                wearing = True
+        followed += wearing
+
+    return followed
 
 
 def _remove_entry(file_store, project_id, args, which):
