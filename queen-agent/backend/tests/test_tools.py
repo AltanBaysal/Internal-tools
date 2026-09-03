@@ -948,6 +948,146 @@ def test_add_frames_brings_no_file_into_being(tmp_path):
     assert added.created is None
 
 
+# --- the file is born and the maps are filled by tools of their own (Madde 154) -------------------
+#
+# Madde 151 shut create_file and edit_file on a structure file; from here every part of one has a
+# tool. Three set_ tools rather than a single one with a map parameter, because each map carries a
+# different rule -- and the rules move out of the fourteen-item list into the description of the
+# tool they apply to, where the model reads them at the moment it is using them.
+
+
+def _map_of(files, name, which):
+    return json.loads(files.read("p1", name))[which]
+
+
+def test_create_structure_writes_an_empty_skeleton(tmp_path):
+    files = _files(tmp_path)
+    _call(files, "create_structure", file="bar-scene.json")
+    assert json.loads(files.read("p1", "bar-scene.json")) == {
+        "characters": {},
+        "outfits": {},
+        "locations": {},
+        "frames": [],
+    }
+
+
+def test_create_structure_forces_the_json_extension(tmp_path):
+    # safe_name gives an extensionless name .md, which would leave a structure file that is not one
+    # -- and every structural tool would then refuse it. The tool bends the name to its own rule,
+    # the way write_plan does.
+    files = _files(tmp_path)
+    _call(files, "create_structure", file="bar-scene")
+    assert files.read("p1", "bar-scene.json") is not None
+
+
+def test_create_structure_refuses_a_name_that_is_taken(tmp_path):
+    # Overwriting would delete a scenario the user built, without a word.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    said = _call(files, "create_structure", file="scene.json")
+    assert "already" in said.lower()
+    assert files.read("p1", "scene.json") == STRUCTURE
+
+
+def test_create_structure_draws_a_card(tmp_path):
+    born = run_tool(_files(tmp_path), "p1", "create_structure", json.dumps({"file": "s.json"}))
+    assert born.created == "s.json"
+
+
+def test_set_character_adds_a_new_one(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "set_character", file="scene.json", name="lara", kind="girl", tags="red hair")
+    assert _map_of(files, "scene.json", "characters")["lara"] == {
+        "kind": "girl",
+        "tags": "red hair",
+    }
+
+
+def test_set_character_changes_the_one_that_is_there(tmp_path):
+    # One entry per name, whichever way it was written. A second aylin would leave two answers to
+    # the question of what she looks like.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "set_character", file="scene.json", name="aylin", kind="girl", tags="short red")
+    characters = _map_of(files, "scene.json", "characters")
+    assert list(characters) == ["aylin"]
+    assert characters["aylin"]["tags"] == "short red"
+
+
+def test_set_character_says_whether_it_added_or_changed(tmp_path):
+    # set does both, so the answer has to say which -- otherwise a name written twice looks like a
+    # name written once.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    born = _call(files, "set_character", file="scene.json", name="lara", kind="girl", tags="red")
+    again = _call(files, "set_character", file="scene.json", name="lara", kind="girl", tags="blue")
+    assert "Added" in born
+    assert "Changed" in again
+
+
+def test_changing_a_character_says_how_many_frames_name_it(tmp_path):
+    # Why the maps exist: one edit reaches every frame that names the entry. The model cannot see
+    # how far it just reached unless the answer says so.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    said = _call(files, "set_character", file="scene.json", name="aylin", kind="girl", tags="new")
+    assert "2 frames" in said
+
+
+def test_a_kind_that_is_neither_girl_nor_boy_is_refused(tmp_path):
+    # Free text here would break Madde 156's counting quietly, a scenario at a time. A closed set
+    # shows the mistake where it is made.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    said = _call(files, "set_character", file="scene.json", name="lara", kind="robot", tags="x")
+    assert "girl" in said and "boy" in said
+    assert "lara" not in _map_of(files, "scene.json", "characters")
+
+
+def test_set_character_refuses_a_file_that_is_not_there(tmp_path):
+    # And brings none into being. bar-scene.json mistyped as barscene.json would otherwise start a
+    # second scenario in silence, and nobody would find out until the prompts came out short.
+    files = _files(tmp_path)
+    assert "no file by that name" in _call(
+        files, "set_character", file="ghost.json", name="lara", kind="girl", tags="red"
+    )
+    assert files.read("p1", "ghost.json") is None
+
+
+def test_set_outfit_adds_and_changes(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "set_outfit", file="scene.json", name="palto", tags="long coat")
+    assert _map_of(files, "scene.json", "outfits")["palto"] == "long coat"
+    _call(files, "set_outfit", file="scene.json", name="palto", tags="short coat")
+    assert _map_of(files, "scene.json", "outfits")["palto"] == "short coat"
+
+
+def test_set_location_adds_and_changes(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "set_location", file="scene.json", name="rooftop", tags="night, city lights")
+    assert _map_of(files, "scene.json", "locations")["rooftop"] == "night, city lights"
+
+
+def test_only_a_character_carries_a_kind():
+    # A parameter the model can see is one it will fill, and an outfit has no kind to give.
+    asked = {
+        spec["function"]["name"]: spec["function"]["parameters"]["properties"]
+        for spec in TOOL_SPECS
+    }
+    assert "kind" in asked["set_character"]
+    assert "kind" not in asked["set_outfit"]
+    assert "kind" not in asked["set_location"]
+
+
+def test_the_character_tool_says_clothing_belongs_elsewhere():
+    # Rule 2 of the fourteen, moved to where it is used. In a list carried every turn it was one
+    # line among many; here the model meets it while writing the entry it is about.
+    said = next(s for s in TOOL_SPECS if s["function"]["name"] == "set_character")
+    assert "outfit" in said["function"]["description"].lower()
+
+
+def test_the_outfit_tool_says_one_entry_dresses_one_person():
+    # Rules 8 and 14. One entry covering both put the man in the dress and the woman in the
+    # trousers, because whoever names it is handed the whole text.
+    said = next(s for s in TOOL_SPECS if s["function"]["name"] == "set_outfit")
+    assert "one person" in said["function"]["description"].lower()
+
+
 # --- a look that hands back what there is to look at (Madde 135) ---------------------------------
 #
 # The preview said "Wrote 1 prompts to ...-lara.py" and stopped there, so the model read the file

@@ -270,6 +270,27 @@ def test_a_prompt_with_quotes_or_a_backslash_still_parses():
     assert _prompts_of(render_module(tricky)) == tricky
 
 
+def test_a_character_written_with_a_kind_still_builds():
+    # The shape set_character writes from Madde 154 on: what a character is, and what kind of one.
+    # The kind is for counting (Madde 156) and never reaches the prompt itself.
+    structure = _structure(characters={"aylin": {"kind": "girl", "tags": AYLIN}})
+    assert build_prompts(structure) == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+
+
+def test_a_character_written_as_plain_text_still_builds():
+    # Every file on the user's disk carries this shape, and a rename cannot turn their work into
+    # rubbish -- the rule the shots fallback has kept since it was written.
+    assert build_prompts(_structure()) == [
+        f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"
+    ]
+
+
+def test_a_preview_reads_both_shapes_too():
+    plain = _tried(_structure(), "aylin")
+    with_kind = _tried(_structure(characters={"aylin": {"kind": "girl", "tags": AYLIN}}), "aylin")
+    assert with_kind == plain
+
+
 def test_a_frames_number_never_reaches_the_prompt():
     # The number is for the file's readers -- the user and the tools that address a frame by it
     # (Madde 153). An image model has no use for it, and a builder that carried it through would put

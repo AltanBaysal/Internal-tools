@@ -14,6 +14,12 @@ WRITES = (
     # Madde 128. It takes no position from the model, but it still changes the user's file, so the
     # quieter modes keep their gate in front of it.
     "add_frames",
+    # Madde 154. The four that replaced what create_file and edit_file used to do to a structure
+    # file: they write the user's work, so the quieter modes gate them the same way.
+    "create_structure",
+    "set_character",
+    "set_outfit",
+    "set_location",
 )
 
 
