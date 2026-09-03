@@ -208,13 +208,14 @@ def test_the_schema_tool_says_what_it_answered_with(tmp_path):
     assert run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").outcome == "Schema"
 
 
-def test_create_file_names_both_formats_a_file_can_take():
-    # The param used to say ending in .md while the schema says a structure file is .json -- two
-    # opposite instructions to the same model. Pinned so the contradiction cannot quietly return.
+def test_create_file_no_longer_offers_the_structure_extension():
+    # This param once named both formats, because the tool could write both. Since Madde 151 it
+    # cannot, and an example still offering .json would walk the model into a refusal -- the same
+    # contradiction as before, pointing the other way.
     spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "create_file")
     said = spec["function"]["parameters"]["properties"]["name"]["description"]
-    assert ".md for a document" in said
-    assert ".json for a structure file" in said
+    assert ".json" not in said
+    assert ".md" in said
 
 
 def test_the_schema_tool_defines_the_term_it_hands_back():
@@ -477,7 +478,10 @@ def test_a_character_try_says_how_many_prompts_it_wrote(tmp_path):
 def test_building_again_writes_over_its_own_output(tmp_path):
     files = _with(tmp_path, "intro-frames.json", STRUCTURE)
     _call(files, "build_prompts", name="intro-frames.json")
-    _call(files, "edit_file", name="intro-frames.json", old="long teal hair", new="short red hair")
+    # Written straight to the store rather than through edit_file, which Madde 151 shut on this
+    # file. What is being measured is the build overwriting its own output, and how the structure
+    # came to change in between is not part of it.
+    files.write("p1", "intro-frames.json", STRUCTURE.replace("long teal hair", "short red hair"))
     _call(files, "build_prompts", name="intro-frames.json")
     # A derived file: regenerating it is the point, so numbering would only hide which one is now.
     assert sorted(files.list_names("p1")) == ["intro-frames.json", "intro-frames.py"]
