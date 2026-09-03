@@ -4,6 +4,8 @@ Pure: it is handed the parsed structure and hands back strings, so it is the one
 that cannot be talked out of the rules. Assembly is exactly what a model must not do by hand -- a
 character copied into forty frames drifts, a character resolved by code cannot.
 """
+from collections import Counter
+
 from backend.features.workspace.domain.errors import BadStructure
 from backend.features.workspace.domain.naming import folded
 
@@ -23,6 +25,13 @@ DEFAULT_QUALITY = (
 # an encoder that does not know it takes the word as one more tag. Spaces on either side rather than
 # commas, because the split leaves whatever touches it inside the chunk it opens.
 BREAK = " BREAK "
+
+# The kinds a count can be written from, in the order it writes them (Madde 156). Boy before girl
+# because that is how the tag pair reads in what an SDXL model was trained on, and the order is fixed
+# here rather than taken from the frame: who opens a prompt is the frame's own decision, how many are
+# in it is not. A kind outside this tuple counts as nothing -- the same door a character with no kind
+# at all falls through, and there is no second check because there is no second case.
+COUNTED = ("boy", "girl")
 
 
 def build_prompts(structure):
@@ -44,17 +53,19 @@ def build_prompts(structure):
 
     misses, built = [], []
     for number, frame in enumerate(frames, start=1):
+        # Whoever the frame wrote first leads it. No field names them -- the order already carries
+        # it, and a second place saying the same thing is a place that can disagree. Read before the
+        # prompt is opened, because the count is worked out from the same list.
+        in_frame = _worn(frame.get("characters"))
         # The order is fixed here rather than in the file: a structure that could reorder itself
         # would answer "why did this frame come out different" with "it varies". It also keeps two
         # descriptions apart -- whoever leads opens the prompt, everyone else closes it, and the
         # place, the action and the camera sit in between so the two do not bleed together.
         #
-        # The count is placed, never worked out: the code knows who entered the frame but not what
-        # they are, and no field says so.
-        lead = [DEFAULT_QUALITY, frame.get("people", "")]
-        # Whoever the frame wrote first leads it. No field names them -- the order already carries
-        # it, and a second place saying the same thing is a place that can disagree.
-        in_frame = _worn(frame.get("characters"))
+        # A written count wins (Madde 156). Every file already on disk carries one and none of their
+        # characters carries a kind, so counting over the top of it would answer the user's own
+        # writing with nothing.
+        lead = [DEFAULT_QUALITY, frame.get("people") or _counted(in_frame, characters)]
         lead.extend(_block(in_frame[:1], characters, outfits, number, misses))
         place = frame.get("location") or ""
         if place:
@@ -83,7 +94,7 @@ def build_character_prompts(structure, character):
     """One character on their own, once for every outfit the file names.
 
     The same joining a frame goes through, so what is seen here is what a frame will show. No count:
-    how many people are in a picture is a frame's own field, and there is no frame here.
+    how many people are in a picture is a frame's question, and there is no frame here.
     """
     if not isinstance(structure, dict):
         raise BadStructure(
@@ -145,11 +156,36 @@ def _identity(entry):
     """The tags out of a character's entry, whichever shape it was written in.
 
     Plain text is every file written before Madde 154; the map form carries a kind beside the tags,
-    for the count code works out rather than asks for. The kind never reaches a prompt -- girl beside
-    a frame's own 1girl would be the same thing said twice, in a place where saying it twice weights
+    which is what the count is worked out from. The kind never reaches a prompt -- girl beside the
+    frame's own 1girl would be the same thing said twice, in a place where saying it twice weights
     it.
     """
     return entry.get("tags", "") if isinstance(entry, dict) else entry
+
+
+def _kind(entry):
+    """What a character is, or nothing at all.
+
+    Apart from _identity because the two answer opposite questions: that one hands back what goes
+    into the prompt, this one hands back what never does. Plain text has no kind and none is guessed
+    at -- a file written before Madde 154 says who is in it and not what they are, and a wrong count
+    is worse than no count.
+    """
+    return entry.get("kind", "") if isinstance(entry, dict) else ""
+
+
+def _counted(people, characters):
+    """How many of each kind stand in this frame, in the tags an image model counts with.
+
+    Handed the pairs _worn already made rather than the raw field, so the frame is read once. A name
+    no map knows counts as nothing and is left to _looked_up, which is the one place that says so.
+    """
+    kinds = Counter(_kind(characters.get(name)) for name, _ in people)
+    return ", ".join(
+        f"{kinds[kind]}{kind}" if kinds[kind] == 1 else f"{kinds[kind]}{kind}s"
+        for kind in COUNTED
+        if kinds[kind]
+    )
 
 
 def _block(people, characters, outfits, number, misses):
