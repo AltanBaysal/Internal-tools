@@ -31,6 +31,10 @@ def test_the_schema_never_shows_a_people_field():
     # Madde 156: the count is worked out from each character's kind, so there is nothing here for
     # the model to write. The nail is on the quoted field name rather than the word -- "two people
     # dressed differently" is an outfit rule and has nothing to do with counting.
+    #
+    # This is what is left of test_the_schema_keeps_the_count_out_of_a_character, which nailed the
+    # paragraph saying a count belongs in the frame rather than in a character's entry. There is no
+    # frame field to send it to now, so the sentence went and its test with it.
     assert '"people"' not in _schema()
 
 
@@ -83,11 +87,6 @@ def test_the_schema_says_the_first_name_leads_the_prompt():
     # the map in is a decision rather than an accident.
     said = _schema().lower()
     assert "first name" in said and "leads the prompt" in said
-
-
-def test_the_schema_keeps_the_count_out_of_a_character():
-    said = _schema().lower()
-    assert "never inside a character" in said
 
 
 def test_the_schema_teaches_the_form_of_a_value():
