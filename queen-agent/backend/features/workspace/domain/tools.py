@@ -48,6 +48,13 @@ class FileWritten:
 MAX_ROUNDS = 16
 DEFAULT_NAME = "note.md"
 
+# What a frame is made of, as far as the model is concerned (Madde 152). This is what an incoming
+# call is checked against; the tool's schema below spells the same four out, because each one needs
+# its own description for the model to fill it well. A test holds the two lists together -- they can
+# only drift by someone changing one of them alone, and then the model is offered a field the tool
+# refuses.
+_FRAME_FIELDS = ("characters", "location", "action", "camera")
+
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
 # here: the file was already there. write_plan is, because the first plan of a name is new.
 WRITES_FILES = {"create_file", "build_prompts", "build_character_prompts", "write_plan"}
@@ -144,26 +151,48 @@ TOOL_SPECS = [
         "function": {
             "name": "add_frames",
             "description": (
-                "Add frames to the end of a structure file's frames list. Where they go is not "
-                "yours to give -- the end of a list is something the code knows -- so there is no "
-                "text to quote back and nothing to read first. The answer says how many went in "
-                "and how many the file holds now: adding twice adds twice, and that second number "
-                "is how you see it. To change a frame that is already there, use edit_file."
+                "Add one frame to the end of a structure file's frames list. Give the frame field "
+                "by field -- there is no JSON to write here and none to quote back, and where the "
+                "frame goes is not yours to give: the end of a list is something the code knows. "
+                "One call is one frame. Every name you use has to be in the file's maps already; a "
+                "name nobody knows is refused and nothing is written. The answer says how many "
+                "frames the file holds now, so a call made twice is visible without reading it "
+                "back. To change a frame that is already there, use edit_file."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string", "description": "The structure file's name."},
-                    "frames": {
-                        "type": "array",
+                    "characters": {
+                        "type": "object",
                         "description": (
-                            "The frames to add, each shaped as the schema says. A list even when "
-                            "there is one of them."
+                            "Who is in the frame and what they wear: the character's name against "
+                            "the list of outfits they have on, both named from the file's maps. "
+                            "Whoever the frame is about goes first -- that one opens the prompt. "
+                            "An empty list is someone wearing nothing named; leave the whole thing "
+                            "out for a frame with nobody in it."
                         ),
-                        "items": {"type": "object"},
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "Where it happens, named from the file's locations map.",
+                    },
+                    "action": {
+                        "type": "string",
+                        "description": (
+                            "What is happening, as tags: the pose, the expression, where the eyes "
+                            "look. Only what the camera sees."
+                        ),
+                    },
+                    "camera": {
+                        "type": "string",
+                        "description": (
+                            "How much of the body is in the picture and where it is looked at "
+                            "from, as tags."
+                        ),
                     },
                 },
-                "required": ["name", "frames"],
+                "required": ["name", "action", "camera"],
             },
         },
     },
@@ -445,11 +474,17 @@ def _edit(file_store, project_id, args):
 
 
 def _add_frames(file_store, project_id, args):
-    """The end of a list is something code knows, so the model never has to point at it.
+    """One frame, taken apart field by field. The model names the fields; the shape is code's.
 
-    Appending through edit_file meant quoting the previous frame back -- once as the anchor and once
-    inside its replacement -- because a JSON list closes with a bracket and the new frame goes
-    before it. Nothing here takes a position, so there is no position to get wrong.
+    The end of a list is something code knows, so the model never has to point at it. Appending
+    through edit_file meant quoting the previous frame back -- once as the anchor and once inside
+    its replacement -- because a JSON list closes with a bracket and the new frame goes before it.
+    Nothing here takes a position, so there is no position to get wrong.
+
+    And since Madde 152 nothing here takes a shape either. The model used to hand over frame objects
+    it had built itself, which is the same as writing the file by hand with extra steps -- and Madde
+    151 shut that door. What this signature promises is its own: the file's shape can change behind
+    it without the model being taught anything again.
     """
     source = safe_name(args.get("name"))
     content = file_store.read(project_id, source)
@@ -462,15 +497,6 @@ def _add_frames(file_store, project_id, args):
         # The parser's own sentence, as in _build: a guessed cause sends the model somewhere else.
         return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
 
-    coming = args.get("frames")
-    if not isinstance(coming, list):
-        return ToolResult(
-            "add_frames takes a list of frames, even when there is one of them.",
-            None,
-            source,
-            "Refused",
-        )
-
     # Asked of a dictionary only: a file whose top level is something else has no frames either, and
     # an AttributeError would tell the model nothing it could act on.
     frames = structure.get("frames") if isinstance(structure, dict) else None
@@ -482,26 +508,73 @@ def _add_frames(file_store, project_id, args):
             "Refused",
         )
 
-    if not coming:
-        # Nothing to do is not a failure, and writing the file to say so would touch a document for
-        # no reason at all.
+    # A closed set, and one stranger stops the whole call. Writing the fields that were understood
+    # would leave the model believing in a frame that is not the one it asked for, and half a frame
+    # is worse than either -- so nothing is written and the answer says what was not recognised.
+    # The old frames list falls out here rather than needing a rule of its own.
+    stranger = next((key for key in args if key not in _FRAME_FIELDS and key != "name"), None)
+    if stranger is not None:
         return ToolResult(
-            f"No frames were given, so {source} is unchanged.", None, source, "Nothing to add"
+            f"add_frames has no {stranger} field; it takes "
+            f"{', '.join(sorted(_FRAME_FIELDS))}. Nothing was written.",
+            None,
+            source,
+            "Refused",
         )
 
-    frames.extend(coming)
+    # A frame that says neither what is happening nor where it is looked at from is not a frame.
+    missing = [field for field in ("action", "camera") if not str(args.get(field) or "").strip()]
+    if missing:
+        return ToolResult(
+            f"A frame needs {' and '.join(missing)}. Nothing was written.",
+            None,
+            source,
+            "Refused",
+        )
+
+    # Looked up before anything is written (Madde 152). These misses used to surface when
+    # build_prompts ran, a call or two later, with the frame already on disk and the model moved on.
+    unknown = _unknown_names(structure, args.get("characters"))
+    if unknown:
+        return ToolResult(f"{unknown} Nothing was written.", None, source, "Refused")
+
+    frames.append({field: args[field] for field in _FRAME_FIELDS if field in args})
     # Indented for the person who opens this file and fixes it by hand, and ensure_ascii off so
     # their own language survives the round trip -- their work is the first principle.
     file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
-    # Both numbers: what this call did, and where the file stands after it. Appending is not
-    # idempotent, and the second is what keeps a doubled call in front of the model rather than in
-    # a read it would have to make.
+    # How many the file holds now: appending is not idempotent, and this is what keeps a doubled
+    # call in front of the model rather than in a read it would have to make. How many went in is no
+    # longer a question -- one call is one frame.
     return ToolResult(
-        f"Added {counted(len(coming), 'frame')} to {source}; it holds {len(frames)} now.",
+        f"Added a frame to {source}; it holds {len(frames)} now.",
         None,
         source,
-        counted(len(coming), "frame"),
+        "1 frame",
     )
+
+
+def _unknown_names(structure, characters):
+    """The first name in this frame that no map knows, said the way build_prompts says it.
+
+    Its own function so the walk over a name-to-outfits map lives in one place, and empty when
+    everything checks out -- a frame with nobody in it has nothing to look up.
+    """
+    if not isinstance(characters, dict):
+        return ""
+    known_people = structure.get("characters") or {}
+    known_outfits = structure.get("outfits") or {}
+    for person, worn in characters.items():
+        for name, known, field in [(person, known_people, "characters")] + [
+            (outfit, known_outfits, "outfits") for outfit in (worn or [])
+        ]:
+            if name not in known:
+                # Only this map's names: place names are no help to someone looking for a character.
+                # _looked_up's rule, and the same sentence, so the model reads one vocabulary.
+                return (
+                    f"{name} is not in {field}; "
+                    f"known: {', '.join(sorted(known)) or 'nothing'}."
+                )
+    return ""
 
 
 def _build(file_store, project_id, args):

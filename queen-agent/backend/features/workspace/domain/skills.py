@@ -44,7 +44,7 @@ GENERATE_PROMPTS_PLUS = (
     "for names never settled, not for craft. Neighbouring frames differ in at least one of "
     "framing and angle: the same framing and angle twice is one picture twice.\n"
     "\n"
-    "Add frames with add_frames, in batches of five; then "
+    "Add frames with add_frames, one call per frame; then "
     "call build_prompts with the file's name. Do not assemble a prompt by hand. The built file "
     "is the answer: its prompts are never printed back, and no menu of next steps closes the "
     "turn.\n"
