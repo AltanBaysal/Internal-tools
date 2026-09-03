@@ -63,6 +63,13 @@ DEFAULT_NAME = "note.md"
 # refuses.
 _FRAME_FIELDS = ("characters", "location", "action", "camera")
 
+# What update_frame will change (Madde 158). The four above plus the scene, which never reaches a
+# prompt but is a field of the frame and gets corrected like any other -- a separate update_scene
+# would be a fifth tool teaching nothing the fourth did not. Kept apart from _FRAME_FIELDS rather
+# than folded in: that tuple is what the sub-model's answer is filtered against, and a scene has no
+# business arriving from there.
+_UPDATABLE = _FRAME_FIELDS + ("scene",)
+
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
 # here: the file was already there. write_plan is, because the first plan of a name is new.
 WRITES_FILES = {
@@ -451,6 +458,67 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
+            "name": "update_frame",
+            "description": (
+                "Change a frame that is already written. Send only the fields you are changing -- "
+                "every field you leave out stays exactly as it is. Its scene is corrected here too. "
+                "A frame whose prompt has never been written is refused: write_frame_prompt writes "
+                "that one from its scene. Reach for this when the user wants one frame different, "
+                "rather than rebuilding anything."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "frame": {
+                        "type": "integer",
+                        "description": "Which frame to change, as the number it carries.",
+                    },
+                    "scene": {
+                        "type": "string",
+                        "description": (
+                            "What this frame is about, in the user's own language. It briefs the "
+                            "frame and never goes into the prompt."
+                        ),
+                    },
+                    "characters": {
+                        "type": "object",
+                        "description": (
+                            "Who is in the frame: each character's name mapped to the list of "
+                            "outfits they wear in it, empty for someone wearing none. Whoever the "
+                            "frame is about goes first -- they open the prompt. Every name must "
+                            "already be in the file's maps."
+                        ),
+                        "additionalProperties": {"type": "array", "items": {"type": "string"}},
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": "Where it happens, as a name the file's locations knows.",
+                    },
+                    "action": {
+                        "type": "string",
+                        "description": (
+                            "What the camera sees, as short comma-separated fragments: the pose, "
+                            "the expression, where the eyes look. One frozen instant, so a "
+                            "movement is written as the pose it passes through."
+                        ),
+                    },
+                    "camera": {
+                        "type": "string",
+                        "description": (
+                            "Two decisions: how much of the body is in the picture -- close-up, "
+                            "upper body, medium shot, full body -- and where it is looked at from "
+                            "-- from side, from above, from behind, looking at viewer."
+                        ),
+                    },
+                },
+                "required": ["file", "frame"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "write_frame_prompt",
             "description": (
                 "Write the prompt of every frame that has a scene and no prompt yet. Each frame "
@@ -720,6 +788,9 @@ def run_tool(file_store, project_id, name, arguments, engine=None, model=""):
     if name == "remove_frame":
         return _remove_frame(file_store, project_id, args)
 
+    if name == "update_frame":
+        return _update_frame(file_store, project_id, args)
+
     if name == "add_scene":
         return _add_scene(file_store, project_id, args)
 
@@ -898,7 +969,7 @@ def _write_frame_prompt(file_store, project_id, args, engine, model):
     waiting = [
         frame
         for frame in frames
-        if str(frame.get("scene") or "").strip() and not str(frame.get("action") or "").strip()
+        if str(frame.get("scene") or "").strip() and not _is_written(frame)
     ]
     if not waiting:
         return ToolResult(f"Every frame in {source} is written.", None, source, "Nothing to write")
@@ -1093,21 +1164,9 @@ def _remove_frame(file_store, project_id, args):
         return refused
 
     frames = structure["frames"]
-    number = _a_number(args.get("frame"))
-    if number is None:
-        return ToolResult(
-            "frame is the number of the frame to remove, as in 3.", None, source, "Refused"
-        )
-    # One comparison for both ends, which is what keeps frames[-1] from ever happening: a negative
-    # number is legal Python and would quietly take the last frame away.
-    if not 1 <= number <= len(frames):
-        return ToolResult(
-            f"{source} has no frames." if not frames
-            else f"{source} has {counted(len(frames), 'frame')}; there is no frame {number}.",
-            None,
-            source,
-            "No such frame",
-        )
+    number, refused = _the_frame(source, frames, args)
+    if refused is not None:
+        return refused
 
     del frames[number - 1]
     _renumber(frames)
@@ -1120,6 +1179,104 @@ def _remove_frame(file_store, project_id, args):
     return ToolResult(
         f"Removed frame {number} from {source}; {left}.", None, source, "Removed"
     )
+
+
+def _update_frame(file_store, project_id, args):
+    """The fields a call names, changed; the ones it does not, left alone (Madde 158).
+
+    The last of the holes Madde 151 opened. Since edit_file was shut on a structure file a written
+    frame could be removed but not corrected, and rebuilding a scenario around a camera angle is not
+    a correction.
+
+    Apart from write_frame_prompt rather than one tool deciding which it is: this way the intent is
+    in the call rather than in whatever the tool finds when it arrives, and nothing is written over
+    by accident.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    # Before the frame is even looked at (Madde 152's rule). Writing the fields that parsed and
+    # dropping the rest would leave the model believing it wrote a frame that does not exist, and
+    # half a frame is a thing nobody asked for.
+    strangers = sorted(set(args) - {"file", "frame"} - set(_UPDATABLE))
+    if strangers:
+        return ToolResult(
+            f"A frame has no {', '.join(strangers)}. It takes {', '.join(_UPDATABLE)}. "
+            "Nothing was changed.",
+            None,
+            source,
+            "Refused",
+        )
+
+    frames = structure["frames"]
+    number, refused = _the_frame(source, frames, args)
+    if refused is not None:
+        return refused
+
+    frame = frames[number - 1]
+    if not _is_written(frame):
+        # The same measure write_frame_prompt gathers by, read from the same function: a frame that
+        # tool would pick up is exactly the frame this one refuses, and two readings of "written"
+        # would leave one frame in two states depending on which tool asked.
+        return ToolResult(
+            f"Frame {number} has no prompt yet; write_frame_prompt writes it from its scene.",
+            None,
+            source,
+            "Not written yet",
+        )
+
+    changing = {field: args[field] for field in _UPDATABLE if field in args}
+    if not changing:
+        return ToolResult(
+            f"Nothing was given to change in frame {number}.", None, source, "Nothing to change"
+        )
+
+    if "characters" in changing:
+        unknown = _unknown_names(structure, changing["characters"])
+        if unknown:
+            return ToolResult(f"{unknown} Nothing was changed.", None, source, "Refused")
+
+    frame.update(changing)
+    file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
+    # Which fields moved, because the model's next sentence is about what it just did and this is
+    # where it reads it.
+    return ToolResult(
+        f"Updated frame {number} of {source}: {', '.join(changing)}.", None, source, "Updated"
+    )
+
+
+def _the_frame(source, frames, args):
+    """The number a call names, or the answer saying there is no such frame.
+
+    Shared by remove_frame and update_frame since Madde 158, so the one comparison guarding both ends
+    lives in one place. Both ends in one line is what keeps frames[-1] from ever being reached: a
+    negative number is legal Python, and it would quietly take the last frame -- or rewrite it.
+    """
+    number = _a_number(args.get("frame"))
+    if number is None:
+        return None, ToolResult(
+            "frame is the number of the frame, as in 3.", None, source, "Refused"
+        )
+    if not 1 <= number <= len(frames):
+        return number, ToolResult(
+            f"{source} has no frames." if not frames
+            else f"{source} has {counted(len(frames), 'frame')}; there is no frame {number}.",
+            None,
+            source,
+            "No such frame",
+        )
+    return number, None
+
+
+def _is_written(frame):
+    """Whether this frame's prompt has been written.
+
+    One reading for both tools that care: write_frame_prompt gathers the frames this says no to, and
+    update_frame refuses them. The action is the measure because it is the field a frame cannot be
+    without -- a prompt with a place and a camera and nothing happening is not a frame.
+    """
+    return bool(str(frame.get("action") or "").strip())
 
 
 def _a_number(given):

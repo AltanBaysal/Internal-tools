@@ -53,6 +53,9 @@ _WITHOUT_ASKING = {
         "remove_outfit",
         "remove_location",
         "remove_frame",
+        # Madde 158. It writes over work that is already there, which is the claim on the gate the
+        # rest of this list has.
+        "update_frame",
     ),
 }
 
