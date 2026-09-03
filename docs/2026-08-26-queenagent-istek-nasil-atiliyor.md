@@ -1,5 +1,14 @@
 # QueenAgent — bir istek nasıl atılıyor
 
+> ⚠️ **Ayrıntıları 27 Ağustos'ta kaldı** *(not: 4 Eylül)*. **Tesisatın şekli hâlâ doğru** — uçlar,
+> olaylar, tek bağlantı, kaydın tek evi: hepsi bugün de böyle. Eskiyen şey diyagramların içindeki
+> sayılar ve adlar: 5'teki *"altı tane"* araç **17**, ve v6–v7 koşuları o gün olmayan bir şey daha
+> ekledi — `write_frame_prompt` kare başına **kendi isteğini** atıyor, yani xAI'ye giden tek istek
+> türü artık ana ajanınki değil.
+>
+> **Modele giden metinlerin listesi ve isteğin katmanları için:**
+> [modele giden her metin](2026-08-28-queenagent-promptlar.md).
+
 *İlk yazımı 26 Ağustos. 27 Ağustos'ta 87, 88, 90, 91, 92 ve 93 koştuktan sonra baştan doğrulandı.
 En büyük değişiklik yapısal: eskiden ilk mesaj ile takip mesajı ayrı iki vakaydı, artık tek — Madde
 87 iki kapıyı bire indirdi, ve bu belgenin o günkü "aynı şekil, aynı depo" notu tam olarak bunun
