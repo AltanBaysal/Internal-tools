@@ -10,6 +10,10 @@ and 78), so nothing new is written to disk and no older chat needs converting. O
 result carries meaning are remembered -- reads. A write answers in one sentence, and one sentence
 needs no box.
 
+Files, and only files, since Madde 159. The structure schema used to ride here beside them and left
+with the tool that fetched it: a file is the one thing in this app whose contents can change under a
+message that has already gone out, which is the whole reason this module exists.
+
 Nothing here touches the disk: this module answers which names, and the caller answers what is in
 them. That is what lets it be tested without a store.
 """
@@ -49,15 +53,3 @@ def files_opened(chat, steps=()):
         if len(opened) == BOX_LIMIT:
             break
     return opened
-
-
-def schema_was_read(chat, steps=()):
-    """Whether this chat has fetched the structure schema.
-
-    Apart from the files because it is not one: a single text for the whole app, with no name to
-    look up on disk.
-    """
-    return any(
-        call.tool == "read_prompt_structure_schema"
-        for call in _steps_newest_first(chat, steps)
-    )

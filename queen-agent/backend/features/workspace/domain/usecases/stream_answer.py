@@ -4,12 +4,11 @@ The generator yields text pieces and finally the updated Chat. Telling them apar
 simpler than carrying a separate "this one is the last" flag.
 """
 from backend.features.workspace.domain.chat import ToolCall, Usage
-from backend.features.workspace.domain.context_box import files_opened, schema_was_read
+from backend.features.workspace.domain.context_box import files_opened
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
 from backend.features.workspace.domain.prompt import LAST_ROUND
-from backend.features.workspace.domain.schema import SCHEMA
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
@@ -91,10 +90,6 @@ def _boxed(file_store, project_id, chat, steps):
         # one it actually reads -- and two shapes of one file would leave it choosing which of them
         # its anchor has to match.
         blocks.append(f"--- {name} ---\n{numbered(content)}")
-    if schema_was_read(chat, steps):
-        # Not numbered: the column is for picking an anchor, and no anchor is ever written into the
-        # schema. It is one text for the whole app rather than a file on disk.
-        blocks.append(f"--- prompt structure schema ---\n{SCHEMA}")
     if not blocks:
         return ""
     return (

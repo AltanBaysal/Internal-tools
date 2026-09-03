@@ -18,7 +18,6 @@ from backend.features.workspace.domain.build_prompts import (
     render_module,
 )
 from backend.features.workspace.domain.errors import BadStructure
-from backend.features.workspace.domain.schema import SCHEMA
 
 # What the model is told, separately whether a file was born, and separately the file the call was
 # about. Parsing the sentence back out would be fragile.
@@ -94,12 +93,49 @@ KINDS = ("girl", "boy")
 AT_MOST = 100
 AT_ONCE = 5
 
+# How a value in a structure file is written, and the whole of what is left of the schema
+# (Madde 159).
+#
+# read_prompt_structure_schema handed back two halves. The half describing the file's shape died as
+# the tools took the shape over: create_file cannot write one, the set_ and remove_ and update_
+# tools build it, and read_file shows the result -- so the model was studying a JSON example of a
+# form it is no longer allowed to type. Nothing about the shape belongs here, or the dead half comes
+# back in a text that rides in every request.
+#
+# One text rather than a paragraph per tool (user decision, 3 Sep). set_character sees the frame's
+# rules too; harmless, and being one source it cannot go stale against itself.
+#
+# Not in the system prompt, where every chat would carry it including the ones writing no prompts --
+# Madde 94 pruned the skill texts for exactly that. Its cost is paid all the same, because a tool's
+# description travels every turn as well: four copies is roughly 700-900 tokens on every request.
+# What is bought is where the attention falls -- the rule sits beside the parameter it governs and
+# is read while the tool is being chosen, rather than at the top of a long context -- and a round,
+# since nothing is fetched.
+CRAFT = (
+    "Every value here is read by an SDXL-family image model, which reads tags rather than "
+    "sentences: short comma-separated fragments, no articles -- sitting on couch, by window. One "
+    "prompt is one frozen instant, so nothing that needs time to be seen belongs in it: a movement "
+    "is written as the pose it passes through, and a cause or a moment outside the frame is "
+    "written as what it looks like -- turned away, downcast eyes, tense shoulders -- or left out. "
+    "An action holds only what the camera sees: the pose, the expression, where the eyes look. A "
+    "camera is two decisions -- how much of the body is in the picture (close-up, upper body, "
+    "medium shot, full body) and where it is looked at from (from side, from above, from behind, "
+    "looking at viewer) -- and both halves come from those lists. No or in any value: the model "
+    "draws one picture and cannot toss a coin. No quality tags and no count of people; code writes "
+    "both, and yours would be printed twice. Whoever a frame names first opens its prompt, so "
+    "write whoever the frame is about first. Everything is English -- the one exception is a "
+    "frame's scene, which stays in the user's own language and never reaches a prompt."
+)
+
 # What the model writing a frame's prompt is told, and the whole of what it is told (Madde 155).
 #
 # Its own text rather than the app's system prompt, which describes a chat assistant with a project
 # and tools -- everything this call is not. Nothing here about neighbouring frames either: the
 # request cannot see them, and asking for something it has no way to know would be a rule written
 # to be broken.
+#
+# Built on CRAFT since Madde 159. It carried its own copy of the craft while the schema still stood,
+# and two copies is two texts able to tell one model something the other was never told.
 WRITING = (
     "You write prompts for an SDXL-family image model. You are given one scene in the user's own "
     "language and the maps of a scenario -- its characters, outfits and locations -- and you "
@@ -113,36 +149,10 @@ WRITING = (
     "location is one name. Every name you use must be one of the names you were given -- you "
     "choose from the maps, you never describe a person or a place in your own words, and you never "
     "invent a name.\n"
-    "\n"
-    "action and camera are tags, never sentences: short comma-separated fragments, no articles. An "
-    "action holds only what the camera sees -- the pose, the expression, where the eyes look. Not "
-    "why it is happening and not what came before: a cause is written as what it looks like, or it "
-    "is left out. One prompt is one frozen instant, so a movement is written as the pose it passes "
-    "through. A camera is two decisions: how much of the body is in the picture -- close-up, upper "
-    "body, medium shot, full body -- and where it is looked at from -- from side, from above, from "
-    "behind, looking at viewer.\n"
-    "\n"
-    "No quality tags: code puts those in front of every prompt, and yours would be printed twice. "
-    "No count of people: code works that out. No or in any value -- one picture cannot be two. "
-    "Everything you write is English, whatever language the scene is in."
+    "\n" + CRAFT
 )
 
 TOOL_SPECS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "read_prompt_structure_schema",
-            "description": (
-                "What a structure file looks like and the rules it has to hold, shown with an "
-                "example. A structure file is the one JSON per scenario that prompts are built "
-                "from: the characters, outfits and locations written once, and the frames that "
-                "name them. Call it before writing or changing one -- no instruction repeats "
-                "the schema, so never write one from memory. It takes no arguments; there is "
-                "one schema for the whole app."
-            ),
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
     {
         "type": "function",
         "function": {
@@ -276,7 +286,7 @@ TOOL_SPECS = [
                 "hair, build, age. Clothing never goes here, because clothing is what changes from "
                 "frame to frame: that belongs in set_outfit, and a frame names the two together. "
                 "A name that is already there is updated rather than added twice, and the answer "
-                "says how many frames the change reached."
+                "says how many frames the change reached.\n\n" + CRAFT
             ),
             "parameters": {
                 "type": "object",
@@ -319,7 +329,7 @@ TOOL_SPECS = [
                 "entry dresses one person: the text is copied whole to whoever names it, so one "
                 "entry trying to cover two people puts the man in the dress and the woman in the "
                 "trousers. Two people dressed differently are two entries. A name that is already "
-                "there is updated rather than added twice."
+                "there is updated rather than added twice.\n\n" + CRAFT
             ),
             "parameters": {
                 "type": "object",
@@ -352,7 +362,7 @@ TOOL_SPECS = [
                 "Write a place into a structure file. A frame names one of these and never "
                 "describes a place in its own words, so that the same room reads the same in every "
                 "frame it appears in. A name that is already there is updated rather than added "
-                "twice."
+                "twice.\n\n" + CRAFT
             ),
             "parameters": {
                 "type": "object",
@@ -464,7 +474,7 @@ TOOL_SPECS = [
                 "every field you leave out stays exactly as it is. Its scene is corrected here too. "
                 "A frame whose prompt has never been written is refused: write_frame_prompt writes "
                 "that one from its scene. Reach for this when the user wants one frame different, "
-                "rather than rebuilding anything."
+                "rather than rebuilding anything.\n\n" + CRAFT
             ),
             "parameters": {
                 "type": "object",
@@ -701,12 +711,6 @@ def run_tool(file_store, project_id, name, arguments, engine=None, model=""):
         args = json.loads(arguments or "{}")
     except json.JSONDecodeError:
         return ToolResult("Those arguments were not valid JSON.", None, "", "Bad arguments")
-
-    if name == "read_prompt_structure_schema":
-        # No arguments: there is one shape, so asking which one would be a question with a single
-        # answer. The outcome is what was answered with rather than the answer -- a read says how
-        # many lines, not the file.
-        return ToolResult(SCHEMA, None, "", "Schema")
 
     if name == "read_file":
         wanted = safe_name(args.get("name"))
