@@ -1682,25 +1682,61 @@ def test_renaming_a_character_moves_the_key_and_every_frame_follows(tmp_path):
     assert "aylin" not in files.read("p1", "scene.json")
 
 
-def test_a_renamed_character_keeps_its_place_in_the_frame(tmp_path):
-    # Who leads a prompt is whoever the frame wrote first (build_prompts). A dict keeps a key where
-    # it was first written, so entries[new] = entries.pop(old) adds a new key at the end -- and the
-    # person who opened the prompt would silently stop opening it.
+def _three_in_a_frame():
+    """CROWDED with three characters, all of them in frame 1, so a position can be seen at all."""
+    structure = json.loads(CROWDED)
+    structure["characters"]["eda"] = {"kind": "girl", "tags": "freckles, green eyes"}
+    structure["frames"][0]["characters"] = {"aylin": ["gecelik"], "lara": [], "eda": []}
+    return json.dumps(structure)
+
+
+@pytest.mark.parametrize(
+    "renaming,expected",
+    [
+        ("aylin", ["ayla", "lara", "eda"]),
+        ("lara", ["aylin", "ayla", "eda"]),
+        ("eda", ["aylin", "lara", "ayla"]),
+    ],
+)
+def test_a_renamed_character_keeps_its_place_in_the_frame(tmp_path, renaming, expected):
+    # Every place, not the first one. The order a frame lists people in is the frame's own decision
+    # and a rename is not a place to revisit it: whoever was third is third afterwards.
     #
-    # The FIRST of the two is renamed, and that is the whole test: renaming the second moves it to
-    # the end, which is where it already was, so pop and a rebuild agree and the bug walks through.
-    files = _with(tmp_path, "scene.json", _crowded_with(characters={"aylin": ["gecelik"], "lara": []}))
-    _call(files, "set_character", file="scene.json", name="aylin", new_name="ayla")
-    assert list(_frame_at(files, 1)["characters"]) == ["ayla", "lara"]
+    # A dict keeps a key where it was first written, so entries[new] = entries.pop(old) adds a new
+    # key at the end. Asked of all three because each position fails differently -- renaming the
+    # last would agree with the bug, since the end is where it already was.
+    files = _with(tmp_path, "scene.json", _three_in_a_frame())
+    _call(files, "set_character", file="scene.json", name=renaming, new_name="ayla")
+    assert list(_frame_at(files, 1)["characters"]) == expected
 
 
-def test_a_renamed_character_keeps_its_place_in_the_map_too(tmp_path):
-    # Less load-bearing than the frame -- nothing reads the map's order -- but it is the file the
-    # user opens, and a name jumping to the bottom for having been renamed reads as a different
-    # entry.
-    files = _with(tmp_path, "scene.json", CROWDED)
-    _call(files, "set_character", file="scene.json", name="aylin", new_name="ayla")
-    assert list(_map_of(files, "scene.json", "characters")) == ["ayla", "lara"]
+@pytest.mark.parametrize(
+    "renaming,expected",
+    [
+        ("aylin", ["ayla", "lara", "eda"]),
+        ("lara", ["aylin", "ayla", "eda"]),
+        ("eda", ["aylin", "lara", "ayla"]),
+    ],
+)
+def test_a_renamed_character_keeps_its_place_in_the_map_too(tmp_path, renaming, expected):
+    # Nothing reads this order, unlike a frame's -- but it is the file the user opens, and an entry
+    # sliding to the bottom for having been renamed reads as a different entry.
+    files = _with(tmp_path, "scene.json", _three_in_a_frame())
+    _call(files, "set_character", file="scene.json", name=renaming, new_name="ayla")
+    assert list(_map_of(files, "scene.json", "characters")) == expected
+
+
+def test_a_renamed_outfit_keeps_its_place_in_the_list(tmp_path):
+    # The same rule one level down: the order of a character's outfits is the order the clothes are
+    # written in, and renaming the middle one must not shuffle them.
+    files = _with(
+        tmp_path, "scene.json", _crowded_with(characters={"aylin": ["gecelik", "palto", "atki"]})
+    )
+    structure = json.loads(files.read("p1", "scene.json"))
+    structure["outfits"]["atki"] = "red scarf"
+    files.write("p1", "scene.json", json.dumps(structure))
+    _call(files, "set_outfit", file="scene.json", name="palto", new_name="kaban")
+    assert _frame_at(files, 1)["characters"]["aylin"] == ["gecelik", "kaban", "atki"]
 
 
 def test_renaming_an_outfit_follows_into_every_list_that_names_it(tmp_path):

@@ -1217,12 +1217,18 @@ def _changed(entry, which, kind, tags):
 
 
 def _renamed(structure, which, old, new):
-    """The key moved, and every frame that named it moved with it. How many, is the answer.
+    """The key changes name where it stands, and every frame that named it follows. How many, is
+    the answer.
 
     Rebuilt rather than popped and re-added. Python keeps a key where it was first written, so
-    `entries[new] = entries.pop(old)` sends the new name to the end -- and in a frame's characters
-    map the order is not bookkeeping, it is who leads the prompt (build_prompts). _renumber rebuilds
-    for the same reason: a field whose position carries meaning cannot be moved by assignment.
+    `entries[new] = entries.pop(old)` sends the new name to the end -- whichever place it held. The
+    rule here is that a rename changes a name and nothing else: whoever was third is third
+    afterwards, in the map and in every frame. _renumber rebuilds for the same reason, and it is the
+    same reason: a position that carries meaning cannot be moved by assignment.
+
+    In a frame that meaning is who opens the prompt (build_prompts reads the first name), and in a
+    character's outfit list it is the order the clothes are written in. The map at the top of the
+    file is read by nobody in order -- it is kept for the person who opens the file.
 
     Counted while walking rather than by _frames_naming afterwards, because afterwards the old name
     is gone and there is nothing left to count.
@@ -1241,8 +1247,8 @@ def _renamed(structure, which, old, new):
         people = frame.get("characters")
         if which == "characters":
             if isinstance(people, dict) and old in people:
-                # The same rebuild, and here it is load-bearing: whoever a frame names first opens
-                # its prompt, so a renamed lead must stay the lead.
+                # The same rebuild, and here every position carries something: the first name opens
+                # the prompt and the rest follow the camera in the order they stand.
                 frame["characters"] = {
                     (new if name == old else name): worn for name, worn in people.items()
                 }
