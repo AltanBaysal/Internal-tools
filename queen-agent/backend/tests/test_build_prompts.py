@@ -270,6 +270,13 @@ def test_a_prompt_with_quotes_or_a_backslash_still_parses():
     assert _prompts_of(render_module(tricky)) == tricky
 
 
+def test_a_frames_number_never_reaches_the_prompt():
+    # The number is for the file's readers -- the user and the tools that address a frame by it
+    # (Madde 153). An image model has no use for it, and a builder that carried it through would put
+    # a bare 3 in front of every picture.
+    assert build_prompts(_structure(frames=[_frame(frame=3)])) == build_prompts(_structure())
+
+
 def test_the_people_tag_is_written_right_after_quality():
     built = build_prompts(_structure(frames=[_frame(people="1girl")]))
     assert built == [f"{QUALITY}, 1girl, {AYLIN}, {BEDROOM}, an action, a camera"]

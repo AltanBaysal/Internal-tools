@@ -778,11 +778,56 @@ def test_add_frames_asks_for_no_people_and_no_frames_list():
     assert {"characters", "location", "action", "camera"} <= set(asked)
 
 
-def test_add_frames_says_what_it_added_and_how_many_there_are_now(tmp_path):
-    # The second number is what makes a doubled call visible: the model learns the state from the
-    # answer instead of reading the file back.
+def test_add_frames_says_which_number_the_frame_got(tmp_path):
+    # One number doing both jobs (Madde 153): it addresses the frame the model just made and counts
+    # what the file holds, because renumbering leaves no gaps for the two to differ across. Saying
+    # it twice would be noise, and a doubled call is still visible -- the second says frame 4.
     files = _with(tmp_path, "scene.json", STRUCTURE)
-    assert _add(files) == "Added a frame to scene.json; it holds 3 now."
+    assert _add(files) == "Added frame 3 to scene.json."
+
+
+def test_a_new_frame_carries_its_number(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _add(files)
+    assert json.loads(files.read("p1", "scene.json"))["frames"][2]["frame"] == 3
+
+
+def test_the_frames_that_were_there_get_numbered_too(tmp_path):
+    # The stamp goes on all of them, not just the new one. A file written before this madde carries
+    # no numbers at all, and the first tool to touch its list is what gives them out.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _add(files)
+    frames = json.loads(files.read("p1", "scene.json"))["frames"]
+    assert [frame["frame"] for frame in frames] == [1, 2, 3]
+
+
+def test_a_second_add_numbers_them_all_again(tmp_path):
+    # Pressed once rather than once each: the list is renumbered on every write, which is what makes
+    # the number always equal to the position -- the whole reason it can be a stamp and not an id.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _add(files)
+    _add(files)
+    frames = json.loads(files.read("p1", "scene.json"))["frames"]
+    assert [frame["frame"] for frame in frames] == [1, 2, 3, 4]
+
+
+def test_the_number_leads_the_frame(tmp_path):
+    # First key, for the person who opens the file: finding which frame this is should not mean
+    # reading into it.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _add(files)
+    written = json.loads(files.read("p1", "scene.json"))["frames"][2]
+    assert next(iter(written)) == "frame"
+
+
+def test_the_model_cannot_write_the_number_itself(tmp_path):
+    # Green before this madde and after it: frame is not a parameter, so Madde 152's closed set
+    # already refuses it. Kept because the number being code's alone is the point, and a field that
+    # quietly became writable would be invisible otherwise.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    said = _add(files, frame=9)
+    assert "frame" in said
+    assert files.read("p1", "scene.json") == STRUCTURE
 
 
 def test_add_frames_says_on_the_card_that_a_frame_went_in(tmp_path):
@@ -974,4 +1019,4 @@ def test_calling_add_frames_twice_puts_the_frames_in_twice(tmp_path):
     _add(files)
     answer = _add(files)
     assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 4
-    assert "holds 4 now" in answer
+    assert "frame 4" in answer
