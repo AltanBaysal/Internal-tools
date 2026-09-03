@@ -330,6 +330,81 @@ def test_an_edit_with_nothing_to_replace_is_refused(tmp_path):
     assert files.read("p1", "plan.md") == "alpha"
 
 
+# Madde 151. What the model may write to a structure file used to be a list of rules it was asked to
+# hold; from here it is a door. These hold the door shut, and the ones after them hold it from
+# closing on anything else.
+
+
+def test_create_file_refuses_a_structure_file(tmp_path):
+    said = _call(_files(tmp_path), "create_file", name="scene.json", content="{}")
+    assert "structure file" in said
+    assert "as text" in said
+
+
+def test_create_file_writes_nothing_when_it_refuses(tmp_path):
+    # Two things, and this is the one that matters: saying no is not the same as not writing.
+    files = _files(tmp_path)
+    _call(files, "create_file", name="scene.json", content="{}")
+    assert files.read("p1", "scene.json") is None
+
+
+def test_create_file_refuses_a_structure_file_before_looking_at_the_name(tmp_path):
+    # Ahead of the taken-name check on purpose. If a taken name answered differently, the model
+    # would read that as a door which opens for a name nobody has used yet.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    said = _call(files, "create_file", name="scene.json", content="{}")
+    assert "structure file" in said
+    assert "already" not in said.lower()
+    assert files.read("p1", "scene.json") == STRUCTURE
+
+
+def test_the_door_does_not_care_about_letter_case(tmp_path):
+    # A door a model can walk around by shouting the extension is not a door, and this is exactly
+    # the kind of gap it finds while looking for one.
+    said = _call(_files(tmp_path), "create_file", name="SCENE.JSON", content="{}")
+    assert "structure file" in said
+
+
+def test_a_refused_structure_write_says_refused(tmp_path):
+    assert _outcome(_files(tmp_path), "create_file", name="scene.json", content="{}") == "Refused"
+
+
+def test_edit_file_refuses_a_structure_file(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    said = _call(files, "edit_file", name="scene.json", old="wide", new="close")
+    assert "structure file" in said
+    assert "as text" in said
+
+
+def test_edit_file_leaves_the_structure_untouched_when_it_refuses(tmp_path):
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "edit_file", name="scene.json", old="wide", new="close")
+    assert files.read("p1", "scene.json") == STRUCTURE
+
+
+def test_edit_file_still_repairs_a_broken_structure_file(tmp_path):
+    # The one way in, and it has to stay open. A file the user broke by hand fails every structural
+    # tool at json.loads; if text editing were shut too, nothing could put the comma back.
+    files = _with(tmp_path, "scene.json", '{"frames": [,]}')
+    _call(files, "edit_file", name="scene.json", old="[,]", new="[]")
+    assert files.read("p1", "scene.json") == '{"frames": []}'
+
+
+def test_read_file_still_opens_a_structure_file(tmp_path):
+    # Reading breaks nothing, and a model that cannot see the file is blind rather than safe
+    # (kullanıcı kararı, 3 Eylül).
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    assert "aylin" in _call(files, "read_file", name="scene.json")
+
+
+def test_the_door_is_not_in_front_of_the_structural_tools(tmp_path):
+    # add_frames writes the same file and must go on writing it: the door is about the model
+    # writing JSON by hand, not about the tools that own the shape.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "add_frames", name="scene.json", frames=[FRAME])
+    assert len(json.loads(files.read("p1", "scene.json"))["frames"]) == 3
+
+
 def test_text_that_is_not_in_the_file_changes_nothing(tmp_path):
     files = _with(tmp_path, "plan.md", "alpha")
     assert "not in plan.md" in _call(files, "edit_file", name="plan.md", old="beta", new="x")
