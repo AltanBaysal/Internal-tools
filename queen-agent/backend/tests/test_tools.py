@@ -278,6 +278,10 @@ def test_every_tool_is_declared_to_the_model():
         "remove_outfit",
         "remove_location",
         "remove_frame",
+        # Madde 158, and the last of the holes Madde 151 opened: correcting a frame that is already
+        # written. Apart from write_frame_prompt so that the intent is in the call rather than in
+        # what the tool finds when it gets there.
+        "update_frame",
     }
 
 
@@ -1433,3 +1437,149 @@ def test_removing_never_draws_a_card(tmp_path):
         # Asked as well, because created is None for a tool nobody knows too -- and this claim is
         # about a removal that happened, not about a name run_tool did not recognise.
         assert ran.outcome != "Unknown tool"
+
+
+# --- correcting a frame that is already written (Madde 158) ---------------------------------------
+#
+# The last of the holes Madde 151 opened. CROWDED serves it whole: frames 1 and 3 are written, frame
+# 2 carries a scene and nothing else, so what may be updated and what may not are both already there.
+
+
+def _frame_at(files, number, name="scene.json"):
+    return _frames_of(files, name)[number - 1]
+
+
+def test_updating_one_field_leaves_the_rest_of_the_frame_alone(tmp_path):
+    # The whole of the tool in one line, and the half a test can miss: proving the camera changed
+    # says nothing about whether the action survived.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "update_frame", file="scene.json", frame=1, camera="close-up, from below")
+    frame = _frame_at(files, 1)
+    assert frame["camera"] == "close-up, from below"
+    assert frame["action"] == "one"
+    assert frame["location"] == "bedroom"
+    assert frame["characters"] == {"aylin": ["gecelik"]}
+    assert frame["scene"] == "bir"
+
+
+def test_several_fields_change_in_one_call(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "update_frame", file="scene.json", frame=1, action="standing", camera="full body")
+    frame = _frame_at(files, 1)
+    assert frame["action"] == "standing" and frame["camera"] == "full body"
+
+
+def test_the_scene_is_corrected_by_the_same_tool(tmp_path):
+    # No update_scene. Updating is one action on a frame whatever field it lands on, and a fifth
+    # tool would teach the model nothing it does not already know.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "update_frame", file="scene.json", frame=1, scene="bambaska bir an")
+    frame = _frame_at(files, 1)
+    assert frame["scene"] == "bambaska bir an"
+    assert frame["action"] == "one"
+
+
+def test_who_is_in_the_frame_can_be_changed(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "update_frame", file="scene.json", frame=1, characters={"lara": ["palto"]})
+    assert _frame_at(files, 1)["characters"] == {"lara": ["palto"]}
+
+
+def test_a_frame_with_no_prompt_yet_is_refused(tmp_path):
+    # write, not update. The two being separate is what keeps the intent in every call and stops a
+    # frame nobody has written from being half-filled by hand.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "update_frame", file="scene.json", frame=2, camera="close")
+    assert "write_frame_prompt" in said
+    assert "camera" not in _frame_at(files, 2)
+
+
+def test_a_call_that_changes_nothing_is_refused(tmp_path):
+    # Silent success is a model believing it did something. A call carrying only the file and the
+    # number is asking for nothing.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "update_frame", file="scene.json", frame=1)
+    assert "nothing" in said.lower()
+    assert _frame_at(files, 1)["action"] == "one"
+
+
+def test_one_field_nobody_knows_refuses_the_whole_call(tmp_path):
+    # Madde 152's rule, kept. Writing the known half and dropping the rest would have the model
+    # believing it wrote a frame that does not exist.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "update_frame", file="scene.json", frame=1, camera="close", mood="tense")
+    assert "mood" in said
+    assert _frame_at(files, 1)["camera"] == "wide"
+
+
+def test_a_character_no_map_knows_is_refused_before_anything_is_written(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "update_frame", file="scene.json", frame=1, characters={"ghost": []})
+    assert "ghost" in said and "aylin" in said
+    assert _frame_at(files, 1)["characters"] == {"aylin": ["gecelik"]}
+
+
+def test_an_outfit_no_map_knows_is_refused_the_same_way(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "update_frame", file="scene.json", frame=1, characters={"lara": ["yok"]})
+    assert "yok" in said and "gecelik" in said
+    assert _frame_at(files, 1)["characters"] == {"aylin": ["gecelik"]}
+
+
+def test_a_character_wearing_nothing_is_not_a_mistake(tmp_path):
+    # The schema's own rule since outfits existed: a name with no outfit is an empty list. What is
+    # refused is a name that does not exist, never the absence of one.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "update_frame", file="scene.json", frame=1, characters={"lara": []})
+    assert _frame_at(files, 1)["characters"] == {"lara": []}
+
+
+def test_updating_a_frame_that_is_not_there_says_how_many_there_are(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "update_frame", file="scene.json", frame=9, camera="close")
+    assert "3" in said and "9" in said
+
+
+@pytest.mark.parametrize("number", [0, -1])
+def test_updating_a_frame_below_one_is_refused(tmp_path, number):
+    # frames[-1] again, and it would rewrite the last frame rather than remove it -- quieter still.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "update_frame", file="scene.json", frame=number, camera="from behind")
+    assert str(number) in said
+    # The last frame specifically, because that is the one frames[-1] would have reached.
+    assert _frame_at(files, 3)["camera"] == "close"
+
+
+def test_a_frame_number_written_as_digits_is_taken_by_update_too(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "update_frame", file="scene.json", frame="3", camera="from behind")
+    assert _frame_at(files, 3)["camera"] == "from behind"
+
+
+def test_updating_in_a_file_that_is_not_there_is_an_answer(tmp_path):
+    said = _call(_files(tmp_path), "update_frame", file="ghost.json", frame=1, camera="close")
+    assert "no file by that name" in said.lower()
+
+
+def test_updating_in_a_broken_file_says_what_the_parser_said(tmp_path):
+    files = _with(tmp_path, "scene.json", "{ not json")
+    said = _call(files, "update_frame", file="scene.json", frame=1, camera="close")
+    assert "not valid json" in said.lower()
+
+
+def test_an_update_leaves_the_frames_own_number_where_it_was(tmp_path):
+    # The stamp is the code's (Madde 153) and an update is not a place for it to move or vanish.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "update_frame", file="scene.json", frame=3, camera="from behind")
+    # The change asked for as well, or the numbers would be right on a file nothing had touched.
+    assert _frame_at(files, 3)["camera"] == "from behind"
+    assert [frame["frame"] for frame in _frames_of(files)] == [1, 2, 3]
+
+
+def test_updating_never_draws_a_card(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    ran = run_tool(
+        files, "p1", "update_frame", json.dumps({"file": "scene.json", "frame": 1, "camera": "c"})
+    )
+    assert ran.created is None
+    assert ran.outcome != "Unknown tool"
