@@ -2,6 +2,11 @@
 // tore the picking machinery out because a single model left it idle, and two more ended that
 // premise rather than overturned it.
 //
+// Five since Madde 149, and still three models: the DeepSeek pair is offered a second time over a
+// second provider. Their weights are MIT, so which provider runs them is a choice -- and the two
+// providers behave differently on the work this app does. The pairs sit next to each other because
+// the reason both exist is to be run one after the other on the same request.
+//
 // The list lives here rather than in the backend, exactly as the skills' does: what the server
 // knows is what an id MEANS -- its address and the key it spends (config.py) -- never which one is
 // selected. The selection is the session's and rides on each message.
@@ -23,9 +28,19 @@ export const MODELS = [
     detail: "$0.22 / $0.66 per 1M",
   },
   {
+    id: "deepseek/deepseek-v4-flash-0731",
+    name: "DeepSeek Flash · Infra",
+    detail: "$0.08 / $0.18 per 1M",
+  },
+  {
     id: "deepseek-v4-pro",
     name: "DeepSeek Pro",
     detail: "$0.66 / $1.98 per 1M",
+  },
+  {
+    id: "deepseek/deepseek-v4-pro-0813",
+    name: "DeepSeek Pro · Infra",
+    detail: "$1.30 / $2.60 per 1M",
   },
 ];
 
