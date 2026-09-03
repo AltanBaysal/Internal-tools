@@ -38,16 +38,11 @@ def test_the_schema_says_what_belongs_where():
     assert "changes" in said and "outfits" in said
 
 
-def test_the_example_carries_no_quality_field():
-    # Madde 110: what the example shows is what gets copied, and this one was copying a chain that
-    # mixed two model families into every scenario.
-    assert '"quality"' not in _schema()
-
-
-def test_the_schema_says_where_the_quality_chain_comes_from():
-    said = _schema().lower()
-    assert "quality chain is not in this file" in said
-    assert "code puts it at the front" in said
+def test_the_schema_never_mentions_quality():
+    # Madde 150: there is one chain, it lives in code, and no file can change it -- so there is
+    # nothing here for the model to decide. A paragraph explaining a field it cannot write would
+    # only invite it to try, which is how Madde 110's mixed chain reached real files.
+    assert "quality" not in _schema().lower()
 
 
 def test_an_outfit_entry_dresses_one_person():
@@ -171,9 +166,10 @@ def test_the_rulebook_calls_an_unused_name_a_note_rather_than_a_violation():
     assert "note, not a violation" in _rulebook()
 
 
-def test_the_rulebook_names_the_quality_field_that_actually_exists():
-    said = _rulebook().lower()
-    assert "quality" in said and "style" not in said
+def test_the_rulebook_has_no_quality_rule():
+    # The third rule went with the field (Madde 150). A rulebook entry forbidding quality tags in a
+    # frame would be the only place the word survives, and one mention is enough to teach it.
+    assert "quality" not in _rulebook().lower()
 
 
 def test_the_rulebook_has_a_sixth_rule_about_the_count():

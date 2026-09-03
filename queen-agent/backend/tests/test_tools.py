@@ -682,6 +682,8 @@ def test_add_frames_leaves_the_maps_alone(tmp_path):
     _call(files, "add_frames", name="scene.json", frames=[FRAME])
     after = json.loads(files.read("p1", "scene.json"))
     before = json.loads(STRUCTURE)
+    # quality among them on purpose: Madde 150 stopped reading the field, and this holds the tool
+    # to leaving an old file's copy of it where it is rather than tidying it away.
     for key in ("quality", "characters", "outfits", "locations"):
         assert after[key] == before[key]
 

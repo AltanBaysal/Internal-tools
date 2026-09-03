@@ -3,13 +3,17 @@ import ast
 import pytest
 
 from backend.features.workspace.domain.build_prompts import (
+    DEFAULT_QUALITY,
     build_prompts,
     prompts_name,
     render_module,
 )
 from backend.features.workspace.domain.errors import BadStructure
 
-QUALITY = "score_9_up, masterpiece"
+# The code's own chain rather than one this file invents (Madde 150). Every prompt opens with it and
+# nothing in a structure file can change that any more, so a test carrying its own would be testing
+# a door that is closed. Written once here so the assertions below read the same as they always did.
+QUALITY = DEFAULT_QUALITY
 AYLIN = "1girl, long teal hair"
 DENIZ = "1boy, short black hair"
 BEDROOM = "sunlit bedroom, morning light"
@@ -38,7 +42,6 @@ def _frame(**changes):
 
 def _structure(**changes):
     structure = {
-        "quality": QUALITY,
         "characters": {"aylin": AYLIN, "deniz": DENIZ},
         "outfits": {"gecelik": GECELIK, "gunluk": GUNLUK, "takim": TAKIM},
         "locations": {"bedroom": BEDROOM},
@@ -155,34 +158,39 @@ def test_a_structure_with_no_outfits_map_still_builds():
     assert build_prompts(structure) == [f"{QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
 
 
-def test_a_structure_without_quality_gets_the_chain_from_code():
-    # Madde 110: the chain is the same in every scenario, so the file no longer carries it -- and
-    # a model that never writes it cannot write a wrong one.
-    from backend.features.workspace.domain.build_prompts import DEFAULT_QUALITY
-
-    structure = _structure()
-    del structure["quality"]
-    assert build_prompts(structure) == [
+def test_the_chain_always_comes_from_code():
+    # Madde 110 moved the chain into code and left a door open; Madde 150 closed it. There is one
+    # chain, it is the same in every scenario, and nothing on disk decides it.
+    assert build_prompts(_structure()) == [
         f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"
     ]
 
 
-def test_a_file_that_writes_its_own_quality_keeps_it():
-    # The door left open: a scenario that needs another chain writes the field, and code steps
-    # aside rather than adding a second one.
-    from backend.features.workspace.domain.build_prompts import DEFAULT_QUALITY
+def test_a_file_that_writes_its_own_quality_is_ignored():
+    # The one behaviour this madde changes. A file carrying the field is not an error and is not
+    # rewritten -- it is simply not read, so an old file goes on building and builds the same
+    # prompt as a new one.
+    built = build_prompts(_structure(quality="score_9_up, masterpiece"))[0]
+    assert built.startswith(f"{DEFAULT_QUALITY}, ")
+    assert "masterpiece, best quality" in built  # the code's chain, not the file's two tags
+    assert not built.startswith("score_9_up, masterpiece,")
 
-    built = build_prompts(_structure())[0]
-    assert built.startswith(f"{QUALITY}, ")
-    assert DEFAULT_QUALITY not in built
+
+def test_the_quality_field_changes_nothing():
+    # The whole of what the field means now, in one line: with it and without it are the same
+    # prompt. Anything less than this leaves room for it to matter somewhere.
+    assert build_prompts(_structure(quality="a wholly different chain")) == build_prompts(
+        _structure()
+    )
 
 
 def test_loose_commas_and_spaces_are_tidied_away():
-    structure = _structure(
-        quality=" score_9_up , ",
-        frames=[_frame(action="", camera=" ,, medium shot,")],
-    )
-    assert build_prompts(structure) == [f"score_9_up, {AYLIN}, {BEDROOM}, medium shot"]
+    # Measured on a frame's own field since Madde 150: quality is no longer something a file can
+    # write, but the tidying it used to prove is _tags' and still holds.
+    structure = _structure(frames=[_frame(action=" , sitting , ", camera=" ,, medium shot,")])
+    assert build_prompts(structure) == [
+        f"{QUALITY}, {AYLIN}, {BEDROOM}, sitting, medium shot"
+    ]
 
 
 def test_a_repeated_solo_tag_is_left_exactly_as_written():
@@ -239,7 +247,7 @@ def test_a_structure_with_no_frames_says_so():
         build_prompts(_structure(frames=[]))
     assert "frame" in str(empty.value).lower()
     with pytest.raises(BadStructure):
-        build_prompts({"quality": QUALITY})
+        build_prompts({"characters": {}})
 
 
 def test_something_that_is_not_a_structure_at_all_is_refused():
@@ -380,11 +388,10 @@ def test_a_file_with_no_outfits_gives_the_identity_once():
     assert _tried(structure, "aylin") == [f"{QUALITY}, {AYLIN}"]
 
 
-def test_a_try_without_quality_gets_the_chain_from_code():
-    from backend.features.workspace.domain.build_prompts import DEFAULT_QUALITY
-
-    structure = _structure()
-    del structure["quality"]
+def test_a_try_ignores_the_files_own_quality():
+    # The same rule as a frame's, because a look at one character has to show what a frame will
+    # show -- a preview opening with a different chain would be a preview of nothing.
+    structure = _structure(quality="a wholly different chain")
     assert _tried(structure, "aylin")[0] == f"{DEFAULT_QUALITY}, {AYLIN}, {GECELIK}"
 
 
