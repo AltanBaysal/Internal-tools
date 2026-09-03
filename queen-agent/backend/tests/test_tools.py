@@ -260,6 +260,13 @@ def test_every_tool_is_declared_to_the_model():
         # Madde 128. Appending to a JSON list through edit_file made the model quote the previous
         # frame back to reach the end of it; the end of a list is something code knows.
         "add_frames",
+        # Madde 154. One tool per part of a structure file, now that create_file and edit_file
+        # cannot touch one. Three set_ rather than one taking a map: three resources, and each
+        # carries a rule the others do not -- read where the model is using it.
+        "create_structure",
+        "set_character",
+        "set_outfit",
+        "set_location",
     }
 
 
