@@ -1642,3 +1642,222 @@ def test_updating_never_draws_a_card(tmp_path):
     )
     assert ran.created is None
     assert ran.outcome != "Unknown tool"
+
+
+# --- renaming, and changing only what was given (Madde 161) ---------------------------------------
+#
+# A parameter on the set_ tools rather than a rename_ tool per map, for the reason the set_ tools
+# are three and remove_entry was refused: consolidation is for actions on one resource, and a rename
+# is an action on the entry itself. What makes it possible without a second call per frame is that
+# the tool rewrites every frame naming the old key -- by hand that was 42 calls on a 40-frame file,
+# past MAX_ROUNDS.
+#
+# With new_name in the call, kind and tags stop being required on a name that already exists: given
+# changes, left out stands -- update_frame's rule, so four tools teach one rule. A call giving
+# nothing at all is refused, the way 157 and 158 refuse a nothing.
+
+SETTERS = [
+    ("set_character", "characters", "aylin", "lara"),
+    ("set_outfit", "outfits", "gecelik", "palto"),
+    ("set_location", "locations", "bedroom", "rooftop"),
+]
+
+
+def _crowded_with(**frame_one):
+    """CROWDED with its first frame changed, so a test can put two people or two outfits in it."""
+    structure = json.loads(CROWDED)
+    structure["frames"][0].update(frame_one)
+    return json.dumps(structure)
+
+
+def test_renaming_a_character_moves_the_key_and_every_frame_follows(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "set_character", file="scene.json", name="aylin", new_name="ayla")
+    characters = _map_of(files, "scene.json", "characters")
+    assert "ayla" in characters and "aylin" not in characters
+    assert characters["ayla"] == {"kind": "girl", "tags": "long teal hair"}
+    frames = _frames_of(files)
+    assert frames[0]["characters"] == {"ayla": ["gecelik"]}
+    assert frames[2]["characters"] == {"ayla": ["gecelik"]}
+    assert "aylin" not in files.read("p1", "scene.json")
+
+
+def test_a_renamed_character_keeps_its_place_in_the_frame(tmp_path):
+    # Who leads a prompt is whoever the frame wrote first (build_prompts). A rename done by deleting
+    # the key and adding it back would move the second person to the end, and nothing on the screen
+    # would say the lead had changed.
+    files = _with(tmp_path, "scene.json", _crowded_with(characters={"aylin": ["gecelik"], "lara": []}))
+    _call(files, "set_character", file="scene.json", name="lara", new_name="leyla")
+    assert list(_frame_at(files, 1)["characters"]) == ["aylin", "leyla"]
+
+
+def test_renaming_an_outfit_follows_into_every_list_that_names_it(tmp_path):
+    files = _with(tmp_path, "scene.json", _crowded_with(characters={"aylin": ["gecelik", "palto"]}))
+    _call(files, "set_outfit", file="scene.json", name="gecelik", new_name="gomlek")
+    assert "gomlek" in _map_of(files, "scene.json", "outfits")
+    # Same position: the order of a list is the order the clothes are written in.
+    assert _frame_at(files, 1)["characters"]["aylin"] == ["gomlek", "palto"]
+    assert _frame_at(files, 3)["characters"]["aylin"] == ["gomlek"]
+
+
+def test_renaming_a_location_follows_into_every_frame_there(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "set_location", file="scene.json", name="bedroom", new_name="yatak-odasi")
+    assert "yatak-odasi" in _map_of(files, "scene.json", "locations")
+    assert [frame.get("location") for frame in _frames_of(files)] == [
+        "yatak-odasi",
+        None,
+        "yatak-odasi",
+    ]
+
+
+def test_the_answer_says_how_many_frames_followed_the_rename(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "set_character", file="scene.json", name="aylin", new_name="ayla")
+    assert "Renamed" in said and "2 frames" in said
+
+
+@pytest.mark.parametrize("tool,which,used,spare", SETTERS)
+def test_renaming_to_a_name_that_is_taken_is_refused(tmp_path, tool, which, used, spare):
+    # Two entries collapsing into one would hand every frame naming either the same text, and the
+    # one that lost is gone without a word.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, tool, file="scene.json", name=used, new_name=spare)
+    assert spare in said
+    assert set(_map_of(files, "scene.json", which)) == {used, spare}
+    assert files.read("p1", "scene.json") == CROWDED
+
+
+def test_renaming_a_name_nobody_has_is_refused_and_nothing_is_created(tmp_path):
+    # Even with kind and tags beside it. A call naming a new_name means to move something, and the
+    # thing is not there: creating a fresh entry under either name would answer a question that was
+    # not asked.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(
+        files, "set_character", file="scene.json", name="ghost", new_name="hayalet", kind="girl",
+        tags="x",
+    )
+    assert "ghost" in said
+    assert set(_map_of(files, "scene.json", "characters")) == {"aylin", "lara"}
+
+
+def test_renaming_to_an_empty_name_is_refused(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "set_character", file="scene.json", name="aylin", new_name="  ")
+    assert files.read("p1", "scene.json") == CROWDED
+
+
+def test_renaming_to_the_same_name_is_refused(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "set_character", file="scene.json", name="aylin", new_name="aylin")
+    assert "aylin" in said
+    assert files.read("p1", "scene.json") == CROWDED
+
+
+def test_a_rename_and_a_retag_land_in_one_call(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "set_character", file="scene.json", name="aylin", new_name="ayla", tags="bob cut")
+    characters = _map_of(files, "scene.json", "characters")
+    assert characters["ayla"] == {"kind": "girl", "tags": "bob cut"}
+
+
+def test_a_name_no_frame_uses_still_renames(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, "set_outfit", file="scene.json", name="palto", new_name="kaban")
+    assert "kaban" in _map_of(files, "scene.json", "outfits")
+    assert "0 frames" in said
+
+
+def test_the_old_list_form_of_a_frame_follows_a_rename(tmp_path):
+    # Files written before outfits existed carry names in a list. _worn reads both; a rename that
+    # walked only the map form would leave those frames pointing at a name that is gone.
+    files = _with(tmp_path, "scene.json", _crowded_with(characters=["aylin", "lara"]))
+    _call(files, "set_character", file="scene.json", name="aylin", new_name="ayla")
+    assert _frame_at(files, 1)["characters"] == ["ayla", "lara"]
+
+
+def test_an_outfit_written_as_a_bare_string_follows_a_rename(tmp_path):
+    # The small slip _worn forgives -- one name written without its list -- is forgiven here too,
+    # and kept in the shape it was written in.
+    files = _with(tmp_path, "scene.json", _crowded_with(characters={"aylin": "gecelik"}))
+    _call(files, "set_outfit", file="scene.json", name="gecelik", new_name="gomlek")
+    assert _frame_at(files, 1)["characters"] == {"aylin": "gomlek"}
+
+
+def test_tags_alone_leave_the_kind_where_it_was(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "set_character", file="scene.json", name="aylin", tags="bob cut")
+    assert _map_of(files, "scene.json", "characters")["aylin"] == {
+        "kind": "girl",
+        "tags": "bob cut",
+    }
+
+
+def test_a_kind_alone_leaves_the_tags_where_they_were(tmp_path):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "set_character", file="scene.json", name="aylin", kind="boy")
+    assert _map_of(files, "scene.json", "characters")["aylin"] == {
+        "kind": "boy",
+        "tags": "long teal hair",
+    }
+
+
+@pytest.mark.parametrize("tool,which,used,spare", SETTERS)
+def test_a_call_that_changes_nothing_on_a_known_name_is_refused(tmp_path, tool, which, used, spare):
+    # The user's rule (4 Sep): a new name or a field, and none of them is an error rather than a
+    # quiet success -- a model told nothing went wrong believes it changed something.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    said = _call(files, tool, file="scene.json", name=used)
+    assert "nothing" in said.lower()
+    assert files.read("p1", "scene.json") == CROWDED
+
+
+@pytest.mark.parametrize("given", [{"kind": "girl"}, {"tags": "red hair"}])
+def test_a_new_character_needs_both_a_kind_and_tags(tmp_path, given):
+    # Optional on a name that exists, required on one that does not: half a character is not a
+    # character, and a count with no kind behind it is a frame short of a 1girl.
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, "set_character", file="scene.json", name="yeni", **given)
+    assert "yeni" not in _map_of(files, "scene.json", "characters")
+
+
+@pytest.mark.parametrize("tool,which", [("set_outfit", "outfits"), ("set_location", "locations")])
+def test_a_new_entry_elsewhere_needs_its_tags(tmp_path, tool, which):
+    files = _with(tmp_path, "scene.json", CROWDED)
+    _call(files, tool, file="scene.json", name="yeni")
+    assert "yeni" not in _map_of(files, "scene.json", which)
+
+
+def test_a_plain_text_character_retagged_stays_plain_text(tmp_path):
+    # Every file written before Madde 154. Rebuilding it as a map with an empty kind would write a
+    # field that says nothing, and build_prompts would read it as nothing either way.
+    plain = json.loads(CROWDED)
+    plain["characters"]["aylin"] = "long teal hair"
+    files = _with(tmp_path, "scene.json", json.dumps(plain))
+    _call(files, "set_character", file="scene.json", name="aylin", tags="bob cut")
+    assert _map_of(files, "scene.json", "characters")["aylin"] == "bob cut"
+
+
+def test_a_plain_text_character_given_a_kind_becomes_the_map_form(tmp_path):
+    plain = json.loads(CROWDED)
+    plain["characters"]["aylin"] = "long teal hair"
+    files = _with(tmp_path, "scene.json", json.dumps(plain))
+    _call(files, "set_character", file="scene.json", name="aylin", kind="girl")
+    assert _map_of(files, "scene.json", "characters")["aylin"] == {
+        "kind": "girl",
+        "tags": "long teal hair",
+    }
+
+
+@pytest.mark.parametrize("tool", ["set_character", "set_outfit", "set_location"])
+def test_only_the_file_and_the_name_are_required_of_a_set(tool):
+    # What the model is told it must send. kind and tags left in here would have it inventing tags
+    # to get a rename through.
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)
+    assert spec["function"]["parameters"]["required"] == ["file", "name"]
+
+
+@pytest.mark.parametrize("tool", ["set_character", "set_outfit", "set_location"])
+def test_every_set_offers_new_name(tool):
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)
+    assert "new_name" in spec["function"]["parameters"]["properties"]
