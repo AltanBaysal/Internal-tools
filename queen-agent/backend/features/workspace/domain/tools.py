@@ -261,7 +261,7 @@ TOOL_SPECS = [
             "description": (
                 "Start a new structure file: the one JSON per scenario that prompts are built "
                 "from. It comes out empty -- no characters, no outfits, no locations, no frames -- "
-                "and is filled with set_character, set_outfit, set_location and add_frames. Reach "
+                "and is filled with set_character, set_outfit, set_location and add_scene. Reach "
                 "for it once per scenario, before anything else; a name that is already taken is "
                 "refused rather than written over."
             ),
