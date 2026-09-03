@@ -78,9 +78,11 @@ def test_the_instruction_reads_the_schema_before_it_builds():
     assert said.index("read_prompt_structure_schema") < said.index("build_prompts with")
 
 
-def test_the_structured_instruction_writes_the_skeleton_then_batches_of_five():
+def test_the_structured_instruction_writes_the_skeleton_then_one_frame_at_a_time():
+    # Batches of five until Madde 152, when the tool started taking a frame apart field by field --
+    # one call is one frame now, and a text still asking for five sends the model at a refusal.
     said = instruction_for("generate-prompts-plus")
-    assert "skeleton" in said and "batches of five" in said
+    assert "skeleton" in said and "one call per frame" in said
     assert "create_file" in said and "edit_file" in said
 
 
@@ -333,9 +335,11 @@ def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():
     said = instruction_for("generate-prompts-plus")
     assert "add_frames" in said
     assert "Add frames with edit_file" not in said
-    # The batches stay. They are not about anchors -- quality falls away at the end of a long
-    # answer -- so the rhythm belongs in the text even once the tool needs no read between them.
-    assert "five" in said
+    # The rhythm outlived the batches. What it was for -- quality falling away at the end of a long
+    # answer -- is now the shape of the tool itself, so the text says one call per frame instead of
+    # five at a time (Madde 152).
+    assert "five" not in said
+    assert "one call per frame" in said
 
 
 def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():
