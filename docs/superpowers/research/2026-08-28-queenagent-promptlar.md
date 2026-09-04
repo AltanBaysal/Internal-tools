@@ -50,7 +50,7 @@ koyan `xai_engine.py`'nin `_for_xai`'si.*
 | Katman | Ne zaman girer |
 |---|---|
 | `SYSTEM_PROMPT` | Her raundda, en başta |
-| Konuşma geçmişi | Her raundda — bu turun araç çağrıları da içinde |
+| Konuşma geçmişi | Her raundda — bu turun araç çağrıları da içinde, **ama yalnız tur boyunca** |
 | Dosya adları | Her raundda, diskten taze |
 | Bağlam kabı | Yalnız okunmuş dosya varsa |
 | Skill metni | Yalnız skill seçiliyse — ve **en sonda** |
@@ -114,8 +114,23 @@ konsaydı ikinci raunddan itibaren arkada kalırdı.
 ## 2 · Konuşma
 
 *`stream_answer.py`'nin `_conversation`'ı · Kaydın tamamı, `{"role", "content"}` çiftleri olarak.
-Diskte roller `user` ve `ai`; `_for_xai` ikincisini `assistant`'a çeviriyor. Tur içinde büyüyor:
-her raund modelin söylediği ve araçların cevabı listeye giriyor.*
+Diskte roller `user` ve `ai`; `_for_xai` ikincisini `assistant`'a çeviriyor.*
+
+**Tur içinde büyüyor, tur bitince kayboluyor.** Her raund iki şey ekliyor: modelin `tool_calls`
+taşıyan mesajı, ve her çağrı için aracın cevabı *(`role: tool`)*. Büyümek zorunda — model bir araç
+istedi, cevabı aynı listede dönmezse bir sonraki raund çağrının olduğunu bilemez ve aynı aracı
+yeniden çağırır.
+
+Ama bu liste **yalnız o cevaba ait**, ve diske hiç yazılmıyor *(`stream_answer.py:180`'in kendi
+yorumu: "Local to this answer and never written to the chat")*. Tur bitince kayda giren tek şey **bir
+`ai` mesajı**: modelin söylediklerinin birleşmiş hâli, yanında da adım kartları *(araç adı, hedef
+dosya, sonuç kelimesi)*. `_conversation` bir sonraki turda yalnız `role` ve `text` okuyor — kartlar
+isteğe geri girmiyor. **Yani on altı raundluk araç trafiği turla birlikte buharlaşıyor.**
+
+Biriken şey başka: **bağlam kabı** *(§1.4)*. Sohbet boyunca okunmuş son beş dosya orada duruyor ve
+içerikleri her raundda diskten taze basılıyor — bu koşunun *"denemede bakılacaklar"* listesindeki
+ölçülmemiş kalem o. Sohbetin freni ise `CONTEXT_CEILING = 50_000`: son raundun boyu bunu geçen bir
+sohbet yeni tur almıyor.
 
 ## 3 · Dosya adları
 
