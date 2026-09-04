@@ -32,7 +32,7 @@ flowchart TB
     end
     subgraph B["KARE İSTEĞİ · write_frame_prompt → engine.write_once"]
         direction TB
-        B1["<b>1 · WRITING</b><br/>system · tools.py<br/>promptu nasıl yazacağı, ve <b>yalnız o</b>"]
+        B1["<b>1 · WRITE_FRAME_SYSTEM_PROMPT</b><br/>system · tools.py<br/>promptu nasıl yazacağı, ve <b>yalnız o</b>"]
         B2["<b>2 · Haritalar + sahne</b><br/>user<br/>karakterler, kıyafetler, mekânlar JSON<br/>+ o karenin tek cümlesi"]
         B1 --> B2
     end
@@ -42,13 +42,13 @@ flowchart TB
 
 | Katman | Ana ajan raundu | Kare isteği |
 |---|---|---|
-| `SYSTEM_PROMPT` | ✓ en başta | ✗ **bilerek** — `_for_xai` atlanıyor |
+| `SYSTEM_PROMPT` | ✓ en başta | ✗ **bilerek** — yerine `WRITE_FRAME_SYSTEM_PROMPT`, `_for_xai` atlanıyor |
 | Konuşma geçmişi | ✓ | ✗ |
 | Dosya adları | ✓ | ✗ |
 | Bağlam kabı | ✓ okunmuş dosya varsa | ✗ |
 | Skill metni | ✓ seçiliyse, **en sonda** | ✗ |
 | `LAST_ROUND` | ✓ yalnız **16.** raundda — erken biten tur hiç görmüyor | ✗ |
-| `WRITING` | ✗ | ✓ tek sistem mesajı |
+| `WRITE_FRAME_SYSTEM_PROMPT` | ✗ | ✓ tek sistem mesajı |
 | Haritalar + sahne | ✗ | ✓ tek kullanıcı mesajı |
 | `tools` alanı | ✓ 17 araç *(son raund hariç)* | ✗ |
 | Kaç kere gider | Raundda 1 · turda en fazla 16 | **Kare başına 1** · çağrıda en fazla 100 |
@@ -198,9 +198,18 @@ atıyor.*
 yeniden göndermek demek — 40 kare oraya sığmazdı, ve kare başına düşen dikkat senaryo büyüdükçe
 azalırdı. Buradaki istek yalnız talimat + haritalar + bir cümle taşıyor.
 
-**`SYSTEM_PROMPT` almıyor, ve bu bilerek:** o metin proje ve araçları olan bir sohbet asistanını
-anlatıyor — bu çağrının olmadığı her şeyi. `xai_engine.py`'nin `write_once`'ı bu yüzden `_for_xai`'yi
-atlıyor.
+**Sistem promptu var — ama ajanınki değil.** Bu istek de bir `system` mesajıyla açılıyor; o mesaj
+`WRITE_FRAME_SYSTEM_PROMPT` *(§2.1)*, ve isteğin tamamı iki satır:
+
+```python
+[{"role": "system", "content": WRITE_FRAME_SYSTEM_PROMPT},
+ {"role": "user",   "content": f"{maps}\n\nScene: {frame['scene']}"}]
+```
+
+**Almadığı şey uygulamanın `SYSTEM_PROMPT`'u**, ve bu bilerek: o metin projesi, dosyaları ve araçları
+olan bir sohbet asistanını anlatıyor — bu çağrının olmadığı her şeyi. Onun yerine kendi personası
+duruyor. `xai_engine.py`'nin `write_once`'ı bu yüzden `_for_xai`'yi atlıyor ve system mesajını
+kendisi koyuyor; `complete_once` de üstüne hiçbir şey eklemiyor.
 
 **Nasıl akıyor:** ilk istek **tek başına** gider ve sağlayıcının ön ek önbelleğini ısıtır *(hepsi
 birden uçsa hiçbiri önbelleği sıcak bulmazdı)*, sonra **beşerli** dalgalar hâlinde. Beş, çünkü
@@ -208,10 +217,15 @@ sağlayıcı dolu havuzda 429 veriyor ve uygulama tekrar denemiyor — düşen i
 çağrıda en fazla **100** istek; fazlası varsa cevap onu da söylüyor — *"N frames still waiting past
 this call's limit."* — ve bir sonraki çağrı kaldığı yerden alıyor.
 
-## 1 · `WRITING` — tek sistem mesajı
+## 1 · `WRITE_FRAME_SYSTEM_PROMPT` — tek sistem mesajı
 
 *`tools.py` · Kendi çerçevesi + `SDXL_PROMPT_RULES` **(§3)**. Yan yana iki kareden hiç söz etmiyor:
 istek komşusunu göremiyor, ve bilemeyeceği bir şeyi istemek kırılmak üzere yazılmış bir kural olurdu.*
+
+*Dört işi birden yapıyor, ve adı bu yüzden bir kural listesinin adı değil: **kim olduğu** *(SDXL
+prompt yazarı)*, **ne verildiği** *(bir sahne + haritalar)*, **ne istendiği** *(sahne brif, kopyalanacak
+metin değil)*, **çıktının şekli** *(yalnız JSON — dört alan, adlar haritalardan)*, ve altında
+değerlerin nasıl yazıldığı.*
 
 > You write prompts for an SDXL-family image model. You are given one scene in the user's own language and the maps of a scenario -- its characters, outfits and locations -- and you answer with the fields of one frame.
 >
@@ -250,7 +264,7 @@ dosyanın şeklini anlatan yarı öldü *(şekli artık araçlar zorluyor)*, pro
 anlatan yarı yaşadı.*
 
 **Beş yerde duruyor, tek metin olarak:** §4'ün dört değer yazan aracının açıklamasında, ve §2'nin
-`WRITING`'inde. Bölünmüyor — `set_character` da kare kurallarını görüyor; zararı yok, ve tek kaynak
+`WRITE_FRAME_SYSTEM_PROMPT`'unda. Bölünmüyor — `set_character` da kare kurallarını görüyor; zararı yok, ve tek kaynak
 olduğu için kendiyle çelişemiyor.
 
 > Every value here is read by an SDXL-family image model, which reads tags rather than sentences: short comma-separated fragments, no articles -- sitting on couch, by window. One prompt is one frozen instant, so nothing that needs time to be seen belongs in it: a movement is written as the pose it passes through, and a cause or a moment outside the frame is written as what it looks like -- turned away, downcast eyes, tense shoulders -- or left out. An action holds only what the camera sees: the pose, the expression, where the eyes look. A camera is two decisions -- how much of the body is in the picture (close-up, upper body, medium shot, full body) and where it is looked at from (from side, from above, from behind, looking at viewer) -- and both halves come from those lists. No or in any value: the model draws one picture and cannot toss a coin. No quality tags and no count of people; code writes both, and yours would be printed twice. Whoever a frame names first opens its prompt, so write whoever the frame is about first. Everything is English -- the one exception is a frame's scene, which stays in the user's own language and never reaches a prompt.

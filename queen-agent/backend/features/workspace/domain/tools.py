@@ -137,7 +137,7 @@ SDXL_PROMPT_RULES = (
 # Built on SDXL_PROMPT_RULES since Madde 159. It carried its own copy of the rules while the schema
 # still stood, and two copies is two texts able to tell one model something the other was never
 # told.
-WRITING = (
+WRITE_FRAME_SYSTEM_PROMPT = (
     "You write prompts for an SDXL-family image model. You are given one scene in the user's own "
     "language and the maps of a scenario -- its characters, outfits and locations -- and you "
     "answer with the fields of one frame.\n"
@@ -1018,7 +1018,9 @@ def _write_frame_prompt(file_store, project_id, args, engine, model):
 
     def _written(frame):
         try:
-            answer = engine.write_once(WRITING, f"{maps}\n\nScene: {frame['scene']}", model)
+            answer = engine.write_once(
+                WRITE_FRAME_SYSTEM_PROMPT, f"{maps}\n\nScene: {frame['scene']}", model
+            )
             fields = json.loads(answer.get("text") or "")
         except Exception:
             # Whatever went wrong -- the connection, the service, an answer that is not JSON -- the
