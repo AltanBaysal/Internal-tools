@@ -19,7 +19,7 @@ Bu, CLAUDE.md'nin iki tur kuralından bilerek ayrılan tek yer, ve sebebi burada
 
 ## Ne yazılıyor
 
-`docs/2026-09-03-deepseek-reddi-ve-ikinci-saglayici.md`.
+`docs/superpowers/research/2026-09-03-deepseek-reddi-ve-ikinci-saglayici.md`.
 
 Madde 149 altı commit'ti ve hepsi geri alındı; revert **docs'u da** geri aldığı için o koşunun
 **ölçüsü** hiçbir yerde yazmıyor. Yazmadığı için aynı fikir yeniden önerilir — 149 tam olarak bu

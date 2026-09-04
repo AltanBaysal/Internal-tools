@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 17](../plans/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 26'nın görsel yarısı · **karar 16, 17** · `HANDOFF.md` §6, §9
-**Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
+**Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 
 ---
 

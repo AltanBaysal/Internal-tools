@@ -1,7 +1,7 @@
 # v14 · Görev 1 — Motorun bitiş karesi alabilmesi · **test turu**
 
 **Kaynak:** [Yol haritası v14, 1. madde](../plans/2026-08-20-queen-editor-v14-roadmap.md) ·
-[20 Ağustos arayüz brifi, 3. bölüm](../../2026-08-20-queen-editor-arayuz-brifi.md)
+[20 Ağustos arayüz brifi, 3. bölüm](../research/2026-08-20-queen-editor-arayuz-brifi.md)
 
 Bu tur yalnız testleri yazar. Takım kırmızı biter ve kırmızı commit edilir; kodu ikinci tur yazar.
 

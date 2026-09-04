@@ -191,8 +191,8 @@ Gerekçesi elde ölçüm olması — kullanıcı sıra düzeltmesini elle deneyi
 bırakıldı.
 
 İş iki backlog'a birden geçti, çünkü iki depoyu birden açıyor:
-[queen-editor](../queen-editor/BACKLOG.md) — açılacak düğüm ve bedeli;
-[queen-agent](../queen-agent/BACKLOG.md) — düğüm açıldığında `build_prompts`'ın ne yapacağı.
+[queen-editor](../../../queen-editor/BACKLOG.md) — açılacak düğüm ve bedeli;
+[queen-agent](../../../queen-agent/BACKLOG.md) — düğüm açıldığında `build_prompts`'ın ne yapacağı.
 
 **Sıra düzeltmesinin kayda geçen şüphesi:** erken jetonlar daha ağır bastığı için ikinci karakteri
 sona atmak onu ayırmakla kalmayıp zayıflatabilir. Kullanıcının ölçümü işe yaradığını söylüyor, ama

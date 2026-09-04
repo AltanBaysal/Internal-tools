@@ -412,7 +412,7 @@ devredildi; 75 iptal oldu; 71'in işini Blok 5 yaptı. Yedi maddenin hiçbiri ko
 ### Madde 70 — Karede iki karakter varsa prompt iki kişiyi söyler · **95'e devredildi**
 
 > **Bu madde tek başına koşulmuyor** *(kullanıcı kararı, 27 Ağustos)*. İçeriği bütünüyle Blok 6'nın
-> **Madde 95**'ine girdi; kararları [karar defterinde](../../2026-08-27-queenagent-skill-kararlari.md).
+> **Madde 95**'ine girdi; kararları [karar defterinde](../research/2026-08-27-queenagent-skill-kararlari.md).
 > Devrin sebebi yalnız kapsam değil: sıra düzeltmesi de `people` alanı da aynı iki yere dokunuyor —
 > `build_prompts.py` ve prompt+ metni — yani ayrı koşulsalar biri ötekinin işini bozardı.
 >
@@ -807,8 +807,8 @@ her dizilişte önceki maddenin işi sonraki tarafından atılıyor.
 # Blok 6 — Akış · madde madde · **bitti**
 
 > Bu blok 27 Ağustos'ta ayrı bir belge olarak yazıldı ve aynı gün buraya taşındı. **Kaynağı**
-> [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) ve
-> [akış tasarımı](../../2026-08-27-queenagent-akis-tasarimi.md).
+> [karar defteri](../research/2026-08-27-queenagent-skill-kararlari.md) ve
+> [akış tasarımı](../research/2026-08-27-queenagent-akis-tasarimi.md).
 
 Madde 94 skilleri bire indirdi, ve geriye kalan tek metin promptu **kuran** metin. Ama kullanıcı
 oraya gelene kadar yolun tamamı metinsiz: karakterlerin, mekânların ve sahnelerin nasıl toplanacağını
@@ -1684,7 +1684,7 @@ Hepsi ilgili maddenin spec'inde kapanır; yol haritası hiçbirini beklemez.
 | ~~Tüketim sayısı nerede duracak~~ | 68 — kapandı |
 | ~~Tool call satırının alt satırı ne söyleyecek~~ | 78 — kapandı: çağrının sonucunu söylüyor |
 | ~~Üstüne yazma kuralı nerede istisna tutacak~~ | 69 — kapandı: istisna yok. `create_file` alınmış bir adı reddediyor ve `edit_file`'ı gösteriyor; numaralı kopya düştü |
-| ~~Bugünkü yapı dosyalarındaki sayı etiketleri temizlenecek mi~~ | **Kapandı** — [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) K26, K27: dosyalar olduğu gibi kalıyor, tanımda kalan etiketi kural kitabı yakalıyor |
+| ~~Bugünkü yapı dosyalarındaki sayı etiketleri temizlenecek mi~~ | **Kapandı** — [karar defteri](../research/2026-08-27-queenagent-skill-kararlari.md) K26, K27: dosyalar olduğu gibi kalıyor, tanımda kalan etiketi kural kitabı yakalıyor |
 | ~~Bağlamın hangi yolla yönetileceği~~ | **Kapandı** — Blok 5'in 92, 93 ve 91'i cevapladı |
 | ~~Model seçici kalkacak mı, eski kayıtlardaki model adlarına ne olacak~~ | 72 — kapandı: ikisi de olduğu gibi kalıyor |
 | ~~Diskte duran dosyalar dönüştürülecek mi~~ | **Kapandı** — K26: dönüştürülmüyor, kod eksik alanı atlıyor |

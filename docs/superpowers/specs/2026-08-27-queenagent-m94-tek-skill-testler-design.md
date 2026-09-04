@@ -144,5 +144,5 @@ npm test --prefix queen-agent/frontend
 - **`prompt.py` açılmaz** — 73 bitti, taban olduğu gibi kalıyor.
 - **Seçici sökülmez** — kullanıcı kararı, 26 Ağustos.
 - **Eski spec'ler ve planlar düzeltilmez** — silinen adları anan belgeler o günün kaydı.
-- **`docs/2026-08-26-queenagent-ai-yolu-haritasi.md`** çalışma ağacında duruyor ve kullanıcının
+- **`docs/superpowers/research/2026-08-26-queenagent-ai-yolu-haritasi.md`** çalışma ağacında duruyor ve kullanıcının
   kendi işi; bu madde ona dokunmuyor.

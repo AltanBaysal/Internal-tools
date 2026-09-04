@@ -54,7 +54,7 @@ anlamı yok.
 |---|---|---|
 | K12 | **`BREAK` bu koşuda kullanılmıyor.** Problem 1'in ilacı sıra düzeltmesi *(K3)*. | Problem belgesi, araştırma bölümü |
 | K13 | **Sebebi elde ölçüm olması:** kullanıcı sıra düzeltmesini elle deneyip işe yaradığını gördü. `BREAK` için önce queen-editor'ün düğümü açması gerekiyor. | Kullanıcı, 27 Ağustos |
-| K14 | **`BREAK` güncellemesi haftaya**, ve iş iki backlog'a birden geçti. queen-editor'de açılacak düğüm `36`. | [queen-editor](../queen-editor/BACKLOG.md) · [queen-agent](../queen-agent/BACKLOG.md) |
+| K14 | **`BREAK` güncellemesi haftaya**, ve iş iki backlog'a birden geçti. queen-editor'de açılacak düğüm `36`. | [queen-editor](../../../queen-editor/BACKLOG.md) · [queen-agent](../../../queen-agent/BACKLOG.md) |
 | K15 | **Kayda geçen şüphe:** erken jetonlar daha ağır bastığı için sıra düzeltmesi ikinci karakteri ayırmakla kalmayıp zayıflatabilir. `BREAK` geldiğinde iki ilaca birden gerek olup olmadığı yeniden sorulacak. | Problem belgesi |
 
 ## C · Skill yapısı

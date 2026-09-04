@@ -86,7 +86,7 @@ bugünün tarifi değil, dünün tarifidir ve okunursa ölü kural bulgu diye ya
 **Uygulama tarafı** — repodaki `queen-editor/`. Bugünkü davranışın tek kaynağı burasıdır. Yazılı
 tarif tarafı: `queen-editor/FOUNDATION.md` ve `queen-editor/BACKLOG.md`.
 
-**Brif çelişkisi bölümü için** — [arayüz brifi](../../2026-08-20-queen-editor-arayuz-brifi.md) ve
+**Brif çelişkisi bölümü için** — [arayüz brifi](../research/2026-08-20-queen-editor-arayuz-brifi.md) ve
 [istek listesi](../plans/2026-08-20-queen-editor-istekler.md).
 
 ## İki geçersizlik kuralı — biri öncülden, biri yeni

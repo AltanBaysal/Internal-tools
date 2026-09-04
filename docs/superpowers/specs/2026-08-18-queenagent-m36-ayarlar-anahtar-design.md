@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 36](../plans/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** kullanıcı isteği (18 Ağustos) — tasarım belgelerinde karşılığı yok
-**Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
+**Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 
 ---
 

@@ -1,7 +1,7 @@
 # Madde 101 — Start a scenario doğar · **test turu**
 
 **Tarih:** 2026-08-28 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [akış tasarımı](../../2026-08-27-queenagent-akis-tasarimi.md) — ve
+**Kaynak:** [akış tasarımı](../research/2026-08-27-queenagent-akis-tasarimi.md) — ve
 [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md), Blok 6, Madde 101 ·
 **Şartı:** 96, 97, 98 — şema aracı, edit kipinde plan, karakter denemesi. Üçü de bitti.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod bir sonraki turda.

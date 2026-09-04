@@ -1,7 +1,7 @@
 # QueenAgent — yapı dosyası ve araçları (anlaşma notu)
 
 **Tarih:** 3 Eylül 2026 · **Durum:** ⚠️ **AŞILDI — tarihsel kayıt.** Bugün ne olduğunu
-[v7 yol haritası](superpowers/plans/2026-09-03-v7-roadmap.md) söyler, ve son sözü kod söyler.
+[v7 yol haritası](../plans/2026-09-03-v7-roadmap.md) söyler, ve son sözü kod söyler.
 
 Bu belge konuşmanın ortasında yazıldı: anlaşalım diye. Anlaşıldı, ve tasarım **konuşmanın devamında
 değişti** — aşağıdaki üç şey artık doğru değil:

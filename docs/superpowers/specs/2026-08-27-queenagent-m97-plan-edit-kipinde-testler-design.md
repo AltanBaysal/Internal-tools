@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
 **Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 97 ·
-**Kararı:** [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) K22 ·
+**Kararı:** [karar defteri](../research/2026-08-27-queenagent-skill-kararlari.md) K22 ·
 **Şartı yok.**
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.
 

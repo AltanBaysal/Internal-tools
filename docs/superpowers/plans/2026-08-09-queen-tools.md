@@ -793,7 +793,7 @@ Tablonun hemen altına, `Usage:` satırından önce:
 **queen-tools is one chain, not two tools.** Queen Editor's Export file is turned into motion prompts
 by `prompt_converter`, and `photo_to_video` reads the result and writes the videos under
 `MyDrive/queen-tools/<project>/`. Queen Editor's own folder is only ever read — the design and its
-reasoning: [docs/superpowers/specs/2026-08-09-queen-tools-design.md](docs/superpowers/specs/2026-08-09-queen-tools-design.md).
+reasoning: [docs/superpowers/specs/2026-08-09-queen-tools-design.md](../specs/2026-08-09-queen-tools-design.md).
 Both notebooks take their work order from a file you upload, so nothing is picked from Drive by name.
 ```
 

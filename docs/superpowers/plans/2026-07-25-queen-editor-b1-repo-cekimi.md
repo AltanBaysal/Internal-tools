@@ -44,7 +44,7 @@ A two-screen web UI over the `nova-3dcg` ComfyUI photo pipeline: create a projec
 list, generate photos into a Google Drive folder. Runs on Google Colab.
 
 Built in cumulative parts — see
-[`docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md`](../docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md).
+[`docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md`](2026-07-24-queen-editor-roadmap.md).
 **Part 1** is only this: prove the private repo clones on Colab.
 
 ## Part 1 — Repo checkout

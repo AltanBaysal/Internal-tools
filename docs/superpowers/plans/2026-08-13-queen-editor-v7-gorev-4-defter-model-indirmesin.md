@@ -203,7 +203,7 @@ with nothing installed and that is the expected state, not a failure.
 
 | Inherited (knowledge) | Never (dependency) |
 |---|---|
-| Setup cells for **code** — custom nodes, headless ComfyUI — copied verbatim into `app.ipynb`, because that machinery is proven | Running or importing their cells, or reading a file they own. Model installation is inherited from nobody: it is the app's own, in the producers feature ([FOUNDATION 9](FOUNDATION.md)) |
+| Setup cells for **code** — custom nodes, headless ComfyUI — copied verbatim into `app.ipynb`, because that machinery is proven | Running or importing their cells, or reading a file they own. Model installation is inherited from nobody: it is the app's own, in the producers feature ([FOUNDATION 9](../../../queen-editor/FOUNDATION.md)) |
 
 `README.md`: 3. adımdaki "downloads ~7.5 GiB of models (~10-15 min…)" cümlesi kalkar, yerine
 kurulumun uygulamadan yapıldığı yazılır; 2. adımdaki çerez açıklamasında "model cell stops" yerine

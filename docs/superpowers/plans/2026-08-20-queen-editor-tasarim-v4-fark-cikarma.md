@@ -205,7 +205,7 @@ yalın "v4" kullanma. Repo tarafına roadmap numarası atama, "bugünkü uygulam
 
 İŞ B — BRİF ÇELİŞKİSİ (ayrı dosyaya):
 Şu iki repo belgesini oku:
-  docs/2026-08-20-queen-editor-arayuz-brifi.md
+  docs/superpowers/research/2026-08-20-queen-editor-arayuz-brifi.md
   docs/superpowers/plans/2026-08-20-queen-editor-istekler.md
 Brifteki her "Karar verildi" maddesini tek tek al ve tasarımın ne yaptığına bak. Tasarım o kararı
 uygulamışsa YAZMA. Uygulamamış, değiştirmiş ya da geri almışsa yaz. Bilinen bir örnek: brif
@@ -569,7 +569,7 @@ Bu görevde commit yok.
 **Çıktı:** belgenin 3. bölümünü besleyecek liste.
 
 **Arayüz:**
-- Tüketir: `yol-1-brif-celiskisi.md`; [arayüz brifi](../../2026-08-20-queen-editor-arayuz-brifi.md);
+- Tüketir: `yol-1-brif-celiskisi.md`; [arayüz brifi](../research/2026-08-20-queen-editor-arayuz-brifi.md);
   [istek listesi](2026-08-20-queen-editor-istekler.md).
 - Üretir: `brifin kararı · tasarımın yerine koyduğu · tasarımın gerekçesi` üçlüsünden oluşan liste.
 

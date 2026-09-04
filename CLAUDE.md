@@ -45,7 +45,9 @@ The user tests at the end of a run, not between items.
 Roadmaps live in [docs/superpowers/plans/](docs/superpowers/plans/), one file per run, highest `vN`
 current. One problem, one item, ordered so nothing is built before what it stands on, each saying
 what will work and how it will be seen. Numbering never shifts: written specs cite it. A spec
-derives from its source document, never the reverse.
+derives from its source document, never the reverse — and that source lives in
+[docs/superpowers/research/](docs/superpowers/research/): the decision ledgers, briefs, problem
+lists and investigations a run is written from. Nothing else sits under `docs/`.
 
 ## Gotchas
 

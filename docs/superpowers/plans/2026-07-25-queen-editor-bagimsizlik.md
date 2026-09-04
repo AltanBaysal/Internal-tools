@@ -146,7 +146,7 @@ Read ile `queen-editor/CODE-STANDARD.md`'yi aç; yeni bölüm `## Stack` ile `##
 `**Tarih:** 2026-07-24 · **Durum:** onaylandı, implementasyon planı bekliyor` satırının altına:
 
 ```markdown
-**Revizyon:** Drive kökü `photoGenV2` değil `queenEditor` — bkz. [collab-toolbox'tan bağımsızlık](2026-07-25-queen-editor-bagimsizlik-design.md) (2026-07-25).
+**Revizyon:** Drive kökü `photoGenV2` değil `queenEditor` — bkz. [collab-toolbox'tan bağımsızlık](../specs/2026-07-25-queen-editor-bagimsizlik-design.md) (2026-07-25).
 ```
 
 - [ ] **Step 2: Şemsiye spec'in Drive kökü karar satırını değiştir**
@@ -154,7 +154,7 @@ Read ile `queen-editor/CODE-STANDARD.md`'yi aç; yeni bölüm `## Stack` ile `##
 Kararlar tablosundaki satır (`| Proje = Drive klasörü \`photoGenV2/<ad>/\`; ad Türkçe ve boşluk serbest | …`) şununla değiştirilir:
 
 ```markdown
-| Proje = Drive klasörü `queenEditor/<ad>/`; ad Türkçe ve boşluk serbest | Tasarımın brief'i + kullanıcı kararı. Kök Queen Editor'ün kendisi: `photoGenV2` nova-3dcg notebook'unun klasörü ve içinde `output/` var — her alt klasör proje sayıldığı için orada hayalet kart çıkardı ([bağımsızlık spec'i](2026-07-25-queen-editor-bagimsizlik-design.md)). Sadece dosya sisteminde geçersiz karakterler (`/ \ : * ? " < > \|`), baş/son boşluk ve nokta engellenir; 1–64 karakter. Tasarımdaki örnek adlar (`kapak çekimi`, `lookbook-mayıs`) aynen çalışır. |
+| Proje = Drive klasörü `queenEditor/<ad>/`; ad Türkçe ve boşluk serbest | Tasarımın brief'i + kullanıcı kararı. Kök Queen Editor'ün kendisi: `photoGenV2` nova-3dcg notebook'unun klasörü ve içinde `output/` var — her alt klasör proje sayıldığı için orada hayalet kart çıkardı ([bağımsızlık spec'i](../specs/2026-07-25-queen-editor-bagimsizlik-design.md)). Sadece dosya sisteminde geçersiz karakterler (`/ \ : * ? " < > \|`), baş/son boşluk ve nokta engellenir; 1–64 karakter. Tasarımdaki örnek adlar (`kapak çekimi`, `lookbook-mayıs`) aynen çalışır. |
 ```
 
 - [ ] **Step 3: Şemsiye spec'in kalan iki `photoGenV2` geçişini değiştir**
@@ -178,7 +178,7 @@ Dosyadaki her geçiş Queen Editor'ün kökünü anlatıyor (Amaç, Kararlar, do
 Kararlar tablosundaki `Drive kökü config.DRIVE_ROOT, QE_DRIVE_ROOT ortam değişkeniyle geçersiz kılınır; notebook CONFIG'inde DRIVE_FOLDER = "queenEditor"` satırının gerekçe hücresinin sonuna:
 
 ```markdown
-Kök Queen Editor'ün kendi klasörü — nova-3dcg'nin `photoGenV2`'si değil; sebep [bağımsızlık spec'inde](2026-07-25-queen-editor-bagimsizlik-design.md) (yabancı alt klasör hayalet proje kartı üretir). Ad tek düğme: notebook CONFIG'indeki `DRIVE_FOLDER`; kod, yorum ve docstring adı tekrar etmez, yalnız "Drive kökü" der.
+Kök Queen Editor'ün kendi klasörü — nova-3dcg'nin `photoGenV2`'si değil; sebep [bağımsızlık spec'inde](../specs/2026-07-25-queen-editor-bagimsizlik-design.md) (yabancı alt klasör hayalet proje kartı üretir). Ad tek düğme: notebook CONFIG'indeki `DRIVE_FOLDER`; kod, yorum ve docstring adı tekrar etmez, yalnız "Drive kökü" der.
 ```
 
 - [ ] **Step 7: Bölüm 3 planındaki tüm `photoGenV2` geçişlerini `queenEditor` yap**

@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
 **Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 98 ·
-**Kararı:** [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) K36 ·
+**Kararı:** [karar defteri](../research/2026-08-27-queenagent-skill-kararlari.md) K36 ·
 **Şartı:** Madde 95 — aynı kurucuyu paylaşıyor *(`1e11e78`)*
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.
 
