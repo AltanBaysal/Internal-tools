@@ -83,7 +83,7 @@ WRITES_FILES = {
 #
 # The cap is there because a run is meant to be repeatable rather than complete: the tool fills what
 # is empty, so a file with more than this is finished by calling again.
-AT_MOST = 100
+MOST_FRAMES_PER_CALL = 100
 
 # The rules an SDXL prompt value is written by, and the whole of what is left of the schema
 # (Madde 159). Named for what it is: the first name, CRAFT, said nothing to whoever met it cold.
@@ -682,7 +682,7 @@ def is_structure(name):
 # Said once, by both tools that used to be able to write one. What it does not say is which tool to
 # use instead: those do not exist yet, and naming one that is not there sends the model looking for
 # it -- or inventing it. The names go in when they arrive.
-_NOT_AS_TEXT = "{} is a structure file; it is not written or changed as text."
+_REFUSED_AS_TEXT = "{} is a structure file; it is not written or changed as text."
 
 
 def _reads_as_json(content):
@@ -749,7 +749,7 @@ def run_tool(file_store, project_id, name, arguments, engine=None, model=""):
         # "already there" instead, and the model would read the difference as a door that opens for
         # a name nobody has used yet.
         if is_structure(wanted):
-            return ToolResult(_NOT_AS_TEXT.format(wanted), None, wanted, "Refused")
+            return ToolResult(_REFUSED_AS_TEXT.format(wanted), None, wanted, "Refused")
         # Asked of the names rather than by reading the file: the question is whether the name is
         # taken, and pulling a whole document back to learn that is work nobody needs.
         if wanted in file_store.list_names(project_id):
@@ -840,7 +840,7 @@ def _edit(file_store, project_id, args):
     # would be shut. So: a structure file that still parses is the tools' to change; one that does
     # not is text, and text is what this is for.
     if is_structure(wanted) and _reads_as_json(content):
-        return ToolResult(_NOT_AS_TEXT.format(wanted), None, wanted, "Refused")
+        return ToolResult(_REFUSED_AS_TEXT.format(wanted), None, wanted, "Refused")
 
     old = args.get("old") or ""
     if not old:
@@ -995,8 +995,8 @@ def _write_frame_prompt(file_store, project_id, args, engine, model):
     if not waiting:
         return ToolResult(f"Every frame in {source} is written.", None, source, "Nothing to write")
 
-    left = max(0, len(waiting) - AT_MOST)
-    waiting = waiting[:AT_MOST]
+    left = max(0, len(waiting) - MOST_FRAMES_PER_CALL)
+    waiting = waiting[:MOST_FRAMES_PER_CALL]
     # The invariant half first, the scene last: the provider's prefix cache can only hit on what
     # every request shares, and it shares everything but the final line.
     maps = json.dumps(
@@ -1277,7 +1277,7 @@ def _remove_entry(file_store, project_id, args, which):
         # Rule 5 of the fourteen, and now an answer at the moment it is about something. The numbers
         # are the useful half: what the model does next is fix those frames.
         return ToolResult(
-            f"{key} {_STILL[which]} {', '.join(str(place) for place in used)}. Nothing was removed.",
+            f"{key} {_STILL_USED_IN[which]} {', '.join(str(place) for place in used)}. Nothing was removed.",
             None,
             source,
             "Still in use",
@@ -1434,7 +1434,7 @@ def _a_number(given):
 # How a frame reaches each map, said as the middle of one sentence rather than as three sentences.
 # A character is in a frame, an outfit is worn in one, a place is where one happens -- three
 # relationships, and one verb for all of them would read as though they were the same thing.
-_STILL = {
+_STILL_USED_IN = {
     "characters": "is still in frames",
     "outfits": "is still worn in frames",
     "locations": "is still the place in frames",
