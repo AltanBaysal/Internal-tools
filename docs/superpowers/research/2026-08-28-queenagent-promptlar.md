@@ -12,7 +12,9 @@ tutmuyorsa inanılacak olan kod.
 
 # §0 · İki tür istek
 
-Uygulamada modele giden **yalnız iki** istek şekli var, ve ikisi hiçbir şeyi paylaşmıyor.
+Uygulamada modele giden **yalnız iki** istek şekli var, ve ikisi hiçbir şeyi paylaşmıyor — bu yüzden
+aşağıda yan yana değil, **ayrı ayrı** anlatılıyorlar. Ortak bir katmanları olmadığı için karşılaştırma
+her satırda "öteki bunu almıyor" demekten ibaret kalıyordu.
 
 > **İki kelime, iki ölçek.** Bir **tur**, kullanıcının bir mesajına verilen tek cevap. O turun içinde
 > en fazla **16 raund** var, ve her raund modele atılan ayrı bir istek — `MAX_ROUNDS = 16` raundu
@@ -40,22 +42,38 @@ flowchart TB
     B -.->|"araç yok"| N["—"]
 ```
 
-| Katman | Ana ajan raundu | Kare isteği |
-|---|---|---|
-| `SYSTEM_PROMPT` | ✓ en başta | ✗ **bilerek** — yerine `WRITE_FRAME_SYSTEM_PROMPT`, `_for_xai` atlanıyor |
-| Konuşma geçmişi | ✓ | ✗ |
-| Dosya adları | ✓ | ✗ |
-| Bağlam kabı | ✓ okunmuş dosya varsa | ✗ |
-| Skill metni | ✓ seçiliyse, **en sonda** | ✗ |
-| `LAST_ROUND` | ✓ yalnız **16.** raundda — erken biten tur hiç görmüyor | ✗ |
-| `WRITE_FRAME_SYSTEM_PROMPT` | ✗ | ✓ tek sistem mesajı |
-| Haritalar + sahne | ✗ | ✓ tek kullanıcı mesajı |
-| `tools` alanı | ✓ 17 araç *(son raund hariç)* | ✗ |
-| Kaç kere gider | Raundda 1 · turda en fazla 16 | **Kare başına 1** · çağrıda en fazla 100 |
-| Hangi modele | Turun modeli *(`_current_model`)* | **Aynı model** — turunki geçirilir |
+## A · Ana ajan raundu — `stream_answer` → `engine.stream`
 
-**Kaynak:** `stream_answer.py`'nin `_asked`'ı sırayı kuruyor, `xai_engine.py`'nin `_for_xai`'si
-`SYSTEM_PROMPT`'u başa koyuyor, `tools.py`'nin `_write_frame_prompt`'u ikinciyi atıyor.
+*Sohbetin kendisi. Sırayı `stream_answer.py`'nin `_asked`'ı kuruyor; `SYSTEM_PROMPT`'u en başa
+koyan `xai_engine.py`'nin `_for_xai`'si.*
+
+| Katman | Ne zaman girer |
+|---|---|
+| `SYSTEM_PROMPT` | Her raundda, en başta |
+| Konuşma geçmişi | Her raundda — bu turun araç çağrıları da içinde |
+| Dosya adları | Her raundda, diskten taze |
+| Bağlam kabı | Yalnız okunmuş dosya varsa |
+| Skill metni | Yalnız skill seçiliyse — ve **en sonda** |
+| `LAST_ROUND` | Yalnız **16.** raundda; erken biten tur bunu hiç görmüyor |
+
+- **`tools` alanı:** 17 araç, son raund hariç. Mesaj metnine yapıştırılmıyor — isteğin ayrı bir alanı.
+- **Kaç kere gider:** raundda bir, turda en fazla on altı.
+- **Hangi model:** turun kendi modeli, `_current_model`.
+
+## B · Kare isteği — `write_frame_prompt` → `engine.write_once`
+
+*Bir aracın içinden çıkan, sohbetten habersiz istek. `tools.py`'nin `_write_frame_prompt`'u atıyor,
+ve `xai_engine.py`'nin `write_once`'ı `_for_xai`'yi **bilerek** atlıyor — gerekçesi §2'de.*
+
+| Katman | Ne zaman girer |
+|---|---|
+| `WRITE_FRAME_SYSTEM_PROMPT` | Her istekte — tek sistem mesajı |
+| Haritalar + sahne | Her istekte — tek kullanıcı mesajı |
+
+- **`tools` alanı yok.** Bu isteğin çağırabileceği bir araç yok; cevabı JSON, araç çağrısı değil.
+- **Kaç kere gider:** kare başına bir, bir çağrıda en fazla yüz.
+- **Hangi model:** turun modeli. `stream_answer` `_current_model`'ı `run_tool`'a, o da `write_once`'a
+  geçiriyor — ayrı olan model değil isteğin kendisi.
 
 ## Sıra neden böyle
 
