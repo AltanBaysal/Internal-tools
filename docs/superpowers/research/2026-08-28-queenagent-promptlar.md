@@ -284,6 +284,17 @@ tutabiliyor, ve son satır dışında hepsi ortak.*
 Scene: Aylin sabah yatağın kenarında mektubu okuyor
 ```
 
+**İçindeki tam olarak üç harita:** `characters`, `outfits`, `locations` — dosyanın **tamamı**, bu
+karede geçenler değil. Model adları oradan seçiyor, ve seçebilmesi için hepsini görmesi gerekiyor.
+Boş bir harita `{}` olarak gidiyor, hiç atlanmıyor.
+
+**İçinde olmayan:** `frames`. Ne komşu kareler, ne bu karenin numarası — sahnenin tek cümlesi
+dışında kareden hiçbir şey. `WRITE_FRAME_SYSTEM_PROMPT`'un komşu kareden hiç söz etmemesinin sebebi
+bu: istek onları göremiyor.
+
+**Haritalar bir kez hesaplanıyor**, kare döngüsünün dışında, ve yüz isteğin hepsinde birebir aynı
+metin. Değişen tek satır sondaki `Scene:` — ön ek önbelleği tam olarak buna dayanıyor.
+
 *Karakter girdisi düz metin ve sayısını kendi taşıyor — `1girl` **onun** etiketlerinin ilki *(Madde
 163)*. 154 ile 163 arasında yazılmış dosyalar `{"kind": …, "tags": …}` haritası taşıyor; okunuyor,
 ama artık yazılmıyor ve `kind` hiçbir yere girmiyor.*
@@ -292,6 +303,26 @@ ama artık yazılmıyor ve `kind` hiçbir yere girmiyor.*
 ya da haritaların bilmediği bir ad taşıyan cevap **o kareyi boş bırakıyor**, komşularına dokunmadan,
 ve rapor kaçının boş kaldığını söylüyor. Tekrar denenmiyor: araç yalnız boşları doldurduğu için
 **tekrar çağırmak zaten tekrar denemek**.
+
+## 3 · Ana ajana dönen rapor
+
+*Yüz isteğin sonucu ana ajana **tek cümle** olarak dönüyor — kareler tek tek değil, sayılarla.*
+
+```
+Wrote 12 frames in bar-scene.json. 3 frames left empty; call again to try them.
+5 frames still waiting past this call's limit.
+```
+
+- **İlk cümle her zaman var.** İkincisi yalnız boş kalan varsa, üçüncüsü yalnız 100'ü aşan varsa.
+- **Hiç boş kare yoksa** araç isteği hiç atmıyor: *"Every frame in bar-scene.json is written."*
+- **Modelsiz çağrılırsa** *(motor yoksa)*: *"write_frame_prompt cannot run without a model to ask."*
+- **Kartta görünen** `12 frames` — yazılanın sayısı.
+- **Fatura da dönüyor:** yüz alt isteğin harcaması turun hesabına ekleniyor, yani damgada görünüyor.
+
+**Söylemediği şey: hangi karelerin düştüğü.** Yalnız kaç tane. Kodun kendi gerekçesi *"modelin
+ihtiyacı olan şey sayı"* — araç zaten yalnız boşları doldurduğu için modelin yapacağı tek şey
+yeniden çağırmak, ve bunun için numaraya ihtiyacı yok. Numara isteyen taraf **kullanıcı**, ve o
+dosyayı zaten görüyor.
 
 ---
 
