@@ -91,9 +91,17 @@ okutuyor. Adı da kalıyor — yazdığı şekil hâlâ o.
    **`test_a_map_form_character_retagged_becomes_plain_text`** — haritalı `aylin`'e yalnız `tags`
    gelince girdi düz metne dönüyor. Bugün harita kalıyor
    ve `kind` korunuyor.
-10. **`test_the_prompt_rules_leave_the_count_and_the_quality_to_code` →
-    `test_the_prompt_rules_leave_the_quality_to_code`** — kurallar hâlâ `quality` diyor, ama artık
-    `count` demiyor: `"count" not in said`. Bugün diyor.
+10. **`test_the_prompt_rules_leave_the_count_and_the_quality_to_code`**, yerine
+    **`test_the_prompt_rules_leave_the_quality_to_code_and_the_count_to_the_character`** — kurallar
+    hâlâ `quality` diyor, ama sayı için artık *"kodu yazar"* demiyor: **sayının karakterin kendi
+    etiketlerine yazıldığını** söylüyor.
+
+    **Bu çivi bir kez yanlış çakıldı ve düzeltildi** *(aynı tur, ayrı commit)*. İlk hali `"count" not
+    in said` diyordu — yani cümlenin tamamen silinmesini. Yanlıştı: bu metni **kare yazıcısı da
+    okuyor** *(`WRITE_FRAME_SYSTEM_PROMPT`)*, ve onun yazacağı bir karakter girdisi yok. Kural hiç
+    söylenmezse sayı `action` alanına düşmeye başlar, ve prompt hem karakterin kendi `1girl`'ünü hem
+    aksiyondaki `2girls`'ü taşır — 156'nın çözdüğü hatanın aynısı, başka bir kapıdan. Cümle
+    **siliniyor değil, yön değiştiriyor**: *"kodu yazar"* → *"karakterin kendi etiketlerine yazılır"*.
 11. **Yeni: `test_the_character_tool_asks_for_the_count_in_the_tags`** — `set_character`'ın `tags`
     açıklaması modele sayıyı yazdırıyor: içinde `1girl` geçiyor. Bugün tam tersini söylüyor
     *("no count")*.

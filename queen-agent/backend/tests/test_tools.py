@@ -722,13 +722,16 @@ def test_the_prompt_rules_say_who_opens_a_prompt():
     assert "first" in _rules().lower()
 
 
-def test_the_prompt_rules_leave_the_quality_to_code():
-    # The quality chain is still code's (Madde 150). The count is not, from Madde 163 on -- and a
-    # rule still forbidding it here would contradict set_character's own tags description, which is
-    # the drift Madde 159 collapsed two texts into one to end.
+def test_the_prompt_rules_leave_the_quality_to_code_and_the_count_to_the_character():
+    # The quality chain is still code's (Madde 150). The count is the model's again from Madde 163,
+    # so the rules cannot go on saying code writes it -- one text telling a model the opposite of
+    # what the parameter beside it says is the drift Madde 159 collapsed two texts into one to end.
+    #
+    # Said rather than dropped, because this text is read by the frame writer too, and that one has
+    # no character entry to write a count into: left unsaid, a count would start landing in actions.
     said = _rules().lower()
     assert "quality" in said
-    assert "count" not in said
+    assert "count of people belongs in a character" in said
 
 
 def test_the_prompt_rules_say_nothing_about_the_shape_of_the_file():
