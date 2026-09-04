@@ -24,11 +24,6 @@ class FakeEngine:
         # route that dropped it on the floor gets caught.
         self.model = None
 
-    def complete(self, messages, tools=None):
-        if self.blow_up:
-            raise RuntimeError(self.blow_up)
-        return {"role": "assistant", "content": self.answer}
-
     def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
         if self.blow_up:
             raise RuntimeError(self.blow_up)

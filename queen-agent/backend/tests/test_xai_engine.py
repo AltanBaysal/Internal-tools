@@ -25,10 +25,6 @@ class FakeClient:
         self.on_open = None
         self.conversation_id = None
 
-    def complete(self, messages, tools=None):
-        self.seen = messages
-        return {"role": "assistant", "content": "hi"}
-
     def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         self.seen = messages
         self.on_open = on_open
@@ -38,7 +34,7 @@ class FakeClient:
 
 def test_the_system_prompt_leads_and_the_roles_are_translated():
     client = FakeClient()
-    _engine(client).complete(CONVERSATION)
+    list(_engine(client).stream(CONVERSATION))
     assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
     # Disk keeps the design's own word; xAI is told OpenAI's.
     assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
@@ -50,16 +46,9 @@ def test_the_fixed_part_leads_and_the_last_word_stays_last():
     # instruction would land in the middle again and nothing else would notice.
     client = FakeClient()
     tail = {"role": "system", "content": "the instruction"}
-    _engine(client).complete(CONVERSATION + [tail])
+    list(_engine(client).stream(CONVERSATION + [tail]))
     assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
     assert client.seen[-1] == tail
-
-
-def test_streaming_is_prepared_the_same_way():
-    client = FakeClient()
-    list(_engine(client).stream(CONVERSATION))
-    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
-    assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
 
 
 def test_the_way_to_cut_the_answer_travels_down_to_the_client():

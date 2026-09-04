@@ -31,10 +31,18 @@ def _client(opener, api_key="key"):
     return XaiClient(lambda: api_key, "grok-4.5", "https://api.x.ai/v1", opener=opener)
 
 
+def test_the_client_has_one_road_that_is_not_a_stream():
+    # Madde 164. complete_once is what a one-shot goes through and complete was a second door onto
+    # the same request, with the usage thrown away and nothing calling it. Watched rather than
+    # simply deleted, so it cannot come back.
+    assert hasattr(XaiClient, "complete_once")
+    assert not hasattr(XaiClient, "complete")
+
+
 def test_no_key_is_reported_before_anything_is_sent():
     sent = []
     with pytest.raises(XaiNotConfigured) as refused:
-        _client(lambda request: sent.append(request), api_key="").complete(MESSAGES)
+        _client(lambda request: sent.append(request), api_key="").complete_once(MESSAGES)
     assert sent == []
     # Deliberately does not name where a key would come from. The client is not told, and a sentence
     # that guessed would have been wrong twice already -- once when Settings replaced the
@@ -51,16 +59,19 @@ def test_the_key_is_read_at_every_request():
         return _Response({"choices": [{"message": {"role": "assistant", "content": "hi"}}]})
 
     client = XaiClient(lambda: keys.pop(0), "grok-4.5", "https://api.x.ai/v1", opener=opener)
-    client.complete(MESSAGES)
-    client.complete(MESSAGES)
+    client.complete_once(MESSAGES)
+    client.complete_once(MESSAGES)
     # Read per request rather than held: the client stays out of the question of where the key comes
     # from, so a source that can change mid-run costs it nothing.
     assert seen == ["Bearer first", "Bearer second"]
 
 
-def test_the_answer_is_the_assistant_message():
+def test_the_answer_and_what_it_cost_come_back_together():
+    # What a one-shot hands back (Madde 155): the text on its own, and the usage beside it, because
+    # a call outside a conversation has no stream for the spending to be counted from. A service
+    # that says nothing about cost answers None rather than zeroes.
     opener = lambda request: _Response({"choices": [{"message": {"role": "assistant", "content": "hi"}}]})
-    assert _client(opener).complete(MESSAGES) == {"role": "assistant", "content": "hi"}
+    assert _client(opener).complete_once(MESSAGES) == {"text": "hi", "usage": None}
 
 
 def test_the_request_carries_the_model_the_messages_and_the_bearer():
@@ -72,7 +83,7 @@ def test_the_request_carries_the_model_the_messages_and_the_bearer():
         seen["body"] = json.loads(request.data.decode("utf-8"))
         return _Response({"choices": [{"message": {"content": "hi"}}]})
 
-    _client(opener).complete(MESSAGES)
+    _client(opener).complete_once(MESSAGES)
     assert seen["url"] == "https://api.x.ai/v1/chat/completions"
     assert seen["auth"] == "Bearer key"
     assert seen["body"]["model"] == "grok-4.5"
@@ -95,13 +106,15 @@ def test_a_stream_carries_the_configured_model_too():
 
 
 def test_tools_are_sent_when_given():
+    # Asked of the stream since Madde 164, because that is the one road tools travel: a one-shot
+    # writes a prompt and has nothing to call.
     seen = {}
 
     def opener(request):
         seen["body"] = json.loads(request.data.decode("utf-8"))
-        return _Response({"choices": [{"message": {"content": "hi"}}]})
+        return io.BytesIO(b"data: [DONE]\n")
 
-    _client(opener).complete(MESSAGES, tools=[{"type": "function"}])
+    list(_client(opener).stream(MESSAGES, tools=[{"type": "function"}]))
     assert seen["body"]["tools"] == [{"type": "function"}]
 
 
@@ -112,7 +125,7 @@ def test_an_http_error_carries_the_services_own_words():
         )
 
     with pytest.raises(XaiFailed) as failure:
-        _client(opener).complete(MESSAGES)
+        _client(opener).complete_once(MESSAGES)
     # A 401 is not necessarily an expired key, so the message repeats what came back.
     assert "401" in str(failure.value)
     assert "bad key" in str(failure.value)
@@ -342,7 +355,7 @@ def test_a_request_that_is_not_a_stream_does_not_ask():
         seen["body"] = json.loads(request.data.decode("utf-8"))
         return _Response({"choices": [{"message": {"content": "hi"}}]})
 
-    _client(opener).complete(MESSAGES)
+    _client(opener).complete_once(MESSAGES)
     assert "stream_options" not in seen["body"]
 
 
@@ -437,7 +450,7 @@ def test_a_dead_connection_is_reported_too():
         raise urllib.error.URLError("connection refused")
 
     with pytest.raises(XaiFailed) as failure:
-        _client(opener).complete(MESSAGES)
+        _client(opener).complete_once(MESSAGES)
     assert "connection refused" in str(failure.value)
 
 
