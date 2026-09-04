@@ -79,11 +79,6 @@ WRITES_FILES = {
     "create_structure",
 }
 
-# What a character can be, and the whole of it (Madde 154). A closed set because Madde 156 counts
-# with these and nothing else: free text here would not fail, it would quietly stop counting -- one
-# scenario's prompts short of a 1girl and nobody looking for why.
-KINDS = ("girl", "boy")
-
 # How many frames one call will write, and how many requests fly at once (Madde 155).
 #
 # The cap is there because a run is meant to be repeatable rather than complete: the tool fills what
@@ -121,8 +116,10 @@ SDXL_PROMPT_RULES = (
     "camera is two decisions -- how much of the body is in the picture (close-up, upper body, "
     "medium shot, full body) and where it is looked at from (from side, from above, from behind, "
     "looking at viewer) -- and both halves come from those lists. No or in any value: the model "
-    "draws one picture and cannot toss a coin. No quality tags and no count of people; code writes "
-    "both, and yours would be printed twice. Whoever a frame names first opens its prompt, so "
+    "draws one picture and cannot toss a coin. No quality tags: code writes those, and yours would "
+    "be printed twice. A count of people belongs in a character's own tags and nowhere else, "
+    "because that is the one place it lands beside the person it counts. Whoever a frame names "
+    "first opens its prompt, so "
     "write whoever the frame is about first. Everything is English -- the one exception is a "
     "frame's scene, which stays in the user's own language and never reaches a prompt."
 )
@@ -282,14 +279,14 @@ TOOL_SPECS = [
         "function": {
             "name": "set_character",
             "description": (
-                "Write a character into a structure file: who they are, in tags, and what kind of "
-                "person they are. This is what stays the same about them in every frame -- face, "
-                "hair, build, age. Clothing never goes here, because clothing is what changes from "
-                "frame to frame: that belongs in set_outfit, and a frame names the two together. "
+                "Write a character into a structure file: who they are, in tags. This is what "
+                "stays the same about them in every frame -- face, hair, build, age. Clothing never "
+                "goes here, because clothing is what changes from frame to frame: that belongs in "
+                "set_outfit, and a frame names the two together. "
                 "A name that is already there is updated rather than added twice, and the answer "
                 "says how many frames the change reached. On a character who is already there, send "
                 "only what you are changing -- anything you leave out stays as it is; a new one "
-                "needs both a kind and tags.\n\n" + SDXL_PROMPT_RULES
+                "needs tags.\n\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -302,19 +299,14 @@ TOOL_SPECS = [
                             "lower case; it is a key, not something the picture shows."
                         ),
                     },
-                    "kind": {
-                        "type": "string",
-                        "enum": list(KINDS),
-                        "description": (
-                            "girl or boy. Code counts the people in a frame from this, so it is "
-                            "never written into a frame or into the tags below."
-                        ),
-                    },
                     "tags": {
                         "type": "string",
                         "description": (
-                            "Who they are, as short comma-separated fragments: woman in her mid "
-                            "20s, long teal hair, green eyes. No sentence, no clothing, no count."
+                            "Who they are, as short comma-separated fragments, opening with what "
+                            "this one person counts as: 1girl, woman in her mid 20s, long teal "
+                            "hair, green eyes. Always 1 -- one entry is one person, and a frame "
+                            "holding several of them shows each one's tags in turn. No sentence "
+                            "and no clothing."
                         ),
                     },
                     "new_name": {
@@ -1108,7 +1100,6 @@ def _set_entry(file_store, project_id, args, which):
 
     # `in` rather than .get(), because an empty string is a value: it is the only way the model can
     # clear a text it wrote before, and .get() would read that as nothing having been given.
-    kind = str(args["kind"]).strip() if args.get("kind") is not None else None
     tags = args["tags"] if args.get("tags") is not None else None
     moving = args.get("new_name")
 
@@ -1124,27 +1115,17 @@ def _set_entry(file_store, project_id, args, which):
                 source,
                 "Not there",
             )
-        # Required on a name that does not exist, optional on one that does: half a character is not
-        # a character, and a kind is what Madde 156 counts a frame's people from.
-        if tags is None or (which == "characters" and kind is None):
-            wanted = "a kind and tags" if which == "characters" else "tags"
-            return ToolResult(
-                f"A new {which[:-1]} needs {wanted}.", None, source, "Refused"
-            )
+        # Required on a name that does not exist, optional on one that does: an entry with no text
+        # is a name the prompts would build nothing out of. One rule for the three maps since Madde
+        # 163 -- a character has no second field left to be missing.
+        if tags is None:
+            return ToolResult(f"A new {which[:-1]} needs tags.", None, source, "Refused")
 
-    if key in entries and kind is None and tags is None and moving is None:
+    if key in entries and tags is None and moving is None:
         # Silent success is a model believing it changed something. The same refusal update_frame
         # and the remove_ tools give when a call asks for nothing.
         return ToolResult(
             f"Nothing was given to change about {key}.", None, source, "Nothing to change"
-        )
-
-    if kind is not None and kind not in KINDS:
-        return ToolResult(
-            f"kind is {' or '.join(KINDS)}; {kind or 'nothing'} is neither.",
-            None,
-            source,
-            "Refused",
         )
 
     # Every refusal about the new name lands before anything is written, as everywhere else here.
@@ -1163,11 +1144,11 @@ def _set_entry(file_store, project_id, args, which):
                 f"There is already a {which[:-1]} called {moving}.", None, source, "Already there"
             )
 
+    # Given changes, left out stands -- update_frame's rule, so four tools teach one. A name that is
+    # not there yet cannot reach here without tags, so there is no third case to write.
     stood = key in entries
-    if not stood:
-        entries[key] = {"kind": kind, "tags": tags} if which == "characters" else tags
-    else:
-        entries[key] = _changed(entries[key], which, kind, tags)
+    if tags is not None:
+        entries[key] = tags
 
     followed = _renamed(structure, which, key, moving) if moving else 0
     file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
@@ -1177,7 +1158,7 @@ def _set_entry(file_store, project_id, args, which):
     if moving:
         # What else moved with it, because a call can carry both and the answer is where the model
         # reads what it just did.
-        also = " and changed its text" if kind is not None or tags is not None else ""
+        also = " and changed its text" if tags is not None else ""
         return ToolResult(
             f"Renamed {key} to {moving} in {which}{also}; "
             f"{counted(followed, 'frame')} followed.",
@@ -1195,27 +1176,6 @@ def _set_entry(file_store, project_id, args, which):
         source,
         "Changed",
     )
-
-
-def _changed(entry, which, kind, tags):
-    """An entry with the fields that were given written onto it, and the rest left alone.
-
-    update_frame's rule, so that four tools teach one. Only characters have two fields to keep apart;
-    a place or an outfit is its text.
-
-    A plain-text character given only tags stays plain text: a map with an empty kind would be a
-    field saying nothing, and _kind reads it as nothing either way. It becomes the map form the
-    moment a kind arrives, and the old text carries over as its tags.
-    """
-    if which != "characters":
-        return entry if tags is None else tags
-    if kind is None and not isinstance(entry, dict):
-        return entry if tags is None else tags
-    was = entry if isinstance(entry, dict) else {"kind": "", "tags": entry}
-    return {
-        "kind": was.get("kind", "") if kind is None else kind,
-        "tags": was.get("tags", "") if tags is None else tags,
-    }
 
 
 def _renamed(structure, which, old, new):
