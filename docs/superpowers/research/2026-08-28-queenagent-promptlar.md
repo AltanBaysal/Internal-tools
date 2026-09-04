@@ -14,40 +14,45 @@ tutmuyorsa inanılacak olan kod.
 
 Uygulamada modele giden **yalnız iki** istek şekli var, ve ikisi hiçbir şeyi paylaşmıyor.
 
+> **İki kelime, iki ölçek.** Bir **tur**, kullanıcının bir mesajına verilen tek cevap. O turun içinde
+> en fazla **16 raund** var, ve her raund modele atılan ayrı bir istek — `MAX_ROUNDS = 16` raundu
+> sayar, turu değil. Belge boyunca "tur" hep cevabın tamamı, "raund" hep tek bir istek.
+
 ```mermaid
 flowchart TB
-    subgraph A["ANA AJAN TURU · stream_answer → engine.stream"]
+    subgraph A["ANA AJAN RAUNDU · stream_answer → engine.stream"]
         direction TB
         A1["<b>1 · SYSTEM_PROMPT</b><br/>system · prompt.py<br/>QueenAgent kim, nasıl çalışır<br/><i>_for_xai en başa koyar</i>"]
         A2["<b>2 · Konuşma</b><br/>user / assistant<br/>sohbetin tamamı + bu turun araç çağrıları"]
         A3["<b>3 · Dosya adları</b><br/>system · _named<br/>projede ne var, tek satır"]
         A4["<b>4 · Bağlam kabı</b><br/>system · _boxed<br/>okunmuş son 5 dosyanın <i>o anki</i> içeriği<br/><i>yalnız okunmuş dosya varsa</i>"]
         A5["<b>5 · Skill metni</b><br/>system · skills.py<br/><i>yalnız skill seçiliyse</i>"]
-        A6["<b>6 · LAST_ROUND</b><br/>system · prompt.py<br/><i>yalnız 16. turda</i>"]
+        A6["<b>6 · LAST_ROUND</b><br/>system · prompt.py<br/><i>yalnız 16. raundda</i>"]
         A1 --> A2 --> A3 --> A4 --> A5 --> A6
     end
-    subgraph B["ALT MODEL İSTEĞİ · write_frame_prompt → engine.write_once"]
+    subgraph B["KARE İSTEĞİ · write_frame_prompt → engine.write_once"]
         direction TB
         B1["<b>1 · WRITING</b><br/>system · tools.py<br/>promptu nasıl yazacağı, ve <b>yalnız o</b>"]
         B2["<b>2 · Haritalar + sahne</b><br/>user<br/>karakterler, kıyafetler, mekânlar JSON<br/>+ o karenin tek cümlesi"]
         B1 --> B2
     end
-    A -.->|"tools: 17 araç<br/><i>son tur hariç</i>"| T["<b>tools alanı</b><br/>mesaj değil, isteğin ayrı alanı"]
+    A -.->|"tools: 17 araç<br/><i>son raund hariç</i>"| T["<b>tools alanı</b><br/>mesaj değil, isteğin ayrı alanı"]
     B -.->|"araç yok"| N["—"]
 ```
 
-| Katman | Ana ajan turu | Alt model isteği |
+| Katman | Ana ajan raundu | Kare isteği |
 |---|---|---|
 | `SYSTEM_PROMPT` | ✓ en başta | ✗ **bilerek** — `_for_xai` atlanıyor |
 | Konuşma geçmişi | ✓ | ✗ |
 | Dosya adları | ✓ | ✗ |
 | Bağlam kabı | ✓ okunmuş dosya varsa | ✗ |
 | Skill metni | ✓ seçiliyse, **en sonda** | ✗ |
-| `LAST_ROUND` | ✓ yalnız son turda | ✗ |
+| `LAST_ROUND` | ✓ yalnız son raundda | ✗ |
 | `WRITING` | ✗ | ✓ tek sistem mesajı |
 | Haritalar + sahne | ✗ | ✓ tek kullanıcı mesajı |
-| `tools` alanı | ✓ 17 araç *(son tur hariç)* | ✗ |
-| Kaç kere gider | Turda 1, turda en fazla 16 | **Kare başına 1**, çağrıda en fazla 100 |
+| `tools` alanı | ✓ 17 araç *(son raund hariç)* | ✗ |
+| Kaç kere gider | Raundda 1 · turda en fazla 16 | **Kare başına 1** · çağrıda en fazla 100 |
+| Hangi modele | Turun modeli *(`_current_model`)* | **Aynı model** — turunki geçirilir |
 
 **Kaynak:** `stream_answer.py`'nin `_asked`'ı sırayı kuruyor, `xai_engine.py`'nin `_for_xai`'si
 `SYSTEM_PROMPT`'u başa koyuyor, `tools.py`'nin `_write_frame_prompt`'u ikinciyi atıyor.
@@ -56,23 +61,23 @@ flowchart TB
 
 **Sabit olan başta, değişen sonda.** Dikkat bir bağlamın iki ucunda en yüksek ve ortada üçte birden
 fazla düşüyor; ön ek önbelleği ise başın hiç değişmemesini istiyor. `SYSTEM_PROMPT` her istekte
-aynı, skill metni turdan tura aynı ama sohbete göre değişiyor, `LAST_ROUND` on altı turdan birinde
-var. Sıra bu ölçüye göre dizilmiş.
+aynı, skill metni raunddan raunda aynı ama sohbete göre değişiyor, `LAST_ROUND` on altı raundun
+yalnız birinde var. Sıra bu ölçüye göre dizilmiş.
 
 **Dosya adları ve kap ortada duruyor:** konuşmanın arkasında, çünkü bu turda doğan bir dosyanın bir
 sonraki raundda görülmesi gerekiyor; skill metninin önünde, çünkü son söz Madde 93'te ona verildi.
 
-**Her tur baştan kurulur.** Liste büyüyor — her round modelin söylediğini ve araçların cevabını
-ekliyor — o yüzden skill metni her turda **yeniden** sona ekleniyor. Bir kez konuşmanın içine
-konsaydı ikinci turdan itibaren arkada kalırdı.
+**Her raund baştan kurulur.** Liste büyüyor — her raund modelin söylediğini ve araçların cevabını
+ekliyor — o yüzden skill metni her raundda **yeniden** sona ekleniyor. Bir kez konuşmanın içine
+konsaydı ikinci raunddan itibaren arkada kalırdı.
 
 ---
 
-# §1 · Ana ajan turu, katman katman
+# §1 · Ana ajan raundu, katman katman
 
 ## 1 · Taban yönerge
 
-*`prompt.py`'nin `SYSTEM_PROMPT`'u · Her kipte, her skill'de, her turda, en başta.*
+*`prompt.py`'nin `SYSTEM_PROMPT`'u · Her kipte, her skill'de, her raundda, en başta.*
 
 > You are QueenAgent, the assistant inside a small AI workspace. Answer the user directly and concisely, in the language the user writes in.
 >
@@ -92,7 +97,7 @@ konsaydı ikinci turdan itibaren arkada kalırdı.
 
 *`stream_answer.py`'nin `_conversation`'ı · Kaydın tamamı, `{"role", "content"}` çiftleri olarak.
 Diskte roller `user` ve `ai`; `_for_xai` ikincisini `assistant`'a çeviriyor. Tur içinde büyüyor:
-her round modelin söylediği ve araçların cevabı listeye giriyor.*
+her raund modelin söylediği ve araçların cevabı listeye giriyor.*
 
 ## 3 · Dosya adları
 
@@ -122,8 +127,8 @@ uyacağını seçtirirdi.*
 > \--- bar-scene.json ---
 > *(dosyanın o andaki hâli, `cat -n` biçiminde — numara altı karakterlik alana sağa yaslı, ardından sekme)*
 
-> ⚠️ **4 Eylül'de düşülen not.** Bu kap **her turda** gidiyor. 40 karelik bir yapı dosyası kabaca
-> 15 KB ≈ 4–5 bin jeton, ve dosya bir kez okunduktan sonra sohbetin geri kalanında her round
+> ⚠️ **4 Eylül'de düşülen not.** Bu kap **her raundda** gidiyor. 40 karelik bir yapı dosyası kabaca
+> 15 KB ≈ 4–5 bin jeton, ve dosya bir kez okunduktan sonra sohbetin geri kalanında her raund
 > yeniden biniyor. Hata değil — 129 donmuş kopyanın bayatlamasını çözerken bunu seçti — ama o gün
 > yapı dosyaları küçüktü; artık sahne, prompt ve numara taşıyorlar. Colab denemesinde damgadaki
 > gerçek rakama bakılacak.
@@ -162,22 +167,26 @@ katman hiç yok — **sıradan hâl bu.***
 >
 > A complaint about a prompt is set_character, set_outfit or set_location on the entry it names -- the one edit reaching every frame that names it -- and then build_prompts again. The prompt file is rebuilt rather than patched.
 
-## 6 · Son tur bildirimi
+## 6 · Son raund bildirimi
 
-*`prompt.py`'nin `LAST_ROUND`'u · Madde 137. **Yalnız 16. turda**, her şeyin en sonunda. O tura araç
-da verilmiyor — söylenmekle kalsa bu bir rica olurdu.*
+*`prompt.py`'nin `LAST_ROUND`'u · Madde 137. **Yalnız 16. raundda**, her şeyin en sonunda. O raunda
+araç da verilmiyor — söylenmekle kalsa bu bir rica olurdu.*
 
 > This is the last round of this turn. No tool will run after it, so nothing you ask for here comes back -- answer now with what you already have. Say what you did, what is left, and what the next step would be: the work carries on in the user's next message, and this answer is the only place they can read where it stood.
 
 ---
 
-# §2 · Alt model isteği
+# §2 · Kare isteği
 
 *`tools.py`'nin `_write_frame_prompt`'u · Madde 155. **Ana ajanın hiç görmediği** ikinci bir istek
 türü: `write_frame_prompt` çağrılınca araç, promptu boş olan **her kare için ayrı bir istek**
 atıyor.*
 
-**Neden döngü, tek bir istek değil:** ana ajanda 16 round demek, her round'da bütün sohbet geçmişini
+> **Küçük bir model değil, küçük bir istek.** Bu çağrı turun kendi modeline gidiyor — `stream_answer`
+> `_current_model`'ı `run_tool`'a, o da `write_once`'a geçiriyor. Ayrı olan şey model değil isteğin
+> kendisi: sohbetsiz, araçsız, tek işi olan bir soru.
+
+**Neden döngü, tek bir istek değil:** ana ajanda 16 raund demek, her raundda bütün sohbet geçmişini
 yeniden göndermek demek — 40 kare oraya sığmazdı, ve kare başına düşen dikkat senaryo büyüdükçe
 azalırdı. Buradaki istek yalnız talimat + haritalar + bir cümle taşıyor.
 
@@ -188,7 +197,8 @@ atlıyor.
 **Nasıl akıyor:** ilk istek **tek başına** gider ve sağlayıcının ön ek önbelleğini ısıtır *(hepsi
 birden uçsa hiçbiri önbelleği sıcak bulmazdı)*, sonra **beşerli** dalgalar hâlinde. Beş, çünkü
 sağlayıcı dolu havuzda 429 veriyor ve uygulama tekrar denemiyor — düşen istek düşen kare demek. Bir
-çağrıda en fazla **100** istek.
+çağrıda en fazla **100** istek; fazlası varsa cevap onu da söylüyor — *"N frames still waiting past
+this call's limit."* — ve bir sonraki çağrı kaldığı yerden alıyor.
 
 ## 1 · `WRITING` — tek sistem mesajı
 
@@ -246,7 +256,7 @@ olduğu için kendiyle çelişemiyor.
 
 **Madde 99'dan beri hepsi her kipte gidiyor.** Kip *(`ask` · `plan` · `edit`)* hangilerinin
 **sormadan** koşacağını söylüyor, hangilerinin gönderileceğini değil — `modes.py`. Tek istisna son
-tur: cevabı okuyacak round kalmadığı için araç verilmiyor.
+raund: cevabı okuyacak raund kalmadığı için araç verilmiyor.
 
 Model `description` alanını okuyor; `parameters` vereceği argümanların şeması.
 
