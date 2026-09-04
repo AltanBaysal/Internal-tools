@@ -692,12 +692,15 @@ def test_a_tool_that_writes_no_value_does_not_carry_it(tool):
     assert _rules() not in _description(tool)
 
 
-def test_the_sub_model_is_told_the_same_thing(tmp_path):
-    from backend.features.workspace.domain.tools import WRITING
+def test_the_frame_request_is_told_the_same_thing(tmp_path):
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
 
     # Madde 155 wrote this text a second time on purpose, with the schema still standing. One source
     # now, so the two cannot drift into telling one model something the other was never told.
-    assert _rules() in WRITING
+    #
+    # The request is what is separate here, never the model: stream_answer hands the turn's own
+    # _current_model down through run_tool into write_once.
+    assert _rules() in WRITE_FRAME_SYSTEM_PROMPT
 
 
 def test_the_prompt_rules_teach_the_form_of_a_value():

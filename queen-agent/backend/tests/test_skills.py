@@ -228,9 +228,9 @@ def test_the_sentence_is_a_brief_never_the_frames_text():
     # The observed failure: scene sentences retold as the action, word for word. The line that
     # holds that door moved with the work (Madde 155) -- the skill no longer writes a frame, so it
     # is told to the model that does.
-    from backend.features.workspace.domain.tools import WRITING
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
 
-    assert "never text to copy" in WRITING
+    assert "never text to copy" in WRITE_FRAME_SYSTEM_PROMPT
 
 
 def test_the_writer_is_not_asked_for_what_it_cannot_see():
@@ -238,9 +238,9 @@ def test_the_writer_is_not_asked_for_what_it_cannot_see():
     # differ. Madde 155 gave each frame a request that carries only its own scene, so the writer has
     # no neighbour to differ from -- and a rule written to be broken teaches that rules can be. The
     # file's whole shape is the main model's to see, and its to fix.
-    from backend.features.workspace.domain.tools import WRITING
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
 
-    assert "neighbour" not in WRITING.lower()
+    assert "neighbour" not in WRITE_FRAME_SYSTEM_PROMPT.lower()
     assert "the same framing and angle" not in instruction_for("generate-prompts-plus")
 
 
