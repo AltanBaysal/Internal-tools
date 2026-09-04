@@ -47,7 +47,7 @@ flowchart TB
 | Dosya adları | ✓ | ✗ |
 | Bağlam kabı | ✓ okunmuş dosya varsa | ✗ |
 | Skill metni | ✓ seçiliyse, **en sonda** | ✗ |
-| `LAST_ROUND` | ✓ yalnız son raundda | ✗ |
+| `LAST_ROUND` | ✓ yalnız **16.** raundda — erken biten tur hiç görmüyor | ✗ |
 | `WRITING` | ✗ | ✓ tek sistem mesajı |
 | Haritalar + sahne | ✗ | ✓ tek kullanıcı mesajı |
 | `tools` alanı | ✓ 17 araç *(son raund hariç)* | ✗ |
@@ -171,6 +171,14 @@ katman hiç yok — **sıradan hâl bu.***
 
 *`prompt.py`'nin `LAST_ROUND`'u · Madde 137. **Yalnız 16. raundda**, her şeyin en sonunda. O raunda
 araç da verilmiyor — söylenmekle kalsa bu bir rica olurdu.*
+
+> **Adı yanıltmasın: bu her turun son raundu değil, 16.'sı.** Sıradan bir tur ikinci ya da üçüncü
+> raundda biter — model araç istemeyi bırakır, döngü kırılır — ve **gerçekte sonuncu olan o raund
+> hiçbir bildirim almaz.** Sebebi şu: *bir raundun sonuncu olduğu ancak bittikten sonra anlaşılıyor.*
+> Kod bunu modelin araç istemeden cevap vermesinden öğreniyor, ve o anda istek çoktan gitmiş oluyor.
+> **Önceden sonuncu olduğu bilinen tek raund 16.** — onu sonuncu yapan model değil, tavan. Kullanıcı
+> durdurduğunda ve `plan` kipinde `write_plan` turu kapattığında da gitmiyor. Yani bir kapanış
+> merasimi değil, **bütçenin bittiğini söyleyen uyarı**.
 
 > This is the last round of this turn. No tool will run after it, so nothing you ask for here comes back -- answer now with what you already have. Say what you did, what is left, and what the next step would be: the work carries on in the user's next message, and this answer is the only place they can read where it stood.
 
