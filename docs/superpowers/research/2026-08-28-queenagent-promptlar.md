@@ -1,7 +1,7 @@
 # QueenAgent — modele giden her metin
 
-**İlk yazımı:** 28 Ağustos 2026 · **Son eşleme:** 4 Eylül 2026 *(v6 ve v7 koşuları: Madde 150–161.
-Bu kopya `feat/v7` dalının hâli.)*
+**İlk yazımı:** 28 Ağustos 2026 · **Son eşleme:** 4 Eylül 2026 *(v6 ve v7 koşuları: Madde 150–165,
+artı üç adlandırma düzeltmesi. Bu kopya `feat/v7` dalının hâli.)*
 
 **Yaşayan asılları kodda** — `prompt.py`, `tools.py`, `skills.py`, `permission.py`,
 `context_box.py`, `stream_answer.py` — ve kod değişirse doğru olan onlardır, bu belge değil. Belge
@@ -212,10 +212,11 @@ duruyor. `xai_engine.py`'nin `write_once`'ı bu yüzden `_for_xai`'yi atlıyor v
 kendisi koyuyor; `complete_once` de üstüne hiçbir şey eklemiyor.
 
 **Nasıl akıyor:** ilk istek **tek başına** gider ve sağlayıcının ön ek önbelleğini ısıtır *(hepsi
-birden uçsa hiçbiri önbelleği sıcak bulmazdı)*, sonra **beşerli** dalgalar hâlinde. Beş, çünkü
-sağlayıcı dolu havuzda 429 veriyor ve uygulama tekrar denemiyor — düşen istek düşen kare demek. Bir
-çağrıda en fazla **100** istek; fazlası varsa cevap onu da söylüyor — *"N frames still waiting past
-this call's limit."* — ve bir sonraki çağrı kaldığı yerden alıyor.
+birden uçsa hiçbiri önbelleği sıcak bulmazdı)*, sonra **kalanın hepsi birden** *(Madde 165)*. Eskiden
+beşerli dalgalar hâlindeydi; beşin gerekçesi artık bu uygulamada olmayan bir sağlayıcının ölçümüydü.
+Bir çağrıda en fazla **100** istek; fazlası varsa cevap onu da söylüyor — *"N frames still waiting
+past this call's limit."* — ve bir sonraki çağrı kaldığı yerden alıyor. Tekrar deneme hâlâ yok:
+düşen istek boş kalan bir kare, ve o kare cevapta sayılıyor.
 
 ## 1 · `WRITE_FRAME_SYSTEM_PROMPT` — tek sistem mesajı
 
@@ -242,13 +243,17 @@ tutabiliyor, ve son satır dışında hepsi ortak.*
 
 ```
 {
-  "characters": { "aylin": { "kind": "girl", "tags": "..." } },
+  "characters": { "aylin": "1girl, ..." },
   "outfits": { "gecelik": "..." },
   "locations": { "bedroom": "..." }
 }
 
 Scene: Aylin sabah yatağın kenarında mektubu okuyor
 ```
+
+*Karakter girdisi düz metin ve sayısını kendi taşıyor — `1girl` **onun** etiketlerinin ilki *(Madde
+163)*. 154 ile 163 arasında yazılmış dosyalar `{"kind": …, "tags": …}` haritası taşıyor; okunuyor,
+ama artık yazılmıyor ve `kind` hiçbir yere girmiyor.*
 
 **Cevabından beklenen:** yalnız JSON — `characters`, `location`, `action`, `camera`. Ayrıştırılamayan
 ya da haritaların bilmediği bir ad taşıyan cevap **o kareyi boş bırakıyor**, komşularına dokunmadan,
@@ -267,7 +272,7 @@ anlatan yarı yaşadı.*
 `WRITE_FRAME_SYSTEM_PROMPT`'unda. Bölünmüyor — `set_character` da kare kurallarını görüyor; zararı yok, ve tek kaynak
 olduğu için kendiyle çelişemiyor.
 
-> Every value here is read by an SDXL-family image model, which reads tags rather than sentences: short comma-separated fragments, no articles -- sitting on couch, by window. One prompt is one frozen instant, so nothing that needs time to be seen belongs in it: a movement is written as the pose it passes through, and a cause or a moment outside the frame is written as what it looks like -- turned away, downcast eyes, tense shoulders -- or left out. An action holds only what the camera sees: the pose, the expression, where the eyes look. A camera is two decisions -- how much of the body is in the picture (close-up, upper body, medium shot, full body) and where it is looked at from (from side, from above, from behind, looking at viewer) -- and both halves come from those lists. No or in any value: the model draws one picture and cannot toss a coin. No quality tags and no count of people; code writes both, and yours would be printed twice. Whoever a frame names first opens its prompt, so write whoever the frame is about first. Everything is English -- the one exception is a frame's scene, which stays in the user's own language and never reaches a prompt.
+> Every value here is read by an SDXL-family image model, which reads tags rather than sentences: short comma-separated fragments, no articles -- sitting on couch, by window. One prompt is one frozen instant, so nothing that needs time to be seen belongs in it: a movement is written as the pose it passes through, and a cause or a moment outside the frame is written as what it looks like -- turned away, downcast eyes, tense shoulders -- or left out. An action holds only what the camera sees: the pose, the expression, where the eyes look. A camera is two decisions -- how much of the body is in the picture (close-up, upper body, medium shot, full body) and where it is looked at from (from side, from above, from behind, looking at viewer) -- and both halves come from those lists. No or in any value: the model draws one picture and cannot toss a coin. No quality tags: code writes those, and yours would be printed twice. A count of people belongs in a character's own tags and nowhere else, because that is the one place it lands beside the person it counts. Whoever a frame names first opens its prompt, so write whoever the frame is about first. Everything is English -- the one exception is a frame's scene, which stays in the user's own language and never reaches a prompt.
 
 ---
 
@@ -333,7 +338,7 @@ okunamaması — o hâlde yapısal araçların hepsi düşer ve metin düzenleme
 
 ### `set_character`
 
-> Write a character into a structure file: who they are, in tags, and what kind of person they are. This is what stays the same about them in every frame -- face, hair, build, age. Clothing never goes here, because clothing is what changes from frame to frame: that belongs in set_outfit, and a frame names the two together. A name that is already there is updated rather than added twice, and the answer says how many frames the change reached. On a character who is already there, send only what you are changing -- anything you leave out stays as it is; a new one needs both a kind and tags.
+> Write a character into a structure file: who they are, in tags. This is what stays the same about them in every frame -- face, hair, build, age. Clothing never goes here, because clothing is what changes from frame to frame: that belongs in set_outfit, and a frame names the two together. A name that is already there is updated rather than added twice, and the answer says how many frames the change reached. On a character who is already there, send only what you are changing -- anything you leave out stays as it is; a new one needs tags.
 >
 > **+ §3 · `SDXL_PROMPT_RULES`**
 
@@ -341,8 +346,7 @@ okunamaması — o hâlde yapısal araçların hepsi düşer ve metin düzenleme
 |---|---|---|
 | `file` | ✓ | The structure file's name. |
 | `name` | ✓ | What the frames will call this character, as in aylin. Short and lower case; it is a key, not something the picture shows. |
-| `kind` | | girl or boy. Code counts the people in a frame from this, so it is never written into a frame or into the tags below. *(`enum`: `girl`, `boy`)* |
-| `tags` | | Who they are, as short comma-separated fragments: woman in her mid 20s, long teal hair, green eyes. No sentence, no clothing, no count. |
+| `tags` | | Who they are, as short comma-separated fragments, opening with what this one person counts as: 1girl, woman in her mid 20s, long teal hair, green eyes. Always 1 -- one entry is one person, and a frame holding several of them shows each one's tags in turn. No sentence and no clothing. |
 | `new_name` | | Only to rename: the character keeps everything it has and every frame naming it is rewritten to the new name. Refused if the new name is taken. Leave this out unless the name itself is changing. |
 
 ### `set_outfit`
