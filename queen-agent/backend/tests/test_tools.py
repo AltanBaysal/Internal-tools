@@ -870,7 +870,7 @@ class ScriptedWriter:
     the case the tool has to survive without losing the frames around it.
 
     It also counts how many calls are in the air at once, because that is the only thing about the
-    waves that can be seen from outside: how long they take is not something a test should measure.
+    sending that can be seen from outside: how long it takes is not something a test should measure.
     """
 
     def __init__(self, answers, usage=None):
@@ -1060,13 +1060,14 @@ def test_running_again_fills_only_the_empty_ones(tmp_path):
     assert all("action" in frame for frame in _frames_of(files))
 
 
-def test_no_more_than_five_requests_are_in_the_air(tmp_path):
-    # The provider answers a full pool with a 429 and this app does not retry, so a dropped request
-    # is a dropped frame. Five is fast without going near it.
+def test_every_frame_after_the_first_flies_at_once(tmp_path):
+    # Madde 165. There is no cap under the number of frames waiting: one goes ahead to warm the
+    # prefix cache and the rest leave together. The exact number is the measure rather than "more
+    # than five" -- a ceiling raised is not a ceiling removed.
     files = _scened(tmp_path, *[f"sahne {n}" for n in range(12)])
     writer = ScriptedWriter([WRITTEN])
     _write(files, writer)
-    assert writer.at_once <= 5
+    assert writer.at_once == 11
     assert len(writer.seen) == 12
 
 
