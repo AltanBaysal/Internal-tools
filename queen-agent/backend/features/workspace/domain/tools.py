@@ -79,14 +79,11 @@ WRITES_FILES = {
     "create_structure",
 }
 
-# How many frames one call will write, and how many requests fly at once (Madde 155).
+# How many frames one call will write (Madde 155).
 #
 # The cap is there because a run is meant to be repeatable rather than complete: the tool fills what
-# is empty, so a file with more than this is finished by calling again. Five at once because a
-# provider answers a full pool with a 429 and this app does not retry -- a dropped request is a
-# dropped frame, and going fast is not worth losing one.
+# is empty, so a file with more than this is finished by calling again.
 AT_MOST = 100
-AT_ONCE = 5
 
 # The rules an SDXL prompt value is written by, and the whole of what is left of the schema
 # (Madde 159). Named for what it is: the first name, CRAFT, said nothing to whoever met it cold.
@@ -1025,12 +1022,18 @@ def _write_frame_prompt(file_store, project_id, args, engine, model):
             "usage"
         )
 
-    # The first alone, then the rest in waves. Alone because instruction and maps are identical in
-    # every request, and if they all left together none would find that prefix warm.
+    # The first alone, then all the rest together. Alone because instruction and maps are identical
+    # in every request, and if they all left together none would find that prefix warm.
+    #
+    # One worker per frame behind it since Madde 165. The five that used to hold them back was
+    # measured against a provider this app no longer speaks to, and nothing since has said the two
+    # it does speak to need it. What a refused request costs is unchanged: the frame is left empty
+    # and counted, and calling again is the retry.
     done = [_written(waiting[0])]
-    if len(waiting) > 1:
-        with ThreadPoolExecutor(max_workers=AT_ONCE) as pool:
-            done.extend(pool.map(_written, waiting[1:]))
+    rest = waiting[1:]
+    if rest:
+        with ThreadPoolExecutor(max_workers=len(rest)) as pool:
+            done.extend(pool.map(_written, rest))
 
     spent, wrote = {}, 0
     for frame, (fields, usage) in zip(waiting, done):
