@@ -49,15 +49,10 @@ class Engine(Protocol):
     model since dropped -- is answered by its default rather than refused.
     """
 
-    def complete(
-        self, messages: list[dict], tools: list[dict] | None = None, model: str = ""
-    ) -> dict:
-        """Answer a conversation. Messages carry the domain's own roles: user and ai."""
-
     def write_once(self, system: str, user: str, model: str = "") -> dict:
         """One question, one answer. No tools, no conversation, nothing remembered (Madde 155).
 
-        Apart from `complete` because of what rides in front of it: every conversation is given the
+        Apart from `stream` because of what rides in front of it: every conversation is given the
         app's own system prompt, a text about a chat assistant, its project and its tools. What
         calls this wants the opposite -- a model that knows how to write one prompt and nothing
         else -- so it brings its own `system` and that is the whole of what the model is told.

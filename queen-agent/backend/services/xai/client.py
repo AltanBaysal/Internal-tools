@@ -190,17 +190,14 @@ class XaiClient:
         # The one line that reaches the network, and the one thing a test replaces.
         self._opener = opener
 
-    def complete(self, messages, tools=None):
-        return self._answered(messages, tools)["choices"][0]["message"]
-
     def complete_once(self, messages):
         """The whole answer and what it cost, for a call that is not part of a conversation.
 
-        complete throws the usage away because a conversation's spending is counted from the stream
-        instead. A one-shot has no stream to count from, and Madde 155 makes dozens of these per
-        tool call -- unbilled, they would be spending nobody could see.
+        The usage is read here because there is nowhere else to read it: a conversation's spending
+        is counted frame by frame off the stream, and a one-shot has no stream. Madde 155 makes
+        dozens of these per tool call -- unbilled, they would be spending nobody could see.
         """
-        payload = self._answered(messages, None)
+        payload = self._answered(messages)
         return {
             "text": payload["choices"][0]["message"].get("content") or "",
             # Sent by default on a plain completion; a service that says nothing answers None
@@ -208,8 +205,10 @@ class XaiClient:
             "usage": payload.get("usage"),
         }
 
-    def _answered(self, messages, tools):
-        request = self._request({"messages": messages}, tools)
+    def _answered(self, messages):
+        # No tools on this road: the one thing that asks for them is a conversation, and a
+        # conversation is streamed.
+        request = self._request({"messages": messages})
         try:
             with self._opener(request) as response:
                 return json.loads(response.read().decode("utf-8"))
@@ -284,7 +283,7 @@ class XaiClient:
             # connection dropping mid-answer looks like, and the two are not told apart here.
             raise XaiFailed(str(failure)) from failure
 
-    def _request(self, body, tools, conversation_id=""):
+    def _request(self, body, tools=None, conversation_id=""):
         api_key = self._read_key()
         # Not a guessed cause: there is nothing to send, and that is something known here rather
         # than read off a 401 from the other end.

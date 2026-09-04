@@ -18,9 +18,6 @@ class XaiEngine:
         self._clients = clients
         self._default = default
 
-    def complete(self, messages, tools=None, model=""):
-        return self._chosen(model).complete(self._for_xai(messages), tools=tools)
-
     def write_once(self, system, user, model=""):
         """One question with its own system prompt, and no tools (Madde 155).
 
