@@ -209,10 +209,89 @@ koşulmamış olacak: okunan dosya istekte iki kere duruyor, rakam onu da içeri
 
 ---
 
+# Kapanıştan sonra — Deneme 3'ün getirdiği
+
+*(166–179 kapandı ve denendi. Aşağıdakiler o denemenin bulguları:
+[deneme kaydı](../research/2026-09-05-queenagent-v7-deneme3-bulgular.md).)*
+
+## Madde 180 — Araya kare eklemek: `add_scene`'in `before`'u
+
+*(Deneme 3, 5 Eylül. Kullanıcı kararı: `before` parametresi, ayrı araç değil.)*
+
+- **Sorun:** `add_scene` yalnız sona ekliyor, ve araya kare koymanın başka yolu yok. Kullanıcı 2. ile
+  3. karenin arasına bir sahne isteyince model **21 `remove_frame`** çağırıp kuyruğu yeniden kurdu —
+  tek turda 27 adım, 103.8k jeton. **Asıl bedel raundlar değil:** geri eklenen kareler `add_scene`'ten
+  geçtiği için **action'sız** döndü, ve bir saat önce yazdırılmış **21 Grok cümlesi çöpe gitti.**
+  Ara ekleme sıradan bir kullanıcı hamlesi; bugün her seferinde kuyruğun tamamını yakıyor.
+- **Ne çalışır:** `add_scene(file, scenes, before?)`. `before` yoksa bugünkü davranış — sona ekler.
+  Varsa o numaralı karenin **önüne** girer, sonraki kareler bir kayar ve **hepsi yeniden numaralanır**
+  *(174'ün silme sonrası yaptığı işin aynısı: numara karenin yeri)*. Hiçbir kare silinmediği için
+  **hiçbir `action` kaybolmaz.** Olmayan bir kareden önce: 174'ün cümlesi. `before` listenin
+  uzunluğundan bir fazlaysa — yani sona — sona ekler, çünkü söylediği şey odur.
+- **Nasıl görülür:** dört karelik bir dosyada `before: 3` ile eklenen sahne 3. kare olur, eski 3 ve 4
+  → 4 ve 5, ve ikisinin de `action`'ı yerinde durur. Cevap yine yaptığı kareleri adlandırır.
+- **Değişen:** `_add_scene`'in ekleme satırı ve `_made_frames`'in *"tek koşu"* varsayımı *(ekleme yine
+  bitişik, ama sondan başlamıyor)*; araç açıklamasına `before`'un cümlesi. `remove_frame`'in yeniden
+  numaralama döngüsü ortaklaşır.
+- **Kapsam dışı:** var olan bir kareyi oynatmak *(`update_frame`'e `to`)*. Ayrı bir iş, ve önce bu.
+
+## Madde 181 — Eylem satırı: organ görünürlüğü ve yüz ifadesi
+
+*(Deneme 4, 5 Eylül. Kullanıcı kararı: yalnız bu ikisi; kıyafete karışılmaz.)*
+
+- **Sorun:** `WRITE_FRAME_SYSTEM_PROMPT` yazara *"kimsenin görünüşünü, kıyafetini ya da mekânı tarif
+  etme"* diyor, ve yazar bunu **bedenin kendisine** de uyguluyor. Cinsel kareler örtük çıkıyor —
+  *bodies connected*, *deep rear penetration* — organ hiç adlandırılmıyor. SDXL yalnız **adı geçeni**
+  çizer; adı geçmeyen bölgeyi uydurur, ve kullanıcının gördüğü erimiş anatomi bu. **Yüz ifadesi** de
+  aynı boşlukta: karakter etiketi yüzü tarif eder, ama o **anki** ifadeyi hiçbir yer yazmaz.
+- **Ne çalışır:** `WRITE_FRAME_SYSTEM_PROMPT`'a iki şey eklenir — ikisi de yalnız **o an** doğru
+  olduğu, yani hiçbir haritanın taşıyamayacağı şeyler:
+  - **Organ görünürlüğü.** Kadrajda görünen organ adıyla yazılır, örtmeceyle değil. Örnekli, kuralın
+    öteki maddeleri gibi: `erect penis`, `penis penetrating vagina`, `mouth on penis`.
+  - **Yüz ifadesi.** O donmuş andaki ifade.
+- **Kıyafet eylemin işi değil ve öyle kalır.** Bir karakter kıyafetsizse **kadrosunda kıyafeti
+  yoktur**; çıplaklık zaten oradan geliyor, eylem satırına `nude` yazılmaz. Bugünkü *"kıyafeti tarif
+  etme"* cümlesi yerinde durur.
+- **`SDXL_PROMPT_RULES`'a girmez.** O metin `add_character` / `add_outfit` / `add_location`'ın da
+  yanında duruyor, ve orada anatomi tam da **yazılmaması gereken** şey.
+- **Nasıl görülür:** cinsel bir sahneden yazdırılan eylem satırı organı adıyla ve yüz ifadesiyle
+  döner; hiçbir satırda kıyafet ya da mekân yoktur.
+- **Değişen:** yalnız `WRITE_FRAME_SYSTEM_PROMPT`. Araç imzası, dosya şekli, derleyici — hiçbiri.
+
+## Madde 182 — POV, ayrı bir karakter olarak yazılır
+
+*(Kullanıcı kararı, 5 Eylül: alan değil, kural. `kyle` ve `pov_kyle` diye iki karakter.)*
+
+- **Sorun:** bir karenin kadrosunda olmak **ya hep ya hiç** — derleyici kadrodakinin bütün etiketini
+  yazıyor: sayısı, yaşı, saçı, gözü, bedeni. POV karede o kişinin hiçbiri kadrajda yok, ve SDXL o
+  etiketleri asacak beden bulamayınca **görünen kişiye** asıyor: kadın adamın saçını alıyor. En
+  keskin hâli sayım — kadrajda tek kişi varken prompt `1girl` ve `1boy` diyor. Kıyafet de aynı
+  yoldan sızıyor: kadrajda olmayan birinin kıyafeti resmi giydiriyor.
+- **Ne çalışır — ve hiçbir kod değişmiyor.** POV'daki kişi haritaya **ikinci bir karakter** olarak
+  yazılır: `kyle` tam hâli, `pov_kyle` kadrajda görüneni. `pov_kyle`'ın etiketi kısa ve sayısızdır —
+  *male hands, tan skin* — saç, göz, yaş, beden yok. POV karenin kadrosu `kyle` yerine `pov_kyle`'ı
+  adlandırır, ve ona **kıyafet verilmez**; kolu görünüyorsa kolun kendisi `pov_kyle`'ın etiketinde
+  durur. Araç imzası, dosya şekli, derleyici — hiçbiri açılmıyor: `add_character` bu adı bugün de
+  kabul ediyor, kadro da bugün de onu adlandırabiliyor.
+- **`pov_` sürümü karakter doğarken açılır, POV karesi gelince değil** *(kullanıcı kararı)*. Karakteri
+  kuran adım ikisini birden yazar, ve sonra gereken karede olanı kullanır. Sonradan açmak, ihtiyacın
+  ortaya çıktığı anda haritaya dönmek demek — ve o an düzeltme turu, yani modelin en yüklü olduğu yer.
+- **Sayım kendiliğinden düzelir:** `1boy` tam etikette kalır, `pov_kyle`'da yoktur — kadrajda tek
+  kişi varsa prompt da tek kişi der.
+- **Bu maddenin modeli DeepSeek, 181'inki Grok** *(kullanıcı kararı)*. Haritayı kuran ve kadroyu
+  seçen ana ajan, yani kural onun metinlerinde durur; 181 ise eylem satırının içi, yani yazarın.
+- **Değişen:** `skills.py`'nin *Start a scenario* metnine kuralın cümlesi — karakter adımında, her
+  karakterle birlikte `pov_` sürümü; *Generate prompts+* metnine kullanım cümlesi, çünkü *"şunu POV
+  yap"* düzeltme turunda geliyor. `SDXL_PROMPT_RULES`'a sayımın **istisnası** — bugün her karakter
+  girdisinin bir sayı taşıdığını söylüyor, kadraja tam girmeyen bir girdi taşımaz.
+- **Kapsam dışı:** kesik ya da arkadan görünen karakter. Aynı kural onu da karşılar *(ayrı bir
+  girdi)*, ama adlandırma sözü POV üzerine kurulu; genelleştirmek gerekirse ayrı iş.
+
+---
+
 ## Kapsam dışı, ve nerede duruyor
 
 - **Toplu prompt aracı** *(bütün boş kareler tek çağrıda, paralel)* — `queen-agent/BACKLOG.md`.
-- **Yazılan promptların doğrulanması** — `queen-agent/BACKLOG.md`.
 - **`delete_file`** — açıldı, aynı gün kapandı: silen araç yok.
 - **`queen-*` kimlikleri `config.py`'de** — yalnız arayüz kararı; sağlayıcı adı anahtarda kalıyor.
 - **Arşivin 160'ı** *(OpenRouter kaydı)* — m149 depoda iz bırakmadı; kayıt istenirse sona eklenir.

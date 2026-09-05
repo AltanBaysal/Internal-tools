@@ -225,5 +225,11 @@ denemesi de böyle kayda geçmişti.
 dosyanın tamamıyla cevap veriyor ve o cevap turun sonuna kadar konuşmada kalıyor; kap aynı dosyayı
 yanına koyuyor. `read_file` makbuz döndürür, içeriği yalnız kap taşır. Yol haritasında 179.
 
-**Bu koşuya girmeyen, bilerek:** arşivdeki 160'ın OpenRouter kaydı *(m149 depoda hiç iz bırakmadı)*,
-ve yazılan promptların doğrulanması *(`BACKLOG.md`)*.
+**Bu koşuya girmeyen, bilerek:** arşivdeki 160'ın OpenRouter kaydı *(m149 depoda hiç iz bırakmadı)*.
+
+**Yazılanı ana ajan görür, ve bu bir eksik değil** *(kullanıcı, 5 Eylül)*. `write_frame_prompt`'un
+cevabı metni taşımaz — *Wrote frame 3 of x.json* — ama yapı dosyası bir kez okunduğunda bağlam
+kabında durur ve her raunt diskten tazelenir, yani `action`'lar bir sonraki raundda ajanın önünde.
+Ajanın `action` **yazacak** hiçbir aracı yok *(`update_frame`'in alanları arasında değil, `edit_file`
+`.json`'a kapalı)*, yalnız okuyup yeniden isteyecek yolu var — ve Deneme 4'te sorunu böyle teşhis
+etti. Ayrı bir doğrulama adımı aranmıyor.
