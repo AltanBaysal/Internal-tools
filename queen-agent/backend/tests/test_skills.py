@@ -80,10 +80,13 @@ def test_no_instruction_names_a_tool_that_is_gone():
         assert named <= known, (skill, named - known)
 
 
-def test_the_structured_instruction_writes_the_skeleton_then_batches_of_five():
+def test_the_builder_writes_each_frames_action_then_builds():
+    # Madde 178. The skeleton and the batches of five went with the tools that made them: a
+    # scenario is opened by start_scenario and its frames are written by the flow, so what is left
+    # for this skill is the sentence each frame turns on, and then the list.
     said = instruction_for("generate-prompts-plus")
-    assert "skeleton" in said and "batches of five" in said
-    assert "create_file" in said and "edit_file" in said
+    assert "write_frame_prompt" in said
+    assert said.index("write_frame_prompt") < said.rindex("build_prompts")
 
 
 def test_the_structured_instruction_forbids_assembling_a_prompt_by_hand():
@@ -167,37 +170,55 @@ def test_a_finished_step_reaches_the_plan():
     assert "marked done" in _flow()
 
 
-def test_the_structure_file_is_born_once():
-    # The observed failure wears two masks here: everything gathered in chat and written at the
-    # end, or a new file per step. One birth at the characters step rules out both. The half that
-    # ordered this against fetching the schema went with the schema in Madde 172.
+def test_the_scenario_is_opened_by_the_tool_that_opens_one():
+    # The observed failure wears two masks: everything gathered in chat and written at the end, or
+    # a new file per step. One birth rules out both, and since Madde 167 the tool enforces it --
+    # start_scenario refuses a name that is taken, so the text only has to say which step opens it.
     said = _flow()
-    assert "born once" in said
-    assert "never a second file" in said
+    assert "start_scenario" in said
+    assert said.index("start_scenario") < said.index("3. The places")
+
+
+def test_the_flow_fills_the_maps_with_the_tools_that_own_them():
+    # Madde 168 to 170. Three maps, three tools, and the text names them rather than describing a
+    # shape: the model knows a tool's signature and never the file's.
+    said = _flow()
+    assert "add_character" in said
+    assert "add_outfit" in said
+    assert "add_location" in said
 
 
 def test_the_flow_hands_the_frames_to_the_builder():
-    # K40 overturned K32 (28 Aug): writing action and camera detail is heavy work, and the flow's
-    # asking rhythm is not where it belongs. The flow leaves the foundation and names its heir --
-    # the frames stay out of the structure file on purpose.
+    # The handoff, and what it now hands over. The flow writes the frames -- Madde 173 gave it a
+    # tool that takes a scene whole -- and leaves their actions to the model that writes those.
     said = _flow()
     assert "Generate prompts+" in said
-    assert "frames stay empty" in said
+    assert "add_scene" in said
 
 
-def test_the_scene_list_is_named_after_the_structure_file():
-    # The discovery mechanism: prompt+ finds the pair by name with list_files, so the convention
-    # has to be pinned or the handoff rests on a guess.
-    assert "bar-scene-scenes.md" in _flow()
+def test_the_scenes_step_writes_the_cast_into_the_frame():
+    # The frame is born with its cast (Madde 173), so the step that writes one has to ask who is in
+    # it. A scene written without its cast builds into a prompt with nobody in the picture.
+    said = _flow()
+    assert "who is in it" in said
+
+
+def test_no_instruction_writes_a_scene_list_file():
+    # It existed because a frame had nowhere to keep its brief. Since Madde 173 the scene sentence
+    # is a field of the frame, and a second copy in a .md would be the same sentence in two places
+    # -- which is the shape every staleness bug in this app has had.
+    for skill, said in INSTRUCTIONS.items():
+        assert "-scenes.md" not in said, skill
+        assert "scene list" not in said, skill
 
 
 def test_the_builder_picks_up_where_the_flow_stops():
-    # The other half of K40: the flow leaves a scene list, and this skill reads it, writes the
-    # frames in its order, and resumes by shortfall -- fewer frames than sentences is work left.
+    # The other half of the handoff. What the flow leaves is frames with a scene and no action, so
+    # that is what this skill looks for -- and it is how the work resumes after a chat that ran out
+    # of room: the file itself says which frames are still waiting.
     said = instruction_for("generate-prompts-plus")
     assert "Start a scenario" in said
-    assert "scene list" in said
-    assert "first sentence with no frame" in said
+    assert "no action" in said
 
 
 def test_the_handoff_is_a_step_of_its_own():
@@ -209,27 +230,25 @@ def test_the_handoff_is_a_step_of_its_own():
     assert said.index("5. The handoff") < said.rindex("Generate prompts+")
 
 
-def test_the_flow_never_writes_a_frame_even_when_asked():
-    # What happened: asked for the frames, the flow wrote all ten in one edit. The batching rule
-    # and the craft licence live in the other skill, so the ask is answered by pointing there.
+def test_the_flow_leaves_the_action_to_the_other_skill():
+    # It writes the frames now, which it never did before Madde 173 -- but not their actions. That
+    # sentence is the whole reason this run has two models, and a flow writing one by hand would be
+    # the way round the model kept for writing them.
     said = _flow()
-    assert "never written here" in said
-    assert "not even when the user asks" in said
+    assert "no action" in said
+    assert "write_frame_prompt" not in said
 
 
-def test_the_sentence_is_a_brief_never_the_frames_text():
-    # The observed failure: scene sentences retold as the action, word for word. The brief line
-    # holds the door: the sentence briefs the frame, the frame's text is this skill's own.
-    said = instruction_for("generate-prompts-plus")
-    assert "never text to copy into the frame" in said
+def test_the_craft_rules_left_the_texts_with_the_work(_=None):
+    # Two rules used to live in prompt+: a scene sentence is a brief and not text to copy, and
+    # neighbouring frames must differ in framing. Both were about writing an action, and since
+    # Madde 176 the main model does not write one -- so they moved to the prompt writer's own
+    # system prompt, where they are read once by the model they are for.
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
 
-
-def test_the_builder_varies_the_camera_between_frames():
-    # Ten scenes came back as one framing. The craft licence was there; the reason to use it was
-    # not.
-    said = instruction_for("generate-prompts-plus")
-    assert "the same framing and angle" in said
-    assert "differ in at least one" in said
+    assert "framing and angle" in WRITE_FRAME_SYSTEM_PROMPT
+    for skill, said in INSTRUCTIONS.items():
+        assert "framing" not in said, skill
 
 
 def test_a_delegation_answers_only_the_question_that_was_asked():
@@ -330,20 +349,32 @@ def test_no_instruction_sends_the_model_to_fetch_a_shape(skill):
     assert "schema" not in instruction_for(skill).lower()
 
 
-def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():
-    # Madde 128. The text was the whole reason the model reached for edit_file to append: it said
-    # so in as many words, and a weak model follows what it is shown.
-    #
-    # The name is Madde 173's, and it is here rather than in 178 for Madde 172's reason: a dead
-    # tool's name leaves the texts with the tool. Everything else this text says about the old team
-    # is 178's to rewrite.
+def test_the_builder_no_longer_writes_frames_at_all():
+    # Madde 128 put add_frames in this text; Madde 173 replaced the tool and Madde 178 moved the
+    # job. The frames arrive written -- what this skill does to a file is fill in the sentences and
+    # build. A text still naming the adding tools would have two skills writing frames into one
+    # file, each from a different idea of what is already there.
     said = instruction_for("generate-prompts-plus")
-    assert "add_scene" in said
+    assert "add_scene" not in said
     assert "add_frames" not in said
-    assert "Add frames with edit_file" not in said
-    # The batches stay. They are not about anchors -- quality falls away at the end of a long
-    # answer -- so the rhythm belongs in the text even once the tool needs no read between them.
-    assert "five" in said
+
+
+def test_a_complaint_is_written_again_rather_than_edited():
+    # Two roads and the text names both, because they answer different complaints. One frame's
+    # sentence is wrong: call the writer again with a note. Somebody looks wrong in every frame
+    # they are in: that is the map entry, and one update reaches all of them.
+    said = instruction_for("generate-prompts-plus")
+    assert "note" in said
+    assert "update_" in said
+
+
+def test_no_instruction_touches_a_structure_file_as_text():
+    # Madde 171 shut that door in the code; a text still telling the model to walk through it would
+    # spend a round being refused. edit_file is not gone -- it writes documents -- so this asks
+    # about the pairing rather than about the name.
+    for skill, said in INSTRUCTIONS.items():
+        assert "edit_file on the frame" not in said, skill
+        assert "structure file's maps" not in said, skill
 
 
 def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():
