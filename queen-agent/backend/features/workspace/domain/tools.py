@@ -264,6 +264,89 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
+            "name": "add_outfit",
+            "description": (
+                "Write a new outfit into a scenario: a set of clothes with a name, worn by whoever "
+                "a frame puts it on. Kept apart from the character because the same person wears "
+                "different things across the frames, and the same clothes can be worn by more than "
+                "one person. Refuses a name that is already there."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {
+                        "type": "string",
+                        "description": "What this outfit is called, as in nightgown.",
+                    },
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "The clothes as tags, and nothing else: white nightgown, lace trim, "
+                            "bare shoulders. No person here -- no count, no body, no hair. One "
+                            "entry dresses one person; two people dressed differently are two "
+                            "outfits."
+                        ),
+                    },
+                },
+                "required": ["file", "name", "tags"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_outfit",
+            "description": (
+                "Change an outfit that is already in a scenario: its tags, its name, or both. Only "
+                "what you give changes, and renaming reaches every frame wearing it. Refuses a "
+                "name that is not there."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {"type": "string", "description": "Which outfit to change."},
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "The whole entry as it should now read -- this replaces the text "
+                            "rather than adding to it. Leave it out to change only the name."
+                        ),
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": (
+                            "What to call it from now on. Leave it out to change only the tags."
+                        ),
+                    },
+                },
+                "required": ["file", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_outfit",
+            "description": (
+                "Take an outfit out of a scenario. Refused while any frame still has somebody "
+                "wearing it, and the answer says which frames -- change what they wear first, or "
+                "remove those frames."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {"type": "string", "description": "Which outfit to remove."},
+                },
+                "required": ["file", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "add_frames",
             "description": (
                 "Add frames to the end of a structure file's frames list. Where they go is not "
@@ -504,6 +587,15 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "remove_character":
         return _remove_entry(file_store, project_id, args, "characters")
 
+    if name == "add_outfit":
+        return _add_entry(file_store, project_id, args, "outfits")
+
+    if name == "update_outfit":
+        return _update_entry(file_store, project_id, args, "outfits")
+
+    if name == "remove_outfit":
+        return _remove_entry(file_store, project_id, args, "outfits")
+
     if name == "add_frames":
         return _add_frames(file_store, project_id, args)
 
@@ -605,6 +697,12 @@ def _saved(file_store, project_id, source, structure):
     file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
 
 
+def _article(word):
+    """"a character", "an outfit". One shared sentence over three maps has to survive the singular
+    it is handed, and outfit is the one that starts on a vowel."""
+    return "an" if word[:1].lower() in "aeiou" else "a"
+
+
 def _unknown(key, entries, which):
     """The sentence a name nobody knows gets, wherever it is met.
 
@@ -614,31 +712,50 @@ def _unknown(key, entries, which):
     return f"{key} is not in {which}; known: {', '.join(sorted(entries)) or 'nothing'}."
 
 
+# How a refusal says what is standing on an entry. Three maps, three relations: a character is in a
+# frame, an outfit is worn by somebody in one, and a place is what the frame is set in. One table
+# rather than three sentences in three functions, which would go stale one at a time.
+_STILL_USED_IN = {
+    "characters": "is still in frames",
+    "outfits": "is still worn in frames",
+    "locations": "is still the place in frames",
+}
+
+
 def _frames_naming(frames, which, key):
     """Which frames stand on this entry, by number, one-based as the model counts them.
 
-    Only characters today. Outfits ride inside a character's list and a location is a field of its
-    own, so each map answers this question differently -- and each brings its own answer with its
-    own tests, in Madde 169 and 170.
+    One reading of the cast answers it for both maps: a character is a name in it, an outfit is a
+    name inside what that name wears. Locations are not here at all -- a frame names its place in a
+    field of its own, and Madde 170 brings that branch with its own tests.
     """
-    return [
-        number
-        for number, frame in enumerate(frames, start=1)
-        if key in [name for name, _ in cast_of(frame)]
-    ]
+    standing = []
+    for number, frame in enumerate(frames, start=1):
+        cast = cast_of(frame)
+        found = (
+            any(name == key for name, _ in cast)
+            if which == "characters"
+            else any(key in worn for _, worn in cast)
+        )
+        if found:
+            standing.append(number)
+    return standing
 
 
 def _renamed_in_frames(frames, which, key, moving):
     """Carry a rename through the frames, and answer how many followed.
 
     Both shapes, because both are on disk: the map form a frame writes today, and the plain list of
-    names files written before outfits carry. cast_of reads them; this writes them back the way it
-    found them, since turning one into the other would rewrite a file nobody asked to convert.
+    names files written before outfits carry. This writes them back the way it found them -- a
+    rename is not a conversion, and a file that came back in a shape its user does not recognise is
+    a file this tool damaged.
     """
     followed = 0
     for frame in frames:
         people = frame.get("characters")
-        if isinstance(people, dict):
+        if which == "outfits":
+            followed += _outfit_renamed(frame, people, key, moving)
+        elif isinstance(people, dict):
             if key not in people:
                 continue
             # Rebuilt rather than popped and re-added: a renamed entry keeps its place in the frame,
@@ -655,6 +772,29 @@ def _renamed_in_frames(frames, which, key, moving):
     return followed
 
 
+def _outfit_renamed(frame, people, key, moving):
+    """An outfit is renamed inside whoever wears it, and the wearer's own name is left alone.
+
+    Its own function because the shape it walks is a level deeper than a character's, and folding
+    both into one loop would put two unrelated conditions on the same line.
+    """
+    if not isinstance(people, dict):
+        # The old plain list of names carries no outfits at all, so there is nothing here to rename.
+        return 0
+    wearing = False
+    for name, worn in people.items():
+        if isinstance(worn, str):
+            # The slip cast_of forgives -- one outfit written without its list -- kept in the shape
+            # it was written in.
+            if worn == key:
+                people[name] = moving
+                wearing = True
+        elif isinstance(worn, list) and key in worn:
+            people[name] = [moving if one == key else one for one in worn]
+            wearing = True
+    return 1 if wearing else 0
+
+
 def _add_entry(file_store, project_id, args, which):
     """One name and its tags into one map. Refuses a name that is already there (Madde 168).
 
@@ -668,7 +808,9 @@ def _add_entry(file_store, project_id, args, which):
     single = which[:-1]
     key = str(args.get("name") or "").strip()
     if not key:
-        return ToolResult(f"A {single} needs a name.", None, source, "Refused")
+        return ToolResult(
+            f"{_article(single).capitalize()} {single} needs a name.", None, source, "Refused"
+        )
 
     tags = args.get("tags")
     if not str(tags or "").strip():
@@ -682,7 +824,10 @@ def _add_entry(file_store, project_id, args, which):
         structure[which] = entries
     if key in entries:
         return ToolResult(
-            f"There is already a {single} called {key}.", None, source, "Already there"
+            f"There is already {_article(single)} {single} called {key}.",
+            None,
+            source,
+            "Already there",
         )
 
     entries[key] = tags
@@ -705,7 +850,9 @@ def _update_entry(file_store, project_id, args, which):
     single = which[:-1]
     key = str(args.get("name") or "").strip()
     if not key:
-        return ToolResult(f"A {single} needs a name.", None, source, "Refused")
+        return ToolResult(
+            f"{_article(single).capitalize()} {single} needs a name.", None, source, "Refused"
+        )
 
     entries = structure.get(which) or {}
     if key not in entries:
@@ -725,7 +872,10 @@ def _update_entry(file_store, project_id, args, which):
     if moving and moving in entries:
         # Two entries folded into one is the one thing here that calling again cannot undo.
         return ToolResult(
-            f"There is already a {single} called {moving}.", None, source, "Already there"
+            f"There is already {_article(single)} {single} called {moving}.",
+            None,
+            source,
+            "Already there",
         )
 
     if tags is not None:
@@ -769,7 +919,9 @@ def _remove_entry(file_store, project_id, args, which):
     single = which[:-1]
     key = str(args.get("name") or "").strip()
     if not key:
-        return ToolResult(f"A {single} needs a name.", None, source, "Refused")
+        return ToolResult(
+            f"{_article(single).capitalize()} {single} needs a name.", None, source, "Refused"
+        )
 
     entries = structure.get(which) or {}
     if key not in entries:
@@ -780,8 +932,8 @@ def _remove_entry(file_store, project_id, args, which):
         # The numbers rather than a count: the model's next move is to open those frames, and a
         # count would send it looking for them.
         return ToolResult(
-            f"{key} is still in frames {', '.join(str(number) for number in standing)}. "
-            "Nothing was removed.",
+            f"{key} {_STILL_USED_IN[which]} "
+            f"{', '.join(str(number) for number in standing)}. Nothing was removed.",
             None,
             source,
             "Still in use",

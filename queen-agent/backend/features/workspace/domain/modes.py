@@ -38,6 +38,10 @@ _WITHOUT_ASKING = {
         "add_character",
         "update_character",
         "remove_character",
+        # Madde 169. Same reason, second map.
+        "add_outfit",
+        "update_outfit",
+        "remove_outfit",
         "edit_file",
         "build_prompts",
         "build_character_prompts",
