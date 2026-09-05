@@ -347,6 +347,86 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
+            "name": "add_location",
+            "description": (
+                "Write a new location into a scenario: a place a frame can be set in. Refuses a "
+                "name that is already there."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {
+                        "type": "string",
+                        "description": "What this place is called, as in bedroom.",
+                    },
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "The place as tags: cozy bedroom, morning light through curtains, "
+                            "indoors. Nobody is in it -- who is there is the frame's business, and "
+                            "a person written here would be drawn into every frame set in it."
+                        ),
+                    },
+                },
+                "required": ["file", "name", "tags"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_location",
+            "description": (
+                "Change a location that is already in a scenario: its tags, its name, or both. "
+                "Only what you give changes, and renaming reaches every frame set there. Refuses a "
+                "name that is not there."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {"type": "string", "description": "Which location to change."},
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "The whole entry as it should now read -- this replaces the text "
+                            "rather than adding to it. Leave it out to change only the name."
+                        ),
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": (
+                            "What to call it from now on. Leave it out to change only the tags."
+                        ),
+                    },
+                },
+                "required": ["file", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_location",
+            "description": (
+                "Take a location out of a scenario. Refused while any frame is still set there, "
+                "and the answer says which frames -- a frame has one place, so give those frames "
+                "another one first, or remove them."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {"type": "string", "description": "Which location to remove."},
+                },
+                "required": ["file", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "add_frames",
             "description": (
                 "Add frames to the end of a structure file's frames list. Where they go is not "
@@ -596,6 +676,15 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "remove_outfit":
         return _remove_entry(file_store, project_id, args, "outfits")
 
+    if name == "add_location":
+        return _add_entry(file_store, project_id, args, "locations")
+
+    if name == "update_location":
+        return _update_entry(file_store, project_id, args, "locations")
+
+    if name == "remove_location":
+        return _remove_entry(file_store, project_id, args, "locations")
+
     if name == "add_frames":
         return _add_frames(file_store, project_id, args)
 
@@ -731,12 +820,17 @@ def _frames_naming(frames, which, key):
     """
     standing = []
     for number, frame in enumerate(frames, start=1):
-        cast = cast_of(frame)
-        found = (
-            any(name == key for name, _ in cast)
-            if which == "characters"
-            else any(key in worn for _, worn in cast)
-        )
+        if which == "locations":
+            # Not in the cast at all: a frame names its place in a field of its own, and there is
+            # exactly one of it.
+            found = frame.get("location") == key
+        else:
+            cast = cast_of(frame)
+            found = (
+                any(name == key for name, _ in cast)
+                if which == "characters"
+                else any(key in worn for _, worn in cast)
+            )
         if found:
             standing.append(number)
     return standing
@@ -752,6 +846,12 @@ def _renamed_in_frames(frames, which, key, moving):
     """
     followed = 0
     for frame in frames:
+        if which == "locations":
+            # One field, one string, no second shape to preserve.
+            if frame.get("location") == key:
+                frame["location"] = moving
+                followed += 1
+            continue
         people = frame.get("characters")
         if which == "outfits":
             followed += _outfit_renamed(frame, people, key, moving)
