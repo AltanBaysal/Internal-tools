@@ -1030,6 +1030,10 @@ def test_every_tool_is_declared_to_the_model():
         "add_location",
         "update_location",
         "remove_location",
+        # Madde 174. The frame's own two, which complete the three every map has. Between 171 and
+        # here a frame already in the file could not be touched at all.
+        "update_frame",
+        "remove_frame",
     }
 
 
@@ -1677,6 +1681,248 @@ def test_add_frames_is_no_longer_a_tool(tmp_path):
     assert "no tool called add_frames" in run_tool(
         files, "p1", "add_frames", json.dumps({"name": "scene.json", "frames": [SCENE]})
     ).text
+
+
+# --- changing a frame and taking one out (Madde 174) ----------------------------------------------
+#
+# 171 shut .json to edit_file and 173 retired add_frames, which between them left a gap: a frame
+# already in the file could not be touched at all. The model wanting the third frame's place fixed
+# had one move left -- build the scenario again.
+#
+# The three tools a map has, now over frames. What update_frame will not touch is the action: that
+# is Madde 176's field, written by the prompt model, and a hand-written one here would be the way
+# round the quality gate. Nor the number, which is the frame's place -- and the only thing that
+# moves a place is a removal, which is why remove_frame renumbers what is left.
+
+WITH_ACTION = json.dumps(
+    {
+        "characters": {"aylin": "1girl, long teal hair"},
+        "outfits": {"gecelik": "white nightgown", "palto": "long coat"},
+        "locations": {"bedroom": "sunlit bedroom", "balcony": "night balcony"},
+        "frames": [
+            {"number": 1, "scene": "one", "characters": {"aylin": ["gecelik"]}, "location": "bedroom"},
+            {
+                "number": 2,
+                "scene": "two",
+                "characters": {"aylin": ["gecelik"]},
+                "location": "bedroom",
+                "action": "she turns her head, close-up",
+            },
+            {"number": 3, "scene": "three", "location": "bedroom"},
+        ],
+    },
+    indent=2,
+)
+
+
+def _frames(files):
+    return json.loads(files.read("p1", "scene.json"))["frames"]
+
+
+def test_update_frame_changes_the_scene_and_leaves_the_rest_where_it_was(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=1, scene="she wakes")
+    changed = _frames(files)[0]
+    assert changed["scene"] == "she wakes"
+    assert changed["characters"] == {"aylin": ["gecelik"]}
+    assert changed["location"] == "bedroom"
+
+
+def test_update_frame_changes_the_cast(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=1, characters={"aylin": ["palto"]})
+    assert _frames(files)[0]["characters"] == {"aylin": ["palto"]}
+    assert _frames(files)[0]["scene"] == "one"
+
+
+def test_update_frame_changes_the_place(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=1, location="balcony")
+    assert _frames(files)[0]["location"] == "balcony"
+
+
+def test_update_frame_changes_several_fields_in_one_call(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=1, scene="she wakes", location="balcony")
+    changed = _frames(files)[0]
+    assert (changed["scene"], changed["location"]) == ("she wakes", "balcony")
+
+
+def test_update_frame_does_not_touch_the_action(tmp_path):
+    # Madde 176's field, and the whole point of it is that a model with a restriction did not write
+    # it. A hand-written action here would be the way round the tool that exists to write one.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=2, scene="she looks away")
+    changed = _frames(files)[1]
+    assert changed["scene"] == "she looks away"
+    assert changed["action"] == "she turns her head, close-up"
+
+
+def test_update_frame_keeps_the_frames_number(tmp_path):
+    # The number is the frame's place, and an update moves nothing.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=2, scene="she looks away")
+    # The work first: the numbers are already 1, 2, 3 on disk, so without this the test is green
+    # on a call that did nothing at all.
+    assert _frames(files)[1]["scene"] == "she looks away"
+    assert [frame["number"] for frame in _frames(files)] == [1, 2, 3]
+
+
+def test_update_frame_names_what_it_changed(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert _call(
+        files, "update_frame", file="scene.json", frame=1, scene="she wakes", location="balcony"
+    ) == "Changed scene and location of frame 1 in scene.json."
+
+
+def test_an_empty_place_takes_the_field_off_the_frame(tmp_path):
+    # A frame that shows no place of its own is a frame written without the field (Madde 173), so
+    # clearing one has to arrive at the same shape: two roads to one frame, or the file grows two
+    # ways of saying nothing.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=1, location="")
+    assert "location" not in _frames(files)[0]
+    assert _frames(files)[0]["scene"] == "one"
+
+
+def test_an_empty_cast_takes_the_field_off_the_frame(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=1, characters={})
+    assert "characters" not in _frames(files)[0]
+
+
+def test_update_frame_straightens_a_lone_outfit_the_way_add_scene_does(tmp_path):
+    # Both roads write the same shape, or a frame born one way and changed the other holds two.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=1, characters={"aylin": "palto"})
+    assert _frames(files)[0]["characters"] == {"aylin": ["palto"]}
+
+
+def test_update_frame_refuses_when_nothing_was_given(tmp_path):
+    # No silent success: a model told nothing happened moves on believing it did. _update_entry's
+    # sentence, one level along.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert "Nothing was given to change about frame 1." in _call(
+        files, "update_frame", file="scene.json", frame=1
+    )
+
+
+def test_update_frame_refuses_a_frame_that_is_not_there(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert "scene.json has 3 frames; there is no frame 9." in _call(
+        files, "update_frame", file="scene.json", frame=9, scene="s"
+    )
+
+
+def test_a_frame_is_named_by_its_number(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert "counting from 1" in _call(
+        files, "update_frame", file="scene.json", frame="the last one", scene="s"
+    )
+    # Zero and below are not places in a list the model counts from 1.
+    assert "counting from 1" in _call(files, "update_frame", file="scene.json", frame=0, scene="s")
+    # True is an int in Python, and taking it would quietly mean frame 1.
+    assert "counting from 1" in _call(
+        files, "update_frame", file="scene.json", frame=True, scene="s"
+    )
+
+
+def test_a_number_written_as_a_string_is_forgiven(tmp_path):
+    # 173's lone outfit, again: a small slip costs a round to send back, and there is exactly one
+    # thing "3" can mean here.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame="3", scene="she leaves")
+    assert _frames(files)[2]["scene"] == "she leaves"
+
+
+def test_update_frame_refuses_a_name_nobody_wrote(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _call(files, "update_frame", file="scene.json", frame=1, location="bar")
+    assert "frame 1: bar is not in locations; known: balcony, bedroom." in answer
+    assert _frames(files)[0]["location"] == "bedroom"
+
+
+def test_update_frame_refuses_a_cast_that_is_not_a_map(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _call(files, "update_frame", file="scene.json", frame=1, characters=["aylin"])
+    assert "frame 1: characters is a map from a name to the outfits they wear." in answer
+    assert _frames(files)[0]["characters"] == {"aylin": ["gecelik"]}
+
+
+def test_a_frames_scene_cannot_be_emptied(tmp_path):
+    # Required at birth, so it cannot be cleared later: the two would leave a frame that add_scene
+    # would refuse to write sitting in the file anyway.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _call(files, "update_frame", file="scene.json", frame=1, scene="   ")
+    assert "frame 1: a scene needs a sentence saying what happens." in answer
+    assert _frames(files)[0]["scene"] == "one"
+
+
+def test_update_frame_refuses_a_file_that_is_not_there(tmp_path):
+    # The shared road: _opened answers for every tool that opens a structure.
+    assert "no file by that name" in _call(
+        _files(tmp_path), "update_frame", file="ghost.json", frame=1, scene="s"
+    )
+
+
+def test_remove_frame_takes_the_frame_out(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "remove_frame", file="scene.json", frame=2)
+    assert [frame["scene"] for frame in _frames(files)] == ["one", "three"]
+
+
+def test_remove_frame_renumbers_what_is_left_from_one(tmp_path):
+    # The number is the frame's place, and a removal is the one thing that moves places. A number
+    # left where it was would part from build_prompts, which counts frames by where they sit.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "remove_frame", file="scene.json", frame=1)
+    assert [frame["number"] for frame in _frames(files)] == [1, 2]
+    assert [frame["scene"] for frame in _frames(files)] == ["two", "three"]
+
+
+def test_remove_frame_says_what_is_left(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert _call(files, "remove_frame", file="scene.json", frame=2) == (
+        "Removed frame 2 from scene.json; 2 frames left, renumbered from 1."
+    )
+
+
+def test_removing_the_last_frame_says_nothing_about_renumbering(tmp_path):
+    # There is nothing left to renumber, and a sentence saying otherwise is a sentence about work
+    # that did not happen.
+    files = _with(tmp_path, "scene.json", json.dumps({"frames": [{"number": 1, "scene": "one"}]}))
+    assert _call(files, "remove_frame", file="scene.json", frame=1) == (
+        "Removed frame 1 from scene.json; no frames left."
+    )
+    assert _frames(files) == []
+
+
+def test_remove_frame_refuses_a_frame_that_is_not_there(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert "scene.json has 3 frames; there is no frame 9." in _call(
+        files, "remove_frame", file="scene.json", frame=9
+    )
+    assert len(_frames(files)) == 3
+
+
+def test_remove_frame_leaves_the_maps_alone(tmp_path):
+    # The user's decision of 5 Sep: nothing here deletes on the model's behalf. A character left in
+    # no frame at all stays in the map, and removing it is the user's to ask for.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "remove_frame", file="scene.json", frame=1)
+    after = json.loads(files.read("p1", "scene.json"))
+    before = json.loads(WITH_ACTION)
+    assert len(after["frames"]) == 2
+    for key in ("characters", "outfits", "locations"):
+        assert after[key] == before[key]
+
+
+def test_a_removal_gives_an_older_files_frames_the_numbers_they_never_had(tmp_path):
+    # Frames written before Madde 173 carry no number at all. Renumbering counts places rather than
+    # reading what is there, so it repairs them on the way past.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "remove_frame", file="scene.json", frame=1)
+    assert [frame["number"] for frame in _frames(files)] == [1]
 
 
 # --- a look that hands back what there is to look at (Madde 135) ---------------------------------

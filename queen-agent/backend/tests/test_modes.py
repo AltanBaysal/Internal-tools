@@ -32,6 +32,10 @@ WRITES = (
     "add_location",
     "update_location",
     "remove_location",
+    # Madde 174. A removal renumbers every frame left, which is the widest change any of these
+    # makes to a file the user is reading.
+    "update_frame",
+    "remove_frame",
 )
 
 
