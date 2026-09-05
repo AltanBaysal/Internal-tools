@@ -99,7 +99,7 @@ def test_the_drive_folder_is_named_once():
 # moment they part. Putting it back is one line here and one there.
 #
 # BEFORE MERGING: this goes back to "main", and so does the notebook.
-BRANCH = "feat/queenagent-v7"
+BRANCH = "feat/queenagent-v7.5"
 
 
 def test_the_notebook_clones_the_branch_this_run_is_tried_on():
