@@ -128,6 +128,15 @@ WRITE_FRAME_SYSTEM_PROMPT = (
     "would be said twice in one prompt, and the second copy is the one that contradicts the "
     "first. What you are handed them for is so your line fits what is there -- somebody in a long "
     "coat does not shrug it off in your sentence.\n"
+    "\n"
+    "What their body is doing in this instant is yours, though, and so is the face it does it "
+    "with. Name what is visible of them rather than writing around it -- erect penis, penis "
+    "penetrating vagina, mouth on penis -- because the model draws what is named and invents "
+    "whatever a euphemism left out, which is how a frame comes back with a body that melts. Give "
+    "the face its expression as well: a map describes a face, and nothing anywhere says what it is "
+    "doing right now. Neither of these could live in a map, because the same person is calm in one "
+    "frame and not in the next. What covers them is still an outfit and still not yours -- "
+    "somebody wearing none in a frame is already bare without you saying so.\n"
     "\n" + SDXL_PROMPT_RULES
 )
 
