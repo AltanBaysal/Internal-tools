@@ -157,6 +157,255 @@ def test_start_scenario_writes_the_file_for_a_person_to_read(tmp_path):
     assert '\n  "characters": {}' in files.read("p1", "bar-scene.json")
 
 
+# --- character management (Madde 168) -------------------------------------------------------------
+#
+# Three tools rather than one, by the rule create_file already keeps: add refuses a name that is
+# there, update refuses one that is not, and so overwriting in silence stops being possible. The
+# file's parameter is `file` and the entry's is `name` -- the subject of these sentences is the
+# character, and the file is only where it lives.
+#
+# The shared opener and cast_of are born here too. Maddes 169 to 174 repeat this shape exactly, so
+# what is nailed below is as much the pattern as the character.
+
+CAST = json.dumps(
+    {
+        "characters": {
+            "aylin": "1girl, long teal hair",
+            "deniz": "1boy, short black hair",
+            # In no frame at all: the one entry that can actually be removed.
+            "eda": "1girl, freckles",
+        },
+        "outfits": {"gecelik": "white nightgown", "takim": "dark grey suit"},
+        "locations": {"bedroom": "sunlit bedroom"},
+        "frames": [
+            {"characters": {"aylin": ["gecelik"]}, "location": "bedroom", "action": "one"},
+            {"characters": {"deniz": ["takim"]}, "location": "bedroom", "action": "two"},
+            {
+                "characters": {"aylin": ["gecelik"], "deniz": []},
+                "location": "bedroom",
+                "action": "three",
+            },
+        ],
+    }
+)
+
+
+def _cast(tmp_path):
+    return _with(tmp_path, "bar-scene.json", CAST)
+
+
+def _read_back(files, key="characters"):
+    return json.loads(files.read("p1", "bar-scene.json"))[key]
+
+
+def test_add_character_writes_the_name_and_its_tags(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "add_character", file="bar-scene.json", name="lara", tags="1girl, red hair")
+    assert _read_back(files)["lara"] == "1girl, red hair"
+
+
+def test_add_character_says_what_it_added(tmp_path):
+    files = _cast(tmp_path)
+    made = run_tool(
+        files,
+        "p1",
+        "add_character",
+        json.dumps({"file": "bar-scene.json", "name": "lara", "tags": "1girl"}),
+    )
+    assert made.text == "Added lara to characters."
+    assert made.outcome == "Added"
+
+
+def test_add_character_refuses_a_name_that_is_already_there(tmp_path):
+    # Madde 69's rule, one level down. A second aylin would silently replace the first, and every
+    # frame naming her would change without anybody asking for it.
+    files = _cast(tmp_path)
+    said = _call(files, "add_character", file="bar-scene.json", name="aylin", tags="1girl, new")
+    assert said == "There is already a character called aylin."
+    assert _read_back(files)["aylin"] == "1girl, long teal hair"
+
+
+def test_add_character_needs_a_name(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "add_character", file="bar-scene.json", tags="1girl") == (
+        "A character needs a name."
+    )
+
+
+def test_add_character_needs_tags(tmp_path):
+    # An entry with no text is an entry every frame naming it builds nothing from. Refused at birth
+    # rather than found in the prompt.
+    files = _cast(tmp_path)
+    assert _call(files, "add_character", file="bar-scene.json", name="lara") == (
+        "A new character needs tags."
+    )
+
+
+def test_add_character_leaves_the_other_maps_alone(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "add_character", file="bar-scene.json", name="lara", tags="1girl")
+    # Asserted first, and not for company: without it everything below is vacuously true on a call
+    # that did nothing at all.
+    assert "lara" in _read_back(files)
+    before = json.loads(CAST)
+    for key in ("outfits", "locations", "frames"):
+        assert _read_back(files, key) == before[key]
+
+
+def test_update_character_changes_the_tags(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "update_character", file="bar-scene.json", name="aylin", tags="1girl, red hair")
+    assert _read_back(files)["aylin"] == "1girl, red hair"
+
+
+def test_update_character_refuses_a_name_nobody_knows(tmp_path):
+    # _looked_up's sentence, so a name that is not there reads the same wherever it is met.
+    files = _cast(tmp_path)
+    said = _call(files, "update_character", file="bar-scene.json", name="lara", tags="1girl")
+    assert said == "lara is not in characters; known: aylin, deniz, eda."
+
+
+def test_update_character_renames_and_the_frames_follow(tmp_path):
+    # The whole reason renaming lives in this tool rather than in one of its own: a name changed in
+    # the map and left alone in the frames is a structure that will not build.
+    files = _cast(tmp_path)
+    _call(files, "update_character", file="bar-scene.json", name="aylin", new_name="ayla")
+    assert "aylin" not in _read_back(files)
+    assert _read_back(files)["ayla"] == "1girl, long teal hair"
+    frames = _read_back(files, "frames")
+    assert frames[0]["characters"] == {"ayla": ["gecelik"]}
+    # And the one behind her keeps their place and their clothes.
+    assert frames[2]["characters"] == {"ayla": ["gecelik"], "deniz": []}
+
+
+def test_update_character_says_how_many_frames_followed(tmp_path):
+    files = _cast(tmp_path)
+    said = _call(files, "update_character", file="bar-scene.json", name="aylin", new_name="ayla")
+    assert said == "Renamed aylin to ayla in characters; 2 frames followed."
+
+
+def test_update_character_can_do_both_at_once(tmp_path):
+    files = _cast(tmp_path)
+    said = _call(
+        files,
+        "update_character",
+        file="bar-scene.json",
+        name="aylin",
+        new_name="ayla",
+        tags="1girl, red hair",
+    )
+    assert said == "Renamed aylin to ayla in characters and changed its text; 2 frames followed."
+    assert _read_back(files)["ayla"] == "1girl, red hair"
+
+
+def test_update_character_refuses_a_name_that_is_taken(tmp_path):
+    # Two entries folded into one is the one thing here that cannot be undone by calling again.
+    files = _cast(tmp_path)
+    said = _call(files, "update_character", file="bar-scene.json", name="aylin", new_name="deniz")
+    assert said == "There is already a character called deniz."
+    assert _read_back(files)["deniz"] == "1boy, short black hair"
+
+
+def test_update_character_needs_something_to_change(tmp_path):
+    # No silent success. A model told nothing happened moves on believing it did.
+    files = _cast(tmp_path)
+    assert _call(files, "update_character", file="bar-scene.json", name="aylin") == (
+        "Nothing was given to change about aylin."
+    )
+
+
+def test_update_character_refuses_renaming_to_the_same_name(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(
+        files, "update_character", file="bar-scene.json", name="aylin", new_name="aylin"
+    ) == "aylin is already called that."
+
+
+def test_update_character_reads_the_old_list_form_when_it_renames(tmp_path):
+    # Files written before outfits existed carry a plain list of names, and a rename cannot turn
+    # what is already on the user's disk into rubbish.
+    old = json.loads(CAST)
+    old["frames"] = [{"characters": ["aylin", "deniz"], "location": "bedroom", "action": "one"}]
+    files = _with(tmp_path, "bar-scene.json", json.dumps(old))
+    _call(files, "update_character", file="bar-scene.json", name="aylin", new_name="ayla")
+    assert _read_back(files, "frames")[0]["characters"] == ["ayla", "deniz"]
+
+
+def test_remove_character_takes_the_name_out(tmp_path):
+    files = _cast(tmp_path)
+    said = _call(files, "remove_character", file="bar-scene.json", name="eda")
+    assert said == "Removed eda from characters."
+    assert "eda" not in _read_back(files)
+
+
+def test_remove_character_refuses_while_a_frame_names_it(tmp_path):
+    # The frames are the answer to whether anything stands on this entry, which is why removing
+    # opens the file where adding could have worked on the map alone.
+    files = _cast(tmp_path)
+    said = _call(files, "remove_character", file="bar-scene.json", name="aylin")
+    assert said == "aylin is still in frames 1, 3. Nothing was removed."
+    assert "aylin" in _read_back(files)
+
+
+def test_remove_character_refuses_a_name_nobody_knows(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "remove_character", file="bar-scene.json", name="lara") == (
+        "lara is not in characters; known: aylin, deniz, eda."
+    )
+
+
+def test_remove_character_leaves_the_frames_alone(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "remove_character", file="bar-scene.json", name="eda")
+    # First, or the line below is vacuously true on a call that removed nothing.
+    assert "eda" not in _read_back(files)
+    assert _read_back(files, "frames") == json.loads(CAST)["frames"]
+
+
+CHARACTER_TOOLS = ("add_character", "update_character", "remove_character")
+
+
+@pytest.mark.parametrize("tool", CHARACTER_TOOLS)
+def test_a_character_tool_says_when_the_file_is_not_there(tmp_path, tool):
+    files = _files(tmp_path)
+    assert _call(files, tool, file="ghost.json", name="aylin", tags="1girl") == (
+        "There is no file by that name."
+    )
+
+
+@pytest.mark.parametrize("tool", CHARACTER_TOOLS)
+def test_a_character_tool_says_when_the_file_is_not_json(tmp_path, tool):
+    # The parser's own sentence. A guessed cause sends the model somewhere else entirely.
+    files = _with(tmp_path, "bar-scene.json", "not json at all")
+    said = _call(files, tool, file="bar-scene.json", name="aylin", tags="1girl")
+    assert said.startswith("bar-scene.json is not valid JSON:")
+
+
+@pytest.mark.parametrize("tool", CHARACTER_TOOLS)
+def test_a_character_tool_says_when_the_file_has_no_frames_list(tmp_path, tool):
+    # Asked of every one of them, not only of the two that read the frames. Removing asks whether
+    # anything stands on the entry and renaming rewrites what does -- so a file with no list cannot
+    # do this work, and saying so while adding beats crashing while removing.
+    files = _with(tmp_path, "bar-scene.json", json.dumps({"characters": {}}))
+    said = _call(files, tool, file="bar-scene.json", name="aylin", tags="1girl")
+    assert said == "bar-scene.json has no frames list to add to; a structure file carries one."
+
+
+def test_the_cast_of_a_frame_is_read_the_same_way_everywhere():
+    # One reading of a frame's cast, not two. build_prompts held it privately and these tools need
+    # the same two shapes; a copy would part from it on the first change to either.
+    from backend.features.workspace.domain.build_prompts import cast_of
+
+    assert cast_of({"characters": {"aylin": ["gecelik"], "deniz": []}}) == [
+        ("aylin", ["gecelik"]),
+        ("deniz", []),
+    ]
+    # What files written before outfits existed carry.
+    assert cast_of({"characters": ["aylin", "deniz"]}) == [("aylin", []), ("deniz", [])]
+    # One outfit written without its list is that one name, not its letters.
+    assert cast_of({"characters": {"aylin": "gecelik"}}) == [("aylin", ["gecelik"])]
+
+
 # --- creating over a name that is taken (Madde 69) ------------------------------------------------
 #
 # It used to number: plan.md became plan-2.md and the project held two versions of one document. The
@@ -330,6 +579,12 @@ def test_every_tool_is_declared_to_the_model():
         # content, because the shape is the code's. It has to exist before Madde 171 shuts .json to
         # create_file, or the model would be left with no way to start a scenario at all.
         "start_scenario",
+        # Madde 168. Three rather than one: add refuses a name that is there, update refuses one
+        # that is not, and remove refuses while a frame stands on it. Overwriting in silence is not
+        # a thing the signatures allow.
+        "add_character",
+        "update_character",
+        "remove_character",
     }
 
 

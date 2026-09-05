@@ -17,6 +17,11 @@ WRITES = (
     # Madde 167. It writes no text of the model's own -- four empty maps the code knows -- but a
     # file appears in the project, and a file appearing is what the quieter modes gate.
     "start_scenario",
+    # Madde 168. They change the user's scenario, and a rename reaches every frame that names the
+    # entry -- the widest edit any tool here makes.
+    "add_character",
+    "update_character",
+    "remove_character",
 )
 
 
