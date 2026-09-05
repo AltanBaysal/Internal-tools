@@ -80,11 +80,13 @@ def test_a_name_with_no_extension_is_numbered_the_same_way():
     assert unique_name(["p1", "p1-2"], "p1") == "p1-3"
 
 
-def test_reading_gives_the_contents(tmp_path):
+def test_what_was_written_is_what_a_read_finds(tmp_path):
     files = _files(tmp_path)
     _call(files, "create_file", name="plan.md", content="the body")
-    # Numbered since Madde 131: the contents are all still there, with the column in front of them.
-    assert _call(files, "read_file", name="plan.md") == "     1\tthe body"
+    # The receipt rather than the document since Madde 179 -- the contents ride in the context box.
+    # What this asks is the seam between the two tools: a file written is a file the next read
+    # opens, and the line count is the nearest thing the answer says about what is in it.
+    assert _call(files, "read_file", name="plan.md") == "plan.md, 1 line; it is in your opened files."
 
 
 def test_reading_a_file_that_is_not_there_is_an_answer_not_a_crash(tmp_path):
@@ -994,7 +996,7 @@ def test_the_runner_takes_an_engine_and_the_tools_that_do_not_need_one_carry_on(
     # of a model as well, and the engine has to reach it without the other seventeen noticing.
     files = _with(tmp_path, "plan.md", "one\ntwo")
     answered = run_tool(files, "p1", "read_file", json.dumps({"name": "plan.md"}), engine=object())
-    assert "one" in answered.text
+    assert answered.outcome == "2 lines"
 
 
 def test_a_result_carries_no_spending_unless_the_tool_says_so(tmp_path):

@@ -787,12 +787,16 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
         # exist is still a step the turn took.
         if content is None:
             return ToolResult("There is no file by that name.", None, wanted, "No file by that name")
-        # How much was read is nowhere on disk, so it cannot go stale -- it is a note about this
-        # moment rather than a copy of something that lives elsewhere. Counted on the file rather
-        # than on what was shown: the column is for the model, not part of the document.
-        return ToolResult(
-            numbered(content), None, wanted, counted(len(content.splitlines()), "line")
-        )
+        # A receipt rather than the document (Madde 179). The contents ride in the context box,
+        # which reads them from disk on every round; handed back here as well they would ride twice
+        # -- once frozen where this answer was written, once fresh -- and a file written to later in
+        # the same turn makes the two disagree with nothing to say which is the file. Madde 129
+        # killed that staleness across turns and it went on living inside one.
+        #
+        # Where the file went is said in as many words: a model handed a sentence where it expected
+        # a document reads that as not having seen the file, and reads it again.
+        lines = counted(len(content.splitlines()), "line")
+        return ToolResult(f"{wanted}, {lines}; it is in your opened files.", None, wanted, lines)
 
     if name == "create_file":
         wanted = safe_name(args.get("name"))

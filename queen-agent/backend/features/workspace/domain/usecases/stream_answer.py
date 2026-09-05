@@ -4,7 +4,7 @@ The generator yields text pieces and finally the updated Chat. Telling them apar
 simpler than carrying a separate "this one is the last" flag.
 """
 from backend.features.workspace.domain.chat import ToolCall, Usage
-from backend.features.workspace.domain.context_box import files_opened
+from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
@@ -92,8 +92,11 @@ def _boxed(file_store, project_id, chat, steps):
         blocks.append(f"--- {name} ---\n{numbered(content)}")
     if not blocks:
         return ""
+    # The window is stated rather than merely kept (Madde 179). This is the only place a file is
+    # shown now, so a model that did not know the box holds five would go looking for a sixth it
+    # can no longer see -- where knowing it costs one sentence to open the file again.
     return (
-        "Files you have opened in this chat, with their contents as they are now:\n\n"
+        f"The last {BOX_LIMIT} files you opened, with their contents as they are now:\n\n"
         + "\n\n".join(blocks)
     )
 
