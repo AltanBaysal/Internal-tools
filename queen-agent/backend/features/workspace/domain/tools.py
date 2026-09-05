@@ -103,6 +103,34 @@ SDXL_PROMPT_RULES = (
     "pick one."
 )
 
+# What the prompt writer is told about its job (Madde 176), with the rules above appended.
+#
+# The other half of the schema Madde 172 split. The half about writing a tag went to the tools that
+# take tags; this half is about what happens in a frame and how it is shot, and it belongs to the
+# one model that writes that -- read once per request, by a model that has nothing else to do.
+#
+# QueenAgent's own SYSTEM_PROMPT stays out. It is a page about tools, files, chats and how to talk
+# to a user, and none of it is true here: this model calls nothing, opens nothing, and is not
+# talking to anybody.
+WRITE_FRAME_SYSTEM_PROMPT = (
+    "You write the action line of one frozen frame, for an SDXL-family image model. You are handed "
+    "a scene in one sentence, who is in the frame, and where -- and you answer with the action "
+    "line alone: no preamble, no explanation, no quotes around it, and nothing about having "
+    "written it.\n"
+    "\n"
+    "The action is what is happening in this one frozen instant, and the shot it is seen through: "
+    "there is no camera field, so the framing and the angle live inside your line -- close-up, "
+    "from below, over the shoulder, wide shot. Neighbouring frames of one scenario should not "
+    "repeat the same framing and angle, because the same framing twice is one picture twice.\n"
+    "\n"
+    "Do not describe anybody's looks, their clothes or the place. Those are written once in the "
+    "file's own maps and the code puts them into every prompt already; written here again they "
+    "would be said twice in one prompt, and the second copy is the one that contradicts the "
+    "first. What you are handed them for is so your line fits what is there -- somebody in a long "
+    "coat does not shrug it off in your sentence.\n"
+    "\n" + SDXL_PROMPT_RULES
+)
+
 # What a scenario is on the day it is born (Madde 167). The one place this shape is written down:
 # the maps empty and waiting, and no frames -- a scenario opens with nobody in it, and the tools
 # that follow are what put someone there.
@@ -470,7 +498,8 @@ TOOL_SPECS = [
                 "list. Every name a scene uses has to be in the file's maps already: a name nobody "
                 "knows is refused, together with the names that are known, and the whole call is "
                 "refused with it -- nothing is written unless every scene in it is good. The "
-                "answer names the frames it made, which is how you say which one you mean next."
+                "answer names the frames it made, which is how you say which one you mean next: "
+                "a frame is born without its action, and write_frame_prompt is what writes one."
             ),
             "parameters": {
                 "type": "object",
@@ -527,7 +556,8 @@ TOOL_SPECS = [
                 "corrected leaves the cast alone. Giving a field empty clears it -- a frame with "
                 "nobody in it, or one that shows no place of its own -- except the scene, which a "
                 "frame is never without. Names come from the file's maps here as they do when the "
-                "frame is written."
+                "frame is written. A frame's action is not among these: write_frame_prompt is what "
+                "writes one, and calling it again with a note is how one is changed."
             ),
             "parameters": {
                 "type": "object",
@@ -578,6 +608,41 @@ TOOL_SPECS = [
                     "frame": {
                         "type": "integer",
                         "description": "Which frame, by its number, counting from 1.",
+                    },
+                },
+                "required": ["file", "frame"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_frame_prompt",
+            "description": (
+                "Write one frame's action -- what is happening in that frozen instant, and the "
+                "shot it is seen through. Asked of a model kept for this and nothing else, so the "
+                "sentence is not yours to write and not yours to read back: it goes straight into "
+                "the frame. The frame needs its scene first, which is the brief the action is "
+                "written from; who is in it and where are read from the file. Written over "
+                "whatever was there, so calling this again on the same frame is how an action is "
+                "changed -- with a note when there is something to fix, and the note is the whole "
+                "of what the writer hears about it. One frame per call."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "frame": {
+                        "type": "integer",
+                        "description": "Which frame, by its number, counting from 1.",
+                    },
+                    "note": {
+                        "type": "string",
+                        "description": (
+                            "What to do differently, in your own words -- what the user said about "
+                            "the last one, or what this frame needs that the scene does not say. "
+                            "Left out the first time."
+                        ),
                     },
                 },
                 "required": ["file", "frame"],
@@ -826,6 +891,9 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
 
     if name == "remove_frame":
         return _remove_frame(file_store, project_id, args)
+
+    if name == "write_frame_prompt":
+        return _write_frame_prompt(file_store, project_id, args, engine)
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
@@ -1473,6 +1541,103 @@ def _remove_frame(file_store, project_id, args):
         f"{counted(len(frames), 'frame')} left, renumbered from 1" if frames else "no frames left"
     )
     return ToolResult(f"Removed frame {number} from {source}; {left}.", None, source, "Removed")
+
+
+def _write_frame_prompt(file_store, project_id, args, engine):
+    """One frame's action, written by the model that writes those (Madde 176).
+
+    The border between the two models this app runs on. The agent building the scenario says which
+    frame and, when it has something to add, why; this asks the writer for the sentence and puts it
+    where it goes. Nothing of the answer reaches the chat -- what was written is in the file, and
+    Madde 130's rule is that a built prompt is not printed back.
+
+    Every refusal comes before the request, cheapest first: nothing is paid to be told the frame
+    was not there.
+    """
+    if engine is None:
+        # A wiring fault rather than the model's doing, and said as one: there is nothing the model
+        # can do about it, and a sentence blaming the call would send it round again.
+        return ToolResult("There is no model to write with.", None, "", "Refused")
+
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    frames = structure["frames"]
+    number, missing = _numbered(args.get("frame"), source, len(frames))
+    if missing is not None:
+        return missing
+
+    frame = frames[number - 1]
+    said = str(frame.get("scene") or "").strip()
+    if not said:
+        # The brief is the whole of what this model is being asked. Without one there is nothing to
+        # write from, and asking anyway would spend money to be handed an invention.
+        return ToolResult(
+            f"Frame {number} has no scene to write from.", None, source, "Nothing to write from"
+        )
+
+    try:
+        answer = engine.write_once(
+            WRITE_FRAME_SYSTEM_PROMPT, _frame_seen(frame, structure, args.get("note"))
+        )
+    except Exception as failure:
+        # The service's own words, and the frame left as it was. No retry in here: calling this
+        # again is what a retry is, and a loop would pay twice with nobody watching it happen.
+        return ToolResult(
+            f"The prompt model did not answer: {failure}", None, source, "Did not answer"
+        )
+
+    written = str(answer.get("text") or "").strip()
+    if not written:
+        # An empty action builds into a prompt with a hole where the sentence goes, and nothing
+        # downstream could say which frame it came from.
+        return ToolResult(
+            f"The prompt model answered with nothing; frame {number} is unchanged.",
+            None,
+            source,
+            "Answered with nothing",
+        )
+
+    # Always over whatever was there. A second call carrying a note is a correction, and a
+    # correction that kept the old sentence beside the new one would be an argument.
+    frame["action"] = written
+    _saved(file_store, project_id, source, structure)
+    return ToolResult(
+        f"Wrote frame {number} of {source}.", None, source, "Written", answer.get("spent")
+    )
+
+
+def _frame_seen(frame, structure, note):
+    """What the writer is shown: this frame, and nothing else in the file (Madde 176).
+
+    The user's decision of 5 September, and the reason this request stays cheap -- a file of forty
+    frames would otherwise send forty casts to write one sentence. Names as well as tags, because a
+    note saying "aylin looks bored" has to reach the person the tags describe.
+
+    A name the maps do not hold is shown without tags rather than refused: add_scene refuses those
+    on the way in, so one here came from somebody editing the file by hand, and this tool is not
+    where that is punished.
+    """
+    characters = structure.get("characters") or {}
+    outfits = structure.get("outfits") or {}
+    locations = structure.get("locations") or {}
+
+    lines = [f"Scene: {frame['scene']}"]
+    cast = cast_of(frame)
+    if cast:
+        lines.append("In frame:")
+        for name, worn in cast:
+            lines.append(f"- {name}: {characters.get(name, '')}")
+            lines.extend(f"  wearing {outfit}: {outfits.get(outfit, '')}" for outfit in worn)
+    place = frame.get("location")
+    if place:
+        lines.append(f"Place: {place}: {locations.get(place, '')}")
+    if note:
+        # Last, where the instruction sits in every other request this app makes: what is fixed
+        # leads and what changes trails (Madde 93).
+        lines.append(f"Note: {note}")
+    return "\n".join(lines)
 
 
 def _and_joined(words):

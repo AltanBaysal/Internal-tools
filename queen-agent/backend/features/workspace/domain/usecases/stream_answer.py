@@ -314,7 +314,23 @@ def stream_answer(
                 # has, and the design's card carries no name anyway.
                 if tool in WRITES_FILES:
                     yield FileStarted()
-                result = run_tool(file_store, project_id, tool, call["function"]["arguments"])
+                # The engine goes down with the call since Madde 176: one tool answers out of a
+                # model rather than out of the file store, and the turn is the only thing holding
+                # one. The other eighteen neither take it nor notice it.
+                result = run_tool(
+                    file_store, project_id, tool, call["function"]["arguments"], engine=engine
+                )
+                if result.spent:
+                    # A second request, paid for inside this turn, and the stamp is the only place
+                    # anybody would look for it. `context` is left alone on purpose: that number
+                    # answers how big the conversation got -- which is what says when a chat has to
+                    # stop -- and this request is not the conversation.
+                    spent = Usage(
+                        spent.sent + result.spent.get("sent", 0),
+                        spent.cached + result.spent.get("cached", 0),
+                        spent.answered + result.spent.get("answered", 0),
+                        spent.context,
+                    )
                 # A name born twice in one turn is still one file: the card says a file exists, not
                 # how many times it was written.
                 if result.created and result.created not in born:

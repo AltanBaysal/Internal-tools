@@ -57,6 +57,9 @@ _WITHOUT_ASKING = {
         # of these makes to a file the user is reading.
         "update_frame",
         "remove_frame",
+        # Madde 176. It writes to the file and it spends the user's money at a second provider --
+        # the only tool here that does either by asking somebody else.
+        "write_frame_prompt",
     ),
 }
 
