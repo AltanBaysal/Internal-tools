@@ -70,6 +70,19 @@ def test_each_model_names_the_key_it_spends():
     assert config.MODELS["deepseek-v4-pro"]["key"] == "DEEPSEEK_API_KEY"
 
 
+def test_the_prompt_writer_is_a_role_rather_than_a_choice():
+    # Madde 175, and the user's decision of 5 Sep: Grok is not an option in the composer, it is a
+    # line in config.py. Which model writes a frame's action is the app's, not the user's -- what
+    # they choose is which model runs the conversation.
+    assert config.PROMPT_MODEL == "grok-build-0.1"
+
+
+def test_the_prompt_writer_is_one_of_the_models_that_are_wired():
+    # A name outside the table would be a KeyError inside the engine, and it would land at the
+    # moment a prompt was asked for -- in a trial, in front of the user, rather than at startup.
+    assert config.PROMPT_MODEL in config.MODELS
+
+
 def test_a_known_model_resolves_to_its_own_wiring():
     model, base_url, _ = config.engine_for("deepseek-v4-flash")
     assert (model, base_url) == ("deepseek-v4-flash", "https://api.deepseek.com")

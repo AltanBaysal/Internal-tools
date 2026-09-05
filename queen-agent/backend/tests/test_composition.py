@@ -41,6 +41,13 @@ def test_the_composition_root_reads_no_environment_of_its_own():
     assert "os.environ" not in _main(), "Bileşim kökü çevreyi kendisi okuyor"
 
 
+def test_the_prompt_writer_is_wired_from_config():
+    """Madde 175. Which model writes a prompt is a role, and the role is named in config.py -- so
+    this file passes the constant rather than repeating the id. Written out here it would be a
+    second place to change, and the two would part on the day either moved."""
+    assert "config.PROMPT_MODEL" in _main(), "Prompt yazan model config'ten bağlanmıyor"
+
+
 def test_no_settings_feature_is_wired_in():
     """The engine used to read the key out of a saved settings file. That file was served back in
     plain text over a link with no password, which is why it is gone rather than merely unused."""

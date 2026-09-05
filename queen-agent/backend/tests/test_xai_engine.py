@@ -7,14 +7,17 @@ CONVERSATION = [{"role": "user", "content": "a"}, {"role": "ai", "content": "b"}
 DEFAULT = "grok-build-0.1"
 
 
-def _engine(client, **others):
+def _engine(client, prompt_writer=DEFAULT, **others):
     """One engine over a named set of clients, since Madde 146.
 
     Written here rather than in every test: what most of these ask about is the translation of
-    roles, and that is the same whichever transport speaks. Only the two at the foot of the file
-    care which one did.
+    roles, and that is the same whichever transport speaks. Only the ones at the foot of the file
+    care which transport did it.
+
+    The third name is Madde 175's: which of them writes a prompt when a tool asks for one. It
+    defaults to the same client here so the tests that do not care about it can stay quiet.
     """
-    return XaiEngine({DEFAULT: client, **others}, default=DEFAULT)
+    return XaiEngine({DEFAULT: client, **others}, default=DEFAULT, prompt_writer=prompt_writer)
 
 
 class FakeClient:
@@ -25,9 +28,9 @@ class FakeClient:
         self.on_open = None
         self.conversation_id = None
 
-    def complete(self, messages, tools=None):
+    def write_once(self, messages):
         self.seen = messages
-        return {"role": "assistant", "content": "hi"}
+        return {"text": "hi", "spent": {"sent": 40, "cached": 0, "answered": 8}}
 
     def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         self.seen = messages
@@ -38,7 +41,7 @@ class FakeClient:
 
 def test_the_system_prompt_leads_and_the_roles_are_translated():
     client = FakeClient()
-    _engine(client).complete(CONVERSATION)
+    list(_engine(client).stream(CONVERSATION))
     assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
     # Disk keeps the design's own word; xAI is told OpenAI's.
     assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
@@ -50,16 +53,52 @@ def test_the_fixed_part_leads_and_the_last_word_stays_last():
     # instruction would land in the middle again and nothing else would notice.
     client = FakeClient()
     tail = {"role": "system", "content": "the instruction"}
-    _engine(client).complete(CONVERSATION + [tail])
+    list(_engine(client).stream(CONVERSATION + [tail]))
     assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
     assert client.seen[-1] == tail
 
 
-def test_streaming_is_prepared_the_same_way():
+# --- the one question a tool asks (Madde 175) -----------------------------------------------------
+#
+# The other road, and the opposite of stream in every way that matters: no tools, no conversation,
+# no turn stamp, and a system prompt the caller brings. It exists because the model that writes a
+# prompt is not this app's agent -- it is a writer with one job, and everything QueenAgent tells its
+# agent would be noise in front of it.
+
+
+def test_write_once_goes_to_the_prompt_writer_rather_than_the_turns_model():
+    # The whole point of the third name. The turn's model is the user's choice; who writes a prompt
+    # is a role in config.py, and the user does not pick it (their decision, 5 Sep).
+    agent, writer = FakeClient(), FakeClient()
+    engine = XaiEngine(
+        {"deepseek-v4-flash": agent, "grok-build-0.1": writer},
+        default="deepseek-v4-flash",
+        prompt_writer="grok-build-0.1",
+    )
+    engine.write_once("you write prompts", "frame 3")
+    assert writer.seen is not None
+    assert agent.seen is None
+
+
+def test_write_once_carries_its_own_system_prompt_and_no_conversation():
+    # QueenAgent's own SYSTEM_PROMPT would be a page about tools, files and chats put in front of a
+    # model that has one sentence to write.
     client = FakeClient()
-    list(_engine(client).stream(CONVERSATION))
-    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
-    assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
+    _engine(client).write_once("you write prompts", "frame 3")
+    assert client.seen == [
+        {"role": "system", "content": "you write prompts"},
+        {"role": "user", "content": "frame 3"},
+    ]
+    assert SYSTEM_PROMPT not in [message["content"] for message in client.seen]
+
+
+def test_write_once_hands_back_the_text_and_what_it_spent():
+    # Both, because the answer is a tool's result and the spending is the turn's: a request the user
+    # pays for that no stamp ever mentions is a request nobody can find.
+    client = FakeClient()
+    answer = _engine(client).write_once("s", "u")
+    assert answer["text"] == "hi"
+    assert answer["spent"] == {"sent": 40, "cached": 0, "answered": 8}
 
 
 def test_the_way_to_cut_the_answer_travels_down_to_the_client():

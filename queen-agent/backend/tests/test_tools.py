@@ -988,6 +988,22 @@ def test_the_listing_tool_is_gone():
     assert "list_files" not in {spec["function"]["name"] for spec in TOOL_SPECS}
 
 
+def test_the_runner_takes_an_engine_and_the_tools_that_do_not_need_one_carry_on(tmp_path):
+    # Madde 175. Every tool here answers out of the file store; one of them is about to answer out
+    # of a model as well, and the engine has to reach it without the other seventeen noticing.
+    files = _with(tmp_path, "plan.md", "one\ntwo")
+    answered = run_tool(files, "p1", "read_file", json.dumps({"name": "plan.md"}), engine=object())
+    assert "one" in answered.text
+
+
+def test_a_result_carries_no_spending_unless_the_tool_says_so(tmp_path):
+    # The field is born here and filled in Madde 176. None rather than zeroes: a tool that spent
+    # nothing and a tool that cannot spend are the same thing to the stamp, and neither should add
+    # a row of noughts to it.
+    files = _with(tmp_path, "plan.md", "one")
+    assert run_tool(files, "p1", "read_file", json.dumps({"name": "plan.md"})).spent is None
+
+
 def test_the_listing_tool_is_unknown_to_the_runner(tmp_path):
     # The other half: a record written before this madde can still carry the name, and the turn
     # that replays it must get an answer rather than a crash.
