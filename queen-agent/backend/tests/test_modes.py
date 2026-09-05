@@ -22,6 +22,10 @@ WRITES = (
     "add_character",
     "update_character",
     "remove_character",
+    # Madde 169. Same reason, second map.
+    "add_outfit",
+    "update_outfit",
+    "remove_outfit",
 )
 
 

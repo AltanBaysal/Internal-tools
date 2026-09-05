@@ -175,7 +175,12 @@ CAST = json.dumps(
             # In no frame at all: the one entry that can actually be removed.
             "eda": "1girl, freckles",
         },
-        "outfits": {"gecelik": "white nightgown", "takim": "dark grey suit"},
+        "outfits": {
+            "gecelik": "white nightgown",
+            "takim": "dark grey suit",
+            # Worn in no frame at all: the one outfit that can actually be removed.
+            "atki": "red knit scarf",
+        },
         "locations": {"bedroom": "sunlit bedroom"},
         "frames": [
             {"characters": {"aylin": ["gecelik"]}, "location": "bedroom", "action": "one"},
@@ -406,6 +411,139 @@ def test_the_cast_of_a_frame_is_read_the_same_way_everywhere():
     assert cast_of({"characters": {"aylin": "gecelik"}}) == [("aylin", ["gecelik"])]
 
 
+# --- outfit management (Madde 169) ----------------------------------------------------------------
+#
+# The same three tools over a second map, and the shared bodies carry most of it. What does not come
+# free is everything touching a frame: a character is a key in the frame's cast, an outfit is a name
+# inside that key's list. So "which frames stand on this" and "carry the rename through" both need
+# their own answer here -- and so does the refusal's verb, because an outfit is worn rather than
+# merely present.
+
+
+def test_add_outfit_writes_the_name_and_its_tags(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "add_outfit", file="bar-scene.json", name="palto", tags="long wool coat")
+    assert _read_back(files, "outfits")["palto"] == "long wool coat"
+
+
+def test_add_outfit_says_what_it_added(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "add_outfit", file="bar-scene.json", name="palto", tags="coat") == (
+        "Added palto to outfits."
+    )
+
+
+def test_add_outfit_refuses_a_name_that_is_already_there(tmp_path):
+    files = _cast(tmp_path)
+    said = _call(files, "add_outfit", file="bar-scene.json", name="gecelik", tags="something")
+    assert said == "There is already an outfit called gecelik."
+    assert _read_back(files, "outfits")["gecelik"] == "white nightgown"
+
+
+def test_add_outfit_needs_a_name(tmp_path):
+    # The singular comes off the plural, so one sentence serves three maps. This is where that is
+    # measured on a second one.
+    files = _cast(tmp_path)
+    assert _call(files, "add_outfit", file="bar-scene.json", tags="coat") == (
+        "An outfit needs a name."
+    )
+
+
+def test_add_outfit_needs_tags(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "add_outfit", file="bar-scene.json", name="palto") == (
+        "A new outfit needs tags."
+    )
+
+
+def test_update_outfit_changes_the_tags(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "update_outfit", file="bar-scene.json", name="gecelik", tags="black slip")
+    assert _read_back(files, "outfits")["gecelik"] == "black slip"
+
+
+def test_update_outfit_refuses_a_name_nobody_knows(tmp_path):
+    # This map's names only. A character's name is no help to somebody looking for an outfit.
+    files = _cast(tmp_path)
+    assert _call(files, "update_outfit", file="bar-scene.json", name="palto", tags="coat") == (
+        "palto is not in outfits; known: atki, gecelik, takim."
+    )
+
+
+def test_update_outfit_renames_and_the_frames_follow(tmp_path):
+    # An outfit lives inside a character's list, not as a key of the cast. The rename has to reach
+    # in there and leave the character's own name exactly where it was.
+    files = _cast(tmp_path)
+    _call(files, "update_outfit", file="bar-scene.json", name="gecelik", new_name="pijama")
+    frames = _read_back(files, "frames")
+    assert frames[0]["characters"] == {"aylin": ["pijama"]}
+    assert frames[2]["characters"] == {"aylin": ["pijama"], "deniz": []}
+    # And the outfit nobody renamed is untouched.
+    assert frames[1]["characters"] == {"deniz": ["takim"]}
+
+
+def test_update_outfit_says_how_many_frames_followed(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(
+        files, "update_outfit", file="bar-scene.json", name="gecelik", new_name="pijama"
+    ) == "Renamed gecelik to pijama in outfits; 2 frames followed."
+
+
+def test_update_outfit_renames_inside_the_short_form_too(tmp_path):
+    # One outfit written without its list is still that outfit, and a rename that skipped it would
+    # leave a frame naming something the map no longer has.
+    short = json.loads(CAST)
+    short["frames"] = [{"characters": {"aylin": "gecelik"}, "location": "bedroom", "action": "one"}]
+    files = _with(tmp_path, "bar-scene.json", json.dumps(short))
+    _call(files, "update_outfit", file="bar-scene.json", name="gecelik", new_name="pijama")
+    assert _read_back(files, "frames")[0]["characters"] == {"aylin": "pijama"}
+
+
+def test_remove_outfit_takes_the_name_out(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "remove_outfit", file="bar-scene.json", name="atki") == (
+        "Removed atki from outfits."
+    )
+    assert "atki" not in _read_back(files, "outfits")
+
+
+def test_remove_outfit_refuses_while_a_frame_wears_it(tmp_path):
+    # Its own verb. An outfit is worn by somebody; saying it is "in" a frame would read as a thing
+    # lying there with nobody in it.
+    files = _cast(tmp_path)
+    said = _call(files, "remove_outfit", file="bar-scene.json", name="gecelik")
+    assert said == "gecelik is still worn in frames 1, 3. Nothing was removed."
+    assert "gecelik" in _read_back(files, "outfits")
+
+
+def test_remove_outfit_leaves_the_characters_alone(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "remove_outfit", file="bar-scene.json", name="atki")
+    # First, or the line below is vacuously true on a call that removed nothing.
+    assert "atki" not in _read_back(files, "outfits")
+    assert _read_back(files) == json.loads(CAST)["characters"]
+
+
+OUTFIT_TOOLS = ("add_outfit", "update_outfit", "remove_outfit")
+
+
+@pytest.mark.parametrize("tool", OUTFIT_TOOLS)
+def test_an_outfit_tool_opens_the_file_the_same_way(tmp_path, tool):
+    # The shared opener, measured on a second map: one missing file reads the same wherever it is
+    # met, and that is the whole reason those four lines live in one place.
+    assert _call(_files(tmp_path), tool, file="ghost.json", name="gecelik", tags="x") == (
+        "There is no file by that name."
+    )
+    broken = _with(tmp_path, "bar-scene.json", "not json at all")
+    assert _call(broken, tool, file="bar-scene.json", name="gecelik", tags="x").startswith(
+        "bar-scene.json is not valid JSON:"
+    )
+    listless = _with(tmp_path, "listless.json", json.dumps({"outfits": {}}))
+    assert _call(listless, tool, file="listless.json", name="gecelik", tags="x") == (
+        "listless.json has no frames list to add to; a structure file carries one."
+    )
+
+
 # --- creating over a name that is taken (Madde 69) ------------------------------------------------
 #
 # It used to number: plan.md became plan-2.md and the project held two versions of one document. The
@@ -585,6 +723,11 @@ def test_every_tool_is_declared_to_the_model():
         "add_character",
         "update_character",
         "remove_character",
+        # Madde 169. The same three over a second map. What is not the same is everything touching
+        # a frame: an outfit lives inside a character's list, and it is worn rather than present.
+        "add_outfit",
+        "update_outfit",
+        "remove_outfit",
     }
 
 
