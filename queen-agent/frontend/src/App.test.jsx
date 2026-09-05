@@ -1419,7 +1419,7 @@ test("the app never asks which model to use", async () => {
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByText("Grok Build")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Queen Flash")).toBeTruthy());
   expect(fetch.mock.calls.filter(([path]) => String(path) === "/api/model")).toHaveLength(0);
 });
 
@@ -1438,7 +1438,7 @@ test("a chat is born naming the model that will answer it", async () => {
       ([path, options]) => options?.method === "POST" && String(path).endsWith("/messages"),
     );
     expect(born).toBeTruthy();
-    expect(JSON.parse(born[1].body).model).toBe("grok-build-0.1");
+    expect(JSON.parse(born[1].body).model).toBe("deepseek-v4-flash");
   });
 });
 
@@ -1447,11 +1447,11 @@ test("picking a model asks the server for nothing", async () => {
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Queen Flash/ })).toBeTruthy());
   const before = fetch.mock.calls.length;
-  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
-  fireEvent.click(screen.getByText("DeepSeek Flash"));
-  await waitFor(() => expect(screen.getByRole("button", { name: /DeepSeek Flash/ })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
+  fireEvent.click(screen.getByText("Queen Pro"));
+  await waitFor(() => expect(screen.getByRole("button", { name: /Queen Pro/ })).toBeTruthy());
   expect(fetch.mock.calls.length).toBe(before);
 });
 
@@ -1461,11 +1461,11 @@ test("the model menu takes the one picker slot, and Escape closes it", async () 
   withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Queen Flash/ })).toBeTruthy());
 
   fireEvent.click(screen.getByText("Skills", { selector: ".picker__name" }));
   expect(screen.getByText("SKILLS")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
   expect(screen.queryByText("SKILLS")).toBeNull();
   expect(screen.getByText("MODELS")).toBeTruthy();
 
@@ -2475,7 +2475,7 @@ test("a draft says which model will answer it", async () => {
   withChat();
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await waitFor(() => expect(screen.getByText("Grok Build")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("Queen Flash")).toBeTruthy());
 });
 
 test("an empty prompt sends nothing", async () => {

@@ -632,14 +632,14 @@ test("the composer offers the choice of model", () => {
   // The reversal of Madde 82's lock, and not a change of mind: that madde tore the machinery out
   // because one model made it idle, and Madde 146 ended that premise by adding two.
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByRole("button", { name: /Grok Build/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Queen Flash/ })).toBeTruthy();
 });
 
 test("the model picker shows what it is handed, not the chat's", () => {
   // The selection is the session's and this screen is handed one, exactly as it is handed a skill.
   // A model sitting in an old record is history, not a selection.
   render(<ChatScreen project={PROJECT} chat={CHAT} model="deepseek-v4-pro" />);
-  expect(screen.getByRole("button", { name: /DeepSeek Pro/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Queen Pro/ })).toBeTruthy();
 });
 
 test("picking a model is passed up rather than kept here", () => {
@@ -648,12 +648,12 @@ test("picking a model is passed up rather than kept here", () => {
     <ChatScreen
       project={PROJECT}
       chat={CHAT}
-      model="grok-build-0.1"
+      model="deepseek-v4-pro"
       modelOpen
       onModelChange={onModelChange}
     />,
   );
-  fireEvent.click(screen.getByText("DeepSeek Flash"));
+  fireEvent.click(screen.getByText("Queen Flash"));
   expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-flash");
 });
 
@@ -663,7 +663,7 @@ test("whether the model menu is open is told to the screen rather than decided b
   const onToggleModel = vi.fn();
   render(<ChatScreen project={PROJECT} chat={CHAT} onToggleModel={onToggleModel} />);
   expect(screen.queryByText("MODELS")).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: /Grok Build/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
   expect(onToggleModel).toHaveBeenCalled();
 });
 
@@ -674,7 +674,7 @@ test("the foot carries the mode, Skills, the model and Send, in that order", () 
   // karar 1's order stands; Madde 91 put the mode in front of the row -- what the model may do at
   // all comes before which job it is doing. The model is a control again since Madde 146, so it
   // wears a chevron like the two beside it.
-  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build⌄↑");
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Queen Flash⌄↑");
   const buttons = [...foot.querySelectorAll("button")];
   expect(buttons.length).toBe(4);
   // Madde 80 took the word off the button; the name it answers to is asked for separately now.
@@ -688,7 +688,7 @@ test("while an answer runs the row ends in Stop, and nothing is added beside it"
     <ChatScreen project={PROJECT} chat={CHAT} thinking onStop={vi.fn()} />,
   );
   const foot = container.querySelector(".composer__foot");
-  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build⌄⏹");
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Queen Flash⌄⏹");
   const buttons = [...foot.querySelectorAll("button")];
   expect(buttons.length).toBe(4);
   expect(buttons[3].getAttribute("aria-label")).toBe("Stop");
@@ -783,5 +783,5 @@ test("the foot puts the mode before the skill", () => {
   // and the row can be read end to end rather than two thirds of it.
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} mode="plan" />);
   const names = [...container.querySelectorAll(".composer__foot .picker__name")];
-  expect(names.map((name) => name.textContent)).toEqual(["Plan", "Skills", "Grok Build"]);
+  expect(names.map((name) => name.textContent)).toEqual(["Plan", "Skills", "Queen Flash"]);
 });

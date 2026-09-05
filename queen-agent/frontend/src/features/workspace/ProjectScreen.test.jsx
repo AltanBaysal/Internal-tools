@@ -205,7 +205,7 @@ test("the composer here carries every picker, in the chat screen's order", () =>
   const foot = container.querySelector(".composer__foot");
   // The same order as the chat screen; Madde 91 put the mode in front of the row, and Madde 146
   // made the model a control again, so it wears a chevron like the two beside it.
-  expect(foot.textContent).toBe("Edit⌄Skills⌄Grok Build⌄↑");
+  expect(foot.textContent).toBe("Edit⌄Skills⌄Queen Flash⌄↑");
   const buttons = [...foot.querySelectorAll("button")];
   expect(buttons.length).toBe(4);
   // Madde 80 took the word off the button. The mark is the chat screen's, the name is this
@@ -229,15 +229,15 @@ test("the model is pressed here too, and the choice is passed up", () => {
   render(
     <ProjectScreen
       project={PROJECT}
-      model="grok-build-0.1"
+      model="deepseek-v4-flash"
       modelOpen
       onModelChange={onModelChange}
     />,
   );
   // By its class rather than its role: with the menu standing open the same name is on the trigger
   // and on the row it chose, and a bare role query cannot say which one is meant.
-  expect(screen.getByText("Grok Build", { selector: ".picker__name" })).toBeTruthy();
-  fireEvent.click(screen.getByText("DeepSeek Pro", { selector: ".menu__item-name" }));
+  expect(screen.getByText("Queen Flash", { selector: ".picker__name" })).toBeTruthy();
+  fireEvent.click(screen.getByText("Queen Pro", { selector: ".menu__item-name" }));
   expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-pro");
 });
 

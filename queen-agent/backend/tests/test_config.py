@@ -47,11 +47,21 @@ def test_the_deepseek_key_comes_from_the_environment(monkeypatch):
         _reloaded()
 
 
-def test_the_default_model_is_grok_build():
+def test_the_default_model_is_the_cheaper_queen():
     # Pinned like MAX_ROUNDS: this is a decision, and changing it without noticing changes what the
     # user pays and what fits. It is also what an old record resolves to -- every message written
     # before Madde 146 names no model at all.
-    assert config.DEFAULT_MODEL == "grok-build-0.1"
+    #
+    # Madde 177 moved it off Grok. What the composer offers is two models now, and this has to be
+    # the same id models.js defaults to, or the button would say one thing while the request went
+    # somewhere else.
+    assert config.DEFAULT_MODEL == "deepseek-v4-flash"
+
+
+def test_the_model_that_only_writes_prompts_stays_in_the_table():
+    # It left the menu in Madde 177, not the app: Madde 175 wires it as the prompt writer, and a
+    # row removed here would be a KeyError the first time a frame was written.
+    assert "grok-build-0.1" in config.MODELS
 
 
 def test_the_three_models_resolve_to_their_provider():
@@ -92,5 +102,5 @@ def test_an_unknown_or_absent_model_falls_back_to_the_default():
     # skills.py's instruction_for rule, and the same reason: a record can name something that has
     # since been renamed, and a message written before this field names nothing at all. Neither may
     # stop a chat from being answered.
-    assert config.engine_for("")[0] == "grok-build-0.1"
-    assert config.engine_for("grok-4.3")[0] == "grok-build-0.1"
+    assert config.engine_for("")[0] == "deepseek-v4-flash"
+    assert config.engine_for("grok-4.3")[0] == "deepseek-v4-flash"
