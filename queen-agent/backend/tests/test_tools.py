@@ -676,6 +676,77 @@ def test_the_three_maps_are_managed_by_the_same_nine_tools():
         assert set(declared[f"remove_{which}"]["parameters"]["properties"]) == {"file", "name"}
 
 
+# --- the door on a structure file (Madde 171) -----------------------------------------------------
+#
+# Shut only now, and not a madde earlier. A door with nothing behind it leaves the model unable to
+# start anything at all; by here there is start_scenario and there are nine map tools, so a scenario
+# can be opened, filled, corrected and emptied without one line of JSON being typed.
+#
+# No exception, by the user's decision of 5 Sep. A broken structure file cannot have come from these
+# tools -- they refuse to open one -- so it came from somebody editing by hand, and handing that
+# back to the model as text is handing it a guess. The model says the file is broken and where; the
+# user fixes it.
+
+SHUT = (
+    "bar-scene.json is a structure file; it is not written or changed as text. Use start_scenario "
+    "to open one, and the add_, update_ and remove_ tools to change it."
+)
+
+
+def test_create_file_refuses_a_structure_file(tmp_path):
+    files = _files(tmp_path)
+    assert _call(files, "create_file", name="bar-scene.json", content="{}") == SHUT
+    # And nothing was born: a refusal that still wrote the file would be the worst of both.
+    assert files.list_names("p1") == []
+
+
+def test_edit_file_refuses_a_structure_file(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "edit_file", name="bar-scene.json", old="aylin", new="ayla") == SHUT
+    assert files.read("p1", "bar-scene.json") == CAST
+
+
+def test_the_door_is_shut_whatever_the_case_of_the_extension(tmp_path):
+    # Windows opens BAR.JSON and bar.json as one file, so a door that read the case would be a door
+    # standing beside its own frame.
+    files = _files(tmp_path)
+    said = _call(files, "create_file", name="BAR.JSON", content="{}")
+    assert said.startswith("BAR.JSON is a structure file;")
+    assert files.list_names("p1") == []
+
+
+def test_the_door_is_shut_even_on_a_broken_structure_file(tmp_path):
+    # The exception the archive kept, and the user closed on 5 Sep. The tools refuse to open a
+    # broken file, so a broken file came from a hand rather than from here -- and repairing what a
+    # person wrote by letting the model guess at it is not a repair.
+    files = _with(tmp_path, "bar-scene.json", "{ not json")
+    assert _call(files, "edit_file", name="bar-scene.json", old="not", new="also not") == SHUT
+    assert files.read("p1", "bar-scene.json") == "{ not json"
+
+
+def test_create_file_still_writes_a_document(tmp_path):
+    files = _files(tmp_path)
+    assert _call(files, "create_file", name="notes.md", content="the body") == "Saved as notes.md."
+
+
+def test_edit_file_still_changes_a_document(tmp_path):
+    files = _with(tmp_path, "notes.md", "the body")
+    assert _call(files, "edit_file", name="notes.md", old="body", new="text") == "Edited notes.md."
+
+
+def test_the_tool_that_opens_a_scenario_lands_where_the_door_is(tmp_path):
+    # 167 named the file .json whatever it was asked for, and gave this as the reason. Measured
+    # here: the one tool that may open a structure lands behind the door that shuts on everything
+    # else, so the door never stands in front of a file nothing can write.
+    files = _files(tmp_path)
+    born = run_tool(files, "p1", "start_scenario", json.dumps({"name": "bar-scene.md"}))
+    assert born.target.endswith(".json")
+    assert _call(files, "edit_file", name=born.target, old="{", new="[").endswith(
+        "it is not written or changed as text. Use start_scenario to open one, and the add_, "
+        "update_ and remove_ tools to change it."
+    )
+
+
 # --- creating over a name that is taken (Madde 69) ------------------------------------------------
 #
 # It used to number: plan.md became plan-2.md and the project held two versions of one document. The
