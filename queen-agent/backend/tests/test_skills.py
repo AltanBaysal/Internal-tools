@@ -74,7 +74,11 @@ def test_no_instruction_names_a_tool_that_is_gone():
     # to be caught by this test existing, not by somebody remembering to add its name.
     from backend.features.workspace.domain.tools import TOOL_SPECS
 
-    known = {spec["function"]["name"] for spec in TOOL_SPECS}
+    # pov_ is not a tool, it is the prefix Madde 182 names a half-seen character by, and it is
+    # written as the bare prefix rather than pov_kyle so that what is exempt here is a naming rule
+    # and not somebody's name. The reason above survives it: a tool deleted later still has nowhere
+    # to hide, because this exemption is one word and it is not a tool's.
+    known = {spec["function"]["name"] for spec in TOOL_SPECS} | {"pov_"}
     for skill, said in INSTRUCTIONS.items():
         named = {word.strip(".,;:") for word in said.split() if "_" in word}
         assert named <= known, (skill, named - known)
@@ -107,6 +111,41 @@ def test_the_builder_changes_what_exists_too():
 def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
     # The prompt file is derived: patched by hand it stops matching the structure it came from.
     assert "rebuilt rather than patched" in instruction_for("generate-prompts-plus")
+
+
+# --- somebody the camera is standing in (Madde 182) -----------------------------------------------
+#
+# Being in a frame's cast is all or nothing, and the builder writes the whole of an entry. In a POV
+# frame none of that person is in shot, and an SDXL-family model with no body to hang those tags on
+# hangs them on the one that is there -- the woman comes back with the man's hair, and a picture
+# holding one person is asked for 1girl and 1boy at once.
+#
+# The user's decision of 5 Sep is a rule rather than a field: a second character, pov_ and their
+# name, short and countless and wearing nothing, opened when the character is opened rather than
+# when a POV frame turns up. Nothing in the code moves -- add_character already takes that name and
+# a cast already names whoever it likes.
+
+
+def test_the_flow_opens_a_pov_entry_beside_each_character():
+    # Opened with the character, not when a frame needs one: needing one happens in the middle of a
+    # correction turn, which is the worst moment to send the model back to the maps.
+    said = _flow()
+    assert "pov_" in said
+    assert said.index("pov_") > said.index("2. The characters")
+
+
+def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
+    # Both are the leak. A count makes the picture claim a person it does not show, and an outfit
+    # dresses the frame with clothes nobody in it is wearing.
+    said = _flow().lower()
+    assert "no count" in said
+    assert "no outfit" in said
+
+
+def test_a_pov_frame_names_the_pov_entry_in_its_cast():
+    # The other half, and it lives here because "make this one POV" arrives during a correction --
+    # this skill's turn, not the flow's.
+    assert "pov_" in instruction_for("generate-prompts-plus")
 
 
 def test_no_instruction_carries_the_prompt_rules():

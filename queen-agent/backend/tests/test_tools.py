@@ -2252,6 +2252,25 @@ def test_the_clothes_rule_madde_176_wrote_is_still_there():
     assert "clothes" in said
 
 
+def test_an_entry_for_somebody_half_in_shot_carries_no_count():
+    # Madde 182. The count is the sharpest way the leak shows: a POV frame holds one person and the
+    # prompt asks for two, because every character entry carries its own count and both of them are
+    # in the cast. The pov_ entry is the exception, and the rules have to say so -- they are the one
+    # place a count is ruled on.
+    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+
+    assert "carries no count" in SDXL_PROMPT_RULES.lower()
+    assert "pov_" in SDXL_PROMPT_RULES
+
+
+def test_the_count_rule_the_exception_is_carved_out_of_is_still_there():
+    # An exception written where the rule used to be is not an exception, it is a replacement.
+    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+
+    assert "1girl" in SDXL_PROMPT_RULES
+    assert "the one place a count lands" in SDXL_PROMPT_RULES
+
+
 def test_the_map_tools_never_carry_the_words_this_madde_adds():
     # The sharpest line in the madde. SDXL_PROMPT_RULES rides with the tools that take tags, and an
     # anatomy word in a character's entry is drawn into every frame that character is in -- which is
