@@ -86,19 +86,33 @@ def test_the_drive_folder_is_named_once():
     assert 'DRIVE_FOLDER = "queenAgent"' in _source()
 
 
-def test_the_notebook_clones_main():
-    """Released work lives on main. A notebook handed to someone else clones what is released --
-    a feature branch is alive for as long as its madde is, and this one outlived its own."""
-    assert 'BRANCH       = "main"' in _cell(CONFIG), "Defter main'den klonlamıyor"
+# Which branch the notebook clones, and the one line that changes when a trial ends.
+#
+# Released work lives on main, and a notebook handed to someone else clones what is released. The
+# exception is a run being tried out: the trials of this run happen in Colab, Colab clones from
+# GitHub, and a branch that is not named here cannot be reached at all.
+#
+# The old rule was "no feature branch ever reaches a commit", and its reason still stands -- a
+# branch left here keeps working until the day it is deleted, so nothing says it is wrong until
+# long after it was done. What replaces it is not a weaker rule but a louder one: the name is
+# written down in exactly two places, this constant and the notebook, and the test below fails the
+# moment they part. Putting it back is one line here and one there.
+#
+# BEFORE MERGING: this goes back to "main", and so does the notebook.
+BRANCH = "feat/queenagent-v7"
 
 
-def test_the_notebook_ships_pointing_at_no_feature_branch():
-    """The wider rule, and the one that actually bites. Pointing BRANCH at your own branch while a
-    madde is being run is ordinary; committing it that way is not, and it keeps working until the
-    branch is deleted -- so nothing says it is wrong until long after it was done."""
-    assert "feat/" not in _source(), (
-        "Defterde bir özellik dalı adı kalmış — commit'lemeden önce BRANCH main'e çevrilmeli"
+def test_the_notebook_clones_the_branch_this_run_is_tried_on():
+    assert f'BRANCH       = "{BRANCH}"' in _cell(CONFIG), (
+        f"Defter {BRANCH} dalından klonlamıyor — CONFIG hücresindeki BRANCH satırı"
     )
+
+
+def test_no_other_branch_name_is_left_lying_in_the_notebook():
+    """The half of the old guard that still bites. One name, in one place: a second branch named
+    anywhere in the notebook is a cell that clones one thing and a comment promising another."""
+    named = {word.strip("\"',") for word in _source().split() if word.strip("\"',").startswith("feat/")}
+    assert named <= {BRANCH}, f"Defterde başka bir dal adı var: {named - {BRANCH}}"
 
 
 def test_an_unmounted_drive_does_not_pass_quietly():
