@@ -43,7 +43,11 @@ MODELS = {
 }
 
 # What answers when a turn named nothing -- which is every message written before Madde 146.
-DEFAULT_MODEL = "grok-build-0.1"
+#
+# The cheaper of the two the composer offers since Madde 177, and the same id models.js defaults to:
+# one of them answers what an empty button says and this one answers where the request goes, and the
+# two parting would show a name on the screen that nothing on the wire matched.
+DEFAULT_MODEL = "deepseek-v4-flash"
 
 # Who writes a frame's action when a tool asks for one (Madde 175). A role rather than a choice, by
 # the user's decision of 5 September: what the composer offers is which model runs the conversation,

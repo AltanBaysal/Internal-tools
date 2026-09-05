@@ -14,9 +14,12 @@ import { DEFAULT_MODEL, MODELS, modelName } from "./models.js";
 // closes the other, and neither is knowable from inside a single picker.
 export default function ModelPicker({ model, open, onToggle, onChange }) {
   const trigger = useRef(null);
-  // Resolved once so the mark and the button agree. Nothing selected reads as the default on the
-  // face of the button, and a menu that then marked no row would be saying something else.
-  const selected = MODELS.find((candidate) => candidate.id === model)?.id ?? DEFAULT_MODEL;
+  // The mark and the button say the same thing, which is the whole of this line. Nothing selected
+  // reads as the default on the face of the button, so the default is marked; an id no row carries
+  // -- one of Madde 72's five, or the model Madde 177 took out of the menu -- says itself on the
+  // button, so nothing is marked. Resolved to the default it would tick a row this chat was never
+  // answered by.
+  const selected = model || DEFAULT_MODEL;
 
   return (
     <>
