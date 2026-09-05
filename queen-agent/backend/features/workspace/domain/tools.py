@@ -40,8 +40,8 @@ class FileWritten:
     name: str
 
 
-# The longest sensible chain is the structured prompt run: read the pair, write the skeleton, add
-# the frames in batches, check itself, build. Fifteen rounds carry it and the sixteenth closes the
+# The longest sensible chain is the structured prompt run: read the pair, open the scenario, fill
+# the three maps, add the scenes, build. Fifteen rounds carry it and the sixteenth closes the
 # turn (Madde 137); an unbounded loop would burn both money and time. Reaching the limit is a stop,
 # not a failure -- which is why the number has to be generous: a chain cut short looks exactly like
 # a model that gave up.
@@ -458,28 +458,58 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "add_frames",
+            "name": "add_scene",
             "description": (
-                "Add frames to the end of a structure file's frames list. Where they go is not "
-                "yours to give -- the end of a list is something the code knows -- so there is no "
-                "text to quote back and nothing to read first. The answer says how many went in "
-                "and how many the file holds now: adding twice adds twice, and that second number "
-                "is how you see it. To change a frame that is already there, use edit_file."
+                "Add scenes to the end of a structure file, one frame each, in the order they "
+                "happen. Where a frame goes is not yours to give -- the end of a list is something "
+                "the code knows -- and neither is its number, which is simply its place in the "
+                "list. Every name a scene uses has to be in the file's maps already: a name nobody "
+                "knows is refused, together with the names that are known, and the whole call is "
+                "refused with it -- nothing is written unless every scene in it is good. The "
+                "answer names the frames it made, which is how you say which one you mean next."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "The structure file's name."},
-                    "frames": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "scenes": {
                         "type": "array",
                         "description": (
-                            "The frames to add, each shaped as the schema says. A list even when "
-                            "there is one of them."
+                            "The scenes to add. A list even when there is one of them."
                         ),
-                        "items": {"type": "object"},
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "scene": {
+                                    "type": "string",
+                                    "description": (
+                                        "What happens, in one sentence and in the language the "
+                                        "work is being done in. The brief this frame is built "
+                                        "from, never the tags themselves."
+                                    ),
+                                },
+                                "characters": {
+                                    "type": "object",
+                                    "description": (
+                                        "Who is in the frame: each name from the file's "
+                                        "characters, with the list of outfits they wear. Whoever "
+                                        "is written first leads the frame's prompt. Left out for a "
+                                        "frame with nobody in it."
+                                    ),
+                                },
+                                "location": {
+                                    "type": "string",
+                                    "description": (
+                                        "Where it happens, named as the file's locations name it. "
+                                        "Left out for a frame that shows no place of its own."
+                                    ),
+                                },
+                            },
+                            "required": ["scene"],
+                        },
                     },
                 },
-                "required": ["name", "frames"],
+                "required": ["file", "scenes"],
             },
         },
     },
@@ -713,8 +743,8 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "remove_location":
         return _remove_entry(file_store, project_id, args, "locations")
 
-    if name == "add_frames":
-        return _add_frames(file_store, project_id, args)
+    if name == "add_scene":
+        return _add_scene(file_store, project_id, args)
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
@@ -799,8 +829,8 @@ def _opened(file_store, project_id, args):
     try:
         structure = json.loads(content)
     except json.JSONDecodeError as broken:
-        # The parser's own sentence, as in _build and _add_frames: a guessed cause sends the model
-        # somewhere else entirely.
+        # The parser's own sentence, as in _build: a guessed cause sends the model somewhere else
+        # entirely.
         return source, None, ToolResult(
             f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON"
         )
@@ -1104,64 +1134,133 @@ def _remove_entry(file_store, project_id, args, which):
     return ToolResult(f"Removed {key} from {which}.", None, source, "Removed")
 
 
-def _add_frames(file_store, project_id, args):
-    """The end of a list is something code knows, so the model never has to point at it.
+def _add_scene(file_store, project_id, args):
+    """A frame is born with its scene, its cast and its place, and none of them is text (Madde 173).
 
-    Appending through edit_file meant quoting the previous frame back -- once as the anchor and once
-    inside its replacement -- because a JSON list closes with a bracket and the new frame goes
-    before it. Nothing here takes a position, so there is no position to get wrong.
+    Madde 128 took the position out of the model's hands: appending through edit_file meant quoting
+    the previous frame back, once as the anchor and once inside its replacement, because a JSON list
+    closes with a bracket. That still holds -- nothing here takes a position.
+
+    What it did not take was the frame. add_frames was handed objects and looked inside none of
+    them, so a frame naming somebody nobody had written landed on disk and was found rounds later,
+    inside build_prompts, as a miss in a file nobody was editing any more. The fields are in the
+    signature now, and every name in them is looked for before anything is written.
     """
-    source = safe_name(args.get("name"))
-    content = file_store.read(project_id, source)
-    if content is None:
-        return ToolResult("There is no file by that name.", None, source, "No file by that name")
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
 
-    try:
-        structure = json.loads(content)
-    except json.JSONDecodeError as broken:
-        # The parser's own sentence, as in _build: a guessed cause sends the model somewhere else.
-        return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
-
-    coming = args.get("frames")
+    coming = args.get("scenes")
     if not isinstance(coming, list):
         return ToolResult(
-            "add_frames takes a list of frames, even when there is one of them.",
+            "add_scene takes a list of scenes, even when there is one of them.",
             None,
             source,
             "Refused",
         )
 
-    # Asked of a dictionary only: a file whose top level is something else has no frames either, and
-    # an AttributeError would tell the model nothing it could act on.
-    frames = structure.get("frames") if isinstance(structure, dict) else None
-    if not isinstance(frames, list):
-        return ToolResult(
-            f"{source} has no frames list to add to; a structure file carries one.",
-            None,
-            source,
-            "Refused",
-        )
-
+    frames = structure["frames"]
     if not coming:
         # Nothing to do is not a failure, and writing the file to say so would touch a document for
         # no reason at all.
         return ToolResult(
-            f"No frames were given, so {source} is unchanged.", None, source, "Nothing to add"
+            f"No scenes were given, so {source} is unchanged.", None, source, "Nothing to add"
         )
 
-    frames.extend(coming)
-    # Indented for the person who opens this file and fixes it by hand, and ensure_ascii off so
-    # their own language survives the round trip -- their work is the first principle.
-    file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
-    # Both numbers: what this call did, and where the file stands after it. Appending is not
-    # idempotent, and the second is what keeps a doubled call in front of the model rather than in
-    # a read it would have to make.
+    born, problems = [], []
+    for offset, scene in enumerate(coming):
+        made = _frame_from(scene, len(frames) + offset + 1, structure, problems)
+        if made is not None:
+            born.append(made)
+
+    if problems:
+        # Every one of them at once, and nothing written -- build_prompts' rule one step earlier.
+        # The whole call falls, including the scenes that were fine: half a batch on disk would
+        # leave the model working out which half, and the numbers it was told would be wrong.
+        return ToolResult("\n".join(problems + ["Nothing was added."]), None, source, "Refused")
+
+    frames.extend(born)
+    _saved(file_store, project_id, source, structure)
+    # The numbers rather than a total. What the model does next is name one of these frames, and a
+    # count would send it reading the file back to learn what to call them.
     return ToolResult(
-        f"Added {counted(len(coming), 'frame')} to {source}; it holds {len(frames)} now.",
+        f"Added {counted(len(born), 'scene')} to {source} as {_made_frames(born)}.",
         None,
         source,
-        counted(len(coming), "frame"),
+        counted(len(born), "scene"),
     )
+
+
+def _frame_from(scene, number, structure, problems):
+    """One scene as one frame, with whatever is wrong about it left in `problems`.
+
+    Goes on building after it finds a problem, and hands the frame back either way: the caller
+    throws the whole batch away when anything is wrong, and what is wanted here is every problem
+    rather than the first. The one thing it will not do is look inside something that is not an
+    object.
+    """
+    if not isinstance(scene, dict):
+        problems.append(
+            f"frame {number}: a scene is an object with scene, characters and location."
+        )
+        return None
+
+    said = str(scene.get("scene") or "").strip()
+    if not said:
+        # The one required field. A frame with a cast and no scene is a frame there is nothing to
+        # write a prompt from, and a space is not a brief.
+        problems.append(f"frame {number}: a scene needs a sentence saying what happens.")
+    frame = {"number": number, "scene": said}
+
+    people = scene.get("characters")
+    if people is not None:
+        # The values are checked before any name is read: one sentence for the shape, rather than
+        # the same sentence once per bad value, which would send the model looking for two faults.
+        if not isinstance(people, dict) or not all(
+            isinstance(worn, (str, list)) for worn in people.values()
+        ):
+            problems.append(
+                f"frame {number}: characters is a map from a name to the outfits they wear."
+            )
+        else:
+            cast = {}
+            for name, worn in people.items():
+                _looked_for(name, structure.get("characters") or {}, "characters", number, problems)
+                # Written down in the canonical shape. cast_of forgives a lone outfit on the way
+                # out because both shapes are already on disk; writing has no such excuse.
+                wearing = [worn] if isinstance(worn, str) else list(worn)
+                for outfit in wearing:
+                    _looked_for(outfit, structure.get("outfits") or {}, "outfits", number, problems)
+                cast[name] = wearing
+            frame["characters"] = cast
+
+    place = scene.get("location")
+    if place is not None and not isinstance(place, str):
+        # Looked up with `in`, so anything unhashable would crash rather than answer.
+        problems.append(f"frame {number}: location is the name of one place, as a string.")
+    elif place:
+        _looked_for(place, structure.get("locations") or {}, "locations", number, problems)
+        frame["location"] = place
+    # A field nobody gave is left out rather than emptied: an empty one says somebody chose it.
+    return frame
+
+
+def _looked_for(name, known, which, number, problems):
+    """A name that is in no map is _unknown's sentence with the frame's number in front of it.
+
+    The same wording as the map tools and as build_prompts. A miss reads the same everywhere in the
+    app, whichever road the model was on when it made one.
+    """
+    if name not in known:
+        problems.append(f"frame {number}: {_unknown(name, known, which)}")
+
+
+def _made_frames(born):
+    """"frame 3", or "frames 3-5". They are always one run: they were appended in one go."""
+    numbers = [frame["number"] for frame in born]
+    if len(numbers) == 1:
+        return f"frame {numbers[0]}"
+    return f"frames {numbers[0]}-{numbers[-1]}"
 
 
 def _build(file_store, project_id, args):

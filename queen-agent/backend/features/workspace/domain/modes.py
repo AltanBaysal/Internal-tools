@@ -52,7 +52,7 @@ _WITHOUT_ASKING = {
         "write_plan",
         # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
         # their gate in front of it while this mode keeps none.
-        "add_frames",
+        "add_scene",
     ),
 }
 
