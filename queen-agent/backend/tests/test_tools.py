@@ -134,9 +134,11 @@ def test_start_scenario_refuses_a_name_that_is_taken(tmp_path):
 
 
 def test_start_scenario_says_what_it_started(tmp_path):
-    files = _files(tmp_path)
-    assert _call(files, "start_scenario", name="bar-scene") == "Started bar-scene.json."
-    assert _outcome(_files(tmp_path), "start_scenario", name="bar-scene") == "Started"
+    # One call, both halves read off it. Calling twice over the same tmp_path would meet the
+    # scenario the first call wrote, and the second answer would be the refusal.
+    made = run_tool(_files(tmp_path), "p1", "start_scenario", json.dumps({"name": "bar-scene"}))
+    assert made.text == "Started bar-scene.json."
+    assert made.outcome == "Started"
 
 
 def test_start_scenario_hands_the_name_back_so_a_card_is_drawn(tmp_path):
@@ -324,6 +326,10 @@ def test_every_tool_is_declared_to_the_model():
         # Madde 128. Appending to a JSON list through edit_file made the model quote the previous
         # frame back to reach the end of it; the end of a list is something code knows.
         "add_frames",
+        # Madde 167. create_file writes a document, this writes a structure -- and it takes no
+        # content, because the shape is the code's. It has to exist before Madde 171 shuts .json to
+        # create_file, or the model would be left with no way to start a scenario at all.
+        "start_scenario",
     }
 
 

@@ -50,7 +50,21 @@ DEFAULT_NAME = "note.md"
 
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
 # here: the file was already there. write_plan is, because the first plan of a name is new.
-WRITES_FILES = {"create_file", "build_prompts", "build_character_prompts", "write_plan"}
+WRITES_FILES = {
+    "create_file",
+    "start_scenario",
+    "build_prompts",
+    "build_character_prompts",
+    "write_plan",
+}
+
+# What a scenario is on the day it is born (Madde 167). The one place this shape is written down:
+# the maps empty and waiting, and no frames -- a scenario opens with nobody in it, and the tools
+# that follow are what put someone there.
+#
+# Dumped rather than copied, everywhere it is used. What goes to disk is text, and a constant nobody
+# can reach into cannot be edited by accident from across the module.
+EMPTY_SCENARIO = {"characters": {}, "outfits": {}, "locations": {}, "frames": []}
 
 TOOL_SPECS = [
     {
@@ -102,6 +116,29 @@ TOOL_SPECS = [
                     "content": {"type": "string", "description": "The document itself."},
                 },
                 "required": ["name", "content"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "start_scenario",
+            "description": (
+                "Open a new scenario: the structure file prompts are built from. It is born empty "
+                "-- no characters, no outfits, no locations, no frames -- and the tools that add "
+                "each of those are what fill it. You give a name and nothing else; the shape is "
+                "the code's, and the file is always .json. Refuses a name that is already taken: "
+                "a scenario is opened and added to, never started a second time."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "What the scenario is called, as in bar-scene.",
+                    }
+                },
+                "required": ["name"],
             },
         },
     },
@@ -276,6 +313,17 @@ def plan_name(name):
     return f"{stem}.md" if stem.endswith("-plan") else f"{stem}-plan.md"
 
 
+def scenario_name(name):
+    """A scenario is always .json, whatever it was asked for (Madde 167).
+
+    plan_name's sibling and it runs in the same place, after safe_name. The reason is not tidiness:
+    Madde 171 shuts .json to create_file and edit_file, so the tool that opens one has to land on
+    the extension the door guards. Two that disagreed would leave the door in front of a file
+    nothing writes, and the model holding a structure it could still edit as text.
+    """
+    return f"{name.rsplit('.', 1)[0]}.json"
+
+
 def run_tool(file_store, project_id, name, arguments):
     """Run one call and answer the model in words. A miss is an answer, not a crash."""
     try:
@@ -321,6 +369,28 @@ def run_tool(file_store, project_id, name, arguments):
         # The name it got, which is the cleaned one rather than whatever the model wished for. Not
         # repeated in the outcome: the line above already carries it.
         return ToolResult(f"Saved as {written}.", written, written, "Saved")
+
+    if name == "start_scenario":
+        wanted = scenario_name(safe_name(args.get("name")))
+        # Asked of the names rather than by reading the file, for create_file's reason: the question
+        # is whether the name is taken, and pulling a whole scenario back to learn that is work
+        # nobody needs.
+        if wanted in file_store.list_names(project_id):
+            # Its own way out rather than create_file's. A scenario is not changed with edit_file --
+            # Madde 171 shuts that door -- so the sentence points at the tools that add to one.
+            return ToolResult(
+                f"There is already a file called {wanted}. Open it and add to it, or pick "
+                "another name for a new scenario.",
+                None,
+                wanted,
+                "Already there",
+            )
+        # Indented and with ensure_ascii off, the way every write to a structure goes: the user
+        # opens this file and fixes it by hand, and their work is the first principle.
+        written = file_store.write(
+            project_id, wanted, json.dumps(EMPTY_SCENARIO, indent=2, ensure_ascii=False)
+        )
+        return ToolResult(f"Started {written}.", written, written, "Started")
 
     if name == "write_plan":
         wanted = plan_name(safe_name(args.get("name")))

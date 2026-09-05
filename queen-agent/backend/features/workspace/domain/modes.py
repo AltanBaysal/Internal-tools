@@ -32,6 +32,7 @@ _WITHOUT_ASKING = {
     EDIT: READS
     + (
         "create_file",
+        "start_scenario",
         "edit_file",
         "build_prompts",
         "build_character_prompts",
