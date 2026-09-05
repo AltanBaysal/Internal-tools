@@ -65,17 +65,19 @@ def test_the_instruction_no_longer_carries_the_schema():
     assert '"frames"' not in said and '"outfits"' not in said
 
 
-def test_the_instruction_no_longer_carries_the_rulebook():
-    from backend.features.workspace.domain.schema import RULEBOOK
+def test_no_instruction_names_a_tool_that_is_gone():
+    # Madde 172, and the guard m127 cost a trial for the want of. A skill text naming a tool that
+    # does not exist tells the model to make a call that comes back "there is no tool called that",
+    # and the model has no way to find that out except by spending a round on it.
+    #
+    # Asked of every underscored word rather than of a list written here: a tool deleted later has
+    # to be caught by this test existing, not by somebody remembering to add its name.
+    from backend.features.workspace.domain.tools import TOOL_SPECS
 
-    assert RULEBOOK not in instruction_for("generate-prompts-plus")
-
-
-def test_the_instruction_reads_the_schema_before_it_builds():
-    # The order is part of the instruction: the shape is fetched, the file is written, and only then
-    # is anything built from it.
-    said = instruction_for("generate-prompts-plus")
-    assert said.index("read_prompt_structure_schema") < said.index("build_prompts with")
+    known = {spec["function"]["name"] for spec in TOOL_SPECS}
+    for skill, said in INSTRUCTIONS.items():
+        named = {word.strip(".,;:") for word in said.split() if "_" in word}
+        assert named <= known, (skill, named - known)
 
 
 def test_the_structured_instruction_writes_the_skeleton_then_batches_of_five():
@@ -104,12 +106,15 @@ def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
     assert "rebuilt rather than patched" in instruction_for("generate-prompts-plus")
 
 
-def test_no_instruction_carries_the_rulebook_any_more():
+def test_no_instruction_carries_the_prompt_rules():
     # It was one text with two readers until Madde 94 took the checking skill away, and one reader
-    # until Madde 96 moved it out of the texts entirely. Whoever writes a file fetches it.
-    from backend.features.workspace.domain.schema import RULEBOOK
+    # until Madde 96 moved it out of the texts entirely. Madde 172 moved it once more -- to the six
+    # tools that take tags, where it sits beside the parameter it governs and is read while the tool
+    # is being chosen. A copy back here would be paid for by every turn, including the ones writing
+    # no tags at all.
+    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
 
-    assert not [skill for skill in INSTRUCTIONS if RULEBOOK in INSTRUCTIONS[skill]]
+    assert not [skill for skill in INSTRUCTIONS if SDXL_PROMPT_RULES in INSTRUCTIONS[skill]]
 
 
 # --- the flow that walks the user through it (Madde 101) -----------------------------------------
@@ -317,14 +322,12 @@ def test_no_instruction_reaches_for_the_listing_tool():
     assert "first turn opens with write_plan" in _flow()
 
 
-def test_the_flow_fetches_the_schema_once():
-    said = _flow()
-    assert "once, before the birth" in said
-    assert "do not fetch it again" in said
-
-
-def test_the_builder_fetches_the_schema_once():
-    assert "once, before the first write" in instruction_for("generate-prompts-plus")
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_no_instruction_sends_the_model_to_fetch_a_shape(skill):
+    # Madde 172. Both texts opened by fetching the schema, because for a while the model really did
+    # write the file's shape. It does not any more -- it calls a function -- so a sentence sending
+    # it to read the shape first spends a round on a tool that is gone.
+    assert "schema" not in instruction_for(skill).lower()
 
 
 def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():

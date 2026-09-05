@@ -848,21 +848,116 @@ def test_the_build_tool_tells_the_model_it_assembles_frames():
     assert "frame" in said and "shot" not in said
 
 
-def test_the_schema_tool_hands_back_the_shape_and_the_rules(tmp_path):
-    from backend.features.workspace.domain.schema import SCHEMA
+# --- the schema tool is gone, and the rules ride with the parameters (Madde 172) ------------------
+#
+# It taught the model the file's shape: the JSON example, which field goes where, how a map is
+# written. Maddes 167 to 171 took that shape into the tools -- the model calls a function now -- so
+# the schema was teaching a form it is no longer allowed to type. That is m127's list_files mistake,
+# and that one cost a trial.
+#
+# Half of it had to live. The shape became the code's; the tag text is still the model's, and no
+# signature can make it leave the quality chain out or put the count in the right entry. That half
+# splits by author: what goes into a map entry is Queen's and rides with these six tools; what goes
+# into a frame's action is Grok's and rides with write_frame_prompt (Madde 176).
 
-    # No arguments at all: there is one shape, and asking which one would be a question with a
-    # single answer.
-    assert _call(_files(tmp_path), "read_prompt_structure_schema") == SCHEMA
+TAG_TOOLS = (
+    "add_character",
+    "update_character",
+    "add_outfit",
+    "update_outfit",
+    "add_location",
+    "update_location",
+)
 
 
-def test_the_schema_tool_brings_no_file_into_being(tmp_path):
-    assert run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").created is None
+def _rules():
+    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+
+    return SDXL_PROMPT_RULES
 
 
-def test_the_schema_tool_says_what_it_answered_with(tmp_path):
-    # A reader's line rather than the answer itself, like every other outcome.
-    assert run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").outcome == "Schema"
+def test_the_schema_tool_is_gone(tmp_path):
+    assert "read_prompt_structure_schema" not in {
+        spec["function"]["name"] for spec in TOOL_SPECS
+    }
+    # And a record written before this madde can still carry the name, so the runner answers rather
+    # than crashes -- the road every deleted tool has taken.
+    said = run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").text
+    assert "no tool called" in said
+
+
+@pytest.mark.parametrize("tool", TAG_TOOLS)
+def test_the_rules_ride_with_every_tool_that_takes_tags(tool):
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)
+    assert _rules() in spec["function"]["description"]
+
+
+def test_the_rules_ride_with_nothing_else():
+    # Six copies is what this costs on every request. A seventh, on a tool that writes no tags,
+    # would be paid for and read by nobody.
+    carrying = {
+        spec["function"]["name"]
+        for spec in TOOL_SPECS
+        if _rules() in spec["function"]["description"]
+    }
+    assert carrying == set(TAG_TOOLS)
+
+
+def test_the_rules_put_the_count_in_the_characters_own_entry():
+    # Madde 166 inverted the schema's sixth rule: the count used to belong to the frame's people
+    # field, and that field is gone. This is the only place the new home is written down.
+    said = _rules()
+    assert "1girl" in said
+    assert "count" in said.lower()
+
+
+def test_the_rules_keep_solo_out_of_a_character():
+    # The count travels with the person; solo does not. The same character stands alone in one frame
+    # and beside somebody in the next, so an entry claiming solo is wrong in half of them.
+    assert "solo" in _rules()
+
+
+def test_the_rules_keep_clothes_out_of_a_character_and_name_them_by_the_garment():
+    said = _rules()
+    assert "clothes" in said.lower() or "clothing" in said.lower()
+    # An outfit named after its wearer cannot be worn by the other one, which is the whole reason
+    # outfits are their own map.
+    assert "garment" in said.lower()
+
+
+def test_the_rules_keep_people_out_of_a_location():
+    said = _rules()
+    assert "nobody" in said.lower() or "no people" in said.lower()
+
+
+def test_the_rules_forbid_a_quality_chain():
+    # Code puts it at the front of every prompt, so one written here is printed twice.
+    said = _rules()
+    assert "quality" in said.lower()
+    assert "twice" in said.lower()
+
+
+def test_the_rules_forbid_an_or():
+    # One picture, and an or is a coin it cannot toss.
+    said = _rules()
+    assert " or " in said
+    assert "coin" in said.lower()
+
+
+def test_the_rules_ask_for_tags_rather_than_sentences():
+    said = _rules()
+    assert "tags" in said.lower() and "sentence" in said.lower()
+    # An article is not a tag: the density is the thing a weak model gets wrong first.
+    assert "article" in said.lower()
+
+
+def test_the_rules_say_nothing_about_a_frames_action():
+    # The other half of the schema, and it belongs to whoever writes an action -- write_frame_prompt,
+    # in Madde 176. Carried here it would ride on six tools that never write one, six times per
+    # request, read by nobody.
+    said = _rules().lower()
+    assert "action" not in said
+    assert "camera" not in said
 
 
 def test_create_file_no_longer_offers_to_write_a_structure():
@@ -877,14 +972,13 @@ def test_create_file_no_longer_offers_to_write_a_structure():
     assert "start_scenario opens those" in spec["function"]["description"]
 
 
-def test_the_schema_tool_defines_the_term_it_hands_back():
-    # The model meets the words structure file in three descriptions before any skill text
-    # explains them. The definition has to ride with the name, or a skill-less chat reads a term
-    # nothing anchors.
-    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "read_prompt_structure_schema")
-    said = spec["function"]["description"]
-    assert "one JSON per scenario" in said
-    assert "before writing or changing" in said
+def test_the_term_structure_file_is_still_anchored_somewhere():
+    # The schema tool used to define it, and the model meets the words in several descriptions
+    # before any skill text explains them. With that tool gone the definition has to ride with the
+    # one tool that brings a structure into being, or a skill-less chat reads a term nothing
+    # anchors.
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "start_scenario")
+    assert "structure file" in spec["function"]["description"]
 
 
 def test_the_listing_tool_is_gone():
@@ -909,11 +1003,7 @@ def test_every_tool_is_declared_to_the_model():
         # Sixth since Madde 91, and declared here with the rest: which modes offer it is a separate
         # question, asked in modes.py.
         "write_plan",
-        # Seventh since Madde 96. The shape of a structure file stopped being a paragraph in a
-        # skill's text; it is fetched when a file is about to be written. Renamed 28 Aug so the
-        # name says whose schema it reads.
-        "read_prompt_structure_schema",
-        # Eighth since Madde 98: the same joining, one character at a time, so a character can be
+        # Madde 98: the same joining, one character at a time, so a character can be
         # looked at before it enters a frame.
         "build_character_prompts",
         # Madde 128. Appending to a JSON list through edit_file made the model quote the previous
@@ -1141,7 +1231,8 @@ def test_a_read_reports_the_cleaned_name_rather_than_the_asked_one(tmp_path):
 
 
 def test_a_call_about_no_file_has_no_target_to_report(tmp_path):
-    # Empty rather than invented: the call really is about nothing in particular.
+    # Empty rather than invented: the call really is about nothing in particular. Asked of an
+    # unknown name since Madde 172 took the last argument-free tool away.
     assert _target(_files(tmp_path), "read_prompt_structure_schema") == ""
 
 
@@ -1235,14 +1326,6 @@ def test_the_outcome_still_counts_the_lines_it_read(tmp_path):
     # A guard: the outcome counts the file's lines, not the width of what was shown.
     files = _with(tmp_path, "plan.md", "alpha\nbeta\ngamma")
     assert _outcome(files, "read_file", name="plan.md") == "3 lines"
-
-
-def test_the_schema_is_handed_back_unnumbered(tmp_path):
-    # A guard, and the reason is the rule: numbers exist so an anchor can be picked, and no anchor
-    # is ever written into the schema. It is one text for the whole app, not a file on disk.
-    from backend.features.workspace.domain.schema import SCHEMA
-
-    assert _call(_files(tmp_path), "read_prompt_structure_schema") == SCHEMA
 
 
 def test_an_edit_matches_the_disk_and_not_the_numbered_view(tmp_path):

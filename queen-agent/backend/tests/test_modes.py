@@ -4,7 +4,9 @@ The modes are named here the way the wire names them, and the module is imported
 rather than at the top: a module that does not exist yet fails this whole file's collection, and
 then none of the turn's other reds are visible anywhere in the suite.
 """
-READS = ("read_file", "read_prompt_structure_schema")
+# One since Madde 172: the schema tool went with the shape it taught, and reading a file is the only
+# thing left that opens nothing and changes nothing.
+READS = ("read_file",)
 WRITES = (
     "create_file",
     "edit_file",

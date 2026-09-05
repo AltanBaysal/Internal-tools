@@ -96,17 +96,13 @@ def test_a_read_that_found_nothing_is_not_in_the_box():
     assert _opened(_chat([ToolCall("read_file", "ghost.md", "No file by that name")])) == []
 
 
-def _schema_read(chat, steps=()):
-    from backend.features.workspace.domain.context_box import schema_was_read
+def test_the_box_remembers_files_and_nothing_else():
+    # Madde 172. The schema used to ride here beside them, remembered by a function of its own, and
+    # it left with the tool that fetched it. What stays is what Madde 129 built this for: a file is
+    # the one thing in this app whose contents can change under a message that already went out.
+    import backend.features.workspace.domain.context_box as box
 
-    return schema_was_read(chat, steps)
-
-
-def test_the_schema_is_remembered_separately():
-    # It is not a project file: one text for the whole app, and no name to look up on disk.
-    assert _schema_read(_chat([ToolCall("read_prompt_structure_schema", "", "Schema")]))
-    assert not _schema_read(_chat([_read("plan.md")]))
-
-
-def test_the_schema_is_remembered_from_this_turn_too():
-    assert _schema_read(_chat([]), steps=[ToolCall("read_prompt_structure_schema", "", "Schema")])
+    assert not hasattr(box, "schema_was_read")
+    # And a chat that once fetched it carries the step in its record forever, so the reading has to
+    # walk past that name rather than trip on it.
+    assert _opened(_chat([ToolCall("read_prompt_structure_schema", "", "Schema")])) == []
