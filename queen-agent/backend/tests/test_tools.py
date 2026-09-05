@@ -90,6 +90,71 @@ def test_reading_a_file_that_is_not_there_is_an_answer_not_a_crash(tmp_path):
     assert "no file by that name" in _call(_files(tmp_path), "read_file", name="ghost.md")
 
 
+# --- the tool that gives birth to a structure file (Madde 167) ------------------------------------
+#
+# create_file writes a document, this writes a structure -- and its whole shape is four empty maps
+# the code knows, so the tool takes no content at all. A tool with nothing to fill in is a model
+# that never sees the shape, which is this run's binding rule.
+#
+# It has to exist before Madde 171 closes .json to create_file: a door shut with no other way
+# through leaves the model unable to start anything.
+
+
+def _started(files, name="bar-scene"):
+    return json.loads(files.read("p1", run_tool(files, "p1", "start_scenario", json.dumps({"name": name})).target))
+
+
+def test_start_scenario_writes_the_empty_maps_and_no_frames(tmp_path):
+    # Exactly these four, and every one of them empty. A fifth key would be a shape the model never
+    # asked for, and a missing one would have the first add_ call inventing it.
+    files = _files(tmp_path)
+    assert _started(files) == {"characters": {}, "outfits": {}, "locations": {}, "frames": []}
+
+
+@pytest.mark.parametrize("asked", ["bar-scene", "bar-scene.md", "bar scene"])
+def test_start_scenario_names_the_file_after_the_scenario(tmp_path, asked):
+    # The extension is the tool's, the way a plan's is (plan_name). Madde 171 shuts the door on
+    # .json, so the tool that opens one has to land on the same extension -- two that disagreed
+    # would leave the door guarding a file nothing writes.
+    files = _files(tmp_path)
+    assert run_tool(files, "p1", "start_scenario", json.dumps({"name": asked})).target == (
+        "bar-scene.json"
+    )
+
+
+def test_start_scenario_refuses_a_name_that_is_taken(tmp_path):
+    # Madde 69's rule on this path too, with its own way out: a scenario is opened and added to,
+    # never born a second time. Saying only that one exists would leave the next move to a guess.
+    files = _with(tmp_path, "bar-scene.json", STRUCTURE)
+    said = _call(files, "start_scenario", name="bar-scene")
+    assert "There is already a file called bar-scene.json." in said
+    assert "Open it and add to it, or pick another name for a new scenario." in said
+    # And the scenario that was there is untouched -- the refusal is a refusal, not a rewrite.
+    assert files.read("p1", "bar-scene.json") == STRUCTURE
+
+
+def test_start_scenario_says_what_it_started(tmp_path):
+    files = _files(tmp_path)
+    assert _call(files, "start_scenario", name="bar-scene") == "Started bar-scene.json."
+    assert _outcome(_files(tmp_path), "start_scenario", name="bar-scene") == "Started"
+
+
+def test_start_scenario_hands_the_name_back_so_a_card_is_drawn(tmp_path):
+    from backend.features.workspace.domain.tools import WRITES_FILES
+
+    files = _files(tmp_path)
+    assert run_tool(files, "p1", "start_scenario", json.dumps({"name": "bar"})).created == "bar.json"
+    assert "start_scenario" in WRITES_FILES
+
+
+def test_start_scenario_writes_the_file_for_a_person_to_read(tmp_path):
+    # The user opens this file and fixes it by hand, so it is indented rather than one long line --
+    # the rule add_frames keeps, and the same person opening the same file.
+    files = _files(tmp_path)
+    _call(files, "start_scenario", name="bar-scene")
+    assert '\n  "characters": {}' in files.read("p1", "bar-scene.json")
+
+
 # --- creating over a name that is taken (Madde 69) ------------------------------------------------
 #
 # It used to number: plan.md became plan-2.md and the project held two versions of one document. The

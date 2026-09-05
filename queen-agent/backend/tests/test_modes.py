@@ -14,6 +14,9 @@ WRITES = (
     # Madde 128. It takes no position from the model, but it still changes the user's file, so the
     # quieter modes keep their gate in front of it.
     "add_frames",
+    # Madde 167. It writes no text of the model's own -- four empty maps the code knows -- but a
+    # file appears in the project, and a file appearing is what the quieter modes gate.
+    "start_scenario",
 )
 
 
