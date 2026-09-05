@@ -53,6 +53,10 @@ _WITHOUT_ASKING = {
         # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
         # their gate in front of it while this mode keeps none.
         "add_scene",
+        # Madde 174. A removal renumbers every frame left standing, which is the widest change any
+        # of these makes to a file the user is reading.
+        "update_frame",
+        "remove_frame",
     ),
 }
 

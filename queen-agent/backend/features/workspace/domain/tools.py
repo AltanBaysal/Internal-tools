@@ -516,6 +516,73 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
+            "name": "update_frame",
+            "description": (
+                "Change a frame that is already in a structure file, naming it by its number. Only "
+                "what you give is changed and the rest of the frame stays as it is, so a place "
+                "corrected leaves the cast alone. Giving a field empty clears it -- a frame with "
+                "nobody in it, or one that shows no place of its own -- except the scene, which a "
+                "frame is never without. Names come from the file's maps here as they do when the "
+                "frame is written."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "frame": {
+                        "type": "integer",
+                        "description": "Which frame, by its number, counting from 1.",
+                    },
+                    "scene": {
+                        "type": "string",
+                        "description": "What happens, in one sentence. Replaces the sentence there.",
+                    },
+                    "characters": {
+                        "type": "object",
+                        "description": (
+                            "Who is in the frame, each name with the outfits they wear. Replaces "
+                            "the whole cast rather than adding to it; empty leaves nobody in it."
+                        ),
+                    },
+                    "location": {
+                        "type": "string",
+                        "description": (
+                            "Where it happens, named as the file's locations name it. Empty takes "
+                            "the place off the frame."
+                        ),
+                    },
+                },
+                "required": ["file", "frame"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_frame",
+            "description": (
+                "Take one frame out of a structure file, naming it by its number. Every frame "
+                "after it moves up a place and the numbers follow, so the answer says how many are "
+                "left: a number you were told before this call may not mean the same frame after "
+                "it. Nothing in the maps is touched -- a character or a place left in no frame at "
+                "all stays where it is, and taking it out is the user's to ask for."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The structure file's name."},
+                    "frame": {
+                        "type": "integer",
+                        "description": "Which frame, by its number, counting from 1.",
+                    },
+                },
+                "required": ["file", "frame"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "build_prompts",
             "description": (
                 "Build the prompt list from a structure file. Code assembles every frame in a fixed "
@@ -745,6 +812,12 @@ def run_tool(file_store, project_id, name, arguments):
 
     if name == "add_scene":
         return _add_scene(file_store, project_id, args)
+
+    if name == "update_frame":
+        return _update_frame(file_store, project_id, args)
+
+    if name == "remove_frame":
+        return _remove_frame(file_store, project_id, args)
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
@@ -1214,35 +1287,56 @@ def _frame_from(scene, number, structure, problems):
 
     people = scene.get("characters")
     if people is not None:
-        # The values are checked before any name is read: one sentence for the shape, rather than
-        # the same sentence once per bad value, which would send the model looking for two faults.
-        if not isinstance(people, dict) or not all(
-            isinstance(worn, (str, list)) for worn in people.values()
-        ):
-            problems.append(
-                f"frame {number}: characters is a map from a name to the outfits they wear."
-            )
-        else:
-            cast = {}
-            for name, worn in people.items():
-                _looked_for(name, structure.get("characters") or {}, "characters", number, problems)
-                # Written down in the canonical shape. cast_of forgives a lone outfit on the way
-                # out because both shapes are already on disk; writing has no such excuse.
-                wearing = [worn] if isinstance(worn, str) else list(worn)
-                for outfit in wearing:
-                    _looked_for(outfit, structure.get("outfits") or {}, "outfits", number, problems)
-                cast[name] = wearing
+        cast = _cast_checked(people, number, structure, problems)
+        if cast is not None:
             frame["characters"] = cast
 
     place = scene.get("location")
-    if place is not None and not isinstance(place, str):
-        # Looked up with `in`, so anything unhashable would crash rather than answer.
-        problems.append(f"frame {number}: location is the name of one place, as a string.")
-    elif place:
-        _looked_for(place, structure.get("locations") or {}, "locations", number, problems)
-        frame["location"] = place
+    if place is not None:
+        checked = _place_checked(place, number, structure, problems)
+        if checked:
+            frame["location"] = checked
     # A field nobody gave is left out rather than emptied: an empty one says somebody chose it.
     return frame
+
+
+def _cast_checked(people, number, structure, problems):
+    """A frame's cast as it will be written, or None if the shape is wrong (Madde 174).
+
+    Its own function because a frame meets this twice -- when it is born and when it is changed --
+    and one rule written in two places is one rule that will disagree with itself.
+    """
+    # The values are checked before any name is read: one sentence for the shape, rather than the
+    # same sentence once per bad value, which would send the model looking for two faults.
+    if not isinstance(people, dict) or not all(
+        isinstance(worn, (str, list)) for worn in people.values()
+    ):
+        problems.append(
+            f"frame {number}: characters is a map from a name to the outfits they wear."
+        )
+        return None
+
+    cast = {}
+    for name, worn in people.items():
+        _looked_for(name, structure.get("characters") or {}, "characters", number, problems)
+        # Written down in the canonical shape. cast_of forgives a lone outfit on the way out
+        # because both shapes are already on disk; writing has no such excuse.
+        wearing = [worn] if isinstance(worn, str) else list(worn)
+        for outfit in wearing:
+            _looked_for(outfit, structure.get("outfits") or {}, "outfits", number, problems)
+        cast[name] = wearing
+    return cast
+
+
+def _place_checked(place, number, structure, problems):
+    """A frame's place, checked the same way on both roads. None if it is not a name at all."""
+    if not isinstance(place, str):
+        # Looked up with `in`, so anything unhashable would crash rather than answer.
+        problems.append(f"frame {number}: location is the name of one place, as a string.")
+        return None
+    if place:
+        _looked_for(place, structure.get("locations") or {}, "locations", number, problems)
+    return place
 
 
 def _looked_for(name, known, which, number, problems):
@@ -1261,6 +1355,124 @@ def _made_frames(born):
     if len(numbers) == 1:
         return f"frame {numbers[0]}"
     return f"frames {numbers[0]}-{numbers[-1]}"
+
+
+def _numbered(wanted, source, many):
+    """Which frame a call means, or the answer saying there is no such frame (Madde 174).
+
+    Both frame tools start here, so a number that is not one reads the same whichever was called.
+    """
+    if isinstance(wanted, str) and wanted.strip().isdigit():
+        # One slip with exactly one meaning, forgiven the way a lone outfit is (Madde 173): sending
+        # it back would cost a round to learn nothing.
+        wanted = int(wanted.strip())
+    # bool before int, because in Python True is an int: frame=True would quietly mean frame 1.
+    if isinstance(wanted, bool) or not isinstance(wanted, int) or wanted < 1:
+        return None, ToolResult(
+            "A frame is named by its number, counting from 1.", None, source, "Refused"
+        )
+    if wanted > many:
+        return None, ToolResult(
+            f"{source} has {counted(many, 'frame')}; there is no frame {wanted}.",
+            None,
+            source,
+            "Not there",
+        )
+    return wanted, None
+
+
+def _update_frame(file_store, project_id, args):
+    """Only what was given, and never the action (Madde 174).
+
+    The action belongs to the prompt model, which writes it because the main model will not write
+    that kind of sentence well. A field here would be the way round it, and the way round a quality
+    gate is the road every gate ends up on unless it is simply not there.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    frames = structure["frames"]
+    number, missing = _numbered(args.get("frame"), source, len(frames))
+    if missing is not None:
+        return missing
+
+    # `in` rather than .get(), because an empty value is a value: it is how a field is cleared, and
+    # .get() would read that as nothing having been given. The order is this tuple's rather than the
+    # call's, so the answer reads the same whichever way the arguments arrived.
+    given = {key: args[key] for key in ("scene", "characters", "location") if key in args}
+    if not given:
+        # No silent success: a model told nothing happened moves on believing it did.
+        return ToolResult(
+            f"Nothing was given to change about frame {number}.", None, source, "Nothing to change"
+        )
+
+    problems, changing = [], {}
+    if "scene" in given:
+        said = str(given["scene"] or "").strip()
+        if not said:
+            # Required at birth, so it cannot be emptied later: the two together would leave a
+            # frame add_scene refuses to write sitting in the file anyway.
+            problems.append(f"frame {number}: a scene needs a sentence saying what happens.")
+        changing["scene"] = said
+    if "characters" in given:
+        people = given["characters"]
+        changing["characters"] = (
+            _cast_checked(people, number, structure, problems) if people else {}
+        )
+    if "location" in given:
+        place = given["location"]
+        changing["location"] = _place_checked(place, number, structure, problems) if place else ""
+
+    if problems:
+        return ToolResult("\n".join(problems + ["Nothing was changed."]), None, source, "Refused")
+
+    frame = frames[number - 1]
+    for key, value in changing.items():
+        # An empty value takes the field off the frame rather than emptying it: a frame written
+        # without one looks exactly like this (Madde 173), and a file with two ways of saying
+        # nothing is a file whose readers have to know both.
+        if value:
+            frame[key] = value
+        else:
+            frame.pop(key, None)
+    _saved(file_store, project_id, source, structure)
+    return ToolResult(
+        f"Changed {_and_joined(given)} of frame {number} in {source}.", None, source, "Changed"
+    )
+
+
+def _remove_frame(file_store, project_id, args):
+    """One frame out, and every frame after it moves up a place (Madde 174)."""
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    frames = structure["frames"]
+    number, missing = _numbered(args.get("frame"), source, len(frames))
+    if missing is not None:
+        return missing
+
+    del frames[number - 1]
+    # Counted rather than read. The number is a frame's place, so a removal moves every number
+    # after it -- and frames written before Madde 173 carry no number at all, which counting gives
+    # them on the way past. Nothing in the maps is touched: an entry left in no frame stays where
+    # it is, and asking for it to go is the user's (their decision, 5 Sep).
+    for place, frame in enumerate(frames, start=1):
+        frame["number"] = place
+    _saved(file_store, project_id, source, structure)
+    left = (
+        f"{counted(len(frames), 'frame')} left, renumbered from 1" if frames else "no frames left"
+    )
+    return ToolResult(f"Removed frame {number} from {source}; {left}.", None, source, "Removed")
+
+
+def _and_joined(words):
+    """"scene", "scene and location", "scene, characters and location"."""
+    words = list(words)
+    if len(words) == 1:
+        return words[0]
+    return f"{', '.join(words[:-1])} and {words[-1]}"
 
 
 def _build(file_store, project_id, args):
