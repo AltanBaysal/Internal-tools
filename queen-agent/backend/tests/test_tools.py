@@ -181,7 +181,11 @@ CAST = json.dumps(
             # Worn in no frame at all: the one outfit that can actually be removed.
             "atki": "red knit scarf",
         },
-        "locations": {"bedroom": "sunlit bedroom"},
+        "locations": {
+            "bedroom": "sunlit bedroom",
+            # Nobody's place: the one location that can actually be removed.
+            "kapi_onu": "apartment doorway, daytime",
+        },
         "frames": [
             {"characters": {"aylin": ["gecelik"]}, "location": "bedroom", "action": "one"},
             {"characters": {"deniz": ["takim"]}, "location": "bedroom", "action": "two"},
@@ -544,6 +548,134 @@ def test_an_outfit_tool_opens_the_file_the_same_way(tmp_path, tool):
     )
 
 
+# --- location management (Madde 170) --------------------------------------------------------------
+#
+# The third and last map, and the narrowest. A character is a key of the frame's cast and an outfit
+# is a name inside it, so both are read through cast_of; a location is not there at all. It is the
+# frame's own field, there is exactly one of it, and it is always a plain string -- no second shape
+# on disk to forgive.
+#
+# Which makes this the measure of whether the shared bodies are really shared: a third map should
+# arrive as a branch and a row, not as another loosening of the middle.
+
+
+def test_add_location_writes_the_name_and_its_tags(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "add_location", file="bar-scene.json", name="balkon", tags="balcony, night")
+    assert _read_back(files, "locations")["balkon"] == "balcony, night"
+
+
+def test_add_location_says_what_it_added(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "add_location", file="bar-scene.json", name="balkon", tags="balcony") == (
+        "Added balkon to locations."
+    )
+
+
+def test_add_location_refuses_a_name_that_is_already_there(tmp_path):
+    # The article goes back to "a" here: one rule over three singulars, and this is the third.
+    files = _cast(tmp_path)
+    said = _call(files, "add_location", file="bar-scene.json", name="bedroom", tags="something")
+    assert said == "There is already a location called bedroom."
+    assert _read_back(files, "locations")["bedroom"] == "sunlit bedroom"
+
+
+def test_add_location_needs_a_name(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "add_location", file="bar-scene.json", tags="balcony") == (
+        "A location needs a name."
+    )
+
+
+def test_update_location_changes_the_tags(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "update_location", file="bar-scene.json", name="bedroom", tags="dark bedroom")
+    assert _read_back(files, "locations")["bedroom"] == "dark bedroom"
+
+
+def test_update_location_refuses_a_name_nobody_knows(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "update_location", file="bar-scene.json", name="balkon", tags="x") == (
+        "balkon is not in locations; known: bedroom, kapi_onu."
+    )
+
+
+def test_update_location_renames_and_the_frames_follow(tmp_path):
+    # A frame names its place in a field of its own, so the rename writes there and leaves the cast
+    # entirely alone.
+    files = _cast(tmp_path)
+    _call(files, "update_location", file="bar-scene.json", name="bedroom", new_name="yatak")
+    frames = _read_back(files, "frames")
+    assert [frame["location"] for frame in frames] == ["yatak", "yatak", "yatak"]
+    assert frames[0]["characters"] == {"aylin": ["gecelik"]}
+
+
+def test_update_location_says_how_many_frames_followed(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(
+        files, "update_location", file="bar-scene.json", name="bedroom", new_name="yatak"
+    ) == "Renamed bedroom to yatak in locations; 3 frames followed."
+
+
+def test_remove_location_takes_the_name_out(tmp_path):
+    files = _cast(tmp_path)
+    assert _call(files, "remove_location", file="bar-scene.json", name="kapi_onu") == (
+        "Removed kapi_onu from locations."
+    )
+    assert "kapi_onu" not in _read_back(files, "locations")
+
+
+def test_remove_location_refuses_while_it_is_a_frames_place(tmp_path):
+    # Its own verb, and the row written in 169 that has not run until now. A place is not something
+    # standing in a frame; it is what the frame is set in.
+    files = _cast(tmp_path)
+    said = _call(files, "remove_location", file="bar-scene.json", name="bedroom")
+    assert said == "bedroom is still the place in frames 1, 2, 3. Nothing was removed."
+    assert "bedroom" in _read_back(files, "locations")
+
+
+def test_remove_location_leaves_the_frames_alone(tmp_path):
+    files = _cast(tmp_path)
+    _call(files, "remove_location", file="bar-scene.json", name="kapi_onu")
+    # First, or the line below is vacuously true on a call that removed nothing.
+    assert "kapi_onu" not in _read_back(files, "locations")
+    assert _read_back(files, "frames") == json.loads(CAST)["frames"]
+
+
+LOCATION_TOOLS = ("add_location", "update_location", "remove_location")
+
+
+@pytest.mark.parametrize("tool", LOCATION_TOOLS)
+def test_a_location_tool_opens_the_file_the_same_way(tmp_path, tool):
+    assert _call(_files(tmp_path), tool, file="ghost.json", name="bedroom", tags="x") == (
+        "There is no file by that name."
+    )
+    broken = _with(tmp_path, "bar-scene.json", "not json at all")
+    assert _call(broken, tool, file="bar-scene.json", name="bedroom", tags="x").startswith(
+        "bar-scene.json is not valid JSON:"
+    )
+    listless = _with(tmp_path, "listless.json", json.dumps({"locations": {}}))
+    assert _call(listless, tool, file="listless.json", name="bedroom", tags="x") == (
+        "listless.json has no frames list to add to; a structure file carries one."
+    )
+
+
+def test_the_three_maps_are_managed_by_the_same_nine_tools():
+    # The one place that says the pattern is a pattern. A later madde adding a parameter to one of
+    # the nine, or naming a tenth differently, is caught here rather than by a reader noticing.
+    declared = {spec["function"]["name"]: spec["function"] for spec in TOOL_SPECS}
+    for which in ("character", "outfit", "location"):
+        assert set(declared[f"add_{which}"]["parameters"]["required"]) == {"file", "name", "tags"}
+        assert set(declared[f"update_{which}"]["parameters"]["required"]) == {"file", "name"}
+        assert set(declared[f"update_{which}"]["parameters"]["properties"]) == {
+            "file",
+            "name",
+            "tags",
+            "new_name",
+        }
+        assert set(declared[f"remove_{which}"]["parameters"]["properties"]) == {"file", "name"}
+
+
 # --- creating over a name that is taken (Madde 69) ------------------------------------------------
 #
 # It used to number: plan.md became plan-2.md and the project held two versions of one document. The
@@ -728,6 +860,11 @@ def test_every_tool_is_declared_to_the_model():
         "add_outfit",
         "update_outfit",
         "remove_outfit",
+        # Madde 170. The third and narrowest map: a frame names its place in a field of its own,
+        # there is one of it, and it is always a plain string.
+        "add_location",
+        "update_location",
+        "remove_location",
     }
 
 

@@ -26,6 +26,10 @@ WRITES = (
     "add_outfit",
     "update_outfit",
     "remove_outfit",
+    # Madde 170, third map.
+    "add_location",
+    "update_location",
+    "remove_location",
 )
 
 
