@@ -492,19 +492,30 @@ TOOL_SPECS = [
         "function": {
             "name": "add_scene",
             "description": (
-                "Add scenes to the end of a structure file, one frame each, in the order they "
-                "happen. Where a frame goes is not yours to give -- the end of a list is something "
-                "the code knows -- and neither is its number, which is simply its place in the "
-                "list. Every name a scene uses has to be in the file's maps already: a name nobody "
-                "knows is refused, together with the names that are known, and the whole call is "
-                "refused with it -- nothing is written unless every scene in it is good. The "
-                "answer names the frames it made, which is how you say which one you mean next: "
-                "a frame is born without its action, and write_frame_prompt is what writes one."
+                "Add scenes to a structure file, one frame each, in the order they happen. They go "
+                "at the end unless before names a frame to go in front of. A frame's number is not "
+                "yours to give either way -- it is simply its place in the list, and every frame "
+                "after an insertion moves up. Every name a scene uses has to be in the file's maps "
+                "already: a name nobody knows is refused, together with the names that are known, "
+                "and the whole call is refused with it -- nothing is written unless every scene in "
+                "it is good. The answer names the frames it made, which is how you say which one "
+                "you mean next: a frame is born without its action, and write_frame_prompt is what "
+                "writes one."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "file": {"type": "string", "description": "The structure file's name."},
+                    "before": {
+                        "type": "integer",
+                        "description": (
+                            "Go in front of this frame, by its number, rather than at the end. The "
+                            "frames from there on move up and keep everything they carry, their "
+                            "actions included -- so this is how a scene goes into the middle of a "
+                            "scenario, and taking the tail out to add it again is not. One past "
+                            "the last frame is the end."
+                        ),
+                    },
                     "scenes": {
                         "type": "array",
                         "description": (
@@ -1320,9 +1331,21 @@ def _add_scene(file_store, project_id, args):
             f"No scenes were given, so {source} is unchanged.", None, source, "Nothing to add"
         )
 
+    # Where they go (Madde 180). The end unless a frame is named to go in front of, and one past the
+    # last frame is the end -- refusing that would refuse a call that named its place correctly.
+    # A ceiling of its own, because the sentence has to say how many frames there are rather than
+    # how many places they leave.
+    place = len(frames) + 1
+    if args.get("before") is not None:
+        place, missing = _numbered(args["before"], source, len(frames), ceiling=place)
+        if missing is not None:
+            return missing
+
     born, problems = [], []
     for offset, scene in enumerate(coming):
-        made = _frame_from(scene, len(frames) + offset + 1, structure, problems)
+        # The number it is going to get, not where it sits in the argument: a complaint carrying the
+        # latter would name a frame that already exists and send the model to the wrong one.
+        made = _frame_from(scene, place + offset, structure, problems)
         if made is not None:
             born.append(made)
 
@@ -1332,16 +1355,33 @@ def _add_scene(file_store, project_id, args):
         # leave the model working out which half, and the numbers it was told would be wrong.
         return ToolResult("\n".join(problems + ["Nothing was added."]), None, source, "Refused")
 
-    frames.extend(born)
+    # Counted before the insertion, while the list still means what the number was measured against.
+    moved = len(frames) - (place - 1)
+    frames[place - 1 : place - 1] = born
+    _renumbered(frames)
     _saved(file_store, project_id, source, structure)
+    # Said only when something did move. A sentence about frames that stayed where they were is the
+    # one Madde 174 refused when the last frame came out and there was nothing left to renumber.
+    after = f"; {counted(moved, 'frame')} after it moved up" if moved else ""
     # The numbers rather than a total. What the model does next is name one of these frames, and a
     # count would send it reading the file back to learn what to call them.
     return ToolResult(
-        f"Added {counted(len(born), 'scene')} to {source} as {_made_frames(born)}.",
+        f"Added {counted(len(born), 'scene')} to {source} as {_made_frames(born)}{after}.",
         None,
         source,
         counted(len(born), "scene"),
     )
+
+
+def _renumbered(frames):
+    """Every frame's number is its place, counted rather than read (Madde 174).
+
+    Shared by the two tools that move places -- taking a frame out and putting one in (Madde 180) --
+    because one rule written twice is one rule that will disagree with itself. Frames written before
+    Madde 173 carry no number at all, and counting gives them one on the way past.
+    """
+    for place, frame in enumerate(frames, start=1):
+        frame["number"] = place
 
 
 def _frame_from(scene, number, structure, problems):
@@ -1430,18 +1470,23 @@ def _looked_for(name, known, which, number, problems):
 
 
 def _made_frames(born):
-    """"frame 3", or "frames 3-5". They are always one run: they were appended in one go."""
+    """"frame 3", or "frames 3-5". Always one run: they go in side by side, wherever they go."""
     numbers = [frame["number"] for frame in born]
     if len(numbers) == 1:
         return f"frame {numbers[0]}"
     return f"frames {numbers[0]}-{numbers[-1]}"
 
 
-def _numbered(wanted, source, many):
+def _numbered(wanted, source, many, ceiling=None):
     """Which frame a call means, or the answer saying there is no such frame (Madde 174).
 
     Both frame tools start here, so a number that is not one reads the same whichever was called.
+
+    `ceiling` is how high a number may go when that is not how many frames there are: add_scene's
+    `before` may name the place after the last one (Madde 180), and the sentence still has to say
+    how many frames the file holds rather than how many places they leave between them.
     """
+    top = many if ceiling is None else ceiling
     if isinstance(wanted, str) and wanted.strip().isdigit():
         # One slip with exactly one meaning, forgiven the way a lone outfit is (Madde 173): sending
         # it back would cost a round to learn nothing.
@@ -1451,7 +1496,7 @@ def _numbered(wanted, source, many):
         return None, ToolResult(
             "A frame is named by its number, counting from 1.", None, source, "Refused"
         )
-    if wanted > many:
+    if wanted > top:
         return None, ToolResult(
             f"{source} has {counted(many, 'frame')}; there is no frame {wanted}.",
             None,
@@ -1534,12 +1579,10 @@ def _remove_frame(file_store, project_id, args):
         return missing
 
     del frames[number - 1]
-    # Counted rather than read. The number is a frame's place, so a removal moves every number
-    # after it -- and frames written before Madde 173 carry no number at all, which counting gives
-    # them on the way past. Nothing in the maps is touched: an entry left in no frame stays where
-    # it is, and asking for it to go is the user's (their decision, 5 Sep).
-    for place, frame in enumerate(frames, start=1):
-        frame["number"] = place
+    # The number is a frame's place, so a removal moves every number after it. Nothing in the maps
+    # is touched: an entry left in no frame stays where it is, and asking for it to go is the
+    # user's (their decision, 5 Sep).
+    _renumbered(frames)
     _saved(file_store, project_id, source, structure)
     left = (
         f"{counted(len(frames), 'frame')} left, renumbered from 1" if frames else "no frames left"
