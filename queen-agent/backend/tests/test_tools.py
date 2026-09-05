@@ -2187,6 +2187,86 @@ def test_the_prompt_writer_is_told_about_the_action_and_the_camera():
     assert "camera" in said or "shot" in said
 
 
+# --- what is true in this instant, and nowhere else (Madde 181) -----------------------------------
+#
+# "Do not describe anybody's looks, their clothes or the place" was read as covering the body, and
+# Deneme 4 came back with twenty frames talking around what was in them -- bodies connected, deep
+# rear penetration, no organ named anywhere. An SDXL-family model draws what is named and invents
+# whatever a euphemism left out, so the user fixed twenty action lines by hand.
+#
+# Two things, and the user's decision of 5 Sep is that it is only these two: what is visible of a
+# body, and the face's expression. Both are true of this instant and of no other, which is exactly
+# why no map can hold them -- and why the writer's own prompt is where they belong.
+#
+# Clothes are not among them. A character with no outfit in a frame is already bare, so nudity is
+# the cast's doing and never a word the writer adds.
+
+
+def test_the_writer_is_told_to_name_what_is_visible_of_a_body():
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+
+    assert "name what is visible" in WRITE_FRAME_SYSTEM_PROMPT.lower()
+
+
+def test_the_writer_is_given_the_terms_rather_than_left_to_find_them():
+    # Examples rather than a principle, the way every other rule in this text is written. Deneme 4
+    # showed a model that had the principle and still wrote its way around the thing.
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+
+    said = WRITE_FRAME_SYSTEM_PROMPT.lower()
+    assert "penis" in said
+    assert "vagina" in said
+
+
+def test_the_writer_is_told_why_a_euphemism_costs_something():
+    # A rule with its reason attached is a rule a model can apply to a case nobody listed. Without
+    # it, the three examples become the whole of what it will ever write.
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+
+    assert "euphemism" in WRITE_FRAME_SYSTEM_PROMPT.lower()
+
+
+def test_the_writer_is_asked_for_the_face_this_instant_wears():
+    # The character entry describes a face; nothing anywhere describes what it is doing right now,
+    # and that changes frame to frame the way nothing in a map does.
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+
+    assert "expression" in WRITE_FRAME_SYSTEM_PROMPT.lower()
+
+
+def test_being_bare_is_the_casts_doing_and_not_the_writers():
+    # The user's decision of 5 Sep. An outfit is a map entry and a frame either names one or does
+    # not; a writer adding nude would be writing the one thing the cast already said.
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+
+    assert "already bare" in WRITE_FRAME_SYSTEM_PROMPT.lower()
+
+
+def test_the_clothes_rule_madde_176_wrote_is_still_there():
+    # This madde carves two things out of it; it does not open it. A line describing an outfit still
+    # says in one prompt what the maps already said, and the second copy is the one that contradicts.
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+
+    said = WRITE_FRAME_SYSTEM_PROMPT.lower()
+    assert "do not describe" in said
+    assert "clothes" in said
+
+
+def test_the_map_tools_never_carry_the_words_this_madde_adds():
+    # The sharpest line in the madde. SDXL_PROMPT_RULES rides with the tools that take tags, and an
+    # anatomy word in a character's entry is drawn into every frame that character is in -- which is
+    # the leak the user avoided by hand in Deneme 4 and the reason this went to the writer instead.
+    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+
+    # The rules are really reaching the model here, so a text gone empty cannot pass this quietly.
+    assert SDXL_PROMPT_RULES in _said_by("add_character")
+    for tool in ("add_character", "add_outfit", "add_location"):
+        said = _said_by(tool).lower()
+        assert "penis" not in said, tool
+        assert "vagina" not in said, tool
+        assert "expression" not in said, tool
+
+
 def test_the_prompt_writer_is_not_told_what_queenagent_tells_its_agent():
     # SYSTEM_PROMPT is a page about tools, files, chats and how to talk to a user. The model here
     # has none of those and one sentence to write.
