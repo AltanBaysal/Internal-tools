@@ -129,7 +129,8 @@ def test_the_flow_writes_the_plan_before_it_asks_anything():
     # different every time, and has nowhere to keep its place.
     said = _flow()
     assert "write_plan" in said
-    assert said.index("write_plan") < said.index("read_prompt_structure_schema")
+    # Ordered against the next step rather than against the schema fetch, which Madde 172 retired.
+    assert said.index("write_plan") < said.index("2. The characters")
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
@@ -168,12 +169,11 @@ def test_a_finished_step_reaches_the_plan():
 
 def test_the_structure_file_is_born_once():
     # The observed failure wears two masks here: everything gathered in chat and written at the
-    # end, or a new file per step. One birth at the characters step rules out both -- and the
-    # schema is read before the birth, the same order the other skill keeps.
+    # end, or a new file per step. One birth at the characters step rules out both. The half that
+    # ordered this against fetching the schema went with the schema in Madde 172.
     said = _flow()
     assert "born once" in said
     assert "never a second file" in said
-    assert said.index("read_prompt_structure_schema") < said.index("born once")
 
 
 def test_the_flow_hands_the_frames_to_the_builder():

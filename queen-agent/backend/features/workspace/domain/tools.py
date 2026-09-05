@@ -17,7 +17,6 @@ from backend.features.workspace.domain.build_prompts import (
     render_module,
 )
 from backend.features.workspace.domain.errors import BadStructure
-from backend.features.workspace.domain.schema import SCHEMA
 
 # What the model is told, separately whether a file was born, and separately the file the call was
 # about. Parsing the sentence back out would be fragile.
@@ -59,6 +58,47 @@ WRITES_FILES = {
     "write_plan",
 }
 
+# The rules a map entry's tags are written by, and the whole of what is left of the schema
+# (Madde 172). Named for what it is: the reader is an SDXL-family image model, and these are the
+# rules its prompts hold.
+#
+# read_prompt_structure_schema handed back two halves. The half describing the file's shape died as
+# the tools took the shape over: start_scenario opens the file, the add_ and update_ and remove_
+# tools build it, and create_file cannot touch it -- so the model was studying a JSON example of a
+# form it is no longer allowed to type. Nothing about the shape belongs here, or the dead half comes
+# back in a text that rides in every request.
+#
+# The other half split again, by author. What goes into a map entry is Queen's and is written here;
+# what goes into a frame's action is the prompt writer's, and lives in Madde 176's own system
+# prompt. Carried here it would ride on six tools that never write an action.
+#
+# Not in the system prompt, where every chat would carry it including the ones writing no tags --
+# Madde 94 pruned the skill texts for exactly that. Its cost is paid all the same, because a tool's
+# description travels every turn as well: six copies is roughly a thousand tokens on every request.
+# What is bought is where the attention falls -- the rule sits beside the parameter it governs and
+# is read while the tool is being chosen -- and a round, since nothing is fetched.
+SDXL_PROMPT_RULES = (
+    "How to write the tags. They are read by an SDXL-family image model, so they are English, and "
+    "they are short comma-separated fragments rather than a sentence: an article is not a tag, and "
+    "sitting on couch, by window is the density to match.\n"
+    "\n"
+    "How many people a character entry draws belongs in that entry and nowhere else -- 1girl, woman "
+    "in her mid 20s -- because that is the one place a count lands beside the person it counts. The "
+    "word solo does not go there: the same character stands alone in one frame and beside somebody "
+    "in the next, so an entry claiming it is wrong in half of them.\n"
+    "\n"
+    "Clothes are never in a character's entry; they are an outfit of their own, named after the "
+    "garment rather than after whoever wears it, because two characters can wear the same one. One "
+    "entry dresses one person: its text is handed whole to whoever wears it, so one entry covering "
+    "two people puts the man in the dress. A location has nobody in it and no count -- who is there "
+    "is the frame's business, and a person written into a place is drawn into every frame set "
+    "there.\n"
+    "\n"
+    "No quality tags anywhere: code writes those at the front of every prompt, and yours would be "
+    "printed twice. No or inside a value -- the model draws one picture and cannot toss a coin, so "
+    "pick one."
+)
+
 # What a scenario is on the day it is born (Madde 167). The one place this shape is written down:
 # the maps empty and waiting, and no frames -- a scenario opens with nobody in it, and the tools
 # that follow are what put someone there.
@@ -68,21 +108,6 @@ WRITES_FILES = {
 EMPTY_SCENARIO = {"characters": {}, "outfits": {}, "locations": {}, "frames": []}
 
 TOOL_SPECS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "read_prompt_structure_schema",
-            "description": (
-                "What a structure file looks like and the rules it has to hold, shown with an "
-                "example. A structure file is the one JSON per scenario that prompts are built "
-                "from: the characters, outfits and locations written once, and the frames that "
-                "name them. Call it before writing or changing one -- no instruction repeats "
-                "the schema, so never write one from memory. It takes no arguments; there is "
-                "one schema for the whole app."
-            ),
-            "parameters": {"type": "object", "properties": {}},
-        },
-    },
     {
         "type": "function",
         "function": {
@@ -184,7 +209,8 @@ TOOL_SPECS = [
             "description": (
                 "Write a new character into a scenario: the tags an image model draws them from, "
                 "written once here and named by every frame they appear in. Refuses a name that is "
-                "already there -- to change one that exists, use update_character."
+                "already there -- to change one that exists, use update_character.\n"
+                "\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -217,7 +243,8 @@ TOOL_SPECS = [
             "description": (
                 "Change a character that is already in a scenario: its tags, its name, or both. "
                 "Only what you give changes. Renaming reaches every frame that names it, so the "
-                "scenario still builds afterwards. Refuses a name that is not there."
+                "scenario still builds afterwards. Refuses a name that is not there.\n"
+                "\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -269,7 +296,8 @@ TOOL_SPECS = [
                 "Write a new outfit into a scenario: a set of clothes with a name, worn by whoever "
                 "a frame puts it on. Kept apart from the character because the same person wears "
                 "different things across the frames, and the same clothes can be worn by more than "
-                "one person. Refuses a name that is already there."
+                "one person. Refuses a name that is already there.\n"
+                "\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -300,7 +328,8 @@ TOOL_SPECS = [
             "description": (
                 "Change an outfit that is already in a scenario: its tags, its name, or both. Only "
                 "what you give changes, and renaming reaches every frame wearing it. Refuses a "
-                "name that is not there."
+                "name that is not there.\n"
+                "\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -350,7 +379,8 @@ TOOL_SPECS = [
             "name": "add_location",
             "description": (
                 "Write a new location into a scenario: a place a frame can be set in. Refuses a "
-                "name that is already there."
+                "name that is already there.\n"
+                "\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -380,7 +410,8 @@ TOOL_SPECS = [
             "description": (
                 "Change a location that is already in a scenario: its tags, its name, or both. "
                 "Only what you give changes, and renaming reaches every frame set there. Refuses a "
-                "name that is not there."
+                "name that is not there.\n"
+                "\n" + SDXL_PROMPT_RULES
             ),
             "parameters": {
                 "type": "object",
@@ -578,12 +609,6 @@ def run_tool(file_store, project_id, name, arguments):
         args = json.loads(arguments or "{}")
     except json.JSONDecodeError:
         return ToolResult("Those arguments were not valid JSON.", None, "", "Bad arguments")
-
-    if name == "read_prompt_structure_schema":
-        # No arguments: there is one shape, so asking which one would be a question with a single
-        # answer. The outcome is what was answered with rather than the answer -- a read says how
-        # many lines, not the file.
-        return ToolResult(SCHEMA, None, "", "Schema")
 
     if name == "read_file":
         wanted = safe_name(args.get("name"))

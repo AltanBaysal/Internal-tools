@@ -7,8 +7,8 @@ typed "thanks". What to do comes from the user's own sentence.
 
 The instruction texts are English, like the rest of QueenAgent's own words. What the model writes
 back follows the user's language (prompt.py); the exception is what an image model reads -- the
-prompts and the structure file -- and the schema fetched before writing one says so in as many
-words (schema.py).
+prompts and the structure file -- and SDXL_PROMPT_RULES, which rides with every tool that takes
+tags, says so in as many words (tools.py).
 
 Two texts since Madde 101. Five others stood here and were deleted in Madde 94: what they said about
 how to work now sits in prompt.py, where it holds whatever is selected, and what they said about
@@ -19,9 +19,9 @@ Since Madde 123 each text opens as a persona and a word cap in the tests keeps i
 of patches had doubled the texts, and a weak model stops reading the middle. From here a sentence
 enters only by deleting one.
 
-What a structure file looks like is not here either, since Madde 96: it lives in schema.py and is
-fetched by a tool. A text that travels with every request should carry what is true every turn, and
-the shape of a file is only true of the turn that writes one.
+What a structure file looks like is not here either, and since Madde 172 it is nowhere the model can
+read: the tools took the shape over, so there is nothing left to teach. What a value should say is
+still the model's, and that rides with the tools that take one.
 """
 
 GENERATE_PROMPTS_PLUS = (
@@ -29,9 +29,8 @@ GENERATE_PROMPTS_PLUS = (
     "prompts for an SDXL-family image model, one frozen frame "
     "each. A prompt is never written by hand: characters, outfits and places live in the "
     "structure file's maps, a frame only names them, and build_prompts assembles every frame in "
-    "a fixed order, so a character reads the same in frame three and frame forty. Call "
-    "read_prompt_structure_schema once, before the first "
-    "write: the shape and rules live there, never in memory.\n"
+    "a fixed order, so a character reads the same in frame three and frame forty. The shape is not "
+    "yours to write; the tools take what they need.\n"
     "\n"
     "After Start a scenario the project holds a like-named pair -- bar-scene.json and the scene "
     "list bar-scene-scenes.md: their names are in the request, read both, write one frame per "
@@ -77,8 +76,7 @@ START_A_SCENARIO = (
     "it left open; with several, ask which. This step alone waits for no approval; the first "
     "question follows at once.\n"
     "\n"
-    "2. The characters. Call read_prompt_structure_schema once, before the birth; later edits "
-    "do not fetch it again. The structure file is born once "
+    "2. The characters. The structure file is born once "
     "here, frames empty -- every later change an edit, never a second file. Clothes go into "
     "outfits the moment they are described. Offer build_character_prompts as a look at one "
     "character; carry on if declined.\n"
