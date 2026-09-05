@@ -333,8 +333,13 @@ def test_no_instruction_sends_the_model_to_fetch_a_shape(skill):
 def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():
     # Madde 128. The text was the whole reason the model reached for edit_file to append: it said
     # so in as many words, and a weak model follows what it is shown.
+    #
+    # The name is Madde 173's, and it is here rather than in 178 for Madde 172's reason: a dead
+    # tool's name leaves the texts with the tool. Everything else this text says about the old team
+    # is 178's to rewrite.
     said = instruction_for("generate-prompts-plus")
-    assert "add_frames" in said
+    assert "add_scene" in said
+    assert "add_frames" not in said
     assert "Add frames with edit_file" not in said
     # The batches stay. They are not about anchors -- quality falls away at the end of a long
     # answer -- so the rhythm belongs in the text even once the tool needs no read between them.
