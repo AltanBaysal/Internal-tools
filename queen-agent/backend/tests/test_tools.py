@@ -1050,6 +1050,10 @@ def test_every_tool_is_declared_to_the_model():
         # here a frame already in the file could not be touched at all.
         "update_frame",
         "remove_frame",
+        # Madde 176. The one tool that answers out of a model rather than out of the file store:
+        # the border between the agent that builds a scenario and the model that writes its
+        # sentences.
+        "write_frame_prompt",
     }
 
 
@@ -1939,6 +1943,215 @@ def test_a_removal_gives_an_older_files_frames_the_numbers_they_never_had(tmp_pa
     files = _with(tmp_path, "scene.json", STRUCTURE)
     _call(files, "remove_frame", file="scene.json", frame=1)
     assert [frame["number"] for frame in _frames(files)] == [1]
+
+
+# --- the frame's action, written by the model that writes those (Madde 176) -----------------------
+#
+# The whole reason this run is shaped the way it is. The main agent builds the scenario -- who is
+# there, what they wear, where, in what order -- and it is good at that and bad at the one sentence
+# a frame turns on: its restriction makes it write around the thing rather than at it. The prompt
+# model is the other way round, strong on exactly that sentence and unable to carry the rest.
+#
+# This tool is the whole of the border between them. The main agent says which frame and, if it has
+# something to add, why; the prompt model writes the sentence and nothing else. The camera lives in
+# that sentence too (the user's decision, 5 Sep): a model splitting one shot across two fields is a
+# model doing bookkeeping instead of writing.
+
+
+class FakeWriter:
+    """An engine that only writes once, which is all this tool ever asks of one."""
+
+    def __init__(self, text="she turns her head, close-up", spent=None, blow_up=None):
+        self.text = text
+        self.spent = spent or {"sent": 120, "cached": 0, "answered": 24}
+        self.blow_up = blow_up
+        self.system = None
+        self.user = None
+
+    def write_once(self, system, user):
+        self.system, self.user = system, user
+        if self.blow_up:
+            raise RuntimeError(self.blow_up)
+        return {"text": self.text, "spent": self.spent}
+
+
+def _wrote(files, engine, **arguments):
+    return run_tool(
+        files, "p1", "write_frame_prompt", json.dumps(arguments), engine=engine
+    )
+
+
+def test_the_prompt_writers_system_prompt_carries_the_rules_a_map_entry_is_written_by():
+    # One text, two readers. Madde 172 put the entry rules beside the tools that take tags; the
+    # model writing an action reads the same ones, because it is writing into the same prompt.
+    from backend.features.workspace.domain.tools import (
+        SDXL_PROMPT_RULES,
+        WRITE_FRAME_SYSTEM_PROMPT,
+    )
+
+    assert SDXL_PROMPT_RULES in WRITE_FRAME_SYSTEM_PROMPT
+
+
+def test_the_prompt_writer_is_told_about_the_action_and_the_camera():
+    # The other half of the dead schema (Madde 172), and this is where it landed: the half about
+    # what happens in a frame and how it is shot, read by the one model that writes it.
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+
+    said = WRITE_FRAME_SYSTEM_PROMPT.lower()
+    assert "action" in said
+    # Since Madde 166 there is no camera field: the shot is part of the sentence, so the model has
+    # to be told that it is.
+    assert "camera" in said or "shot" in said
+
+
+def test_the_prompt_writer_is_not_told_what_queenagent_tells_its_agent():
+    # SYSTEM_PROMPT is a page about tools, files, chats and how to talk to a user. The model here
+    # has none of those and one sentence to write.
+    from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+
+    assert SYSTEM_PROMPT not in WRITE_FRAME_SYSTEM_PROMPT
+
+
+def test_the_writer_is_handed_the_scene_the_cast_and_the_place(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    writer = FakeWriter()
+    _wrote(files, writer, file="scene.json", frame=1)
+    said = writer.user
+    assert "one" in said                       # the scene sentence, which is the brief
+    assert "aylin" in said                     # the name, so a note that uses it can be matched
+    assert "1girl, long teal hair" in said     # and the tags, which are what the prompt is made of
+    assert "white nightgown" in said           # the outfit's tags, not just its name
+    assert "bedroom" in said and "sunlit bedroom" in said
+
+
+def test_the_writer_is_handed_the_note_when_there_is_one(tmp_path):
+    # The main agent's voice. A user saying "this one is flat" reaches the writer as a note, and
+    # calling the same frame again with one is what a retry is here.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    writer = FakeWriter()
+    _wrote(files, writer, file="scene.json", frame=1, note="make it tenser, she is afraid")
+    assert "make it tenser, she is afraid" in writer.user
+
+
+def test_the_writer_is_handed_this_frame_and_no_other(tmp_path):
+    # The user's decision of 5 Sep, and the reason this request is cheap. A file of forty frames
+    # would otherwise send forty casts to write one sentence.
+    files = _with(
+        tmp_path,
+        "scene.json",
+        json.dumps(
+            {
+                "characters": {"aylin": "1girl", "deniz": "1boy, dark hair"},
+                "outfits": {"gecelik": "white nightgown", "palto": "long coat"},
+                "locations": {"bedroom": "sunlit bedroom", "balcony": "night balcony"},
+                "frames": [
+                    {"number": 1, "scene": "one", "characters": {"aylin": ["gecelik"]},
+                     "location": "bedroom"},
+                    {"number": 2, "scene": "two", "characters": {"deniz": ["palto"]},
+                     "location": "balcony"},
+                ],
+            }
+        ),
+    )
+    writer = FakeWriter()
+    _wrote(files, writer, file="scene.json", frame=1)
+    assert "aylin" in writer.user
+    assert "deniz" not in writer.user
+    assert "long coat" not in writer.user
+    assert "night balcony" not in writer.user
+
+
+def test_what_comes_back_is_written_to_the_frames_action(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _wrote(files, FakeWriter("she turns her head, close-up"), file="scene.json", frame=1)
+    assert _frames(files)[0]["action"] == "she turns her head, close-up"
+
+
+def test_an_action_that_is_already_there_is_written_over(tmp_path):
+    # Always, and on purpose: a second call with a note is a correction, and a correction that left
+    # the old sentence behind would be an argument rather than a fix.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _wrote(files, FakeWriter("she looks away"), file="scene.json", frame=2, note="softer")
+    assert _frames(files)[1]["action"] == "she looks away"
+
+
+def test_the_answer_is_a_receipt_rather_than_the_prompt(tmp_path):
+    # Madde 130's rule, one road along: what was built goes in the file, not back into the chat.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _wrote(files, FakeWriter("she turns her head"), file="scene.json", frame=1)
+    assert answer.text == "Wrote frame 1 of scene.json."
+    assert "turns her head" not in answer.text
+    # No card: the file was already there.
+    assert answer.created is None
+
+
+def test_the_tools_own_spending_comes_back_with_its_answer(tmp_path):
+    # The user pays for this request, so somebody has to be able to find it. The tool is the only
+    # place that knows it happened.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _wrote(
+        files,
+        FakeWriter(spent={"sent": 300, "cached": 0, "answered": 60}),
+        file="scene.json",
+        frame=1,
+    )
+    assert answer.spent == {"sent": 300, "cached": 0, "answered": 60}
+
+
+def test_a_frame_with_no_scene_has_nothing_to_write_from(tmp_path):
+    files = _with(
+        tmp_path, "scene.json", json.dumps({"frames": [{"number": 1, "characters": {}}]})
+    )
+    writer = FakeWriter()
+    answer = _wrote(files, writer, file="scene.json", frame=1)
+    assert "Frame 1 has no scene to write from." in answer.text
+    # Refused before the request, not after it: nothing is paid to be told this.
+    assert writer.user is None
+
+
+def test_writing_refuses_a_frame_that_is_not_there(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert "there is no frame 9" in _wrote(
+        files, FakeWriter(), file="scene.json", frame=9
+    ).text
+
+
+def test_writing_without_a_model_says_so_rather_than_crashing(tmp_path):
+    # run_tool's engine is optional, and every other tool ignores it. This one cannot.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = run_tool(
+        files, "p1", "write_frame_prompt", json.dumps({"file": "scene.json", "frame": 1})
+    )
+    assert "no model to write with" in answer.text
+    assert "action" not in _frames(files)[0]
+
+
+def test_a_request_that_falls_over_leaves_the_frame_as_it_was(tmp_path):
+    # The service's own words, and no retry: calling the same frame again is what a retry is here,
+    # and a loop inside the tool would pay twice without anybody seeing it happen.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _wrote(
+        files, FakeWriter(blow_up="503 upstream is busy"), file="scene.json", frame=1
+    )
+    assert "503 upstream is busy" in answer.text
+    assert "action" not in _frames(files)[0]
+
+
+def test_an_empty_answer_is_not_written_down(tmp_path):
+    # An empty action builds into a prompt with a gap where the sentence should be, and nothing
+    # downstream would ever say which frame it came from.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _wrote(files, FakeWriter("   "), file="scene.json", frame=1)
+    assert "answered with nothing" in answer.text
+    assert "action" not in _frames(files)[0]
+
+
+def test_the_two_frame_tools_point_at_the_one_that_writes_an_action():
+    # Madde 173 and 174 both stayed silent about the action because the tool that writes one did
+    # not exist yet, and naming a tool the model cannot call is m127's mistake. It exists now.
+    assert "write_frame_prompt" in _said_by("add_scene")
+    assert "write_frame_prompt" in _said_by("update_frame")
 
 
 # --- a look that hands back what there is to look at (Madde 135) ---------------------------------

@@ -36,6 +36,9 @@ WRITES = (
     # makes to a file the user is reading.
     "update_frame",
     "remove_frame",
+    # Madde 176. It changes the file, and it also spends the user's money at a second provider --
+    # the only tool here that does either of those things by asking somebody else.
+    "write_frame_prompt",
 )
 
 
