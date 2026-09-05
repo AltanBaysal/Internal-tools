@@ -26,6 +26,13 @@ def test_the_base_looks_before_it_writes():
     assert "read it first" in SYSTEM_PROMPT.lower()
 
 
+def test_the_base_says_where_a_read_file_appears():
+    # Madde 179. The tool answers with a receipt now, so a model told only to read would get a
+    # sentence back, believe it had not seen the file, and read it again -- which is the very thing
+    # this item removes.
+    assert "opened files" in SYSTEM_PROMPT
+
+
 def test_the_base_asks_rather_than_inventing():
     # Sat in three skill texts, each in its own words. A guess is either more than the user wanted
     # or less, and nothing on the screen says which one happened. Since 28 Aug the same rule covers

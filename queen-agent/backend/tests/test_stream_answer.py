@@ -349,7 +349,7 @@ def _box(seen):
         (
             message["content"]
             for message in seen
-            if message["role"] == "system" and message["content"].startswith("Files you have opened")
+            if message["role"] == "system" and message["content"].startswith("The last 5 files")
         ),
         "",
     )
@@ -424,18 +424,36 @@ def test_the_box_numbers_the_lines_it_shows(tmp_path):
     assert "     1\talpha\n     2\tbeta" in _box(engine.seen[1])
 
 
-def test_the_box_and_a_read_show_a_file_the_same_way(tmp_path):
-    # One file, one shape. Two would leave the model deciding which of them its anchor has to
-    # match, and the wrong pick is a refused edit.
-    from backend.features.workspace.domain.tools import run_tool
-
+def test_a_file_that_was_read_rides_the_request_once(tmp_path):
+    # Madde 179, and the whole of it. Madde 131 asked the box and the read to show a file the same
+    # way, so the model would not have to decide which shape its anchor had to match; Madde 179
+    # answers the question by taking one of them away.
     chats, files = _seeded(tmp_path)
     files.write("p1", "plan.md", "alpha\nbeta")
     rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
     engine = ScriptedEngine(rounds)
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    handed_back = run_tool(files, "p1", "read_file", json.dumps({"name": "plan.md"})).text
-    assert handed_back in _box(engine.seen[1])
+    whole = "\n".join(str(message.get("content") or "") for message in engine.seen[1])
+    assert whole.count("alpha") == 1
+    assert "alpha" in _box(engine.seen[1])
+
+
+def test_a_file_edited_in_the_same_turn_rides_it_only_as_it_is_now(tmp_path):
+    # What the second copy actually cost. The conversation held the file as it was when it was
+    # read and the box held it as it is, so a turn that read and then wrote sent the model both --
+    # and nothing in either said which one was the file.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "alpha\nbeta")
+    rounds = [
+        [{"tool_calls": [call("read_file", name="plan.md")]}],
+        [{"tool_calls": [call("edit_file", "t2", name="plan.md", old="alpha", new="omega")]}],
+        [{"text": "done"}],
+    ]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    whole = "\n".join(str(message.get("content") or "") for message in engine.seen[2])
+    assert "omega" in whole
+    assert "alpha" not in whole
 
 
 def test_the_box_rides_between_the_names_and_the_instruction(tmp_path):
@@ -455,8 +473,20 @@ def test_the_box_rides_between_the_names_and_the_instruction(tmp_path):
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
     seen = engine.seen[0]
     assert seen[-1]["content"] == instruction_for("start-a-scenario")
-    assert seen[-2]["content"].startswith("Files you have opened")
+    assert seen[-2]["content"].startswith("The last 5 files")
     assert _files_line([seen[-3]])
+
+
+def test_the_box_says_it_holds_the_last_five(tmp_path):
+    # Madde 179 made the box the only place a file is shown, which makes the limit worth stating:
+    # a file that fell out of it is read again for the price of one sentence, and a model that did
+    # not know the window existed would go looking for a file it can no longer see.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "alpha")
+    rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert _box(engine.seen[1]).startswith("The last 5 files you opened")
 
 
 def test_a_chat_that_read_nothing_carries_no_box(tmp_path):

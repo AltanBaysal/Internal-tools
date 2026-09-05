@@ -8,6 +8,7 @@ from backend.features.workspace.domain.tools import (
     DEFAULT_NAME,
     MAX_ROUNDS,
     TOOL_SPECS,
+    numbered,
     run_tool,
     safe_name,
 )
@@ -758,7 +759,7 @@ def test_creating_over_a_name_that_is_taken_writes_nothing(tmp_path):
     files = _with(tmp_path, "plan.md", "first")
     _call(files, "create_file", name="plan.md", content="second")
     # Asked of the store rather than through read_file: the subject here is what is on disk, and
-    # since Madde 131 the tool hands back a numbered view of it rather than the document.
+    # since Madde 179 the tool hands back a receipt rather than the document.
     assert files.read("p1", "plan.md") == "first"
     # And no copy beside it: refusing means one document, which was the whole point.
     assert files.list_names("p1") == ["plan.md"]
@@ -1315,49 +1316,74 @@ def test_a_call_that_was_refused_says_why(tmp_path):
     assert _outcome(_files(tmp_path), "read_file", name="gone.md") == "No file by that name"
 
 
-# --- a read that hands back line numbers (Madde 131) ----------------------------------------------
+# --- a read opens a file rather than printing it (Madde 179) --------------------------------------
 #
-# The anchor an edit takes has to occur exactly once, and the model was judging that by eye over an
-# unnumbered wall of near-identical frames. It judged wrong, `_edit` answered "appears 3 times", and
-# the retry cost a whole round. Claude Code's Read hands back `cat -n`, and its Edit carries the
-# same uniqueness rule -- what was missing here is not the rule but the column in front of it.
+# Madde 129 killed a staleness: a read's result froze where it was written while the file moved on,
+# so the model read the same file three times in one trial. The box holds names and reads the
+# contents from disk, and there is one entry that cannot go stale.
+#
+# Inside a single turn it survived. The tool answered with the whole file, and that answer sits in
+# the conversation until the turn ends -- so every round after a read carried the file twice: once
+# frozen in the conversation, once fresh in the box. A file edited in the same turn made the two
+# disagree, and the model had to decide which of them to believe.
+#
+# The line numbers of Madde 131 stay. They moved with the contents: the box is the one place a file
+# is shown now, so its numbers are the only ones there are.
 
 
-def test_a_read_hands_back_numbered_lines(tmp_path):
+def test_a_read_hands_back_a_receipt_rather_than_the_file(tmp_path):
     files = _with(tmp_path, "plan.md", "alpha\nbeta\ngamma")
     assert _call(files, "read_file", name="plan.md") == (
-        "     1\talpha\n     2\tbeta\n     3\tgamma"
+        "plan.md, 3 lines; it is in your opened files."
     )
 
 
-def test_the_numbers_are_right_aligned_so_the_text_starts_in_one_column(tmp_path):
+def test_what_was_read_is_not_in_the_answer(tmp_path):
+    # The whole item in one line. Left here, this copy rides every later round of the turn beside
+    # the box's own, and the two part company the moment anything writes to the file.
+    files = _with(tmp_path, "plan.md", "alpha\nbeta\ngamma")
+    assert "alpha" not in _call(files, "read_file", name="plan.md")
+
+
+def test_a_file_that_is_not_there_still_says_so(tmp_path):
+    # Unchanged, and it has to be: files_opened skips a read that missed, so this sentence is what
+    # keeps a name out of the box (context_box._MISSED).
+    assert _call(_files(tmp_path), "read_file", name="ghost.md") == "There is no file by that name."
+
+
+def test_the_outcome_still_counts_the_lines_it_read(tmp_path):
+    # A guard: the card counts the file's lines, which is now also what the answer says.
+    files = _with(tmp_path, "plan.md", "alpha\nbeta\ngamma")
+    assert _outcome(files, "read_file", name="plan.md") == "3 lines"
+
+
+def test_a_file_is_still_shown_with_numbered_lines():
+    # Madde 131, asked of the function rather than of the tool: the anchor an edit takes has to
+    # occur exactly once, and the model was judging that by eye over an unnumbered wall of
+    # near-identical frames. It judged wrong, _edit answered "appears 3 times", and the retry cost
+    # a round.
+    assert numbered("alpha\nbeta\ngamma") == "     1\talpha\n     2\tbeta\n     3\tgamma"
+
+
+def test_the_numbers_are_right_aligned_so_the_text_starts_in_one_column():
     # Padding rather than a bare number: left-aligned, the text would step right at line 10 and the
     # model would be reading a ragged edge for the rest of the file.
-    files = _with(tmp_path, "long.md", "\n".join(str(n) for n in range(1, 11)))
-    lines = _call(files, "read_file", name="long.md").splitlines()
+    lines = numbered("\n".join(str(n) for n in range(1, 11))).splitlines()
     assert lines[8] == "     9\t9"
     assert lines[9] == "    10\t10"
     assert lines[8].index("\t") == lines[9].index("\t")
 
 
-def test_an_empty_file_reads_as_nothing_rather_than_a_first_line(tmp_path):
-    # A guard, green before the change: a lone "1" would put a line in front of the model that the
-    # file does not have, and an edit anchored on nothing is the next thing that happens.
-    files = _with(tmp_path, "empty.md", "")
-    assert _call(files, "read_file", name="empty.md") == ""
-
-
-def test_the_outcome_still_counts_the_lines_it_read(tmp_path):
-    # A guard: the outcome counts the file's lines, not the width of what was shown.
-    files = _with(tmp_path, "plan.md", "alpha\nbeta\ngamma")
-    assert _outcome(files, "read_file", name="plan.md") == "3 lines"
+def test_an_empty_file_shows_as_nothing_rather_than_a_first_line():
+    # A lone "1" would put a line in front of the model that the file does not have, and an edit
+    # anchored on nothing is the next thing that happens.
+    assert numbered("") == ""
 
 
 def test_an_edit_matches_the_disk_and_not_the_numbered_view(tmp_path):
-    # A guard on the seam: what the model was shown carries a column the file does not have, and
+    # A guard on the seam: what the model is shown carries a column the file does not have, and
     # matching against the shown form would edit a file nobody has.
     files = _with(tmp_path, "plan.md", "alpha\nbeta")
-    _call(files, "read_file", name="plan.md")
     assert "not in plan.md" in _call(files, "edit_file", name="plan.md", old="     2\tbeta", new="x")
     assert "Edited plan.md" in _call(files, "edit_file", name="plan.md", old="beta", new="delta")
     assert files.read("p1", "plan.md") == "alpha\ndelta"
