@@ -865,13 +865,16 @@ def test_the_schema_tool_says_what_it_answered_with(tmp_path):
     assert run_tool(_files(tmp_path), "p1", "read_prompt_structure_schema", "{}").outcome == "Schema"
 
 
-def test_create_file_names_both_formats_a_file_can_take():
-    # The param used to say ending in .md while the schema says a structure file is .json -- two
-    # opposite instructions to the same model. Pinned so the contradiction cannot quietly return.
+def test_create_file_no_longer_offers_to_write_a_structure():
+    # It used to offer both formats, because for a while it really could write either. Madde 171
+    # shut that, and a description still offering .json would be telling the model to make a call
+    # that comes back refused -- m127's list_files mistake, which cost a whole trial.
     spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "create_file")
     said = spec["function"]["parameters"]["properties"]["name"]["description"]
-    assert ".md for a document" in said
-    assert ".json for a structure file" in said
+    assert ".json" not in said
+    # And the way out rides in the tool's own description, where a model choosing between them reads
+    # it: not in a skill text a chat may never have selected.
+    assert "start_scenario opens those" in spec["function"]["description"]
 
 
 def test_the_schema_tool_defines_the_term_it_hands_back():
@@ -1079,7 +1082,16 @@ def test_a_character_try_says_how_many_prompts_it_wrote(tmp_path):
 def test_building_again_writes_over_its_own_output(tmp_path):
     files = _with(tmp_path, "intro-frames.json", STRUCTURE)
     _call(files, "build_prompts", name="intro-frames.json")
-    _call(files, "edit_file", name="intro-frames.json", old="long teal hair", new="short red hair")
+    # Through the map tool since Madde 171: the structure is no longer changed as text, and this
+    # test was reaching for the door that closed. The claim it makes is untouched -- what changes is
+    # the only way left to change a character.
+    _call(
+        files,
+        "update_character",
+        file="intro-frames.json",
+        name="aylin",
+        tags="1girl, short red hair",
+    )
     _call(files, "build_prompts", name="intro-frames.json")
     # A derived file: regenerating it is the point, so numbering would only hide which one is now.
     assert sorted(files.list_names("p1")) == ["intro-frames.json", "intro-frames.py"]

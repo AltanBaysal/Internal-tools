@@ -103,16 +103,14 @@ TOOL_SPECS = [
                 "Save a document into this project. Reach for it only when the user asked for "
                 "something worth keeping -- a draft, a report, a summary they will come back to. "
                 "Refuses a name that is already taken: to change a file that exists, use "
-                "edit_file."
+                "edit_file. It does not write scenarios; start_scenario opens those."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": (
-                            "A short file name: .md for a document, .json for a structure file."
-                        ),
+                        "description": "A short file name, as in notes.md.",
                     },
                     "content": {"type": "string", "description": "The document itself."},
                 },
@@ -148,7 +146,9 @@ TOOL_SPECS = [
         "function": {
             "name": "edit_file",
             "description": (
-                "Change part of a file that already exists. The text you give as old must appear "
+                "Change part of a document that already exists -- a document, not a scenario: a "
+                "structure file is changed by the tools that know its shape. The text you give as "
+                "old must appear "
                 "exactly once and match what is on disk now, without the line numbers a read "
                 "shows it with: read the file first if this turn has "
                 "not seen it -- what this turn read or wrote is already in front of you -- and "
@@ -601,6 +601,9 @@ def run_tool(file_store, project_id, name, arguments):
 
     if name == "create_file":
         wanted = safe_name(args.get("name"))
+        shut = _shut(wanted)
+        if shut is not None:
+            return shut
         # Asked of the names rather than by reading the file: the question is whether the name is
         # taken, and pulling a whole document back to learn that is work nobody needs.
         if wanted in file_store.list_names(project_id):
@@ -698,8 +701,15 @@ def run_tool(file_store, project_id, name, arguments):
 
 
 def _edit(file_store, project_id, args):
-    """create_file refuses a name that is taken, so this is the only way to change anything."""
+    """create_file refuses a name that is taken, so this is the only way to change a document.
+
+    A document, and since Madde 171 only a document: a structure file is changed by the tools that
+    know its shape, and this one is shut out of it before it reads anything.
+    """
     wanted = safe_name(args.get("name"))
+    shut = _shut(wanted)
+    if shut is not None:
+        return shut
     content = file_store.read(project_id, wanted)
     if content is None:
         return ToolResult("There is no file by that name.", None, wanted, "No file by that name")
@@ -784,6 +794,31 @@ def _opened(file_store, project_id, args):
 def _saved(file_store, project_id, source, structure):
     """Indented and in the user's own language: they open this file and fix it by hand."""
     file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
+
+
+def _shut(wanted):
+    """The refusal a structure file gets from the text tools, or None if this is not one (Madde 171).
+
+    Asked before anything else about the file -- before it is read, before a match is looked for.
+    Refusing to touch a structure as text does not depend on learning anything else about it.
+
+    The extension is the measure, case folded: Windows opens BAR.JSON and bar.json as one file, and
+    a door that read the case would stand beside its own frame.
+
+    No exception for a broken one, by the user's decision of 5 Sep. The map tools will not open a
+    file that does not parse, so a broken structure came from somebody editing by hand -- and
+    repairing what a person wrote by letting the model guess at it is not a repair. The model says
+    the file is broken and where; the user fixes it.
+    """
+    if not wanted.lower().endswith(".json"):
+        return None
+    return ToolResult(
+        f"{wanted} is a structure file; it is not written or changed as text. Use start_scenario "
+        "to open one, and the add_, update_ and remove_ tools to change it.",
+        None,
+        wanted,
+        "Not as text",
+    )
 
 
 def _article(word):
