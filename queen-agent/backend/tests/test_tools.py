@@ -1973,6 +1973,161 @@ def test_a_removal_gives_an_older_files_frames_the_numbers_they_never_had(tmp_pa
     assert [frame["number"] for frame in _frames(files)] == [1]
 
 
+# --- a scene can go between two frames (Madde 180) ------------------------------------------------
+#
+# add_scene only ever appended, and there was no other way in. Asked for a scene between the second
+# and the third frame, the model did the only thing left: twenty-one remove_frame calls and the tail
+# built again -- and the frames that came back had gone through add_scene, so they came back with no
+# action at all. An hour of the prompt model's work was thrown away to move one scene.
+#
+# `before` is the whole of the fix. Nothing is removed, so nothing loses its action; what moves is
+# the numbers, which is Madde 174's renumbering doing the same job from the other side.
+#
+# These live here rather than beside the rest of add_scene because WITH_ACTION is the fixture this
+# madde turns on -- frames that already carry an action -- and a second copy of it up there would
+# part from this one on the first change to either.
+
+
+def test_before_puts_the_scene_in_front_of_that_frame(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "add_scene", file="scene.json", scenes=[SCENE], before=2)
+    assert [frame["scene"] for frame in _frames(files)] == [
+        "one",
+        "she turns her head",
+        "two",
+        "three",
+    ]
+
+
+def test_the_frames_that_move_keep_their_action(tmp_path):
+    # The whole madde. Re-adding through add_scene is what lost them, because a frame is born
+    # without one -- an insertion removes nothing, so there is nothing to lose.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "add_scene", file="scene.json", scenes=[SCENE], before=1)
+    assert _frames(files)[2]["action"] == "she turns her head, close-up"
+
+
+def test_an_insertion_renumbers_every_frame_from_one(tmp_path):
+    # The numbers beside the scenes rather than on their own: five frames come out numbered 1 to 5
+    # whether they were inserted or appended, so a bare list of numbers proves nothing at all.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "add_scene", file="scene.json", scenes=[SCENE, SCENE], before=2)
+    assert [(frame["number"], frame["scene"]) for frame in _frames(files)] == [
+        (1, "one"),
+        (2, "she turns her head"),
+        (3, "she turns her head"),
+        (4, "two"),
+        (5, "three"),
+    ]
+
+
+def test_without_before_a_scene_still_goes_to_the_end(tmp_path):
+    # The parameter is not a change of behaviour, it is a second one. A file's frames keep their
+    # order and their numbers when nobody asks for a place.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "add_scene", file="scene.json", scenes=[SCENE])
+    assert [frame["scene"] for frame in _frames(files)] == [
+        "one",
+        "two",
+        "three",
+        "she turns her head",
+    ]
+    assert _frames(files)[1]["action"] == "she turns her head, close-up"
+
+
+def test_an_insertion_names_the_frames_it_made(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert _call(files, "add_scene", file="scene.json", scenes=[SCENE, SCENE], before=2).startswith(
+        "Added 2 scenes to scene.json as frames 2-3"
+    )
+
+
+def test_an_insertion_says_how_many_frames_moved(tmp_path):
+    # remove_frame's sentence from the other side, and there for the same reason: a number the model
+    # was told before this call may not mean the same frame after it.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert _call(files, "add_scene", file="scene.json", scenes=[SCENE], before=2) == (
+        "Added 1 scene to scene.json as frame 2; 2 frames after it moved up."
+    )
+
+
+def test_adding_to_the_end_says_nothing_about_moving(tmp_path):
+    # Nothing moved, and a sentence about work that did not happen is the thing Madde 174 refused
+    # when the last frame came out.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert _call(files, "add_scene", file="scene.json", scenes=[SCENE]) == (
+        "Added 1 scene to scene.json as frame 4."
+    )
+
+
+def test_before_one_past_the_end_is_the_end(tmp_path):
+    # It is what the word says: in front of the frame after the last one. Refusing it would be
+    # refusing a call that named its place correctly.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert _call(files, "add_scene", file="scene.json", scenes=[SCENE], before=4) == (
+        "Added 1 scene to scene.json as frame 4."
+    )
+    assert [frame["scene"] for frame in _frames(files)][-1] == "she turns her head"
+
+
+def test_before_a_frame_that_is_not_there_is_refused(tmp_path):
+    # Madde 174's sentence, with the ceiling one higher: 4 is a place in a file of three frames,
+    # and 5 is not.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert "scene.json has 3 frames; there is no frame 5." in _call(
+        files, "add_scene", file="scene.json", scenes=[SCENE], before=5
+    )
+    assert len(_frames(files)) == 3
+
+
+def test_a_before_that_is_not_a_number_is_refused(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    assert "named by its number" in _call(
+        files, "add_scene", file="scene.json", scenes=[SCENE], before="ortaya"
+    )
+    assert len(_frames(files)) == 3
+
+
+def test_a_bad_scene_names_the_number_it_would_have_taken(tmp_path):
+    # The batch still falls whole, and the number in the complaint is the one the frame was going
+    # to get -- not its place in the argument, which would name a frame that already exists.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _call(
+        files, "add_scene", file="scene.json", scenes=[SCENE, {"scene": ""}], before=2
+    )
+    assert "frame 3: a scene needs a sentence saying what happens." in answer
+    assert "Nothing was added." in answer
+    assert len(_frames(files)) == 3
+
+
+def test_an_insertion_leaves_the_maps_alone(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "add_scene", file="scene.json", scenes=[SCENE], before=2)
+    # Where it landed, not how many there are: an append also makes four, so a count would let this
+    # pass on the very behaviour the madde is replacing. Four tests in this run went green while red
+    # for exactly that reason.
+    assert _frames(files)[1]["scene"] == "she turns her head"
+    after = json.loads(files.read("p1", "scene.json"))
+    before = json.loads(WITH_ACTION)
+    for key in ("characters", "outfits", "locations"):
+        assert after[key] == before[key]
+
+
+def test_an_insertion_gives_an_older_files_frames_the_numbers_they_never_had(tmp_path):
+    # The removal's test from the other side. Renumbering counts places rather than reading what is
+    # there, so frames written before Madde 173 are repaired on the way past.
+    files = _with(tmp_path, "scene.json", STRUCTURE)
+    _call(files, "add_scene", file="scene.json", scenes=[SCENE], before=1)
+    assert [frame["number"] for frame in _frames(files)] == [1, 2, 3]
+
+
+def test_the_scene_tool_tells_the_model_a_place_can_be_named():
+    # A parameter the description never mentions is a parameter a weak model does not reach for --
+    # 108 and 118 both showed it going around what it was not shown.
+    said = _said_by("add_scene")
+    assert "before" in said
+
+
 # --- the frame's action, written by the model that writes those (Madde 176) -----------------------
 #
 # The whole reason this run is shaped the way it is. The main agent builds the scenario -- who is
