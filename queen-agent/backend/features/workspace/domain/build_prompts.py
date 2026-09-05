@@ -56,7 +56,7 @@ def build_prompts(structure):
         lead = [DEFAULT_QUALITY]
         # Whoever the frame wrote first leads it. No field names them -- the order already carries
         # it, and a second place saying the same thing is a place that can disagree.
-        in_frame = _worn(frame.get("characters"))
+        in_frame = cast_of(frame)
         lead.extend(_block(in_frame[:1], characters, outfits, number, misses))
         place = frame.get("location") or ""
         if place:
@@ -129,14 +129,21 @@ def character_prompts_name(source, character):
     return f"{stem if dot else source}-{folded(character)}.py"
 
 
-def _worn(field):
-    """A frame's characters as (name, outfits) pairs, whichever way the field was written.
+def cast_of(frame):
+    """Who is in a frame, as (name, outfits) pairs, whichever way the field was written.
 
     The one place the two shapes meet, so nothing downstream has to ask which it was holding. A
     plain list is what files written before outfits existed carry: names, wearing nothing. A single
     name written without its list is read as that one name -- the instruction asks for a list, but
     walking a string letter by letter would answer a small slip with nonsense.
+
+    Public since Madde 168, and handed the frame rather than the field: what a caller has is a
+    frame, and a public name that asked for one field of it would make every caller reach in and
+    know which. The character tools have to know who is in a frame -- to say what still stands on
+    an entry, and to carry a rename through -- and a second reading of these two shapes would part
+    from this one the day either changed.
     """
+    field = frame.get("characters")
     if isinstance(field, dict):
         return [
             (name, [worn] if isinstance(worn, str) else list(worn or []))

@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from backend.features.workspace.domain.build_prompts import (
     build_character_prompts,
     build_prompts,
+    cast_of,
     character_prompts_name,
     prompts_name,
     render_module,
@@ -173,6 +174,90 @@ TOOL_SPECS = [
                     },
                 },
                 "required": ["name", "old", "new"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_character",
+            "description": (
+                "Write a new character into a scenario: the tags an image model draws them from, "
+                "written once here and named by every frame they appear in. Refuses a name that is "
+                "already there -- to change one that exists, use update_character."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {
+                        "type": "string",
+                        "description": (
+                            "What this character is called in this scenario, as in aylin. Frames "
+                            "name them by it."
+                        ),
+                    },
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "The character as tags: how many people this entry draws, their age, "
+                            "body, hair and face. As in 1girl, woman in her mid 20s, long black "
+                            "hair, green eyes, slim body. No clothes here -- those are outfits."
+                        ),
+                    },
+                },
+                "required": ["file", "name", "tags"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_character",
+            "description": (
+                "Change a character that is already in a scenario: its tags, its name, or both. "
+                "Only what you give changes. Renaming reaches every frame that names it, so the "
+                "scenario still builds afterwards. Refuses a name that is not there."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {"type": "string", "description": "Which character to change."},
+                    "tags": {
+                        "type": "string",
+                        "description": (
+                            "The whole entry as it should now read -- this replaces the text "
+                            "rather than adding to it. Leave it out to change only the name."
+                        ),
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": (
+                            "What to call it from now on. Leave it out to change only the tags."
+                        ),
+                    },
+                },
+                "required": ["file", "name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remove_character",
+            "description": (
+                "Take a character out of a scenario. Refused while any frame still names it, and "
+                "the answer says which frames -- take them out of those frames first, or remove "
+                "the frames. Nothing here can be undone by calling it again."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": "The scenario's file name."},
+                    "name": {"type": "string", "description": "Which character to remove."},
+                },
+                "required": ["file", "name"],
             },
         },
     },
@@ -410,6 +495,15 @@ def run_tool(file_store, project_id, name, arguments):
     if name == "edit_file":
         return _edit(file_store, project_id, args)
 
+    if name == "add_character":
+        return _add_entry(file_store, project_id, args, "characters")
+
+    if name == "update_character":
+        return _update_entry(file_store, project_id, args, "characters")
+
+    if name == "remove_character":
+        return _remove_entry(file_store, project_id, args, "characters")
+
     if name == "add_frames":
         return _add_frames(file_store, project_id, args)
 
@@ -466,6 +560,236 @@ def _edit(file_store, project_id, args):
     return ToolResult(
         f"Edited {wanted} in {counted(found, 'place')}.", None, wanted, f"Edited {found} places"
     )
+
+
+def _opened(file_store, project_id, args):
+    """The file, parsed, with a frames list -- or the answer saying why not (Madde 168).
+
+    Written once so the map tools cannot start disagreeing about what a missing file or a broken one
+    is called. Hands back (source, structure, refused); a caller with a refusal returns it as it is.
+
+    The frames list is demanded even by the tools that never touch it. Removing an entry asks
+    whether anything still stands on it and renaming rewrites whatever does -- both answered in the
+    frames -- so a file without one cannot do this work at all, and saying so while adding beats
+    crashing while removing.
+    """
+    source = safe_name(args.get("file"))
+    content = file_store.read(project_id, source)
+    if content is None:
+        return source, None, ToolResult(
+            "There is no file by that name.", None, source, "No file by that name"
+        )
+
+    try:
+        structure = json.loads(content)
+    except json.JSONDecodeError as broken:
+        # The parser's own sentence, as in _build and _add_frames: a guessed cause sends the model
+        # somewhere else entirely.
+        return source, None, ToolResult(
+            f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON"
+        )
+
+    frames = structure.get("frames") if isinstance(structure, dict) else None
+    if not isinstance(frames, list):
+        return source, None, ToolResult(
+            f"{source} has no frames list to add to; a structure file carries one.",
+            None,
+            source,
+            "Refused",
+        )
+    return source, structure, None
+
+
+def _saved(file_store, project_id, source, structure):
+    """Indented and in the user's own language: they open this file and fix it by hand."""
+    file_store.write(project_id, source, json.dumps(structure, indent=2, ensure_ascii=False))
+
+
+def _unknown(key, entries, which):
+    """The sentence a name nobody knows gets, wherever it is met.
+
+    Only this map's names: place names are no help to somebody looking for a character. Shaped like
+    build_prompts._looked_up's, so one miss reads the same on both roads.
+    """
+    return f"{key} is not in {which}; known: {', '.join(sorted(entries)) or 'nothing'}."
+
+
+def _frames_naming(frames, which, key):
+    """Which frames stand on this entry, by number, one-based as the model counts them.
+
+    Only characters today. Outfits ride inside a character's list and a location is a field of its
+    own, so each map answers this question differently -- and each brings its own answer with its
+    own tests, in Madde 169 and 170.
+    """
+    return [
+        number
+        for number, frame in enumerate(frames, start=1)
+        if key in [name for name, _ in cast_of(frame)]
+    ]
+
+
+def _renamed_in_frames(frames, which, key, moving):
+    """Carry a rename through the frames, and answer how many followed.
+
+    Both shapes, because both are on disk: the map form a frame writes today, and the plain list of
+    names files written before outfits carry. cast_of reads them; this writes them back the way it
+    found them, since turning one into the other would rewrite a file nobody asked to convert.
+    """
+    followed = 0
+    for frame in frames:
+        people = frame.get("characters")
+        if isinstance(people, dict):
+            if key not in people:
+                continue
+            # Rebuilt rather than popped and re-added: a renamed entry keeps its place in the frame,
+            # and the first name in a frame is the one that leads its prompt.
+            frame["characters"] = {
+                (moving if name == key else name): worn for name, worn in people.items()
+            }
+            followed += 1
+        elif isinstance(people, list):
+            if key not in people:
+                continue
+            frame["characters"] = [moving if name == key else name for name in people]
+            followed += 1
+    return followed
+
+
+def _add_entry(file_store, project_id, args, which):
+    """One name and its tags into one map. Refuses a name that is already there (Madde 168).
+
+    create_file's rule, one level down: a second entry of the same name would replace the first in
+    silence, and every frame naming it would change without anybody asking.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    single = which[:-1]
+    key = str(args.get("name") or "").strip()
+    if not key:
+        return ToolResult(f"A {single} needs a name.", None, source, "Refused")
+
+    tags = args.get("tags")
+    if not str(tags or "").strip():
+        # An entry with no text is one every frame naming it builds nothing from. Refused at birth
+        # rather than found later in a prompt.
+        return ToolResult(f"A new {single} needs tags.", None, source, "Refused")
+
+    entries = structure.get(which)
+    if not isinstance(entries, dict):
+        entries = {}
+        structure[which] = entries
+    if key in entries:
+        return ToolResult(
+            f"There is already a {single} called {key}.", None, source, "Already there"
+        )
+
+    entries[key] = tags
+    _saved(file_store, project_id, source, structure)
+    return ToolResult(f"Added {key} to {which}.", None, source, "Added")
+
+
+def _update_entry(file_store, project_id, args, which):
+    """One name's text, or the name itself, or both (Madde 168).
+
+    Renaming lives here rather than in a rename_ tool of its own: putting several actions behind one
+    tool is for actions on one resource, and a rename is an action on the entry itself. It has to
+    reach the frames -- a name changed in the map and left alone in the frames is a structure that
+    will not build.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    single = which[:-1]
+    key = str(args.get("name") or "").strip()
+    if not key:
+        return ToolResult(f"A {single} needs a name.", None, source, "Refused")
+
+    entries = structure.get(which) or {}
+    if key not in entries:
+        return ToolResult(_unknown(key, entries, which), None, source, "Not there")
+
+    # `in` rather than .get(), because an empty string is a value: it is the only way the model can
+    # clear a text it wrote before, and .get() would read that as nothing having been given.
+    tags = args["tags"] if args.get("tags") is not None else None
+    moving = str(args.get("new_name") or "").strip()
+    if tags is None and not moving:
+        # No silent success: a model told nothing happened moves on believing it did.
+        return ToolResult(
+            f"Nothing was given to change about {key}.", None, source, "Nothing to change"
+        )
+    if moving == key:
+        return ToolResult(f"{key} is already called that.", None, source, "Nothing to change")
+    if moving and moving in entries:
+        # Two entries folded into one is the one thing here that calling again cannot undo.
+        return ToolResult(
+            f"There is already a {single} called {moving}.", None, source, "Already there"
+        )
+
+    if tags is not None:
+        entries[key] = tags
+    frames = structure["frames"]
+    if not moving:
+        touched = len(_frames_naming(frames, which, key))
+        _saved(file_store, project_id, source, structure)
+        return ToolResult(
+            f"Changed {key} in {which}; {counted(touched, 'frame')} name it.",
+            None,
+            source,
+            "Changed",
+        )
+
+    # Rebuilt rather than popped and re-added, so the entry keeps its place in the map: a file the
+    # user reads is a file whose order they recognise.
+    structure[which] = {(moving if name == key else name): text for name, text in entries.items()}
+    followed = _renamed_in_frames(frames, which, key, moving)
+    _saved(file_store, project_id, source, structure)
+    also = " and changed its text" if tags is not None else ""
+    return ToolResult(
+        f"Renamed {key} to {moving} in {which}{also}; {counted(followed, 'frame')} followed.",
+        None,
+        source,
+        "Renamed",
+    )
+
+
+def _remove_entry(file_store, project_id, args, which):
+    """One name out of one map, if nothing is standing on it (Madde 168).
+
+    Not an update with the value left out. An empty value meaning delete would let a model that
+    simply failed to fill a field wipe the entry in silence, and nothing here can be undone by
+    calling it again.
+    """
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    single = which[:-1]
+    key = str(args.get("name") or "").strip()
+    if not key:
+        return ToolResult(f"A {single} needs a name.", None, source, "Refused")
+
+    entries = structure.get(which) or {}
+    if key not in entries:
+        return ToolResult(_unknown(key, entries, which), None, source, "Not there")
+
+    standing = _frames_naming(structure["frames"], which, key)
+    if standing:
+        # The numbers rather than a count: the model's next move is to open those frames, and a
+        # count would send it looking for them.
+        return ToolResult(
+            f"{key} is still in frames {', '.join(str(number) for number in standing)}. "
+            "Nothing was removed.",
+            None,
+            source,
+            "Still in use",
+        )
+
+    del entries[key]
+    _saved(file_store, project_id, source, structure)
+    return ToolResult(f"Removed {key} from {which}.", None, source, "Removed")
 
 
 def _add_frames(file_store, project_id, args):
