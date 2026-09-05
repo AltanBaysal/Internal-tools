@@ -41,8 +41,10 @@ ne yapıyor. *(Eski koşunun cevaplanmamış tek sorusu.)*
   yazılmaz, eski dosyalarda varsa `shots` gibi okunmaya devam eder.
 - **Nasıl görülür:** `quality` taşıyan eski bir dosya derlenince zincir yine kodunki. `people`'ı olmayan
   bir kare derlenince prompt sayıyı karakter bloğundan alıyor. `camera`'sı olan eski kare bozulmuyor.
-- **Değişen:** `build_prompts.py`'nin `lead` satırı, şema metninin üç alanı anlatan cümleleri,
-  `build_character_prompts`'ın *"count is a frame's own field"* diyen docstring'i.
+- **Değişen:** `build_prompts.py`'nin `lead` satırı ve `build_character_prompts`'ın quality satırı
+  ile *"count is a frame's own field"* diyen docstring'i. **Şema burada açılmıyor** — o üç alanı
+  anlatan cümleleri 172'de şemayla birlikte gidiyor, iki kere yazılmasın *(spec'te gerekçesi)*.
+  Aradaki pencere dışarı çıkmıyor: deneme Dilim 1'in sonunda, 172'den sonra koşuluyor.
 
 ## Madde 167 — `start_scenario` yapı dosyasını doğurur
 
