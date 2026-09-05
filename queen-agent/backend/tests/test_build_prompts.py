@@ -10,9 +10,12 @@ from backend.features.workspace.domain.build_prompts import (
 )
 from backend.features.workspace.domain.errors import BadStructure
 
-# A chain no scenario gets to use (Madde 166). It appears in one test only -- the one proving a file
-# that writes its own is ignored -- and every other expectation opens with DEFAULT_QUALITY.
-QUALITY = "score_9_up, masterpiece"
+# A chain no scenario gets to use (Madde 166), and it shares not one tag with DEFAULT_QUALITY on
+# purpose: written as score_9_up, masterpiece it could not be told apart from the real chain, and
+# the assertion that the file's own is gone would have been unfalsifiable. It appears in the two
+# tests proving a file that writes its own is ignored; every other expectation opens with
+# DEFAULT_QUALITY.
+QUALITY = "cinematic lighting, film grain"
 AYLIN = "1girl, long teal hair"
 DENIZ = "1boy, short black hair"
 BEDROOM = "sunlit bedroom, morning light"
@@ -173,7 +176,7 @@ def test_a_files_own_quality_chain_is_ignored():
     # file. The field may still sit there; nothing reads it.
     built = build_prompts(_structure(quality=QUALITY))[0]
     assert built.startswith(f"{DEFAULT_QUALITY}, ")
-    assert "masterpiece" not in built
+    assert "film grain" not in built
 
 
 def test_a_frames_people_field_is_ignored():
@@ -396,7 +399,7 @@ def test_a_try_ignores_the_files_own_quality():
     # a frame will show, and a chain that held here but not there would make the look a lie.
     tried = _tried(_structure(quality=QUALITY), "aylin")[0]
     assert tried.startswith(f"{DEFAULT_QUALITY}, ")
-    assert "masterpiece" not in tried
+    assert "film grain" not in tried
 
 
 def test_trying_a_character_nobody_knows_names_what_is_known():

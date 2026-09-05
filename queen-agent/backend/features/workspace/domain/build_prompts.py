@@ -9,8 +9,12 @@ from backend.features.workspace.domain.naming import folded
 
 # The chain every prompt opens with. In code rather than in each structure file since Madde 110: it
 # is the same in every scenario, and a model writing it meant a model copying it out of the schema
-# example -- which is how a chain mixing two model families reached real files. A scenario that
-# needs a different one writes quality in its own file and this steps aside.
+# example -- which is how a chain mixing two model families reached real files.
+#
+# Madde 166 shut the door that let a file write its own. Two places deciding one chain is two places
+# that can disagree, and the one on disk was only ever the copied one: nothing the app does needs a
+# second chain, and a scenario that truly did would be a reason to change this line rather than to
+# let every file overrule it.
 DEFAULT_QUALITY = (
     "score_9_up, score_9, score_8_up, masterpiece, best quality, raw, high quality, 4k, absurdres"
 )
@@ -46,9 +50,10 @@ def build_prompts(structure):
         # descriptions apart -- whoever leads opens the prompt, everyone else closes it, and the
         # place, the action and the camera sit in between so the two do not bleed together.
         #
-        # The count is placed, never worked out: the code knows who entered the frame but not what
-        # they are, and no field says so.
-        lead = [structure.get("quality") or DEFAULT_QUALITY, frame.get("people", "")]
+        # Nothing here counts anybody. Since Madde 166 the count rides inside a character's own
+        # entry -- 1girl, woman in her mid 20s -- which is the one place it lands beside the person
+        # it counts, and it arrives with them rather than being worked out and placed.
+        lead = [DEFAULT_QUALITY]
         # Whoever the frame wrote first leads it. No field names them -- the order already carries
         # it, and a second place saying the same thing is a place that can disagree.
         in_frame = _worn(frame.get("characters"))
@@ -79,8 +84,10 @@ def build_prompts(structure):
 def build_character_prompts(structure, character):
     """One character on their own, once for every outfit the file names.
 
-    The same joining a frame goes through, so what is seen here is what a frame will show. No count:
-    how many people are in a picture is a frame's own field, and there is no frame here.
+    The same joining a frame goes through, so what is seen here is what a frame will show -- and
+    since Madde 166 that includes the count, which travels inside the character's own entry and so
+    reads here exactly as it will read in a frame. The chain comes from code on both paths: one that
+    held in a frame and not in a look would make the look a lie.
     """
     if not isinstance(structure, dict):
         raise BadStructure(
@@ -94,12 +101,11 @@ def build_character_prompts(structure, character):
             f"{character} is not in characters; known: {', '.join(sorted(characters)) or 'nothing'}"
         )
 
-    quality = structure.get("quality") or DEFAULT_QUALITY
     identity = characters[character]
     outfits = structure.get("outfits") or {}
     if not outfits:
-        return [_tags([quality, identity])]
-    return [_tags([quality, identity, worn]) for worn in outfits.values()]
+        return [_tags([DEFAULT_QUALITY, identity])]
+    return [_tags([DEFAULT_QUALITY, identity, worn]) for worn in outfits.values()]
 
 
 def render_module(prompts):
