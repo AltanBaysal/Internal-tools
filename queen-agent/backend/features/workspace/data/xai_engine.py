@@ -14,12 +14,25 @@ class XaiEngine:
     therefore picking a client, not passing a string down.
     """
 
-    def __init__(self, clients, default):
+    def __init__(self, clients, default, prompt_writer):
         self._clients = clients
         self._default = default
+        # Which of them writes a prompt when a tool asks for one (Madde 175). A third name rather
+        # than a third engine: the transports are already built here, and the writer is one of them.
+        self._prompt_writer = prompt_writer
 
-    def complete(self, messages, tools=None, model=""):
-        return self._chosen(model).complete(self._for_xai(messages), tools=tools)
+    def write_once(self, system, user):
+        """One question to the prompt writer, with a system prompt that is not this app's.
+
+        Nothing is chosen here. Which model runs the conversation is the user's, and which one
+        writes a prompt is a role -- so this reaches past _chosen for the one client the role names.
+
+        SYSTEM_PROMPT stays out of it, which is why _for_xai is not used either: that prompt is a
+        page about tools, files and chats, in front of a model whose whole job is one sentence.
+        """
+        return self._clients[self._prompt_writer].write_once(
+            [{"role": "system", "content": system}, {"role": "user", "content": user}]
+        )
 
     def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
         return self._chosen(model).stream(

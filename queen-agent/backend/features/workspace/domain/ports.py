@@ -49,10 +49,17 @@ class Engine(Protocol):
     model since dropped -- is answered by its default rather than refused.
     """
 
-    def complete(
-        self, messages: list[dict], tools: list[dict] | None = None, model: str = ""
-    ) -> dict:
-        """Answer a conversation. Messages carry the domain's own roles: user and ai."""
+    def write_once(self, system: str, user: str) -> dict:
+        """One question, answered once, for a tool that needs a model rather than a conversation.
+
+        No tools, no chat and no turn: `system` is the whole of what the model is told about its
+        job, and `user` is the whole of what it is being asked. Which model answers is not a
+        parameter -- it is a role, named in config.py, because the user chooses what runs the
+        conversation and not what writes a prompt inside it (Madde 175).
+
+        Answers {"text": str, "spent": {"sent": int, "cached": int, "answered": int}}. The bill is
+        an empty dict when the service said nothing about one; it is never absent.
+        """
 
     def stream(
         self,

@@ -28,6 +28,9 @@ engine = XaiEngine(
         for model in config.MODELS
     },
     default=config.DEFAULT_MODEL,
+    # Madde 175. The role, not a fourth transport: the writer is one of the clients above, and
+    # which one is config's to say -- naming the id here would be a second place to change it.
+    prompt_writer=config.PROMPT_MODEL,
 )
 app = create_app(
     blueprints=(

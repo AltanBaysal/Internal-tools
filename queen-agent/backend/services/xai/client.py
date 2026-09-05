@@ -190,8 +190,18 @@ class XaiClient:
         # The one line that reaches the network, and the one thing a test replaces.
         self._opener = opener
 
-    def complete(self, messages, tools=None):
-        request = self._request({"messages": messages}, tools)
+    def write_once(self, messages):
+        """One question, answered in one piece: the words and what they cost (Madde 175).
+
+        No tools and no stream. The model on the other end has a sentence to write and nothing to
+        call, and there is nobody watching the words arrive -- the answer goes into a file rather
+        than onto a screen.
+
+        The same _spent reads the bill here as in the stream, off the payload instead of off a
+        frame. Two services shape that figure two ways and one function knows both of them; a
+        second reading here would part from that one the day either service moved.
+        """
+        request = self._request({"messages": messages}, None)
         try:
             with self._opener(request) as response:
                 payload = json.loads(response.read().decode("utf-8"))
@@ -202,7 +212,10 @@ class XaiClient:
             raise XaiFailed(f"{failure.code} {body}") from failure
         except urllib.error.URLError as failure:
             raise XaiFailed(str(failure.reason)) from failure
-        return payload["choices"][0]["message"]
+        message = payload["choices"][0]["message"]
+        # Always a dict, even from a service that mentioned nothing: the caller adds this to a
+        # total, and a shape that comes and goes is one every caller has to ask about.
+        return {"text": message.get("content") or "", "spent": _spent(payload) or {}}
 
     def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         # The counts come only if asked for, and only to a stream -- so the ask sits beside the

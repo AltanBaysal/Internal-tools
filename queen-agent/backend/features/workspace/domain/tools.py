@@ -27,7 +27,11 @@ from backend.features.workspace.domain.errors import BadStructure
 #
 # `outcome` is a few words for a reader rather than for the model: what the call amounted to, said
 # in one line. Never the result itself -- a read's result is the file, and that is already on disk.
-ToolResult = namedtuple("ToolResult", "text created target outcome", defaults=("", ""))
+#
+# `spent` is what the call cost, for a tool that asks a model something of its own (Madde 175).
+# None rather than zeroes: a tool that spent nothing and a tool that cannot spend are one thing to
+# the turn's stamp, and neither should add a row of noughts to it.
+ToolResult = namedtuple("ToolResult", "text created target outcome spent", defaults=("", "", None))
 
 
 @dataclass(frozen=True)
@@ -700,8 +704,12 @@ def scenario_name(name):
     return f"{name.rsplit('.', 1)[0]}.json"
 
 
-def run_tool(file_store, project_id, name, arguments):
-    """Run one call and answer the model in words. A miss is an answer, not a crash."""
+def run_tool(file_store, project_id, name, arguments, engine=None):
+    """Run one call and answer the model in words. A miss is an answer, not a crash.
+
+    The engine is here for the one tool that answers out of a model rather than out of the file
+    store (Madde 175). Optional, because the other eighteen neither take it nor notice it.
+    """
     try:
         args = json.loads(arguments or "{}")
     except json.JSONDecodeError:

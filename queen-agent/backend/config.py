@@ -45,6 +45,13 @@ MODELS = {
 # What answers when a turn named nothing -- which is every message written before Madde 146.
 DEFAULT_MODEL = "grok-build-0.1"
 
+# Who writes a frame's action when a tool asks for one (Madde 175). A role rather than a choice, by
+# the user's decision of 5 September: what the composer offers is which model runs the conversation,
+# and this one is never on that list. It is here because it is a wiring fact -- the same kind of
+# fact as an address or a key -- and because the model it names is chosen for what it will write
+# rather than for how it reasons.
+PROMPT_MODEL = "grok-build-0.1"
+
 
 def engine_for(model_id):
     """Which model, over which address, spending which key.
