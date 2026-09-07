@@ -1,4 +1,5 @@
 import json
+import threading
 
 import pytest
 
@@ -2434,6 +2435,202 @@ def test_the_two_frame_tools_point_at_the_one_that_writes_an_action():
     # not exist yet, and naming a tool the model cannot call is m127's mistake. It exists now.
     assert "write_frame_prompt" in _said_by("add_scene")
     assert "write_frame_prompt" in _said_by("update_frame")
+
+
+# --- every frame still waiting, in one round (Madde 185) ------------------------------------------
+#
+# write_frame_prompt takes one frame per call, and in Deneme 4 twenty-one frames cost twenty-one
+# main-agent rounds and 277.6k tokens. The bill is not the writer's: every round resends the system
+# prompt, the skill text and the context box, and the structure inside that box grows with each
+# write -- so the twenty-first round is heavier than the first.
+#
+# This tool asks once. It looks at the whole file, skips whatever already has an action, and sends
+# the rest at the same time. No range and no note: the work is defined by what is empty, and a note
+# belongs to the correction, which is still the single-frame tool's job.
+
+
+class BusyWriter:
+    """A writer that will not answer until everybody else has arrived (Madde 185).
+
+    The one thing a sequential implementation cannot pass. Every other test here would be green
+    whether the requests went out together or one after another; this barrier only opens when as
+    many calls are in flight as there are frames waiting, so a tool that walked them in a loop
+    would sit at the first one until the barrier gave up.
+    """
+
+    def __init__(self, expected, text="she turns her head, close-up", seconds=5):
+        self.gate = threading.Barrier(expected, timeout=seconds)
+        self.text = text
+        self.asked = []
+
+    def write_once(self, system, user):
+        self.asked.append(user)
+        self.gate.wait()
+        return {"text": self.text, "spent": {"sent": 100, "cached": 0, "answered": 20}}
+
+
+class PickyWriter:
+    """Answers one way for one frame and another way for the rest, by what the brief says.
+
+    A frame falling over is not a frame the others wait for: the point of the item is that
+    nineteen of twenty land, and this is how one is made to fall over without touching the rest.
+    """
+
+    def __init__(self, scene, blow_up=None, text=None):
+        self.scene = scene
+        self.blow_up = blow_up
+        self.text = text
+        self.asked = []
+
+    def write_once(self, system, user):
+        self.asked.append(user)
+        if f"Scene: {self.scene}" in user:
+            if self.blow_up:
+                raise RuntimeError(self.blow_up)
+            return {"text": self.text, "spent": {}}
+        return {"text": "she turns her head, close-up", "spent": {"sent": 100, "cached": 0,
+                                                                 "answered": 20}}
+
+
+def _filled(files, engine, **arguments):
+    return run_tool(
+        files, "p1", "write_missing_actions", json.dumps(arguments), engine=engine
+    )
+
+
+def test_every_frame_without_an_action_gets_one(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _filled(files, FakeWriter("she turns her head, close-up"), file="scene.json")
+    assert [frame.get("action") for frame in _frames(files)] == [
+        "she turns her head, close-up",
+        # The one that already had it is not asked for again and not written over: what is waiting
+        # is what is empty, and rewriting a full one is the correction tool's job.
+        "she turns her head, close-up",
+        "she turns her head, close-up",
+    ]
+
+
+def test_a_frame_that_already_has_an_action_is_not_asked_for(tmp_path):
+    # The count, not the file: an implementation that asked for all three and threw one answer
+    # away would leave the same file behind and cost the user a request.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    writer = PickyWriter(scene="nothing matches this")
+    _filled(files, writer, file="scene.json")
+    assert len(writer.asked) == 2
+    assert not any("Scene: two" in asked for asked in writer.asked)
+
+
+def test_the_requests_go_out_at_the_same_time(tmp_path):
+    # The whole gain of the item. Two frames are waiting, and the writer opens only when both
+    # calls are standing at it.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    writer = BusyWriter(expected=2)
+    _filled(files, writer, file="scene.json")
+    assert [frame.get("action") for frame in _frames(files)][0] == "she turns her head, close-up"
+    assert len(writer.asked) == 2
+
+
+def test_the_answer_says_how_many_it_wrote_and_which(tmp_path):
+    # The numbers rather than a total on its own: what the model does next is look at them, and a
+    # bare count would send it reading the file back to learn which ones moved.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    said = _filled(files, FakeWriter(), file="scene.json").text
+    assert "2 frames" in said
+    assert "1" in said and "3" in said
+
+
+def test_a_second_call_finds_nothing_left_to_write(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    # Asserted first: without it the sentence below could come back from a file nothing ever
+    # touched, and the test would pass on a tool that writes nothing at all.
+    assert "2 frames" in _filled(files, FakeWriter(), file="scene.json").text
+    again = _filled(files, FakeWriter(), file="scene.json")
+    assert "no frames waiting" in again.text
+    assert again.spent is None
+
+
+def test_one_request_falling_over_leaves_the_others_written(tmp_path):
+    # Nineteen of twenty land. Rolling them back would throw away work that has already been paid
+    # for -- Madde 173's all-or-nothing belonged to a check made before anything was written.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _filled(
+        files, PickyWriter(scene="three", blow_up="503 upstream is busy"), file="scene.json"
+    )
+    frames = _frames(files)
+    assert frames[0]["action"] == "she turns her head, close-up"
+    assert "action" not in frames[2]
+    assert "3" in answer.text and "503 upstream is busy" in answer.text
+
+
+def test_an_empty_answer_is_not_written_down_either(tmp_path):
+    # The single-frame tool's rule, in the plural: an empty action builds into a prompt with a gap
+    # where the sentence should be.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _filled(files, PickyWriter(scene="three", text="   "), file="scene.json")
+    assert "action" not in _frames(files)[2]
+    assert "3" in answer.text
+
+
+def test_a_frame_with_no_scene_is_skipped_without_being_paid_for(tmp_path):
+    # The brief is the whole of what the writer is asked. Without one there is nothing to write
+    # from, and asking anyway would spend money to be handed an invention.
+    empty = json.loads(WITH_ACTION)
+    empty["frames"][2].pop("scene")
+    files = _with(tmp_path, "scene.json", json.dumps(empty))
+    writer = PickyWriter(scene="nothing matches this")
+    answer = _filled(files, writer, file="scene.json")
+    assert len(writer.asked) == 1
+    assert "3" in answer.text
+
+
+def test_the_whole_bill_comes_back_as_one_figure(tmp_path):
+    # One round, one stamp. Two requests were paid for and the turn has one place to show it.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = _filled(
+        files, FakeWriter(spent={"sent": 300, "cached": 10, "answered": 60}), file="scene.json"
+    )
+    assert answer.spent == {"sent": 600, "cached": 20, "answered": 120}
+
+
+def test_each_request_carries_its_own_frame_and_no_other(tmp_path):
+    # The user's decision of 5 Sep, and the reason a request stays cheap: a file of forty frames
+    # would otherwise send forty casts to write one sentence -- forty times over, here.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    writer = PickyWriter(scene="nothing matches this")
+    _filled(files, writer, file="scene.json")
+    # Counted before the loop: an empty list walks through it without asserting anything, which is
+    # exactly how this test went green on the first red run.
+    assert len(writer.asked) == 2
+    for asked in writer.asked:
+        assert asked.count("Scene:") == 1
+
+
+def test_filling_without_a_model_says_so_rather_than_crashing(tmp_path):
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    answer = run_tool(
+        files, "p1", "write_missing_actions", json.dumps({"file": "scene.json"})
+    )
+    assert "no model to write with" in answer.text
+    assert "action" not in _frames(files)[0]
+
+
+def test_filling_refuses_a_file_that_is_not_there(tmp_path):
+    files = _files(tmp_path)
+    assert "no file by that name" in _filled(files, FakeWriter(), file="gone.json").text.lower()
+
+
+def test_the_bulk_tool_takes_no_note_and_no_range(tmp_path):
+    # Both were decided against. A note belongs to a correction, and a range makes the model decide
+    # what the file already knows -- then keeps the answer in two places.
+    said = TOOL_SPECS
+    spec = next(s for s in said if s["function"]["name"] == "write_missing_actions")
+    assert set(spec["function"]["parameters"]["properties"]) == {"file"}
+
+
+def test_the_single_frame_tool_is_still_there_for_a_correction():
+    # It does not go away: the note is on it, and rewriting one frame is what it is for.
+    assert "write_frame_prompt" in {spec["function"]["name"] for spec in TOOL_SPECS}
+    assert "note" in _said_by("write_frame_prompt")
 
 
 # --- a look that hands back what there is to look at (Madde 135) ---------------------------------

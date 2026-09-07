@@ -84,13 +84,28 @@ def test_no_instruction_names_a_tool_that_is_gone():
         assert named <= known, (skill, named - known)
 
 
-def test_the_builder_writes_each_frames_action_then_builds():
-    # Madde 178. The skeleton and the batches of five went with the tools that made them: a
-    # scenario is opened by start_scenario and its frames are written by the flow, so what is left
-    # for this skill is the sentence each frame turns on, and then the list.
+def test_the_builder_fills_every_waiting_frame_then_builds():
+    # Madde 178 left this skill the sentence each frame turns on and then the list. Madde 185
+    # makes the first half one call: twenty-one frames were twenty-one rounds, and the text is
+    # what sent the model round that loop.
+    said = instruction_for("generate-prompts-plus")
+    assert "write_missing_actions" in said
+    assert said.index("write_missing_actions") < said.rindex("build_prompts")
+
+
+def test_the_builder_no_longer_walks_the_frames_one_at_a_time():
+    # The old sentence has to go rather than stand beside the new one: two ways of doing the same
+    # job in one text is the model choosing, and the expensive one reads as the careful one.
+    said = instruction_for("generate-prompts-plus")
+    assert "one at a time" not in said
+
+
+def test_a_correction_still_names_the_single_frame_tool():
+    # It did not go away. Writing every empty frame and rewriting one that is wrong are two jobs,
+    # and the note -- what the user said about it -- only fits the second.
     said = instruction_for("generate-prompts-plus")
     assert "write_frame_prompt" in said
-    assert said.index("write_frame_prompt") < said.rindex("build_prompts")
+    assert said.index("write_missing_actions") < said.index("write_frame_prompt")
 
 
 def test_the_structured_instruction_forbids_assembling_a_prompt_by_hand():
