@@ -103,7 +103,7 @@ Prompt'a giden yol: hangi sırada diziliyor, ve kaç raunda mal oluyor.
   mekân. Kıyafet yine sahibinin **hemen yanında** — görüntü modeline kıyafetin kimin olduğunu
   söyleyen tek şey o komşuluk.
 - **Nasıl görülür:** iki kişilik bir kare derlenir ve iki karakter bloğu **art arda** çıkar, mekân
-  en sonda. Tek kişilik bir karede `BREAK` hiç geçmez.
+  en sonda.
 - **Değişen:** `build_prompts`'un `lead`/`blocks` kuruluşu ve sıranın gerekçesini anlatan yorum;
   sırayı okuyan testler.
 - **Action/kamera/mekân kendi `BREAK` bloğunu alır** *(kullanıcı kararı, 6 Eylül)*. Son karakterin
@@ -116,6 +116,10 @@ Prompt'a giden yol: hangi sırada diziliyor, ve kaç raunda mal oluyor.
   sorusuna cevap veremez.
 - **Ölçülmemiş, ve kayda öyle geçiyor:** yukarıdaki akıl yürütme, ölçüm değil. Denemede görülecek —
   tek kişilik bir kareyi iki türlü derleyip bakmak yetiyor.
+- **Düzeltme, 7 Eylül:** *"Nasıl görülür"* satırı *tek kişilik bir karede `BREAK` hiç geçmez* diyordu
+  ve bu, hemen altındaki kullanıcı kararıyla çelişiyordu — action kendi bloğunu alınca tek kişilik
+  karede de bir `BREAK` oluyor, ve bunun bedeli zaten bir alt maddede yazılı. Çelişen cümle kalktı;
+  bağlayıcı olan karar.
 
 ## Madde 185 — Action'ı olmayan bütün kareleri dolduran araç
 
