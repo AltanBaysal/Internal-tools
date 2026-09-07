@@ -13,6 +13,27 @@ v8'in sorusu başka: **çıkan prompt'un kendisi**, ve **kullanıcının koşark
 
 ---
 
+## Nerede kalındı
+
+Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir. Aşağıdaki hash
+**kapanış** commit'i — o maddenin yeşili. Bu tablo her kapanışta güncelleniyor.
+
+| Madde | Durum | Kapanış |
+|---|---|---|
+| 183 · Grok 4.3 | **kapandı** | `793fd38` |
+| 189 · metinler tek dosyada | **kapandı** | `356cdf4` |
+| 184 · prompt sırası | **kapandı** | `d6eeaee` |
+| 185 · toplu action aracı | **kapandı** | `2a1304e` |
+| 186 · altı adım, Edit prompts | **kapandı** | `d32a5bb` |
+| 187 · hazır prompt parçaları | **kapandı** | bu commit |
+| 191 · New project 1/2/3 | sırada | |
+| 192 · dosyalar tazelenir | | |
+| 193 · kopyala düğmesi | | |
+| 194 · canlı tur şeridi | | |
+| 190 · metinlerin okunması | **kullanıcının**, ajan durur | |
+
+---
+
 ## Koşunun bağlayıcı kuralları
 
 **Bir kural tek yerde durur.** v7 on altı madde boyunca metin ekledi, ve her biri kendi turunda

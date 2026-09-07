@@ -17,9 +17,11 @@ ASK = "ask"
 EDIT = "edit"
 DEFAULT = EDIT
 
-# One since Madde 172: the schema reader left with the shape it taught, and reading a file is the
-# only thing left that opens nothing and changes nothing.
-READS = ("read_file",)
+# What opens nothing and changes nothing. Madde 172 left this at one -- the schema reader went with
+# the shape it taught -- and Madde 187 makes it two: looking a ready piece up answers out of a
+# constant in the repo, so there is no file to open, nothing to write, and nothing a mode would be
+# protecting the user from.
+READS = ("read_file", "read_prompt_piece")
 
 _WITHOUT_ASKING = {
     ASK: READS,
