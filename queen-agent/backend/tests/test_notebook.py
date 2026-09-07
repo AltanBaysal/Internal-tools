@@ -96,10 +96,11 @@ def test_the_drive_folder_is_named_once():
 # branch left here keeps working until the day it is deleted, so nothing says it is wrong until
 # long after it was done. What replaces it is not a weaker rule but a louder one: the name is
 # written down in exactly two places, this constant and the notebook, and the test below fails the
-# moment they part. Putting it back is one line here and one there.
+# moment they part.
 #
-# BEFORE MERGING: this goes back to "main", and so does the notebook.
-BRANCH = "feat/queenagent-v7.5"
+# Back on main, where a merged run leaves it. A trial changes this line and the notebook's, together
+# and never one of them, and the change comes back the way it went in -- which is what it did here.
+BRANCH = "main"
 
 
 def test_the_notebook_clones_the_branch_this_run_is_tried_on():
