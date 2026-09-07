@@ -3,6 +3,14 @@ import { expect, test, vi } from "vitest";
 
 import FilePanel from "./FilePanel.jsx";
 
+// jsdom ships no clipboard, so the test supplies one and watches what it is handed. The same shape
+// queen-editor's RawOutput is tested with.
+function stubClipboard(answer) {
+  const writeText = vi.fn(() => answer);
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  return writeText;
+}
+
 const FILE = {
   name: "plan.md",
   ext: "md",
@@ -161,6 +169,63 @@ test("Refresh says nothing while it runs", () => {
   fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
   expect(screen.getByRole("button", { name: "Refresh" }).disabled).toBe(false);
   expect(container.querySelector(".spinner")).toBeNull();
+});
+
+// Madde 193. build_prompts writes to a file and does not print into the chat (Madde 130, and that
+// rule stays), so the only way to get a prompt out was to select it by hand, line by line, inside a
+// scrolling box. Download is the disk's answer to a different question: what the user does next is
+// paste into ComfyUI.
+test("Copy puts the whole file on the clipboard", () => {
+  const writeText = stubClipboard(Promise.resolve());
+  render(<FilePanel name="plan.md" file={FILE} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(writeText).toHaveBeenCalledWith("the body");
+});
+
+test("what is copied is the file, not what the panel drew from it", () => {
+  // The item's own sentence. A per-prompt button would mean a second reader of the shape
+  // render_module writes -- and the day that reader drifts from the writer, the buttons copy the
+  // wrong text. There is one reader, and it is the file.
+  const writeText = stubClipboard(Promise.resolve());
+  const { container } = render(
+    <FilePanel name="plan.md" file={{ ...FILE, text: "# Title\n\nsome **bold** text" }} />,
+  );
+  expect(container.querySelector(".reader__body h1").textContent).toBe("Title");
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(writeText).toHaveBeenCalledWith("# Title\n\nsome **bold** text");
+});
+
+test("the icon says it landed", async () => {
+  stubClipboard(Promise.resolve());
+  render(<FilePanel name="plan.md" file={FILE} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
+});
+
+test("and says when it did not", async () => {
+  // Silence would leave the user believing they had the text. The body is still selectable, so
+  // saying it failed is also saying take it by hand.
+  stubClipboard(Promise.reject(new Error("denied")));
+  render(<FilePanel name="plan.md" file={FILE} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(await screen.findByRole("button", { name: "Could not copy" })).toBeTruthy();
+});
+
+test("the answer is the icon's own name and adds no line to the panel", async () => {
+  // A word appearing beside the heading would push the body under it down, which is a page moving
+  // under the reader while they are reading it.
+  stubClipboard(Promise.resolve());
+  render(<FilePanel name="plan.md" file={FILE} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  await screen.findByRole("button", { name: "Copied" });
+  expect(screen.queryByText("Copied")).toBeNull();
+});
+
+test("a file that has not arrived has nothing to copy, and the icon stays", () => {
+  // Dimmed rather than gone: an icon that came and went as the file loaded would make the header
+  // twitch. A button that copies nothing and says it did is the other half of the same lie.
+  render(<FilePanel name="plan.md" file={null} />);
+  expect(screen.getByRole("button", { name: "Copy" }).disabled).toBe(true);
 });
 
 test("a download that fails repeats the server's words", async () => {

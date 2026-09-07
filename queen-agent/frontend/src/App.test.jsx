@@ -1112,6 +1112,21 @@ test("a file open in the panel cannot be asked to go, and closing it brings the 
   await waitFor(() => expect(screen.getByRole("button", { name: "Delete plan.md" })).toBeTruthy());
 });
 
+test("a file is opened, the icon is pressed, and the text is on the clipboard", async () => {
+  // Madde 193's own how-it-is-seen, on a real screen. jsdom ships no clipboard, so the test hands
+  // one over and watches what goes into it.
+  const writeText = vi.fn(() => Promise.resolve());
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  withFile();
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(writeText).toHaveBeenCalledWith("body");
+});
+
 test("a file is not deleted until the question is answered", async () => {
   const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
   const fetch = vi.fn().mockImplementation((path) => {

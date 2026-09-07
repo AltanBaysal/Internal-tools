@@ -27,8 +27,8 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 186 · altı adım, Edit prompts | **kapandı** | `d32a5bb` |
 | 187 · hazır prompt parçaları | **kapandı** | `a390078` |
 | 191 · New project 1/2/3 | **kapandı** | `7a052b1` |
-| 192 · dosyalar tazelenir | test turu kırmızı | |
-| 193 · kopyala düğmesi | | |
+| 192 · dosyalar tazelenir | **kapandı** | `4f50ab8` |
+| 193 · kopyala düğmesi | test turu kırmızı | |
 | 194 · canlı tur şeridi | | |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durur | |
 
