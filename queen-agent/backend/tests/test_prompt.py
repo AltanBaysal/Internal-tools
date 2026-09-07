@@ -63,7 +63,11 @@ def test_every_text_a_tool_carries_comes_from_the_prompt_module():
         ("tools", "SDXL_PROMPT_RULES"),
         ("tools", "WRITE_FRAME_SYSTEM_PROMPT"),
         ("skills", "START_A_SCENARIO"),
+        # Madde 186 renamed this one with the skill it belongs to. The guard keeps watching the
+        # name it had when it moved as well: a text put back under the old name in skills.py is
+        # the same failure as one put back under the new one.
         ("skills", "GENERATE_PROMPTS_PLUS"),
+        ("skills", "EDIT_PROMPTS"),
     ],
 )
 def test_no_text_is_still_written_down_where_it_used_to_live(module, name):
@@ -90,7 +94,7 @@ def test_the_prompt_module_holds_the_texts_the_others_gave_up():
         "SDXL_PROMPT_RULES",
         "WRITE_FRAME_SYSTEM_PROMPT",
         "START_A_SCENARIO",
-        "GENERATE_PROMPTS_PLUS",
+        "EDIT_PROMPTS",
     ):
         assert getattr(prompt, name, "").strip(), name
 
