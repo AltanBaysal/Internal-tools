@@ -1061,6 +1061,9 @@ def test_every_tool_is_declared_to_the_model():
         # Madde 185. The same border crossed once for every frame still waiting, in one round --
         # the tool above stays for the correction, which is the only one that carries a note.
         "write_missing_actions",
+        # Madde 187. The only one that answers out of the repo rather than out of the project: a
+        # piece of prompt that is the same in every scenario, looked up by name.
+        "read_prompt_piece",
     }
 
 
@@ -2634,6 +2637,107 @@ def test_the_single_frame_tool_is_still_there_for_a_correction():
     # It does not go away: the note is on it, and rewriting one frame is what it is for.
     assert "write_frame_prompt" in {spec["function"]["name"] for spec in TOOL_SPECS}
     assert "note" in _said_by("write_frame_prompt")
+
+
+# --- the pieces that are the same in every scenario (Madde 187) -----------------------------------
+#
+# Known things -- positions and the like -- were being written out again for every scenario, and a
+# thing written twice is a thing that reads two ways. They live in the repo now, named, so everybody
+# gets the same one and it is reviewed like every other text QueenAgent says.
+#
+# A tool rather than a paragraph in the prompt: carried in every request it would be paid for every
+# round and would grow with the list, which is the whole lesson of Madde 185. Asked for, it costs
+# one round, once.
+#
+# Not randomness. Nothing here picks one of them -- what is asked for is what comes back, and
+# SDXL_PROMPT_RULES still says the model cannot toss a coin.
+
+
+def _looked_up(files, **arguments):
+    return run_tool(files, "p1", "read_prompt_piece", json.dumps(arguments))
+
+
+def _pieces():
+    from backend.features.workspace.domain.prompt import PROMPT_PIECES
+
+    return PROMPT_PIECES
+
+
+def test_the_library_is_not_empty_and_no_entry_is(tmp_path):
+    # The floor under the two rules below: both of them walk the pieces, and an empty map walks
+    # through either without asserting anything at all.
+    pieces = _pieces()
+    assert len(pieces) > 3
+    for name, tags in pieces.items():
+        assert tags.strip(), name
+
+
+def test_a_known_name_hands_back_what_it_is_written_as(tmp_path):
+    files = _files(tmp_path)
+    name, tags = next(iter(_pieces().items()))
+    assert tags in _looked_up(files, name=name).text
+
+
+def test_a_name_nobody_knows_says_what_is_known(tmp_path):
+    # build_prompts' pattern, and the reason there is no list in the prompt: asking is how the
+    # model finds out, and it costs one round rather than every round.
+    files = _files(tmp_path)
+    said = _looked_up(files, name="not-a-piece").text
+    assert "not-a-piece" in said
+    for name in _pieces():
+        assert name in said
+
+
+def test_asking_for_nothing_is_asking_what_there_is(tmp_path):
+    files = _files(tmp_path)
+    said = _looked_up(files).text
+    for name in _pieces():
+        assert name in said
+
+
+def test_a_capital_letter_does_not_cost_a_round(tmp_path):
+    # The model writes a name the way a person says it. Folding it is one line here and a whole
+    # round otherwise -- and the round would end in a refusal that taught nothing.
+    files = _files(tmp_path)
+    name, tags = next(iter(_pieces().items()))
+    loud = name.replace("-", " ").upper()
+    assert tags in _looked_up(files, name=loud).text
+
+
+def test_looking_one_up_touches_no_file(tmp_path):
+    # Showing is showing. What goes into a frame goes there through update_frame, and a tool that
+    # did both would leave its answer unable to say which it had done.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    before = files.read("p1", "scene.json")
+    answer = _looked_up(files, name=next(iter(_pieces())))
+    assert answer.created is None
+    assert answer.target == ""
+    assert files.read("p1", "scene.json") == before
+    assert files.list_names("p1") == ["scene.json"]
+
+
+def test_no_piece_counts_anybody():
+    # SDXL_PROMPT_RULES: how many people a picture holds belongs in a character's own entry and
+    # nowhere else. A count in here would be added to a prompt that already carries one.
+    pieces = _pieces()
+    assert pieces
+    for name, tags in pieces.items():
+        for count in ("1girl", "1boy", "2girls", "solo"):
+            assert count not in tags, (name, count)
+
+
+def test_no_piece_carries_a_quality_tag():
+    # Code writes the chain at the front of every prompt, so one here would be printed twice.
+    pieces = _pieces()
+    assert pieces
+    for name, tags in pieces.items():
+        for quality in ("masterpiece", "best quality", "score_9", "absurdres"):
+            assert quality not in tags, (name, quality)
+
+
+def test_the_piece_tool_takes_one_name_and_nothing_else():
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "read_prompt_piece")
+    assert set(spec["function"]["parameters"]["properties"]) == {"name"}
 
 
 # --- a look that hands back what there is to look at (Madde 135) ---------------------------------

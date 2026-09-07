@@ -69,6 +69,19 @@ def test_ask_mode_reads_without_asking():
     assert not any(_asks("ask", tool) for tool in READS)
 
 
+def test_looking_up_a_ready_piece_asks_nobody():
+    # Madde 187. It answers out of a constant in the repo: no file is opened, nothing is written,
+    # and there is nothing for a mode to protect the user from.
+    from backend.features.workspace.domain.modes import READS
+
+    # Asserted first, and this run has watched twelve tests go green while red: needs_permission
+    # answers False for a tool nobody knows, so the loop below passes on a tool that does not
+    # exist yet. This line is the one that says it does.
+    assert "read_prompt_piece" in READS
+    for mode in ("ask", "plan", "edit"):
+        assert not _asks(mode, "read_prompt_piece"), mode
+
+
 def test_edit_mode_asks_for_nothing():
     # The mode's whole meaning. Asked of every tool there is rather than of a list written here --
     # a ninth tool must join this claim by existing, not by somebody remembering to add it.
