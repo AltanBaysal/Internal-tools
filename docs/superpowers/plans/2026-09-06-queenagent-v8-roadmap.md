@@ -25,7 +25,7 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 184 · prompt sırası | **kapandı** | `d6eeaee` |
 | 185 · toplu action aracı | **kapandı** | `2a1304e` |
 | 186 · altı adım, Edit prompts | **kapandı** | `d32a5bb` |
-| 187 · hazır prompt parçaları | **kapandı** | bu commit |
+| 187 · hazır prompt parçaları | **kapandı** | `a390078` |
 | 191 · New project 1/2/3 | sırada | |
 | 192 · dosyalar tazelenir | | |
 | 193 · kopyala düğmesi | | |
