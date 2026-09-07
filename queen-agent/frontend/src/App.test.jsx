@@ -2403,7 +2403,7 @@ async function reborn() {
   cleanup();
   render(<App />);
   return waitFor(() =>
-    expect(screen.getByRole("button", { name: /Skills|Generate/ })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: /Skills|Edit prompts/ })).toBeTruthy(),
   );
 }
 
