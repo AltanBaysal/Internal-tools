@@ -944,6 +944,70 @@ test("Refresh asks again with no turn to hang it on", async () => {
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
 });
 
+// Madde 194: everything between the question and the answer used to be three blinking dots, however
+// long the turn took.
+function _turnThatReports() {
+  const owed = { id: "c1", title: "hello", messages: [] };
+  let record = owed;
+  const { response, release } = gatedSse(
+    'event: chat\ndata: {"chat":"c1"}\n\n' +
+      'event: progress\ndata: {"round":1,"of":16,"tokens":0}\n\n' +
+      'event: progress\ndata: {"round":2,"of":16,"tokens":12300}\n\n',
+    "event: done\ndata: {}\n\n",
+  );
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      record = {
+        ...owed,
+        messages: [
+          {
+            role: "ai",
+            at: new Date().toISOString(),
+            text: "Done.",
+            usage: { sent: 9000, cached: 3000, answered: 100 },
+          },
+        ],
+      };
+      return Promise.resolve(response);
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => record });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  return release;
+}
+
+test("a running turn counts its rounds and its tokens on screen", async () => {
+  _turnThatReports();
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "go" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  const strip = await screen.findByTestId("live-strip");
+  await waitFor(() => expect(strip.textContent).toContain("round 2/16"));
+  expect(strip.textContent).toContain("12.3k tokens");
+});
+
+test("when the turn ends the strip is gone and the stamp is in its place", async () => {
+  const release = _turnThatReports();
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "go" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByTestId("live-strip");
+
+  release();
+  await waitFor(() => expect(screen.queryByTestId("live-strip")).toBeNull());
+  // The bill rather than the volume, and that difference is on purpose: the strip answers how big
+  // the turn got, the stamp answers what it cost. 9000 sent and 100 answered; the 3000 cached
+  // travelled but is not charged for.
+  expect(screen.getByText(/9\.1k tokens/)).toBeTruthy();
+});
+
 test("a fault inside the stream shows the card and Try again asks through the one door", async () => {
   // Madde 88 kept the button and took away the finger that pressed it. It goes to the same
   // address as a sentence does, and carries no sentence: the question is already on disk.

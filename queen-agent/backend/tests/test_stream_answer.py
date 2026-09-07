@@ -13,7 +13,7 @@ from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, Fil
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.append_message import append_message
-from backend.features.workspace.domain.usecases.stream_answer import stream_answer
+from backend.features.workspace.domain.usecases.stream_answer import Progress, stream_answer
 from backend.services.store.store import Store
 
 NOW = "2026-08-09T11:06:00.000+00:00"
@@ -509,7 +509,9 @@ def _write_round(name="plan.md"):
 
 def test_a_round_without_tools_ends_the_loop(tmp_path):
     chats, _, engine, produced = _run(tmp_path, [[{"text": "He"}, {"text": "llo"}]])
-    assert produced[:-1] == ["He", "llo"]
+    # Madde 194 put a progress piece in front of every round, so the words are what is left when
+    # those are taken out. Their own tests are at the foot of this file.
+    assert [piece for piece in produced[:-1] if isinstance(piece, str)] == ["He", "llo"]
     assert isinstance(produced[-1], Chat)
     assert len(engine.seen) == 1
 
@@ -585,9 +587,12 @@ def test_a_created_file_announces_itself_twice(tmp_path):
         [{"text": "Saved."}],
     ]
     _, _, _, produced = _run(tmp_path, rounds)
-    # The dashed card goes up before the tool runs, the filled one after it.
-    assert isinstance(produced[0], FileStarted)
-    assert produced[1] == FileWritten("plan.md")
+    # The dashed card goes up before the tool runs, the filled one after it. Read past the progress
+    # pieces Madde 194 added: the claim is the order of these two, not where the round's own signal
+    # falls between them.
+    cards = [piece for piece in produced if isinstance(piece, (FileStarted, FileWritten))]
+    assert isinstance(cards[0], FileStarted)
+    assert cards[1] == FileWritten("plan.md")
 
 
 def test_the_reply_remembers_the_file_it_produced(tmp_path):
@@ -616,8 +621,9 @@ def test_building_prompts_announces_itself_twice(tmp_path):
     rounds = [[{"tool_calls": [call("build_prompts", name="frames.json")]}], [{"text": "done"}]]
     produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER, UNASKED))
     # A file is born here too, so it gets the same dashed card and the same filled one.
-    assert isinstance(produced[0], FileStarted)
-    assert produced[1] == FileWritten("frames.py")
+    cards = [piece for piece in produced if isinstance(piece, (FileStarted, FileWritten))]
+    assert isinstance(cards[0], FileStarted)
+    assert cards[1] == FileWritten("frames.py")
 
 
 def test_editing_a_file_announces_nothing(tmp_path):
@@ -1167,6 +1173,72 @@ def test_the_turn_hands_its_engine_to_the_tool_that_needs_one(tmp_path):
     assert len(engine.written) == 1
     assert "she opens the door" in engine.written[0][1]
     assert json.loads(files.read("p1", "scene.json"))["frames"][0]["action"]
+
+
+# --- what a running turn says about itself (Madde 194) -------------------------------------------
+#
+# The turn already ran its rounds one at a time and added up what they spent. What it never did was
+# say so while it was still going: the stamp fell at the end, and a long turn showed three blinking
+# dots for however long it took.
+
+
+def _progress(produced):
+    return [piece for piece in produced if isinstance(piece, Progress)]
+
+
+def test_a_running_turn_says_which_round_it_is_on(tmp_path):
+    _, _, _, produced = _run(tmp_path, [[{"text": "hi"}]])
+    marks = _progress(produced)
+    # Before anything else: the round number is what moves first, and it moves the moment the round
+    # begins rather than when it ends.
+    assert produced[0] == Progress(1, MAX_ROUNDS, 0)
+    assert marks[0].of == MAX_ROUNDS
+
+
+def test_every_round_says_so(tmp_path):
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
+    _, _, _, produced = _run(tmp_path, rounds)
+    assert [mark.round for mark in _progress(produced)][:2] == [1, 2]
+
+
+def test_the_number_is_everything_that_crossed_the_wire(tmp_path):
+    # sent + cached + answered, which is how big the turn got rather than what it cost. Only `sent`
+    # would hide half the work: cached tokens travel too, they are merely cheap. The bill is the
+    # stamp's question and the stamp keeps answering it.
+    _, _, _, produced = _run(tmp_path, [[{"text": "hi"}, spent(1000, 600, 40)]])
+    assert _progress(produced)[-1].tokens == 1640
+    # Said out loud, or a sum that quietly dropped the cache would read as right.
+    assert _progress(produced)[-1].tokens != 1000
+
+
+def test_two_rounds_add_up_as_they_go(tmp_path):
+    rounds = [
+        [{"tool_calls": [a_call()]}, spent(1000, 600, 10)],
+        [{"text": "done"}, spent(1500, 1200, 20)],
+    ]
+    _, _, _, produced = _run(tmp_path, rounds)
+    counted = [mark.tokens for mark in _progress(produced)]
+    # It starts at nothing and never goes back down: what the screen shows is a total, not a round.
+    assert counted[0] == 0
+    assert counted[-1] == 4330
+    assert counted == sorted(counted)
+
+
+def test_a_tools_own_bill_moves_the_number_inside_the_round(tmp_path):
+    # Madde 176's second request, and the reason the number cannot only move between rounds:
+    # write_missing_actions can spend eight of these without the round ever ending.
+    chats, files = _seeded(tmp_path)
+    _with_a_frame(files)
+    rounds = [
+        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]}],
+        [{"text": "done"}],
+    ]
+    engine = ScriptedEngine(rounds, tool_spends={"sent": 300, "cached": 0, "answered": 60})
+    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    # The rounds themselves report no usage here, so 360 can only have come from the tool -- and it
+    # arrives while round one is still the round.
+    inside = [mark for mark in _progress(produced) if mark.round == 1]
+    assert [mark.tokens for mark in inside] == [0, 360]
 
 
 def test_counts_repeated_inside_one_round_are_not_added_twice(tmp_path):

@@ -28,8 +28,8 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 187 · hazır prompt parçaları | **kapandı** | `a390078` |
 | 191 · New project 1/2/3 | **kapandı** | `7a052b1` |
 | 192 · dosyalar tazelenir | **kapandı** | `4f50ab8` |
-| 193 · kopyala düğmesi | test turu kırmızı | |
-| 194 · canlı tur şeridi | | |
+| 193 · kopyala düğmesi | **kapandı** | `efac34c` |
+| 194 · canlı tur şeridi | test turu kırmızı | |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durur | |
 
 ---

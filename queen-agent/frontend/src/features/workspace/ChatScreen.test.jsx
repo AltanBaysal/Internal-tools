@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import ChatScreen from "./ChatScreen.jsx";
@@ -303,6 +303,88 @@ test("the stamp closes a message rather than opening it", () => {
     "msg__stamp",
     "msg__stamp",
   ]);
+});
+
+// --- the running turn, live (Madde 194) ----------------------------------------------------------
+//
+// The stamp fell at the end of a turn, so a turn that took a minute showed three blinking dots for a
+// minute. What matters is not looking frozen: the number can sit still for thirty seconds, and the
+// spinner is what says the screen is alive.
+
+const RUNNING_AT = { round: 4, of: 16, tokens: 12300 };
+
+test("the running turn says where it is, on one line, where the stamp sits", () => {
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />,
+  );
+  const strip = screen.getByTestId("live-strip");
+  // The same class the finished stamp wears: when the turn ends the two swap places, and two
+  // different-looking things trading places is a jump on the page.
+  expect(strip.className).toContain("msg__stamp");
+  expect(strip.textContent).toContain("round 4/16");
+  expect(strip.textContent).toContain("12.3k tokens");
+  // English, like the rest of QueenAgent's UI and like the stamp it turns into.
+  expect(strip.textContent).not.toContain("jeton");
+  expect(container.querySelector(".msg--waiting").lastElementChild).toBe(strip);
+});
+
+test("the strip carries a word that says nothing about the work", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+  // A gerund and an ellipsis. Deriving it from the tool name was asked against: the two pieces
+  // beside it already carry every fact there is. The whole line is pinned here -- one row, in this
+  // order, with nothing dividing it into columns.
+  expect(screen.getByTestId("live-strip").textContent).toMatch(
+    /^[A-Z][a-z]+ing… · round 4\/16 · 12\.3k tokens$/,
+  );
+});
+
+test("the word changes on its own", () => {
+  vi.useFakeTimers();
+  try {
+    render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+    const first = screen.getByTestId("live-strip").textContent;
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.getByTestId("live-strip").textContent).not.toBe(first);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("the spinner does not wait for a timer", () => {
+  // The one thing that must never stall. A turn that has React busy has its intervals waiting
+  // too, and that is exactly the moment the screen has to look alive -- so the spinning is the
+  // stylesheet's, not JavaScript's.
+  vi.useFakeTimers();
+  try {
+    const { container } = render(
+      <ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />,
+    );
+    expect(container.querySelector(".strip__spinner")).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a turn that has not reported yet gets the dots and no strip", () => {
+  // round 0/16 would be the screen claiming a measurement nobody took.
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  expect(screen.queryByTestId("live-strip")).toBeNull();
+  expect(screen.getByTestId("thinking")).toBeTruthy();
+});
+
+test("the strip rides with the answer once the words start arriving", () => {
+  // The dots go when the first piece lands, and the turn is still running -- so the strip moves
+  // into the box that replaced them rather than disappearing with them.
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      thinking
+      streamingText="Here it"
+      progress={RUNNING_AT}
+    />,
+  );
+  expect(screen.getByTestId("streaming").textContent).toContain("round 4/16");
 });
 
 test("both messages are drawn", () => {

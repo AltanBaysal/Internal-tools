@@ -89,6 +89,16 @@ def _frames(body):
     return [line[len("event: ") :] for line in body.splitlines() if line.startswith("event: ")]
 
 
+def _steps(body):
+    """The same list with the turn's heartbeat taken out (Madde 194).
+
+    A progress frame goes out at the top of every round and again whenever the count moves, so it
+    lands between any two frames a test might be comparing. Where it lands is its own test's
+    question, not every other test's.
+    """
+    return [name for name in _frames(body) if name != "progress"]
+
+
 def _named(body):
     # The chat the stream's first frame named.
     return json.loads(body.split("data: ", 1)[1].splitlines()[0])["chat"]
@@ -421,6 +431,22 @@ def test_a_call_travels_as_its_own_event(tmp_path):
     assert "event: call" in body
     assert '"tool": "read_file"' in body
     assert body.index("event: call") < body.index("event: done")
+
+
+def test_a_running_turn_reaches_the_browser_as_progress(tmp_path):
+    # Madde 194. The turn already knew which round it was on and what it had spent; nothing carried
+    # that out to the screen, so a long turn showed three blinking dots and nothing else.
+    engine = ScriptedEngine(
+        [[{"tool_calls": [_tool_call("read_file", name="ghost.md")]}], [{"text": "none"}]]
+    )
+    client = _client(tmp_path, engine=engine)
+    _pid, _cid, body = _first_turn(client)
+    assert "event: progress" in body
+    said = json.loads(body.split("event: progress\ndata: ", 1)[1].splitlines()[0])
+    assert said == {"round": 1, "of": 16, "tokens": 0}
+    # Ahead of the work it is reporting on, or the first thing the screen hears is that a round it
+    # never saw begin has ended.
+    assert body.index("event: progress") < body.index("event: call")
 
 
 def test_the_stored_chat_hands_back_the_calls(tmp_path):
@@ -759,7 +785,9 @@ def test_the_answer_left_at_the_door_lets_the_turn_finish(tmp_path):
     pid, cid = _started(client)
     client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
     body = _write(client, pid, cid)
-    assert _frames(body) == ["chat", "permission", "file-start", "file", "call", "chunk", "done"]
+    # Madde 194's progress frames are dropped: this test is about the order of the door, the work
+    # and the answer, and a signal that fires every round says nothing about that order.
+    assert _steps(body) == ["chat", "permission", "file-start", "file", "call", "chunk", "done"]
     assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == [
         "plan.md"
     ]
@@ -783,7 +811,7 @@ def test_a_refusal_at_the_door_writes_no_file_and_the_turn_still_ends(tmp_path):
         json={"allowed": False, "reason": "not that one"},
     )
     body = _write(client, pid, cid)
-    assert _frames(body) == ["chat", "permission", "call", "chunk", "done"]
+    assert _steps(body) == ["chat", "permission", "call", "chunk", "done"]
     assert client.get(f"/api/projects/{pid}/files").get_json() == []
 
 
