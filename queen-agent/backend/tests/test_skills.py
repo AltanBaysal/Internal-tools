@@ -5,7 +5,7 @@ from backend.features.workspace.domain.skills import INSTRUCTIONS, instruction_f
 # Written out rather than imported: the picker's ids live in the frontend's skills.js and Python
 # cannot read it. If the two ever drift apart, a skill answers with no instruction at all -- so the
 # match is pinned here, in words.
-ALL_SKILLS = ["generate-prompts-plus", "start-a-scenario"]
+ALL_SKILLS = ["edit-prompts", "start-a-scenario"]
 
 # Madde 94's deletion. The names live here because the proof of a deletion is an absence, and only a
 # test that looks for it sees one -- putting any of them back has to come past this line.
@@ -15,7 +15,20 @@ DELETED = [
     "split-into-frames",
     "generate-prompts",
     "verify-prompts",
+    # Madde 186. Its building half went into the flow, which can finish the job in one turn since
+    # Madde 185 made the actions one call; what was left of it is Edit prompts, under a name of its
+    # own. A record written before today still names this one, and that turn runs on the base text.
+    "generate-prompts-plus",
 ]
+
+
+def _flow():
+    return instruction_for("start-a-scenario")
+
+
+def _edit():
+    """Madde 186's skill: what is wrong with prompts that already exist."""
+    return instruction_for("edit-prompts")
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
@@ -24,9 +37,9 @@ def test_every_skill_in_the_menu_carries_an_instruction(skill):
 
 
 def test_the_menu_and_the_instructions_carry_the_same_names():
-    # Two since Madde 101: the one that builds from a file that exists, and the one that walks the
-    # user through making one. A name in the menu with no instruction here is a turn that quietly
-    # runs on the base text alone.
+    # Two since Madde 101, and since Madde 186 they are the two halves of the work rather than two
+    # ways into it: one makes a scenario and finishes it, the other fixes what is already made. A
+    # name in the menu with no instruction here is a turn that quietly runs on the base text alone.
     assert sorted(INSTRUCTIONS) == sorted(ALL_SKILLS)
 
 
@@ -61,7 +74,7 @@ def test_no_instruction_calls_a_frame_a_shot():
 def test_the_instruction_no_longer_carries_the_schema():
     # It went to the schema tool. Left here it would be paid for every turn, and copied again the
     # day a second skill writes the same file.
-    said = instruction_for("generate-prompts-plus")
+    said = _edit()
     assert '"frames"' not in said and '"outfits"' not in said
 
 
@@ -84,48 +97,49 @@ def test_no_instruction_names_a_tool_that_is_gone():
         assert named <= known, (skill, named - known)
 
 
-def test_the_builder_fills_every_waiting_frame_then_builds():
-    # Madde 178 left this skill the sentence each frame turns on and then the list. Madde 185
-    # makes the first half one call: twenty-one frames were twenty-one rounds, and the text is
-    # what sent the model round that loop.
-    said = instruction_for("generate-prompts-plus")
+def test_the_flow_fills_every_waiting_frame_then_builds():
+    # Madde 185 made the actions one call, and Madde 186 gave that call to the flow: the job it
+    # used to hand over is now its last step. Twenty-one frames were twenty-one rounds, and a text
+    # saying "one at a time" is what sent the model round that loop.
+    said = _flow()
     assert "write_missing_actions" in said
     assert said.index("write_missing_actions") < said.rindex("build_prompts")
 
 
-def test_the_builder_no_longer_walks_the_frames_one_at_a_time():
-    # The old sentence has to go rather than stand beside the new one: two ways of doing the same
-    # job in one text is the model choosing, and the expensive one reads as the careful one.
-    said = instruction_for("generate-prompts-plus")
-    assert "one at a time" not in said
+def test_no_instruction_walks_the_frames_one_at_a_time():
+    # The old sentence goes rather than standing beside the new one: two ways of doing one job in
+    # one text is the model choosing, and the expensive one reads as the careful one.
+    for skill, said in INSTRUCTIONS.items():
+        assert "one at a time" not in said, skill
 
 
-def test_a_correction_still_names_the_single_frame_tool():
+def test_a_correction_names_the_single_frame_tool():
     # It did not go away. Writing every empty frame and rewriting one that is wrong are two jobs,
-    # and the note -- what the user said about it -- only fits the second.
-    said = instruction_for("generate-prompts-plus")
+    # and the note -- what the user said about it -- only fits the second, which is this skill's.
+    said = _edit()
     assert "write_frame_prompt" in said
-    assert said.index("write_missing_actions") < said.index("write_frame_prompt")
+    assert "note" in said
 
 
-def test_the_structured_instruction_forbids_assembling_a_prompt_by_hand():
-    said = instruction_for("generate-prompts-plus")
+def test_the_editor_forbids_assembling_a_prompt_by_hand():
+    said = _edit()
     # Without this the skill loses the only thing that makes it different.
     assert "do not assemble" in said.lower()
     assert "build_prompts" in said
 
 
-def test_the_builder_changes_what_exists_too():
-    # Madde 94's record gave prompt+ the job of updating what exists; the sentence never reached
-    # the text, so the skill read as a one-way builder -- and Madde 108 now sends people here.
-    said = instruction_for("generate-prompts-plus")
-    assert "or changed" in said
+def test_the_editor_is_about_what_already_exists():
+    # Madde 186 split the work in two. This half never makes a scenario -- it is reached when one
+    # is already built and something in it is wrong -- and the text has to say so, or it reads as
+    # a second road into the same job.
+    said = _edit()
+    assert "already" in said
     assert "build_prompts again" in said
 
 
 def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
     # The prompt file is derived: patched by hand it stops matching the structure it came from.
-    assert "rebuilt rather than patched" in instruction_for("generate-prompts-plus")
+    assert "rebuilt rather than patched" in _edit()
 
 
 # --- somebody the camera is standing in (Madde 182) -----------------------------------------------
@@ -146,7 +160,7 @@ def test_the_flow_opens_a_pov_entry_beside_each_character():
     # correction turn, which is the worst moment to send the model back to the maps.
     said = _flow()
     assert "pov_" in said
-    assert said.index("pov_") > said.index("2. The characters")
+    assert said.index("pov_") > said.index("3. The characters")
 
 
 def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
@@ -160,7 +174,7 @@ def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
 def test_a_pov_frame_names_the_pov_entry_in_its_cast():
     # The other half, and it lives here because "make this one POV" arrives during a correction --
     # this skill's turn, not the flow's.
-    assert "pov_" in instruction_for("generate-prompts-plus")
+    assert "pov_" in _edit()
 
 
 def test_no_instruction_carries_the_prompt_rules():
@@ -177,17 +191,13 @@ def test_no_instruction_carries_the_prompt_rules():
 # --- the flow that walks the user through it (Madde 101) -----------------------------------------
 
 
-def _flow():
-    return instruction_for("start-a-scenario")
-
-
 def test_the_flow_writes_the_plan_before_it_asks_anything():
     # Step one whatever the user's opening sentence was. Without it the flow starts somewhere
     # different every time, and has nowhere to keep its place.
     said = _flow()
     assert "write_plan" in said
     # Ordered against the next step rather than against the schema fetch, which Madde 172 retired.
-    assert said.index("write_plan") < said.index("2. The characters")
+    assert said.index("write_plan") < said.index("3. The characters")
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
@@ -228,9 +238,13 @@ def test_the_scenario_is_opened_by_the_tool_that_opens_one():
     # The observed failure wears two masks: everything gathered in chat and written at the end, or
     # a new file per step. One birth rules out both, and since Madde 167 the tool enforces it --
     # start_scenario refuses a name that is taken, so the text only has to say which step opens it.
+    #
+    # Madde 186 moved that step from the characters to the plan: what names the file is the
+    # context, which is now asked first, and every step after this one writes into a file that is
+    # already there.
     said = _flow()
     assert "start_scenario" in said
-    assert said.index("start_scenario") < said.index("3. The places")
+    assert said.index("2. The plan") < said.index("start_scenario") < said.index("3. The characters")
 
 
 def test_the_flow_fills_the_maps_with_the_tools_that_own_them():
@@ -242,12 +256,22 @@ def test_the_flow_fills_the_maps_with_the_tools_that_own_them():
     assert "add_location" in said
 
 
-def test_the_flow_hands_the_frames_to_the_builder():
-    # The handoff, and what it now hands over. The flow writes the frames -- Madde 173 gave it a
-    # tool that takes a scene whole -- and leaves their actions to the model that writes those.
+def test_the_flow_writes_the_frames_itself():
+    # Madde 173 gave it a tool that takes a scene whole, and since Madde 186 the frames it writes
+    # are finished in the same flow rather than handed to somebody else.
     said = _flow()
-    assert "Generate prompts+" in said
     assert "add_scene" in said
+
+
+def test_the_flow_hands_off_to_nobody():
+    # Madde 186. Deneme 3 broke the actions across two turns because the stage would not fit in
+    # one; Madde 185 made it one call, and with that the reason for a second skill went with it.
+    said = _flow()
+    # Asserted first, and not for company: a test looking for the absence of a name passes on a
+    # text that was never read at all, which is how eleven tests in this run went green while red.
+    assert "6. The prompts" in said
+    assert "Generate prompts+" not in said
+    assert "skills menu" not in said
 
 
 def test_the_scenes_step_writes_the_cast_into_the_frame():
@@ -266,31 +290,50 @@ def test_no_instruction_writes_a_scene_list_file():
         assert "scene list" not in said, skill
 
 
-def test_the_builder_picks_up_where_the_flow_stops():
-    # The other half of the handoff. What the flow leaves is frames with a scene and no action, so
-    # that is what this skill looks for -- and it is how the work resumes after a chat that ran out
-    # of room: the file itself says which frames are still waiting.
-    said = instruction_for("generate-prompts-plus")
-    assert "Start a scenario" in said
-    assert "no action" in said
+def test_the_editor_starts_from_a_complaint_rather_than_a_blank_page():
+    # What reaches this skill is a prompt file somebody has looked at and does not like. It never
+    # opens a scenario -- that road is the flow's, end to end, since Madde 186.
+    said = _edit()
+    assert "start_scenario" not in said
+    assert "wrong" in said
 
 
-def test_the_handoff_is_a_step_of_its_own():
-    # Madde 108: the handoff sat outside the numbered list, and a weak model stops when the list
-    # ends -- so the flow went on to write frames instead of naming its heir.
+def test_the_flow_runs_six_numbered_steps():
+    # Madde 108: a stage outside the numbered list is a stage a weak model walks past, because it
+    # stops when the list ends. Madde 186 makes it six -- the context in front, and the prompts
+    # where the handoff used to be.
     said = _flow()
-    assert "Five steps" in said
-    assert "5. The handoff" in said
-    assert said.index("5. The handoff") < said.rindex("Generate prompts+")
+    assert "Six steps" in said
+    for step in ("1. The context", "2. The plan", "3. The characters", "4. The places",
+                 "5. The scenes", "6. The prompts"):
+        assert step in said, step
 
 
-def test_the_flow_leaves_the_action_to_the_other_skill():
-    # It writes the frames now, which it never did before Madde 173 -- but not their actions. That
-    # sentence is the whole reason this run has two models, and a flow writing one by hand would be
-    # the way round the model kept for writing them.
+def test_the_steps_are_written_in_the_order_they_run():
+    # The order is the whole of what the text is: a model reading them out of order would ask for
+    # the cast before it knows what is being made.
+    said = _flow()
+    places = [said.index(step) for step in ("1. The context", "2. The plan", "3. The characters",
+                                            "4. The places", "5. The scenes", "6. The prompts")]
+    assert places == sorted(places)
+
+
+def test_the_first_question_is_what_is_being_made_and_what_for():
+    # Madde 186's whole gain. The plan's opening line already promised the context -- and the
+    # model wrote that line knowing nothing, so the plan carried a guess, and the plan is what a
+    # fresh chat inherits.
+    said = _flow()
+    assert said.index("1. The context") < said.index("2. The plan")
+    assert "what it is for" in said
+
+
+def test_the_flow_never_writes_an_action_by_hand():
+    # It writes the frames, which it never did before Madde 173 -- but not their sentences. That
+    # is the whole reason this run has two models, and a flow writing one itself would be the way
+    # round the model kept for writing them.
     said = _flow()
     assert "no action" in said
-    assert "write_frame_prompt" not in said
+    assert "write_missing_actions" in said
 
 
 def test_the_craft_rules_left_the_texts_with_the_work(_=None):
@@ -326,14 +369,16 @@ def test_the_plan_records_a_delegation_with_the_step_it_closed():
     assert "never as a standing authority" in _flow()
 
 
-def test_the_flow_never_calls_the_builder():
-    # 28 Aug: told never to write a frame, the flow offered to run build_prompts instead -- a ban
-    # that names the deed invites the road around it. The builder is the other skill's too, and
-    # the file this flow leaves holds no frames for it to build from.
-    assert "build_prompts is never called here" in _flow()
+def test_the_flow_finishes_with_the_build():
+    # Turned around by Madde 186. The text used to say build_prompts is never called here, because
+    # the file the flow left held no action to build from; now the step before it writes them all,
+    # and stopping short would leave the user one manual call from what they asked for.
+    said = _flow()
+    assert "build_prompts is never called here" not in said
+    assert said.rindex("build_prompts") > said.index("6. The prompts")
 
 
-def test_the_handoff_offers_nothing_and_asks_nothing():
+def test_the_closing_message_offers_nothing_and_asks_nothing():
     # The closing message came back as an offer wearing a question mark. "It is the last word"
     # was already pinned; this pins that no offer and no question ride on it.
     assert "offers nothing and asks nothing" in _flow()
@@ -360,8 +405,8 @@ def test_the_flow_opens_as_a_persona():
     assert _flow().startswith("You are an expert scenario writer")
 
 
-def test_the_builder_opens_as_a_persona():
-    assert instruction_for("generate-prompts-plus").startswith("You are an expert SDXL prompt writer")
+def test_the_editor_opens_as_a_persona():
+    assert _edit().startswith("You are an expert SDXL prompt writer")
 
 
 def test_a_finished_step_is_marked_with_one_edit():
@@ -403,12 +448,12 @@ def test_no_instruction_sends_the_model_to_fetch_a_shape(skill):
     assert "schema" not in instruction_for(skill).lower()
 
 
-def test_the_builder_no_longer_writes_frames_at_all():
+def test_the_editor_writes_no_frames_at_all():
     # Madde 128 put add_frames in this text; Madde 173 replaced the tool and Madde 178 moved the
-    # job. The frames arrive written -- what this skill does to a file is fill in the sentences and
-    # build. A text still naming the adding tools would have two skills writing frames into one
-    # file, each from a different idea of what is already there.
-    said = instruction_for("generate-prompts-plus")
+    # job. The frames arrive written -- what this skill does to a file is correct it. A text still
+    # naming the adding tools would have two skills writing frames into one file, each from a
+    # different idea of what is already there.
+    said = _edit()
     assert "add_scene" not in said
     assert "add_frames" not in said
 
@@ -417,7 +462,7 @@ def test_a_complaint_is_written_again_rather_than_edited():
     # Two roads and the text names both, because they answer different complaints. One frame's
     # sentence is wrong: call the writer again with a note. Somebody looks wrong in every frame
     # they are in: that is the map entry, and one update reaches all of them.
-    said = instruction_for("generate-prompts-plus")
+    said = _edit()
     assert "note" in said
     assert "update_" in said
 
@@ -441,12 +486,12 @@ def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():
     assert "A plan already there is that memory" not in said
 
 
-def test_prompt_plus_closes_with_the_file_rather_than_a_menu():
+def test_the_editor_closes_with_the_file_rather_than_a_menu():
     # Madde 130. The base already forbids the closing menu (112), but the skill text is the last
     # thing in the request (93) and said nothing about closing -- so the trial's build turn read
     # its own output back, printed 25 prompts into the chat, and offered three choices over a file
     # already sitting in the project. A text that goes quiet is a text a weak model writes over.
-    said = instruction_for("generate-prompts-plus")
+    said = _edit()
     assert "The built file is the answer" in said
     assert "never printed back" in said
 
@@ -454,5 +499,10 @@ def test_prompt_plus_closes_with_the_file_rather_than_a_menu():
 def test_the_texts_stay_short_enough_to_be_read():
     # Five runs of patches doubled the texts, and a weak model stops reading the middle. The cap
     # is the guard against swelling back: from here a sentence enters only by deleting one.
+    #
+    # The flow's stays where it was through Madde 186, which was the roadmap's own condition -- it
+    # gains a step and loses one, so the two cancel. The other comes down from 300, because that
+    # text gave half its job away: building went to the flow, and what is left is the correction.
+    # A cap that comes down is a cap that cannot quietly take the old work back.
     assert len(_flow().split()) <= 450
-    assert len(instruction_for("generate-prompts-plus").split()) <= 300
+    assert len(_edit().split()) <= 200

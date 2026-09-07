@@ -170,12 +170,12 @@ test("a skill can be picked before anything is typed", async () => {
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
 
   // No chat exists yet, so the choice is held for the one that will be born -- what the screen owes
   // is that the button now says what was picked.
   await waitFor(() =>
-    expect(screen.getByText("Generate prompts+", { selector: ".picker__name" })).toBeTruthy(),
+    expect(screen.getByText("Edit prompts", { selector: ".picker__name" })).toBeTruthy(),
   );
 });
 
@@ -204,7 +204,7 @@ test("the skill picked on the project screen is what the chat is born with", asy
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   fireEvent.change(screen.getByPlaceholderText("Start a new chat in this project..."), {
     target: { value: "Write it" },
   });
@@ -215,7 +215,7 @@ test("the skill picked on the project screen is what the chat is born with", asy
       ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
     );
     expect(started).toBeTruthy();
-    expect(JSON.parse(started[1].body).skill).toBe("generate-prompts-plus");
+    expect(JSON.parse(started[1].body).skill).toBe("edit-prompts");
   });
 });
 
@@ -1374,7 +1374,7 @@ function withChat() {
 
 // Its own fake rather than withChat's: this one serves a chat whose record carries a skill, which
 // is the only way the picker and the session can disagree.
-function withStoredSkill(stored = "generate-prompts-plus") {
+function withStoredSkill(stored = "edit-prompts") {
   const chat = { id: "c1", title: "Write the intro", skill: stored, messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
     // Today's app still PATCHes here. The fake answers it so a failure is the assertion below
@@ -1483,9 +1483,9 @@ test("picking a skill asks the server for nothing", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+"));
+  fireEvent.click(screen.getByText("Edit prompts"));
 
-  await waitFor(() => expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "PATCH")).toHaveLength(0);
 });
 
@@ -1496,7 +1496,7 @@ test("a chat that stored a skill does not put it in the picker", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
 test("what the picker shows is what the message carries", async () => {
@@ -1516,7 +1516,7 @@ test("what the picker shows is what the message carries", async () => {
     expect(sent).toBeTruthy();
     expect(JSON.parse(sent[1].body).skill).toBe("");
   });
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
 // --- one door for every sentence (Madde 87) ------------------------------------------------------
@@ -1812,14 +1812,14 @@ test("the skill picked in a draft survives landing in the chat it created", asyn
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
 
   const box = screen.getByPlaceholderText("Reply...");
   fireEvent.change(box, { target: { value: "Write it" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
 });
 
 test("a draft's first answer never wears the old chat's transcript", async () => {
@@ -2097,8 +2097,8 @@ test("a skill picked in a chat does not ride into a chat born on the project scr
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+"));
-  await waitFor(() => expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy());
+  fireEvent.click(screen.getByText("Edit prompts"));
+  await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: "← Old" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
@@ -2149,25 +2149,25 @@ test("a skill picked in one chat stays that chat's own", async () => {
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy(),
   );
 
   fireEvent.click(screen.getByText("Second", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 
   fireEvent.click(screen.getByText("First", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
 });
 
 test("a second draft does not wear the first one's skill", async () => {
   // Madde 105. The draft's selection is what the chat about to be born will own; once it is born,
   // the next draft starts with nothing.
-  const born = { id: "c1", title: "Write it", skill: "generate-prompts-plus", messages: [] };
+  const born = { id: "c1", title: "Write it", skill: "edit-prompts", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (String(path).endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve(
@@ -2191,7 +2191,7 @@ test("a second draft does not wear the first one's skill", async () => {
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
 
   const box = screen.getByPlaceholderText("Reply...");
   fireEvent.change(box, { target: { value: "Write it" } });
@@ -2201,7 +2201,7 @@ test("a second draft does not wear the first one's skill", async () => {
   fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
 test("picking a skill closes the menu", async () => {
@@ -2213,7 +2213,7 @@ test("picking a skill closes the menu", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
 });
 
@@ -2225,7 +2225,7 @@ test("in a draft, picking a skill closes the menu too", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
 });
 
@@ -2411,9 +2411,9 @@ async function picked() {
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   return waitFor(() =>
-    expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy(),
   );
 }
 
@@ -2423,7 +2423,7 @@ test("a skill picked survives the app being mounted again", async () => {
   await picked();
 
   await reborn();
-  expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
 });
 
 test("the message sent after a reload carries the remembered skill", async () => {
@@ -2444,7 +2444,7 @@ test("the message sent after a reload carries the remembered skill", async () =>
       ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
     );
     expect(sent).toBeTruthy();
-    expect(JSON.parse(sent[1].body).skill).toBe("generate-prompts-plus");
+    expect(JSON.parse(sent[1].body).skill).toBe("edit-prompts");
   });
 });
 

@@ -702,10 +702,10 @@ test("the picker shows the skill it is handed, not the chat's", () => {
   // disagreement is shown the other way round -- a stored skill against a session that picked
   // nothing.
   render(
-    <ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "generate-prompts-plus" }} skill="" />,
+    <ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "edit-prompts" }} skill="" />,
   );
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
 test("picking a skill is passed up rather than kept here", () => {
@@ -718,8 +718,8 @@ test("picking a skill is passed up rather than kept here", () => {
       onSkillChange={onSkillChange}
     />,
   );
-  fireEvent.click(screen.getByText("Generate prompts+"));
-  expect(onSkillChange).toHaveBeenCalledWith("generate-prompts-plus");
+  fireEvent.click(screen.getByText("Edit prompts"));
+  expect(onSkillChange).toHaveBeenCalledWith("edit-prompts");
 });
 
 // --- what the answer spent (Madde 68) ------------------------------------------------------------
