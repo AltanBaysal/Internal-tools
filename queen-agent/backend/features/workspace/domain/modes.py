@@ -60,6 +60,9 @@ _WITHOUT_ASKING = {
         # Madde 176. It writes to the file and it spends the user's money at a second provider --
         # the only tool here that does either by asking somebody else.
         "write_frame_prompt",
+        # Madde 185. The same, once for every frame still waiting -- so this is the widest single
+        # spend any tool here makes, and the quieter modes keep their gate in front of it.
+        "write_missing_actions",
     ),
 }
 

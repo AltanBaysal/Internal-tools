@@ -10,6 +10,7 @@ sentence is built from the values of the call that produced it, and there is not
 import json
 import re
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from backend.features.workspace.domain import prompt
@@ -56,6 +57,15 @@ class FileWritten:
 # a model that gave up.
 MAX_ROUNDS = 16
 DEFAULT_NAME = "note.md"
+
+# How many of one call's requests are in the air at once (Madde 185). Threads rather than anything
+# cleverer because what is waited on is a network, not a processor.
+#
+# Not the number of frames: a file of forty would open forty sockets at a service that answers a
+# burst like that with a rate limit, and the wall-clock difference between eight and forty is not
+# worth a round of retries. Not measured against any one service's published limit -- comfortably
+# under what any of them would object to.
+AT_ONCE = 8
 
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
 # here: the file was already there. write_plan is, because the first plan of a name is new.
@@ -373,6 +383,20 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
+            "name": "write_missing_actions",
+            "description": prompt.WRITE_MISSING_ACTIONS,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE}
+                },
+                "required": ["file"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "build_prompts",
             "description": prompt.BUILD_PROMPTS,
             "parameters": {
@@ -601,6 +625,9 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
 
     if name == "write_frame_prompt":
         return _write_frame_prompt(file_store, project_id, args, engine)
+
+    if name == "write_missing_actions":
+        return _write_missing_actions(file_store, project_id, args, engine)
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
@@ -1345,6 +1372,107 @@ def _write_frame_prompt(file_store, project_id, args, engine):
     return ToolResult(
         f"Wrote frame {number} of {source}.", None, source, "Written", answer.get("spent")
     )
+
+
+def _write_missing_actions(file_store, project_id, args, engine):
+    """Every frame still waiting, asked for at the same time (Madde 185).
+
+    write_frame_prompt takes one frame per call, and a scenario of twenty-one cost twenty-one
+    rounds of the main agent -- each of them resending the system prompt, the skill text and a
+    context box holding a structure that grew with every write. The writer's own requests were
+    never the expensive part.
+
+    What is waiting is what is empty. No range: the file already knows which frames those are, and
+    a from/to would put the answer in two places and make the model keep them agreeing. No note
+    either -- this is the first writing, and a note is what a correction carries.
+    """
+    if engine is None:
+        # A wiring fault rather than the model's doing, said the way the single-frame tool says it.
+        return ToolResult("There is no model to write with.", None, "", "Refused")
+
+    source, structure, refused = _opened(file_store, project_id, args)
+    if refused is not None:
+        return refused
+
+    # Numbered here, while the whole list is in front of us: what the answer says has to be the
+    # number the model will name next, and a frame's number is its place.
+    waiting, left = [], []
+    for place, frame in enumerate(structure["frames"], start=1):
+        if str(frame.get("action") or "").strip():
+            continue
+        if not str(frame.get("scene") or "").strip():
+            # Refused before the request, cheapest first: nothing is paid to be told there was no
+            # brief to write from.
+            left.append((place, "no scene to write from"))
+            continue
+        waiting.append((place, frame))
+
+    written, spent = [], {}
+    if waiting:
+        with ThreadPoolExecutor(max_workers=min(AT_ONCE, len(waiting))) as pool:
+            # _frame_seen runs here rather than inside a thread: it reads the structure, and the
+            # threads are handed two finished strings and nothing to reach into. Note is None --
+            # there is nothing anybody has said about a frame nobody has written yet.
+            asked = {
+                pool.submit(
+                    engine.write_once,
+                    prompt.WRITE_FRAME_SYSTEM_PROMPT,
+                    _frame_seen(frame, structure, None),
+                ): (place, frame)
+                for place, frame in waiting
+            }
+            # Walked in the order they were sent, so the numbers in the answer come out ascending
+            # however the network chose to answer.
+            for future, (place, frame) in asked.items():
+                try:
+                    answer = future.result()
+                except Exception as failure:
+                    # The service's own words, and the frame left as it was. One that fell over
+                    # does not undo the ones that landed: they are paid for, and throwing an hour
+                    # of work away over one failure is a worse answer than naming it.
+                    left.append((place, str(failure)))
+                    continue
+                spent = _added(spent, answer.get("spent"))
+                said = str(answer.get("text") or "").strip()
+                if not said:
+                    # An empty action builds into a prompt with a hole where the sentence goes.
+                    # Its bill is counted all the same: that request was made and charged for.
+                    left.append((place, "answered with nothing"))
+                    continue
+                frame["action"] = said
+                written.append(place)
+
+    if not waiting and not left:
+        # Nothing was asked, so nothing was spent: a row of noughts on the turn's stamp says a
+        # request happened.
+        return ToolResult(
+            f"There are no frames waiting for an action in {source}.", None, source, "Nothing to do"
+        )
+
+    # One write, after every answer is in: a file caught half filled would be a state nothing else
+    # in here can produce.
+    if written:
+        _saved(file_store, project_id, source, structure)
+
+    said = f"Wrote {counted(len(written), 'frame')} of {source}"
+    said += f": {', '.join(str(place) for place in written)}." if written else "."
+    if left:
+        # Each with its own reason. One sentence for all of them would make the model guess which
+        # frame the reason belonged to.
+        why = "; ".join(f"{place} ({reason})" for place, reason in sorted(left))
+        said += f" {counted(len(left), 'frame')} not written: {why}."
+    return ToolResult(said, None, source, f"Wrote {len(written)}", spent or None)
+
+
+def _added(total, spent):
+    """One bill out of many, key by key (Madde 185).
+
+    Whatever the service named, rather than a fixed three: a figure this side has never heard of
+    is still a figure somebody paid, and dropping it would understate the call.
+    """
+    for key, amount in (spent or {}).items():
+        total[key] = total.get(key, 0) + amount
+    return total
 
 
 def _frame_seen(frame, structure, note):

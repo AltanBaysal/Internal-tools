@@ -150,14 +150,15 @@ GENERATE_PROMPTS_PLUS = (
     "After Start a scenario the project holds one scenario, named in the request; with several, "
     "ask which. Read it. Its frames carry a scene and no action, and every frame with no action "
     "is work still waiting -- which is also how a chat that ran out of room is carried on. Write "
-    "them one at a time with write_frame_prompt, in the frames' order, then call build_prompts "
+    "them all with write_missing_actions, in one call, then call build_prompts "
     "with the file's name. Do not assemble a prompt by hand. The built file is the answer: its "
     "prompts are never printed back, and no menu of next steps closes the turn.\n"
     "\n"
     "A frame seen through somebody's own eyes names their pov_ entry in its cast instead of them, "
     "with update_frame: their whole entry there would be drawn onto whoever the picture holds.\n"
     "\n"
-    "A complaint about one frame is that frame written again, with a note saying what to do "
+    "A complaint about one frame is that frame written again with write_frame_prompt, with a "
+    "note saying what to do "
     "differently: the note is the whole of what the writer hears about it. A complaint about how "
     "somebody looks, or a place, belongs to the entry it comes from -- update_character, "
     "update_outfit or update_location -- and that one change reaches every frame naming it. Then "
@@ -513,6 +514,16 @@ WRITE_FRAME_PROMPT_NOTE = (
     "What to do differently, in your own words -- what the user said about "
     "the last one, or what this frame needs that the scene does not say. "
     "Left out the first time."
+)
+
+WRITE_MISSING_ACTIONS = (
+    "Write the action of every frame in a structure file that is still without one, in one "
+    "call. Each frame is asked of the same model write_frame_prompt asks, at the same time as "
+    "the others, and each is shown only its own scene, cast and place. Frames that already "
+    "have an action are left exactly as they are -- rewriting one is write_frame_prompt's job, "
+    "with a note. There is no range and there is nothing to say twice: what is waiting is what "
+    "is empty. One request failing does not undo the rest; the answer names the frames it wrote "
+    "and, for any it could not, says why."
 )
 
 BUILD_PROMPTS = (
