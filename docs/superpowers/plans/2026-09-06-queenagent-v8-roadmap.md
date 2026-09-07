@@ -302,8 +302,13 @@ dokunuyor ve `dist` bir kez derleniyor.
   ayrımı yok *(kullanıcı kararı, 6 Eylül)*:
 
   ```
-  ⠹ Ideating… · raund 4/16 · 12.3k jeton
+  raund 4/16 · 12.3k jeton · ⠹ Ideating…
   ```
+
+  > **Düzeltme, 7 Eylül** *(kullanıcı kararı)*: bu çizim ilk yazıldığında spinner baştaydı. Sıra
+  > tersine döndü — satırın taşıdığı iki bilgi öne, dekoratif olan sona. Aşağıdaki *donmuş
+  > görünmemek* gerekçesi ikisinde de aynı ölçüde geçerli: spinner'ın işi kımıldamak, ve nerede
+  > durduğu kımıldamasını değiştirmiyor.
 
 - **Donmuş görünmemesi asıl mesele.** Sayı otuz saniye kıpırdamayabilir; ekranı canlı tutan şey
   kelimenin dönmesi değil, **sürekli dönen spinner**. Kelime birkaç saniyede bir değişir.

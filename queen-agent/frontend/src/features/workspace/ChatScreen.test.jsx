@@ -333,9 +333,21 @@ test("the strip carries a word that says nothing about the work", () => {
   // A gerund and an ellipsis. Deriving it from the tool name was asked against: the two pieces
   // beside it already carry every fact there is. The whole line is pinned here -- one row, in this
   // order, with nothing dividing it into columns.
+  //
+  // The two facts lead and the moving part trails (user, 7 September). The spinner's job is to
+  // move, and where it sits does not change whether it does.
   expect(screen.getByTestId("live-strip").textContent).toMatch(
-    /^[A-Z][a-z]+ing… · round 4\/16 · 12\.3k tokens$/,
+    /^round 4\/16 · 12\.3k tokens · [A-Z][a-z]+ing…$/,
   );
+});
+
+test("the spinner sits behind the numbers, in front of the word", () => {
+  // The text alone is no proof of an arrangement: the same letters can come out of any markup. The
+  // spinner draws nothing of its own, so where it stands is only sayable of its neighbours.
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+  const spinner = screen.getByTestId("live-strip").querySelector(".msg__spinner");
+  expect(spinner.previousElementSibling.textContent).toContain("12.3k tokens");
+  expect(spinner.nextElementSibling.textContent).toMatch(/^[A-Z][a-z]+ing…$/);
 });
 
 test("the word changes on its own", () => {
