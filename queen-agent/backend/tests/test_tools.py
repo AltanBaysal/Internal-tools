@@ -1058,6 +1058,9 @@ def test_every_tool_is_declared_to_the_model():
         # the border between the agent that builds a scenario and the model that writes its
         # sentences.
         "write_frame_prompt",
+        # Madde 185. The same border crossed once for every frame still waiting, in one round --
+        # the tool above stays for the correction, which is the only one that carries a note.
+        "write_missing_actions",
     }
 
 
