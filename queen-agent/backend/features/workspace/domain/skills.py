@@ -10,8 +10,8 @@ still has an empty state -- having no skill selected is ordinary, and the base t
 from backend.features.workspace.domain import prompt
 
 INSTRUCTIONS = {
-    "generate-prompts-plus": prompt.GENERATE_PROMPTS_PLUS,
     "start-a-scenario": prompt.START_A_SCENARIO,
+    "edit-prompts": prompt.EDIT_PROMPTS,
 }
 
 
