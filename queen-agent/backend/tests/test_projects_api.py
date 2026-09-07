@@ -49,9 +49,17 @@ def test_created_project_appears_in_the_list(tmp_path):
     created = client.post("/api/projects")
     assert created.status_code == 201
     body = created.get_json()
-    assert body["name"] == "New project"
+    # Madde 191, end to end: the name the sidebar shows is the one the server made.
+    assert body["name"] == "New project 1"
     assert body["id"].startswith("p")
     assert client.get("/api/projects").get_json() == [body]
+
+
+def test_projects_opened_one_after_another_are_told_apart_by_name(tmp_path):
+    # The whole item. Three rows all reading New project is three rows nobody can pick between.
+    client = _client(tmp_path)
+    made = [client.post("/api/projects").get_json()["name"] for _ in range(3)]
+    assert made == ["New project 1", "New project 2", "New project 3"]
 
 
 def test_projects_survive_a_fresh_app(tmp_path):
