@@ -98,9 +98,9 @@ def test_the_drive_folder_is_named_once():
 # written down in exactly two places, this constant and the notebook, and the test below fails the
 # moment they part.
 #
-# Back on main, where a merged run leaves it. A trial changes this line and the notebook's, together
-# and never one of them, and the change comes back the way it went in -- which is what it did here.
-BRANCH = "main"
+# BEFORE MERGING: this goes back to "main", and so does the notebook. A trial changes this line and
+# the notebook's together and never one of them, and the change comes back the way it went in.
+BRANCH = "feat/queenagent-v8"
 
 
 def test_the_notebook_clones_the_branch_this_run_is_tried_on():
