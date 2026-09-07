@@ -137,11 +137,17 @@ function LiveStrip({ round, of, tokens }) {
   }, []);
   return (
     <div className="msg__stamp msg__stamp--live" data-testid="live-strip">
+      {/* The two facts lead and the moving part trails (user, 7 September). The trailing space is
+          the sentence's, not the layout's: a flex item's own end-space is collapsed away and the
+          gap draws the distance, so what is read here and what is seen there are one line. */}
+      <span>{`round ${round}/${of} · ${shorten(tokens)} tokens · `}</span>
       {/* The one thing that must never stall, so the stylesheet turns it and not JavaScript: a busy
           React has its intervals waiting too, and that is exactly the moment the screen has to look
           alive. The number can sit still for thirty seconds; this cannot. */}
       <span className="msg__spinner" aria-hidden="true" />
-      {`${WORDS[word]}… · round ${round}/${of} · ${shorten(tokens)} tokens`}
+      {/* An element rather than a bare text node, so where the spinner stands is sayable at all:
+          it draws nothing of its own, and only its neighbours can place it. */}
+      <span>{`${WORDS[word]}…`}</span>
     </div>
   );
 }
