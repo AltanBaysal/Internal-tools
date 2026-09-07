@@ -359,7 +359,9 @@ test("the spinner does not wait for a timer", () => {
     const { container } = render(
       <ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />,
     );
-    expect(container.querySelector(".strip__spinner")).toBeTruthy();
+    // Not .strip__spinner: workspace.css.test.js guards the deleted undo strip by forbidding the
+    // string ".strip" anywhere in the stylesheet, and that guard is worth more than the name.
+    expect(container.querySelector(".msg__spinner")).toBeTruthy();
   } finally {
     vi.useRealTimers();
   }
