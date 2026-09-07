@@ -35,7 +35,7 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 # Madde 82 named one model here and Madde 146 made it three. That madde tore the picking machinery
 # out because a single model left it idle; two more ended the premise rather than overturned it.
 MODELS = {
-    "grok-build-0.1": {"base_url": "https://api.x.ai/v1", "key": "XAI_API_KEY"},
+    "grok-4.3": {"base_url": "https://api.x.ai/v1", "key": "XAI_API_KEY"},
     # No /v1: this is DeepSeek's own documented base, and the client appends /chat/completions to
     # whatever it is handed.
     "deepseek-v4-flash": {"base_url": "https://api.deepseek.com", "key": "DEEPSEEK_API_KEY"},
@@ -54,7 +54,11 @@ DEFAULT_MODEL = "deepseek-v4-flash"
 # and this one is never on that list. It is here because it is a wiring fact -- the same kind of
 # fact as an address or a key -- and because the model it names is chosen for what it will write
 # rather than for how it reasons.
-PROMPT_MODEL = "grok-build-0.1"
+#
+# 4.3 rather than the newer rows xAI also offers (Madde 183, the user's decision): 4.5 and 4.6 cost
+# more, and the sentence above is why that does not settle it -- nothing here is reasoned, one line
+# is written. Code cannot say which model writes that line best, so the choice is recorded instead.
+PROMPT_MODEL = "grok-4.3"
 
 
 def engine_for(model_id):
