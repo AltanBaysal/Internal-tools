@@ -99,6 +99,53 @@ function Stamp({ at, usage }) {
   return <div className="msg__stamp">{spent ? `${when} · ${shorten(spent)} tokens` : when}</div>;
 }
 
+// Madde 194. What a turn says about itself while it is still running, in the stamp's own place and
+// wearing its class: when the turn ends the strip goes and the record's stamp arrives, and two
+// different-looking things trading places would jump on the page.
+//
+// A gerund that is deliberately not a description. Deriving one from the tool name was asked
+// against, and the reason holds up: the two pieces beside it carry every fact there is, and a word
+// that tried to compete with them would only be wrong more often.
+const WORDS = [
+  "Ideating",
+  "Percolating",
+  "Ruminating",
+  "Noodling",
+  "Marinating",
+  "Conjuring",
+  "Puzzling",
+  "Tinkering",
+  "Wrangling",
+  "Brewing",
+  "Pondering",
+  "Scheming",
+  "Whirring",
+  "Cogitating",
+  "Finagling",
+  "Simmering",
+];
+
+const WORD_MS = 3000;
+
+function LiveStrip({ round, of, tokens }) {
+  // Somewhere in the list rather than the top of it: the same first word on every turn reads like a
+  // fixed label, which is the one thing this is not.
+  const [word, setWord] = useState(() => Math.floor(Math.random() * WORDS.length));
+  useEffect(() => {
+    const tick = setInterval(() => setWord((at) => (at + 1) % WORDS.length), WORD_MS);
+    return () => clearInterval(tick);
+  }, []);
+  return (
+    <div className="msg__stamp msg__stamp--live" data-testid="live-strip">
+      {/* The one thing that must never stall, so the stylesheet turns it and not JavaScript: a busy
+          React has its intervals waiting too, and that is exactly the moment the screen has to look
+          alive. The number can sit still for thirty seconds; this cannot. */}
+      <span className="msg__spinner" aria-hidden="true" />
+      {`${WORDS[word]}… · round ${round}/${of} · ${shorten(tokens)} tokens`}
+    </div>
+  );
+}
+
 // The skeleton of the card about to be born: an empty badge slot where the chip will go, and no
 // name -- the model's wish is not the name until it has been cleaned and a clash resolved.
 function CreatingFile() {
@@ -149,6 +196,7 @@ export default function ChatScreen({
   streamingText,
   creatingFile,
   createdFiles = [],
+  progress,
   streamingCalls = [],
   permission,
   onAllow,
@@ -288,9 +336,10 @@ export default function ChatScreen({
                   <Markdown text={streamingText} caret />
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
-                {/* The count arrives in a single frame at the very end, so an answer still running
-                    carries only its time -- and that is the whole answer to "when did I ask". */}
-                <Stamp at={askedAt} />
+                {/* Until Madde 194 an answer still running carried only its time. Now it carries
+                    where the turn is, and falls back to the time until the first frame says so --
+                    round 0/16 would claim a measurement nobody took. */}
+                {progress ? <LiveStrip {...progress} /> : <Stamp at={askedAt} />}
               </div>
             ) : null}
 
@@ -305,7 +354,7 @@ export default function ChatScreen({
                   <span className="dots__dot" />
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
-                <Stamp at={askedAt} />
+                {progress ? <LiveStrip {...progress} /> : <Stamp at={askedAt} />}
               </div>
             ) : null}
 

@@ -351,6 +351,7 @@ export default function App() {
             creatingFile={chat.creatingFile}
             createdFiles={chat.createdFiles}
             streamingCalls={chat.streamingCalls}
+            progress={chat.progress}
             onBack={() => openProject(route.projectId)}
             /* The selection is the chat's own since Madde 105; the draft holds the birth value
                instead. What governed a turn is still settled when the message is sent. */

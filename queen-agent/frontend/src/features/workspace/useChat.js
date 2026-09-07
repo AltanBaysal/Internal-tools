@@ -19,6 +19,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   // What the turn has done so far. Held only while the answer runs: the record that arrives at the
   // end carries the same steps, and drawing from both sources would read one step as two.
   const [streamingCalls, setStreamingCalls] = useState([]);
+  // Where the turn has got to: {round, of, tokens}, or null before it has said (Madde 194). Held on
+  // the same terms as the calls above -- only while the answer runs, because what it describes stops
+  // existing when the turn does.
+  const [progress, setProgress] = useState(null);
   // The question a paused turn is waiting on: {tool, args}, or null. The frame says `arguments` and
   // this says `args` -- a language rule rather than a rename, since `arguments` cannot be
   // destructured as a prop inside a module.
@@ -125,6 +129,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       setCreatingFile(false);
       setCreatedFiles([]);
       setStreamingCalls([]);
+      setProgress(null);
       streamingInto.current = chatId;
       setStreamingChatId(chatId);
       // No text at all is how Try again asks: the question is already on disk and must not be
@@ -158,6 +163,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
               // frame is the second. Only a born file used to take it down, so a tool that wrote
               // nothing left it up until the turn ended.
               setCreatingFile(false);
+            } else if (frame.event === "progress") {
+              // Replaced rather than collected: the frame carries where the turn is now, and one
+              // line has room for one answer.
+              setProgress(frame.data);
             } else if (frame.event === "file-start") setCreatingFile(true);
             else if (frame.event === "file") {
               setCreatedFiles((names) => [...names, frame.data.name]);
@@ -226,6 +235,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
           setCreatingFile(false);
           setCreatedFiles([]);
           setStreamingCalls([]);
+          // The strip becomes the record's stamp: same place, and the count stops where it stopped.
+          setProgress(null);
           // However the turn ended. A question left standing would hang over the next turn,
           // offering to allow something nobody is waiting on any more.
           setPermission(null);
@@ -282,6 +293,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     creatingFile: visible && creatingFile,
     createdFiles: visible ? createdFiles : [],
     streamingCalls: visible ? streamingCalls : [],
+    progress: visible ? progress : null,
     permission: visible ? permission : null,
     send,
     stop,

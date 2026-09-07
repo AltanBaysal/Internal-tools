@@ -3,6 +3,8 @@
 The generator yields text pieces and finally the updated Chat. Telling them apart by type is
 simpler than carrying a separate "this one is the last" flag.
 """
+from dataclasses import dataclass
+
 from backend.features.workspace.domain.chat import ToolCall, Usage
 from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
@@ -25,6 +27,33 @@ from backend.features.workspace.domain.tools import (
     run_tool,
 )
 from backend.features.workspace.domain.usecases.append_message import append_message
+
+
+@dataclass(frozen=True)
+class Progress:
+    """Where the turn has got to, said while it is still going (Madde 194).
+
+    It lives here rather than beside FileStarted or PermissionWanted because a piece belongs next to
+    whatever gives birth to it, and what gives birth to this is the turn itself.
+
+    `round` shadows the builtin in the generated __init__ and nowhere else, and that body never
+    calls it. What is bought is one word: the field, the frame's key and what the screen reads all
+    say the same thing.
+    """
+
+    round: int
+    of: int
+    tokens: int
+
+
+def _volume(spent):
+    """How big the turn got -- everything that crossed the wire, cache included.
+
+    Not the bill: cached tokens are charged less, and the stamp at the end is where price is
+    answered. This number answers the question the fourth trial raised -- 277.6k for a twenty-one
+    frame fix -- and only sent would have hidden half of it.
+    """
+    return spent.sent + spent.cached + spent.answered
 
 
 def _conversation(chat):
@@ -202,6 +231,10 @@ def stream_answer(
             # every other one -- with a call whose result no round is left to read, and a turn that
             # never spoke (Madde 137).
             last = index == MAX_ROUNDS - 1
+            # Before the round rather than after it (Madde 194): the number the screen shows first
+            # is the one that moves first, and a round announced only once it has ended would leave
+            # the strip a whole request behind the turn.
+            yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
             spoken, calls = [], []
             # This round's bill so far. None until the engine says anything about it, so an engine
             # that measures nothing leaves the total alone rather than adding zeroes to it.
@@ -270,6 +303,7 @@ def stream_answer(
                     # last because the conversation grew. The final reading is where it ended.
                     round_spent["sent"],
                 )
+                yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
 
             # Asked once, at the end, rather than before every frame: since Madde 90 a stop cuts
             # the connection, so a round that was stopped is over by the time this runs. What this
@@ -332,6 +366,10 @@ def stream_answer(
                         spent.answered + result.spent.get("answered", 0),
                         spent.context,
                     )
+                    # The third place the count moves, and the reason it cannot move only between
+                    # rounds: write_missing_actions pays for eight of these without the round ever
+                    # ending (Madde 185).
+                    yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
                 # A name born twice in one turn is still one file: the card says a file exists, not
                 # how many times it was written.
                 if result.created and result.created not in born:

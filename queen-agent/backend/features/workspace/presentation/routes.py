@@ -32,7 +32,7 @@ from backend.features.workspace.domain.usecases.list_chats import list_chats
 from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.read_file import read_file
-from backend.features.workspace.domain.usecases.stream_answer import stream_answer
+from backend.features.workspace.domain.usecases.stream_answer import Progress, stream_answer
 
 
 def make_workspace_bp(project_store, chat_store, file_store, engine, stops, permissions):
@@ -242,6 +242,13 @@ def _sse(chat_id, pieces):
                 yield _frame(
                     "call",
                     {"tool": piece.tool, "target": piece.target, "outcome": piece.outcome},
+                )
+            elif isinstance(piece, Progress):
+                # The turn's heartbeat (Madde 194). It goes out at the top of every round and again
+                # whenever the count moves, so the browser hears from a long turn even while nothing
+                # else is happening.
+                yield _frame(
+                    "progress", {"round": piece.round, "of": piece.of, "tokens": piece.tokens}
                 )
             elif isinstance(piece, PermissionWanted):
                 yield _frame("permission", {"tool": piece.tool, "arguments": piece.arguments})

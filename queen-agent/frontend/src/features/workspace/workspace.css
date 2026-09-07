@@ -1187,6 +1187,33 @@
   color: var(--muted);
 }
 
+/* Madde 194: the same stamp, still counting. One row, everything side by side -- no columns and no
+   left-and-right, so that when the turn ends and the record's stamp takes this place nothing on the
+   page moves. */
+.msg__stamp--live {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Turned by the stylesheet rather than by JavaScript, and that is the whole point: a busy React
+   leaves its intervals waiting, and looking alive matters most exactly then. */
+.msg__spinner {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: msg-spin 0.8s linear infinite;
+}
+
+@keyframes msg-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .creating {
   align-self: flex-start;
   display: flex;
