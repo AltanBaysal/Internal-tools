@@ -8,7 +8,12 @@ from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opene
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
-from backend.features.workspace.domain.prompt import LAST_ROUND
+from backend.features.workspace.domain.prompt import (
+    FILES_HELD,
+    LAST_ROUND,
+    NO_FILES_YET,
+    OPENED_FILES,
+)
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
@@ -61,12 +66,11 @@ def _current_model(chat):
 def _named(names):
     """What the project holds, in one line for the model (Madde 127).
 
-    Counting to zero does not say "there are none": the two are different sentences, and a model
-    reading an empty list would go looking for the tool that used to answer this.
+    Two sentences rather than one with an empty tail, and both of them are prompt.py's (Madde 189).
     """
     if not names:
-        return "This project holds no files yet."
-    return "The project's files right now: " + ", ".join(names)
+        return NO_FILES_YET
+    return FILES_HELD + ", ".join(names)
 
 
 def _boxed(file_store, project_id, chat, steps):
@@ -92,13 +96,7 @@ def _boxed(file_store, project_id, chat, steps):
         blocks.append(f"--- {name} ---\n{numbered(content)}")
     if not blocks:
         return ""
-    # The window is stated rather than merely kept (Madde 179). This is the only place a file is
-    # shown now, so a model that did not know the box holds five would go looking for a sixth it
-    # can no longer see -- where knowing it costs one sentence to open the file again.
-    return (
-        f"The last {BOX_LIMIT} files you opened, with their contents as they are now:\n\n"
-        + "\n\n".join(blocks)
-    )
+    return OPENED_FILES.format(limit=BOX_LIMIT) + "\n\n".join(blocks)
 
 
 def _asked(conversation, names, box, instruction, last=False):

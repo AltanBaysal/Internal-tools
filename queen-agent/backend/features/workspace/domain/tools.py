@@ -2,12 +2,17 @@
 
 The rules live here rather than in data/ because what a file may be called is a product decision,
 not a detail of how a directory works.
+
+What the model is TOLD is not here at all since Madde 189: every description below names a constant
+in prompt.py, and so does the writer's system prompt. What it is told BACK stays -- a ToolResult's
+sentence is built from the values of the call that produced it, and there is nothing to gather.
 """
 import json
 import re
 from collections import namedtuple
 from dataclasses import dataclass
 
+from backend.features.workspace.domain import prompt
 from backend.features.workspace.domain.build_prompts import (
     build_character_prompts,
     build_prompts,
@@ -62,86 +67,6 @@ WRITES_FILES = {
     "write_plan",
 }
 
-# The rules a map entry's tags are written by, and the whole of what is left of the schema
-# (Madde 172). Named for what it is: the reader is an SDXL-family image model, and these are the
-# rules its prompts hold.
-#
-# read_prompt_structure_schema handed back two halves. The half describing the file's shape died as
-# the tools took the shape over: start_scenario opens the file, the add_ and update_ and remove_
-# tools build it, and create_file cannot touch it -- so the model was studying a JSON example of a
-# form it is no longer allowed to type. Nothing about the shape belongs here, or the dead half comes
-# back in a text that rides in every request.
-#
-# The other half split again, by author. What goes into a map entry is Queen's and is written here;
-# what goes into a frame's action is the prompt writer's, and lives in Madde 176's own system
-# prompt. Carried here it would ride on six tools that never write an action.
-#
-# Not in the system prompt, where every chat would carry it including the ones writing no tags --
-# Madde 94 pruned the skill texts for exactly that. Its cost is paid all the same, because a tool's
-# description travels every turn as well: six copies is roughly a thousand tokens on every request.
-# What is bought is where the attention falls -- the rule sits beside the parameter it governs and
-# is read while the tool is being chosen -- and a round, since nothing is fetched.
-SDXL_PROMPT_RULES = (
-    "How to write the tags. They are read by an SDXL-family image model, so they are English, and "
-    "they are short comma-separated fragments rather than a sentence: an article is not a tag, and "
-    "sitting on couch, by window is the density to match.\n"
-    "\n"
-    "How many people a character entry draws belongs in that entry and nowhere else -- 1girl, woman "
-    "in her mid 20s -- because that is the one place a count lands beside the person it counts. The "
-    "word solo does not go there: the same character stands alone in one frame and beside somebody "
-    "in the next, so an entry claiming it is wrong in half of them. An entry for somebody only "
-    "part of the way into shot -- a pov_ one, hands and arms and no face -- carries no count at "
-    "all, because there is no whole person in the picture to count.\n"
-    "\n"
-    "Clothes are never in a character's entry; they are an outfit of their own, named after the "
-    "garment rather than after whoever wears it, because two characters can wear the same one. One "
-    "entry dresses one person: its text is handed whole to whoever wears it, so one entry covering "
-    "two people puts the man in the dress. A location has nobody in it and no count -- who is there "
-    "is the frame's business, and a person written into a place is drawn into every frame set "
-    "there.\n"
-    "\n"
-    "No quality tags anywhere: code writes those at the front of every prompt, and yours would be "
-    "printed twice. No or inside a value -- the model draws one picture and cannot toss a coin, so "
-    "pick one."
-)
-
-# What the prompt writer is told about its job (Madde 176), with the rules above appended.
-#
-# The other half of the schema Madde 172 split. The half about writing a tag went to the tools that
-# take tags; this half is about what happens in a frame and how it is shot, and it belongs to the
-# one model that writes that -- read once per request, by a model that has nothing else to do.
-#
-# QueenAgent's own SYSTEM_PROMPT stays out. It is a page about tools, files, chats and how to talk
-# to a user, and none of it is true here: this model calls nothing, opens nothing, and is not
-# talking to anybody.
-WRITE_FRAME_SYSTEM_PROMPT = (
-    "You write the action line of one frozen frame, for an SDXL-family image model. You are handed "
-    "a scene in one sentence, who is in the frame, and where -- and you answer with the action "
-    "line alone: no preamble, no explanation, no quotes around it, and nothing about having "
-    "written it.\n"
-    "\n"
-    "The action is what is happening in this one frozen instant, and the shot it is seen through: "
-    "there is no camera field, so the framing and the angle live inside your line -- close-up, "
-    "from below, over the shoulder, wide shot. Neighbouring frames of one scenario should not "
-    "repeat the same framing and angle, because the same framing twice is one picture twice.\n"
-    "\n"
-    "Do not describe anybody's looks, their clothes or the place. Those are written once in the "
-    "file's own maps and the code puts them into every prompt already; written here again they "
-    "would be said twice in one prompt, and the second copy is the one that contradicts the "
-    "first. What you are handed them for is so your line fits what is there -- somebody in a long "
-    "coat does not shrug it off in your sentence.\n"
-    "\n"
-    "What their body is doing in this instant is yours, though, and so is the face it does it "
-    "with. Name what is visible of them rather than writing around it -- erect penis, penis "
-    "penetrating vagina, mouth on penis -- because the model draws what is named and invents "
-    "whatever a euphemism left out, which is how a frame comes back with a body that melts. Give "
-    "the face its expression as well: a map describes a face, and nothing anywhere says what it is "
-    "doing right now. Neither of these could live in a map, because the same person is calm in one "
-    "frame and not in the next. What covers them is still an outfit and still not yours -- "
-    "somebody wearing none in a frame is already bare without you saying so.\n"
-    "\n" + SDXL_PROMPT_RULES
-)
-
 # What a scenario is on the day it is born (Madde 167). The one place this shape is written down:
 # the maps empty and waiting, and no frames -- a scenario opens with nobody in it, and the tools
 # that follow are what put someone there.
@@ -155,10 +80,10 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "read_file",
-            "description": "Read one of this project's files.",
+            "description": prompt.READ_FILE,
             "parameters": {
                 "type": "object",
-                "properties": {"name": {"type": "string", "description": "The file's name."}},
+                "properties": {"name": {"type": "string", "description": prompt.THE_FILES_NAME}},
                 "required": ["name"],
             },
         },
@@ -167,20 +92,12 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "create_file",
-            "description": (
-                "Save a document into this project. Reach for it only when the user asked for "
-                "something worth keeping -- a draft, a report, a summary they will come back to. "
-                "Refuses a name that is already taken: to change a file that exists, use "
-                "edit_file. It does not write scenarios; start_scenario opens those."
-            ),
+            "description": prompt.CREATE_FILE,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "A short file name, as in notes.md.",
-                    },
-                    "content": {"type": "string", "description": "The document itself."},
+                    "name": {"type": "string", "description": prompt.CREATE_FILE_NAME},
+                    "content": {"type": "string", "description": prompt.CREATE_FILE_CONTENT},
                 },
                 "required": ["name", "content"],
             },
@@ -190,20 +107,11 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "start_scenario",
-            "description": (
-                "Open a new scenario: the structure file prompts are built from. It is born empty "
-                "-- no characters, no outfits, no locations, no frames -- and the tools that add "
-                "each of those are what fill it. You give a name and nothing else; the shape is "
-                "the code's, and the file is always .json. Refuses a name that is already taken: "
-                "a scenario is opened and added to, never started a second time."
-            ),
+            "description": prompt.START_SCENARIO,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "What the scenario is called, as in bar-scene.",
-                    }
+                    "name": {"type": "string", "description": prompt.START_SCENARIO_NAME}
                 },
                 "required": ["name"],
             },
@@ -213,32 +121,16 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "edit_file",
-            "description": (
-                "Change part of a document that already exists -- a document, not a scenario: a "
-                "structure file is changed by the tools that know its shape. The text you give as "
-                "old must appear "
-                "exactly once and match what is on disk now, without the line numbers a read "
-                "shows it with: read the file first if this turn has "
-                "not seen it -- what this turn read or wrote is already in front of you -- and "
-                "include enough of what surrounds it to be sure. When you mean every occurrence "
-                "rather than one -- a map entry renamed through all the frames that call on it -- "
-                "pass replace_all instead of growing the text."
-            ),
+            "description": prompt.EDIT_FILE,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "The file's name."},
-                    "old": {"type": "string", "description": "The exact text to replace."},
-                    "new": {
-                        "type": "string",
-                        "description": "What takes its place. Empty takes the text out.",
-                    },
+                    "name": {"type": "string", "description": prompt.THE_FILES_NAME},
+                    "old": {"type": "string", "description": prompt.EDIT_FILE_OLD},
+                    "new": {"type": "string", "description": prompt.EDIT_FILE_NEW},
                     "replace_all": {
                         "type": "boolean",
-                        "description": (
-                            "Change every occurrence. Left out, text that appears more than once "
-                            "is refused rather than guessed at."
-                        ),
+                        "description": prompt.EDIT_FILE_REPLACE_ALL,
                     },
                 },
                 "required": ["name", "old", "new"],
@@ -249,31 +141,13 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "add_character",
-            "description": (
-                "Write a new character into a scenario: the tags an image model draws them from, "
-                "written once here and named by every frame they appear in. Refuses a name that is "
-                "already there -- to change one that exists, use update_character.\n"
-                "\n" + SDXL_PROMPT_RULES
-            ),
+            "description": prompt.ADD_CHARACTER,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {
-                        "type": "string",
-                        "description": (
-                            "What this character is called in this scenario, as in aylin. Frames "
-                            "name them by it."
-                        ),
-                    },
-                    "tags": {
-                        "type": "string",
-                        "description": (
-                            "The character as tags: how many people this entry draws, their age, "
-                            "body, hair and face. As in 1girl, woman in her mid 20s, long black "
-                            "hair, green eyes, slim body. No clothes here -- those are outfits."
-                        ),
-                    },
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.ADD_CHARACTER_NAME},
+                    "tags": {"type": "string", "description": prompt.ADD_CHARACTER_TAGS},
                 },
                 "required": ["file", "name", "tags"],
             },
@@ -283,30 +157,14 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "update_character",
-            "description": (
-                "Change a character that is already in a scenario: its tags, its name, or both. "
-                "Only what you give changes. Renaming reaches every frame that names it, so the "
-                "scenario still builds afterwards. Refuses a name that is not there.\n"
-                "\n" + SDXL_PROMPT_RULES
-            ),
+            "description": prompt.UPDATE_CHARACTER,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {"type": "string", "description": "Which character to change."},
-                    "tags": {
-                        "type": "string",
-                        "description": (
-                            "The whole entry as it should now read -- this replaces the text "
-                            "rather than adding to it. Leave it out to change only the name."
-                        ),
-                    },
-                    "new_name": {
-                        "type": "string",
-                        "description": (
-                            "What to call it from now on. Leave it out to change only the tags."
-                        ),
-                    },
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.UPDATE_CHARACTER_NAME},
+                    "tags": {"type": "string", "description": prompt.AN_ENTRYS_NEW_TAGS},
+                    "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],
             },
@@ -316,16 +174,12 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "remove_character",
-            "description": (
-                "Take a character out of a scenario. Refused while any frame still names it, and "
-                "the answer says which frames -- take them out of those frames first, or remove "
-                "the frames. Nothing here can be undone by calling it again."
-            ),
+            "description": prompt.REMOVE_CHARACTER,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {"type": "string", "description": "Which character to remove."},
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.REMOVE_CHARACTER_NAME},
                 },
                 "required": ["file", "name"],
             },
@@ -335,30 +189,13 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "add_outfit",
-            "description": (
-                "Write a new outfit into a scenario: a set of clothes with a name, worn by whoever "
-                "a frame puts it on. Kept apart from the character because the same person wears "
-                "different things across the frames, and the same clothes can be worn by more than "
-                "one person. Refuses a name that is already there.\n"
-                "\n" + SDXL_PROMPT_RULES
-            ),
+            "description": prompt.ADD_OUTFIT,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {
-                        "type": "string",
-                        "description": "What this outfit is called, as in nightgown.",
-                    },
-                    "tags": {
-                        "type": "string",
-                        "description": (
-                            "The clothes as tags, and nothing else: white nightgown, lace trim, "
-                            "bare shoulders. No person here -- no count, no body, no hair. One "
-                            "entry dresses one person; two people dressed differently are two "
-                            "outfits."
-                        ),
-                    },
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.ADD_OUTFIT_NAME},
+                    "tags": {"type": "string", "description": prompt.ADD_OUTFIT_TAGS},
                 },
                 "required": ["file", "name", "tags"],
             },
@@ -368,30 +205,14 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "update_outfit",
-            "description": (
-                "Change an outfit that is already in a scenario: its tags, its name, or both. Only "
-                "what you give changes, and renaming reaches every frame wearing it. Refuses a "
-                "name that is not there.\n"
-                "\n" + SDXL_PROMPT_RULES
-            ),
+            "description": prompt.UPDATE_OUTFIT,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {"type": "string", "description": "Which outfit to change."},
-                    "tags": {
-                        "type": "string",
-                        "description": (
-                            "The whole entry as it should now read -- this replaces the text "
-                            "rather than adding to it. Leave it out to change only the name."
-                        ),
-                    },
-                    "new_name": {
-                        "type": "string",
-                        "description": (
-                            "What to call it from now on. Leave it out to change only the tags."
-                        ),
-                    },
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.UPDATE_OUTFIT_NAME},
+                    "tags": {"type": "string", "description": prompt.AN_ENTRYS_NEW_TAGS},
+                    "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],
             },
@@ -401,16 +222,12 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "remove_outfit",
-            "description": (
-                "Take an outfit out of a scenario. Refused while any frame still has somebody "
-                "wearing it, and the answer says which frames -- change what they wear first, or "
-                "remove those frames."
-            ),
+            "description": prompt.REMOVE_OUTFIT,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {"type": "string", "description": "Which outfit to remove."},
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.REMOVE_OUTFIT_NAME},
                 },
                 "required": ["file", "name"],
             },
@@ -420,27 +237,13 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "add_location",
-            "description": (
-                "Write a new location into a scenario: a place a frame can be set in. Refuses a "
-                "name that is already there.\n"
-                "\n" + SDXL_PROMPT_RULES
-            ),
+            "description": prompt.ADD_LOCATION,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {
-                        "type": "string",
-                        "description": "What this place is called, as in bedroom.",
-                    },
-                    "tags": {
-                        "type": "string",
-                        "description": (
-                            "The place as tags: cozy bedroom, morning light through curtains, "
-                            "indoors. Nobody is in it -- who is there is the frame's business, and "
-                            "a person written here would be drawn into every frame set in it."
-                        ),
-                    },
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.ADD_LOCATION_NAME},
+                    "tags": {"type": "string", "description": prompt.ADD_LOCATION_TAGS},
                 },
                 "required": ["file", "name", "tags"],
             },
@@ -450,30 +253,14 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "update_location",
-            "description": (
-                "Change a location that is already in a scenario: its tags, its name, or both. "
-                "Only what you give changes, and renaming reaches every frame set there. Refuses a "
-                "name that is not there.\n"
-                "\n" + SDXL_PROMPT_RULES
-            ),
+            "description": prompt.UPDATE_LOCATION,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {"type": "string", "description": "Which location to change."},
-                    "tags": {
-                        "type": "string",
-                        "description": (
-                            "The whole entry as it should now read -- this replaces the text "
-                            "rather than adding to it. Leave it out to change only the name."
-                        ),
-                    },
-                    "new_name": {
-                        "type": "string",
-                        "description": (
-                            "What to call it from now on. Leave it out to change only the tags."
-                        ),
-                    },
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.UPDATE_LOCATION_NAME},
+                    "tags": {"type": "string", "description": prompt.AN_ENTRYS_NEW_TAGS},
+                    "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],
             },
@@ -483,16 +270,12 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "remove_location",
-            "description": (
-                "Take a location out of a scenario. Refused while any frame is still set there, "
-                "and the answer says which frames -- a frame has one place, so give those frames "
-                "another one first, or remove them."
-            ),
+            "description": prompt.REMOVE_LOCATION,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The scenario's file name."},
-                    "name": {"type": "string", "description": "Which location to remove."},
+                    "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
+                    "name": {"type": "string", "description": prompt.REMOVE_LOCATION_NAME},
                 },
                 "required": ["file", "name"],
             },
@@ -502,62 +285,29 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "add_scene",
-            "description": (
-                "Add scenes to a structure file, one frame each, in the order they happen. They go "
-                "at the end unless before names a frame to go in front of. A frame's number is not "
-                "yours to give either way -- it is simply its place in the list, and every frame "
-                "after an insertion moves up. Every name a scene uses has to be in the file's maps "
-                "already: a name nobody knows is refused, together with the names that are known, "
-                "and the whole call is refused with it -- nothing is written unless every scene in "
-                "it is good. The answer names the frames it made, which is how you say which one "
-                "you mean next: a frame is born without its action, and write_frame_prompt is what "
-                "writes one."
-            ),
+            "description": prompt.ADD_SCENE,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The structure file's name."},
-                    "before": {
-                        "type": "integer",
-                        "description": (
-                            "Go in front of this frame, by its number, rather than at the end. The "
-                            "frames from there on move up and keep everything they carry, their "
-                            "actions included -- so this is how a scene goes into the middle of a "
-                            "scenario, and taking the tail out to add it again is not. One past "
-                            "the last frame is the end."
-                        ),
-                    },
+                    "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
+                    "before": {"type": "integer", "description": prompt.ADD_SCENE_BEFORE},
                     "scenes": {
                         "type": "array",
-                        "description": (
-                            "The scenes to add. A list even when there is one of them."
-                        ),
+                        "description": prompt.ADD_SCENE_SCENES,
                         "items": {
                             "type": "object",
                             "properties": {
                                 "scene": {
                                     "type": "string",
-                                    "description": (
-                                        "What happens, in one sentence and in the language the "
-                                        "work is being done in. The brief this frame is built "
-                                        "from, never the tags themselves."
-                                    ),
+                                    "description": prompt.ADD_SCENE_SCENE,
                                 },
                                 "characters": {
                                     "type": "object",
-                                    "description": (
-                                        "Who is in the frame: each name from the file's "
-                                        "characters, with the list of outfits they wear. Whoever "
-                                        "is written first leads the frame's prompt. Left out for a "
-                                        "frame with nobody in it."
-                                    ),
+                                    "description": prompt.ADD_SCENE_CHARACTERS,
                                 },
                                 "location": {
                                     "type": "string",
-                                    "description": (
-                                        "Where it happens, named as the file's locations name it. "
-                                        "Left out for a frame that shows no place of its own."
-                                    ),
+                                    "description": prompt.ADD_SCENE_LOCATION,
                                 },
                             },
                             "required": ["scene"],
@@ -572,41 +322,18 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "update_frame",
-            "description": (
-                "Change a frame that is already in a structure file, naming it by its number. Only "
-                "what you give is changed and the rest of the frame stays as it is, so a place "
-                "corrected leaves the cast alone. Giving a field empty clears it -- a frame with "
-                "nobody in it, or one that shows no place of its own -- except the scene, which a "
-                "frame is never without. Names come from the file's maps here as they do when the "
-                "frame is written. A frame's action is not among these: write_frame_prompt is what "
-                "writes one, and calling it again with a note is how one is changed."
-            ),
+            "description": prompt.UPDATE_FRAME,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The structure file's name."},
-                    "frame": {
-                        "type": "integer",
-                        "description": "Which frame, by its number, counting from 1.",
-                    },
-                    "scene": {
-                        "type": "string",
-                        "description": "What happens, in one sentence. Replaces the sentence there.",
-                    },
+                    "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
+                    "frame": {"type": "integer", "description": prompt.WHICH_FRAME},
+                    "scene": {"type": "string", "description": prompt.UPDATE_FRAME_SCENE},
                     "characters": {
                         "type": "object",
-                        "description": (
-                            "Who is in the frame, each name with the outfits they wear. Replaces "
-                            "the whole cast rather than adding to it; empty leaves nobody in it."
-                        ),
+                        "description": prompt.UPDATE_FRAME_CHARACTERS,
                     },
-                    "location": {
-                        "type": "string",
-                        "description": (
-                            "Where it happens, named as the file's locations name it. Empty takes "
-                            "the place off the frame."
-                        ),
-                    },
+                    "location": {"type": "string", "description": prompt.UPDATE_FRAME_LOCATION},
                 },
                 "required": ["file", "frame"],
             },
@@ -616,21 +343,12 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "remove_frame",
-            "description": (
-                "Take one frame out of a structure file, naming it by its number. Every frame "
-                "after it moves up a place and the numbers follow, so the answer says how many are "
-                "left: a number you were told before this call may not mean the same frame after "
-                "it. Nothing in the maps is touched -- a character or a place left in no frame at "
-                "all stays where it is, and taking it out is the user's to ask for."
-            ),
+            "description": prompt.REMOVE_FRAME,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The structure file's name."},
-                    "frame": {
-                        "type": "integer",
-                        "description": "Which frame, by its number, counting from 1.",
-                    },
+                    "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
+                    "frame": {"type": "integer", "description": prompt.WHICH_FRAME},
                 },
                 "required": ["file", "frame"],
             },
@@ -640,32 +358,13 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "write_frame_prompt",
-            "description": (
-                "Write one frame's action -- what is happening in that frozen instant, and the "
-                "shot it is seen through. Asked of a model kept for this and nothing else, so the "
-                "sentence is not yours to write and not yours to read back: it goes straight into "
-                "the frame. The frame needs its scene first, which is the brief the action is "
-                "written from; who is in it and where are read from the file. Written over "
-                "whatever was there, so calling this again on the same frame is how an action is "
-                "changed -- with a note when there is something to fix, and the note is the whole "
-                "of what the writer hears about it. One frame per call."
-            ),
+            "description": prompt.WRITE_FRAME_PROMPT,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "file": {"type": "string", "description": "The structure file's name."},
-                    "frame": {
-                        "type": "integer",
-                        "description": "Which frame, by its number, counting from 1.",
-                    },
-                    "note": {
-                        "type": "string",
-                        "description": (
-                            "What to do differently, in your own words -- what the user said about "
-                            "the last one, or what this frame needs that the scene does not say. "
-                            "Left out the first time."
-                        ),
-                    },
+                    "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
+                    "frame": {"type": "integer", "description": prompt.WHICH_FRAME},
+                    "note": {"type": "string", "description": prompt.WRITE_FRAME_PROMPT_NOTE},
                 },
                 "required": ["file", "frame"],
             },
@@ -675,15 +374,11 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "build_prompts",
-            "description": (
-                "Build the prompt list from a structure file. Code assembles every frame in a fixed "
-                "order, so a character reads the same in all of them. Writes a Python file named "
-                "after the structure, replacing what it wrote last time."
-            ),
+            "description": prompt.BUILD_PROMPTS,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "The structure file's name."}
+                    "name": {"type": "string", "description": prompt.THE_STRUCTURES_FILE}
                 },
                 "required": ["name"],
             },
@@ -693,18 +388,15 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "build_character_prompts",
-            "description": (
-                "Build a preview list for one character: one prompt for every outfit the "
-                "structure names, joined the same way a frame's prompt is. Reach for it when the "
-                "user wants to look at one character on its own, before any frame. Writes a "
-                "Python file named after the structure and the character, replacing what it "
-                "wrote last time."
-            ),
+            "description": prompt.BUILD_CHARACTER_PROMPTS,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string", "description": "The structure file's name."},
-                    "character": {"type": "string", "description": "Which character to preview."},
+                    "name": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
+                    "character": {
+                        "type": "string",
+                        "description": prompt.BUILD_CHARACTER_PROMPTS_CHARACTER,
+                    },
                 },
                 "required": ["name", "character"],
             },
@@ -714,23 +406,12 @@ TOOL_SPECS = [
         "type": "function",
         "function": {
             "name": "write_plan",
-            "description": (
-                "Break the work into numbered steps and save the plan. Writes over the plan of "
-                "that name if there is one, so hand back the whole plan rather than the part you "
-                "changed -- read it first if this turn has not seen it. A turn asked only to "
-                "plan ends with this call -- the "
-                "user reads the plan, fixes it in the file if they want to, and runs it "
-                "themselves. A plan that is the first step of a larger job is an ordinary step: "
-                "carry on from it."
-            ),
+            "description": prompt.WRITE_PLAN,
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "What the plan is for, as in bar-scene.",
-                    },
-                    "content": {"type": "string", "description": "The plan itself."},
+                    "name": {"type": "string", "description": prompt.WRITE_PLAN_NAME},
+                    "content": {"type": "string", "description": prompt.WRITE_PLAN_CONTENT},
                 },
                 "required": ["name", "content"],
             },
@@ -1637,7 +1318,7 @@ def _write_frame_prompt(file_store, project_id, args, engine):
 
     try:
         answer = engine.write_once(
-            WRITE_FRAME_SYSTEM_PROMPT, _frame_seen(frame, structure, args.get("note"))
+            prompt.WRITE_FRAME_SYSTEM_PROMPT, _frame_seen(frame, structure, args.get("note"))
         )
     except Exception as failure:
         # The service's own words, and the frame left as it was. No retry in here: calling this

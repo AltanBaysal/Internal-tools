@@ -2,9 +2,13 @@
 
 **Tarih:** 28 Ağustos 2026, son eşleme 29 Ağustos *(Blok 9: 116-122 ve Madde 123'ün yeniden
 yazımı; Blok 10: 107, 125, 126, 127; Blok 11: 129 — bu kopya
-`feat/queenagent-m123-skill-rewrite` dalının hâli)*. Yaşayan asılları kodda —
-`prompt.py`, `tools.py`, `skills.py`, `schema.py`, `permission.py`, `context_box.py` — ve kod
-değişirse doğru olan onlardır, bu belge değil.
+`feat/queenagent-m123-skill-rewrite` dalının hâli)*. Yaşayan asılları kodda ve kod değişirse doğru
+olan onlardır, bu belge değil.
+
+**Madde 189'dan beri tek dosyada:** aşağıdaki metinlerin hepsi `prompt.py`'de adlandırılmış sabit,
+ve onları kullanan kod — `tools.py`, `skills.py`, `permission.py`, `stream_answer.py` — çağırıyor,
+yazmıyor. Her bölümün başındaki italik satır metnin *nereye bindiğini* söylüyor, artık nerede
+yazıldığını değil.
 
 Sıra bir isteğin anatomisi: önce her istekte gidenler *(taban → araçlar)*, sonra konuşmanın
 arkasına binenler *(dosya adları → bağlam kabı)*, sonra skill seçiliyken en sona binen iki metin,

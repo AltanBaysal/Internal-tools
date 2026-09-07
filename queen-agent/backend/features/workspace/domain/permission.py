@@ -5,6 +5,8 @@ in front of a tool, and a tool never learns it was gated.
 """
 from dataclasses import dataclass
 
+from backend.features.workspace.domain.prompt import REFUSED, REFUSED_WORDS
+
 
 @dataclass(frozen=True)
 class Decision:
@@ -37,14 +39,10 @@ class Waiting:
 
 
 def refusal_text(tool, reason):
-    """What the model is told when the user says no.
+    """The refusal filled in: which tool, and the user's own words when they wrote any.
 
-    A wall with nothing written on it is a wall the model walks into again, so three things are
-    said: what was refused, that the mode is where the refusal came from, and -- when the user
-    wrote one -- their own words.
+    The sentence itself is prompt.REFUSED (Madde 189) -- it says the same thing on every refusal
+    and is a rule the model is told, not a report of what this call did.
     """
-    said = f' They said: "{reason.strip()}"' if reason and reason.strip() else ""
-    return (
-        f"The user did not allow {tool}. The mode has not changed, so this tool is still out of "
-        f"reach: carry on without writing.{said}"
-    )
+    said = REFUSED_WORDS.format(reason=reason.strip()) if reason and reason.strip() else ""
+    return REFUSED.format(tool=tool, said=said)
