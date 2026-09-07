@@ -1593,7 +1593,8 @@
 }
 
 .file-list__refresh,
-.reader__refresh {
+.reader__refresh,
+.reader__copy {
   flex: none;
   border: none;
   background: transparent;
@@ -1605,8 +1606,25 @@
 }
 
 .file-list__refresh:hover,
-.reader__refresh:hover {
+.reader__refresh:hover,
+.reader__copy:hover {
   color: var(--ink);
+}
+
+/* Madde 193: the answer is the icon's own colour, so nothing on the panel moves to make room for
+   it. Dimmed while there is nothing to copy rather than taken away -- a header that gains and loses
+   an icon as the file loads is a header that twitches. */
+.reader__copy:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.reader__copy[data-said="yes"] {
+  color: var(--accent);
+}
+
+.reader__copy[data-said="no"] {
+  color: var(--destructive);
 }
 
 .file-list__empty {
