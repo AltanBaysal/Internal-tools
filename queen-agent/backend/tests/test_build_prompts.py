@@ -165,7 +165,9 @@ def test_an_unknown_character_in_the_map_form_is_reported_too():
 def test_a_structure_with_no_outfits_map_still_builds():
     structure = _structure()
     del structure["outfits"]
-    assert build_prompts(structure) == [f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+    assert build_prompts(structure) == [
+        f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"
+    ]
 
 
 def test_the_quality_chain_always_comes_from_code():
@@ -173,7 +175,7 @@ def test_the_quality_chain_always_comes_from_code():
     # Madde 166 closes it: the chain is the same in every scenario, and one place saying so cannot
     # disagree with itself.
     assert build_prompts(_structure()) == [
-        f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"
+        f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"
     ]
 
 
