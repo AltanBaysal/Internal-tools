@@ -844,6 +844,106 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
   await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("outline.md"));
 });
 
+// Madde 192. Until now a `file` frame was the only thing that brought the two lists up to date, so
+// anything that wrote without announcing one -- or a file the user dropped into the Drive folder
+// mid-turn -- stayed invisible until the screen was left and come back to.
+test("a turn ending brings the file list up to date, whatever wrote the file", async () => {
+  const owed = { id: "c1", title: "hello", messages: [] };
+  let onDisk = [];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      onDisk = [{ name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() }];
+      // No file frame at all: this stream announces nothing it wrote.
+      return Promise.resolve(
+        sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
+      );
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  // Asked before the turn: without this the assertion below would pass on a rail that was never
+  // stale in the first place.
+  await waitFor(() =>
+    expect(screen.getByTestId("file-rail").textContent).toContain("No files yet"),
+  );
+
+  fireEvent.change(box, { target: { value: "write the plan" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("plan.md"));
+});
+
+test("a turn ending reads the file that is open again", async () => {
+  // The heavier of the two: a stale list hides a name, a stale panel shows the wrong text under
+  // the right one.
+  const owed = { id: "c1", title: "hello", messages: [] };
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  let text = "the first draft";
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      text = "the second draft";
+      return Promise.resolve(
+        sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
+      );
+    }
+    if (path.endsWith("/files/plan.md")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...file, size: text.length, text }),
+      });
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  fireEvent.click(await screen.findByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("the first draft")).toBeTruthy());
+
+  const box = screen.getByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "rewrite it" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(screen.getByText("the second draft")).toBeTruthy());
+});
+
+test("Refresh asks again with no turn to hang it on", async () => {
+  // What a turn's end cannot cover: a file put into the Drive folder by hand, and a look taken in
+  // the middle of a turn that is still running.
+  let onDisk = [];
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (String(path).endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText(/No files yet/)).toBeTruthy());
+
+  onDisk = [{ name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+});
+
 test("a fault inside the stream shows the card and Try again asks through the one door", async () => {
   // Madde 88 kept the button and took away the finger that pressed it. It goes to the same
   // address as a sentence does, and carries no sentence: the question is already on disk.

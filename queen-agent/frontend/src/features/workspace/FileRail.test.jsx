@@ -202,7 +202,40 @@ test("a rail still loading says neither", () => {
   expect(screen.getByTestId("skeleton")).toBeTruthy();
 });
 
+// Madde 192. A turn's end brings the list up to date by itself, but a turn is not the only thing
+// that writes into the project: the user can drop a file into the Drive folder, or want to look
+// while a long turn is still running.
+test("the open list carries a Refresh, and pressing it asks", () => {
+  const onRefresh = vi.fn();
+  render(<FileRail files={FILES} onRefresh={onRefresh} />);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(onRefresh).toHaveBeenCalled();
+});
+
+test("folded, there is no Refresh either", () => {
+  // The strip is a label and a count. There is no list on screen for the button to be about, and
+  // the click that opens the rail brings it along.
+  render(<FileRail files={FILES} collapsed onRefresh={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
+});
+
 const OPEN_FILE = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
+
+test("while reading, the Refresh is the document's, and there is one of it", () => {
+  const onRefresh = vi.fn();
+  render(
+    <FileRail
+      files={FILES}
+      reading={{ name: "outline.md", file: OPEN_FILE }}
+      onRefresh={onRefresh}
+    />,
+  );
+  // The list is gone and the panel is standing in its place, so the two buttons are never on
+  // screen together -- and the one that is there does what both did.
+  expect(screen.getAllByRole("button", { name: "Refresh" }).length).toBe(1);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(onRefresh).toHaveBeenCalled();
+});
 
 test("the rail's reader is come back from rather than closed", () => {
   // The panel here is the rail widened, so it keeps the arrow. The project screen's panel is a

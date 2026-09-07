@@ -144,6 +144,25 @@ test("while it downloads the button says preparing and comes back after", async 
   await waitFor(() => expect(screen.getByRole("button", { name: "Download" })).toBeTruthy());
 });
 
+// Madde 192: the same button the list carries, because it does the same thing -- one action reads
+// the list and the open file both, so the user never has to pick which staleness they are fixing.
+test("the header carries a Refresh, and it asks for the file again", () => {
+  const onRefresh = vi.fn();
+  render(<FilePanel name="plan.md" file={FILE} onRefresh={onRefresh} />);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(onRefresh).toHaveBeenCalled();
+});
+
+test("Refresh says nothing while it runs", () => {
+  // Download says "preparing…" because what it makes lands outside the screen. This one changes
+  // the page in place, and the changed page is the answer.
+  const onRefresh = vi.fn().mockReturnValue(new Promise(() => {}));
+  const { container } = render(<FilePanel name="plan.md" file={FILE} onRefresh={onRefresh} />);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(screen.getByRole("button", { name: "Refresh" }).disabled).toBe(false);
+  expect(container.querySelector(".spinner")).toBeNull();
+});
+
 test("a download that fails repeats the server's words", async () => {
   const onDownload = vi.fn().mockRejectedValue(new Error("GET failed with 500"));
   render(<FilePanel name="plan.md" file={FILE} onDownload={onDownload} />);
