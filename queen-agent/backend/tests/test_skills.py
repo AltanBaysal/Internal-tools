@@ -154,7 +154,7 @@ def test_no_instruction_carries_the_prompt_rules():
     # tools that take tags, where it sits beside the parameter it governs and is read while the tool
     # is being chosen. A copy back here would be paid for by every turn, including the ones writing
     # no tags at all.
-    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
 
     assert not [skill for skill in INSTRUCTIONS if SDXL_PROMPT_RULES in INSTRUCTIONS[skill]]
 
@@ -283,7 +283,7 @@ def test_the_craft_rules_left_the_texts_with_the_work(_=None):
     # neighbouring frames must differ in framing. Both were about writing an action, and since
     # Madde 176 the main model does not write one -- so they moved to the prompt writer's own
     # system prompt, where they are read once by the model they are for.
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     assert "framing and angle" in WRITE_FRAME_SYSTEM_PROMPT
     for skill, said in INSTRUCTIONS.items():

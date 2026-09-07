@@ -874,7 +874,7 @@ TAG_TOOLS = (
 
 
 def _rules():
-    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
 
     return SDXL_PROMPT_RULES
 
@@ -2167,7 +2167,7 @@ def _wrote(files, engine, **arguments):
 def test_the_prompt_writers_system_prompt_carries_the_rules_a_map_entry_is_written_by():
     # One text, two readers. Madde 172 put the entry rules beside the tools that take tags; the
     # model writing an action reads the same ones, because it is writing into the same prompt.
-    from backend.features.workspace.domain.tools import (
+    from backend.features.workspace.domain.prompt import (
         SDXL_PROMPT_RULES,
         WRITE_FRAME_SYSTEM_PROMPT,
     )
@@ -2178,7 +2178,7 @@ def test_the_prompt_writers_system_prompt_carries_the_rules_a_map_entry_is_writt
 def test_the_prompt_writer_is_told_about_the_action_and_the_camera():
     # The other half of the dead schema (Madde 172), and this is where it landed: the half about
     # what happens in a frame and how it is shot, read by the one model that writes it.
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     said = WRITE_FRAME_SYSTEM_PROMPT.lower()
     assert "action" in said
@@ -2203,7 +2203,7 @@ def test_the_prompt_writer_is_told_about_the_action_and_the_camera():
 
 
 def test_the_writer_is_told_to_name_what_is_visible_of_a_body():
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     assert "name what is visible" in WRITE_FRAME_SYSTEM_PROMPT.lower()
 
@@ -2211,7 +2211,7 @@ def test_the_writer_is_told_to_name_what_is_visible_of_a_body():
 def test_the_writer_is_given_the_terms_rather_than_left_to_find_them():
     # Examples rather than a principle, the way every other rule in this text is written. Deneme 4
     # showed a model that had the principle and still wrote its way around the thing.
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     said = WRITE_FRAME_SYSTEM_PROMPT.lower()
     assert "penis" in said
@@ -2221,7 +2221,7 @@ def test_the_writer_is_given_the_terms_rather_than_left_to_find_them():
 def test_the_writer_is_told_why_a_euphemism_costs_something():
     # A rule with its reason attached is a rule a model can apply to a case nobody listed. Without
     # it, the three examples become the whole of what it will ever write.
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     assert "euphemism" in WRITE_FRAME_SYSTEM_PROMPT.lower()
 
@@ -2229,7 +2229,7 @@ def test_the_writer_is_told_why_a_euphemism_costs_something():
 def test_the_writer_is_asked_for_the_face_this_instant_wears():
     # The character entry describes a face; nothing anywhere describes what it is doing right now,
     # and that changes frame to frame the way nothing in a map does.
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     assert "expression" in WRITE_FRAME_SYSTEM_PROMPT.lower()
 
@@ -2237,7 +2237,7 @@ def test_the_writer_is_asked_for_the_face_this_instant_wears():
 def test_being_bare_is_the_casts_doing_and_not_the_writers():
     # The user's decision of 5 Sep. An outfit is a map entry and a frame either names one or does
     # not; a writer adding nude would be writing the one thing the cast already said.
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     assert "already bare" in WRITE_FRAME_SYSTEM_PROMPT.lower()
 
@@ -2245,7 +2245,7 @@ def test_being_bare_is_the_casts_doing_and_not_the_writers():
 def test_the_clothes_rule_madde_176_wrote_is_still_there():
     # This madde carves two things out of it; it does not open it. A line describing an outfit still
     # says in one prompt what the maps already said, and the second copy is the one that contradicts.
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     said = WRITE_FRAME_SYSTEM_PROMPT.lower()
     assert "do not describe" in said
@@ -2257,7 +2257,7 @@ def test_an_entry_for_somebody_half_in_shot_carries_no_count():
     # prompt asks for two, because every character entry carries its own count and both of them are
     # in the cast. The pov_ entry is the exception, and the rules have to say so -- they are the one
     # place a count is ruled on.
-    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
 
     assert "carries no count" in SDXL_PROMPT_RULES.lower()
     assert "pov_" in SDXL_PROMPT_RULES
@@ -2265,7 +2265,7 @@ def test_an_entry_for_somebody_half_in_shot_carries_no_count():
 
 def test_the_count_rule_the_exception_is_carved_out_of_is_still_there():
     # An exception written where the rule used to be is not an exception, it is a replacement.
-    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
 
     assert "1girl" in SDXL_PROMPT_RULES
     assert "the one place a count lands" in SDXL_PROMPT_RULES
@@ -2275,7 +2275,7 @@ def test_the_map_tools_never_carry_the_words_this_madde_adds():
     # The sharpest line in the madde. SDXL_PROMPT_RULES rides with the tools that take tags, and an
     # anatomy word in a character's entry is drawn into every frame that character is in -- which is
     # the leak the user avoided by hand in Deneme 4 and the reason this went to the writer instead.
-    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
 
     # The rules are really reaching the model here, so a text gone empty cannot pass this quietly.
     assert SDXL_PROMPT_RULES in _said_by("add_character")
@@ -2290,7 +2290,7 @@ def test_the_prompt_writer_is_not_told_what_queenagent_tells_its_agent():
     # SYSTEM_PROMPT is a page about tools, files, chats and how to talk to a user. The model here
     # has none of those and one sentence to write.
     from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
-    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
     assert SYSTEM_PROMPT not in WRITE_FRAME_SYSTEM_PROMPT
 

@@ -1,6 +1,98 @@
+from pathlib import Path
+
 import pytest
 
 from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
+
+# --- one place for every text the model is told (Madde 189) ---------------------------------------
+#
+# They were spread over four files: this one, skills.py, the nine hundred lines of TOOL_SPECS, and
+# stream_answer's heading for the context box. Reading them meant walking four files, and a rule
+# said twice in two of them could not be seen at all -- 182 only found such a copy because a word
+# cap went red.
+#
+# The line this madde draws is between what the model is TOLD and what it is TOLD BACK. Instructions
+# move: they are written once and read on every call. Answers stay where they are made, because an
+# answer is an f-string over values that exist only at that call, and a template pulled into another
+# file is a copy of the call's shape -- and a copy is the side that goes stale.
+
+
+def _texts_named_by(module):
+    """Every string this module names in capitals, which is how a text is written down here."""
+    return {
+        value
+        for name, value in vars(module).items()
+        if name.isupper() and isinstance(value, str)
+    }
+
+
+def _descriptions_in(properties):
+    """Every description under a parameter map, following arrays into their items.
+
+    add_scene's scenes is a list of objects and those objects carry descriptions of their own. A
+    walk that stopped at the first level would leave the deepest texts unwatched, which is where a
+    forgotten one would sit.
+    """
+    for said in properties.values():
+        if "description" in said:
+            yield said["description"]
+        inner = said.get("items", {}).get("properties")
+        if inner:
+            yield from _descriptions_in(inner)
+
+
+def test_every_text_a_tool_carries_comes_from_the_prompt_module():
+    from backend.features.workspace.domain import prompt
+    from backend.features.workspace.domain.tools import TOOL_SPECS
+
+    known = _texts_named_by(prompt)
+    # Before anything else: an empty set would let the loop below pass over an empty TOOL_SPECS too,
+    # and this run has already watched seven tests go green because nothing had happened yet.
+    assert len(known) > 10
+
+    for spec in TOOL_SPECS:
+        function = spec["function"]
+        assert function["description"] in known, function["name"]
+        for said in _descriptions_in(function["parameters"]["properties"]):
+            assert said in known, function["name"]
+
+
+@pytest.mark.parametrize(
+    "module,name",
+    [
+        ("tools", "SDXL_PROMPT_RULES"),
+        ("tools", "WRITE_FRAME_SYSTEM_PROMPT"),
+        ("skills", "START_A_SCENARIO"),
+        ("skills", "GENERATE_PROMPTS_PLUS"),
+    ],
+)
+def test_no_text_is_still_written_down_where_it_used_to_live(module, name):
+    """The source rather than the module, and that is not fussiness.
+
+    An imported name becomes an attribute of the module that imported it, so hasattr says yes long
+    after the text has moved. What this madde forbids is the text being *written* in two places, and
+    only the source says where it was written. test_notebook.py watches its notebook the same way.
+    """
+    from backend.features.workspace.domain import skills, tools
+
+    source = Path({"tools": tools, "skills": skills}[module].__file__).read_text(encoding="utf-8")
+    assert f"{name} = " not in source, f"{name} is still assigned in {module}.py"
+
+
+def test_the_prompt_module_holds_the_texts_the_others_gave_up():
+    # The floor under the two above: both of them would pass over an empty module, one with an empty
+    # set of texts and one with an empty source.
+    from backend.features.workspace.domain import prompt
+
+    for name in (
+        "SYSTEM_PROMPT",
+        "LAST_ROUND",
+        "SDXL_PROMPT_RULES",
+        "WRITE_FRAME_SYSTEM_PROMPT",
+        "START_A_SCENARIO",
+        "GENERATE_PROMPTS_PLUS",
+    ):
+        assert getattr(prompt, name, "").strip(), name
 
 
 def test_the_answer_follows_the_language_it_was_asked_in():
