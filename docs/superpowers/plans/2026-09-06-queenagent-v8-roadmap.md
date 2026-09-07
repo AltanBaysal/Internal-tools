@@ -1,0 +1,334 @@
+# QueenAgent v8 Yol Haritası — çıkan prompt, ve koşarken görünen
+
+**Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül. **On bir madde**, beş dilim, 183'ten 194'e — **188 yok**,
+taslak okunurken geri çekildi *(aşağıda)*. Numaralar 182'nin ardından gidiyor ve **hiç kaymıyor** —
+yazılmış spec'ler onlara atıf yapıyor, ve çekilen bir numara boş kalır.
+
+**Numara kimliktir, sıra değildir.** 189 taslak sırasında öne alındı ve numarası bırakıldığı yerde
+kaldı *(kullanıcı kararı, 6 Eylül: konuşma boyunca numaralarla anıldılar, kaydırmak onları
+okunmaz kılardı)*. Koşulacak sıra bu dosyanın sırasıdır.
+
+v7'nin sorusu *"model dosyanın şeklini bilmeden senaryo kurabilir mi"*ydi ve cevabı evet çıktı.
+v8'in sorusu başka: **çıkan prompt'un kendisi**, ve **kullanıcının koşarken ne gördüğü.**
+
+---
+
+## Koşunun bağlayıcı kuralları
+
+**Bir kural tek yerde durur.** v7 on altı madde boyunca metin ekledi, ve her biri kendi turunda
+doğruydu — ama hiçbiri ötekinin yanında nasıl okunduğuna bakmadı. 182'de kelime tavanı kırmızı verdi
+ve bir cümlenin silinmesiyle geçildi; o silinen cümle `add_character`'ın kendi metninin kopyasıydı.
+Bu koşuda aynı sorunun peşine düşülüyor: iki yerde anlatılan bir kural, tek yerde anlatılana
+indirgenir. Tavan yükselmez.
+
+**Deneme ucuz olmalı.** Deneme 4'te 21 karelik bir düzeltme 21 raunt ve 277.6k jeton yedi. Pahalı
+deneme az deneme demek, az deneme de geç görülen hata demek. 185 bu yüzden erken duruyor: kendisi
+küçük bir madde, ama ondan sonraki her denemenin fiyatını düşürüyor.
+
+**Prompt'un şeklini kod bilir.** `build_prompts` saf: yapıyı alır, string döndürür, ve kuralların
+dışına konuşulamaz. 184 o şekli değiştiriyor — ama yine **kodda**, dosyada değil. Kendi sırasını
+seçebilen bir yapı dosyası, *"bu kare neden farklı çıktı"* sorusuna *"değişiyor"* diye cevap verir.
+
+---
+
+# Dilim 1 — zemin
+
+Sonraki her maddenin üstüne basacağı iki şey: **kim yazıyor**, ve **metinler nerede duruyor.** İkisi
+de en başta, çünkü sonradan yapılırsa aradaki her madde yanlış varsayımla yazılmış olur — biri başka
+bir modele söylenmiş kurallar, öteki yanlış dosyaya konmuş metinler.
+
+## Madde 183 — Prompt yazan model Grok 4.3 olur
+
+- **Sorun:** `config.PROMPT_MODEL` bugün `grok-build-0.1`. Kullanıcı kararı bunun Grok 4.3 olması.
+  **Sırada ilk** olmasının sebebi 181: eylem satırının kuralları bugünkü yazara göre yazıldı, ve
+  model sonradan değişirse o kurallar başka bir okuyucuya söylenmiş olur. Sonraki bütün metin
+  maddesi *(190)* koşacak modelin üstünde ölçülmeli.
+- **Ne çalışır:** `PROMPT_MODEL = "grok-4.3"`, ve `MODELS`'te `grok-build-0.1` satırı **kalkıp**
+  yerini `grok-4.3`'e bırakır *(kullanıcı kararı: kimse kullanmayacak bir satır ölü yapılandırma)*.
+  Adres ve anahtar aynı: `https://api.x.ai/v1`, `XAI_API_KEY`. O satırdaki string **doğrudan xAI'a
+  gidiyor** — `client.py`'nin `payload["model"]`'i — yani takma ad değil, sağlayıcının kendi adı.
+- **Kimlik doğrulandı:** `grok-4.3`, xAI'ın model listesinde *(docs.x.ai/docs/models, 6 Eylül)*.
+- **Neden 4.3:** listede `grok-4.5` ve `grok-4.6` de var, ikisi daha yeni ve daha pahalı. Kullanıcı
+  kararı 4.3 — ve `config.py`'nin kendi yorumu zaten *"nasıl akıl yürüttüğü için değil, ne yazacağı
+  için seçilir"* diyor, yani yenisi kendiliğinden daha iyi değil.
+- **Nasıl görülür:** bir kare yazdırılır ve cevap gelir. Damgadaki harcama xAI tarafında görünür.
+- **Değişen:** `config.py`'nin iki satırı; `test_config.py`'nin sabiti pinliyor olması.
+
+## Madde 189 — Modele giden her metin tek dosyada toplanır
+
+- **Sorun:** metinler bugün **dörde dağılmış** durumda: `prompt.py`, `skills.py`, `tools.py`'nin
+  `TOOL_SPECS`'i *(araç açıklamaları ve parametre metinleri, hacmin yarısı)*, ve araçların cevap
+  cümleleri `run_tool`'un içinde. Hepsini okumak isteyen dört dosyada geziyor, ve iki yerde aynı şeyi
+  söyleyen bir kural **görülemiyor** — 182'de silinen cümle böyle bir kopyaydı ve kelime tavanı
+  kırmızı verene kadar kimse fark etmedi.
+- **Ne çalışır:** modele giden her metin tek bir modülde, **adlandırılmış sabitler** olarak, ve kod
+  onları çağırır — metin koda gömülü durmaz *(kullanıcı kararı: Flutter'ın `app constants`'ı gibi)*.
+- **Python, Markdown değil.** Bu dosya metinlerin **kaynağı**, kopyası değil. Bir `.md`, koddan ayrı
+  yaşayan ve ilk değişiklikte bayatlayan ikinci bir nüsha olurdu; deponun kendi kuralı da bu *(bir
+  doc kodun söylediğini tekrarlamaz, dosyayı adıyla anar)*.
+- **Kural test edilir:** *"depoda başka hiçbir yerde prompt yok."* Bu maddenin asıl kazancı bu —
+  temenni değil, kırmızı verecek bir nöbetçi. `tools.py`'de üç tırnaklı uzun bir metin belirdiği anda
+  takım düşer, ve bir sonraki madde metni doğru yere yazmak zorunda kalır.
+- **Nasıl görülür:** kullanıcı tek dosyayı baştan sona okur ve modelin gördüğü her şeyi görür.
+  `TOOL_SPECS` metinleri sabitlerden okur.
+- **Bedeli, ve bilerek ödeniyor:** bugün araç açıklaması tarif ettiği şemanın **yanında** duruyor, ve
+  o komşuluk metni doğru tutan şeylerden biri. Dışarı çıkınca gidiyor. Karşılığında tekrarın
+  saklandığı yer aydınlanıyor — 190 zaten onu aramaya gidiyor, ve dağınık hâlde arayamaz.
+- **Değişen:** yeni modül; `prompt.py`, `skills.py`, `tools.py` metinlerini oradan alır; testlerin
+  `from ... import` satırları; ve yeni nöbetçi test.
+- **Neden bu kadar erken, ve toplamakla okumanın farkı:** ilk taslakta bu madde 190'ın hemen
+  önündeydi, yani sonda. Yanlıştı. **Toplamak mekanik bir iş** ve erken yapılırsa 185'in yeni araç
+  açıklaması, 186'nın yeni skill metinleri ve 187'nin parçaları **doğduğu anda doğru dosyaya** iner.
+  Sonda yapılsaydı üçü de eski dağınık yerlere yazar, 189 hepsini bir daha taşırdı. **Okumak** ise
+  taramanın kendisi ve o gerçekten sonda kalmalı — 190 orada duruyor.
+
+---
+
+# Dilim 2 — yazan taraf
+
+Prompt'a giden yol: hangi sırada diziliyor, ve kaç raunda mal oluyor.
+
+## Madde 184 — Prompt sırası: karakterler önde, mekân sonda
+
+- **Sorun:** bugün mekân ve action **iki karakterin arasına** giriyor *(`build_prompts.py`)*: kalite,
+  lider ve kıyafeti, mekân, action, kamera — sonra `BREAK` ve her ek karakter kendi bloğunda.
+  Araya girme, iki tarifi birbirinden uzaklaştırmak içindi. Ama ayırma işini `BREAK` zaten yapıyor
+  *(Madde 138/139: encoder o literal string'den bölüyor)*, ve mesafe onun yanında zayıf ikinci bir
+  önlem — karşılığında **action'ı ikinci karakter tanıtılmadan önce** okutuyor.
+- **Ne çalışır:**
+  ```
+  kalite, karakter 1 + kıyafetleri BREAK karakter 2 + kıyafetleri BREAK … , action, kamera, mekân
+  ```
+  Karakterlerin hepsi başta ve her biri kendi `BREAK` bloğunda; sonra action ve kamera; en sonda
+  mekân. Kıyafet yine sahibinin **hemen yanında** — görüntü modeline kıyafetin kimin olduğunu
+  söyleyen tek şey o komşuluk.
+- **Nasıl görülür:** iki kişilik bir kare derlenir ve iki karakter bloğu **art arda** çıkar, mekân
+  en sonda. Tek kişilik bir karede `BREAK` hiç geçmez.
+- **Değişen:** `build_prompts`'un `lead`/`blocks` kuruluşu ve sıranın gerekçesini anlatan yorum;
+  sırayı okuyan testler.
+- **Action/kamera/mekân kendi `BREAK` bloğunu alır** *(kullanıcı kararı, 6 Eylül)*. Son karakterin
+  bloğuna binerse **ona** bağlanır, ve iki kişilik bir eylem tek kişinin eylemi olur — bugün action'ın
+  lidere bağlanmasının sebebi de bu, yalnız ters yönden. Kendi bloğunda kimseye özel bağlanmıyor.
+- **Bedeli, ve neden küçük:** tek kişilik karelerde de artık bir `BREAK` olacak, ve CLIP her parçayı
+  ayrı kodladığı için action kendi parçasında **öznesiz** kalıyor. Ama parçalar kodlandıktan sonra
+  birleşiyor ve UNet hepsini görüyor; kadroda tek kişi varsa karıştırılacak kimse de yok. Kural tek
+  kalıyor: *"kaç kişi varsa ona göre değişir"* diyen bir düzen, **bu kare neden farklı çıktı**
+  sorusuna cevap veremez.
+- **Ölçülmemiş, ve kayda öyle geçiyor:** yukarıdaki akıl yürütme, ölçüm değil. Denemede görülecek —
+  tek kişilik bir kareyi iki türlü derleyip bakmak yetiyor.
+
+## Madde 185 — Action'ı olmayan bütün kareleri dolduran araç
+
+- **Sorun:** `write_frame_prompt` tek kare alıyor *("One frame per call", kendi açıklamasında)*.
+  Deneme 4'te 21 kare **21 ana ajan raundu** ve **277.6k jeton** etti. Fatura Grok değil: her raunt
+  sistem promptunu, skill metnini ve **bağlam kabını** baştan gönderiyor, ve kaptaki yapı dosyası
+  her yazımda büyüyor — 21. raunt 1. raunttan ağır.
+- **Ne çalışır:** `action`'ı olmayan bütün kareleri dolduran ayrı bir araç. Ana ajan tarafında **tek
+  raunt**, istekler paralel. Tek kareli olan yerinde kalır — o düzeltmenin aracı.
+- **Aralık yok** *(kullanıcı kararı, 6 Eylül)*: dosyanın tamamına bakar, `action`'ı olanı **atlar**,
+  olmayanı yazar. Yapılacak işin tanımı zaten boş kare; bir `from`/`to` modele karar bindirir ve
+  hangisinin yazıldığını iki yerden takip ettirir.
+- **Not parametresi yok.** Bu ilk yazım; not düzeltmenin şeyi, ve düzeltme tek kareli aracın işi.
+- **Bir kare düşerse ötekiler durmaz.** Yirmi istekten biri hata alırsa on dokuzu yazılır ve cevap
+  **hangisinin yazılamadığını** söyler. Hepsini geri almak, bir saatlik işi tek hata için çöpe atmak
+  olurdu — ve 173'ün *"ya hep ya hiç"* kuralı yazmadan önce yapılan bir kontrole aitti, burada
+  ödenmiş bir işi geri almaya değil.
+- **Nasıl görülür:** yirmi kareli boş bir dosyada tek çağrı, ve damga bir raundun harcamasını
+  gösterir. İkinci çağrı *"yazılacak boş kare yok"* der.
+- **Değişen:** `tools.py`'de yeni bir araç ve `run_tool`'un dalı; `stream_answer`'ın çağrıları
+  **sırayla** koşması *(paralel gitmesi bu maddenin işi)*; skill metinlerinde hangisinin ne zaman
+  çağrıldığı.
+- **Kapsam dışı:** **dolu** kareleri toplu yeniden yazmak. Deneme 4'ün pahalı işi aslında oydu, ama
+  181 o düzeltmenin sebebini ortadan kaldırdı; gerekirse ayrı madde.
+- **186 buna dayanıyor**, ve sebebi aşağıda.
+
+---
+
+# Dilim 3 — akış
+
+Skill'lerin şekli. 185 bittikten sonra, çünkü birleşmenin önündeki tek engel onun çözdüğü şey.
+
+## Madde 186 — Generate prompts+ kalkar, yerine prompt düzenleme gelir
+
+- **Sorun:** bugün iki skill var ve action yazma işi ikincisinde. Kullanıcı kararı: o iş **Start a
+  scenario**'nun içine girsin, ve boşalan yere **var olan promptları düzeltmek** için ayrı bir şey
+  gelsin — düzeltme kendi başına bir iş.
+- **Neden 185'ten sonra:** Deneme 3'te 23 karenin action'ı **tek tura sığmadı**, araya bir saat
+  girerek ikiye bölündü. Akışın kuralı *"bir adım kullanıcı onaylayınca biter"* — sığmayan bir aşama
+  o kuralın içinde yaşayamaz. 185 aşamayı tek çağrıya indirdiği anda sığıyor, ve birleşme mümkün
+  oluyor. Sırası tersine dönerse madde kendi kuralını çiğneyerek doğar.
+- **Yeni skill'in adı: *Edit prompts*** *(kullanıcı kararı)*. Ne yaptığını söylüyor ve kalkan adla
+  karışmıyor. Metni İngilizce, QueenAgent'ın geri kalanı gibi.
+- **Akışın yeni şekli** *(kullanıcı kararı, 6 Eylül)* — bugünkü beş adım altıya dönüyor ve **sıra
+  değişiyor**:
+
+  | | Adım | Bugünden farkı |
+  |---|---|---|
+  | 1 | **Bağlam sorulur** — ne yapılıyor, ne için | **yeni**; bugün böyle bir adım yok |
+  | 2 | Plan yazılır | bugün 1. adım, ve bağlamı **model tahmin ediyor** |
+  | 3 | Karakterler *(+ kıyafetler)* | aynı |
+  | 4 | Mekânlar | aynı |
+  | 5 | Sahneler | aynı |
+  | 6 | **Promptlar üretilir ve iş biter** | bugün burada **devir** var |
+
+  Asıl kazanç 1 ile 2'nin sırasında: planın açılış satırı bugün *"ne yapılıyor, ne için"* diyor ama o
+  satırı model **hiçbir şey bilmeden kendi yazıyor**. Sorulunca plan bir tahmini değil bir cevabı
+  taşıyor — ve plan taze sohbetin belleği olduğu için o tahmin bugün sonraki turlara da miras
+  kalıyor.
+- **`start_scenario` 2. adıma iner** *(kullanıcı kararı)*, bugün durduğu karakter adımından. Dosyanın
+  adını veren şey zaten bağlam, ve erken açılınca sonraki her adım hazır bir dosyaya yazıyor. Bedeli
+  kabul ediliyor: bağlamı söyleyip vazgeçen bir kullanıcı ardında boş bir `.json` bırakır.
+- **6. adım 185'i çağırır**, sonra `build_prompts`. Devir mesajı ortadan kalkıyor: gidilecek başka
+  skill yok.
+- **Nasıl görülür:** tek skill seçilerek bir senaryo baştan sona kurulur ve promptları çıkar — ilk
+  soru karakter değil bağlam olur. Sonra *Edit prompts* seçilip bir kare düzeltilir.
+- **Metinler `superpowers:writing-skills` ile gözden geçirilir** *(kullanıcı isteği)*. O rehber Claude
+  Code'un kendi skill dosyaları için yazıldı, yani her kuralı geçmez; geçen kısmı **bir modelin
+  gerçekten uyduğu talimat nasıl yazılır** kısmı, ve iki metin de tam olarak o.
+- **Değişen:** `skills.py`'nin iki metni ve `INSTRUCTIONS`'ın anahtarları; frontend'in `skills.js`'i
+  *(ikisi ayrı yerde ve ayrılırsa skill hiç metin taşımaz — `test_skills.py` bunu tutuyor)*;
+  `test_skills.py`'nin pinlediği cümlelerin çoğu.
+- **Kelime tavanı:** *Start a scenario* **tam 450'de**, boşluk yok. Bu madde iki metni birleştiriyor,
+  yani tavanların yeniden konuşulması onun işi — ama **yükselterek değil**, birleşen iki metinde
+  aynı şeyi söyleyen cümleleri teke indirerek.
+
+## Madde 187 — Hazır prompt parçaları
+
+- **Sorun:** bilinen şeyler — pozisyonlar gibi — her seferinde yeniden yazdırılıyor. Kullanıcı
+  isteyince modelin hazır olanı **doğrudan göstermesi** isteniyor.
+- **Rastgelelik değil:** içlerinden biri seçilmiyor, istenen gösteriliyor. `SDXL_PROMPT_RULES`'un
+  *"model yazı tura atamaz"* kuralı yerinde kalıyor.
+- **Nerede durur:** 189'un modülünde, **adlandırılmış sabitler** olarak *(kullanıcı kararı)*. Bu
+  ortak bilgi, projeye özel değil — aynı pozisyon her senaryoda aynı. Depoda durunca herkeste aynı
+  oluyor, sürüm kontrolüne giriyor, ve öteki metinler gibi gözden geçiriliyor. 189'un *"depoda başka
+  yerde prompt yok"* nöbetçisi de bu maddeyi kendiliğinden kapsıyor.
+- **Nasıl ulaşılır:** bir araçla, **prompta gömerek değil.** Gömülürse her raundda para yakar ve
+  liste büyüdükçe büyür — 185'in bütün dersi bu. Araç olunca yalnız sorulduğunda ödeniyor.
+  Bilinmeyen bir ad istenirse cevap **bilinenleri sayar**, `build_prompts`'un bugünkü kalıbı gibi.
+- **Gösterdiğini kareye koymaz.** Göstermek göstermektir; kareye koymak `update_frame`'in işi. Bu
+  deponun fiil ayrımı zaten böyle, ve bir araç iki iş yaparsa hangisini yaptığı cevapta kaybolur.
+- **Nasıl görülür:** kullanıcı bir pozisyonu ister, model onun yazılı hâlini gösterir — yazdırmadan.
+- **Madde 130 ile çelişmiyor, ve 190'da bu yazılacak:** *"derlenmiş prompt geri basılmaz"* kuralı
+  **üretilmiş sonuç** için. Hazır parça bir **referans metin**, ve kullanıcının görmek istediği şeyin
+  ta kendisi. Ayrım bugün hiçbir yerde yazılı değil.
+
+---
+
+# Dilim 4 — yüzey
+
+Kullanıcının gördükleri. Hiçbiri ötekine dayanmıyor; bir arada duruyorlar çünkü dördü de frontend'e
+dokunuyor ve `dist` bir kez derleniyor.
+
+## Madde 191 — Yeni proje adı numaralanır
+
+- **Sorun:** her yeni proje **"New project"** adıyla doğuyor *(`create_project.py`'nin
+  `NEW_PROJECT_NAME`'i)*, ve aynı adı taşıyan üç proje kenar çubuğunda ayırt edilemiyor.
+- **Ne çalışır:** **her proje numaralı doğar** — *New project 1*, *New project 2*, *New project 3*
+  *(kullanıcı kararı, 6 Eylül)*. Sıradaki boş numarayı alır: 2 silinip yenisi açılırsa boşluk
+  dolar.
+- **Emsal var ama birebir değil, ve fark bilerek:** `naming.py`'nin `unique_name`'i **ilkine
+  dokunmuyor** ve ikinciden itibaren **tireyle** numaralıyor — `plan.md` sonra `plan-2.md`. Burada
+  ilki de numara alıyor, ve ayırıcı **boşluk**. İkisinin de sebebi var: tire dosya adının işareti,
+  proje başlığının değil; ve numarasız ilk proje **sonsuza kadar özel** kalır — yeniden
+  adlandırıldığı gün numaralamada delik açar.
+- **Nasıl görülür:** üst üste üç proje açılır ve *New project 1/2/3* diye listelenir.
+- **Değişen:** `create_project.py`; `test_projects_api.py`'nin `"New project"` bekleyen satırı.
+
+## Madde 192 — Dosyalar tazelenir: hem liste, hem detay
+
+- **Sorun:** ekran kendi kendine tazelenmiyor, ve **iki yerde** — dosya listesinde ve bir dosyanın
+  detayında *(kullanıcı, 6 Eylül)*. İkisinden ağır olanı detay: **liste bayatlayınca bir ad gizlenir,
+  detay bayatlayınca yanlış içerik gösterilir.**
+- **Emsali modelde var:** Madde 129 bağlam kabını tam bu yüzden diskten okutuyor — bir kopya, yazıldığı
+  anda bayatlıyor. Kullanıcının ekranında o kural yok.
+- **Ne çalışır — ikisi birden** *(kullanıcı kararı)*: tur bitince **kendiliğinden** tazelenir, artı
+  elle basılacak bir **düğme**. Kendiliğinden olan sık durumu halleder; düğme gerisini, çünkü dosyayı
+  yazan şey her zaman bir tur değil — kullanıcı Drive'dan elle bir dosya koyabilir, ya da uzun bir
+  turun ortasına bakmak isteyebilir.
+- **Nasıl görülür:** tur bitince yeni dosya listede belirir, ve açık duran bir dosyanın içeriği
+  değiştiyse yenisi görünür. Düğme her ikisini turdan bağımsız yapar.
+- **Değişen:** frontend'in dosya listesi ve dosya detayı; `dist`.
+
+## Madde 193 — Dosyanın üstünde kopyala düğmesi
+
+- **Sorun:** `build_prompts` promptları bir dosyaya yazıyor ve sohbete basmıyor *(Madde 130, ve o
+  kural yerinde kalıyor)*. Prompt'u almanın tek yolu elle seçmek.
+- **Ne çalışır:** dosyanın üstünde bir kopyala ikonu; basınca **dosyanın tamamı** panoya gider
+  *(kullanıcı kararı, 6 Eylül)*.
+- **Her dosyada, yalnız prompt dosyasında değil.** `.py`'ye özel yapmanın sebebi yok, ve genel olunca
+  plan da senaryo da kopyalanabiliyor.
+- **Prompt başına düğme bilerek yapılmıyor.** Dosya düz metin olarak gösteriliyor; promptları tek tek
+  tanımak, `render_module`'ün yazdığı şeklin ön yüzde **ikinci bir okuyucusu** demek — ve o okuyucu
+  yazıcıdan ayrıldığı gün düğmeler yanlış metni kopyalar. `.json`'dan okumak da çözüm değil: o zaman
+  kopyalanan şey `build_prompts`'un ürettiği değil, ön yüzün kendi kurduğu olur, ve **iki yerde
+  derleme iki farklı sonuçtur.**
+- **Madde 130 ile çelişmiyor:** kopyalamak, prompt'u sohbete basmak değil. Kural metnin **modele geri
+  dönmemesi** hakkında; pano modelin göremediği bir yer.
+- **Nasıl görülür:** dosya açılır, ikona basılır, içerik panodadır.
+- **Değişen:** frontend'in dosya görünümü; `dist`.
+
+## Madde 194 — Koşan tur mesajın altında canlı görünür
+
+- **Sorun:** damga turun **sonunda** düşüyor. Uzun bir tur boyunca ekranda ilerlemeyi gösteren
+  hiçbir şey yok.
+- **Ne çalışır:** **damganın bugün durduğu yerde**, tek satır, hepsi yan yana — sütun ya da sağ/sol
+  ayrımı yok *(kullanıcı kararı, 6 Eylül)*:
+
+  ```
+  ⠹ Ideating… · raund 4/16 · 12.3k jeton
+  ```
+
+- **Donmuş görünmemesi asıl mesele.** Sayı otuz saniye kıpırdamayabilir; ekranı canlı tutan şey
+  kelimenin dönmesi değil, **sürekli dönen spinner**. Kelime birkaç saniyede bir değişir.
+- **Kelime Claude Code'daki gibi olur** *(kullanıcı kararı)*: dönen, ilginç, ve ne yapıldığını
+  söylemeye çalışmayan — o üsluptan *(gerundlu, esprili)* bir liste yazılır. Araç adından türetilen
+  bir metin **istenmedi**; bilgi taşıyan iki parça zaten yanında duruyor.
+- **Gösterilen sayı: `sent + cached + answered`**, yani turun **toplam hacmi** — tek sayı, ve
+  Deneme 4'te rahatsız eden **277.6k** tam olarak buydu. Yalnız `sent` işin yarısını gizlerdi:
+  `cached` de gidiyor, sadece ucuza. Şerit *"bu tur ne kadar büyüdü"* sorusunu cevaplıyor, faturayı
+  değil — fatura turun sonunda damgada duruyor.
+- **Tur bitince şerit damgaya dönüşür**: aynı yer, aynı tasarım, spinner durur, sayı donar. İki ayrı
+  şeyin yer değiştirmesi göze zıplardı.
+- **Nasıl görülür:** çok raundlu bir tur koşarken spinner döner, kelime değişir, raund ve jeton artar;
+  tur bitince aynı satır damga olur.
+- **Değişen:** `stream_answer`'ın akışa ne koyduğu *(raundları zaten tek tek koşuyor ve harcamayı
+  topluyor; eksik olan bunun ön yüze **ulaşması**)*; `useChat.js` ve `ChatScreen.jsx`; `dist`.
+
+---
+
+# Dilim 5 — kapanış
+
+Koşunun son işi, ve **kullanıcının kendi işi.**
+
+## Madde 190 — Modele giden her metin tek oturumda okunur
+
+> **Bu maddeyi kullanıcı yapıyor, ajan değil** *(kullanıcı kararı, 6 Eylül)*. Koşu buraya gelince
+> ajan **durur ve haber verir**; kendi başına başlamaz.
+
+- **Sorun:** hepsi madde madde yazıldı. Her biri kendi turunda doğruydu; **hiçbir tur ötekinin
+  yanında nasıl okunduğuna bakmadı.**
+- **Ne okunur:** 189'un topladığı dosyanın tamamı — `SYSTEM_PROMPT`, `LAST_ROUND`, skill metinleri,
+  araç açıklamaları ve parametre metinleri, `SDXL_PROMPT_RULES`, `WRITE_FRAME_SYSTEM_PROMPT`, hazır
+  parçalar, ve araçların cevap cümleleri.
+- **Hem temizlik hem geliştirme** *(kullanıcı kararı)*. Temizlik: çelişen iki cümle, iki yerde
+  anlatılan aynı kural, bir metnin ötekinin işini yapması. Geliştirme: kalan cümlelerin daha iyi
+  yazılması. İkisi bir arada, ve sınırı çizen kullanıcı.
+- **Nasıl görülür:** silinen her cümle için, onu gereksiz kılan öteki metin adıyla gösterilir.
+- **En sonda, ve sebebi:** 183 yazarın kimliğini, 186 skill metinlerini değiştiriyor, 189 hepsini tek
+  yere taşıyor, 187 yenilerini ekliyor. Bunlardan önce yapılan bir okuma, dördünden sonra yeniden
+  yapılmak zorunda kalırdı. 191-194 metne hiç dokunmuyor, yani onların arkasında beklemesinin bir
+  maliyeti yok — ve beklerken ajan tarafındaki hiçbir işi bloklamıyor.
+
+---
+
+## Kapsam dışı, ve nerede duruyor
+
+- **Madde 188 — promptların etiketleşmesi.** Taslak okunurken geri çekildi *(kullanıcı kararı,
+  6 Eylül)* ve `BACKLOG.md`'ye döndü. Numarası boş kalıyor: bir numara bir kez verilir, ve boşluk
+  onun geri çekildiğini söyler. Konuşmada varılan yer maddenin kendisinde yazılı — kısaca: sert bir
+  kelime tavanı yanlış yol, ayırt edici işaret **özne, ad ve çekimli fiil.**
+- **Dolu kareleri toplu yeniden yazmak** — 185'in kapsam dışı; 181 sebebini kaldırdı.
+- **queen-editor'ün maddeleri** — kendi `BACKLOG.md`'sinde: iki hata, üç LoRA işi, editör kısmı,
+  MiniMax ve slime girl. Bu koşu yalnız QueenAgent.
+- **Merge'den önce:** `queenagent.ipynb` ve `test_notebook.py`'nin `BRANCH`'i bu dala çevrilir, ve
+  birleşmeden önce `main`'e döner. İkisi tek testle bağlı.

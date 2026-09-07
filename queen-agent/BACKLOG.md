@@ -29,11 +29,35 @@ o kuralın içinde yaşayamaz. Birleştirme bunun cevabıyla birlikte tasarlanı
 
 ## Promptlar daha etiket hâline getirilecek
 
-*(Kullanıcı, 6 Eylül.)* Kural `SDXL_PROMPT_RULES`'ta zaten yazılı — *cümle değil, kısa virgüllü
-parçalar; artikel etiket değil* — ama çıkan metin hâlâ cümleye kayıyor. İki üretici var ve ikisi de
-bakılacak: haritaların etiketlerini yazan ana ajan, ve eylem satırını yazan Grok.
+*(Kullanıcı, 6 Eylül. v8 yol haritasına Madde 188 olarak girdi ve **taslak okunurken geri çekildi**;
+numarası orada boş duruyor.)*
 
-Kuralı sıkılaştırmak mı, örnek çoğaltmak mı, yoksa yazılanı geri okuyup ölçmek mi — **kararlaşmadı.**
+Kural `SDXL_PROMPT_RULES`'ta zaten yazılı — *cümle değil, kısa virgüllü parçalar; artikel etiket
+değil* — ama çıkan metin hâlâ cümleye kayıyor. İki üretici var ve ikisi de bakılacak: haritaların
+etiketlerini yazan ana ajan, ve eylem satırını yazan Grok.
+
+**Konuşmada varılan yer, bir dahaki sefere sıfırdan başlanmasın diye:**
+
+**Sert bir kelime tavanı yanlış yol.** *"Bir etiket 2 kelimeyi geçmesin"* denendi ve bugünkü
+kuralların kendi örneklerini kırıyor: `long black hair` (3), `woman in her mid 20s` (5),
+`sitting on couch` (3), `over the shoulder` (3), `penis penetrating vagina` (3). Hepsi iyi etiket.
+
+**Ayırt edici işaret uzunluk değil, cümlenin işaretleri** — ve bunlar kodla ölçülebilir:
+
+- **Özne** — *"**she** turns her head"*. Etiket öznesiz olur: `head turned`.
+- **Ad** — ve bunun ayrı bir kazancı var: Deneme 3'ün **hiç düzeltilmemiş** bulgusu, yazarın adları
+  etiket diye yazması *(`over the shoulder from kyle`)*. Adlar yazara **kasten** veriliyor, notu
+  eşleştirebilsin diye; satıra girmemesi gerektiği hiçbir yerde yazılı değil. Özne yasağı ikisini
+  birden kapatıyor.
+- **Çekimli fiil** — *"turns"* yerine `turning` ya da `turned`.
+- Artı yumuşak bir yönlendirme: **çoğu etiket 2-3 kelime**, tavan değil terbiye.
+
+**Geri okuyup ölçmek mümkün, ama sessiz düzeltme olmadan.** Kod yalnız *"şu satırda ad var"* diyebilir;
+düzeltirse 181'de reddedilen şeyi yapar — kodun modelin cümlesine karışması. Reddetmek de bir raunt
+daha demek. **Kararlaşmadı.**
+
+**Sorulmamış soru:** Deneme 4'ün `.py`'sinde hangisi daha çok kayıyordu — karakter etiketleri mi,
+action satırı mı? Cevap, işin hangi üreticiden başlayacağını söyler.
 
 ## Koşan tur mesajın altında canlı görünecek
 
