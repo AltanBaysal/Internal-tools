@@ -19,6 +19,11 @@ olabilir, yalnız ön yüzün eski satırı bırakması da. İkisi çok farklı 
 ekranda kaç satır göründü, ve dışa aktarmaya hangisi düştü — yani hata yalnız görüntüde mi, yoksa
 diske de mi ulaşıyor.
 
+### Hata — oynatma düğmesi video oynarken üstünde duruyor
+
+*(Kullanıcı bildirimi, 6 Eylül.)* Video başlayınca başlat/durdur düğmesi kaybolmuyor, görüntünün
+**üzerinde kalıyor** ve karenin bir kısmını örtüyor.
+
 ### Fotoğraf üretim hızı — hız LoRA'ları
 
 Üretim hızlansın; yol olarak hız LoRA'ları denenecek. Kazanç fotoğraf tarafında görünüyor, video
