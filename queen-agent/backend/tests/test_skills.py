@@ -65,23 +65,32 @@ def test_the_instruction_no_longer_carries_the_schema():
     assert '"frames"' not in said and '"outfits"' not in said
 
 
-def test_the_instruction_no_longer_carries_the_rulebook():
-    from backend.features.workspace.domain.schema import RULEBOOK
+def test_no_instruction_names_a_tool_that_is_gone():
+    # Madde 172, and the guard m127 cost a trial for the want of. A skill text naming a tool that
+    # does not exist tells the model to make a call that comes back "there is no tool called that",
+    # and the model has no way to find that out except by spending a round on it.
+    #
+    # Asked of every underscored word rather than of a list written here: a tool deleted later has
+    # to be caught by this test existing, not by somebody remembering to add its name.
+    from backend.features.workspace.domain.tools import TOOL_SPECS
 
-    assert RULEBOOK not in instruction_for("generate-prompts-plus")
+    # pov_ is not a tool, it is the prefix Madde 182 names a half-seen character by, and it is
+    # written as the bare prefix rather than pov_kyle so that what is exempt here is a naming rule
+    # and not somebody's name. The reason above survives it: a tool deleted later still has nowhere
+    # to hide, because this exemption is one word and it is not a tool's.
+    known = {spec["function"]["name"] for spec in TOOL_SPECS} | {"pov_"}
+    for skill, said in INSTRUCTIONS.items():
+        named = {word.strip(".,;:") for word in said.split() if "_" in word}
+        assert named <= known, (skill, named - known)
 
 
-def test_the_instruction_reads_the_schema_before_it_builds():
-    # The order is part of the instruction: the shape is fetched, the file is written, and only then
-    # is anything built from it.
+def test_the_builder_writes_each_frames_action_then_builds():
+    # Madde 178. The skeleton and the batches of five went with the tools that made them: a
+    # scenario is opened by start_scenario and its frames are written by the flow, so what is left
+    # for this skill is the sentence each frame turns on, and then the list.
     said = instruction_for("generate-prompts-plus")
-    assert said.index("read_prompt_structure_schema") < said.index("build_prompts with")
-
-
-def test_the_structured_instruction_writes_the_skeleton_then_batches_of_five():
-    said = instruction_for("generate-prompts-plus")
-    assert "skeleton" in said and "batches of five" in said
-    assert "create_file" in said and "edit_file" in said
+    assert "write_frame_prompt" in said
+    assert said.index("write_frame_prompt") < said.rindex("build_prompts")
 
 
 def test_the_structured_instruction_forbids_assembling_a_prompt_by_hand():
@@ -104,12 +113,50 @@ def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
     assert "rebuilt rather than patched" in instruction_for("generate-prompts-plus")
 
 
-def test_no_instruction_carries_the_rulebook_any_more():
-    # It was one text with two readers until Madde 94 took the checking skill away, and one reader
-    # until Madde 96 moved it out of the texts entirely. Whoever writes a file fetches it.
-    from backend.features.workspace.domain.schema import RULEBOOK
+# --- somebody the camera is standing in (Madde 182) -----------------------------------------------
+#
+# Being in a frame's cast is all or nothing, and the builder writes the whole of an entry. In a POV
+# frame none of that person is in shot, and an SDXL-family model with no body to hang those tags on
+# hangs them on the one that is there -- the woman comes back with the man's hair, and a picture
+# holding one person is asked for 1girl and 1boy at once.
+#
+# The user's decision of 5 Sep is a rule rather than a field: a second character, pov_ and their
+# name, short and countless and wearing nothing, opened when the character is opened rather than
+# when a POV frame turns up. Nothing in the code moves -- add_character already takes that name and
+# a cast already names whoever it likes.
 
-    assert not [skill for skill in INSTRUCTIONS if RULEBOOK in INSTRUCTIONS[skill]]
+
+def test_the_flow_opens_a_pov_entry_beside_each_character():
+    # Opened with the character, not when a frame needs one: needing one happens in the middle of a
+    # correction turn, which is the worst moment to send the model back to the maps.
+    said = _flow()
+    assert "pov_" in said
+    assert said.index("pov_") > said.index("2. The characters")
+
+
+def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
+    # Both are the leak. A count makes the picture claim a person it does not show, and an outfit
+    # dresses the frame with clothes nobody in it is wearing.
+    said = _flow().lower()
+    assert "no count" in said
+    assert "no outfit" in said
+
+
+def test_a_pov_frame_names_the_pov_entry_in_its_cast():
+    # The other half, and it lives here because "make this one POV" arrives during a correction --
+    # this skill's turn, not the flow's.
+    assert "pov_" in instruction_for("generate-prompts-plus")
+
+
+def test_no_instruction_carries_the_prompt_rules():
+    # It was one text with two readers until Madde 94 took the checking skill away, and one reader
+    # until Madde 96 moved it out of the texts entirely. Madde 172 moved it once more -- to the six
+    # tools that take tags, where it sits beside the parameter it governs and is read while the tool
+    # is being chosen. A copy back here would be paid for by every turn, including the ones writing
+    # no tags at all.
+    from backend.features.workspace.domain.tools import SDXL_PROMPT_RULES
+
+    assert not [skill for skill in INSTRUCTIONS if SDXL_PROMPT_RULES in INSTRUCTIONS[skill]]
 
 
 # --- the flow that walks the user through it (Madde 101) -----------------------------------------
@@ -124,7 +171,8 @@ def test_the_flow_writes_the_plan_before_it_asks_anything():
     # different every time, and has nowhere to keep its place.
     said = _flow()
     assert "write_plan" in said
-    assert said.index("write_plan") < said.index("read_prompt_structure_schema")
+    # Ordered against the next step rather than against the schema fetch, which Madde 172 retired.
+    assert said.index("write_plan") < said.index("2. The characters")
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
@@ -161,38 +209,55 @@ def test_a_finished_step_reaches_the_plan():
     assert "marked done" in _flow()
 
 
-def test_the_structure_file_is_born_once():
-    # The observed failure wears two masks here: everything gathered in chat and written at the
-    # end, or a new file per step. One birth at the characters step rules out both -- and the
-    # schema is read before the birth, the same order the other skill keeps.
+def test_the_scenario_is_opened_by_the_tool_that_opens_one():
+    # The observed failure wears two masks: everything gathered in chat and written at the end, or
+    # a new file per step. One birth rules out both, and since Madde 167 the tool enforces it --
+    # start_scenario refuses a name that is taken, so the text only has to say which step opens it.
     said = _flow()
-    assert "born once" in said
-    assert "never a second file" in said
-    assert said.index("read_prompt_structure_schema") < said.index("born once")
+    assert "start_scenario" in said
+    assert said.index("start_scenario") < said.index("3. The places")
+
+
+def test_the_flow_fills_the_maps_with_the_tools_that_own_them():
+    # Madde 168 to 170. Three maps, three tools, and the text names them rather than describing a
+    # shape: the model knows a tool's signature and never the file's.
+    said = _flow()
+    assert "add_character" in said
+    assert "add_outfit" in said
+    assert "add_location" in said
 
 
 def test_the_flow_hands_the_frames_to_the_builder():
-    # K40 overturned K32 (28 Aug): writing action and camera detail is heavy work, and the flow's
-    # asking rhythm is not where it belongs. The flow leaves the foundation and names its heir --
-    # the frames stay out of the structure file on purpose.
+    # The handoff, and what it now hands over. The flow writes the frames -- Madde 173 gave it a
+    # tool that takes a scene whole -- and leaves their actions to the model that writes those.
     said = _flow()
     assert "Generate prompts+" in said
-    assert "frames stay empty" in said
+    assert "add_scene" in said
 
 
-def test_the_scene_list_is_named_after_the_structure_file():
-    # The discovery mechanism: prompt+ finds the pair by name with list_files, so the convention
-    # has to be pinned or the handoff rests on a guess.
-    assert "bar-scene-scenes.md" in _flow()
+def test_the_scenes_step_writes_the_cast_into_the_frame():
+    # The frame is born with its cast (Madde 173), so the step that writes one has to ask who is in
+    # it. A scene written without its cast builds into a prompt with nobody in the picture.
+    said = _flow()
+    assert "who is in it" in said
+
+
+def test_no_instruction_writes_a_scene_list_file():
+    # It existed because a frame had nowhere to keep its brief. Since Madde 173 the scene sentence
+    # is a field of the frame, and a second copy in a .md would be the same sentence in two places
+    # -- which is the shape every staleness bug in this app has had.
+    for skill, said in INSTRUCTIONS.items():
+        assert "-scenes.md" not in said, skill
+        assert "scene list" not in said, skill
 
 
 def test_the_builder_picks_up_where_the_flow_stops():
-    # The other half of K40: the flow leaves a scene list, and this skill reads it, writes the
-    # frames in its order, and resumes by shortfall -- fewer frames than sentences is work left.
+    # The other half of the handoff. What the flow leaves is frames with a scene and no action, so
+    # that is what this skill looks for -- and it is how the work resumes after a chat that ran out
+    # of room: the file itself says which frames are still waiting.
     said = instruction_for("generate-prompts-plus")
     assert "Start a scenario" in said
-    assert "scene list" in said
-    assert "first sentence with no frame" in said
+    assert "no action" in said
 
 
 def test_the_handoff_is_a_step_of_its_own():
@@ -204,27 +269,25 @@ def test_the_handoff_is_a_step_of_its_own():
     assert said.index("5. The handoff") < said.rindex("Generate prompts+")
 
 
-def test_the_flow_never_writes_a_frame_even_when_asked():
-    # What happened: asked for the frames, the flow wrote all ten in one edit. The batching rule
-    # and the craft licence live in the other skill, so the ask is answered by pointing there.
+def test_the_flow_leaves_the_action_to_the_other_skill():
+    # It writes the frames now, which it never did before Madde 173 -- but not their actions. That
+    # sentence is the whole reason this run has two models, and a flow writing one by hand would be
+    # the way round the model kept for writing them.
     said = _flow()
-    assert "never written here" in said
-    assert "not even when the user asks" in said
+    assert "no action" in said
+    assert "write_frame_prompt" not in said
 
 
-def test_the_sentence_is_a_brief_never_the_frames_text():
-    # The observed failure: scene sentences retold as the action, word for word. The brief line
-    # holds the door: the sentence briefs the frame, the frame's text is this skill's own.
-    said = instruction_for("generate-prompts-plus")
-    assert "never text to copy into the frame" in said
+def test_the_craft_rules_left_the_texts_with_the_work(_=None):
+    # Two rules used to live in prompt+: a scene sentence is a brief and not text to copy, and
+    # neighbouring frames must differ in framing. Both were about writing an action, and since
+    # Madde 176 the main model does not write one -- so they moved to the prompt writer's own
+    # system prompt, where they are read once by the model they are for.
+    from backend.features.workspace.domain.tools import WRITE_FRAME_SYSTEM_PROMPT
 
-
-def test_the_builder_varies_the_camera_between_frames():
-    # Ten scenes came back as one framing. The craft licence was there; the reason to use it was
-    # not.
-    said = instruction_for("generate-prompts-plus")
-    assert "the same framing and angle" in said
-    assert "differ in at least one" in said
+    assert "framing and angle" in WRITE_FRAME_SYSTEM_PROMPT
+    for skill, said in INSTRUCTIONS.items():
+        assert "framing" not in said, skill
 
 
 def test_a_delegation_answers_only_the_question_that_was_asked():
@@ -317,25 +380,40 @@ def test_no_instruction_reaches_for_the_listing_tool():
     assert "first turn opens with write_plan" in _flow()
 
 
-def test_the_flow_fetches_the_schema_once():
-    said = _flow()
-    assert "once, before the birth" in said
-    assert "do not fetch it again" in said
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_no_instruction_sends_the_model_to_fetch_a_shape(skill):
+    # Madde 172. Both texts opened by fetching the schema, because for a while the model really did
+    # write the file's shape. It does not any more -- it calls a function -- so a sentence sending
+    # it to read the shape first spends a round on a tool that is gone.
+    assert "schema" not in instruction_for(skill).lower()
 
 
-def test_the_builder_fetches_the_schema_once():
-    assert "once, before the first write" in instruction_for("generate-prompts-plus")
-
-
-def test_prompt_plus_adds_frames_with_the_tool_rather_than_an_edit():
-    # Madde 128. The text was the whole reason the model reached for edit_file to append: it said
-    # so in as many words, and a weak model follows what it is shown.
+def test_the_builder_no_longer_writes_frames_at_all():
+    # Madde 128 put add_frames in this text; Madde 173 replaced the tool and Madde 178 moved the
+    # job. The frames arrive written -- what this skill does to a file is fill in the sentences and
+    # build. A text still naming the adding tools would have two skills writing frames into one
+    # file, each from a different idea of what is already there.
     said = instruction_for("generate-prompts-plus")
-    assert "add_frames" in said
-    assert "Add frames with edit_file" not in said
-    # The batches stay. They are not about anchors -- quality falls away at the end of a long
-    # answer -- so the rhythm belongs in the text even once the tool needs no read between them.
-    assert "five" in said
+    assert "add_scene" not in said
+    assert "add_frames" not in said
+
+
+def test_a_complaint_is_written_again_rather_than_edited():
+    # Two roads and the text names both, because they answer different complaints. One frame's
+    # sentence is wrong: call the writer again with a note. Somebody looks wrong in every frame
+    # they are in: that is the map entry, and one update reaches all of them.
+    said = instruction_for("generate-prompts-plus")
+    assert "note" in said
+    assert "update_" in said
+
+
+def test_no_instruction_touches_a_structure_file_as_text():
+    # Madde 171 shut that door in the code; a text still telling the model to walk through it would
+    # spend a round being refused. edit_file is not gone -- it writes documents -- so this asks
+    # about the pairing rather than about the name.
+    for skill, said in INSTRUCTIONS.items():
+        assert "edit_file on the frame" not in said, skill
+        assert "structure file's maps" not in said, skill
 
 
 def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():

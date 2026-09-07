@@ -34,7 +34,7 @@ def _client(opener, api_key="key"):
 def test_no_key_is_reported_before_anything_is_sent():
     sent = []
     with pytest.raises(XaiNotConfigured) as refused:
-        _client(lambda request: sent.append(request), api_key="").complete(MESSAGES)
+        _client(lambda request: sent.append(request), api_key="").write_once(MESSAGES)
     assert sent == []
     # Deliberately does not name where a key would come from. The client is not told, and a sentence
     # that guessed would have been wrong twice already -- once when Settings replaced the
@@ -51,16 +51,38 @@ def test_the_key_is_read_at_every_request():
         return _Response({"choices": [{"message": {"role": "assistant", "content": "hi"}}]})
 
     client = XaiClient(lambda: keys.pop(0), "grok-4.5", "https://api.x.ai/v1", opener=opener)
-    client.complete(MESSAGES)
-    client.complete(MESSAGES)
+    client.write_once(MESSAGES)
+    client.write_once(MESSAGES)
     # Read per request rather than held: the client stays out of the question of where the key comes
     # from, so a source that can change mid-run costs it nothing.
     assert seen == ["Bearer first", "Bearer second"]
 
 
-def test_the_answer_is_the_assistant_message():
-    opener = lambda request: _Response({"choices": [{"message": {"role": "assistant", "content": "hi"}}]})
-    assert _client(opener).complete(MESSAGES) == {"role": "assistant", "content": "hi"}
+def test_the_answer_is_the_text_and_what_it_cost():
+    # Madde 175. The old road handed back the assistant's whole message, which the only caller then
+    # reached into for content. What a one-shot write needs is the words and the bill: the words are
+    # a tool's answer and the bill belongs on the turn's stamp, and nothing else in that payload was
+    # ever read.
+    payload = {
+        "choices": [{"message": {"role": "assistant", "content": "hi"}}],
+        "usage": {
+            "prompt_tokens": 41,
+            "completion_tokens": 2,
+            "prompt_tokens_details": {"cached_tokens": 12},
+        },
+    }
+    assert _client(lambda request: _Response(payload)).write_once(MESSAGES) == {
+        "text": "hi",
+        "spent": {"sent": 41, "cached": 12, "answered": 2},
+    }
+
+
+def test_an_answer_that_says_nothing_about_its_cost_still_has_the_shape():
+    # A service that mentions no usage leaves an empty bill rather than a missing key: the caller
+    # adds this to a total, and a shape that changes with the weather is one the caller has to ask
+    # about every time.
+    opener = lambda request: _Response({"choices": [{"message": {"content": "hi"}}]})
+    assert _client(opener).write_once(MESSAGES) == {"text": "hi", "spent": {}}
 
 
 def test_the_request_carries_the_model_the_messages_and_the_bearer():
@@ -72,7 +94,7 @@ def test_the_request_carries_the_model_the_messages_and_the_bearer():
         seen["body"] = json.loads(request.data.decode("utf-8"))
         return _Response({"choices": [{"message": {"content": "hi"}}]})
 
-    _client(opener).complete(MESSAGES)
+    _client(opener).write_once(MESSAGES)
     assert seen["url"] == "https://api.x.ai/v1/chat/completions"
     assert seen["auth"] == "Bearer key"
     assert seen["body"]["model"] == "grok-4.5"
@@ -95,14 +117,29 @@ def test_a_stream_carries_the_configured_model_too():
 
 
 def test_tools_are_sent_when_given():
+    # Asked of the stream since Madde 175: it is the only road that carries tools now, and the
+    # shared request builder is what this measures.
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return io.BytesIO(b"data: [DONE]\n")
+
+    list(_client(opener).stream(MESSAGES, tools=[{"type": "function"}]))
+    assert seen["body"]["tools"] == [{"type": "function"}]
+
+
+def test_a_one_shot_write_sends_no_tools():
+    # The model on the other end has one sentence to write and nothing to call. A tool list in
+    # front of it is a page of text it has to read past.
     seen = {}
 
     def opener(request):
         seen["body"] = json.loads(request.data.decode("utf-8"))
         return _Response({"choices": [{"message": {"content": "hi"}}]})
 
-    _client(opener).complete(MESSAGES, tools=[{"type": "function"}])
-    assert seen["body"]["tools"] == [{"type": "function"}]
+    _client(opener).write_once(MESSAGES)
+    assert "tools" not in seen["body"]
 
 
 def test_an_http_error_carries_the_services_own_words():
@@ -112,7 +149,7 @@ def test_an_http_error_carries_the_services_own_words():
         )
 
     with pytest.raises(XaiFailed) as failure:
-        _client(opener).complete(MESSAGES)
+        _client(opener).write_once(MESSAGES)
     # A 401 is not necessarily an expired key, so the message repeats what came back.
     assert "401" in str(failure.value)
     assert "bad key" in str(failure.value)
@@ -165,6 +202,84 @@ def test_a_tool_call_arrives_whole_in_one_frame():
     ]
 
 
+# --- a tool call that arrives in pieces (Madde 148) ----------------------------------------------
+#
+# The comment above says xAI sends one whole call in one chunk, and it does. DeepSeek does not: it
+# fragments the call the way OpenAI documents, and only the first piece carries the name. Forwarded
+# raw, the later pieces reached stream_answer as calls of their own and `call["function"]["name"]`
+# died with a bare KeyError -- which is the whole of what the user saw.
+#
+# The fix belongs here rather than above: the layers above expect a whole call and are right to,
+# because fragmentation is a detail of carrying one.
+
+
+def _piece_line(index, arguments, call_id=None, name=None):
+    """One fragment the way DeepSeek really sends it: the first names the tool, the rest only grow
+    the arguments. `index` is what says which call a fragment belongs to."""
+    function = {"arguments": arguments}
+    if name is not None:
+        function["name"] = name
+    piece = {"index": index, "function": function}
+    if call_id is not None:
+        piece["id"] = call_id
+    frame = {"choices": [{"delta": {"tool_calls": [piece]}}]}
+    return b"data: " + json.dumps(frame).encode("utf-8")
+
+
+def test_a_call_split_across_frames_comes_out_whole():
+    lines = [
+        _piece_line(0, "", call_id="t1", name="write_plan"),
+        _piece_line(0, '{"na'),
+        _piece_line(0, 'me": "plan.md"}'),
+        b"data: [DONE]",
+    ]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"tool_calls": [{"id": "t1", "function": {"name": "write_plan", "arguments": '{"name": "plan.md"}'}}]}
+    ]
+
+
+def test_two_calls_in_one_turn_do_not_mix():
+    # Joined by index rather than by arrival: the field exists for this, and two tools asked for in
+    # one round interleave their fragments on the wire.
+    lines = [
+        _piece_line(0, "", call_id="t1", name="read_file"),
+        _piece_line(1, "", call_id="t2", name="write_plan"),
+        _piece_line(0, '{"a": 1}'),
+        _piece_line(1, '{"b": 2}'),
+        b"data: [DONE]",
+    ]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {
+            "tool_calls": [
+                {"id": "t1", "function": {"name": "read_file", "arguments": '{"a": 1}'}},
+                {"id": "t2", "function": {"name": "write_plan", "arguments": '{"b": 2}'}},
+            ]
+        }
+    ]
+
+
+def test_words_still_arrive_as_they_are_said_and_the_call_closes_the_stream():
+    # A model may speak before it reaches for a tool. The words must not wait for the call to be
+    # finished -- they are what the user is watching.
+    lines = [
+        b"data: " + _delta_line("Right"),
+        _piece_line(0, "", call_id="t1", name="write_plan"),
+        _piece_line(0, "{}"),
+        b"data: [DONE]",
+    ]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"text": "Right"},
+        {"tool_calls": [{"id": "t1", "function": {"name": "write_plan", "arguments": "{}"}}]},
+    ]
+
+
+def test_a_stream_that_called_nothing_says_nothing_about_tools():
+    # An empty list is not "no tools": stream_answer reads anything that is not text or usage as a
+    # call, so an empty one would be taken for a round that asked for something.
+    lines = [b"data: " + _delta_line("just words"), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [{"text": "just words"}]
+
+
 # --- what the answer spent, read off the wire (Madde 68) -----------------------------------------
 
 
@@ -205,6 +320,35 @@ def test_a_frame_can_carry_both_words_and_counts():
     ]
 
 
+def _deepseek_usage_line(prompt, hit, miss, completion):
+    """One frame the way DeepSeek really sends it (Madde 146).
+
+    Read off DeepSeek's own documentation (2 September) rather than written from memory: the two
+    cache counts sit flat beside prompt_tokens rather than nested, and there is no
+    prompt_tokens_details at all. `sent` and `answered` are named the same by both.
+    """
+    frame = {
+        "choices": [{"delta": {}}],
+        "usage": {
+            "prompt_tokens": prompt,
+            "completion_tokens": completion,
+            "prompt_cache_hit_tokens": hit,
+            "prompt_cache_miss_tokens": miss,
+        },
+    }
+    return b"data: " + json.dumps(frame).encode("utf-8")
+
+
+def test_deepseeks_cache_hit_is_read_as_cached():
+    # The same question in two shapes -- what did not have to be paid for a second time. Left
+    # unread, a DeepSeek run would report nothing cached forever and the prefix cache could never
+    # be told from a cold one.
+    lines = [_deepseek_usage_line(1200, 900, 300, 40), b"data: [DONE]"]
+    assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
+        {"usage": {"sent": 1200, "cached": 900, "answered": 40}}
+    ]
+
+
 def test_counts_without_a_cache_breakdown_read_as_nothing_cached():
     frame = {"choices": [{"delta": {}}], "usage": {"prompt_tokens": 41, "completion_tokens": 2}}
     lines = [b"data: " + json.dumps(frame).encode("utf-8"), b"data: [DONE]"]
@@ -235,7 +379,7 @@ def test_a_request_that_is_not_a_stream_does_not_ask():
         seen["body"] = json.loads(request.data.decode("utf-8"))
         return _Response({"choices": [{"message": {"content": "hi"}}]})
 
-    _client(opener).complete(MESSAGES)
+    _client(opener).write_once(MESSAGES)
     assert "stream_options" not in seen["body"]
 
 
@@ -308,12 +452,29 @@ def test_an_empty_conversation_id_sends_no_header():
     assert seen["conv"] is None
 
 
+def test_deepseek_is_not_sent_the_grok_conversation_header():
+    # Madde 146. The header is xAI's own way of routing a request to its conversation's cache;
+    # DeepSeek matches prefixes by itself and documents nothing of the kind, so sending it there
+    # would be a made-up name on somebody else's wire.
+    seen = {}
+
+    def opener(request):
+        seen["conv"] = request.get_header("X-grok-conv-id")
+        return _Lines([b"data: [DONE]"])
+
+    client = XaiClient(
+        lambda: "key", "deepseek-v4-flash", "https://api.deepseek.com", opener=opener
+    )
+    list(client.stream(MESSAGES, conversation_id="c1"))
+    assert seen["conv"] is None
+
+
 def test_a_dead_connection_is_reported_too():
     def opener(request):
         raise urllib.error.URLError("connection refused")
 
     with pytest.raises(XaiFailed) as failure:
-        _client(opener).complete(MESSAGES)
+        _client(opener).write_once(MESSAGES)
     assert "connection refused" in str(failure.value)
 
 

@@ -6,6 +6,11 @@ from backend.features.producers.domain.model_groups import GROUPS
 # The shipped graph is an asset, so its shape is verified here: a UI-format export or a renamed
 # node would only surface as a failed render on Colab otherwise.
 
+# The encoder that reads BREAK as a break rather than as a word. Written once because the name came
+# from reading the node's source rather than running it: if Colab says otherwise, one line moves and
+# the assertions keep their shape.
+BREAK_ENCODER = "CLIPTextEncodeBREAK"
+
 
 def test_workflow_is_api_format_with_the_nodes_we_patch():
     with open(config.WORKFLOW_PATH, encoding="utf-8") as f:
@@ -18,6 +23,44 @@ def test_workflow_is_api_format_with_the_nodes_we_patch():
     assert "seed" in workflow["40"]["inputs"]
     # The model the user picks lands here; a renamed input would drop the choice in silence.
     assert "ckpt_name" in workflow["45"]["inputs"]
+
+
+def test_the_positive_encoder_understands_break():
+    """Two characters in one frame bleed into each other, and half of that happens while the prompt
+    is read: tags inside one chunk are read in each other's context. BREAK closes the chunk where it
+    is written -- but only for an encoder that knows the word. A plain CLIPTextEncode encodes it as
+    a word instead, which does not separate anything, it pollutes.
+
+    Only this node changes. Both KSampler and ToDetailerPipe read the positive from its output, so
+    one swap covers the detailer too.
+    """
+    with open(config.WORKFLOW_PATH, encoding="utf-8") as f:
+        workflow = json.load(f)
+
+    assert workflow["36"]["class_type"] == BREAK_ENCODER
+
+
+def test_the_negative_path_keeps_the_plain_encoder():
+    """A decision, not an accident: BREAK has no work to do in a negative, and a node nobody touched
+    is a node nobody broke. Without this the next export could swap both encoders and the graph would
+    still look right to every other test here."""
+    with open(config.WORKFLOW_PATH, encoding="utf-8") as f:
+        workflow = json.load(f)
+
+    assert workflow["38"]["class_type"] == "CLIPTextEncode"
+
+
+def test_the_prompt_reaches_the_encoder_through_the_chain():
+    """The whole positive path, pinned by its wiring rather than by its node names: the adapter
+    writes the prompt into 3, 39 strips the stray commas, and 36 encodes what comes out. Swapping
+    36's class must not drop the wires, and 39 must not be cut out of the middle -- either would
+    surface as a render that silently ignores the prompt."""
+    with open(config.WORKFLOW_PATH, encoding="utf-8") as f:
+        workflow = json.load(f)
+
+    assert workflow["39"]["inputs"]["string"][0] == "3"
+    assert workflow["36"]["inputs"]["text"][0] == "39"
+    assert "clip" in workflow["36"]["inputs"]
 
 
 def test_video_workflow_is_api_format_with_the_nodes_we_patch():

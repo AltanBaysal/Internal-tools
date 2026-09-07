@@ -17,9 +17,9 @@ ASK = "ask"
 EDIT = "edit"
 DEFAULT = EDIT
 
-# The schema reader joined them in Madde 96: it opens no file and changes nothing, so no mode has
-# a reason to stop for it.
-READS = ("read_file", "read_prompt_structure_schema")
+# One since Madde 172: the schema reader left with the shape it taught, and reading a file is the
+# only thing left that opens nothing and changes nothing.
+READS = ("read_file",)
 
 _WITHOUT_ASKING = {
     ASK: READS,
@@ -32,13 +32,34 @@ _WITHOUT_ASKING = {
     EDIT: READS
     + (
         "create_file",
+        "start_scenario",
+        # Madde 168. A rename is the widest edit any tool here makes -- the map entry and every
+        # frame naming it, in one call -- so the quieter modes keep their gate in front of all three.
+        "add_character",
+        "update_character",
+        "remove_character",
+        # Madde 169. Same reason, second map.
+        "add_outfit",
+        "update_outfit",
+        "remove_outfit",
+        # Madde 170, third map.
+        "add_location",
+        "update_location",
+        "remove_location",
         "edit_file",
         "build_prompts",
         "build_character_prompts",
         "write_plan",
         # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
         # their gate in front of it while this mode keeps none.
-        "add_frames",
+        "add_scene",
+        # Madde 174. A removal renumbers every frame left standing, which is the widest change any
+        # of these makes to a file the user is reading.
+        "update_frame",
+        "remove_frame",
+        # Madde 176. It writes to the file and it spends the user's money at a second provider --
+        # the only tool here that does either by asking somebody else.
+        "write_frame_prompt",
     ),
 }
 

@@ -4,12 +4,11 @@ The generator yields text pieces and finally the updated Chat. Telling them apar
 simpler than carrying a separate "this one is the last" flag.
 """
 from backend.features.workspace.domain.chat import ToolCall, Usage
-from backend.features.workspace.domain.context_box import files_opened, schema_was_read
+from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
 from backend.features.workspace.domain.prompt import LAST_ROUND
-from backend.features.workspace.domain.schema import SCHEMA
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
@@ -45,6 +44,20 @@ def _current_skill(chat):
     return ""
 
 
+def _current_model(chat):
+    """Which model answers the turn: the newest user message's (Madde 146).
+
+    Read the way the skill is, and walked from the end for the same reason -- a record does not
+    always end with the question that is waiting for an answer. Nothing here turns an empty one into
+    a name: config.engine_for is the single place that resolves a fallback, and a second guess here
+    would be a second answer to one question.
+    """
+    for message in reversed(chat.messages):
+        if message.role == "user":
+            return message.model
+    return ""
+
+
 def _named(names):
     """What the project holds, in one line for the model (Madde 127).
 
@@ -77,14 +90,13 @@ def _boxed(file_store, project_id, chat, steps):
         # one it actually reads -- and two shapes of one file would leave it choosing which of them
         # its anchor has to match.
         blocks.append(f"--- {name} ---\n{numbered(content)}")
-    if schema_was_read(chat, steps):
-        # Not numbered: the column is for picking an anchor, and no anchor is ever written into the
-        # schema. It is one text for the whole app rather than a file on disk.
-        blocks.append(f"--- prompt structure schema ---\n{SCHEMA}")
     if not blocks:
         return ""
+    # The window is stated rather than merely kept (Madde 179). This is the only place a file is
+    # shown now, so a model that did not know the box holds five would go looking for a sixth it
+    # can no longer see -- where knowing it costs one sentence to open the file again.
     return (
-        "Files you have opened in this chat, with their contents as they are now:\n\n"
+        f"The last {BOX_LIMIT} files you opened, with their contents as they are now:\n\n"
         + "\n\n".join(blocks)
     )
 
@@ -172,6 +184,9 @@ def stream_answer(
     # Read once: which skill governs the turn being answered is settled before the first round, and
     # no round changes it.
     instruction = instruction_for(_current_skill(chat))
+    # Read once, beside the instruction and for the same reason: which model answers is settled
+    # before the first round, and every round of the turn goes to that one.
+    model = _current_model(chat)
     said = []
     born = []
     made = []
@@ -215,6 +230,10 @@ def stream_answer(
                     # The chat is the conversation: its id is the name the service's cache files
                     # this turn's prefix under (Madde 124).
                     conversation_id=chat_id,
+                    # Which transport speaks (Madde 146). The same one every round, because the
+                    # turn is one answer -- half of it from another model would be one answer only
+                    # on the screen.
+                    model=model,
                 ):
                     if "text" in piece:
                         spoken.append(piece["text"])
@@ -298,7 +317,23 @@ def stream_answer(
                 # has, and the design's card carries no name anyway.
                 if tool in WRITES_FILES:
                     yield FileStarted()
-                result = run_tool(file_store, project_id, tool, call["function"]["arguments"])
+                # The engine goes down with the call since Madde 176: one tool answers out of a
+                # model rather than out of the file store, and the turn is the only thing holding
+                # one. The other eighteen neither take it nor notice it.
+                result = run_tool(
+                    file_store, project_id, tool, call["function"]["arguments"], engine=engine
+                )
+                if result.spent:
+                    # A second request, paid for inside this turn, and the stamp is the only place
+                    # anybody would look for it. `context` is left alone on purpose: that number
+                    # answers how big the conversation got -- which is what says when a chat has to
+                    # stop -- and this request is not the conversation.
+                    spent = Usage(
+                        spent.sent + result.spent.get("sent", 0),
+                        spent.cached + result.spent.get("cached", 0),
+                        spent.answered + result.spent.get("answered", 0),
+                        spent.context,
+                    )
                 # A name born twice in one turn is still one file: the card says a file exists, not
                 # how many times it was written.
                 if result.created and result.created not in born:

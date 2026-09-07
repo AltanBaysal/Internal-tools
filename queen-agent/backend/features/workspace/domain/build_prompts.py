@@ -9,11 +9,21 @@ from backend.features.workspace.domain.naming import folded
 
 # The chain every prompt opens with. In code rather than in each structure file since Madde 110: it
 # is the same in every scenario, and a model writing it meant a model copying it out of the schema
-# example -- which is how a chain mixing two model families reached real files. A scenario that
-# needs a different one writes quality in its own file and this steps aside.
+# example -- which is how a chain mixing two model families reached real files.
+#
+# Madde 166 shut the door that let a file write its own. Two places deciding one chain is two places
+# that can disagree, and the one on disk was only ever the copied one: nothing the app does needs a
+# second chain, and a scenario that truly did would be a reason to change this line rather than to
+# let every file overrule it.
 DEFAULT_QUALITY = (
     "score_9_up, score_9, score_8_up, masterpiece, best quality, raw, high quality, 4k, absurdres"
 )
+
+# What goes between two character blocks. A feature of the interface that reads the prompt rather
+# than of the model: queen-editor's positive encoder splits on this literal string (Madde 138), and
+# an encoder that does not know it takes the word as one more tag. Spaces on either side rather than
+# commas, because the split leaves whatever touches it inside the chunk it opens.
+BREAK = " BREAK "
 
 
 def build_prompts(structure):
@@ -40,20 +50,29 @@ def build_prompts(structure):
         # descriptions apart -- whoever leads opens the prompt, everyone else closes it, and the
         # place, the action and the camera sit in between so the two do not bleed together.
         #
-        # The count is placed, never worked out: the code knows who entered the frame but not what
-        # they are, and no field says so.
-        parts = [structure.get("quality") or DEFAULT_QUALITY, frame.get("people", "")]
+        # Nothing here counts anybody. Since Madde 166 the count rides inside a character's own
+        # entry -- 1girl, woman in her mid 20s -- which is the one place it lands beside the person
+        # it counts, and it arrives with them rather than being worked out and placed.
+        lead = [DEFAULT_QUALITY]
         # Whoever the frame wrote first leads it. No field names them -- the order already carries
         # it, and a second place saying the same thing is a place that can disagree.
-        in_frame = _worn(frame.get("characters"))
-        parts.extend(_block(in_frame[:1], characters, outfits, number, misses))
+        in_frame = cast_of(frame)
+        lead.extend(_block(in_frame[:1], characters, outfits, number, misses))
         place = frame.get("location") or ""
         if place:
-            parts.append(_looked_up(place, locations, "locations", number, misses))
-        parts.append(frame.get("action", ""))
-        parts.append(frame.get("camera", ""))
-        parts.extend(_block(in_frame[1:], characters, outfits, number, misses))
-        built.append(_tags(parts))
+            lead.append(_looked_up(place, locations, "locations", number, misses))
+        lead.append(frame.get("action", ""))
+        lead.append(frame.get("camera", ""))
+        # Everyone behind the lead gets a block of their own rather than a comma. Distance alone
+        # only moves two descriptions apart; the break makes the encoder read them apart, and it
+        # costs nothing to give the third the same separation as the second (Madde 139).
+        blocks = [lead] + [
+            _block([person], characters, outfits, number, misses) for person in in_frame[1:]
+        ]
+        # Each block carries its own commas and the break never touches one. Empty blocks are
+        # dropped rather than joined: a prompt ending on a break, or holding two side by side,
+        # would open a chunk with nothing in it.
+        built.append(BREAK.join(tags for tags in map(_tags, blocks) if tags))
 
     # Every miss at once and nothing written: one pass fixes them all, and a dirty structure never
     # produces a list.
@@ -65,8 +84,10 @@ def build_prompts(structure):
 def build_character_prompts(structure, character):
     """One character on their own, once for every outfit the file names.
 
-    The same joining a frame goes through, so what is seen here is what a frame will show. No count:
-    how many people are in a picture is a frame's own field, and there is no frame here.
+    The same joining a frame goes through, so what is seen here is what a frame will show -- and
+    since Madde 166 that includes the count, which travels inside the character's own entry and so
+    reads here exactly as it will read in a frame. The chain comes from code on both paths: one that
+    held in a frame and not in a look would make the look a lie.
     """
     if not isinstance(structure, dict):
         raise BadStructure(
@@ -80,12 +101,11 @@ def build_character_prompts(structure, character):
             f"{character} is not in characters; known: {', '.join(sorted(characters)) or 'nothing'}"
         )
 
-    quality = structure.get("quality") or DEFAULT_QUALITY
     identity = characters[character]
     outfits = structure.get("outfits") or {}
     if not outfits:
-        return [_tags([quality, identity])]
-    return [_tags([quality, identity, worn]) for worn in outfits.values()]
+        return [_tags([DEFAULT_QUALITY, identity])]
+    return [_tags([DEFAULT_QUALITY, identity, worn]) for worn in outfits.values()]
 
 
 def render_module(prompts):
@@ -109,14 +129,21 @@ def character_prompts_name(source, character):
     return f"{stem if dot else source}-{folded(character)}.py"
 
 
-def _worn(field):
-    """A frame's characters as (name, outfits) pairs, whichever way the field was written.
+def cast_of(frame):
+    """Who is in a frame, as (name, outfits) pairs, whichever way the field was written.
 
     The one place the two shapes meet, so nothing downstream has to ask which it was holding. A
     plain list is what files written before outfits existed carry: names, wearing nothing. A single
     name written without its list is read as that one name -- the instruction asks for a list, but
     walking a string letter by letter would answer a small slip with nonsense.
+
+    Public since Madde 168, and handed the frame rather than the field: what a caller has is a
+    frame, and a public name that asked for one field of it would make every caller reach in and
+    know which. The character tools have to know who is in a frame -- to say what still stands on
+    an entry, and to carry a rename through -- and a second reading of these two shapes would part
+    from this one the day either changed.
     """
+    field = frame.get("characters")
     if isinstance(field, dict):
         return [
             (name, [worn] if isinstance(worn, str) else list(worn or []))

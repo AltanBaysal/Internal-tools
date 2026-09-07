@@ -325,6 +325,10 @@ export default function PhotoDetail({ project, frame: fid }) {
   // How the open layer was made, when its line said so. Only a video has an answer today, and only
   // a produced one: a failed or deleted layer's latest line names no mode.
   const madeIn = (frame?.modes || {})[open];
+  // Which checkpoint rendered this frame. The plan row carries the file name the notebook
+  // downloaded, and the column already has a file-name row of its own -- so the extension comes off
+  // and this row says the model. Only .safetensors: that is the one kind the notebook installs.
+  const madeWith = (frame?.model || "").replace(/\.safetensors$/, "");
   // Linked names the picture rather than the frame's number -- the sequence can be dragged, and a
   // number would then be a lie about a video nobody touched.
   const arrivesAt = (frame?.endsOn || {})[open];
@@ -558,6 +562,14 @@ export default function PhotoDetail({ project, frame: fid }) {
               <Field label={produced ? "Dosya adı" : "Dosya adı (planlanan)"}
                      value={(frame.layers || {}).photo || frame.file}
                      muted={!produced} />
+              {open === "photo" && madeWith && (
+                /* Which checkpoint made this frame. Since madde 140 that is the user's pick and
+                   three of them can land in one gallery, so the frame has to carry the answer
+                   itself. Drawn only where it is true: video and sound jobs are planned with no
+                   model, and a frame planned before the choice existed carries none -- no record
+                   says which checkpoint the graph shipped that day, so naming one would invent it. */
+                <Field label="Model" value={madeWith} />
+              )}
               {open === "video" && madeIn && (
                 /* Information, never a control: changing the mode is making the video again, and
                    that is the form further down (madde 94). */

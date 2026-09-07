@@ -40,6 +40,21 @@ def call(tool, call_id="t1", **arguments):
     return {"id": call_id, "function": {"name": tool, "arguments": json.dumps(arguments)}}
 
 
+def a_call(call_id="t1"):
+    """Some tool call, for the tests that need a round rather than a particular tool.
+
+    read_prompt_structure_schema was this until Madde 172 retired it: it took no arguments and
+    touched no file, which made it the quietest thing to script. A read of a name nobody has is the
+    nearest thing left -- it costs a round, needs no fixture, and files_opened skips a read that
+    found nothing, so the context box stays out of tests that are about rounds.
+    """
+    return call("read_file", call_id, name="ghost.md")
+
+
+# What that call leaves in the record.
+A_STEP = ToolCall("read_file", "ghost.md", "No file by that name")
+
+
 class NeverStops:
     """The stop registry as most tests need it: nobody ever asks."""
 
@@ -170,22 +185,33 @@ it is a piece the engine refuses to get past.
 class ScriptedEngine:
     """Each round is a list of pieces the engine hands back."""
 
-    def __init__(self, rounds, blow_up_after=None):
+    def __init__(self, rounds, blow_up_after=None, tool_spends=None):
         self.rounds = list(rounds)
         self.blow_up_after = blow_up_after
+        # What a tool's own request costs, when a round asks for one (Madde 176).
+        self.tool_spends = tool_spends or {"sent": 300, "cached": 0, "answered": 60}
+        # Which questions a tool asked this engine, apart from the turn's own rounds.
+        self.written = []
         self.seen = []
         self.handed = []
         # Which tools each round was offered. Since Madde 91 that is the mode's whole consequence.
         self.tools = []
         # Which conversation each round said it belonged to (Madde 124).
         self.conversation_ids = []
+        # Which model each round named (Madde 146). A list rather than one value: every round of a
+        # turn must name the same one, and only the list can show that it did.
+        self.models = []
 
-    # No model since Madde 82: the engine is built knowing which one. A use case that still passed
-    # one would die here rather than quietly working.
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def write_once(self, system, user):
+        """The other road (Madde 175), which one tool walks: one question, one answer, one bill."""
+        self.written.append((system, user))
+        return {"text": "she turns her head, close-up", "spent": self.tool_spends}
+
+    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
         self.seen.append(list(messages))
         self.tools.append([spec["function"]["name"] for spec in tools or []])
         self.conversation_ids.append(conversation_id)
+        self.models.append(model)
         if on_open:
             on_open(self._cut)
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
@@ -323,7 +349,7 @@ def _box(seen):
         (
             message["content"]
             for message in seen
-            if message["role"] == "system" and message["content"].startswith("Files you have opened")
+            if message["role"] == "system" and message["content"].startswith("The last 5 files")
         ),
         "",
     )
@@ -386,20 +412,6 @@ def test_a_deleted_file_falls_out_of_the_box(tmp_path):
     assert "gone.md" not in _box(engine.seen[0])
 
 
-def test_the_schema_reaches_the_box_too(tmp_path):
-    # One text for the whole app, so it travels by name rather than by lookup. Fetched once in a
-    # chat, it is in front of the model from then on.
-    chats, files = _seeded(tmp_path)
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
-    engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    from backend.features.workspace.domain.schema import SCHEMA
-
-    # Unnumbered, and Madde 131 leaves it so: numbers are there to pick an anchor, and no anchor is
-    # ever written into the schema.
-    assert SCHEMA in _box(engine.seen[1])
-
-
 def test_the_box_numbers_the_lines_it_shows(tmp_path):
     # Madde 131. Since 129 the box is where a file is actually looked at -- the model does not read
     # it a second time -- so numbering the tool's own answer alone would number the copy nobody
@@ -412,18 +424,36 @@ def test_the_box_numbers_the_lines_it_shows(tmp_path):
     assert "     1\talpha\n     2\tbeta" in _box(engine.seen[1])
 
 
-def test_the_box_and_a_read_show_a_file_the_same_way(tmp_path):
-    # One file, one shape. Two would leave the model deciding which of them its anchor has to
-    # match, and the wrong pick is a refused edit.
-    from backend.features.workspace.domain.tools import run_tool
-
+def test_a_file_that_was_read_rides_the_request_once(tmp_path):
+    # Madde 179, and the whole of it. Madde 131 asked the box and the read to show a file the same
+    # way, so the model would not have to decide which shape its anchor had to match; Madde 179
+    # answers the question by taking one of them away.
     chats, files = _seeded(tmp_path)
     files.write("p1", "plan.md", "alpha\nbeta")
     rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
     engine = ScriptedEngine(rounds)
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    handed_back = run_tool(files, "p1", "read_file", json.dumps({"name": "plan.md"})).text
-    assert handed_back in _box(engine.seen[1])
+    whole = "\n".join(str(message.get("content") or "") for message in engine.seen[1])
+    assert whole.count("alpha") == 1
+    assert "alpha" in _box(engine.seen[1])
+
+
+def test_a_file_edited_in_the_same_turn_rides_it_only_as_it_is_now(tmp_path):
+    # What the second copy actually cost. The conversation held the file as it was when it was
+    # read and the box held it as it is, so a turn that read and then wrote sent the model both --
+    # and nothing in either said which one was the file.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "alpha\nbeta")
+    rounds = [
+        [{"tool_calls": [call("read_file", name="plan.md")]}],
+        [{"tool_calls": [call("edit_file", "t2", name="plan.md", old="alpha", new="omega")]}],
+        [{"text": "done"}],
+    ]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    whole = "\n".join(str(message.get("content") or "") for message in engine.seen[2])
+    assert "omega" in whole
+    assert "alpha" not in whole
 
 
 def test_the_box_rides_between_the_names_and_the_instruction(tmp_path):
@@ -443,8 +473,20 @@ def test_the_box_rides_between_the_names_and_the_instruction(tmp_path):
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
     seen = engine.seen[0]
     assert seen[-1]["content"] == instruction_for("start-a-scenario")
-    assert seen[-2]["content"].startswith("Files you have opened")
+    assert seen[-2]["content"].startswith("The last 5 files")
     assert _files_line([seen[-3]])
+
+
+def test_the_box_says_it_holds_the_last_five(tmp_path):
+    # Madde 179 made the box the only place a file is shown, which makes the limit worth stating:
+    # a file that fell out of it is read again for the price of one sentence, and a model that did
+    # not know the window existed would go looking for a file it can no longer see.
+    chats, files = _seeded(tmp_path)
+    files.write("p1", "plan.md", "alpha")
+    rounds = [[{"tool_calls": [call("read_file", name="plan.md")]}], [{"text": "done"}]]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert _box(engine.seen[1]).startswith("The last 5 files you opened")
 
 
 def test_a_chat_that_read_nothing_carries_no_box(tmp_path):
@@ -507,21 +549,21 @@ def test_two_calls_in_one_round_are_both_run(tmp_path):
 
 
 def test_text_from_every_round_becomes_one_message(tmp_path):
-    rounds = [[{"text": "Looking. "}, {"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "Nothing."}]]
+    rounds = [[{"text": "Looking. "}, {"tool_calls": [a_call()]}], [{"text": "Nothing."}]]
     chats, _, _, _ = _run(tmp_path, rounds)
     stored = chats.get("p1", "c1").messages
     assert [(m.role, m.text) for m in stored] == [("user", "hi"), ("ai", "Looking. Nothing.")]
 
 
 def test_the_tool_traffic_is_never_written_to_the_chat(tmp_path):
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
     chats, _, _, _ = _run(tmp_path, rounds)
     # The chat is what the user reads, not the model's bookkeeping.
     assert [m.role for m in chats.get("p1", "c1").messages] == ["user", "ai"]
 
 
 def test_the_loop_stops_at_the_round_limit_and_still_writes(tmp_path):
-    forever = [[{"text": "."}, {"tool_calls": [call("read_prompt_structure_schema")]}] for _ in range(MAX_ROUNDS + 3)]
+    forever = [[{"text": "."}, {"tool_calls": [a_call()]}] for _ in range(MAX_ROUNDS + 3)]
     chats, _, engine, _ = _run(tmp_path, forever)
     assert len(engine.seen) == MAX_ROUNDS
     assert chats.get("p1", "c1").messages[-1].text == "." * MAX_ROUNDS
@@ -642,7 +684,7 @@ def test_a_turn_that_said_nothing_and_made_nothing_is_not_an_answer(tmp_path):
 
 def test_a_silent_turn_that_runs_out_of_rounds_is_not_an_answer_either(tmp_path):
     # Same rule down a different road: the loop stops at its limit rather than at a quiet round.
-    forever = [[{"tool_calls": [call("read_prompt_structure_schema")]}] for _ in range(MAX_ROUNDS + 3)]
+    forever = [[{"tool_calls": [a_call()]}] for _ in range(MAX_ROUNDS + 3)]
     with pytest.raises(EmptyMessage):
         _run(tmp_path, forever)
 
@@ -655,6 +697,47 @@ def _said_with(tmp_path, *turns):
     engine = ScriptedEngine([[{"text": "ok"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     return chats, engine.seen[0]
+
+
+# --- which model answers the turn (Madde 146) ----------------------------------------------------
+#
+# The reversal of Madde 82: there are three again, so which one speaks is an input rather than a
+# line in config.py. Read the way the skill is -- off the newest user message, because a record does
+# not always end with the question that is waiting for an answer.
+
+
+def _answered_by(tmp_path, *turns):
+    """Run one answer over a chat whose messages were sent with the given models."""
+    chats, files = _seeded(tmp_path)
+    for number, (text, model) in enumerate(turns):
+        append_message(chats, "p1", "c1", text, f"2026-08-09T12:0{number}:00.000+00:00", model=model)
+    engine = ScriptedEngine([[{"text": "ok"}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    return engine
+
+
+def test_the_turn_is_answered_by_the_model_its_question_named(tmp_path):
+    engine = _answered_by(tmp_path, ("write me the prompts", "deepseek-v4-pro"))
+    assert engine.models == ["deepseek-v4-pro"]
+
+
+def test_only_the_current_model_is_used_whatever_came_before(tmp_path):
+    # However many times the selection changed, the turn is answered by this turn's -- the rule the
+    # skill keeps, and the reason the field is on the message rather than the chat.
+    engine = _answered_by(
+        tmp_path,
+        ("one", "grok-build-0.1"),
+        ("and again", "deepseek-v4-flash"),
+        ("now this", "deepseek-v4-pro"),
+    )
+    assert engine.models == ["deepseek-v4-pro"]
+
+
+def test_a_turn_whose_question_named_no_model_asks_for_none(tmp_path):
+    # Every message on disk before Madde 146. Nothing here guesses on the record's behalf: the
+    # empty string travels and config.engine_for is the one place that turns it into the default.
+    engine = _answered_by(tmp_path, ("hello", ""))
+    assert engine.models == [""]
 
 
 def _instructions(conversation):
@@ -718,7 +801,7 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     # item exists would stop holding after the first one.
     chats, files = _seeded(tmp_path)
     append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="generate-prompts-plus")
-    engine = ScriptedEngine([[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "clean"}]])
+    engine = ScriptedEngine([[{"tool_calls": [a_call()]}], [{"text": "clean"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     second = engine.seen[1]
     assert second[-1] == {"role": "system", "content": instruction_for("generate-prompts-plus")}
@@ -749,7 +832,7 @@ def _asking_forever(count):
     could look at it, and what is under test here is the request rather than that rule.
     """
     return [
-        [{"text": "."}, {"tool_calls": [call("read_prompt_structure_schema")]}] for _ in range(count)
+        [{"text": "."}, {"tool_calls": [a_call()]}] for _ in range(count)
     ]
 
 
@@ -797,7 +880,7 @@ def test_a_turn_that_ends_early_never_sees_the_notice(tmp_path):
     # about its own turn.
     from backend.features.workspace.domain.prompt import LAST_ROUND
 
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "Done."}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "Done."}]]
     _, _, engine, _ = _run(tmp_path, rounds)
     assert not any(LAST_ROUND in piece["content"] for seen in engine.seen for piece in seen)
     assert all(engine.tools)
@@ -851,9 +934,9 @@ def _lines(produced):
 
 
 def test_each_call_leaves_a_line_as_it_happens(tmp_path):
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "Nothing yet."}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "Nothing yet."}]]
     _, _, _, produced = _run(tmp_path, rounds)
-    assert _lines(produced) == [ToolCall("read_prompt_structure_schema", "", "Schema")]
+    assert _lines(produced) == [A_STEP]
 
 
 def test_the_line_says_which_file_was_touched(tmp_path):
@@ -872,9 +955,9 @@ def test_the_line_says_which_file_was_touched(tmp_path):
 def test_the_answer_remembers_the_calls_it_made(tmp_path):
     # The other half of the item: a line that only exists while the answer streams leaves the chat
     # as blind tomorrow as it is today.
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
     chats, _, _, _ = _run(tmp_path, rounds)
-    assert chats.get("p1", "c1").messages[-1].calls == (ToolCall("read_prompt_structure_schema", "", "Schema"),)
+    assert chats.get("p1", "c1").messages[-1].calls == (A_STEP,)
 
 
 def test_an_answer_that_called_nothing_remembers_none(tmp_path):
@@ -885,9 +968,9 @@ def test_an_answer_that_called_nothing_remembers_none(tmp_path):
 def test_the_kept_call_says_how_it_went(tmp_path):
     # Madde 78. The tests above pin the tool and the file; none of them asks whether the line under
     # the call survived, and that is the half a reader a week later is looking at.
-    rounds = [[{"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "done"}]]
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
     chats, _, _, _ = _run(tmp_path, rounds)
-    assert chats.get("p1", "c1").messages[-1].calls[0].outcome == "Schema"
+    assert chats.get("p1", "c1").messages[-1].calls[0].outcome == "No file by that name"
 
 
 def test_reading_the_same_file_twice_is_two_lines(tmp_path):
@@ -906,7 +989,7 @@ def test_reading_the_same_file_twice_is_two_lines(tmp_path):
 
 # --- stopping an answer that is already running (Madde 67) ---------------------------------------
 
-TWO_ROUNDS = [[{"text": "Half a "}, {"tool_calls": [call("read_prompt_structure_schema")]}], [{"text": "sentence."}]]
+TWO_ROUNDS = [[{"text": "Half a "}, {"tool_calls": [a_call()]}], [{"text": "sentence."}]]
 
 
 def test_a_stop_ends_the_answer_without_asking_the_model_again(tmp_path):
@@ -996,7 +1079,7 @@ def test_what_two_rounds_spent_is_added_up(tmp_path):
     # Each round is its own stream and its own bill: the second one resends the whole conversation,
     # which is exactly the growth this item exists to make visible.
     rounds = [
-        [{"tool_calls": [call("read_prompt_structure_schema")]}, spent(1000, 600, 10)],
+        [{"tool_calls": [a_call()]}, spent(1000, 600, 10)],
         [{"text": "done"}, spent(1500, 1200, 20)],
     ]
     chats, _, _, _ = _run(tmp_path, rounds)
@@ -1008,7 +1091,7 @@ def test_the_turn_remembers_what_its_last_round_carried(tmp_path):
     # conversation got, and only the fourth can tell a chat when to stop. Six rounds of eight
     # thousand is not a request of forty-eight -- the eighth trial closed a chat on that mistake.
     rounds = [
-        [{"tool_calls": [call("read_prompt_structure_schema")]}, spent(8000, 0, 10)],
+        [{"tool_calls": [a_call()]}, spent(8000, 0, 10)],
         [{"tool_calls": [call("read_file", name="plan.md")]}, spent(9000, 7000, 10)],
         [{"text": "done"}, spent(10_000, 8000, 20)],
     ]
@@ -1016,6 +1099,74 @@ def test_the_turn_remembers_what_its_last_round_carried(tmp_path):
     kept = _kept(chats).usage
     assert kept.sent == 27_000
     assert kept.context == 10_000
+
+
+def _with_a_frame(files):
+    """A scenario with one frame that has a scene and nothing written for it yet."""
+    files.write(
+        "p1",
+        "scene.json",
+        json.dumps(
+            {
+                "characters": {"aylin": "1girl"},
+                "outfits": {},
+                "locations": {},
+                "frames": [{"number": 1, "scene": "she opens the door"}],
+            }
+        ),
+    )
+
+
+def test_a_tools_own_request_is_added_to_what_the_turn_spent(tmp_path):
+    # Madde 176. The tool asks a second model a question of its own, and the user pays for it. The
+    # turn's stamp is the only place anybody would ever look for it.
+    chats, files = _seeded(tmp_path)
+    _with_a_frame(files)
+    rounds = [
+        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]},
+         spent(1000, 0, 10)],
+        [{"text": "done"}, spent(1500, 0, 20)],
+    ]
+    engine = ScriptedEngine(rounds, tool_spends={"sent": 300, "cached": 0, "answered": 60})
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    kept = _kept(chats).usage
+    assert kept.sent == 2800          # 1000 + 1500 rounds, and 300 the tool asked for
+    assert kept.answered == 90        # 10 + 20 + 60
+
+
+def test_a_tools_request_does_not_change_how_big_the_conversation_got(tmp_path):
+    # Madde 133's number, and the one thing here that is not a bill. It answers how big the last
+    # request was -- which is when a chat has to stop -- and the tool's question is not the
+    # conversation at all. Added in, it would report a chat as fuller than it is.
+    chats, files = _seeded(tmp_path)
+    _with_a_frame(files)
+    rounds = [
+        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]},
+         spent(1000, 0, 10)],
+        [{"text": "done"}, spent(1500, 0, 20)],
+    ]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    # The work first: the tool's bill has to have landed somewhere, or this passes on a turn where
+    # nothing was added to anything.
+    assert _kept(chats).usage.sent == 2800
+    assert _kept(chats).usage.context == 1500
+
+
+def test_the_turn_hands_its_engine_to_the_tool_that_needs_one(tmp_path):
+    # The tool cannot reach a model on its own, and a turn that kept the engine to itself would
+    # leave it answering "there is no model to write with" in a running app.
+    chats, files = _seeded(tmp_path)
+    _with_a_frame(files)
+    rounds = [
+        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]}],
+        [{"text": "done"}],
+    ]
+    engine = ScriptedEngine(rounds)
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert len(engine.written) == 1
+    assert "she opens the door" in engine.written[0][1]
+    assert json.loads(files.read("p1", "scene.json"))["frames"][0]["action"]
 
 
 def test_counts_repeated_inside_one_round_are_not_added_twice(tmp_path):

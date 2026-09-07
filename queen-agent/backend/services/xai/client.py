@@ -21,6 +21,9 @@ class XaiFailed(Exception):
 
 _DATA = b"data: "
 _DONE = object()
+# What an xAI address looks like. The conversation header is that service's own, so the base URL is
+# asked before it is sent.
+_IS_XAI = "x.ai"
 
 
 def _parsed(raw):
@@ -70,26 +73,77 @@ def _cut(response):
         pass
 
 
-def _spoken(frame):
-    """What the model said in this frame: {"text": ...}, {"tool_calls": [...]}, or None.
+def _delta(frame):
+    """This frame's delta, or an empty one.
 
-    Two kinds of thing come down the same wire, so each piece names which it is rather than leaving
-    the reader to guess from its type.
+    An empty choices list is a frame with nothing to say, exactly as an empty delta is. The closing
+    frame that carries the counts comes that way, and reading it as though a choice were there would
+    end the whole answer rather than lose one number.
     """
-    # An empty list is a frame with nothing to say, exactly as an empty delta is. The closing frame
-    # that carries the counts comes that way, and reading it as though a choice were there would
-    # end the whole answer rather than lose one number.
     choices = frame.get("choices") or []
     if not choices:
-        return None
-    delta = choices[0].get("delta", {})
-    # A function call is documented to arrive whole in a single chunk, so there is nothing to
-    # stitch together here.
-    if delta.get("tool_calls"):
-        return {"tool_calls": delta["tool_calls"]}
-    if delta.get("content"):
-        return {"text": delta["content"]}
-    return None
+        return {}
+    return choices[0].get("delta", {})
+
+
+def _said(frame):
+    """The words in this frame, or None."""
+    content = _delta(frame).get("content")
+    return {"text": content} if content else None
+
+
+def _fragments(frame):
+    """The tool-call pieces in this frame, or None.
+
+    Asked apart from the words since Madde 148. One frame can carry both, and while a single
+    function answered for the two of them which one got through was decided by the order the checks
+    happened to be written in.
+    """
+    return _delta(frame).get("tool_calls") or None
+
+
+class _Calls:
+    """Tool-call fragments, joined by index into whole calls (Madde 148).
+
+    xAI sends a function call whole in one chunk and documents that it does. DeepSeek fragments it
+    the way OpenAI does: the first piece names the tool, the rest only grow `arguments`. Forwarded
+    raw, those later pieces reached the layers above as calls of their own and died on a missing
+    name -- so the joining belongs here, where carrying the call is the job.
+
+    `index` is what says which call a piece belongs to; it is absent on a call that arrived whole,
+    and then there is exactly one and it is the first. It never reaches the finished record: what
+    reads a call wants its id and its function, and the index is this file's own bookkeeping.
+    """
+
+    def __init__(self):
+        self._by_index = {}
+        # First-seen order rather than the index's own number: the field is an identity, not a
+        # position, and nothing promises it counts up from zero.
+        self._order = []
+
+    def add(self, pieces):
+        for piece in pieces:
+            index = piece.get("index", 0)
+            if index not in self._by_index:
+                self._by_index[index] = {}
+                self._order.append(index)
+            held = self._by_index[index]
+            for key, value in piece.items():
+                if key == "index":
+                    continue
+                if key != "function":
+                    held[key] = value
+                    continue
+                function = held.setdefault("function", {})
+                for field, part in value.items():
+                    # Arguments grow; everything else is stated once and repeated at most.
+                    if field == "arguments":
+                        function["arguments"] = function.get("arguments", "") + part
+                    else:
+                        function[field] = part
+
+    def whole(self):
+        return [self._by_index[index] for index in self._order]
 
 
 def _spent(frame):
@@ -103,13 +157,23 @@ def _spent(frame):
     `cached_tokens` sits inside the prompt rather than beside it, so it can never exceed `sent` and
     the difference is what was paid for a second time. Nothing here computes that difference: a
     number that restates two others goes stale on its own.
+
+    Two shapes since Madde 146, because the two services answer the same question differently: xAI
+    nests the figure under `prompt_tokens_details`, DeepSeek sends `prompt_cache_hit_tokens` flat
+    beside the total and no details object at all. `sent` and `answered` they name alike. Read
+    rather than chosen by provider: the frame says which shape it is, and asking it is one fact
+    where a lookup by address would be two.
     """
     counts = frame.get("usage")
     if not counts:
         return None
+    if "prompt_cache_hit_tokens" in counts:
+        cached = counts["prompt_cache_hit_tokens"]
+    else:
+        cached = counts.get("prompt_tokens_details", {}).get("cached_tokens", 0)
     return {
         "sent": counts.get("prompt_tokens", 0),
-        "cached": counts.get("prompt_tokens_details", {}).get("cached_tokens", 0),
+        "cached": cached,
         "answered": counts.get("completion_tokens", 0),
     }
 
@@ -126,8 +190,18 @@ class XaiClient:
         # The one line that reaches the network, and the one thing a test replaces.
         self._opener = opener
 
-    def complete(self, messages, tools=None):
-        request = self._request({"messages": messages}, tools)
+    def write_once(self, messages):
+        """One question, answered in one piece: the words and what they cost (Madde 175).
+
+        No tools and no stream. The model on the other end has a sentence to write and nothing to
+        call, and there is nobody watching the words arrive -- the answer goes into a file rather
+        than onto a screen.
+
+        The same _spent reads the bill here as in the stream, off the payload instead of off a
+        frame. Two services shape that figure two ways and one function knows both of them; a
+        second reading here would part from that one the day either service moved.
+        """
+        request = self._request({"messages": messages}, None)
         try:
             with self._opener(request) as response:
                 payload = json.loads(response.read().decode("utf-8"))
@@ -138,7 +212,10 @@ class XaiClient:
             raise XaiFailed(f"{failure.code} {body}") from failure
         except urllib.error.URLError as failure:
             raise XaiFailed(str(failure.reason)) from failure
-        return payload["choices"][0]["message"]
+        message = payload["choices"][0]["message"]
+        # Always a dict, even from a service that mentioned nothing: the caller adds this to a
+        # total, and a shape that comes and goes is one every caller has to ask about.
+        return {"text": message.get("content") or "", "spent": _spent(payload) or {}}
 
     def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         # The counts come only if asked for, and only to a stream -- so the ask sits beside the
@@ -159,21 +236,36 @@ class XaiClient:
                 # the first word, and a cut offered after it would miss exactly that stretch.
                 if on_open:
                     on_open(lambda: _cut(response))
+                calls = _Calls()
                 for raw in response:
                     frame = _parsed(raw)
                     if frame is _DONE:
-                        return
+                        # Broken rather than returned since Madde 148: the joined calls are handed
+                        # over below, and returning here would drop them.
+                        break
                     if frame is None:
                         continue
-                    # One frame can carry both, and really does: the counts ride along with the
+                    # One frame can carry all three, and really does: the counts ride along with the
                     # words. Words first -- the counts are what those words cost, and a cost does
                     # not arrive before the thing it is for.
-                    said = _spoken(frame)
+                    said = _said(frame)
                     if said:
                         yield said
+                    fragments = _fragments(frame)
+                    if fragments:
+                        calls.add(fragments)
                     counts = _spent(frame)
                     if counts:
                         yield {"usage": counts}
+                # After the stream, because a call is whole only once it has stopped growing. Only
+                # when something was asked for: an empty list is not "no tools" to the layer above,
+                # which reads anything that is neither words nor counts as a call.
+                #
+                # Left behind on purpose when the stream raises: a cut turn is thrown away whole,
+                # and half an `arguments` is not valid JSON anyway.
+                whole = calls.whole()
+                if whole:
+                    yield {"tool_calls": whole}
         except urllib.error.HTTPError as failure:
             body = failure.read().decode("utf-8", "replace")
             raise XaiFailed(f"{failure.code} {body}") from failure
@@ -206,7 +298,13 @@ class XaiClient:
         # A header rather than a body field: the cache's key is the body's prefix, and an id inside
         # the body would change the very thing it is meant to route to. Only a real name goes -- an
         # empty one would file every caller with no conversation under the same entry.
-        if conversation_id:
+        #
+        # And only to xAI, since Madde 146: this is that service's own way of routing a request to
+        # its conversation's cache. DeepSeek matches prefixes by itself and documents nothing of the
+        # kind, so sending it there would be a made-up name on somebody else's wire. The address is
+        # what decides, because the address is already what says which service this is -- a flag
+        # beside it would be the same fact written twice.
+        if conversation_id and _IS_XAI in self._base_url:
             headers["x-grok-conv-id"] = conversation_id
         return urllib.request.Request(
             f"{self._base_url}/chat/completions",

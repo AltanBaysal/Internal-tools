@@ -4,16 +4,41 @@ The modes are named here the way the wire names them, and the module is imported
 rather than at the top: a module that does not exist yet fails this whole file's collection, and
 then none of the turn's other reds are visible anywhere in the suite.
 """
-READS = ("read_file", "read_prompt_structure_schema")
+# One since Madde 172: the schema tool went with the shape it taught, and reading a file is the only
+# thing left that opens nothing and changes nothing.
+READS = ("read_file",)
 WRITES = (
     "create_file",
     "edit_file",
     "build_prompts",
     "build_character_prompts",
     "write_plan",
-    # Madde 128. It takes no position from the model, but it still changes the user's file, so the
-    # quieter modes keep their gate in front of it.
-    "add_frames",
+    # Madde 128 and 173. It takes neither a position nor a shape from the model, but it still
+    # changes the user's file, so the quieter modes keep their gate in front of it.
+    "add_scene",
+    # Madde 167. It writes no text of the model's own -- four empty maps the code knows -- but a
+    # file appears in the project, and a file appearing is what the quieter modes gate.
+    "start_scenario",
+    # Madde 168. They change the user's scenario, and a rename reaches every frame that names the
+    # entry -- the widest edit any tool here makes.
+    "add_character",
+    "update_character",
+    "remove_character",
+    # Madde 169. Same reason, second map.
+    "add_outfit",
+    "update_outfit",
+    "remove_outfit",
+    # Madde 170, third map.
+    "add_location",
+    "update_location",
+    "remove_location",
+    # Madde 174. A removal renumbers every frame left, which is the widest change any of these
+    # makes to a file the user is reading.
+    "update_frame",
+    "remove_frame",
+    # Madde 176. It changes the file, and it also spends the user's money at a second provider --
+    # the only tool here that does either of those things by asking somebody else.
+    "write_frame_prompt",
 )
 
 

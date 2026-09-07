@@ -44,12 +44,22 @@ class ChatStore(Protocol):
 class Engine(Protocol):
     """Something that answers a conversation.
 
-    Which model it answers with is not asked here: there is one, and config.py names it once. That
-    belongs to whatever the engine was built with, not to the call.
+    Which model it answers with is asked here again since Madde 146: there are three, and the turn
+    names the one it wants. An id the engine does not know -- a record from before this field, or a
+    model since dropped -- is answered by its default rather than refused.
     """
 
-    def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
-        """Answer a conversation. Messages carry the domain's own roles: user and ai."""
+    def write_once(self, system: str, user: str) -> dict:
+        """One question, answered once, for a tool that needs a model rather than a conversation.
+
+        No tools, no chat and no turn: `system` is the whole of what the model is told about its
+        job, and `user` is the whole of what it is being asked. Which model answers is not a
+        parameter -- it is a role, named in config.py, because the user chooses what runs the
+        conversation and not what writes a prompt inside it (Madde 175).
+
+        Answers {"text": str, "spent": {"sent": int, "cached": int, "answered": int}}. The bill is
+        an empty dict when the service said nothing about one; it is never absent.
+        """
 
     def stream(
         self,
@@ -57,6 +67,7 @@ class Engine(Protocol):
         tools: list[dict] | None = None,
         on_open=None,
         conversation_id: str = "",
+        model: str = "",
     ):
         """Answer a conversation piece by piece.
 

@@ -91,7 +91,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   // is settled when the turn is sent. The mode travels the same way and is kept nowhere -- what it
   // decides is which tools the request carries, and that is decided the moment it is sent.
   const send = useCallback(
-    async (text = null, skill = "", mode = "") => {
+    async (text = null, skill = "", mode = "", model = "") => {
       const at = new Date().toISOString();
       const token = {};
       owner.current = token;
@@ -127,7 +127,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
       setStreamingChatId(chatId);
       // No text at all is how Try again asks: the question is already on disk and must not be
       // written a second time. A blank one would be refused, which is a different thing.
-      const body = text === null ? { chat: chatId } : { chat: chatId ?? "", text, skill, mode };
+      const body =
+        text === null ? { chat: chatId } : { chat: chatId ?? "", text, skill, mode, model };
       try {
         await streamEvents(
           `/api/projects/${projectId}/messages`,

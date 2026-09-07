@@ -81,9 +81,16 @@ while typing) stay in the UI.
 Everything lives under one root, named in exactly one place: `QUEENAGENT_ROOT`. The root sits
 outside the repo, so user data never lands in the source tree and `git status` never sees it.
 
-**6. xAI Grok is the engine, behind our own thin layer.**
+**6. The engine is a choice among several, behind our own thin layer.**
 We write our own transport, our own agent loop and our own tools on top of it. Why: the loop and the
 tools are the product; the vendor behind them should be replaceable without touching either.
+That promise was tested and held (Madde 146, 2 September): a second provider arrived and the loop
+and the tools did not change — what changed was a table of ids, one map of transports, and two
+places where the two services genuinely differ (how a cache hit is reported, and a header that is
+one vendor's own). Consequence: a model id is an input to a turn, never a constant. Which models
+exist and what they cost is `config.py`'s table and `models.js`'s list — the meaning on one side,
+the names and prices a person reads on the other. Which one is selected is held nowhere: it rides
+on each message and is written onto it, so an older turn keeps the model that answered it.
 
 **7. No dependency on `collab-toolbox/` or `queen-editor/`.**
 No imported module, no shared file, no shared store. What QueenAgent inherits from queen-editor is

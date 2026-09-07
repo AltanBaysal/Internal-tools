@@ -5,6 +5,25 @@ haritasına girer.
 
 ---
 
+### Hata — silinen standart videodan sonra loop eklenince ikisi birden üretiliyor gibi görünüyor
+
+*(Kullanıcı bildirimi, 6 Eylül.)*
+
+**Nasıl çıktı:** kareye standart video eklendi → silindi → yerine loop video eklendi. Ekranda **ikisi
+birden** üretiliyormuş gibi görünüyor, standart ve loop yan yana.
+
+Sebebi **araştırılmadı**, ve buraya bir tahmin yazılmıyor: silinen işin gerçekten iptal edilmemesi de
+olabilir, yalnız ön yüzün eski satırı bırakması da. İkisi çok farklı yerlerde durur.
+
+**Ele alınırken kullanıcıya sorulacak:** silinen video gerçekten üretilmiş miydi yoksa sırada mıydı,
+ekranda kaç satır göründü, ve dışa aktarmaya hangisi düştü — yani hata yalnız görüntüde mi, yoksa
+diske de mi ulaşıyor.
+
+### Hata — oynatma düğmesi video oynarken üstünde duruyor
+
+*(Kullanıcı bildirimi, 6 Eylül.)* Video başlayınca başlat/durdur düğmesi kaybolmuyor, görüntünün
+**üzerinde kalıyor** ve karenin bir kısmını örtüyor.
+
 ### Fotoğraf üretim hızı — hız LoRA'ları
 
 Üretim hızlansın; yol olarak hız LoRA'ları denenecek. Kazanç fotoğraf tarafında görünüyor, video
@@ -14,36 +33,31 @@ zaten hızlı koşacak şekilde ayarlı.
 
 Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek.
 
-### Prompt BREAK'i desteklemiyor — kalabalık kare tek bloğa kodlanıyor
+### Karakter LoRA'sı eklenecek
 
-SDXL'in metin kodlayıcısı promptu 75 jetonluk parçalar hâlinde okuyor, ve bir parçanın içindeki
-etiketler birbirine bulaşıyor: iki karakter arka arkaya yazılınca birinin saçı ötekinin üstüne
-geçiyor. `BREAK` bunun bilinen ilacı — yazıldığı yerde o parçayı kapatıp yenisini açıyor, böylece
-iki taraf birbirinden bağımsız kodlanıyor.
+*(Kullanıcı, 6 Eylül.)* Aynı kişinin her karede aynı çıkması için. Bugün bunu tutan tek şey etiket:
+QueenAgent karakteri bir kez yazıp onu adlayan her kareye koyuyor, ama etiket bir yüzü sabitlemiyor.
 
-**`BREAK` bir model özelliği değil, promptu okuyan arayüzün özelliği.** A1111 ve Forge kendi
-ayrıştırıcısında tanıyor. ComfyUI tanımıyor; oradaki karşılığı ya metni bölüp iki kodlamayı
-`Conditioning (Concat)` ile birleştirmek, ya da `comfyui-clip-with-break` gibi BREAK bilen bir
-kodlayıcı düğümü koymak.
+**Kararlaşmadı:** hazır bir LoRA yüklemek mi, yoksa karakter başına eğitmek mi — ve eğitilecekse o
+işin nerede koşacağı.
 
-**Bugün desteklemiyoruz** *(27 Ağustos'ta `workflow_api.json` okunarak doğrulandı)*. Pozitif yol tek
-zincir: `3` POSITIVE (`ImpactWildcardProcessor`) → `39` `RegexReplace` — yalnız baştaki ve sondaki
-virgülü siliyor → `36` `CLIPTextEncode`. Grafikte `Conditioning (Concat)` hiç yok, ve
-`ImpactWildcardProcessor` blok bölmüyor; onun işi wildcard ve LoRA etiketi. Yani prompta yazılan bir
-`BREAK` zincirden dokunulmadan geçer ve CLIP tarafından **kelime olarak** kodlanır — ayırmaz,
-kirletir.
+### Editör kısmı eklenecek
 
-**Değişecek tek düğüm `36`.** Hem `KSampler` hem `ToDetailerPipe` pozitifi onun çıkışından okuduğu
-için tek bir değişiklik ikisini de kapsıyor; FaceDetailer ayrıca ele alınmıyor.
+*(Kullanıcı, 6 Eylül.)* Uygulama bugün **üretip dışa aktarıyor**: kare bir fotoğrafla başlıyor,
+üstüne video ve ses biniyor, dışa aktarma hepsini tek klasörde birleştiriyor. Çıkanı **değiştiren**
+hiçbir yer yok — beğenilmeyen kare yeniden üretiliyor.
 
-Yapılırsa üç adım: ComfyUI tarafına BREAK bilen düğümü kurmak, workflow'u API biçiminde yeniden dışa
-aktarmak, ve `backend/tests/test_workflow_asset.py`'yi güncellemek — o test düğüm anahtarlarını ve
-sınıf adlarını adıyla sabitliyor, yani grafik değişince kırmızı veriyor. Bilerek öyle yazılmış.
+Neyi kapsayacağı **kararlaşmadı**: fotoğrafın kendisine dokunmak mı *(kırpma, rötuş, inpaint)*,
+video/ses tarafını kesip düzenlemek mi, yoksa karelerin sırasıyla oynamak mı.
 
-**Kimin için açılıyor:** promptu QueenAgent üretiyor, kullanıcı `PROMPTS = [...]` olarak buraya
-yapıştırıyor *(`prompt_list.py`)*. Bu düğüm açılmadan QueenAgent tarafında `BREAK` üretmenin bir
-anlamı yok; o tarafın karşılığı [QueenAgent backlog'unda](../queen-agent/BACKLOG.md) duruyor ve
-oraya bağlı.
+### MiniMax eklenecek
 
-Araştırmanın tamamı ve kaynakları:
-[skill problemleri belgesi](../docs/2026-08-27-queenagent-skill-problemleri.md).
+*(Kullanıcı, 6 Eylül.)* Hangi işi alacağı — fotoğraf mı video mu, bugünkü tarifin yerine mi yanına
+mı — **kararlaşmadı.**
+
+### Slime girl videosu eklenecek
+
+*(Kullanıcı, 6 Eylül.)* Bir video türü — *slime girl*. Bir model değil, üretilecek bir içerik biçimi.
+
+**Kararlaşmadı:** kendi LoRA'sıyla mı geliyor, kendi üretim tarifiyle mi, yoksa yalnız prompt
+tarafında mı kalıyor.

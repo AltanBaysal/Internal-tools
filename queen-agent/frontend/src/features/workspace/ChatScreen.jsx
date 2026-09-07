@@ -5,7 +5,7 @@ import Composer from "./Composer.jsx";
 import ContextGauge from "./ContextGauge.jsx";
 import FileRail from "./FileRail.jsx";
 import Markdown from "./Markdown.jsx";
-import ModelLabel from "./ModelLabel.jsx";
+import ModelPicker from "./ModelPicker.jsx";
 import ModePicker from "./ModePicker.jsx";
 import PermissionCard from "./PermissionCard.jsx";
 import Skeleton from "./Skeleton.jsx";
@@ -155,6 +155,10 @@ export default function ChatScreen({
   skill,
   skillsOpen,
   onToggleSkills,
+  model,
+  modelOpen,
+  onToggleModel,
+  onModelChange,
   mode,
   modeOpen,
   onToggleMode,
@@ -366,11 +370,11 @@ export default function ChatScreen({
                before Madde 92 carries none, and then there is no circle. */
             gauge={<ContextGauge sent={chat.context?.sent} ceiling={chat.context?.ceiling} />}
             /* karar 1's order, with Madde 91's mode in front of it: Mode · Skills · model · Send.
-               What the model may do at all comes before which job it is doing. The model stopped
-               being a control in Madde 82 -- one model, nothing to pick. Both selections are
-               handed in rather than read off the chat: they are the session's, and the session is
-               App's. Which picker is open is App's too, because Escape closes it in a fixed order
-               with the rest. */
+               What the model may do at all comes before which job it is doing. The model is a
+               control again since Madde 146 -- three of them, so there is something to pick. All
+               three selections are handed in rather than read off the chat: they are the session's,
+               and the session is App's. Which picker is open is App's too, because only one may
+               stand open and Escape closes it in a fixed order with the rest. */
             /* Stopping is the send button's other state rather than a control of its own: while an
                answer runs there is nothing to send. No red -- cutting your own answer short is not
                destruction. */
@@ -390,7 +394,12 @@ export default function ChatScreen({
                   onToggle={onToggleSkills}
                   onChange={onSkillChange}
                 />
-                <ModelLabel />
+                <ModelPicker
+                  model={model}
+                  open={modelOpen}
+                  onToggle={onToggleModel}
+                  onChange={onModelChange}
+                />
               </>
             }
             onSubmit={onSend}

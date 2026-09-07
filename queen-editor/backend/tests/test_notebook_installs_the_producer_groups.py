@@ -10,6 +10,7 @@ The notebook is read, never run.
 """
 import json
 import os
+import re
 
 from backend.features.producers.domain.model_groups import GROUPS
 
@@ -45,6 +46,15 @@ def _cell(marker):
     return ""
 
 
+def _drawn(cell):
+    """The part of a CONFIG cell Colab draws into the form: #@markdown lines only.
+
+    A plain # comment never reaches the form, so a test reading the whole cell would pass on text
+    the person ticking the box cannot see.
+    """
+    return "\n".join(line for line in cell.splitlines() if line.startswith("#@markdown"))
+
+
 def test_the_notebook_carries_the_tool_s_own_name():
     """Colab shows a notebook by its file name alone -- the title inside it never reaches the tab.
     Two tools open at once are told apart by that name and nothing else, and Run all in the wrong
@@ -58,10 +68,44 @@ def test_the_notebook_carries_the_tool_s_own_name():
 
 
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
+    """A row naming a kind rather than a file is skipped here and covered by
+    test_the_notebook_offers_every_photo_model instead, which pins all three checkpoints by name and
+    by version id -- a tighter guard than this one, not a looser one."""
     missing = [row["name"] for group in GROUPS.values() for row in group
-               if row["name"] not in _source()]
+               if "name" in row and row["name"] not in _source()]
 
     assert missing == [], f"Defter bu dosyaları indirmiyor: {missing}"
+
+
+def test_the_notebook_installs_the_encoder_the_graph_asks_for():
+    """ComfyUI validates every node it is sent, so a graph naming an encoder the notebook never
+    installed does not degrade -- it fails every single render. The graph and the notebook are one
+    thing, and this is the seam where that is checked before Colab charges an install for it."""
+    assert "pamparamm/ComfyUI-ppm" in _source(), \
+        "Grafiğin istediği kodlayıcıyı veren paket defterde kurulmuyor"
+
+
+def test_the_notebook_says_how_many_custom_nodes_it_installs():
+    """The count sits in two places -- the list itself and the heading above it -- and a copy is what
+    goes stale. Read from the list rather than written down here, so adding a node fails this test
+    until the sentence a reader sees agrees with what the cell actually clones."""
+    listed = _cell("CUSTOM_NODES = [").count('.git"),')
+    heading = _cell("## ComfyUI + Custom Node")
+
+    assert listed, "CUSTOM_NODES listesi okunamadı"
+    assert f"({listed})" in heading, f"Başlıktaki sayı listeyle uyuşmuyor: {listed} satır"
+
+
+def test_the_intro_agrees_with_the_custom_node_list():
+    """The count lives in three places -- the list, the heading over it, and the sentence that opens
+    the notebook. The third went stale when the list grew to 20 (Madde 138) because the test above
+    only ever read the heading."""
+    listed = _cell("CUSTOM_NODES = [").count('.git"),')
+    intro = _cell("# Queen Editor — Colab kurulumu")
+
+    assert listed, "CUSTOM_NODES listesi okunamadı"
+    assert f"({listed} custom node)" in intro, \
+        f"Giriş hücresindeki sayı listeyle uyuşmuyor: {listed} satır"
 
 
 def test_every_producer_has_a_checkbox_of_its_own():
@@ -72,6 +116,55 @@ def test_every_producer_has_a_checkbox_of_its_own():
     for kind in GROUPS:
         assert f'{SWITCH[kind]} = False  #@param {{type:"boolean"}}' in source, \
             f"{kind}: CONFIG'de kapalı gelen bir onay kutusu yok"
+
+
+def test_the_form_names_the_producer_boxes_too():
+    """Labelling one block of boxes and leaving the other bare would read as if the bare one
+    belonged to the labelled one -- the same confusion, moved up a line."""
+    config = _cell("# === CONFIG ===")
+    heading = config.find("#@markdown ### Üreticiler")
+    first_box = config.find("INSTALL_PHOTO = ")
+
+    assert heading != -1, "Üreticiler başlığı yok"
+    assert heading < first_box, "Başlık kutuların önünde değil"
+
+
+def test_the_form_separates_the_two_groups_of_boxes():
+    """Colab draws #@param lines into the form and #@markdown text along with them, while a plain
+    # comment never reaches it. The two blocks of boxes ran together there with nothing saying
+    where one ended.
+
+    Pinned by position rather than by wording: the words stay free to change, the structure cannot
+    quietly go away.
+    """
+    config = _cell("# === CONFIG ===")
+    divider = config.find("#@markdown ---")
+    heading = config.find("#@markdown ### Fotoğraf modelleri")
+    first_box = re.search(r"^PHOTO_\w+ = (?:True|False)  #@param", config, re.M)
+
+    assert divider != -1, "Formda iki grubu ayıran çizgi yok"
+    assert heading != -1, "Fotoğraf modelleri başlığı yok"
+    assert first_box, "CONFIG'de tek bir model kutusu yok"
+    assert divider < heading < first_box.start(), "Ayraç ve başlık kutuların önünde değil"
+
+
+def test_the_form_leaves_the_model_section_at_its_heading():
+    """Every sentence that stood under this heading was a copy of something the run already says:
+    the guard below prints the pick-at-least-one rule in Turkish, the boxes show for themselves
+    that they come empty, and the download cell prints the disk cost computed from what was
+    actually ticked. A copy is the thing that goes stale, so the form keeps the heading and the run
+    keeps the sentences.
+
+    Measured by what is left rather than by what is gone: a test naming the removed lines would
+    stay green on a form that grew three different ones.
+    """
+    drawn = _drawn(_cell("# === CONFIG ===")).splitlines()
+
+    assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
+    tail = drawn[drawn.index("#@markdown ---"):]
+
+    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri"], \
+        f"Model bölümü başlıktan ibaret değil: {tail}"
 
 
 def test_choosing_nothing_stops_the_notebook():
@@ -107,6 +200,78 @@ def test_an_unticked_group_costs_no_bytes():
         for name in names:
             assert f"{name} if {SWITCH[kind]} else []" in source, \
                 f"{name} kendi anahtarının arkasında değil"
+
+
+def test_every_photo_model_has_a_checkbox_of_its_own():
+    """The switch has to sit in CONFIG -- Colab draws #@param only where it is written -- and the row
+    saying what to fetch sits in the model cell. Two lists, and a name in one but not the other is
+    either a box that downloads nothing or a download nobody can turn off.
+
+    Every checkpoint is here, the group's own included: which models come down is the user's pick.
+    """
+    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
+    rows = re.findall(r"^\s*\((PHOTO_\w+),", _cell("PHOTO_MODELS = ["), re.M)
+
+    assert boxes, "CONFIG'de tek bir model kutusu yok"
+    assert sorted(boxes) == sorted(rows), f"Kutular {sorted(boxes)}, satırlar {sorted(rows)}"
+
+
+def test_every_photo_model_comes_switched_off():
+    """Photo ticked draws the boxes empty and picks nothing heavy for anyone.
+
+    The first assertion is not spare: with no PHOTO_* line at all the second one holds for free.
+    """
+    config = _cell("# === CONFIG ===")
+    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
+    on = re.findall(r"^(PHOTO_\w+) = True  #@param", config, re.M)
+
+    assert boxes, "CONFIG'de tek bir model kutusu yok"
+    assert on == [], f"Model açık geliyor: {on}"
+
+
+def test_choosing_photo_without_a_model_stops_the_notebook():
+    """Photo ticked and every model box empty means a renderer with nothing to render with. Asked in
+    CONFIG like every other gate: a second here beats ten minutes after ComfyUI's install.
+
+    The expected line is built from the boxes rather than written down, so a model added without
+    being added to the guard fails here instead of silently reopening the hole.
+    """
+    config = _cell("# === CONFIG ===")
+    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
+    guard = "assert not INSTALL_PHOTO or " + " or ".join(boxes)
+
+    assert boxes, "CONFIG'de tek bir model kutusu yok"
+    assert guard in config, f"Beklenen kontrol yok:\n{guard}"
+
+
+def test_an_unticked_photo_model_costs_no_bytes():
+    """The rule the three producer boxes already follow, one level down: a row is reached only
+    through its own switch."""
+    assert "in PHOTO_MODELS if on" in _cell("PHOTO_MODELS = ["), \
+        "PHOTO_MODELS satırları kendi anahtarıyla süzülmüyor"
+
+
+def test_the_photo_estimate_counts_only_what_the_group_always_takes():
+    """The base is the four files the graph's branches read -- the lora, the upscaler, the detector,
+    the SAM. The checkpoints are the user's pick, so counting one of them into the base would warn a
+    single-model run about disk it was never going to use."""
+    assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
+        "SIZES foto için hâlâ sabit bir sayı taşıyor"
+    assert "PHOTO_GIB = 2 +" in _cell("PHOTO_GIB ="), \
+        "Disk tabanı hâlâ bir checkpoint'in payını taşıyor"
+
+
+def test_the_notebook_offers_every_photo_model():
+    """Named rather than derived: this is the one place saying which models the notebook can fetch,
+    so a silent edit cannot quietly change what a run is able to install. Reading the list itself
+    would only say that the list contains what it contains."""
+    cell = _cell("PHOTO_MODELS = [")
+
+    for name in ("nova3DCGXL_ilV90.safetensors", "novaOrangeXL_rexV10.safetensors",
+                 "novaAnimeXL_ilV190.safetensors"):
+        assert name in cell, f"Defter bu modeli indirmiyor: {name}"
+    for version in ("2744564", "2945776", "2940478"):
+        assert version in cell, f"Civitai version id defterde yok: {version}"
 
 
 def test_the_disk_is_measured_before_the_download_starts():

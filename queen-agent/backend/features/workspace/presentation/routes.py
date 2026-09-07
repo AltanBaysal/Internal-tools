@@ -113,6 +113,7 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
                     payload["text"],
                     now=_now(),
                     skill=payload.get("skill", ""),
+                    model=payload.get("model", ""),
                     project_store=project_store,
                     # Minted whether or not it is used: the alternative is a second branch inside
                     # the rule, asking the route for an id only once it knows it is making a chat.
@@ -315,6 +316,7 @@ def _chat_json(chat):
                 "text": message.text,
                 "files": list(message.files),
                 "skill": message.skill,
+                "model": message.model,
                 # Always present, unlike on disk: the browser draws from what it is handed, and an
                 # absent field would make every reader check for it.
                 "calls": [
