@@ -100,6 +100,13 @@ export default function App() {
   // One reader for both screens: the chat widens its rail into it, the project screen opens it as a
   // panel. What is being read belongs to the project, so it survives moving between the two.
   const reading = useFile(route.projectId);
+  // Madde 192: everything about files that can have gone stale, in one action. Two of them, and
+  // they stale differently -- a late list hides a name, a late panel shows the wrong text under the
+  // right one. One button rather than two, so the user never has to work out which they are fixing.
+  //
+  // reloadProjects is not in here: what moves a project card's count is a file being born, and
+  // onFileCreated below already answers that.
+  const refresh = () => Promise.all([reloadFiles(), reading.reload()]);
   // A file that has just been born changes two answers at once: the list itself, and the count on
   // the project's card.
   const openProject = (id) => navigate(`/p/${id}`);
@@ -122,6 +129,8 @@ export default function App() {
       openChat(route.projectId, id, { replace: true });
       return Promise.all([reloadProjectChats(), reloadProjects()]);
     },
+    // A turn is the usual writer, so its end is the usual moment for both to be out of date.
+    refresh,
   );
 
   // "/" is a fork, not a screen. It is read once the list has arrived -- an empty array cannot tell
@@ -296,6 +305,7 @@ export default function App() {
             filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
+            onRefresh={refresh}
             /* No chat here to write a choice to: the picker holds what the next chat will be born
                with -- the same value the draft's own picker holds. */
             skill={draftSkill}
@@ -327,6 +337,7 @@ export default function App() {
             filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
+            onRefresh={refresh}
             railCollapsed={railCollapsed || railFoldedByWidth}
             railFoldedByWidth={railFoldedByWidth}
             railWidth={railWidth}

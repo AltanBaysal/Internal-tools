@@ -136,6 +136,7 @@ export default function ChatScreen({
   filesError,
   reading,
   deleting,
+  onRefresh,
   railCollapsed,
   railFoldedByWidth,
   railWidth,
@@ -413,6 +414,7 @@ export default function ChatScreen({
         error={filesError}
         reading={reading}
         deleting={deleting}
+        onRefresh={onRefresh}
         collapsed={railCollapsed}
         foldedByWidth={railFoldedByWidth}
         width={railWidth}

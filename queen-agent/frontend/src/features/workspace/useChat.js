@@ -5,7 +5,7 @@ import { streamEvents } from "../../shared/sse.js";
 
 import { chatTitle } from "./chatTitle.js";
 
-export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
+export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd) {
   const [chat, setChat] = useState(null);
   const [error, setError] = useState(null);
   // Kept apart from `error` on purpose: a message that was never sent and an answer that never came
@@ -30,6 +30,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   announce.current = onFileCreated;
   const born = useRef(onChatBorn);
   born.current = onChatBorn;
+  const ended = useRef(onTurnEnd);
+  ended.current = onTurnEnd;
   // Which chat a stream is running into. The first frame moves the address, and the effect below
   // must not answer that move by throwing away what is still arriving.
   const streamingInto = useRef(null);
@@ -234,6 +236,11 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
           setStreamingChatId(null);
           owner.current = null;
         }
+        // Outside that gate, and however the turn ended (Madde 192). The gate guards what draws on
+        // the screen; this draws nothing -- it asks the disk. What the turn wrote is written
+        // whoever is looking, and a fault is an ending too: what got as far as disk is on it. The
+        // same reason a born file is announced for every screen.
+        ended.current?.();
       }
     },
     [projectId, chatId],

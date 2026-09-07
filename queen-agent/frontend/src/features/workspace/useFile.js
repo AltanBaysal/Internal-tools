@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getJson } from "../../shared/api.js";
 
@@ -55,6 +55,35 @@ export function useFile(projectId) {
     };
   }, [path]);
 
+  // Which file the panel is on now, read when a reload comes back: a second file opened while the
+  // first was still in flight must not be painted over with the first one's body. The effect above
+  // says the same thing with its `cancelled` flag -- this is that rule at the other door.
+  const current = useRef(path);
+  current.current = path;
+
+  // Madde 192. The effect hangs off the path, and the path answers *which* file is open rather than
+  // what is in it -- so a turn that rewrote the open file used to leave the copy it was opened with
+  // on screen. Nothing is cleared first: the first read starts from an empty panel, but a refresh
+  // has a page under the reader's eyes, and blanking it for a frame is a blink.
+  const reload = useCallback(async () => {
+    if (!path) return;
+    try {
+      const fresh = await getJson(path);
+      if (current.current !== path) return;
+      setFile(fresh);
+      setMissing(false);
+      setError(null);
+    } catch (failure) {
+      if (current.current !== path) return;
+      // Deleted while it was open. The body goes with the news: a page sitting under a line saying
+      // the file is gone is the older of the two lies, not the gentler one.
+      if (failure.status === 404) {
+        setFile(null);
+        setMissing(true);
+      } else setError(failure.message);
+    }
+  }, [path]);
+
   const download = useCallback(async () => {
     // Read again rather than saving what is on screen: the panel's copy may be a minute old, and
     // what lands on disk should be what the project holds now.
@@ -70,5 +99,5 @@ export function useFile(projectId) {
 
   const close = useCallback(() => setOpened(null), []);
 
-  return { name, file, missing, error, open, close, download };
+  return { name, file, missing, error, open, close, download, reload };
 }

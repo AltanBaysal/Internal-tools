@@ -80,9 +80,23 @@ function Grip({ width, onResize, onDrag }) {
   );
 }
 
-function FileList({ files, loading, error, reading, deleting }) {
+// Madde 192: the button sits inside the list rather than in the heading, and both facts have the
+// same cause. The heading is the fold control, and a button cannot stand inside a button; and
+// folded there is no list for it to be about, so it goes away with the rows it belongs to.
+export function RefreshFiles({ onRefresh }) {
+  return (
+    <div className="file-list__bar">
+      <button type="button" className="file-list__refresh" aria-label="Refresh" onClick={onRefresh}>
+        ↻
+      </button>
+    </div>
+  );
+}
+
+function FileList({ files, loading, error, reading, deleting, onRefresh }) {
   return (
     <div className="file-list">
+      <RefreshFiles onRefresh={onRefresh} />
       {/* The teaching line waits for the answer: until the list has arrived, "no files yet" is a
           guess and not a fact -- and if the answer never came, it is not even a guess. */}
       {loading ? <Skeleton rows={3} /> : null}
@@ -120,6 +134,7 @@ export default function FileRail({
   width,
   onResize,
   onToggle,
+  onRefresh,
 }) {
   // Only the stylesheet cares, and only for as long as the pointer is down, so it lives here rather
   // than travelling up with the width.
@@ -139,6 +154,7 @@ export default function FileRail({
           error={reading.error}
           onClose={reading.close}
           onDownload={reading.download}
+          onRefresh={onRefresh}
         />
       </aside>
     );
@@ -175,6 +191,7 @@ export default function FileRail({
             error={error}
             reading={reading}
             deleting={deleting}
+            onRefresh={onRefresh}
           />
         </>
       )}

@@ -13,7 +13,16 @@ function isDocument(name) {
   return /\.md$/i.test(name);
 }
 
-export default function FilePanel({ name, file, missing, error, back, onClose, onDownload }) {
+export default function FilePanel({
+  name,
+  file,
+  missing,
+  error,
+  back,
+  onClose,
+  onDownload,
+  onRefresh,
+}) {
   const [preparing, setPreparing] = useState(false);
   const [failed, setFailed] = useState(null);
 
@@ -38,6 +47,19 @@ export default function FilePanel({ name, file, missing, error, back, onClose, o
           </button>
         ) : null}
         <span className="reader__name">{file ? file.name : name}</span>
+        {/* Madde 192. The same action the list's button asks for -- it reads both -- so the two are
+            one button that follows whichever surface is on screen. No busy word and nothing
+            spinning: Download says "preparing…" because what it makes lands outside the screen,
+            and this changes the page in place. The changed page is the answer. */}
+        <button
+          type="button"
+          className="reader__refresh"
+          title="Refresh"
+          aria-label="Refresh"
+          onClick={onRefresh}
+        >
+          ↻
+        </button>
         {/* The width is fixed so the label can change inside it without moving the button. */}
         <button
           type="button"
