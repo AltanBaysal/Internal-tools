@@ -80,15 +80,39 @@ class Message:
 
 
 @dataclass(frozen=True)
+class Version:
+    """One line the conversation took, and where it left the line before it (Madde 195).
+
+    `at` is how many of the parent's messages this one keeps, so the line it draws is
+    parent[:at] + messages. The kept part is not copied here on purpose: written twice, one of the
+    two copies is the one that goes stale, and the whole point of a version is that the past it
+    grew out of is the same past.
+    """
+
+    id: str
+    # The line it grew out of. Empty is the chat's first line -- the one Chat.messages holds.
+    parent: str = ""
+    at: int = 0
+    messages: tuple = ()
+
+
+@dataclass(frozen=True)
 class Chat:
     id: str
     title: str
     created_at: str
     messages: tuple = ()
+    # Every line after the first (Madde 195), in the order they were opened -- which is the order
+    # the arrows step through.
+    versions: tuple = ()
+    # Which line is open. Empty is the first one, so a chat that never branched is what it always
+    # was and no field has to be filled to say so.
+    active: str = ""
 
     @property
     def last_activity(self):
-        return self.messages[-1].at if self.messages else self.created_at
+        said = active_messages(self)
+        return said[-1].at if said else self.created_at
 
 
 def chat_title(text):
@@ -100,13 +124,77 @@ def chat_title(text):
     return trimmed[:TITLE_LIMIT] + "…"
 
 
+def active_messages(chat):
+    """The conversation as it stands: the open line, walked back to the first one.
+
+    Everything that reads a chat reads this rather than `messages` (Madde 195). A line nobody is
+    standing on is not sent to the model any more, so it does not decide whether an answer is owed,
+    it does not fill the chat, and it is not what the screen draws.
+    """
+    return _line(chat, chat.active)
+
+
+def _line(chat, name):
+    if not name:
+        return chat.messages
+    for version in chat.versions:
+        if version.id == name:
+            return _line(chat, version.parent)[: version.at] + version.messages
+    # A name nobody wrote. A chat on disk can be edited by hand -- the store reads it field by field
+    # for the same reason -- and the first line is the one that always exists.
+    return chat.messages
+
+
+def variants_of(chat):
+    """For each message of the open line, the versions standing where it stands.
+
+    The base is the line whose own message fills that place: if the line carrying it split exactly
+    there, the base is its parent; otherwise it is that line itself. The options are the base first,
+    because its message was there first, then the versions that split there in the order they were
+    opened. Nothing else decides which way the arrows point.
+    """
+    said = active_messages(chat)
+    standing = _chain(chat, chat.active)
+    return [_variants_at(chat, standing, index) for index in range(len(said))]
+
+
+def _chain(chat, name):
+    """The open line and everything it grew out of, first line first."""
+    if not name:
+        return [None]
+    for version in chat.versions:
+        if version.id == name:
+            return _chain(chat, version.parent) + [version]
+    return [None]
+
+
+def _variants_at(chat, standing, index):
+    # Which line of the open chain owns this place: the last one that starts at or before it.
+    owner = None
+    for line in standing:
+        if line is None or line.at <= index:
+            owner = line
+    base = owner.parent if owner is not None and owner.at == index else _name(owner)
+    options = [base] + [
+        version.id
+        for version in chat.versions
+        if version.parent == base and version.at == index
+    ]
+    return {"index": options.index(_name(owner)), "of": len(options), "versions": options}
+
+
+def _name(line):
+    return "" if line is None else line.id
+
+
 def is_owed_an_answer(chat):
     """Whether the last thing said in this chat was the user's.
 
     This lived in the browser until Madde 88, where it could run without anybody asking -- on a
     reload, and on a connection coming back. Here it can only be reached by a request.
     """
-    return bool(chat.messages) and chat.messages[-1].role == "user"
+    said = active_messages(chat)
+    return bool(said) and said[-1].role == "user"
 
 
 CONTEXT_CEILING = 50_000
@@ -130,8 +218,11 @@ def last_context(chat):
     a request is stopped by the size of the one before it. Walked from the end rather than read off
     the last message: a question whose answer never came can be sitting there, and a question has
     no number of its own.
+
+    The open line since Madde 195: a turn the user walked away from is not sent any more, and what
+    is not sent cannot fill the chat.
     """
-    for message in reversed(chat.messages):
+    for message in reversed(active_messages(chat)):
         if message.role == "ai":
             return message.usage.context
     return 0

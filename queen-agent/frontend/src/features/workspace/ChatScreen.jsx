@@ -154,6 +154,41 @@ function LiveStrip({ round, of, tokens }) {
 
 // The skeleton of the card about to be born: an empty badge slot where the chip will go, and no
 // name -- the model's wish is not the name until it has been cleaned and a clash resolved.
+// Which of the versions standing in one place is showing, and the way to the ones beside it
+// (Madde 195). Drawn only where there is more than one: every message carries the field, and arrows
+// under a sentence with nothing beside it offer to step through one thing.
+function Versions({ standing, onVersion }) {
+  if (!standing || standing.of < 2) return null;
+  const step = (by) => onVersion?.(standing.versions[standing.index + by]);
+  return (
+    <div className="versions">
+      <button
+        type="button"
+        className="versions__step"
+        aria-label="Previous version"
+        title="Previous version"
+        disabled={standing.index === 0}
+        onClick={() => step(-1)}
+      >
+        ‹
+      </button>
+      <span className="versions__count">
+        {standing.index + 1}/{standing.of}
+      </span>
+      <button
+        type="button"
+        className="versions__step"
+        aria-label="Next version"
+        title="Next version"
+        disabled={standing.index === standing.of - 1}
+        onClick={() => step(1)}
+      >
+        ›
+      </button>
+    </div>
+  );
+}
+
 function CreatingFile() {
   return (
     <div className="creating">
@@ -223,7 +258,12 @@ export default function ChatScreen({
   onSkillChange,
   onStop,
   onRetry,
+  onVersion,
 }) {
+  // Which message is being edited, and the token that puts its sentence in the box (Madde 195).
+  // Held here rather than in App: it is a state of this screen, and it ends the moment the sentence
+  // is sent.
+  const [editing, setEditing] = useState(null);
   // Stamped once, when the wait starts. There is nothing on the server to read it from yet, and the
   // label answers "when was this asked for" -- an answer that stops being new the moment it is given.
   const [askedAt, setAskedAt] = useState(null);
@@ -297,9 +337,24 @@ export default function ChatScreen({
               >
                 {/* Only an answer has steps; a question is what was typed and nothing else. */}
                 {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
-                {/* What the user typed stays what they typed -- `**test**` keeps its asterisks. */}
+                {/* What the user typed stays what they typed -- `**test**` keeps its asterisks.
+                    The edit sits beside the bubble: only a question can be gone back to, since an
+                    answer is a whole turn with its own calls and stepping into the middle of one
+                    would mean nothing on disk. Named for the message rather than Edit alone, which
+                    the mode picker already wears (Madde 195). */}
                 {message.role === "user" ? (
-                  <div className="msg__bubble">{message.text}</div>
+                  <div className="msg__said">
+                    <div className="msg__bubble">{message.text}</div>
+                    <button
+                      type="button"
+                      className="msg__edit"
+                      aria-label="Edit message"
+                      title="Edit message"
+                      onClick={() => setEditing({ index, text: message.text, token: Date.now() })}
+                    >
+                      ✎
+                    </button>
+                  </div>
                 ) : /* Only when there is something to draw: an answer stopped before its first
                        word would otherwise put the rule down the side of nothing at all. */
                 message.text ? (
@@ -307,6 +362,7 @@ export default function ChatScreen({
                     <Markdown text={message.text} />
                   </div>
                 ) : null}
+                <Versions standing={message.variants} onVersion={onVersion} />
                 {/* Where the text stops and why. Above the cards and the count -- those are notes
                     about the turn, this is the end of the sentence. Nobody but the user can stop
                     an answer, so the word says what happened and invents no cause for it. */}
@@ -436,6 +492,8 @@ export default function ChatScreen({
                destruction. */
             running={thinking}
             onStop={onStop}
+            /* The sentence being edited, put back in the box for the user to change (Madde 195). */
+            filled={editing}
             foot={
               <>
                 <ModePicker
@@ -458,7 +516,14 @@ export default function ChatScreen({
                 />
               </>
             }
-            onSubmit={onSend}
+            /* Where the sentence starts from: the message being replaced, or nothing at all for an
+               ordinary reply. Cleared as it goes -- the next sentence is a reply again unless the
+               user says otherwise. */
+            onSubmit={(text) => {
+              const from = editing ? editing.index : null;
+              setEditing(null);
+              return onSend?.(text, from);
+            }}
           />
         </div>
       </div>

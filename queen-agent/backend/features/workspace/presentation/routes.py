@@ -1,6 +1,7 @@
 """Workspace HTTP routes -- request/response translation only, no business rules."""
 import json
 import uuid
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from flask import Blueprint, Response, jsonify, request
@@ -16,9 +17,11 @@ from backend.features.workspace.domain.errors import (
 from backend.features.workspace.domain.chat import (
     CONTEXT_CEILING,
     ToolCall,
+    active_messages,
     is_full,
     is_owed_an_answer,
     last_context,
+    variants_of,
 )
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting
 from backend.features.workspace.domain.tools import FileStarted, FileWritten
@@ -69,8 +72,10 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
         # There is no way back, so the name is only a record of what happened on disk.
         return jsonify({"trashed": trashed})
 
-    # There is no PATCH here. Since Madde 86 nothing about a chat changes after it is written: the
-    # skill is the session's and rides on each message, and a chat is never renamed.
+    # There is no PATCH here. What a chat has said never changes: the skill is the session's and
+    # rides on each message, and a chat is never renamed (Madde 86). One thing about it does move
+    # since Madde 195 -- which version is open -- and that has a door of its own below, next to the
+    # other two that act on a chat rather than describe it.
     @workspace_bp.get("/api/projects/<project_id>/chats")
     def get_chats(project_id):
         return jsonify([_chat_summary(chat) for chat in list_chats(chat_store, project_id)])
@@ -118,6 +123,11 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
                     # Minted whether or not it is used: the alternative is a second branch inside
                     # the rule, asking the route for an id only once it knows it is making a chat.
                     new_id=_new_id("c"),
+                    # Which message this one is replacing, when it is an edit (Madde 195). A field
+                    # rather than a door of its own: the turn that follows is the same turn, with
+                    # the same refusals in front of it and the same answer coming back down it.
+                    branch_at=payload.get("from"),
+                    line_id=_new_id("l"),
                 )
             except ProjectNotFound:
                 return jsonify({"error": "project not found"}), 404
@@ -152,6 +162,22 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
             ),
             mimetype="text/event-stream",
         )
+
+    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/version")
+    def post_version(project_id, chat_id):
+        # Which line the chat is open on (Madde 195). Nothing is written to the conversation here --
+        # every version keeps everything it said, and this only moves which one is being read.
+        chat = chat_store.get(project_id, chat_id)
+        if chat is None:
+            return jsonify({"error": "chat not found"}), 404
+        wanted = (request.get_json(silent=True) or {}).get("version", "")
+        # The empty name is the first line and always exists; anything else has to have been opened.
+        if wanted and wanted not in [version.id for version in chat.versions]:
+            return jsonify({"error": "version not found"}), 404
+        chat_store.replace(project_id, replace(chat, active=wanted))
+        # The transcript is not sent back: the browser reads the chat the same way it does after a
+        # turn, and a second shape for one record is a second thing to keep true.
+        return jsonify({})
 
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/stop")
     def post_stop(project_id, chat_id):
@@ -316,11 +342,17 @@ def _chat_json(chat):
         # to say the same thing. The gauge is handed the number the ceiling actually stops on --
         # a gauge measuring something else cannot warn about the wall it is not watching.
         "context": {"sent": last_context(chat), "ceiling": CONTEXT_CEILING},
+        # The open line since Madde 195, and the key stays `messages`: what the browser is handed is
+        # the conversation as it stands, which is what it always was.
         "messages": [
             {
                 "role": message.role,
                 "at": message.at,
                 "text": message.text,
+                # Which of the versions standing in this place is showing, and what the arrows can
+                # reach. Always present, like calls below: a field that comes and goes makes every
+                # reader check for it first.
+                "variants": standing,
                 "files": list(message.files),
                 "skill": message.skill,
                 "model": message.model,
@@ -339,6 +371,6 @@ def _chat_json(chat):
                     "answered": message.usage.answered,
                 },
             }
-            for message in chat.messages
+            for message, standing in zip(active_messages(chat), variants_of(chat))
         ],
     }

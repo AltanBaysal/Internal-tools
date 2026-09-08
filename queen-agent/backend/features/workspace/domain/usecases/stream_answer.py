@@ -5,7 +5,7 @@ simpler than carrying a separate "this one is the last" flag.
 """
 from dataclasses import dataclass
 
-from backend.features.workspace.domain.chat import ToolCall, Usage
+from backend.features.workspace.domain.chat import ToolCall, Usage, active_messages
 from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
@@ -62,17 +62,21 @@ def _conversation(chat):
     The skill's instruction used to be dropped in here, in front of the turn it governed. Since
     Madde 93 it does not travel inside the conversation at all -- it rides at the end of the
     request, and `_asked` is what puts it there.
+
+    The open line since Madde 195: a version is answered with the conversation the user is standing
+    in, not the one they took back.
     """
-    return [{"role": message.role, "content": message.text} for message in chat.messages]
+    return [{"role": message.role, "content": message.text} for message in active_messages(chat)]
 
 
 def _current_skill(chat):
     """Which skill governs the turn being answered: the newest user message's.
 
     Walked from the end rather than read off the last message, for the same reason last_sent is: a
-    record does not always end with the question that is waiting for an answer.
+    record does not always end with the question that is waiting for an answer -- and since Madde
+    195 that end is the open line's.
     """
-    for message in reversed(chat.messages):
+    for message in reversed(active_messages(chat)):
         if message.role == "user":
             return message.skill
     return ""
@@ -82,11 +86,11 @@ def _current_model(chat):
     """Which model answers the turn: the newest user message's (Madde 146).
 
     Read the way the skill is, and walked from the end for the same reason -- a record does not
-    always end with the question that is waiting for an answer. Nothing here turns an empty one into
-    a name: config.engine_for is the single place that resolves a fallback, and a second guess here
-    would be a second answer to one question.
+    always end with the question that is waiting for an answer, and since Madde 195 that end is the
+    open line's. Nothing here turns an empty one into a name: config.engine_for is the single place
+    that resolves a fallback, and a second guess here would be a second answer to one question.
     """
-    for message in reversed(chat.messages):
+    for message in reversed(active_messages(chat)):
         if message.role == "user":
             return message.model
     return ""

@@ -1,7 +1,7 @@
 """FileChatStore -- the only place that knows the chats/<id>.json schema."""
 import json
 
-from backend.features.workspace.domain.chat import Chat, Message, ToolCall, Usage
+from backend.features.workspace.domain.chat import Chat, Message, ToolCall, Usage, Version
 from backend.features.workspace.domain.naming import unique_name
 
 CHATS_DIR = "chats"
@@ -49,6 +49,12 @@ class FileChatStore:
             "createdAt": chat.created_at,
             "messages": [_message_json(message) for message in chat.messages],
         }
+        # The same rule the fields below keep: a chat that never branched writes neither key, and
+        # reads back exactly as it did before Madde 195.
+        if chat.versions:
+            stored["versions"] = [_version_json(version) for version in chat.versions]
+        if chat.active:
+            stored["active"] = chat.active
         # A chat carries no skill of its own since Madde 86, and no model since 82. Older records
         # still have those keys here; nothing puts one back, so they drop the first time such a
         # chat is written again.
@@ -91,6 +97,17 @@ def _message_json(message):
     return stored
 
 
+def _version_json(version):
+    # Where it split and what was said after it. The messages before the split belong to the line it
+    # grew out of and are not repeated here (Madde 195).
+    return {
+        "id": version.id,
+        "parent": version.parent,
+        "at": version.at,
+        "messages": [_message_json(message) for message in version.messages],
+    }
+
+
 def _call_json(call):
     # The same rule one level down: a call about no file in particular writes no target, and one
     # recorded before outcomes existed writes no outcome.
@@ -115,27 +132,41 @@ def _as_usage(raw):
     )
 
 
+def _as_message(message):
+    return Message(
+        role=message["role"],
+        at=message["at"],
+        text=message["text"],
+        # Chats written before these fields existed simply have neither.
+        files=tuple(message.get("files", ())),
+        skill=message.get("skill", ""),
+        model=message.get("model", ""),
+        calls=tuple(
+            ToolCall(call["tool"], call.get("target", ""), call.get("outcome", ""))
+            for call in message.get("calls", ())
+        ),
+        stopped=message.get("stopped", False),
+        usage=_as_usage(message.get("usage")),
+    )
+
+
+def _as_version(raw):
+    return Version(
+        id=raw["id"],
+        parent=raw.get("parent", ""),
+        at=raw.get("at", 0),
+        messages=tuple(_as_message(message) for message in raw.get("messages", ())),
+    )
+
+
 def _as_chat(chat_id, raw):
     return Chat(
         id=chat_id,
         title=raw["title"],
         created_at=raw["createdAt"],
-        messages=tuple(
-            Message(
-                role=message["role"],
-                at=message["at"],
-                text=message["text"],
-                # Chats written before these fields existed simply have neither.
-                files=tuple(message.get("files", ())),
-                skill=message.get("skill", ""),
-                model=message.get("model", ""),
-                calls=tuple(
-                    ToolCall(call["tool"], call.get("target", ""), call.get("outcome", ""))
-                    for call in message.get("calls", ())
-                ),
-                stopped=message.get("stopped", False),
-                usage=_as_usage(message.get("usage")),
-            )
-            for message in raw["messages"]
-        ),
+        messages=tuple(_as_message(message) for message in raw["messages"]),
+        # A chat written before Madde 195 has neither, and reads back as the one line it is. No
+        # migration: the fields fill themselves the first time somebody edits a message.
+        versions=tuple(_as_version(version) for version in raw.get("versions", ())),
+        active=raw.get("active", ""),
     )

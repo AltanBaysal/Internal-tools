@@ -97,7 +97,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   // is settled when the turn is sent. The mode travels the same way and is kept nowhere -- what it
   // decides is which tools the request carries, and that is decided the moment it is sent.
   const send = useCallback(
-    async (text = null, skill = "", mode = "", model = "") => {
+    async (text = null, skill = "", mode = "", model = "", from = null) => {
       const at = new Date().toISOString();
       const token = {};
       owner.current = token;
@@ -111,7 +111,13 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
           current
             ? {
                 ...current,
-                messages: [...current.messages, { role: "user", at, text, pending: true }],
+                // An edit opens a line where the old message stood, so what is drawn while the
+                // server answers is the conversation up to that point and the new sentence -- not
+                // the new sentence after turns it has just replaced (Madde 195).
+                messages: [
+                  ...(from === null ? current.messages : current.messages.slice(0, from)),
+                  { role: "user", at, text, pending: true },
+                ],
               }
             : {
                 id: null,
@@ -134,8 +140,19 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
       setStreamingChatId(chatId);
       // No text at all is how Try again asks: the question is already on disk and must not be
       // written a second time. A blank one would be refused, which is a different thing.
+      // An edit carries where it starts from (Madde 195); an ordinary reply carries no such field,
+      // and the server tells the two apart by its absence rather than by a number meaning nothing.
       const body =
-        text === null ? { chat: chatId } : { chat: chatId ?? "", text, skill, mode, model };
+        text === null
+          ? { chat: chatId }
+          : {
+              chat: chatId ?? "",
+              text,
+              skill,
+              mode,
+              model,
+              ...(from === null ? {} : { from }),
+            };
       try {
         await streamEvents(
           `/api/projects/${projectId}/messages`,
@@ -257,6 +274,21 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     [projectId, chatId],
   );
 
+  // Which version of the conversation is open (Madde 195). The record is read back rather than
+  // guessed at: the server keeps which line is open, and a second answer held here is the one that
+  // would go stale.
+  const version = useCallback(
+    async (wanted) => {
+      try {
+        await postJson(`/api/projects/${projectId}/chats/${chatId}/version`, { version: wanted });
+        setChat(await getJson(`/api/projects/${projectId}/chats/${chatId}`));
+      } catch (failure) {
+        setError(failure.message);
+      }
+    },
+    [projectId, chatId],
+  );
+
   const stop = useCallback(async () => {
     // The server's answer carries nothing; what matters is that the running turn's connection is
     // cut. A refusal is not worth a message -- the stream ends either way.
@@ -298,6 +330,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     send,
     stop,
     answer,
+    version,
     // Try again is the same road with no sentence on it.
     retry: () => send(null),
   };

@@ -366,7 +366,10 @@ export default function App() {
             modelOpen={pickerOpen === "model"}
             onToggleModel={() => togglePicker("model")}
             onModelChange={setLastModel}
-            onSend={(text) => chat.send(text, skillInForce, lastMode, lastModel)}
+            /* The second argument is where an edit starts from, and it is the screen's: which
+               message is being replaced is a state of the transcript, not of the session. */
+            onSend={(text, from) => chat.send(text, skillInForce, lastMode, lastModel, from)}
+            onVersion={chat.version}
             onSkillChange={changeSkill}
             onStop={chat.stop}
             /* The question is the hook's; the mode is the session's, and the session is here. One

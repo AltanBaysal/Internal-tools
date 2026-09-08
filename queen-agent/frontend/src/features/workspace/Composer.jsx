@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // The two marks the one button wears. Written here rather than inline: the running state picks
 // between them, and a reader should see both at once to know they are a pair.
@@ -14,6 +14,9 @@ const STOP = "⏹";
 // `running` says an answer is on its way, and it turns the one action button into a stop. There is
 // nothing to send while one is running, so the button that sends is the one free to stop -- and a
 // control with two states keeps both of them here, where the button already lives.
+// `filled` is a sentence put into the box from outside -- the message being edited (Madde 195).
+// Watched by its token rather than by its text, so pressing edit twice on the same message fills the
+// box both times: the text would be the same string and the effect would not run.
 export default function Composer({
   rows,
   placeholder,
@@ -21,10 +24,17 @@ export default function Composer({
   gauge,
   foot,
   running,
+  filled,
   onStop,
   onSubmit,
 }) {
   const [draft, setDraft] = useState("");
+  const token = filled?.token ?? null;
+  useEffect(() => {
+    if (token !== null) setDraft(filled.text);
+    // The text is deliberately not a dependency: what says "fill it again" is the token.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
   const ready = draft.trim().length > 0;
   // An empty draft is what blocks sending; blocking a stop with it would kill the control in the
   // very case it exists for. The accent follows: while an answer runs, stopping is the only action
