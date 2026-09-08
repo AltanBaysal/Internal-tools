@@ -1,7 +1,7 @@
 # QueenAgent v8 Yol Haritası — çıkan prompt, ve koşarken görünen
 
 **Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül — artı **195 ve 196, koşu sürerken eklendi**
-*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **On beş madde**, yedi dilim, 183'ten 198'e — **188 yok**,
+*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **On altı madde**, yedi dilim, 183'ten 199'a — **188 yok**,
 taslak okunurken geri çekildi *(aşağıda)*. Numaralar 182'nin ardından gidiyor ve **hiç kaymıyor** —
 yazılmış spec'ler onlara atıf yapıyor, ve çekilen bir numara boş kalır.
 
@@ -35,13 +35,15 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 196 · sistem promptunun ikinci parçası | **kapandı** | `39ae4c7` |
 | 197 · düzenleme mesajın kendi yerinde | **kapandı** | `ca57b0f` |
 | 198 · akış karakterle başlar, plan işaretlenir | **kapandı** | `b9dbc67` |
+| 199 · şerit ve kalem tek satırda | | |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
 
 183–187, 189, 191–198 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
 açıldı** *(kullanıcı, 8 Eylül)*. Ardından **197 ve 198** eklendi, ikisi de denemeden çıktı: 195'in
 düzenleme akışının yeri yanlış bulundu *(ve aynı yerde 195'in bıraktığı bir hizalama kusuru vardı)*,
-186'nın bağlam sorusu ise sürtünme olarak görüldü. **Ajanın işi yine burada bitti**: geriye 190
-kalıyor, ve o kullanıcının kendi maddesi. 196'nın sabiti de boş — ne yazılacağı kullanıcının.
+186'nın bağlam sorusu ise sürtünme olarak görüldü. **199 da aynı yerden** geldi: 197 kalemi bubble'ın
+altına indirdi, ve sürüm şeridiyle alt alta düştüğü orada görüldü. Geriye 190 kalıyor, ve o
+kullanıcının kendi maddesi. 196'nın sabiti de boş — ne yazılacağı kullanıcının.
 190 hâlâ kullanıcının kendi maddesi ve en sonda. 196'nın sabiti de kullanıcıyı bekliyor: açılan yer
 şimdilik boş.
 
@@ -346,7 +348,7 @@ dokunuyor ve `dist` bir kez derleniyor.
 
 Söylenmiş bir şeyin geri alınması. Kendi dilimi, çünkü Dilim 4'ün dördü yalnız ön yüze dokunuyor ve
 195 sohbetin **diskteki şeklini** değiştiriyor. 197 onun üstüne biniyor: aynı iş, ama kullanıcının
-onu yaptığı yer.
+onu yaptığı yer. 199 da öyle — 197'nin taşıdığı kalemin, 195'in şeridiyle nasıl durduğu.
 
 ## Madde 195 — Düzenlenen mesaj sohbeti sürümler
 
@@ -420,6 +422,28 @@ onu yaptığı yer.
 - **Değişen:** `ChatScreen.jsx`'in mesaj çizimi; `Composer.jsx`'ten `filled`; `workspace.css`'te
   `.msg__said` yerine düzenleme hâlinin kendi kuralları; `ChatScreen.test.jsx` ile `App.test.jsx`'in
   195'te yazılan düzenleme testleri; `dist`.
+
+## Madde 199 — Sürüm şeridi ile kalem tek satırda durur
+
+- **Sorun:** ikisi de bubble'ın altında, ama **alt alta** *(kullanıcı, 8 Eylül)*. Sebep 197'nin
+  bıraktığı bir eksik değil, `.msg`'in kendisi: bir sütun, ve her çocuğu kendi satırını alıyor. 195
+  şeridi, 197 kalemi ayrı ayrı oraya koydu, ve ikisi hiç yan yana gelmedi.
+- **Ne çalışır:** bubble'ın altında **tek bir satır** — solda `‹ 2/3 ›`, sağında kalem, ikisi
+  birlikte mesajın kendi yönünde yaslı. Emsali yine ChatGPT'nin sitesi, 195'in aldığı yerden.
+- **Bubble sarmalanmıyor.** 197'nin kapattığı hizalama kusuru tam olarak bubble'ın bir sarmalayıcıya
+  girmesiydi; buradaki satır yalnız **altındaki iki notu** tutuyor, bubble `.msg`'in doğrudan çocuğu
+  kalıyor ve `78%`'i yine sütuna göre ölçülüyor.
+- **Sıra: şerit solda, kalem sağda.** Göz önce nerede olduğunu okuyor, sonra değiştirme yoluna
+  geliyor. Ters dizilseydi kalemin yeri şeridin var olup olmamasına göre kayardı — bir düğme, aynı
+  mesajda iki ayrı yerde durur.
+- **Satır boşken doğmuyor.** Cevabın altında ne kalem var ne şerit; boş bir `div` orada yalnız
+  sütunun boşluğunu büyütürdü.
+- **Düzenleme açıkken şerit kalıyor**, kalem çekiliyor *(197'nin kuralı)*. Satır tek başına şeritle
+  duruyor: hangi sürümün düzeltildiği, düzeltilirken de okunabilir olmalı.
+- **Nasıl görülür:** iki sürümlü bir mesajın altında `‹ 2/2 ›` ile kalem **yan yana** durur, ve tek
+  sürümlü bir mesajın altında yalnız kalem kalır — ikisi de aynı satırda, aynı hizada.
+- **Değişen:** `ChatScreen.jsx`'te bubble'ın altındaki satır; `workspace.css`'te satırın kuralı ve
+  şeridin kendi payının kalkması; `ChatScreen.test.jsx`, `workspace.css.test.js`; `dist`.
 
 ---
 
