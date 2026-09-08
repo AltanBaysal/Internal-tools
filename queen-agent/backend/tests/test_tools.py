@@ -2344,6 +2344,61 @@ def test_the_map_tools_never_carry_the_words_this_madde_adds():
         assert "expression" not in said, tool
 
 
+def test_the_rules_say_which_vocabulary_the_tags_come_from():
+    # Madde 200. The rules used to give the shape of a tag -- short, comma-separated, not a sentence
+    # -- and never the vocabulary. The anime SDXL checkpoints were trained on Danbooru's own tag
+    # strings as their captions, so a tag that is in it is a string the model has seen half a million
+    # times, and a paraphrase of the same thing is one it has never seen at all.
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
+
+    assert "danbooru" in SDXL_PROMPT_RULES.lower()
+    assert "rather than a description" in SDXL_PROMPT_RULES
+
+
+def test_the_rules_ask_for_spaces_where_the_site_writes_underscores():
+    # The site writes looking_at_viewer and these models were trained with the underscores taken out.
+    # A model that knows the site will bring its spelling along unless it is told.
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
+
+    assert "underscores" in SDXL_PROMPT_RULES.lower()
+
+
+def test_the_rules_split_a_tag_into_the_tags_the_vocabulary_has():
+    # Two tags rather than one phrase reading like both: the vocabulary has long hair and it has
+    # black hair, and it has nothing that is the two of them written together -- so the joined-up
+    # version falls outside it exactly as a description does.
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
+
+    assert "long hair, black hair" in SDXL_PROMPT_RULES
+    assert "long black hair" not in SDXL_PROMPT_RULES
+
+
+def test_the_rules_say_what_to_do_when_the_vocabulary_has_nothing():
+    # It is large but not everything, and a rule that stopped at "use the vocabulary" would leave the
+    # model to invent a form for whatever is not in it -- which is where the sentences come back.
+    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
+
+    assert "no tag for it" in SDXL_PROMPT_RULES
+
+
+def test_the_character_example_is_written_in_that_vocabulary():
+    # The examples are read more closely than the rule is: this is the one place the model sees what
+    # an entry actually looks like.
+    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+
+    assert "long hair" in ADD_CHARACTER_TAGS
+    assert "black hair" in ADD_CHARACTER_TAGS
+    assert "long black hair" not in ADD_CHARACTER_TAGS
+    assert "woman in her mid 20s" not in ADD_CHARACTER_TAGS
+
+
+def test_the_place_example_is_written_in_that_vocabulary():
+    from backend.features.workspace.domain.prompt import ADD_LOCATION_TAGS
+
+    assert "indoors" in ADD_LOCATION_TAGS
+    assert "morning light through curtains" not in ADD_LOCATION_TAGS
+
+
 def test_the_prompt_writer_is_not_told_what_queenagent_tells_its_agent():
     # SYSTEM_PROMPT is a page about tools, files, chats and how to talk to a user. The model here
     # has none of those and one sentence to write.
