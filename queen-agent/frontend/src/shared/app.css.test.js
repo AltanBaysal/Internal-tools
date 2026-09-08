@@ -103,11 +103,14 @@ test("no surface writes the ring, or writes it away", () => {
   // to see.
   // Matched as a declaration rather than a word: prose about the rule is not a breach of it.
   expect(WORKSPACE).not.toMatch(/^\s*outline\s*:/m);
-  // One focus rule outside app.css, and it decides visibility rather than appearance: whichever
-  // control hides until the row is hovered would otherwise be invisible to the keyboard. It used to
-  // be the row's ×, which now stands in the row; it is the sidebar's ⋯, which does not.
-  expect(WORKSPACE.match(/:focus-visible/g).length).toBe(1);
+  // Two focus rules outside app.css, and both decide visibility rather than appearance: a control
+  // that is faint until it is wanted would otherwise be a stop on the tab route with nothing to
+  // see. The sidebar's ⋯ is one; Madde 195's edit, dim on a message until it is reached for, is the
+  // other. Counted rather than merely named, so a third one -- or one that writes appearance --
+  // has to come through here.
+  expect(WORKSPACE.match(/:focus-visible/g).length).toBe(2);
   expect(WORKSPACE).toContain(".sidebar__row-more:focus-visible");
+  expect(WORKSPACE).toContain(".msg__edit:focus-visible");
 });
 
 test("the only destructive control there is today reaches for the new red", () => {
