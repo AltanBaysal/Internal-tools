@@ -42,7 +42,11 @@ class FakeClient:
 def test_the_system_prompt_leads_and_the_roles_are_translated():
     client = FakeClient()
     list(_engine(client).stream(CONVERSATION))
-    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
+    assert client.seen[0]["role"] == "system"
+    # Leads it rather than is all of it (Madde 196): what follows is the owner's second part, and
+    # this app's own page is what comes first. Pinning the whole string would put this test in the
+    # way of the one thing that madde exists for -- somebody writing that part.
+    assert client.seen[0]["content"].startswith(SYSTEM_PROMPT)
     # Disk keeps the design's own word; xAI is told OpenAI's.
     assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
 
@@ -54,7 +58,9 @@ def test_the_fixed_part_leads_and_the_last_word_stays_last():
     client = FakeClient()
     tail = {"role": "system", "content": "the instruction"}
     list(_engine(client).stream(CONVERSATION + [tail]))
-    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
+    # The head is asked about the same way as above, and for the same reason.
+    assert client.seen[0]["role"] == "system"
+    assert client.seen[0]["content"].startswith(SYSTEM_PROMPT)
     assert client.seen[-1] == tail
 
 
