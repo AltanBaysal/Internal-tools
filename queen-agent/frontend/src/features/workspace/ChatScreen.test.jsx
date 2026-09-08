@@ -934,7 +934,9 @@ test("the cross sends nothing and gives the message back", () => {
   fireEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
   expect(onSend).not.toHaveBeenCalled();
   expect(container.querySelector(".msg__editing-input")).toBeNull();
-  expect(screen.getByText("Write the intro")).toBeTruthy();
+  // Asked of the bubble rather than of the page: the chat is named after this same sentence, so
+  // the text alone is on screen twice and proves nothing about the message.
+  expect(container.querySelector(".msg__bubble").textContent).toBe("Write the intro");
 });
 
 test("enter confirms and shift-enter does not", () => {

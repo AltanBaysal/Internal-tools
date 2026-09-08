@@ -1168,20 +1168,14 @@
   color: var(--muted);
 }
 
-/* Madde 195: the question and the way back into it. The bubble holds what the user wrote and
-   nothing else, so the control stands beside it rather than inside -- a mark inside the bubble is
-   read as part of the sentence wherever the text is drawn plainly. */
-.msg__said {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-}
+/* Madde 197: the way back into a question, under it. It used to stand beside the bubble in a row of
+   its own, and that row was what .msg aligned -- so the bubble's max-width measured against the row
+   instead of the column, and every message's right edge landed somewhere else. Nothing wraps them
+   now: both are children of .msg, and the column places them.
 
-/* Quiet rather than hidden. Shown only on hover is a control that does not exist on a touch screen,
+   Quiet rather than hidden. Shown only on hover is a control that does not exist on a touch screen,
    and the bubble is the first thing a finger reaches. */
 .msg__edit {
-  flex: 0 0 auto;
-  margin-top: 2px;
   padding: 2px 4px;
   border: none;
   border-radius: var(--radius-control);
@@ -1200,6 +1194,54 @@
 
 .msg__edit:focus-visible {
   opacity: 1;
+}
+
+/* The message while it is being corrected. The bubble's own measure, so opening the field neither
+   widens the message nor narrows it: what is being corrected is that sentence, in its place, at its
+   size. */
+.msg__editing {
+  max-width: 78%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The bubble's shape with a border where its fill was: still that message, now open for writing. */
+.msg__editing-input {
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 4px 14px;
+  background: var(--surface);
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+  resize: none;
+}
+
+/* Under the field and at the message's own end, which is where the eye already is. */
+.msg__editing-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.msg__editing-cancel,
+.msg__editing-confirm {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  padding: 2px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* An empty sentence has nothing to confirm, and the same rule the composer's send button keeps. */
+.msg__editing-confirm:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 
 /* Which of the versions standing in one place is showing. A note about the message, in the same

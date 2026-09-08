@@ -154,6 +154,61 @@ function LiveStrip({ round, of, tokens }) {
 
 // The skeleton of the card about to be born: an empty badge slot where the chip will go, and no
 // name -- the model's wish is not the name until it has been cleaned and a clash resolved.
+// A message being corrected in its own place (Madde 197). The draft lives here for the reason the
+// composer's does: it is the field's momentary state, not something the chat keeps -- and only the
+// finished sentence leaves, through onConfirm.
+//
+// The keys are the composer's: enter confirms, shift-enter opens a line, escape gives up. Two
+// writable areas asking for two different keys is how both of them get used wrongly.
+function EditMessage({ text, onConfirm, onCancel }) {
+  const [draft, setDraft] = useState(text);
+  const ready = draft.trim().length > 0;
+  const confirm = () => {
+    if (ready) onConfirm(draft.trim());
+  };
+  return (
+    <div className="msg__editing">
+      <textarea
+        className="msg__editing-input"
+        rows={2}
+        value={draft}
+        autoFocus
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onCancel();
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            confirm();
+          }
+        }}
+      />
+      <div className="msg__editing-actions">
+        {/* Icons rather than words (user, 8 September), and their names are written where they can
+            still be read: a control with no name is invisible to the keyboard and to a test. */}
+        <button
+          type="button"
+          className="msg__editing-cancel"
+          aria-label="Cancel edit"
+          title="Cancel edit"
+          onClick={onCancel}
+        >
+          ✕
+        </button>
+        <button
+          type="button"
+          className="msg__editing-confirm"
+          aria-label="Confirm edit"
+          title="Confirm edit"
+          disabled={!ready}
+          onClick={confirm}
+        >
+          ✓
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Which of the versions standing in one place is showing, and the way to the ones beside it
 // (Madde 195). Drawn only where there is more than one: every message carries the field, and arrows
 // under a sentence with nothing beside it offer to step through one thing.
@@ -338,23 +393,35 @@ export default function ChatScreen({
                 {/* Only an answer has steps; a question is what was typed and nothing else. */}
                 {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
                 {/* What the user typed stays what they typed -- `**test**` keeps its asterisks.
-                    The edit sits beside the bubble: only a question can be gone back to, since an
-                    answer is a whole turn with its own calls and stepping into the middle of one
-                    would mean nothing on disk. Named for the message rather than Edit alone, which
-                    the mode picker already wears (Madde 195). */}
+                    Correcting it happens here rather than in the composer (Madde 197): the sentence
+                    is on the message, so the field that changes it is too. Only a question can be
+                    gone back to -- an answer is a whole turn with its own calls, and stepping into
+                    the middle of one would mean nothing on disk. Named for the message rather than
+                    Edit alone, which the mode picker already wears. */}
                 {message.role === "user" ? (
-                  <div className="msg__said">
-                    <div className="msg__bubble">{message.text}</div>
-                    <button
-                      type="button"
-                      className="msg__edit"
-                      aria-label="Edit message"
-                      title="Edit message"
-                      onClick={() => setEditing({ index, text: message.text, token: Date.now() })}
-                    >
-                      ✎
-                    </button>
-                  </div>
+                  editing?.index === index ? (
+                    <EditMessage
+                      text={editing.text}
+                      onConfirm={(text) => {
+                        setEditing(null);
+                        onSend?.(text, index);
+                      }}
+                      onCancel={() => setEditing(null)}
+                    />
+                  ) : (
+                    <>
+                      <div className="msg__bubble">{message.text}</div>
+                      <button
+                        type="button"
+                        className="msg__edit"
+                        aria-label="Edit message"
+                        title="Edit message"
+                        onClick={() => setEditing({ index, text: message.text })}
+                      >
+                        ✎
+                      </button>
+                    </>
+                  )
                 ) : /* Only when there is something to draw: an answer stopped before its first
                        word would otherwise put the rule down the side of nothing at all. */
                 message.text ? (
@@ -492,8 +559,6 @@ export default function ChatScreen({
                destruction. */
             running={thinking}
             onStop={onStop}
-            /* The sentence being edited, put back in the box for the user to change (Madde 195). */
-            filled={editing}
             foot={
               <>
                 <ModePicker
@@ -516,14 +581,9 @@ export default function ChatScreen({
                 />
               </>
             }
-            /* Where the sentence starts from: the message being replaced, or nothing at all for an
-               ordinary reply. Cleared as it goes -- the next sentence is a reply again unless the
-               user says otherwise. */
-            onSubmit={(text) => {
-              const from = editing ? editing.index : null;
-              setEditing(null);
-              return onSend?.(text, from);
-            }}
+            /* The box only ever sends a reply. An edit starts from a message and is sent from that
+               message's own field (Madde 197), so the second argument here is always nothing. */
+            onSubmit={(text) => onSend?.(text, null)}
           />
         </div>
       </div>
