@@ -69,6 +69,36 @@ SYSTEM_PROMPT = (
     "happens next, or stop."
 )
 
+SYSTEM_PROMPT_SUFFIX = ""
+"""The second part of the system prompt, and the one this app does not write (Madde 196).
+
+What goes here is the user's own: what the workspace is for, and anything else the model should be
+told about the work it is doing. It is deliberately a place rather than a text -- the item opened it
+and left it empty, and every sentence in it is the owner's.
+
+Kept beside the app's own texts because Madde 189's rule holds for every text that reaches the
+model, and a file outside the repo would be that rule walked around. It is the one name in this
+module allowed to be empty; test_prompt.py says so where the full ones are listed.
+"""
+
+
+def system_prompt():
+    """The system message as it goes out: this app's page, then the owner's part.
+
+    Joined here rather than in the engine. How two texts read next to each other is a rule about
+    text, and Madde 189 gathered those into this module; left in the transport, the separator would
+    live away from the texts it separates.
+
+    An empty suffix returns SYSTEM_PROMPT itself, byte for byte. That is not tidiness: this string is
+    the fixed head the service files a conversation's cached prefix under, and a trailing blank line
+    would move the prefix of every request from the first day, for a sentence nobody has written.
+    """
+    if not SYSTEM_PROMPT_SUFFIX:
+        return SYSTEM_PROMPT
+    # A blank line, which is how this module's own paragraphs are already divided.
+    return f"{SYSTEM_PROMPT}\n\n{SYSTEM_PROMPT_SUFFIX}"
+
+
 LAST_ROUND = (
     "This is the last round of this turn. No tool will run after it, so nothing you ask for here "
     "comes back -- answer now with what you already have. Say what you did, what is left, and what "
