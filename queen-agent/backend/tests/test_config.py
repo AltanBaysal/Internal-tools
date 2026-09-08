@@ -58,9 +58,11 @@ def test_the_default_model_is_the_cheaper_queen():
     assert config.DEFAULT_MODEL == "deepseek-v4-flash"
 
 
-def test_the_model_that_only_writes_prompts_stays_in_the_table():
-    # It left the menu in Madde 177, not the app: Madde 175 wires it as the prompt writer, and a
-    # row removed here would be a KeyError the first time a frame was written.
+def test_the_grok_row_is_kept_as_the_way_back():
+    # Madde 202 took the writing off it, so by Madde 183's own rule -- a row nobody will use is dead
+    # configuration -- this one would go. It stays, knowingly: deleting it would drag XAI_API_KEY and
+    # the notebook's three secrets along with it, and the way back is one constant either way. If the
+    # lines DeepSeek writes come out worse, the road is still here.
     assert "grok-4.3" in config.MODELS
 
 
@@ -91,10 +93,11 @@ def test_each_model_names_the_key_it_spends():
 
 
 def test_the_prompt_writer_is_a_role_rather_than_a_choice():
-    # Madde 175, and the user's decision of 5 Sep: Grok is not an option in the composer, it is a
-    # line in config.py. Which model writes a frame's action is the app's, not the user's -- what
-    # they choose is which model runs the conversation.
-    assert config.PROMPT_MODEL == "grok-4.3"
+    # Madde 175, and the user's decision of 5 Sep: which model writes a frame's action is the app's
+    # business, not the user's -- what they choose is which model runs the conversation. Madde 202
+    # made it the same id the composer defaults to, and the role is unchanged by that: this line
+    # decides who writes an action, and no picker on the screen reaches it.
+    assert config.PROMPT_MODEL == "deepseek-v4-flash"
 
 
 def test_the_prompt_writer_is_one_of_the_models_that_are_wired():

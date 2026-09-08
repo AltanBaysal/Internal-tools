@@ -2270,6 +2270,32 @@ def test_the_prompt_writers_system_prompt_carries_the_rules_a_map_entry_is_writt
     assert SDXL_PROMPT_RULES in WRITE_FRAME_SYSTEM_PROMPT
 
 
+def test_the_writer_is_asked_with_the_second_part_on_the_end(tmp_path, monkeypatch):
+    # Madde 202. Built where it is sent rather than read off a constant, so a second part written
+    # today reaches the very next frame -- the same reason the engine calls system_prompt() instead
+    # of holding SYSTEM_PROMPT.
+    from backend.features.workspace.domain import prompt
+
+    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", "This workspace is used for X.")
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    writer = FakeWriter()
+    _wrote(files, writer, file="scene.json", frame=1)
+    assert writer.system.endswith("This workspace is used for X.")
+
+
+def test_the_bulk_tool_asks_with_the_second_part_too(tmp_path, monkeypatch):
+    # Every request the loop makes, not the first one: they are all the same model meeting the same
+    # kind of sentence, and one of them arriving without the frame is one refusal in the middle of
+    # a file.
+    from backend.features.workspace.domain import prompt
+
+    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", "This workspace is used for X.")
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    writer = FakeWriter("she turns her head, close-up")
+    _filled(files, writer, file="scene.json")
+    assert writer.system.endswith("This workspace is used for X.")
+
+
 def test_the_prompt_writer_is_told_about_the_action_and_the_camera():
     # The other half of the dead schema (Madde 172), and this is where it landed: the half about
     # what happens in a frame and how it is shot, read by the one model that writes it.
