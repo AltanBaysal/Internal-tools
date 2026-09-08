@@ -872,6 +872,82 @@ test("the chat screen draws the gauge from the record it read", () => {
 
 // --- the mode a turn is sent in (Madde 91) -------------------------------------------------------
 
+// --- editing a message, and the versions it leaves behind (Madde 195) ----------------------------
+
+const ALONE = { index: 0, of: 1, versions: [""] };
+const BRANCHED = {
+  ...CHAT,
+  messages: [
+    { ...CHAT.messages[0], variants: { index: 1, of: 2, versions: ["", "l2"] } },
+    { ...CHAT.messages[1], variants: ALONE },
+  ],
+};
+
+test("a question can be edited and an answer cannot", () => {
+  // The point a turn starts from is the user's own message. An answer is not one sentence but a
+  // whole turn with its own calls, and there is nothing on disk that going back into it would mean.
+  //
+  // Named for the message rather than Edit alone: the mode picker in the foot already wears that
+  // word, and two controls with one name is a screen nobody can be told how to use.
+  render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(screen.getAllByRole("button", { name: "Edit message" })).toHaveLength(1);
+});
+
+test("pressing edit puts the sentence back in the box", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  fireEvent.click(screen.getByRole("button", { name: "Edit message" }));
+  expect(container.querySelector(".composer__input").value).toBe("Write the intro");
+});
+
+test("what is sent after an edit says which message it starts from", () => {
+  // Without the index the server has no way to tell an edit from an ordinary reply, and the
+  // sentence would land on the end of the line instead of opening one.
+  const onSend = vi.fn();
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} onSend={onSend} />);
+  fireEvent.click(screen.getByRole("button", { name: "Edit message" }));
+  const box = container.querySelector(".composer__input");
+  fireEvent.change(box, { target: { value: "Write a shorter intro" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  expect(onSend).toHaveBeenCalledWith("Write a shorter intro", 0);
+});
+
+test("an ordinary reply starts from nothing", () => {
+  const onSend = vi.fn();
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} onSend={onSend} />);
+  const box = container.querySelector(".composer__input");
+  fireEvent.change(box, { target: { value: "and the ending" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  expect(onSend).toHaveBeenCalledWith("and the ending", null);
+});
+
+test("a message that stands among versions says which one is showing", () => {
+  render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
+  // The second of two: the first line's own sentence, and the edit standing where it stood.
+  expect(screen.getByText("2/2")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Previous version" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Next version" })).toBeTruthy();
+});
+
+test("a message with nothing beside it draws no strip", () => {
+  // Every message carries the field, so without this the arrows would sit under every sentence in
+  // the chat offering to step through one thing.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".versions")).toBeNull();
+});
+
+test("the arrows ask for the version on either side", () => {
+  const onVersion = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={BRANCHED} onVersion={onVersion} />);
+  fireEvent.click(screen.getByRole("button", { name: "Previous version" }));
+  expect(onVersion).toHaveBeenCalledWith("");
+});
+
+test("at the end of the row there is nothing further to step to", () => {
+  const onVersion = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={BRANCHED} onVersion={onVersion} />);
+  expect(screen.getByRole("button", { name: "Next version" }).disabled).toBe(true);
+});
+
 test("the foot puts the mode before the skill", () => {
   // Mode · Skills · model · Send. What the model may do at all is a question that comes before
   // which job it is doing, so the row reads outermost first.

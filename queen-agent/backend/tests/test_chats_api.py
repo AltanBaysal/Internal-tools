@@ -825,6 +825,87 @@ def test_answering_a_chat_that_is_not_there_is_a_404(tmp_path):
     assert answered.get_json() == {"error": "chat not found"}
 
 
+# --- versions of one conversation (Madde 195) ----------------------------------------------------
+
+
+def _edited(client, pid, chat_id, text, at):
+    return client.post(
+        f"/api/projects/{pid}/messages", json={"chat": chat_id, "text": text, "from": at}
+    ).get_data(as_text=True)
+
+
+def test_the_transcript_that_comes_back_is_the_open_line(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    _edited(client, pid, cid, "Write a shorter intro", 0)
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [message["text"] for message in said] == ["Write a shorter intro", "Done."]
+
+
+def test_every_message_carries_the_options_it_stands_among(tmp_path):
+    # Always present, like calls: the browser draws from what it is handed, and a field that comes
+    # and goes makes every reader check for it first.
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    _edited(client, pid, cid, "Write a shorter intro", 0)
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    standing = said[0]["variants"]
+    # The name of a version is minted, so what is pinned is the shape: the first line is the empty
+    # name and comes first, and the open one is the second of two.
+    assert (standing["index"], standing["of"]) == (1, 2)
+    assert standing["versions"][0] == ""
+    assert standing["versions"][1]
+    assert said[1]["variants"]["of"] == 1
+
+
+def test_the_answer_to_an_edited_message_is_written_into_its_own_line(tmp_path):
+    # The whole reason the edit goes through this door: the turn runs exactly as it always did, and
+    # what changes is only which line it lands on.
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    body = _edited(client, pid, cid, "Write a shorter intro", 0)
+    assert "chunk" in _frames(body)
+    stored = json.loads(
+        (tmp_path / pid / "chats" / f"{cid}.json").read_text(encoding="utf-8")
+    )
+    assert [m["text"] for m in stored["messages"]] == ["Write the intro", "Done."]
+    assert [m["text"] for m in stored["versions"][0]["messages"]] == [
+        "Write a shorter intro",
+        "Done.",
+    ]
+
+
+def test_the_door_that_changes_which_version_is_open(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    _edited(client, pid, cid, "Write a shorter intro", 0)
+    back = client.post(f"/api/projects/{pid}/chats/{cid}/version", json={"version": ""})
+    assert back.status_code == 200
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [message["text"] for message in said] == ["Write the intro", "Done."]
+
+
+def test_a_version_nobody_wrote_is_refused_and_changes_nothing(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    _edited(client, pid, cid, "Write a shorter intro", 0)
+    refused = client.post(f"/api/projects/{pid}/chats/{cid}/version", json={"version": "ghost"})
+    assert refused.status_code == 404
+    assert refused.get_json() == {"error": "version not found"}
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [message["text"] for message in said] == ["Write a shorter intro", "Done."]
+
+
+def test_editing_in_a_chat_that_does_not_exist_is_refused(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    refused = client.post(
+        f"/api/projects/{pid}/messages", json={"chat": "ghost", "text": "hi", "from": 0}
+    )
+    assert refused.status_code == 404
+    assert refused.get_json() == {"error": "chat not found"}
+
+
 def test_the_beat_is_a_frame_the_browser_drops(tmp_path):
     # parseFrame keeps only what carries an event line, so a beat has to carry none. Measured on
     # this side because the front end is Madde 102's work and nothing here touches it. Reached

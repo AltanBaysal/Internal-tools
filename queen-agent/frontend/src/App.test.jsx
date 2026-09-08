@@ -2668,3 +2668,72 @@ test("an empty prompt sends nothing", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Rename" }));
   expect(fetch.mock.calls.every(([, options]) => options?.method !== "PATCH")).toBe(true);
 });
+
+// --- editing a message and stepping between the versions (Madde 195) -----------------------------
+
+test("a message is edited, the chat carries on from there, and the arrow goes back", async () => {
+  // The madde's own "how it is seen", on the real screen: the old line is not gone, and the answer
+  // it was given is still the answer it was given.
+  const at = new Date().toISOString();
+  const alone = { index: 0, of: 1, versions: [""] };
+  const first = {
+    id: "c1",
+    title: "Write the intro",
+    messages: [
+      { role: "user", at, text: "Write the intro", variants: alone },
+      { role: "ai", at, text: "Here it is.", variants: alone },
+    ],
+  };
+  const edited = {
+    ...first,
+    messages: [
+      {
+        role: "user",
+        at,
+        text: "Write a shorter intro",
+        variants: { index: 1, of: 2, versions: ["", "l2"] },
+      },
+      { role: "ai", at, text: "Shorter.", variants: alone },
+    ],
+  };
+  // Which line the server would answer with. The browser never decides this: it asks for a version
+  // and reads back whatever came.
+  let open = first;
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      open = edited;
+      return Promise.resolve(
+        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
+      );
+    }
+    if (path.endsWith("/version") && options?.method === "POST") {
+      open = JSON.parse(options.body).version === "" ? first : edited;
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => open });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Here it is.")).toBeTruthy());
+  fireEvent.click(await screen.findByRole("button", { name: "Edit message" }));
+  const box = screen.getByPlaceholderText("Reply...");
+  expect(box.value).toBe("Write the intro");
+  fireEvent.change(box, { target: { value: "Write a shorter intro" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  await waitFor(() => expect(screen.getByText("Shorter.")).toBeTruthy());
+  const sent = JSON.parse(
+    fetch.mock.calls.find(([path, options]) => path.endsWith("/messages") && options?.method === "POST")[1].body,
+  );
+  expect(sent.from).toBe(0);
+  expect(screen.getByText("2/2")).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "Previous version" }));
+  await waitFor(() => expect(screen.getByText("Here it is.")).toBeTruthy());
+  expect(screen.queryByText("Shorter.")).toBeNull();
+});
