@@ -2579,11 +2579,13 @@ def test_an_empty_answer_is_not_written_down(tmp_path):
     assert "action" not in _frames(files)[0]
 
 
-def test_the_two_frame_tools_point_at_the_one_that_writes_an_action():
-    # Madde 173 and 174 both stayed silent about the action because the tool that writes one did
-    # not exist yet, and naming a tool the model cannot call is m127's mistake. It exists now.
+def test_a_new_frame_points_at_the_writer_and_a_frame_being_corrected_does_not():
+    # Turned around by Madde 201, and the two halves are what that madde split. A frame is born
+    # without an action, so add_scene still says who writes the first one. update_frame is where a
+    # line that exists is corrected, in the agent's own words -- pointing from there to the writer
+    # as well would offer two roads for one job and settle neither.
     assert "write_frame_prompt" in _said_by("add_scene")
-    assert "write_frame_prompt" in _said_by("update_frame")
+    assert "write_frame_prompt" not in _said_by("update_frame")
 
 
 # --- every frame still waiting, in one round (Madde 185) ------------------------------------------
