@@ -1,7 +1,7 @@
 # QueenAgent v8 Yol Haritası — çıkan prompt, ve koşarken görünen
 
 **Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül — artı **195 ve 196, koşu sürerken eklendi**
-*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **On altı madde**, yedi dilim, 183'ten 199'a — **188 yok**,
+*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **On dokuz madde**, sekiz dilim, 183'ten 202'ye — **188 yok**,
 taslak okunurken geri çekildi *(aşağıda)*. Numaralar 182'nin ardından gidiyor ve **hiç kaymıyor** —
 yazılmış spec'ler onlara atıf yapıyor, ve çekilen bir numara boş kalır.
 
@@ -36,17 +36,20 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 197 · düzenleme mesajın kendi yerinde | **kapandı** | `ca57b0f` |
 | 198 · akış karakterle başlar, plan işaretlenir | **kapandı** | `b9dbc67` |
 | 199 · şerit ve kalem tek satırda | **kapandı** | `74a078d` |
+| 200 · etiketler Danbooru olur | | |
+| 201 · eylemi ana ajan düzeltir | | |
+| 202 · kareyi yazan da DeepSeek | | |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
 
 183–187, 189, 191–199 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
 açıldı** *(kullanıcı, 8 Eylül)*. Ardından **197 ve 198** eklendi, ikisi de denemeden çıktı: 195'in
 düzenleme akışının yeri yanlış bulundu *(ve aynı yerde 195'in bıraktığı bir hizalama kusuru vardı)*,
 186'nın bağlam sorusu ise sürtünme olarak görüldü. **199 da aynı yerden** geldi: 197 kalemi bubble'ın
-altına indirdi, ve sürüm şeridiyle alt alta düştüğü orada görüldü. **Ajanın işi yine burada bitti**:
-geriye 190 kalıyor, ve o kullanıcının kendi maddesi. 196'nın sabiti de boş — ne yazılacağı
-kullanıcının.
-190 hâlâ kullanıcının kendi maddesi ve en sonda. 196'nın sabiti de kullanıcıyı bekliyor: açılan yer
-şimdilik boş.
+altına indirdi, ve sürüm şeridiyle alt alta düştüğü orada görüldü. **200–202 de denemeden çıktı**,
+ama bu kez ekranın değil çıkan işin kendisinden: etiketler Danbooru sözlüğüyle daha iyi geliyor, ve
+DeepSeek artık isteneni yazdığı için eylem satırını ayrı bir modele yazdırmanın sebebi kalmadı.
+Geriye 190 kalıyor, ve o kullanıcının kendi maddesi. 196'nın açtığı yeri de kullanıcı doldurdu
+*(8 Eylül)*: sabit artık boş değil.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.
@@ -525,7 +528,79 @@ kendisi.
 
 ---
 
-# Dilim 7 — kapanış
+# Dilim 7 — çıkan etiket, ve onu yazan
+
+Üçü de aynı denemeden çıktı *(kullanıcı, 8 Eylül)*: etiketler **Danbooru sözlüğüyle** yazıldığında
+görüntü belirgin şekilde daha iyi çıkıyor, ve DeepSeek artık istenen işi yapıyor — yani eylem
+satırını ayrı bir modele yazdırmanın sebebi kalmadı.
+
+## Madde 200 — Etiketler Danbooru sözlüğüyle yazılır
+
+- **Sorun:** `SDXL_PROMPT_RULES` bugün *"kısa, virgülle ayrılmış parçalar"* diyor ve **hangi
+  sözlükten** olduğunu hiç söylemiyor. Örnekleri de yarı serbest cümle — `woman in her mid 20s`,
+  `cozy bedroom, morning light through curtains`. Model iyi bir etiket yazdığında bu tesadüf, kural
+  değil.
+- **Neden önemli, ve mekanizma:** anime tarafındaki SDXL checkpoint'leri *(Pony, Illustrious,
+  NoobAI, Animagine)* Danbooru görsellerini **o sitenin etiket dizisi caption olarak** eğitildi.
+  `looking at viewer` modelin gördüğü stringin ta kendisi; aynı şeyin serbest tarifi ise eğitimde
+  hiç geçmedi ve metin kodlayıcıda dar bir yere değil, yakın gördüklerinin **ortalamasına** düşüyor.
+  Ortalama bulanık demek. Üstüne Danbooru'nun sözlüğü **kontrollü**: bir kavramın tek yazılışı var,
+  eşanlamlı yarışmıyor — ve 77 token'lık pencerede etiket, cümleden kat kat yoğun.
+- **Ne çalışır:** kural, etiketlerin **Danbooru etiketleri** olduğunu söyler, ve örnekleri o sözlükten
+  verir. Karakter, kıyafet ve mekân parametrelerinin örnek metinleri de aynı dile çevrilir.
+- **Metin `superpowers:writing-skills` ile gözden geçirilir** *(kullanıcı isteği, 186'daki gibi)*.
+- **Kapsam dışı, ve bilerek:** kalite önekleri. `build_prompts` onları zaten prompt'un başına
+  koyuyor, ve kural modele *"sen kalite etiketi yazma"* demeye devam ediyor.
+- **Gerçekçi checkpoint'ler için değil, ve kayda öyle geçiyor:** base SDXL, Juggernaut, RealVis gibi
+  foto modelleri BLIP tarzı **doğal cümlelerle** caption'landı; orada bu kural yanlış yöne çeker. Bu
+  deponun ürettiği görselin modeli anime tarafında, ve kural ona göre yazılıyor.
+- **Nasıl görülür:** bir karakter eklenir ve dosyaya inen satır Danbooru etiketleridir.
+- **Değişen:** `prompt.py`'de `SDXL_PROMPT_RULES` ve üç `*_TAGS` metni; `test_tools.py`'nin o
+  cümleleri pinleyen testleri.
+
+## Madde 201 — Eylem satırını ana ajan kendi düzeltir
+
+- **Sorun:** `update_frame` bugün action'a **bilerek dokunmuyor** — *"A frame's action is not among
+  these"* — ve düzeltmenin tek yolu `write_frame_prompt`'u notla yeniden çağırmak, yani ikinci bir
+  modele gitmek. Madde 175 bunu bir sebeple böyle kurmuştu, ve o sebep kalktı: **DeepSeek artık
+  isteneni yazıyor** *(kullanıcı, 8 Eylül)*.
+- **Ne çalışır:** `update_frame` bir `action` alanı alır, ve *Edit prompts* düzeltmeyi ajanın kendi
+  turunda yaptırır. Ajan cümleyi zaten okuyor ve kullanıcının ne istediğini zaten biliyor; bugünkü
+  yol o bilgiyi bir nota sıkıştırıp başka bir modele veriyor, ve **not, yazarın duyduğu her şey.**
+- **İki yol değil, tek cümleyle söylenebilir bir ayrım:** **ilk yazım** uzman modelin
+  *(`write_frame_prompt`, ve toplu hâli `write_missing_actions`)*, **düzeltme** ajanın. Boş bir kare
+  ile yanlış bir kare aynı iş değil: birinde yazılacak bir şey yok, ötekinde okunacak bir cümle ve
+  ona söylenmiş bir itiraz var.
+- **Nasıl görülür:** bir karenin eylem satırı düzeltilir ve tur **tek raundda** biter — ikinci bir
+  modele istek gitmez, ve damgada o harcama görünmez.
+- **Değişen:** `tools.py`'de `update_frame`'in şeması ve dalı; `prompt.py`'de `UPDATE_FRAME`,
+  `EDIT_PROMPTS` ve `WRITE_FRAME_PROMPT` metinleri; `test_tools.py`, `test_skills.py`.
+
+## Madde 202 — Kareyi yazan model de DeepSeek olur, ve son eki taşır
+
+- **Sorun:** `write_missing_actions` her kare için ayrı istek atıyor ve hepsi **Grok 4.3**'e gidiyor
+  *(`config.PROMPT_MODEL`, Madde 183)*. Kullanıcı kararı, 8 Eylül: orası da DeepSeek olsun.
+- **Ne çalışır:** `PROMPT_MODEL = "deepseek-v4-flash"`. Tek sabit, yani `write_frame_prompt` de
+  onunla birlikte taşınıyor — ikisi zaten aynı yazarı çağırıyor, ve birini bırakıp ötekini taşımak
+  aynı işi iki modele böler.
+- **Ve o isteğe `SYSTEM_PROMPT_SUFFIX` eklenir** *(kullanıcı kararı, 8 Eylül: yoksa çalışmaz)*.
+  `WRITE_FRAME_SYSTEM_PROMPT` son eki taşır. Bu **196'nın kararını tersine çeviriyor** — orada
+  *"yalnız besteci, kareyi yazan modelin metnine dokunulmuyor"* yazıyordu, ve gerekçesi yazarın
+  başka bir servis olmasıydı. Yazar artık aynı servis, ve çerçevesiz karşılaşan taraf o.
+- **196'nın boşluk kuralı burada da geçerli:** son ek boşken istek **bayt bayt** bugünküyle aynı
+  kalır.
+- **`grok-4.3` satırı `MODELS`'te kalıyor**, ve bu 183'ün *"kimse kullanmayacak satır ölü
+  yapılandırma"* kuralına bilerek verilen bir istisna: satırı silmek `XAI_API_KEY`'i ve notebook'un
+  üç sırrını da peşinden sürüklerdi, ve bu koşu *"modeli değiştirelim"* diye açıldı. Geri dönüş tek
+  sabit. Eylem satırları DeepSeek'te kötü çıkarsa yol açık duruyor.
+- **Nasıl görülür:** boş kareli bir dosyada `write_missing_actions` koşulur ve harcama **DeepSeek**
+  tarafında görünür, xAI tarafında hiçbir şey görünmez.
+- **Değişen:** `config.py`'nin bir satırı; `prompt.py`'de kareyi yazanın sistem metnini kuran işlev;
+  `test_config.py`, `test_prompt.py`, `test_tools.py`.
+
+---
+
+# Dilim 8 — kapanış
 
 Koşunun son işi, ve **kullanıcının kendi işi.**
 
