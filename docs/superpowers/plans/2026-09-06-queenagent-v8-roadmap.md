@@ -1,7 +1,7 @@
 # QueenAgent v8 Yol Haritası — çıkan prompt, ve koşarken görünen
 
 **Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül — artı **195 ve 196, koşu sürerken eklendi**
-*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **On üç madde**, yedi dilim, 183'ten 196'ya — **188 yok**,
+*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **On beş madde**, yedi dilim, 183'ten 198'e — **188 yok**,
 taslak okunurken geri çekildi *(aşağıda)*. Numaralar 182'nin ardından gidiyor ve **hiç kaymıyor** —
 yazılmış spec'ler onlara atıf yapıyor, ve çekilen bir numara boş kalır.
 
@@ -33,11 +33,16 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 194 · canlı tur şeridi | **kapandı** | `5e3c6e5` |
 | 195 · mesaj düzenlenir, sohbet sürümlenir | **kapandı** | `769fa8d` |
 | 196 · sistem promptunun ikinci parçası | **kapandı** | `39ae4c7` |
+| 197 · düzenleme mesajın kendi yerinde | **sırada** | |
+| 198 · akış karakterle başlar, plan işaretlenir | **sırada** | |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
 
 183–187, 189, 191–196 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden açıldı**
-*(kullanıcı, 8 Eylül)*, ve ikisi de kapandı. **Ajanın işi yine burada bitti**: geriye 190 kalıyor,
-o da kullanıcının kendi maddesi. 196'nın sabiti de kullanıcıyı bekliyor — açılan yer boş.
+*(kullanıcı, 8 Eylül)*, ve ikisi de kapandı. Ardından **197 ve 198 eklendi**, ikisi de denemeden
+çıktı: 195'in düzenleme akışının yeri yanlış bulundu *(ve aynı yerde 195'in bıraktığı bir hizalama
+kusuru var)*, 186'nın bağlam sorusu ise sürtünme olarak görüldü.
+190 hâlâ kullanıcının kendi maddesi ve en sonda. 196'nın sabiti de kullanıcıyı bekliyor: açılan yer
+şimdilik boş.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.
@@ -339,7 +344,8 @@ dokunuyor ve `dist` bir kez derleniyor.
 # Dilim 5 — geri dönüş
 
 Söylenmiş bir şeyin geri alınması. Kendi dilimi, çünkü Dilim 4'ün dördü yalnız ön yüze dokunuyor ve
-bu sohbetin **diskteki şeklini** değiştiriyor.
+195 sohbetin **diskteki şeklini** değiştiriyor. 197 onun üstüne biniyor: aynı iş, ama kullanıcının
+onu yaptığı yer.
 
 ## Madde 195 — Düzenlenen mesaj sohbeti sürümler
 
@@ -383,11 +389,43 @@ bu sohbetin **diskteki şeklini** değiştiriyor.
   `append_message` ve `stream_answer`'ın hangi çizginin sonuna yazdığı; `routes.py`'de sürüm açan ve
   açık sürümü değiştiren uçlar; `useChat.js` ile `ChatScreen.jsx`; `dist`.
 
+## Madde 197 — Düzenleme mesajın kendi yerinde olur
+
+- **Sorun, iki parça.** Birincisi 195'in bıraktığı bir kusur: kalem bubble'ın **yanında** duruyor ve
+  ikisi bir satır sarmalayıcısında *(`.msg__said`)*. `.msg` bir sütun ve kullanıcı mesajlarında
+  `align-items: flex-end`, yani sağa yaslanan şey artık **sarmalayıcı**; bubble'ın `max-width: 78%`'i
+  de `.msg`'in değil onun genişliğine göre çözülüyor. Sonuç, her mesajın sağ kenarının başka yere
+  düşmesi — ekranda **kaymış** görünüyor *(kullanıcı, 8 Eylül)*.
+- **İkincisi akış:** düzenlenen cümle **sohbet kutusuna** düşüyor, yani mesaj ekranın bir ucunda,
+  düzeltmesi öteki ucunda. Kullanıcı kararı: düzenleme mesajın **kendi yerinde** olsun.
+- **Ne çalışır:**
+  - **Kalem bubble'ın altında** — sarmalayıcı kalkıyor, `.msg`'in sütunu geri geliyor, ve bubble'ın
+    genişliği yine `.msg`'e göre ölçülüyor. Kusur böylece yapısal olarak kapanıyor; ayrı bir yama
+    değil, aynı işin öteki yüzü.
+  - **Basınca bubble'ın içi yazılabilir** oluyor: metin yerinde duruyor, kutuya taşınmıyor.
+  - Altında **iki ikon** — ✓ ve ✕ *(kullanıcı kararı, 8 Eylül: kelime değil ikon)*. Adları
+    `aria-label` ve `title` ile yazılı kalıyor, `Refresh` ve sürüm okları gibi: adı olmayan bir ikon
+    ne klavyeye görünür ne teste.
+  - **✓ bugünkü işi yapıyor** — o noktadan yeni sürüm açılır ve tur koşar *(Madde 195'in kapısı,
+    `from` alanıyla)*. **✕** her şeyi eski hâline bırakır.
+- **Kutuya doldurma yolu kalkıyor.** 195 metni `Composer`'a düşürüyordu ve o yol bu maddeyle
+  ortadan kalkıyor — `Composer`'ın `filled` alanı da onunla birlikte, çünkü var olma sebebi buydu.
+  İki yol bir işi yaparsa hangisinin koştuğu cevapta kaybolur.
+- **Klavye kutununkiyle aynı** *(karar bu maddede)*: Enter onaylar, Shift+Enter satır açar, Escape
+  vazgeçer. İki ayrı yazı alanının iki ayrı alışkanlık istemesi, ikisini de yanlış kullandırır.
+- **Nasıl görülür:** bir mesajın altındaki kaleme basılır, bubble yazılabilir olur, düzeltilip ✓'e
+  basılır — sohbet o noktadan yeni cevapla devam eder. ✕ ise mesajı olduğu gibi bırakır. Ve
+  bubble'ların sağ kenarı, kalem varken de yokken de **aynı hizada** durur.
+- **Değişen:** `ChatScreen.jsx`'in mesaj çizimi; `Composer.jsx`'ten `filled`; `workspace.css`'te
+  `.msg__said` yerine düzenleme hâlinin kendi kuralları; `ChatScreen.test.jsx` ile `App.test.jsx`'in
+  195'te yazılan düzenleme testleri; `dist`.
+
 ---
 
 # Dilim 6 — modele söylenen
 
-Sistem promptunun kullanıcıya ait olan yarısı.
+Modele giden metinler: sistem promptunun kullanıcıya ait olan yarısı, ve akışı anlatan skill'in
+kendisi.
 
 ## Madde 196 — Sistem promptunun ikinci parçası
 
@@ -416,6 +454,48 @@ Sistem promptunun kullanıcıya ait olan yarısı.
   koşulması gerekir, ve o ayrı bir iş.
 - **Değişen:** `prompt.py`'ye yeni sabit; `xai_engine._for_xai`'nin sistem mesajını kurması;
   `test_prompt.py` ve `test_xai_engine.py`.
+
+## Madde 198 — Akış karakterle başlar, ve plan yapıldıkça işaretlenir
+
+- **Sorun, birincisi 186'nın kendi kararı:** akış bir **bağlam sorusuyla** açılıyor — *ne yapılıyor,
+  ne için*. Gerekçesi doğruydu *(plan o satırı bilmeden yazınca uyduruyor)*, ama kullanılınca bedeli
+  görüldü: iş başlamadan önce cevaplanacak bir soru. **Kullanıcı kararı, 8 Eylül: kalksın, ilk soru
+  karakterler olsun.**
+- **İkincisi plan:** işaretlenmesi **zaten yazılı** — *"An approved step's line in the plan is marked
+  done with one edit_file"*. Tutmamasının sebebi talimat değil, **biçim**: işaretlenmiş bir adımın
+  neye benzediğini hiçbir yer söylemiyor, model her turda kendi işaretini uyduruyor, ve sonraki tur
+  onu tanımıyor. Planın bütün değeri taze bir sohbetin *"nerede kalındı"* sorusuna cevap vermesi —
+  tanınmayan bir işaret o cevabı vermiyor.
+- **Ne çalışır — beş adım:**
+
+  | | Adım | 186'dan farkı |
+  |---|---|---|
+  | 1 | Plan yazılır | 2. adımdı; bağlam satırı **düşüyor** |
+  | 2 | Karakterler *(+ kıyafetler)* | `start_scenario` **buraya dönüyor** |
+  | 3 | Mekânlar | aynı |
+  | 4 | Sahneler | aynı |
+  | 5 | Promptlar üretilir ve iş biter | aynı |
+
+- **`start_scenario` karakter adımına dönüyor** *(kullanıcı kararı, 8 Eylül)*, 186 öncesindeki
+  yerine. Dosyanın adını veren şey bağlamdı ve o gidiyor; ilk karakter geldiğinde dosya doğuyor.
+  186'nın kabul ettiği bedel de tersine dönüyor: bağlamı söyleyip vazgeçen kullanıcı artık ardında
+  boş bir `.json` bırakmıyor.
+- **Plan kalıyor, ve sebebi kullanıcının kendi sebebi** *(8 Eylül)*: sohbet değişince nerede
+  kalındığını bilen tek şey o. Kalkan yalnız **açılış bağlam satırı** — model kendisine
+  söylenmemiş bir şeyi yazmaz.
+- **Adımlar kutulu, ve işareti kod koyar:** plan `- [ ]` satırlarıyla yazılıyor, ve onaylanan bir
+  adımı **kendi aracı** işaretliyor — `edit_file` ile serbest bir düzenleme değil. Bu deponun
+  ilkesi bunu zaten söylüyor *(FOUNDATION 5: modelin her seferinde aynı çıkarması gereken şeyi
+  deterministik bir işlev yapar)*, ve kazancı iki taraflı: işaret her turda aynı, ve **bir sonraki
+  sohbet onu okuyabiliyor.**
+- **Nasıl görülür:** yeni bir sohbette *Start a scenario* seçilir ve ilk soru **karakter** olur.
+  Plan dosyası açılınca adımlar kutulu durur; bir adım onaylanınca o adımın kutusu **dolu** olur, ve
+  sohbeti kapatıp yenisinde plan okununca ilerleme aynen görünür.
+- **Değişen:** `prompt.py`'de `START_A_SCENARIO`'nun adımları ve `WRITE_PLAN`'in plan biçimi;
+  `tools.py`'de adımı işaretleyen yeni araç ile `run_tool`'un dalı; `modes.py`'nin hangi modda
+  çağrılabildiği; `test_skills.py`, `test_tools.py`, `test_modes.py`.
+- **186 ile ilişkisi:** o madde duruyor ve numarası yerinde; bu madde onun **1. adımını** kaldırıyor
+  ve `start_scenario`'yu geri taşıyor. Bir karar, kullanılınca değişti — kayıt ikisini de tutuyor.
 
 ---
 
