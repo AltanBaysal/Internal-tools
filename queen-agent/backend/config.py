@@ -35,6 +35,10 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 # Madde 82 named one model here and Madde 146 made it three. That madde tore the picking machinery
 # out because a single model left it idle; two more ended the premise rather than overturned it.
 MODELS = {
+    # Nothing points here since Madde 202 moved the writing to DeepSeek, and by Madde 183's own rule
+    # -- a row nobody will use is dead configuration -- this one would go. Kept knowingly: deleting
+    # it takes XAI_API_KEY and the notebook's third secret with it, and what the run was for was
+    # trying another writer. If the lines come out worse, going back is the constant below.
     "grok-4.3": {"base_url": "https://api.x.ai/v1", "key": "XAI_API_KEY"},
     # No /v1: this is DeepSeek's own documented base, and the client appends /chat/completions to
     # whatever it is handed.
@@ -51,14 +55,16 @@ DEFAULT_MODEL = "deepseek-v4-flash"
 
 # Who writes a frame's action when a tool asks for one (Madde 175). A role rather than a choice, by
 # the user's decision of 5 September: what the composer offers is which model runs the conversation,
-# and this one is never on that list. It is here because it is a wiring fact -- the same kind of
-# fact as an address or a key -- and because the model it names is chosen for what it will write
-# rather than for how it reasons.
+# and no picker on the screen reaches this line. It is here because it is a wiring fact -- the same
+# kind of fact as an address or a key -- and because the model it names is chosen for what it will
+# write rather than for how it reasons.
 #
-# 4.3 rather than the newer rows xAI also offers (Madde 183, the user's decision): 4.5 and 4.6 cost
-# more, and the sentence above is why that does not settle it -- nothing here is reasoned, one line
-# is written. Code cannot say which model writes that line best, so the choice is recorded instead.
-PROMPT_MODEL = "grok-4.3"
+# DeepSeek since Madde 202 (the user's decision, 8 September). The role was built on 175's finding
+# that the model running the conversation would not write that kind of sentence; it writes it now,
+# and a second provider for one line was buying nothing. It is the same id DEFAULT_MODEL carries,
+# and the two are still separate decisions: one says what an empty button means, this one says who
+# writes an action, and either can move without the other.
+PROMPT_MODEL = "deepseek-v4-flash"
 
 
 def engine_for(model_id):

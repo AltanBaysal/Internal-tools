@@ -326,8 +326,24 @@ model that writes that -- read once per request, by a model that has nothing els
 
 QueenAgent's own SYSTEM_PROMPT stays out. It is a page about tools, files, chats and how to talk to
 a user, and none of it is true here: this model calls nothing, opens nothing, and is not talking to
-anybody.
+anybody. The owner's second part is another matter, and write_frame_system_prompt below adds it.
 """
+
+
+def write_frame_system_prompt():
+    """The frame writer's message as it goes out: its own page, then the owner's part (Madde 202).
+
+    Madde 196 left this text alone and said why: the frame's writer was a second service, and the
+    part frames what the workspace is for. Since 202 both requests go to the same service -- and of
+    the two, the one meeting the plainest sentences with nothing around them is this one.
+
+    A function rather than a constant, for system_prompt's reason: a part written today is in the
+    very next frame rather than in the next process. Empty, the message is the constant itself, byte
+    for byte.
+    """
+    if not SYSTEM_PROMPT_SUFFIX:
+        return WRITE_FRAME_SYSTEM_PROMPT
+    return f"{WRITE_FRAME_SYSTEM_PROMPT}\n\n{SYSTEM_PROMPT_SUFFIX}"
 
 
 # --- what more than one tool says -----------------------------------------------------------------

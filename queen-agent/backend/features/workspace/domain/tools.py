@@ -1432,7 +1432,7 @@ def _write_frame_prompt(file_store, project_id, args, engine):
 
     try:
         answer = engine.write_once(
-            prompt.WRITE_FRAME_SYSTEM_PROMPT, _frame_seen(frame, structure, args.get("note"))
+            prompt.write_frame_system_prompt(), _frame_seen(frame, structure, args.get("note"))
         )
     except Exception as failure:
         # The service's own words, and the frame left as it was. No retry in here: calling this
@@ -1527,6 +1527,9 @@ def _write_missing_actions(file_store, project_id, args, engine):
 
     written, spent = [], {}
     if waiting:
+        # Built once for the whole call: every request carries the same message, and building it in
+        # the loop would ask the module the same question once per frame.
+        said_to_the_writer = prompt.write_frame_system_prompt()
         with ThreadPoolExecutor(max_workers=min(AT_ONCE, len(waiting))) as pool:
             # _frame_seen runs here rather than inside a thread: it reads the structure, and the
             # threads are handed two finished strings and nothing to reach into. Note is None --
@@ -1534,7 +1537,7 @@ def _write_missing_actions(file_store, project_id, args, engine):
             asked = {
                 pool.submit(
                     engine.write_once,
-                    prompt.WRITE_FRAME_SYSTEM_PROMPT,
+                    said_to_the_writer,
                     _frame_seen(frame, structure, None),
                 ): (place, frame)
                 for place, frame in waiting
