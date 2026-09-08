@@ -65,6 +65,10 @@ _WITHOUT_ASKING = {
         # Madde 185. The same, once for every frame still waiting -- so this is the widest single
         # spend any tool here makes, and the quieter modes keep their gate in front of it.
         "write_missing_actions",
+        # Madde 198. The narrowest write there is, one character in one line, and still a write to
+        # a file the user is reading. Not in PLAN above, and that is not a formality: that mode's
+        # job is writing the plan, never closing a step off it.
+        "mark_step_done",
     ),
 }
 

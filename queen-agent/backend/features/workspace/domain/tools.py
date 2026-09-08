@@ -456,7 +456,46 @@ TOOL_SPECS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "mark_step_done",
+            "description": prompt.MARK_STEP_DONE,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": prompt.MARK_STEP_DONE_NAME},
+                    "step": {"type": "integer", "description": prompt.MARK_STEP_DONE_STEP},
+                },
+                "required": ["name", "step"],
+            },
+        },
+    },
 ]
+
+
+def _ticked(content, step):
+    """The plan with that step's box filled, and what was found there (Madde 198).
+
+    Line by line and one character changed. The alternative was the model handing back the whole
+    plan with a tick added, and then what a ticked step looks like is its to invent -- which is what
+    left the last turn unable to read the one before it.
+
+    Answers `done`, `already` or `missing`, because the three are three different sentences to the
+    model and only the first writes.
+    """
+    lines = content.split("\n")
+    state = "missing"
+    for index, line in enumerate(lines):
+        head = line.lstrip()
+        for box, found in (("- [ ] ", "done"), ("- [x] ", "already")):
+            # The number as the model wrote it, and only at the front of the step: a plan that
+            # mentions step 2 inside step 1's sentence must not be ticked by it.
+            if head.startswith(f"{box}{step}.") or head.startswith(f"{box}{step} "):
+                if found == "done":
+                    lines[index] = line.replace("- [ ] ", "- [x] ", 1)
+                return "\n".join(lines), found
+    return content, state
 
 
 def counted(many, word):
@@ -598,6 +637,28 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
             written,
             "Saved" if born else "Rewritten",
         )
+
+    if name == "mark_step_done":
+        wanted = plan_name(safe_name(args.get("name")))
+        content = file_store.read(project_id, wanted)
+        if content is None:
+            return ToolResult(f"There is no {wanted}.", None, wanted, "No plan by that name")
+        step = args.get("step")
+        marked, state = _ticked(content, step)
+        if state != "done":
+            # A miss is an answer here, the way it is everywhere else in this file: the model reads
+            # what happened and carries on rather than the turn falling over.
+            return ToolResult(
+                f"There is no step {step} waiting in {wanted}."
+                if state == "missing"
+                else f"Step {step} was already done.",
+                None,
+                wanted,
+                "Nothing to tick" if state == "missing" else "Already done",
+            )
+        file_store.write(project_id, wanted, marked)
+        # No card: the file was already there, which is the rule edit_file follows too.
+        return ToolResult(f"Step {step} is done in {wanted}.", None, wanted, "Ticked")
 
     if name == "edit_file":
         return _edit(file_store, project_id, args)

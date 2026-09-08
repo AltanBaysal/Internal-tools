@@ -160,7 +160,7 @@ def test_the_flow_opens_a_pov_entry_beside_each_character():
     # correction turn, which is the worst moment to send the model back to the maps.
     said = _flow()
     assert "pov_" in said
-    assert said.index("pov_") > said.index("3. The characters")
+    assert said.index("pov_") > said.index("2. The characters")
 
 
 def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
@@ -197,13 +197,14 @@ def test_the_flow_writes_the_plan_before_it_asks_anything():
     said = _flow()
     assert "write_plan" in said
     # Ordered against the next step rather than against the schema fetch, which Madde 172 retired.
-    assert said.index("write_plan") < said.index("3. The characters")
+    assert said.index("write_plan") < said.index("2. The characters")
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
     # How a conversation that grew too long is continued: files belong to the project rather than
-    # the chat, so a new chat finds the plan and picks up the step it left open.
-    assert "carry on from the step it left open" in _flow()
+    # the chat, so a new chat finds the plan and picks up where it stopped. Since Madde 198 that
+    # place is readable rather than described: the first box nobody filled.
+    assert "the first step whose box is empty" in _flow()
 
 
 def test_a_step_ends_when_the_user_approves_it():
@@ -229,9 +230,9 @@ def test_the_scenes_step_writes_a_readable_list_too():
 
 
 def test_a_finished_step_reaches_the_plan():
-    # The flow promises a fresh chat can carry on from the step left open. A plan nobody updates
+    # The flow promises a fresh chat can carry on from where the work stopped. A plan nobody updates
     # shows no step as open, so the promise stands only if ending a step writes into the plan.
-    assert "marked done" in _flow()
+    assert "mark_step_done" in _flow()
 
 
 def test_the_scenario_is_opened_by_the_tool_that_opens_one():
@@ -278,7 +279,7 @@ def test_the_flow_hands_off_to_nobody():
     said = _flow()
     # Asserted first, and not for company: a test looking for the absence of a name passes on a
     # text that was never read at all, which is how eleven tests in this run went green while red.
-    assert "6. The prompts" in said
+    assert "5. The prompts" in said
     assert "Generate prompts+" not in said
     assert "skills menu" not in said
 
@@ -392,7 +393,7 @@ def test_the_flow_finishes_with_the_build():
     # and stopping short would leave the user one manual call from what they asked for.
     said = _flow()
     assert "build_prompts is never called here" not in said
-    assert said.rindex("build_prompts") > said.index("6. The prompts")
+    assert said.rindex("build_prompts") > said.index("5. The prompts")
 
 
 def test_the_closing_message_offers_nothing_and_asks_nothing():
@@ -408,12 +409,13 @@ def test_every_skill_opens_with_what_the_work_is_for(skill):
     assert "prompts for an SDXL-family image model" in instruction_for(skill)
 
 
-def test_the_plan_carries_the_context_too():
-    # The plan is the fresh chat's memory; a plan that holds only steps hands over the steps
-    # and not the work.
+def test_the_plan_no_longer_opens_with_a_line_of_context():
+    # Madde 186 asked for that line and Madde 198 takes it back, with the question that fed it. The
+    # claim is not dropped, it is turned around: with nobody asked what the work is for, a plan
+    # opening with it would be back to guessing -- which is the thing 186 was written against.
     said = _flow()
-    assert "opens with one line of context" in said
-    assert "inherits the work" in said
+    assert "opens with one line of context" not in said
+    assert "inherits the work" not in said
 
 
 def test_the_flow_opens_as_a_persona():
@@ -426,13 +428,14 @@ def test_the_editor_opens_as_a_persona():
     assert _edit().startswith("You are an expert SDXL prompt writer")
 
 
-def test_a_finished_step_is_marked_with_one_edit():
-    # Madde 126: closing one step cost three plan writes in the trial -- write_plan, edit_file,
-    # write_plan -- because "marked done" never said which of the two it meant, and write_plan
-    # rewrites the whole file. The birth of the plan stays write_plan's; marking is one line.
+def test_a_finished_step_is_closed_without_rewriting_the_plan():
+    # Madde 126's finding, and it still holds: closing one step cost three plan writes in the trial,
+    # because "marked done" did not say which tool it meant and write_plan rewrites the whole file.
+    # 126 answered it with edit_file, 198 with a tool that fills one box -- the same rule, now kept
+    # by the code rather than by a sentence asking the model to be careful.
     said = _flow()
-    assert "marked done with one edit_file" in said
-    assert "never a rewrite" in said
+    assert "mark_step_done" in said
+    assert "touches nothing else" in said
 
 
 # --- the ritual openings (Madde 107) --------------------------------------------------------------
