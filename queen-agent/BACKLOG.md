@@ -3,6 +3,27 @@
 Gerçek ama henüz bir koşuya bağlanmamış işler. Sırası gelince buradan çıkar, o koşunun yol
 haritasına girer.
 
+## Dosyalar bir tur öncesine geri sarılacak
+
+*(Kullanıcı, 8 Eylül. Madde 195'in ilk taslağında vardı, tasarım konuşulurken geri çekildi.)*
+
+Madde 195 **sohbeti** sürümlüyor: bir mesaj düzenlenince o noktadan yeni bir çizgi açılıyor. Geri
+gitmeyen şey **dosyalar** — eski bir sürümden koşan tur bugünkü `files/`'ı görüyor *(Madde 129: kap
+diskten okuyor)*. Yani konuşma geri alınabiliyor, o konuşmanın **yaptığı iş** alınamıyor.
+
+**İstenirse ne gerekir:** dosyanın eski hâli bugün hiçbir yerde durmuyor — üzerine yazılan içerik
+gidiyor, yalnız silinen dosya `trash/`'e taşınıyor. Yani madde, her turdan önce projenin `files/`
+klasörünü saklayan bir düzenle başlar; geri sarmak o kopyayı yerine koymak olur, ve geri sarmanın
+kendisi de bir kopya alarak geri alınabilir kalır *(FOUNDATION 1)*.
+
+**Konuşmada varılan yer:** tam kopya, fark listesinden **basit** — bir kopya kayamaz, ve dosyalar
+kilobaytlarla ölçülen metin dosyaları. **Kararlaşmadı:** kapsamın bütün klasör mü yoksa yalnız o
+turun dokunduğu dosyalar mı olduğu. Elle Drive'a konmuş bir dosya birinci seçenekte geri sarmayla
+kaybolur — bedeli geri sarmanın geri alınabilir olması karşılıyor, ama karar verilmedi.
+
+**Neden şimdi değil:** istenen şey *"yanlış istediğim mesajı düzeltmek"*ti, ve dosya yarısı onun
+yanında büyük kaldı.
+
 ## Promptlar baştan sona okunacak ve geliştirilecek
 
 *(Kullanıcı, 6 Eylül.)*

@@ -1,6 +1,7 @@
 # QueenAgent v8 Yol Haritası — çıkan prompt, ve koşarken görünen
 
-**Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül. **On bir madde**, beş dilim, 183'ten 194'e — **188 yok**,
+**Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül — artı **195 ve 196, koşu sürerken eklendi**
+*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **On üç madde**, yedi dilim, 183'ten 196'ya — **188 yok**,
 taslak okunurken geri çekildi *(aşağıda)*. Numaralar 182'nin ardından gidiyor ve **hiç kaymıyor** —
 yazılmış spec'ler onlara atıf yapıyor, ve çekilen bir numara boş kalır.
 
@@ -30,9 +31,12 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 192 · dosyalar tazelenir | **kapandı** | `4f50ab8` |
 | 193 · kopyala düğmesi | **kapandı** | `efac34c` |
 | 194 · canlı tur şeridi | **kapandı** | `deb0a9e` |
+| 195 · mesaj düzenlenir, sohbet sürümlenir | **sırada** | |
+| 196 · sistem promptunun ikinci parçası | **sırada** | |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
 
-Ajanın işi burada bitti: 183–187, 189, 191–194 kapandı, ve 190 kullanıcının kendi maddesi.
+183–187, 189, 191–194 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden açıldı**
+*(kullanıcı, 8 Eylül)*. 190 kullanıcının kendi maddesi ve en sonda kalmaya devam ediyor.
 
 ---
 
@@ -328,7 +332,90 @@ dokunuyor ve `dist` bir kez derleniyor.
 
 ---
 
-# Dilim 5 — kapanış
+# Dilim 5 — geri dönüş
+
+Söylenmiş bir şeyin geri alınması. Kendi dilimi, çünkü Dilim 4'ün dördü yalnız ön yüze dokunuyor ve
+bu sohbetin **diskteki şeklini** değiştiriyor.
+
+## Madde 195 — Düzenlenen mesaj sohbeti sürümler
+
+- **Sorun:** yanlış istenmiş bir mesajın bugün tek çaresi yenisini yazmak. Yanlış cümle sohbette
+  kalıyor, ve kalmakla da bitmiyor — sonraki her tur bütün konuşmayı yeniden gönderdiği için o cümle
+  modele tekrar tekrar gidiyor. Bir noktaya dönüp **başka bir yol denemek** mümkün değil.
+- **Ne çalışır:** kullanıcı mesajında bir **Edit** düğmesi. Cümle yazı kutusuna düşer, düzeltilip
+  gönderilince o noktadan **yeni bir sürüm** açılır ve tur oradan koşar. Mesajın altında
+  `‹ 2/3 ›` — sürümler arasında gezilir, ve açık olan sürüm sayfayı yenilemeye dayanır.
+- **Emsali ChatGPT'nin sitesi** *(kullanıcı kararı, 8 Eylül)*: düzenlenen mesaj eskisinin yerine
+  geçmiyor, yanına ikinci bir sürüm olarak duruyor.
+- **Dönülecek nokta kullanıcı mesajıdır** *(kullanıcı kararı)*. Bir turun sınırı zaten orası: ajanın
+  cevabı tek bir cümle değil, kendi araç çağrılarıyla birlikte bir tur, ve ortasına dönmenin diskte
+  bir karşılığı yok.
+- **Eski sürüm silinmez.** FOUNDATION'ın 1. ilkesi *(kullanıcının işi kutsaldır)* bu maddeye
+  doğrudan biniyor: sürüm açmak, sonrasını **kesip atmak** olsaydı, o turlar hiçbir yerde kalmazdı.
+  Ayrılan yol yenisinin yanında duruyor, ve `‹ › ` ile geri dönülüyor.
+- **Diskte, ve neden kopya değil:** `chats/<id>.json` bugünkü `messages`'ını **ilk çizgi** olarak
+  tutar. Her yeni sürüm **nereden ayrıldığını** *(hangi çizginin kaçıncı mesajı)* ve **yalnız kendi
+  mesajlarını** yazar; hangisinin açık olduğu da sohbetin kendi alanı. Ayrılma noktasına kadarki
+  konuşma böylece **tek nüsha** kalıyor — sürümler tam kopya olsaydı aynı mesaj üç dosyada üç kez
+  dururdu, ve bu deponun kaçındığı şey tam olarak o.
+- **Göç yok:** `versions` alanı olmayan bir sohbet, bugünkü tek çizgi olarak okunur. Alan da ancak
+  bir sürüm açılınca yazılır — boş bir liste diskte gürültüdür, ve `FileChatStore`'un bütün alanları
+  zaten böyle davranıyor.
+- **Sohbeti okuyan her şey açık çizgiyi okur:** `is_owed_an_answer`, `last_context`/`is_full`'un
+  tavanı, başlık, ve kabın gönderdiği konuşma. Kapalı bir sürümdeki turlar tavana **girmez** — o
+  turlar artık gönderilmiyor, ve gönderilmeyen bir şeyin bağlamı büyütmesi yanlış olurdu.
+- **Nasıl görülür:** üç mesajlık bir sohbette ikinci mesaj düzenlenir; sohbet o noktadan yeni bir
+  cevapla devam eder, `‹ 1/2 ›` ile eskisine dönülür ve eski cevap olduğu gibi durur. Sayfa
+  yenilenince açık sürüm hâlâ açıktır.
+- **"Yeniden cevapla" yok** *(kullanıcı kararı)*. Mekanizması aynı olurdu, ama faydası ayrı bir soru:
+  aynı cümle çoğunlukla aynı cevabı getiriyor, ve bu ajanın turu pahalı — Deneme 4'te tek tur
+  16 raunt ve 277.6k jeton. Gerekirse ayrı madde.
+- **Dosyalar geri gitmiyor, ve bu bilerek** *(kullanıcı kararı, 8 Eylül)*. Madde ilk taslakta Claude
+  Code'un menüsüydü — *sohbeti çatalla / dosyaları geri al / ikisi birden* — ve dosya yarısı her turun
+  öncesini saklayan bir kopya düzeni istiyordu. İstenen şeyin yanında büyük kaldı ve geri çekildi;
+  `BACKLOG.md`'ye yazıldı. **Sonucu yazılı olsun:** eski bir sürümden koşan tur **bugünkü** dosyaları
+  görür *(Madde 129: bağlam kabı diskten okuyor)*. Sürümler konuşmayı geri alıyor, **işi değil.**
+- **Değişen:** `chat.py`'nin `Chat`'i ve çizgiyi türeten yeni işlevi; `FileChatStore`'un şeması;
+  `append_message` ve `stream_answer`'ın hangi çizginin sonuna yazdığı; `routes.py`'de sürüm açan ve
+  açık sürümü değiştiren uçlar; `useChat.js` ile `ChatScreen.jsx`; `dist`.
+
+---
+
+# Dilim 6 — modele söylenen
+
+Sistem promptunun kullanıcıya ait olan yarısı.
+
+## Madde 196 — Sistem promptunun ikinci parçası
+
+- **Sorun:** besteci aynı işi bazen yapıyor, bazen reddediyor *(kullanıcı, 8 Eylül)*. Bugün sistem
+  promptu araçları, dosyaları ve sohbeti anlatıyor — **ne için çalışıldığına dair tek cümle yok**,
+  ve model açık etiketlerle hiçbir çerçeve olmadan bir sohbetin ortasında karşılaşıyor.
+- **Ne çalışır:** `prompt.py`'de ikinci bir sabit, ve bestecinin sistem mesajı `SYSTEM_PROMPT`'un
+  **arkasına** eklenerek kurulur. Önek değil **son ek** *(kullanıcı kararı, 8 Eylül)*.
+- **İçeriğini kullanıcı yazar** *(kullanıcı kararı)*. Madde sabiti **boş** doğuruyor; ne yazacağı
+  deponun değil, kullanıcının işi — ve bu yüzden metnin kendisi bu maddenin kapsamında değil.
+- **Boşken hiçbir şey değişmez.** Boş bir son ek isteğe ne satır ne boşluk ekler; giden mesaj
+  bugünküyle **bayt bayt aynı** kalır. Sebebi temizlik değil: sistem promptu servisin sabit önek
+  olarak sakladığı baş, ve fazladan bir boş satır o öneki daha ilk günden kaydırırdı.
+- **189'un modülünde, öteki metinlerin yanında** *(kullanıcı kararı)*. Depo dışında bir dosya da
+  konuşuldu ve seçilmedi: nöbetçi test *"depoda başka hiçbir yerde prompt yok"* diyor, ve dışarıda
+  duran bir metin o kuralın etrafından dolaşırdı. Bedeli, metnin git'e girmesi.
+- **Boş kalma hakkı var, ve nöbetçinin bunu bilmesi gerekiyor:**
+  `test_the_prompt_module_holds_the_texts_the_others_gave_up` listelediği her adın **dolu** olmasını
+  istiyor. Bu sabit o listeye **girmez** — girerse madde kendi testini kırmızı doğurur.
+- **Yalnız besteci.** Kareyi yazan modelin sistem metni ayrı ve ona dokunulmuyor *(`write_once`,
+  Madde 175: orası araçların değil, tek cümlelik bir işin metni)*.
+- **Nasıl görülür:** sabit doldurulur, bir tur koşulur, ve giden sistem mesajının **sonunda** o metin
+  durur. Boş bırakılırsa istek eskisinin aynısıdır.
+- **Ölçülmemiş, ve kayda öyle geçiyor:** çerçevenin reddi azaltacağı bir beklenti, ölçüm değil.
+  Bugün elimizde tek bir sayı yok — ne kadarının değiştiğini görmek için aynı işin birkaç kez
+  koşulması gerekir, ve o ayrı bir iş.
+- **Değişen:** `prompt.py`'ye yeni sabit; `xai_engine._for_xai`'nin sistem mesajını kurması;
+  `test_prompt.py` ve `test_xai_engine.py`.
+
+---
+
+# Dilim 7 — kapanış
 
 Koşunun son işi, ve **kullanıcının kendi işi.**
 
@@ -348,8 +435,11 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
 - **Nasıl görülür:** silinen her cümle için, onu gereksiz kılan öteki metin adıyla gösterilir.
 - **En sonda, ve sebebi:** 183 yazarın kimliğini, 186 skill metinlerini değiştiriyor, 189 hepsini tek
   yere taşıyor, 187 yenilerini ekliyor. Bunlardan önce yapılan bir okuma, dördünden sonra yeniden
-  yapılmak zorunda kalırdı. 191-194 metne hiç dokunmuyor, yani onların arkasında beklemesinin bir
-  maliyeti yok — ve beklerken ajan tarafındaki hiçbir işi bloklamıyor.
+  yapılmak zorunda kalırdı. 191–195 modele giden metne hiç dokunmuyor, yani onların arkasında
+  beklemesinin bir maliyeti yok — ve beklerken ajan tarafındaki hiçbir işi bloklamıyor. 196 sistem
+  promptuna bir son ek **yeri** açıyor ama içini doldurmuyor, ve dolduran metin kullanıcının kendi
+  metni: bu okumanın konusu deponun yazdığı metinler, o değil. Yine de önce koşuyor, ki okuma
+  yapılırken mekanizma yerinde olsun.
 
 ---
 
@@ -360,6 +450,9 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
   onun geri çekildiğini söyler. Konuşmada varılan yer maddenin kendisinde yazılı — kısaca: sert bir
   kelime tavanı yanlış yol, ayırt edici işaret **özne, ad ve çekimli fiil.**
 - **Dolu kareleri toplu yeniden yazmak** — 185'in kapsam dışı; 181 sebebini kaldırdı.
+- **Dosyaların bir tur öncesine geri sarılması** — 195'in ilk taslağında vardı, tasarım konuşulurken
+  geri çekildi *(kullanıcı kararı, 8 Eylül)* ve `BACKLOG.md`'ye döndü. Numarası hiç verilmedi: madde
+  195 olarak yazılmadan önce ayrıldı.
 - **queen-editor'ün maddeleri** — kendi `BACKLOG.md`'sinde: iki hata, üç LoRA işi, editör kısmı,
   MiniMax ve slime girl. Bu koşu yalnız QueenAgent.
 - **Merge'den önce:** `queenagent.ipynb` ve `test_notebook.py`'nin `BRANCH`'i bu dala çevrilir, ve
