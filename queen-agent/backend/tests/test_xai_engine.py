@@ -131,6 +131,59 @@ def test_the_turn_is_spoken_by_the_model_it_names():
     assert grok.seen is None
 
 
+# --- the second part of the system prompt (Madde 196) --------------------------------------------
+
+
+def _with_suffix(monkeypatch, text):
+    """The module's own constant, moved for one test.
+
+    Patched on the module rather than handed in: the text is one of this app's texts and lives where
+    the others do (Madde 189). What the engine must do is read it when the request is built, so a
+    suffix written today is in the very next turn.
+    """
+    from backend.features.workspace.domain import prompt
+
+    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", text)
+
+
+def test_the_second_part_rides_at_the_end_of_the_system_message(monkeypatch):
+    _with_suffix(monkeypatch, "This workspace is used for X.")
+    client = FakeClient()
+    list(_engine(client).stream(CONVERSATION))
+    said = client.seen[0]["content"]
+    assert said.startswith(SYSTEM_PROMPT)
+    assert said.endswith("This workspace is used for X.")
+
+
+def test_an_empty_second_part_leaves_the_request_exactly_as_it_was(monkeypatch):
+    # Byte for byte. The system prompt is the fixed head the service files this conversation's
+    # cached prefix under, and one trailing blank line would move that prefix on the first day --
+    # for a sentence nobody has written yet.
+    _with_suffix(monkeypatch, "")
+    client = FakeClient()
+    list(_engine(client).stream(CONVERSATION))
+    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
+
+
+def test_the_second_part_reaches_the_system_message_and_nothing_else(monkeypatch):
+    _with_suffix(monkeypatch, "This workspace is used for X.")
+    client = FakeClient()
+    list(_engine(client).stream(CONVERSATION))
+    assert client.seen[1:] == [
+        {"role": "user", "content": "a"},
+        {"role": "assistant", "content": "b"},
+    ]
+
+
+def test_the_frame_writer_is_handed_the_text_it_was_given(monkeypatch):
+    # Madde 175's system prompt is the caller's, one sentence about one job, and this app's own page
+    # about tools and files has never gone with it. Neither does its second part.
+    _with_suffix(monkeypatch, "This workspace is used for X.")
+    client = FakeClient()
+    _engine(client).write_once("Write one action line.", "aylin, in the kitchen")
+    assert client.seen[0] == {"role": "system", "content": "Write one action line."}
+
+
 def test_an_unknown_or_absent_model_is_spoken_by_the_default():
     # The same rule config.engine_for keeps, held here as well because this is the layer a record
     # written before Madde 146 actually reaches: its messages name no model at all.

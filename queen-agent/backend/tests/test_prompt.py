@@ -83,19 +83,27 @@ def test_no_text_is_still_written_down_where_it_used_to_live(module, name):
     assert f"{name} = " not in source, f"{name} is still assigned in {module}.py"
 
 
+MUST_BE_FULL = (
+    "SYSTEM_PROMPT",
+    "LAST_ROUND",
+    "SDXL_PROMPT_RULES",
+    "WRITE_FRAME_SYSTEM_PROMPT",
+    "START_A_SCENARIO",
+    "EDIT_PROMPTS",
+)
+"""The texts this app writes, and every one of them says something.
+
+Read by the test below and by the one about Madde 196's second part, which is deliberately not on
+this list -- lifted out of that test so the absence can be asserted rather than only meant.
+"""
+
+
 def test_the_prompt_module_holds_the_texts_the_others_gave_up():
     # The floor under the two above: both of them would pass over an empty module, one with an empty
     # set of texts and one with an empty source.
     from backend.features.workspace.domain import prompt
 
-    for name in (
-        "SYSTEM_PROMPT",
-        "LAST_ROUND",
-        "SDXL_PROMPT_RULES",
-        "WRITE_FRAME_SYSTEM_PROMPT",
-        "START_A_SCENARIO",
-        "EDIT_PROMPTS",
-    ):
+    for name in MUST_BE_FULL:
         assert getattr(prompt, name, "").strip(), name
 
 
@@ -254,3 +262,23 @@ def test_the_base_names_no_task(task):
     # never what the work is. A task word here would make every chat carry knowledge that belongs
     # to one skill -- and would quietly answer a question Madde 94 has not asked yet.
     assert task not in SYSTEM_PROMPT.lower()
+
+
+# --- the second part, which is the user's own (Madde 196) ----------------------------------------
+
+
+def test_the_system_prompt_has_a_second_part():
+    from backend.features.workspace.domain import prompt
+
+    assert isinstance(prompt.SYSTEM_PROMPT_SUFFIX, str)
+
+
+def test_the_second_part_is_allowed_to_be_empty():
+    """The one text in this module the app does not write.
+
+    What goes in it is the user's own, and the item builds the place rather than filling it -- so it
+    is born empty and stays legal that way. Asserted as an absence from the list rather than as a
+    sentence in a comment: a name added there would fail this madde on the day somebody leaves the
+    suffix blank, which is every day until the user writes something.
+    """
+    assert "SYSTEM_PROMPT_SUFFIX" not in MUST_BE_FULL
