@@ -172,21 +172,21 @@ EDIT_PROMPTS = (
     "prompts -- prompts for an SDXL-family image model, one frozen frame each -- and something "
     "in them is wrong. Do not assemble or patch a prompt by hand. The people, the "
     "clothes and the places are written once in the structure file, and the code puts them into "
-    "every frame that names them.\n"
+    "every frame naming them.\n"
     "\n"
     "Read the file the complaint is about; with several, ask which. Where the fault lives is "
     "what decides the fix.\n"
     "\n"
-    "One frame's action reads wrong: write_frame_prompt on that frame again, with a note saying "
-    "what to do differently.\n"
+    "One frame's action reads wrong: correct it yourself with update_frame. A line wanted afresh "
+    "from the scene is write_frame_prompt again, with a note.\n"
     "\n"
     "Somebody looks wrong, or a place does, wherever they appear: that is their entry -- "
     "update_character, update_outfit or update_location -- and one change reaches every frame "
     "naming it.\n"
     "\n"
     "Who is in a frame, what they wear or where it happens: update_frame. A frame seen through "
-    "somebody's own eyes names their pov_ entry in its cast instead of them, because their whole "
-    "entry there would be drawn onto whoever the picture holds.\n"
+    "somebody's own eyes names their pov_ entry instead of them, because their whole entry would "
+    "be drawn onto whoever the picture holds.\n"
     "\n"
     "Then build_prompts again. The prompt file is rebuilt rather than patched. The built file is "
     "the answer: its prompts are never printed back."
@@ -516,8 +516,8 @@ UPDATE_FRAME = (
     "corrected leaves the cast alone. Giving a field empty clears it -- a frame with "
     "nobody in it, or one that shows no place of its own -- except the scene, which a "
     "frame is never without. Names come from the file's maps here as they do when the "
-    "frame is written. A frame's action is not among these: write_frame_prompt is what "
-    "writes one, and calling it again with a note is how one is changed."
+    "frame is written. The action is among these fields: a line that reads wrong is "
+    "corrected here, in your own words."
 )
 UPDATE_FRAME_SCENE = "What happens, in one sentence. Replaces the sentence there."
 UPDATE_FRAME_CHARACTERS = (
@@ -527,6 +527,12 @@ UPDATE_FRAME_CHARACTERS = (
 UPDATE_FRAME_LOCATION = (
     "Where it happens, named as the file's locations name it. Empty takes "
     "the place off the frame."
+)
+UPDATE_FRAME_ACTION = (
+    "What is happening in this frozen instant and the shot it is seen "
+    "through, replacing the line that is there. Written as tags, by the same "
+    "rules the maps are written by. Empty takes the line off the frame, "
+    "leaving it as a frame nobody has written yet."
 )
 
 REMOVE_FRAME = (

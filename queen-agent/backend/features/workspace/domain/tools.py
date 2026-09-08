@@ -345,6 +345,7 @@ TOOL_SPECS = [
                         "description": prompt.UPDATE_FRAME_CHARACTERS,
                     },
                     "location": {"type": "string", "description": prompt.UPDATE_FRAME_LOCATION},
+                    "action": {"type": "string", "description": prompt.UPDATE_FRAME_ACTION},
                 },
                 "required": ["file", "frame"],
             },
@@ -1305,11 +1306,13 @@ def _numbered(wanted, source, many, ceiling=None):
 
 
 def _update_frame(file_store, project_id, args):
-    """Only what was given, and never the action (Madde 174).
+    """Only what was given, the action among it since Madde 201.
 
-    The action belongs to the prompt model, which writes it because the main model will not write
-    that kind of sentence well. A field here would be the way round it, and the way round a quality
-    gate is the road every gate ends up on unless it is simply not there.
+    174 kept the action out because the main model would not write that kind of sentence, and 176
+    handed it to a model that would. That is no longer true of the model running the conversation,
+    and the road left in its place carried the whole of a fix in a note to somebody who had not
+    read the line. Correcting a line and having one written from the scene are two jobs now:
+    this is the first, and write_frame_prompt is still the second.
     """
     source, structure, refused = _opened(file_store, project_id, args)
     if refused is not None:
@@ -1323,7 +1326,7 @@ def _update_frame(file_store, project_id, args):
     # `in` rather than .get(), because an empty value is a value: it is how a field is cleared, and
     # .get() would read that as nothing having been given. The order is this tuple's rather than the
     # call's, so the answer reads the same whichever way the arguments arrived.
-    given = {key: args[key] for key in ("scene", "characters", "location") if key in args}
+    given = {key: args[key] for key in ("scene", "characters", "location", "action") if key in args}
     if not given:
         # No silent success: a model told nothing happened moves on believing it did.
         return ToolResult(
@@ -1346,6 +1349,11 @@ def _update_frame(file_store, project_id, args):
     if "location" in given:
         place = given["location"]
         changing["location"] = _place_checked(place, number, structure, problems) if place else ""
+    if "action" in given:
+        # Nothing to check it against: an action names no map entry, and the rules it is written by
+        # are the model's to keep rather than this tool's to enforce. Stripped like the scene, so a
+        # line arriving with a newline on it does not reach the prompt with one.
+        changing["action"] = str(given["action"] or "").strip()
 
     if problems:
         return ToolResult("\n".join(problems + ["Nothing was changed."]), None, source, "Refused")
