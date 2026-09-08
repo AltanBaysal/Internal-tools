@@ -241,6 +241,13 @@ START_A_SCENARIO = (
 # The whole of what is left of the schema (Madde 172). Named for what it is: the reader is an
 # SDXL-family image model, and these are the rules its prompts hold.
 #
+# Danbooru's vocabulary rather than plain English, since Madde 200. The anime SDXL checkpoints were
+# trained on that site's images with its own tag string as the caption, so a tag it has is a string
+# the model has read hundreds of thousands of times, while a description of the same thing is one it
+# never read at all -- and what it does with the second is land on the average of whatever it
+# resembles. The vocabulary is also controlled: one concept has one spelling there, so no two
+# spellings of it compete. This is a rule about the model at the far end, not a house style.
+#
 # read_prompt_structure_schema handed back two halves. The half describing the file's shape died as
 # the tools took the shape over: start_scenario opens the file, the add_ and update_ and remove_
 # tools build it, and create_file cannot touch it -- so the model was studying a JSON example of a
@@ -258,9 +265,12 @@ START_A_SCENARIO = (
 # is read while the tool is being chosen -- and a round, since nothing is fetched.
 
 SDXL_PROMPT_RULES = (
-    "How to write the tags. They are read by an SDXL-family image model, so they are English, and "
-    "they are short comma-separated fragments rather than a sentence: an article is not a tag, and "
-    "sitting on couch, by window is the density to match.\n"
+    "How to write the tags. They are read by an SDXL-family image model trained on the tags of "
+    "Danbooru, so a tag is one that vocabulary has rather than a description of the same thing -- "
+    "looking at viewer, sitting, couch, window. They are English, written with spaces where the "
+    "site writes underscores, and each carries one thing, divided the way the vocabulary divides "
+    "it: long hair, black hair, green eyes. Where it has no tag for it, a few plain words in the "
+    "same shape -- an article is not a tag, and neither is a sentence.\n"
     "\n"
     "How many people a character entry draws belongs in that entry and nowhere else -- 1girl, woman "
     "in her mid 20s -- because that is the one place a count lands beside the person it counts. The "
@@ -389,8 +399,8 @@ ADD_CHARACTER_NAME = (
 )
 ADD_CHARACTER_TAGS = (
     "The character as tags: how many people this entry draws, their age, "
-    "body, hair and face. As in 1girl, woman in her mid 20s, long black "
-    "hair, green eyes, slim body. No clothes here -- those are outfits."
+    "body, hair and face. As in 1girl, mature female, long hair, black "
+    "hair, green eyes, narrow waist. No clothes here -- those are outfits."
 )
 
 UPDATE_CHARACTER = (
@@ -445,8 +455,8 @@ ADD_LOCATION = (
 )
 ADD_LOCATION_NAME = "What this place is called, as in bedroom."
 ADD_LOCATION_TAGS = (
-    "The place as tags: cozy bedroom, morning light through curtains, "
-    "indoors. Nobody is in it -- who is there is the frame's business, and "
+    "The place as tags: bedroom, indoors, curtains, sunlight, window. "
+    "Nobody is in it -- who is there is the frame's business, and "
     "a person written here would be drawn into every frame set in it."
 )
 
