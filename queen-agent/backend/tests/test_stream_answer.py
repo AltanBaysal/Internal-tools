@@ -1469,3 +1469,39 @@ def test_in_plan_mode_the_turn_ends_when_the_plan_is_written(tmp_path):
     ]
     _, engine, _ = _in_mode(tmp_path, rounds, "plan")
     assert len(engine.seen) == 1
+
+
+# --- the line the turn is answering (Madde 195) --------------------------------------------------
+
+
+def _branched(tmp_path, **edit):
+    """The seeded chat, answered once, then edited back at its first message."""
+    chats, files = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", "Done.", NOW, role="ai")
+    append_message(chats, "p1", "c1", "hi again", NOW, branch_at=0, line_id="l2", **edit)
+    return chats, files
+
+
+def test_the_request_carries_the_open_line_and_not_the_one_left_behind(tmp_path):
+    # The conversation the model is answering is the one the user is standing in. Sending the line
+    # they walked away from would answer a question that was taken back, and it would do it while
+    # the screen shows something else entirely.
+    chats, files = _branched(tmp_path)
+    engine = ScriptedEngine([[{"text": "Done again."}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert [
+        message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")
+    ] == ["hi again"]
+
+
+def test_the_skill_and_the_model_come_from_the_open_lines_newest_question(tmp_path):
+    # Both are read by walking back from the end, and the end has to be the end of the open line --
+    # otherwise a version runs under the skill of a turn nobody is looking at.
+    from backend.features.workspace.domain.skills import instruction_for
+
+    chats, files = _branched(tmp_path, skill="edit-prompts", model="deepseek-v4-pro")
+    engine = ScriptedEngine([[{"text": "Done again."}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert engine.models[0] == "deepseek-v4-pro"
+    said = [message["content"] for message in engine.seen[0]]
+    assert instruction_for("edit-prompts") in said
