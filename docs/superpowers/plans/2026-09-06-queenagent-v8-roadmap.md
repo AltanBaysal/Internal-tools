@@ -32,11 +32,12 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 193 · kopyala düğmesi | **kapandı** | `efac34c` |
 | 194 · canlı tur şeridi | **kapandı** | `5e3c6e5` |
 | 195 · mesaj düzenlenir, sohbet sürümlenir | **kapandı** | `769fa8d` |
-| 196 · sistem promptunun ikinci parçası | **sırada** | |
+| 196 · sistem promptunun ikinci parçası | **kapandı** | `39ae4c7` |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
 
-183–187, 189, 191–195 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden açıldı**
-*(kullanıcı, 8 Eylül)*. 190 kullanıcının kendi maddesi ve en sonda kalmaya devam ediyor.
+183–187, 189, 191–196 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden açıldı**
+*(kullanıcı, 8 Eylül)*, ve ikisi de kapandı. **Ajanın işi yine burada bitti**: geriye 190 kalıyor,
+o da kullanıcının kendi maddesi. 196'nın sabiti de kullanıcıyı bekliyor — açılan yer boş.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.
