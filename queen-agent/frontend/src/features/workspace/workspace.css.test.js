@@ -567,11 +567,24 @@ test("the gauge pushes the rest of the foot to the far end", () => {
 
 // --- editing a message, and the versions it leaves behind (Madde 195) ----------------------------
 
-test("the edit sits outside the bubble rather than inside the sentence", () => {
-  // The bubble holds what the user wrote and nothing else. A control inside it would be read as
-  // part of the message on every screen that draws the text plainly.
-  expect(rule(".msg__said")).toContain("display: flex");
-  expect(rule(".msg__edit")).toContain("flex: 0 0 auto");
+test("nothing wraps the bubble in a row of its own", () => {
+  // Madde 197, and Madde 195's own defect. .msg is a column with align-items: flex-end for the
+  // user, so a row wrapper became the thing being aligned -- and the bubble's max-width then
+  // measured against the wrapper instead of the column. Every message's right edge landed
+  // somewhere else. The fix is the wrapper being gone, not a rule correcting it.
+  expect(CSS).not.toContain(".msg__said");
+});
+
+test("the field that corrects a message is the width the message was", () => {
+  // Opening the edit must not make the message grow or shrink: what is being corrected is that
+  // sentence, in its place, at its size.
+  expect(rule(".msg__editing")).toContain("max-width: 78%");
+});
+
+test("the tick and the cross sit under the field, in the message's own direction", () => {
+  const actions = rule(".msg__editing-actions");
+  expect(actions).toContain("display: flex");
+  expect(actions).toContain("justify-content: flex-end");
 });
 
 test("the edit is quiet until it is wanted", () => {

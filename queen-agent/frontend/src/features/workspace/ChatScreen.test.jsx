@@ -893,22 +893,75 @@ test("a question can be edited and an answer cannot", () => {
   expect(screen.getAllByRole("button", { name: "Edit message" })).toHaveLength(1);
 });
 
-test("pressing edit puts the sentence back in the box", () => {
-  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+// Madde 197: the sentence is corrected where it stands. What follows replaces the tests that
+// watched it travel to the composer -- the road itself is gone, not only its shape.
+
+function _editing(chat = CHAT, props = {}) {
+  const rendered = render(<ChatScreen project={PROJECT} chat={chat} {...props} />);
   fireEvent.click(screen.getByRole("button", { name: "Edit message" }));
-  expect(container.querySelector(".composer__input").value).toBe("Write the intro");
+  return { ...rendered, field: rendered.container.querySelector(".msg__editing-input") };
+}
+
+test("pressing edit turns the message itself into something writable", () => {
+  const { container, field } = _editing();
+  expect(field.value).toBe("Write the intro");
+  // And the bubble is not sitting under it: one sentence is drawn once, either as text or as the
+  // field that is correcting it.
+  expect(container.querySelectorAll(".msg__bubble")).toHaveLength(0);
 });
 
-test("what is sent after an edit says which message it starts from", () => {
+test("nothing lands in the composer", () => {
+  // The whole madde in one line. The sentence being corrected is on the message, and the box below
+  // is for the next thing the user says.
+  const { container } = _editing();
+  expect(container.querySelector(".composer__input").value).toBe("");
+});
+
+test("the tick sends the corrected sentence and says which message it starts from", () => {
   // Without the index the server has no way to tell an edit from an ordinary reply, and the
   // sentence would land on the end of the line instead of opening one.
   const onSend = vi.fn();
-  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} onSend={onSend} />);
-  fireEvent.click(screen.getByRole("button", { name: "Edit message" }));
-  const box = container.querySelector(".composer__input");
-  fireEvent.change(box, { target: { value: "Write a shorter intro" } });
-  fireEvent.keyDown(box, { key: "Enter" });
+  const { field } = _editing(CHAT, { onSend });
+  fireEvent.change(field, { target: { value: "Write a shorter intro" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
   expect(onSend).toHaveBeenCalledWith("Write a shorter intro", 0);
+});
+
+test("the cross sends nothing and gives the message back", () => {
+  const onSend = vi.fn();
+  const { container, field } = _editing(CHAT, { onSend });
+  fireEvent.change(field, { target: { value: "something else" } });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
+  expect(onSend).not.toHaveBeenCalled();
+  expect(container.querySelector(".msg__editing-input")).toBeNull();
+  expect(screen.getByText("Write the intro")).toBeTruthy();
+});
+
+test("enter confirms and shift-enter does not", () => {
+  // The composer's own rule, so one habit works in both places. Two writable areas asking for two
+  // different keys is how both of them get used wrongly.
+  const onSend = vi.fn();
+  const { field } = _editing(CHAT, { onSend });
+  fireEvent.change(field, { target: { value: "Write a shorter intro" } });
+  fireEvent.keyDown(field, { key: "Enter", shiftKey: true });
+  expect(onSend).not.toHaveBeenCalled();
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(onSend).toHaveBeenCalledWith("Write a shorter intro", 0);
+});
+
+test("escape gives up, exactly as the cross does", () => {
+  const onSend = vi.fn();
+  const { container, field } = _editing(CHAT, { onSend });
+  fireEvent.keyDown(field, { key: "Escape" });
+  expect(onSend).not.toHaveBeenCalled();
+  expect(container.querySelector(".msg__editing-input")).toBeNull();
+});
+
+test("while a message is being corrected there is no second way in", () => {
+  // A pencil under an open field is a door whose meaning nobody can state: does pressing it throw
+  // away what has been typed and start again? The field is closed by the tick or the cross.
+  _editing();
+  expect(screen.queryByRole("button", { name: "Edit message" })).toBeNull();
 });
 
 test("an ordinary reply starts from nothing", () => {

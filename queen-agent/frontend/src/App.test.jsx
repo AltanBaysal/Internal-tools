@@ -2718,13 +2718,15 @@ test("a message is edited, the chat carries on from there, and the arrow goes ba
   vi.stubGlobal("fetch", fetch);
   window.history.pushState(null, "", "/p/p1/c/c1");
 
-  render(<App />);
+  const { container } = render(<App />);
   await waitFor(() => expect(screen.getByText("Here it is.")).toBeTruthy());
   fireEvent.click(await screen.findByRole("button", { name: "Edit message" }));
-  const box = screen.getByPlaceholderText("Reply...");
-  expect(box.value).toBe("Write the intro");
-  fireEvent.change(box, { target: { value: "Write a shorter intro" } });
-  fireEvent.keyDown(box, { key: "Enter" });
+  // Madde 197: corrected where it stands, and the composer is left alone.
+  const field = container.querySelector(".msg__editing-input");
+  expect(field.value).toBe("Write the intro");
+  expect(screen.getByPlaceholderText("Reply...").value).toBe("");
+  fireEvent.change(field, { target: { value: "Write a shorter intro" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
 
   await waitFor(() => expect(screen.getByText("Shorter.")).toBeTruthy());
   const sent = JSON.parse(
