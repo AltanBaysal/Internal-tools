@@ -1855,13 +1855,50 @@ def test_update_frame_changes_several_fields_in_one_call(tmp_path):
 
 
 def test_update_frame_does_not_touch_the_action(tmp_path):
-    # Madde 176's field, and the whole point of it is that a model with a restriction did not write
-    # it. A hand-written action here would be the way round the tool that exists to write one.
+    # Only what is given changes, and that holds for the action as it does for everything else
+    # (Madde 201 gave it a field of its own). A scene corrected leaves the line that was written
+    # from the old one standing, which is what lets the model fix one thing at a time.
     files = _with(tmp_path, "scene.json", WITH_ACTION)
     _call(files, "update_frame", file="scene.json", frame=2, scene="she looks away")
     changed = _frames(files)[1]
     assert changed["scene"] == "she looks away"
     assert changed["action"] == "she turns her head, close-up"
+
+
+# --- the agent corrects a line itself (Madde 201) -------------------------------------------------
+
+
+def test_the_agent_writes_a_frames_action_itself(tmp_path):
+    # Madde 176 kept this field away from the main model because it would not write that kind of
+    # sentence. It writes it now (user, 8 September), and the road that went round the agent -- a
+    # note handed to a second model -- was carrying everything that model heard about the fix.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    said = _call(files, "update_frame", file="scene.json", frame=1, action="she smiles, close-up")
+    assert _frames(files)[0]["action"] == "she smiles, close-up"
+    assert "action" in said
+
+
+def test_an_action_given_empty_takes_the_line_off_the_frame(tmp_path):
+    # The rule every other field here keeps: empty is how a field is taken off, and a frame born
+    # without an action looks exactly like this (Madde 173). An empty string left in its place
+    # would be a second way of saying nothing.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    _call(files, "update_frame", file="scene.json", frame=2, action="")
+    assert "action" not in _frames(files)[1]
+
+
+def test_the_frame_tool_takes_an_action():
+    spec = next(s for s in TOOL_SPECS if s["function"]["name"] == "update_frame")
+    assert "action" in spec["function"]["parameters"]["properties"]
+
+
+def test_the_frame_tools_text_no_longer_sends_the_action_elsewhere():
+    # The sentence that used to send the reader to write_frame_prompt is what made the field
+    # unreachable; leaving it in beside the new field would tell the model two things at once.
+    from backend.features.workspace.domain.prompt import UPDATE_FRAME
+
+    assert "action" in UPDATE_FRAME.lower()
+    assert "is not among these" not in UPDATE_FRAME
 
 
 def test_update_frame_keeps_the_frames_number(tmp_path):

@@ -113,6 +113,14 @@ def test_no_instruction_walks_the_frames_one_at_a_time():
         assert "one at a time" not in said, skill
 
 
+def test_a_wrong_line_is_corrected_in_the_editors_own_turn():
+    # Madde 201. The skill's reader has read the line and heard what the user said about it, and
+    # the road it used to take squeezed both of those into a note for somebody else to work from.
+    said = _edit()
+    assert "update_frame" in said
+    assert "yourself" in said
+
+
 def test_a_correction_names_the_single_frame_tool():
     # It did not go away. Writing every empty frame and rewriting one that is wrong are two jobs,
     # and the note -- what the user said about it -- only fits the second, which is this skill's.
