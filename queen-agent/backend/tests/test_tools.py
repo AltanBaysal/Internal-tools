@@ -1064,7 +1064,58 @@ def test_every_tool_is_declared_to_the_model():
         # Madde 187. The only one that answers out of the repo rather than out of the project: a
         # piece of prompt that is the same in every scenario, looked up by name.
         "read_prompt_piece",
+        # Madde 198. What a ticked step looks like stops being the model's to invent: the plan is
+        # written as boxes and this is what fills one.
+        "mark_step_done",
     }
+
+
+# --- ticking a step off the plan (Madde 198) -----------------------------------------------------
+
+PLAN = "- [ ] 1. The characters\n- [ ] 2. The places\n- [ ] 3. The scenes\n"
+
+
+def _planned(tmp_path, content=PLAN):
+    files = _files(tmp_path)
+    _call(files, "write_plan", name="bar-scene", content=content)
+    return files
+
+
+def test_a_step_that_was_approved_gets_its_box_filled(tmp_path):
+    files = _planned(tmp_path)
+    _call(files, "mark_step_done", name="bar-scene", step=2)
+    assert files.read("p1", "bar-scene-plan.md") == (
+        "- [ ] 1. The characters\n- [x] 2. The places\n- [ ] 3. The scenes\n"
+    )
+
+
+def test_nothing_but_the_box_is_touched(tmp_path):
+    # The one thing an edit_file instruction could never promise: the model was handed the whole
+    # file and asked to give it back with one character changed.
+    files = _planned(tmp_path, "Notes above.\n\n- [ ] 1. The characters\n\nNotes below.\n")
+    _call(files, "mark_step_done", name="bar-scene", step=1)
+    assert files.read("p1", "bar-scene-plan.md") == (
+        "Notes above.\n\n- [x] 1. The characters\n\nNotes below.\n"
+    )
+
+
+def test_a_step_already_ticked_is_left_alone(tmp_path):
+    files = _planned(tmp_path, "- [x] 1. The characters\n")
+    answer = _call(files, "mark_step_done", name="bar-scene", step=1)
+    assert "already" in answer.lower()
+    assert files.read("p1", "bar-scene-plan.md") == "- [x] 1. The characters\n"
+
+
+def test_a_step_that_is_not_there_is_an_answer_rather_than_a_crash(tmp_path):
+    files = _planned(tmp_path)
+    answer = _call(files, "mark_step_done", name="bar-scene", step=9)
+    assert "9" in answer
+    assert files.read("p1", "bar-scene-plan.md") == PLAN
+
+
+def test_a_plan_that_is_not_there_is_an_answer_too(tmp_path):
+    answer = _call(_files(tmp_path), "mark_step_done", name="ghost", step=1)
+    assert "ghost-plan.md" in answer
 
 
 # --- the reads the descriptions used to demand (Madde 125) ---------------------------------------

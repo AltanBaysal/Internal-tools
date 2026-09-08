@@ -267,6 +267,15 @@ def test_the_base_names_no_task(task):
 # --- the second part, which is the user's own (Madde 196) ----------------------------------------
 
 
+def test_a_plan_is_written_as_boxes_to_tick():
+    # Madde 198. The ticking was instructed long before the shape was, and an instruction without a
+    # shape is one the model answers differently every turn -- so the plan a fresh chat opens says
+    # nothing about where the work stopped.
+    from backend.features.workspace.domain import prompt
+
+    assert "- [ ]" in prompt.WRITE_PLAN
+
+
 def test_the_system_prompt_has_a_second_part():
     from backend.features.workspace.domain import prompt
 

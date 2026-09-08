@@ -33,7 +33,7 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 194 · canlı tur şeridi | **kapandı** | `5e3c6e5` |
 | 195 · mesaj düzenlenir, sohbet sürümlenir | **kapandı** | `769fa8d` |
 | 196 · sistem promptunun ikinci parçası | **kapandı** | `39ae4c7` |
-| 197 · düzenleme mesajın kendi yerinde | **sırada** | |
+| 197 · düzenleme mesajın kendi yerinde | **kapandı** | `ca57b0f` |
 | 198 · akış karakterle başlar, plan işaretlenir | **sırada** | |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
 

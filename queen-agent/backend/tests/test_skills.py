@@ -239,12 +239,21 @@ def test_the_scenario_is_opened_by_the_tool_that_opens_one():
     # a new file per step. One birth rules out both, and since Madde 167 the tool enforces it --
     # start_scenario refuses a name that is taken, so the text only has to say which step opens it.
     #
-    # Madde 186 moved that step from the characters to the plan: what names the file is the
-    # context, which is now asked first, and every step after this one writes into a file that is
-    # already there.
+    # Madde 186 moved that step from the characters to the plan, because what named the file was
+    # the context. Madde 198 takes the context away, so the birth goes back where it was: the first
+    # character is what the file can be named after.
     said = _flow()
     assert "start_scenario" in said
-    assert said.index("2. The plan") < said.index("start_scenario") < said.index("3. The characters")
+    assert said.index("2. The characters") < said.index("start_scenario") < said.index("3. The places")
+
+
+def test_an_approved_step_is_ticked_by_the_tool_that_ticks_one():
+    # The rule was already written and asked for edit_file, which is a free edit -- so what a ticked
+    # step looks like was the model's to invent, and the next turn did not recognise it. A plan
+    # nobody can read the progress off is a plan that has lost its one job (Madde 198).
+    said = _flow()
+    assert "mark_step_done" in said
+    assert "edit_file" not in said
 
 
 def test_the_flow_fills_the_maps_with_the_tools_that_own_them():
@@ -298,33 +307,41 @@ def test_the_editor_starts_from_a_complaint_rather_than_a_blank_page():
     assert "wrong" in said
 
 
-def test_the_flow_runs_six_numbered_steps():
+STEPS = ("1. The plan", "2. The characters", "3. The places", "4. The scenes", "5. The prompts")
+"""The flow's steps, in the order they run (Madde 198).
+
+Read by the two tests below and by the one that places start_scenario. Madde 186 had six of these
+and the first was the context; that question is gone, and the numbers moved with it.
+"""
+
+
+def test_the_flow_runs_five_numbered_steps():
     # Madde 108: a stage outside the numbered list is a stage a weak model walks past, because it
-    # stops when the list ends. Madde 186 makes it six -- the context in front, and the prompts
-    # where the handoff used to be.
+    # stops when the list ends. Five since Madde 198 -- the context question in front of them was
+    # the one thing a user had to answer before any work could start.
     said = _flow()
-    assert "Six steps" in said
-    for step in ("1. The context", "2. The plan", "3. The characters", "4. The places",
-                 "5. The scenes", "6. The prompts"):
+    assert "Five steps" in said
+    assert "Six steps" not in said
+    for step in STEPS:
         assert step in said, step
 
 
 def test_the_steps_are_written_in_the_order_they_run():
     # The order is the whole of what the text is: a model reading them out of order would ask for
-    # the cast before it knows what is being made.
+    # the cast before there is a plan to put it in.
     said = _flow()
-    places = [said.index(step) for step in ("1. The context", "2. The plan", "3. The characters",
-                                            "4. The places", "5. The scenes", "6. The prompts")]
+    places = [said.index(step) for step in STEPS]
     assert places == sorted(places)
 
 
-def test_the_first_question_is_what_is_being_made_and_what_for():
-    # Madde 186's whole gain. The plan's opening line already promised the context -- and the
-    # model wrote that line knowing nothing, so the plan carried a guess, and the plan is what a
-    # fresh chat inherits.
+def test_the_flow_asks_for_no_context_before_it_starts():
+    # Madde 186 added that question so the plan's opening line would carry an answer rather than a
+    # guess. Madde 198 takes it back out (user, 8 September): the cost was a question standing in
+    # front of every scenario. What goes with it is the promise -- a plan that opened by saying what
+    # the work was for would be back to guessing.
     said = _flow()
-    assert said.index("1. The context") < said.index("2. The plan")
-    assert "what it is for" in said
+    assert "what it is for" not in said
+    assert "The context" not in said
 
 
 def test_the_flow_never_writes_an_action_by_hand():
