@@ -35,15 +35,16 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 196 · sistem promptunun ikinci parçası | **kapandı** | `39ae4c7` |
 | 197 · düzenleme mesajın kendi yerinde | **kapandı** | `ca57b0f` |
 | 198 · akış karakterle başlar, plan işaretlenir | **kapandı** | `b9dbc67` |
-| 199 · şerit ve kalem tek satırda | | |
+| 199 · şerit ve kalem tek satırda | **kapandı** | `74a078d` |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
 
-183–187, 189, 191–198 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
+183–187, 189, 191–199 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
 açıldı** *(kullanıcı, 8 Eylül)*. Ardından **197 ve 198** eklendi, ikisi de denemeden çıktı: 195'in
 düzenleme akışının yeri yanlış bulundu *(ve aynı yerde 195'in bıraktığı bir hizalama kusuru vardı)*,
 186'nın bağlam sorusu ise sürtünme olarak görüldü. **199 da aynı yerden** geldi: 197 kalemi bubble'ın
-altına indirdi, ve sürüm şeridiyle alt alta düştüğü orada görüldü. Geriye 190 kalıyor, ve o
-kullanıcının kendi maddesi. 196'nın sabiti de boş — ne yazılacağı kullanıcının.
+altına indirdi, ve sürüm şeridiyle alt alta düştüğü orada görüldü. **Ajanın işi yine burada bitti**:
+geriye 190 kalıyor, ve o kullanıcının kendi maddesi. 196'nın sabiti de boş — ne yazılacağı
+kullanıcının.
 190 hâlâ kullanıcının kendi maddesi ve en sonda. 196'nın sabiti de kullanıcıyı bekliyor: açılan yer
 şimdilik boş.
 
