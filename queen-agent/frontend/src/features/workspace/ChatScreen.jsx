@@ -244,6 +244,36 @@ function Versions({ standing, onVersion }) {
   );
 }
 
+// The line under a bubble (Madde 199): which version is showing, and the way to correct the
+// sentence. .msg is a column, so the strip and the pencil put separately there each took a line of
+// their own; here they stand beside each other, the note first and the way to change it after it.
+//
+// The pencil is there when the caller hands one over. Whether this message can be edited at all,
+// and whether it is being edited right now, are already decided where the message is drawn -- and
+// a second place deciding the same thing is how the two answers drift apart.
+//
+// Nothing to hold is no row: the strip draws nothing where a message stands alone, and an empty
+// div would only widen the column's gap under every answer in the chat.
+function MessageFoot({ standing, onVersion, onEdit }) {
+  if (!onEdit && !(standing?.of > 1)) return null;
+  return (
+    <div className="msg__foot">
+      <Versions standing={standing} onVersion={onVersion} />
+      {onEdit ? (
+        <button
+          type="button"
+          className="msg__edit"
+          aria-label="Edit message"
+          title="Edit message"
+          onClick={onEdit}
+        >
+          ✎
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function CreatingFile() {
   return (
     <div className="creating">
@@ -396,8 +426,7 @@ export default function ChatScreen({
                     Correcting it happens here rather than in the composer (Madde 197): the sentence
                     is on the message, so the field that changes it is too. Only a question can be
                     gone back to -- an answer is a whole turn with its own calls, and stepping into
-                    the middle of one would mean nothing on disk. Named for the message rather than
-                    Edit alone, which the mode picker already wears. */}
+                    the middle of one would mean nothing on disk. */}
                 {message.role === "user" ? (
                   editing?.index === index ? (
                     <EditMessage
@@ -409,18 +438,7 @@ export default function ChatScreen({
                       onCancel={() => setEditing(null)}
                     />
                   ) : (
-                    <>
-                      <div className="msg__bubble">{message.text}</div>
-                      <button
-                        type="button"
-                        className="msg__edit"
-                        aria-label="Edit message"
-                        title="Edit message"
-                        onClick={() => setEditing({ index, text: message.text })}
-                      >
-                        ✎
-                      </button>
-                    </>
+                    <div className="msg__bubble">{message.text}</div>
                   )
                 ) : /* Only when there is something to draw: an answer stopped before its first
                        word would otherwise put the rule down the side of nothing at all. */
@@ -429,7 +447,19 @@ export default function ChatScreen({
                     <Markdown text={message.text} />
                   </div>
                 ) : null}
-                <Versions standing={message.variants} onVersion={onVersion} />
+                {/* The pencil is handed over only where there is something to correct: a question,
+                    and not one already open for correction -- a second door onto an open field is
+                    one whose meaning nobody can state. Named for the message rather than Edit
+                    alone, which the mode picker already wears. */}
+                <MessageFoot
+                  standing={message.variants}
+                  onVersion={onVersion}
+                  onEdit={
+                    message.role === "user" && editing?.index !== index
+                      ? () => setEditing({ index, text: message.text })
+                      : null
+                  }
+                />
                 {/* Where the text stops and why. Above the cards and the count -- those are notes
                     about the turn, this is the end of the sentence. Nobody but the user can stop
                     an answer, so the word says what happened and invents no cause for it. */}
