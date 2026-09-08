@@ -36,20 +36,21 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 197 · düzenleme mesajın kendi yerinde | **kapandı** | `ca57b0f` |
 | 198 · akış karakterle başlar, plan işaretlenir | **kapandı** | `b9dbc67` |
 | 199 · şerit ve kalem tek satırda | **kapandı** | `74a078d` |
-| 200 · etiketler Danbooru olur | | |
-| 201 · eylemi ana ajan düzeltir | | |
-| 202 · kareyi yazan da DeepSeek | | |
+| 200 · etiketler Danbooru olur | **kapandı** | `7c4c82c` |
+| 201 · eylemi ana ajan düzeltir | **kapandı** | `9a76352` |
+| 202 · kareyi yazan da DeepSeek | **kapandı** | `1d9e491` |
 | 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
 
-183–187, 189, 191–199 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
+183–187, 189, 191–202 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
 açıldı** *(kullanıcı, 8 Eylül)*. Ardından **197 ve 198** eklendi, ikisi de denemeden çıktı: 195'in
 düzenleme akışının yeri yanlış bulundu *(ve aynı yerde 195'in bıraktığı bir hizalama kusuru vardı)*,
 186'nın bağlam sorusu ise sürtünme olarak görüldü. **199 da aynı yerden** geldi: 197 kalemi bubble'ın
 altına indirdi, ve sürüm şeridiyle alt alta düştüğü orada görüldü. **200–202 de denemeden çıktı**,
 ama bu kez ekranın değil çıkan işin kendisinden: etiketler Danbooru sözlüğüyle daha iyi geliyor, ve
 DeepSeek artık isteneni yazdığı için eylem satırını ayrı bir modele yazdırmanın sebebi kalmadı.
-Geriye 190 kalıyor, ve o kullanıcının kendi maddesi. 196'nın açtığı yeri de kullanıcı doldurdu
-*(8 Eylül)*: sabit artık boş değil.
+**Ajanın işi yine burada bitti**: geriye 190 kalıyor, ve o kullanıcının kendi maddesi. 196'nın
+açtığı yeri de kullanıcı doldurdu *(8 Eylül)*: sabit artık boş değil, ve 202'den sonra kareyi yazan
+modele de gidiyor.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.
