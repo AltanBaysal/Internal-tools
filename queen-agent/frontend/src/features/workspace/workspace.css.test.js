@@ -564,3 +564,34 @@ test("the gauge pushes the rest of the foot to the far end", () => {
   // items in that row, and spreading the row would put its whole width between them.
   expect(rule(".composer__gauge")).toContain("margin-right: auto");
 });
+
+// --- editing a message, and the versions it leaves behind (Madde 195) ----------------------------
+
+test("the edit sits outside the bubble rather than inside the sentence", () => {
+  // The bubble holds what the user wrote and nothing else. A control inside it would be read as
+  // part of the message on every screen that draws the text plainly.
+  expect(rule(".msg__said")).toContain("display: flex");
+  expect(rule(".msg__edit")).toContain("flex: 0 0 auto");
+});
+
+test("the edit is quiet until it is wanted", () => {
+  // Present at every width and on a touch screen -- hidden until hover is a control that does not
+  // exist on half the devices the app runs on. Quiet instead, and full strength when reached for.
+  expect(rule(".msg__edit")).toContain("opacity: 0.35");
+  expect(rule(".msg--user:hover .msg__edit")).toContain("opacity: 1");
+  expect(rule(".msg__edit:focus-visible")).toContain("opacity: 1");
+});
+
+test("the version strip reads in the stamp's voice", () => {
+  // It is a note about the message, exactly as the time under it is, and two notes under one
+  // sentence in two different voices read as two different kinds of thing.
+  const strip = rule(".versions");
+  expect(strip).toContain("font-family: var(--font-mono)");
+  expect(strip).toContain("font-size: 11.5px");
+  expect(strip).toContain("color: var(--muted)");
+});
+
+test("an arrow with nothing to step to does not offer to be pressed", () => {
+  expect(rule(".versions__step:disabled")).toContain("cursor: default");
+  expect(rule(".versions__step:disabled")).toContain("opacity: 0.3");
+});
