@@ -1003,6 +1003,47 @@ test("at the end of the row there is nothing further to step to", () => {
   expect(screen.getByRole("button", { name: "Next version" }).disabled).toBe(true);
 });
 
+// --- the strip and the pencil on one line (Madde 199) --------------------------------------------
+
+test("the strip and the pencil stand on the same line", () => {
+  // Both are notes under the bubble, and .msg is a column -- so put separately there, each took a
+  // line of its own and the two never stood beside each other.
+  const { container } = render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
+  const foot = container.querySelector(".msg__foot");
+  expect(foot.querySelector(".versions")).toBeTruthy();
+  expect(foot.querySelector(".msg__edit")).toBeTruthy();
+});
+
+test("the strip comes first and the pencil after it", () => {
+  // Where the sentence stands, then the way to change it. The other order would move the pencil
+  // according to whether a strip is there at all, and one button would sit in two places.
+  const { container } = render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
+  expect(container.querySelector(".msg__foot").firstElementChild.className).toBe("versions");
+});
+
+test("a message with nothing beside it keeps its pencil", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  const foot = container.querySelector(".msg__foot");
+  expect(foot.querySelector(".msg__edit")).toBeTruthy();
+  expect(foot.querySelector(".versions")).toBeNull();
+});
+
+test("an answer carries no line under it at all", () => {
+  // There is neither a pencil nor a strip there, and an empty row would do nothing but widen the
+  // column's own gap.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".msg--ai .msg__foot")).toBeNull();
+});
+
+test("while a message is being corrected the line is the strip alone", () => {
+  // Madde 197's rule stands: the pencil withdraws. The strip does not -- which version is being
+  // corrected has to stay readable while it is corrected.
+  const { container } = _editing(BRANCHED);
+  const foot = container.querySelector(".msg__foot");
+  expect(foot.querySelector(".versions")).toBeTruthy();
+  expect(foot.querySelector(".msg__edit")).toBeNull();
+});
+
 test("the foot puts the mode before the skill", () => {
   // Mode · Skills · model · Send. What the model may do at all is a question that comes before
   // which job it is doing, so the row reads outermost first.

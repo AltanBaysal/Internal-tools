@@ -608,3 +608,20 @@ test("an arrow with nothing to step to does not offer to be pressed", () => {
   expect(rule(".versions__step:disabled")).toContain("cursor: default");
   expect(rule(".versions__step:disabled")).toContain("opacity: 0.3");
 });
+
+// --- the strip and the pencil on one line (Madde 199) --------------------------------------------
+
+test("the notes under a bubble share one row", () => {
+  // .msg is a column, so two children of it are two lines. The row is what puts them beside each
+  // other -- and it holds only the notes: the bubble stays a child of the column, which is what
+  // Madde 197 fixed.
+  const foot = rule(".msg__foot");
+  expect(foot).toContain("display: flex");
+  expect(foot).toContain("align-items: center");
+});
+
+test("the strip carries no gap of its own", () => {
+  // Inside the row now, so a margin of its own would sit on top of the column's gap and push the
+  // line down away from the message it belongs to.
+  expect(rule(".versions")).not.toContain("margin-top");
+});
