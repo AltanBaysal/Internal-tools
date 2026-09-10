@@ -1,9 +1,11 @@
 # QueenAgent v8 Yol Haritası — çıkan prompt, ve koşarken görünen
 
 **Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül — artı **195 ve 196, koşu sürerken eklendi**
-*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **Yirmi madde**, sekiz dilim, 183'ten 203'e — **188 yok**,
-taslak okunurken geri çekildi *(aşağıda)*. Numaralar 182'nin ardından gidiyor ve **hiç kaymıyor** —
-yazılmış spec'ler onlara atıf yapıyor, ve çekilen bir numara boş kalır.
+*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. Taslak **yirmi maddeydi**, sekiz dilim, 183'ten
+203'e — **188 yok**, taslak okunurken geri çekildi *(aşağıda)*. Koşarken **beş madde daha** eklendi
+*(205–209, 10 Eylül; 204 aynı gün geri çekildi)*, ve koşu **yirmi beş** maddeyle kapandı. Numaralar
+182'nin ardından gidiyor ve **hiç kaymıyor** — yazılmış spec'ler onlara atıf yapıyor, ve çekilen bir
+numara boş kalır.
 
 **Numara kimliktir, sıra değildir.** 189 taslak sırasında öne alındı ve numarası bırakıldığı yerde
 kaldı *(kullanıcı kararı, 6 Eylül: konuşma boyunca numaralarla anıldılar, kaydırmak onları
@@ -46,9 +48,11 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 190 · metinlerin okunması | **kapandı** | `2d11881` |
 | 203 · adım işaretleme aracı kalkar | **kapandı** | `edfdecc` |
 | 209 · sürüm arayüzde görünür | **kapandı** | `ef24a3e` |
+| 210 · sürüm adın yanında | sırada | |
 
-**Yirmi maddenin hepsi kapandı.** 183'ten 209'a, 188 ile 204 boş — ikisi de geri çekildi, ve
-numaraları kaymadı.
+**Yirmi beşi kapandı**, 183'ten 209'a — 188 ile 204 boş, ikisi de geri çekildi, ve numaraları
+kaymadı. **210 test geçişinden geldi** *(11 Eylül)*, ve o geçiş sürüyor: kullanıcı gördüklerini
+buraya ekliyor, sonra hepsi birlikte koşacak.
 
 183–187, 189, 191–202 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
 açıldı** *(kullanıcı, 8 Eylül)*. Ardından **197 ve 198** eklendi, ikisi de denemeden çıktı: 195'in
@@ -79,8 +83,12 @@ dolduran tur yok. Burada da yol haritasından **saptı**: kendi *"Ne çalışır
 **209 koşuyu kapattı:** kenar çubuğunda, adın altında `V8`. Sırası serbestti ve sona kaldı, çünkü
 hiçbir maddeye dayanmıyordu.
 
-**Koşunun kendi sayıları:** araç sayısı **23 → 18**, ve giden beşinin tarifi her istekte
-ödeniyordu. Modele giden metinlerin tamamı bir oturumda okundu, 36 düzeltme aldı, ve
+**Koşu 11 Eylül'de test geçişiyle yeniden açıldı.** Kullanıcı ekrana bakıyor, ve gördüğü her şey
+buraya **210'dan başlayarak** madde oluyor. Kod bir madde yazıldığı anda değil, geçiş bitince
+koşacak: bakarken durup kod yazmak bakışı bölüyor — 190'ın okumasının kendi kuralının aynısı.
+
+**Koşunun kendi sayıları:** yirmi beş madde, araç sayısı **23 → 18**, ve giden beşinin tarifi her
+istekte ödeniyordu. Modele giden metinlerin tamamı bir oturumda okundu, 36 düzeltme aldı, ve
 [okuma kopyası](../../2026-09-09-queenagent-modele-giden-metinler.md) ile kod **eşit** — belge
 bundan sonra kodun aynası olarak tutulur. Süit **923 arka uç + 652 ön uç**.
 
@@ -841,7 +849,7 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
   maddenin işi değil — gerekirse kendi maddesini ister.
 - **Nerede durur:** kenar çubuğunun wordmark'ının altında, `Sidebar.jsx`'te. Ad zaten orada, ve
   sürüm adın bir parçası gibi okunuyor. Çubuk katlanınca sürüm de katlanıyor — kendi başına bir
-  yer açmıyor.
+  yer açmıyor. **Bu satırı 210 geçersiz kıldı** *(test geçişi, 11 Eylül)*: altında değil yanında.
 - **Ne çalışır:** bir `VERSION` sabiti eklenir, `Sidebar` onu wordmark'ın altında gösterir, ve bir
   test sürümün ekranda olduğunu tutar.
 - **Nasıl görülür:** uygulama açılır, kenar çubuğunda `QueenAgent` yazısının altında `V8` okunur.
@@ -851,6 +859,40 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
   ya da `Sidebar`in kendi testi; ve `frontend/dist`.
 - **queen-editor ayrı:** onun da kendi koşu numarası var ve aynı sorun orada da duruyor. Bu koşu
   yalnız QueenAgent — o kendi `BACKLOG.md`'sinin işi.
+
+---
+
+# Dilim 9 — test geçişinin bulduğu
+
+**Kullanıcının kendi geçişi, 11 Eylül.** Ekrana bakıyor, ve gördüğü her şey buraya madde oluyor.
+**Kod geçiş bitince koşuyor**, madde yazıldığı anda değil: bakarken durup kod yazmak bakışı bölüyor,
+ve bu 190'ın okumasının kendi kuralının aynısı.
+
+## Madde 210 — Sürüm adın yanında, aynı boyda ve kalın
+
+> **Test geçişinden çıktı** *(kullanıcı, 11 Eylül)*. 209 sürümü ekrana koydu; **nereye** koyduğu
+> yanlış bulundu, ve o maddenin *"nerede durur"* satırı bu maddeyle geçersiz.
+
+- **Sorun:** 209 sürümü adın **altına**, `var(--muted)` ile **11px** koydu — yani deponun **not**
+  sesiyle, `.msg__stamp` ile `.tool-call__head`'in sesiyle. Bir dipnot gibi duruyor ve okunmuyor.
+  Oysa cevapladığı soru küçük bir soru değil: **hangi kuşağı çalıştırıyorum.**
+- **Karar** *(kullanıcı, 11 Eylül)*: `V8` adın **yanında**, adla **aynı boyda** *(21px)*, ve
+  **kalın**. Saklanmayacak.
+- **Öne çıkaran şey ağırlık, renk değil.** Deponun kuralı: tek dolu accent **birincil eylemi**
+  işaretler ve başka hiçbir şeyi — bir proje satırının bile kendi rengi yok. Sürüm adın mürekkebini
+  taşır *(`var(--ink)`)* ve kalınlıkla ayrışır.
+- **Ne çalışır:** `.sidebar__version` marka satırının içinde, adın hemen yanında durur.
+  `.sidebar__name` sütunu **kalkar** — alt alta dizmek için açılmıştı, ve artık alt alta değiller.
+- **Katlanma değişmiyor:** çubuk katlanınca marka bloğu zaten çizilmiyor, yani sürüm de gitmeye
+  devam ediyor. 209'un testi bunu tutuyor ve düşmüyor.
+- **Sabit değişmiyor:** `shared/version.js` olduğu gibi kalıyor — bu madde **nerede ve nasıl
+  göründüğü** hakkında, ne yazdığı hakkında değil.
+- **Nasıl görülür:** kenar çubuğunda `QueenAgent V8` **yan yana** okunur, ikisi aynı boyda, sürüm
+  kalın. Çubuk katlanınca ikisi de gider.
+- **Değişen:** `Sidebar.jsx`, `workspace.css`; `Sidebar.test.jsx` *(sürümün marka satırında
+  durduğu)*, `workspace.css.test.js` *(boy, ağırlık, renk, ve `.sidebar__name`'in yokluğu)*; ve
+  `dist`. Bir de [test listesinin](../../2026-09-10-queenagent-v8-test-listesi.md) *"adın altında"*
+  satırı.
 
 ---
 
