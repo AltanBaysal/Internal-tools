@@ -289,6 +289,17 @@ test("the sidebar's menu is the design's own width", () => {
   expect(rule(".sidebar__row .menu")).toContain("width: 176px");
 });
 
+test("the version sits under the name and reads as a note", () => {
+  // Madde 209 puts it under the wordmark, and the brand block is a row -- so the name and the
+  // version need a column of their own, or the version lands beside the name instead.
+  expect(rule(".sidebar__name")).toContain("flex-direction: column");
+  // The repo's note voice, the same variable the stamp and a call's head use: it is the wordmark's
+  // footnote, not a second name.
+  const version = rule(".sidebar__version");
+  expect(version).toContain("color: var(--muted)");
+  expect(version).toContain("font-size: 11px");
+});
+
 test("the catcher covers the screen and shows nothing", () => {
   const catcher = rule(".menu__catcher");
   expect(catcher).toContain("position: fixed");
