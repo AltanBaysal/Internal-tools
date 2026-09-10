@@ -45,7 +45,10 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 208 · tek kare yazan araç kalkar | **kapandı** | `9eabb06` |
 | 190 · metinlerin okunması | **kapandı** | `2d11881` |
 | 203 · adım işaretleme aracı kalkar | **kapandı** | `edfdecc` |
-| 209 · sürüm arayüzde görünür | sırası serbest | |
+| 209 · sürüm arayüzde görünür | **kapandı** | `ef24a3e` |
+
+**Yirmi maddenin hepsi kapandı.** 183'ten 209'a, 188 ile 204 boş — ikisi de geri çekildi, ve
+numaraları kaymadı.
 
 183–187, 189, 191–202 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
 açıldı** *(kullanıcı, 8 Eylül)*. Ardından **197 ve 198** eklendi, ikisi de denemeden çıktı: 195'in
@@ -70,7 +73,16 @@ zaten duruyor. **Belge ile kod artık eşit.**
 
 Ardından **203** koştu ve beşinci aracı aldı: araç sayısı **18**. Okumanın 11 numarası kutuları
 *"yalnız bir not"*a indirmişti, ve bu madde onu sonuna kadar götürdü — kutu biçimi duruyor, onu
-dolduran tur yok. Geriye **209** kalıyor, ve sırası serbest.
+dolduran tur yok. Burada da yol haritasından **saptı**: kendi *"Ne çalışır"*ı kapanış maddesinin
+`edit_file`'ı anmasını istiyordu, kullanıcı maddenin tümüyle düşmesini seçti *(10 Eylül)*.
+
+**209 koşuyu kapattı:** kenar çubuğunda, adın altında `V8`. Sırası serbestti ve sona kaldı, çünkü
+hiçbir maddeye dayanmıyordu.
+
+**Koşunun kendi sayıları:** araç sayısı **23 → 18**, ve giden beşinin tarifi her istekte
+ödeniyordu. Modele giden metinlerin tamamı bir oturumda okundu, 36 düzeltme aldı, ve
+[okuma kopyası](../../2026-09-09-queenagent-modele-giden-metinler.md) ile kod **eşit** — belge
+bundan sonra kodun aynası olarak tutulur. Süit **923 arka uç + 652 ön uç**.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.
