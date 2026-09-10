@@ -100,7 +100,7 @@ def test_the_drive_folder_is_named_once():
 #
 # BEFORE MERGING: this goes back to "main", and so does the notebook. A trial changes this line and
 # the notebook's together and never one of them, and the change comes back the way it went in.
-BRANCH = "feat/queenagent-v8"
+BRANCH = "main"
 
 
 def test_the_notebook_clones_the_branch_this_run_is_tried_on():
