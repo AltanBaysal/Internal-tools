@@ -1100,8 +1100,9 @@ def test_the_listing_tool_is_gone():
 
 
 def test_the_runner_takes_an_engine_and_the_tools_that_do_not_need_one_carry_on(tmp_path):
-    # Madde 175. Every tool here answers out of the file store; one of them is about to answer out
-    # of a model as well, and the engine has to reach it without the other seventeen noticing.
+    # Madde 175. Every tool here answers out of the file store; one of them answers out of a model
+    # as well, and the engine has to reach it without the other seventeen noticing. The count is
+    # Madde 203's: nineteen tools became eighteen when the ticking one went.
     files = _with(tmp_path, "plan.md", "one\ntwo")
     answered = run_tool(files, "p1", "read_file", json.dumps({"name": "plan.md"}), engine=object())
     assert answered.outcome == "2 lines"
@@ -1159,81 +1160,47 @@ def test_every_tool_is_declared_to_the_model():
         # file store: the border between the agent that builds a scenario and the model that writes
         # its sentences, crossed once for every frame still waiting, in one round.
         "write_missing_actions",
-        # Madde 198. What a ticked step looks like stops being the model's to invent: the plan is
-        # written as boxes and this is what fills one.
-        "mark_step_done",
     }
 
 
-# --- ticking a step off the plan (Madde 198) -----------------------------------------------------
-
-PLAN = "- [ ] 1. The characters\n- [ ] 2. The places\n- [ ] 3. The scenes\n"
-
-
-def _planned(tmp_path, content=PLAN):
-    # Written the way the model writes one since Madde 207: an ordinary file, named so that it
-    # reads as a plan.
-    files = _files(tmp_path)
-    _call(files, "create_file", name="bar-scene-plan.md", content=content)
-    return files
-
-
-def test_a_step_is_ticked_off_a_plan_the_model_named_itself(tmp_path):
-    # Madde 207. write_plan put every name through plan_name, so a plan was always <name>-plan.md
-    # and this tool could look there and find it. create_file does not: the name is the model's.
-    # Looked up as it was written, or the flow's own loop closes on nothing -- plan.md would be
-    # searched for as plan-plan.md, and asking again lands in the same place, because plan-plan
-    # already ends in -plan.
-    files = _files(tmp_path)
-    _call(files, "create_file", name="plan.md", content=PLAN)
-    _call(files, "mark_step_done", name="plan.md", step=1)
-    assert files.read("p1", "plan.md").startswith("- [x] 1.")
+# --- the tool that ticked a step off the plan is gone (Madde 203) --------------------------------
+#
+# Madde 198 wrote it, and what that madde really fixed was the box format: once a plan is written
+# as - [ ] 1., what a ticked step looks like stopped being the model's to invent, and the turn
+# after it could read the one before. The format stays.
+#
+# Correction 11 took the rest away. Where the work stopped is read off the project's files now --
+# a box is filled by a tool nobody is obliged to call, so a chat that stopped mid-step read its own
+# plan as finished -- and the flow's own text calls the boxes only a note. A tool that fills a note
+# was paid for on every request, in a description and two parameters.
 
 
-def test_a_plan_named_the_old_way_is_still_found(tmp_path):
-    # The -plan shape is a fallback now rather than the rule, and this is what keeps it: a plan
-    # written under that name is still found when the model asks for it by the stem.
-    files = _files(tmp_path)
-    _call(files, "create_file", name="bar-scene-plan.md", content=PLAN)
-    _call(files, "mark_step_done", name="bar-scene", step=2)
-    assert "- [x] 2." in files.read("p1", "bar-scene-plan.md")
+def test_the_step_ticking_tool_is_gone(tmp_path):
+    assert "mark_step_done" not in {spec["function"]["name"] for spec in TOOL_SPECS}
+    # And a record written before this madde can still carry the name: the turn that replays it
+    # gets an answer rather than a crash, which is the road every deleted tool here has taken.
+    said = run_tool(_files(tmp_path), "p1", "mark_step_done", json.dumps({"name": "p", "step": 1}))
+    assert "no tool called" in said.text
 
 
-def test_a_step_that_was_approved_gets_its_box_filled(tmp_path):
-    files = _planned(tmp_path)
-    _call(files, "mark_step_done", name="bar-scene", step=2)
-    assert files.read("p1", "bar-scene-plan.md") == (
-        "- [ ] 1. The characters\n- [x] 2. The places\n- [ ] 3. The scenes\n"
-    )
+def test_the_step_ticking_texts_are_gone():
+    # What the madde actually buys back. The tool ran when a step closed; these three went out on
+    # every request, whether or not the chat held a plan at all.
+    from backend.features.workspace.domain import prompt
+
+    assert not hasattr(prompt, "MARK_STEP_DONE")
+    assert not hasattr(prompt, "MARK_STEP_DONE_NAME")
+    assert not hasattr(prompt, "MARK_STEP_DONE_STEP")
 
 
-def test_nothing_but_the_box_is_touched(tmp_path):
-    # The one thing an edit_file instruction could never promise: the model was handed the whole
-    # file and asked to give it back with one character changed.
-    files = _planned(tmp_path, "Notes above.\n\n- [ ] 1. The characters\n\nNotes below.\n")
-    _call(files, "mark_step_done", name="bar-scene", step=1)
-    assert files.read("p1", "bar-scene-plan.md") == (
-        "Notes above.\n\n- [x] 1. The characters\n\nNotes below.\n"
-    )
+def test_no_name_is_bent_into_a_plans_shape_any_more():
+    # The tail this removal leaves. plan_name had one caller left after Madde 207 -- the fallback
+    # inside the ticking tool, which looked for <name>-plan.md when the name as written was not
+    # there. With the tool gone nothing calls it, and a naming rule nobody calls is one the next
+    # reader would take for law: a plan is named by the model now, like any other file.
+    from backend.features.workspace.domain import tools
 
-
-def test_a_step_already_ticked_is_left_alone(tmp_path):
-    files = _planned(tmp_path, "- [x] 1. The characters\n")
-    answer = _call(files, "mark_step_done", name="bar-scene", step=1)
-    assert "already" in answer.lower()
-    assert files.read("p1", "bar-scene-plan.md") == "- [x] 1. The characters\n"
-
-
-def test_a_step_that_is_not_there_is_an_answer_rather_than_a_crash(tmp_path):
-    files = _planned(tmp_path)
-    answer = _call(files, "mark_step_done", name="bar-scene", step=9)
-    assert "9" in answer
-    assert files.read("p1", "bar-scene-plan.md") == PLAN
-
-
-def test_a_plan_that_is_not_there_is_an_answer_too(tmp_path):
-    answer = _call(_files(tmp_path), "mark_step_done", name="ghost", step=1)
-    assert "ghost-plan.md" in answer
+    assert not hasattr(tools, "plan_name")
 
 
 # --- the reads the descriptions used to demand (Madde 125) ---------------------------------------

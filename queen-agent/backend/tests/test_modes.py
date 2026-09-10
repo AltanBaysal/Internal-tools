@@ -34,10 +34,6 @@ WRITES = (
     # makes to a file the user is reading.
     "update_frame",
     "remove_frame",
-    # Madde 198. The narrowest write there is -- one character in one line -- and still a write to a
-    # file the user is reading, so the quieter modes keep their gate in front of it. Plan mode's is
-    # not a formality either: its job is writing the plan, never closing a step off it.
-    "mark_step_done",
 )
 
 
@@ -125,6 +121,18 @@ def test_no_mode_lets_the_single_frame_tool_through():
 
     for mode, allowed in _WITHOUT_ASKING.items():
         assert "write_frame_prompt" not in allowed, mode
+
+
+def test_no_mode_lets_the_step_ticking_tool_through():
+    # Madde 203, read off the lists for 206's reason: needs_permission answers False for a tool
+    # nobody knows, so a leftover entry claims nothing and passes green.
+    #
+    # Its gate was never the interesting part -- edit mode ran it and the quieter two asked, the
+    # same as every other write. What went with it is the turn that called it.
+    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
+
+    for mode, allowed in _WITHOUT_ASKING.items():
+        assert "mark_step_done" not in allowed, mode
 
 
 def test_a_mode_nobody_knows_is_the_default_one():

@@ -243,6 +243,9 @@ def test_where_the_work_stopped_is_read_off_the_files():
     # nobody is obliged to call -- so a chat that stopped mid-step read its own plan as finished.
     # What the work produced is on disk either way, and that is what says how far it got.
     #
+    # Since Madde 203 this is the whole of the promise: no turn fills a box any more, so this
+    # sentence is where a fresh chat learns where to carry on from.
+    #
     # Lowered, because the sentence opens the bullet's second clause and starts with a capital:
     # asked of the text as written, this claim could never be met by any text at all.
     said = _flow().lower()
@@ -272,12 +275,6 @@ def test_the_scenes_step_writes_a_readable_list_too():
     assert "in the language the user is writing in" in said
 
 
-def test_a_finished_step_reaches_the_plan():
-    # The flow promises a fresh chat can carry on from where the work stopped. A plan nobody updates
-    # shows no step as open, so the promise stands only if ending a step writes into the plan.
-    assert "mark_step_done" in _flow()
-
-
 def test_the_scenario_is_opened_by_the_tool_that_opens_one():
     # The observed failure wears two masks: everything gathered in chat and written at the end, or
     # a new file per step. One birth rules out both, and since Madde 167 the tool enforces it --
@@ -291,12 +288,18 @@ def test_the_scenario_is_opened_by_the_tool_that_opens_one():
     assert said.index(STEPS[1]) < said.index("start_scenario") < said.index(STEPS[2])
 
 
-def test_an_approved_step_is_ticked_by_the_tool_that_ticks_one():
-    # The rule was already written and asked for edit_file, which is a free edit -- so what a ticked
-    # step looks like was the model's to invent, and the next turn did not recognise it. A plan
-    # nobody can read the progress off is a plan that has lost its one job (Madde 198).
+def test_no_step_is_ticked_off_the_plan_at_all():
+    # Madde 198 gave the flow a tool that fills one box. The rule before it asked for edit_file,
+    # which is a free edit -- so what a ticked step looks like was the model's to invent, and the
+    # next turn did not recognise it; closing one step cost three plan writes in the trial, because
+    # the plan tool of the day rewrote the whole file (Madde 126). What answered both was the box
+    # format, and the format stays.
+    #
+    # Madde 203 withdraws the rest, on correction 11's finding: the boxes are only a note, and what
+    # says how far the work got is the project's files. Neither road back is offered -- not the
+    # tool, and not edit_file, which is the hand-built anchor 126 was written against.
     said = _flow()
-    assert "mark_step_done" in said
+    assert "mark_step_done" not in said
     assert "edit_file" not in said
 
 
@@ -495,17 +498,6 @@ def test_the_flow_opens_as_a_persona():
 
 def test_the_editor_opens_as_a_persona():
     assert _edit().startswith("You are an expert SDXL prompt writer")
-
-
-def test_a_finished_step_is_closed_without_rewriting_the_plan():
-    # Madde 126's finding, and it still holds: closing one step cost three plan writes in the trial,
-    # because "marked done" did not say which tool it meant and the plan tool of the day rewrote the
-    # whole file.
-    # 126 answered it with edit_file, 198 with a tool that fills one box -- the same rule, now kept
-    # by the code rather than by a sentence asking the model to be careful.
-    said = _flow()
-    assert "mark_step_done" in said
-    assert "touches nothing else" in said
 
 
 # --- the ritual openings (Madde 107) --------------------------------------------------------------
