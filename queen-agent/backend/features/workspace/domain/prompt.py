@@ -59,8 +59,8 @@ SYSTEM_PROMPT = (
     "Long work goes in pieces rather than one long stretch, and each piece reaches disk before "
     "the next one is written. Quality falls away towards the end of a long answer, and an "
     "interruption then costs one piece instead of everything. A job of several steps starts "
-    "with write_plan: the plan is where the work keeps its place, and a fresh chat picks it up "
-    "from the step left open.\n"
+    "with a plan file: the plan is where the work keeps its place, and a fresh chat picks it up "
+    "from the step left open. create_file writes it.\n"
     "\n"
     "A file never stands in for the reply: always write your answer in the chat as well. End by "
     "saying what you did -- including when what you did was find that nothing needed changing, "
@@ -208,7 +208,8 @@ START_A_SCENARIO = (
     "the step it closed, never as a standing authority. An approved step is closed with "
     "mark_step_done, which fills that step's box and touches nothing else.\n"
     "\n"
-    "1. The plan. A chat's first turn opens with write_plan; later turns "
+    "1. The plan. A chat's first turn writes one with create_file, each step a box: - [ ] 1. and "
+    "one line of what that step is. Later turns "
     "carry on from what the chat already knows. A "
     "plan already there when the chat opened is that memory: read it and carry on from the first "
     "step whose box is empty; with several, ask which. This step waits for no approval; the next "
@@ -589,19 +590,6 @@ BUILD_PROMPTS = (
     "order, so a character reads the same in all of them. Writes a Python file named "
     "after the structure, replacing what it wrote last time."
 )
-
-WRITE_PLAN = (
-    "Break the work into numbered steps and save the plan. Each step is a box to tick, written as "
-    "- [ ] 1. and one line of what that step is; mark_step_done is what fills one. Writes over the plan of "
-    "that name if there is one, so hand back the whole plan rather than the part you "
-    "changed -- read it first if this turn has not seen it. A turn asked only to "
-    "plan ends with this call -- the "
-    "user reads the plan, fixes it in the file if they want to, and runs it "
-    "themselves. A plan that is the first step of a larger job is an ordinary step: "
-    "carry on from it."
-)
-WRITE_PLAN_NAME = "What the plan is for, as in bar-scene."
-WRITE_PLAN_CONTENT = "The plan itself."
 
 MARK_STEP_DONE = (
     "Tick one step off a plan: its box is filled and nothing else in the file is touched. Call it "

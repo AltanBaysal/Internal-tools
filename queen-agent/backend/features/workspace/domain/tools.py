@@ -66,12 +66,11 @@ DEFAULT_NAME = "note.md"
 AT_ONCE = 8
 
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
-# here: the file was already there. write_plan is, because the first plan of a name is new.
+# here: the file was already there.
 WRITES_FILES = {
     "create_file",
     "start_scenario",
     "build_prompts",
-    "write_plan",
 }
 
 # What a scenario is on the day it is born (Madde 167). The one place this shape is written down:
@@ -409,21 +408,6 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "write_plan",
-            "description": prompt.WRITE_PLAN,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": prompt.WRITE_PLAN_NAME},
-                    "content": {"type": "string", "description": prompt.WRITE_PLAN_CONTENT},
-                },
-                "required": ["name", "content"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "mark_step_done",
             "description": prompt.MARK_STEP_DONE,
             "parameters": {
@@ -588,25 +572,20 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
         )
         return ToolResult(f"Started {written}.", written, written, "Started")
 
-    if name == "write_plan":
-        wanted = plan_name(safe_name(args.get("name")))
-        # Overwrites where create_file numbers. A second plan sitting in bar-scene-plan-2.md would
-        # lose which of the two is the one to follow.
-        born = file_store.read(project_id, wanted) is None
-        written = file_store.write(project_id, wanted, args.get("content", ""))
-        # A card only the first time: after that the file was already there, which is the rule
-        # edit_file follows too.
-        return ToolResult(
-            f"Saved as {written}.",
-            written if born else None,
-            written,
-            "Saved" if born else "Rewritten",
-        )
-
     if name == "mark_step_done":
-        wanted = plan_name(safe_name(args.get("name")))
+        wanted = safe_name(args.get("name"))
         content = file_store.read(project_id, wanted)
         if content is None:
+            # Madde 207. write_plan pushed every name through plan_name, so a plan was always
+            # <name>-plan.md and this tool could look straight there. create_file does not: the name
+            # is the model's. So the name as written is tried first and the old shape is what is
+            # left to try -- without it a plan.md would be hunted for as plan-plan.md, and asking
+            # again lands in the same place, because plan-plan already ends in -plan.
+            wanted = plan_name(wanted)
+            content = file_store.read(project_id, wanted)
+        if content is None:
+            # Named as the fallback would have it: this sentence is the only place left telling the
+            # model what shape a plan's name is looked for in.
             return ToolResult(f"There is no {wanted}.", None, wanted, "No plan by that name")
         step = args.get("step")
         marked, state = _ticked(content, step)

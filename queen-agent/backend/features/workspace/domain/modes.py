@@ -25,12 +25,14 @@ READS = ("read_file",)
 
 _WITHOUT_ASKING = {
     ASK: READS,
-    # Reading, and one way to write -- a plan. Given create_file without a question it could write
-    # the plan and the deliverable in the same turn, which is doing the work instead of planning it.
-    PLAN: READS + ("write_plan",),
+    # Reading, and one write -- the plan. Madde 207 took away the tool that used to be named here:
+    # what made that call a plan was never the tool, it was this mode. The old fear -- that
+    # create_file would let the plan and the deliverable be written in one turn -- is answered by
+    # ends_the_turn below, where the first write is where the turn stops.
+    PLAN: READS + ("create_file",),
     # Everything, which is the mode's whole meaning: here the app does what it can do and stops for
-    # nothing. write_plan is among them since Madde 97 -- in this mode a plan is an ordinary file,
-    # which is why the flow can write one to keep its place and carry on in the same turn.
+    # nothing. A plan is an ordinary file here and always was -- which is why the flow can write one
+    # to keep its place and carry on in the same turn.
     EDIT: READS
     + (
         "create_file",
@@ -50,7 +52,6 @@ _WITHOUT_ASKING = {
         "remove_location",
         "edit_file",
         "build_prompts",
-        "write_plan",
         # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
         # their gate in front of it while this mode keeps none.
         "add_scene",
@@ -92,6 +93,10 @@ def ends_the_turn(mode, tool):
     """Whether this call is where the turn stops.
 
     One pair rather than a count: the rule is not "write once", it is "the plan is written, so the
-    next move is the user's". The same tool in another mode is an ordinary write.
+    next move is the user's". The same call in another mode is an ordinary write.
+
+    Asked of the call rather than of what it returned. A create_file refused for a name already
+    taken ends the turn too -- the user reads the refusal and decides what happens next, which is
+    where the rule was taking them anyway.
     """
-    return mode == PLAN and tool == "write_plan"
+    return mode == PLAN and tool == "create_file"

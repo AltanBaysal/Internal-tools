@@ -794,39 +794,6 @@ def test_a_refused_create_does_not_say_it_saved(tmp_path):
     assert _outcome(files, "create_file", name="plan.md", content="second") == "Already there"
 
 
-# --- the plan tool (Madde 91) --------------------------------------------------------------------
-
-
-def test_a_plan_is_written_under_a_name_that_says_it_is_one(tmp_path):
-    # Two jobs in one rule: a plan is recognisable on disk, and the tool cannot be turned into a way
-    # of writing the very deliverable it was supposed to be planning.
-    files = _files(tmp_path)
-    assert "bar-scene-plan.md" in _call(files, "write_plan", name="bar-scene.md", content="1. ...")
-    assert files.read("p1", "bar-scene-plan.md") == "1. ..."
-    # A name that already says it is a plan is not made to say it twice.
-    assert "bar-scene-plan.md" in _call(files, "write_plan", name="bar-scene-plan.md", content="x")
-
-
-def test_writing_a_plan_again_replaces_it(tmp_path):
-    # Unlike create_file, which never overwrites. A second plan sitting in bar-scene-plan-2.md would
-    # lose which of the two is the one to follow.
-    files = _files(tmp_path)
-    _call(files, "write_plan", name="bar-scene", content="first")
-    _call(files, "write_plan", name="bar-scene", content="second")
-    assert files.read("p1", "bar-scene-plan.md") == "second"
-    assert files.list_names("p1") == ["bar-scene-plan.md"]
-
-
-def test_only_the_first_plan_reports_a_born_file(tmp_path):
-    # The card says a file came into being. A second write changes one that was already there --
-    # the same rule edit_file follows.
-    files = _files(tmp_path)
-    born = run_tool(files, "p1", "write_plan", json.dumps({"name": "a", "content": "x"}))
-    again = run_tool(files, "p1", "write_plan", json.dumps({"name": "a", "content": "y"}))
-    assert born.created == "a-plan.md"
-    assert again.created is None
-
-
 def test_an_unknown_tool_does_not_bring_the_loop_down(tmp_path):
     assert "no tool called" in run_tool(_files(tmp_path), "p1", "delete_everything", "{}").text
 
@@ -1102,9 +1069,6 @@ def test_every_tool_is_declared_to_the_model():
         "create_file",
         "edit_file",
         "build_prompts",
-        # Sixth since Madde 91, and declared here with the rest: which modes offer it is a separate
-        # question, asked in modes.py.
-        "write_plan",
         # Madde 128 for the position -- the end of a list is something code knows, so the model
         # never quotes a frame back to reach it -- and Madde 173 for the frame itself: the fields
         # are in the signature, and every name in them is looked for in the maps before it lands.
@@ -1152,8 +1116,10 @@ PLAN = "- [ ] 1. The characters\n- [ ] 2. The places\n- [ ] 3. The scenes\n"
 
 
 def _planned(tmp_path, content=PLAN):
+    # Written the way the model writes one since Madde 207: an ordinary file, named so that it
+    # reads as a plan.
     files = _files(tmp_path)
-    _call(files, "write_plan", name="bar-scene", content=content)
+    _call(files, "create_file", name="bar-scene-plan.md", content=content)
     return files
 
 
@@ -1234,24 +1200,6 @@ def test_the_edit_tool_asks_for_a_read_only_when_the_turn_has_not_seen_the_file(
     assert "already in front of you" in said
     # The unconditional order, which is what produced create_file -> read_file -> edit_file.
     assert "so read the file first" not in said
-
-
-def test_the_plan_tool_does_not_demand_a_read_of_what_the_turn_just_wrote():
-    # One step closing cost three plan writes in the trial: write_plan, edit_file, write_plan.
-    said = _said_by("write_plan")
-    assert "if this turn has not seen it" in said
-    assert "so read it first" not in said
-
-
-def test_write_plan_ends_only_the_turn_that_was_asked_to_plan():
-    # Madde 103. The server ends the turn after write_plan in plan mode alone (Madde 97), and the
-    # flow writes a plan as its first step and asks its first question in the same turn. The model
-    # never sees the mode, so the description binds the ending to the ask instead: a turn asked
-    # only to plan ends, a plan that is step one of a larger job carries on.
-    plan = next(spec for spec in TOOL_SPECS if spec["function"]["name"] == "write_plan")
-    said = plan["function"]["description"]
-    assert "asked only to plan" in said
-    assert "carry on" in said
 
 
 def test_the_round_limit_carries_the_longest_chain():

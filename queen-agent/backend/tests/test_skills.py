@@ -451,7 +451,8 @@ def test_the_editor_opens_as_a_persona():
 
 def test_a_finished_step_is_closed_without_rewriting_the_plan():
     # Madde 126's finding, and it still holds: closing one step cost three plan writes in the trial,
-    # because "marked done" did not say which tool it meant and write_plan rewrites the whole file.
+    # because "marked done" did not say which tool it meant and the plan tool of the day rewrote the
+    # whole file.
     # 126 answered it with edit_file, 198 with a tool that fills one box -- the same rule, now kept
     # by the code rather than by a sentence asking the model to be careful.
     said = _flow()
@@ -518,7 +519,7 @@ def test_no_instruction_touches_a_structure_file_as_text():
 
 
 def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():
-    # Madde 134. Step 1 says the first turn opens with write_plan, and two sentences later that a
+    # Madde 134. Step 1 says the first turn writes the plan, and two sentences later that a
     # plan already there is the memory to read. The model did both: it wrote one, and then a plan
     # really was already there -- its own. The sentence means a plan from before this chat and
     # never said so, and the eighth trial paid a whole round for the gap.
