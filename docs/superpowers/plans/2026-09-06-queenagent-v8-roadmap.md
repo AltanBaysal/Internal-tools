@@ -780,6 +780,33 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
 
 ---
 
+## Madde 209 — Sürüm arayüzde görünür
+
+> **Sıra serbest** *(kullanıcı kararı, 10 Eylül)*. Öteki maddelerin hiçbirine dayanmıyor ve
+> hiçbirini bloklamıyor; yalnız frontend'e dokunuyor.
+
+- **Sorun:** koşudan koşuya atlıyoruz — V6, V7, V8 — ve **arayüzde hiçbir yerde görünmüyor.**
+  Ekrana bakan biri hangi kuşağı çalıştırdığını bilmiyor.
+- **Tek parça: koşu numarası, büyük harfle** — `V8`. Elle yazılan bir sabit, çünkü elle verilen bir
+  karar: bir koşu başlarken değişiyor, başka hiçbir şeyle değişmiyor.
+- **Derleme tarihi kapsam dışı** *(kullanıcı kararı, 10 Eylül)*. Taslakta vardı: notebook depoyu
+  klonlayıp hiç derlemediği için bayat bir klonu ele verecek işaret oydu. O ihtiyaç duruyor ama bu
+  maddenin işi değil — gerekirse kendi maddesini ister.
+- **Nerede durur:** kenar çubuğunun wordmark'ının altında, `Sidebar.jsx`'te. Ad zaten orada, ve
+  sürüm adın bir parçası gibi okunuyor. Çubuk katlanınca sürüm de katlanıyor — kendi başına bir
+  yer açmıyor.
+- **Ne çalışır:** bir `VERSION` sabiti eklenir, `Sidebar` onu wordmark'ın altında gösterir, ve bir
+  test sürümün ekranda olduğunu tutar.
+- **Nasıl görülür:** uygulama açılır, kenar çubuğunda `QueenAgent` yazısının altında `V8` okunur.
+- **Derleme kuralı geçerli:** frontend değiştiği için `dist` **aynı commit'te** derlenip
+  commitlenir, yoksa notebook tarafında hiçbir şey değişmez.
+- **Değişen:** `frontend/src/features/workspace/Sidebar.jsx` ve bir sürüm sabiti; `App.test.jsx`
+  ya da `Sidebar`in kendi testi; ve `frontend/dist`.
+- **queen-editor ayrı:** onun da kendi koşu numarası var ve aynı sorun orada da duruyor. Bu koşu
+  yalnız QueenAgent — o kendi `BACKLOG.md`'sinin işi.
+
+---
+
 ## Kapsam dışı, ve nerede duruyor
 
 - **Madde 204 — ortak SDXL metninin bölünmesi.** Ayrı madde olarak yazıldı ve aynı gün geri
