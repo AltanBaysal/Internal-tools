@@ -389,46 +389,7 @@ TOOL_SPECS = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "mark_step_done",
-            "description": prompt.MARK_STEP_DONE,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": prompt.MARK_STEP_DONE_NAME},
-                    "step": {"type": "integer", "description": prompt.MARK_STEP_DONE_STEP},
-                },
-                "required": ["name", "step"],
-            },
-        },
-    },
 ]
-
-
-def _ticked(content, step):
-    """The plan with that step's box filled, and what was found there (Madde 198).
-
-    Line by line and one character changed. The alternative was the model handing back the whole
-    plan with a tick added, and then what a ticked step looks like is its to invent -- which is what
-    left the last turn unable to read the one before it.
-
-    Answers `done`, `already` or `missing`, because the three are three different sentences to the
-    model and only the first writes.
-    """
-    lines = content.split("\n")
-    state = "missing"
-    for index, line in enumerate(lines):
-        head = line.lstrip()
-        for box, found in (("- [ ] ", "done"), ("- [x] ", "already")):
-            # The number as the model wrote it, and only at the front of the step: a plan that
-            # mentions step 2 inside step 1's sentence must not be ticked by it.
-            if head.startswith(f"{box}{step}.") or head.startswith(f"{box}{step} "):
-                if found == "done":
-                    lines[index] = line.replace("- [ ] ", "- [x] ", 1)
-                return "\n".join(lines), found
-    return content, state
 
 
 def counted(many, word):
@@ -463,22 +424,14 @@ def safe_name(raw):
     return name if "." in name else f"{name}.md"
 
 
-def plan_name(name):
-    """A plan is named so that it reads as one, and so the tool cannot write anything else.
-
-    Runs after safe_name: cleaning what came from the model is that one's job, naming is this one's.
-    """
-    stem = name.rsplit(".", 1)[0]
-    return f"{stem}.md" if stem.endswith("-plan") else f"{stem}-plan.md"
-
-
 def scenario_name(name):
     """A scenario is always .json, whatever it was asked for (Madde 167).
 
-    plan_name's sibling and it runs in the same place, after safe_name. The reason is not tidiness:
-    Madde 171 shuts .json to create_file and edit_file, so the tool that opens one has to land on
-    the extension the door guards. Two that disagreed would leave the door in front of a file
-    nothing writes, and the model holding a structure it could still edit as text.
+    Runs after safe_name, which is where a name from the model is cleaned: naming is this one's
+    job. The reason is not tidiness: Madde 171 shuts .json to create_file and edit_file, so the
+    tool that opens one has to land on the extension the door guards. Two that disagreed would
+    leave the door in front of a file nothing writes, and the model holding a structure it could
+    still edit as text.
     """
     return f"{name.rsplit('.', 1)[0]}.json"
 
@@ -487,7 +440,7 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
     """Run one call and answer the model in words. A miss is an answer, not a crash.
 
     The engine is here for the one tool that answers out of a model rather than out of the file
-    store (Madde 175). Optional, because the other eighteen neither take it nor notice it.
+    store (Madde 175). Optional, because the other seventeen neither take it nor notice it.
     """
     try:
         args = json.loads(arguments or "{}")
@@ -555,38 +508,6 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
             project_id, wanted, json.dumps(EMPTY_SCENARIO, indent=2, ensure_ascii=False)
         )
         return ToolResult(f"Started {written}.", written, written, "Started")
-
-    if name == "mark_step_done":
-        wanted = safe_name(args.get("name"))
-        content = file_store.read(project_id, wanted)
-        if content is None:
-            # Madde 207. write_plan pushed every name through plan_name, so a plan was always
-            # <name>-plan.md and this tool could look straight there. create_file does not: the name
-            # is the model's. So the name as written is tried first and the old shape is what is
-            # left to try -- without it a plan.md would be hunted for as plan-plan.md, and asking
-            # again lands in the same place, because plan-plan already ends in -plan.
-            wanted = plan_name(wanted)
-            content = file_store.read(project_id, wanted)
-        if content is None:
-            # Named as the fallback would have it: this sentence is the only place left telling the
-            # model what shape a plan's name is looked for in.
-            return ToolResult(f"There is no {wanted}.", None, wanted, "No plan by that name")
-        step = args.get("step")
-        marked, state = _ticked(content, step)
-        if state != "done":
-            # A miss is an answer here, the way it is everywhere else in this file: the model reads
-            # what happened and carries on rather than the turn falling over.
-            return ToolResult(
-                f"There is no step {step} waiting in {wanted}."
-                if state == "missing"
-                else f"Step {step} was already done.",
-                None,
-                wanted,
-                "Nothing to tick" if state == "missing" else "Already done",
-            )
-        file_store.write(project_id, wanted, marked)
-        # No card: the file was already there, which is the rule edit_file follows too.
-        return ToolResult(f"Step {step} is done in {wanted}.", None, wanted, "Ticked")
 
     if name == "edit_file":
         return _edit(file_store, project_id, args)

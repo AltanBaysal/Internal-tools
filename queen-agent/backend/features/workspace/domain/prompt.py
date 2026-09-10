@@ -208,8 +208,6 @@ START_A_SCENARIO = (
     "what is missing, and carry on when it is answered.\n"
     '- "You decide" covers that step only. Choose, show it, and still wait for the yes. Ask the '
     "next step's question as usual -- one \"you decide\" is not permission for the rest.\n"
-    "- Close an approved step with mark_step_done. It fills that step's box and touches nothing "
-    "else.\n"
     "\n"
     "Step 1 -- the plan\n"
     "- Do this on the chat's first turn only. Later turns carry on from where the chat already "
@@ -615,11 +613,3 @@ BUILD_PROMPTS = (
     "- This tool writes a Python file named after the structure, replacing what it wrote last "
     "time."
 )
-
-MARK_STEP_DONE = (
-    "Tick one step off a plan: its box is filled and nothing else in the file is touched. Call it "
-    "when the user has approved that step, so a later chat opening the plan reads where the work "
-    "stopped. A step already ticked is left as it is."
-)
-MARK_STEP_DONE_NAME = "Which plan, by the name it was written under."
-MARK_STEP_DONE_STEP = "Which step, by its number in the plan."
