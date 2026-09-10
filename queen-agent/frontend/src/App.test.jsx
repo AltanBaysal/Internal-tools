@@ -170,12 +170,12 @@ test("a skill can be picked before anything is typed", async () => {
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
 
   // No chat exists yet, so the choice is held for the one that will be born -- what the screen owes
   // is that the button now says what was picked.
   await waitFor(() =>
-    expect(screen.getByText("Generate prompts+", { selector: ".picker__name" })).toBeTruthy(),
+    expect(screen.getByText("Edit prompts", { selector: ".picker__name" })).toBeTruthy(),
   );
 });
 
@@ -204,7 +204,7 @@ test("the skill picked on the project screen is what the chat is born with", asy
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   fireEvent.change(screen.getByPlaceholderText("Start a new chat in this project..."), {
     target: { value: "Write it" },
   });
@@ -215,7 +215,7 @@ test("the skill picked on the project screen is what the chat is born with", asy
       ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
     );
     expect(started).toBeTruthy();
-    expect(JSON.parse(started[1].body).skill).toBe("generate-prompts-plus");
+    expect(JSON.parse(started[1].body).skill).toBe("edit-prompts");
   });
 });
 
@@ -844,6 +844,170 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
   await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("outline.md"));
 });
 
+// Madde 192. Until now a `file` frame was the only thing that brought the two lists up to date, so
+// anything that wrote without announcing one -- or a file the user dropped into the Drive folder
+// mid-turn -- stayed invisible until the screen was left and come back to.
+test("a turn ending brings the file list up to date, whatever wrote the file", async () => {
+  const owed = { id: "c1", title: "hello", messages: [] };
+  let onDisk = [];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      onDisk = [{ name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() }];
+      // No file frame at all: this stream announces nothing it wrote.
+      return Promise.resolve(
+        sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
+      );
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  // Asked before the turn: without this the assertion below would pass on a rail that was never
+  // stale in the first place.
+  await waitFor(() =>
+    expect(screen.getByTestId("file-rail").textContent).toContain("No files yet"),
+  );
+
+  fireEvent.change(box, { target: { value: "write the plan" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("plan.md"));
+});
+
+test("a turn ending reads the file that is open again", async () => {
+  // The heavier of the two: a stale list hides a name, a stale panel shows the wrong text under
+  // the right one.
+  const owed = { id: "c1", title: "hello", messages: [] };
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  let text = "the first draft";
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      text = "the second draft";
+      return Promise.resolve(
+        sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
+      );
+    }
+    if (path.endsWith("/files/plan.md")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...file, size: text.length, text }),
+      });
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => owed });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  fireEvent.click(await screen.findByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("the first draft")).toBeTruthy());
+
+  const box = screen.getByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "rewrite it" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await waitFor(() => expect(screen.getByText("the second draft")).toBeTruthy());
+});
+
+test("Refresh asks again with no turn to hang it on", async () => {
+  // What a turn's end cannot cover: a file put into the Drive folder by hand, and a look taken in
+  // the middle of a turn that is still running.
+  let onDisk = [];
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (String(path).endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText(/No files yet/)).toBeTruthy());
+
+  onDisk = [{ name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+});
+
+// Madde 194: everything between the question and the answer used to be three blinking dots, however
+// long the turn took.
+function _turnThatReports() {
+  const owed = { id: "c1", title: "hello", messages: [] };
+  let record = owed;
+  const { response, release } = gatedSse(
+    'event: chat\ndata: {"chat":"c1"}\n\n' +
+      'event: progress\ndata: {"round":1,"of":16,"tokens":0}\n\n' +
+      'event: progress\ndata: {"round":2,"of":16,"tokens":12300}\n\n',
+    "event: done\ndata: {}\n\n",
+  );
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      record = {
+        ...owed,
+        messages: [
+          {
+            role: "ai",
+            at: new Date().toISOString(),
+            text: "Done.",
+            usage: { sent: 9000, cached: 3000, answered: 100 },
+          },
+        ],
+      };
+      return Promise.resolve(response);
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => record });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  return release;
+}
+
+test("a running turn counts its rounds and its tokens on screen", async () => {
+  _turnThatReports();
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "go" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+
+  const strip = await screen.findByTestId("live-strip");
+  await waitFor(() => expect(strip.textContent).toContain("round 2/16"));
+  expect(strip.textContent).toContain("12.3k tokens");
+});
+
+test("when the turn ends the strip is gone and the stamp is in its place", async () => {
+  const release = _turnThatReports();
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "go" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByTestId("live-strip");
+
+  release();
+  await waitFor(() => expect(screen.queryByTestId("live-strip")).toBeNull());
+  // The bill rather than the volume, and that difference is on purpose: the strip answers how big
+  // the turn got, the stamp answers what it cost. 9000 sent and 100 answered; the 3000 cached
+  // travelled but is not charged for.
+  expect(screen.getByText(/9\.1k tokens/)).toBeTruthy();
+});
+
 test("a fault inside the stream shows the card and Try again asks through the one door", async () => {
   // Madde 88 kept the button and took away the finger that pressed it. It goes to the same
   // address as a sentence does, and carries no sentence: the question is already on disk.
@@ -1010,6 +1174,21 @@ test("a file open in the panel cannot be asked to go, and closing it brings the 
   expect(screen.queryByRole("button", { name: "Delete plan.md" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "×" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Delete plan.md" })).toBeTruthy());
+});
+
+test("a file is opened, the icon is pressed, and the text is on the clipboard", async () => {
+  // Madde 193's own how-it-is-seen, on a real screen. jsdom ships no clipboard, so the test hands
+  // one over and watches what goes into it.
+  const writeText = vi.fn(() => Promise.resolve());
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  withFile();
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(writeText).toHaveBeenCalledWith("body");
 });
 
 test("a file is not deleted until the question is answered", async () => {
@@ -1374,7 +1553,7 @@ function withChat() {
 
 // Its own fake rather than withChat's: this one serves a chat whose record carries a skill, which
 // is the only way the picker and the session can disagree.
-function withStoredSkill(stored = "generate-prompts-plus") {
+function withStoredSkill(stored = "edit-prompts") {
   const chat = { id: "c1", title: "Write the intro", skill: stored, messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
     // Today's app still PATCHes here. The fake answers it so a failure is the assertion below
@@ -1483,9 +1662,9 @@ test("picking a skill asks the server for nothing", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+"));
+  fireEvent.click(screen.getByText("Edit prompts"));
 
-  await waitFor(() => expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy());
+  await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "PATCH")).toHaveLength(0);
 });
 
@@ -1496,7 +1675,7 @@ test("a chat that stored a skill does not put it in the picker", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
 test("what the picker shows is what the message carries", async () => {
@@ -1516,7 +1695,7 @@ test("what the picker shows is what the message carries", async () => {
     expect(sent).toBeTruthy();
     expect(JSON.parse(sent[1].body).skill).toBe("");
   });
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
 // --- one door for every sentence (Madde 87) ------------------------------------------------------
@@ -1812,14 +1991,14 @@ test("the skill picked in a draft survives landing in the chat it created", asyn
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
 
   const box = screen.getByPlaceholderText("Reply...");
   fireEvent.change(box, { target: { value: "Write it" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
 });
 
 test("a draft's first answer never wears the old chat's transcript", async () => {
@@ -2097,8 +2276,8 @@ test("a skill picked in a chat does not ride into a chat born on the project scr
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+"));
-  await waitFor(() => expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy());
+  fireEvent.click(screen.getByText("Edit prompts"));
+  await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: "← Old" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
@@ -2149,25 +2328,25 @@ test("a skill picked in one chat stays that chat's own", async () => {
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   await waitFor(() =>
-    expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy(),
   );
 
   fireEvent.click(screen.getByText("Second", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 
   fireEvent.click(screen.getByText("First", { selector: ".sidebar__chat" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
 });
 
 test("a second draft does not wear the first one's skill", async () => {
   // Madde 105. The draft's selection is what the chat about to be born will own; once it is born,
   // the next draft starts with nothing.
-  const born = { id: "c1", title: "Write it", skill: "generate-prompts-plus", messages: [] };
+  const born = { id: "c1", title: "Write it", skill: "edit-prompts", messages: [] };
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (String(path).endsWith("/messages") && options?.method === "POST") {
       return Promise.resolve(
@@ -2191,7 +2370,7 @@ test("a second draft does not wear the first one's skill", async () => {
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
 
   const box = screen.getByPlaceholderText("Reply...");
   fireEvent.change(box, { target: { value: "Write it" } });
@@ -2201,7 +2380,7 @@ test("a second draft does not wear the first one's skill", async () => {
   fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
 test("picking a skill closes the menu", async () => {
@@ -2213,7 +2392,7 @@ test("picking a skill closes the menu", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
 });
 
@@ -2225,7 +2404,7 @@ test("in a draft, picking a skill closes the menu too", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   await waitFor(() => expect(screen.queryByText("SKILLS")).toBeNull());
 });
 
@@ -2403,7 +2582,7 @@ async function reborn() {
   cleanup();
   render(<App />);
   return waitFor(() =>
-    expect(screen.getByRole("button", { name: /Skills|Generate/ })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: /Skills|Edit prompts/ })).toBeTruthy(),
   );
 }
 
@@ -2411,9 +2590,9 @@ async function picked() {
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   return waitFor(() =>
-    expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy(),
+    expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy(),
   );
 }
 
@@ -2423,7 +2602,7 @@ test("a skill picked survives the app being mounted again", async () => {
   await picked();
 
   await reborn();
-  expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
 });
 
 test("the message sent after a reload carries the remembered skill", async () => {
@@ -2444,7 +2623,7 @@ test("the message sent after a reload carries the remembered skill", async () =>
       ([path, options]) => String(path).endsWith("/messages") && options?.method === "POST",
     );
     expect(sent).toBeTruthy();
-    expect(JSON.parse(sent[1].body).skill).toBe("generate-prompts-plus");
+    expect(JSON.parse(sent[1].body).skill).toBe("edit-prompts");
   });
 });
 
@@ -2488,4 +2667,75 @@ test("an empty prompt sends nothing", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: "Rename" })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: "Rename" }));
   expect(fetch.mock.calls.every(([, options]) => options?.method !== "PATCH")).toBe(true);
+});
+
+// --- editing a message and stepping between the versions (Madde 195) -----------------------------
+
+test("a message is edited, the chat carries on from there, and the arrow goes back", async () => {
+  // The madde's own "how it is seen", on the real screen: the old line is not gone, and the answer
+  // it was given is still the answer it was given.
+  const at = new Date().toISOString();
+  const alone = { index: 0, of: 1, versions: [""] };
+  const first = {
+    id: "c1",
+    title: "Write the intro",
+    messages: [
+      { role: "user", at, text: "Write the intro", variants: alone },
+      { role: "ai", at, text: "Here it is.", variants: alone },
+    ],
+  };
+  const edited = {
+    ...first,
+    messages: [
+      {
+        role: "user",
+        at,
+        text: "Write a shorter intro",
+        variants: { index: 1, of: 2, versions: ["", "l2"] },
+      },
+      { role: "ai", at, text: "Shorter.", variants: alone },
+    ],
+  };
+  // Which line the server would answer with. The browser never decides this: it asks for a version
+  // and reads back whatever came.
+  let open = first;
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      open = edited;
+      return Promise.resolve(
+        sseResponse(`event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n`),
+      );
+    }
+    if (path.endsWith("/version") && options?.method === "POST") {
+      open = JSON.parse(options.body).version === "" ? first : edited;
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => open });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  const { container } = render(<App />);
+  await waitFor(() => expect(screen.getByText("Here it is.")).toBeTruthy());
+  fireEvent.click(await screen.findByRole("button", { name: "Edit message" }));
+  // Madde 197: corrected where it stands, and the composer is left alone.
+  const field = container.querySelector(".msg__editing-input");
+  expect(field.value).toBe("Write the intro");
+  expect(screen.getByPlaceholderText("Reply...").value).toBe("");
+  fireEvent.change(field, { target: { value: "Write a shorter intro" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
+
+  await waitFor(() => expect(screen.getByText("Shorter.")).toBeTruthy());
+  const sent = JSON.parse(
+    fetch.mock.calls.find(([path, options]) => path.endsWith("/messages") && options?.method === "POST")[1].body,
+  );
+  expect(sent.from).toBe(0);
+  expect(screen.getByText("2/2")).toBeTruthy();
+
+  fireEvent.click(screen.getByRole("button", { name: "Previous version" }));
+  await waitFor(() => expect(screen.getByText("Here it is.")).toBeTruthy());
+  expect(screen.queryByText("Shorter.")).toBeNull();
 });

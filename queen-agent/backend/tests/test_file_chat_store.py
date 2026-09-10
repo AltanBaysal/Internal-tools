@@ -278,3 +278,64 @@ def test_an_answer_nobody_measured_writes_no_field(tmp_path):
     raw = Store(str(tmp_path))
     FileChatStore(raw).add("p1", _chat())
     assert "usage" not in raw.read_text("p1/chats/c1.json")
+
+
+# --- the lines a chat holds (Madde 195) ----------------------------------------------------------
+
+
+def _versioned():
+    from backend.features.workspace.domain.chat import Version
+
+    at = "2026-08-09T11:04:00+00:00"
+    return replace(
+        _chat(),
+        versions=(
+            Version(id="l2", parent="", at=1, messages=(Message(role="user", at=at, text="again"),)),
+        ),
+        active="l2",
+    )
+
+
+def test_the_lines_a_chat_holds_survive_the_disk(tmp_path):
+    FileChatStore(Store(str(tmp_path))).add("p1", _versioned())
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == _versioned()
+
+
+def test_a_version_writes_where_it_split_and_what_it_said(tmp_path):
+    # The prefix is deliberately not among them: it belongs to the line the version grew out of, and
+    # a copy of it here is the second place for one conversation to be written down.
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _versioned())
+    stored = json.loads(raw.read_text("p1/chats/c1.json"))
+    assert stored["active"] == "l2"
+    assert stored["versions"] == [
+        {
+            "id": "l2",
+            "parent": "",
+            "at": 1,
+            "messages": [{"role": "user", "at": "2026-08-09T11:04:00+00:00", "text": "again"}],
+        }
+    ]
+
+
+def test_a_chat_that_never_branched_writes_neither_field(tmp_path):
+    # The rule every other field on this record keeps: what is empty is not written down.
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _chat())
+    written = raw.read_text("p1/chats/c1.json")
+    assert "versions" not in written
+    assert "active" not in written
+
+
+def test_a_chat_written_before_this_reads_as_one_line(tmp_path):
+    # Every chat on disk today. No migration is owed: the fields fill themselves the first time
+    # somebody edits a message.
+    raw = Store(str(tmp_path))
+    raw.write_text(
+        "p1/chats/old.json",
+        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00",'
+        ' "messages": [{"role": "user", "at": "2026-08-09T11:04:00+00:00", "text": "hi"}]}',
+    )
+    old = FileChatStore(raw).get("p1", "old")
+    assert old.versions == ()
+    assert old.active == ""

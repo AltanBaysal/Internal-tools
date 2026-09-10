@@ -19,6 +19,8 @@ and the reading walks past that name rather than tripping on it.
 Nothing here touches the disk: this module answers which names, and the caller answers what is in
 them. That is what lets it be tested without a store.
 """
+from backend.features.workspace.domain.chat import active_messages
+
 BOX_LIMIT = 5
 """How many files a chat keeps in front of the model.
 
@@ -39,7 +41,9 @@ def _steps_newest_first(chat, steps):
     answer is written -- and the next round is inside the same turn.
     """
     yield from reversed(list(steps))
-    for message in reversed(chat.messages):
+    # The open line since Madde 195: the box answers what this conversation has looked at, and a
+    # file opened on a version nobody is standing on was not looked at by the turn being answered.
+    for message in reversed(active_messages(chat)):
         yield from reversed(list(message.calls))
 
 

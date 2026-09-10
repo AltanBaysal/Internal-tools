@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import ChatScreen from "./ChatScreen.jsx";
@@ -303,6 +303,102 @@ test("the stamp closes a message rather than opening it", () => {
     "msg__stamp",
     "msg__stamp",
   ]);
+});
+
+// --- the running turn, live (Madde 194) ----------------------------------------------------------
+//
+// The stamp fell at the end of a turn, so a turn that took a minute showed three blinking dots for a
+// minute. What matters is not looking frozen: the number can sit still for thirty seconds, and the
+// spinner is what says the screen is alive.
+
+const RUNNING_AT = { round: 4, of: 16, tokens: 12300 };
+
+test("the running turn says where it is, on one line, where the stamp sits", () => {
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />,
+  );
+  const strip = screen.getByTestId("live-strip");
+  // The same class the finished stamp wears: when the turn ends the two swap places, and two
+  // different-looking things trading places is a jump on the page.
+  expect(strip.className).toContain("msg__stamp");
+  expect(strip.textContent).toContain("round 4/16");
+  expect(strip.textContent).toContain("12.3k tokens");
+  // English, like the rest of QueenAgent's UI and like the stamp it turns into.
+  expect(strip.textContent).not.toContain("jeton");
+  expect(container.querySelector(".msg--waiting").lastElementChild).toBe(strip);
+});
+
+test("the strip carries a word that says nothing about the work", () => {
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+  // A gerund and an ellipsis. Deriving it from the tool name was asked against: the two pieces
+  // beside it already carry every fact there is. The whole line is pinned here -- one row, in this
+  // order, with nothing dividing it into columns.
+  //
+  // The two facts lead and the moving part trails (user, 7 September). The spinner's job is to
+  // move, and where it sits does not change whether it does.
+  expect(screen.getByTestId("live-strip").textContent).toMatch(
+    /^round 4\/16 · 12\.3k tokens · [A-Z][a-z]+ing…$/,
+  );
+});
+
+test("the spinner sits behind the numbers, in front of the word", () => {
+  // The text alone is no proof of an arrangement: the same letters can come out of any markup. The
+  // spinner draws nothing of its own, so where it stands is only sayable of its neighbours.
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+  const spinner = screen.getByTestId("live-strip").querySelector(".msg__spinner");
+  expect(spinner.previousElementSibling.textContent).toContain("12.3k tokens");
+  expect(spinner.nextElementSibling.textContent).toMatch(/^[A-Z][a-z]+ing…$/);
+});
+
+test("the word changes on its own", () => {
+  vi.useFakeTimers();
+  try {
+    render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+    const first = screen.getByTestId("live-strip").textContent;
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(screen.getByTestId("live-strip").textContent).not.toBe(first);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("the spinner does not wait for a timer", () => {
+  // The one thing that must never stall. A turn that has React busy has its intervals waiting
+  // too, and that is exactly the moment the screen has to look alive -- so the spinning is the
+  // stylesheet's, not JavaScript's.
+  vi.useFakeTimers();
+  try {
+    const { container } = render(
+      <ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />,
+    );
+    // Not .strip__spinner: workspace.css.test.js guards the deleted undo strip by forbidding the
+    // string ".strip" anywhere in the stylesheet, and that guard is worth more than the name.
+    expect(container.querySelector(".msg__spinner")).toBeTruthy();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a turn that has not reported yet gets the dots and no strip", () => {
+  // round 0/16 would be the screen claiming a measurement nobody took.
+  render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
+  expect(screen.queryByTestId("live-strip")).toBeNull();
+  expect(screen.getByTestId("thinking")).toBeTruthy();
+});
+
+test("the strip rides with the answer once the words start arriving", () => {
+  // The dots go when the first piece lands, and the turn is still running -- so the strip moves
+  // into the box that replaced them rather than disappearing with them.
+  render(
+    <ChatScreen
+      project={PROJECT}
+      chat={CHAT}
+      thinking
+      streamingText="Here it"
+      progress={RUNNING_AT}
+    />,
+  );
+  expect(screen.getByTestId("streaming").textContent).toContain("round 4/16");
 });
 
 test("both messages are drawn", () => {
@@ -702,10 +798,10 @@ test("the picker shows the skill it is handed, not the chat's", () => {
   // disagreement is shown the other way round -- a stored skill against a session that picked
   // nothing.
   render(
-    <ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "generate-prompts-plus" }} skill="" />,
+    <ChatScreen project={PROJECT} chat={{ ...CHAT, skill: "edit-prompts" }} skill="" />,
   );
   expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Generate prompts/ })).toBeNull();
+  expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
 test("picking a skill is passed up rather than kept here", () => {
@@ -718,8 +814,8 @@ test("picking a skill is passed up rather than kept here", () => {
       onSkillChange={onSkillChange}
     />,
   );
-  fireEvent.click(screen.getByText("Generate prompts+"));
-  expect(onSkillChange).toHaveBeenCalledWith("generate-prompts-plus");
+  fireEvent.click(screen.getByText("Edit prompts"));
+  expect(onSkillChange).toHaveBeenCalledWith("edit-prompts");
 });
 
 // --- what the answer spent (Madde 68) ------------------------------------------------------------
@@ -775,6 +871,178 @@ test("the chat screen draws the gauge from the record it read", () => {
 });
 
 // --- the mode a turn is sent in (Madde 91) -------------------------------------------------------
+
+// --- editing a message, and the versions it leaves behind (Madde 195) ----------------------------
+
+const ALONE = { index: 0, of: 1, versions: [""] };
+const BRANCHED = {
+  ...CHAT,
+  messages: [
+    { ...CHAT.messages[0], variants: { index: 1, of: 2, versions: ["", "l2"] } },
+    { ...CHAT.messages[1], variants: ALONE },
+  ],
+};
+
+test("a question can be edited and an answer cannot", () => {
+  // The point a turn starts from is the user's own message. An answer is not one sentence but a
+  // whole turn with its own calls, and there is nothing on disk that going back into it would mean.
+  //
+  // Named for the message rather than Edit alone: the mode picker in the foot already wears that
+  // word, and two controls with one name is a screen nobody can be told how to use.
+  render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(screen.getAllByRole("button", { name: "Edit message" })).toHaveLength(1);
+});
+
+// Madde 197: the sentence is corrected where it stands. What follows replaces the tests that
+// watched it travel to the composer -- the road itself is gone, not only its shape.
+
+function _editing(chat = CHAT, props = {}) {
+  const rendered = render(<ChatScreen project={PROJECT} chat={chat} {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: "Edit message" }));
+  return { ...rendered, field: rendered.container.querySelector(".msg__editing-input") };
+}
+
+test("pressing edit turns the message itself into something writable", () => {
+  const { container, field } = _editing();
+  expect(field.value).toBe("Write the intro");
+  // And the bubble is not sitting under it: one sentence is drawn once, either as text or as the
+  // field that is correcting it.
+  expect(container.querySelectorAll(".msg__bubble")).toHaveLength(0);
+});
+
+test("nothing lands in the composer", () => {
+  // The whole madde in one line. The sentence being corrected is on the message, and the box below
+  // is for the next thing the user says.
+  const { container } = _editing();
+  expect(container.querySelector(".composer__input").value).toBe("");
+});
+
+test("the tick sends the corrected sentence and says which message it starts from", () => {
+  // Without the index the server has no way to tell an edit from an ordinary reply, and the
+  // sentence would land on the end of the line instead of opening one.
+  const onSend = vi.fn();
+  const { field } = _editing(CHAT, { onSend });
+  fireEvent.change(field, { target: { value: "Write a shorter intro" } });
+  fireEvent.click(screen.getByRole("button", { name: "Confirm edit" }));
+  expect(onSend).toHaveBeenCalledWith("Write a shorter intro", 0);
+});
+
+test("the cross sends nothing and gives the message back", () => {
+  const onSend = vi.fn();
+  const { container, field } = _editing(CHAT, { onSend });
+  fireEvent.change(field, { target: { value: "something else" } });
+  fireEvent.click(screen.getByRole("button", { name: "Cancel edit" }));
+  expect(onSend).not.toHaveBeenCalled();
+  expect(container.querySelector(".msg__editing-input")).toBeNull();
+  // Asked of the bubble rather than of the page: the chat is named after this same sentence, so
+  // the text alone is on screen twice and proves nothing about the message.
+  expect(container.querySelector(".msg__bubble").textContent).toBe("Write the intro");
+});
+
+test("enter confirms and shift-enter does not", () => {
+  // The composer's own rule, so one habit works in both places. Two writable areas asking for two
+  // different keys is how both of them get used wrongly.
+  const onSend = vi.fn();
+  const { field } = _editing(CHAT, { onSend });
+  fireEvent.change(field, { target: { value: "Write a shorter intro" } });
+  fireEvent.keyDown(field, { key: "Enter", shiftKey: true });
+  expect(onSend).not.toHaveBeenCalled();
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(onSend).toHaveBeenCalledWith("Write a shorter intro", 0);
+});
+
+test("escape gives up, exactly as the cross does", () => {
+  const onSend = vi.fn();
+  const { container, field } = _editing(CHAT, { onSend });
+  fireEvent.keyDown(field, { key: "Escape" });
+  expect(onSend).not.toHaveBeenCalled();
+  expect(container.querySelector(".msg__editing-input")).toBeNull();
+});
+
+test("while a message is being corrected there is no second way in", () => {
+  // A pencil under an open field is a door whose meaning nobody can state: does pressing it throw
+  // away what has been typed and start again? The field is closed by the tick or the cross.
+  _editing();
+  expect(screen.queryByRole("button", { name: "Edit message" })).toBeNull();
+});
+
+test("an ordinary reply starts from nothing", () => {
+  const onSend = vi.fn();
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} onSend={onSend} />);
+  const box = container.querySelector(".composer__input");
+  fireEvent.change(box, { target: { value: "and the ending" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  expect(onSend).toHaveBeenCalledWith("and the ending", null);
+});
+
+test("a message that stands among versions says which one is showing", () => {
+  render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
+  // The second of two: the first line's own sentence, and the edit standing where it stood.
+  expect(screen.getByText("2/2")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Previous version" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Next version" })).toBeTruthy();
+});
+
+test("a message with nothing beside it draws no strip", () => {
+  // Every message carries the field, so without this the arrows would sit under every sentence in
+  // the chat offering to step through one thing.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".versions")).toBeNull();
+});
+
+test("the arrows ask for the version on either side", () => {
+  const onVersion = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={BRANCHED} onVersion={onVersion} />);
+  fireEvent.click(screen.getByRole("button", { name: "Previous version" }));
+  expect(onVersion).toHaveBeenCalledWith("");
+});
+
+test("at the end of the row there is nothing further to step to", () => {
+  const onVersion = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={BRANCHED} onVersion={onVersion} />);
+  expect(screen.getByRole("button", { name: "Next version" }).disabled).toBe(true);
+});
+
+// --- the strip and the pencil on one line (Madde 199) --------------------------------------------
+
+test("the strip and the pencil stand on the same line", () => {
+  // Both are notes under the bubble, and .msg is a column -- so put separately there, each took a
+  // line of its own and the two never stood beside each other.
+  const { container } = render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
+  const foot = container.querySelector(".msg__foot");
+  expect(foot.querySelector(".versions")).toBeTruthy();
+  expect(foot.querySelector(".msg__edit")).toBeTruthy();
+});
+
+test("the strip comes first and the pencil after it", () => {
+  // Where the sentence stands, then the way to change it. The other order would move the pencil
+  // according to whether a strip is there at all, and one button would sit in two places.
+  const { container } = render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
+  expect(container.querySelector(".msg__foot").firstElementChild.className).toBe("versions");
+});
+
+test("a message with nothing beside it keeps its pencil", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  const foot = container.querySelector(".msg__foot");
+  expect(foot.querySelector(".msg__edit")).toBeTruthy();
+  expect(foot.querySelector(".versions")).toBeNull();
+});
+
+test("an answer carries no line under it at all", () => {
+  // There is neither a pencil nor a strip there, and an empty row would do nothing but widen the
+  // column's own gap.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".msg--ai .msg__foot")).toBeNull();
+});
+
+test("while a message is being corrected the line is the strip alone", () => {
+  // Madde 197's rule stands: the pencil withdraws. The strip does not -- which version is being
+  // corrected has to stay readable while it is corrected.
+  const { container } = _editing(BRANCHED);
+  const foot = container.querySelector(".msg__foot");
+  expect(foot.querySelector(".versions")).toBeTruthy();
+  expect(foot.querySelector(".msg__edit")).toBeNull();
+});
 
 test("the foot puts the mode before the skill", () => {
   // Mode · Skills · model · Send. What the model may do at all is a question that comes before

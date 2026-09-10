@@ -54,29 +54,38 @@ def _structure(**changes):
     return structure
 
 
-def _tried(structure, character):
-    # Imported inside rather than at the top: a name that does not exist yet fails this whole
-    # file's collection, and a collection error stops the suite before any other red is seen.
-    from backend.features.workspace.domain.build_prompts import build_character_prompts
-
-    return build_character_prompts(structure, character)
-
-
-def _try_name(source, character):
-    from backend.features.workspace.domain.build_prompts import character_prompts_name
-
-    return character_prompts_name(source, character)
-
-
 def _prompts_of(module_text):
     # Parsed rather than run: what matters is that the file the user copies out is valid Python and
     # says what it was meant to say.
     return ast.literal_eval(ast.parse(module_text).body[0].value)
 
 
+def test_the_character_preview_constructor_is_gone():
+    # Madde 206. The tool goes, and these two were only ever reached from it: one built the
+    # preview, the other named the file it landed in.
+    from backend.features.workspace.domain import build_prompts
+
+    assert not hasattr(build_prompts, "build_character_prompts")
+    assert not hasattr(build_prompts, "character_prompts_name")
+
+
+def test_the_folding_rule_goes_with_the_name_it_was_written_for():
+    # folded existed to put a character's name inside a file name, and character_prompts_name was
+    # its last caller -- Madde 205 took the other one out of tools.py. Asked here rather than in a
+    # file of naming's own so that where this removal stops is written beside where it starts:
+    # unique_name stays, and three stores go on calling it.
+    from backend.features.workspace.domain import naming
+
+    assert not hasattr(naming, "folded")
+    assert naming.unique_name({"plan.md"}, "plan.md") == "plan-2.md"
+
+
 def test_a_frame_is_built_in_the_fixed_order():
+    # Madde 184. Everybody in front, then what is happening, then where. The place used to sit
+    # between two people to hold their descriptions apart; BREAK does that, and the price was that
+    # the action was read before the second person had been introduced.
     assert build_prompts(_structure()) == [
-        f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"
+        f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"
     ]
 
 
@@ -101,12 +110,14 @@ def test_two_characters_keep_the_frames_own_order():
 
 def test_a_frame_without_a_character_or_a_place_still_builds():
     built = build_prompts(_structure(frames=[_frame(characters={}, location="")]))
-    assert built == [f"{DEFAULT_QUALITY}, an action, a camera"]
+    assert built == [f"{DEFAULT_QUALITY}{BREAK}an action, a camera"]
 
 
 def test_a_frames_outfit_follows_its_character():
     built = build_prompts(_structure(frames=[_frame(characters={"aylin": ["gecelik"]})]))
-    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}, {GECELIK}, {BEDROOM}, an action, a camera"]
+    assert built == [
+        f"{DEFAULT_QUALITY}, {AYLIN}, {GECELIK}{BREAK}an action, a camera, {BEDROOM}"
+    ]
 
 
 def test_two_outfits_keep_the_order_they_were_written_in():
@@ -124,20 +135,22 @@ def test_each_characters_block_stays_together():
 
 def test_a_character_with_no_outfit_is_just_the_identity():
     built = build_prompts(_structure(frames=[_frame(characters={"aylin": []})]))
-    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"]
 
 
 def test_the_old_list_of_names_is_read_as_names_without_outfits():
     # Files written before outfits existed carry a plain list, and they keep building.
     built = build_prompts(_structure(frames=[_frame(characters=["aylin"])]))
-    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"]
 
 
 def test_a_single_outfit_written_without_a_list_is_read_as_one():
     # The instruction asks for a list; a model that writes one name plainly still means one name,
     # and reading it letter by letter would answer with nonsense.
     built = build_prompts(_structure(frames=[_frame(characters={"aylin": "gecelik"})]))
-    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}, {GECELIK}, {BEDROOM}, an action, a camera"]
+    assert built == [
+        f"{DEFAULT_QUALITY}, {AYLIN}, {GECELIK}{BREAK}an action, a camera, {BEDROOM}"
+    ]
 
 
 def test_an_unknown_outfit_names_the_frame_and_what_is_known():
@@ -158,7 +171,9 @@ def test_an_unknown_character_in_the_map_form_is_reported_too():
 def test_a_structure_with_no_outfits_map_still_builds():
     structure = _structure()
     del structure["outfits"]
-    assert build_prompts(structure) == [f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+    assert build_prompts(structure) == [
+        f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"
+    ]
 
 
 def test_the_quality_chain_always_comes_from_code():
@@ -166,7 +181,7 @@ def test_the_quality_chain_always_comes_from_code():
     # Madde 166 closes it: the chain is the same in every scenario, and one place saying so cannot
     # disagree with itself.
     assert build_prompts(_structure()) == [
-        f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"
+        f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"
     ]
 
 
@@ -184,7 +199,7 @@ def test_a_frames_people_field_is_ignored():
     # place saying how many people there are -- two places that can disagree, and a model doing
     # arithmetic it has no reason to be doing.
     built = build_prompts(_structure(frames=[_frame(people="1girl, 1boy")]))
-    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"]
 
 
 def test_the_count_rides_in_the_characters_own_tags():
@@ -197,12 +212,14 @@ def test_an_old_frames_camera_is_still_read():
     # No tool writes this field after Madde 173, but files on disk carry it and a rename cannot
     # turn what is already there into rubbish -- the rule the `shots` fallback keeps.
     built = build_prompts(_structure(frames=[_frame(camera="upper body, from side")]))
-    assert built[0].endswith("an action, upper body, from side")
+    assert built[0].endswith(f"an action, upper body, from side, {BEDROOM}")
 
 
 def test_loose_commas_and_spaces_are_tidied_away():
     structure = _structure(frames=[_frame(action="", camera=" ,, medium shot,")])
-    assert build_prompts(structure) == [f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, medium shot"]
+    assert build_prompts(structure) == [
+        f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}medium shot, {BEDROOM}"
+    ]
 
 
 def test_a_repeated_solo_tag_is_left_exactly_as_written():
@@ -217,7 +234,9 @@ def test_an_old_structure_still_reads_its_list_from_shots():
     # A rename cannot turn what is already on the user's disk into rubbish.
     structure = _structure()
     structure["shots"] = structure.pop("frames")
-    assert build_prompts(structure) == [f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera"]
+    assert build_prompts(structure) == [
+        f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}an action, a camera, {BEDROOM}"
+    ]
 
 
 def test_a_structure_carrying_both_lists_uses_frames():
@@ -282,60 +301,81 @@ def test_a_prompt_with_quotes_or_a_backslash_still_parses():
     assert _prompts_of(render_module(tricky)) == tricky
 
 
-def test_two_characters_split_around_the_camera():
-    # The order opens up around the camera: the lead in front of it, everyone else behind.
+def test_two_characters_stand_next_to_each_other():
+    # Madde 184. Nothing comes between them any more: the place used to, and separating two
+    # descriptions is what BREAK is for.
     built = build_prompts(_structure(frames=[_frame(characters={"aylin": [], "deniz": []})]))
-    assert built == [f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera{BREAK}{DENIZ}"]
+    assert built == [
+        f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}{DENIZ}{BREAK}an action, a camera, {BEDROOM}"
+    ]
 
 
-def test_who_leads_is_decided_frame_by_frame():
-    # The same two people can be in front in one frame and behind in the next: what decides is the
-    # order this frame wrote them in, nothing carried over from the maps.
+def test_who_comes_first_is_decided_frame_by_frame():
+    # The same two people can open one frame and close the next: what decides is the order this
+    # frame wrote them in, nothing carried over from the maps.
     frames = [
         _frame(characters={"aylin": [], "deniz": []}),
         _frame(characters={"deniz": [], "aylin": []}),
     ]
     built = build_prompts(_structure(frames=frames))
-    assert built[0].index(AYLIN) < built[0].index("a camera") < built[0].index(DENIZ)
-    assert built[1].index(DENIZ) < built[1].index("a camera") < built[1].index(AYLIN)
+    assert built[0].index(AYLIN) < built[0].index(DENIZ) < built[0].index("an action")
+    assert built[1].index(DENIZ) < built[1].index(AYLIN) < built[1].index("an action")
 
 
-def test_the_second_character_lands_past_the_camera():
+def test_the_second_character_lands_before_the_action():
+    # What the item is for: the action used to be read before the second person had been
+    # introduced, and a sentence about two people written under one is a sentence about one.
     frame = _frame(characters={"aylin": [], "deniz": []})
-    assert build_prompts(_structure(frames=[frame])) == [
-        f"{DEFAULT_QUALITY}, {AYLIN}, {BEDROOM}, an action, a camera{BREAK}{DENIZ}"
-    ]
+    built = build_prompts(_structure(frames=[frame]))[0]
+    assert built.index(DENIZ) < built.index("an action")
 
 
-def test_the_leading_characters_outfit_comes_before_the_place():
-    # The whole front half in one chain: identity, its outfit, then the place -- and whoever is left
-    # is nowhere near them.
-    frame = _frame(characters={"aylin": ["gecelik"], "deniz": []})
+def test_every_characters_outfit_stays_with_them_in_front_of_the_action():
+    # The neighbour rule is what tells an image model whose clothes are whose, and it is the one
+    # thing this item does not touch.
+    frame = _frame(characters={"aylin": ["gecelik"], "deniz": ["takim"]})
     built = build_prompts(_structure(frames=[frame]))[0]
     assert (
         built.index(AYLIN)
         < built.index(GECELIK)
-        < built.index(BEDROOM)
-        < built.index("a camera")
         < built.index(DENIZ)
+        < built.index(TAKIM)
+        < built.index("an action")
     )
 
 
-def test_the_outfit_of_whoever_comes_last_follows_them_past_the_camera():
-    frame = _frame(characters={"aylin": [], "deniz": ["takim"]})
+def test_what_is_happening_and_where_share_one_block_at_the_end():
+    frame = _frame(characters={"aylin": [], "deniz": []})
     built = build_prompts(_structure(frames=[frame]))[0]
-    assert built.index("a camera") < built.index(DENIZ) < built.index(TAKIM)
+    # Asserted first: without it the split below would read a prompt with no BREAK in it as one
+    # block and find everything in it, which is exactly how a test passes while nothing happened.
+    assert BREAK in built
+    assert built.split(BREAK)[-1] == f"an action, a camera, {BEDROOM}"
 
 
-def test_the_two_behind_are_cut_off_from_each_other_too():
-    # The cost the ordering fix accepted -- the two behind still bleeding into each other -- is not
-    # worth accepting once a separator exists. One rule with no exception: every character block
-    # gets a break, so the third is as separate from the second as the second is from the lead.
+def test_the_place_closes_the_prompt():
+    assert build_prompts(_structure())[0].endswith(BEDROOM)
+
+
+def test_the_action_block_belongs_to_nobody():
+    # The reason it is a block of its own rather than the tail of the last character: riding there
+    # it would attach to them, and a two-person action would become one person's.
     structure = _structure(
         characters={"aylin": AYLIN, "deniz": DENIZ, "eda": EDA},
         frames=[_frame(characters={"aylin": [], "deniz": [], "eda": []})],
     )
-    assert build_prompts(structure)[0].endswith(f"{DENIZ}{BREAK}{EDA}")
+    built = build_prompts(structure)[0]
+    assert f"{EDA}{BREAK}an action" in built
+
+
+def test_every_character_is_cut_off_from_every_other():
+    # One rule with no exception: the third is as separate from the second as the second is from
+    # the first.
+    structure = _structure(
+        characters={"aylin": AYLIN, "deniz": DENIZ, "eda": EDA},
+        frames=[_frame(characters={"aylin": [], "deniz": [], "eda": []})],
+    )
+    assert f"{AYLIN}{BREAK}{DENIZ}{BREAK}{EDA}" in build_prompts(structure)[0]
 
 
 def test_break_never_touches_a_comma():
@@ -352,81 +392,38 @@ def test_break_never_touches_a_comma():
     assert "BREAK," not in built
 
 
-def test_a_single_character_frame_carries_no_break():
-    # Nothing to separate: one block is one block.
-    assert "BREAK" not in build_prompts(_structure())[0]
+def test_a_single_character_frame_carries_one_break():
+    # The price of Madde 184, written down rather than discovered later. A one-person frame used to
+    # carry none; now the action block is separated from the one person too, so the action sits in
+    # a chunk with no subject in it. CLIP encodes the chunks apart and the model sees them joined,
+    # and with one person in the cast there is nobody for the action to be confused with. The gain
+    # is that the rule does not change with the size of the cast -- an order that varied could not
+    # answer "why did this frame come out different".
+    assert build_prompts(_structure())[0].count("BREAK") == 1
 
 
-def test_a_character_tried_alone_carries_no_break():
-    # The try path builds one character on their own, so a second block never exists.
-    assert all("BREAK" not in prompt for prompt in _tried(_structure(), "aylin"))
+def test_a_block_with_nothing_in_it_is_dropped_rather_than_left_hanging():
+    # A place and no action or camera: the closing block still has something in it, and the break
+    # in front of it is real.
+    built = build_prompts(_structure(frames=[_frame(action="", camera="")]))[0]
+    assert built == f"{DEFAULT_QUALITY}, {AYLIN}{BREAK}{BEDROOM}"
+
+    # With nothing at all to close the frame the break goes with the block it would have opened: a
+    # prompt ending on one would leave a chunk with nothing in it.
+    bare = build_prompts(_structure(frames=[_frame(action="", camera="", location="")]))[0]
+    assert bare == f"{DEFAULT_QUALITY}, {AYLIN}"
 
 
-def test_the_old_list_form_makes_its_first_name_the_leading_character():
+def test_the_old_list_form_keeps_the_order_it_was_written_in():
     built = build_prompts(_structure(frames=[_frame(characters=["aylin", "deniz"])]))[0]
-    assert built.index(AYLIN) < built.index("a camera") < built.index(DENIZ)
+    assert built.index(AYLIN) < built.index(DENIZ) < built.index("an action")
 
 
 def test_a_frame_with_nobody_in_it_still_builds():
-    # A landscape has no cast, and nothing about it is a miss: the empty block is dropped and the
-    # place, the action and the camera carry the frame on their own.
+    # A landscape has no cast, and nothing about it is a miss: the first block is the chain on its
+    # own, and the action, the camera and the place carry the frame.
     built = build_prompts(_structure(frames=[_frame(characters={})]))
-    assert built == [f"{DEFAULT_QUALITY}, {BEDROOM}, an action, a camera"]
-
-
-def test_a_character_is_tried_once_for_every_outfit():
-    # Character times outfits, in the order the map wrote them. No model in it: the same joining
-    # that builds a frame builds this, so what is seen here is what a frame will show.
-    assert _tried(_structure(), "aylin") == [
-        f"{DEFAULT_QUALITY}, {AYLIN}, {GECELIK}",
-        f"{DEFAULT_QUALITY}, {AYLIN}, {GUNLUK}",
-        f"{DEFAULT_QUALITY}, {AYLIN}, {TAKIM}",
-    ]
-
-
-def test_a_file_with_no_outfits_gives_the_identity_once():
-    structure = _structure()
-    del structure["outfits"]
-    assert _tried(structure, "aylin") == [f"{DEFAULT_QUALITY}, {AYLIN}"]
-
-
-def test_a_try_always_gets_the_chain_from_code():
-    assert _tried(_structure(), "aylin")[0] == f"{DEFAULT_QUALITY}, {AYLIN}, {GECELIK}"
-
-
-def test_a_try_ignores_the_files_own_quality():
-    # The same door, closed on the other path (Madde 166). A look at one character has to show what
-    # a frame will show, and a chain that held here but not there would make the look a lie.
-    tried = _tried(_structure(quality=QUALITY), "aylin")[0]
-    assert tried.startswith(f"{DEFAULT_QUALITY}, ")
-    assert "film grain" not in tried
-
-
-def test_trying_a_character_nobody_knows_names_what_is_known():
-    # The same sentence a frame gets, minus the frame number: there is no frame here.
-    with pytest.raises(BadStructure) as refused:
-        _tried(_structure(), "aylinn")
-    said = str(refused.value)
-    assert "aylinn" in said and "aylin" in said and "deniz" in said
-    assert "frame" not in said
-
-
-@pytest.mark.parametrize(
-    "source,character,expected",
-    [
-        ("bar-scene.json", "aylin", "bar-scene-aylin.py"),
-        ("intro-frames.json", "deniz", "intro-frames-deniz.py"),
-        ("noextension", "aylin", "noextension-aylin.py"),
-    ],
-)
-def test_the_try_is_named_after_the_source_and_the_character(source, character, expected):
-    assert _try_name(source, character) == expected
-
-
-def test_a_character_name_with_spaces_still_makes_a_clean_file_name():
-    # The name comes from the model like every other one, and a file name is not the place to find
-    # out what it did with it.
-    assert _try_name("bar-scene.json", "yan karakter") == "bar-scene-yan-karakter.py"
+    assert built == [f"{DEFAULT_QUALITY}{BREAK}an action, a camera, {BEDROOM}"]
 
 
 @pytest.mark.parametrize(

@@ -3,24 +3,31 @@ import { expect, test } from "vitest";
 import { SKILLS, skillName } from "./skills.js";
 
 // Madde 94 deleted five of the six and said more rows would come. Madde 101 is the first of them.
-test("the menu offers the flow and the builder, in that order", () => {
-  // The flow comes first: it is the road for somebody with nothing yet, and the builder is for
-  // somebody who already has a file.
-  expect(SKILLS.map((skill) => skill.id)).toEqual(["start-a-scenario", "generate-prompts-plus"]);
+test("the menu offers the flow and the editor, in that order", () => {
+  // The flow comes first: it is the road for somebody with nothing yet, and since Madde 186 it
+  // runs the whole way to the prompts. The second row is for somebody who has them already.
+  expect(SKILLS.map((skill) => skill.id)).toEqual(["start-a-scenario", "edit-prompts"]);
 });
 
 test("the two rows tell each other apart", () => {
-  // A picker whose rows describe the same job is a picker that says nothing. The builder's line is
-  // the one that has to name its condition: a structure file that already exists.
-  const builder = SKILLS.find((skill) => skill.id === "generate-prompts-plus");
-  expect(builder.detail).toMatch(/already have/i);
+  // A picker whose rows describe the same job is a picker that says nothing. The editor's line is
+  // the one that has to name its condition: prompts that already exist.
+  const editor = SKILLS.find((skill) => skill.id === "edit-prompts");
+  expect(editor.detail).toMatch(/already/i);
 });
 
-test("the builder's row says it changes prompts too", () => {
-  // Madde 113: the skill builds and edits. A row that only says "build" sends somebody looking
-  // for an editor that is not there.
-  const builder = SKILLS.find((skill) => skill.id === "generate-prompts-plus");
-  expect(builder.detail).toMatch(/change/i);
+test("the flow's row says it goes all the way to the prompts", () => {
+  // Madde 186 removed the handoff. A row promising only a scene list would send somebody back to
+  // the menu for a second skill that no longer exists.
+  const flow = SKILLS.find((skill) => skill.id === "start-a-scenario");
+  expect(flow.detail).toMatch(/prompt/i);
+});
+
+test("the editor's row says it changes what is there", () => {
+  // A row that only says "build" sends somebody looking for an editor; a row that only says
+  // "prompts" reads exactly like the first one.
+  const editor = SKILLS.find((skill) => skill.id === "edit-prompts");
+  expect(editor.detail).toMatch(/fix|change/i);
 });
 
 test("each row says what it does", () => {
@@ -36,7 +43,13 @@ test("no row promises to stay in the chat any more", () => {
 });
 
 test("a name is the label, not the id", () => {
-  expect(skillName("generate-prompts-plus")).toBe("Generate prompts+");
+  expect(skillName("edit-prompts")).toBe("Edit prompts");
+});
+
+test("the name that was renamed away keeps its id on the screen", () => {
+  // Madde 186. A chat sent under the old name still opens, and the button says something rather
+  // than going blank -- the same road every deleted skill takes.
+  expect(skillName("generate-prompts-plus")).toBe("generate-prompts-plus");
 });
 
 test("the flow's name is the label, not the id", () => {

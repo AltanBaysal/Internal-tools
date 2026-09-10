@@ -4,7 +4,7 @@ from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
 CONVERSATION = [{"role": "user", "content": "a"}, {"role": "ai", "content": "b"}]
 
 
-DEFAULT = "grok-build-0.1"
+DEFAULT = "grok-4.3"
 
 
 def _engine(client, prompt_writer=DEFAULT, **others):
@@ -42,7 +42,11 @@ class FakeClient:
 def test_the_system_prompt_leads_and_the_roles_are_translated():
     client = FakeClient()
     list(_engine(client).stream(CONVERSATION))
-    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
+    assert client.seen[0]["role"] == "system"
+    # Leads it rather than is all of it (Madde 196): what follows is the owner's second part, and
+    # this app's own page is what comes first. Pinning the whole string would put this test in the
+    # way of the one thing that madde exists for -- somebody writing that part.
+    assert client.seen[0]["content"].startswith(SYSTEM_PROMPT)
     # Disk keeps the design's own word; xAI is told OpenAI's.
     assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
 
@@ -54,7 +58,9 @@ def test_the_fixed_part_leads_and_the_last_word_stays_last():
     client = FakeClient()
     tail = {"role": "system", "content": "the instruction"}
     list(_engine(client).stream(CONVERSATION + [tail]))
-    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
+    # The head is asked about the same way as above, and for the same reason.
+    assert client.seen[0]["role"] == "system"
+    assert client.seen[0]["content"].startswith(SYSTEM_PROMPT)
     assert client.seen[-1] == tail
 
 
@@ -71,9 +77,9 @@ def test_write_once_goes_to_the_prompt_writer_rather_than_the_turns_model():
     # is a role in config.py, and the user does not pick it (their decision, 5 Sep).
     agent, writer = FakeClient(), FakeClient()
     engine = XaiEngine(
-        {"deepseek-v4-flash": agent, "grok-build-0.1": writer},
+        {"deepseek-v4-flash": agent, "grok-4.3": writer},
         default="deepseek-v4-flash",
-        prompt_writer="grok-build-0.1",
+        prompt_writer="grok-4.3",
     )
     engine.write_once("you write prompts", "frame 3")
     assert writer.seen is not None
@@ -131,12 +137,67 @@ def test_the_turn_is_spoken_by_the_model_it_names():
     assert grok.seen is None
 
 
+# --- the second part of the system prompt (Madde 196) --------------------------------------------
+
+
+def _with_suffix(monkeypatch, text):
+    """The module's own constant, moved for one test.
+
+    Patched on the module rather than handed in: the text is one of this app's texts and lives where
+    the others do (Madde 189). What the engine must do is read it when the request is built, so a
+    suffix written today is in the very next turn.
+    """
+    from backend.features.workspace.domain import prompt
+
+    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", text)
+
+
+def test_the_second_part_rides_at_the_end_of_the_system_message(monkeypatch):
+    _with_suffix(monkeypatch, "This workspace is used for X.")
+    client = FakeClient()
+    list(_engine(client).stream(CONVERSATION))
+    said = client.seen[0]["content"]
+    assert said.startswith(SYSTEM_PROMPT)
+    assert said.endswith("This workspace is used for X.")
+
+
+def test_an_empty_second_part_leaves_the_request_exactly_as_it_was(monkeypatch):
+    # Byte for byte. The system prompt is the fixed head the service files this conversation's
+    # cached prefix under, and one trailing blank line would move that prefix on the first day --
+    # for a sentence nobody has written yet.
+    _with_suffix(monkeypatch, "")
+    client = FakeClient()
+    list(_engine(client).stream(CONVERSATION))
+    assert client.seen[0] == {"role": "system", "content": SYSTEM_PROMPT}
+
+
+def test_the_second_part_reaches_the_system_message_and_nothing_else(monkeypatch):
+    _with_suffix(monkeypatch, "This workspace is used for X.")
+    client = FakeClient()
+    list(_engine(client).stream(CONVERSATION))
+    assert client.seen[1:] == [
+        {"role": "user", "content": "a"},
+        {"role": "assistant", "content": "b"},
+    ]
+
+
+def test_the_frame_writer_is_handed_the_text_it_was_given(monkeypatch):
+    # Madde 175's system prompt is the caller's, one sentence about one job, and this app's own page
+    # about tools and files has never gone with it. Neither does its second part.
+    _with_suffix(monkeypatch, "This workspace is used for X.")
+    client = FakeClient()
+    _engine(client).write_once("Write one action line.", "aylin, in the kitchen")
+    assert client.seen[0] == {"role": "system", "content": "Write one action line."}
+
+
 def test_an_unknown_or_absent_model_is_spoken_by_the_default():
     # The same rule config.engine_for keeps, held here as well because this is the layer a record
     # written before Madde 146 actually reaches: its messages name no model at all.
     grok, flash = FakeClient(), FakeClient()
     engine = _engine(grok, **{"deepseek-v4-flash": flash})
-    list(engine.stream(CONVERSATION, model="grok-4.3"))
+    # A name that can never be wired. It used to be grok-4.3, which Madde 183 turned into the
+    # default above -- and an unknown example that becomes known tests nothing at all.
+    list(engine.stream(CONVERSATION, model="a-model-nobody-wired"))
     list(engine.stream(CONVERSATION))
     assert flash.seen is None
     assert grok.seen is not None

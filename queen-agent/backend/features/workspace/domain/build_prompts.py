@@ -5,7 +5,6 @@ that cannot be talked out of the rules. Assembly is exactly what a model must no
 character copied into forty frames drifts, a character resolved by code cannot.
 """
 from backend.features.workspace.domain.errors import BadStructure
-from backend.features.workspace.domain.naming import folded
 
 # The chain every prompt opens with. In code rather than in each structure file since Madde 110: it
 # is the same in every scenario, and a model writing it meant a model copying it out of the schema
@@ -46,32 +45,42 @@ def build_prompts(structure):
     misses, built = [], []
     for number, frame in enumerate(frames, start=1):
         # The order is fixed here rather than in the file: a structure that could reorder itself
-        # would answer "why did this frame come out different" with "it varies". It also keeps two
-        # descriptions apart -- whoever leads opens the prompt, everyone else closes it, and the
-        # place, the action and the camera sit in between so the two do not bleed together.
+        # would answer "why did this frame come out different" with "it varies". Everybody comes
+        # first, each in a block of their own, and what is happening closes the prompt (Madde 184).
+        #
+        # The place and the action used to sit between two people, to hold their descriptions
+        # apart. BREAK is what does that -- the encoder splits on it and reads the chunks apart
+        # (Madde 138/139) -- so the distance was a weak second measure, and it was paid for by
+        # having the action read before the second person had been introduced.
         #
         # Nothing here counts anybody. Since Madde 166 the count rides inside a character's own
         # entry -- 1girl, woman in her mid 20s -- which is the one place it lands beside the person
         # it counts, and it arrives with them rather than being worked out and placed.
-        lead = [DEFAULT_QUALITY]
-        # Whoever the frame wrote first leads it. No field names them -- the order already carries
+        #
+        # Whoever the frame wrote first opens it. No field names them -- the order already carries
         # it, and a second place saying the same thing is a place that can disagree.
         in_frame = cast_of(frame)
-        lead.extend(_block(in_frame[:1], characters, outfits, number, misses))
-        place = frame.get("location") or ""
-        if place:
-            lead.append(_looked_up(place, locations, "locations", number, misses))
-        lead.append(frame.get("action", ""))
-        lead.append(frame.get("camera", ""))
-        # Everyone behind the lead gets a block of their own rather than a comma. Distance alone
-        # only moves two descriptions apart; the break makes the encoder read them apart, and it
-        # costs nothing to give the third the same separation as the second (Madde 139).
-        blocks = [lead] + [
+        opening = [DEFAULT_QUALITY] + _block(in_frame[:1], characters, outfits, number, misses)
+        # Everyone after them gets a block rather than a comma: it costs nothing to give the third
+        # the same separation as the second (Madde 139).
+        behind = [
             _block([person], characters, outfits, number, misses) for person in in_frame[1:]
         ]
+        # A block of its own rather than the tail of whoever came last: riding there it would
+        # attach to them, and a two-person action would be read as one person's. The price is a
+        # one-person frame, where the action now sits in a chunk with no subject in it -- the
+        # chunks are joined after they are encoded and there is nobody to confuse it with, and an
+        # order that changed with the size of the cast could not answer why one frame came out
+        # different. Reasoned rather than measured, and a trial is where it will be seen.
+        closing = [frame.get("action", ""), frame.get("camera", "")]
+        place = frame.get("location") or ""
+        if place:
+            closing.append(_looked_up(place, locations, "locations", number, misses))
         # Each block carries its own commas and the break never touches one. Empty blocks are
         # dropped rather than joined: a prompt ending on a break, or holding two side by side,
-        # would open a chunk with nothing in it.
+        # would open a chunk with nothing in it -- which is what a frame with nothing happening
+        # anywhere would leave behind.
+        blocks = [opening] + behind + [closing]
         built.append(BREAK.join(tags for tags in map(_tags, blocks) if tags))
 
     # Every miss at once and nothing written: one pass fixes them all, and a dirty structure never
@@ -79,33 +88,6 @@ def build_prompts(structure):
     if misses:
         raise BadStructure("\n".join(misses))
     return built
-
-
-def build_character_prompts(structure, character):
-    """One character on their own, once for every outfit the file names.
-
-    The same joining a frame goes through, so what is seen here is what a frame will show -- and
-    since Madde 166 that includes the count, which travels inside the character's own entry and so
-    reads here exactly as it will read in a frame. The chain comes from code on both paths: one that
-    held in a frame and not in a look would make the look a lie.
-    """
-    if not isinstance(structure, dict):
-        raise BadStructure(
-            "A structure file is a JSON object with characters, locations and frames."
-        )
-
-    characters = structure.get("characters") or {}
-    if character not in characters:
-        # The sentence a frame gets, without the frame number: there is no frame to name.
-        raise BadStructure(
-            f"{character} is not in characters; known: {', '.join(sorted(characters)) or 'nothing'}"
-        )
-
-    identity = characters[character]
-    outfits = structure.get("outfits") or {}
-    if not outfits:
-        return [_tags([DEFAULT_QUALITY, identity])]
-    return [_tags([DEFAULT_QUALITY, identity, worn]) for worn in outfits.values()]
 
 
 def render_module(prompts):
@@ -120,13 +102,6 @@ def prompts_name(source):
     """The output is the source under a new extension, so a project can hold several scenarios."""
     stem, dot, _ = source.rpartition(".")
     return f"{stem if dot else source}.py"
-
-
-def character_prompts_name(source, character):
-    """Named after both, so two characters can be tried side by side and neither one lands in the
-    scene's own list."""
-    stem, dot, _ = source.rpartition(".")
-    return f"{stem if dot else source}-{folded(character)}.py"
 
 
 def cast_of(frame):

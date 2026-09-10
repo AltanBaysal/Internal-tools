@@ -89,6 +89,16 @@ def _frames(body):
     return [line[len("event: ") :] for line in body.splitlines() if line.startswith("event: ")]
 
 
+def _steps(body):
+    """The same list with the turn's heartbeat taken out (Madde 194).
+
+    A progress frame goes out at the top of every round and again whenever the count moves, so it
+    lands between any two frames a test might be comparing. Where it lands is its own test's
+    question, not every other test's.
+    """
+    return [name for name in _frames(body) if name != "progress"]
+
+
 def _named(body):
     # The chat the stream's first frame named.
     return json.loads(body.split("data: ", 1)[1].splitlines()[0])["chat"]
@@ -423,6 +433,22 @@ def test_a_call_travels_as_its_own_event(tmp_path):
     assert body.index("event: call") < body.index("event: done")
 
 
+def test_a_running_turn_reaches_the_browser_as_progress(tmp_path):
+    # Madde 194. The turn already knew which round it was on and what it had spent; nothing carried
+    # that out to the screen, so a long turn showed three blinking dots and nothing else.
+    engine = ScriptedEngine(
+        [[{"tool_calls": [_tool_call("read_file", name="ghost.md")]}], [{"text": "none"}]]
+    )
+    client = _client(tmp_path, engine=engine)
+    _pid, _cid, body = _first_turn(client)
+    assert "event: progress" in body
+    said = json.loads(body.split("event: progress\ndata: ", 1)[1].splitlines()[0])
+    assert said == {"round": 1, "of": 16, "tokens": 0}
+    # Ahead of the work it is reporting on, or the first thing the screen hears is that a round it
+    # never saw begin has ended.
+    assert body.index("event: progress") < body.index("event: call")
+
+
 def test_the_stored_chat_hands_back_the_calls(tmp_path):
     client = _client(
         tmp_path,
@@ -636,7 +662,7 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     other = _client(tmp_path / "second", engine=with_skill)
     opid = _project(other)
     other.post(
-        f"/api/projects/{opid}/messages", json={"text": "hello", "skill": "generate-prompts-plus"}
+        f"/api/projects/{opid}/messages", json={"text": "hello", "skill": "edit-prompts"}
     ).get_data()
 
     # No instruction with no skill selected. The file names are not one: since Madde 127 they ride
@@ -650,7 +676,7 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     # claim is unchanged -- the road from the composer to the engine is one road.
     assert with_skill.seen[-1] == {
         "role": "system",
-        "content": instruction_for("generate-prompts-plus"),
+        "content": instruction_for("edit-prompts"),
     }
 
 
@@ -759,7 +785,9 @@ def test_the_answer_left_at_the_door_lets_the_turn_finish(tmp_path):
     pid, cid = _started(client)
     client.post(f"/api/projects/{pid}/chats/{cid}/permission", json={"allowed": True})
     body = _write(client, pid, cid)
-    assert _frames(body) == ["chat", "permission", "file-start", "file", "call", "chunk", "done"]
+    # Madde 194's progress frames are dropped: this test is about the order of the door, the work
+    # and the answer, and a signal that fires every round says nothing about that order.
+    assert _steps(body) == ["chat", "permission", "file-start", "file", "call", "chunk", "done"]
     assert [file["name"] for file in client.get(f"/api/projects/{pid}/files").get_json()] == [
         "plan.md"
     ]
@@ -783,7 +811,7 @@ def test_a_refusal_at_the_door_writes_no_file_and_the_turn_still_ends(tmp_path):
         json={"allowed": False, "reason": "not that one"},
     )
     body = _write(client, pid, cid)
-    assert _frames(body) == ["chat", "permission", "call", "chunk", "done"]
+    assert _steps(body) == ["chat", "permission", "call", "chunk", "done"]
     assert client.get(f"/api/projects/{pid}/files").get_json() == []
 
 
@@ -795,6 +823,87 @@ def test_answering_a_chat_that_is_not_there_is_a_404(tmp_path):
     answered = client.post(f"/api/projects/{pid}/chats/nope/permission", json={"allowed": True})
     assert answered.status_code == 404
     assert answered.get_json() == {"error": "chat not found"}
+
+
+# --- versions of one conversation (Madde 195) ----------------------------------------------------
+
+
+def _edited(client, pid, chat_id, text, at):
+    return client.post(
+        f"/api/projects/{pid}/messages", json={"chat": chat_id, "text": text, "from": at}
+    ).get_data(as_text=True)
+
+
+def test_the_transcript_that_comes_back_is_the_open_line(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    _edited(client, pid, cid, "Write a shorter intro", 0)
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [message["text"] for message in said] == ["Write a shorter intro", "Done."]
+
+
+def test_every_message_carries_the_options_it_stands_among(tmp_path):
+    # Always present, like calls: the browser draws from what it is handed, and a field that comes
+    # and goes makes every reader check for it first.
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    _edited(client, pid, cid, "Write a shorter intro", 0)
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    standing = said[0]["variants"]
+    # The name of a version is minted, so what is pinned is the shape: the first line is the empty
+    # name and comes first, and the open one is the second of two.
+    assert (standing["index"], standing["of"]) == (1, 2)
+    assert standing["versions"][0] == ""
+    assert standing["versions"][1]
+    assert said[1]["variants"]["of"] == 1
+
+
+def test_the_answer_to_an_edited_message_is_written_into_its_own_line(tmp_path):
+    # The whole reason the edit goes through this door: the turn runs exactly as it always did, and
+    # what changes is only which line it lands on.
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    body = _edited(client, pid, cid, "Write a shorter intro", 0)
+    assert "chunk" in _frames(body)
+    stored = json.loads(
+        (tmp_path / pid / "chats" / f"{cid}.json").read_text(encoding="utf-8")
+    )
+    assert [m["text"] for m in stored["messages"]] == ["Write the intro", "Done."]
+    assert [m["text"] for m in stored["versions"][0]["messages"]] == [
+        "Write a shorter intro",
+        "Done.",
+    ]
+
+
+def test_the_door_that_changes_which_version_is_open(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    _edited(client, pid, cid, "Write a shorter intro", 0)
+    back = client.post(f"/api/projects/{pid}/chats/{cid}/version", json={"version": ""})
+    assert back.status_code == 200
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [message["text"] for message in said] == ["Write the intro", "Done."]
+
+
+def test_a_version_nobody_wrote_is_refused_and_changes_nothing(tmp_path):
+    client = _client(tmp_path)
+    pid, cid = _started(client, "Write the intro")
+    _edited(client, pid, cid, "Write a shorter intro", 0)
+    refused = client.post(f"/api/projects/{pid}/chats/{cid}/version", json={"version": "ghost"})
+    assert refused.status_code == 404
+    assert refused.get_json() == {"error": "version not found"}
+    said = client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["messages"]
+    assert [message["text"] for message in said] == ["Write a shorter intro", "Done."]
+
+
+def test_editing_in_a_chat_that_does_not_exist_is_refused(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    refused = client.post(
+        f"/api/projects/{pid}/messages", json={"chat": "ghost", "text": "hi", "from": 0}
+    )
+    assert refused.status_code == 404
+    assert refused.get_json() == {"error": "chat not found"}
 
 
 def test_the_beat_is_a_frame_the_browser_drops(tmp_path):

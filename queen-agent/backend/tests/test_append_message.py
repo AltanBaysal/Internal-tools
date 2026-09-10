@@ -143,3 +143,109 @@ def test_starting_a_chat_needs_its_project_to_exist(tmp_path):
     projects, chats = _stores(tmp_path)
     with pytest.raises(Exception):
         _made(projects, chats, "ghost", "c1", "hi", "2026-08-09T11:04:00.000+00:00")
+
+
+# --- editing a message opens a version (Madde 195) -----------------------------------------------
+
+LATER = "2026-08-09T12:00:00.000+00:00"
+
+
+def _answered(tmp_path):
+    """A chat of two turns: asked, answered, asked again, answered again."""
+    projects, chats = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", "Done.", LATER, role="ai")
+    append_message(chats, "p1", "c1", "Write the ending", LATER)
+    append_message(chats, "p1", "c1", "Done twice.", LATER, role="ai")
+    return projects, chats
+
+
+def test_editing_a_message_opens_a_version_where_it_stood(tmp_path):
+    # The index is how much of the open line the new one keeps, so a message edited at 2 keeps the
+    # two before it and nothing after.
+    _, chats = _answered(tmp_path)
+    chat = append_message(
+        chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2"
+    )
+    assert [(v.id, v.parent, v.at) for v in chat.versions] == [("l2", "", 2)]
+    assert [m.text for m in chat.versions[0].messages] == ["Write a shorter ending"]
+
+
+def test_the_new_version_is_the_one_that_is_open(tmp_path):
+    from backend.features.workspace.domain.chat import active_messages
+
+    _, chats = _answered(tmp_path)
+    chat = append_message(
+        chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2"
+    )
+    assert chat.active == "l2"
+    assert [m.text for m in active_messages(chat)] == [
+        "Write the intro",
+        "Done.",
+        "Write a shorter ending",
+    ]
+
+
+def test_the_message_that_was_edited_is_not_carried_over(tmp_path):
+    # The point of the whole madde: the sentence the user changed their mind about does not travel
+    # into the line they changed it on.
+    from backend.features.workspace.domain.chat import active_messages
+
+    _, chats = _answered(tmp_path)
+    chat = append_message(
+        chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2"
+    )
+    assert "Write the ending" not in [m.text for m in active_messages(chat)]
+
+
+def test_the_line_that_was_left_keeps_everything_it_had(tmp_path):
+    # FOUNDATION 1: opening a version is not cutting the old turns off. They are still there, and
+    # the arrows are what reach them.
+    _, chats = _answered(tmp_path)
+    append_message(chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2")
+    kept = chats.get("p1", "c1")
+    assert [m.text for m in kept.messages] == [
+        "Write the intro",
+        "Done.",
+        "Write the ending",
+        "Done twice.",
+    ]
+
+
+def test_a_version_of_a_version_splits_from_the_open_one(tmp_path):
+    # Whichever line the user is standing on is the one that branches -- not the first line, which
+    # they may have walked away from several edits ago.
+    _, chats = _answered(tmp_path)
+    append_message(chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2")
+    append_message(chats, "p1", "c1", "Done shortly.", LATER, role="ai")
+    chat = append_message(chats, "p1", "c1", "Shorter still", LATER, branch_at=2, line_id="l3")
+    assert [(v.id, v.parent, v.at) for v in chat.versions] == [("l2", "", 2), ("l3", "l2", 2)]
+
+
+def test_a_message_with_no_index_lands_on_the_open_line(tmp_path):
+    # The answer to a version's question belongs to that version. Appending to the first line here
+    # would answer a question nobody asked and leave the open one waiting for ever.
+    from backend.features.workspace.domain.chat import active_messages
+
+    _, chats = _answered(tmp_path)
+    append_message(chats, "p1", "c1", "Write a shorter ending", LATER, branch_at=2, line_id="l2")
+    chat = append_message(chats, "p1", "c1", "Done shortly.", LATER, role="ai")
+    assert [m.text for m in chat.versions[0].messages] == [
+        "Write a shorter ending",
+        "Done shortly.",
+    ]
+    assert [m.text for m in active_messages(chat)][-1] == "Done shortly."
+    assert len(chat.messages) == 4
+
+
+def test_an_empty_sentence_is_refused_on_a_version_too(tmp_path):
+    _, chats = _answered(tmp_path)
+    with pytest.raises(EmptyMessage):
+        append_message(chats, "p1", "c1", "   ", LATER, branch_at=2, line_id="l2")
+    # And nothing was opened on the way to refusing it.
+    assert chats.get("p1", "c1").versions == ()
+
+
+def test_editing_in_a_chat_that_does_not_exist_is_refused(tmp_path):
+    _, chats = _seeded(tmp_path)
+    with pytest.raises(ChatNotFound):
+        append_message(chats, "p1", "ghost", "hi", LATER, branch_at=0, line_id="l2")

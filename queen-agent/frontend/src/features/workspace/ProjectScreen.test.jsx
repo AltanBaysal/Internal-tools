@@ -123,6 +123,30 @@ test("clicking a file opens it beside the grid, which drops to one column", () =
   expect(container.querySelector(".project-grid").className).toContain("project-grid--reading");
 });
 
+// Madde 192: the same button as the rail's, doing the same thing -- one action reads the list and
+// whatever file is open, so there is nothing for the user to choose between.
+test("the file column carries a Refresh, and pressing it asks", () => {
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  const onRefresh = vi.fn();
+  render(<ProjectScreen project={PROJECT} files={files} onRefresh={onRefresh} />);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(onRefresh).toHaveBeenCalled();
+});
+
+test("with the panel open the Refresh travels into it", () => {
+  // The column it stood in is gone, and one screen holding two of these would be two buttons for
+  // one action.
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  const reading = { name: "outline.md", file: { ...files[0], size: 7, text: "read me" } };
+  const onRefresh = vi.fn();
+  render(
+    <ProjectScreen project={PROJECT} files={files} reading={reading} onRefresh={onRefresh} />,
+  );
+  expect(screen.getAllByRole("button", { name: "Refresh" }).length).toBe(1);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  expect(onRefresh).toHaveBeenCalled();
+});
+
 // The panel is showing the files column's subject, so leaving the column standing would put the
 // same list on the screen twice. The chat rail keeps its list for the opposite reason: there the
 // reader is the rail widened, and the list is its neighbour rather than its copy.
@@ -218,8 +242,8 @@ test("picking a skill is passed up rather than kept here", () => {
   // App is what holds it.
   const onSkillChange = vi.fn();
   render(<ProjectScreen project={PROJECT} skillsOpen onSkillChange={onSkillChange} />);
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
-  expect(onSkillChange).toHaveBeenCalledWith("generate-prompts-plus");
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+  expect(onSkillChange).toHaveBeenCalledWith("edit-prompts");
 });
 
 test("the model is pressed here too, and the choice is passed up", () => {
@@ -246,7 +270,7 @@ test("whether the picker is open is told to the screen rather than decided by it
   // open cannot be a secret this screen keeps.
   const onToggleSkills = vi.fn();
   render(<ProjectScreen project={PROJECT} onToggleSkills={onToggleSkills} />);
-  expect(screen.queryByText("Generate prompts+", { selector: ".menu__item-name" })).toBeNull();
+  expect(screen.queryByText("Edit prompts", { selector: ".menu__item-name" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   expect(onToggleSkills).toHaveBeenCalled();
 });

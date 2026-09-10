@@ -24,6 +24,8 @@ export default function Composer({
   onStop,
   onSubmit,
 }) {
+  // Nothing fills this from outside. Madde 195 did, for the message being edited; Madde 197 moved
+  // that correction into the message's own place, and the box went back to holding one thing.
   const [draft, setDraft] = useState("");
   const ready = draft.trim().length > 0;
   // An empty draft is what blocks sending; blocking a stop with it would kill the control in the

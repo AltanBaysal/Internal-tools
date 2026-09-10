@@ -68,6 +68,21 @@
   letter-spacing: 0.2px;
 }
 
+/* The name and the run number, stacked: the brand row above is a row, and the fold button ends it. */
+.sidebar__name {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The wordmark's footnote rather than a second name: the repo's note voice, and small enough that
+   the eye reads it after the name. Letter-spaced because two characters set solid under a 21px
+   name read as a smudge. */
+.sidebar__version {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+}
+
 
 /* The only filled accent in the app: this is the primary action. */
 .sidebar__new-chat {
@@ -1168,6 +1183,119 @@
   color: var(--muted);
 }
 
+/* Madde 197: the way back into a question, under it. It used to stand beside the bubble in a row of
+   its own, and that row was what .msg aligned -- so the bubble's max-width measured against the row
+   instead of the column, and every message's right edge landed somewhere else. Nothing wraps them
+   now: both are children of .msg, and the column places them.
+
+   Quiet rather than hidden. Shown only on hover is a control that does not exist on a touch screen,
+   and the bubble is the first thing a finger reaches. */
+.msg__edit {
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--radius-control);
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.35;
+  transition: opacity 0.15s ease;
+}
+
+.msg--user:hover .msg__edit {
+  opacity: 1;
+}
+
+.msg__edit:focus-visible {
+  opacity: 1;
+}
+
+/* The line under a bubble (Madde 199): the version strip, then the pencil. .msg is a column and
+   gives every child a line of its own, so the two stood one above the other until this row put them
+   side by side. Only the notes are in here -- the bubble stays a child of the column, which is what
+   Madde 197 fixed. */
+.msg__foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The message while it is being corrected. The bubble's own measure, so opening the field neither
+   widens the message nor narrows it: what is being corrected is that sentence, in its place, at its
+   size. */
+.msg__editing {
+  max-width: 78%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* The bubble's shape with a border where its fill was: still that message, now open for writing. */
+.msg__editing-input {
+  border: 1px solid var(--line);
+  border-radius: 14px 14px 4px 14px;
+  background: var(--surface);
+  padding: 12px 16px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+  resize: none;
+}
+
+/* Under the field and at the message's own end, which is where the eye already is. */
+.msg__editing-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.msg__editing-cancel,
+.msg__editing-confirm {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  padding: 2px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* An empty sentence has nothing to confirm, and the same rule the composer's send button keeps. */
+.msg__editing-confirm:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+/* Which of the versions standing in one place is showing. A note about the message, in the same
+   voice as the time under it -- two notes on one sentence in two voices read as two kinds of
+   thing. */
+.versions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.versions__step {
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.versions__step:disabled {
+  cursor: default;
+  opacity: 0.3;
+}
+
 /* Where the answer stopped. The same register as the steps above it and the stamp below: all three
    are notes about the text rather than the text itself. */
 .msg__stopped {
@@ -1185,6 +1313,33 @@
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
+}
+
+/* Madde 194: the same stamp, still counting. One row, everything side by side -- no columns and no
+   left-and-right, so that when the turn ends and the record's stamp takes this place nothing on the
+   page moves. */
+.msg__stamp--live {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Turned by the stylesheet rather than by JavaScript, and that is the whole point: a busy React
+   leaves its intervals waiting, and looking alive matters most exactly then. */
+.msg__spinner {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: msg-spin 0.8s linear infinite;
+}
+
+@keyframes msg-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .creating {
@@ -1580,6 +1735,51 @@
   font-size: 11px;
   color: #a4735a;
   overflow-wrap: anywhere;
+}
+
+/* Madde 192: the list and the open file come back fresh on their own when a turn ends, and this is
+   the same action reached by hand -- for a file the user put in the Drive folder themselves, or a
+   look taken while a long turn is still running. Both screens draw the same row, so the shape is
+   written once. */
+.file-list__bar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 2px 2px;
+}
+
+.file-list__refresh,
+.reader__refresh,
+.reader__copy {
+  flex: none;
+  border: none;
+  background: transparent;
+  padding: 2px 5px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.file-list__refresh:hover,
+.reader__refresh:hover,
+.reader__copy:hover {
+  color: var(--ink);
+}
+
+/* Madde 193: the answer is the icon's own colour, so nothing on the panel moves to make room for
+   it. Dimmed while there is nothing to copy rather than taken away -- a header that gains and loses
+   an icon as the file loads is a header that twitches. */
+.reader__copy:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.reader__copy[data-said="yes"] {
+  color: var(--accent);
+}
+
+.reader__copy[data-said="no"] {
+  color: var(--destructive);
 }
 
 .file-list__empty {

@@ -1,6 +1,7 @@
 import { relativeTime } from "../../shared/time.js";
 import Composer from "./Composer.jsx";
 import FilePanel from "./FilePanel.jsx";
+import { RefreshFiles } from "./FileRail.jsx";
 import FileRow from "./FileRow.jsx";
 import ModelPicker from "./ModelPicker.jsx";
 import ModePicker from "./ModePicker.jsx";
@@ -17,6 +18,7 @@ export default function ProjectScreen({
   filesError,
   reading,
   deleting,
+  onRefresh,
   skill,
   skillsOpen,
   onToggleSkills,
@@ -141,6 +143,9 @@ export default function ProjectScreen({
                 {/* No offer to bring anything back, but a refusal is still worth a line. */}
                 {deleting?.error ? <p className="list-error">{deleting.error}</p> : null}
                 <div className="file-list">
+                  {/* The rail's own button, in the rail's own place: one shape for one action, and
+                      one stylesheet rule for both screens (Madde 192). */}
+                  <RefreshFiles onRefresh={onRefresh} />
                   {/* The teaching line waits for the answer: until the list has arrived, "no files
                       yet" is a guess and not a fact -- and if no answer came, not even that. */}
                   {loadingFiles ? <Skeleton rows={3} /> : null}
@@ -176,6 +181,7 @@ export default function ProjectScreen({
             error={reading.error}
             onClose={reading.close}
             onDownload={reading.download}
+            onRefresh={onRefresh}
           />
         </aside>
       ) : null}

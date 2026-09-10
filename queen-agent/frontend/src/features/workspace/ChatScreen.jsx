@@ -99,8 +99,181 @@ function Stamp({ at, usage }) {
   return <div className="msg__stamp">{spent ? `${when} · ${shorten(spent)} tokens` : when}</div>;
 }
 
+// Madde 194. What a turn says about itself while it is still running, in the stamp's own place and
+// wearing its class: when the turn ends the strip goes and the record's stamp arrives, and two
+// different-looking things trading places would jump on the page.
+//
+// A gerund that is deliberately not a description. Deriving one from the tool name was asked
+// against, and the reason holds up: the two pieces beside it carry every fact there is, and a word
+// that tried to compete with them would only be wrong more often.
+const WORDS = [
+  "Ideating",
+  "Percolating",
+  "Ruminating",
+  "Noodling",
+  "Marinating",
+  "Conjuring",
+  "Puzzling",
+  "Tinkering",
+  "Wrangling",
+  "Brewing",
+  "Pondering",
+  "Scheming",
+  "Whirring",
+  "Cogitating",
+  "Finagling",
+  "Simmering",
+];
+
+const WORD_MS = 3000;
+
+function LiveStrip({ round, of, tokens }) {
+  // Somewhere in the list rather than the top of it: the same first word on every turn reads like a
+  // fixed label, which is the one thing this is not.
+  const [word, setWord] = useState(() => Math.floor(Math.random() * WORDS.length));
+  useEffect(() => {
+    const tick = setInterval(() => setWord((at) => (at + 1) % WORDS.length), WORD_MS);
+    return () => clearInterval(tick);
+  }, []);
+  return (
+    <div className="msg__stamp msg__stamp--live" data-testid="live-strip">
+      {/* The two facts lead and the moving part trails (user, 7 September). The trailing space is
+          the sentence's, not the layout's: a flex item's own end-space is collapsed away and the
+          gap draws the distance, so what is read here and what is seen there are one line. */}
+      <span>{`round ${round}/${of} · ${shorten(tokens)} tokens · `}</span>
+      {/* The one thing that must never stall, so the stylesheet turns it and not JavaScript: a busy
+          React has its intervals waiting too, and that is exactly the moment the screen has to look
+          alive. The number can sit still for thirty seconds; this cannot. */}
+      <span className="msg__spinner" aria-hidden="true" />
+      {/* An element rather than a bare text node, so where the spinner stands is sayable at all:
+          it draws nothing of its own, and only its neighbours can place it. */}
+      <span>{`${WORDS[word]}…`}</span>
+    </div>
+  );
+}
+
 // The skeleton of the card about to be born: an empty badge slot where the chip will go, and no
 // name -- the model's wish is not the name until it has been cleaned and a clash resolved.
+// A message being corrected in its own place (Madde 197). The draft lives here for the reason the
+// composer's does: it is the field's momentary state, not something the chat keeps -- and only the
+// finished sentence leaves, through onConfirm.
+//
+// The keys are the composer's: enter confirms, shift-enter opens a line, escape gives up. Two
+// writable areas asking for two different keys is how both of them get used wrongly.
+function EditMessage({ text, onConfirm, onCancel }) {
+  const [draft, setDraft] = useState(text);
+  const ready = draft.trim().length > 0;
+  const confirm = () => {
+    if (ready) onConfirm(draft.trim());
+  };
+  return (
+    <div className="msg__editing">
+      <textarea
+        className="msg__editing-input"
+        rows={2}
+        value={draft}
+        autoFocus
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") onCancel();
+          if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            confirm();
+          }
+        }}
+      />
+      <div className="msg__editing-actions">
+        {/* Icons rather than words (user, 8 September), and their names are written where they can
+            still be read: a control with no name is invisible to the keyboard and to a test. */}
+        <button
+          type="button"
+          className="msg__editing-cancel"
+          aria-label="Cancel edit"
+          title="Cancel edit"
+          onClick={onCancel}
+        >
+          ✕
+        </button>
+        <button
+          type="button"
+          className="msg__editing-confirm"
+          aria-label="Confirm edit"
+          title="Confirm edit"
+          disabled={!ready}
+          onClick={confirm}
+        >
+          ✓
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Which of the versions standing in one place is showing, and the way to the ones beside it
+// (Madde 195). Drawn only where there is more than one: every message carries the field, and arrows
+// under a sentence with nothing beside it offer to step through one thing.
+function Versions({ standing, onVersion }) {
+  if (!standing || standing.of < 2) return null;
+  const step = (by) => onVersion?.(standing.versions[standing.index + by]);
+  return (
+    <div className="versions">
+      <button
+        type="button"
+        className="versions__step"
+        aria-label="Previous version"
+        title="Previous version"
+        disabled={standing.index === 0}
+        onClick={() => step(-1)}
+      >
+        ‹
+      </button>
+      <span className="versions__count">
+        {standing.index + 1}/{standing.of}
+      </span>
+      <button
+        type="button"
+        className="versions__step"
+        aria-label="Next version"
+        title="Next version"
+        disabled={standing.index === standing.of - 1}
+        onClick={() => step(1)}
+      >
+        ›
+      </button>
+    </div>
+  );
+}
+
+// The line under a bubble (Madde 199): which version is showing, and the way to correct the
+// sentence. .msg is a column, so the strip and the pencil put separately there each took a line of
+// their own; here they stand beside each other, the note first and the way to change it after it.
+//
+// The pencil is there when the caller hands one over. Whether this message can be edited at all,
+// and whether it is being edited right now, are already decided where the message is drawn -- and
+// a second place deciding the same thing is how the two answers drift apart.
+//
+// Nothing to hold is no row: the strip draws nothing where a message stands alone, and an empty
+// div would only widen the column's gap under every answer in the chat.
+function MessageFoot({ standing, onVersion, onEdit }) {
+  if (!onEdit && !(standing?.of > 1)) return null;
+  return (
+    <div className="msg__foot">
+      <Versions standing={standing} onVersion={onVersion} />
+      {onEdit ? (
+        <button
+          type="button"
+          className="msg__edit"
+          aria-label="Edit message"
+          title="Edit message"
+          onClick={onEdit}
+        >
+          ✎
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function CreatingFile() {
   return (
     <div className="creating">
@@ -136,6 +309,7 @@ export default function ChatScreen({
   filesError,
   reading,
   deleting,
+  onRefresh,
   railCollapsed,
   railFoldedByWidth,
   railWidth,
@@ -148,6 +322,7 @@ export default function ChatScreen({
   streamingText,
   creatingFile,
   createdFiles = [],
+  progress,
   streamingCalls = [],
   permission,
   onAllow,
@@ -168,7 +343,12 @@ export default function ChatScreen({
   onSkillChange,
   onStop,
   onRetry,
+  onVersion,
 }) {
+  // Which message is being edited, and the token that puts its sentence in the box (Madde 195).
+  // Held here rather than in App: it is a state of this screen, and it ends the moment the sentence
+  // is sent.
+  const [editing, setEditing] = useState(null);
   // Stamped once, when the wait starts. There is nothing on the server to read it from yet, and the
   // label answers "when was this asked for" -- an answer that stops being new the moment it is given.
   const [askedAt, setAskedAt] = useState(null);
@@ -242,9 +422,24 @@ export default function ChatScreen({
               >
                 {/* Only an answer has steps; a question is what was typed and nothing else. */}
                 {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
-                {/* What the user typed stays what they typed -- `**test**` keeps its asterisks. */}
+                {/* What the user typed stays what they typed -- `**test**` keeps its asterisks.
+                    Correcting it happens here rather than in the composer (Madde 197): the sentence
+                    is on the message, so the field that changes it is too. Only a question can be
+                    gone back to -- an answer is a whole turn with its own calls, and stepping into
+                    the middle of one would mean nothing on disk. */}
                 {message.role === "user" ? (
-                  <div className="msg__bubble">{message.text}</div>
+                  editing?.index === index ? (
+                    <EditMessage
+                      text={editing.text}
+                      onConfirm={(text) => {
+                        setEditing(null);
+                        onSend?.(text, index);
+                      }}
+                      onCancel={() => setEditing(null)}
+                    />
+                  ) : (
+                    <div className="msg__bubble">{message.text}</div>
+                  )
                 ) : /* Only when there is something to draw: an answer stopped before its first
                        word would otherwise put the rule down the side of nothing at all. */
                 message.text ? (
@@ -252,6 +447,19 @@ export default function ChatScreen({
                     <Markdown text={message.text} />
                   </div>
                 ) : null}
+                {/* The pencil is handed over only where there is something to correct: a question,
+                    and not one already open for correction -- a second door onto an open field is
+                    one whose meaning nobody can state. Named for the message rather than Edit
+                    alone, which the mode picker already wears. */}
+                <MessageFoot
+                  standing={message.variants}
+                  onVersion={onVersion}
+                  onEdit={
+                    message.role === "user" && editing?.index !== index
+                      ? () => setEditing({ index, text: message.text })
+                      : null
+                  }
+                />
                 {/* Where the text stops and why. Above the cards and the count -- those are notes
                     about the turn, this is the end of the sentence. Nobody but the user can stop
                     an answer, so the word says what happened and invents no cause for it. */}
@@ -287,9 +495,10 @@ export default function ChatScreen({
                   <Markdown text={streamingText} caret />
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
-                {/* The count arrives in a single frame at the very end, so an answer still running
-                    carries only its time -- and that is the whole answer to "when did I ask". */}
-                <Stamp at={askedAt} />
+                {/* Until Madde 194 an answer still running carried only its time. Now it carries
+                    where the turn is, and falls back to the time until the first frame says so --
+                    round 0/16 would claim a measurement nobody took. */}
+                {progress ? <LiveStrip {...progress} /> : <Stamp at={askedAt} />}
               </div>
             ) : null}
 
@@ -304,7 +513,7 @@ export default function ChatScreen({
                   <span className="dots__dot" />
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
-                <Stamp at={askedAt} />
+                {progress ? <LiveStrip {...progress} /> : <Stamp at={askedAt} />}
               </div>
             ) : null}
 
@@ -402,7 +611,9 @@ export default function ChatScreen({
                 />
               </>
             }
-            onSubmit={onSend}
+            /* The box only ever sends a reply. An edit starts from a message and is sent from that
+               message's own field (Madde 197), so the second argument here is always nothing. */
+            onSubmit={(text) => onSend?.(text, null)}
           />
         </div>
       </div>
@@ -413,6 +624,7 @@ export default function ChatScreen({
         error={filesError}
         reading={reading}
         deleting={deleting}
+        onRefresh={onRefresh}
         collapsed={railCollapsed}
         foldedByWidth={railFoldedByWidth}
         width={railWidth}

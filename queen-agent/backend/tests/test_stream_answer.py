@@ -13,7 +13,7 @@ from backend.features.workspace.domain.tools import MAX_ROUNDS, FileStarted, Fil
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
 from backend.features.workspace.domain.usecases.append_message import append_message
-from backend.features.workspace.domain.usecases.stream_answer import stream_answer
+from backend.features.workspace.domain.usecases.stream_answer import Progress, stream_answer
 from backend.services.store.store import Store
 
 NOW = "2026-08-09T11:06:00.000+00:00"
@@ -509,7 +509,9 @@ def _write_round(name="plan.md"):
 
 def test_a_round_without_tools_ends_the_loop(tmp_path):
     chats, _, engine, produced = _run(tmp_path, [[{"text": "He"}, {"text": "llo"}]])
-    assert produced[:-1] == ["He", "llo"]
+    # Madde 194 put a progress piece in front of every round, so the words are what is left when
+    # those are taken out. Their own tests are at the foot of this file.
+    assert [piece for piece in produced[:-1] if isinstance(piece, str)] == ["He", "llo"]
     assert isinstance(produced[-1], Chat)
     assert len(engine.seen) == 1
 
@@ -585,9 +587,12 @@ def test_a_created_file_announces_itself_twice(tmp_path):
         [{"text": "Saved."}],
     ]
     _, _, _, produced = _run(tmp_path, rounds)
-    # The dashed card goes up before the tool runs, the filled one after it.
-    assert isinstance(produced[0], FileStarted)
-    assert produced[1] == FileWritten("plan.md")
+    # The dashed card goes up before the tool runs, the filled one after it. Read past the progress
+    # pieces Madde 194 added: the claim is the order of these two, not where the round's own signal
+    # falls between them.
+    cards = [piece for piece in produced if isinstance(piece, (FileStarted, FileWritten))]
+    assert isinstance(cards[0], FileStarted)
+    assert cards[1] == FileWritten("plan.md")
 
 
 def test_the_reply_remembers_the_file_it_produced(tmp_path):
@@ -616,8 +621,9 @@ def test_building_prompts_announces_itself_twice(tmp_path):
     rounds = [[{"tool_calls": [call("build_prompts", name="frames.json")]}], [{"text": "done"}]]
     produced = list(stream_answer(chats, files, ScriptedEngine(rounds), "p1", "c1", NOW, NEVER, UNASKED))
     # A file is born here too, so it gets the same dashed card and the same filled one.
-    assert isinstance(produced[0], FileStarted)
-    assert produced[1] == FileWritten("frames.py")
+    cards = [piece for piece in produced if isinstance(piece, (FileStarted, FileWritten))]
+    assert isinstance(cards[0], FileStarted)
+    assert cards[1] == FileWritten("frames.py")
 
 
 def test_editing_a_file_announces_nothing(tmp_path):
@@ -757,10 +763,10 @@ def test_the_instruction_is_the_last_thing_in_the_request(tmp_path):
     # Two measures point at the same place. Attention: accuracy is highest at the two ends of a
     # context and falls by more than a third in the middle. Cache: what is fixed stays at the front
     # so the prefix holds, and what changes sits at the end so only it goes stale.
-    _, conversation = _said_with(tmp_path, ("write me the prompts", "generate-prompts-plus"))
+    _, conversation = _said_with(tmp_path, ("write me the prompts", "edit-prompts"))
     assert conversation[-1] == {
         "role": "system",
-        "content": instruction_for("generate-prompts-plus"),
+        "content": instruction_for("edit-prompts"),
     }
     # Two back rather than one since Madde 127: the file names sit between the conversation and
     # the instruction, and the instruction is still what closes the request.
@@ -775,8 +781,8 @@ def test_only_the_current_skill_is_sent_whatever_came_before(tmp_path):
     # a selection go is the other thing a user can do with it.
     _, conversation = _said_with(
         tmp_path,
-        ("one", "generate-prompts-plus"),
-        ("and again", "generate-prompts-plus"),
+        ("one", "edit-prompts"),
+        ("and again", "edit-prompts"),
         ("never mind", ""),
     )
     assert _instructions(conversation) == []
@@ -787,7 +793,7 @@ def test_no_instruction_stands_among_the_messages(tmp_path):
     # empty. Measured on the messages rather than on the whole request, because the one at the end
     # is the one that is supposed to be there.
     _, conversation = _said_with(
-        tmp_path, ("one", "generate-prompts-plus"), ("and the rest", "generate-prompts-plus")
+        tmp_path, ("one", "edit-prompts"), ("and the rest", "edit-prompts")
     )
     # Three, because the chat was born with a message of its own before these two. The file names
     # are dropped rather than counted: they are the request's, not the conversation's.
@@ -800,11 +806,11 @@ def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
     # block would sit behind the tool exchanges from the second round on -- and the reason this
     # item exists would stop holding after the first one.
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="generate-prompts-plus")
+    append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="edit-prompts")
     engine = ScriptedEngine([[{"tool_calls": [a_call()]}], [{"text": "clean"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     second = engine.seen[1]
-    assert second[-1] == {"role": "system", "content": instruction_for("generate-prompts-plus")}
+    assert second[-1] == {"role": "system", "content": instruction_for("edit-prompts")}
     # And what it moved past: the round that asked for the tool, and the tool's answer. Counted
     # from the conversation's own end rather than from the request's -- what the request adds
     # behind it has grown twice already (the names in 127, the box in 129) and each time this
@@ -865,11 +871,11 @@ def test_the_notice_is_the_requests_last_word(tmp_path):
     from backend.features.workspace.domain.prompt import LAST_ROUND
 
     chats, files = _seeded(tmp_path)
-    append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="generate-prompts-plus")
+    append_message(chats, "p1", "c1", "build me the prompts", NOW, skill="edit-prompts")
     engine = ScriptedEngine(_asking_forever(MAX_ROUNDS))
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
     assert [piece["content"] for piece in engine.seen[-1][-2:]] == [
-        instruction_for("generate-prompts-plus"),
+        instruction_for("edit-prompts"),
         LAST_ROUND,
     ]
 
@@ -898,7 +904,7 @@ def test_a_skill_nobody_knows_adds_nothing_and_still_answers(tmp_path):
 
 
 def test_the_instruction_is_never_written_to_the_chat(tmp_path):
-    chats, _ = _said_with(tmp_path, ("write me the prompts", "generate-prompts-plus"))
+    chats, _ = _said_with(tmp_path, ("write me the prompts", "edit-prompts"))
     # The transcript is what the user reads: user sentences and answers, nothing else.
     assert [m.role for m in chats.get("p1", "c1").messages] == ["user", "user", "ai"]
 
@@ -1123,7 +1129,7 @@ def test_a_tools_own_request_is_added_to_what_the_turn_spent(tmp_path):
     chats, files = _seeded(tmp_path)
     _with_a_frame(files)
     rounds = [
-        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]},
+        [{"tool_calls": [call("write_missing_actions", file="scene.json")]},
          spent(1000, 0, 10)],
         [{"text": "done"}, spent(1500, 0, 20)],
     ]
@@ -1141,7 +1147,7 @@ def test_a_tools_request_does_not_change_how_big_the_conversation_got(tmp_path):
     chats, files = _seeded(tmp_path)
     _with_a_frame(files)
     rounds = [
-        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]},
+        [{"tool_calls": [call("write_missing_actions", file="scene.json")]},
          spent(1000, 0, 10)],
         [{"text": "done"}, spent(1500, 0, 20)],
     ]
@@ -1159,7 +1165,7 @@ def test_the_turn_hands_its_engine_to_the_tool_that_needs_one(tmp_path):
     chats, files = _seeded(tmp_path)
     _with_a_frame(files)
     rounds = [
-        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]}],
+        [{"tool_calls": [call("write_missing_actions", file="scene.json")]}],
         [{"text": "done"}],
     ]
     engine = ScriptedEngine(rounds)
@@ -1167,6 +1173,72 @@ def test_the_turn_hands_its_engine_to_the_tool_that_needs_one(tmp_path):
     assert len(engine.written) == 1
     assert "she opens the door" in engine.written[0][1]
     assert json.loads(files.read("p1", "scene.json"))["frames"][0]["action"]
+
+
+# --- what a running turn says about itself (Madde 194) -------------------------------------------
+#
+# The turn already ran its rounds one at a time and added up what they spent. What it never did was
+# say so while it was still going: the stamp fell at the end, and a long turn showed three blinking
+# dots for however long it took.
+
+
+def _progress(produced):
+    return [piece for piece in produced if isinstance(piece, Progress)]
+
+
+def test_a_running_turn_says_which_round_it_is_on(tmp_path):
+    _, _, _, produced = _run(tmp_path, [[{"text": "hi"}]])
+    marks = _progress(produced)
+    # Before anything else: the round number is what moves first, and it moves the moment the round
+    # begins rather than when it ends.
+    assert produced[0] == Progress(1, MAX_ROUNDS, 0)
+    assert marks[0].of == MAX_ROUNDS
+
+
+def test_every_round_says_so(tmp_path):
+    rounds = [[{"tool_calls": [a_call()]}], [{"text": "done"}]]
+    _, _, _, produced = _run(tmp_path, rounds)
+    assert [mark.round for mark in _progress(produced)][:2] == [1, 2]
+
+
+def test_the_number_is_everything_that_crossed_the_wire(tmp_path):
+    # sent + cached + answered, which is how big the turn got rather than what it cost. Only `sent`
+    # would hide half the work: cached tokens travel too, they are merely cheap. The bill is the
+    # stamp's question and the stamp keeps answering it.
+    _, _, _, produced = _run(tmp_path, [[{"text": "hi"}, spent(1000, 600, 40)]])
+    assert _progress(produced)[-1].tokens == 1640
+    # Said out loud, or a sum that quietly dropped the cache would read as right.
+    assert _progress(produced)[-1].tokens != 1000
+
+
+def test_two_rounds_add_up_as_they_go(tmp_path):
+    rounds = [
+        [{"tool_calls": [a_call()]}, spent(1000, 600, 10)],
+        [{"text": "done"}, spent(1500, 1200, 20)],
+    ]
+    _, _, _, produced = _run(tmp_path, rounds)
+    counted = [mark.tokens for mark in _progress(produced)]
+    # It starts at nothing and never goes back down: what the screen shows is a total, not a round.
+    assert counted[0] == 0
+    assert counted[-1] == 4330
+    assert counted == sorted(counted)
+
+
+def test_a_tools_own_bill_moves_the_number_inside_the_round(tmp_path):
+    # Madde 176's second request, and the reason the number cannot only move between rounds:
+    # write_missing_actions can spend eight of these without the round ever ending.
+    chats, files = _seeded(tmp_path)
+    _with_a_frame(files)
+    rounds = [
+        [{"tool_calls": [call("write_missing_actions", file="scene.json")]}],
+        [{"text": "done"}],
+    ]
+    engine = ScriptedEngine(rounds, tool_spends={"sent": 300, "cached": 0, "answered": 60})
+    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    # The rounds themselves report no usage here, so 360 can only have come from the tool -- and it
+    # arrives while round one is still the round.
+    inside = [mark for mark in _progress(produced) if mark.round == 1]
+    assert [mark.tokens for mark in inside] == [0, 360]
 
 
 def test_counts_repeated_inside_one_round_are_not_added_twice(tmp_path):
@@ -1391,9 +1463,51 @@ def test_a_turn_that_names_no_mode_carries_the_writing_tools(tmp_path):
 def test_in_plan_mode_the_turn_ends_when_the_plan_is_written(tmp_path):
     # The plan is on disk and the next move is the user's: they read it, fix it in the file itself,
     # then run it in edit mode. A second round here would be the model running its own plan.
+    #
+    # Madde 207: the plan is an ordinary create_file now, and plan mode is what makes it a plan --
+    # it runs without a question there, and it is what ends the turn. The file card is asserted as
+    # well as the one request: a turn that stopped to ask permission also sends one, and would read
+    # as green here.
     rounds = [
-        [{"tool_calls": [call("write_plan", name="bar-scene", content="1. ...")]}],
+        [{"tool_calls": [call("create_file", name="bar-scene-plan.md", content="1. ...")]}],
         [{"text": "never reached"}],
     ]
-    _, engine, _ = _in_mode(tmp_path, rounds, "plan")
+    _, engine, produced = _in_mode(tmp_path, rounds, "plan")
     assert len(engine.seen) == 1
+    assert [piece for piece in produced if isinstance(piece, FileWritten)]
+
+
+# --- the line the turn is answering (Madde 195) --------------------------------------------------
+
+
+def _branched(tmp_path, **edit):
+    """The seeded chat, answered once, then edited back at its first message."""
+    chats, files = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", "Done.", NOW, role="ai")
+    append_message(chats, "p1", "c1", "hi again", NOW, branch_at=0, line_id="l2", **edit)
+    return chats, files
+
+
+def test_the_request_carries_the_open_line_and_not_the_one_left_behind(tmp_path):
+    # The conversation the model is answering is the one the user is standing in. Sending the line
+    # they walked away from would answer a question that was taken back, and it would do it while
+    # the screen shows something else entirely.
+    chats, files = _branched(tmp_path)
+    engine = ScriptedEngine([[{"text": "Done again."}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert [
+        message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")
+    ] == ["hi again"]
+
+
+def test_the_skill_and_the_model_come_from_the_open_lines_newest_question(tmp_path):
+    # Both are read by walking back from the end, and the end has to be the end of the open line --
+    # otherwise a version runs under the skill of a turn nobody is looking at.
+    from backend.features.workspace.domain.skills import instruction_for
+
+    chats, files = _branched(tmp_path, skill="edit-prompts", model="deepseek-v4-pro")
+    engine = ScriptedEngine([[{"text": "Done again."}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert engine.models[0] == "deepseek-v4-pro"
+    said = [message["content"] for message in engine.seen[0]]
+    assert instruction_for("edit-prompts") in said

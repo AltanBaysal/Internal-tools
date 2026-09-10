@@ -1,19 +1,8 @@
-"""Naming rules shared by everything that puts a file somewhere.
+"""The rule shared by everything that puts a name somewhere it might already be.
 
-The tools use it when the model asks for a name, and the trash uses it when a name is deleted
-twice. Two copies of this rule would drift apart on the first change to either.
+Projects, chats and files all reach for it when a name is born, and the trash reaches for it when a
+name is deleted twice. Two copies of this rule would drift apart on the first change to either.
 """
-import re
-
-
-def folded(raw):
-    """A name from the model, folded into another name: aylin, or yan-karakter.
-
-    Sibling of tools.safe_name rather than the same rule: that one cleans a file name and keeps the
-    dot, because the extension lives there. This one is going inside a file name, so the dot goes
-    the way every other separator does.
-    """
-    return re.sub(r"[^A-Za-z0-9-]+", "-", str(raw or "")).strip("-").lower()
 
 
 def unique_name(existing, name):

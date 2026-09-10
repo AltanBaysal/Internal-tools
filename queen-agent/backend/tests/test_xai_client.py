@@ -228,13 +228,13 @@ def _piece_line(index, arguments, call_id=None, name=None):
 
 def test_a_call_split_across_frames_comes_out_whole():
     lines = [
-        _piece_line(0, "", call_id="t1", name="write_plan"),
+        _piece_line(0, "", call_id="t1", name="create_file"),
         _piece_line(0, '{"na'),
         _piece_line(0, 'me": "plan.md"}'),
         b"data: [DONE]",
     ]
     assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
-        {"tool_calls": [{"id": "t1", "function": {"name": "write_plan", "arguments": '{"name": "plan.md"}'}}]}
+        {"tool_calls": [{"id": "t1", "function": {"name": "create_file", "arguments": '{"name": "plan.md"}'}}]}
     ]
 
 
@@ -243,7 +243,7 @@ def test_two_calls_in_one_turn_do_not_mix():
     # one round interleave their fragments on the wire.
     lines = [
         _piece_line(0, "", call_id="t1", name="read_file"),
-        _piece_line(1, "", call_id="t2", name="write_plan"),
+        _piece_line(1, "", call_id="t2", name="create_file"),
         _piece_line(0, '{"a": 1}'),
         _piece_line(1, '{"b": 2}'),
         b"data: [DONE]",
@@ -252,7 +252,7 @@ def test_two_calls_in_one_turn_do_not_mix():
         {
             "tool_calls": [
                 {"id": "t1", "function": {"name": "read_file", "arguments": '{"a": 1}'}},
-                {"id": "t2", "function": {"name": "write_plan", "arguments": '{"b": 2}'}},
+                {"id": "t2", "function": {"name": "create_file", "arguments": '{"b": 2}'}},
             ]
         }
     ]
@@ -263,13 +263,13 @@ def test_words_still_arrive_as_they_are_said_and_the_call_closes_the_stream():
     # finished -- they are what the user is watching.
     lines = [
         b"data: " + _delta_line("Right"),
-        _piece_line(0, "", call_id="t1", name="write_plan"),
+        _piece_line(0, "", call_id="t1", name="create_file"),
         _piece_line(0, "{}"),
         b"data: [DONE]",
     ]
     assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
         {"text": "Right"},
-        {"tool_calls": [{"id": "t1", "function": {"name": "write_plan", "arguments": "{}"}}]},
+        {"tool_calls": [{"id": "t1", "function": {"name": "create_file", "arguments": "{}"}}]},
     ]
 
 

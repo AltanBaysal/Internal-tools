@@ -289,6 +289,17 @@ test("the sidebar's menu is the design's own width", () => {
   expect(rule(".sidebar__row .menu")).toContain("width: 176px");
 });
 
+test("the version sits under the name and reads as a note", () => {
+  // Madde 209 puts it under the wordmark, and the brand block is a row -- so the name and the
+  // version need a column of their own, or the version lands beside the name instead.
+  expect(rule(".sidebar__name")).toContain("flex-direction: column");
+  // The repo's note voice, the same variable the stamp and a call's head use: it is the wordmark's
+  // footnote, not a second name.
+  const version = rule(".sidebar__version");
+  expect(version).toContain("color: var(--muted)");
+  expect(version).toContain("font-size: 11px");
+});
+
 test("the catcher covers the screen and shows nothing", () => {
   const catcher = rule(".menu__catcher");
   expect(catcher).toContain("position: fixed");
@@ -563,4 +574,65 @@ test("the gauge pushes the rest of the foot to the far end", () => {
   // Madde 92. Not `space-between` on the foot: Skills, the model's name and Send are three separate
   // items in that row, and spreading the row would put its whole width between them.
   expect(rule(".composer__gauge")).toContain("margin-right: auto");
+});
+
+// --- editing a message, and the versions it leaves behind (Madde 195) ----------------------------
+
+test("nothing wraps the bubble in a row of its own", () => {
+  // Madde 197, and Madde 195's own defect. .msg is a column with align-items: flex-end for the
+  // user, so a row wrapper became the thing being aligned -- and the bubble's max-width then
+  // measured against the wrapper instead of the column. Every message's right edge landed
+  // somewhere else. The fix is the wrapper being gone, not a rule correcting it.
+  expect(CSS).not.toContain(".msg__said");
+});
+
+test("the field that corrects a message is the width the message was", () => {
+  // Opening the edit must not make the message grow or shrink: what is being corrected is that
+  // sentence, in its place, at its size.
+  expect(rule(".msg__editing")).toContain("max-width: 78%");
+});
+
+test("the tick and the cross sit under the field, in the message's own direction", () => {
+  const actions = rule(".msg__editing-actions");
+  expect(actions).toContain("display: flex");
+  expect(actions).toContain("justify-content: flex-end");
+});
+
+test("the edit is quiet until it is wanted", () => {
+  // Present at every width and on a touch screen -- hidden until hover is a control that does not
+  // exist on half the devices the app runs on. Quiet instead, and full strength when reached for.
+  expect(rule(".msg__edit")).toContain("opacity: 0.35");
+  expect(rule(".msg--user:hover .msg__edit")).toContain("opacity: 1");
+  expect(rule(".msg__edit:focus-visible")).toContain("opacity: 1");
+});
+
+test("the version strip reads in the stamp's voice", () => {
+  // It is a note about the message, exactly as the time under it is, and two notes under one
+  // sentence in two different voices read as two different kinds of thing.
+  const strip = rule(".versions");
+  expect(strip).toContain("font-family: var(--font-mono)");
+  expect(strip).toContain("font-size: 11.5px");
+  expect(strip).toContain("color: var(--muted)");
+});
+
+test("an arrow with nothing to step to does not offer to be pressed", () => {
+  expect(rule(".versions__step:disabled")).toContain("cursor: default");
+  expect(rule(".versions__step:disabled")).toContain("opacity: 0.3");
+});
+
+// --- the strip and the pencil on one line (Madde 199) --------------------------------------------
+
+test("the notes under a bubble share one row", () => {
+  // .msg is a column, so two children of it are two lines. The row is what puts them beside each
+  // other -- and it holds only the notes: the bubble stays a child of the column, which is what
+  // Madde 197 fixed.
+  const foot = rule(".msg__foot");
+  expect(foot).toContain("display: flex");
+  expect(foot).toContain("align-items: center");
+});
+
+test("the strip carries no gap of its own", () => {
+  // Inside the row now, so a margin of its own would sit on top of the column's gap and push the
+  // line down away from the message it belongs to.
+  expect(rule(".versions")).not.toContain("margin-top");
 });

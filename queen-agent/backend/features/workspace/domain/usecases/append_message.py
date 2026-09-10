@@ -10,7 +10,7 @@ stream_answer writes an answer into a chat that is already there and says nothin
 """
 from dataclasses import replace
 
-from backend.features.workspace.domain.chat import Chat, Message, Usage, chat_title
+from backend.features.workspace.domain.chat import Chat, Message, Usage, Version, chat_title
 from backend.features.workspace.domain.errors import ChatNotFound, EmptyMessage, ProjectNotFound
 
 
@@ -29,6 +29,8 @@ def append_message(
     usage=Usage(),
     project_store=None,
     new_id="",
+    branch_at=None,
+    line_id="",
 ):
     making = not chat_id
     if making:
@@ -61,10 +63,37 @@ def append_message(
         usage=usage,
     )
     if making:
-        # The title belongs to the message that started the chat and never moves.
+        # The title belongs to the message that started the chat and never moves -- an edit later
+        # opens a version, and the chat is still named after the sentence that started it.
         made = Chat(id=new_id, title=chat_title(trimmed), created_at=now, messages=(message,))
         chat_store.add(project_id, made)
         return made
-    updated = replace(chat, messages=chat.messages + (message,))
+    if branch_at is not None:
+        # Madde 195. The message is the first of a new line rather than the last of the open one,
+        # and the line it splits from is whichever one the user is standing on -- not the first,
+        # which they may have walked away from several edits ago.
+        opened = Version(id=line_id, parent=chat.active, at=branch_at, messages=(message,))
+        updated = replace(chat, versions=chat.versions + (opened,), active=line_id)
+    else:
+        updated = _with(chat, message)
     chat_store.replace(project_id, updated)
     return updated
+
+
+def _with(chat, message):
+    """The chat with this message on the end of its open line.
+
+    The first line when none is open, and the version otherwise: an answer belongs to the question
+    that asked for it, and appending to the first line would leave the open one waiting for ever.
+    """
+    if not chat.active:
+        return replace(chat, messages=chat.messages + (message,))
+    return replace(
+        chat,
+        versions=tuple(
+            replace(version, messages=version.messages + (message,))
+            if version.id == chat.active
+            else version
+            for version in chat.versions
+        ),
+    )

@@ -100,6 +100,13 @@ export default function App() {
   // One reader for both screens: the chat widens its rail into it, the project screen opens it as a
   // panel. What is being read belongs to the project, so it survives moving between the two.
   const reading = useFile(route.projectId);
+  // Madde 192: everything about files that can have gone stale, in one action. Two of them, and
+  // they stale differently -- a late list hides a name, a late panel shows the wrong text under the
+  // right one. One button rather than two, so the user never has to work out which they are fixing.
+  //
+  // reloadProjects is not in here: what moves a project card's count is a file being born, and
+  // onFileCreated below already answers that.
+  const refresh = () => Promise.all([reloadFiles(), reading.reload()]);
   // A file that has just been born changes two answers at once: the list itself, and the count on
   // the project's card.
   const openProject = (id) => navigate(`/p/${id}`);
@@ -122,6 +129,8 @@ export default function App() {
       openChat(route.projectId, id, { replace: true });
       return Promise.all([reloadProjectChats(), reloadProjects()]);
     },
+    // A turn is the usual writer, so its end is the usual moment for both to be out of date.
+    refresh,
   );
 
   // "/" is a fork, not a screen. It is read once the list has arrived -- an empty array cannot tell
@@ -296,6 +305,7 @@ export default function App() {
             filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
+            onRefresh={refresh}
             /* No chat here to write a choice to: the picker holds what the next chat will be born
                with -- the same value the draft's own picker holds. */
             skill={draftSkill}
@@ -327,6 +337,7 @@ export default function App() {
             filesError={filesError}
             reading={{ ...reading, open: openFile }}
             deleting={{ ...deleting, remove: askToDeleteFile }}
+            onRefresh={refresh}
             railCollapsed={railCollapsed || railFoldedByWidth}
             railFoldedByWidth={railFoldedByWidth}
             railWidth={railWidth}
@@ -340,6 +351,7 @@ export default function App() {
             creatingFile={chat.creatingFile}
             createdFiles={chat.createdFiles}
             streamingCalls={chat.streamingCalls}
+            progress={chat.progress}
             onBack={() => openProject(route.projectId)}
             /* The selection is the chat's own since Madde 105; the draft holds the birth value
                instead. What governed a turn is still settled when the message is sent. */
@@ -354,7 +366,10 @@ export default function App() {
             modelOpen={pickerOpen === "model"}
             onToggleModel={() => togglePicker("model")}
             onModelChange={setLastModel}
-            onSend={(text) => chat.send(text, skillInForce, lastMode, lastModel)}
+            /* The second argument is where an edit starts from, and it is the screen's: which
+               message is being replaced is a state of the transcript, not of the session. */
+            onSend={(text, from) => chat.send(text, skillInForce, lastMode, lastModel, from)}
+            onVersion={chat.version}
             onSkillChange={changeSkill}
             onStop={chat.stop}
             /* The question is the hook's; the mode is the session's, and the session is here. One

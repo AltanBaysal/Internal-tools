@@ -1,6 +1,110 @@
+from pathlib import Path
+
 import pytest
 
 from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
+
+# --- one place for every text the model is told (Madde 189) ---------------------------------------
+#
+# They were spread over four files: this one, skills.py, the nine hundred lines of TOOL_SPECS, and
+# stream_answer's heading for the context box. Reading them meant walking four files, and a rule
+# said twice in two of them could not be seen at all -- 182 only found such a copy because a word
+# cap went red.
+#
+# The line this madde draws is between what the model is TOLD and what it is TOLD BACK. Instructions
+# move: they are written once and read on every call. Answers stay where they are made, because an
+# answer is an f-string over values that exist only at that call, and a template pulled into another
+# file is a copy of the call's shape -- and a copy is the side that goes stale.
+
+
+def _texts_named_by(module):
+    """Every string this module names in capitals, which is how a text is written down here."""
+    return {
+        value
+        for name, value in vars(module).items()
+        if name.isupper() and isinstance(value, str)
+    }
+
+
+def _descriptions_in(properties):
+    """Every description under a parameter map, following arrays into their items.
+
+    add_scene's scenes is a list of objects and those objects carry descriptions of their own. A
+    walk that stopped at the first level would leave the deepest texts unwatched, which is where a
+    forgotten one would sit.
+    """
+    for said in properties.values():
+        if "description" in said:
+            yield said["description"]
+        inner = said.get("items", {}).get("properties")
+        if inner:
+            yield from _descriptions_in(inner)
+
+
+def test_every_text_a_tool_carries_comes_from_the_prompt_module():
+    from backend.features.workspace.domain import prompt
+    from backend.features.workspace.domain.tools import TOOL_SPECS
+
+    known = _texts_named_by(prompt)
+    # Before anything else: an empty set would let the loop below pass over an empty TOOL_SPECS too,
+    # and this run has already watched seven tests go green because nothing had happened yet.
+    assert len(known) > 10
+
+    for spec in TOOL_SPECS:
+        function = spec["function"]
+        assert function["description"] in known, function["name"]
+        for said in _descriptions_in(function["parameters"]["properties"]):
+            assert said in known, function["name"]
+
+
+@pytest.mark.parametrize(
+    "module,name",
+    [
+        ("tools", "SDXL_PROMPT_RULES"),
+        ("tools", "WRITE_FRAME_SYSTEM_PROMPT"),
+        ("skills", "START_A_SCENARIO"),
+        # Madde 186 renamed this one with the skill it belongs to. The guard keeps watching the
+        # name it had when it moved as well: a text put back under the old name in skills.py is
+        # the same failure as one put back under the new one.
+        ("skills", "GENERATE_PROMPTS_PLUS"),
+        ("skills", "EDIT_PROMPTS"),
+    ],
+)
+def test_no_text_is_still_written_down_where_it_used_to_live(module, name):
+    """The source rather than the module, and that is not fussiness.
+
+    An imported name becomes an attribute of the module that imported it, so hasattr says yes long
+    after the text has moved. What this madde forbids is the text being *written* in two places, and
+    only the source says where it was written. test_notebook.py watches its notebook the same way.
+    """
+    from backend.features.workspace.domain import skills, tools
+
+    source = Path({"tools": tools, "skills": skills}[module].__file__).read_text(encoding="utf-8")
+    assert f"{name} = " not in source, f"{name} is still assigned in {module}.py"
+
+
+MUST_BE_FULL = (
+    "SYSTEM_PROMPT",
+    "LAST_ROUND",
+    "SDXL_PROMPT_RULES",
+    "WRITE_FRAME_SYSTEM_PROMPT",
+    "START_A_SCENARIO",
+    "EDIT_PROMPTS",
+)
+"""The texts this app writes, and every one of them says something.
+
+Read by the test below and by the one about Madde 196's second part, which is deliberately not on
+this list -- lifted out of that test so the absence can be asserted rather than only meant.
+"""
+
+
+def test_the_prompt_module_holds_the_texts_the_others_gave_up():
+    # The floor under the two above: both of them would pass over an empty module, one with an empty
+    # set of texts and one with an empty source.
+    from backend.features.workspace.domain import prompt
+
+    for name in MUST_BE_FULL:
+        assert getattr(prompt, name, "").strip(), name
 
 
 def test_the_answer_follows_the_language_it_was_asked_in():
@@ -31,6 +135,10 @@ def test_the_base_says_where_a_read_file_appears():
     # sentence back, believe it had not seen the file, and read it again -- which is the very thing
     # this item removes.
     assert "opened files" in SYSTEM_PROMPT
+    # Correction 4. Saying only where the file appears left open whether what stands there is the
+    # file as it was read; it is read from disk every round, and a model that does not know that
+    # reads it again to be sure.
+    assert "always current" in SYSTEM_PROMPT
 
 
 def test_the_base_asks_rather_than_inventing():
@@ -57,22 +165,29 @@ def test_the_base_edits_what_exists_rather_than_rebirthing_it():
     # walks right past the wall. The preference has to live where the name is picked.
     assert "edit_file" in SYSTEM_PROMPT
     assert "never reborn" in SYSTEM_PROMPT.lower()
+    # Correction 5. A scenario is not changed with edit_file at all -- Madde 171 shut that door --
+    # so a sentence naming only that tool tells the model to make a call that comes back refused.
+    assert "the tool that owns that kind of file" in SYSTEM_PROMPT
 
 
-def test_the_base_puts_a_correction_on_disk_too():
-    # A correction that only lands in the chat leaves the file saying the older thing, and the file
-    # is what the next step reads.
-    said = SYSTEM_PROMPT.lower()
-    assert "correction" in said
-    assert "chat" in said and "file" in said
+def test_the_base_puts_a_change_on_disk_rather_than_in_the_chat():
+    # A change that only lands in the chat leaves the file saying the older thing, and the file is
+    # what the next step reads. Correction 6: the old sentence described that failure instead of
+    # asking for anything, and it covered only corrections -- the same is true of any change.
+    assert "make the change in the file" in SYSTEM_PROMPT.lower()
 
 
 def test_the_base_starts_a_long_job_with_the_plan():
     # Skill-less chats had no reason to plan; the flow got one in its own text and the base got
     # nothing. The plan file is where a job keeps its place -- which is also how a chat that grew
     # too long is survived.
-    assert "write_plan" in SYSTEM_PROMPT
+    #
+    # Madde 207 changed the tool it names. Asked of the sentence rather than of the word
+    # create_file: that word is already in this text, about when to save a document, so a test
+    # looking only for it would pass without holding this sentence at all.
     assert "keeps its place" in SYSTEM_PROMPT.lower()
+    assert "create_file writes it" in SYSTEM_PROMPT
+    assert "write_plan" not in SYSTEM_PROMPT
 
 
 def test_the_base_says_what_it_did_even_when_it_did_nothing():
@@ -97,10 +212,17 @@ def test_a_turn_does_not_end_with_a_menu_of_options():
 # writing included. The fresh read belongs to the file somebody else may have moved.
 
 
-def test_a_fresh_read_is_for_what_someone_else_may_have_changed():
+def test_a_fresh_read_is_for_a_file_that_is_not_already_open():
+    # Madde 107's lesson, and correction 2 sharpened what it is about. The opened files are read
+    # from disk every round, so what stands there is current and a second read of one buys nothing.
+    # What is worth a read is a file that is not among them.
+    #
+    # Correction 3: the old sentence gave the wrong reason -- somebody else may have changed it --
+    # and a wrong reason is a rule the model applies in the wrong places.
     said = SYSTEM_PROMPT.lower()
-    assert "somebody else may have changed" in said
-    assert "never to check your own writing" in said
+    assert "not among your opened files" in said
+    assert "check your own writing" in said
+    assert "somebody else may have changed" not in said
     assert "not the same as reading it now" not in said
 
 
@@ -111,10 +233,11 @@ def test_the_base_is_handed_the_names_rather_than_asking_for_them():
     assert "list_files" not in SYSTEM_PROMPT
 
 
-def test_the_base_reads_nothing_the_answer_does_not_need():
+def test_the_base_reads_only_what_the_answer_needs():
     # The other half of the same trial: files the question never touched were read anyway,
-    # because nothing said the reading has a boundary.
-    assert "nothing the answer does not need" in SYSTEM_PROMPT.lower()
+    # because nothing said the reading has a boundary. Correction 2 turned the boundary the right
+    # way up -- what to do rather than what not to do.
+    assert "read only what the answer needs" in SYSTEM_PROMPT.lower()
 
 
 # --- what the turn's last round is told (Madde 137) -----------------------------------------------
@@ -158,3 +281,64 @@ def test_the_base_names_no_task(task):
     # never what the work is. A task word here would make every chat carry knowledge that belongs
     # to one skill -- and would quietly answer a question Madde 94 has not asked yet.
     assert task not in SYSTEM_PROMPT.lower()
+
+
+# --- the second part, which is the user's own (Madde 196) ----------------------------------------
+
+
+def test_a_plan_is_written_as_boxes_to_tick():
+    # Madde 198. The ticking was instructed long before the shape was, and an instruction without a
+    # shape is one the model answers differently every turn -- so the plan a fresh chat opens says
+    # nothing about where the work stopped.
+    #
+    # The shape used to live in write_plan's description; Madde 207 takes that tool away, and
+    # correction 10 had already decided where the shape goes instead: into the sentence of the step
+    # that writes the plan, so that it holds whichever tool writes it.
+    from backend.features.workspace.domain import prompt
+
+    assert "- [ ]" in prompt.START_A_SCENARIO
+
+
+def test_the_system_prompt_has_a_second_part():
+    from backend.features.workspace.domain import prompt
+
+    assert isinstance(prompt.SYSTEM_PROMPT_SUFFIX, str)
+
+
+def test_the_second_part_is_allowed_to_be_empty():
+    """The one text in this module the app does not write.
+
+    What goes in it is the user's own, and the item builds the place rather than filling it -- so it
+    is born empty and stays legal that way. Asserted as an absence from the list rather than as a
+    sentence in a comment: a name added there would fail this madde on the day somebody leaves the
+    suffix blank, which is every day until the user writes something.
+    """
+    assert "SYSTEM_PROMPT_SUFFIX" not in MUST_BE_FULL
+
+
+# --- the frame writer reads the second part too (Madde 202) ---------------------------------------
+
+
+def test_the_frame_writers_message_carries_the_second_part(monkeypatch):
+    """Madde 196 kept this text out of it, and Madde 202 turns that around.
+
+    The reason there was that the frame's writer was another service: the second part frames what
+    this workspace is for, and the model meeting the frames without any of it was the one being
+    asked in the composer. Since 202 both requests go to the same service, and the one meeting the
+    plainest sentences with no frame around them is this one.
+    """
+    from backend.features.workspace.domain import prompt
+
+    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", "This workspace is used for X.")
+    said = prompt.write_frame_system_prompt()
+    assert said.startswith(prompt.WRITE_FRAME_SYSTEM_PROMPT)
+    assert said.endswith("This workspace is used for X.")
+
+
+def test_an_empty_second_part_leaves_the_frame_writers_message_as_it_was(monkeypatch):
+    # 196's rule, over the second message it now reaches: an empty part adds neither a line nor a
+    # space, so a request made with nothing written is byte for byte the request made before it.
+    from backend.features.workspace.domain import prompt
+
+    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", "")
+    assert prompt.write_frame_system_prompt() == prompt.WRITE_FRAME_SYSTEM_PROMPT

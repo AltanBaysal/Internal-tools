@@ -11,8 +11,8 @@ test("with nothing selected the button says Skills and stays quiet", () => {
 });
 
 test("a selected skill gives the button its name and its warm tone", () => {
-  const { container } = render(<SkillPicker skill="generate-prompts-plus" />);
-  expect(screen.getByRole("button", { name: /Generate prompts/ })).toBeTruthy();
+  const { container } = render(<SkillPicker skill="edit-prompts" />);
+  expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy();
   expect(container.querySelector(".picker--on")).toBeTruthy();
 });
 
@@ -26,24 +26,24 @@ test("open, it lists every skill under a label", () => {
 test("choosing one hands the id over", () => {
   const onChange = vi.fn();
   render(<SkillPicker skill="" open onChange={onChange} />);
-  fireEvent.click(screen.getByText("Generate prompts+"));
-  expect(onChange).toHaveBeenCalledWith("generate-prompts-plus");
+  fireEvent.click(screen.getByText("Edit prompts"));
+  expect(onChange).toHaveBeenCalledWith("edit-prompts");
 });
 
 test("pressing the selected one clears it", () => {
   // The difference from the model picker: a chat may have no skill at all, and this is how it gets
   // back there.
   const onChange = vi.fn();
-  render(<SkillPicker skill="generate-prompts-plus" open onChange={onChange} />);
-  fireEvent.click(screen.getByText("Generate prompts+", { selector: ".menu__item-name" }));
+  render(<SkillPicker skill="edit-prompts" open onChange={onChange} />);
+  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   expect(onChange).toHaveBeenCalledWith("");
 });
 
 test("the selected row is the marked one", () => {
-  const { container } = render(<SkillPicker skill="generate-prompts-plus" open />);
+  const { container } = render(<SkillPicker skill="edit-prompts" open />);
   const checked = [...container.querySelectorAll(".menu__item--checked")];
   expect(checked.length).toBe(1);
-  expect(checked[0].textContent).toContain("Generate prompts+");
+  expect(checked[0].textContent).toContain("Edit prompts");
 });
 
 // Whether a picker is open is App's business now: Escape closes them in a fixed order and one menu

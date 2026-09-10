@@ -153,3 +153,162 @@ def test_a_chat_is_full_at_the_ceiling_and_not_before():
 
     assert not is_full(_answered(CONTEXT_CEILING - 1))
     assert is_full(_answered(CONTEXT_CEILING))
+
+
+# --- versions: the lines one chat can hold (Madde 195) -------------------------------------------
+
+
+def _said(role, text, context=0):
+    return Message(role=role, at=AT, text=text, usage=Usage(context, 0, 5, context))
+
+
+def _trunk(*texts):
+    """A chat whose first line is these messages, user and ai in turn."""
+    return Chat(
+        id="c1",
+        title=texts[0],
+        created_at=AT,
+        messages=tuple(
+            _said("user" if index % 2 == 0 else "ai", text) for index, text in enumerate(texts)
+        ),
+    )
+
+
+def _version(id, parent, at, *texts):
+    from backend.features.workspace.domain.chat import Version
+
+    return Version(
+        id=id,
+        parent=parent,
+        at=at,
+        messages=tuple(
+            _said("user" if index % 2 == 0 else "ai", text) for index, text in enumerate(texts)
+        ),
+    )
+
+
+def test_a_chat_with_no_versions_reads_its_own_messages():
+    # The floor under everything below: nothing about a chat that never branched changes, and the
+    # empty active is what says "the first line" rather than a name nobody wrote.
+    from backend.features.workspace.domain.chat import active_messages
+
+    chat = _trunk("hi", "Done.")
+    assert [m.text for m in active_messages(chat)] == ["hi", "Done."]
+
+
+def test_a_version_is_the_prefix_it_kept_plus_its_own():
+    # What the whole madde rests on: the messages before the split are not copied into the version,
+    # so the two lines share one copy of them and neither can drift from the other.
+    from backend.features.workspace.domain.chat import active_messages
+
+    chat = replace(
+        _trunk("hi", "Done.", "again", "Done twice."),
+        versions=(_version("l2", "", 2, "again, shorter", "Shorter."),),
+        active="l2",
+    )
+    assert [m.text for m in active_messages(chat)] == ["hi", "Done.", "again, shorter", "Shorter."]
+
+
+def test_a_version_of_a_version_walks_the_whole_chain():
+    from backend.features.workspace.domain.chat import active_messages
+
+    chat = replace(
+        _trunk("hi", "Done.", "again", "Done twice."),
+        versions=(
+            _version("l2", "", 2, "again, shorter", "Shorter."),
+            _version("l3", "l2", 3, "Shorter still."),
+        ),
+        active="l3",
+    )
+    assert [m.text for m in active_messages(chat)] == ["hi", "Done.", "again, shorter", "Shorter still."]
+
+
+def test_an_active_naming_nothing_falls_back_to_the_first_line():
+    # A chat on disk can be edited by hand, and the store reads field by field for the same reason.
+    # A name nobody wrote is not worth a crash: the first line is the one that always exists.
+    from backend.features.workspace.domain.chat import active_messages
+
+    chat = replace(_trunk("hi", "Done."), active="gone")
+    assert [m.text for m in active_messages(chat)] == ["hi", "Done."]
+
+
+def test_whether_an_answer_is_owed_is_asked_of_the_open_line():
+    # The closed line was answered and the open one was not. Reading the first line here would send
+    # the user's newest question nowhere.
+    from backend.features.workspace.domain.chat import is_owed_an_answer
+
+    chat = replace(
+        _trunk("hi", "Done."),
+        versions=(_version("l2", "", 1, "hi again"),),
+        active="l2",
+    )
+    assert is_owed_an_answer(chat)
+    assert not is_owed_an_answer(replace(chat, active=""))
+
+
+def test_the_ceiling_is_measured_on_the_open_line():
+    # A turn that only exists on a line nobody is on is not sent any more, and what is not sent
+    # cannot fill the chat. Measuring it would close a conversation over work it has walked away
+    # from.
+    from backend.features.workspace.domain.chat import is_full, last_context
+
+    chat = Chat(
+        id="c1",
+        title="hi",
+        created_at=AT,
+        messages=(_said("user", "hi"), _said("ai", "Done.", context=60_000)),
+        versions=(_version("l2", "", 1),),
+        active="l2",
+    )
+    assert last_context(chat) == 0
+    assert not is_full(chat)
+    assert is_full(replace(chat, active=""))
+
+
+def test_the_last_activity_is_the_open_lines_last_message():
+    # The sidebar orders chats by this. A chat left on a version was last touched there, and reading
+    # the first line would sort it by a conversation the user walked away from.
+    from backend.features.workspace.domain.chat import Version
+
+    later = "2026-08-09T12:00:00.000+00:00"
+    chat = replace(
+        _trunk("hi", "Done."),
+        versions=(
+            Version(
+                id="l2", parent="", at=1, messages=(Message(role="user", at=later, text="again"),)
+            ),
+        ),
+        active="l2",
+    )
+    assert chat.last_activity == later
+
+
+def test_the_options_at_a_split_are_the_base_line_and_the_versions_of_it():
+    # What the arrows step through, and the order they step in: the base line first because its
+    # message was there first, then the versions in the order they were made. Nothing else decides
+    # which way `1/2` points.
+    from backend.features.workspace.domain.chat import variants_of
+
+    chat = replace(
+        _trunk("hi", "Done.", "again", "Done twice."),
+        versions=(_version("l2", "", 2, "again, shorter"),),
+        active="l2",
+    )
+    assert [(v["index"], v["of"], v["versions"]) for v in variants_of(chat)] == [
+        (0, 1, [""]),
+        (0, 1, [""]),
+        (1, 2, ["", "l2"]),
+    ]
+
+
+def test_the_same_message_edited_twice_has_three_options():
+    from backend.features.workspace.domain.chat import variants_of
+
+    chat = replace(
+        _trunk("hi", "Done."),
+        versions=(_version("l2", "", 0, "hello"), _version("l3", "", 0, "hey")),
+        active="l3",
+    )
+    assert [(v["index"], v["of"], v["versions"]) for v in variants_of(chat)] == [
+        (2, 3, ["", "l2", "l3"])
+    ]

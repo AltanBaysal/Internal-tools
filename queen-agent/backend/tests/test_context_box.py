@@ -106,3 +106,31 @@ def test_the_box_remembers_files_and_nothing_else():
     # And a chat that once fetched it carries the step in its record forever, so the reading has to
     # walk past that name rather than trip on it.
     assert _opened(_chat([ToolCall("read_prompt_structure_schema", "", "Schema")])) == []
+
+
+def test_the_box_is_built_from_the_open_line(tmp_path):
+    """A read on a line the user walked away from is not what this turn has in front of it.
+
+    The box answers "what has this conversation looked at", and since Madde 195 the conversation is
+    the open line. A file opened on a version nobody is standing on would put a heading in the
+    request for a turn that never read it.
+    """
+    from backend.features.workspace.domain.chat import Version
+
+    left = _chat([_read("plan.md")])
+    on_a_version = Chat(
+        "c1",
+        "t",
+        NOW,
+        left.messages,
+        versions=(
+            Version(
+                id="l2",
+                parent="",
+                at=0,
+                messages=(Message("ai", NOW, "ok", calls=(_read("aylin.json"),)),),
+            ),
+        ),
+        active="l2",
+    )
+    assert _opened(on_a_version) == ["aylin.json"]

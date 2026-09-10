@@ -2,19 +2,19 @@
 // skill selected is an ordinary state.
 //
 // The flow comes first because that is the answer to "which do I want": somebody with nothing yet
-// takes the flow, somebody already holding a structure file takes the builder. The second line says
-// when to pick a row rather than how the row works -- with two of them side by side the condition
-// is what tells them apart, and a file appearing unasked is the surprising part either way.
+// takes the flow, somebody who already has prompts takes the editor. Since Madde 186 the two are
+// the halves of the work rather than two roads into it -- the flow runs all the way to the built
+// file, so nobody comes out of it needing a second row to finish.
 export const SKILLS = [
   {
     id: "start-a-scenario",
     name: "Start a scenario",
-    detail: "Answer a few questions and get the characters, the places and the scene list.",
+    detail: "Answer a few questions and get the characters, the places and the prompts.",
   },
   {
-    id: "generate-prompts-plus",
-    name: "Generate prompts+",
-    detail: "Build the prompts from a structure file you already have, and change them later.",
+    id: "edit-prompts",
+    name: "Edit prompts",
+    detail: "Fix what is wrong in prompts you already have, and build them again.",
   },
 ];
 

@@ -1,5 +1,5 @@
 """XaiEngine -- the Engine port, backed by the xAI service."""
-from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
+from backend.features.workspace.domain.prompt import system_prompt
 
 # Disk keeps the design's own word for the role; xAI is told OpenAI's. The translation is a
 # transport detail, so it lives here and nowhere else.
@@ -53,7 +53,9 @@ class XaiEngine:
 
     @staticmethod
     def _for_xai(messages):
-        prepared = [{"role": "system", "content": SYSTEM_PROMPT}]
+        # Asked when the request is built rather than read at import (Madde 196): the second part of
+        # that text is the owner's, and one written today belongs in the very next turn.
+        prepared = [{"role": "system", "content": system_prompt()}]
         for message in messages:
             # Copied whole so tool_calls and tool_call_id ride along; only the role is translated,
             # and a role xAI already understands (assistant, tool) passes through untouched.

@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
+import { VERSION } from "../../shared/version.js";
 import Sidebar from "./Sidebar.jsx";
 
 const PROJECTS = [
@@ -48,6 +49,14 @@ test("folded, nothing is left but the way back", () => {
   expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });
 
+test("folded, the version folds with the name", () => {
+  // It opens no room of its own: folded, the sidebar is the button that brings it back and nothing
+  // else. True today because the collapsed branch returns early -- and written down so that moving
+  // the brand block into that branch cannot quietly bring the version along.
+  render(<Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={vi.fn()} />);
+  expect(screen.queryByText(VERSION)).toBeNull();
+});
+
 test("folded, the same button is what brings it back", () => {
   const onToggle = vi.fn();
   render(<Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={onToggle} />);
@@ -64,6 +73,15 @@ test("there is no logo mark beside the wordmark", () => {
   const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
   expect(screen.getByText("QueenAgent")).toBeTruthy();
   expect(container.querySelector(".sidebar__mark")).toBeNull();
+});
+
+test("the sidebar says which run this is", () => {
+  // We jump from run to run -- V6, V7, V8 -- and nothing on screen said which one was running.
+  // Asked of the constant rather than of "V8": the value moves when a run opens, and this claim is
+  // that it reaches the screen, not what it says.
+  const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
+  expect(screen.getByText(VERSION)).toBeTruthy();
+  expect(container.querySelector(".sidebar__brand").textContent).toContain(VERSION);
 });
 
 test("every project dot is the same tone", () => {

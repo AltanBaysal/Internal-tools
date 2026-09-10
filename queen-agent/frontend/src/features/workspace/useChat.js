@@ -5,7 +5,7 @@ import { streamEvents } from "../../shared/sse.js";
 
 import { chatTitle } from "./chatTitle.js";
 
-export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
+export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd) {
   const [chat, setChat] = useState(null);
   const [error, setError] = useState(null);
   // Kept apart from `error` on purpose: a message that was never sent and an answer that never came
@@ -19,6 +19,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   // What the turn has done so far. Held only while the answer runs: the record that arrives at the
   // end carries the same steps, and drawing from both sources would read one step as two.
   const [streamingCalls, setStreamingCalls] = useState([]);
+  // Where the turn has got to: {round, of, tokens}, or null before it has said (Madde 194). Held on
+  // the same terms as the calls above -- only while the answer runs, because what it describes stops
+  // existing when the turn does.
+  const [progress, setProgress] = useState(null);
   // The question a paused turn is waiting on: {tool, args}, or null. The frame says `arguments` and
   // this says `args` -- a language rule rather than a rename, since `arguments` cannot be
   // destructured as a prop inside a module.
@@ -30,6 +34,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   announce.current = onFileCreated;
   const born = useRef(onChatBorn);
   born.current = onChatBorn;
+  const ended = useRef(onTurnEnd);
+  ended.current = onTurnEnd;
   // Which chat a stream is running into. The first frame moves the address, and the effect below
   // must not answer that move by throwing away what is still arriving.
   const streamingInto = useRef(null);
@@ -91,7 +97,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
   // is settled when the turn is sent. The mode travels the same way and is kept nowhere -- what it
   // decides is which tools the request carries, and that is decided the moment it is sent.
   const send = useCallback(
-    async (text = null, skill = "", mode = "", model = "") => {
+    async (text = null, skill = "", mode = "", model = "", from = null) => {
       const at = new Date().toISOString();
       const token = {};
       owner.current = token;
@@ -105,7 +111,13 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
           current
             ? {
                 ...current,
-                messages: [...current.messages, { role: "user", at, text, pending: true }],
+                // An edit opens a line where the old message stood, so what is drawn while the
+                // server answers is the conversation up to that point and the new sentence -- not
+                // the new sentence after turns it has just replaced (Madde 195).
+                messages: [
+                  ...(from === null ? current.messages : current.messages.slice(0, from)),
+                  { role: "user", at, text, pending: true },
+                ],
               }
             : {
                 id: null,
@@ -123,12 +135,24 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
       setCreatingFile(false);
       setCreatedFiles([]);
       setStreamingCalls([]);
+      setProgress(null);
       streamingInto.current = chatId;
       setStreamingChatId(chatId);
       // No text at all is how Try again asks: the question is already on disk and must not be
       // written a second time. A blank one would be refused, which is a different thing.
+      // An edit carries where it starts from (Madde 195); an ordinary reply carries no such field,
+      // and the server tells the two apart by its absence rather than by a number meaning nothing.
       const body =
-        text === null ? { chat: chatId } : { chat: chatId ?? "", text, skill, mode, model };
+        text === null
+          ? { chat: chatId }
+          : {
+              chat: chatId ?? "",
+              text,
+              skill,
+              mode,
+              model,
+              ...(from === null ? {} : { from }),
+            };
       try {
         await streamEvents(
           `/api/projects/${projectId}/messages`,
@@ -156,6 +180,10 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
               // frame is the second. Only a born file used to take it down, so a tool that wrote
               // nothing left it up until the turn ended.
               setCreatingFile(false);
+            } else if (frame.event === "progress") {
+              // Replaced rather than collected: the frame carries where the turn is now, and one
+              // line has room for one answer.
+              setProgress(frame.data);
             } else if (frame.event === "file-start") setCreatingFile(true);
             else if (frame.event === "file") {
               setCreatedFiles((names) => [...names, frame.data.name]);
@@ -224,6 +252,8 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
           setCreatingFile(false);
           setCreatedFiles([]);
           setStreamingCalls([]);
+          // The strip becomes the record's stamp: same place, and the count stops where it stopped.
+          setProgress(null);
           // However the turn ended. A question left standing would hang over the next turn,
           // offering to allow something nobody is waiting on any more.
           setPermission(null);
@@ -234,6 +264,26 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
           setStreamingChatId(null);
           owner.current = null;
         }
+        // Outside that gate, and however the turn ended (Madde 192). The gate guards what draws on
+        // the screen; this draws nothing -- it asks the disk. What the turn wrote is written
+        // whoever is looking, and a fault is an ending too: what got as far as disk is on it. The
+        // same reason a born file is announced for every screen.
+        ended.current?.();
+      }
+    },
+    [projectId, chatId],
+  );
+
+  // Which version of the conversation is open (Madde 195). The record is read back rather than
+  // guessed at: the server keeps which line is open, and a second answer held here is the one that
+  // would go stale.
+  const version = useCallback(
+    async (wanted) => {
+      try {
+        await postJson(`/api/projects/${projectId}/chats/${chatId}/version`, { version: wanted });
+        setChat(await getJson(`/api/projects/${projectId}/chats/${chatId}`));
+      } catch (failure) {
+        setError(failure.message);
       }
     },
     [projectId, chatId],
@@ -275,10 +325,12 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn) {
     creatingFile: visible && creatingFile,
     createdFiles: visible ? createdFiles : [],
     streamingCalls: visible ? streamingCalls : [],
+    progress: visible ? progress : null,
     permission: visible ? permission : null,
     send,
     stop,
     answer,
+    version,
     // Try again is the same road with no sentence on it.
     retry: () => send(null),
   };

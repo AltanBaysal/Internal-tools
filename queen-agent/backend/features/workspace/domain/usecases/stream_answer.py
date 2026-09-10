@@ -3,12 +3,19 @@
 The generator yields text pieces and finally the updated Chat. Telling them apart by type is
 simpler than carrying a separate "this one is the last" flag.
 """
-from backend.features.workspace.domain.chat import ToolCall, Usage
+from dataclasses import dataclass
+
+from backend.features.workspace.domain.chat import ToolCall, Usage, active_messages
 from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting, refusal_text
-from backend.features.workspace.domain.prompt import LAST_ROUND
+from backend.features.workspace.domain.prompt import (
+    FILES_HELD,
+    LAST_ROUND,
+    NO_FILES_YET,
+    OPENED_FILES,
+)
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.domain.tools import (
     MAX_ROUNDS,
@@ -22,23 +29,54 @@ from backend.features.workspace.domain.tools import (
 from backend.features.workspace.domain.usecases.append_message import append_message
 
 
+@dataclass(frozen=True)
+class Progress:
+    """Where the turn has got to, said while it is still going (Madde 194).
+
+    It lives here rather than beside FileStarted or PermissionWanted because a piece belongs next to
+    whatever gives birth to it, and what gives birth to this is the turn itself.
+
+    `round` shadows the builtin in the generated __init__ and nowhere else, and that body never
+    calls it. What is bought is one word: the field, the frame's key and what the screen reads all
+    say the same thing.
+    """
+
+    round: int
+    of: int
+    tokens: int
+
+
+def _volume(spent):
+    """How big the turn got -- everything that crossed the wire, cache included.
+
+    Not the bill: cached tokens are charged less, and the stamp at the end is where price is
+    answered. This number answers the question the fourth trial raised -- 277.6k for a twenty-one
+    frame fix -- and only sent would have hidden half of it.
+    """
+    return spent.sent + spent.cached + spent.answered
+
+
 def _conversation(chat):
     """Every message, and nothing else.
 
     The skill's instruction used to be dropped in here, in front of the turn it governed. Since
     Madde 93 it does not travel inside the conversation at all -- it rides at the end of the
     request, and `_asked` is what puts it there.
+
+    The open line since Madde 195: a version is answered with the conversation the user is standing
+    in, not the one they took back.
     """
-    return [{"role": message.role, "content": message.text} for message in chat.messages]
+    return [{"role": message.role, "content": message.text} for message in active_messages(chat)]
 
 
 def _current_skill(chat):
     """Which skill governs the turn being answered: the newest user message's.
 
     Walked from the end rather than read off the last message, for the same reason last_sent is: a
-    record does not always end with the question that is waiting for an answer.
+    record does not always end with the question that is waiting for an answer -- and since Madde
+    195 that end is the open line's.
     """
-    for message in reversed(chat.messages):
+    for message in reversed(active_messages(chat)):
         if message.role == "user":
             return message.skill
     return ""
@@ -48,11 +86,11 @@ def _current_model(chat):
     """Which model answers the turn: the newest user message's (Madde 146).
 
     Read the way the skill is, and walked from the end for the same reason -- a record does not
-    always end with the question that is waiting for an answer. Nothing here turns an empty one into
-    a name: config.engine_for is the single place that resolves a fallback, and a second guess here
-    would be a second answer to one question.
+    always end with the question that is waiting for an answer, and since Madde 195 that end is the
+    open line's. Nothing here turns an empty one into a name: config.engine_for is the single place
+    that resolves a fallback, and a second guess here would be a second answer to one question.
     """
-    for message in reversed(chat.messages):
+    for message in reversed(active_messages(chat)):
         if message.role == "user":
             return message.model
     return ""
@@ -61,12 +99,11 @@ def _current_model(chat):
 def _named(names):
     """What the project holds, in one line for the model (Madde 127).
 
-    Counting to zero does not say "there are none": the two are different sentences, and a model
-    reading an empty list would go looking for the tool that used to answer this.
+    Two sentences rather than one with an empty tail, and both of them are prompt.py's (Madde 189).
     """
     if not names:
-        return "This project holds no files yet."
-    return "The project's files right now: " + ", ".join(names)
+        return NO_FILES_YET
+    return FILES_HELD + ", ".join(names)
 
 
 def _boxed(file_store, project_id, chat, steps):
@@ -92,13 +129,7 @@ def _boxed(file_store, project_id, chat, steps):
         blocks.append(f"--- {name} ---\n{numbered(content)}")
     if not blocks:
         return ""
-    # The window is stated rather than merely kept (Madde 179). This is the only place a file is
-    # shown now, so a model that did not know the box holds five would go looking for a sixth it
-    # can no longer see -- where knowing it costs one sentence to open the file again.
-    return (
-        f"The last {BOX_LIMIT} files you opened, with their contents as they are now:\n\n"
-        + "\n\n".join(blocks)
-    )
+    return OPENED_FILES.format(limit=BOX_LIMIT) + "\n\n".join(blocks)
 
 
 def _asked(conversation, names, box, instruction, last=False):
@@ -204,6 +235,10 @@ def stream_answer(
             # every other one -- with a call whose result no round is left to read, and a turn that
             # never spoke (Madde 137).
             last = index == MAX_ROUNDS - 1
+            # Before the round rather than after it (Madde 194): the number the screen shows first
+            # is the one that moves first, and a round announced only once it has ended would leave
+            # the strip a whole request behind the turn.
+            yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
             spoken, calls = [], []
             # This round's bill so far. None until the engine says anything about it, so an engine
             # that measures nothing leaves the total alone rather than adding zeroes to it.
@@ -272,6 +307,7 @@ def stream_answer(
                     # last because the conversation grew. The final reading is where it ended.
                     round_spent["sent"],
                 )
+                yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
 
             # Asked once, at the end, rather than before every frame: since Madde 90 a stop cuts
             # the connection, so a round that was stopped is over by the time this runs. What this
@@ -334,6 +370,10 @@ def stream_answer(
                         spent.answered + result.spent.get("answered", 0),
                         spent.context,
                     )
+                    # The third place the count moves, and the reason it cannot move only between
+                    # rounds: write_missing_actions pays for eight of these without the round ever
+                    # ending (Madde 185).
+                    yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
                 # A name born twice in one turn is still one file: the card says a file exists, not
                 # how many times it was written.
                 if result.created and result.created not in born:
