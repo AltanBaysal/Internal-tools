@@ -74,6 +74,26 @@ def _prompts_of(module_text):
     return ast.literal_eval(ast.parse(module_text).body[0].value)
 
 
+def test_the_character_preview_constructor_is_gone():
+    # Madde 206. The tool goes, and these two were only ever reached from it: one built the
+    # preview, the other named the file it landed in.
+    from backend.features.workspace.domain import build_prompts
+
+    assert not hasattr(build_prompts, "build_character_prompts")
+    assert not hasattr(build_prompts, "character_prompts_name")
+
+
+def test_the_folding_rule_goes_with_the_name_it_was_written_for():
+    # folded existed to put a character's name inside a file name, and character_prompts_name was
+    # its last caller -- Madde 205 took the other one out of tools.py. Asked here rather than in a
+    # file of naming's own so that where this removal stops is written beside where it starts:
+    # unique_name stays, and three stores go on calling it.
+    from backend.features.workspace.domain import naming
+
+    assert not hasattr(naming, "folded")
+    assert naming.unique_name({"plan.md"}, "plan.md") == "plan-2.md"
+
+
 def test_a_frame_is_built_in_the_fixed_order():
     # Madde 184. Everybody in front, then what is happening, then where. The place used to sit
     # between two people to hold their descriptions apart; BREAK does that, and the price was that

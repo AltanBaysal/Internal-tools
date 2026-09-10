@@ -909,6 +909,38 @@ def test_the_ready_piece_library_is_gone():
     assert not hasattr(prompt, "PROMPT_PIECES")
 
 
+def test_the_character_preview_tool_is_gone(tmp_path):
+    # Madde 206. It showed one character with every outfit the file names, outside any frame -- a
+    # look, and nothing the scenario is built from: the file it wrote never entered build_prompts'
+    # list and no frame fed from it. The flow stopped offering it, so it ran only when a user asked
+    # for it by name, while its description and its two parameters were paid for on every request.
+    assert "build_character_prompts" not in {spec["function"]["name"] for spec in TOOL_SPECS}
+    said = run_tool(
+        _files(tmp_path),
+        "p1",
+        "build_character_prompts",
+        json.dumps({"name": "scene.json", "character": "aylin"}),
+    ).text
+    assert "no tool called" in said
+
+
+def test_no_tool_is_expected_to_write_a_character_preview():
+    # Its own test because this set is the chat's, not the runner's: a name left here is an
+    # interface ready to draw a file card for a tool nobody can call.
+    from backend.features.workspace.domain.tools import WRITES_FILES
+
+    assert "build_character_prompts" not in WRITES_FILES
+
+
+def test_the_character_preview_text_is_gone():
+    # What the madde is actually buying back. The tool ran on almost no turn; these two went on
+    # every one of them.
+    from backend.features.workspace.domain import prompt
+
+    assert not hasattr(prompt, "BUILD_CHARACTER_PROMPTS")
+    assert not hasattr(prompt, "BUILD_CHARACTER_PROMPTS_CHARACTER")
+
+
 @pytest.mark.parametrize("tool", TAG_TOOLS)
 def test_the_rules_ride_with_every_tool_that_takes_tags(tool):
     spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)

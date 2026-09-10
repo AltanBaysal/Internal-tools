@@ -87,6 +87,16 @@ def test_reading_a_file_is_the_only_call_no_mode_asks_about():
         assert not _asks(mode, "read_file"), mode
 
 
+def test_no_mode_lets_the_character_preview_through():
+    # Madde 206. Read off the lists rather than asked of needs_permission: that one answers False
+    # for a tool nobody knows, so an entry left behind after the tool is gone claims nothing and
+    # passes green -- which is the trap 205 recorded, one file over.
+    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
+
+    for mode, allowed in _WITHOUT_ASKING.items():
+        assert "build_character_prompts" not in allowed, mode
+
+
 def test_edit_mode_asks_for_nothing():
     # The mode's whole meaning. Asked of every tool there is rather than of a list written here --
     # a ninth tool must join this claim by existing, not by somebody remembering to add it.

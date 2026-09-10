@@ -106,6 +106,17 @@ def test_the_flow_fills_every_waiting_frame_then_builds():
     assert said.index("write_missing_actions") < said.rindex("build_prompts")
 
 
+def test_the_flow_no_longer_offers_a_look_at_one_character():
+    # Madde 206, and the reading's 18th correction before it: the second step offered a preview of
+    # one character and carried on if it was declined, which is a side door written into a flow --
+    # a line the model reads on every scenario for a tool the scenario is not built from.
+    #
+    # Its own test rather than left to test_no_instruction_names_a_tool_that_is_gone: that one would
+    # force the sentence out as a consequence of the tool going, and say nothing about why the
+    # sentence itself was not wanted.
+    assert "build_character_prompts" not in _flow()
+
+
 def test_no_instruction_walks_the_frames_one_at_a_time():
     # The old sentence goes rather than standing beside the new one: two ways of doing one job in
     # one text is the model choosing, and the expensive one reads as the careful one.
