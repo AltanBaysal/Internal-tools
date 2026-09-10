@@ -34,9 +34,6 @@ WRITES = (
     # makes to a file the user is reading.
     "update_frame",
     "remove_frame",
-    # Madde 176. It changes the file, and it also spends the user's money at a second provider --
-    # the only tool here that does either of those things by asking somebody else.
-    "write_frame_prompt",
     # Madde 198. The narrowest write there is -- one character in one line -- and still a write to a
     # file the user is reading, so the quieter modes keep their gate in front of it. Plan mode's is
     # not a formality either: its job is writing the plan, never closing a step off it.

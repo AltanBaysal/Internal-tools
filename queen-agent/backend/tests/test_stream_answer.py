@@ -1129,7 +1129,7 @@ def test_a_tools_own_request_is_added_to_what_the_turn_spent(tmp_path):
     chats, files = _seeded(tmp_path)
     _with_a_frame(files)
     rounds = [
-        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]},
+        [{"tool_calls": [call("write_missing_actions", file="scene.json")]},
          spent(1000, 0, 10)],
         [{"text": "done"}, spent(1500, 0, 20)],
     ]
@@ -1147,7 +1147,7 @@ def test_a_tools_request_does_not_change_how_big_the_conversation_got(tmp_path):
     chats, files = _seeded(tmp_path)
     _with_a_frame(files)
     rounds = [
-        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]},
+        [{"tool_calls": [call("write_missing_actions", file="scene.json")]},
          spent(1000, 0, 10)],
         [{"text": "done"}, spent(1500, 0, 20)],
     ]
@@ -1165,7 +1165,7 @@ def test_the_turn_hands_its_engine_to_the_tool_that_needs_one(tmp_path):
     chats, files = _seeded(tmp_path)
     _with_a_frame(files)
     rounds = [
-        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]}],
+        [{"tool_calls": [call("write_missing_actions", file="scene.json")]}],
         [{"text": "done"}],
     ]
     engine = ScriptedEngine(rounds)
@@ -1230,7 +1230,7 @@ def test_a_tools_own_bill_moves_the_number_inside_the_round(tmp_path):
     chats, files = _seeded(tmp_path)
     _with_a_frame(files)
     rounds = [
-        [{"tool_calls": [call("write_frame_prompt", file="scene.json", frame=1)]}],
+        [{"tool_calls": [call("write_missing_actions", file="scene.json")]}],
         [{"text": "done"}],
     ]
     engine = ScriptedEngine(rounds, tool_spends={"sent": 300, "cached": 0, "answered": 60})

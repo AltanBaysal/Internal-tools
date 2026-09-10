@@ -177,8 +177,8 @@ EDIT_PROMPTS = (
     "Read the file the complaint is about; with several, ask which. Where the fault lives is "
     "what decides the fix.\n"
     "\n"
-    "One frame's action reads wrong: correct it yourself with update_frame. A line wanted afresh "
-    "from the scene is write_frame_prompt again, with a note.\n"
+    "One frame's action reads wrong, or wants writing afresh from its scene: write it yourself "
+    "with update_frame.\n"
     "\n"
     "Somebody looks wrong, or a place does, wherever they appear: that is their entry -- "
     "update_character, update_outfit or update_location -- and one change reaches every frame "
@@ -499,8 +499,8 @@ ADD_SCENE = (
     "already: a name nobody knows is refused, together with the names that are known, "
     "and the whole call is refused with it -- nothing is written unless every scene in "
     "it is good. The answer names the frames it made, which is how you say which one "
-    "you mean next: a frame is born without its action, and write_frame_prompt is what "
-    "writes one."
+    "you mean next: a frame is born without its action, and write_missing_actions writes "
+    "every frame that is still without one."
 )
 ADD_SCENE_BEFORE = (
     "Go in front of this frame, by its number, rather than at the end. The "
@@ -559,30 +559,14 @@ REMOVE_FRAME = (
     "all stays where it is, and taking it out is the user's to ask for."
 )
 
-WRITE_FRAME_PROMPT = (
-    "Write one frame's action -- what is happening in that frozen instant, and the "
-    "shot it is seen through. Asked of a model kept for this and nothing else, so the "
-    "sentence is not yours to write and not yours to read back: it goes straight into "
-    "the frame. The frame needs its scene first, which is the brief the action is "
-    "written from; who is in it and where are read from the file. Written over "
-    "whatever was there, so calling this again on the same frame is how an action is "
-    "changed -- with a note when there is something to fix, and the note is the whole "
-    "of what the writer hears about it. One frame per call."
-)
-WRITE_FRAME_PROMPT_NOTE = (
-    "What to do differently, in your own words -- what the user said about "
-    "the last one, or what this frame needs that the scene does not say. "
-    "Left out the first time."
-)
-
 WRITE_MISSING_ACTIONS = (
     "Write the action of every frame in a structure file that is still without one, in one "
-    "call. Each frame is asked of the same model write_frame_prompt asks, at the same time as "
-    "the others, and each is shown only its own scene, cast and place. Frames that already "
-    "have an action are left exactly as they are -- rewriting one is write_frame_prompt's job, "
-    "with a note. There is no range and there is nothing to say twice: what is waiting is what "
-    "is empty. One request failing does not undo the rest; the answer names the frames it wrote "
-    "and, for any it could not, says why."
+    "call. Each frame is asked of a model kept for writing those and nothing else, at the same "
+    "time as the others, and each is shown only its own scene, cast and place. Frames that "
+    "already have an action are left exactly as they are -- a line that is there is changed "
+    "with update_frame, in your own words. There is no range and there is nothing to say twice: "
+    "what is waiting is what is empty. One request failing does not undo the rest; the answer "
+    "names the frames it wrote and, for any it could not, says why."
 )
 
 BUILD_PROMPTS = (

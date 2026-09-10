@@ -59,11 +59,9 @@ _WITHOUT_ASKING = {
         # of these makes to a file the user is reading.
         "update_frame",
         "remove_frame",
-        # Madde 176. It writes to the file and it spends the user's money at a second provider --
-        # the only tool here that does either by asking somebody else.
-        "write_frame_prompt",
-        # Madde 185. The same, once for every frame still waiting -- so this is the widest single
-        # spend any tool here makes, and the quieter modes keep their gate in front of it.
+        # Madde 185, and since 208 the only tool here that spends the user's money at a second
+        # provider: one request for every frame still waiting, in one call. The widest single spend
+        # any of these makes, and the quieter modes keep their gate in front of it.
         "write_missing_actions",
         # Madde 198. The narrowest write there is, one character in one line, and still a write to
         # a file the user is reading. Not in PLAN above, and that is not a formality: that mode's

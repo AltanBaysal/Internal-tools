@@ -828,8 +828,8 @@ def test_the_build_tool_tells_the_model_it_assembles_frames():
 #
 # Half of it had to live. The shape became the code's; the tag text is still the model's, and no
 # signature can make it leave the quality chain out or put the count in the right entry. That half
-# splits by author: what goes into a map entry is Queen's and rides with these six tools; what goes
-# into a frame's action is Grok's and rides with write_frame_prompt (Madde 176).
+# splits by author: what goes into a map entry is the agent's and rides with these six tools; what
+# goes into a frame's action is the writer's, and rides in its own system prompt (Madde 176).
 
 TAG_TOOLS = (
     "add_character",
@@ -1030,9 +1030,9 @@ def test_the_rules_ask_for_tags_rather_than_sentences():
 
 
 def test_the_rules_say_nothing_about_a_frames_action():
-    # The other half of the schema, and it belongs to whoever writes an action -- write_frame_prompt,
-    # in Madde 176. Carried here it would ride on six tools that never write one, six times per
-    # request, read by nobody.
+    # The other half of the schema, and it belongs to whoever writes an action -- the model
+    # write_missing_actions asks, since Madde 176. Carried here it would ride on six tools that
+    # never write one, six times per request, read by nobody.
     said = _rules().lower()
     assert "action" not in said
     assert "camera" not in said
@@ -1122,12 +1122,9 @@ def test_every_tool_is_declared_to_the_model():
         # here a frame already in the file could not be touched at all.
         "update_frame",
         "remove_frame",
-        # Madde 176. The one tool that answers out of a model rather than out of the file store:
-        # the border between the agent that builds a scenario and the model that writes its
-        # sentences.
-        "write_frame_prompt",
-        # Madde 185. The same border crossed once for every frame still waiting, in one round --
-        # the tool above stays for the correction, which is the only one that carries a note.
+        # Madde 185, and since 208 the only tool that answers out of a model rather than out of the
+        # file store: the border between the agent that builds a scenario and the model that writes
+        # its sentences, crossed once for every frame still waiting, in one round.
         "write_missing_actions",
         # Madde 198. What a ticked step looks like stops being the model's to invent: the plan is
         # written as boxes and this is what fills one.
@@ -1592,8 +1589,8 @@ def test_add_scene_gives_each_frame_the_number_of_its_place(tmp_path):
 
 
 def test_add_scene_says_which_frames_it_made(tmp_path):
-    # The numbers rather than a total: the model's next move is write_frame_prompt on each of them,
-    # and a count would send it reading the file back to learn what to name.
+    # The numbers rather than a total: the model's next move names them, and a count would send it
+    # reading the file back to learn what to name.
     files = _with(tmp_path, "scene.json", STRUCTURE)
     assert _call(files, "add_scene", file="scene.json", scenes=[SCENE, SCENE, SCENE]) == (
         "Added 3 scenes to scene.json as frames 3-5."
@@ -2257,21 +2254,21 @@ def test_the_scene_tool_tells_the_model_a_place_can_be_named():
     assert "before" in said
 
 
-# --- the frame's action, written by the model that writes those (Madde 176) -----------------------
+# --- what the model kept for writing actions is told (Madde 176) ----------------------------------
 #
 # The whole reason this run is shaped the way it is. The main agent builds the scenario -- who is
 # there, what they wear, where, in what order -- and it is good at that and bad at the one sentence
 # a frame turns on: its restriction makes it write around the thing rather than at it. The prompt
-# model is the other way round, strong on exactly that sentence and unable to carry the rest.
+# model is the other way round, strong on exactly that sentence and unable to carry the rest. The
+# camera lives in that sentence too (the user's decision, 5 Sep): a model splitting one shot across
+# two fields is a model doing bookkeeping instead of writing.
 #
-# This tool is the whole of the border between them. The main agent says which frame and, if it has
-# something to add, why; the prompt model writes the sentence and nothing else. The camera lives in
-# that sentence too (the user's decision, 5 Sep): a model splitting one shot across two fields is a
-# model doing bookkeeping instead of writing.
+# Madde 208 left one road across that border: write_missing_actions, which fills every waiting frame
+# in one call. What the writer is told is here; what it is asked for is in that tool's own section.
 
 
 class FakeWriter:
-    """An engine that only writes once, which is all this tool ever asks of one."""
+    """An engine that only writes once, which is all the writer is ever asked for."""
 
     def __init__(self, text="she turns her head, close-up", spent=None, blow_up=None):
         self.text = text
@@ -2285,12 +2282,6 @@ class FakeWriter:
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         return {"text": self.text, "spent": self.spent}
-
-
-def _wrote(files, engine, **arguments):
-    return run_tool(
-        files, "p1", "write_frame_prompt", json.dumps(arguments), engine=engine
-    )
 
 
 def test_the_prompt_writers_system_prompt_carries_the_rules_a_map_entry_is_written_by():
@@ -2308,19 +2299,10 @@ def test_the_writer_is_asked_with_the_second_part_on_the_end(tmp_path, monkeypat
     # Madde 202. Built where it is sent rather than read off a constant, so a second part written
     # today reaches the very next frame -- the same reason the engine calls system_prompt() instead
     # of holding SYSTEM_PROMPT.
-    from backend.features.workspace.domain import prompt
-
-    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", "This workspace is used for X.")
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    writer = FakeWriter()
-    _wrote(files, writer, file="scene.json", frame=1)
-    assert writer.system.endswith("This workspace is used for X.")
-
-
-def test_the_bulk_tool_asks_with_the_second_part_too(tmp_path, monkeypatch):
-    # Every request the loop makes, not the first one: they are all the same model meeting the same
-    # kind of sentence, and one of them arriving without the frame is one refusal in the middle of
-    # a file.
+    #
+    # Every request the loop makes, not merely the first: they are all the same model meeting the
+    # same kind of sentence, and one of them arriving without the second part is one refusal in the
+    # middle of a file.
     from backend.features.workspace.domain import prompt
 
     monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", "This workspace is used for X.")
@@ -2505,140 +2487,6 @@ def test_the_prompt_writer_is_not_told_what_queenagent_tells_its_agent():
     assert SYSTEM_PROMPT not in WRITE_FRAME_SYSTEM_PROMPT
 
 
-def test_the_writer_is_handed_the_scene_the_cast_and_the_place(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    writer = FakeWriter()
-    _wrote(files, writer, file="scene.json", frame=1)
-    said = writer.user
-    assert "one" in said                       # the scene sentence, which is the brief
-    assert "aylin" in said                     # the name, so a note that uses it can be matched
-    assert "1girl, long teal hair" in said     # and the tags, which are what the prompt is made of
-    assert "white nightgown" in said           # the outfit's tags, not just its name
-    assert "bedroom" in said and "sunlit bedroom" in said
-
-
-def test_the_writer_is_handed_the_note_when_there_is_one(tmp_path):
-    # The main agent's voice. A user saying "this one is flat" reaches the writer as a note, and
-    # calling the same frame again with one is what a retry is here.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    writer = FakeWriter()
-    _wrote(files, writer, file="scene.json", frame=1, note="make it tenser, she is afraid")
-    assert "make it tenser, she is afraid" in writer.user
-
-
-def test_the_writer_is_handed_this_frame_and_no_other(tmp_path):
-    # The user's decision of 5 Sep, and the reason this request is cheap. A file of forty frames
-    # would otherwise send forty casts to write one sentence.
-    files = _with(
-        tmp_path,
-        "scene.json",
-        json.dumps(
-            {
-                "characters": {"aylin": "1girl", "deniz": "1boy, dark hair"},
-                "outfits": {"gecelik": "white nightgown", "palto": "long coat"},
-                "locations": {"bedroom": "sunlit bedroom", "balcony": "night balcony"},
-                "frames": [
-                    {"number": 1, "scene": "one", "characters": {"aylin": ["gecelik"]},
-                     "location": "bedroom"},
-                    {"number": 2, "scene": "two", "characters": {"deniz": ["palto"]},
-                     "location": "balcony"},
-                ],
-            }
-        ),
-    )
-    writer = FakeWriter()
-    _wrote(files, writer, file="scene.json", frame=1)
-    assert "aylin" in writer.user
-    assert "deniz" not in writer.user
-    assert "long coat" not in writer.user
-    assert "night balcony" not in writer.user
-
-
-def test_what_comes_back_is_written_to_the_frames_action(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _wrote(files, FakeWriter("she turns her head, close-up"), file="scene.json", frame=1)
-    assert _frames(files)[0]["action"] == "she turns her head, close-up"
-
-
-def test_an_action_that_is_already_there_is_written_over(tmp_path):
-    # Always, and on purpose: a second call with a note is a correction, and a correction that left
-    # the old sentence behind would be an argument rather than a fix.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    _wrote(files, FakeWriter("she looks away"), file="scene.json", frame=2, note="softer")
-    assert _frames(files)[1]["action"] == "she looks away"
-
-
-def test_the_answer_is_a_receipt_rather_than_the_prompt(tmp_path):
-    # Madde 130's rule, one road along: what was built goes in the file, not back into the chat.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    answer = _wrote(files, FakeWriter("she turns her head"), file="scene.json", frame=1)
-    assert answer.text == "Wrote frame 1 of scene.json."
-    assert "turns her head" not in answer.text
-    # No card: the file was already there.
-    assert answer.created is None
-
-
-def test_the_tools_own_spending_comes_back_with_its_answer(tmp_path):
-    # The user pays for this request, so somebody has to be able to find it. The tool is the only
-    # place that knows it happened.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    answer = _wrote(
-        files,
-        FakeWriter(spent={"sent": 300, "cached": 0, "answered": 60}),
-        file="scene.json",
-        frame=1,
-    )
-    assert answer.spent == {"sent": 300, "cached": 0, "answered": 60}
-
-
-def test_a_frame_with_no_scene_has_nothing_to_write_from(tmp_path):
-    files = _with(
-        tmp_path, "scene.json", json.dumps({"frames": [{"number": 1, "characters": {}}]})
-    )
-    writer = FakeWriter()
-    answer = _wrote(files, writer, file="scene.json", frame=1)
-    assert "Frame 1 has no scene to write from." in answer.text
-    # Refused before the request, not after it: nothing is paid to be told this.
-    assert writer.user is None
-
-
-def test_writing_refuses_a_frame_that_is_not_there(tmp_path):
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    assert "there is no frame 9" in _wrote(
-        files, FakeWriter(), file="scene.json", frame=9
-    ).text
-
-
-def test_writing_without_a_model_says_so_rather_than_crashing(tmp_path):
-    # run_tool's engine is optional, and every other tool ignores it. This one cannot.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    answer = run_tool(
-        files, "p1", "write_frame_prompt", json.dumps({"file": "scene.json", "frame": 1})
-    )
-    assert "no model to write with" in answer.text
-    assert "action" not in _frames(files)[0]
-
-
-def test_a_request_that_falls_over_leaves_the_frame_as_it_was(tmp_path):
-    # The service's own words, and no retry: calling the same frame again is what a retry is here,
-    # and a loop inside the tool would pay twice without anybody seeing it happen.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    answer = _wrote(
-        files, FakeWriter(blow_up="503 upstream is busy"), file="scene.json", frame=1
-    )
-    assert "503 upstream is busy" in answer.text
-    assert "action" not in _frames(files)[0]
-
-
-def test_an_empty_answer_is_not_written_down(tmp_path):
-    # An empty action builds into a prompt with a gap where the sentence should be, and nothing
-    # downstream would ever say which frame it came from.
-    files = _with(tmp_path, "scene.json", WITH_ACTION)
-    answer = _wrote(files, FakeWriter("   "), file="scene.json", frame=1)
-    assert "answered with nothing" in answer.text
-    assert "action" not in _frames(files)[0]
-
-
 def test_a_new_frame_points_at_the_bulk_writer_and_a_frame_being_corrected_does_not():
     # Turned around by Madde 201 and finished by 208. A frame is born without an action, so add_scene
     # still says who writes the first one -- and with the single-frame tool gone, that is the bulk
@@ -2659,14 +2507,14 @@ def test_the_bulk_tools_text_stands_on_its_own():
 
 # --- every frame still waiting, in one round (Madde 185) ------------------------------------------
 #
-# write_frame_prompt takes one frame per call, and in Deneme 4 twenty-one frames cost twenty-one
-# main-agent rounds and 277.6k tokens. The bill is not the writer's: every round resends the system
+# The single-frame tool took one frame per call, and in Deneme 4 twenty-one frames cost twenty-one
+# main-agent rounds and 277.6k tokens. The bill was not the writer's: every round resends the system
 # prompt, the skill text and the context box, and the structure inside that box grows with each
 # write -- so the twenty-first round is heavier than the first.
 #
 # This tool asks once. It looks at the whole file, skips whatever already has an action, and sends
-# the rest at the same time. No range and no note: the work is defined by what is empty, and a note
-# belongs to the correction, which is still the single-frame tool's job.
+# the rest at the same time. No range and no note: the work is defined by what is empty, and a line
+# that is already there is changed with update_frame.
 
 
 class BusyWriter:
@@ -2867,12 +2715,6 @@ def test_the_bulk_tool_takes_no_note_and_no_range(tmp_path):
     said = TOOL_SPECS
     spec = next(s for s in said if s["function"]["name"] == "write_missing_actions")
     assert set(spec["function"]["parameters"]["properties"]) == {"file"}
-
-
-def test_the_single_frame_tool_is_still_there_for_a_correction():
-    # It does not go away: the note is on it, and rewriting one frame is what it is for.
-    assert "write_frame_prompt" in {spec["function"]["name"] for spec in TOOL_SPECS}
-    assert "note" in _said_by("write_frame_prompt")
 
 
 # --- one is not "1 prompts" (Madde 136) ----------------------------------------------------------

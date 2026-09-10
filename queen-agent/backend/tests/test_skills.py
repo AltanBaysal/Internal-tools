@@ -501,15 +501,6 @@ def test_the_editor_writes_no_frames_at_all():
     assert "add_frames" not in said
 
 
-def test_a_complaint_is_written_again_rather_than_edited():
-    # Two roads and the text names both, because they answer different complaints. One frame's
-    # sentence is wrong: call the writer again with a note. Somebody looks wrong in every frame
-    # they are in: that is the map entry, and one update reaches all of them.
-    said = _edit()
-    assert "note" in said
-    assert "update_" in said
-
-
 def test_a_complaint_is_told_apart_by_where_the_fault_lives():
     # Two roads and the text names both, because they answer different complaints. One frame's
     # sentence is wrong: that is the frame's own line. Somebody looks wrong in every frame they are

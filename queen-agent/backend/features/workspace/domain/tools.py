@@ -364,22 +364,6 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "write_frame_prompt",
-            "description": prompt.WRITE_FRAME_PROMPT,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
-                    "frame": {"type": "integer", "description": prompt.WHICH_FRAME},
-                    "note": {"type": "string", "description": prompt.WRITE_FRAME_PROMPT_NOTE},
-                },
-                "required": ["file", "frame"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "write_missing_actions",
             "description": prompt.WRITE_MISSING_ACTIONS,
             "parameters": {
@@ -642,9 +626,6 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
 
     if name == "remove_frame":
         return _remove_frame(file_store, project_id, args)
-
-    if name == "write_frame_prompt":
-        return _write_frame_prompt(file_store, project_id, args, engine)
 
     if name == "write_missing_actions":
         return _write_missing_actions(file_store, project_id, args, engine)
@@ -1248,8 +1229,9 @@ def _update_frame(file_store, project_id, args):
     174 kept the action out because the main model would not write that kind of sentence, and 176
     handed it to a model that would. That is no longer true of the model running the conversation,
     and the road left in its place carried the whole of a fix in a note to somebody who had not
-    read the line. Correcting a line and having one written from the scene are two jobs now:
-    this is the first, and write_frame_prompt is still the second.
+    read the line. Correcting a line and wanting one afresh from the scene both end here since
+    Madde 208: the tool that took the second is gone, and neither job was ever worth carrying to a
+    model that had not read the line.
     """
     source, structure, refused = _opened(file_store, project_id, args)
     if refused is not None:
@@ -1333,82 +1315,17 @@ def _remove_frame(file_store, project_id, args):
     return ToolResult(f"Removed frame {number} from {source}; {left}.", None, source, "Removed")
 
 
-def _write_frame_prompt(file_store, project_id, args, engine):
-    """One frame's action, written by the model that writes those (Madde 176).
-
-    The border between the two models this app runs on. The agent building the scenario says which
-    frame and, when it has something to add, why; this asks the writer for the sentence and puts it
-    where it goes. Nothing of the answer reaches the chat -- what was written is in the file, and
-    Madde 130's rule is that a built prompt is not printed back.
-
-    Every refusal comes before the request, cheapest first: nothing is paid to be told the frame
-    was not there.
-    """
-    if engine is None:
-        # A wiring fault rather than the model's doing, and said as one: there is nothing the model
-        # can do about it, and a sentence blaming the call would send it round again.
-        return ToolResult("There is no model to write with.", None, "", "Refused")
-
-    source, structure, refused = _opened(file_store, project_id, args)
-    if refused is not None:
-        return refused
-
-    frames = structure["frames"]
-    number, missing = _numbered(args.get("frame"), source, len(frames))
-    if missing is not None:
-        return missing
-
-    frame = frames[number - 1]
-    said = str(frame.get("scene") or "").strip()
-    if not said:
-        # The brief is the whole of what this model is being asked. Without one there is nothing to
-        # write from, and asking anyway would spend money to be handed an invention.
-        return ToolResult(
-            f"Frame {number} has no scene to write from.", None, source, "Nothing to write from"
-        )
-
-    try:
-        answer = engine.write_once(
-            prompt.write_frame_system_prompt(), _frame_seen(frame, structure, args.get("note"))
-        )
-    except Exception as failure:
-        # The service's own words, and the frame left as it was. No retry in here: calling this
-        # again is what a retry is, and a loop would pay twice with nobody watching it happen.
-        return ToolResult(
-            f"The prompt model did not answer: {failure}", None, source, "Did not answer"
-        )
-
-    written = str(answer.get("text") or "").strip()
-    if not written:
-        # An empty action builds into a prompt with a hole where the sentence goes, and nothing
-        # downstream could say which frame it came from.
-        return ToolResult(
-            f"The prompt model answered with nothing; frame {number} is unchanged.",
-            None,
-            source,
-            "Answered with nothing",
-        )
-
-    # Always over whatever was there. A second call carrying a note is a correction, and a
-    # correction that kept the old sentence beside the new one would be an argument.
-    frame["action"] = written
-    _saved(file_store, project_id, source, structure)
-    return ToolResult(
-        f"Wrote frame {number} of {source}.", None, source, "Written", answer.get("spent")
-    )
-
-
 def _write_missing_actions(file_store, project_id, args, engine):
     """Every frame still waiting, asked for at the same time (Madde 185).
 
-    write_frame_prompt takes one frame per call, and a scenario of twenty-one cost twenty-one
+    The single-frame tool took one frame per call, and a scenario of twenty-one cost twenty-one
     rounds of the main agent -- each of them resending the system prompt, the skill text and a
     context box holding a structure that grew with every write. The writer's own requests were
     never the expensive part.
 
     What is waiting is what is empty. No range: the file already knows which frames those are, and
     a from/to would put the answer in two places and make the model keep them agreeing. No note
-    either -- this is the first writing, and a note is what a correction carries.
+    either: a line that is already there is changed with update_frame, in the agent's own words.
     """
     if engine is None:
         # A wiring fault rather than the model's doing, said the way the single-frame tool says it.
@@ -1438,13 +1355,12 @@ def _write_missing_actions(file_store, project_id, args, engine):
         said_to_the_writer = prompt.write_frame_system_prompt()
         with ThreadPoolExecutor(max_workers=min(AT_ONCE, len(waiting))) as pool:
             # _frame_seen runs here rather than inside a thread: it reads the structure, and the
-            # threads are handed two finished strings and nothing to reach into. Note is None --
-            # there is nothing anybody has said about a frame nobody has written yet.
+            # threads are handed two finished strings and nothing to reach into.
             asked = {
                 pool.submit(
                     engine.write_once,
                     said_to_the_writer,
-                    _frame_seen(frame, structure, None),
+                    _frame_seen(frame, structure),
                 ): (place, frame)
                 for place, frame in waiting
             }
@@ -1502,12 +1418,12 @@ def _added(total, spent):
     return total
 
 
-def _frame_seen(frame, structure, note):
+def _frame_seen(frame, structure):
     """What the writer is shown: this frame, and nothing else in the file (Madde 176).
 
     The user's decision of 5 September, and the reason this request stays cheap -- a file of forty
-    frames would otherwise send forty casts to write one sentence. Names as well as tags, because a
-    note saying "aylin looks bored" has to reach the person the tags describe.
+    frames would otherwise send forty casts to write one sentence. Names as well as tags, because
+    the scene sentence calls people by name and the writer has to know whose tags are whose.
 
     A name the maps do not hold is shown without tags rather than refused: add_scene refuses those
     on the way in, so one here came from somebody editing the file by hand, and this tool is not
@@ -1527,10 +1443,6 @@ def _frame_seen(frame, structure, note):
     place = frame.get("location")
     if place:
         lines.append(f"Place: {place}: {locations.get(place, '')}")
-    if note:
-        # Last, where the instruction sits in every other request this app makes: what is fixed
-        # leads and what changes trails (Madde 93).
-        lines.append(f"Note: {note}")
     return "\n".join(lines)
 
 
