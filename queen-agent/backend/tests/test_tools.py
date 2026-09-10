@@ -941,6 +941,37 @@ def test_the_character_preview_text_is_gone():
     assert not hasattr(prompt, "BUILD_CHARACTER_PROMPTS_CHARACTER")
 
 
+def test_the_plan_tool_is_gone(tmp_path):
+    # Madde 207. It wrote a file, and create_file writes a file. The one thing it carried on its own
+    # was the box shape, and correction 10 had already moved that into the flow's own sentence. What
+    # was left of its reason -- running without a question in plan mode, and ending that turn -- is
+    # the mode's behaviour rather than the tool's, and modes.py says it of create_file now.
+    assert "write_plan" not in {spec["function"]["name"] for spec in TOOL_SPECS}
+    said = run_tool(
+        _files(tmp_path),
+        "p1",
+        "write_plan",
+        json.dumps({"name": "bar-scene", "content": "1. ..."}),
+    ).text
+    assert "no tool called" in said
+
+
+def test_no_tool_but_create_file_writes_a_plan():
+    # The card the chat draws for a plan is unchanged. What draws it is not.
+    from backend.features.workspace.domain.tools import WRITES_FILES
+
+    assert "write_plan" not in WRITES_FILES
+    assert "create_file" in WRITES_FILES
+
+
+def test_the_plan_tools_texts_are_gone():
+    from backend.features.workspace.domain import prompt
+
+    assert not hasattr(prompt, "WRITE_PLAN")
+    assert not hasattr(prompt, "WRITE_PLAN_NAME")
+    assert not hasattr(prompt, "WRITE_PLAN_CONTENT")
+
+
 @pytest.mark.parametrize("tool", TAG_TOOLS)
 def test_the_rules_ride_with_every_tool_that_takes_tags(tool):
     spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)
@@ -1124,6 +1155,27 @@ def _planned(tmp_path, content=PLAN):
     files = _files(tmp_path)
     _call(files, "write_plan", name="bar-scene", content=content)
     return files
+
+
+def test_a_step_is_ticked_off_a_plan_the_model_named_itself(tmp_path):
+    # Madde 207. write_plan put every name through plan_name, so a plan was always <name>-plan.md
+    # and this tool could look there and find it. create_file does not: the name is the model's.
+    # Looked up as it was written, or the flow's own loop closes on nothing -- plan.md would be
+    # searched for as plan-plan.md, and asking again lands in the same place, because plan-plan
+    # already ends in -plan.
+    files = _files(tmp_path)
+    _call(files, "create_file", name="plan.md", content=PLAN)
+    _call(files, "mark_step_done", name="plan.md", step=1)
+    assert files.read("p1", "plan.md").startswith("- [x] 1.")
+
+
+def test_a_plan_named_the_old_way_is_still_found(tmp_path):
+    # The -plan shape is a fallback now rather than the rule, and this is what keeps it: a plan
+    # written under that name is still found when the model asks for it by the stem.
+    files = _files(tmp_path)
+    _call(files, "create_file", name="bar-scene-plan.md", content=PLAN)
+    _call(files, "mark_step_done", name="bar-scene", step=2)
+    assert "- [x] 2." in files.read("p1", "bar-scene-plan.md")
 
 
 def test_a_step_that_was_approved_gets_its_box_filled(tmp_path):

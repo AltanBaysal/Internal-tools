@@ -1463,12 +1463,18 @@ def test_a_turn_that_names_no_mode_carries_the_writing_tools(tmp_path):
 def test_in_plan_mode_the_turn_ends_when_the_plan_is_written(tmp_path):
     # The plan is on disk and the next move is the user's: they read it, fix it in the file itself,
     # then run it in edit mode. A second round here would be the model running its own plan.
+    #
+    # Madde 207: the plan is an ordinary create_file now, and plan mode is what makes it a plan --
+    # it runs without a question there, and it is what ends the turn. The file card is asserted as
+    # well as the one request: a turn that stopped to ask permission also sends one, and would read
+    # as green here.
     rounds = [
-        [{"tool_calls": [call("write_plan", name="bar-scene", content="1. ...")]}],
+        [{"tool_calls": [call("create_file", name="bar-scene-plan.md", content="1. ...")]}],
         [{"text": "never reached"}],
     ]
-    _, engine, _ = _in_mode(tmp_path, rounds, "plan")
+    _, engine, produced = _in_mode(tmp_path, rounds, "plan")
     assert len(engine.seen) == 1
+    assert [piece for piece in produced if isinstance(piece, FileWritten)]
 
 
 # --- the line the turn is answering (Madde 195) --------------------------------------------------

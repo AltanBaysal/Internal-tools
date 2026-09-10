@@ -104,11 +104,22 @@ def test_edit_mode_asks_for_nothing():
     assert not any(_asks("edit", spec["function"]["name"]) for spec in TOOL_SPECS)
 
 
-def test_plan_mode_writes_a_plan_without_asking_and_asks_for_the_rest():
-    # Given create_file it could write the plan and the deliverable in the same turn, which is
-    # doing the work instead of planning it.
-    assert not _asks("plan", "write_plan")
-    assert _asks("plan", "create_file")
+def test_plan_mode_writes_one_file_without_asking():
+    # Madde 207. The privilege used to be write_plan's, and the fear was that create_file would let
+    # the mode write the plan and the deliverable in one turn. It cannot: the first write is what
+    # ends the turn, one line below this.
+    assert not _asks("plan", "create_file")
+    assert _asks("plan", "edit_file")
+    assert _asks("plan", "add_scene")
+
+
+def test_no_mode_lets_the_plan_tool_through():
+    # Madde 207, read off the lists for 206's reason: needs_permission answers False for a tool
+    # nobody knows, so a leftover entry claims nothing and passes green.
+    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
+
+    for mode, allowed in _WITHOUT_ASKING.items():
+        assert "write_plan" not in allowed, mode
 
 
 def test_a_mode_nobody_knows_is_the_default_one():
@@ -124,11 +135,11 @@ def test_a_tool_nobody_knows_is_never_asked_about():
     assert not _asks("ask", "delete_everything")
 
 
-def test_only_a_written_plan_ends_the_turn():
+def test_only_the_plan_modes_own_file_ends_the_turn():
     # The plan reached disk and the next move is the user's. Nothing else stops a turn early -- the
-    # same tool in edit mode would be an ordinary write.
+    # same call in edit mode is an ordinary write, which is what it has always been there.
     from backend.features.workspace.domain.modes import ends_the_turn
 
-    assert ends_the_turn("plan", "write_plan")
-    assert not ends_the_turn("edit", "write_plan")
+    assert ends_the_turn("plan", "create_file")
+    assert not ends_the_turn("edit", "create_file")
     assert not ends_the_turn("plan", "read_file")

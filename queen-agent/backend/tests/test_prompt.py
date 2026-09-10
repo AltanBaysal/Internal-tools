@@ -175,8 +175,13 @@ def test_the_base_starts_a_long_job_with_the_plan():
     # Skill-less chats had no reason to plan; the flow got one in its own text and the base got
     # nothing. The plan file is where a job keeps its place -- which is also how a chat that grew
     # too long is survived.
-    assert "write_plan" in SYSTEM_PROMPT
+    #
+    # Madde 207 changed the tool it names. Asked of the sentence rather than of the word
+    # create_file: that word is already in this text, about when to save a document, so a test
+    # looking only for it would pass without holding this sentence at all.
     assert "keeps its place" in SYSTEM_PROMPT.lower()
+    assert "create_file writes it" in SYSTEM_PROMPT
+    assert "write_plan" not in SYSTEM_PROMPT
 
 
 def test_the_base_says_what_it_did_even_when_it_did_nothing():
@@ -271,9 +276,13 @@ def test_a_plan_is_written_as_boxes_to_tick():
     # Madde 198. The ticking was instructed long before the shape was, and an instruction without a
     # shape is one the model answers differently every turn -- so the plan a fresh chat opens says
     # nothing about where the work stopped.
+    #
+    # The shape used to live in write_plan's description; Madde 207 takes that tool away, and
+    # correction 10 had already decided where the shape goes instead: into the sentence of the step
+    # that writes the plan, so that it holds whichever tool writes it.
     from backend.features.workspace.domain import prompt
 
-    assert "- [ ]" in prompt.WRITE_PLAN
+    assert "- [ ]" in prompt.START_A_SCENARIO
 
 
 def test_the_system_prompt_has_a_second_part():

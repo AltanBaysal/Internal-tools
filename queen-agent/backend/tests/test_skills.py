@@ -213,10 +213,12 @@ def test_no_instruction_carries_the_prompt_rules():
 def test_the_flow_writes_the_plan_before_it_asks_anything():
     # Step one whatever the user's opening sentence was. Without it the flow starts somewhere
     # different every time, and has nowhere to keep its place.
+    #
+    # Madde 207: the tool is create_file, and the step's own sentence is what says a plan is boxes.
     said = _flow()
-    assert "write_plan" in said
+    assert "create_file" in said
     # Ordered against the next step rather than against the schema fetch, which Madde 172 retired.
-    assert said.index("write_plan") < said.index("2. The characters")
+    assert said.index("create_file") < said.index("2. The characters")
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
@@ -472,11 +474,11 @@ def test_the_opening_moves_belong_to_the_first_turn():
 
 def test_no_instruction_reaches_for_the_listing_tool():
     # Madde 127: the tool is gone, and a text still naming it would send the model after something
-    # that cannot answer. The flow's first turn keeps write_plan; the listing that stood before it
-    # is what the request now carries on its own.
+    # that cannot answer. The flow's first turn still writes the plan; the listing that stood before
+    # it is what the request now carries on its own.
     for skill, said in INSTRUCTIONS.items():
         assert "list_files" not in said, skill
-    assert "first turn opens with write_plan" in _flow()
+    assert "A chat's first turn" in _flow()
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
