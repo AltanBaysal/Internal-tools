@@ -1,7 +1,7 @@
 # QueenAgent v8 Yol Haritası — çıkan prompt, ve koşarken görünen
 
 **Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül — artı **195 ve 196, koşu sürerken eklendi**
-*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **On dokuz madde**, sekiz dilim, 183'ten 202'ye — **188 yok**,
+*(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. **Yirmi madde**, sekiz dilim, 183'ten 203'e — **188 yok**,
 taslak okunurken geri çekildi *(aşağıda)*. Numaralar 182'nin ardından gidiyor ve **hiç kaymıyor** —
 yazılmış spec'ler onlara atıf yapıyor, ve çekilen bir numara boş kalır.
 
@@ -39,7 +39,8 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 200 · etiketler Danbooru olur | **kapandı** | `7c4c82c` |
 | 201 · eylemi ana ajan düzeltir | **kapandı** | `9a76352` |
 | 202 · kareyi yazan da DeepSeek | **kapandı** | `1d9e491` |
-| 190 · metinlerin okunması | **kullanıcının**, ajan durdu | |
+| 190 · metinlerin okunması | **kullanıcının**, sürüyor | |
+| 203 · adım işaretleme aracı kalkar | 190'dan sonra | |
 
 183–187, 189, 191–202 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
 açıldı** *(kullanıcı, 8 Eylül)*. Ardından **197 ve 198** eklendi, ikisi de denemeden çıktı: 195'in
@@ -626,11 +627,167 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
   promptuna bir son ek **yeri** açıyor ama içini doldurmuyor, ve dolduran metin kullanıcının kendi
   metni: bu okumanın konusu deponun yazdığı metinler, o değil. Yine de önce koşuyor, ki okuma
   yapılırken mekanizma yerinde olsun.
+- **Nasıl koşuyor** *(kullanıcı kararı, 9 Eylül)*: okuma sürerken **yalnız belge** değişiyor —
+  düzeltilen cümle [okuma kopyasında](../../2026-09-09-queenagent-modele-giden-metinler.md) yeni
+  hâliyle duruyor, eskisi ve gerekçesi
+  [düzeltme log'unda](../../2026-09-09-queenagent-metin-duzeltmeleri.md). **Kod ve testler okumanın
+  sonunda, tek geçişte** güncelleniyor: cümle cümle koda inmek okumayı bölüyor. O geçişte
+  `test_prompt.py`'nin cümle tutan testleri **kuralı tutacak** şekilde gevşetilecek — silinmeyecek,
+  çünkü her biri bir denemenin dersi.
+
+## Madde 203 — Adımı işaretleyen araç kalkar
+
+> **190'dan sonra** *(kullanıcı kararı, 9 Eylül)*. Okuma sırasında bu araç soruldu; kararı okuma
+> bitmeden koşmuyor.
+
+- **Sorun:** `mark_step_done` yalnız bir kutuyu dolduruyor, ve bunu `edit_file` de yapabilir.
+- **Kurulduğu gerekçenin yarısı artık geçerli değil.** 198 iki şeyi birden yaptı: planı `- [ ]`
+  kutularıyla **yazdırdı**, ve kutuyu dolduran aracı ekledi. Aracın asıl gerekçesi *"model her
+  turda kendi işaretini uyduruyor, sonraki tur tanımıyor"*dı — ama onu çözen şey **kutu biçimi**,
+  araç değil. Biçim sabitlendiği andan itibaren `edit_file`'ın çapası da sabit: `- [ ] 3.` →
+  `- [x] 3.`, ve model bu iki dizeyi **dosyayı okumadan** kurabiliyor.
+- **Aracın kalan kazancı, ve kaydı dürüst olsun:** cevapları *(`Ticked`, `Already done`,
+  `Nothing to tick`, `No plan by that name`)*, ve tek satırdan fazlasına dokunamaması. `edit_file`
+  ile bunlar ret cümlelerine dönüşür — çapa bulunamazsa *"o metin yok"* der, ve hangi adımın zaten
+  dolu olduğunu model kendi okumasından çıkarır.
+- **Kip kapısı değişmiyor:** `edit_file` de `mark_step_done` da yalnız EDIT'te sormadan koşuyor,
+  yani plan kipi iki yolda da adım kapatamıyor.
+- **Ne çalışır:** araç, şeması, `run_tool` dalı ve `modes.py` satırı kalkar; `START_A_SCENARIO`'nun
+  kapanış maddesi ile `WRITE_PLAN`'in kutu cümlesi `edit_file`'ı anar; `_ticked` ve testleri gider.
+- **Nasıl görülür:** bir adım onaylanır, plan dosyasında o adımın kutusu dolar, ve dosyanın gerisi
+  değişmemiştir — tek fark araç adında.
+- **Değişen:** `tools.py`, `modes.py`, `prompt.py`; `test_tools.py`, `test_modes.py`,
+  `test_skills.py`, `test_prompt.py`.
+
+---
+
+## Madde 205 — Hazır parça aracı ve kütüphanesi kalkar
+
+> **190'ın kod geçişinden önce** *(kullanıcı kararı, 10 Eylül)*. Tersi sıra, birkaç gün sonra
+> silinecek bir metni önce koda indirmek olurdu — 35 numara bu aracın tarifini de yeniden yazmıştı,
+> ve bu madde onu tümüyle kaldırdığı için o yazım koda hiç inmeyecek.
+
+- **Sorun:** `read_prompt_piece` **hiçbir skill metninde geçmiyor** — ne `start-a-scenario` ne
+  `edit-prompts` ondan söz ediyor. Tarifi yine de her istekte gidiyor, ama yalnız kullanıcı bir
+  parçayı adıyla isterse çağrılıyor.
+- **Kütüphane üretilen hiçbir kareye değmiyor.** `_frame_seen` kareyi yazan modele yalnız sahneyi,
+  kadroyu ve mekânı veriyor; yedi parçayı görmüyor. Yani depoda özenle yazılmış, sürüm kontrollü
+  yedi pozisyon var ve tek okuyucuları, kullanıcının adıyla sorması hâlinde çalışan bir arama aracı.
+- **187'nin gerekçesinin yarısı ayakta, yarısı değil.** *"Bilinen şey her seferinde yeniden
+  yazdırılıyor, ve iki kez yazılan şey iki türlü okunuyor"* doğruydu ve doğru kalıyor. Tutmayan
+  kısım, o ortak metnin akışın **içine** hiç girmemiş olması: ne skill onu anıyor, ne yazar görüyor.
+- **Kütüphane de kalkıyor** *(kullanıcı kararı, 10 Eylül)*. Araç gidince `PROMPT_PIECES`'ı okuyan
+  kimse kalmıyor, ve okuyucusu olmayan bir prompt metni ölü koddur — 189'un *"depoda başka yerde
+  prompt yok"* nöbetçisiyle de gerilim yaratırdı.
+- **Pozisyonlar ileride gerekirse doğru biçim başka:** parçaları **kareyi yazan modele** vermek.
+  O ayrı bir madde, ve taşınmamış bir tasarım sorusu taşıyor — hangi parçanın hangi sahneye uyduğunu
+  kim seçecek: yazar yedisini birden mi görecek, yoksa ajan notta mı söyleyecek?
+- **Ne çalışır:** araç, şeması, `run_tool` dalı ve `modes.py`'nin `READS` girdisi kalkar;
+  `prompt.py`'den `PROMPT_PIECES` ile `READ_PROMPT_PIECE` metinleri gider; `_read_prompt_piece` ve
+  testleri gider. Belgenin §7'si kapanır, §6'dan bir araç düşer.
+- **Nasıl görülür:** araç listesinde bir araç eksik, ve her istek onun tarifi kadar kısalıyor.
+  Kullanıcı bir pozisyon isterse ajan onu kendi kelimeleriyle yazıyor — 187'den önceki hâl.
+- **Değişen:** `prompt.py`, `tools.py`, `modes.py`; `test_tools.py`, `test_modes.py`; belgenin
+  §6 ve §7'si.
+
+---
+
+## Madde 206 — Karakter önizleme aracı kalkar
+
+> **190'ın kod geçişinden önce** *(kullanıcı kararı, 10 Eylül)*, 205'in sebebiyle: 35 numara bu
+> aracın tarifini de yeniden yazdı, ve kalkacak bir metni önce koda indirmek işi iki kez yapmaktır.
+
+- **Sorun:** `build_character_prompts` bir karakteri, dosyadaki her kıyafetle, kare dışında
+  gösteriyor. Bir **önizleme**, yani senaryonun çıktısına hiçbir şey katmıyor: yazdığı dosya
+  `build_prompts`'un yazdığı listeye girmiyor, ve hiçbir kare ondan beslenmiyor.
+- **Akış artık onu sunmuyor.** Kodun bugünkü `START_A_SCENARIO`'su hâlâ
+  *"Offer build_character_prompts as a look at one character; carry on if declined"* diyor, ama
+  okumanın düzelttiği hâlinde o cümle yok. Yani araç zaten akıştan düşmüş durumda ve yalnız
+  kullanıcı adıyla isterse çağrılıyor — 205'in `read_prompt_piece` için yazdığı durumun aynısı.
+- **Bedeli her istekte ödeniyor:** tarifi ve iki parametresi, kimse önizleme istemese de gidiyor.
+- **Ne çalışır:** araç, şeması, `run_tool` dalı ve `modes.py`'nin EDIT listesindeki girdisi kalkar;
+  `build_prompts.py`'den `build_character_prompts` fonksiyonu, `prompt.py`'den tarifi ve
+  parametreleri gider; `START_A_SCENARIO`'nun onu sunan cümlesi gider; testleri gider.
+- **Nasıl görülür:** kullanıcı bir karakteri tek başına görmek isterse ajan ona karakterin
+  girdisini okuyup gösterir — dosya yazmadan. Senaryonun çıktısı değişmez, çünkü bu araç ona zaten
+  girmiyordu.
+- **Değişen:** `prompt.py`, `tools.py`, `modes.py`, `build_prompts.py`; `test_tools.py`,
+  `test_modes.py`, `test_build_prompts.py`; belgenin §3 ve §6'sı.
+
+---
+
+## Madde 207 — Plan yazan araç kalkar, kipin kendisi yeter
+
+> **190'ın kod geçişinden önce** *(kullanıcı kararı, 10 Eylül)*. Bu madde 29 numaralı düzeltmenin
+> cümlesini **geçersiz kılıyor**: taban metni bugün *"In plan mode write_plan writes it; in any
+> other mode create_file does"* diyor, ve araç kalkınca o ayrım kalmıyor. Kod geçişi 29'u değil bu
+> maddenin bıraktığı hâli indirir.
+
+- **Sorun:** `write_plan` bir dosya yazıyor, ve `create_file` de bir dosya yazıyor. Aracın kendi
+  başına taşıdığı tek şey kutu biçimiydi *(`- [ ] 1.`)*, ve **10 numaralı düzeltme onu zaten
+  akışın kendi cümlesine taşıdı** — akış planını `create_file` ile yazıyor.
+- **Kalan gerekçe araç değil kip.** Aracın bugün taşıdığı iki ayrıcalık `modes.py`'de duruyor:
+  plan kipinde sormadan koşan tek yazma odur, ve turu bitiren çift odur *(`ends_the_turn`)*.
+  İkisi de **kipin** davranışı, aracın değil.
+- **Ne çalışır:** plan kipinin listesi `READS + ("create_file",)` olur, ve `ends_the_turn` plan
+  kipinde `create_file`'ı gösterir. Böylece plan kipi bugünkü davranışını birebir korur: sormadan
+  bir dosya yazar, ve o dosyayla turu bitirir.
+- **Testin uyardığı şey böylece kapanıyor:** *"create_file verilirse planı ve işin kendisini aynı
+  turda yazabilir"* — yazamaz, çünkü ilk yazma turu bitiriyor.
+- **Bir davranış farkı var, ve kaydı dürüst olsun:** `write_plan` aynı adın **üzerine yazıyordu**;
+  `create_file` alınmış adı reddedip `-2` ile numaralandırıyor *(Madde 179)*. 10 numara bu bedeli
+  zaten yazdı ve kapatan kuralı da yazdı: plan yalnız ilk turda, yalnız ortada plan yokken yazılır.
+- **Ne çalışır (devamı):** araç, şeması, `run_tool` dalı, `prompt.py`'deki tarifi ve parametreleri
+  kalkar; taban sistem mesajının plan cümlesi *"a plan file… create_file writes it"* hâline iner;
+  `WRITE_PLAN`'e yaslanan testler kipin testlerine döner.
+- **Nasıl görülür:** plan kipinde bir plan istenir, dosya sorulmadan yazılır, tur biter — bugünkü
+  akışın aynısı, tek fark araç adında.
+- **Değişen:** `prompt.py`, `tools.py`, `modes.py`; `test_tools.py`, `test_modes.py`,
+  `test_prompt.py`; belgenin §1 ve §6'sı.
+
+---
+
+## Madde 208 — Tek kare yazan araç kalkar, düzeltme aracı yeter
+
+> **190'ın kod geçişinden önce** *(kullanıcı kararı, 10 Eylül)*, 205–207'nin sebebiyle.
+
+- **Kuruluş sebebi düştü.** 174 aksiyonu dışarıda tuttu çünkü **ana model o cümleyi yazmıyordu**;
+  176 yazacak bir modele verdi. 201'in kendi yorumu bunun artık doğru olmadığını yazıyor:
+  *"That is no longer true of the model running the conversation."* Araç, kalkmış bir sebebin
+  üstünde duruyor.
+- **Ajanın elinde zaten her şey var.** `_frame_seen` yazara sahneyi, kadronun etiketlerini ve
+  mekânı gösteriyor — üçü de ajanın kendi yazdığı, önünde duran şeyler. Satırı kendisi yazınca
+  **tek çağrı** oluyor, ve ikinci sağlayıcıya para gitmiyor.
+- **Not yolu kendi kendini çürütüyor:** bugün not, satırı **hiç okumamış** bir modele yazılıyor.
+  201 bunu zaten *"bir düzeltmenin tamamını, satırı okumamış birine not olarak taşımak"* diye
+  eleştirmişti; kalan yol o eleştirinin kendisi.
+- **Toplu araç kalıyor, ve bu madde ona dokunmuyor.** `write_missing_actions` ilk yazımı toplu,
+  paralel ve ucuz yapıyor — yirmi kare için ajanın yirmi turu yerine yirmi ucuz istek. Akışın
+  5. adımı odur. `_frame_seen` ile yazarın sistem mesajı da onun için yerinde kalır; yalnız
+  `_frame_seen`'in `note` parametresi ölür, çünkü toplu yol oraya hep `None` geçiyor.
+- **Ses tutarlılığı, ve kaydı dürüst olsun:** kareler DeepSeek'ten geliyor, ajanın yazdığı bir kare
+  öbürleriyle aynı üslupta olmayabilir. Bu ayrımı 201 açtı; bu madde onu **genişletiyor**, açmıyor.
+- **Ne çalışır:** araç, şeması, `run_tool` dalı, `_write_frame_prompt`, `WRITE_FRAME_PROMPT` ve
+  `WRITE_FRAME_PROMPT_NOTE` kalkar; `modes.py`'nin EDIT satırı kalkar; editör skill'inin
+  *"sahneden yeniden yazılacak satır"* maddesi `update_frame`'e iner; `add_scene`'in *"a frame is
+  born without its action, and write_frame_prompt is what writes one"* cümlesi
+  `write_missing_actions`'ı anar; `write_missing_actions`'ın tarifindeki *"the same model
+  write_frame_prompt asks"* kendi ayakları üstünde yazılır.
+- **Nasıl görülür:** bir karenin satırı beğenilmezse ajan onu `update_frame` ile kendi yazar; boş
+  kareler yine `write_missing_actions` ile toplu dolar.
+- **Değişen:** `prompt.py`, `tools.py`, `modes.py`; `test_tools.py`, `test_modes.py`,
+  `test_skills.py`; belgenin §3 ve §6'sı.
 
 ---
 
 ## Kapsam dışı, ve nerede duruyor
 
+- **Madde 204 — ortak SDXL metninin bölünmesi.** Ayrı madde olarak yazıldı ve aynı gün geri
+  çekildi *(kullanıcı kararı, 10 Eylül)*: iş **190'ın kendi içinde** yapılıyor, çünkü bölme bir
+  metin kararı ve 190 zaten metinleri okuyor. Numarası boş kalıyor — 188'in sebebiyle. Kararın
+  kendisi [düzeltme log'unun 34 numaralı kaydında](../../2026-09-09-queenagent-metin-duzeltmeleri.md):
+  hangi cümlenin nereye gittiği de, nasıl yazıldığı da orada. Kod tarafı 190'ın kod geçişinde,
+  ötekilerle aynı geçişte iniyor.
 - **Madde 188 — promptların etiketleşmesi.** Taslak okunurken geri çekildi *(kullanıcı kararı,
   6 Eylül)* ve `BACKLOG.md`'ye döndü. Numarası boş kalıyor: bir numara bir kez verilir, ve boşluk
   onun geri çekildiğini söyler. Konuşmada varılan yer maddenin kendisinde yazılı — kısaca: sert bir
