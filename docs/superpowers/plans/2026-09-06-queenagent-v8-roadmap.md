@@ -39,8 +39,13 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 200 · etiketler Danbooru olur | **kapandı** | `7c4c82c` |
 | 201 · eylemi ana ajan düzeltir | **kapandı** | `9a76352` |
 | 202 · kareyi yazan da DeepSeek | **kapandı** | `1d9e491` |
-| 190 · metinlerin okunması | **kullanıcının**, sürüyor | |
+| 205 · hazır parça aracı kalkar | **kapandı** | `5500cd0` |
+| 206 · karakter önizleme aracı kalkar | **kapandı** | `8eaac5d` |
+| 207 · plan yazan araç kalkar | sırada | |
+| 208 · tek kare yazan araç kalkar | 207'den sonra | |
+| 190 · metinlerin okunması | okuma kapandı, **kod geçişi** bekliyor | |
 | 203 · adım işaretleme aracı kalkar | 190'dan sonra | |
+| 209 · sürüm arayüzde görünür | sırası serbest | |
 
 183–187, 189, 191–202 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
 açıldı** *(kullanıcı, 8 Eylül)*. Ardından **197 ve 198** eklendi, ikisi de denemeden çıktı: 195'in
@@ -49,9 +54,13 @@ düzenleme akışının yeri yanlış bulundu *(ve aynı yerde 195'in bıraktı�
 altına indirdi, ve sürüm şeridiyle alt alta düştüğü orada görüldü. **200–202 de denemeden çıktı**,
 ama bu kez ekranın değil çıkan işin kendisinden: etiketler Danbooru sözlüğüyle daha iyi geliyor, ve
 DeepSeek artık isteneni yazdığı için eylem satırını ayrı bir modele yazdırmanın sebebi kalmadı.
-**Ajanın işi yine burada bitti**: geriye 190 kalıyor, ve o kullanıcının kendi maddesi. 196'nın
-açtığı yeri de kullanıcı doldurdu *(8 Eylül)*: sabit artık boş değil, ve 202'den sonra kareyi yazan
-modele de gidiyor.
+196'nın açtığı yeri de kullanıcı doldurdu *(8 Eylül)*: sabit artık boş değil, ve 202'den sonra
+kareyi yazan modele de gidiyor.
+
+**Koşu 10 Eylül'de yeniden açıldı.** 190'ın okuması bitti — 35 düzeltme, bekleyen karar yok — ve
+okuma dört aracın **kaldırılmasını** getirdi: her biri her istekte tarifini ödüyor, hiçbiri kendi
+sebebinin üstünde durmuyordu. 205 ile 206 kapandı; 207 ve 208 sırada, ve ikisi de 190'ın kod
+geçişinden **önce**, çünkü kalkacak bir metni önce koda indirmek işi iki kez yapmaktır.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.

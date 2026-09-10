@@ -1521,6 +1521,8 @@ Kod geçişi o dört maddeden sonra koştuğu için bu yazımlar hiç uygulanmay
 çünkü silinen şeyin son hâli de kayıttır. `mark_step_done` zaten baştan kapsam dışıydı *(203)* —
 yani §6'nın 23 aracından **beşi** kalkıyor, ve geriye **18** kalıyor.
 
+*İlk ikisi indi:* 205 `5500cd0` ile, 206 `8eaac5d` ile. 207 ve 208 sırada.
+
 **Aynı kayıt iki eksiği kapattı.**
 
 *Birincisi, 34'ün birleştirmesinden kalan kırık cümle.* Üç `update_*` alanı şöyle bitiyordu:

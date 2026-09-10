@@ -236,7 +236,11 @@ tarifine; *"bir girdi bir kişiyi giydirir"* kıyafetin, *"mekânda kimse yok"* 
 `mark_step_done` elden geçmedi, çünkü 203 onu kaldırıyor. Aynı kayıt iki eksiği de kapattı:
 `update_*` alanlarındaki kırık cümle, ve kıyafet ile mekân alanlarının ayrıntı düzeyi.
 
-Hepsi kodda hâlâ eski hâlinde.
+**İki araç o günden sonra düştü:** `read_prompt_piece` *(Madde 205)* ve `build_character_prompts`
+*(Madde 206)* kodda artık yok, ve 35'in onlar için yazdığı metinler de bu belgeden çıktı. Bugün
+kodu bekleyen **20** tarif var; 207 ile 208 de kalkınca **18** olacak *(log'da 35)*.
+
+Kalanların hepsi kodda hâlâ eski hâlinde.
 
 ### `read_file`
 > Read one of this project's files.
@@ -405,14 +409,6 @@ Hepsi kodda hâlâ eski hâlinde.
 - **`frame`** — Which frame, by its number, counting from 1.
 - **`note`** — What to do differently, in your own words -- what the user said about the last one, or what this frame needs that the scene does not say. Left out the first time.
 
-### `read_prompt_piece`
-> Look up a piece of prompt that reads the same in every scenario, such as a position, and show it as it is written.
-> - Call this when the user asks for a piece by name rather than describing what they want. What comes back is what they asked for, never one of several picked for them.
-> - Ask with no name, or with a name nobody knows, and the answer says which pieces there are.
-> - This tool shows and nothing more. Putting a piece into a frame is update_frame's work, and the text it hands back is for the user to read.
-
-- **`name`** — Which piece, as in cowgirl. Capitals and spaces do not matter. Leave it out to be told which pieces there are.
-
 ### `write_missing_actions`
 > Write the action of every frame in a structure file that is still without one, in one call.
 > - Each frame is asked of the same model write_frame_prompt asks, at the same time as the others, and each is shown only its own scene, cast and place.
@@ -428,14 +424,6 @@ Hepsi kodda hâlâ eski hâlinde.
 > - This tool writes a Python file named after the structure, replacing what it wrote last time.
 
 - **`name`** — The structure file's name.  *(alan adı `name`, `file` değil)*
-
-### `build_character_prompts`
-> Build a preview list for one character: one prompt for every outfit the structure names, joined the same way a frame's prompt is.
-> - Call this when the user wants to look at one character on its own, before any frame.
-> - This tool writes a Python file named after the structure and the character, replacing what it wrote last time.
-
-- **`name`** — The structure file's name.  *(alan adı `name`, `file` değil)*
-- **`character`** — Which character to preview.
 
 ### `write_plan`
 > Break the work into numbered steps and save the plan.
@@ -459,19 +447,15 @@ metin silinecek metin olurdu.*
 
 ---
 
-## 7 · Hazır prompt parçaları
+## 7 · Hazır prompt parçaları — kalktı
 
-Depoda duran ortak bilgi *(Madde 187)*. `read_prompt_piece` adıyla gösterir, kareye koymaz.
+**Madde 205** *(10 Eylül)* hem `read_prompt_piece` aracını hem yedi parçalık kütüphaneyi kaldırdı.
+Sebep: araç hiçbir skill metninde anılmıyordu — yani yalnız kullanıcı bir parçayı adıyla isterse
+çağrılıyordu — ve kütüphane kareyi yazan modele hiç ulaşmıyordu; `_frame_seen` ona sahneyi, kadroyu
+ve mekânı gösterir, başka bir şey değil.
 
-| Ad | Etiketler |
-|---|---|
-| `cowgirl` | girl on top, straddling, facing partner, hips lowered, hands on chest |
-| `reverse-cowgirl` | girl on top, facing away, straddling, back arched, hands on thighs |
-| `missionary` | lying on back, legs apart, knees raised, facing each other, arms overhead |
-| `doggy-style` | on all fours, from behind, hips raised, head lowered, hands gripping sheets |
-| `spooning` | lying on side, from behind, bodies pressed together, arm around waist |
-| `standing` | standing, pressed against wall, one leg raised, arms around neck |
-| `sitting-on-lap` | sitting on lap, facing each other, thighs apart, arms around neck |
+Bölümün numarası duruyor, boş olarak. Yol haritasının geri çekilen maddelerinde olduğu gibi: §8'e
+yapılmış atıflar kaymasın.
 
 ---
 
@@ -488,9 +472,9 @@ buldu, ve **beşi de karara bağlandı** — açık madde kalmadı:
 | `write_missing_actions` aynısını söylüyordu | 32 — aynı ayrım |
 | Planı hangi araç yazıyor *(10 numaranın açtığı)* | 29 — kipe bağlandı |
 
-Ayrıntıları [düzeltme log'unda](2026-09-09-queenagent-metin-duzeltmeleri.md). Log'un kendi
-tablosunda bekleyen tek satır kaldı: **H**, SDXL kurallarının 2. ve 3. paragrafının kareyi yazan
-modele de gitmesi.
+Ayrıntıları [düzeltme log'unda](2026-09-09-queenagent-metin-duzeltmeleri.md). Log'un kendi tablosu
+da kapandı: sekiz satırın hepsi *(A–H)* karara bağlandı, sonuncusu **H** — SDXL kurallarının 2. ve
+3. paragrafı 34 numarada bölündü.
 
 Yalnız not olarak: `add_scene`'in *"a frame is born without its action, and write_frame_prompt is
 what writes one"* cümlesi **doğru** kalıyor — ilk yazım hâlâ uzman modelin.
