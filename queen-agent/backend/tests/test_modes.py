@@ -121,6 +121,15 @@ def test_no_mode_lets_the_plan_tool_through():
         assert "write_plan" not in allowed, mode
 
 
+def test_no_mode_lets_the_single_frame_tool_through():
+    # Madde 208, read off the lists for 206's reason: needs_permission answers False for a tool
+    # nobody knows, so a leftover entry claims nothing and passes green.
+    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
+
+    for mode, allowed in _WITHOUT_ASKING.items():
+        assert "write_frame_prompt" not in allowed, mode
+
+
 def test_a_mode_nobody_knows_is_the_default_one():
     # An older browser, or a body with no mode in it at all. A question nobody expected would stop
     # a turn that used to run.

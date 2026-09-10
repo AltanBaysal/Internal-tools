@@ -132,12 +132,13 @@ def test_a_wrong_line_is_corrected_in_the_editors_own_turn():
     assert "yourself" in said
 
 
-def test_a_correction_names_the_single_frame_tool():
-    # It did not go away. Writing every empty frame and rewriting one that is wrong are two jobs,
-    # and the note -- what the user said about it -- only fits the second, which is this skill's.
+def test_the_editor_sends_a_wrong_line_to_the_agent_itself():
+    # Madde 208. Both roads out of a wrong line lead to the same place now: correcting one, and
+    # wanting one afresh from the scene, are the agent's own writing. Neither goes back to a model
+    # that has not read the line -- which is the road 201 argued against and this madde closes.
     said = _edit()
-    assert "write_frame_prompt" in said
-    assert "note" in said
+    assert "write_frame_prompt" not in said
+    assert "update_frame" in said
 
 
 def test_the_editor_forbids_assembling_a_prompt_by_hand():
@@ -507,6 +508,15 @@ def test_a_complaint_is_written_again_rather_than_edited():
     said = _edit()
     assert "note" in said
     assert "update_" in said
+
+
+def test_a_complaint_is_told_apart_by_where_the_fault_lives():
+    # Two roads and the text names both, because they answer different complaints. One frame's
+    # sentence is wrong: that is the frame's own line. Somebody looks wrong in every frame they are
+    # in: that is their entry, and one update reaches all of them.
+    said = _edit()
+    assert "update_frame" in said
+    assert "update_character" in said
 
 
 def test_no_instruction_touches_a_structure_file_as_text():

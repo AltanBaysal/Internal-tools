@@ -939,6 +939,31 @@ def test_the_plan_tools_texts_are_gone():
     assert not hasattr(prompt, "WRITE_PLAN_CONTENT")
 
 
+def test_the_single_frame_tool_is_gone(tmp_path):
+    # Madde 208. Madde 174 kept the action out of the frame tools because the main model would not
+    # write that kind of sentence, and 176 handed it to one that would. 201 wrote down that this is
+    # no longer true and took the correction back, which left this tool one job: having a line
+    # written afresh from the scene, by a model that has not read the line, through a note. That is
+    # the very road 201 argued against.
+    assert "write_frame_prompt" not in {spec["function"]["name"] for spec in TOOL_SPECS}
+    said = run_tool(
+        _files(tmp_path),
+        "p1",
+        "write_frame_prompt",
+        json.dumps({"file": "scene.json", "frame": 1}),
+    ).text
+    assert "no tool called" in said
+
+
+def test_the_single_frame_tools_texts_are_gone():
+    # The note is named as well as the description, because the note is what this madde is actually
+    # about: a whole correction carried to somebody who never saw the line.
+    from backend.features.workspace.domain import prompt
+
+    assert not hasattr(prompt, "WRITE_FRAME_PROMPT")
+    assert not hasattr(prompt, "WRITE_FRAME_PROMPT_NOTE")
+
+
 @pytest.mark.parametrize("tool", TAG_TOOLS)
 def test_the_rules_ride_with_every_tool_that_takes_tags(tool):
     spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)
@@ -2614,13 +2639,22 @@ def test_an_empty_answer_is_not_written_down(tmp_path):
     assert "action" not in _frames(files)[0]
 
 
-def test_a_new_frame_points_at_the_writer_and_a_frame_being_corrected_does_not():
-    # Turned around by Madde 201, and the two halves are what that madde split. A frame is born
-    # without an action, so add_scene still says who writes the first one. update_frame is where a
-    # line that exists is corrected, in the agent's own words -- pointing from there to the writer
-    # as well would offer two roads for one job and settle neither.
-    assert "write_frame_prompt" in _said_by("add_scene")
-    assert "write_frame_prompt" not in _said_by("update_frame")
+def test_a_new_frame_points_at_the_bulk_writer_and_a_frame_being_corrected_does_not():
+    # Turned around by Madde 201 and finished by 208. A frame is born without an action, so add_scene
+    # still says who writes the first one -- and with the single-frame tool gone, that is the bulk
+    # one. update_frame is where a line that exists is corrected, in the agent's own words; pointing
+    # from there at a writer as well would offer two roads for one job and settle neither.
+    assert "write_missing_actions" in _said_by("add_scene")
+    assert "write_frame_prompt" not in _said_by("add_scene")
+    assert "write_missing_actions" not in _said_by("update_frame")
+
+
+def test_the_bulk_tools_text_stands_on_its_own():
+    # It borrowed the gone tool's name twice: for which model it asks, and for where a line already
+    # written is rewritten. The first is now said in its own words; the second is update_frame.
+    said = _said_by("write_missing_actions")
+    assert "write_frame_prompt" not in said
+    assert "update_frame" in said
 
 
 # --- every frame still waiting, in one round (Madde 185) ------------------------------------------
@@ -2789,6 +2823,28 @@ def test_each_request_carries_its_own_frame_and_no_other(tmp_path):
     assert len(writer.asked) == 2
     for asked in writer.asked:
         assert asked.count("Scene:") == 1
+
+
+def test_the_bulk_writer_is_handed_the_scene_the_cast_and_the_place(tmp_path):
+    # What _frame_seen shows, asked on the road that keeps it. Picked out of the collected requests
+    # rather than read off the writer's last one: two frames go out at the same time here.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    writer = PickyWriter(scene="nothing matches this")
+    _filled(files, writer, file="scene.json")
+    said = next(asked for asked in writer.asked if "Scene: one" in asked)
+    assert "aylin" in said                     # the name the scene sentence uses
+    assert "1girl, long teal hair" in said     # and the tags, which are what the prompt is made of
+    assert "white nightgown" in said           # the outfit's tags, not just its name
+    assert "bedroom" in said and "sunlit bedroom" in said
+
+
+def test_the_bulk_answer_is_a_receipt_rather_than_the_prompt(tmp_path):
+    # Madde 130 on this road: what was written sits in the file, and the answer names the frames
+    # rather than repeating their lines. The numbers are held above; this holds the absence, which
+    # is the half that would go unnoticed.
+    files = _with(tmp_path, "scene.json", WITH_ACTION)
+    said = _filled(files, FakeWriter("she turns her head, close-up"), file="scene.json").text
+    assert "turns her head" not in said
 
 
 def test_filling_without_a_model_says_so_rather_than_crashing(tmp_path):
