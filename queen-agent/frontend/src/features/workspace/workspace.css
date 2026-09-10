@@ -68,6 +68,21 @@
   letter-spacing: 0.2px;
 }
 
+/* The name and the run number, stacked: the brand row above is a row, and the fold button ends it. */
+.sidebar__name {
+  display: flex;
+  flex-direction: column;
+}
+
+/* The wordmark's footnote rather than a second name: the repo's note voice, and small enough that
+   the eye reads it after the name. Letter-spaced because two characters set solid under a 21px
+   name read as a smudge. */
+.sidebar__version {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 1.2px;
+}
+
 
 /* The only filled accent in the app: this is the primary action. */
 .sidebar__new-chat {
