@@ -183,15 +183,21 @@ def test_the_flow_opens_a_pov_entry_beside_each_character():
     # correction turn, which is the worst moment to send the model back to the maps.
     said = _flow()
     assert "pov_" in said
-    assert said.index("pov_") > said.index("2. The characters")
+    assert said.index("pov_") > said.index(STEPS[1])
 
 
 def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
     # Both are the leak. A count makes the picture claim a person it does not show, and an outfit
     # dresses the frame with clothes nobody in it is wearing.
-    said = _flow().lower()
+    #
+    # Read off the field rather than off the flow: correction 34 moved both rules to the tool that
+    # writes an entry, and correction 12 took the copy out of the flow -- a flow says when a thing
+    # is written, and the rule for what goes in it belongs beside the parameter.
+    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+
+    said = ADD_CHARACTER_TAGS.lower()
     assert "no count" in said
-    assert "no outfit" in said
+    assert "those are outfits" in said
 
 
 def test_a_pov_frame_names_the_pov_entry_in_its_cast():
@@ -236,7 +242,10 @@ def test_where_the_work_stopped_is_read_off_the_files():
     # Correction 11. The boxes were the only thing the flow looked at, and a box is filled by a tool
     # nobody is obliged to call -- so a chat that stopped mid-step read its own plan as finished.
     # What the work produced is on disk either way, and that is what says how far it got.
-    said = _flow()
+    #
+    # Lowered, because the sentence opens the bullet's second clause and starts with a capital:
+    # asked of the text as written, this claim could never be met by any text at all.
+    said = _flow().lower()
     assert "the project's files are what say how far it got" in said
     assert "the first step whose box is empty" not in said
 
