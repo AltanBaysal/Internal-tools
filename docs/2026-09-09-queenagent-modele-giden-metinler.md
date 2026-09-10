@@ -10,11 +10,10 @@ maddeden önceydi.
 **Burada olmayan:** araçların **cevap** cümleleri. Onlar `tools.py` içinde, çağrının değerleriyle
 kurulan f-string'ler — modele *söylenen* değil, *geri söylenen*.
 
-> ⚠ **Bu belge artık kaynağın birebir aynası değil.** 190'ın okuması sırasında düzeltilen cümleler
-> burada **yeni** hâliyle duruyor, kodda ise hâlâ eskisi. Hangi cümlenin değiştiği,
-> eski hâli ve gerekçesiyle birlikte
-> [metin düzeltmeleri log'unda](2026-09-09-queenagent-metin-duzeltmeleri.md). Değişen bölümün
-> altında ayrıca **Değişen** diye işaretli.
+> ✅ **Belge ile kod eşit.** 190'ın okuması 35 cümleyi düzeltti ve hepsi kod geçişinde `prompt.py`'ye
+> indi *(10 Eylül)*; bir de kesim orada doğdu *(36)*. Hangi cümlenin neden değiştiği
+> [metin düzeltmeleri log'unda](2026-09-09-queenagent-metin-duzeltmeleri.md), ve değişen bölümün
+> altında **Değişen** diye işaretli. Bundan sonra kod değişirse doğru olan yine kod, bu belge değil.
 
 Sıra, bestecinin gördüğü sıra: sistem mesajı, her raunt giden küçük metinler, skill, sonra kareyi
 yazan modelin kendi isteği, sonra araçlar.
@@ -46,12 +45,8 @@ A file never stands in for the reply: always write your answer in the chat as we
 
 **Değişen** *(log'da 1–6, 29)* — 2. paragrafın açılışı, okuma kuralı, açık dosyalar listesinin
 tazeliği ve tazeleme kuralı; 4. paragrafta değişikliğin hangi araçtan geçtiği ve düzeltmenin
-dosyaya yazılması; 6. paragrafta planı hangi aracın yazdığı *(29)*. Kodda hâlâ şöyle:
-
-> You are inside one project. **The project holds files, and every chat in it can see them.** …
-> when the answer depends on one, read it first with read_file **-- and nothing the answer does
-> not need.** … **A fresh read is for a file somebody else may have changed since the chat last
-> saw it, never to check your own writing.**
+dosyaya yazılması; 6. paragrafta planı hangi aracın yazdığı *(29)*. Eski hâlleri log'da; kod
+yukarıdakini diyor.
 
 ### SYSTEM_PROMPT_SUFFIX
 
@@ -91,9 +86,14 @@ Bağlam kabının satırları. Durumu söylüyorlar, bir cevabı değil. `{...}`
 
 ## 3 · Skill metinleri
 
-İsteğin **sonunda** durur *(Madde 93)*. Kelime tavanı: akış **450**, düzeltme **260**
-*(log'da 20; kodda hâlâ 200)*. Akışta bir cümle ancak başka birini silerek giriyor; düzeltme
-metninin tavanı adım formatı için bir kez yükseldi, ve orada duruyor.
+İsteğin **sonunda** durur *(Madde 93)*. Kelime tavanı: akış **450**, düzeltme **260** *(log'da
+20)*. Akışta bir cümle ancak başka birini silerek giriyor; düzeltme metninin tavanı adım formatı
+için bir kez yükseldi, ve orada duruyor.
+
+Akış metni koda inerken **480** çıktı — sayıyı testin kendisi bastı — ve tavanı otuz kelime aştı.
+9 numaranın önceden verdiği karar uygulandı: tavan yükselmedi, iki yerde söylenen üç cümle düştü,
+ve süit yeşile döndü *(log'da 36)*. Aşağıdaki blok kesimden **sonraki** hâlidir, yani kodun bugün
+dediğidir.
 
 ### `start-a-scenario` → START_A_SCENARIO
 
@@ -109,11 +109,11 @@ How a step runs:
 Step 1 -- the plan
 - Do this on the chat's first turn only. Later turns carry on from where the chat already is.
 - If the project holds no plan for this work, write one with create_file: one line per step, each written as - [ ] 1. and what that step is.
-- If a plan is already there, read it and carry on from where the work stopped. The project's files are what say how far it got; the plan's boxes are only a note. If there is more than one plan, ask which.
+- If a plan is already there, read it and carry on from where the work stopped. The project's files are what say how far it got; the plan's boxes are only a note.
 - This step waits for no approval. Ask Step 2's question in the same turn.
 
 Step 2 -- the characters
-- Ask who is in this scenario, then open the file with start_scenario, once, named after what is being built: every step after it writes into a file that exists.
+- Ask who is in this scenario, then open the file with start_scenario, once, named after what is being built.
 - Write each character in with add_character, named as the user named them or, where they did not, in English for what they are.
 - Write each outfit as one entry with add_outfit the moment it is described: everything worn in that look, together.
 - Give each character a pov_ entry as well, again with add_character: what a frame through their own eyes holds of them.
@@ -124,7 +124,7 @@ Step 3 -- the places
 Step 4 -- the scenes
 - Ask how many scenes and which moments matter.
 - Write them with add_scene: one sentence each, in the language the user is writing in.
-- Write no actions here. A frame is born without one, and the model kept for writing them fills it in Step 5.
+- Write no actions here.
 
 Step 5 -- the prompts
 - Fill the waiting frames with write_missing_actions, then write the list with build_prompts.
@@ -166,8 +166,8 @@ düştü *(28)*, çekim örnekleri kalktı *(30)*, ve **33 numarada metnin tamam
 yeniden yazıldı** — emir başa, sebep arkaya. Kural sayısı değişmedi; *"kimse çıplak demez"* kendi
 maddesine çıktığı için madde sayısı yediden sekize çıktı.
 
-Yukarıdaki blok 33'ün hâlidir; 25–28'in cümleleri artık yalnız log'da duruyor. Kodda hâlâ dört
-paragraf hâlinde. Anatomi örnekleri **bilerek** duruyor, 30 numaranın kapsamı dışında.
+Yukarıdaki blok 33'ün hâlidir; 25–28'in cümleleri artık yalnız log'da duruyor. Anatomi örnekleri
+**bilerek** duruyor, 30 numaranın kapsamı dışında.
 
 ```text
 You write the action line for one frozen frame. An SDXL-family image model draws it. You are given three things: the scene in one sentence, who is in the frame, and where it happens.
@@ -210,10 +210,9 @@ An SDXL-family image model reads these tags, and it was trained on Danbooru's ow
 
 **Değişen** *(log'da 16, 30, 34)* — 3. paragrafta outfit girdisinin adlandırılması *(16)*, etiket
 örnekleri kalktı *(30)*, ve **34 numarada metin ikiye bölünüp madde madde yeniden yazıldı**: dört
-paragraftan iki paragrafın kuralları alanlarına indi, kalan ikisi yedi maddeye açıldı. Kodda hâlâ
-dört paragraf hâlinde, ve 16 numaranın cümlesi orada şöyle:
-
-> they are an outfit of their own, named after the **garment** rather than after whoever wears it
+paragraftan iki paragrafın kuralları alanlarına indi, kalan ikisi yedi maddeye açıldı. 16 numaranın
+cümlesi ortak metinden hiç çıkmadı — `add_outfit` ile `update_outfit`'in tarifine indi, çünkü
+yönettiği şey bir **ad**, ve adı bu iki araç soruyor.
 
 ---
 
@@ -245,7 +244,10 @@ indi)*: taban metnin plan cümlesi `create_file` diyor, akışın 1. adımı kut
 `add_scene` ile `write_missing_actions` kalkan yazarın adına yaslanmayı bıraktı, ve editör metni
 yanlış satırın iki hâlini de `update_frame`'e gönderiyor.
 
-Kalanların hepsi kodda hâlâ eski hâlinde.
+**On sekizin hepsi koda indi** *(10 Eylül, kod geçişi)*. Üç `update_*` aracının `tags` alanı artık
+kendi sabitini okuyor — `UPDATE_CHARACTER_TAGS`, `UPDATE_OUTFIT_TAGS`, `UPDATE_LOCATION_TAGS` —
+çünkü alan kendi kategorilerini sayıp ortak şekil cümlesini arkasına alıyor, ve bir aracın taşıdığı
+her dizgenin `prompt.py`'de kendi adı olmak zorunda.
 
 ### `read_file`
 > Read one of this project's files.

@@ -169,7 +169,7 @@ TOOL_SPECS = [
                 "properties": {
                     "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
                     "name": {"type": "string", "description": prompt.UPDATE_CHARACTER_NAME},
-                    "tags": {"type": "string", "description": prompt.AN_ENTRYS_NEW_TAGS},
+                    "tags": {"type": "string", "description": prompt.UPDATE_CHARACTER_TAGS},
                     "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],
@@ -217,7 +217,7 @@ TOOL_SPECS = [
                 "properties": {
                     "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
                     "name": {"type": "string", "description": prompt.UPDATE_OUTFIT_NAME},
-                    "tags": {"type": "string", "description": prompt.AN_ENTRYS_NEW_TAGS},
+                    "tags": {"type": "string", "description": prompt.UPDATE_OUTFIT_TAGS},
                     "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],
@@ -265,7 +265,7 @@ TOOL_SPECS = [
                 "properties": {
                     "file": {"type": "string", "description": prompt.THE_SCENARIOS_FILE},
                     "name": {"type": "string", "description": prompt.UPDATE_LOCATION_NAME},
-                    "tags": {"type": "string", "description": prompt.AN_ENTRYS_NEW_TAGS},
+                    "tags": {"type": "string", "description": prompt.UPDATE_LOCATION_TAGS},
                     "new_name": {"type": "string", "description": prompt.AN_ENTRYS_NEW_NAME},
                 },
                 "required": ["file", "name"],

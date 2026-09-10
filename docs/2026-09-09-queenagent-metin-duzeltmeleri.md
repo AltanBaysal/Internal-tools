@@ -1,29 +1,30 @@
 # Modele giden metinlerin düzeltme log'u
 
 **Ne bu:** Madde 190'ın okuması sırasında bulunan düzeltmeler. Her biri
-[modele giden metinler belgesinde](2026-09-09-queenagent-modele-giden-metinler.md) **uygulandı**,
-`prompt.py`'de **henüz uygulanmadı** — kod tarafı **190'ın kendi kod geçişinde** iki tur koşularak
-inecek.
+[modele giden metinler belgesinde](2026-09-09-queenagent-modele-giden-metinler.md) uygulandı, ve
+**10 Eylül'de `prompt.py`'ye de indi** — 190'ın kod geçişi, iki tur.
 
 **Neden ayrı dosya:** okuma sürerken metin bir yerde tartışılıp bir yerde biriksin. Belge yeni hâli
-gösteriyor, bu log **eskisini, yenisini ve gerekçesini** tutuyor — yani o geçişin girdisi bu dosya.
-Kod düzeldiğinde satırın **Durum**'u `kodda` olur.
+gösteriyor, bu log **eskisini, yenisini ve gerekçesini** tutuyor — yani o geçişin girdisi bu dosya
+oldu. Her satırın **Durum**'u artık `kodda`.
 
 **Okuma 10 Eylül'de kapandı:** bekleyen karar kalmadı. Log 35 düzeltme taşıyor — son üçü *(33, 34,
 35)* okumanın bulduğu çelişkiler değil, kapanıştan sonra alınan yeniden yazım kararları: üç metin
-grubunun tamamı sade İngilizceye çevrildi. Numaralar kaymaz.
+grubunun tamamı sade İngilizceye çevrildi. **36 numara okumanın değil, geçişin kendi kaydı.**
+Numaralar kaymaz.
 
-**Sıra böyle** *(kullanıcı kararı, 9 Eylül)*: okuma sürerken yalnız belge ve bu log değişir. Kod
-ve testler **okumanın sonunda, tek geçişte** güncellenir — cümle cümle koda inmek okumayı
-bölüyor.
+**Sıra böyleydi** *(kullanıcı kararı, 9 Eylül)*: okuma sürerken yalnız belge ve bu log değişti. Kod
+ve testler **okumanın sonunda, tek geçişte** güncellendi — cümle cümle koda inmek okumayı
+bölüyordu.
 
-**Bir testin sayısı da değişecek** *(20 numara)*: `test_the_texts_stay_short_enough_to_be_read`'in
-düzeltme metni için tuttuğu tavan **200 → 260**. Akışın 450'si aynı kalıyor.
+**Bir testin sayısı da değişti** *(20 numara)*: `test_the_texts_stay_short_enough_to_be_read`'in
+düzeltme metni için tuttuğu tavan **200 → 260**. Akışın 450'si değişmedi, ve akış metni ona
+sığdırıldı *(36 numara)*.
 
-**Testler o geçişte gevşetilecek** *(kullanıcı kararı, 9 Eylül)*: `test_prompt.py`'nin cümle tutan
-testleri, cümlenin tamamını değil **kuralın en kısa ayırt edici parçasını** tutacak — böylece
-yeniden yazım kırmızı vermez, ama bir kural metinden düşerse verir. Silinmiyorlar: her biri bir
-denemenin dersi *(Madde 107: tek satırlık bir mesaj sekiz araç çağrısına mal olmuştu)*.
+**Testler o geçişte gevşetildi** *(kullanıcı kararı, 9 Eylül)*: cümle tutan testler, cümlenin
+tamamını değil **kuralın en kısa ayırt edici parçasını** tutuyor — böylece yeniden yazım kırmızı
+vermez, ama bir kural metinden düşerse verir. Hiçbiri silinmedi: her biri bir denemenin dersi
+*(Madde 107: tek satırlık bir mesaj sekiz araç çağrısına mal olmuştu)*.
 
 ---
 
@@ -49,7 +50,7 @@ ikincisini de üçüncü şahıstan anlatıyor. `every chat` kısmı **duruyor**
 görünmüyor: dosyanın kapsamı sohbet değil proje, yani bu sohbetin açmadığı bir dosya da listede
 olabilir, ve buradan yazılan dosya öteki sohbetlerde görünür.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -74,7 +75,7 @@ ucuz değil: açılan dosyalar bağlam kabında taşınıyor ve kap **son beş**
 pencereden dışarı itiyor. Ayrı cümle olunca hem kısalıyor hem tartışmasız. `one` da `a file` oldu:
 zamirin işaret ettiği şey iki cümle öncede.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -115,7 +116,7 @@ var — projenin dosya adları, ve açık dosyalar)*, ve birincisi anlaşılırs
 **fiilsizdi** — 2 numarada eleştirilen şeyin aynısı. Yenisinde her parçanın fiili var ve liste
 adıyla anılıyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -144,7 +145,7 @@ ya da kullanıcının elle yaptığı değişiklik — bir sonraki cümlede zate
 *(`or to see somebody else's change`)*. Aynı şeyi bir ipucu ve bir kural söylüyorsa kalması gereken
 kuraldır.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -170,7 +171,7 @@ bakıp *"it is not written or changed as text"* diye reddediyor, ve değişiklik
 `structure file` gibi iş kelimelerini taşımamasını istiyor — taban *nasıl çalışılır*ı anlatır, *iş
 nedir*i değil. İstisna bu yüzden adıyla değil, **sahipliğiyle** söyleniyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -215,7 +216,7 @@ yerde söylemek bu koşunun kovaladığı şey. Aynı sebeple `-- the file is wh
 chat` gerekçesi de düştü: sohbet **her raunt modele gidiyor**, yani o cümle olduğu gibi doğru
 değildi — dosyadan okuyan şey araçlar ve öteki sohbetler.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -251,7 +252,7 @@ aynı işi iki metinle koşup hatayı saymak demek.
 kullanıcının söylediği söz olarak)*; ve 2. adımda `Each also gets` → `Each character also gets`,
 çünkü `Each` bir önceki cümlenin öznesi olan kıyafetlere de bağlanabiliyordu.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -292,7 +293,7 @@ söylemiyor)*. Cümle Madde 198'den önce yazılmış, araç değişince kalmı�
 devretmiyor, o yüzden kaydedilmemesi bir şey kaybettirmiyor. `never as a standing authority` de
 somutlaştı: `one "you decide" is not permission for the rest`.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -316,7 +317,7 @@ iki maddeye ayrıldı, çünkü iki iş.
 `test_the_texts_stay_short_enough_to_be_read` bunu söyleyecek; aşarsa tavan yükselmez, iki yerde
 aynı şeyi söyleyen bir cümle silinir.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -374,7 +375,7 @@ Döngünün dördüncü maddesi aracı anmaya devam ediyor, çünkü onu `edit_f
 **Kelime tavanı:** yaklaşık 20 kelime biniyor. Sıkışırsa ilk kısaltılacak yer üçüncü maddenin son
 cümlesi.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -419,7 +420,7 @@ o madde koşarken bakılacak.
 **Kelime tavanı:** 10 numaranın üstüne ~13 kelime daha. Sıkışırsa ilk gidecek yer birinci maddenin
 ikinci cümlesi.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -466,7 +467,7 @@ tarifinin altında **her istekte** gidiyor. Akışın söyleyeceği tek şey kur
 
 **Kelime tavanı:** iki cümle uzadı, iki cümle kısaldı — net ~8 kelime biniyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -505,7 +506,7 @@ gidiyor. 12 numaranın kuralı: akış kuralı değil zamanlamayı söyler.
 
 **Kelime tavanı:** ~7 kelime biniyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -552,7 +553,7 @@ bağlıyor.
 **Kelime tavanı:** bu adım ~8 kelime **kazandırıyor** — 10, 11 ve 13'ün bindirdiğinin bir kısmını
 geri veriyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -591,7 +592,7 @@ duruyor; bu madde akış metnini düzeltiyor, aracın metnini değil.
 
 **Kelime tavanı:** bu adım da ~5 kelime kazandırıyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -641,7 +642,7 @@ naming it"* kazancı burada daralıyor.
 **D satırı bundan etkilenmiyor:** `white nightgown` örneğinin sorunu Danbooru'nun etiketi bölme
 biçimi, girdinin kapsamı değil.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -688,7 +689,7 @@ Türkçe olunca haritalar iki dile bölünüyor.
 
 **Kelime tavanı:** ~21 kelime biniyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -710,7 +711,7 @@ Yani kullanıcı isterse yol açık; akışın onu teklif etmesi gerekmiyor.
 
 **Kelime tavanı:** ~15 kelime kazandırıyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -770,7 +771,7 @@ testin tuttuğu cümle düşmüştü: `"yourself"` *(Madde 201'in testi)* ve `"T
 answer"` *(Madde 130'un testi)*. Maddenin biçim ve fiil gerekçeleri duruyor, düzenlemesi 20'de
 yeniden yazıldı.
 
-**Durum:** belgede · **20 tarafından değiştirildi**
+**Durum:** **20 tarafından değiştirildi** · koda inen 20'nin hâli
 
 ---
 
@@ -829,7 +830,7 @@ ve şema anahtarları metne girmedi.
 cümlesi zaten *"expert SDXL prompt writer"* diyor — ve yapı dosyasını anlatan cümle tek cümleye
 indi. Kazanılan yer adımlara gitti.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -869,7 +870,7 @@ söyleyen tek yer bu dört kelime.
 
 **Kelime tavanı:** ~2 kelime biniyor, toplam ~253 — tavan 260.
 
-**Durum:** belgede · **22 tarafından yeniden yazıldı** *(rol paragrafı)*
+**Durum:** **22 tarafından yeniden yazıldı** *(rol paragrafı)* · koda inen 23'ün hâli
 
 ---
 
@@ -906,7 +907,7 @@ başlıyor, `already` ve `do not assemble` duruyor.
 
 **Kelime tavanı:** ~4 kelime biniyor, toplam ~257 — tavan 260.
 
-**Durum:** belgede · rol paragrafı **23'te bir kez daha kısaldı**
+**Durum:** rol paragrafı **23'te bir kez daha kısaldı** · koda inen 23'ün hâli
 
 ---
 
@@ -947,7 +948,7 @@ satır çizilemiyor"* cümlesini hiç söylemiyor.
 
 **Kelime tavanı:** ~5 kelime kazandırıyor, toplam ~252.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -982,7 +983,7 @@ değişikliğin yapı dosyasına gittiği. Aynı testin `build_prompts` araması
 
 **Kelime tavanı:** ~2 kelime kazandırıyor, toplam ~250.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1031,7 +1032,7 @@ biçimi değişti. 24 numaradan farkı bu.
 **Kelime tavanı yok:** tavanı tutan test yalnız akış ile düzeltme metnini ölçüyor. Yine de metin
 uzamadı; `no explanation` ve tekrar eden bir yan cümle düştü.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1075,7 +1076,7 @@ yargıda taşıyordu. İkisi ayrı iş, ve ikincisi kendi maddesine çıktı.
 time`)*, `UPDATE_FRAME_ACTION` ve `WRITE_FRAME_PROMPT`. Kararı buraya yazıldı, o üçüne
 uygulanmadı — ayrı bir madde.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1107,7 +1108,7 @@ değilim, ikincisininki var. D satırının tam olarak bu — kuralın kendisi *
 örneğin sözlükte olmaması. Doğrulanmadan bir örnek bırakmaktansa kesin olanı yazdım; kalan üç örnek
 *(`close-up`, `from below`, `wide shot`)* aynı sebeple gözden geçirilmeli, ve o **G satırı**.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1150,7 +1151,7 @@ kayıtta bir sebebi çıktı:
 | `no preamble`, `no quotes` | Gözlenmiş sızıntılar *(25 numara)*. |
 | Gerekçe yan cümleleri | *"Sebebi yazılı bir kural, kimsenin saymadığı bir duruma da uygulanır"* — `test_the_writer_is_told_why_a_euphemism_costs_something`. |
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1199,7 +1200,7 @@ kaldırıyor, yani cümlenin ayırdığı iki yol tek yola iniyor. Kod geçişi 
 writes it."* Buradaki gerekçe yine de duruyor: plan kipinde `create_file`'ın kapıya takılmaması
 gerektiğini söyleyen şey buydu, ve 207 onu kipin listesine taşıyarak çözüyor.
 
-**Durum:** belgede · kodda değil · **207 geçersiz kıldı**
+**Durum:** kodda · **207 geçersiz kıldı**
 
 ---
 
@@ -1256,7 +1257,7 @@ değeri bir denemeyle ölçülmüştü, ötekilerde ölçülmedi.
 
 **Kelime tavanı:** akış metni ~3 kelime kazanıyor; ötekilerin tavanı yok.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1285,7 +1286,7 @@ ayrımı yazıyor.
 
 **Hiçbir test kırılmıyor:** bu cümleye bağlı test yok.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1308,7 +1309,7 @@ Frames that already have an action are left exactly as they are -- writing one a
 
 **Hiçbir test kırılmıyor.**
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1366,7 +1367,7 @@ kararıyla duruyor.
 **25–28 numaranın cümleleri artık yalnız log'da.** Belgedeki blok bu maddenin hâlidir; o dört kayıt
 neyin neden değiştiğini anlatmaya devam ediyor ama metnin son hâli burasıdır.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1478,7 +1479,7 @@ metinlerde duruyor — kod geçişinin test turu bunları yeni evlerinde tutacak
 kelimeleri ortak metinde **geçmiyor**: `test_the_rules_say_nothing_about_a_frames_action` bunu
 tersinden tutuyor.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
 
 ---
 
@@ -1581,7 +1582,49 @@ cümlelerin bölünmesi ve öznesi belirsiz ret cümlelerinin toparlanması ise 
 Türkçe notlar da taşıyor ve doğru terazi o değil. Aşılırsa kesilecek yer sebep cümleleri değil,
 tekrar eden tariflerdir.
 
-**Durum:** belgede · kodda değil
+**Durum:** kodda
+
+---
+
+### 36 · `START_A_SCENARIO` — tavan aşıldı, üç cümle düştü
+
+**Bu kayıt okumanın değil, kod geçişinin.** Ötekiler bir cümlenin yanlış olduğunu buldu; bu, doğru
+cümlelerin **sığmadığını** buldu — ve kararı okuma zaten vermişti.
+
+**Ölçü:** akış metni koda inince `test_the_texts_stay_short_enough_to_be_read` **480** dedi, tavan
+**450**. Sayıyı testin kendisi bastı, elle sayılmadı. Bugünkü kod 420'ydi: adım biçimi ile 10, 11,
+12, 13 ve 17 numaranın bindirdiği kelimeler otuzu aştırdı.
+
+**Karar 9 numaranınki, olduğu gibi uygulandı:**
+
+> aşarsa tavan yükselmez, iki yerde aynı şeyi söyleyen bir cümle silinir
+
+Yani kesim keyfî değil: **başka bir metinde zaten duran** cümle düşer. Üçü düştü, ve üçünün de
+öteki yeri modele **her istekte** gidiyor — araç tarifleri istekte duruyor, akış metni gibi.
+
+| Düşen | Nerede zaten duruyor |
+|---|---|
+| 1. adım · `If there is more than one plan, ask which.` | Taban metin: *"Anything the user has not settled -- a count, a name, a choice between two meanings -- is worth one question"* |
+| 2. adım · `: every step after it writes into a file that exists` | `START_SCENARIO`: *"A scenario is opened once and added to, never started a second time"* |
+| 4. adım · `A frame is born without one, and the model kept for writing them fills it in Step 5.` | `ADD_SCENE`: *"A frame is born without its action. write_missing_actions writes every frame that is still without one"* |
+
+**Kalanlar:** 1. adımın *"nerede kalındığını dosyalar söyler"* cümlesi *(11)*, 2. adımın `once`'ı,
+ve 4. adımın yasağı — `Write no actions here.` Üçü de kendi adımının işi; düşen, o işin **başka
+yerde yazılı gerekçesi**.
+
+**10 numaranın nominasyonu tuttu:** *"sıkışırsa ilk kısaltılacak yer üçüncü maddenin son cümlesi"*
+dediği cümle birinci sırada düştü.
+
+**11 numaranınki uygulanmadı.** *"Birinci maddenin ikinci cümlesi"* —
+`Later turns carry on from where the chat already is.` — `test_the_opening_moves_belong_to_the_first_turn`'ün
+tuttuğu `later turns carry on` dizgesidir, ve Madde 107'nin dersi *(tek satırlık bir mesaj, sekiz
+araç çağrısı)* başka hiçbir metinde yazmıyor. İki yerde söylenen bir cümle değil; **tek** yerde
+söylenen bir cümle, yani 9 numaranın ölçütüne hiç girmiyor.
+
+**Düzeltme metni ölçüldü ve sığdı:** tavan 260, ve test yeşil geçti — 20 numaranın elle saydığı
+~251 doğru çıktı.
+
+**Durum:** kodda
 
 ---
 
@@ -1606,5 +1649,9 @@ Sekizi de bu log'da duruyor. H bir ara ayrı bir madde *(204)* diye yazılmışt
 ve numarası [yol haritasında geri çekildi](superpowers/plans/2026-09-06-queenagent-v8-roadmap.md) —
 bölme bir metin kararı, ve metinleri okuyan zaten 190.
 
-Ayrıca kodun kendi yorumunda, modele gitmeyen ama yanlış olan bir cümle: `run_tool`'un docstring'i
-*"the other eighteen"* diyor, oysa **23** araç var.
+Ayrıca kodun kendi yorumunda, modele gitmeyen ama yanlış olan bir cümle vardı: `run_tool`'un
+docstring'i *"the other eighteen"* diyordu, oysa **23** araç vardı.
+
+**Bu satır düzeltilmeden kapandı** *(10 Eylül)*. Madde 205, 206, 207 ve 208 dört aracı kaldırdı;
+geriye **19** kaldı, ve motoru alan hâlâ bir tane — `write_missing_actions`. Yani cümle bugün
+doğru. Yanlış bir yorumun en ucuz düzeltmesi, onu yanlış yapan şeyin kalkması.
