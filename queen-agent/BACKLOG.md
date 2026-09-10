@@ -3,6 +3,31 @@
 Gerçek ama henüz bir koşuya bağlanmamış işler. Sırası gelince buradan çıkar, o koşunun yol
 haritasına girer.
 
+## Sürüm adın yanında dursun, aynı boyda ve kalın
+
+*(Kullanıcı, 11 Eylül — test geçişi. Madde 209 sürümü ekrana koydu; **nereye** koyduğu yanlış
+bulundu, ve o maddenin *"adın altında"* satırı bu maddeyle reddedildi.)*
+
+209 sürümü adın **altına**, `var(--muted)` ile **11px** koydu — deponun **not** sesiyle,
+`.msg__stamp` ile `.tool-call__head`'in sesiyle. Bir dipnot gibi duruyor ve okunmuyor. Oysa
+cevapladığı soru küçük değil: **hangi kuşağı çalıştırıyorum.**
+
+**Karar verildi** *(kullanıcı, 11 Eylül)*: `V8` adın **yanında**, adla **aynı boyda** *(21px)*, ve
+**kalın**. Saklanmayacak. Yani bu madde tartışılacak bir şey değil, koşacak bir yer bekliyor.
+
+**Öne çıkaran şey ağırlık, renk değil.** Deponun kuralı: tek dolu accent **birincil eylemi**
+işaretler ve başka hiçbir şeyi — bir proje satırının bile kendi rengi yok. Sürüm adın mürekkebini
+taşır *(`var(--ink)`)* ve kalınlıkla ayrışır.
+
+**Ne çalışır:** `.sidebar__version` marka satırının içinde, adın hemen yanında durur.
+`.sidebar__name` sütunu **kalkar** — alt alta dizmek için açılmıştı, ve artık alt alta değiller.
+Katlanma değişmez *(çubuk katlanınca marka bloğu zaten çizilmiyor)*, ve `shared/version.js`
+değişmez: bu madde sürümün **nasıl göründüğü** hakkında, ne yazdığı hakkında değil.
+
+**Değişen:** `Sidebar.jsx`, `workspace.css`; `Sidebar.test.jsx` *(sürümün marka satırında durduğu)*,
+`workspace.css.test.js` *(boy, ağırlık, renk, ve `.sidebar__name`'in yokluğu)*; `dist`. Bir de
+[test listesinin](../docs/2026-09-10-queenagent-v8-test-listesi.md) *"adın altında"* satırı.
+
 ## Kalem ile saat aynı mesajın altında uyuşmuyor
 
 *(Kullanıcı, 11 Eylül — test geçişi.)*
