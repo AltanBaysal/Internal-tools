@@ -141,10 +141,13 @@ def test_the_editor_sends_a_wrong_line_to_the_agent_itself():
     assert "update_frame" in said
 
 
-def test_the_editor_forbids_assembling_a_prompt_by_hand():
+def test_the_editor_changes_the_structure_rather_than_the_prompt_by_hand():
+    # Without this the skill loses the only thing that makes it different. Correction 24: it was a
+    # prohibition -- do not assemble a prompt by hand -- and a prohibition says what not to do
+    # without saying what to do instead. Written as what is true, it carries the rule and answers
+    # the next question with it.
     said = _edit()
-    # Without this the skill loses the only thing that makes it different.
-    assert "do not assemble" in said.lower()
+    assert "the code builds every prompt from the structure file" in said.lower()
     assert "build_prompts" in said
 
 
@@ -219,20 +222,29 @@ def test_the_flow_writes_the_plan_before_it_asks_anything():
     said = _flow()
     assert "create_file" in said
     # Ordered against the next step rather than against the schema fetch, which Madde 172 retired.
-    assert said.index("create_file") < said.index("2. The characters")
+    assert said.index("create_file") < said.index(STEPS[1])
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
     # How a conversation that grew too long is continued: files belong to the project rather than
     # the chat, so a new chat finds the plan and picks up where it stopped. Since Madde 198 that
-    # place is readable rather than described: the first box nobody filled.
-    assert "the first step whose box is empty" in _flow()
+    # place is readable rather than described. Correction 11 says where it is read from: the files.
+    assert "carry on from where the work stopped" in _flow()
+
+
+def test_where_the_work_stopped_is_read_off_the_files():
+    # Correction 11. The boxes were the only thing the flow looked at, and a box is filled by a tool
+    # nobody is obliged to call -- so a chat that stopped mid-step read its own plan as finished.
+    # What the work produced is on disk either way, and that is what says how far it got.
+    said = _flow()
+    assert "the project's files are what say how far it got" in said
+    assert "the first step whose box is empty" not in said
 
 
 def test_a_step_ends_when_the_user_approves_it():
     # Not when an answer is written. One of the flow's two rules, and the one that keeps a step
     # from running away with the work.
-    assert "approves" in _flow()
+    assert "a step ends when they approve it" in _flow().lower()
 
 
 def test_what_nobody_described_becomes_a_placeholder():
@@ -248,7 +260,7 @@ def test_the_scenes_step_writes_a_readable_list_too():
     # list would drift there too.
     said = _flow()
     assert "one sentence" in said
-    assert "their own language" in said
+    assert "in the language the user is writing in" in said
 
 
 def test_a_finished_step_reaches_the_plan():
@@ -267,7 +279,7 @@ def test_the_scenario_is_opened_by_the_tool_that_opens_one():
     # character is what the file can be named after.
     said = _flow()
     assert "start_scenario" in said
-    assert said.index("2. The characters") < said.index("start_scenario") < said.index("3. The places")
+    assert said.index(STEPS[1]) < said.index("start_scenario") < said.index(STEPS[2])
 
 
 def test_an_approved_step_is_ticked_by_the_tool_that_ticks_one():
@@ -301,16 +313,30 @@ def test_the_flow_hands_off_to_nobody():
     said = _flow()
     # Asserted first, and not for company: a test looking for the absence of a name passes on a
     # text that was never read at all, which is how eleven tests in this run went green while red.
-    assert "5. The prompts" in said
+    assert STEPS[4] in said
     assert "Generate prompts+" not in said
     assert "skills menu" not in said
 
 
-def test_the_scenes_step_writes_the_cast_into_the_frame():
-    # The frame is born with its cast (Madde 173), so the step that writes one has to ask who is in
-    # it. A scene written without its cast builds into a prompt with nobody in the picture.
+def test_the_frames_cast_is_asked_for_by_the_tool_that_writes_one():
+    # The frame is born with its cast (Madde 173), so somebody has to ask who is in it: a scene
+    # written without one builds into a prompt with nobody in the picture. Correction 14: the step
+    # used to repeat all three fields -- who, what they wear, where -- and add_scene's own signature
+    # already asks for them. Two texts describing one call is the shape every drift in this app has
+    # had, so the repetition goes and the signature keeps the claim.
+    from backend.features.workspace.domain.prompt import ADD_SCENE_CHARACTERS
+
+    assert "who is in the frame" in ADD_SCENE_CHARACTERS.lower()
+    assert "who is in it" not in _flow()
+
+
+def test_a_character_is_named_as_the_user_named_them():
+    # Correction 17. Asked for a name, a model invents one -- and the user's own scenario comes back
+    # holding somebody they never named. What the user said is the name; where they said nothing,
+    # the name is English for what the person is, so it reads as a description rather than a person.
     said = _flow()
-    assert "who is in it" in said
+    assert "named as the user named them" in said
+    assert "in English for what they are" in said
 
 
 def test_no_instruction_writes_a_scene_list_file():
@@ -330,11 +356,19 @@ def test_the_editor_starts_from_a_complaint_rather_than_a_blank_page():
     assert "wrong" in said
 
 
-STEPS = ("1. The plan", "2. The characters", "3. The places", "4. The scenes", "5. The prompts")
-"""The flow's steps, in the order they run (Madde 198).
+STEPS = (
+    "Step 1 -- the plan",
+    "Step 2 -- the characters",
+    "Step 3 -- the places",
+    "Step 4 -- the scenes",
+    "Step 5 -- the prompts",
+)
+"""The flow's steps, in the order they run (Madde 198, written this way by correction 9).
 
-Read by the two tests below and by the one that places start_scenario. Madde 186 had six of these
-and the first was the context; that question is gone, and the numbers moved with it.
+Read by the two tests below and by the ones that place create_file, start_scenario and the build.
+Madde 186 had six of these and the first was the context; that question is gone, and the numbers
+moved with it. Numbered headings became named ones so that every step reads the same way -- a
+heading, then its rules as lines -- and so the loop above them is not read as one more step.
 """
 
 
@@ -342,11 +376,11 @@ def test_the_flow_runs_five_numbered_steps():
     # Madde 108: a stage outside the numbered list is a stage a weak model walks past, because it
     # stops when the list ends. Five since Madde 198 -- the context question in front of them was
     # the one thing a user had to answer before any work could start.
-    said = _flow()
-    assert "Five steps" in said
-    assert "Six steps" not in said
+    said = _flow().lower()
+    assert "five steps" in said
+    assert "six steps" not in said
     for step in STEPS:
-        assert step in said, step
+        assert step.lower() in said, step
 
 
 def test_the_steps_are_written_in_the_order_they_run():
@@ -393,20 +427,20 @@ def test_a_delegation_answers_only_the_question_that_was_asked():
     # everything left -- the scenes question was never asked. A delegation is an answer, and an
     # answer belongs to its question.
     said = _flow()
-    assert "answers only the question that was asked" in said
-    assert "asked as ever" in said
+    assert "covers that step only" in said
+    assert "as usual" in said
 
 
 def test_a_delegated_step_still_ends_on_approval():
     # The flow choosing for the user is not the user approving the choice: the step shows what
     # was chosen and waits, like every other step.
-    assert "still ends when the user approves" in _flow()
+    assert "still wait for the yes" in _flow()
 
 
 def test_the_plan_records_a_delegation_with_the_step_it_closed():
     # The plan wrote "user said you decide" with no step name, and the fresh chat that read it
     # inherited an authority the user never gave.
-    assert "never as a standing authority" in _flow()
+    assert "not permission for the rest" in _flow()
 
 
 def test_the_flow_finishes_with_the_build():
@@ -415,20 +449,24 @@ def test_the_flow_finishes_with_the_build():
     # and stopping short would leave the user one manual call from what they asked for.
     said = _flow()
     assert "build_prompts is never called here" not in said
-    assert said.rindex("build_prompts") > said.index("5. The prompts")
+    assert said.rindex("build_prompts") > said.index(STEPS[4])
 
 
 def test_the_closing_message_offers_nothing_and_asks_nothing():
     # The closing message came back as an offer wearing a question mark. "It is the last word"
     # was already pinned; this pins that no offer and no question ride on it.
-    assert "offers nothing and asks nothing" in _flow()
+    assert "offer nothing, and ask nothing" in _flow()
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
-def test_every_skill_opens_with_what_the_work_is_for(skill):
-    # 29 Aug, the user's own sentence: if we never give the model the context of what we are
-    # doing, where would it know it from? Neither text said what the prompts are for.
-    assert "prompts for an SDXL-family image model" in instruction_for(skill)
+def test_every_skill_says_what_the_prompts_are_for(skill):
+    # 29 Aug, the user's own sentence: if we never give the model the context of what we are doing,
+    # where would it know it from? Neither text said what the prompts are for.
+    #
+    # Correction 22 shortened the editor's opening paragraph, so what is held here is the fact
+    # rather than one wording of it -- both texts still say in their first two sentences that these
+    # are SDXL prompts, one frame each.
+    assert "SDXL" in instruction_for(skill)
 
 
 def test_the_plan_no_longer_opens_with_a_line_of_context():
@@ -470,8 +508,8 @@ def test_a_finished_step_is_closed_without_rewriting_the_plan():
 
 def test_the_opening_moves_belong_to_the_first_turn():
     said = _flow()
-    assert "A chat's first turn" in said
-    assert "carry on from what the chat already knows" in said
+    assert "the chat's first turn only" in said
+    assert "later turns carry on" in said.lower()
 
 
 def test_no_instruction_reaches_for_the_listing_tool():
@@ -480,7 +518,7 @@ def test_no_instruction_reaches_for_the_listing_tool():
     # it is what the request now carries on its own.
     for skill, said in INSTRUCTIONS.items():
         assert "list_files" not in said, skill
-    assert "A chat's first turn" in _flow()
+    assert "first turn" in _flow()
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
@@ -525,7 +563,7 @@ def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():
     # really was already there -- its own. The sentence means a plan from before this chat and
     # never said so, and the eighth trial paid a whole round for the gap.
     said = _flow()
-    assert "already there when the chat opened" in said
+    assert "if a plan is already there" in said.lower()
     assert "A plan already there is that memory" not in said
 
 
@@ -544,8 +582,11 @@ def test_the_texts_stay_short_enough_to_be_read():
     # is the guard against swelling back: from here a sentence enters only by deleting one.
     #
     # The flow's stays where it was through Madde 186, which was the roadmap's own condition -- it
-    # gains a step and loses one, so the two cancel. The other comes down from 300, because that
-    # text gave half its job away: building went to the flow, and what is left is the correction.
-    # A cap that comes down is a cap that cannot quietly take the old work back.
+    # gains a step and loses one, so the two cancel. The editor's came down from 300 when that text
+    # gave half its job away: building went to the flow, and what was left is the correction.
+    #
+    # Correction 20 gives sixty of them back, on the record: the step format the flow uses costs
+    # lines, and what it buys is a text a weak model can follow. A cap that moves in a written
+    # decision is not a cap that quietly took the old work back.
     assert len(_flow().split()) <= 450
-    assert len(_edit().split()) <= 200
+    assert len(_edit().split()) <= 260

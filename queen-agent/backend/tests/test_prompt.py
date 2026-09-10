@@ -135,6 +135,10 @@ def test_the_base_says_where_a_read_file_appears():
     # sentence back, believe it had not seen the file, and read it again -- which is the very thing
     # this item removes.
     assert "opened files" in SYSTEM_PROMPT
+    # Correction 4. Saying only where the file appears left open whether what stands there is the
+    # file as it was read; it is read from disk every round, and a model that does not know that
+    # reads it again to be sure.
+    assert "always current" in SYSTEM_PROMPT
 
 
 def test_the_base_asks_rather_than_inventing():
@@ -161,14 +165,16 @@ def test_the_base_edits_what_exists_rather_than_rebirthing_it():
     # walks right past the wall. The preference has to live where the name is picked.
     assert "edit_file" in SYSTEM_PROMPT
     assert "never reborn" in SYSTEM_PROMPT.lower()
+    # Correction 5. A scenario is not changed with edit_file at all -- Madde 171 shut that door --
+    # so a sentence naming only that tool tells the model to make a call that comes back refused.
+    assert "the tool that owns that kind of file" in SYSTEM_PROMPT
 
 
-def test_the_base_puts_a_correction_on_disk_too():
-    # A correction that only lands in the chat leaves the file saying the older thing, and the file
-    # is what the next step reads.
-    said = SYSTEM_PROMPT.lower()
-    assert "correction" in said
-    assert "chat" in said and "file" in said
+def test_the_base_puts_a_change_on_disk_rather_than_in_the_chat():
+    # A change that only lands in the chat leaves the file saying the older thing, and the file is
+    # what the next step reads. Correction 6: the old sentence described that failure instead of
+    # asking for anything, and it covered only corrections -- the same is true of any change.
+    assert "make the change in the file" in SYSTEM_PROMPT.lower()
 
 
 def test_the_base_starts_a_long_job_with_the_plan():
@@ -206,10 +212,17 @@ def test_a_turn_does_not_end_with_a_menu_of_options():
 # writing included. The fresh read belongs to the file somebody else may have moved.
 
 
-def test_a_fresh_read_is_for_what_someone_else_may_have_changed():
+def test_a_fresh_read_is_for_a_file_that_is_not_already_open():
+    # Madde 107's lesson, and correction 2 sharpened what it is about. The opened files are read
+    # from disk every round, so what stands there is current and a second read of one buys nothing.
+    # What is worth a read is a file that is not among them.
+    #
+    # Correction 3: the old sentence gave the wrong reason -- somebody else may have changed it --
+    # and a wrong reason is a rule the model applies in the wrong places.
     said = SYSTEM_PROMPT.lower()
-    assert "somebody else may have changed" in said
-    assert "never to check your own writing" in said
+    assert "not among your opened files" in said
+    assert "check your own writing" in said
+    assert "somebody else may have changed" not in said
     assert "not the same as reading it now" not in said
 
 
@@ -220,10 +233,11 @@ def test_the_base_is_handed_the_names_rather_than_asking_for_them():
     assert "list_files" not in SYSTEM_PROMPT
 
 
-def test_the_base_reads_nothing_the_answer_does_not_need():
+def test_the_base_reads_only_what_the_answer_needs():
     # The other half of the same trial: files the question never touched were read anyway,
-    # because nothing said the reading has a boundary.
-    assert "nothing the answer does not need" in SYSTEM_PROMPT.lower()
+    # because nothing said the reading has a boundary. Correction 2 turned the boundary the right
+    # way up -- what to do rather than what not to do.
+    assert "read only what the answer needs" in SYSTEM_PROMPT.lower()
 
 
 # --- what the turn's last round is told (Madde 137) -----------------------------------------------

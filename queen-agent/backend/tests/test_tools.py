@@ -981,31 +981,64 @@ def test_the_rules_ride_with_nothing_else():
     assert carrying == set(TAG_TOOLS)
 
 
-def test_the_rules_put_the_count_in_the_characters_own_entry():
+# Correction 34 split the shared text: what is really shared stayed on the six tools, and what
+# ruled on one field went down to that field. A rule riding on six tools while ruling on one is read
+# six times per request by five readers it does not concern -- and it sits away from the parameter
+# it governs, which is where a rule is actually applied.
+
+
+def test_the_count_lands_in_the_characters_own_entry():
     # Madde 166 inverted the schema's sixth rule: the count used to belong to the frame's people
     # field, and that field is gone. This is the only place the new home is written down.
-    said = _rules()
-    assert "1girl" in said
-    assert "count" in said.lower()
+    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+
+    said = ADD_CHARACTER_TAGS.lower()
+    assert "the count goes here and nowhere else" in said
+    # The example went with correction 30: it was read as the whole of what an entry may hold.
+    assert "1girl" not in said
 
 
-def test_the_rules_keep_solo_out_of_a_character():
+def test_solo_is_kept_out_of_a_character():
     # The count travels with the person; solo does not. The same character stands alone in one frame
     # and beside somebody in the next, so an entry claiming solo is wrong in half of them.
-    assert "solo" in _rules()
+    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+
+    assert "do not write solo" in ADD_CHARACTER_TAGS.lower()
 
 
-def test_the_rules_keep_clothes_out_of_a_character_and_name_them_by_the_garment():
-    said = _rules()
-    assert "clothes" in said.lower() or "clothing" in said.lower()
-    # An outfit named after its wearer cannot be worn by the other one, which is the whole reason
-    # outfits are their own map.
-    assert "garment" in said.lower()
+def test_clothes_are_kept_out_of_a_character():
+    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+
+    assert "those are outfits" in ADD_CHARACTER_TAGS.lower()
 
 
-def test_the_rules_keep_people_out_of_a_location():
-    said = _rules()
-    assert "nobody" in said.lower() or "no people" in said.lower()
+@pytest.mark.parametrize("name", ["ADD_OUTFIT", "UPDATE_OUTFIT"])
+def test_an_outfit_is_named_after_the_clothes(name):
+    # Corrections 16 and 34. An outfit named after its wearer cannot be worn by the other one, which
+    # is the whole reason outfits are their own map. Written on both tools rather than in the shared
+    # rules: it governs a name, and the name is asked for by these two.
+    from backend.features.workspace.domain import prompt
+
+    said = getattr(prompt, name).lower()
+    assert "name an outfit after the clothes" in said
+    assert "not after the person wearing them" in said
+
+
+def test_people_are_kept_out_of_a_location():
+    from backend.features.workspace.domain.prompt import ADD_LOCATION_TAGS
+
+    said = ADD_LOCATION_TAGS.lower()
+    assert "nobody is in it" in said
+    assert "it carries no count" in said
+
+
+def test_the_rules_carry_nothing_that_belongs_to_one_field():
+    # The other half of correction 34, and the half that would go unnoticed: a rule left behind here
+    # after its copy went down to a field is the same rule in two places, which is the shape every
+    # drift in this app has had.
+    said = _rules().lower()
+    for moved in ("solo", "pov_", "outfit", "location"):
+        assert moved not in said, moved
 
 
 def test_the_rules_forbid_a_quality_chain():
@@ -2392,20 +2425,12 @@ def test_the_clothes_rule_madde_176_wrote_is_still_there():
 def test_an_entry_for_somebody_half_in_shot_carries_no_count():
     # Madde 182. The count is the sharpest way the leak shows: a POV frame holds one person and the
     # prompt asks for two, because every character entry carries its own count and both of them are
-    # in the cast. The pov_ entry is the exception, and the rules have to say so -- they are the one
-    # place a count is ruled on.
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
+    # in the cast. The exception is written where the count rule is -- since correction 34 that is
+    # the character's own field -- or it is a replacement rather than an exception.
+    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
 
-    assert "carries no count" in SDXL_PROMPT_RULES.lower()
-    assert "pov_" in SDXL_PROMPT_RULES
-
-
-def test_the_count_rule_the_exception_is_carved_out_of_is_still_there():
-    # An exception written where the rule used to be is not an exception, it is a replacement.
-    from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
-
-    assert "1girl" in SDXL_PROMPT_RULES
-    assert "the one place a count lands" in SDXL_PROMPT_RULES
+    assert "carries no count" in ADD_CHARACTER_TAGS.lower()
+    assert "pov_" in ADD_CHARACTER_TAGS
 
 
 def test_the_map_tools_never_carry_the_words_this_madde_adds():
@@ -2442,14 +2467,17 @@ def test_the_rules_ask_for_spaces_where_the_site_writes_underscores():
     assert "underscores" in SDXL_PROMPT_RULES.lower()
 
 
-def test_the_rules_split_a_tag_into_the_tags_the_vocabulary_has():
+def test_the_rules_put_one_thing_in_each_tag():
     # Two tags rather than one phrase reading like both: the vocabulary has long hair and it has
     # black hair, and it has nothing that is the two of them written together -- so the joined-up
-    # version falls outside it exactly as a description does.
+    # version falls outside it exactly as a description does. The example went with correction 30;
+    # the rule says the same thing without offering a sentence to copy.
     from backend.features.workspace.domain.prompt import SDXL_PROMPT_RULES
 
-    assert "long hair, black hair" in SDXL_PROMPT_RULES
-    assert "long black hair" not in SDXL_PROMPT_RULES
+    said = SDXL_PROMPT_RULES.lower()
+    assert "put one thing in each tag" in said
+    assert "do not join two tags" in said
+    assert "long black hair" not in said
 
 
 def test_the_rules_say_what_to_do_when_the_vocabulary_has_nothing():
@@ -2460,22 +2488,29 @@ def test_the_rules_say_what_to_do_when_the_vocabulary_has_nothing():
     assert "no tag for it" in SDXL_PROMPT_RULES
 
 
-def test_the_character_example_is_written_in_that_vocabulary():
-    # The examples are read more closely than the rule is: this is the one place the model sees what
-    # an entry actually looks like.
+def test_the_character_field_says_which_categories_to_write():
+    # The examples were read more closely than the rule was: Deneme 4 came back with entries that
+    # were the example with two words changed. Correction 30 took them out of every text and 35 put
+    # the detail back the way the rest of this file carries it -- by naming the categories.
     from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
 
-    assert "long hair" in ADD_CHARACTER_TAGS
-    assert "black hair" in ADD_CHARACTER_TAGS
-    assert "long black hair" not in ADD_CHARACTER_TAGS
-    assert "woman in her mid 20s" not in ADD_CHARACTER_TAGS
+    said = ADD_CHARACTER_TAGS.lower()
+    for category in ("age", "body", "hair", "face"):
+        assert category in said, category
+    assert "long hair, black" not in said
+    assert "woman in her mid 20s" not in said
 
 
-def test_the_place_example_is_written_in_that_vocabulary():
+def test_the_place_field_says_which_categories_to_write():
+    # The same, on the field correction 35 found standing with no detail at all: it said the place
+    # as tags and stopped, so what a place entry holds was the example's to decide.
     from backend.features.workspace.domain.prompt import ADD_LOCATION_TAGS
 
-    assert "indoors" in ADD_LOCATION_TAGS
-    assert "morning light through curtains" not in ADD_LOCATION_TAGS
+    said = ADD_LOCATION_TAGS.lower()
+    assert "indoors" in said
+    assert "the light" in said
+    assert "bedroom, indoors, curtains" not in said
+    assert "morning light through curtains" not in said
 
 
 def test_the_prompt_writer_is_not_told_what_queenagent_tells_its_agent():
