@@ -15,10 +15,8 @@ from dataclasses import dataclass
 
 from backend.features.workspace.domain import prompt
 from backend.features.workspace.domain.build_prompts import (
-    build_character_prompts,
     build_prompts,
     cast_of,
-    character_prompts_name,
     prompts_name,
     render_module,
 )
@@ -73,7 +71,6 @@ WRITES_FILES = {
     "create_file",
     "start_scenario",
     "build_prompts",
-    "build_character_prompts",
     "write_plan",
 }
 
@@ -412,24 +409,6 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "build_character_prompts",
-            "description": prompt.BUILD_CHARACTER_PROMPTS,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
-                    "character": {
-                        "type": "string",
-                        "description": prompt.BUILD_CHARACTER_PROMPTS_CHARACTER,
-                    },
-                },
-                "required": ["name", "character"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "write_plan",
             "description": prompt.WRITE_PLAN,
             "parameters": {
@@ -693,9 +672,6 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
-
-    if name == "build_character_prompts":
-        return _try_character(file_store, project_id, args)
 
     return ToolResult(f"There is no tool called {name}.", None, "", "Unknown tool")
 
@@ -1621,39 +1597,6 @@ def _build(file_store, project_id, args):
     written = file_store.write(project_id, target, render_module(prompts))
     return ToolResult(
         f"Wrote {counted(len(prompts), 'prompt')} to {written}.",
-        written,
-        source,
-        counted(len(prompts), "prompt"),
-    )
-
-
-def _try_character(file_store, project_id, args):
-    """One character, looked at before it enters a frame. The reading is _build's, the assembling
-    is the other constructor's."""
-    source = safe_name(args.get("name"))
-    content = file_store.read(project_id, source)
-    if content is None:
-        return ToolResult("There is no file by that name.", None, source, "No file by that name")
-
-    try:
-        structure = json.loads(content)
-    except json.JSONDecodeError as broken:
-        return ToolResult(f"{source} is not valid JSON: {broken}", None, source, "Not valid JSON")
-
-    character = str(args.get("character") or "")
-    try:
-        prompts = build_character_prompts(structure, character)
-    except BadStructure as refused:
-        return ToolResult(str(refused), None, source, "Refused")
-
-    target = character_prompts_name(source, character)
-    written = file_store.write(project_id, target, render_module(prompts))
-    # Handed back as well as written (Madde 135). This tool is a look -- the user wants to see the
-    # character before it enters a frame -- and a look that answers only with a file name sends the
-    # model straight back to read it. build_prompts stays silent for the opposite reason: its list
-    # is there to sit in the file, and Madde 130 keeps it out of the chat.
-    return ToolResult(
-        f"Wrote {counted(len(prompts), 'prompt')} to {written}:\n\n" + "\n\n".join(prompts),
         written,
         source,
         counted(len(prompts), "prompt"),

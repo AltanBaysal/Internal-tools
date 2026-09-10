@@ -5,7 +5,6 @@ that cannot be talked out of the rules. Assembly is exactly what a model must no
 character copied into forty frames drifts, a character resolved by code cannot.
 """
 from backend.features.workspace.domain.errors import BadStructure
-from backend.features.workspace.domain.naming import folded
 
 # The chain every prompt opens with. In code rather than in each structure file since Madde 110: it
 # is the same in every scenario, and a model writing it meant a model copying it out of the schema
@@ -91,33 +90,6 @@ def build_prompts(structure):
     return built
 
 
-def build_character_prompts(structure, character):
-    """One character on their own, once for every outfit the file names.
-
-    The same joining a frame goes through, so what is seen here is what a frame will show -- and
-    since Madde 166 that includes the count, which travels inside the character's own entry and so
-    reads here exactly as it will read in a frame. The chain comes from code on both paths: one that
-    held in a frame and not in a look would make the look a lie.
-    """
-    if not isinstance(structure, dict):
-        raise BadStructure(
-            "A structure file is a JSON object with characters, locations and frames."
-        )
-
-    characters = structure.get("characters") or {}
-    if character not in characters:
-        # The sentence a frame gets, without the frame number: there is no frame to name.
-        raise BadStructure(
-            f"{character} is not in characters; known: {', '.join(sorted(characters)) or 'nothing'}"
-        )
-
-    identity = characters[character]
-    outfits = structure.get("outfits") or {}
-    if not outfits:
-        return [_tags([DEFAULT_QUALITY, identity])]
-    return [_tags([DEFAULT_QUALITY, identity, worn]) for worn in outfits.values()]
-
-
 def render_module(prompts):
     """The file the user copies out of: triple quotes, trailing comma, one name to import."""
     lines = ["PROMPTS = ["]
@@ -130,13 +102,6 @@ def prompts_name(source):
     """The output is the source under a new extension, so a project can hold several scenarios."""
     stem, dot, _ = source.rpartition(".")
     return f"{stem if dot else source}.py"
-
-
-def character_prompts_name(source, character):
-    """Named after both, so two characters can be tried side by side and neither one lands in the
-    scene's own list."""
-    stem, dot, _ = source.rpartition(".")
-    return f"{stem if dot else source}-{folded(character)}.py"
 
 
 def cast_of(frame):

@@ -219,8 +219,7 @@ START_A_SCENARIO = (
     "them "
     "into it. Clothes are their own entries the moment they are described: add_outfit, named "
     "after the garment. Each also gets a pov_ entry: what a frame through their own eyes holds "
-    "of them, no count and no outfit. "
-    "Offer build_character_prompts as a look at one character; carry on if declined.\n"
+    "of them, no count and no outfit.\n"
     "\n"
     "3. The places. add_location, the same loop.\n"
     "\n"
@@ -590,15 +589,6 @@ BUILD_PROMPTS = (
     "order, so a character reads the same in all of them. Writes a Python file named "
     "after the structure, replacing what it wrote last time."
 )
-
-BUILD_CHARACTER_PROMPTS = (
-    "Build a preview list for one character: one prompt for every outfit the "
-    "structure names, joined the same way a frame's prompt is. Reach for it when the "
-    "user wants to look at one character on its own, before any frame. Writes a "
-    "Python file named after the structure and the character, replacing what it "
-    "wrote last time."
-)
-BUILD_CHARACTER_PROMPTS_CHARACTER = "Which character to preview."
 
 WRITE_PLAN = (
     "Break the work into numbered steps and save the plan. Each step is a box to tick, written as "

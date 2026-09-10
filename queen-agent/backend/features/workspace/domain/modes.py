@@ -50,7 +50,6 @@ _WITHOUT_ASKING = {
         "remove_location",
         "edit_file",
         "build_prompts",
-        "build_character_prompts",
         "write_plan",
         # Madde 128. It gives no position, but it changes the user's file, so ask and plan keep
         # their gate in front of it while this mode keeps none.

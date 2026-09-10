@@ -1074,9 +1074,6 @@ def test_every_tool_is_declared_to_the_model():
         # Sixth since Madde 91, and declared here with the rest: which modes offer it is a separate
         # question, asked in modes.py.
         "write_plan",
-        # Madde 98: the same joining, one character at a time, so a character can be
-        # looked at before it enters a frame.
-        "build_character_prompts",
         # Madde 128 for the position -- the end of a list is something code knows, so the model
         # never quotes a frame back to reach it -- and Madde 173 for the frame itself: the fields
         # are in the signature, and every name in them is looked for in the maps before it lands.
@@ -1265,42 +1262,6 @@ def test_building_reports_a_born_file(tmp_path):
     files = _with(tmp_path, "intro-frames.json", STRUCTURE)
     built = run_tool(files, "p1", "build_prompts", json.dumps({"name": "intro-frames.json"}))
     assert built.created == "intro-frames.py"
-
-
-def test_trying_a_character_writes_a_file_named_after_both(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    _call(files, "build_character_prompts", name="scene.json", character="aylin")
-    assert "scene-aylin.py" in files.list_names("p1")
-
-
-def test_trying_a_character_reports_a_born_file(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    result = run_tool(
-        files,
-        "p1",
-        "build_character_prompts",
-        json.dumps({"name": "scene.json", "character": "aylin"}),
-    )
-    assert result.created == "scene-aylin.py"
-
-
-def test_trying_a_character_nobody_knows_writes_nothing(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    said = _call(files, "build_character_prompts", name="scene.json", character="ghost")
-    assert "ghost" in said
-    assert files.list_names("p1") == ["scene.json"]
-
-
-def test_a_character_try_says_how_many_prompts_it_wrote(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    result = run_tool(
-        files,
-        "p1",
-        "build_character_prompts",
-        json.dumps({"name": "scene.json", "character": "aylin"}),
-    )
-    # One outfit in this structure, so the singular is the answer -- counted() decides that.
-    assert result.outcome == "1 prompt"
 
 
 def test_building_again_writes_over_its_own_output(tmp_path):
@@ -2858,41 +2819,7 @@ def test_the_single_frame_tool_is_still_there_for_a_correction():
     assert "note" in _said_by("write_frame_prompt")
 
 
-# --- a look that hands back what there is to look at (Madde 135) ---------------------------------
-#
-# The preview said "Wrote 1 prompts to ...-lara.py" and stopped there, so the model read the file
-# back to show the user the thing they had asked to see. Madde 98 called this tool a look; a look
-# that returns nothing to look at costs a round every time it is taken.
-
-
-def test_a_character_preview_hands_back_the_prompts_it_built(tmp_path):
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    answer = _call(files, "build_character_prompts", name="scene.json", character="aylin")
-    assert "long teal hair" in answer
-    assert "white nightgown" in answer
-
-
-def test_a_character_preview_counts_one_prompt_as_one(tmp_path):
-    # counted() rather than a bare number, which is what the outcome has used all along -- the
-    # sentence was the one place still saying "1 prompts".
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    answer = _call(files, "build_character_prompts", name="scene.json", character="aylin")
-    assert "1 prompt " in answer
-    assert "1 prompts" not in answer
-
-
-def test_a_character_preview_still_writes_its_file(tmp_path):
-    # A guard. Handing the prompts back is in addition to the file, not instead of it: the card
-    # names it and the user finds it in the project afterwards.
-    files = _with(tmp_path, "scene.json", STRUCTURE)
-    built = run_tool(
-        files,
-        "p1",
-        "build_character_prompts",
-        json.dumps({"name": "scene.json", "character": "aylin"}),
-    )
-    assert built.created == "scene-aylin.py"
-    assert files.read("p1", "scene-aylin.py")
+# --- one is not "1 prompts" (Madde 136) ----------------------------------------------------------
 
 
 def test_a_build_of_one_frame_counts_it_as_one(tmp_path):
@@ -2915,8 +2842,8 @@ def test_a_build_of_more_than_one_still_says_prompts(tmp_path):
 
 def test_the_scene_builder_still_does_not_hand_back_its_prompts(tmp_path):
     # A guard, and the limit of this item. Madde 130 says the built prompts are never printed back,
-    # and twenty-five of them inside a tool answer is the invitation to print them. A preview is
-    # there to be looked at; a built list is there to sit in the file.
+    # and twenty-five of them inside a tool answer is the invitation to print them: the list is
+    # there to sit in the file, and the answer is its name.
     files = _with(tmp_path, "frames.json", STRUCTURE)
     answer = _call(files, "build_prompts", name="frames.json")
     assert "frames.py" in answer
