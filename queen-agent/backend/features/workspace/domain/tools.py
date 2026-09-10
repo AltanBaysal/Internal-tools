@@ -23,7 +23,6 @@ from backend.features.workspace.domain.build_prompts import (
     render_module,
 )
 from backend.features.workspace.domain.errors import BadStructure
-from backend.features.workspace.domain.naming import folded
 
 # What the model is told, separately whether a file was born, and separately the file the call was
 # about. Parsing the sentence back out would be fragile.
@@ -385,20 +384,6 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "read_prompt_piece",
-            "description": prompt.READ_PROMPT_PIECE,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": prompt.READ_PROMPT_PIECE_NAME}
-                },
-                "required": [],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "write_missing_actions",
             "description": prompt.WRITE_MISSING_ACTIONS,
             "parameters": {
@@ -705,9 +690,6 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
 
     if name == "write_missing_actions":
         return _write_missing_actions(file_store, project_id, args, engine)
-
-    if name == "read_prompt_piece":
-        return _read_prompt_piece(args)
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
@@ -1458,37 +1440,6 @@ def _write_frame_prompt(file_store, project_id, args, engine):
     _saved(file_store, project_id, source, structure)
     return ToolResult(
         f"Wrote frame {number} of {source}.", None, source, "Written", answer.get("spent")
-    )
-
-
-def _read_prompt_piece(args):
-    """One piece of the library, as it is written (Madde 187).
-
-    The only tool here that is handed no file store: what it answers with lives in the repo rather
-    than in a project, because a position reads the same in every scenario and one written twice
-    reads two ways.
-
-    It shows and stops. Putting a piece into a frame is update_frame's, and a tool doing both would
-    leave its own answer unable to say which of the two it had done.
-
-    Nothing is picked. What is asked for is what comes back -- SDXL_PROMPT_RULES says the model
-    cannot toss a coin, and neither can this.
-    """
-    wanted = folded(args.get("name"))
-    if wanted in prompt.PROMPT_PIECES:
-        return ToolResult(
-            f"{wanted}: {prompt.PROMPT_PIECES[wanted]}", None, "", "Looked up"
-        )
-
-    # The names, on both roads out. Asking is how the model learns what is here, and it pays for
-    # that once -- a list carried in the request would be paid for every round and would grow with
-    # the library, which is the whole lesson of Madde 185.
-    known = ", ".join(sorted(prompt.PROMPT_PIECES))
-    if not wanted:
-        return ToolResult(f"The pieces there are: {known}.", None, "", "Listed")
-    # Shaped like _unknown's and like build_prompts' misses, so one miss reads the same everywhere.
-    return ToolResult(
-        f"{wanted} is not a piece I have; known: {known}.", None, "", "No piece by that name"
     )
 
 

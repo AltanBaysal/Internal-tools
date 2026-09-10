@@ -575,50 +575,6 @@ WRITE_FRAME_PROMPT_NOTE = (
     "Left out the first time."
 )
 
-# --- the pieces that read the same in every scenario (Madde 187) ----------------------------------
-#
-# Known things were being written out again for every scenario, and a thing written twice is a
-# thing that reads two ways. They live here, in the repo, so everybody gets the same one, a change
-# to one is a change everywhere, and they are reviewed like every other text QueenAgent says.
-#
-# One map rather than one constant each. What the tool does is look a piece up by name, and
-# separate constants would need a second name-to-constant table beside them -- which is the copy
-# this run has been deleting one madde at a time. In a map every entry's name is already its key.
-#
-# Keys are written folded, the way naming.folded returns them, because that is what a name from the
-# model is folded into before it is looked for. Two spellings -- one for the key and one for the
-# lookup -- is a map that cannot find its own entries.
-#
-# Positions only, which is the example the user gave, and nothing beyond it: the map takes any kind
-# of piece, and guessing at a second kind today would put text nobody asked for among the texts
-# that get read.
-#
-# Every entry follows SDXL_PROMPT_RULES, and three of those rules are guarded by tests here. No
-# count -- that belongs in a character's own entry. No quality tag -- code writes those at the
-# front of every prompt. No clothes -- those are an outfit.
-PROMPT_PIECES = {
-    "cowgirl": "girl on top, straddling, facing partner, hips lowered, hands on chest",
-    "reverse-cowgirl": "girl on top, facing away, straddling, back arched, hands on thighs",
-    "missionary": "lying on back, legs apart, knees raised, facing each other, arms overhead",
-    "doggy-style": "on all fours, from behind, hips raised, head lowered, hands gripping sheets",
-    "spooning": "lying on side, from behind, bodies pressed together, arm around waist",
-    "standing": "standing, pressed against wall, one leg raised, arms around neck",
-    "sitting-on-lap": "sitting on lap, facing each other, thighs apart, arms around neck",
-}
-
-READ_PROMPT_PIECE = (
-    "Look up a piece of prompt that reads the same in every scenario -- a position, and whatever "
-    "else is kept here -- and show it as it is written. Reach for it when the user asks for one "
-    "by name rather than describing what they want: what comes back is what they asked for, "
-    "never one of several picked for them. Ask with no name, or with a name nobody knows, and "
-    "the answer says which pieces there are. It shows and nothing more: putting one into a frame "
-    "is update_frame's, and the text it hands back is for the user to read."
-)
-READ_PROMPT_PIECE_NAME = (
-    "Which piece, as in cowgirl. Capitals and spaces do not matter. Leave it out to be told "
-    "which pieces there are."
-)
-
 WRITE_MISSING_ACTIONS = (
     "Write the action of every frame in a structure file that is still without one, in one "
     "call. Each frame is asked of the same model write_frame_prompt asks, at the same time as "

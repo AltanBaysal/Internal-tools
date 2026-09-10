@@ -18,10 +18,10 @@ EDIT = "edit"
 DEFAULT = EDIT
 
 # What opens nothing and changes nothing. Madde 172 left this at one -- the schema reader went with
-# the shape it taught -- and Madde 187 makes it two: looking a ready piece up answers out of a
-# constant in the repo, so there is no file to open, nothing to write, and nothing a mode would be
-# protecting the user from.
-READS = ("read_file", "read_prompt_piece")
+# the shape it taught -- 187 made it two, and Madde 205 takes that one back out: the ready-piece
+# tool was named in no skill text and the library it answered from never reached the model that
+# writes a frame, so it was read on every request and used on almost none.
+READS = ("read_file",)
 
 _WITHOUT_ASKING = {
     ASK: READS,

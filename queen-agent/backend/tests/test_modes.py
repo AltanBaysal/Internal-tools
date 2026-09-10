@@ -73,26 +73,18 @@ def test_ask_mode_reads_without_asking():
     assert not any(_asks("ask", tool) for tool in READS)
 
 
-def test_looking_up_a_ready_piece_asks_nobody():
-    # Madde 187. It answers out of a constant in the repo: no file is opened, nothing is written,
-    # and there is nothing for a mode to protect the user from.
-    from backend.features.workspace.domain.modes import READS
-
-    # Asserted first, and this run has watched twelve tests go green while red: needs_permission
-    # answers False for a tool nobody knows, so the loop below passes on a tool that does not
-    # exist yet. This line is the one that says it does.
-    assert "read_prompt_piece" in READS
-    for mode in ("ask", "plan", "edit"):
-        assert not _asks(mode, "read_prompt_piece"), mode
-
-
 def test_reading_a_file_is_the_only_call_no_mode_asks_about():
-    # Madde 205 took the second one back out. Written as an equality rather than a "not in": a tool
-    # nobody knows answers False to needs_permission, so a loop built on a name that no longer
-    # exists asserts nothing and passes -- the trap the test above this one was written to name.
+    # Madde 187 put a second call in here -- looking a ready piece up, which opened no file and
+    # wrote nothing -- and Madde 205 took it back out with the tool itself.
+    #
+    # Written as an equality rather than a "not in": needs_permission answers False for a tool
+    # nobody knows, so a loop built on a name that no longer exists asserts nothing and passes
+    # green. This run has watched twelve tests do exactly that.
     from backend.features.workspace.domain.modes import READS
 
     assert READS == ("read_file",)
+    for mode in ("ask", "plan", "edit"):
+        assert not _asks(mode, "read_file"), mode
 
 
 def test_edit_mode_asks_for_nothing():
