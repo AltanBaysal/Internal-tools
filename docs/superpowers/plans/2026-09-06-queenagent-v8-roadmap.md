@@ -41,8 +41,8 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 202 · kareyi yazan da DeepSeek | **kapandı** | `1d9e491` |
 | 205 · hazır parça aracı kalkar | **kapandı** | `5500cd0` |
 | 206 · karakter önizleme aracı kalkar | **kapandı** | `8eaac5d` |
-| 207 · plan yazan araç kalkar | sırada | |
-| 208 · tek kare yazan araç kalkar | 207'den sonra | |
+| 207 · plan yazan araç kalkar | **kapandı** | `8045510` |
+| 208 · tek kare yazan araç kalkar | **kapandı** | `9eabb06` |
 | 190 · metinlerin okunması | okuma kapandı, **kod geçişi** bekliyor | |
 | 203 · adım işaretleme aracı kalkar | 190'dan sonra | |
 | 209 · sürüm arayüzde görünür | sırası serbest | |
@@ -59,8 +59,11 @@ kareyi yazan modele de gidiyor.
 
 **Koşu 10 Eylül'de yeniden açıldı.** 190'ın okuması bitti — 35 düzeltme, bekleyen karar yok — ve
 okuma dört aracın **kaldırılmasını** getirdi: her biri her istekte tarifini ödüyor, hiçbiri kendi
-sebebinin üstünde durmuyordu. 205 ile 206 kapandı; 207 ve 208 sırada, ve ikisi de 190'ın kod
-geçişinden **önce**, çünkü kalkacak bir metni önce koda indirmek işi iki kez yapmaktır.
+sebebinin üstünde durmuyordu. **Dördü de kapandı** *(205–208)*, ve dördü de 190'ın kod geçişinden
+önce koştu — çünkü kalkacak bir metni önce koda indirmek işi iki kez yapmaktır.
+
+Araç sayısı **23'ten 19'a** indi. Sırada 190'ın kod geçişi var: okumanın 35 düzeltmesi
+`prompt.py`'ye iner, ve o geçiş artık 18 aracın metnini taşıyor.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.

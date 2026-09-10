@@ -1521,7 +1521,14 @@ Kod geçişi o dört maddeden sonra koştuğu için bu yazımlar hiç uygulanmay
 çünkü silinen şeyin son hâli de kayıttır. `mark_step_done` zaten baştan kapsam dışıydı *(203)* —
 yani §6'nın 23 aracından **beşi** kalkıyor, ve geriye **18** kalıyor.
 
-*İlk ikisi indi:* 205 `5500cd0` ile, 206 `8eaac5d` ile. 207 ve 208 sırada.
+*Dördü de indi:* 205 `5500cd0`, 206 `8eaac5d`, 207 `8045510`, 208 `9eabb06`. Yani bu dört yazım
+hiç uygulanmayacak, ve kod geçişi 18 aracın metnini taşıyor.
+
+**Kalkan araçlar üç kaydı da geçersiz kıldı.** 29 numara *"plan kipinde `write_plan`, öteki
+kiplerde `create_file`"* diyordu — 207 aracı alınca ayrım kalmadı, cümle *"create_file writes it"*
+oldu. 31 ile 32 numara `write_frame_prompt` ile `write_missing_actions` arasındaki *"yeniden
+yazmak / düzeltmek"* ayrımını yazmıştı — 208 birinci aracı alınca düzeltme tümüyle `update_frame`'e
+geçti. Üç kayıt da yerinde duruyor: silinen şeyin son hâli de kayıttır.
 
 **Aynı kayıt iki eksiği kapattı.**
 

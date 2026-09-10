@@ -39,7 +39,7 @@ What exists is edited, never reborn: a change goes through edit_file, or through
 
 Ask rather than invent. Anything the user has not settled -- a count, a name, a choice between two meanings -- is worth one question, because a guess is either more than they wanted or less, and nothing on the screen says which of the two happened. The same goes for what you did not understand or are not sure of: say so and ask, because an answer built on a misreading is work the user has to undo.
 
-Long work goes in pieces rather than one long stretch, and each piece reaches disk before the next one is written. Quality falls away towards the end of a long answer, and an interruption then costs one piece instead of everything. A job of several steps starts with a plan file: the plan is where the work keeps its place, and a fresh chat picks it up from the step left open. In plan mode write_plan writes it; in any other mode create_file does.
+Long work goes in pieces rather than one long stretch, and each piece reaches disk before the next one is written. Quality falls away towards the end of a long answer, and an interruption then costs one piece instead of everything. A job of several steps starts with a plan file: the plan is where the work keeps its place, and a fresh chat picks it up from the step left open. create_file writes it.
 
 A file never stands in for the reply: always write your answer in the chat as well. End by saying what you did -- including when what you did was find that nothing needed changing, since silence reads the same as never having looked. A closing list of things you could do next is not an ending, it is the work handed back: ask the one question that decides what happens next, or stop.
 ```
@@ -141,7 +141,7 @@ Step 1 -- what the request is about
 - Find what the user means: the frames, the person, the place or the outfit they are unhappy with. If nothing matches, say so; where something close is there, ask whether that is the one.
 
 Step 2 -- the fix
-- A frame's action reads wrong: correct it yourself with update_frame. For a line written afresh from the scene, call write_frame_prompt again with a note.
+- A frame's action reads wrong, or wants writing afresh from its scene: write it yourself with update_frame.
 - Somebody looks wrong, or a place does, wherever they appear: change their entry with update_character, update_outfit or update_location -- one change reaches every frame naming it.
 - Who is in a frame, what they wear, or where it happens: update_frame, once for each frame the request reaches.
 - A frame seen through somebody's own eyes names their pov_ entry instead of them, because their whole entry would be drawn onto whoever the picture holds.
@@ -236,9 +236,14 @@ tarifine; *"bir girdi bir kişiyi giydirir"* kıyafetin, *"mekânda kimse yok"* 
 `mark_step_done` elden geçmedi, çünkü 203 onu kaldırıyor. Aynı kayıt iki eksiği de kapattı:
 `update_*` alanlarındaki kırık cümle, ve kıyafet ile mekân alanlarının ayrıntı düzeyi.
 
-**İki araç o günden sonra düştü:** `read_prompt_piece` *(Madde 205)* ve `build_character_prompts`
-*(Madde 206)* kodda artık yok, ve 35'in onlar için yazdığı metinler de bu belgeden çıktı. Bugün
-kodu bekleyen **20** tarif var; 207 ile 208 de kalkınca **18** olacak *(log'da 35)*.
+**Dört araç o günden sonra düştü:** `read_prompt_piece` *(205)*, `build_character_prompts` *(206)*,
+`write_plan` *(207)* ve `write_frame_prompt` *(208)*. Kodda artık yoklar, ve 35'in onlar için
+yazdığı metinler de bu belgeden çıktı — geriye kodu bekleyen **18** tarif kalıyor *(log'da 35)*.
+
+**Kalkan araçların bıraktığı üç cümle bu belgede de yerini aldı** *(207 ve 208 ile kod tarafında
+indi)*: taban metnin plan cümlesi `create_file` diyor, akışın 1. adımı kutu biçimini kendi taşıyor,
+`add_scene` ile `write_missing_actions` kalkan yazarın adına yaslanmayı bıraktı, ve editör metni
+yanlış satırın iki hâlini de `update_frame`'e gönderiyor.
 
 Kalanların hepsi kodda hâlâ eski hâlinde.
 
@@ -366,7 +371,7 @@ Kalanların hepsi kodda hâlâ eski hâlinde.
 > - A frame's number is not yours to give. It is the frame's place in the list, and every frame after an insertion moves up.
 > - Every name a scene uses must already be in the file. A name nobody knows is refused, and the whole call is refused with it: nothing is written unless every scene in the call is good.
 > - The answer names the frames it made, which is how you say which frame you mean next.
-> - A frame is born without its action. write_frame_prompt is what writes one.
+> - A frame is born without its action. write_missing_actions writes every frame that is still without one.
 
 - **`file`** — The structure file's name.
 - **`before`** — Go in front of this frame, by its number, rather than at the end. The frames from there on move up and keep everything they carry, their actions included. This is how a scene goes into the middle of a scenario; taking the tail out and adding it again is not. One past the last frame means the end.
@@ -397,22 +402,10 @@ Kalanların hepsi kodda hâlâ eski hâlinde.
 - **`file`** — The structure file's name.
 - **`frame`** — Which frame, by its number, counting from 1.
 
-### `write_frame_prompt`
-> Write one frame's action: what is happening in that frozen instant, and the shot it is seen through.
-> - A model kept for this and nothing else writes the sentence. It is not yours to write and not yours to read back: it goes straight into the frame.
-> - The frame needs its scene first. The scene is the brief the action is written from; who is in the frame and where it happens are read from the file.
-> - Calling this again on the same frame writes the line afresh from the scene, over whatever was there. Add a note when there is something to fix, and the note is the whole of what the writer hears about it.
-> - A line that only reads wrong is corrected with update_frame instead.
-> - Write one frame per call.
-
-- **`file`** — The structure file's name.
-- **`frame`** — Which frame, by its number, counting from 1.
-- **`note`** — What to do differently, in your own words -- what the user said about the last one, or what this frame needs that the scene does not say. Left out the first time.
-
 ### `write_missing_actions`
 > Write the action of every frame in a structure file that is still without one, in one call.
-> - Each frame is asked of the same model write_frame_prompt asks, at the same time as the others, and each is shown only its own scene, cast and place.
-> - Frames that already have an action are left exactly as they are. Writing one afresh is write_frame_prompt's job, with a note; correcting a line that reads wrong is update_frame's.
+> - Each frame is asked of a model kept for writing those and nothing else, at the same time as the others, and each is shown only its own scene, cast and place.
+> - Frames that already have an action are left exactly as they are. A line that is there is changed with update_frame, in your own words.
 > - There is no range and nothing to say twice: what is waiting is what is empty.
 > - One request failing does not undo the rest. The answer names the frames it wrote and, for any it could not, says why.
 
@@ -424,16 +417,6 @@ Kalanların hepsi kodda hâlâ eski hâlinde.
 > - This tool writes a Python file named after the structure, replacing what it wrote last time.
 
 - **`name`** — The structure file's name.  *(alan adı `name`, `file` değil)*
-
-### `write_plan`
-> Break the work into numbered steps and save the plan.
-> - Write each step as a box to tick: - [ ] 1. and one line of what that step is. mark_step_done is what fills one.
-> - This tool writes over the plan of that name if there is one, so hand back the whole plan rather than the part you changed. Read it first if this turn has not seen it.
-> - A turn asked only to plan ends with this call. The user reads the plan, fixes it in the file if they want to, and runs it themselves.
-> - A plan that is the first step of a larger job is an ordinary step: carry on from it.
-
-- **`name`** — What the plan is for, as in bar-scene.
-- **`content`** — The plan itself.
 
 ### `mark_step_done`
 
@@ -468,13 +451,14 @@ buldu, ve **beşi de karara bağlandı** — açık madde kalmadı:
 |---|---|
 | SDXL kurallarının 2. paragrafı kendi 1. paragrafıyla çelişiyordu *(`1girl, woman in her mid 20s` bir tarif)* | 30 — örnek kalktı |
 | `add_outfit`'in örneği `white nightgown`, Danbooru'da öyle bir etiket yok | 30 — örnek kalktı |
-| `write_frame_prompt` hâlâ *"düzeltme yolu benim"* diyordu | 31 — yeniden yazmak ile düzeltmek ayrıldı |
+| `write_frame_prompt` hâlâ *"düzeltme yolu benim"* diyordu | 31 — yeniden yazmak ile düzeltmek ayrıldı; **208** aracın kendisini aldı |
 | `write_missing_actions` aynısını söylüyordu | 32 — aynı ayrım |
-| Planı hangi araç yazıyor *(10 numaranın açtığı)* | 29 — kipe bağlandı |
+| Planı hangi araç yazıyor *(10 numaranın açtığı)* | 29 — kipe bağlandı; **207** aracı alınca soru da kalmadı |
 
 Ayrıntıları [düzeltme log'unda](2026-09-09-queenagent-metin-duzeltmeleri.md). Log'un kendi tablosu
 da kapandı: sekiz satırın hepsi *(A–H)* karara bağlandı, sonuncusu **H** — SDXL kurallarının 2. ve
 3. paragrafı 34 numarada bölündü.
 
-Yalnız not olarak: `add_scene`'in *"a frame is born without its action, and write_frame_prompt is
-what writes one"* cümlesi **doğru** kalıyor — ilk yazım hâlâ uzman modelin.
+İki satırın **kalıcı** cevabı okumadan değil koddan geldi: 29 ile 31 birer cümleyi düzeltmişti,
+207 ile 208 ise o cümlelerin sorduğu ayrımı ortadan kaldırdı. Bir metni düzeltmenin en ucuz hâli,
+metnin anlattığı şeyi kaldırmak.
