@@ -44,7 +44,7 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 207 · plan yazan araç kalkar | **kapandı** | `8045510` |
 | 208 · tek kare yazan araç kalkar | **kapandı** | `9eabb06` |
 | 190 · metinlerin okunması | **kapandı** | `2d11881` |
-| 203 · adım işaretleme aracı kalkar | sırada | |
+| 203 · adım işaretleme aracı kalkar | **kapandı** | `edfdecc` |
 | 209 · sürüm arayüzde görünür | sırası serbest | |
 
 183–187, 189, 191–202 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
@@ -66,7 +66,11 @@ Araç sayısı **23'ten 19'a** indi. Ardından 190'ın kod geçişi koştu: 35 d
 indi, 18 araç tarifi dahil. Geçiş iki şey daha buldu — test turunun kaçırdığı üç test, ve akış
 metninin tavanı **480/450** ile aşması. İkincisinin kararı okumada zaten yazılıydı *(9 numara:
 tavan yükselmez, iki yerde söylenen cümle düşer)*, ve üç cümle düştü — üçü de bir araç tarifinde
-zaten duruyor. **Belge ile kod artık eşit.** Sırada 203 var.
+zaten duruyor. **Belge ile kod artık eşit.**
+
+Ardından **203** koştu ve beşinci aracı aldı: araç sayısı **18**. Okumanın 11 numarası kutuları
+*"yalnız bir not"*a indirmişti, ve bu madde onu sonuna kadar götürdü — kutu biçimi duruyor, onu
+dolduran tur yok. Geriye **209** kalıyor, ve sırası serbest.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.
@@ -680,6 +684,15 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
   değişmemiştir — tek fark araç adında.
 - **Değişen:** `tools.py`, `modes.py`, `prompt.py`; `test_tools.py`, `test_modes.py`,
   `test_skills.py`, `test_prompt.py`.
+- **Sapma, ve kullanıcının kararı** *(10 Eylül)*: yukarıdaki *"kapanış maddesi `edit_file`'ı anar"*
+  **olmadı** — madde tümüyle düştü. Gerekçe 11 numaralı düzeltme: nerede kalındığını dosyalar
+  söylüyor, kutular *"yalnız bir not"*, ve bir notu dolduran madde 36 numarada üç cümle kesilen bir
+  metinde yer tutuyordu. Kutu biçimi duruyor — plan `- [ ]` diye yazılmaya devam ediyor, insan
+  okusun diye. Böylece *"nasıl görülür"* de değişti: bir adım onaylanır, akış bir sonrakine geçer,
+  ve plan dosyasına hiçbir tur dokunmaz.
+- **Kaldırma kuyruğu:** `plan_name`'in son çağıranı bu aracın geri düşüşüydü *(207'nin bıraktığı)*;
+  araçla birlikte o da gitti. 206'nın `folded`'ıyla aynı biçim.
+- **Kapandı** *(10 Eylül; `0e631bf` kırmızı, `edfdecc` yeşil)*. Araç sayısı **19 → 18**.
 
 ---
 

@@ -104,7 +104,6 @@ How a step runs:
 - Ask, write it into the file, show what you wrote, and wait for their yes. A step ends when they approve it, never before.
 - Never write a placeholder, and never stop the flow to wait for a description: ask for what is missing, and carry on when it is answered.
 - "You decide" covers that step only. Choose, show it, and still wait for the yes. Ask the next step's question as usual -- one "you decide" is not permission for the rest.
-- Close an approved step with mark_step_done. It fills that step's box and touches nothing else.
 
 Step 1 -- the plan
 - Do this on the chat's first turn only. Later turns carry on from where the chat already is.
@@ -232,12 +231,13 @@ tarifine; *"bir girdi bir kişiyi giydirir"* kıyafetin, *"mekânda kimse yok"* 
 
 **35 numara §6'nın tamamını yeniden yazdı** *(kullanıcı kararı, 10 Eylül)*: 22 aracın tarifi
 33 ve 34'ün sözleşmesine girdi — emir başa, bir madde bir kural, gömülü yan cümle yok. Yalnız
-`mark_step_done` elden geçmedi, çünkü 203 onu kaldırıyor. Aynı kayıt iki eksiği de kapattı:
-`update_*` alanlarındaki kırık cümle, ve kıyafet ile mekân alanlarının ayrıntı düzeyi.
+`mark_step_done` elden geçmedi, çünkü 203 onu kaldıracaktı — ve kaldırdı. Aynı kayıt iki eksiği de
+kapattı: `update_*` alanlarındaki kırık cümle, ve kıyafet ile mekân alanlarının ayrıntı düzeyi.
 
-**Dört araç o günden sonra düştü:** `read_prompt_piece` *(205)*, `build_character_prompts` *(206)*,
-`write_plan` *(207)* ve `write_frame_prompt` *(208)*. Kodda artık yoklar, ve 35'in onlar için
-yazdığı metinler de bu belgeden çıktı — geriye kodu bekleyen **18** tarif kalıyor *(log'da 35)*.
+**Beş araç o günden sonra düştü:** `read_prompt_piece` *(205)*, `build_character_prompts` *(206)*,
+`write_plan` *(207)*, `write_frame_prompt` *(208)* ve `mark_step_done` *(203)*. Kodda artık yoklar,
+ve 35'in onlar için yazdığı metinler de bu belgeden çıktı — geriye **18** araç kalıyor, hepsinin
+tarifi aşağıda *(log'da 35)*.
 
 **Kalkan araçların bıraktığı üç cümle bu belgede de yerini aldı** *(207 ve 208 ile kod tarafında
 indi)*: taban metnin plan cümlesi `create_file` diyor, akışın 1. adımı kutu biçimini kendi taşıyor,
@@ -419,16 +419,6 @@ her dizgenin `prompt.py`'de kendi adı olmak zorunda.
 > - This tool writes a Python file named after the structure, replacing what it wrote last time.
 
 - **`name`** — The structure file's name.  *(alan adı `name`, `file` değil)*
-
-### `mark_step_done`
-
-*35 numara bu aracın metnine **dokunmadı**: Madde 203 aracı tümüyle kaldırıyor, ve bugün yazılan
-metin silinecek metin olurdu.*
-
-> Tick one step off a plan: its box is filled and nothing else in the file is touched. Call it when the user has approved that step, so a later chat opening the plan reads where the work stopped. A step already ticked is left as it is.
-
-- **`name`** — Which plan, by the name it was written under.
-- **`step`** — Which step, by its number in the plan.
 
 ---
 

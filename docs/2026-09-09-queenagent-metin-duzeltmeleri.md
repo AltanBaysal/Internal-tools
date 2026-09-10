@@ -286,6 +286,10 @@ duruyor ama ayrı bir kural, ve ilk okunuşta çelişik: *placeholder da yazma, 
 o zaman ne yapayım?* Cevap bir alt maddedeydi, burada yazmıyordu. Yenisi ikisini `and` ile ayırıyor
 ve **çıkış yolunu** söylüyor: eksik olanı sor, cevaplanınca devam et.
 
+**203 dördüncü maddeyi geri çekti** *(kullanıcı kararı, 10 Eylül)*: kutuyu dolduran araç kalktı ve
+madde `edit_file`'a çevrilmedi, silindi — döngü üçe indi. 11 numaranın bulgusu, kutuların yalnız
+bir not olması, sonuna kadar götürüldü.
+
 **3. madde — dört şey bir aradaydı**, ve biri **yapılamayan bir şeydi**: `the plan records it with
 the step it closed`. Planı işaretleyen araç `mark_step_done`, ve kuralı `touches nothing else` —
 yani o kaydı yapacak yol yok *(planı `edit_file` ile elle değiştirmek dışında, ki onu hiçbir yer
@@ -371,6 +375,10 @@ ister.
 
 **Kutu ifadesi 203'ten sonra da doğru:** `box is still empty` biçime bağlı, `mark_step_done`'a değil.
 Döngünün dördüncü maddesi aracı anmaya devam ediyor, çünkü onu `edit_file`'a çevirmek 203'ün işi.
+
+**203 çevirmedi, geri çekti** *(kullanıcı kararı, 10 Eylül)*. Kutunun kendisi kaldı — planı yazan
+madde `- [ ] 1.` demeye devam ediyor, insan okusun diye — ve onu dolduran tur kalktı. Bu kaydın
+`create_file` kararı bundan etkilenmiyor: plan hâlâ temel araçla yazılıyor.
 
 **Kelime tavanı:** yaklaşık 20 kelime biniyor. Sıkışırsa ilk kısaltılacak yer üçüncü maddenin son
 cümlesi.
