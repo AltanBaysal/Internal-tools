@@ -890,6 +890,25 @@ def test_the_schema_tool_is_gone(tmp_path):
     assert "no tool called" in said
 
 
+def test_the_ready_piece_tool_is_gone(tmp_path):
+    # Madde 205. The tool was named in no skill text, so it ran only when a user asked for a piece
+    # by name -- while its description was paid for on every request. The library it answered from
+    # never reached the model that writes a frame either: _frame_seen shows the scene, the cast and
+    # the place, and nothing else.
+    assert "read_prompt_piece" not in {spec["function"]["name"] for spec in TOOL_SPECS}
+    said = run_tool(_files(tmp_path), "p1", "read_prompt_piece", "{}").text
+    assert "no tool called" in said
+
+
+def test_the_ready_piece_library_is_gone():
+    # Its own test because it was its own decision: the tool could have gone with the seven pieces
+    # left standing. A prompt text nobody reads is dead weight, and Madde 189's guard says this repo
+    # holds no prompt anywhere else -- so the map goes with its only reader.
+    from backend.features.workspace.domain import prompt
+
+    assert not hasattr(prompt, "PROMPT_PIECES")
+
+
 @pytest.mark.parametrize("tool", TAG_TOOLS)
 def test_the_rules_ride_with_every_tool_that_takes_tags(tool):
     spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)

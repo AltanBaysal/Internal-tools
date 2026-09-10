@@ -86,6 +86,15 @@ def test_looking_up_a_ready_piece_asks_nobody():
         assert not _asks(mode, "read_prompt_piece"), mode
 
 
+def test_reading_a_file_is_the_only_call_no_mode_asks_about():
+    # Madde 205 took the second one back out. Written as an equality rather than a "not in": a tool
+    # nobody knows answers False to needs_permission, so a loop built on a name that no longer
+    # exists asserts nothing and passes -- the trap the test above this one was written to name.
+    from backend.features.workspace.domain.modes import READS
+
+    assert READS == ("read_file",)
+
+
 def test_edit_mode_asks_for_nothing():
     # The mode's whole meaning. Asked of every tool there is rather than of a list written here --
     # a ninth tool must join this claim by existing, not by somebody remembering to add it.
