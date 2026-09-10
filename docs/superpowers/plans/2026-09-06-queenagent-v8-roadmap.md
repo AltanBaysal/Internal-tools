@@ -43,8 +43,8 @@ Her madde iki tur: testler kırmızı commit'lenir, sonra kod yeşile getirilir.
 | 206 · karakter önizleme aracı kalkar | **kapandı** | `8eaac5d` |
 | 207 · plan yazan araç kalkar | **kapandı** | `8045510` |
 | 208 · tek kare yazan araç kalkar | **kapandı** | `9eabb06` |
-| 190 · metinlerin okunması | okuma kapandı, **kod geçişi** bekliyor | |
-| 203 · adım işaretleme aracı kalkar | 190'dan sonra | |
+| 190 · metinlerin okunması | **kapandı** | `2d11881` |
+| 203 · adım işaretleme aracı kalkar | sırada | |
 | 209 · sürüm arayüzde görünür | sırası serbest | |
 
 183–187, 189, 191–202 kapandı. Ajan 194'ün ardından durmuştu; koşu **195 ve 196 ile yeniden
@@ -62,8 +62,11 @@ okuma dört aracın **kaldırılmasını** getirdi: her biri her istekte tarifin
 sebebinin üstünde durmuyordu. **Dördü de kapandı** *(205–208)*, ve dördü de 190'ın kod geçişinden
 önce koştu — çünkü kalkacak bir metni önce koda indirmek işi iki kez yapmaktır.
 
-Araç sayısı **23'ten 19'a** indi. Sırada 190'ın kod geçişi var: okumanın 35 düzeltmesi
-`prompt.py`'ye iner, ve o geçiş artık 18 aracın metnini taşıyor.
+Araç sayısı **23'ten 19'a** indi. Ardından 190'ın kod geçişi koştu: 35 düzeltme `prompt.py`'ye
+indi, 18 araç tarifi dahil. Geçiş iki şey daha buldu — test turunun kaçırdığı üç test, ve akış
+metninin tavanı **480/450** ile aşması. İkincisinin kararı okumada zaten yazılıydı *(9 numara:
+tavan yükselmez, iki yerde söylenen cümle düşer)*, ve üç cümle düştü — üçü de bir araç tarifinde
+zaten duruyor. **Belge ile kod artık eşit.** Sırada 203 var.
 
 > **194'ün hash'i düzeltildi:** tablo `deb0a9e` diyordu, ama 7 Eylül'ün şerit sırası düzeltmesi o
 > commit'ten **sonra** indi. Bir maddenin kapanışı, o maddenin son yeşilidir.
@@ -646,6 +649,13 @@ Koşunun son işi, ve **kullanıcının kendi işi.**
   sonunda, tek geçişte** güncelleniyor: cümle cümle koda inmek okumayı bölüyor. O geçişte
   `test_prompt.py`'nin cümle tutan testleri **kuralı tutacak** şekilde gevşetilecek — silinmeyecek,
   çünkü her biri bir denemenin dersi.
+- **Kod geçişi koştu ve kapandı** *(10 Eylül; `1a4cbf3` kırmızı, `5bb0f94` kırmızı, `2d11881`
+  yeşil)*. Okuma kullanıcıyla bitmişti; ajanın işi kararlaştırılmış cümleleri koda indirmekti, ve
+  hiçbir metin kararı bu geçişte verilmedi. Testler gerçekten gevşetildi, hiçbiri silinmedi.
+  Geçişin kendi iki bulgusu: test turunun kaçırdığı üç test *(altı indeks testi çevrilmişti,
+  yedincisi eski başlığı elle tutuyordu)*, ve akış metninin **480/450** ile tavanı aşması — kararı
+  9 numaralı düzeltme önceden vermişti, ve kesim [36 numarada](../../2026-09-09-queenagent-metin-duzeltmeleri.md)
+  yazılı.
 
 ## Madde 203 — Adımı işaretleyen araç kalkar
 
