@@ -97,11 +97,17 @@ def test_the_record_and_each_roadmap_name_the_same_branch():
     parted = []
     for name in _roadmaps():
         declared = _branch_in_header(_read(os.path.join(PLANS, name)))
+        line = _record_line(record, name)
+
         if declared is None:
-            parted.append(f"{name}: başlığında dal adı yok")
+            # The oldest roadmap names no branch anywhere, and which one it ran on cannot be
+            # recovered -- only guessed at. A guess is what this whole item exists to undo, so an
+            # unknown is allowed through when the record says so in as many words. Silence is not:
+            # a document the record passes over is the drift starting again.
+            if line is None or "bilinmiyor" not in line:
+                parted.append(f"{name}: başlığında dal adı yok, kayıt da bilinmiyor demiyor")
             continue
 
-        line = _record_line(record, name)
         listed = BRANCH.search(line) if line else None
         if listed is None or listed.group(0) != declared:
             parted.append(f"{name}: başlık {declared}, kayıt {listed.group(0) if listed else 'yok'}")
