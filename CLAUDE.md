@@ -43,10 +43,11 @@ Never write test and code in one pass: written together, a test inherits the cod
 The user tests at the end of a run, not between items.
 
 Roadmaps live in [docs/superpowers/plans/](docs/superpowers/plans/). **A version is a branch, and
-that branch gets one roadmap** — work that turns up mid-run is an item added to the roadmap already
-running, never a second document. Which version a tool is on is read from the tool's own record
-(`queen-editor/SURUMLER.md`), never guessed from the highest number on a filename: those two parted
-company here, and the parting went unnoticed for ten runs. One problem, one item, ordered so nothing
+that branch gets one roadmap named for it** — work that turns up mid-run is an item added to the
+roadmap already running, never a second document. The name is therefore the record of which version
+a tool is on, and it only stays one while every roadmap's name matches the branch in its own header:
+those parted company here, unnoticed across eight runs, until thirteen documents sat on four
+branches. One problem, one item, ordered so nothing
 is built before what it stands on, each saying what will work and how it will be seen. Numbering never shifts: written specs cite it. A spec
 derives from its source document, never the reverse.
 
