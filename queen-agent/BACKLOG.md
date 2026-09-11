@@ -3,6 +3,36 @@
 Gerçek ama henüz bir koşuya bağlanmamış işler. Sırası gelince buradan çıkar, o koşunun yol
 haritasına girer.
 
+## Model menüsü DeepSeek'in 10 Eylül değişikliğine göre yenilenecek
+
+*(DeepSeek'in [10 Eylül 2026 duyurusu](https://api-docs.deepseek.com/news/news260910), 11 Eylül'de
+okundu. Menüdeki iki satır da eskidi, ve biri **14 Eylül'de** yalan söylemeye başlıyor.)*
+
+**Üç şey değişti:**
+
+1. **`deepseek-v4-pro` 14 Eylül 04:00 UTC'de kapanıyor.** İstekler V4.1-Flash'a yönlenecek ve Flash
+   fiyatından faturalanacak. Hata dönmüyor — o yüzden *Queen Pro* seçen biri Flash alacak, ekran
+   Pro yazmaya devam edecek, ve fatura da Flash gelecek. Sessizce yanlış olan bir menü satırı.
+2. **Flash'ın fiyatı düştü.** Giriş $0.22 → **$0.15**, çıkış $0.66 → **$0.60** *(off-peak)*. Menüdeki
+   `$0.22 / $0.66 per 1M` bugün zaten yanlış.
+3. **`deepseek-v4-flash` artık eski ad** — V4.1-Flash'a yönlenen geriye dönük takma ad; modelin
+   bugünkü adı `deepseek-flash`. Çağrı çalışıyor, ama ad artık bir şeyin adı değil.
+
+**Kararlaşmadı: Pro satırı ne olacak.** İki okuma var ve ikisi de savunulabilir — *(a)* menüden
+tümüyle kalkar, geriye tek model kalır ve o zaman seçicinin kendisi sorgulanır *(Madde 177 üç
+satırdan ikiye inerken bu soru sorulmamıştı)*; *(b)* DeepSeek'in bir üst kademesi varsa oraya
+bağlanır ve menü iki satır kalır. İkincisi ancak öyle bir model varsa mümkün, ve **bakılmadı**.
+
+**Neden yine olacak:** [models.js:15-17](frontend/src/features/workspace/models.js#L15-L17)
+fiyatı elle yazıyor ve bunu bilerek yapıyor — *"seçim bir fiyat sorusu"*. Ama elle yazılan sayı
+sağlayıcı değiştirince eskir, ve **hiçbir test bunu yakalayamaz**: süit sayının doğru olduğunu
+değil, orada durduğunu tutuyor. Bu maddeye bir de *"fiyat ne zaman okundu"* satırı girebilir; sayıyı
+canlı çekmek ise ayrı ve büyük bir iş.
+
+**Değişen:** [backend/config.py](backend/config.py) *(`MODELS`, `DEFAULT_MODEL`, `PROMPT_MODEL`)*,
+[frontend/src/features/workspace/models.js](frontend/src/features/workspace/models.js); ve bunları
+çivileyen testler — `test_config.py`, `models.test.js`, `ModelPicker.test.jsx`; `dist`.
+
 ## Sürüm adın yanında dursun, aynı boyda ve kalın
 
 *(Kullanıcı, 11 Eylül — test geçişi. Madde 209 sürümü ekrana koydu; **nereye** koyduğu yanlış
