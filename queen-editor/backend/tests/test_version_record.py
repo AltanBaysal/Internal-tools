@@ -39,6 +39,15 @@ BRANCH = re.compile(r"`((?:feat|fix)/[^`\s]+)`")
 # every branch has one: the older ones were named before the habit settled.
 NUMBERED = re.compile(r"v(\d+)$")
 
+# A markdown link to a roadmap, text and target together. The link assertions above catch only the
+# target, which is how 120 texts kept naming versions that no longer exist.
+LINK = re.compile(r"\[([^\]]+)\]\(([^()\s]*-roadmap\.md)\)")
+# A version named inside link text.
+IN_TEXT = re.compile(r"\bv(\d+)\b")
+# The one place naming an old version is right: a sentence explaining the rename says "... adıyla",
+# meaning "under the name of". Kept this narrow on purpose -- a wide exemption empties the assertion.
+FORMER = "adıyla"
+
 # What CLAUDE.md used to call the current version. It sent this session to v14: the highest numbered
 # document is not the current version, it is only the newest thing written.
 WRONG_RULE = "highest `vN` current"
@@ -179,6 +188,32 @@ def test_every_link_to_a_roadmap_resolves_from_where_it_is_written():
                 dangling.setdefault(os.path.relpath(path, REPO), set()).add(link)
 
     assert not dangling, f"Çözülemeyen yol haritası bağlantısı: {dangling}"
+
+
+def test_a_links_text_names_the_version_it_goes_to():
+    """A link has two halves and the rename only fixed one of them.
+
+    Thirteen documents became five, every path was repointed, and 120 link texts went on naming v5,
+    v7, v14 -- versions with no document behind them. The link resolves, so the assertion above stayed
+    green while the sentence around it told the reader about something that does not exist. If the name
+    is the record, then every place writing that name is the record too.
+
+    Exempt: text that says "adıyla" (under the name of), which is a sentence deliberately naming a
+    former version -- the roadmaps explaining the rename have to say the old number.
+    """
+    lying = []
+    for path in _markdown():
+        for text, target in LINK.findall(_read(path)):
+            shaped = SHAPE.match(os.path.basename(target))
+            if not shaped or FORMER in text:
+                continue
+            version = int(shaped.group(2))
+            for named in IN_TEXT.findall(text):
+                if int(named) != version:
+                    lying.append(f"{os.path.relpath(path, REPO)}: [{text}] → v{version}")
+                    break
+
+    assert not lying, "Bağlantı metni gittiği belgeden başka bir sürümü adlıyor:\n" + "\n".join(lying)
 
 
 def test_a_roadmap_can_still_reach_everything_it_links_to():
