@@ -1,6 +1,6 @@
 # Madde 56 · Tur 2 (uygulama) — Tasarım
 
-**Madde:** [v4 yol haritası Madde 56](../plans/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 56](../roadmaps/2026-08-20-queenagent-v4-colab-roadmap.md)
 **Turun kırmızısı:** [Tur 1 tasarımı](2026-08-20-queenagent-m56-test-design.md) —
 `test_notebook.py`, yedi test.
 **Bu belgenin konusu:** klon hücresinin kendisi.

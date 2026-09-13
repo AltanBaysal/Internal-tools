@@ -1,7 +1,7 @@
 # Madde 85 — Çağrı kartı geriye oturur · **uygulama turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 85 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 85 ·
 **Test turu:** [testler spec'i](2026-08-26-queenagent-m85-cagri-karti-geriye-oturur-testler-design.md) ·
 commit `77f706f`, **2 kırmızı**.
 **Tur:** ikiden ikincisi — bu belge **kodu** tarif eder.

@@ -1,7 +1,7 @@
 # Queen Editor — Bölüm 4: Tek foto (tasarım)
 
 **Tarih:** 2026-07-25 · **Durum:** onaylandı, implementasyon planı bekliyor
-**Şemsiye tasarım:** [2026-07-24-queen-editor-v1-design.md](2026-07-24-queen-editor-v1-design.md) · **Yol haritası:** [2026-07-24-queen-editor-roadmap.md](../plans/2026-07-24-queen-editor-roadmap.md)
+**Şemsiye tasarım:** [2026-07-24-queen-editor-v1-design.md](2026-07-24-queen-editor-v1-design.md) · **Yol haritası:** [2026-07-24-queen-editor-roadmap.md](../roadmaps/2026-07-24-queen-editor-roadmap.md)
 **Bağımsızlık sınırı:** [2026-07-25-queen-editor-bagimsizlik-design.md](2026-07-25-queen-editor-bagimsizlik-design.md)
 
 ## Amaç

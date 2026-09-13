@@ -1,6 +1,6 @@
 # Madde 183 · test turu — prompt yazan model Grok 4.3 olur
 
-**Kaynağı:** [yol haritası, Madde 183](../plans/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 183](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
 v8'in ilk maddesi, `feat/queenagent-v8`'in ilk kodu.
 
 ---

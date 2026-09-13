@@ -44,7 +44,7 @@ ikisi de tasarım kaynağı değildir, hiçbir yol onları okumaz.
 
 - **Bugünkü uygulama:** `mira/frontend/src/` (arayüz) ve `mira/backend/` (davranış kuralları).
 - **Bugünün tarifi:** `docs/superpowers/specs/2026-08-09-mira-v1-design.md` ve
-  `docs/superpowers/plans/2026-08-09-mira-v1-roadmap.md`. Uygulama bunları hedefleyerek yazıldı;
+  `docs/superpowers/roadmaps/2026-08-09-mira-v1-roadmap.md`. Uygulama bunları hedefleyerek yazıldı;
   sadakat denetiminin tabanı budur, yeni tasarım değil.
 
 ## 3 · Üç yol

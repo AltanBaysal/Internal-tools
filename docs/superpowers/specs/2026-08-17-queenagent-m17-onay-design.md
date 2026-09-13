@@ -1,6 +1,6 @@
 # Madde 17 — Onay kutusu bileşeni · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 17](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 17](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 26'nın görsel yarısı · **karar 16, 17** · `HANDOFF.md` §6, §9
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

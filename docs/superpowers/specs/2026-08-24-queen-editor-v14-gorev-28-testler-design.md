@@ -1,6 +1,6 @@
 # v14 Görev 28 — Galerinin indirme sırası: TEST döngüsü tasarımı
 
-**Tarih:** 2026-08-24 · **Kaynak:** [yol haritası v14](../plans/2026-08-20-queen-editor-v4-roadmap.md) madde 28
+**Tarih:** 2026-08-24 · **Kaynak:** [yol haritası v14](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 28
 **Ölçüm:** [araştırma belgesi](../research/2026-08-23-queen-editor-galeri-yavasligi.md) §0
 
 ## Neyin testi yazılıyor

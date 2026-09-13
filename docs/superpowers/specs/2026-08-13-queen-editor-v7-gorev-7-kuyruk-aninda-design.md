@@ -1,6 +1,6 @@
 # Görev 7 — Kuyruğa eklenen kare anında görünsün
 
-**Roadmap:** [v7](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Blok 3
+**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 3
 
 ## Sorun
 

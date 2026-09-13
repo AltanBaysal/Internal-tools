@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../plans/2026-08-09-mira-v1-roadmap.md) · [Faz 3](2026-08-09-mira-faz-3-proje-ekrani-design.md)
+[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 3](2026-08-09-mira-faz-3-proje-ekrani-design.md)
 
 **Kapsam:** composer'ın bütün taslak kuralları (Madde 8) · sohbetin ve ilk mesajın diske yazılması,
 uç noktalarıyla (Madde 9).

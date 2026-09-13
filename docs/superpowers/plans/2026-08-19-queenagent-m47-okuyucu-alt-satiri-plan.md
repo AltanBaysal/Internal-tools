@@ -1,6 +1,6 @@
 # Madde 47 — "project file" okuyucudan kalkar · Plan (iki tur)
 
-**Madde:** [v3 yol haritası Madde 47](2026-08-18-queenagent-v3-roadmap.md) ·
+**Madde:** [v3 yol haritası Madde 47](../roadmaps/2026-08-18-queenagent-v3-roadmap.md) ·
 **Kaynak:** [test bulguları, bulgu 1](../research/2026-08-18-queenagent-test-bulgulari.md)
 **Test komutları (değişmez, ikisi de):**
 `python -m pytest queen-agent -q` · `npm test --prefix queen-agent/frontend`

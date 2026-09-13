@@ -1,7 +1,7 @@
 # Madde 81 — Durdurulan tur durdurulduğunu söyler · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 81 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 81 ·
 **Üstüne geldiği:** [Madde 67](2026-08-25-queenagent-m67-durdurma-uygulama-design.md) —
 durdurmanın kendisi.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod yazılmaz, ve tur kırmızı

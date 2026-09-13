@@ -1,6 +1,6 @@
 # Madde 210 — queen-editor'ün sürüm kaydı · test turu
 
-**Kaynak:** [yol haritasının Madde 210'u](../plans/2026-09-11-queen-editor-v5-roadmap.md).
+**Kaynak:** [yol haritasının Madde 210'u](../roadmaps/2026-09-11-queen-editor-v5-roadmap.md).
 
 ## Ne kanıtlanacak
 

@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-28 · **Branch:** `feat/queenagent-v5` ·
 **Kaynak:** [izin tasarımı](2026-08-28-queenagent-izin-tasarimi-design.md) — ve onun kaynağı
-[v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md), Blok 6, Madde 102 ·
+[v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md), Blok 6, Madde 102 ·
 **Turun birincisi:** [test turu](2026-08-28-queenagent-m102-ekran-testler-design.md) — on üç
 kırmızı commit'lendi *(`5732e38`)*.
 **Tur:** ikiden ikincisi — bu belge **yalnız kodu** tarif eder.

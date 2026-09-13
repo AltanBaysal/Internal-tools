@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-24 · **Kaynak:** Colab turu, aynı gün · kullanıcı kuralı
 **Öncesi:** [Görev 31 test spec'i](2026-08-24-queen-editor-v14-gorev-31-testler-design.md)
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v4-roadmap.md) madde 31
+**Yol haritası:** [v14](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 31
 
 ## Ne yeşile döndürülüyor
 

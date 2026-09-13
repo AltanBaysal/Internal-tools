@@ -1,6 +1,6 @@
 # Madde 176 · test turu — `write_frame_prompt`, karenin action'ını yazan araç
 
-**Kaynağı:** [yol haritası](../plans/2026-09-05-queenagent-v7-roadmap.md), Madde 176. Koşunun
+**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queenagent-v7-roadmap.md), Madde 176. Koşunun
 tasarımının bütün sebebi bu madde: iki modelin işi burada bölünüyor.
 
 Bu tur **yalnız testleri** yazıyor ve kırmızı commit'liyor.

@@ -1,6 +1,6 @@
 # Madde 209 — sürüm arayüzde görünür · test turu
 
-**Kaynak:** [yol haritasının Madde 209'u](../plans/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynak:** [yol haritasının Madde 209'u](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
 
 ## Ne kanıtlanacak
 

@@ -1,6 +1,6 @@
 # Madde 24 — Panel açıkken dosya sütunu kalkar · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 24](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 24](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 61 · `HANDOFF.md` §2, §8
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

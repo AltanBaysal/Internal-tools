@@ -1,7 +1,7 @@
 # Madde 65 — Açılış taslak sohbete düşer · **uygulama turu**
 
 **Tarih:** 2026-08-25 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md), Madde 65 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md), Madde 65 ·
 **Önceki tur:** [test tasarımı](2026-08-25-queenagent-m65-acilis-testler-design.md) — beş test
 `f9d687e`'de kırmızı commit'lendi.
 **Tur:** ikiden ikincisi. Bu belge, commit'lenmiş testlerin tarif ettiği kodu tarif eder.

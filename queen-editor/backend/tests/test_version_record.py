@@ -81,7 +81,7 @@ def test_the_name_says_the_branch_the_roadmap_ran_on():
     """A name is only a record while it cannot lie, and the branch is what it must not lie about."""
     parted = []
     for name in _roadmaps():
-        declared = _branch_in_header(_read(os.path.join(PLANS, name)))
+        declared = _branch_in_header(_read(os.path.join(ROADMAPS, name)))
         named = NAMED.search(name).group(1)
         if declared != named:
             parted.append(f"{name}: adı v{named}, başlığı {'v' + declared if declared else 'hiçbir dal'}")
@@ -105,6 +105,22 @@ def test_every_link_to_a_roadmap_resolves_from_where_it_is_written():
                 dangling.setdefault(os.path.relpath(path, REPO), set()).add(link)
 
     assert not dangling, f"Çözülemeyen yol haritası bağlantısı: {dangling}"
+
+
+def test_a_roadmap_can_still_reach_everything_it_links_to():
+    """The move changes what a roadmap's own links mean, not just the links pointing at it.
+
+    A roadmap sitting in plans/ reached its task plans by bare filename; from roadmaps/ that same
+    name resolves to nothing. Links outward (../specs/, ../../../queen-editor/) kept working because
+    the depth did not change -- which is exactly why this direction is easy to forget.
+    """
+    dangling = {}
+    for path in glob.glob(os.path.join(ROADMAPS, "*.md")):
+        for link in set(re.findall(r"\(([^()\s#]+\.md)(?:#[^()\s]*)?\)", _read(path))):
+            if not os.path.exists(os.path.normpath(os.path.join(ROADMAPS, link))):
+                dangling.setdefault(os.path.basename(path), set()).add(link)
+
+    assert not dangling, f"Yol haritasından çıkan kırık bağlantı: {dangling}"
 
 
 def test_roadmaps_live_in_their_own_folder():

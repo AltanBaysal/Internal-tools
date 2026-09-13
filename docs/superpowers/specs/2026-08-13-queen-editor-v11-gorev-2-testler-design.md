@@ -1,7 +1,7 @@
 # v11 Görev 2 — seçili kare sayısı: TEST döngüsü (tasarım)
 
 **Tarih:** 2026-08-13 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v11](../plans/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 1/2 (testler)
+**Yol haritası:** [v11](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 1/2 (testler)
 
 Bu spec **yalnız testleri** tanımlıyor. Kod bu döngüde değişmiyor; sonunda takım kırmızı olacak.
 

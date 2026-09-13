@@ -1,7 +1,7 @@
 # Görev 3 — Foto modelleri kurulum listesine girsin (uygulama planı)
 
 **Spec:** [Görev 3](../specs/2026-08-13-queen-editor-v7-gorev-3-foto-modelleri-design.md) ·
-**Roadmap:** [v7](2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
+**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
 
 **Amaç:** Foto grafiğinin beş dosyası model listesine girsin; "foto kurulu mu" sorusu dosyalardan
 cevaplansın ve kendi kendine cevap veren üretici dalı silinsin.

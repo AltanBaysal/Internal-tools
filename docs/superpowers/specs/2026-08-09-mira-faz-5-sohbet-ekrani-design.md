@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../plans/2026-08-09-mira-v1-roadmap.md) · [Faz 4](2026-08-09-mira-faz-4-sohbet-kaydi-design.md)
+[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 4](2026-08-09-mira-faz-4-sohbet-kaydi-design.md)
 
 **Kapsam:** sohbet ekranı ve gönderme akışının bağlanması (Madde 10) · Home'dan otomatik proje +
 sohbet (Madde 11) · iki sohbet listesi (Madde 12).

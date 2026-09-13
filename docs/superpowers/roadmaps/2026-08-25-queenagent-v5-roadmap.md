@@ -102,7 +102,7 @@ prompt dili, ve ikisinin de yeri zorunlu (aşağıda).
 
 66, 67 ve 68 tasarımda hiç karşılığı olmayan üç eleman doğuruyor, ve normalde bu deponun kuralı
 tersidir: tasarım görsel şartnamedir, kod onu izler. Bu koşuda beklenmiyor — elemanlar önce kodda
-doğuyor, [tasarım promptları](2026-08-25-queenagent-v5-tasarim-promptlari.md) sonra atılıyor ve
+doğuyor, [tasarım promptları](../plans/2026-08-25-queenagent-v5-tasarim-promptlari.md) sonra atılıyor ve
 tasarım koda uyduruluyor.
 
 Bedeli önden biliniyor ve kabul edildi: renkler ve ölçüler var olan görsel dilden türetiliyor ama
@@ -1722,7 +1722,7 @@ listenin *nerede* duracağıydı, ve `build_prompts` onu da bir yere bağladı �
 adından türeyen tek bir dosya, ve her koşuda üstüne yazılıyor. Bugün ayakta bir şikâyet yok;
 çıkarsa yeni bir madde olarak doğar.
 
-**Beş tasarım promptunun gönderilmesi** *(26 Ağustos)* — [belgesi](2026-08-25-queenagent-v5-tasarim-promptlari.md)
+**Beş tasarım promptunun gönderilmesi** *(26 Ağustos)* — [belgesi](../plans/2026-08-25-queenagent-v5-tasarim-promptlari.md)
 duruyor ama gönderilmiyor. Tasarım kullanıcıdan döndü, ve 78 ile 79 onun cümlelerini uyguluyor.
 
 **Proje çapası dosyası** *(kullanıcı kararı, 26 Ağustos)* — her projede "bu proje nedir, karakterler

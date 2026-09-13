@@ -1,7 +1,7 @@
 # v11 Görev 1 — xAI anahtarı yoklaması: İMPLEMENTASYON döngüsü (tasarım)
 
 **Tarih:** 2026-08-13 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v11](../plans/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
+**Yol haritası:** [v11](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
 **Testler:** [test spec'i](2026-08-13-queen-editor-v11-gorev-1-testler-design.md) ·
 commit `635d26c` (sekiz test kırmızı)
 

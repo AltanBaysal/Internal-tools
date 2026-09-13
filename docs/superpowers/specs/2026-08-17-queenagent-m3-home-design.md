@@ -1,6 +1,6 @@
 # Madde 3 — Home kalkar, açılış ilk projeye iner · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 3](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 3](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynaklar:** fark 12, 16, 17, 19 · karar 14 · `HANDOFF.md` §2, §6, §7, §8 · bu koşuda alınan karar (aşağıda)
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

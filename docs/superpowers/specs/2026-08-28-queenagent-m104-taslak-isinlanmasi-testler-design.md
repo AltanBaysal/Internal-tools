@@ -1,6 +1,6 @@
 # Madde 104 — Yeni sohbet kendi adresinde kalır · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 104.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 104.
 **Belirti** *(kullanıcı, 28 Ağustos, defter denemesi)*: yeni sohbet açılıp ilk mesaj atıldığında
 ekran eski bir sohbete ışınlanıyor.
 

@@ -1,7 +1,7 @@
 # Madde 103 — write_plan turun sonunu kipe değil işe bağlar · **test turu**
 
 **Tarih:** 2026-08-28 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 103.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 103.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod yazılmıyor, kırmızı
 commit'leniyor.
 

@@ -1,7 +1,7 @@
 # Görev 5 — Kurulum ekranı doğruyu söylesin (uygulama planı)
 
 **Spec:** [Görev 5](../specs/2026-08-13-queen-editor-v7-gorev-5-kurulum-ekrani-design.md) ·
-**Roadmap:** [v7](2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
+**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
 
 **Amaç:** Satır yalnız koşan bir kurulumu koşuyor göstersin, biten koşu kartı bıraksın, patlayan
 koşu hatasını göstersin; çubuk kalksın, yerine inen dosyanın adı gelsin; Kur'a basınca tepki anında

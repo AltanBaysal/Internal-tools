@@ -1,6 +1,6 @@
 # Madde 127 · Tur 2 (uygulama) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../plans/2026-08-25-queenagent-v5-roadmap.md) · Madde 127
+**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) · Madde 127
 **Testler kırmızı commit'te (2ee5017).**
 
 ## Dokunulan dosyalar

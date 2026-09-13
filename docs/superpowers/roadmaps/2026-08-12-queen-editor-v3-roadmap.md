@@ -1174,8 +1174,8 @@ Görev başına spec → plan → TDD → tek commit. Ön yüz değişirse `dist
 # Koşu 6 — 13 Ağustos *(o zamanki adıyla "yol haritası v11")*
 
 **Tarih:** 2026-08-13 · **Koşu dalı:** `feat/queen-editor-v3` · **Durum:** 6/6 — bitti, Colab turu bekliyor
-**Öncesi:** [Colab kurulum seçimi](2026-08-13-queen-editor-colab-kurulum-secimi.md) ve
-[v10 Görev 1](2026-08-13-queen-editor-v10-gorev-1-uretim-kendi-baslamasin.md) — ikisi de kapandı,
+**Öncesi:** [Colab kurulum seçimi](../plans/2026-08-13-queen-editor-colab-kurulum-secimi.md) ve
+[v10 Görev 1](../plans/2026-08-13-queen-editor-v10-gorev-1-uretim-kendi-baslamasin.md) — ikisi de kapandı,
 Colab turu sürüyor. *(Bu ikisi arada kalan işlerdi; "v10" diye bir yol haritası hiç yazılmadı.)*
 
 ## Neden bu koşu var

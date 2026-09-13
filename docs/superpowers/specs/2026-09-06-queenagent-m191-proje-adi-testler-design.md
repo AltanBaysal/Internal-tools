@@ -1,6 +1,6 @@
 # Madde 191 · test turu — yeni proje adı numaralanır
 
-**Kaynağı:** [yol haritası, Madde 191](../plans/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 191](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
 187 `a390078`'de kapandı.
 
 ---

@@ -130,7 +130,7 @@ git log --oneline -1
 
 - [ ] **Step 1: Maddeyi ✅ yap, sayacı ilerlet**
 
-`docs/superpowers/plans/2026-08-20-queen-editor-v4-roadmap.md`:
+`docs/superpowers/roadmaps/2026-08-20-queen-editor-v4-roadmap.md`:
 - Maddenin **İş** hücresi `✅ **Galeri çok fotoğrafta...**` diye başlar.
 - Başlıktaki sayaç bir ilerler.
 
@@ -140,7 +140,7 @@ görülecek olan Colab turunda görülür.
 - [ ] **Step 2: Commit**
 
 ```bash
-git add docs/superpowers/plans/2026-08-20-queen-editor-v4-roadmap.md
+git add docs/superpowers/roadmaps/2026-08-20-queen-editor-v4-roadmap.md
 git commit -F - <<'EOF'
 docs(queen-editor): the gallery item is done in code, and waits for the tour
 

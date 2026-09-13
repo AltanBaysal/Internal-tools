@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 15 — Kapsam ve kopya kare kuralları · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 5, Görev 15 ·
+**Yol haritası:** [roadmap v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 5, Görev 15 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 25, 26, 100, 102 · **Tür:** arka uç + ön yüz.
 

@@ -1,6 +1,6 @@
 # Madde 128 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../plans/2026-08-25-queenagent-v5-roadmap.md) · Madde 128
+**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) · Madde 128
 **Araştırma:** [2026-08-29-queenagent-arac-tasarimi-arastirma.md](../research/2026-08-29-queenagent-arac-tasarimi-arastirma.md)
 **Dal:** `feat/queenagent-m123-skill-rewrite`.
 

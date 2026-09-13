@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 7 — Galeri kartının durum dili · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 2, Görev 7 ·
+**Yol haritası:** [roadmap v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 2, Görev 7 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 54, 55, 56, 57 · **Tür:** yalnız ön yüz.
 

@@ -1,6 +1,6 @@
 # Madde 19 — Sohbet ve dosya silme onaya geçer · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 19](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 19](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 24, 27, 29, 31 · **karar 16, 17** · `HANDOFF.md` §6
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

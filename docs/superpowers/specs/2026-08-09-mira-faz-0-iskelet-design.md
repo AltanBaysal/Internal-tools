@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/queen-editor-v2`
 **Üst belgeler:** [tasarım dokümanı v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../plans/2026-08-09-mira-v1-roadmap.md)
+[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md)
 
 Faz 0 tek maddelidir ama en çok karar taşıyan yerdir: burada verilen her karar sonraki 31 maddeyi
 bağlar. Ürettiği görünür şey azdır — tasarımın zemin renginde boş bir sayfa — asıl çıktısı **zemin**dir.

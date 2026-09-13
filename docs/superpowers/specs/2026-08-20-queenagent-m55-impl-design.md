@@ -1,6 +1,6 @@
 # Madde 55 · Tur 2 (uygulama) — Tasarım
 
-**Madde:** [v4 yol haritası Madde 55](../plans/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 55](../roadmaps/2026-08-20-queenagent-v4-colab-roadmap.md)
 **Turun kırmızısı:** [Tur 1 tasarımı](2026-08-20-queenagent-m55-test-design.md) —
 `test_notebook.py`, yedi test.
 **Bu belgenin konusu:** CONFIG hücresinin kendisi.

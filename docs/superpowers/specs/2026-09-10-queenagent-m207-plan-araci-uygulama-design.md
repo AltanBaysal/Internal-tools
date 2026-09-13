@@ -1,7 +1,7 @@
 # Madde 207 — plan yazan araç kalkar · uygulama turu
 
 **Kaynak:** [test turu](2026-09-10-queenagent-m207-plan-araci-testler-design.md) ve
-[yol haritasının Madde 207'si](../plans/2026-09-06-queenagent-v8-roadmap.md).
+[yol haritasının Madde 207'si](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
 
 On bir test kırmızı commit edildi *(`f685721`)*. Bu tur onları yeşile çeviren kodu yazıyor.
 

@@ -11,7 +11,7 @@ doğup aynı gün eklendi — K bölümü; 35, 36, 37 ve 38 ertesi gün kullanı
 
 İki liste birleşti.
 
-**[İstek listesi](2026-08-20-queen-editor-istekler.md)** — kullanıcının 20 Ağustos'ta saydığı 10 iş.
+**[İstek listesi](../plans/2026-08-20-queen-editor-istekler.md)** — kullanıcının 20 Ağustos'ta saydığı 10 iş.
 Ne istendiğini söylüyor.
 
 **[Tasarım v4 fark listesi](../research/2026-08-20-queen-editor-tasarim-v4-farklari.md)** — tasarımın

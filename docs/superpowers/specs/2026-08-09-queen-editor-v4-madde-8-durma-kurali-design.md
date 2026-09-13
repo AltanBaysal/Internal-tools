@@ -1,7 +1,7 @@
 # Madde 8 — Durma kuralı ve hata
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/queen-editor-v2` · **Yol haritası:**
-[v4, Madde 8](../plans/2026-08-08-queen-editor-v2-roadmap.md) ·
+[v4, Madde 8](../roadmaps/2026-08-08-queen-editor-v2-roadmap.md) ·
 **Kaynak:** [tasarım v2 farkları](../research/2026-08-08-queen-editor-tasarim-v2-farklari.md),
 **P26**, **G10** ve "üretim sürerken Tekrar dene çalışmıyor" sapması
 

@@ -1,6 +1,6 @@
 # Madde 16 — Hata dili · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 16](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 16](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 63 · sapma 81, 82 · repo kuralı "sebep uydurulmaz" · FOUNDATION ilke 1
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

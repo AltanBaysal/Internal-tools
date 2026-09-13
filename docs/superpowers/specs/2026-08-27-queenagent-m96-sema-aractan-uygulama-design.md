@@ -1,7 +1,7 @@
 # Madde 96 — Şema ve kural kitabı araçtan gelir · **uygulama turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 96 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 96 ·
 **Turun birincisi:** [test turu](2026-08-27-queenagent-m96-sema-aractan-testler-design.md) —
 otuz kırmızı commit'lendi *(`2981d55`)*.
 **Tur:** ikiden ikincisi — bu belge **yalnız kodu** tarif eder.

@@ -1,7 +1,7 @@
 # Madde 208 · Tur 1 (testler) — Plan
 
 **Tasarım:** [2026-09-10-queenagent-m208-tek-kare-araci-testler-design.md](../specs/2026-09-10-queenagent-m208-tek-kare-araci-testler-design.md)
-**Kaynak madde:** [yol haritasının Madde 208'i](2026-09-06-queenagent-v8-roadmap.md)
+**Kaynak madde:** [yol haritasının Madde 208'i](../roadmaps/2026-09-06-queenagent-v8-roadmap.md)
 
 **Bu turda kod yazılmaz.** Altı test kırmızıya döner; üç test de bekçi olarak kurulur ve bugün
 yeşil geçer.

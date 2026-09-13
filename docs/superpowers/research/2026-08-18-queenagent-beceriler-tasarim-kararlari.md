@@ -1,7 +1,7 @@
 # QueenAgent Beceriler — Kullanıcıyla Tasarım Kararları
 
 **Tarih:** 2026-08-18 · **Durum:** konuşmada anlaşıldı; Madde 27-30 spec'leri buradan yazılacak
-**Bağlam:** [yol haritası](../plans/2026-08-15-queenagent-v2-roadmap.md) Madde 27 ve Faz 7'nin başındaki
+**Bağlam:** [yol haritası](../roadmaps/2026-08-15-queenagent-v2-roadmap.md) Madde 27 ve Faz 7'nin başındaki
 "dur ve birlikte tasarla" durağı işletildi. Karar 18'in verdiği üçlü küme bu konuşmada büyüyüp
 değişti; aşağıdaki her karar kullanıcıyla varılmış anlaşmadır.
 

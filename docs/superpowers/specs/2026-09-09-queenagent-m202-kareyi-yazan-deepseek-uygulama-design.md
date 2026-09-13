@@ -1,6 +1,6 @@
 # Madde 202 · uygulama turu — kareyi yazan da DeepSeek, ve son eki taşır
 
-**Kaynağı:** [v8 yol haritası](../plans/2026-09-06-queenagent-v8-roadmap.md), Madde 202, ve
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), Madde 202, ve
 [test turu](2026-09-09-queenagent-m202-kareyi-yazan-deepseek-testler-design.md) — 5 kırmızı.
 
 ---

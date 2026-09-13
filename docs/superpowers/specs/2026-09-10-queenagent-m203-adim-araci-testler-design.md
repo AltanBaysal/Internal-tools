@@ -1,6 +1,6 @@
 # Madde 203 — adımı işaretleyen araç kalkar · test turu
 
-**Kaynak:** [yol haritasının Madde 203'ü](../plans/2026-09-06-queenagent-v8-roadmap.md), ve
+**Kaynak:** [yol haritasının Madde 203'ü](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), ve
 [düzeltme log'unun 11 numarası](../../2026-09-09-queenagent-metin-duzeltmeleri.md) — kutuların
 *"yalnız bir not"*a inmesi.
 

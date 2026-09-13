@@ -1,6 +1,6 @@
 # Madde 129 · Tur 2 (uygulama) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../plans/2026-08-25-queenagent-v5-roadmap.md) · Madde 129
+**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) · Madde 129
 **Testler kırmızı commit'te (9139eca).**
 
 ## Doğan dosya: `domain/context_box.py`

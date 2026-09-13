@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-28 · **Branch:** `feat/queenagent-v5` ·
 **Kaynak:** [izin tasarımı](2026-08-28-queenagent-izin-tasarimi-design.md) — ve onun kaynağı
-[v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md), Blok 6, Madde 102 ·
+[v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md), Blok 6, Madde 102 ·
 **Şartı:** 99 — arka yüz soruyor ve bekliyor *(`d6d6cf4`)*.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod bir sonraki turda.
 

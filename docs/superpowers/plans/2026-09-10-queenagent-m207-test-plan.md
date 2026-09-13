@@ -1,7 +1,7 @@
 # Madde 207 · Tur 1 (testler) — Plan
 
 **Tasarım:** [2026-09-10-queenagent-m207-plan-araci-testler-design.md](../specs/2026-09-10-queenagent-m207-plan-araci-testler-design.md)
-**Kaynak madde:** [yol haritasının Madde 207'si](2026-09-06-queenagent-v8-roadmap.md)
+**Kaynak madde:** [yol haritasının Madde 207'si](../roadmaps/2026-09-06-queenagent-v8-roadmap.md)
 
 **Bu turda kod yazılmaz.** On bir test kırmızıya döner, iki test de bekçi olarak yeşil kalır.
 

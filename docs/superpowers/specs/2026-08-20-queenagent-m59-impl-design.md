@@ -1,6 +1,6 @@
 # Madde 59 · Tur 2 (uygulama) — Tasarım
 
-**Madde:** [v4 yol haritası Madde 59](../plans/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 59](../roadmaps/2026-08-20-queenagent-v4-colab-roadmap.md)
 **Turun kırmızısı:** [Tur 1 tasarımı](2026-08-20-queenagent-m59-test-design.md) — `test_store.py`,
 üç test.
 **Bu belgenin konusu:** yazmanın yeni şekli, ve seçilen her ayrıntının sebebi.

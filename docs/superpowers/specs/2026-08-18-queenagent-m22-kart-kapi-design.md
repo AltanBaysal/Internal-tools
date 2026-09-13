@@ -1,6 +1,6 @@
 # Madde 22 — Dosya kartı kapı olur · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 22](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 22](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 44, 45'in kart yarısı, **53** · `HANDOFF.md` §2, §3
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

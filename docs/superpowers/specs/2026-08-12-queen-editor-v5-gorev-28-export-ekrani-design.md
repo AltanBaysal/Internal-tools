@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 28 — Export ekranı iskeleti · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 8, Görev 28 ·
+**Yol haritası:** [roadmap v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 8, Görev 28 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 85, 86, 87, 88, 95 · **Tür:** arka uç + ön yüz.
 

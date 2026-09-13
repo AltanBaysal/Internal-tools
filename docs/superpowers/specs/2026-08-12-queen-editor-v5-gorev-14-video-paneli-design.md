@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 14 — Video üret paneli · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 5, Görev 14 ·
+**Yol haritası:** [roadmap v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 5, Görev 14 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 23, 24, 28, 29 · madde 7'nin ikinci adımı · **Tür:** arka uç + ön yüz.
 

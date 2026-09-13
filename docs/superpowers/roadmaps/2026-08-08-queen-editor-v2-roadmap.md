@@ -275,7 +275,7 @@ tahminle değil ölçümle verilmesi için.
 
 En sonda, tek dalgada.
 
-- **Ne çalışır:** [doğrulama listesinden](2026-08-05-queen-editor-colab-dogrulama.md) devreden **G3**
+- **Ne çalışır:** [doğrulama listesinden](../plans/2026-08-05-queen-editor-colab-dogrulama.md) devreden **G3**
   (üst üste hata → kırmızı "Üretim durdu" kartı + sunucunun teknik satırı — artık üç deneme kuralıyla),
   **G4** (tekil kare patlarsa kırmızı kare + Tekrar dene, üretim sürer), **H1-H2** (runtime ölünce
   bağlantı kartı, dönünce toparlanma); üstüne bu yol haritasının kendi listesi: çalışırken kuyruğa

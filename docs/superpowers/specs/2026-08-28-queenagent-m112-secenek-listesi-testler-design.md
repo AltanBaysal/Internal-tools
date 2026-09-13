@@ -1,6 +1,6 @@
 # Madde 112 — Cevabın sonuna seçenek listesi eklenmez · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 112.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 112.
 **Gözlenen** *(28 Ağustos)*: model her turun sonuna beş şıklı bir menü yazıyor — *"Bütün 10
 prompt'u görmek ister misin · Birkaç tanesini değiştirelim mi · Başka bir şey ekleyelim mi ·
 Hiçbir şey yapmamak"*. Akış zaten adım başına tek soru soruyor; menü cevabı uzatıyor ve kararı

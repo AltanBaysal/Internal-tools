@@ -1,6 +1,6 @@
 # Madde 42 — Karakter dosyaya, sayı kullanıcıya · Uygulama Turu Tasarım Belgesi
 
-**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 42](../plans/2026-08-18-queenagent-v3-roadmap.md)
+**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 42](../roadmaps/2026-08-18-queenagent-v3-roadmap.md)
 **Test turu:** [2026-08-19-queenagent-m42-karakter-testler-design.md](2026-08-19-queenagent-m42-karakter-testler-design.md) — kırmızı commit `e2742c2`
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 

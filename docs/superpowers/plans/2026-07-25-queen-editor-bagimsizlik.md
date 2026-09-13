@@ -133,7 +133,7 @@ Read ile `queen-editor/CODE-STANDARD.md`'yi aç; yeni bölüm `## Stack` ile `##
 
 **Files:**
 - Modify: `docs/superpowers/specs/2026-07-24-queen-editor-v1-design.md`
-- Modify: `docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md`
+- Modify: `docs/superpowers/roadmaps/2026-07-24-queen-editor-roadmap.md`
 - Modify: `docs/superpowers/specs/2026-07-25-queen-editor-b3-proje-design.md`
 - Modify: `docs/superpowers/plans/2026-07-25-queen-editor-b3-proje.md`
 
@@ -218,7 +218,7 @@ git commit -m "docs(queen-editor): collab-toolbox'tan bağımsızlık — spec +
   docs/superpowers/plans/2026-07-25-queen-editor-bagimsizlik.md \
   docs/superpowers/specs/2026-07-24-queen-editor-v1-design.md \
   docs/superpowers/specs/2026-07-25-queen-editor-b3-proje-design.md \
-  docs/superpowers/plans/2026-07-24-queen-editor-roadmap.md \
+  docs/superpowers/roadmaps/2026-07-24-queen-editor-roadmap.md \
   docs/superpowers/plans/2026-07-25-queen-editor-b3-proje.md
 # fix (kod + notebook + standart)
 git commit -m "fix(queen-editor): Drive kökü kendi klasörü (queenEditor), collab-toolbox bağımsızlığı yazılı" -- \

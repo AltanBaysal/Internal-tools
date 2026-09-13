@@ -1,7 +1,7 @@
 # Queen Editor v4 · Madde 4 — Kuyruk paneli
 
 **Tarih:** 2026-08-08 · **Yol haritası:**
-[v4 Madde 4](../plans/2026-08-08-queen-editor-v2-roadmap.md) · **Kapsadığı kodlar:** P14, P16-P25,
+[v4 Madde 4](../roadmaps/2026-08-08-queen-editor-v2-roadmap.md) · **Kapsadığı kodlar:** P14, P16-P25,
 P27 · **sapmalar:** yarım kalan koşunun kartının başka konuşması, hatalı bitişte yeşil kartın
 çıkmaması · **Katman:** yalnız ön yüz
 

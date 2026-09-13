@@ -1,6 +1,6 @@
 # Madde 174 · test turu — kare değiştirilir ve silinir
 
-**Kaynağı:** [yol haritası](../plans/2026-09-05-queenagent-v7-roadmap.md), Madde 174. 173 kareyi
+**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queenagent-v7-roadmap.md), Madde 174. 173 kareyi
 doğurdu; bu madde onu değiştirmenin ve silmenin yolunu açıyor. Üçlü tamamlanıyor — haritaların
 `add`/`update`/`remove`'u karede de aynı.
 

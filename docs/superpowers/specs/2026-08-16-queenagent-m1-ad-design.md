@@ -1,7 +1,7 @@
 # Madde 1 — Mira → QueenAgent · Tasarım Belgesi
 
 **Tarih:** 2026-08-16 · **Yol haritası:**
-[QueenAgent v2](../plans/2026-08-15-queenagent-v2-roadmap.md), Faz 0 · Madde 1
+[QueenAgent v2](../roadmaps/2026-08-15-queenagent-v2-roadmap.md), Faz 0 · Madde 1
 
 **Amaç:** ürünün adını dört katmanda birden değiştirmek — klasör, ortam değişkeni, belgeler, arayüz
 ve model yönergesi. Bu madde **yalnız ad değiştirir**; hiçbir davranışa, hiçbir ölçüye, hiçbir

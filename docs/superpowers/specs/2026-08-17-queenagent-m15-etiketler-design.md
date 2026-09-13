@@ -1,6 +1,6 @@
 # Madde 15 — Mesaj etiketleri ve bekleme bloğu · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 15](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 15](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 3, 46, 47 · sapma 80 · **karar 10** · `HANDOFF.md` §3
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

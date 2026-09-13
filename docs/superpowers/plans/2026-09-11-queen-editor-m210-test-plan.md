@@ -1,7 +1,7 @@
 # Madde 210 — sürüm kaydı · test turunun planı
 
 **Spec:** [test turu](../specs/2026-09-11-queen-editor-m210-surum-kaydi-testler-design.md) ·
-**Madde:** [v5 yol haritası](2026-09-11-queen-editor-v5-roadmap.md)
+**Madde:** [v5 yol haritası](../roadmaps/2026-09-11-queen-editor-v5-roadmap.md)
 
 Bu tur **yalnız testleri** koyar. `SURUMLER.md`, CLAUDE.md'nin cümlesi ve eski belgelerin başlıkları
 uygulama turunda düzelir.

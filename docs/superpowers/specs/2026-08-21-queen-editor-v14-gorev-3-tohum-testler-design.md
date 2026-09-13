@@ -1,6 +1,6 @@
 # v14 · Görev 3 — Video ve sesin tohumunun kayda geçmesi · **test turu**
 
-**Kaynak:** [Yol haritası v14, 3. madde](../plans/2026-08-20-queen-editor-v4-roadmap.md)
+**Kaynak:** [Yol haritası v14, 3. madde](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md)
 
 Bu tur yalnız testleri yazar. Takım kırmızı biter ve kırmızı commit edilir; kodu ikinci tur yazar.
 

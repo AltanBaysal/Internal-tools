@@ -1,6 +1,6 @@
 # Madde 207 — plan yazan araç kalkar · test turu
 
-**Kaynak:** [yol haritasının Madde 207'si](../plans/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynak:** [yol haritasının Madde 207'si](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
 
 ## Ne kanıtlanacak
 

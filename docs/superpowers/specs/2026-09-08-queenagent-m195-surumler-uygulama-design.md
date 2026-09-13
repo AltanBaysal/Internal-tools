@@ -1,7 +1,7 @@
 # Madde 195 · uygulama turu — düzenlenen mesaj sohbeti sürümler
 
 **Kaynağı:** [test turu](2026-09-08-queenagent-m195-surumler-testler-design.md), ve onun
-kaynağı [v8 yol haritası](../plans/2026-09-06-queenagent-v8-roadmap.md), Madde 195.
+kaynağı [v8 yol haritası](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), Madde 195.
 
 Kırmızı: arka uçta 25, ön yüzde 8.
 

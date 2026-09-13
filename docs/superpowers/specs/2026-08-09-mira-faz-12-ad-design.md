@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../plans/2026-08-09-mira-v1-roadmap.md) · [Faz 11](2026-08-09-mira-faz-11-silme-design.md)
+[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 11](2026-08-09-mira-faz-11-silme-design.md)
 
 **Kapsam:** sohbet başlığını ve dosya adını değiştirmek; boş girdi iptal eder.
 **Kapsam dışı:** proje adı (Faz 3'te bitti) · arama (Faz 13).

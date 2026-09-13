@@ -1,6 +1,6 @@
 # Madde 8 — Renkler · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 8](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 8](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynaklar:** fark 74, 75 · **karar 2, 9** · `HANDOFF.md` §6, §10
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

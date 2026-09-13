@@ -1,6 +1,6 @@
 # Madde 175 · test turu — prompt yazan model bir rol oluyor
 
-**Kaynağı:** [yol haritası](../plans/2026-09-05-queenagent-v7-roadmap.md), Madde 175. Ekranda hiçbir
+**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queenagent-v7-roadmap.md), Madde 175. Ekranda hiçbir
 şey göstermiyor: 176'nın yolunu döşüyor.
 
 Bu tur **yalnız testleri** yazıyor ve kırmızı commit'liyor.

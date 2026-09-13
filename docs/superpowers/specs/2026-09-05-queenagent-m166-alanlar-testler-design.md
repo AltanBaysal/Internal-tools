@@ -1,6 +1,6 @@
 # Madde 166 · test turu — `quality` ve `people` kodun eline geçer
 
-**Kaynağı:** [v7 yol haritası, Madde 166](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [v7 yol haritası, Madde 166](../roadmaps/2026-09-05-queenagent-v7-roadmap.md).
 Bu tur **yalnız testleri** yazar; kod değişmez ve takım kırmızı commit'lenir.
 
 ---

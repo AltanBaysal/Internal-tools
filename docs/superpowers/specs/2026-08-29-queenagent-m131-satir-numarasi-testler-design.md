@@ -1,6 +1,6 @@
 # Madde 131 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../plans/2026-08-25-queenagent-v5-roadmap.md) · Madde 131
+**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) · Madde 131
 **Karşılaştırma:** [text editor tool](https://platform.claude.com/docs/en/agents-and-tools/tool-use/text-editor-tool) ·
 [Claude Code tools reference](https://code.claude.com/docs/en/tools-reference)
 **Dal:** `feat/queenagent-m123-skill-rewrite`.

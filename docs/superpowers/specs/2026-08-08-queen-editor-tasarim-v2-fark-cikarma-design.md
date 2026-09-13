@@ -1,7 +1,7 @@
 # Queen Editor — Tasarım v2 fark çıkarma · Tasarım
 
 **Tarih:** 2026-08-08 · **Branch:** `feat/queen-editor-v2` · **Durum:** açık
-**Bağlam:** [v3 yol haritası](../plans/2026-08-03-queen-editor-v1-roadmap.md) Madde 1 —
+**Bağlam:** [v3 yol haritası](../roadmaps/2026-08-03-queen-editor-v1-roadmap.md) Madde 1 —
 tasarım tamamlandı, sıra tasarımın söylediklerini uygulamanın bugünkü hâliyle karşılaştırmaya geldi.
 
 ---

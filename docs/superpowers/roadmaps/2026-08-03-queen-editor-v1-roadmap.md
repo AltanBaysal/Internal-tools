@@ -50,7 +50,7 @@ dosyalar repo'ya kopyalanmaz, her ihtiyaçta buradan taze çekilir (DesignSync `
 | 14 · Sağlamlık | Tekil kare hatası + Tekrar dene, kaldığı yerden devam |
 
 Test durumu kapanışta: backend 245, frontend 71 test yeşil. Colab doğrulaması
-([2026-08-05-queen-editor-colab-dogrulama.md](2026-08-05-queen-editor-colab-dogrulama.md)) A-F ve I
+([2026-08-05-queen-editor-colab-dogrulama.md](../plans/2026-08-05-queen-editor-colab-dogrulama.md)) A-F ve I
 maddelerinde geçti; kalan G ve H maddeleri Koşu 2'nin ilk işidir.
 
 ## Kayda değer kararlar
@@ -237,7 +237,7 @@ değil ölçümle verilmesi için. Bugün bir karenin kaç saniye sürdüğünü
 En sonda, tek dalgada: hem Koşu 1'den devreden maddeler hem bu koşunun getirdikleri aynı turda
 denenir — kuyruk davranışı yolun ortasında değiştiği için erken test iki kere yapılırdı.
 
-- **Ne çalışır:** [doğrulama listesinden](2026-08-05-queen-editor-colab-dogrulama.md) devreden
+- **Ne çalışır:** [doğrulama listesinden](../plans/2026-08-05-queen-editor-colab-dogrulama.md) devreden
   **G3** (üst üste hata → kırmızı "Üretim durdu" kartı + sunucunun teknik satırı), **G4** (tekil
   kare patlarsa kırmızı kare + Tekrar dene, üretim sürer), **H1-H2** (runtime ölünce ilerleme
   soluklaşır + "Sunucuya ulaşılamıyor" kartı, runtime dönünce toparlanır); üstüne canlı kuyruğun

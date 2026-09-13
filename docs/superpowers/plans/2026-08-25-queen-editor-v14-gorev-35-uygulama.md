@@ -225,7 +225,7 @@ satırı.
 
 - [ ] **Step 5: Yol haritasını işaretle**
 
-Modify: `docs/superpowers/plans/2026-08-20-queen-editor-v4-roadmap.md`
+Modify: `docs/superpowers/roadmaps/2026-08-20-queen-editor-v4-roadmap.md`
 
 35. maddenin satırındaki iş adının başına `✅ ` ekle — 33 ve 34'ün satırlarındaki biçimin aynısı:
 

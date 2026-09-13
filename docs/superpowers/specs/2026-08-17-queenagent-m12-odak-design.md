@@ -1,6 +1,6 @@
 # Madde 12 — Odak halkası her yerde · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 12](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 12](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** sapma 86 · `HANDOFF.md` §9
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

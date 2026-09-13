@@ -1,6 +1,6 @@
 # Madde 194 · test turu — koşan tur mesajın altında canlı görünür
 
-**Kaynağı:** [v8 yol haritası](../plans/2026-09-06-queenagent-v8-roadmap.md), Madde 194.
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), Madde 194.
 
 ---
 

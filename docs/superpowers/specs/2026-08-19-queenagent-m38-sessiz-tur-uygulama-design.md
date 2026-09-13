@@ -1,6 +1,6 @@
 # Madde 38 — Sessiz tur meşru · Uygulama Turu Tasarım Belgesi
 
-**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 38](../plans/2026-08-18-queenagent-v3-roadmap.md)
+**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 38](../roadmaps/2026-08-18-queenagent-v3-roadmap.md)
 **Test turu:** [2026-08-19-queenagent-m38-sessiz-tur-testler-design.md](2026-08-19-queenagent-m38-sessiz-tur-testler-design.md) — kırmızı commit `bd4cef1`
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 

@@ -1,6 +1,6 @@
 # Madde 140 · Düzeltme · Tur 1 (test) — Tasarım
 
-**Kaynak:** [v6 yol haritası](../plans/2026-09-01-v6-roadmap.md), Madde 140
+**Kaynak:** [v6 yol haritası](../roadmaps/2026-09-01-v6-roadmap.md), Madde 140
 **Önceki turlar:** `92e0eea` *(kırmızı)*, `8a2f88b` *(yeşil)*
 **Dal:** `feat/v6`
 **Bu tur yalnız test yazar.**

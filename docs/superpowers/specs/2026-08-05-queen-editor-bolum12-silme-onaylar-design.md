@@ -1,6 +1,6 @@
 # Queen Editor — Bölüm 12: Silme + onaylar
 
-**Tarih:** 2026-08-05 · **Yol haritası:** [2026-08-03-queen-editor-v1-roadmap.md](../plans/2026-08-03-queen-editor-v1-roadmap.md) Bölüm 12
+**Tarih:** 2026-08-05 · **Yol haritası:** [2026-08-03-queen-editor-v1-roadmap.md](../roadmaps/2026-08-03-queen-editor-v1-roadmap.md) Bölüm 12
 **Tasarım kaynağı:** claude.ai/design `Queen Editor Basit v1.html` — `ProjectScreen selectMode`,
 `DeleteConfirmModal`, `ProjectDeleteModal`, `ExitConfirmModal`, `ProjectCard`.
 

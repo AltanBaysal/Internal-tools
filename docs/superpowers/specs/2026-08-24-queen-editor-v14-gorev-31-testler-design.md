@@ -1,7 +1,7 @@
 # v14 Görev 31 — Galeri gerekmeyen bir cevabı beklemez: TEST döngüsü tasarımı
 
 **Tarih:** 2026-08-24 · **Kaynak:** Colab turu, aynı gün · kullanıcı kuralı
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v4-roadmap.md) madde 31
+**Yol haritası:** [v14](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 31
 
 ## Sorun
 

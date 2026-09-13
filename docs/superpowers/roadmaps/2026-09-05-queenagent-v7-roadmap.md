@@ -21,7 +21,7 @@ açık kalıyor.
 - **Grok'un yazdığı ana ajana dönmez.** Araç dosyaya yazar, makbuz döndürür.
 - **Silen araç yoktur.** Ajan silinmesini istiyorsa kullanıcıya söyler.
 - **Her madde iki tur:** önce yalnız testler, kırmızı commit; sonra kod, yeşil commit. Dört sabit test
-  satırı sırayla, birebir *(CLAUDE.md)*. Ön yüze dokunan madde `dist`'i aynı commit'te derler.
+  satırı sırayla, birebir *(../../../CLAUDE.md)*. Ön yüze dokunan madde `dist`'i aynı commit'te derler.
 - **Deneme defterle:** `queenagent.ipynb`'de `BRANCH = "feat/queenagent-v7"`; merge'den önce `main`'e
   döner. Deneme 1 ve 2 **skill seçmeden** koşulur — skill metinleri 178'e kadar eski takımı anlatıyor,
   ve araç açıklamalarının tek başına yetip yetmediği zaten görülmek istenen şey.

@@ -1,7 +1,7 @@
 # Madde 166 · uygulama turu — iki satır, ve yalan söylemeye başlayan üç yorum
 
 **Kaynağı:** [test turu spec'i](2026-09-05-queenagent-m166-alanlar-testler-design.md) ve
-[v7 yol haritası, Madde 166](../plans/2026-09-05-queenagent-v7-roadmap.md).
+[v7 yol haritası, Madde 166](../roadmaps/2026-09-05-queenagent-v7-roadmap.md).
 Commit `3d7a10d` üç kırmızıyı çiviledi; bu tur onları yeşile çevirir ve başka hiçbir şeyi kırmızıya
 düşürmez.
 

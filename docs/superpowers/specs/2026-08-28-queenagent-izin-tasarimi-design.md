@@ -1,7 +1,7 @@
 # İzin tur ortasında sorulur — tasarım ve bölünme
 
 **Tarih:** 2026-08-28 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 99 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 99 ·
 **Ne yapar:** Madde 99'un tasarımını açar ve yol haritasının beklediği bölünmeyi verir — **99 ve
 102**. Numaralar kaymıyor; yeni olan sondan alınıyor.
 

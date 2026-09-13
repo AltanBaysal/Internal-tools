@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-07-25 · **Bölüm:** 5/7 · **Önkoşul:** Bölüm 4 Colab'da doğrulandı (tek foto üretildi)
 **Şemsiye:** [2026-07-24-queen-editor-v1-design.md](2026-07-24-queen-editor-v1-design.md) ·
-**Yol haritası:** [2026-07-24-queen-editor-roadmap.md](../plans/2026-07-24-queen-editor-roadmap.md) ·
+**Yol haritası:** [2026-07-24-queen-editor-roadmap.md](../roadmaps/2026-07-24-queen-editor-roadmap.md) ·
 **Bölüm 4:** [2026-07-25-queen-editor-b4-tek-foto-design.md](2026-07-25-queen-editor-b4-tek-foto-design.md)
 
 ## Amaç

@@ -1,7 +1,7 @@
 # Madde 84 — Tool call'lar karta döner ve tek kapının arkasına girer · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 84 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 84 ·
 **Üstüne geldiği:** [Madde 78](2026-08-26-queenagent-m78-tool-satiri-uygulama-design.md) — satırın
 bugünkü çizimi.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod yazılmaz, ve tur kırmızı

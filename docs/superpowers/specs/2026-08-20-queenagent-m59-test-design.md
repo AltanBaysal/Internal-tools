@@ -1,6 +1,6 @@
 # Madde 59 · Tur 1 (test) — Tasarım
 
-**Madde:** [v4 yol haritası Madde 59](../plans/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 59](../roadmaps/2026-08-20-queenagent-v4-colab-roadmap.md)
 **Bu belgenin konusu:** yarım kalmayan bir yazmayı **ne tutacak**.
 
 ---

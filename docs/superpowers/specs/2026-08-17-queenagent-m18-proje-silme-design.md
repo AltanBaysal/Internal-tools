@@ -1,6 +1,6 @@
 # Madde 18 — Proje silinir · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 18](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 18](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 25, 26, 28 · karar 16 · `HANDOFF.md` §6, §9
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

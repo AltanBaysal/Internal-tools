@@ -1,6 +1,6 @@
 # Madde 40 — Yapıya kıyafet giriyor · Uygulama Turu Tasarım Belgesi
 
-**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 40](../plans/2026-08-18-queenagent-v3-roadmap.md)
+**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 40](../roadmaps/2026-08-18-queenagent-v3-roadmap.md)
 **Test turu:** [2026-08-19-queenagent-m40-kiyafet-testler-design.md](2026-08-19-queenagent-m40-kiyafet-testler-design.md) — kırmızı commit `f66c20f`
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 

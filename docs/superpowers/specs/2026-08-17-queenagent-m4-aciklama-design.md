@@ -1,6 +1,6 @@
 # Madde 4 — Proje açıklaması gider · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 4](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 4](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynaklar:** fark 20 (`öksüz` · davranış · **kesin**, Y1·Y2·Y3) · `HANDOFF.md` §11 "Deliberately removed"
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

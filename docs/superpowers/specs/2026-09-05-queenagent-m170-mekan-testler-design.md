@@ -1,6 +1,6 @@
 # Madde 170 · test turu — mekân yönetimi
 
-**Kaynağı:** [v7 yol haritası, Madde 170](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [v7 yol haritası, Madde 170](../roadmaps/2026-09-05-queenagent-v7-roadmap.md).
 Kalıbı [168](2026-09-05-queenagent-m168-karakter-testler-design.md) kurdu,
 [169](2026-09-05-queenagent-m169-kiyafet-testler-design.md) taşınabilir olduğunu gösterdi. Bu madde
 **üçüncü ve son kaynak**. Bu tur yalnız testleri yazar.

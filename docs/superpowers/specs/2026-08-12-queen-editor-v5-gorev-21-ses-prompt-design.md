@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 21 — Ses prompt'unu dil modeli yazar · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 6, Görev 21 ·
+**Yol haritası:** [roadmap v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 6, Görev 21 ·
 **Kaynak madde:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 32 · **Tür:** arka uç.
 

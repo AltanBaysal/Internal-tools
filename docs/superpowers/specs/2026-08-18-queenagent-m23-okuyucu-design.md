@@ -1,6 +1,6 @@
 # Madde 23 — Okuyucu · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 23](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 23](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
 **Kaynak:** fark 58, 59, 60 · `HANDOFF.md` §4 (belge ölçeği), §11 (kaldırılan `←`)
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

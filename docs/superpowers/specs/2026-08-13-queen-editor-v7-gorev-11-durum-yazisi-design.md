@@ -1,6 +1,6 @@
 # Görev 11 — Durum yazısı okunur olsun
 
-**Roadmap:** [v7](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Blok 4
+**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 4
 
 ## Sorun
 

@@ -1,6 +1,6 @@
 # Görev 4 — Defter model indirmeyi bıraksın
 
-**Roadmap:** [v7](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
+**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
 
 ## Sorun
 

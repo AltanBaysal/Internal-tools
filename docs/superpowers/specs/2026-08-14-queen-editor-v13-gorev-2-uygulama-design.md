@@ -1,7 +1,7 @@
 # v13 Görev 2 — Hatanın kanıtı: İMPLEMENTASYON döngüsü (tasarım)
 
 **Tarih:** 2026-08-14 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v13](../plans/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
+**Yol haritası:** [v13](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
 **Testler:** [test spec'i](2026-08-14-queen-editor-v13-gorev-2-testler-design.md) ·
 commit `5858c9e` (yedi test kırmızı)
 

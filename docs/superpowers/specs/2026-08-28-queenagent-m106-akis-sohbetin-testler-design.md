@@ -1,6 +1,6 @@
 # Madde 106 — Akan cevap kendi sohbetinin ekranında kalır · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 106.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 106.
 **Belirti** *(kullanıcı, 28 Ağustos)*: bir sohbet çalışırken başka sohbete geçince eski sohbetin
 akışı görünüyor.
 

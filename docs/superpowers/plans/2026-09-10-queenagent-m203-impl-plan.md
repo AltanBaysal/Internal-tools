@@ -34,7 +34,7 @@ npm test --prefix queen-agent/frontend
 | `queen-agent/backend/features/workspace/domain/modes.py` | `EDIT`'in listesinden bir ad ve yorumu |
 | `docs/2026-09-09-queenagent-modele-giden-metinler.md` | §3'ün metni, §6'nın bölümü, araç sayısı |
 | `docs/2026-09-09-queenagent-metin-duzeltmeleri.md` | 7 ve 10 numaraya birer satır |
-| `docs/superpowers/plans/2026-09-06-queenagent-v8-roadmap.md` | 203 kapanır, sapma yazılır |
+| `docs/superpowers/roadmaps/2026-09-06-queenagent-v8-roadmap.md` | 203 kapanır, sapma yazılır |
 
 ---
 

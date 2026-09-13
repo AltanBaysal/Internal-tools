@@ -1,6 +1,6 @@
 # Madde 181 · test turu — eylem satırının içi
 
-**Kaynağı:** [yol haritası, Madde 181](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 181](../roadmaps/2026-09-05-queenagent-v7-roadmap.md).
 Madde 180 `dac361a`'da kapandı.
 
 ---

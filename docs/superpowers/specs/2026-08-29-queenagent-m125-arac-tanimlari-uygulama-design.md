@@ -1,6 +1,6 @@
 # Madde 125 · Tur 2 (uygulama) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../plans/2026-08-25-queenagent-v5-roadmap.md) · Madde 125
+**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) · Madde 125
 **Testler kırmızı commit'te (be187dd).** Bu tur yalnız `tools.py`'nin iki tanım metnine dokunur.
 
 ## Cümleler
