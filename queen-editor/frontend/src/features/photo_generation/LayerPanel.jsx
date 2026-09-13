@@ -183,7 +183,10 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   const [scope, setScope] = useState("missing");
   // Kept by both panels though only the video one shows the row: a sound ends nowhere, so it has
   // nothing to choose -- and one call shape means the server never asks where a request came from.
-  const [mode, setMode] = useState(STANDARD);
+  // Which is why the default has to ask the layer (madde 216): loop is what gets asked for of a
+  // video, while a sound carrying any mode but the plain one is refused outright by the server
+  // (production_mode.validate) -- and that refusal never reaches the screen.
+  const [mode, setMode] = useState(layer === "video" ? LOOP : STANDARD);
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState("1");
   const [submitting, setSubmitting] = useState(false);
