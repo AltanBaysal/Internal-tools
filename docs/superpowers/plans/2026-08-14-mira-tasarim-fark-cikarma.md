@@ -196,7 +196,7 @@ YÜRÜYÜŞ — iki ayrı işin var. Envanteri BİR KEZ çıkarırsın, iki fark
 Envanterdeki her madde için ikinci bir soru sor: "uygulama BUGÜN hedeflediği tarifi tutturmuş mu?"
 Bu sorunun tabanı tasarım v2 DEĞİL, repodaki Mira v1 belgeleridir:
   docs/superpowers/specs/2026-08-09-mira-v1-design.md
-  docs/superpowers/roadmaps/2026-08-09-mira-v1-roadmap.md
+  docs/superpowers/roadmaps/2026-08-09-queen-agent-v1-roadmap.md
 Bu soruyu tasarım v2'nin dokunmadığı yerlerde de sor; tüm uygulama denetlenir. Uygulama kendi
 tarifini tutturamamışsa bu bir tasarım farkı DEĞİL, bir hatadır: "düzeltilecek" türüyle yaz ve
 "Yeni tasarımda" satırı yerine "Tarifi neydi:" yaz.

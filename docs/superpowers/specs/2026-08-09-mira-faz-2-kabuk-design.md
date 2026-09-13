@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım dokümanı v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) ·
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) ·
 [Faz 1](2026-08-09-mira-faz-1-disk-design.md)
 
 Faz 2 uygulamanın ilk gerçek ekranlarını kurar: sabit sidebar (Madde 4) ve Home — selamlama, composer

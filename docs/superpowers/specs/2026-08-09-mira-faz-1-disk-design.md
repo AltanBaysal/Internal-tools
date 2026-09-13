@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/queen-editor-v2`
 **Üst belgeler:** [tasarım dokümanı v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) ·
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) ·
 [Faz 0](2026-08-09-mira-faz-0-iskelet-design.md)
 
 Faz 1 uygulamanın **gerçeğini** kurar: diskteki düzen ve onu okuyup yazan katmanlar. Görünür bir

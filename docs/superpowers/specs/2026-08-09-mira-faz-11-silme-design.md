@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 10](2026-08-09-mira-faz-10-okuma-design.md)
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) · [Faz 10](2026-08-09-mira-faz-10-okuma-design.md)
 
 **Kapsam:** dosya satırındaki `×`, `trash/`'e taşıma ve **Undo** şeridi (Madde 25) · sohbet silme,
 onaylı (Madde 26).

@@ -1,4 +1,13 @@
-# Mira — Yol Haritası v1
+# QueenAgent v1 Yol Haritası — o günkü adıyla Mira
+
+> **Mira, QueenAgent'ın ilk adıdır.** Bu koşu *"Mira v1"* diye yazıldı ve ürün sonradan QueenAgent
+> oldu; QueenAgent'ın v2 yol haritası bunu kendi cümlesiyle söylüyor: *"Taban Mira v1'in bitmiş hâli;
+> bu tur onu QueenAgent tasarım v2'ye taşır."* O turun dalı da `fix/mira`, kaynak belgeleri
+> `mira-tasarim-farklari` ve `mira-tasarim-kararlari`, tasarım dosyaları ise `QueenAgent*`.
+>
+> Bu yüzden **QueenAgent'ın sayacında v1 boş değil** — burası. 13 Eylül 2026'da adlandırıldı; o güne
+> kadar ad `mira-v1`di ve deponun hiçbir klasörüne karşılık gelmiyordu, yani kodunu arayan birini
+> hiçbir yere götürmüyordu. Metin olduğu gibi duruyor: koşu Mira adıyla koşuldu ve öyle anlatıyor.
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1` (`feat/queen-editor-v2` üzerinden açıldı) ·
 **Durum:** **Kod tarafı kapandı** — 15 fazın 15'i yazıldı (Faz 0-14), `pytest` 190 / `npm test` 140

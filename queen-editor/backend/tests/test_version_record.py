@@ -36,9 +36,6 @@ WRONG_RULE = "highest `vN` current"
 
 # The shape every roadmap filename takes: a date, the tool it belongs to, and that tool's version.
 SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}-([a-z][a-z-]*)-v\d+-roadmap\.md$")
-# A product whose code never landed in main -- no folder to check it against, and the roadmap stays
-# as the record of what was built. Written down rather than inferred, so nobody renames it on a hunch.
-RETIRED = {"mira"}
 
 
 def _read(path):
@@ -154,11 +151,12 @@ def test_every_roadmap_name_says_a_date_a_tool_and_a_version():
     existed, while that 6 is only the sixth of queen-agent's. A run that crosses tools says so in its
     own header, where the items can be named.
 
-    The tool is checked against the repo itself: a folder at the root, or the one written-down
-    exception. That way adding a tool needs no edit here, and renaming a retired one needs a decision.
+    The tool is a folder at the root of the repo, with no exceptions -- and one was tried. A run
+    carried out under a product's earlier name belongs to the tool that name became, not to a name
+    the repo no longer has: keeping it would leave a counter nobody can find the code for.
     """
     folders = {name for name in os.listdir(REPO) if os.path.isdir(os.path.join(REPO, name))}
-    allowed = folders | RETIRED
+    allowed = folders
 
     wrong = []
     for path in sorted(glob.glob(os.path.join(ROADMAPS, "*.md"))):
@@ -167,7 +165,7 @@ def test_every_roadmap_name_says_a_date_a_tool_and_a_version():
         if not shaped:
             wrong.append(f"{name}: tarih-tool-vN kalıbına uymuyor")
         elif shaped.group(1) not in allowed:
-            wrong.append(f"{name}: '{shaped.group(1)}' ne bir klasör ne de {sorted(RETIRED)}")
+            wrong.append(f"{name}: '{shaped.group(1)}' diye bir tool klasörü yok")
 
     assert not wrong, "Yol haritası adı standarda uymuyor:\n" + "\n".join(wrong)
 

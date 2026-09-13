@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 5](2026-08-09-mira-faz-5-sohbet-ekrani-design.md)
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) · [Faz 5](2026-08-09-mira-faz-5-sohbet-ekrani-design.md)
 
 **Kapsam:** `xai/` servisi (Madde 13) · mesaja gerçek cevap gelmesi (Madde 14).
 **Kapsam dışı:** akış (Faz 7) · araçlar ve ajan döngüsü (Faz 8) · dosya (Faz 9).

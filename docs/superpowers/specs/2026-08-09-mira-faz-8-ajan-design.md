@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 7](2026-08-09-mira-faz-7-akis-design.md)
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) · [Faz 7](2026-08-09-mira-faz-7-akis-design.md)
 
 **Kapsam:** ajan döngüsü ve `list_files` (Madde 17) · `read_file` (Madde 18) · `create_file` (Madde 19).
 **Kapsam dışı:** dosyanın ekranda görünmesi — kesikli kart, dosya kartı, listeler (Faz 9).

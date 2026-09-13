@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 8](2026-08-09-mira-faz-8-ajan-design.md)
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) · [Faz 8](2026-08-09-mira-faz-8-ajan-design.md)
 
 **Kapsam:** kesikli "creating file…" kartı, cevabın altındaki dosya kartı, proje ekranının **Files**
 sütunu (Madde 20) · sohbetteki 320px ray (Madde 21).

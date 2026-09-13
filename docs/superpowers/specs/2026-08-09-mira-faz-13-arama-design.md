@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 12](2026-08-09-mira-faz-12-ad-design.md)
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) · [Faz 12](2026-08-09-mira-faz-12-ad-design.md)
 
 **Kapsam:** ⌘K / Ctrl+K ile açılıp kapanan arama paneli; proje adı, sohbet başlığı, dosya adı **ve
 dosya içeriği**; en fazla 8 sonuç; her satırda mono tür çipi; Esc sıralaması.

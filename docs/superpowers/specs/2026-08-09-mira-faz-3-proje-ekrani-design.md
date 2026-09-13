@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım dokümanı v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) ·
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) ·
 [Faz 2](2026-08-09-mira-faz-2-kabuk-design.md)
 
 **Kapsam:** proje ekranı (Madde 6) · proje adının ve açıklamasının değiştirilmesi (Madde 7).

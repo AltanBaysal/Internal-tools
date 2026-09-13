@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 9](2026-08-09-mira-faz-9-dosya-gorunur-design.md)
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) · [Faz 9](2026-08-09-mira-faz-9-dosya-gorunur-design.md)
 
 **Kapsam:** dosyayı okuma paneli — sohbette rayın 320 → 560px genişlemesi (Madde 22), proje
 ekranında sağdan 560px panel ve ızgaranın tek sütuna inmesi (Madde 23), **Download** (Madde 24).

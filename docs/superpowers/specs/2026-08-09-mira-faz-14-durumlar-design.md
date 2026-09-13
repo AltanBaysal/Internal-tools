@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../roadmaps/2026-08-09-mira-v1-roadmap.md) · [Faz 13](2026-08-09-mira-faz-13-arama-design.md)
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) · [Faz 13](2026-08-09-mira-faz-13-arama-design.md)
 
 **Kapsam:** yükleme iskeletleri (Madde 29) · çevrimdışı şeridi (Madde 30) · 1100px altı (Madde 31) ·
 uçtan uca tur listesi (Madde 32, **kullanıcı koşar**).
@@ -66,7 +66,7 @@ Bu madde **CSS'tir**; jsdom stil hesaplamadığı için testi yok. Doğrulaması
 ## 4 · Uçtan uca tur (Madde 32)
 
 Kod bittikten sonra **kullanıcı** tek dalgada elle koşar; on yedi adımın listesi
-[yol haritasında](../roadmaps/2026-08-09-mira-v1-roadmap.md#madde-32--uçtan-uca-tur). 13-14. adımlar
+[yol haritasında](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md#madde-32--uçtan-uca-tur). 13-14. adımlar
 (anahtarı bozup düzeltmek) ve 17. adım (sunucuyu kapat-aç) yalnız orada denenebilir: birinde gerçek
 bir API anahtarı, öbüründe gerçek bir yeniden başlatma var.
 
