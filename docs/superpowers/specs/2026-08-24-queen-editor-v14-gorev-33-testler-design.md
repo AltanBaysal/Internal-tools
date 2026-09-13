@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-24 · **Kaynak:** teşhis, aynı gün
 **Öncesi:** [Görev 32 uygulama spec'i](2026-08-24-queen-editor-v14-gorev-32-uygulama-design.md)
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 33
+**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v4-roadmap.md) madde 33
 
 ## Sorun
 

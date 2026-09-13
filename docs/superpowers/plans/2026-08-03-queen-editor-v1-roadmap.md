@@ -1,15 +1,103 @@
-# Queen Editor — Yol Haritası v3
+# Queen Editor — Yol Haritası v1 (KAPANDI)
+
+**Koşu dalı:** `feat/queen-editor-v1` · **Tarih:** 2026-08-03 – 2026-08-08 · **Durum:** kapandı
+**Sonrası:** [v2](2026-08-08-queen-editor-v2-roadmap.md)
+
+> **İki koşu, tek belge.** Bu sürüm iki koşu taşıdı ve her koşu kendi yol haritasını açmıştı —
+> o zamanki adlarıyla *"v2"* ve *"v3"*. 11 Eylül 2026'da birleştirildiler: bir sürüm bir daldır ve o
+> dalın tek yol haritası olur, yani o iki belge ayrı sürüm değildi. Metinleri olduğu gibi aşağıda;
+> değişen tek şey başlık seviyeleri ve birbirlerine giden bağlantıların bölüm adına dönmesi.
+>
+> **Koşu 1'in dalı belgesinde yazmıyordu ve ölçülemedi.** Onu ekleyen commit `01344b0`,
+> `feat/queen-editor-v1`'in geçmişinde duruyor ve queen-editor'ün ilk dalı da o — işi bu sürümün
+> kuşağında. Kesin olan bu kadarı; uydurulan bir dal adı yok.
+
+---
+
+# Koşu 1 — 3 Ağustos *(o zamanki adıyla "yol haritası v2")*
+
+**Tarih:** 2026-08-03 · **Kapanış:** 2026-08-08 · **Durum:** **Bölüm 1-14 tamamlandı**, hepsi
+yazıldı ve push'landı. Bu koşuda açık iş kalmadı; devam eden iş **Koşu 2**'ye taşındı.
+
+**Yerini alan koşu:** Koşu 2 — oradaki ilk madde bu koşunun kalan Colab doğrulaması, son maddesi ise
+buradaki Bölüm 15 (çoklu model).
+**Şemsiye tasarım:** [2026-08-03-queen-editor-v2-design.md](../specs/2026-08-03-queen-editor-v2-design.md)
+(davranış kararları) · [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md)
+(mimari kararlar)
+**Tasarım kaynağı:** claude.ai/design projesi `Queen Editor` → `Queen Editor Basit v1.html` +
+`HANDOFF.md`. Proje linki: <https://claude.ai/design/p/efad1f83-69d3-4e07-89fa-3783839c81c3> —
+dosyalar repo'ya kopyalanmaz, her ihtiyaçta buradan taze çekilir (DesignSync `get_file`).
+**Yerini aldığı doküman:** [2026-07-24-queen-editor-roadmap.md](2026-07-24-queen-editor-roadmap.md)
+— oradaki Bölüm 6 buradaki Bölüm 6'ya, Bölüm 7 buradaki Bölüm 13+14'e erimişti.
+
+## Tamamlanan bölümler (1-14)
+
+| Bölüm | Görülür çıktı |
+|---|---|
+| 1 · Repo çekimi | Private repo token'la Colab'a klonlanır |
+| 2 · Bağlantı | Sunucu + tünel; sayfa açılır, "sunucuya bağlı ✓" |
+| 3 · Proje | Proje oluşturma; Drive'da klasör; kart listesi |
+| 4 · Tek foto | ComfyUI ile tek prompt → tek foto |
+| 5 · Çoklu foto | Prompt listesi × varyant → galeri; numaralar kaldığı yerden |
+| 6 · Kalıcılık + iz | Yenileyince kutular dolu; her fotonun prompt/negatif/seed izi Drive'da |
+| 7 · Arayüz: birebir + akıcı | Beş ekran tasarımla hizalandı; panel kilidi, anında Durdur, tek tip hata gösterimi |
+| 8 · Frontend test altyapısı | vitest + jsdom; `api.js` ve `useGeneration` testli |
+| 9 · Galeri sıralama | Sıra rozeti, sürükle-bırak, kalıcı sıra |
+| 10 · Export | Tek JSON: Drive yolu + foto/prompt listesi, galeri sırasıyla |
+| 11 · Foto detay | Ayrı sayfa, oranı korunan görsel, ‹ › ve klavye gezinme, tekil silme |
+| 12 · Silme + onaylar | Seçim modu, toplu silme, proje silme, çıkış onayı |
+| 13 · Üretim akışı | Duraklat/devam/iptal, bekliyor kareleri, format hatası |
+| 14 · Sağlamlık | Tekil kare hatası + Tekrar dene, kaldığı yerden devam |
+
+Test durumu kapanışta: backend 245, frontend 71 test yeşil. Colab doğrulaması
+([2026-08-05-queen-editor-colab-dogrulama.md](2026-08-05-queen-editor-colab-dogrulama.md)) A-F ve I
+maddelerinde geçti; kalan G ve H maddeleri Koşu 2'nin ilk işidir.
+
+## Kayda değer kararlar
+
+- **Varyant üst sınırı 26** (2026-08-04, Bölüm 13): harf tabanlı adlandırma backend gerçeği; kutu
+  `max=26` ile sınırlar — HANDOFF'un "sınır yok" cümlesinden bilinçli sapma.
+- **Kapsam sınırı:** video üretiminin kendisi bu koşunun dışındaydı, sınır Export dosyası
+  (Bölüm 10). Kapsam dışı kalanlar: bağlantı çubuğu · foto sayısı / kapak · yeniden adlandırma ·
+  referans görsel.
+
+## Sıra revizyonlarının kaydı
+
+- **2026-08-03:** Bölüm 7 olarak "Arayüz: tasarımla birebir + akıcı" eklendi, eski 7-13 birer kaydı.
+  Gerekçe: Bölüm 6 Colab'da doğrulanırken arayüzün üç ayrı yerde tasarımdan saptığı ve hiçbir
+  beklemenin ekranda karşılığı olmadığı görüldü.
+- **2026-08-05:** Bölüm 8 olarak "Frontend test altyapısı" araya girdi, eski 8-14 birer kaydı.
+  Gerekçe: Bölüm 7'nin bağlantı-kopması düzeltmesi frontend'de test edilemeden gitti; altyapı öne
+  alındı ki kalan bölümler boyunca kullanılsın.
+- **2026-08-05:** Bölüm 8-14 tek turda uygulandı (kullanıcı kararı: bölüm aralarında test yok, hepsi
+  TDD ile yazılıp sonda toplu Colab testi yapılacak). Her bölüm kendi commit'iyle push'landı.
+
+## Neden bu sıraydı
+
+- **Önce zemin:** arayüz denetimi (7) sıranın başındaydı, çünkü sonraki her bölüm (rozet, seçim
+  çubuğu, detay sayfası) o zeminin üstüne eleman ekliyordu.
+- **Testler önde (8):** altyapı erken kuruldu ki sonraki her bölümün frontend mantığı testli gitsin.
+- **Önce temel:** kalıcılık + iz (6) detay sayfasının (11) ve export'un (10) ön şartıydı; sıralama
+  (9) export sırasını tanımladı.
+- **Değer erken:** Bölüm 10'da video hattı beslenebilir hâle geldi — tasarımın asıl hedefi.
+- **Yıkıcı işler görüntülemeden sonra:** silme (12), detay sayfasıyla (11) foto görülebilir olduktan
+  sonra geldi.
+- **Sağlamlık mutlu yoldan sonra:** duraklat/devam (13) oturmuş akışın üstüne, hata/devam (14) en
+  sona yakın.
+
+---
+
+# Koşu 2 — 8 Ağustos *(o zamanki adıyla "yol haritası v3")*
 
 **Tarih:** 2026-08-08 · **Branch:** `feat/queen-editor-v1` · **Durum:** **kapandı**
-**Yerini alan doküman:** [2026-08-08-queen-editor-v4-roadmap.md](2026-08-08-queen-editor-v4-roadmap.md)
+**Yerini alan doküman:** [v2 yol haritası](2026-08-08-queen-editor-v2-roadmap.md)
 — Madde 1 (tasarım) tamamlandı; Madde 2-6 tasarımdan önce yazıldığı için tasarımla çelişiyordu ve
-orada yenilendi; Madde 7-9 oraya taşındı. Bu belge kayıt olarak duruyor, artık takip edilmiyor.
-**Yerini aldığı doküman:** [2026-08-03-queen-editor-v2-roadmap.md](2026-08-03-queen-editor-v2-roadmap.md)
-— Bölüm 1-14 orada tamamlandı ve kapandı; o belgeden kalan iki iş (Colab doğrulamasının G/H
-maddeleri ve çoklu model) buraya taşındı.
+orada yenilendi; Madde 7-9 oraya taşındı. Bu koşu kayıt olarak duruyor, artık takip edilmiyor.
+**Yerini aldığı koşu:** Koşu 1 — Bölüm 1-14 orada tamamlandı ve kapandı; o koşudan kalan iki iş
+(Colab doğrulamasının G/H maddeleri ve çoklu model) buraya taşındı.
 **Şemsiye tasarım:** [2026-08-03-queen-editor-v2-design.md](../specs/2026-08-03-queen-editor-v2-design.md)
 (davranış) · [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md)
-(mimari) — üretim akışıyla ilgili kararları bu yol haritasının Madde 2-6'sı günceller.
+(mimari) — üretim akışıyla ilgili kararları bu koşunun Madde 2-6'sı günceller.
 
 **Kapsam sınırı (değişmedi):** video üretiminin kendisi kapsam dışı, sınır Export dosyası. Kapsam
 dışı kalanlar: bağlantı çubuğu · foto sayısı / kapak · yeniden adlandırma · referans görsel.
@@ -17,15 +105,14 @@ dışı kalanlar: bağlantı çubuğu · foto sayısı / kapak · yeniden adland
 İlke aynı: her madde çıktı odaklı (**ne çalışır** + **nasıl görülür**), bir öncekinin üstüne birikir
 ve Colab'da tek başına "evet oldu" denerek kapanır.
 
----
-
-## Bu yol haritasının çekirdeği: canlı kuyruk
+## Bu koşunun çekirdeği: canlı kuyruk
 
 Madde 2-6 tek bir karardan doğuyor: **üretim tek seferlik bir iş olmaktan çıkıp sürekli açık bir
-kuyruk olur.** v2, üretimi "başlat / durdur / devam et"li bir iş sayıyordu; Bölüm 13'ün paneli de o
-varsayımın üstüne kuruldu. Karar 2026-08-08'de değişti: panelin işi artık kuyruğa iş atmaktan ibaret.
+kuyruk olur.** Koşu 1, üretimi "başlat / durdur / devam et"li bir iş sayıyordu; Bölüm 13'ün paneli de
+o varsayımın üstüne kuruldu. Karar 2026-08-08'de değişti: panelin işi artık kuyruğa iş atmaktan
+ibaret.
 
-| v2'de (bugün çalışan hâli) | Bu yol haritasından sonra |
+| Koşu 1'de (o gün çalışan hâli) | Bu koşudan sonra |
 |---|---|
 | **Üret** → kuyruk donar, panel kilitlenir | **Sıraya ekle** → kareler kuyruğun sonuna eklenir, panel açık kalır |
 | Üretim sürerken yeni iş eklenemez | Sürerken eklenir, kesinti olmaz |
@@ -51,11 +138,10 @@ Bekleyen karenin dosya adı planlandığı anda belli (`<numara>_<harf>.png`), b
 yerini baştan alabilir — kare üretilince satır aynı yerde kalır, sıra hiç oynamaz. "Yerinde
 fotoğrafa dönüşme" bu sayede ayrı bir mekanizma istemiyor.
 
----
-
 ## Madde 1 — Tasarım (claude.ai/design)
 
-Kod yazılmadan önce ekranların tasarımı: v2'de olduğu gibi tasarım projesi kaynak, repo uygulayıcı.
+Kod yazılmadan önce ekranların tasarımı: Koşu 1'de olduğu gibi tasarım projesi kaynak, repo
+uygulayıcı.
 
 - **Ne çalışır:** claude.ai/design'daki `Queen Editor` projesinde yeni akışın ekranları tasarlanır —
   **Sıraya ekle** paneli (üç buton yerine tek buton, kilitsiz hâli), galerideki **bekleyen kart**,
@@ -124,7 +210,7 @@ Kuyruk açık kaldığı için "devam" çoğu durumda kendiliğinden olur.
 
 ## Madde 7 — Çoklu model
 
-v2'den devreden bağımsız en büyük iş; hiçbir madde buna bağımlı değil, istenirse öne çekilebilir.
+Koşu 1'den devreden bağımsız en büyük iş; hiçbir madde buna bağımlı değil, istenirse öne çekilebilir.
 
 - **Ne çalışır:** paneldeki **Model** dropdown'ı gerçek seçim yapar — birden fazla model kurulur,
   seçilen modelle üretilir; seçim projeyle kaydedilir. Hangi modellerin ekleneceği bu maddenin ilk
@@ -148,7 +234,7 @@ değil ölçümle verilmesi için. Bugün bir karenin kaç saniye sürdüğünü
 
 ## Madde 9 — Colab doğrulaması (toplu)
 
-En sonda, tek dalgada: hem v2'den devreden maddeler hem bu yol haritasının getirdikleri aynı turda
+En sonda, tek dalgada: hem Koşu 1'den devreden maddeler hem bu koşunun getirdikleri aynı turda
 denenir — kuyruk davranışı yolun ortasında değiştiği için erken test iki kere yapılırdı.
 
 - **Ne çalışır:** [doğrulama listesinden](2026-08-05-queen-editor-colab-dogrulama.md) devreden
@@ -161,8 +247,6 @@ denenir — kuyruk davranışı yolun ortasında değiştiği için erken test i
   kartı; kuyruğa iş atılır, biri silinir, sekme kapatılıp açılır → kuyruk kaldığı yerden akar.
 - **Yok:** **F2-F5** (Durdur / Devam et / İptal et) — Madde 3'te tamamen kalktı, test edilecek bir
   şey yok.
-
----
 
 ## Sıra özeti
 
@@ -180,9 +264,9 @@ denenir — kuyruk davranışı yolun ortasında değiştiği için erken test i
 
 ## Neden bu sıra
 
-- **Tasarım önce (1):** v2'nin dersi — arayüz tasarımdan sapınca üstüne eklenen her eleman sapmayı
-  büyüttü ve iki kere düzeltildi (v2 Bölüm 7 bu yüzden vardı). Panel, kart ve detay sayfası önce
-  tasarımda netleşir.
+- **Tasarım önce (1):** Koşu 1'in dersi — arayüz tasarımdan sapınca üstüne eklenen her eleman sapmayı
+  büyüttü ve iki kere düzeltildi (Koşu 1'in Bölüm 7'si bu yüzden vardı). Panel, kart ve detay sayfası
+  önce tasarımda netleşir.
 - **Önce backend (2):** kuyruk canlı olmadan panelin tek butona inmesi yalan olur — buton basılır
   ama iş arkaya dizilemez.
 - **Panel karttan önce (3):** bekleyen kartın anlamı "kuyruktaki iş"; kuyruğa iş atmanın yolu önce
@@ -202,8 +286,3 @@ denenir — kuyruk davranışı yolun ortasında değiştiği için erken test i
 - **Bitiş kartı** (Madde 1, tasarımda): kuyruk boşalınca yeşil "✓ N / M üretildi — tamamlandı" kartı
   kalsın mı, yoksa kuyruk sürekli açık olduğu için sessizce mi bitsin?
 - **Model listesi** (Madde 7): hangi modeller kurulacak.
-
-## Sıradaki adım
-
-**Madde 1** — claude.ai/design'da yeni ekranların tasarımı + `HANDOFF.md` güncellemesi. Ardından
-Madde 2'nin tasarım dokümanı (spec) → uygulama planı → TDD ile uygulama.

@@ -1,7 +1,7 @@
 # v14 Görev 38 — Açık sekme kareler arasında yerinde kalır: TEST döngüsü tasarımı
 
 **Tarih:** 2026-08-25 · **Kaynak:** Kullanıcı, 25 Ağustos
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 38
+**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v4-roadmap.md) madde 38
 
 ## Sorun
 

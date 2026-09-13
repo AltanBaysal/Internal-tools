@@ -1,6 +1,6 @@
 # v14 · Görev 5 — Sonrakine bağla ardışık seçim istiyor · **test turu**
 
-**Kaynak:** [Yol haritası v14, 5. madde](../plans/2026-08-20-queen-editor-v14-roadmap.md) ·
+**Kaynak:** [Yol haritası v14, 5. madde](../plans/2026-08-20-queen-editor-v4-roadmap.md) ·
 [4. maddenin uygulama turu](2026-08-21-queen-editor-v14-gorev-4-mod-secicisi-uygulama-design.md)
 
 Bu tur yalnız testleri yazar. Takım kırmızı biter ve kırmızı commit edilir; kodu ikinci tur yazar.

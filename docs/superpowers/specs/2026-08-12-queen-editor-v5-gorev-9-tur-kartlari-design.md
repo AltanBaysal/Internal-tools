@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 9 — Tür kartları ve panel düzeni · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v5-roadmap.md) — Blok 3, Görev 9 ·
+**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 3, Görev 9 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 34, 35, 36, 40, 41, 46 · **Tür:** yalnız ön yüz.
 

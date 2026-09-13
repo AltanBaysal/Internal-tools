@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-25 · **Kaynak:** Colab turu, 24 Ağustos
 **Öncesi:** [Görev 33 uygulama spec'i](2026-08-24-queen-editor-v14-gorev-33-uygulama-design.md)
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 34
+**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v4-roadmap.md) madde 34
 
 ## Sorun
 

@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 26 — Sekme başına tek yıkıcı eylem · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v5-roadmap.md) — Blok 7, Görev 26 ·
+**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 7, Görev 26 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 80, 83 · **Tür:** arka uç + ön yüz.
 

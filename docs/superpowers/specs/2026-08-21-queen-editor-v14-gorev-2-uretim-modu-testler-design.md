@@ -1,6 +1,6 @@
 # v14 · Görev 2 — Kuyruk işinin üretim modunu taşıması · **test turu**
 
-**Kaynak:** [Yol haritası v14, 2. madde](../plans/2026-08-20-queen-editor-v14-roadmap.md) ·
+**Kaynak:** [Yol haritası v14, 2. madde](../plans/2026-08-20-queen-editor-v4-roadmap.md) ·
 [1. maddenin uygulama turu](2026-08-21-queen-editor-v14-gorev-1-bitis-karesi-uygulama-design.md)
 
 Bu tur yalnız testleri yazar. Takım kırmızı biter ve kırmızı commit edilir; kodu ikinci tur yazar.

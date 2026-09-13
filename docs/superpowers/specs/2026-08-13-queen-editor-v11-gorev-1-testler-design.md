@@ -1,7 +1,7 @@
 # v11 Görev 1 — xAI anahtarı yoklaması: TEST döngüsü (tasarım)
 
 **Tarih:** 2026-08-13 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v11](../plans/2026-08-13-queen-editor-v11-roadmap.md) · **Döngü:** 1/2 (testler)
+**Yol haritası:** [v11](../plans/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 1/2 (testler)
 
 Bu spec **yalnız testleri** tanımlıyor. İmplementasyon bir sonraki döngünün işi; bu döngü bittiğinde
 takım kırmızı olacak ve kırmızılık tam olarak burada sayılan vakalar kadar olacak.

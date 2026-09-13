@@ -1,6 +1,6 @@
 # Queen Editor v14 — Colab turu kontrol listesi
 
-**Tarih:** 2026-08-24 · **Koşu:** [v14 yol haritası](2026-08-20-queen-editor-v14-roadmap.md), madde 30 ·
+**Tarih:** 2026-08-24 · **Koşu:** [v14 yol haritası](2026-08-20-queen-editor-v4-roadmap.md), madde 30 ·
 **Dal:** `feat/queen-editor-v4`
 
 Yol haritası maddeleri **bağımlılığa** göre sıralar — neyin neyin üstünde durduğuna. Bu liste aynı

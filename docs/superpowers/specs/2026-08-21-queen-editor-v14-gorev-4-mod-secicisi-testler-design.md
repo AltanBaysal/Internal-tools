@@ -1,6 +1,6 @@
 # v14 · Görev 4 — Video panelinde Üretim modu seçicisi · **test turu**
 
-**Kaynak:** [Yol haritası v14, 4. madde](../plans/2026-08-20-queen-editor-v14-roadmap.md) ·
+**Kaynak:** [Yol haritası v14, 4. madde](../plans/2026-08-20-queen-editor-v4-roadmap.md) ·
 [2. maddenin uygulama turu](2026-08-21-queen-editor-v14-gorev-2-uretim-modu-uygulama-design.md)
 
 Bu tur yalnız testleri yazar. Takım kırmızı biter ve kırmızı commit edilir; kodu ikinci tur yazar.

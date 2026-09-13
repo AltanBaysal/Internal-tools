@@ -1,6 +1,6 @@
 # Görev 6 — Ekran değişince galeri sıfırdan yüklenmesin
 
-**Roadmap:** [v7](../plans/2026-08-13-queen-editor-v7-roadmap.md) · Blok 3
+**Roadmap:** [v7](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Blok 3
 
 ## Sorun
 

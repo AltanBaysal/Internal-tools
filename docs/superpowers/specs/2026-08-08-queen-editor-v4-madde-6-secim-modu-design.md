@@ -1,7 +1,7 @@
 # Queen Editor v4 · Madde 6 — Seçim modu ve yıkıcı eylem
 
 **Tarih:** 2026-08-08 · **Yol haritası:**
-[v4 Madde 6](../plans/2026-08-08-queen-editor-v4-roadmap.md) · **Kapsadığı kodlar:** G6, G7, G8,
+[v4 Madde 6](../plans/2026-08-08-queen-editor-v2-roadmap.md) · **Kapsadığı kodlar:** G6, G7, G8,
 G11, N1 · **sapmalar:** seçim çubuğunun 0 seçiliyken durması · çubuğun yüzmemesi · sürüklemenin
 basılı tutma eşiği olmadan başlaması · **Katman:** arka uç + ön yüz
 

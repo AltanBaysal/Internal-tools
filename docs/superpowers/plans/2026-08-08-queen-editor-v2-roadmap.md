@@ -5,7 +5,7 @@ edildi (2026-08-09); geriye yalnız Madde 12 — kullanıcının Colab turu — 
 sayılar: arka uç **317** test, ön yüz **148** test, hepsi yeşil; `dist/` her maddede yeniden üretilip
 aynı commit'te gitti. Maddelerin altındaki **Spec** satırları o maddenin kararlarının yazılı olduğu
 yerdir.
-**Yerini aldığı doküman:** [2026-08-08-queen-editor-v3-roadmap.md](2026-08-08-queen-editor-v3-roadmap.md)
+**Yerini aldığı doküman:** [2026-08-03-queen-editor-v1-roadmap.md](2026-08-03-queen-editor-v1-roadmap.md)
 — v3'ün Madde 1'i (tasarım) tamamlandı; Madde 2-6 tasarımdan **önce** yazıldığı için tasarımla sekiz
 yerde çelişiyordu ve bu belgede yenilendi; Madde 7-9 aynen taşındı.
 **Kaynak:** [tasarım v2 farkları](../research/2026-08-08-queen-editor-tasarim-v2-farklari.md) —

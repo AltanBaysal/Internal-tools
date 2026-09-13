@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 30 — Export koşusu · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v5-roadmap.md) — Blok 8, Görev 30 ·
+**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 8, Görev 30 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 92, 93, 94, 96 · **Tür:** arka uç + ön yüz.
 

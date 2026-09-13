@@ -1,6 +1,6 @@
 # Queen Editor v8 · Görev 3 — Defterin ve README'nin adı bugünü anlatsın
 
-**Tarih:** 2026-08-13 · **Yol haritası:** [v8](../plans/2026-08-13-queen-editor-v8-roadmap.md) · Görev 3
+**Tarih:** 2026-08-13 · **Yol haritası:** [v8](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Görev 3
 **Önkoşul:** [Görev 2](2026-08-13-queen-editor-v8-gorev-2-defterden-ses-kalksin-design.md) — aynı
 metinlere dokunuyor.
 

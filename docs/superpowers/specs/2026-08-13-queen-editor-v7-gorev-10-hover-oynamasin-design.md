@@ -1,6 +1,6 @@
 # Görev 10 — Kare hover'da yerinden oynamasın
 
-**Roadmap:** [v7](../plans/2026-08-13-queen-editor-v7-roadmap.md) · Blok 4
+**Roadmap:** [v7](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Blok 4
 
 ## Bulgu ve ne bulunabildi
 

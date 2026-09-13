@@ -1,6 +1,6 @@
 # Queen Editor v8 · Görev 2 — Defterden ses hücreleri ve model notu kalksın
 
-**Tarih:** 2026-08-13 · **Yol haritası:** [v8](../plans/2026-08-13-queen-editor-v8-roadmap.md) · Görev 2
+**Tarih:** 2026-08-13 · **Yol haritası:** [v8](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Görev 2
 **Önkoşul:** [Görev 1](2026-08-13-queen-editor-v8-gorev-1-ses-motoru-kurulumu-design.md) — kurulum
 artık uygulamada.
 

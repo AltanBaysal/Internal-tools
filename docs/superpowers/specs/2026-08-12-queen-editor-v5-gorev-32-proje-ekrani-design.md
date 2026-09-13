@@ -1,7 +1,7 @@
 # Görev 32 — Proje ekranı ve silme davranışı
 
 **Maddeler:** 1, 2, 3, 10
-**Roadmap:** [v5](../plans/2026-08-12-queen-editor-v5-roadmap.md) · Blok 9
+**Roadmap:** [v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Blok 9
 **Fark belgesi:** [v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 
 ## Sorun

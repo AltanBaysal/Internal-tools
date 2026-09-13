@@ -335,12 +335,12 @@ Bu görevde commit yok.
 **Çıktı:** roadmap v3 ile tasarım v2 arasındaki çelişki tablosu.
 
 **Arayüz:**
-- Tüketir: Görev 3 sonrası birleşik liste; `docs/superpowers/plans/2026-08-08-queen-editor-v3-roadmap.md`.
+- Tüketir: Görev 3 sonrası birleşik liste; `docs/superpowers/plans/2026-08-03-queen-editor-v1-roadmap.md`.
 - Üretir: `konu · roadmap v3 ne diyor · tasarım v2 ne diyor` tablosu.
 
 - [ ] **Adım 1: Roadmap v3'ü madde madde oku**
 
-`docs/superpowers/plans/2026-08-08-queen-editor-v3-roadmap.md` — özellikle "Bu yol haritasının
+`docs/superpowers/plans/2026-08-03-queen-editor-v1-roadmap.md` — özellikle "Bu yol haritasının
 çekirdeği: canlı kuyruk" bölümündeki karşılaştırma tablosu ve Madde 2-6.
 
 - [ ] **Adım 2: Her roadmap iddiasını birleşik listeyle karşılaştır**

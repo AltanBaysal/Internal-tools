@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası
 
-> **Bu dokümanın yerini aldı:** [2026-08-03-queen-editor-v2-roadmap.md](2026-08-03-queen-editor-v2-roadmap.md) (tasarım güncellemesi). Bölüm 1-5 burada yazıldığı gibi tamamlandı; Bölüm 6-7 yeni yol haritasına eridi.
+> **Bu dokümanın yerini aldı:** [2026-08-03-queen-editor-v1-roadmap.md](2026-08-03-queen-editor-v1-roadmap.md) (tasarım güncellemesi). Bölüm 1-5 burada yazıldığı gibi tamamlandı; Bölüm 6-7 yeni yol haritasına eridi.
 
 **Tarih:** 2026-07-24 · **Durum:** Bölüm 1-5 bitti (her biri Colab'da doğrulandı) · devamı v2 yol haritasında
 **Şemsiye tasarım (kararların tamamı):** [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md)

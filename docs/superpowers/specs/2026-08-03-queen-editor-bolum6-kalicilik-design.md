@@ -1,7 +1,7 @@
 # Queen Editor — Bölüm 6: Kalıcılık + iz (tasarım)
 
 **Tarih:** 2026-08-03 · **Durum:** onay bekliyor
-**Yol haritası:** [v2 · Bölüm 6](../plans/2026-08-03-queen-editor-v2-roadmap.md)
+**Yol haritası:** [v2 · Bölüm 6](../plans/2026-08-03-queen-editor-v1-roadmap.md)
 **Şemsiye:** [v2 (davranış)](2026-08-03-queen-editor-v2-design.md) · [v1 (mimari)](2026-07-24-queen-editor-v1-design.md)
 
 ## Amaç

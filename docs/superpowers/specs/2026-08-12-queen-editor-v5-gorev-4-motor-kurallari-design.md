@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 4 — Motor kuralları: duraklatma ve deneme
 
 **Tarih:** 2026-08-12 · **Yol haritası:**
-[v5 Görev 4](../plans/2026-08-12-queen-editor-v5-roadmap.md) · **Kapsadığı maddeler:** 44, 45 ·
+[v5 Görev 4](../plans/2026-08-12-queen-editor-v3-roadmap.md) · **Kapsadığı maddeler:** 44, 45 ·
 **Katman:** yalnız arka uç
 
 ## Amaç

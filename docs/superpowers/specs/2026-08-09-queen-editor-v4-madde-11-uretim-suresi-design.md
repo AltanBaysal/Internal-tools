@@ -1,7 +1,7 @@
 # Madde 11 — Üretim süresi ölçümü
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/queen-editor-v2` · **Yol haritası:**
-[v4, Madde 11](../plans/2026-08-08-queen-editor-v4-roadmap.md)
+[v4, Madde 11](../plans/2026-08-08-queen-editor-v2-roadmap.md)
 
 ---
 

@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 16 — Video prompt'unu dil modeli yazar · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v5-roadmap.md) — Blok 5, Görev 16 ·
+**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 5, Görev 16 ·
 **Kaynak madde:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 27 · **Tür:** arka uç.
 

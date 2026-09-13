@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 18 — Galeride video · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v5-roadmap.md) — Blok 5, Görev 18 ·
+**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v3-roadmap.md) — Blok 5, Görev 18 ·
 **Kaynak madde:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 58'in video yarısı · **Tür:** arka uç + ön yüz.
 

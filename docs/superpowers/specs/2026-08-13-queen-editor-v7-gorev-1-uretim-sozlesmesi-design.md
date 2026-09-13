@@ -1,6 +1,6 @@
 # Görev 1 — Üretim sözleşmesi tek olsun
 
-**Roadmap:** [v7](../plans/2026-08-13-queen-editor-v7-roadmap.md) · Blok 1
+**Roadmap:** [v7](../plans/2026-08-12-queen-editor-v3-roadmap.md) · Blok 1
 
 ## Sorun
 

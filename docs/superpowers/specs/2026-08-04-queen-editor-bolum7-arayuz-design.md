@@ -1,7 +1,7 @@
 # Queen Editor — Bölüm 7: Arayüz tasarımla birebir + akıcı
 
 **Tarih:** 2026-08-04 · **Durum:** denetim tamamlandı, envanter kapalı — onay bekliyor
-**Yol haritası:** [2026-08-03-queen-editor-v2-roadmap.md](../plans/2026-08-03-queen-editor-v2-roadmap.md) — Bölüm 7
+**Yol haritası:** [2026-08-03-queen-editor-v1-roadmap.md](../plans/2026-08-03-queen-editor-v1-roadmap.md) — Bölüm 7
 **Şemsiye tasarım:** [2026-08-03-queen-editor-v2-design.md](2026-08-03-queen-editor-v2-design.md)
 **Tasarım kaynağı:** claude.ai/design → `Queen Editor Basit v1.html` (+ `simple-screens.jsx`,
 `styles.css`, `HANDOFF.md`) — repo'ya kopyalanmaz, linkten taze çekilir:

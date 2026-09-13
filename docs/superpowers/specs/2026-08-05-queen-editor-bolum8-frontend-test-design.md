@@ -1,6 +1,6 @@
 # Queen Editor — Bölüm 8: Frontend test altyapısı
 
-**Tarih:** 2026-08-05 · **Yol haritası:** [2026-08-03-queen-editor-v2-roadmap.md](../plans/2026-08-03-queen-editor-v2-roadmap.md) Bölüm 8
+**Tarih:** 2026-08-05 · **Yol haritası:** [2026-08-03-queen-editor-v1-roadmap.md](../plans/2026-08-03-queen-editor-v1-roadmap.md) Bölüm 8
 **Önceki bölüm:** [Bölüm 7 — arayüz](2026-08-04-queen-editor-bolum7-arayuz-design.md)
 
 ## Neden bu bölüm var

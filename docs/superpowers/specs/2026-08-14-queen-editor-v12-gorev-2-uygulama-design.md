@@ -1,7 +1,7 @@
 # v12 Görev 2 — Sürükleme: İMPLEMENTASYON döngüsü (tasarım)
 
 **Tarih:** 2026-08-14 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v12](../plans/2026-08-14-queen-editor-v12-roadmap.md) · **Döngü:** 2/2
+**Yol haritası:** [v12](../plans/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
 **Testler:** [test spec'i](2026-08-14-queen-editor-v12-gorev-2-testler-design.md) ·
 commit `20f7528` (beş test kırmızı)
 
