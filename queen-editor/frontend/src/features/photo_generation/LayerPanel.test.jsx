@@ -285,6 +285,45 @@ describe("LayerPanel — the panel's own shape", () => {
   });
 });
 
+describe("LayerPanel — another project holds the worker", () => {
+  const ELSEWHERE = { job: { status: "running", project: "balo" }, busyElsewhere: true };
+
+  it("is disabled while another project holds the worker", () => {
+    // Madde 215: there is one worker, so a second project has to wait -- and the photo panel has
+    // said so properly all along. This panel was never handed what it needed to say it.
+    renderPanel(ELSEWHERE);
+
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
+    expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
+  });
+
+  it("says the same thing on the sound panel", () => {
+    render(
+      <LayerPanel layer="audio" frames={FRAMES} selected={[]} producer={null} {...ELSEWHERE}
+                  onQueue={() => Promise.resolve({ added: 1 })} onInstall={() => {}} />,
+    );
+
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
+    expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
+  });
+
+  it("shows a refusal where the press was made", () => {
+    // busyElsewhere arrives with the poll, so the other run can start between two of them and the
+    // press goes through. The side column draws one panel at a time, and neither of the two that
+    // drew the server's answer is this one -- so the press did nothing visible at all.
+    renderPanel({ error: "Zaten bir üretim sürüyor." });
+
+    expect(screen.getByText("Zaten bir üretim sürüyor.")).toBeTruthy();
+  });
+
+  it("leaves the button alone when nobody else is running", () => {
+    renderPanel();
+
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(false);
+    expect(screen.queryByText(/Üretim sürüyor/)).toBeNull();
+  });
+});
+
 describe("LayerPanel — sending", () => {
   it("asks for every frame with no video when that is the scope", async () => {
     const onQueue = vi.fn().mockResolvedValue({ added: 2 });
