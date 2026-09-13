@@ -35,7 +35,7 @@ NAMED = re.compile(r"queen-editor-v(\d+)-roadmap\.md")
 WRONG_RULE = "highest `vN` current"
 
 # The shape every roadmap filename takes: a date, the tool it belongs to, and that tool's version.
-SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}-([a-z][a-z-]*)-v\d+-roadmap\.md$")
+SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}-([a-z][a-z-]*)-v(\d+)-roadmap\.md$")
 
 
 def _read(path):
@@ -166,6 +166,11 @@ def test_every_roadmap_name_says_a_date_a_tool_and_a_version():
             wrong.append(f"{name}: tarih-tool-vN kalıbına uymuyor")
         elif shaped.group(1) not in allowed:
             wrong.append(f"{name}: '{shaped.group(1)}' diye bir tool klasörü yok")
+        elif int(shaped.group(2)) < 1:
+            # Every counter starts at v1, both tools alike. A version is a branch, so a run with no
+            # branch of its own is not a version -- it is the first run inside the version whose
+            # branch came next, and it says there that it had none. v0 was tried and folded in.
+            wrong.append(f"{name}: sürüm v1'den başlar, v0 diye bir sürüm yok")
 
     assert not wrong, "Yol haritası adı standarda uymuyor:\n" + "\n".join(wrong)
 

@@ -45,8 +45,9 @@ The user tests at the end of a run, not between items.
 Roadmaps live in [docs/superpowers/roadmaps/](docs/superpowers/roadmaps/), apart from the per-item
 plans in `plans/` — listing that folder is how you see which version a tool is on, so every name
 there is `YYYY-MM-DD-<tool>-v<N>-roadmap.md`: the day the run opened, the tool's own folder name, and
-that tool's version. **A version belongs to one tool's counter** — a run that reaches into the other
-tool says which items did so in its own header, and claims no shared counter of its own.
+that tool's version. **A version belongs to one tool's counter, which starts at v1** — a run that
+reaches into the other tool says which items did so in its own header and claims no counter of its
+own, and a run with no branch of its own is the first run inside the version whose branch came next.
 **A version is a branch, and that branch gets one roadmap named for it** — work that turns up mid-run is an item added to the
 roadmap already running, never a second document. The name is therefore the record of which version
 a tool is on, and it only stays one while every roadmap's name matches the branch in its own header:

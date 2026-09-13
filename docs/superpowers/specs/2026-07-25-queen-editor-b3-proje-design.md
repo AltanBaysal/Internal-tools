@@ -1,7 +1,7 @@
 # Queen Editor — Bölüm 3: Proje (tasarım)
 
 **Tarih:** 2026-07-25 · **Durum:** onaylandı, implementasyon planı bekliyor
-**Şemsiye tasarım:** [2026-07-24-queen-editor-v1-design.md](2026-07-24-queen-editor-v1-design.md) · **Yol haritası:** [2026-07-24-queen-editor-v0-roadmap.md](../roadmaps/2026-07-24-queen-editor-v0-roadmap.md)
+**Şemsiye tasarım:** [2026-07-24-queen-editor-v1-design.md](2026-07-24-queen-editor-v1-design.md) · **Yol haritası:** [2026-08-03-queen-editor-v1-roadmap.md](../roadmaps/2026-08-03-queen-editor-v1-roadmap.md)
 
 ## Amaç
 
