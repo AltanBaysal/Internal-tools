@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v5
 
-**Tarih:** 2026-09-11 · **Koşu dalı:** `feat/queen-editor-v5` · **Durum:** 1/7
+**Tarih:** 2026-09-11 · **Koşu dalı:** `feat/queen-editor-v5` · **Durum:** 1/8
 **Öncesi:** [20 Ağustos'ta v14 adıyla kapanan koşu](2026-08-20-queen-editor-v4-roadmap.md) — neden o
 adın yanlış olduğu 210. maddenin konusu.
 **Kaynak:** 211–214 [queen-editor/BACKLOG.md](../../../queen-editor/BACKLOG.md)'dan çıkıp buraya
@@ -8,7 +8,8 @@ girdi ve orada kalmadı; artık tek kayıtları bu belge. 210, 215 ve 216 kullan
 sözlerinden doğdu, backlog'a hiç uğramadan.
 
 **Numara kimliktir, sıra değildir.** Tablo iki öbek: önce tek başına biten maddeler — 210, 212,
-216 — sonra kullanıcıya ihtiyaç duyanlar: 211, 215, 213, 214. Koşulacak sıra bu tablonun sırasıdır.
+216 — sonra kullanıcıya ihtiyaç duyanlar: 211, 215, 213, 214, 217. Koşulacak sıra bu tablonun
+sırasıdır.
 
 ## Neden bu koşu v5
 
@@ -101,7 +102,11 @@ bir maddeyi kısmen bitmiş göstermenin yolu yok.
 | 215 | **Başka projeye geçip üretmeye basınca çıkan hata düzgün konuşmuyor.** *(Kullanıcı, 11 Eylül.)* Bir projede üretim başlatılıyor, oradan çıkılıp başka bir projeye giriliyor ve orada üretme basılıyor — **hata veriyor, ama mesaj düzgün değil.** Hatanın kendisi bu maddenin konusu değil; **söylediği şey** konusu. Sebebi **araştırılmadı** ve buraya bir tahmin yazılmıyor. Uydurulmuş bir sebep ekrana yazılmayacak — duran cümle, gerçekten olanı söyleyecek. **Kullanıcıdan gereken** *(spec'in başında istenir)*: o anın kendisi — ekranda duran cümle ve sunucunun döndürdüğü ham cevap. İkinci soru da kullanıcıya ait: ikinci projede üretmek **yasak mı olmalı** — o zaman mesaj sebebini söyler — yoksa **çalışması mı gerekiyordu**, ki o zaman bozuk olan mesaj değil davranış. | Aynı sıra tekrarlanıyor ve ekranda çıkan cümle ne olduğunu söylüyor: kullanıcı onu okuyup ne yapacağını biliyor, ve cümle sunucunun gerçekten döndürdüğüyle çelişmiyor. |
 | 213 | **MiniMax eklenecek.** *(Kullanıcı, 6 Eylül.)* Hangi işi alacağı — fotoğraf mı video mu, bugünkü tarifin yerine mi yanına mı — **kararlaşmadı.** Karar maddenin kendi turunda verilir ve buraya yazılır; kod ondan sonra yazılır. **Kullanıcıdan gereken** *(spec'in başında istenir)*: bu karar, MiniMax'e nasıl erişildiği, ve çıkan üretime bakması. | Karar yazıya geçmiş, ve MiniMax kendisine verilen işte üretim yapıyor: kuyruğa giren bir iş onunla bitiyor ve çıkan dosya karesine iniyor. |
 | 214 | **Slime girl videosu eklenecek.** *(Kullanıcı, 6 Eylül.)* Bir video türü — *slime girl*. Bir model değil, üretilecek bir içerik biçimi. **Kararlaşmadı:** kendi LoRA'sıyla mı geliyor, kendi üretim tarifiyle mi, yoksa yalnız prompt tarafında mı kalıyor. **Kullanıcıdan gereken** *(spec'in başında istenir)*: bu karar; yol LoRA ise dosyanın indirilip verilmesi; ve çıkan videoya bakması. | Karar yazıya geçmiş, ve o yolla üretilmiş bir slime girl videosunu kullanıcı görmüş. |
+| 217 | **CLAUDE.md'nin yol haritası paragrafı toparlanacak.** *(Kullanıcı, 13 Eylül.)* Paragraf 210 boyunca beş kez düzenlendi ve **satır sarması dağıldı** — bir satır çok uzun, bir cümle ortasından kırılıp bir sonrakine biniyor. İçerik doğru, okunuşu dağınık. Aynı turda **iki kural yazıya geçecek**: bugün yalnız testte duruyorlar, yani öğrenme yolu kırmızıya çarpmak. Biri, her yol haritasının **başlığında kendi dalını yazdığı** *(QueenAgent v8 yazmıyordu)*; öteki, bir bağlantının **metnindeki sürümün gittiği belgeden farklı olamayacağı** *(133 metin olmayan sürümleri adlıyordu)*. İkisi de henüz yazılmamış belgeleri bağlayan kurallar, yani tam CLAUDE.md'lik. **Kullanıcıdan gereken** *(spec'ten önce değil, sonra)*: paragrafı okuyup onaylaması — *"şu an zamanım yok, en son okuyacağım"*. | Paragraf tek okumada anlaşılıyor ve satırları düzgün sarıyor; iki kural orada yazılı; ve kullanıcı okuyup *"tamam"* demiş. |
 
-**Son dört maddenin yargısı koda bakarak verilemiyor.** queen-editor yerelde koşmuyor: defteri
+**211, 215, 213 ve 214'ün yargısı koda bakarak verilemiyor.** queen-editor yerelde koşmuyor: defteri
 kullanıcı çalıştırıyor. 211 ile 215'in gerçekten kapandığı da, 213 ile 214'ün ne ürettiği de ancak
 orada görülüyor.
+
+**217 de kullanıcıyı bekliyor ama başka sebeple:** koda değil, bir paragrafın okunmasına bağlı. O
+yüzden en sonda — yazılması beklemiyor, onaylanması bekliyor.
