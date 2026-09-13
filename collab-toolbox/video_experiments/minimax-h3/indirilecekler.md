@@ -18,7 +18,8 @@ Boyutlar ✅ ile işaretliyse HuggingFace / Civitai dosya listesinden okundu.
 
 ## 1) Custom node'lar
 
-Liste grafiğin **"📋 Features & Requirements"** notundan; altısı da orada adresiyle yazılı 📌.
+İlk beşi ve ffmpeg grafiğin **"📋 Features & Requirements"** notundan, adresleriyle 📌. Manager o
+listede yok: onu biz ekliyoruz, deponun öteki deneme defterlerinde olduğu gibi 🔁.
 
 | Paket | git URL | |
 |---|---|---|
@@ -28,9 +29,10 @@ Liste grafiğin **"📋 Features & Requirements"** notundan; altısı da orada a
 | ComfyUI-DaSiWa-Nodes | https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes | 📌 |
 | Comfyui-MMH3-UltimateUpscale | https://github.com/bbaudio-2025/Comfyui-MMH3-UltimateUpscale | 📌 |
 | ffmpeg | apt (`apt-get install ffmpeg`) | 📌 |
+| ComfyUI-Manager | https://github.com/ltdrdata/ComfyUI-Manager | 🔁 |
 
 `MiniMaxH3Director`, `MiniMaxH3Cache`, `MiniMaxH3SigmaShift`, `MiniMaxChunkFeedForward`,
-`MiniMaxH3DirectorGuide` node'ları bu altısının hiçbirinde adı geçmiyor. Grafiğin Quick Start notu
+`MiniMaxH3DirectorGuide` node'ları grafiğin saydığı beşinin hiçbirinde adı geçmiyor. Grafiğin Quick Start notu
 *"routes to the **native** H3 backend automatically"* diyor — yani güncel ComfyUI'nin kendinden
 gelmesi bekleniyor. Doğrulanmadı; UI açılınca görülecek.
 

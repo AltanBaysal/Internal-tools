@@ -58,8 +58,8 @@ Branch: `video-generation`. Her madde test edildikçe durumu işaretle ve notunu
   - Kaynak: https://civitai.red/models/2831978/dasiwa-minimax-h3-workflows-or-t2va-or-fl2va-or-ref2va *(workflow)* · https://civitai.red/models/2877206/dasiwa-minimax-h3 *(checkpoint)*
   - Model ailesi: **MiniMax H3** — WAN dışı, yeni bir aile; videoyu ve sesi **birlikte** üretiyor
   - Neden: tek grafikte beş mod *(T2VA · I2VA · FL2VA · L2VA · REF2VA)* ve açılışta I2VA — queen-editor'ün video kuyruğunun verdiği şeyin aynısı: bir kare fotoğrafı + prompt. v5 madde 213 buraya bakıyor.
-  - Durum: **defter hazır, denenmedi** — `manual.ipynb` → Run all → ComfyUI linki → `workflow.json`'u sürükle
-  - Not: ilk koşu ~41,8 GB *(UNET 21 GB + Qwen3-VL **32B** metin kodlayıcı 15 GB + VAE'ler)*, hepsi HF'te açık, cookie gerekmiyor. `nvfp4`/`fp8` sürümleri A100'de yerel değil → `int8_convrot` + `int4_convrot` alındı. DaSiWa'nın kendi turbo checkpoint'i *(4–8 adım)* Civitai'de gated, ikinci koşuya bırakıldı.
+  - Durum: **defter hazır, denenmedi** — `manual.ipynb` → A100 → Run all → ComfyUI linki → `workflow.json`'u sürükle
+  - Not: ~39,7 GB. Grafik **yazarın kendi turbo checkpoint'iyle** geliyor *(Civitai sürüm 3314686, login-gated, int8, 21 GB)* ve ayarları da ona göre kurulu: `euler`, 8 adım. Metin kodlayıcı Qwen3-VL **32B** *(int4, 15 GB)*, VAE'ler HF'te açık. `nvfp4`/`fp8` sürümleri A100'de yerel değil → `int8_convrot` + `int4_convrot`. Açık HF checkpoint'i *(`fl2va`, 21 GB)* da var ama turbo değil: onunla 25 adıma dönmek gerekiyor.
 
 - [x] **WAN 2.2 T2V — "Smooth Workflow v5.0" TEXT2VIDEO grubu (Digital Pastel)** → [video_generator/wan22-smooth-t2v/](../video_generator/wan22-smooth-t2v/)
   - Kaynak: https://civitai.red/models/1995784/smooth-mix-wan-22-14b-i2vt2v
