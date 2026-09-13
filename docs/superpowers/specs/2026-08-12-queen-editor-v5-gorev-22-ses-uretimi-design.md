@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 22 — Motor sesi üretir ve videoya bindirir · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 6, Görev 22 ·
+**Yol haritası:** [roadmap v3 Koşu 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 6, Görev 22 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 30'un üretim yarısı, 58'in ses yarısı · **Tür:** arka uç + ön yüz.
 

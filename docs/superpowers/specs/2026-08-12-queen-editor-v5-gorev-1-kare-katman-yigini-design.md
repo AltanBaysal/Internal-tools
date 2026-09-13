@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 1 — Kare katman yığını olur
 
 **Tarih:** 2026-08-12 · **Yol haritası:**
-[v5 Görev 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Kapsadığı maddeler:** 103, 101 ·
+[v3 Koşu 1 · Görev 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Kapsadığı maddeler:** 103, 101 ·
 **Katman:** yalnız arka uç
 
 ## Amaç

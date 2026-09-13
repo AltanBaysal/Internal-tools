@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 13 — Üretici eksikken kuyruk bekler · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 4, Görev 13 ·
+**Yol haritası:** [roadmap v3 Koşu 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 4, Görev 13 ·
 **Kaynak madde:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 53 · **Tür:** arka uç + ön yüz.
 

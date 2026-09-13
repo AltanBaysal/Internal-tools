@@ -1,6 +1,6 @@
 # Görev 1 — Video grafiği repoya girer
 
-**Roadmap:** [v6](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 1
+**Roadmap:** [v3 Koşu 2](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 1
 
 ## Sorun
 

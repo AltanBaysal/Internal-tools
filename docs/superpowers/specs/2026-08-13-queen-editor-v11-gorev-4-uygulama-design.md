@@ -1,7 +1,7 @@
 # v11 Görev 4 — seçim kalkınca halkalar da kalkar: İMPLEMENTASYON döngüsü (tasarım)
 
 **Tarih:** 2026-08-13 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v11](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
+**Yol haritası:** [v3 Koşu 6](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
 **Testler:** [test spec'i](2026-08-13-queen-editor-v11-gorev-4-testler-design.md) ·
 commit `29848c8` (iki test kırmızı)
 

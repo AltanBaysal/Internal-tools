@@ -1,6 +1,6 @@
 # v14 · Görev 8 — Detayda Üretim modu bilgi satırı · **test turu**
 
-**Kaynak:** [yol haritası v14](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) 8. madde —
+**Kaynak:** [yol haritası v4](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) 8. madde —
 [İstek 3](../plans/2026-08-20-queen-editor-istekler.md) ve
 [fark listesi](../research/2026-08-20-queen-editor-tasarim-v4-farklari.md) 93.
 

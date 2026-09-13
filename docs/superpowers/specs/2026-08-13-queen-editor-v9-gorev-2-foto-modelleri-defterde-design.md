@@ -1,6 +1,6 @@
 # Queen Editor v9 · Görev 2 — Fotoğraf modelleri defterde kurulsun
 
-**Tarih:** 2026-08-13 · **Yol haritası:** [v9](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Görev 2
+**Tarih:** 2026-08-13 · **Yol haritası:** [v3 Koşu 5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Görev 2
 **Önkoşul:** [Görev 1](2026-08-13-queen-editor-v9-gorev-1-kurulum-uygulamadan-kalksin-design.md) —
 uygulamadaki ikinci kurulum yolu kalktı.
 

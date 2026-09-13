@@ -1,7 +1,7 @@
 # Görev 2 — Civitai anahtarı uygulamaya geçsin (uygulama planı)
 
 **Spec:** [Görev 2](../specs/2026-08-13-queen-editor-v7-gorev-2-civitai-anahtari-design.md) ·
-**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
+**Roadmap:** [v3 Koşu 3](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
 
 **Amaç:** Kurulum ekranı Civitai'deki dört SmoothMix dosyasını kendi indirsin; anahtar defterin
 Colab Secret'ından ortam değişkeniyle gelsin.

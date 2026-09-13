@@ -1,7 +1,7 @@
 # v14 Görev 28 eki — Bekleyen karo da döner: İMPLEMENTASYON döngüsü tasarımı
 
 **Tarih:** 2026-08-24 · **Kaynak:** [test spec'i](2026-08-24-queen-editor-v14-gorev-28-halka-testler-design.md)
-**Yol haritası:** [v14](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 28
+**Yol haritası:** [v4](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 28
 
 ## Kırmızı testin istediği
 

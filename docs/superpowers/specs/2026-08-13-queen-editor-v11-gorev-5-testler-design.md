@@ -1,7 +1,7 @@
 # v11 Görev 5 — kare köşeleri yeniden dağıtılır: TEST döngüsü (tasarım)
 
 **Tarih:** 2026-08-13 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v11](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 1/2 (testler)
+**Yol haritası:** [v3 Koşu 6](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 1/2 (testler)
 
 Bu spec **yalnız testleri** tanımlıyor. Kod bu döngüde değişmiyor.
 

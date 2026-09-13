@@ -1,7 +1,7 @@
 # v12 Görev 1 — Tohumsuz iş: İMPLEMENTASYON döngüsü (tasarım)
 
 **Tarih:** 2026-08-14 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v12](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
+**Yol haritası:** [v3 Koşu 7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 2/2
 **Testler:** [test spec'i](2026-08-14-queen-editor-v12-gorev-1-testler-design.md) ·
 commit `e1c3d86` (beş test kırmızı)
 

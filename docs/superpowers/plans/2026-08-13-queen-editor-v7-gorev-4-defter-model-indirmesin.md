@@ -1,7 +1,7 @@
 # Görev 4 — Defter model indirmeyi bıraksın (uygulama planı)
 
 **Spec:** [Görev 4](../specs/2026-08-13-queen-editor-v7-gorev-4-defter-model-indirmesin-design.md) ·
-**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
+**Roadmap:** [v3 Koşu 3](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
 
 **Amaç:** Defterin model indirme işi tamamen kalksın; "bunu defter kurar" diyen her cümle ve her
 kod parçası gitsin; iki yaşayan belge yeni gerçeği anlatsın.

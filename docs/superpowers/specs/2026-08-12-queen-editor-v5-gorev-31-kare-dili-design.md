@@ -1,7 +1,7 @@
 # Görev 31 — "Kare" dili genele
 
 **Maddeler:** 104, 62, 63, 64, 65
-**Roadmap:** [v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 9
+**Roadmap:** [v3 Koşu 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 9
 **Fark belgesi:** [v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 
 ## Sorun

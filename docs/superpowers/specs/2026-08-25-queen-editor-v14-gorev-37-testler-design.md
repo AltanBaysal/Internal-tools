@@ -1,7 +1,7 @@
 # v14 Görev 37 — Export fotoğrafları da taşır: TEST döngüsü tasarımı
 
 **Tarih:** 2026-08-25 · **Kaynak:** Kullanıcı, 25 Ağustos
-**Yol haritası:** [v14](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 37
+**Yol haritası:** [v4](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 37
 
 ## Sorun
 

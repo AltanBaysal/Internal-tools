@@ -1,6 +1,6 @@
 # Görev 6 — Defter ve belgeler
 
-**Roadmap:** [v6](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
+**Roadmap:** [v3 Koşu 2](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
 
 ## Sorun
 

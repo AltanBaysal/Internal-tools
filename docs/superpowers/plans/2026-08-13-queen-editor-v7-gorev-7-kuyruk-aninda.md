@@ -1,7 +1,7 @@
 # Görev 7 — Kuyruğa eklenen kare anında görünsün (uygulama planı)
 
 **Spec:** [Görev 7](../specs/2026-08-13-queen-editor-v7-gorev-7-kuyruk-aninda-design.md) ·
-**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 3
+**Roadmap:** [v3 Koşu 3](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 3
 
 **Amaç:** Kuyruğa ekleme cevabı galeriyi de taşısın; ekran ikinci bir tur atmasın.
 

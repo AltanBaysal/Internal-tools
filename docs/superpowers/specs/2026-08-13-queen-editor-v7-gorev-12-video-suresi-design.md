@@ -1,6 +1,6 @@
 # Görev 12 — Video süresi tek yerden gelsin
 
-**Roadmap:** [v7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 4
+**Roadmap:** [v3 Koşu 3](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 4
 
 ## Sorun
 

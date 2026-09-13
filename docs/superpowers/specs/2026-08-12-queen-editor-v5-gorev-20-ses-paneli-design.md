@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 20 — Ses üret paneli · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 6, Görev 20 ·
+**Yol haritası:** [roadmap v3 Koşu 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 6, Görev 20 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 30, 31 · madde 7'nin son adımı · **Tür:** arka uç + ön yüz.
 

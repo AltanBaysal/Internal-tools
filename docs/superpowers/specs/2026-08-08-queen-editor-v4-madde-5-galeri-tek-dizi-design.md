@@ -1,7 +1,7 @@
 # Queen Editor v4 · Madde 5 — Galeri tek dizi olur
 
 **Tarih:** 2026-08-08 · **Yol haritası:**
-[v4 Madde 5](../roadmaps/2026-08-08-queen-editor-v2-roadmap.md) · **Kapsadığı kodlar:** G1-G5, N2 ·
+[v2 Madde 5](../roadmaps/2026-08-08-queen-editor-v2-roadmap.md) · **Kapsadığı kodlar:** G1-G5, N2 ·
 **sapma:** aynı hatalı karenin iki kez çizilmesi · **Katman:** arka uç + ön yüz
 
 ## Amaç

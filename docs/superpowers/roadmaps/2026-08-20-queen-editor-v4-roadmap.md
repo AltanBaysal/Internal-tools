@@ -5,7 +5,7 @@
 H bölümü; 28 ve 29, 27'nin teşhisinden doğup 24 Ağustos'ta eklendi — I bölümü; 29 aynı gün
 kullanıcı kararıyla düştü, o yüzden 30'a kadarki payda 30 değil 29. 31–34 turun kendi içinden
 doğup aynı gün eklendi — K bölümü; 35, 36, 37 ve 38 ertesi gün kullanıcının isteğiyle eklendi.)*
-**Öncesi:** [v13](2026-08-12-queen-editor-v3-roadmap.md)
+**Öncesi:** [v3 Koşu 8](2026-08-12-queen-editor-v3-roadmap.md)
 
 ## Neden bu koşu var
 
