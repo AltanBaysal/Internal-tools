@@ -27,7 +27,7 @@ buradaki Bölüm 15 (çoklu model).
 **Tasarım kaynağı:** claude.ai/design projesi `Queen Editor` → `Queen Editor Basit v1.html` +
 `HANDOFF.md`. Proje linki: <https://claude.ai/design/p/efad1f83-69d3-4e07-89fa-3783839c81c3> —
 dosyalar repo'ya kopyalanmaz, her ihtiyaçta buradan taze çekilir (DesignSync `get_file`).
-**Yerini aldığı doküman:** [2026-07-24-queen-editor-roadmap.md](2026-07-24-queen-editor-roadmap.md)
+**Yerini aldığı doküman:** [2026-07-24-queen-editor-v0-roadmap.md](2026-07-24-queen-editor-v0-roadmap.md)
 — oradaki Bölüm 6 buradaki Bölüm 6'ya, Bölüm 7 buradaki Bölüm 13+14'e erimişti.
 
 ## Tamamlanan bölümler (1-14)

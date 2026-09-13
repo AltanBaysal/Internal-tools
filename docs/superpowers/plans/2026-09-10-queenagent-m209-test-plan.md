@@ -1,7 +1,7 @@
 # Madde 209 · Tur 1 (testler) — Plan
 
 **Tasarım:** [2026-09-10-queenagent-m209-surum-testler-design.md](../specs/2026-09-10-queenagent-m209-surum-testler-design.md)
-**Kaynak:** [yol haritasının Madde 209'u](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynak:** [yol haritasının Madde 209'u](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 
 **Bu turda kaynak kod yazılmaz.** Dört test kırmızıya döner.
 

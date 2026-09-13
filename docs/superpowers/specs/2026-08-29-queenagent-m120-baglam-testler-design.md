@@ -1,6 +1,6 @@
 # Madde 120 — İşin bağlamı skillere ve plana iner · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 120 —
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 120 —
 kullanıcının kendi cümlesi: *"modele ne yaptığımızın contextini vermezsek nereden bilecek?"*
 
 ## Kök neden

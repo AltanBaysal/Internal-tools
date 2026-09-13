@@ -1,6 +1,6 @@
 # Madde 53 — FOUNDATION'ın iki kararı · Tasarım
 
-**Madde:** [v4 yol haritası Madde 53](../roadmaps/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 53](../roadmaps/2026-08-20-queen-agent-v4-roadmap.md)
 **Bu belgenin konusu:** hangi iki karar yanlış hâle geldi, yerlerine ne yazılacak, ve hangi cümle
 hangi kipte kurulacak.
 

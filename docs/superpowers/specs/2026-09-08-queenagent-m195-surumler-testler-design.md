@@ -1,6 +1,6 @@
 # Madde 195 · test turu — düzenlenen mesaj sohbeti sürümler
 
-**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), Madde 195.
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 195.
 
 ---
 

@@ -1,6 +1,6 @@
 # Madde 41 — Senaryo kısa ve madde madde · Uygulama Turu Tasarım Belgesi
 
-**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 41](../roadmaps/2026-08-18-queenagent-v3-roadmap.md)
+**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 41](../roadmaps/2026-08-18-queen-agent-v3-roadmap.md)
 **Test turu:** [2026-08-19-queenagent-m41-senaryo-testler-design.md](2026-08-19-queenagent-m41-senaryo-testler-design.md) — kırmızı commit `9f946d3`
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 

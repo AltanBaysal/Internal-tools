@@ -1,6 +1,6 @@
 # Madde 6 — Kenar çubuğu kuralı ve logo · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 6](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 6](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynaklar:** fark 2, 8, 9 · **karar 6, 15** · `HANDOFF.md` §2, §7
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

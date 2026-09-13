@@ -1,7 +1,7 @@
 # Madde 208 — tek kare yazan araç kalkar · uygulama turu
 
 **Kaynak:** [test turu](2026-09-10-queenagent-m208-tek-kare-araci-testler-design.md) ve
-[yol haritasının Madde 208'i](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
+[yol haritasının Madde 208'i](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 
 Altı test kırmızı commit edildi *(`4973df2`)*, ve üç bekçi yeşil duruyor. Bu tur kodu yazıyor.
 

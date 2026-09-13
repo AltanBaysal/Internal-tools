@@ -1,6 +1,6 @@
 # Madde 14 — Akış görselleri · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 14](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 14](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** fark 41, 42, 43 · `HANDOFF.md` §3
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

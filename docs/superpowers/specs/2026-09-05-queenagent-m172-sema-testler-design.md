@@ -1,6 +1,6 @@
 # Madde 172 · test turu — şema uçar, yerine `SDXL_PROMPT_RULES` gelir
 
-**Kaynağı:** [v7 yol haritası, Madde 172](../roadmaps/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [v7 yol haritası, Madde 172](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md).
 Dilim 1'in son maddesi; ardından Deneme 1. Bu tur yalnız testleri yazar.
 
 ---

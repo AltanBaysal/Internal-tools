@@ -1,7 +1,7 @@
 # Madde 82 — Model seçme sistemi sökülür · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 82 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 4, Madde 82 ·
 **Üstüne geldiği:** [Madde 72](2026-08-26-queenagent-m72-grok-build-tek-model-uygulama-design.md) —
 modeli teke indirdi, makineyi bıraktı.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod yazılmaz, ve tur kırmızı

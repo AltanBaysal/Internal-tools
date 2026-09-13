@@ -1384,7 +1384,7 @@ neyin neden değiştiğini anlatmaya devam ediyor ama metnin son hâli burasıd�
 33'ün aynısı, öteki metin için — ve bu kayıt iki şeyi birden tutuyor: cümlelerin **nasıl
 yazıldığını**, ve **nerede duracaklarını**. İkincisi bir ara Madde 204 diye ayrı yazılmıştı, sonra
 190'ın içine alındı *(kullanıcı kararı, 10 Eylül)*: bölme bir metin kararı, ve 190 zaten metinleri
-okuyor. Numara [yol haritasında geri çekildi](superpowers/roadmaps/2026-09-06-queenagent-v8-roadmap.md).
+okuyor. Numara [yol haritasında geri çekildi](superpowers/roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 
 **Neden bölünüyor.** Metin altı araca birden ekleniyor — `add_character`, `update_character`,
 `add_outfit`, `update_outfit`, `add_location`, `update_location` — ve dört paragrafının ikisi
@@ -1654,7 +1654,7 @@ bağlandı** — 10 Eylül'de kapandı.
 | H | 2. ve 3. paragraf girdi yazmayan okuyuculara da gidiyor | **34** — ortak metin ikiye bölündü, girdinin kuralı alanına indi |
 
 Sekizi de bu log'da duruyor. H bir ara ayrı bir madde *(204)* diye yazılmıştı; 190'ın içine alındı
-ve numarası [yol haritasında geri çekildi](superpowers/roadmaps/2026-09-06-queenagent-v8-roadmap.md) —
+ve numarası [yol haritasında geri çekildi](superpowers/roadmaps/2026-09-06-queen-agent-v8-roadmap.md) —
 bölme bir metin kararı, ve metinleri okuyan zaten 190.
 
 Ayrıca kodun kendi yorumunda, modele gitmeyen ama yanlış olan bir cümle vardı: `run_tool`'un

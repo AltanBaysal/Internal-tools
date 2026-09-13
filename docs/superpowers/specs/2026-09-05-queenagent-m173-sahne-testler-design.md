@@ -1,6 +1,6 @@
 # Madde 173 · test turu — kare sahnesiyle doğar
 
-**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queenagent-v7-roadmap.md), Madde 173. Dilim 2'nin ilk
+**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md), Madde 173. Dilim 2'nin ilk
 maddesi, ve Dilim 1'in açık bıraktığı çatlağı kapatıyor: `add_frames`'in açıklaması hâlâ *"each
 shaped as the schema says"* diyor, oysa şema 172'de öldü. Model kare eklemeye geldiğinde şekli
 öğreneceği yer yok — tahmin ediyor.

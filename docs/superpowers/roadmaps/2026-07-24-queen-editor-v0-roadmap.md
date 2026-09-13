@@ -1,8 +1,13 @@
-# Queen Editor — Yol Haritası
+# Queen Editor — Yol Haritası v0
 
 > **Bu dokümanın yerini aldı:** [2026-08-03-queen-editor-v1-roadmap.md](2026-08-03-queen-editor-v1-roadmap.md) (tasarım güncellemesi). Bölüm 1-5 burada yazıldığı gibi tamamlandı; Bölüm 6-7 yeni yol haritasına eridi.
 
-**Tarih:** 2026-07-24 · **Durum:** Bölüm 1-5 bitti (her biri Colab'da doğrulandı) · devamı v2 yol haritasında
+> **v0 dallardan öncedir, ve koşu dalı yoktur.** 13 Eylül 2026'da adlandırıldı: o gün her yol
+> haritasının adı *tarih-tool-sürüm* biçimine geçti, ve bu belge sürümsüz kalamazdı. `v0` "ilk daldan
+> önce" demek — `feat/queen-editor-v1` bu belge kapandıktan sonra açıldı, yani adlanacak bir dal hiç
+> olmadı. Uydurulmuş bir dal adı da yazılmadı.
+
+**Tarih:** 2026-07-24 · **Durum:** Bölüm 1-5 bitti (her biri Colab'da doğrulandı) · devamı v1 yol haritasında
 **Şemsiye tasarım (kararların tamamı):** [2026-07-24-queen-editor-v1-design.md](../specs/2026-07-24-queen-editor-v1-design.md)
 
 Tek kaynak: bütün bölümlerin dökümü burada. İlke **önce çalıştır, sonra sağlamlaştır** — en riskli/en belirsiz parçalar önce, tek tek kanıtlanır; her bölüm bir öncekinin üstüne birikir, hiçbirinin çıktısı çöpe gitmez. Bölümler küçük tutuldu; her biri Colab'da "evet oldu" denerek kapanır. Sırası gelen bölümün detaylı planı o an yazılır.

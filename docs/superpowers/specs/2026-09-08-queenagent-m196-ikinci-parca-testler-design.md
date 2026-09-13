@@ -1,6 +1,6 @@
 # Madde 196 · test turu — sistem promptunun ikinci parçası
 
-**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), Madde 196.
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 196.
 
 ---
 

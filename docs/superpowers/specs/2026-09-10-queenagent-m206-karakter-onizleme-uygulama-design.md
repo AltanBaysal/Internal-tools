@@ -1,7 +1,7 @@
 # Madde 206 — karakter önizleme aracı kalkar · uygulama turu
 
 **Kaynak:** [test turu](2026-09-10-queenagent-m206-karakter-onizleme-testler-design.md) ve
-[yol haritasının Madde 206'sı](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
+[yol haritasının Madde 206'sı](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 
 Yedi test kırmızı commit edildi *(`df6f581`)*. Bu tur onları yeşile çeviren kodu yazıyor —
 yazarak değil, silerek.

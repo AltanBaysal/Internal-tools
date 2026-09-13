@@ -1,6 +1,6 @@
 # Madde 57 · Tur 1 (test) — Tasarım
 
-**Madde:** [v4 yol haritası Madde 57](../roadmaps/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 57](../roadmaps/2026-08-20-queen-agent-v4-roadmap.md)
 **Bu belgenin konusu:** sunucu hücresini **ne tutacak**.
 
 ---

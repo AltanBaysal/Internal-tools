@@ -1,7 +1,7 @@
 # Madde 78 — Tool call satırı yeniden çizilir · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md), Madde 78 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md), Madde 78 ·
 **Tur:** ikiden birincisi — bu belge yalnız **testleri** tarif eder.
 
 ---

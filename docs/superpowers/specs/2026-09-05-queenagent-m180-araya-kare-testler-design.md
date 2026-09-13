@@ -1,6 +1,6 @@
 # Madde 180 · test turu — araya kare
 
-**Kaynağı:** [yol haritası, Madde 180](../roadmaps/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 180](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md).
 Koşunun ilk maddesi, ve `feat/queenagent-v7.5`'in ilk kodu.
 
 ---

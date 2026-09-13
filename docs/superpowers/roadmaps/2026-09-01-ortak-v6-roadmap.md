@@ -79,7 +79,7 @@ yasaklıyor.
 
 Bugün elde duran yarım ilaç **sıra düzeltmesi**: ana karakter promptun başında, geri kalan
 `camera`'dan sonra; araya mekân, action ve camera giriyor, iki tarif temas etmiyor.
-[Madde 95](2026-08-25-queenagent-v5-roadmap.md) ile koda girdi. Mesafe karışmayı azaltıyor, ama
+[Madde 95](2026-08-25-queen-agent-v5-roadmap.md) ile koda girdi. Mesafe karışmayı azaltıyor, ama
 parçayı bölmüyor — ve bedeli yukarıda yazılı.
 
 27 Ağustos'ta `BREAK` kullanılamadı, çünkü **bir model özelliği değil, promptu okuyan arayüzün
@@ -510,7 +510,7 @@ Kaynak: [Civitai ekosistem sayfası](https://civitai.com/ecosystems/anima),
   geçer"* çıkarılabilir ama o **çıkarım, ölçüm değil**, üstelik iki skor farklı harness'lardan.
   Maddenin işi hüküm vermek değil, iki modeli kullanıcının önüne yan yana koymak — hükmü o verecek.
 
-- **[Madde 82](2026-08-25-queenagent-v5-roadmap.md) bozulmuyor, yeri değişiyor.** O karar
+- **[Madde 82](2026-08-25-queen-agent-v5-roadmap.md) bozulmuyor, yeri değişiyor.** O karar
   *"modelin adının geçtiği tek yer config, sohbet kendi modelini taşımıyor"* diyor
   *([config.py:24-25](../../../queen-agent/backend/config.py#L24-L25))*. Bu madde onu geri almıyor:
   koşu başına yine **tek** ad var, yalnız artık defterin formundan geliyor. Mekanizma da yerinde —

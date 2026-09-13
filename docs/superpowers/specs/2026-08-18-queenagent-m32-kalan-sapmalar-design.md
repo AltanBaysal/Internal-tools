@@ -1,6 +1,6 @@
 # Madde 32 — Kalan sapmalar kapanır · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 32](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 32](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** sapma 79, 83, 84, 85 · [tasarım v2 farkları](../research/2026-08-14-mira-tasarim-farklari.md)
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

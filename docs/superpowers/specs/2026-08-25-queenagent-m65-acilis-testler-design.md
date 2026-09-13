@@ -1,7 +1,7 @@
 # Madde 65 — Açılış taslak sohbete düşer · **test turu**
 
 **Tarih:** 2026-08-25 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md), Madde 65 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md), Madde 65 ·
 **Tur:** ikiden birincisi — bu belge yalnız **testleri** tarif eder. Kod ikinci turda yazılır ve
 o turun kendi spec'i olur.
 

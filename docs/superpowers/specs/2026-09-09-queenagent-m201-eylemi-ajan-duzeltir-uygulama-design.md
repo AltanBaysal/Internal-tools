@@ -1,6 +1,6 @@
 # Madde 201 · uygulama turu — eylem satırını ana ajan düzeltir
 
-**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), Madde 201, ve
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 201, ve
 [test turu](2026-09-09-queenagent-m201-eylemi-ajan-duzeltir-testler-design.md) — 5 kırmızı.
 
 ---

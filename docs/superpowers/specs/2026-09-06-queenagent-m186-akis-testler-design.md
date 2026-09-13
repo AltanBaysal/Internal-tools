@@ -1,6 +1,6 @@
 # Madde 186 · test turu — Generate prompts+ kalkar, akış altı adım olur
 
-**Kaynağı:** [yol haritası, Madde 186](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 186](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 185 `2a1304e`'de kapandı, ve bu madde onun üstünde duruyor.
 
 ---

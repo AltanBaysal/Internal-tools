@@ -1,6 +1,6 @@
 # Madde 187 · test turu — hazır prompt parçaları
 
-**Kaynağı:** [yol haritası, Madde 187](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 187](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 186 `d32a5bb`'de kapandı.
 
 ---

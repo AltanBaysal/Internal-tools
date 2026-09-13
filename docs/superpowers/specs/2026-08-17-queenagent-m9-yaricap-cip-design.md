@@ -1,6 +1,6 @@
 # Madde 9 — Yarıçaplar, çip, dosya satırı · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 9](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 9](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynaklar:** fark 15 (rozet ayağı), 38, 54, 56, 77 · sapma 88, 89 · `HANDOFF.md` §10
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

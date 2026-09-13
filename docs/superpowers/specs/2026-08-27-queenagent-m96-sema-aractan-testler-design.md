@@ -1,7 +1,7 @@
 # Madde 96 — Şema ve kural kitabı araçtan gelir · **test turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 96 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 6, Madde 96 ·
 **Kararları:** [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) K27, K28 ·
 **Şartı:** Madde 95 — şemanın anlattığı `people` alanını kod zaten yerleştiriyor *(`1e11e78`)*
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.

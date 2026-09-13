@@ -1776,12 +1776,12 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
 # docs (yol haritasının sol/sağ düzeltmesi + durum satırı dahil)
 git add -- docs/superpowers/specs/2026-07-25-queen-editor-b5-coklu-foto-design.md \
   docs/superpowers/plans/2026-07-25-queen-editor-b5-coklu-foto.md \
-  docs/superpowers/roadmaps/2026-07-24-queen-editor-roadmap.md
+  docs/superpowers/roadmaps/2026-07-24-queen-editor-v0-roadmap.md
 git commit -m "docs(queen-editor): Bölüm 5 — çoklu foto spec + plan, yol haritası düzeltmesi" -m \
   "Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>" -- \
   docs/superpowers/specs/2026-07-25-queen-editor-b5-coklu-foto-design.md \
   docs/superpowers/plans/2026-07-25-queen-editor-b5-coklu-foto.md \
-  docs/superpowers/roadmaps/2026-07-24-queen-editor-roadmap.md
+  docs/superpowers/roadmaps/2026-07-24-queen-editor-v0-roadmap.md
 # feat
 git add -- queen-editor/backend queen-editor/frontend/src queen-editor/frontend/dist
 git commit -F "<scratchpad>/b5-commit-msg.txt" -- \

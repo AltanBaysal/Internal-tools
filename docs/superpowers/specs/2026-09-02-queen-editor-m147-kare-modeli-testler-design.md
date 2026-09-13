@@ -1,6 +1,6 @@
 # Madde 147 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [v6 yol haritası — Madde 147](../roadmaps/2026-09-01-v6-roadmap.md#madde-147--kare-hangi-modelle-üretildiğini-söyler-queen-editor)
+**Kaynak:** [v6 yol haritası — Madde 147](../roadmaps/2026-09-01-ortak-v6-roadmap.md#madde-147--kare-hangi-modelle-üretildiğini-söyler-queen-editor)
 **Dal:** `feat/v6` · **Önceki commit:** `45503ac`
 
 ## Problem

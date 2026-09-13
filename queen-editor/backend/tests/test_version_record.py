@@ -90,11 +90,20 @@ def test_one_version_has_one_roadmap():
 
 
 def test_the_name_says_the_branch_the_roadmap_ran_on():
-    """A name is only a record while it cannot lie, and the branch is what it must not lie about."""
+    """A name is only a record while it cannot lie, and the branch is what it must not lie about.
+
+    v0 is the one exemption and it is not a gap: that run closed before feat/queen-editor-v1 was cut,
+    so there is no branch to name. The number says exactly that -- before the first branch -- and the
+    document says it too. Any other roadmap with a silent header is the drift starting again.
+    """
     parted = []
     for name in _roadmaps():
         declared = _branch_in_header(_read(os.path.join(ROADMAPS, name)))
         named = NAMED.search(name).group(1)
+        # v0 has no branch by definition, and its header says so by naming the branch that came
+        # after it -- which is why the exemption is the whole version and not just a silent header.
+        if named == "0":
+            continue
         if declared != named:
             parted.append(f"{name}: adı v{named}, başlığı {'v' + declared if declared else 'hiçbir dal'}")
 

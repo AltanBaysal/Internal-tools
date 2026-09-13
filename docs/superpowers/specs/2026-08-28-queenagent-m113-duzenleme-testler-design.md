@@ -1,6 +1,6 @@
 # Madde 113 — prompt+ var olanı da düzenler · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 113.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 113.
 **Sebep:** prompt+'ın metni yalnız baştan kurmayı anlatıyor — açılışı *"this is the skill that
 builds them"*, gövdesi iskeletten listeye giden yol. *"Bu promptu beğenmedim, üçüncü kareyi
 değiştir"* hiçbir yerde geçmiyor; metinde görmediği işi zayıf model ya reddeder ya baştan kurar.

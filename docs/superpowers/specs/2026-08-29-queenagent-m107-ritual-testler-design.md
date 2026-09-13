@@ -1,6 +1,6 @@
 # Madde 107 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) · Madde 107
+**Kaynak:** [2026-08-25-queen-agent-v5-roadmap.md](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) · Madde 107
 **Dal:** `feat/queenagent-m123-skill-rewrite` — kullanıcı onayı 29 Ağustos.
 
 ## Sorun

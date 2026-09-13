@@ -1,6 +1,6 @@
 # Madde 139 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [v6 yol haritası, Madde 139](../roadmaps/2026-09-01-v6-roadmap.md)
+**Kaynak:** [v6 yol haritası, Madde 139](../roadmaps/2026-09-01-ortak-v6-roadmap.md)
 **Şartı:** 138 — koşuldu, denendi, `BREAK` işe yarıyor *(kullanıcı yargısı, 1 Eylül)*.
 **Dal:** `feat/v6`
 

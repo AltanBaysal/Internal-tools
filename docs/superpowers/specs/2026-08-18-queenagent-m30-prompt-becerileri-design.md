@@ -1,6 +1,6 @@
 # Madde 30 — Prompt üreten üç beceri: düz, yapılı, denetleyen · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 30](../roadmaps/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 30](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** [beceriler tasarım kararları](../research/2026-08-18-queenagent-beceriler-tasarim-kararlari.md) §2, §4, §5, §5b, §6, §9, §9b
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

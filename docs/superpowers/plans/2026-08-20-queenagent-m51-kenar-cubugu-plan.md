@@ -1,6 +1,6 @@
 # Madde 51 — Sol kenar çubuğu tek düğmeyle kapanır · Plan (iki tur)
 
-**Madde:** [v3 yol haritası Madde 51](../roadmaps/2026-08-18-queenagent-v3-roadmap.md) ·
+**Madde:** [v3 yol haritası Madde 51](../roadmaps/2026-08-18-queen-agent-v3-roadmap.md) ·
 **Kaynak:** [test bulguları, bulgu 3](../research/2026-08-18-queenagent-test-bulgulari.md)
 **Test komutları (değişmez, ikisi de):**
 `python -m pytest queen-agent -q` · `npm test --prefix queen-agent/frontend`

@@ -1,6 +1,6 @@
 # Madde 107 · Tur 2 (uygulama) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) · Madde 107
+**Kaynak:** [2026-08-25-queen-agent-v5-roadmap.md](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) · Madde 107
 **Testler kırmızı commit'te (7666334).** Bu tur yalnız `prompt.py` ve `skills.py` metinlerine dokunur.
 
 ## Cümleler

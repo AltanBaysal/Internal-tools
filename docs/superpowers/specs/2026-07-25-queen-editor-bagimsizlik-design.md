@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-07-25 · **Durum:** onaylandı, uygulama bekliyor
 **Değiştirdiği spec:** [2026-07-24-queen-editor-v1-design.md](2026-07-24-queen-editor-v1-design.md) — Drive kökü kararı
-**İlgili:** [Bölüm 3 spec](2026-07-25-queen-editor-b3-proje-design.md) · [yol haritası](../roadmaps/2026-07-24-queen-editor-roadmap.md)
+**İlgili:** [Bölüm 3 spec](2026-07-25-queen-editor-b3-proje-design.md) · [yol haritası](../roadmaps/2026-07-24-queen-editor-v0-roadmap.md)
 
 ## Amaç
 
@@ -68,7 +68,7 @@ Test değişmez: testler `tmp_path` kullanıyor, gerçek yola bağlı değil. 42
 | Dosya | Değişiklik |
 |---|---|
 | [şemsiye spec](2026-07-24-queen-editor-v1-design.md) | Drive kökü karar satırı + Drive düzeni şeması + doğrulama adımı 3; bu spec'e link |
-| [yol haritası](../roadmaps/2026-07-24-queen-editor-roadmap.md) | Bölüm 3 satırındaki klasör yolu |
+| [yol haritası](../roadmaps/2026-07-24-queen-editor-v0-roadmap.md) | Bölüm 3 satırındaki klasör yolu |
 | [Bölüm 3 spec](2026-07-25-queen-editor-b3-proje-design.md) + [planı](../plans/2026-07-25-queen-editor-b3-proje.md) | yollar; kararın gerekçesi olarak hayalet kart notu |
 
 ### Bölüm 4-7'ye etkisi

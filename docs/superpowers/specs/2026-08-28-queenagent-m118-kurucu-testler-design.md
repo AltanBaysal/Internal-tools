@@ -1,6 +1,6 @@
 # Madde 118 — Akış kurucuyu çağırmaz · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 118.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 118.
 **Gözlenen** *(28 Ağustos, beşinci deneme)*: sahne listesi yazıldıktan sonra akış kullanıcıyı
 prompt+'a göndermedi; kapanışı *"şimdi build_prompts aracını çalıştır... istersen önce bir
 karakter önizlemesi de yapabilirim. Onaylıyor musun, yoksa bir değişiklik var mı?"* oldu.

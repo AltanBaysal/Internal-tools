@@ -1,6 +1,6 @@
 # Madde 116 — Sohbetin adı ilk mesajın kısaltılmışı olur · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 116.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 116.
 **Gözlenen** *(28 Ağustos, dördüncü deneme)*: yeni sohbet uzun bir ilk mesajla açılınca ad mesajın
 tamamı çıkıyor — oysa `chat.py`'de `TITLE_LIMIT = 42` var ve `chat_title` kesiyor.
 

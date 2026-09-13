@@ -1,7 +1,7 @@
 # Madde 100 — Skill seçimi yenilemeden sonra hatırlanır · **uygulama turu**
 
 **Tarih:** 2026-08-28 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 100 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 6, Madde 100 ·
 **Turun birincisi:** [test turu](2026-08-28-queenagent-m100-hatirlama-testler-design.md) — yedi
 kırmızı commit'lendi *(`527b378`)*.
 **Tur:** ikiden ikincisi — bu belge **yalnız kodu** tarif eder.

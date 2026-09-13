@@ -1,7 +1,7 @@
 # Madde 197 · uygulama turu — düzenleme mesajın kendi yerinde
 
 **Kaynağı:** [test turu](2026-09-08-queenagent-m197-yerinde-duzenleme-testler-design.md), ve onun
-kaynağı [v8 yol haritası](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), Madde 197.
+kaynağı [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 197.
 
 Kırmızı: ön yüzde 11.
 

@@ -1,7 +1,7 @@
 # Madde 1 — Mira → QueenAgent · Uygulama Planı
 
 **Tasarım belgesi:** [2026-08-16-queenagent-m1-ad-design.md](../specs/2026-08-16-queenagent-m1-ad-design.md)
-**Yol haritası:** [QueenAgent v2](../roadmaps/2026-08-15-queenagent-v2-roadmap.md), Faz 0 · Madde 1
+**Yol haritası:** [QueenAgent v2](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md), Faz 0 · Madde 1
 
 **İki commit.** Önce yalnız testler (kırmızı gider), sonra implementasyon. Klasör taşıma ikinci
 commit'e aittir — testler hâlâ `mira/` altındayken kırmızıya döner, taşıma ve düzeltme birlikte

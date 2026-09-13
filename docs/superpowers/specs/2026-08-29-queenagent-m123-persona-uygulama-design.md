@@ -1,6 +1,6 @@
 # Madde 123 — Skill metinleri persona ile açılır ve kısalır · Tur 2 (uygulama) tasarımı
 
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 123 ve
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 123 ve
 [tur 1'in tasarımı](2026-08-29-queenagent-m123-persona-testler-design.md). Testler kırmızı
 commit'te — akış 848 kelimeden 450'nin, prompt+ 300'ün altına iner.
 

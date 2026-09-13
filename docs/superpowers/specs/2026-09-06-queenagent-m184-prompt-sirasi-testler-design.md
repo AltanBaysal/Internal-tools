@@ -1,6 +1,6 @@
 # Madde 184 · test turu — karakterler önde, mekân sonda
 
-**Kaynağı:** [yol haritası, Madde 184](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 184](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 189 `356cdf4`'te kapandı.
 
 ---

@@ -1,6 +1,6 @@
 # Madde 143 — Panel seçilen modeli sayar · Tur 1 (test) — Tasarım
 
-**Kaynak:** [v6 yol haritası](../roadmaps/2026-09-01-v6-roadmap.md), Madde 140'ın bıraktığı sonuç
+**Kaynak:** [v6 yol haritası](../roadmaps/2026-09-01-ortak-v6-roadmap.md), Madde 140'ın bıraktığı sonuç
 **Dal:** `feat/v6`
 **Bu tur yalnız test yazar.**
 

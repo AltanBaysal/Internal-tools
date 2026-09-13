@@ -15,7 +15,7 @@ deponun kuralı bunu yasaklıyor.
 1. **`git mv queen-agent/app.ipynb queen-agent/queenagent.ipynb`** — `mv`, sil-ve-yaz değil: git
    dosyanın aynı dosya olduğunu görsün, geçmişi kopmasın.
 
-2. **Yürürlükteki yol haritası** — `2026-08-20-queenagent-v4-colab-roadmap.md` içindeki `app.ipynb`
+2. **Yürürlükteki yol haritası** — `2026-08-20-queen-agent-v4-roadmap.md` içindeki `app.ipynb`
    geçişleri yeni ada çevrilir, ve Madde 61 kayda eklenir.
 
 ## Dokunulmayanlar, ve neden

@@ -1,6 +1,6 @@
 # Madde 178 · test turu — skill metinleri yeni takımı anlatır
 
-**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queenagent-v7-roadmap.md), Madde 178.
+**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md), Madde 178.
 
 Bu tur **yalnız testleri** yazıyor ve kırmızı commit'liyor.
 

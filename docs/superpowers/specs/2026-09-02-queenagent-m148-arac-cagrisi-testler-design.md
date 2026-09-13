@@ -1,6 +1,6 @@
 # Madde 148 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [v6 yol haritası](../roadmaps/2026-09-01-v6-roadmap.md), Madde 148
+**Kaynak:** [v6 yol haritası](../roadmaps/2026-09-01-ortak-v6-roadmap.md), Madde 148
 **Dal:** `feat/v6` · **Bu tur yalnız test yazar.**
 
 ## Kusur

@@ -1,6 +1,6 @@
 # Madde 108 — Devir beşinci adım olur · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) Madde 108.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 108.
 **Gözlenen** *(28 Ağustos, ikinci deneme)*: akış sahne listesinden sonra durmadı — Generate
 prompts+'ı hiç göstermedi, frame'leri *"yazayım mı?"* diye kendisi teklif etti, ve istenince onunu
 tek `edit_file`'da yazdı.

@@ -1,6 +1,6 @@
 # Madde 206 — karakter önizleme aracı kalkar · test turu
 
-**Kaynak:** [yol haritasının Madde 206'sı](../roadmaps/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynak:** [yol haritasının Madde 206'sı](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 
 ## Ne kanıtlanacak
 

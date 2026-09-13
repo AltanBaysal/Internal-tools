@@ -1,7 +1,7 @@
 # Madde 77 — Seçiciler proje ekranına iner, açılış eskiye döner · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md), Madde 77 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md), Madde 77 ·
 **Tur:** ikiden birincisi — bu belge yalnız **testleri** tarif eder.
 
 ---

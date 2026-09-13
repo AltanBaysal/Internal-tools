@@ -1,6 +1,6 @@
 # Madde 135 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) · Madde 135
+**Kaynak:** [2026-08-25-queen-agent-v5-roadmap.md](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) · Madde 135
 **Dal:** `feat/queenagent-m123-skill-rewrite`.
 
 ## Sorun

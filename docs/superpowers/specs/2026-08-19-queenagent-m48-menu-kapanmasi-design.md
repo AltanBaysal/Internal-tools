@@ -1,6 +1,6 @@
 # Madde 48 — Seçim menüyü kapatır · Tasarım Belgesi
 
-**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 48](../roadmaps/2026-08-18-queenagent-v3-roadmap.md)
+**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 48](../roadmaps/2026-08-18-queen-agent-v3-roadmap.md)
 **Kaynak:** [test bulguları, bulgu 14](../research/2026-08-18-queenagent-test-bulgulari.md)
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 

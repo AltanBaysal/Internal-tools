@@ -1,6 +1,6 @@
 # Madde 179 · test turu — okunan dosya istekte bir kere durur
 
-**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queenagent-v7-roadmap.md), Madde 179. Arşiv dalının
+**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md), Madde 179. Arşiv dalının
 *"Bekleyen"*inden geldi; kullanıcı 5 Eylül'de bu koşuya aldı. Koşunun son maddesi.
 
 ---

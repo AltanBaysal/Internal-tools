@@ -1,6 +1,6 @@
 # Madde 199 · test turu — şerit ve kalem tek satırda
 
-**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queenagent-v8-roadmap.md), Madde 199.
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 199.
 
 ---
 

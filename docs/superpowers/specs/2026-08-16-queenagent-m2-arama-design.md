@@ -1,7 +1,7 @@
 # Madde 2 — Arama gider · Tasarım Belgesi
 
 **Tarih:** 2026-08-16 · **Yol haritası:**
-[QueenAgent v2](../roadmaps/2026-08-15-queenagent-v2-roadmap.md), Faz 1 · Madde 2 ·
+[QueenAgent v2](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md), Faz 1 · Madde 2 ·
 **Fark:** [madde 6](../research/2026-08-14-mira-tasarim-farklari.md)
 
 **Amaç:** aramayı üç parçasıyla birlikte sökmek — kenar çubuğu düğmesi, ⌘K kısayolu ve katman.

@@ -1,7 +1,7 @@
 # Madde 100 — Skill seçimi yenilemeden sonra hatırlanır · **test turu**
 
 **Tarih:** 2026-08-28 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 100 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 6, Madde 100 ·
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod bir sonraki turda.
 
 ---

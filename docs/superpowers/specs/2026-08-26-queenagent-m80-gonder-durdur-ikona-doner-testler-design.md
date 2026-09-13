@@ -1,7 +1,7 @@
 # Madde 80 — Gönder ve durdur düğmesi ikon taşır · **test turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 80 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 4, Madde 80 ·
 **Bir önceki:** [Madde 79](2026-08-26-queenagent-m79-gonder-durdurmaya-doner-uygulama-design.md) —
 iki düğmeyi tek düğmede topladı.
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder. Kod yazılmaz, ve tur kırmızı

@@ -1,7 +1,7 @@
 # Madde 98 — Karakter tek başına denenir · **test turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 98 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 6, Madde 98 ·
 **Kararı:** [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) K36 ·
 **Şartı:** Madde 95 — aynı kurucuyu paylaşıyor *(`1e11e78`)*
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.
