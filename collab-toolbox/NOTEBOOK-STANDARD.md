@@ -20,6 +20,7 @@ Traps that cost real time — don't rediscover them:
 - **Never ask for the size via HEAD / `Content-Length`.** HF's Xet CDN answers HEAD on a signed URL with **403**, and that 403's 48-byte body was read as "file size" — a fully downloaded 34.7 GB model got declared truncated.
 - **`curl --fail-with-body`, not `--fail`.** `--fail` swallows the body, leaving only "403".
 - **HF Xet rejects parallel byte ranges with 403** → single-connection curl (`parallel=False`).
+- **A published file can be longer than its own header says**, and that is not corruption. `Abiray/MiniMax-H3-GGUF`'s int4 text encoder carries 85 bytes after its last tensor; the server's `content-length` matches it byte for byte. Size arithmetic answers *is it complete*, never *is it loadable* — so the arithmetic decides only whether to resume, and the verdict goes to `safetensors.safe_open`, whose own error message is what gets printed. Rejecting on "longer than expected" declared a correct 14.9 GB model garbage.
 
 ## 4) Civitai (login-gated) downloads
 
