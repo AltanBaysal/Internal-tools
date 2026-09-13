@@ -1,6 +1,6 @@
 # Madde 138 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [v6 yol haritası, Madde 138](../roadmaps/2026-09-01-ortak-v6-roadmap.md)
+**Kaynak:** [v6 yol haritası, Madde 138](../roadmaps/2026-09-01-queen-agent-v6-roadmap.md)
 **Dal:** `feat/v6`
 
 ## Sorun

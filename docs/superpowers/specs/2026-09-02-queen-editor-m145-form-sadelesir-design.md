@@ -1,6 +1,6 @@
 # Madde 145 — Form modelleri anlatmayı bırakır · Tasarım
 
-**Kaynak:** [v6 yol haritası — Madde 145](../roadmaps/2026-09-01-ortak-v6-roadmap.md#madde-145--form-modelleri-anlatmayı-bırakır-queen-editor)
+**Kaynak:** [v6 yol haritası — Madde 145](../roadmaps/2026-09-01-queen-agent-v6-roadmap.md#madde-145--form-modelleri-anlatmayı-bırakır-queen-editor)
 **Dal:** `feat/v6` · **Önceki commit:** `cb6d190` *(739 yeşil; ön yüz 28 dosya / 587 yeşil)*
 
 ## Problem

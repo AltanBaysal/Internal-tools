@@ -1,6 +1,6 @@
 # Madde 140 · Üçüncü model — Tasarım *(iki tur birden)*
 
-**Kaynak:** [v6 yol haritası](../roadmaps/2026-09-01-ortak-v6-roadmap.md), Madde 140
+**Kaynak:** [v6 yol haritası](../roadmaps/2026-09-01-queen-agent-v6-roadmap.md), Madde 140
 **Önceki turlar:** `92e0eea` · `8a2f88b` · `4d8af7f` · `95a9ff4`
 **Dal:** `feat/v6`
 

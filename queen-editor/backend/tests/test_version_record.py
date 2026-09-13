@@ -36,8 +36,6 @@ WRONG_RULE = "highest `vN` current"
 
 # The shape every roadmap filename takes: a date, the tool it belongs to, and that tool's version.
 SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}-([a-z][a-z-]*)-v\d+-roadmap\.md$")
-# A run that touched more than one tool. Its branch carries no tool name either (feat/v6).
-SHARED = "ortak"
 # A product whose code never landed in main -- no folder to check it against, and the roadmap stays
 # as the record of what was built. Written down rather than inferred, so nobody renames it on a hunch.
 RETIRED = {"mira"}
@@ -148,14 +146,19 @@ def test_every_roadmap_name_says_a_date_a_tool_and_a_version():
     """The record is the name, so the name has a shape rather than a habit.
 
     Three parts, none optional: when the run opened, whose run it was, and which version. Missing any
-    one of them, the name stops answering on its own -- a roadmap with no tool cannot say it belongs to
-    both (feat/v6 did), and one with no version cannot say where it sits in the series.
+    one of them, the name stops answering on its own -- and one with no version cannot say where it
+    sits in the series.
 
-    The tool is checked against the repo itself: a folder at the root, or one of the two written-down
-    exceptions. That way adding a tool needs no edit here, and renaming a retired one needs a decision.
+    **A version belongs to exactly one tool's counter**, even when the run reached into the other one.
+    There is no shared counter: a name like ortak-v6 would claim a series whose v1 to v5 never
+    existed, while that 6 is only the sixth of queen-agent's. A run that crosses tools says so in its
+    own header, where the items can be named.
+
+    The tool is checked against the repo itself: a folder at the root, or the one written-down
+    exception. That way adding a tool needs no edit here, and renaming a retired one needs a decision.
     """
     folders = {name for name in os.listdir(REPO) if os.path.isdir(os.path.join(REPO, name))}
-    allowed = folders | RETIRED | {SHARED}
+    allowed = folders | RETIRED
 
     wrong = []
     for path in sorted(glob.glob(os.path.join(ROADMAPS, "*.md"))):
@@ -164,7 +167,7 @@ def test_every_roadmap_name_says_a_date_a_tool_and_a_version():
         if not shaped:
             wrong.append(f"{name}: tarih-tool-vN kalıbına uymuyor")
         elif shaped.group(1) not in allowed:
-            wrong.append(f"{name}: '{shaped.group(1)}' ne bir klasör ne de {sorted(RETIRED | {SHARED})}")
+            wrong.append(f"{name}: '{shaped.group(1)}' ne bir klasör ne de {sorted(RETIRED)}")
 
     assert not wrong, "Yol haritası adı standarda uymuyor:\n" + "\n".join(wrong)
 

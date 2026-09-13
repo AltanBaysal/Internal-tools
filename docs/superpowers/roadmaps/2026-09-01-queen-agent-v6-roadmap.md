@@ -1,4 +1,14 @@
-# v6 Yol Haritası — iki karakter, ve modeller
+# QueenAgent v6 Yol Haritası — iki karakter, ve modeller
+
+> **Sürümü QueenAgent'ın, ama queen-editor'e de dokundu.** Numarası QueenAgent'ın sayacından geliyor —
+> v5'ten devam ediyor, ardından v7 geliyor — ve queen-editor'ün sayacında bir karşılığı yok: bu koşu
+> için queen-editor dalı açılmadı, o yüzden queen-editor v4'ten v5'e geçti.
+>
+> Queen-editor'e dokunan maddeler: **138, 140, 141, 143, 144, 145, 147**. QueenAgent'a dokunanlar:
+> 139, 146, 148.
+>
+> *(13 Eylül 2026'da adlandırıldı. Önce `ortak-v6` denendi ve geri alındı: ortak diye bir sayaç yok,
+> v1'den v5'e kadar üyesi olmayan bir seri iddia ediyordu — oysa o 6, QueenAgent'ın altıncısı.)*
 
 **Tarih:** 2026-09-01 · **Branch:** `feat/v6` · **Kaynak:** iki backlog birden —
 [queen-editor/BACKLOG.md](../../../queen-editor/BACKLOG.md) ve
