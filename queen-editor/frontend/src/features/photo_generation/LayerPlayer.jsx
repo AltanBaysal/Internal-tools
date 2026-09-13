@@ -10,9 +10,11 @@ const BARS = 46;
 // it, and correcting on every tick would make the sound stutter.
 const DRIFT = 0.25;
 
+// Madde 212: the picture itself takes the click, so it says so -- while the video plays there is no
+// button drawn to say it instead.
 const SCENE = { position: "relative", width: "100%", maxWidth: "calc(100% - 120px)",
                 aspectRatio: "16/9", background: "#000", borderRadius: "var(--r-sm)",
-                overflow: "hidden" };
+                overflow: "hidden", cursor: "pointer" };
 // Fark 116: an outline and a darker ground, so the button reads as a button over any frame the
 // video happens to be paused on. Written in longhands -- the shorthand is not reliably read back.
 const BUTTON = { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
@@ -116,7 +118,7 @@ export default function LayerPlayer({ videoUrl, audioUrl }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-      <div data-scene style={SCENE}>
+      <div data-scene style={SCENE} onClick={toggle}>
         {/* Loops by itself: the design asks for a five second clip that keeps going round. */}
         <video ref={video} src={videoUrl} loop playsInline
                onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
@@ -124,8 +126,13 @@ export default function LayerPlayer({ videoUrl, audioUrl }) {
                onLoadedMetadata={() => setLength(video.current?.duration || 0)}
                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
         {audioUrl && <audio ref={audio} src={audioUrl} loop />}
-        <button type="button" aria-label={playing ? "Duraklat" : "Oynat"} onClick={toggle}
-                style={BUTTON}>
+        {/* Madde 212: a 64px disc over the middle of a five second clip covers what is being looked
+            at. It stays mounted and only stops drawing -- unmounted, a keyboard would have nothing
+            left to focus and pausing would be a mouse-only move. The click is stopped here because
+            the scene takes clicks too: turned twice, the video comes back to where it started. */}
+        <button type="button" aria-label={playing ? "Duraklat" : "Oynat"}
+                onClick={(event) => { event.stopPropagation(); toggle(); }}
+                style={{ ...BUTTON, opacity: playing ? 0 : 1 }}>
           {playing ? <PauseGlyph size={22} /> : <PlayGlyph size={22} />}
         </button>
 
