@@ -34,6 +34,14 @@ NAMED = re.compile(r"queen-editor-v(\d+)-roadmap\.md")
 # document is not the current version, it is only the newest thing written.
 WRONG_RULE = "highest `vN` current"
 
+# The shape every roadmap filename takes: a date, the tool it belongs to, and that tool's version.
+SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}-([a-z][a-z-]*)-v\d+-roadmap\.md$")
+# A run that touched more than one tool. Its branch carries no tool name either (feat/v6).
+SHARED = "ortak"
+# A product whose code never landed in main -- no folder to check it against, and the roadmap stays
+# as the record of what was built. Written down rather than inferred, so nobody renames it on a hunch.
+RETIRED = {"mira"}
+
 
 def _read(path):
     with open(path, encoding="utf-8") as handle:
@@ -59,10 +67,14 @@ def _branch_in_header(text):
 
 
 def _markdown():
-    """Every markdown file that could point at a roadmap."""
+    """Every markdown file that could point at a roadmap.
+
+    Both tools' own docs, not just this one's: a roadmap renamed here can be linked from over there,
+    and a link nobody resolves is how the drift started.
+    """
     under_docs = glob.glob(os.path.join(DOCS, "**", "*.md"), recursive=True)
-    beside_tool = glob.glob(os.path.join(TOOL, "*.md"))
-    return under_docs + beside_tool + [CLAUDE]
+    beside_tools = glob.glob(os.path.join(REPO, "*", "*.md"))
+    return under_docs + beside_tools + [CLAUDE]
 
 
 def test_one_version_has_one_roadmap():
@@ -121,6 +133,31 @@ def test_a_roadmap_can_still_reach_everything_it_links_to():
                 dangling.setdefault(os.path.basename(path), set()).add(link)
 
     assert not dangling, f"Yol haritasından çıkan kırık bağlantı: {dangling}"
+
+
+def test_every_roadmap_name_says_a_date_a_tool_and_a_version():
+    """The record is the name, so the name has a shape rather than a habit.
+
+    Three parts, none optional: when the run opened, whose run it was, and which version. Missing any
+    one of them, the name stops answering on its own -- a roadmap with no tool cannot say it belongs to
+    both (feat/v6 did), and one with no version cannot say where it sits in the series.
+
+    The tool is checked against the repo itself: a folder at the root, or one of the two written-down
+    exceptions. That way adding a tool needs no edit here, and renaming a retired one needs a decision.
+    """
+    folders = {name for name in os.listdir(REPO) if os.path.isdir(os.path.join(REPO, name))}
+    allowed = folders | RETIRED | {SHARED}
+
+    wrong = []
+    for path in sorted(glob.glob(os.path.join(ROADMAPS, "*.md"))):
+        name = os.path.basename(path)
+        shaped = SHAPE.match(name)
+        if not shaped:
+            wrong.append(f"{name}: tarih-tool-vN kalıbına uymuyor")
+        elif shaped.group(1) not in allowed:
+            wrong.append(f"{name}: '{shaped.group(1)}' ne bir klasör ne de {sorted(RETIRED | {SHARED})}")
+
+    assert not wrong, "Yol haritası adı standarda uymuyor:\n" + "\n".join(wrong)
 
 
 def test_roadmaps_live_in_their_own_folder():
