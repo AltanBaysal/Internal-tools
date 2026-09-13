@@ -20,6 +20,7 @@ TOOL = os.path.dirname(          # queen-editor
         os.path.dirname(os.path.abspath(__file__))))  # tests
 REPO = os.path.dirname(TOOL)
 
+ROADMAPS = os.path.join(REPO, "docs", "superpowers", "roadmaps")
 PLANS = os.path.join(REPO, "docs", "superpowers", "plans")
 DOCS = os.path.join(REPO, "docs")
 CLAUDE = os.path.join(REPO, "CLAUDE.md")
@@ -41,7 +42,7 @@ def _read(path):
 
 def _roadmaps():
     """Every queen-editor roadmap, by filename."""
-    found = glob.glob(os.path.join(PLANS, "*queen-editor-v*-roadmap.md"))
+    found = glob.glob(os.path.join(ROADMAPS, "*queen-editor-v*-roadmap.md"))
     return sorted(os.path.basename(path) for path in found)
 
 
@@ -88,16 +89,31 @@ def test_the_name_says_the_branch_the_roadmap_ran_on():
     assert not parted, "Ad ile dal ayrışıyor:\n" + "\n".join(parted)
 
 
-def test_nothing_points_at_a_roadmap_that_is_not_there():
-    """Merging thirteen documents into five breaks every link into the eight that go. Counted here
-    rather than found later by somebody following one."""
+def test_every_link_to_a_roadmap_resolves_from_where_it_is_written():
+    """Two costs, one assertion.
+
+    Merging thirteen documents into five deletes eight names; moving the rest into roadmaps/ keeps
+    every name and changes every path. An assertion that only asked whether a NAME matched some file
+    would have seen the first and slept through the second -- so the link is resolved the way a reader
+    follows it: relative to the file it is written in.
+    """
     dangling = {}
     for path in _markdown():
-        for named in set(re.findall(r"[\w\-.]*queen-editor-v\d+-roadmap\.md", _read(path))):
-            if not os.path.exists(os.path.join(PLANS, named)):
-                dangling.setdefault(os.path.relpath(path, REPO), set()).add(named)
+        here = os.path.dirname(path)
+        for link in set(re.findall(r"\(([^()\s]*[\w\-.]*-roadmap\.md)\)", _read(path))):
+            if not os.path.exists(os.path.normpath(os.path.join(here, link))):
+                dangling.setdefault(os.path.relpath(path, REPO), set()).add(link)
 
-    assert not dangling, f"Var olmayan yol haritasına atıf: {dangling}"
+    assert not dangling, f"Çözülemeyen yol haritası bağlantısı: {dangling}"
+
+
+def test_roadmaps_live_in_their_own_folder():
+    """One roadmap left behind in plans/ is a second rule, and a second rule leaves the next run
+    guessing where its own document goes."""
+    left = sorted(os.path.basename(p) for p in glob.glob(os.path.join(PLANS, "*-roadmap*.md")))
+
+    assert not left, f"plans/ altında kalan yol haritası: {left}"
+    assert os.path.isdir(ROADMAPS), "docs/superpowers/roadmaps/ yok"
 
 
 def test_claude_md_no_longer_calls_the_newest_document_the_current_version():

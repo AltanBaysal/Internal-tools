@@ -45,6 +45,41 @@ yapıyor; onları taşıyan referans düzeltmesi de bölüme kadar götürüyor.
 Eski adlara atıf yapan **136 dosya** var — spec'ler, görev planları, araştırma belgeleri. Hepsi yeni
 ada çevrilir. Kırık bir bağlantı bırakmak, kaydı düzeltmek için kaydı okunmaz yapmak olurdu.
 
+## Yol haritaları kendi klasörüne taşınır
+
+*(Kullanıcı kararı, 13 Eylül — aynı maddenin içinde.)*
+
+`docs/superpowers/plans/` bugün **~1000 dosya** taşıyor ve bunların **14'ü** yol haritası; gerisi
+görev planları. İki ayrı tür belge aynı torbada: biri *harita*, öbürü *adım*.
+
+Taşınma kaydın kendisini tamamlıyor. 210'un vardığı yer **"ad kayıttır"**; ad ancak bulunabildiği
+kadar kayıt. `docs/superpowers/roadmaps/` klasörünü listelemek doğrudan v1…v5'i verir — bugün aynı
+soruyu sormak bin dosyalık bir listeye bakmak demek.
+
+**Abartılmıyor:** hepsi zaten `-roadmap.md` ile bitiyor, yani bir glob bugün de buluyor. Kazanç
+keşfedilebilirlik, mimari değil. Aynı maddede yapılmasının sebebi de bu — ayrı bir iş değil, aynı
+kaydın ikinci yarısı.
+
+**Üç tool birden taşınıyor**, 14 belgenin hepsi: queen-editor'ün beşi, QueenAgent'ın altısı, mira'nın
+biri, depo geneli v6, ve tarihsiz ilk queen-editor haritası. Yarısını taşımak iki kural bırakırdı.
+
+### Bağlantılar bu kez ad değil yol
+
+Ad değişmiyor, **yol** değişiyor — ve yol kaynağa göre farklı yazılmış. Derinlik aynı kaldığı için
+(`docs/superpowers/<klasör>/`) değişen tek şey kardeş klasörün adı:
+
+| Nereden | Bugün | Sonra |
+|---|---|---|
+| `plans/` içindeki bir görev planından | çıplak ad | `../roadmaps/<ad>` |
+| `specs/`, `research/` içinden | `../plans/<ad>` | `../roadmaps/<ad>` |
+| `CLAUDE.md`, `queen-editor/*.md` | `docs/superpowers/plans/<ad>` | `docs/superpowers/roadmaps/<ad>` |
+| Yol haritasının kendi içinden başka bir haritaya | çıplak ad | çıplak ad *(değişmiyor)* |
+| Yol haritasından bir görev planına | çıplak ad | `../plans/<ad>` |
+| Yol haritasından `../specs/`, `../../../queen-editor/` | aynı | aynı *(derinlik değişmiyor)* |
+
+Son iki satır taşınmanın asıl riski: **harita kendi içinden dışarı bakan bağlantıları da kayıyor.**
+Bir öncekinde yalnız adlar değişmişti; burada iki yön birden var.
+
 ## Testler ne tutar
 
 Kayıt dosyası kalkınca iddialar da değişiyor. Tutulan şey artık **adın kendisi**:
@@ -53,16 +88,22 @@ Kayıt dosyası kalkınca iddialar da değişiyor. Tutulan şey artık **adın k
 |---|---|
 | 1 | Hiçbir sürüm numarası iki belgede birden geçmiyor — bir sürüm, bir yol haritası |
 | 2 | Her yol haritasının başlığındaki dal, adındaki sürümle aynı: `v3-roadmap` → `feat/queen-editor-v3` |
-| 3 | Depoda var olmayan bir yol haritasına atıf yok — birleşmeden sonra kırık bağlantı kalmamış |
+| 3 | Bir yol haritasına giden her bağlantı, **yazıldığı dosyaya göre çözülüp** gerçekten bir dosyaya varıyor |
 | 4 | CLAUDE.md güncel sürümü *"en yüksek vN"* diye tarif etmiyor |
+| 5 | Yol haritaları `roadmaps/` altında duruyor, `plans/` altında tek bir harita kalmamış |
 
 **Birincisi bugünkü karmaşayı tarif ediyor:** iki dosya birden v5 diyor.
 
 **İkincisi adı dala bağlıyor.** Ad kayıtsa, yalan söyleyemediği bir şeye bağlanmalı; dal adı belgenin
 kendi başlığında zaten duruyor.
 
-**Üçüncüsü birleşmenin bedelini tutar.** Sekiz dosya silinince onlara giden her bağlantı kırılır; test
-tek tek sayar.
+**Üçüncüsü iki bedeli birden tutar, ve bu yüzden güçlendirildi.** İlk hâli yalnız *adın* bir dosyaya
+denk gelip gelmediğine bakıyordu; klasör taşınmasında ad değişmiyor, **yol** değişiyor, yani o iddia
+taşınmayı hiç görmezdi. Yenisi bağlantıyı yazıldığı dosyaya göre çözüyor — birleşmede silinen sekiz
+dosyayı da, taşınmada kayan her yolu da aynı iddia yakalıyor.
+
+**Beşincisi taşınmanın yarım kalmasını engelliyor.** `plans/` altında kalan tek bir harita iki kural
+demek, ve ikinci kural bir sonraki koşuda yazılanın nereye gideceğini belirsiz bırakır.
 
 ## Dokunulmayanlar
 
