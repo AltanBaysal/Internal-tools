@@ -1,6 +1,6 @@
 # Madde 50 — Sağ ray sürüklenerek ayarlanır · Tasarım
 
-**Madde:** [v3 yol haritası Madde 50](../roadmaps/2026-08-18-queen-agent-v3-roadmap.md) ·
+**Madde:** [v2 yol haritası Koşu 2 · Madde 50](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md) ·
 **Kaynak:** [test bulguları, bulgu 2](../research/2026-08-18-queenagent-test-bulgulari.md)
 **Kullanıcı kararı:** 19 Ağustos — "ray aslında alta inmesin hep sağda kalmalı VS Code gibi düşün;
 sürükle, bir miktarın altına gelince direkt kapansın".

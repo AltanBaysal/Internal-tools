@@ -1,6 +1,7 @@
 # QueenAgent v7 Yol Haritası — iki model, ve kaynak başına araçlar
 
-**Tarih:** 5 Eylül 2026 · **Dal:** `feat/queenagent-v7` *(v6'nın ucundan, `1f14120`)* · **Tool:** queen-agent
+**Tarih:** 5 Eylül 2026 · **Dal:** `feat/queenagent-v7` *(v6'nın ucundan, `1f14120`)*, ve **180–182
+`feat/queenagent-v7.5`'te koşuldu** · **Tool:** queen-agent
 
 **Kaynağı:** [2026-09-05-queenagent-v7-tasarim.md](../research/2026-09-05-queenagent-v7-tasarim.md).
 Kararlar orada; burası sıra ve maddeler. Bir madde belgeyle çelişirse belge kazanır ve madde düzelir.

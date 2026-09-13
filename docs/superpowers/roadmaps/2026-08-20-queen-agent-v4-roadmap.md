@@ -3,7 +3,7 @@
 **Tarih:** 2026-08-20 · **Branch:** `feat/queenagent-colab` — *20 Ağustos'ta `main`'e merge edildi
 (fast-forward). Defterin klonladığı dal Madde 64'te main'e çevrildi.*
 **Kaynak:** kullanıcı isteği — "arkadaşımla paylaşmak"; Colab, **derlenip commit'lensin**, veri
-**Drive'da**. Numaralar v3'ten devam eder (52'de bitti).
+**Drive'da**. Numaralar v2'nin Koşu 2'sinden devam eder (52'de bitti).
 **Örnek:** [queen-editor/app.ipynb](../../../queen-editor/app.ipynb) — desen oradan alınır.
 
 ---

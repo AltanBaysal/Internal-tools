@@ -1,5 +1,7 @@
 # QueenAgent v8 Yol Haritası — çıkan prompt, ve koşarken görünen
 
+**Tarih:** 6 Eylül 2026 · **Dal:** `feat/queenagent-v8` · **Tool:** queen-agent — *koşu kapandı ve
+`356d605` ile `main`'e alındı.*
 **Kaynağı:** `queen-agent/BACKLOG.md`, 6 Eylül — artı **195 ve 196, koşu sürerken eklendi**
 *(kullanıcı, 8 Eylül; backlog'dan değil, doğrudan)*. Taslak **yirmi maddeydi**, sekiz dilim, 183'ten
 203'e — **188 yok**, taslak okunurken geri çekildi *(aşağıda)*. Koşarken **beş madde daha** eklendi

@@ -1,6 +1,6 @@
 # Madde 43 — Kare açıklaması 1-2 cümle · Uygulama Turu Tasarım Belgesi
 
-**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 43](../roadmaps/2026-08-18-queen-agent-v3-roadmap.md)
+**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v2 yol haritası Koşu 2 · Madde 43](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Test turu:** [2026-08-19-queenagent-m43-kare-uzunlugu-testler-design.md](2026-08-19-queenagent-m43-kare-uzunlugu-testler-design.md) — kırmızı commit `fd7073a`
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 

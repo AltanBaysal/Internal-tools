@@ -37,25 +37,29 @@ dalı tutması oldu.
 
 **Bu belge önce *"QueenAgent tarafında hiç kaymamış"* diyordu; yanlıştı** *(13 Eylül'de bakıldı —
 cümle `feat/queenagent-v5`, `v7`, `v7.5`, `v8`'e bakıp oradan genel bir sonuç çıkarıyordu)*. Sekiz
-belgenin yalnız ikisi dalını birebir tutuyor:
+belgenin dalları, bakıldığı **ve düzeltildiği** hâlleriyle:
 
-| Yol haritası | Koştuğu dal |
-|---|---|
-| v1 | `feat/mira-v1` |
-| v2 | `fix/mira` |
-| v3 | `fix/mira` — v2 ile **aynı dal** |
-| v4 | `feat/queenagent-colab` *(numara taşımıyor)* |
-| v5 | `feat/queenagent-v5` ✓ |
-| v6 | `feat/v6` *(tool adı taşımıyor)* |
-| v7 | `feat/queenagent-v7` ✓ |
-| v8 | başlığı hiçbir dal adı vermiyor *(`feat/queenagent-v8` var, `356d605` ile merge edilmiş)* |
+| Yol haritası | Koştuğu dal | 13 Eylül'de |
+|---|---|---|
+| v1 | `feat/mira-v1` | — |
+| v2 | `fix/mira` | Koşu 1 oldu |
+| v3 | `fix/mira` — v2 ile **aynı dal** | Koşu 2 olarak v2'ye katıldı, **numarası boş kaldı** |
+| v4 | `feat/queenagent-colab` *(numara taşımıyor)* | — |
+| v5 | `feat/queenagent-v5` | — |
+| v6 | `feat/v6` *(tool adı taşımıyor)* | — |
+| v7 | `feat/queenagent-v7` | ikinci dalı **`feat/queenagent-v7.5`** başlığa girdi |
+| v8 | hiçbir dal adı vermiyordu | `feat/queenagent-v8` başlığa girdi *(`356d605` ile merge)* |
 
-Yani hastalık iki taraftaydı, ve **210 ikisini birden düzeltiyor** *(kullanıcı kararı, 13 Eylül:
-backlog'a atmak bunu ertelemek olurdu, oysa maddenin işi tam bu)*. Bakınca üç gerçek kusur çıktı,
-dördüncü sandığım şey kusur değilmiş: `feat/queenagent-v7.5` kayıp bir sürüm değil, **180–182
-maddeleri v7'nin yol haritasında duruyor** — v7 tıpkı v5 gibi iki dala yayılmış, yalnız başlığı
-ikincisini söylemiyor. `feat/queenagent-colab` ile `feat/v6`'nın numara ya da tool adı taşımaması da
-kusur değil: dal adı tarihî bir olgu, ve her birinin tek yol haritası var.
+Yani hastalık iki taraftaydı, ve **210 ikisini birden düzeltti** *(kullanıcı kararı, 13 Eylül:
+backlog'a atmak bunu ertelemek olurdu, oysa maddenin işi tam bu)*. Dördüncü sandığım şey kusur
+değilmiş: `feat/queenagent-v7.5` kayıp bir sürüm değil, **180–182 maddeleri v7'nin yol haritasında
+duruyor** — v7 tıpkı v5 gibi iki dala yayılmış, yalnız başlığı ikincisini söylemiyormuş.
+`feat/queenagent-colab` ile `feat/v6`'nın numara ya da tool adı taşımaması da kusur değil: dal adı
+tarihî bir olgu, ve her birinin tek yol haritası var.
+
+**v3 numarası kaydırılmadı.** `feat/queenagent-v5`, `v7` ve `v8` numaralarını adlarının içinde
+taşıyor; aşağı kayan her belge kendi dalıyla çelişirdi. Açıklanmış bir boşluk, kaymış bir numaradan
+iyidir — queen-editor'ün kaydında da *"v10 diye bir yol haritası yok"* aynı biçimde duruyor.
 
 Bu koşu v4'ün ardından açılan **ilk yeni dal**, yani v5.
 
