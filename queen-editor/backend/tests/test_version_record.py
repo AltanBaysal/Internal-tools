@@ -10,6 +10,11 @@ holds while no name can lie, which is what the assertions below are for.
 
 Text is what can answer here, and the failure guarded is a name drifting from the branch it names
 while every other test stays green.
+
+Both tools are read, not just this one. The first pass asked only about queen-editor and that is
+exactly where the second drift hid: QueenAgent's v2 and v3 both sat on fix/mira, and its v8 named no
+branch at all, while every assertion here stayed green. The counters are separate; the rules over
+them are not.
 """
 import glob
 import os
@@ -25,10 +30,14 @@ PLANS = os.path.join(REPO, "docs", "superpowers", "plans")
 DOCS = os.path.join(REPO, "docs")
 CLAUDE = os.path.join(REPO, "CLAUDE.md")
 
-# A run branch, as every roadmap spells it in its own header.
-BRANCH = re.compile(r"feat/queen-editor-v(\d+)")
-# The version a roadmap's filename claims.
-NAMED = re.compile(r"queen-editor-v(\d+)-roadmap\.md")
+# The header field naming the run's branch. Three spellings are in use and all three count -- the
+# question is which branch, not which word introduces it.
+LABEL = re.compile(r"\*\*(?:Branch|Dal|Koşu dalı):\*\*")
+# A branch as the headers write them: always in backticks, always under feat/ or fix/.
+BRANCH = re.compile(r"`((?:feat|fix)/[^`\s]+)`")
+# A branch name that ends in a version number -- feat/queen-editor-v5, feat/v6, feat/mira-v1. Not
+# every branch has one: the older ones were named before the habit settled.
+NUMBERED = re.compile(r"v(\d+)$")
 
 # What CLAUDE.md used to call the current version. It sent this session to v14: the highest numbered
 # document is not the current version, it is only the newest thing written.
@@ -44,21 +53,38 @@ def _read(path):
 
 
 def _roadmaps():
-    """Every queen-editor roadmap, by filename."""
-    found = glob.glob(os.path.join(ROADMAPS, "*queen-editor-v*-roadmap.md"))
-    return sorted(os.path.basename(path) for path in found)
+    """Every roadmap, as (filename, tool, version).
 
-
-def _branch_in_header(text):
-    """The run branch a roadmap declares, or None.
-
-    The label is not read -- older documents say **Branch:** where newer ones say **Koşu dalı:**, and
-    the question is which branch, not which word introduces it. The header is the first few lines: a
-    branch named further down belongs to some item's story, not to the run.
+    A name that does not match the shape is skipped instead of crashing here -- naming those is
+    test_every_roadmap_name_says_a_date_a_tool_and_a_version's job, and one failure reads better than
+    a stack trace in every other test.
     """
-    head = "\n".join(text.splitlines()[:8])
-    found = BRANCH.search(head)
-    return found.group(1) if found else None
+    found = []
+    for path in sorted(glob.glob(os.path.join(ROADMAPS, "*-roadmap.md"))):
+        name = os.path.basename(path)
+        shaped = SHAPE.match(name)
+        if shaped:
+            found.append((name, shaped.group(1), int(shaped.group(2))))
+    return found
+
+
+def _declared_branch(text):
+    """The branch a roadmap declares for its own run, or None.
+
+    Read from the label rather than from line order, because either shortcut produces a false red.
+    The FIRST label in the file is the document's own: a merged roadmap repeats the label inside
+    every Koşu N section, and queen-agent v1 mentions `fix/mira` in a note four lines above its own
+    header line.
+
+    Only the first branch on that line is the document's. A second one there is either the branch the
+    run was opened from (queen-agent v1) or a second branch the version spread onto (queen-agent v5,
+    items 124-132) -- neither is a claim on that branch.
+    """
+    for line in text.splitlines():
+        if LABEL.search(line):
+            found = BRANCH.search(line)
+            return found.group(1) if found else None
+    return None
 
 
 def _markdown():
@@ -73,34 +99,66 @@ def _markdown():
 
 
 def test_one_version_has_one_roadmap():
-    """Two files calling themselves v5 is the state this item exists to end."""
-    claimed = {}
-    for name in _roadmaps():
-        version = NAMED.search(name).group(1)
-        claimed.setdefault(version, []).append(name)
+    """Two files calling themselves v5 is the state this item exists to end.
 
-    doubled = {version: names for version, names in claimed.items() if len(names) > 1}
+    Per tool, because the counters are separate: queen-editor v5 and queen-agent v5 are two different
+    versions and always were.
+    """
+    claimed = {}
+    for name, tool, version in _roadmaps():
+        claimed.setdefault((tool, version), []).append(name)
+
+    doubled = {key: names for key, names in claimed.items() if len(names) > 1}
 
     assert not doubled, f"Aynı sürümü adlayan birden çok yol haritası: {doubled}"
 
 
-def test_the_name_says_the_branch_the_roadmap_ran_on():
-    """A name is only a record while it cannot lie, and the branch is what it must not lie about.
+def test_every_roadmap_says_which_branch_it_ran_on():
+    """A name cannot answer at all without a branch behind it.
 
-    v0 is the one exemption and it is not a gap: that run closed before feat/queen-editor-v1 was cut,
-    so there is no branch to name. The number says exactly that -- before the first branch -- and the
-    document says it too. Any other roadmap with a silent header is the drift starting again.
+    The branch is what makes a version something that happened rather than a number someone wrote. A
+    document naming none leaves its own number unbacked, and nothing else in the repo can say whether
+    that version ran, or where.
+    """
+    silent = [name for name, _, _ in _roadmaps()
+              if _declared_branch(_read(os.path.join(ROADMAPS, name))) is None]
+
+    assert not silent, "Başlığında dal adı olmayan yol haritası: " + ", ".join(silent)
+
+
+def test_no_branch_is_claimed_by_two_roadmaps():
+    """One branch, one roadmap -- the rule this whole item exists to restore.
+
+    Two documents on one branch is exactly how a counter starts counting documents instead of
+    versions, and it happened on both sides: nine queen-editor roadmaps on feat/queen-editor-v3, and
+    QueenAgent's v2 and v3 on fix/mira.
+    """
+    owners = {}
+    for name, _, _ in _roadmaps():
+        branch = _declared_branch(_read(os.path.join(ROADMAPS, name)))
+        if branch:
+            owners.setdefault(branch, []).append(name)
+
+    doubled = {branch: names for branch, names in owners.items() if len(names) > 1}
+
+    assert not doubled, f"Aynı dalı sahiplenen birden çok yol haritası: {doubled}"
+
+
+def test_a_numbered_branch_agrees_with_the_name():
+    """Where the branch carries a number, the filename carries the same one.
+
+    Not every branch does. fix/mira and feat/queenagent-colab were cut before the habit settled, and
+    a branch name cannot be corrected afterwards -- so what makes them a record is not what they are
+    called but that exactly one document claims each, which the assertion above is for.
     """
     parted = []
-    for name in _roadmaps():
-        declared = _branch_in_header(_read(os.path.join(ROADMAPS, name)))
-        named = NAMED.search(name).group(1)
-        # v0 has no branch by definition, and its header says so by naming the branch that came
-        # after it -- which is why the exemption is the whole version and not just a silent header.
-        if named == "0":
+    for name, _, version in _roadmaps():
+        branch = _declared_branch(_read(os.path.join(ROADMAPS, name)))
+        if not branch:
             continue
-        if declared != named:
-            parted.append(f"{name}: adı v{named}, başlığı {'v' + declared if declared else 'hiçbir dal'}")
+        numbered = NUMBERED.search(branch)
+        if numbered and int(numbered.group(1)) != version:
+            parted.append(f"{name}: adı v{version}, dalı `{branch}`")
 
     assert not parted, "Ad ile dal ayrışıyor:\n" + "\n".join(parted)
 

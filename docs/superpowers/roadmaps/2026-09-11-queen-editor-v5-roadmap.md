@@ -32,9 +32,30 @@ görev dosyası duruyor.)*
 Yani kayma v5'te başlamadı, **v3'te** başladı ve büyüyerek gitti: dört dal, on üç belge. On koşunun
 tek bir dalda biriktiği de doğru değil — dokuzu `v3`'te, biri `v4`'te.
 
-Kural depoda zaten işliyordu, yalnız queen-editor'de kaymıştı: **bir v bir daldır**, dal test edilir
-ve main'e girer. QueenAgent tarafında hiç kaymamış — `feat/queenagent-v5`, `v7`, `v7.5`, `v8` dalları
-belgeleriyle birebir tutuyor, merge commit'leri de (`25ad6b7 merge(v7)`, `356d605 merge(v8)`) öyle.
+Kural şu: **bir v bir daldır**, dal test edilir ve main'e girer. Kayan kuralın kendisi değil, adın
+dalı tutması oldu.
+
+**Bu belge önce *"QueenAgent tarafında hiç kaymamış"* diyordu; yanlıştı** *(13 Eylül'de bakıldı —
+cümle `feat/queenagent-v5`, `v7`, `v7.5`, `v8`'e bakıp oradan genel bir sonuç çıkarıyordu)*. Sekiz
+belgenin yalnız ikisi dalını birebir tutuyor:
+
+| Yol haritası | Koştuğu dal |
+|---|---|
+| v1 | `feat/mira-v1` |
+| v2 | `fix/mira` |
+| v3 | `fix/mira` — v2 ile **aynı dal** |
+| v4 | `feat/queenagent-colab` *(numara taşımıyor)* |
+| v5 | `feat/queenagent-v5` ✓ |
+| v6 | `feat/v6` *(tool adı taşımıyor)* |
+| v7 | `feat/queenagent-v7` ✓ |
+| v8 | başlığı hiçbir dal adı vermiyor *(`feat/queenagent-v8` var, `356d605` ile merge edilmiş)* |
+
+Yani hastalık iki taraftaydı, ve **210 ikisini birden düzeltiyor** *(kullanıcı kararı, 13 Eylül:
+backlog'a atmak bunu ertelemek olurdu, oysa maddenin işi tam bu)*. Bakınca üç gerçek kusur çıktı,
+dördüncü sandığım şey kusur değilmiş: `feat/queenagent-v7.5` kayıp bir sürüm değil, **180–182
+maddeleri v7'nin yol haritasında duruyor** — v7 tıpkı v5 gibi iki dala yayılmış, yalnız başlığı
+ikincisini söylemiyor. `feat/queenagent-colab` ile `feat/v6`'nın numara ya da tool adı taşımaması da
+kusur değil: dal adı tarihî bir olgu, ve her birinin tek yol haritası var.
 
 Bu koşu v4'ün ardından açılan **ilk yeni dal**, yani v5.
 
@@ -69,7 +90,7 @@ bir maddeyi kısmen bitmiş göstermenin yolu yok.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 210 | ✅ **Queen-editor'ün sürüm karmaşasının çözülmesi.** Belge sayacı v3'ten beri dal sayacının önünde gidiyordu: on üç yol haritası dört dala dağılmış, hiçbiri adının söylediği dalda koşmamış, ve **iki dosya birden kendini v5 diye adlandırıyordu**. Sebep, koşan yol haritasına madde eklenecek yerde her koşuda yeni bir roadmap açılması. **Ad artık kaydın kendisi** *(kullanıcı kararı, 11 Eylül — ayrı bir kayıt dosyası denendi ve reddedildi)*: on üç belge beşe indi — v1, v2, v3, v4 ve bu koşu — aynı dalda koşanlar tek dosyada kendi *Koşu N* bölümleri olarak birleşti, metinleri olduğu gibi. 157 dosyadaki bağlantı yeni adlara çevrildi. Ardından **14 haritanın hepsi — üç tool birden — `docs/superpowers/roadmaps/` klasörüne taşındı** *(kullanıcı kararı, 13 Eylül)*: ad ancak bulunabildiği kadar kayıt, ve bin dosyalık bir klasörde bulunmuyordu. CLAUDE.md'nin *"en yüksek vN güncel"* cümlesi de düzeldi: bu sabahki yanlış cevap oradan çıkmıştı. | Sorunun cevabı klasörü listelemekten okunuyor — en yüksek numaralı yol haritası v5, ve başlığı `feat/queen-editor-v5` diyor. Hiçbir sürüm numarası iki belgede geçmiyor, hiçbir ad kendi dalından başkasını söylemiyor, `plans/` altında harita kalmamış, ve bağlantılar iki yönde de çözülüyor — haritaya gidenler de haritadan çıkanlar da. Beşini de test tutuyor. |
+| 210 | **Sürüm karmaşasının çözülmesi.** Belge sayacı v3'ten beri dal sayacının önünde gidiyordu: on üç yol haritası dört dala dağılmış, hiçbiri adının söylediği dalda koşmamış, ve **iki dosya birden kendini v5 diye adlandırıyordu**. Sebep, koşan yol haritasına madde eklenecek yerde her koşuda yeni bir roadmap açılması. **Ad artık kaydın kendisi** *(kullanıcı kararı, 11 Eylül — ayrı bir kayıt dosyası denendi ve reddedildi)*: on üç belge beşe indi — v1, v2, v3, v4 ve bu koşu — aynı dalda koşanlar tek dosyada kendi *Koşu N* bölümleri olarak birleşti, metinleri olduğu gibi. 157 dosyadaki bağlantı yeni adlara çevrildi. Ardından **14 haritanın hepsi — üç tool birden — `docs/superpowers/roadmaps/` klasörüne taşındı** *(kullanıcı kararı, 13 Eylül)*: ad ancak bulunabildiği kadar kayıt, ve bin dosyalık bir klasörde bulunmuyordu. CLAUDE.md'nin *"en yüksek vN güncel"* cümlesi de düzeldi: bu sabahki yanlış cevap oradan çıkmıştı. **Sonra aynı soru QueenAgent'a soruldu** *(kullanıcı, 13 Eylül)* ve orada da kaymış çıktı — üstelik bu belge bir ara *"QueenAgent tarafında hiç kaymamış"* diye yazıyordu, ki yanlıştı. Üç kusur: **v2 ile v3 tek dalın** (`fix/mira`) **iki belgesi**, **v8'in başlığı hiçbir dal söylemiyor**, ve **v7 iki dala yayıldığı hâlde birini yazıyor**. Üçü de düzeliyor: v2 ile v3 tek belgede *Koşu 1* ve *Koşu 2* oluyor, ve **v3 numarası boş kalıyor** — aşağı kaydırmak `feat/queenagent-v5`, `v7`, `v8` dal adlarıyla çelişirdi, ve boşluk tam birleşmenin olduğu yerde durup kendini anlatıyor. Testin ad↔dal çivisi de yalnız `feat/queen-editor-vN` arıyordu, yani QueenAgent'ın dördü o boşlukta duruyordu; iki tool'u birden tutacak biçimde genişliyor. | Sorunun cevabı klasörü listelemekten okunuyor — en yüksek numaralı yol haritası v5, ve başlığı `feat/queen-editor-v5` diyor. Hiçbir sürüm numarası iki belgede geçmiyor, hiçbir ad kendi dalından başkasını söylemiyor, `plans/` altında harita kalmamış, ve bağlantılar iki yönde de çözülüyor — haritaya gidenler de haritadan çıkanlar da. **İki tool için de** böyle: her yol haritası başlığında dalını veriyor, hiçbir dalı iki belge sahiplenmiyor, ve dal adı bir numara taşıyorsa belgenin numarasıyla aynı. Hepsini test tutuyor. |
 | 212 | **Oynatma düğmesi video oynarken üstünde duruyor.** *(Kullanıcı bildirimi, 6 Eylül.)* Video başlayınca başlat/durdur düğmesi kaybolmuyor, görüntünün **üzerinde kalıyor** ve karenin bir kısmını örtüyor. | Video oynarken düğme görüntünün üstünde değil, kare tamamen görünüyor; video durunca düğme geri geliyor. |
 | 216 | **Video üretiminde varsayılan mod Loop olur.** *(Kullanıcı, 11 Eylül.)* Video panelindeki Üretim modu seçicisi bugün **Standart** ile açılıyor; bundan sonra **Loop** ile açılacak. Yalnız varsayılan değişiyor: üç seçenek de yerinde kalıyor, ses panelinde seçici zaten doğmuyor, ve detay sayfasındaki *Yeni mod* kutusu **değişmiyor** — onun varsayılanı o videonun kendi modu olmaya devam ediyor, çünkü orası yeni bir iş değil var olan bir videoyu yeniden üretiyor. Butonun altındaki tahmin ve eklendikten sonraki onay cümlesi zaten moda göre konuşuyor, yani kendiliğinden loop'u söyler. | Video paneli ilk açıldığında seçicide Loop yazıyor, ve hiçbir şeye dokunmadan kuyruğa eklenen video işi loop modunda kaydedilip loop olarak üretiliyor. |
 | 211 | **Silinen standart videodan sonra loop eklenince ikisi birden üretiliyor gibi görünüyor.** *(Kullanıcı bildirimi, 6 Eylül.)* Kareye standart video eklendi → silindi → yerine loop video eklendi. Ekranda **ikisi birden** üretiliyormuş gibi görünüyor, standart ve loop yan yana. Sebebi **araştırılmadı**, ve buraya bir tahmin yazılmıyor: silinen işin gerçekten iptal edilmemesi de olabilir, yalnız ön yüzün eski satırı bırakması da. İkisi çok farklı yerlerde durur. **Kullanıcıdan gereken** *(spec'in başında sorulur)*: silinen video gerçekten üretilmiş miydi yoksa sırada mıydı, ekranda kaç satır göründü, ve dışa aktarmaya hangisi düştü — yani hata yalnız görüntüde mi, yoksa diske de mi ulaşıyor. | Aynı sıra tekrarlanıyor — standart eklenip siliniyor, yerine loop ekleniyor — ve karede tek satır kalıyor; dışa aktarmaya da tek video düşüyor. |
