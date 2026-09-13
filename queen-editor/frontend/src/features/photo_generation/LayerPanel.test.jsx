@@ -292,8 +292,10 @@ describe("LayerPanel — sending", () => {
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
-    expect(screen.getByText("2 video kuyruğa eklendi")).toBeTruthy();
+    // Madde 216: untouched, the video panel now asks for loop -- and the card confirms in that
+    // mode's own noun.
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "loop");
+    expect(screen.getByText("2 loop video kuyruğa eklendi")).toBeTruthy();
   });
 
   it("asks only for what is selected when that is the scope", async () => {
@@ -304,7 +306,7 @@ describe("LayerPanel — sending", () => {
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(["0_a.png"], 1, "standard");
+    expect(onQueue).toHaveBeenCalledWith(["0_a.png"], 1, "loop");
   });
 
   it("sends the variant count along with the scope", async () => {
@@ -314,7 +316,7 @@ describe("LayerPanel — sending", () => {
     fireEvent.change(variantBox(), { target: { value: "2" } });
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null, 2, "standard");
+    expect(onQueue).toHaveBeenCalledWith(null, 2, "loop");
   });
 
   it("does not explain who writes the prompt -- the frame's own page does", () => {
