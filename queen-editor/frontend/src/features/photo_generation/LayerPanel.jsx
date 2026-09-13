@@ -178,7 +178,12 @@ function ModeRow({ label, active, disabled, onPick }) {
 // Artboard: the photo panel's shape with a different subject. What it does not ask for is the
 // point -- the prompt is written by a language model when the job's turn comes, and the length is
 // fixed, so the only questions left are which frames, and how many of each.
-export default function LayerPanel({ layer, frames, selected, producer, onQueue, onInstall }) {
+// `job`, `busyElsewhere` and `error` are here for one sentence each, the way the photo panel takes
+// them: there is a single worker, so a run started from another project refuses this one, and until
+// madde 215 this panel was told none of it -- the press went out, came back 409, and the answer
+// landed in a panel that was not the open one.
+export default function LayerPanel({ layer, frames, selected, producer, job, busyElsewhere, error,
+                                     onQueue, onInstall }) {
   const words = WORDS[layer];
   const [scope, setScope] = useState("missing");
   // Kept by both panels though only the video one shows the row: a sound ends nowhere, so it has
@@ -331,7 +336,7 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
             which is the design's own exception: not a field but an engine that is not here yet, and
             the card at the top of the panel says so. */}
         <button type="button" className="wf-btn wf-btn--hl"
-                disabled={submitting || missingProducer} onClick={handleAdd}
+                disabled={submitting || missingProducer || busyElsewhere} onClick={handleAdd}
                 style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}>
           {submitting
             ? <><span className="qe-spinner" aria-hidden="true" /> Ekleniyor…</>
@@ -357,6 +362,21 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
             <Note size={12} style={{ color: "var(--danger)" }}>✕</Note>
             <Note size={12} style={{ color: "var(--danger)" }}>{refused}</Note>
           </div>
+        ) : error ? (
+          // The same card for the server's refusal: both answer why this press went nowhere, and
+          // they cannot both be true -- one belongs to a press never sent, the other to one that was.
+          <div className="wf-stroke"
+               style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: 8,
+                        borderColor: "var(--danger)", background: "var(--danger-bg)" }}>
+            <Note size={12} style={{ color: "var(--danger)" }}>✕</Note>
+            <Note size={12} style={{ color: "var(--danger)" }}>{error}</Note>
+          </div>
+        ) : busyElsewhere ? (
+          // Not red: another project running is a state, not a fault. It says why the button above
+          // it is closed, in the photo panel's own words.
+          <Note size={12} style={{ color: "var(--ink-3)" }}>
+            Üretim sürüyor: {job.project} — bitmesini bekle.
+          </Note>
         ) : owed ? (
           // The copy warning takes the mode's tail, never its head: the mode is already named in
           // what comes out, so what is given up is an echo of the marked row just above.
