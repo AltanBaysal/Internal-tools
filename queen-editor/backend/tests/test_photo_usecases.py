@@ -1604,9 +1604,43 @@ def settled_slot_project(layer, status):
     return store, record, plan_store
 
 
-def ask_again(store, record, plan_store, layer, generator, files=None):
-    return queue_layer(sync_runner(), store, record, plan_store, FakeOrderStore(),
-                       {layer: generator}, lambda: "t", "düğün", layer, files=files)
+def ask_again(store, record, plan_store, layer, generator, files=None,
+              mode=production_mode.STANDARD, runner=None):
+    return queue_layer(runner or sync_runner(), store, record, plan_store, FakeOrderStore(),
+                       {layer: generator}, lambda: "t", "düğün", layer, files=files, mode=mode)
+
+
+def idle_runner():
+    """A runner that takes the work and never gets to it -- the queue as a user walks away from it.
+
+    Madde 211 happens while a job is still owed, so the queue has to be readable in that state: a
+    runner that drains it on the way out answers a different question.
+    """
+    return PhotoRunner(spawn=lambda fn: None)
+
+
+def frame_with_a_photo():
+    """One frame, its picture made, nothing else ever asked for.
+
+    Deliberately emptier than settled_slot_project: the sequence below writes the plan's video line
+    itself, by asking for a video the way the panel does. A line written by hand here would be the
+    same shape defined in two places, and _job is where it belongs.
+    """
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0)])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    store.files["0_a.png"] = b"PNGDATA"
+    return store, record, plan_store
+
+
+def drop_the_video(store, record, plan_store):
+    """What the user's press does: the layer goes, and the job the queue still owed goes with it."""
+    return remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", ["0_a"], layers.VIDEO)
+
+
+def owed_of(store, record, plan_store):
+    return list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]["owed"]
 
 
 def test_a_sound_pulled_out_of_the_queue_can_be_asked_for_again():
@@ -1643,6 +1677,66 @@ def test_a_deleted_layer_can_be_asked_for_again():
     ask_again(store, record, plan_store, layers.AUDIO, generator)
 
     assert len(generator.calls) == 1
+
+
+def test_a_video_asked_for_again_is_owed_once():
+    """Madde 211, reported 13 September: a standard video was queued, deleted while it was still
+    owed, and a loop one asked for in its place -- and the card said video üretiliyor twice.
+
+    The status lives per (frame, layer) while the plan may hold several lines for that same pair, so
+    writing queued to reopen the new line reopens every old one along with it.
+    """
+    store, record, plan_store = frame_with_a_photo()
+    generator = FakeGenerator()
+
+    ask_again(store, record, plan_store, layers.VIDEO, generator, runner=idle_runner())
+    drop_the_video(store, record, plan_store)
+    ask_again(store, record, plan_store, layers.VIDEO, generator,
+              mode=production_mode.LOOP, runner=idle_runner())
+
+    assert owed_of(store, record, plan_store) == [layers.VIDEO]
+
+
+def test_three_rounds_of_asking_and_dropping_still_leave_one_job():
+    """The user's own second reading: stopping and adding again made it say three."""
+    store, record, plan_store = frame_with_a_photo()
+    generator = FakeGenerator()
+
+    for _ in range(3):
+        ask_again(store, record, plan_store, layers.VIDEO, generator, runner=idle_runner())
+        drop_the_video(store, record, plan_store)
+    ask_again(store, record, plan_store, layers.VIDEO, generator,
+              mode=production_mode.LOOP, runner=idle_runner())
+
+    assert owed_of(store, record, plan_store) == [layers.VIDEO]
+
+
+def test_only_one_video_is_made_after_the_first_was_dropped():
+    """Not the card's problem alone: the engine reads the same open jobs, so a line left open is a
+    video that really gets made."""
+    store, record, plan_store = frame_with_a_photo()
+    generator = FakeGenerator()
+
+    ask_again(store, record, plan_store, layers.VIDEO, generator, runner=idle_runner())
+    drop_the_video(store, record, plan_store)
+    # This one runs: what the queue does once somebody lets it.
+    ask_again(store, record, plan_store, layers.VIDEO, generator, mode=production_mode.LOOP)
+
+    assert len(generator.calls) == 1
+
+
+def test_the_video_that_gets_made_is_the_one_last_asked_for():
+    """The item's own acceptance line: standard went in, was deleted, loop was asked for, and what
+    the frame ends up holding is a loop."""
+    store, record, plan_store = frame_with_a_photo()
+    generator = FakeGenerator()
+
+    ask_again(store, record, plan_store, layers.VIDEO, generator, runner=idle_runner())
+    drop_the_video(store, record, plan_store)
+    ask_again(store, record, plan_store, layers.VIDEO, generator, mode=production_mode.LOOP)
+
+    made = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+    assert made["modes"].get(layers.VIDEO) == production_mode.LOOP
 
 
 def test_reopening_a_settled_slot_is_written_down():
