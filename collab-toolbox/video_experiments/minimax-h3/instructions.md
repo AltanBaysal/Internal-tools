@@ -75,6 +75,13 @@ indirmiyor.
   varsayılanı OFF.
 - 🧺 **MiniMax H3 Cache'i ilk denemede açma.** Hız kazandırıyor ama grafiğin kendi uyarısı:
   *"can ghost/morph"*. Açıkken bozuk çıktının suçlusu model mi cache mi ayrılamaz.
+- ⚠️ **Dosyalar damgalı geliyor.** Bu nicelemeleri üreten araç, son tensörden sonra bir satır ASCII
+  bırakıyor: `L2P_bypass_<kaynak dosya>_<unix zaman>`. ComfyUI'nin kendi okuyucusu *(DynamicVRAM
+  açıkken)* görmez, Rust `safetensors` reddeder — yani aynı dosya ayara göre yükleniyor
+  *([ComfyUI #15602](https://github.com/Comfy-Org/ComfyUI/issues/15602))*. Reddin cümlesi de
+  gerçekten kesik bir dosyanınkiyle aynı: *"incomplete metadata, file not fully covered"*.
+  `manual.ipynb` bu kuyruğu **basıp kesiyor**, o yüzden defterden geçen dosyalarda sorun çıkmaz —
+  ama modeli elle indirirsen bu duvara çarparsın.
 - ⚠️ **ComfyUI "Nodes 2.0 beta" ile kullanma** — DaSiWa'nın WAN workflow'larında bozulmaya yol
   açıyordu, aynı node seti burada da var.
 - Grafik **subgraph** kullanıyor (node tipi olarak UUID geçen yerler) — eski ComfyUI ön yüzü açamaz.
