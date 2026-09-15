@@ -34,7 +34,8 @@ listede yok: onu biz ekliyoruz, deponun öteki deneme defterlerinde olduğu gibi
 `MiniMaxH3Director`, `MiniMaxH3Cache`, `MiniMaxH3SigmaShift`, `MiniMaxChunkFeedForward`,
 `MiniMaxH3DirectorGuide` node'ları grafiğin saydığı beşinin hiçbirinde adı geçmiyor. Grafiğin Quick Start notu
 *"routes to the **native** H3 backend automatically"* diyor — yani güncel ComfyUI'nin kendinden
-gelmesi bekleniyor. Doğrulanmadı; UI açılınca görülecek.
+gelmesi bekleniyor. **Doğrulandı** *(14 Eylül)*: grafik yüklendiğinde tek bir "missing node" uyarısı
+çıkmadı. H3 desteği ComfyUI çekirdeğinde — model 3 Ağustos 2026'da açıldığında aynı gün girmiş.
 
 ---
 
