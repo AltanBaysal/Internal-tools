@@ -1,6 +1,13 @@
 import { useState } from "react";
 
-import { createProject, deleteProject, renameProject } from "../../shared/api.js";
+import {
+  archiveProject,
+  createProject,
+  deleteProject,
+  listArchivedProjects,
+  renameProject,
+  restoreProject,
+} from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
@@ -44,7 +51,44 @@ export default function ProjectsScreen() {
   // what the request is addressed to.
   const [renamingName, setRenamingName] = useState(null);
   const [busy, setBusy] = useState(false);
-  const crowded = projects.length > FITS;
+  // Which of the two lists is on screen. One at a time: drawing the archive beside the projects
+  // would make the list longer, which is the thing archiving is for (madde 221).
+  const [inArchive, setInArchive] = useState(false);
+  // The archive as last read, or null while it has never been read. Read when it is opened rather
+  // than on mount: a user who never archives anything should not pay for a second request.
+  const [archived, setArchived] = useState(null);
+  const [archiveError, setArchiveError] = useState(null);
+  const shown = inArchive ? (archived || []) : projects;
+  const crowded = shown.length > FITS;
+
+  async function refreshArchive() {
+    try {
+      setArchived(await listArchivedProjects());
+      setArchiveError(null);
+    } catch (err) {
+      // Same shape as the projects list: the server's own words, and the screen stays usable.
+      setArchived([]);
+      setArchiveError(err.message);
+    }
+  }
+
+  async function handleArchive(name) {
+    await archiveProject(name);
+    // Drive is the single source of truth here too -- and both lists changed, so both are re-read.
+    await reload();
+    if (archived) await refreshArchive();
+  }
+
+  async function handleRestore(name) {
+    await restoreProject(name);
+    await refreshArchive();
+    await reload();
+  }
+
+  async function toggleArchive() {
+    if (!inArchive) await refreshArchive();
+    setInArchive(!inArchive);
+  }
 
   async function handleDelete() {
     setBusy(true);
@@ -87,10 +131,15 @@ export default function ProjectsScreen() {
         }}
       >
         <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
-        <Hand size={20}>Projeler</Hand>
-        <Btn hl style={{ justifySelf: "end" }} onClick={() => setModalOpen(true)}>
-          <Icon.Plus /> Yeni proje
-        </Btn>
+        {/* The title says which of the two lists is open, and the button says where the other one
+            is -- so neither word is ever on screen twice. */}
+        <Hand size={20}>{inArchive ? "Arşiv" : "Projeler"}</Hand>
+        <div style={{ justifySelf: "end", display: "flex", gap: 8 }}>
+          <Btn onClick={toggleArchive}>{inArchive ? "Projeler" : "Arşiv"}</Btn>
+          <Btn hl onClick={() => setModalOpen(true)}>
+            <Icon.Plus /> Yeni proje
+          </Btn>
+        </div>
       </div>
 
       {/* The header stays put and the projects move under it, the way the app's other four screens
@@ -100,30 +149,49 @@ export default function ProjectsScreen() {
         <div data-list className="qe-thin-scroll"
              style={{ height: "100%", overflowY: "auto", padding: "24px 32px",
                       boxSizing: "border-box" }}>
-          {status === "error" ? (
+          {inArchive && archiveError ? (
+            <div style={CENTERED}>
+              <StatusErrorCard text="Arşiv yüklenemedi" raw={archiveError}
+                               onRetry={refreshArchive} />
+            </div>
+          ) : !inArchive && status === "error" ? (
             <div style={CENTERED}>
               <StatusErrorCard text="Projeler yüklenemedi" raw={error} onRetry={reload} />
             </div>
-          ) : status === "loading" ? (
+          ) : !inArchive && status === "loading" ? (
             <div style={CENTERED}>
               <span className="wf-spinner" />
             </div>
-          ) : projects.length === 0 ? (
-            <div style={CENTERED}>
-              <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz proje yok</Mono>
-              <Note size={13} style={{ color: "var(--ink-3)" }}>
-                İlk projeni oluştur, karelerin burada toplansın
-              </Note>
-              <Btn hl style={{ marginTop: 8 }} onClick={() => setModalOpen(true)}>
-                <Icon.Plus /> İlk projeyi oluştur
-              </Btn>
-            </div>
+          ) : shown.length === 0 ? (
+            // The archive's own sentence: the projects' empty state invites a first project, and
+            // an empty archive is not an invitation to anything.
+            inArchive ? (
+              <div style={CENTERED}>
+                <Mono size={12} style={{ color: "var(--ink-3)" }}>arşivde proje yok</Mono>
+                <Note size={13} style={{ color: "var(--ink-3)" }}>
+                  Bir projeyi arşivlersen listeden çıkar, dosyaları burada durur
+                </Note>
+              </div>
+            ) : (
+              <div style={CENTERED}>
+                <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz proje yok</Mono>
+                <Note size={13} style={{ color: "var(--ink-3)" }}>
+                  İlk projeni oluştur, karelerin burada toplansın
+                </Note>
+                <Btn hl style={{ marginTop: 8 }} onClick={() => setModalOpen(true)}>
+                  <Icon.Plus /> İlk projeyi oluştur
+                </Btn>
+              </div>
+            )
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {projects.map((p) => (
+              {shown.map((p) => (
                 <ProjectCard key={p.name} name={p.name} modifiedAt={p.modifiedAt}
+                             archived={inArchive}
                              onDelete={() => setDeletingName(p.name)}
-                             onRename={() => setRenamingName(p.name)} />
+                             onRename={() => setRenamingName(p.name)}
+                             onArchive={() => handleArchive(p.name)}
+                             onRestore={() => handleRestore(p.name)} />
               ))}
             </div>
           )}

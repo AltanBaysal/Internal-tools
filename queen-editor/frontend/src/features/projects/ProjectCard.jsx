@@ -11,7 +11,8 @@ const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", backgroun
 // wf-card look kept by resetting the button's own chrome. The trash is a sibling rather than a
 // child: a button inside a button is invalid HTML, and keeping them apart is also what stops a
 // click meant for deleting from opening the project.
-export default function ProjectCard({ name, modifiedAt, onDelete, onRename }) {
+export default function ProjectCard({ name, modifiedAt, onDelete, onRename, onArchive, onRestore,
+                                      archived = false }) {
   return (
     <div style={{ position: "relative" }}>
       <button
@@ -44,13 +45,29 @@ export default function ProjectCard({ name, modifiedAt, onDelete, onRename }) {
           marks while what sits beside it has none. Renaming takes nothing away (Fark 3). Neither
           carries a word -- the one the standard asks for is on the delete confirm, where there is
           room for it (madde 9). */}
+      {/* An archived card carries one button and it is the way back. Deleting and renaming are not
+          offered from in here: the archive is a place to put something, not a second screen for
+          editing it -- and taking it out is one click away when either is wanted. */}
       <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4 }}>
-        <Btn sm icon ghost aria-label="Projeyi yeniden adlandır" onClick={onRename}>
-          <Icon.Pencil />
-        </Btn>
-        <Btn sm icon aria-label="Projeyi sil" onClick={onDelete} style={DANGER}>
-          <Icon.Trash />
-        </Btn>
+        {archived ? (
+          <Btn sm icon ghost aria-label="Projeyi geri al" onClick={onRestore}>
+            <Icon.Undo />
+          </Btn>
+        ) : (
+          <>
+            <Btn sm icon ghost aria-label="Projeyi yeniden adlandır" onClick={onRename}>
+              <Icon.Pencil />
+            </Btn>
+            {/* Ghost like the pencil: archiving takes nothing away either, and the red frame only
+                marks the bin while it is the only one wearing it. */}
+            <Btn sm icon ghost aria-label="Projeyi arşivle" onClick={onArchive}>
+              <Icon.Archive />
+            </Btn>
+            <Btn sm icon aria-label="Projeyi sil" onClick={onDelete} style={DANGER}>
+              <Icon.Trash />
+            </Btn>
+          </>
+        )}
       </div>
     </div>
   );

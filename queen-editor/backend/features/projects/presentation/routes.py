@@ -6,7 +6,8 @@ from backend.features.projects.domain.usecases.get_settings import ProjectMissin
 
 
 def make_projects_blueprint(list_projects, create_project, check_name, delete_project,
-                            rename_project, get_settings, save_settings):
+                            rename_project, get_settings, save_settings,
+                            archive_project, restore_project, list_archived_projects):
     """Every argument is a use case already bound to a store (see main.py)."""
     bp = Blueprint("projects", __name__)
 
@@ -70,6 +71,41 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
         # The name is the whole answer: the screen re-reads the list, which is where the date and
         # the order come from.
         return jsonify({"name": name})
+
+    # Before the <project> routes in the file only for reading: Flask prefers a literal segment to a
+    # variable one whatever the order, and this path is one segment deep where those are two.
+    @bp.get("/api/projects/archived")
+    def get_archived_projects():
+        try:
+            projects = list_archived_projects()
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        return jsonify({"projects": [payload(p) for p in projects]})
+
+    @bp.post("/api/projects/<project>/archive")
+    def post_archive_project(project):
+        try:
+            archive_project(project)
+        except NameTaken as exc:
+            return jsonify({"error": str(exc)}), 409
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        # 204, like delete: the client re-reads both lists, which is all that changed.
+        return "", 204
+
+    @bp.post("/api/projects/<project>/restore")
+    def post_restore_project(project):
+        try:
+            restore_project(project)
+        except NameTaken as exc:
+            return jsonify({"error": str(exc)}), 409
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        return "", 204
 
     @bp.get("/api/projects/<project>/settings")
     def get_project_settings(project):

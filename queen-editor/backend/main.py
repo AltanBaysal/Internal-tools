@@ -44,6 +44,11 @@ from backend.features.photo_generation.presentation.routes import make_photo_gen
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
+from backend.features.projects.domain.usecases.archive_project import (
+    archive_project,
+    list_archived_projects,
+    restore_project,
+)
 from backend.features.projects.domain.usecases.check_name import check_name
 from backend.features.projects.domain.usecases.create_project import create_project
 from backend.features.projects.domain.usecases.delete_project import delete_project
@@ -109,6 +114,13 @@ _projects_bp = make_projects_blueprint(
                            partial(follow_rename, _photo_runner)),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
+    # Archiving moves the folder, so it meets the worker exactly the way deleting does: whatever is
+    # running has to stop before the folder leaves.
+    archive_project=partial(archive_project, _project_store,
+                            partial(halt_project, _photo_runner, _comfy_client.interrupt,
+                                    time.sleep)),
+    restore_project=partial(restore_project, _project_store),
+    list_archived_projects=partial(list_archived_projects, _project_store),
 )
 
 

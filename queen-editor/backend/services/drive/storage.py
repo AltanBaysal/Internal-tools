@@ -12,9 +12,18 @@ class DriveStorage:
     def __init__(self, root):
         self.root = root
 
-    def list_dirs(self):
-        """[(name, mtime)] for every direct subfolder of root. Files are skipped."""
-        with os.scandir(self.root) as entries:
+    def list_dirs(self, subdir=""):
+        """[(name, mtime)] for every direct subfolder of root/subdir. Files are skipped.
+
+        A subdir that is not there lists as empty -- "nothing in it yet" and "no folder yet" are the
+        same answer to the caller, the rule list_files already follows. The root is the exception
+        and still raises: missing there means the Drive mount failed, which nobody should be able to
+        read as an empty list of projects.
+        """
+        path = os.path.join(self.root, subdir) if subdir else self.root
+        if subdir and not os.path.isdir(path):
+            return []
+        with os.scandir(path) as entries:
             return [(e.name, e.stat().st_mtime) for e in entries if e.is_dir()]
 
     def make_dir(self, name):
@@ -52,6 +61,9 @@ class DriveStorage:
             return False
         if os.path.exists(target):
             return None
+        # A move one level down -- archiving -- has a parent that may not be there yet, and the
+        # first one never is. A move within the root opens nothing: its parent is the root.
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         os.rename(source, target)
         return os.stat(target).st_mtime
 

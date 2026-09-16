@@ -223,6 +223,21 @@ export async function deleteProject(project) {
   return request(`/api/projects/${encodeURIComponent(project)}`, { method: "DELETE" });
 }
 
+// The archive is a folder beside the projects, so these read and write the same way the projects
+// do; nothing is deleted by either.
+export async function listArchivedProjects() {
+  const body = await request("/api/projects/archived");
+  return body.projects;
+}
+
+export async function archiveProject(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/archive`, { method: "POST" });
+}
+
+export async function restoreProject(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/restore`, { method: "POST" });
+}
+
 export async function getStatus() {
   return request("/api/status");
 }
