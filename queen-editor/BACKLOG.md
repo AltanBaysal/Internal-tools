@@ -10,6 +10,25 @@ haritasına girer.
 Üretim hızlansın; yol olarak hız LoRA'ları denenecek. Kazanç fotoğraf tarafında görünüyor, video
 zaten hızlı koşacak şekilde ayarlı.
 
+**v5'te madde 220 olarak denendi ve geri alındı** *(kullanıcı, 16 Eylül — "olmuyor gibi")*. Numara
+220 olarak kalır; geri gelirse aynı numarayla gelir.
+
+**Denenen:** DMD2'nin kendi 4 adımlık LoRA'sı (`tianweiy/DMD2`, `dmd2_sdxl_4step_lora_fp16`), 0.7
+ağırlıkla, LCM / `sgm_uniform`, 8 adım, CFG 1.5 — Nova'nın yaratıcısı Crody'nin **Nova Reality XL
+IL v9.0 DMD2** sürümüne verdiği ayarlar. Nova 3DCG için Crody böyle bir sürüm yayınlamamış.
+**Sonuç:** bir üretim **90 saniye** sürdü. Neden bu kadar sürdüğü **bilinmiyor**: normal ayarın
+süresi, adım başına süre ve GPU elde yok. Geri gelirse oradan başlar — önce iki log yan yana.
+
+**Bilinenler, geri gelirse işe yarar:**
+- Grafikte yüz düzeltici ana örnekleyiciyle **aynı modeli ve aynı CFG'yi** kullanıyor
+  *(`workflow_api.json` node 31 ← 44 ← 27, CFG node 18)*: LoRA ikisini birden etkiliyor, ve
+  düzelticinin 14 adımı hızlanmıyor.
+- CFG tam 1 değilse her adım bugünkü kadar sürüyor; kazanç yalnız adım oranından gelir.
+- Genel SDXL'den damıtılmış LoRA'lar (DMD2, Hyper-SDXL, SDXL-Lightning) Illustrious'a ancak yaklaşık
+  uyar. Illustrious üzerinde eğitilmiş bir DMD2 var *(Civitai 1850983, V7.5 / V6)* — denenmedi.
+- Hyper-SDXL'in **8-step CFG** LoRA'sı CFG 5–8'i koruyor: negative prompt ve yüz düzeltici bugünkü
+  gibi çalışır, kazanç daha az. Denenmedi.
+
 ### Video LoRA denemesi — anatomik hatalar
 
 Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek.
