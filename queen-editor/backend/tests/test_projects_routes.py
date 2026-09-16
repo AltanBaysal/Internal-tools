@@ -22,6 +22,13 @@ def client_for(drive_root, dist_dir, halted=None):
     The halt port stands in for the photo worker: this feature never knows what is behind it, so a
     list that writes down the name is the whole of it here.
     """
+    # Imported here rather than at the top: the module does not exist yet in the test tour, and an
+    # import up there would fail collection and take this whole file's questions with it.
+    from backend.features.projects.domain.usecases.archive_project import (
+        archive_project,
+        list_archived_projects,
+        restore_project,
+    )
     storage = DriveStorage(str(drive_root))
     store = DriveProjectStore(storage)
     settings_store = DriveSettingsStore(storage)
@@ -37,6 +44,11 @@ def client_for(drive_root, dist_dir, halted=None):
         rename_project=partial(rename_project, store, lambda old, new, do: do()),
         get_settings=partial(get_settings, settings_store),
         save_settings=partial(save_settings, settings_store),
+        archive_project=partial(archive_project, store,
+                                lambda project: (halted if halted is not None else []).append(
+                                    project)),
+        restore_project=partial(restore_project, store),
+        list_archived_projects=partial(list_archived_projects, store),
     )
     return create_app(dist_dir=str(dist_dir), blueprints=[blueprint]).test_client()
 
@@ -48,6 +60,90 @@ def make_client(tmp_path, halted=None):
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
     return client_for(drive, dist, halted), drive
+
+
+def test_archiving_a_project_takes_it_off_the_list_without_losing_a_file(tmp_path):
+    """Madde 221. The folder moves under the root's archive folder; nothing is deleted, and the
+    projects screen simply stops showing it."""
+    client, drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    (drive / "düğün" / "0_a.png").write_bytes(b"PNG")
+
+    resp = client.post("/api/projects/düğün/archive")
+
+    assert resp.status_code == 204
+    assert client.get("/api/projects").get_json()["projects"] == []
+    assert (drive / "arsiv" / "düğün" / "0_a.png").read_bytes() == b"PNG"
+
+
+def test_the_archive_is_listed_on_its_own(tmp_path):
+    client, _drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects", json={"name": "nikah"})
+    client.post("/api/projects/düğün/archive")
+
+    resp = client.get("/api/projects/archived")
+
+    assert resp.status_code == 200
+    assert [p["name"] for p in resp.get_json()["projects"]] == ["düğün"]
+    # Same shape as a live project: the screen draws both with one card.
+    assert isinstance(resp.get_json()["projects"][0]["modifiedAt"], int)
+
+
+def test_archiving_stops_a_running_production(tmp_path):
+    halted = []
+    client, _drive = make_client(tmp_path, halted)
+    client.post("/api/projects", json={"name": "düğün"})
+
+    client.post("/api/projects/düğün/archive")
+
+    assert halted == ["düğün"]
+
+
+def test_restoring_brings_the_project_back(tmp_path):
+    client, drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects/düğün/archive")
+
+    resp = client.post("/api/projects/düğün/restore")
+
+    assert resp.status_code == 204
+    assert [p["name"] for p in client.get("/api/projects").get_json()["projects"]] == ["düğün"]
+    assert client.get("/api/projects/archived").get_json()["projects"] == []
+    assert (drive / "düğün").is_dir()
+
+
+def test_archiving_a_project_that_is_not_there_answers_404(tmp_path):
+    client, _drive = make_client(tmp_path)
+
+    resp = client.post("/api/projects/yok/archive")
+
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "Proje yok: yok"
+
+
+def test_restoring_onto_a_live_name_answers_409(tmp_path):
+    """The same code rename answers with, because it is the same collision -- the frontend has one
+    language for "that name is taken" and archive must not invent a second."""
+    client, _drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects/düğün/archive")
+    client.post("/api/projects", json={"name": "düğün"})
+
+    resp = client.post("/api/projects/düğün/restore")
+
+    assert resp.status_code == 409
+
+
+def test_the_archive_name_cannot_be_taken_by_a_project(tmp_path):
+    """Otherwise the archive folder itself would be a project, and archiving anything would look
+    like it moved into another project."""
+    client, _drive = make_client(tmp_path)
+
+    resp = client.post("/api/projects", json={"name": "arsiv"})
+
+    assert resp.status_code == 400
+    assert "ayrılmış" in resp.get_json()["error"]
 
 
 def test_deleting_a_project_removes_the_folder_with_everything_in_it(tmp_path):

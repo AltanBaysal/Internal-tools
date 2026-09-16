@@ -13,14 +13,38 @@ from backend.features.projects.domain.usecases.rename_project import rename_proj
 from backend.features.projects.domain.usecases.save_settings import save_settings
 
 
+def _archive():
+    """The archive use cases, reached where they are used rather than at the top of the file: the
+    module does not exist yet in the test tour, and an import up there would fail collection and
+    take every other question in this file down with it."""
+    from backend.features.projects.domain.usecases import archive_project
+    return archive_project
+
+
+def archive_project(store, halt, name):
+    return _archive().archive_project(store, halt, name)
+
+
+def restore_project(store, name):
+    return _archive().restore_project(store, name)
+
+
+def list_archived_projects(store):
+    return _archive().list_archived_projects(store)
+
+
 class FakeStore:
     """In-memory ProjectStore -- no Drive, no filesystem."""
 
     def __init__(self, projects=()):
         self.projects = list(projects)
+        self.archived = []
 
     def list(self):
         return list(self.projects)
+
+    def list_archived(self):
+        return list(self.archived)
 
     def create(self, name):
         if any(p.name == name for p in self.projects):
@@ -42,17 +66,42 @@ class FakeStore:
 
 
 class RecordingStore(FakeStore):
-    """A store that writes down when it was asked to delete, so order can be asserted."""
+    """A store that writes down when it was asked to delete or archive, so order can be asserted."""
 
-    def __init__(self, log, projects=("düğün",)):
+    def __init__(self, log, projects=("düğün",), archived=()):
         super().__init__([Project(name, 100.0) for name in projects])
         self.log = log
+        self.archived = [Project(name, 100.0) for name in archived]
 
     def delete(self, name):
         self.log.append(f"delete:{name}")
         gone = [p for p in self.projects if p.name == name]
         self.projects = [p for p in self.projects if p.name != name]
         return bool(gone)
+
+    def archive(self, name):
+        """The archived project, None when the archive already holds that name, False when there
+        was nothing to move -- the answers rename already gives, because it is the same move."""
+        self.log.append(f"archive:{name}")
+        if any(p.name == name for p in self.archived):
+            return None
+        found = next((p for p in self.projects if p.name == name), None)
+        if found is None:
+            return False
+        self.projects = [p for p in self.projects if p.name != name]
+        self.archived.append(found)
+        return found
+
+    def restore(self, name):
+        self.log.append(f"restore:{name}")
+        if any(p.name == name for p in self.projects):
+            return None
+        found = next((p for p in self.archived if p.name == name), None)
+        if found is None:
+            return False
+        self.archived = [p for p in self.archived if p.name != name]
+        self.projects.append(found)
+        return found
 
 
 def test_deleting_a_project_stops_its_production_before_the_folder_goes():
@@ -76,6 +125,68 @@ def test_deleting_an_unknown_project_still_says_so():
 def test_list_projects_newest_change_first():
     store = FakeStore([Project("eski", 100.0), Project("yeni", 300.0), Project("orta", 200.0)])
     assert [p.name for p in list_projects(store)] == ["yeni", "orta", "eski"]
+
+
+def test_archiving_a_project_stops_its_production_first():
+    """Archiving is a move, and a worker writing into a folder that is being moved leaves half a
+    project here and half there -- the same reason delete halts before it removes."""
+    log = []
+    store = RecordingStore(log)
+
+    archive_project(store, lambda project: log.append(f"halt:{project}"), "düğün")
+
+    assert log == ["halt:düğün", "archive:düğün"]
+
+
+def test_archiving_something_that_is_not_there_says_so():
+    log = []
+    with pytest.raises(ProjectMissing) as exc:
+        archive_project(RecordingStore(log), lambda project: None, "yok")
+    assert str(exc.value) == "Proje yok: yok"
+
+
+def test_archiving_onto_a_name_the_archive_already_holds():
+    """A project archived, a new one made under the same name, and that one archived too. The
+    folder already in the archive is the only copy of its work."""
+    store = RecordingStore([], projects=("düğün",), archived=("düğün",))
+
+    with pytest.raises(NameTaken) as exc:
+        archive_project(store, lambda project: None, "düğün")
+
+    assert "arşiv" in str(exc.value).lower()
+
+
+def test_restoring_something_the_archive_does_not_hold():
+    with pytest.raises(ProjectMissing) as exc:
+        restore_project(RecordingStore([], projects=()), "yok")
+    assert str(exc.value) == "Proje yok: yok"
+
+
+def test_restoring_onto_a_live_name():
+    """Bringing it back would land on a project that exists now and was made after it left."""
+    store = RecordingStore([], projects=("düğün",), archived=("düğün",))
+
+    with pytest.raises(NameTaken) as exc:
+        restore_project(store, "düğün")
+
+    assert str(exc.value) == "Bu ad zaten kullanılıyor. Başka bir ad dene."
+
+
+def test_restoring_puts_it_back_among_the_projects():
+    store = RecordingStore([], projects=(), archived=("düğün",))
+
+    restore_project(store, "düğün")
+
+    assert [p.name for p in store.list()] == ["düğün"]
+    assert store.archived == []
+
+
+def test_the_archive_list_is_newest_change_first_too():
+    """One screen, one order: the archive is read with the same use case the projects are."""
+    store = FakeStore()
+    store.archived = [Project("eski", 100.0), Project("yeni", 300.0)]
+
+    assert [p.name for p in list_archived_projects(store)] == ["yeni", "eski"]
 
 
 def test_list_projects_returns_empty_list():

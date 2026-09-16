@@ -1,16 +1,26 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deleteProject, listProjects, renameProject } from "../../shared/api.js";
+import {
+  archiveProject,
+  deleteProject,
+  listArchivedProjects,
+  listProjects,
+  renameProject,
+  restoreProject,
+} from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import ProjectsScreen from "./ProjectsScreen.jsx";
 
 vi.mock("../../shared/api.js", () => ({
+  archiveProject: vi.fn(),
   checkProjectName: vi.fn().mockResolvedValue({ error: null }),
   createProject: vi.fn(),
   deleteProject: vi.fn(),
+  listArchivedProjects: vi.fn().mockResolvedValue([]),
   listProjects: vi.fn(),
   renameProject: vi.fn(),
+  restoreProject: vi.fn(),
 }));
 vi.mock("../../shared/router.js", () => ({
   navigate: vi.fn(),
@@ -145,6 +155,78 @@ describe("ProjectsScreen renaming a project", () => {
     fireEvent.change(screen.getByDisplayValue("nikah"), { target: { value: "nikah töreni" } });
 
     expect(screen.queryByText("Bu ad zaten kullanılıyor. Başka bir ad dene.")).toBeNull();
+  });
+});
+
+describe("ProjectsScreen archiving a project", () => {
+  it("offers archiving beside the pencil and the bin", async () => {
+    await openScreen();
+
+    // Neither red nor a question: archiving takes nothing away, it only moves the folder. The bin
+    // keeps its mark by being the only one wearing it.
+    const button = screen.getByLabelText("Projeyi arşivle");
+    expect(button.style.color).not.toBe("var(--danger)");
+  });
+
+  it("archives without asking, and reads the list again", async () => {
+    await openScreen();
+    archiveProject.mockResolvedValue(null);
+    listProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(archiveProject).toHaveBeenCalledWith("düğün");
+    // Drive is the single source of truth: re-read rather than guess which card left.
+    expect(listProjects).toHaveBeenCalledTimes(2);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("opens the archive from the header and shows what is in it", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    expect(screen.getByText("eski iş")).toBeTruthy();
+    // One list at a time: the archive is where the projects were, not beside them.
+    expect(screen.queryByText("düğün")).toBeNull();
+  });
+
+  it("an archived card offers only the way back", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    expect(screen.getByLabelText("Projeyi geri al")).toBeTruthy();
+    // Nothing is deleted or renamed from in here: it is out of the way, and that is all it is.
+    expect(screen.queryByLabelText("Projeyi sil")).toBeNull();
+    expect(screen.queryByLabelText("Projeyi yeniden adlandır")).toBeNull();
+    expect(screen.queryByLabelText("Projeyi arşivle")).toBeNull();
+  });
+
+  it("restores and reads both lists again", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+    restoreProject.mockResolvedValue(null);
+    listArchivedProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi geri al")); });
+
+    expect(restoreProject).toHaveBeenCalledWith("eski iş");
+    expect(screen.queryByText("eski iş")).toBeNull();
+  });
+
+  it("says the archive is empty rather than showing the projects' own empty state", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    expect(screen.getByText("arşivde proje yok")).toBeTruthy();
+    // The projects' empty state invites a first project, which is the wrong invitation here.
+    expect(screen.queryByText("İlk projeni oluştur, karelerin burada toplansın")).toBeNull();
   });
 });
 
