@@ -199,49 +199,16 @@ def test_archiving_something_that_is_not_there_says_so(tmp_path):
     assert store_at(tmp_path).archive("yok") is False
 
 
-def test_the_old_archive_folder_is_carried_back_into_the_root(tmp_path):
-    """Madde 227's migration. Madde 221 moved archived projects into arsiv/, and the mark knows
-    nothing about them -- left there they would show in neither list, which is a project the user
-    cannot see rather than a project they put away."""
+def test_a_leftover_archive_folder_is_not_a_project(tmp_path):
+    """Madde 221 moved archived projects into arsiv/, and an install from that time still has the
+    folder. Nothing goes looking in it -- carrying those projects home is done by hand, in Drive
+    (the user's call: keep the code simple) -- but the root's folders ARE the projects, so without
+    this it would show up on the screen as one."""
     (tmp_path / "arsiv" / "düğün").mkdir(parents=True)
-    (tmp_path / "arsiv" / "düğün" / "0_a.png").write_bytes(b"PNG")
-
     store = store_at(tmp_path)
+    store.create("nikah")
 
-    assert [p.name for p in store.list_archived()] == ["düğün"]
-    assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
-
-
-def test_the_emptied_archive_folder_is_removed(tmp_path):
-    (tmp_path / "arsiv" / "düğün").mkdir(parents=True)
-
-    store_at(tmp_path)
-
-    assert not (tmp_path / "arsiv").exists()
-
-
-def test_a_name_that_is_taken_is_carried_back_beside_it(tmp_path):
-    """Before madde 223 an archived name could be handed to a new project -- that is the very bug
-    the user reported, so this pair really can exist on their Drive. Nothing is overwritten and
-    nothing is left behind: the returning one takes a free name that says where it came from."""
-    (tmp_path / "arsiv" / "düğün").mkdir(parents=True)
-    (tmp_path / "arsiv" / "düğün" / "eski.png").write_bytes(b"ESKI")
-    (tmp_path / "düğün").mkdir()
-    (tmp_path / "düğün" / "yeni.png").write_bytes(b"YENI")
-
-    store = store_at(tmp_path)
-
-    assert (tmp_path / "düğün" / "yeni.png").read_bytes() == b"YENI"
-    assert (tmp_path / "düğün (arşiv)" / "eski.png").read_bytes() == b"ESKI"
-    assert [p.name for p in store.list_archived()] == ["düğün (arşiv)"]
-
-
-def test_nothing_happens_when_there_never_was_an_old_archive(tmp_path):
-    store = store_at(tmp_path)
-    store.create("düğün")
-
-    assert [p.name for p in store_at(tmp_path).list()] == ["düğün"]
-    assert not (tmp_path / "arsiv").exists()
+    assert [p.name for p in store.list()] == ["nikah"]
 
 
 def test_restoring_something_the_archive_does_not_hold_says_so(tmp_path):
