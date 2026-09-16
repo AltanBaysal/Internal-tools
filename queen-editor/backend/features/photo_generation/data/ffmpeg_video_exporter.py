@@ -12,9 +12,11 @@ import subprocess
 
 
 class FfmpegVideoExporter:
-    def __init__(self, run=None, ffmpeg="ffmpeg"):
+    def __init__(self, run=None, ffmpeg="ffmpeg", ffprobe="ffprobe"):
         self._run = run or subprocess.run
         self._ffmpeg = ffmpeg
+        # Ships with ffmpeg, and the notebook installs them together. Only merge uses it.
+        self._ffprobe = ffprobe
 
     def piece(self, video, audio, target):
         """One frame's video at `target`, with its sound over it when there is one."""
@@ -26,8 +28,39 @@ class FfmpegVideoExporter:
         else:
             self._ffmpeg_run(["-i", video, "-c", "copy", target])
 
+    def size(self, video):
+        """The picture's size as ffprobe writes it -- "848x480".
+
+        Its own words on failure: a missing file, something that is not a video and an ffprobe that
+        is not installed all look the same from here, and only ffprobe knows which one happened.
+        """
+        done = self._run(
+            [self._ffprobe, "-v", "error", "-select_streams", "v:0",
+             "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", video],
+            capture_output=True, text=True)
+        if done.returncode != 0:
+            tail = (done.stderr or "").strip().splitlines()[-1:] or ["ffprobe başarısız oldu"]
+            raise RuntimeError(tail[0])
+        return (done.stdout or "").strip()
+
     def merge(self, pieces, target):
-        """The pieces, in the order given, as one file."""
+        """The pieces, in the order given, as one file.
+
+        Asked of every piece first, because the join below copies streams instead of re-encoding
+        them: that is only sound while they are all the same size, and since madde 218 one project
+        can hold both shapes. Re-encoding to one size would be the wrong fix -- nobody can say
+        which shape was meant, and the answer would be a crop or a bar the user never asked for.
+        """
+        sizes = [(piece, self.size(piece)) for piece in pieces]
+        if len({size for _piece, size in sizes}) > 1:
+            # Piece by piece: "the pieces are different sizes" does not say which frame to redo.
+            found = ", ".join(f"{os.path.basename(piece)} {size}" for piece, size in sizes)
+            raise RuntimeError(
+                "Videolar farklı ölçüde, birleştirilemez — " + found + ". Birleştirme yeniden "
+                "kodlamıyor, o yüzden çıkacak dosya bozuk olurdu. Aynı projede iki oran var: "
+                "eski oranla üretilmiş kareleri yeniden üret ya da dışa aktarmayı ayrı dosyalar "
+                "olarak al."
+            )
         # concat's list file lives beside the pieces: ffmpeg reads the paths relative to it, and
         # -safe 0 is what lets an absolute path through.
         folder = os.path.dirname(target)
