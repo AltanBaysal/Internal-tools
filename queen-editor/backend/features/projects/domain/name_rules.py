@@ -8,9 +8,9 @@ prints them verbatim and keeps no copy of the rules.
 
 MAX_LENGTH = 64
 FORBIDDEN_CHARS = '/\\:*?"<>|'
-# Archived projects move into this folder, and it sits under the same root the projects do -- where
-# every folder IS a project. So the name cannot also be one: taking it would put the archive on the
-# projects screen and send every archived project into another project's folder (madde 221).
+# Where madde 221 used to move archived projects. Nothing is moved any more (madde 227), but the
+# name stays reserved: the store looks in this folder on startup to carry those projects home, and a
+# project called arsiv would have its own subfolders carried out as projects of their own.
 ARCHIVE_DIR = "arsiv"
 
 
@@ -30,7 +30,10 @@ def validate(name):
     # Whatever the case: the app runs on Colab's Linux but the repo is developed on Windows, where
     # "Arsiv" and "arsiv" are one folder.
     if name.casefold() == ARCHIVE_DIR:
-        return "Bu ad ayrılmış: arşivlenen projeler orada duruyor. Başka bir ad dene."
+        # The sentence no longer explains itself: what the name is held back for is a startup repair,
+        # which is not the user's business -- and the old wording described projects living in that
+        # folder, where nothing lives any more.
+        return "Bu ad ayrılmış, başka bir ad dene."
     return None
 
 

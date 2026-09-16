@@ -45,29 +45,27 @@ export default function ProjectCard({ name, modifiedAt, onDelete, onRename, onAr
           marks while what sits beside it has none. Renaming takes nothing away (Fark 3). Neither
           carries a word -- the one the standard asks for is on the delete confirm, where there is
           room for it (madde 9). */}
-      {/* An archived card carries one button and it is the way back. Deleting and renaming are not
-          offered from in here: the archive is a place to put something, not a second screen for
-          editing it -- and taking it out is one click away when either is wanted. */}
+      {/* An archived card is an ordinary card (madde 227): archiving says which list the project is
+          drawn in and takes nothing away, so nothing it could do before is missing here. Only the
+          middle button changes hands -- putting away becomes taking back. */}
       <div style={{ position: "absolute", top: 10, right: 10, display: "flex", gap: 4 }}>
+        <Btn sm icon ghost aria-label="Projeyi yeniden adlandır" onClick={onRename}>
+          <Icon.Pencil />
+        </Btn>
+        {/* Ghost like the pencil: neither of these takes anything away, and the red frame only
+            marks the bin while it is the only one wearing it. */}
         {archived ? (
           <Btn sm icon ghost aria-label="Projeyi geri al" onClick={onRestore}>
             <Icon.Undo />
           </Btn>
         ) : (
-          <>
-            <Btn sm icon ghost aria-label="Projeyi yeniden adlandır" onClick={onRename}>
-              <Icon.Pencil />
-            </Btn>
-            {/* Ghost like the pencil: archiving takes nothing away either, and the red frame only
-                marks the bin while it is the only one wearing it. */}
-            <Btn sm icon ghost aria-label="Projeyi arşivle" onClick={onArchive}>
-              <Icon.Archive />
-            </Btn>
-            <Btn sm icon aria-label="Projeyi sil" onClick={onDelete} style={DANGER}>
-              <Icon.Trash />
-            </Btn>
-          </>
+          <Btn sm icon ghost aria-label="Projeyi arşivle" onClick={onArchive}>
+            <Icon.Archive />
+          </Btn>
         )}
+        <Btn sm icon aria-label="Projeyi sil" onClick={onDelete} style={DANGER}>
+          <Icon.Trash />
+        </Btn>
       </div>
     </div>
   );

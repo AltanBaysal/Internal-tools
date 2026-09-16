@@ -1,41 +1,27 @@
 """Put a project out of the way, bring it back, and list what is out of the way.
 
-Archiving is a MOVE, not a mark (the user's own decision, 16 September): the folder goes one level
-down, into the archive. Everything else follows from that by itself and no second rule was written
-for any of it -- the project stops being listed because it is no longer where projects are, and it
-stops being openable because that is how generation and export look one up. A flag would have
-needed all of that spelled out, and each spelling is a place to forget one.
+Archiving is a MARK, not a move (the user's own decision, 16 September, after using the version that
+moved): it says which of the two lists a project is drawn in and nothing else. The project stays
+where it is and goes on working -- it opens, it renders, it exports.
 
-`halt` is the same port delete_project uses, and it is called for the same reason: a worker writing
-into a folder that is being moved leaves the project half here and half there. What is behind it is
-not this feature's business.
+That is why nothing is halted here, where deleting halts. Halting was the move's debt: a worker
+writing into a folder on its way somewhere else left half a project here and half there. Nothing
+moves, so there is nothing to stop -- and stopping it would take away the very thing this decision
+was made to keep.
 
-Restoring needs no halt -- a project in the archive has nothing running, because nothing could
-reach it to start.
+There is no name to collide with either, for the same reason: the archive is not a place a folder
+could already be sitting in.
 """
-from backend.features.projects.domain.usecases.create_project import NameTaken
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
-def archive_project(store, halt, name):
-    halt(name)
-    answer = store.archive(name)
-    # `is` and not truthiness: the two failures are two different sentences.
-    if answer is None:
-        # Not "that name is taken": the collision is inside the archive, and a user reading the
-        # usual sentence would go looking among their projects for something that is not there.
-        raise NameTaken(f"Arşivde zaten {name} adlı bir proje var. Önce onu geri al ya da adını "
-                        f"değiştir.")
-    if answer is False:
+def archive_project(store, name):
+    if store.archive(name) is False:
         raise ProjectMissing(f"Proje yok: {name}")
 
 
 def restore_project(store, name):
-    answer = store.restore(name)
-    if answer is None:
-        # Here the collision IS among the projects, so it is the sentence every other screen uses.
-        raise NameTaken("Bu ad zaten kullanılıyor. Başka bir ad dene.")
-    if answer is False:
+    if store.restore(name) is False:
         raise ProjectMissing(f"Proje yok: {name}")
 
 

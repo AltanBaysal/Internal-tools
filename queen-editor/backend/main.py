@@ -114,11 +114,9 @@ _projects_bp = make_projects_blueprint(
                            partial(follow_rename, _photo_runner)),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
-    # Archiving moves the folder, so it meets the worker exactly the way deleting does: whatever is
-    # running has to stop before the folder leaves.
-    archive_project=partial(archive_project, _project_store,
-                            partial(halt_project, _photo_runner, _comfy_client.interrupt,
-                                    time.sleep)),
+    # No halt port: archiving marks the project rather than moving it (madde 227), so a worker
+    # writing into that folder is not a problem -- the project going on working is the point.
+    archive_project=partial(archive_project, _project_store),
     restore_project=partial(restore_project, _project_store),
     list_archived_projects=partial(list_archived_projects, _project_store),
 )

@@ -82,12 +82,13 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
             return jsonify({"error": str(exc)}), 500
         return jsonify({"projects": [payload(p) for p in projects]})
 
+    # No 409 on either of these: since madde 227 archiving marks a project rather than moving it, so
+    # there is no name for it to land on. Catching something that cannot be raised would show a
+    # later reader a road that is not there.
     @bp.post("/api/projects/<project>/archive")
     def post_archive_project(project):
         try:
             archive_project(project)
-        except NameTaken as exc:
-            return jsonify({"error": str(exc)}), 409
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except OSError as exc:
@@ -99,8 +100,6 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
     def post_restore_project(project):
         try:
             restore_project(project)
-        except NameTaken as exc:
-            return jsonify({"error": str(exc)}), 409
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except OSError as exc:
