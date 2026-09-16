@@ -46,8 +46,13 @@ class FakeStore:
     def list_archived(self):
         return list(self.archived)
 
+    def is_archived(self, name):
+        return any(p.name == name for p in self.archived)
+
     def create(self, name):
-        if any(p.name == name for p in self.projects):
+        # A name the archive holds is taken too (madde 223): without this the project that owns it
+        # has no way back, because the archived card offers the way back and nothing else.
+        if any(p.name == name for p in self.projects) or self.is_archived(name):
             return None
         project = Project(name, 100.0)
         self.projects.append(project)
@@ -55,7 +60,7 @@ class FakeStore:
 
     def rename(self, old, new):
         """The renamed project, None when the new name is taken, False when the old one is gone."""
-        if any(p.name == new for p in self.projects):
+        if any(p.name == new for p in self.projects) or self.is_archived(new):
             return None
         found = next((p for p in self.projects if p.name == old), None)
         if found is None:
@@ -168,6 +173,52 @@ def test_restoring_onto_a_live_name():
 
     with pytest.raises(NameTaken) as exc:
         restore_project(store, "düğün")
+
+    assert str(exc.value) == "Bu ad zaten kullanılıyor. Başka bir ad dene."
+
+
+def test_creating_onto_a_name_the_archive_holds_is_refused():
+    """Madde 223, and what the user hit: the name went to a new project, and the archived one could
+    never come back out."""
+    store = RecordingStore([], projects=(), archived=("düğün",))
+
+    with pytest.raises(NameTaken):
+        create_project(store, "düğün")
+
+    assert [p.name for p in store.list()] == []
+
+
+def test_the_refusal_says_the_name_is_in_the_archive():
+    """Not the usual sentence: someone reading "bu ad zaten kullanılıyor" would go looking for it
+    among their projects, where it is not."""
+    store = RecordingStore([], projects=(), archived=("düğün",))
+
+    with pytest.raises(NameTaken) as exc:
+        create_project(store, "düğün")
+
+    assert "arşiv" in str(exc.value).lower()
+    assert "düğün" in str(exc.value)
+
+
+def test_renaming_onto_a_name_the_archive_holds_says_the_same_thing():
+    """One situation, one sentence -- the rule rename already follows for a name a project holds."""
+    store = RecordingStore([], projects=("nikah",), archived=("düğün",))
+
+    with pytest.raises(NameTaken) as renaming_says:
+        rename_project(store, straight, "nikah", "düğün")
+    with pytest.raises(NameTaken) as creating_says:
+        create_project(store, "düğün")
+
+    assert str(renaming_says.value) == str(creating_says.value)
+
+
+def test_a_name_a_live_project_holds_keeps_the_sentence_it_had():
+    """The new sentence belongs to the archive alone: sending someone to the archive over a name
+    that is sitting on their own screen would read worse than the old wording."""
+    store = RecordingStore([], projects=("düğün",), archived=())
+
+    with pytest.raises(NameTaken) as exc:
+        create_project(store, "düğün")
 
     assert str(exc.value) == "Bu ad zaten kullanılıyor. Başka bir ad dene."
 

@@ -228,6 +228,53 @@ describe("ProjectsScreen archiving a project", () => {
     // The projects' empty state invites a first project, which is the wrong invitation here.
     expect(screen.queryByText("İlk projeni oluştur, karelerin burada toplansın")).toBeNull();
   });
+
+  // Madde 223. Every failure here was silent: neither handler caught, so the server's sentence
+  // became an unhandled rejection and the user saw a button that did nothing at all.
+  it("says what the server said when archiving fails", async () => {
+    await openScreen();
+    archiveProject.mockRejectedValue(new Error("Arşivde düğün adlı bir proje var."));
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(screen.getByText("Arşivde düğün adlı bir proje var.")).toBeTruthy();
+  });
+
+  it("leaves the list where it is when archiving fails", async () => {
+    // An action that failed is not a list that failed: taking the cards away would cost the user
+    // the thing they were about to try again.
+    await openScreen();
+    archiveProject.mockRejectedValue(new Error("Arşivde düğün adlı bir proje var."));
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(screen.getByText("düğün")).toBeTruthy();
+  });
+
+  it("says what the server said when restoring fails", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+    restoreProject.mockRejectedValue(new Error("Bu ad zaten kullanılıyor. Başka bir ad dene."));
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi geri al")); });
+
+    expect(screen.getByText("Bu ad zaten kullanılıyor. Başka bir ad dene.")).toBeTruthy();
+  });
+
+  it("clears the sentence once something works", async () => {
+    await openScreen();
+    archiveProject.mockRejectedValueOnce(new Error("Arşivde düğün adlı bir proje var."));
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+    // There first, or the question below answers itself.
+    expect(screen.getByText("Arşivde düğün adlı bir proje var.")).toBeTruthy();
+    archiveProject.mockResolvedValue(null);
+    listProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(screen.queryByText("Arşivde düğün adlı bir proje var.")).toBeNull();
+  });
 });
 
 describe("ProjectsScreen deleting a project", () => {

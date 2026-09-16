@@ -125,14 +125,42 @@ def test_archiving_a_project_that_is_not_there_answers_404(tmp_path):
 def test_restoring_onto_a_live_name_answers_409(tmp_path):
     """The same code rename answers with, because it is the same collision -- the frontend has one
     language for "that name is taken" and archive must not invent a second."""
-    client, _drive = make_client(tmp_path)
+    client, drive = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
     client.post("/api/projects/düğün/archive")
-    client.post("/api/projects", json={"name": "düğün"})
+    # Made straight on the disk: since madde 223 no request hands out a name the archive holds, and
+    # that is what keeps the way back open. This guard answers for a folder that arrived some other
+    # way, so the test has to arrive that way too.
+    (drive / "düğün").mkdir()
 
     resp = client.post("/api/projects/düğün/restore")
 
     assert resp.status_code == 409
+
+
+def test_a_name_the_archive_holds_cannot_be_taken_by_a_new_project(tmp_path):
+    """Madde 223. Same code a taken name has always answered with: the archive must not teach the
+    frontend a second error language."""
+    client, _drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects/düğün/archive")
+
+    resp = client.post("/api/projects", json={"name": "düğün"})
+
+    assert resp.status_code == 409
+    assert "arşiv" in resp.get_json()["error"].lower()
+
+
+def test_a_project_cannot_be_renamed_onto_a_name_the_archive_holds(tmp_path):
+    client, _drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects/düğün/archive")
+    client.post("/api/projects", json={"name": "nikah"})
+
+    resp = client.post("/api/projects/nikah/rename", json={"name": "düğün"})
+
+    assert resp.status_code == 409
+    assert "arşiv" in resp.get_json()["error"].lower()
 
 
 def test_the_archive_name_cannot_be_taken_by_a_project(tmp_path):

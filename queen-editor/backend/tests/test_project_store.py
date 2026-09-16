@@ -92,14 +92,75 @@ def test_an_archived_project_is_not_there_any_more(tmp_path):
 
 
 def test_archiving_the_same_name_twice_is_refused(tmp_path):
-    """Archive one, make another with the same name, archive that: the first one must not be
-    overwritten, and a project's own folder is the only copy of its work."""
+    """The one already in the archive must not be overwritten: a project's own folder is the only
+    copy of its work.
+
+    The second folder is made by hand rather than through create, because since madde 223 create
+    refuses a name the archive holds. So this guard is no longer on the path a user can walk -- it
+    answers for a folder that turned up in the root some other way, and it stays for that.
+    """
     store = store_at(tmp_path)
     store.create("düğün")
     store.archive("düğün")
-    store.create("düğün")
+    (tmp_path / "düğün").mkdir()
 
     assert store.archive("düğün") is None
+
+
+def test_a_name_the_archive_holds_cannot_be_created(tmp_path):
+    """Madde 223. The archive is one folder down, so make_dir cannot see a name sitting in it --
+    and the project that owns that name could then never come back out, because the archived card
+    offers the way back and nothing else."""
+    store = store_at(tmp_path)
+    store.create("düğün")
+    store.archive("düğün")
+
+    assert store.create("düğün") is None
+
+
+def test_a_refused_name_leaves_no_folder_in_the_root(tmp_path):
+    """Where the rule has to sit: before the mkdir. A folder made and then taken back is a project
+    that existed for a moment, and a create that fails must leave the disk as it found it."""
+    store = store_at(tmp_path)
+    store.create("düğün")
+    store.archive("düğün")
+
+    store.create("düğün")
+
+    assert not (tmp_path / "düğün").exists()
+
+
+def test_a_project_cannot_be_renamed_onto_an_archived_name(tmp_path):
+    """The same hole from the other side: rename_dir asks the root whether the target is free."""
+    store = store_at(tmp_path)
+    store.create("düğün")
+    store.archive("düğün")
+    store.create("nikah")
+
+    assert store.rename("nikah", "düğün") is None
+    assert (tmp_path / "nikah").is_dir()
+
+
+def test_a_name_the_archive_does_not_hold_is_still_created(tmp_path):
+    store = store_at(tmp_path)
+    store.create("düğün")
+    store.archive("düğün")
+
+    assert store.create("nikah").name == "nikah"
+
+
+def test_is_archived_answers_both_ways(tmp_path):
+    """Asked only when a create or a rename was refused: the two refusals have two sentences, and
+    this is what tells them apart. On the happy path nobody asks -- over Drive every question is a
+    round trip."""
+    store = store_at(tmp_path)
+    store.create("düğün")
+    store.archive("düğün")
+    store.create("nikah")
+
+    assert store.is_archived("düğün") is True
+    assert store.is_archived("nikah") is False
+    assert store.is_archived("hiç olmadı") is False
 
 
 def test_archiving_something_that_is_not_there_says_so(tmp_path):
@@ -107,10 +168,12 @@ def test_archiving_something_that_is_not_there_says_so(tmp_path):
 
 
 def test_restoring_onto_a_live_name_is_refused(tmp_path):
+    # Made by hand for the same reason the double-archive test is: create will not hand out a name
+    # the archive holds any more (madde 223), which is exactly what keeps the way back open.
     store = store_at(tmp_path)
     store.create("düğün")
     store.archive("düğün")
-    store.create("düğün")
+    (tmp_path / "düğün").mkdir()
 
     assert store.restore("düğün") is None
 
