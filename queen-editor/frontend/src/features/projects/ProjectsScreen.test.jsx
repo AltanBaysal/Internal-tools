@@ -229,6 +229,50 @@ describe("ProjectsScreen archiving a project", () => {
     expect(screen.queryByText("İlk projeni oluştur, karelerin burada toplansın")).toBeNull();
   });
 
+  // Madde 224. The archive is a place that is entered, so its header is its own: nothing that makes
+  // a project, and a way out worded the way every other place in this app words it.
+  it("has no way to make a project from inside the archive", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    // Not disabled -- drawn at all it would say a project could be made here, and what it makes
+    // lands among the projects rather than in the list being looked at.
+    expect(screen.queryByText("Yeni proje")).toBeNull();
+  });
+
+  it("offers nothing to press in an empty archive either", async () => {
+    // The projects' own empty state carries a create button, and this is where it would sneak in.
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    expect(screen.queryByText("Yeni proje")).toBeNull();
+    expect(screen.queryByText("İlk projeyi oluştur")).toBeNull();
+  });
+
+  it("is left the way every other place in this app is left", async () => {
+    await openScreen();
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    // The project screen's own word (Projeden çık). A toggle reads both ways; this is an exit.
+    expect(screen.getByText("Arşivden çık")).toBeTruthy();
+  });
+
+  it("comes back to the projects when the way out is pressed", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşivden çık")); });
+
+    expect(screen.getByText("düğün")).toBeTruthy();
+    expect(screen.queryByText("eski iş")).toBeNull();
+  });
+
   // Madde 223. Every failure here was silent: neither handler caught, so the server's sentence
   // became an unhandled rejection and the user saw a button that did nothing at all.
   it("says what the server said when archiving fails", async () => {

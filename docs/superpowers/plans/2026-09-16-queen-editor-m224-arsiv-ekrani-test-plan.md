@@ -13,13 +13,14 @@ testinin açtığı yolun devamı: `Arşiv`'e basılır, sonra başlığa bakıl
 
 | Test | Ne bekler |
 |---|---|
-| `the archive has no way to make a project` | `queryByText("Yeni proje")` → null |
-| `the archive leaves the way it was entered` | `getByText("Arşivden çık")` var |
-| `and no name window can be opened from in there` | pencerenin başlığı *"Yeni proje"* hiçbir yerde yok |
+| `has no way to make a project from inside the archive` | `queryByText("Yeni proje")` → null |
+| `offers nothing to press in an empty archive either` | boş arşivde de ne o düğme ne *"İlk projeyi oluştur"* |
+| `is left the way every other place in this app is left` | `getByText("Arşivden çık")` var |
+| `comes back to the projects when the way out is pressed` | basınca `düğün` geri geliyor, `eski iş` gidiyor |
 
-**2 · Olgu 3 ve 4 zaten yeşil** ve öyle kalmalı: *"opens the archive from the header"* ile kartların
-düğmelerine bakan testler ikisini birden tutuyor. Çıkışın **adı** değiştiği için o testte `Projeler`
-yerine `Arşivden çık` aranır — soru değişmiyor, tıklanan kelime değişiyor.
+**2 · Olgu 4 zaten yeşil** ve öyle kalmalı: *"opens the archive from the header"* onu tutuyor.
+**Olgu 3 tutulmuyormuş** — arşive giren test var, arşivden **çıkan** yok; yukarıdaki dördüncü test o
+boşluğu da dolduruyor.
 
 **3 · Takım koşulur**, dördü de:
 

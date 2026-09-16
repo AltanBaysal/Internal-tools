@@ -49,12 +49,17 @@ yok — yani o taraf 221'de doğru kurulmuştu, eksik olan yalnız başlıktı.
 |---|---|---|
 | 1 | Arşivdeyken **Yeni proje** düğmesi yok | **kırmızı** |
 | 2 | Arşivdeyken çıkış düğmesi **Arşivden çık** diyor | **kırmızı** |
-| 3 | Ona basınca projeler listesi geri geliyor | yeşil, ve öyle kalmalı |
+| 3 | Ona basınca projeler listesi geri geliyor | **kırmızı** |
 | 4 | Projeler listesinde **Arşiv** ve **Yeni proje** ikisi de duruyor | yeşil, ve öyle kalmalı |
-| 5 | Arşivdeyken ad penceresi hiç açılamıyor | **kırmızı** |
+| 5 | **Boş** arşivde de açacak bir şey yok | **kırmızı** |
 
-Beşincisi birincinin gerçekten kapandığının çivisi: düğmeyi çizmemek yetiyor, ama testin baktığı şey
-düğme değil **pencere** olmalı — asıl istenmeyen, arşivden bir proje açılabilmesi.
+Üçüncüsü yazarken kırmızı çıktı: arşivden **çıkan** hiçbir test yokmuş — girmeyi tutan var, çıkmayı
+tutan yok. Düğmenin adı zaten değişiyor, yani o çivi hem yeni adı hem ilk kez çıkışın kendisini
+tutuyor.
+
+Beşincisi ayrı bir soru, birincinin tekrarı değil: **boş** liste, projeler tarafında bir *açma
+düğmesi* çizen tek yer *("İlk projeyi oluştur")*. Arşivin boş hâli 221'de doğru kurulmuştu ve öyle
+kalmalı.
 
 ## Bu turda değişen
 
