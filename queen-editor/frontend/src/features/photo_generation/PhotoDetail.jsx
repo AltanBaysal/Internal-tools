@@ -11,6 +11,7 @@ import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
+import { useModels } from "./useModels.js";
 
 // minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
 // bar past the window and take the whole page sideways with it (madde 107).
@@ -256,6 +257,10 @@ function PromptBox({ label, value, changed, height, onChange }) {
 export default function PhotoDetail({ project, frame: fid }) {
   const { frames, current, currentLayer, error, removePhotos, removeLayer, regenerate,
           retry } = useGeneration(project);
+  // The rows the renderer offers, for one line in the column on the right: a frame stores its pick
+  // as a value, and for a recipe that value is an id -- the name it was picked by is in this list
+  // and nowhere else. The hook remembers the answer for the visit, so opening frames costs nothing.
+  const { models } = useModels();
   // Which window is open, not merely that one is: a failed layer's way out deletes the FRAME while
   // a layer tab is open, and deciding from the open tab would show it the layer's words.
   const [asking, setAsking] = useState(null);              // "frame" | "layer" | null
@@ -325,10 +330,14 @@ export default function PhotoDetail({ project, frame: fid }) {
   // How the open layer was made, when its line said so. Only a video has an answer today, and only
   // a produced one: a failed or deleted layer's latest line names no mode.
   const madeIn = (frame?.modes || {})[open];
-  // Which checkpoint rendered this frame. The plan row carries the file name the notebook
-  // downloaded, and the column already has a file-name row of its own -- so the extension comes off
-  // and this row says the model. Only .safetensors: that is the one kind the notebook installs.
-  const madeWith = (frame?.model || "").replace(/\.safetensors$/, "");
+  // What rendered this frame. The plan row carries what was picked: a file name the notebook
+  // downloaded, or a recipe's id. A recipe is shown by the name it was picked by -- `recipe:slime`
+  // is an address, and the person who chose "Slime" from a list never saw it. Without the list the
+  // stored value stands in: worse than the label, better than an empty row.
+  // The extension comes off a file name because the column already has a file-name row of its own.
+  const storedModel = frame?.model || "";
+  const madeWith = (models?.find((row) => row.value === storedModel)?.label || storedModel)
+    .replace(/\.safetensors$/, "");
   // Linked names the picture rather than the frame's number -- the sequence can be dragged, and a
   // number would then be a lie about a video nobody touched.
   const arrivesAt = (frame?.endsOn || {})[open];

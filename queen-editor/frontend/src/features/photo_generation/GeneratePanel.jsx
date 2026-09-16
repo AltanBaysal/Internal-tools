@@ -102,17 +102,21 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
     REMEMBERED.set(project, { prompts, negative, model, variants });
   }, [project, prompts, negative, model, variants]);
 
-  // Nothing saved yet: the field has to show a real choice rather than a blank, so the first model
+  // Nothing saved yet: the field has to show a real choice rather than a blank, so the first row
   // the renderer lists is taken. Only ever fills an empty box -- a saved choice is never moved.
   useEffect(() => {
-    if (!model && models && models.length) setModel(models[0]);
+    if (!model && models && models.length) setModel(models[0].value);
   }, [models, model]);
 
   const loadingModels = models === null;
-  // A saved model the renderer no longer lists stays selected: quietly sliding the user onto
-  // another model would mean the next batch renders with one they never picked.
-  const gone = Boolean(model) && Boolean(models) && models.length > 0 && !models.includes(model);
-  const options = gone ? [model, ...models] : (models || []);
+  // A saved pick the renderer no longer offers stays selected: quietly sliding the user onto
+  // another row would mean the next batch renders with one they never picked. Compared by value,
+  // because a row's label is what the user reads and its value is what the frame stores.
+  const gone = Boolean(model) && Boolean(models) && models.length > 0
+    && !models.some((row) => row.value === model);
+  // The lost pick is drawn under its own value: a recipe id is a poor label, and inventing a
+  // prettier one for a row nobody offers any more would be inventing what it used to be called.
+  const options = gone ? [{ value: model, label: model }, ...models] : (models || []);
 
   const perPrompt = Number(variants);
   // What the server blamed, if it blamed anything. A named field means the request never reached
@@ -176,8 +180,8 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
     <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
       <InstallCard producer={producer} onInstall={onInstall} />
 
-      {/* The panel's first field, as it has been in the design since v1. The list is the
-          renderer's answer, so what can be picked is exactly what the graph can load. */}
+      {/* The panel's first field, as it has been in the design since v1. A row is a recipe -- a
+          name over a checkpoint and a lora arrangement -- so the label is read and the value sent. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <Mono size={11} style={LABEL}>Model</Mono>
         <select className="wf-input" value={model} disabled={loadingModels || !options.length}
@@ -186,7 +190,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
           {loadingModels ? (
             <option value="">yükleniyor…</option>
           ) : options.length ? (
-            options.map((name) => <option key={name} value={name}>{name}</option>)
+            options.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)
           ) : (
             <option value="">model bulunamadı</option>
           )}

@@ -3,6 +3,7 @@
 Node ids come from our own export (queen-editor/workflow_api.json):
   "3"  ImpactWildcardProcessor, _meta.title "POSITIVE"
   "4"  ImpactWildcardProcessor, _meta.title "NEGATIVE"
+  "27" Power Lora Loader (rgthree) -> which loras are switched on, and how strongly
   "40" Seed (rgthree) -> KSampler, FaceDetailer and both wildcard processors read it
   "45" CheckpointLoaderSimple -> which model renders the frame
 
@@ -10,8 +11,11 @@ A new export can renumber these; then this file changes and nothing else does.
 """
 import json
 
+from backend.features.photo_generation.domain import recipes
+
 PROMPT_NODE = "3"
 NEGATIVE_NODE = "4"
+LORA_NODE = "27"
 SEED_NODE = "40"
 MODEL_NODE = "45"
 
@@ -32,6 +36,11 @@ class ComfyPhotoGenerator:
         see ports.PhotoGenerator.
         """
         workflow = self._load()
+        recipe = self._recipe(model)
+        if recipe:
+            # A lora that is loaded but never named in the prompt renders an ordinary photo and
+            # raises nothing anywhere -- so the recipe's word goes in front of the user's own.
+            prompt = f"{recipe['trigger']}, {prompt}" if recipe["trigger"] else prompt
         self._set_text(workflow, PROMPT_NODE, prompt)
         # An empty negative is written through as empty: leaving the export's own text in place
         # would mean "no negative" silently kept a negative.
@@ -41,7 +50,12 @@ class ComfyPhotoGenerator:
         workflow[SEED_NODE]["inputs"]["seed"] = seed
         # No model means the export's own checkpoint: frames planned before models could be chosen
         # render exactly as they used to, and so does every frame when the list cannot be read.
-        if model:
+        if recipe:
+            workflow[MODEL_NODE]["inputs"]["ckpt_name"] = recipe["checkpoint"]
+            self._set_loras(workflow, recipe["loras"])
+        elif model:
+            # A bare file name is a checkpoint and nothing more: picking one has never meant picking
+            # a lora arrangement, and a frame planned that way keeps rendering the way it did.
             workflow[MODEL_NODE]["inputs"]["ckpt_name"] = model
 
         prompt_id = self._client.submit(workflow)
@@ -60,6 +74,41 @@ class ComfyPhotoGenerator:
                 raise RuntimeError(f"Workflow'da {node_id} node yok — graf değişmiş, "
                                    "node id'lerini güncelle")
         return workflow
+
+    @staticmethod
+    def _recipe(model):
+        """The recipe this value names, or None when it names a file or nothing at all.
+
+        An id nobody knows stops the render. Falling back to a plain one would hand back a picture
+        that is not what was asked for, with nothing anywhere saying the recipe went unapplied.
+        """
+        if not model.startswith(recipes.PREFIX):
+            return None
+        recipe_id = model[len(recipes.PREFIX):]
+        recipe = recipes.find(recipe_id)
+        if recipe is None:
+            raise RuntimeError(f"Tanınmayan tarif: {recipe_id} — uygulama bu tarifi bilmiyor, "
+                               "defter bu depodan yeni olabilir")
+        return recipe
+
+    @staticmethod
+    def _set_loras(workflow, loras):
+        """Hand the loader the recipe's loras and nothing else.
+
+        A replacement rather than an addition: the graph ships with its own lora switched on, and
+        the whole of madde 214 is that Slime was liked with that one OFF. Every lora_* slot goes,
+        then the recipe's are written from lora_1 -- the loader reads them in that order.
+        """
+        node = workflow.get(LORA_NODE)
+        if node is None:
+            raise RuntimeError(f"Workflow'da {LORA_NODE} node yok — grafik yeniden export edilmiş "
+                               "olabilir, LoRA yükleyicisinin id'sini güncelle")
+        inputs = node["inputs"]
+        for key in [key for key in inputs if key.startswith("lora_")]:
+            del inputs[key]
+        for index, lora in enumerate(loras, start=1):
+            inputs[f"lora_{index}"] = {"on": True, "lora": lora["lora"],
+                                       "strength": lora["strength"]}
 
     @staticmethod
     def _set_text(workflow, node_id, text):

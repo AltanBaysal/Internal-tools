@@ -166,7 +166,7 @@ _photo_bp = make_photo_generation_blueprint(
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
-    list_models=partial(list_models, _photo_generator),
+    list_models=partial(list_models, _photo_generator, config.PHOTO_RECIPES),
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
     # How long one video runs is the video graph's own setting, so the producer that owns that
     # graph is who answers it -- the summary keeps no number of its own.

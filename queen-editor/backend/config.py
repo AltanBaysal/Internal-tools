@@ -22,6 +22,12 @@ COMFY_URL = os.environ.get("QE_COMFY_URL", "http://127.0.0.1:8188")
 # below is only the fallback.
 COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
 
+# Which recipes the notebook installed, by id. The disk cannot answer this: Slime renders on Nova
+# 3DCG's checkpoint, so a Slime-only machine has that file and the renderer lists it. Empty -- a
+# checkout with no notebook behind it -- means the panel falls back to the renderer's own list.
+PHOTO_RECIPES = [part.strip() for part in os.environ.get("QE_PHOTO_RECIPES", "").split(",")
+                 if part.strip()]
+
 # The graph ships in the repo (our own copy -- never read collab-toolbox's file).
 WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
 # The video graph the same way: our own WAN 2.2 I2V export, exported from ComfyUI and committed.

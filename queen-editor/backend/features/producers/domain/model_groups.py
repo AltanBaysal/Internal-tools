@@ -26,7 +26,11 @@ GROUPS = {
         # is anything to hand it. Naming one made the panel call the producer uninstalled for
         # anyone who picked a different model.
         {"folder": "checkpoints", "suffix": ".safetensors"},
+        # Both loras come down whichever recipes were ticked: a recipe picks the checkpoint and the
+        # loader's slots, and hanging the panel's count on that choice would make "installed" mean
+        # a different set of files on every machine.
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
+        {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},
         # UltralyticsDetectorProvider lists this one as "bbox/<name>", so the folder is nested.
         {"folder": "ultralytics/bbox", "name": "face_yolov9c.pt"},
