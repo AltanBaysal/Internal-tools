@@ -62,6 +62,10 @@ export default function ProjectsScreen() {
   // archiveError's: that one replaces the list, which is right for a list that would not load and
   // wrong for a button that did not work -- the cards have to stay for the next try (madde 223).
   const [actionError, setActionError] = useState(null);
+  // Which project is being worked on and what its card should say, or null. Between the press and
+  // the list coming back there is a trip to Drive, and the screen used to say nothing for the whole
+  // of it -- the button even stayed pressable (madde 225).
+  const [working, setWorking] = useState(null);
   const shown = inArchive ? (archived || []) : projects;
   const crowded = shown.length > FITS;
 
@@ -79,29 +83,39 @@ export default function ProjectsScreen() {
   // Both of these used to let the rejection go: the server's sentence became an unhandled promise
   // rejection, so a refused archive looked like a button that did nothing at all. What is caught is
   // shown verbatim -- api.js throws the server's own words, and there is no cause to invent here.
+  // The word is cleared in two places on purpose. On success it goes only after the lists have been
+  // read again -- that read is another trip to Drive, and clearing on the answer would put the
+  // silence back in a smaller place. On failure it goes at once, so the sentence below is the only
+  // thing on screen.
   async function handleArchive(name) {
+    setWorking({ name, label: "Arşivleniyor…" });
     try {
       await archiveProject(name);
       setActionError(null);
     } catch (err) {
       setActionError(err.message);
-      return;   // nothing moved, so there is nothing to re-read
+      setWorking(null);
+      return;   // nothing changed, so there is nothing to re-read
     }
     // Drive is the single source of truth here too -- and both lists changed, so both are re-read.
     await reload();
     if (archived) await refreshArchive();
+    setWorking(null);
   }
 
   async function handleRestore(name) {
+    setWorking({ name, label: "Geri alınıyor…" });
     try {
       await restoreProject(name);
       setActionError(null);
     } catch (err) {
       setActionError(err.message);
+      setWorking(null);
       return;
     }
     await refreshArchive();
     await reload();
+    setWorking(null);
   }
 
   async function toggleArchive() {
@@ -228,6 +242,7 @@ export default function ProjectsScreen() {
               {shown.map((p) => (
                 <ProjectCard key={p.name} name={p.name} modifiedAt={p.modifiedAt}
                              archived={inArchive}
+                             busy={working?.name === p.name ? working.label : null}
                              onDelete={() => setDeletingName(p.name)}
                              onRename={() => setRenamingName(p.name)}
                              onArchive={() => handleArchive(p.name)}
