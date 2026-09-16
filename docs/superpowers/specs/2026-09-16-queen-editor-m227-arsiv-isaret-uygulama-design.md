@@ -40,21 +40,19 @@ cevabı taşımak için `list_dirs`'i bir kez daha okumak, Drive'da bedava deği
 dolu, `make_dir` ve `rename_dir` kendiliğinden reddediyor. Kalan yalnız `is_archived`, ve o da
 **redin cümlesini seçmek** için — 223'teki yerinde duruyor.
 
-## 3 · Göç
+## 3 · Eski `arsiv/` klasörü
 
-Depo açılırken bir kez: `arsiv/` altındaki her klasör köke taşınıyor ve işaretleniyor, sonra klasör
-siliniyor.
+**Göç yoktu, yazıldı, ve kullanıcı isteğiyle çıkarıldı** *("kaldır abi, kodu basitleştir")*.
+Bir kerelik bir onarımın depoda temelli yaşaması istenmedi: `arsiv/` altındaki projeleri köke
+taşımak **Drive'da elle** yapılıyor, ve taşınınca normal *(arşivlenmemiş)* proje olarak görünüyorlar.
 
-- **Klasör yoksa hiçbir şey olmuyor** — bir `isdir`, ve ilk koşudan sonra zaten yok.
-- **Ad doluysa** proje `<ad> (arşiv)`, dolusa `<ad> (arşiv 2)`… adına iniyor. Hiçbir şey
-  üzerine yazılmıyor, hiçbir şey geride kalmıyor, ve yeni ad neden değiştiğini söylüyor.
-- **Boşalmadıysa silinmiyor.** Klasörde beklenmedik bir dosya kalmışsa `arsiv/` duruyor — ve
-  `list()` o adı atlamayı sürdürüyor, yoksa ekranda `arsiv` adlı bir proje belirirdi.
+Koddan geriye **tek satır** kalıyor: `list()` `arsiv` adını atlıyor. Sebebi, 221'den kalma bir
+kurulumda o klasörün hâlâ duruyor olması — ve kökteki her klasörün proje sayılması. Atlanmasaydı
+ekranda `arsiv` adlı bir proje belirirdi.
 
-`arsiv` **ayrılmış ad olarak kalıyor**, ama cümlesi sebebini artık söylemiyor *("Bu ad ayrılmış,
-başka bir ad dene.")*: sebep kullanıcının bilmesi gereken bir şey değil, göçün oraya bakması. Eski
-cümle *"arşivlenen projeler orada duruyor"* diyordu ve bugün orada hiçbir şey durmuyor — kalsaydı
-yanlış olurdu.
+`arsiv` **ayrılmış ad olarak kalıyor**, aynı sebeple. Cümlesi artık sebebini söylemiyor *("Bu ad
+ayrılmış, başka bir ad dene.")*: eski cümle *"arşivlenen projeler orada duruyor"* diyordu, ve bugün
+orada bizim koyduğumuz hiçbir şey durmuyor.
 
 ## 4 · Kullanım ve rotalar
 

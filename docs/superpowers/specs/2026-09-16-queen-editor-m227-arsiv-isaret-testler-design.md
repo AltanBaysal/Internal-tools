@@ -50,7 +50,17 @@ proje listesini çizilemez hâle getirmemeli.
 Üçüncüsü en sinsisi: kalan bir ad hiçbir listeyi bozmuyor *(o adda klasör yok)*, ta ki biri o adı
 yeniden kullanana kadar.
 
-## Göç: `arsiv/` altında gerçek projeler duruyor
+## Göç — **yazıldı, sonra kullanıcı isteğiyle kaldırıldı**
+
+> **16 Eylül, kod yazıldıktan sonra:** *"kaldır abi, kodu basitleştir, olabildiğince
+> karmaşıklaştırma."* Göç koda girmişti ve çıkarıldı — bir kerelik bir onarımın depoda temelli
+> yaşaması istenmiyor. **`arsiv/` altındakileri köke taşımak artık Drive'da elle yapılıyor.**
+> Aşağıdaki 10–14 olguları bu yüzden çivilenmedi; yerine tek bir çivi kaldı: **kalan `arsiv/`
+> klasörü proje sayılmıyor**, yoksa ekranda `arsiv` adlı bir proje belirirdi.
+>
+> Bölümün kalanı o günkü tasarımın kaydı olarak duruyor.
+
+### O günkü tasarım
 
 Kullanıcı denedi, yani Drive'da taşınmış projeler var. İşaret onları bilmiyor, klasör de kökte
 değil — yani **hiçbir listede görünmezler.** Bu yüzden depo açılırken bir onarım yapıyor: `arsiv/`

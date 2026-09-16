@@ -6,6 +6,10 @@ move: the project stays exactly where it is and goes on working -- it opens, it 
 -- and the mark says which of the two lists it is drawn in. Madde 221 moved the folder instead, and
 the move closed the project to everything that reaches it by name; the user, having used it, asked
 for the opposite.
+
+Nothing here carries home what that version moved. An install from those days has projects sitting
+under arsiv/, and moving them back is done in Drive by hand -- the user's own call, so that a repair
+needed once does not live in this file forever.
 """
 import json
 
@@ -21,7 +25,6 @@ KEY = "arsiv"
 class DriveProjectStore:
     def __init__(self, storage):
         self.storage = storage
-        self._carry_back_the_old_archive()
 
     # --- the mark ---------------------------------------------------------------------------
 
@@ -29,16 +32,12 @@ class DriveProjectStore:
         """The archived names. Anything unreadable is an empty archive, which is settings.json's own
         rule: no broken file may make the list of projects impossible to draw."""
         raw = self.storage.read_text("", MARK_FILE)
-        if raw is None:
-            return []
         try:
-            data = json.loads(raw)
+            data = json.loads(raw) if raw else {}
         except ValueError:
-            return []
+            data = {}
         names = data.get(KEY) if isinstance(data, dict) else None
-        if not isinstance(names, list):
-            return []
-        return [name for name in names if isinstance(name, str)]
+        return names if isinstance(names, list) else []
 
     def _write_marks(self, names):
         self.storage.write_text(
@@ -48,8 +47,9 @@ class DriveProjectStore:
 
     def list(self):
         marks = self._marks()
-        # ARCHIVE_DIR is skipped for the one case the migration cannot finish: a folder it could not
-        # empty stays, and the root's folders ARE the projects, so it would show up as one.
+        # An install from madde 221 still has the folder that archived projects were moved into.
+        # Nothing looks in it any more -- bringing those projects home is done by hand, in Drive --
+        # but the root's folders ARE the projects, so it would otherwise show up as one.
         return [Project(name, mtime) for name, mtime in self.storage.list_dirs()
                 if name not in marks and name != name_rules.ARCHIVE_DIR]
 
@@ -116,46 +116,3 @@ class DriveProjectStore:
         if old in marks:
             self._write_marks([new if held == old else held for held in marks])
         return Project(new, moved)
-
-    # --- madde 221's leftovers --------------------------------------------------------------
-
-    def _carry_back_the_old_archive(self):
-        """Bring home whatever madde 221 moved into arsiv/.
-
-        The mark knows nothing about those folders and they are not in the root, so left alone they
-        appear in neither list -- a project the user cannot see rather than one they put away.
-
-        Costs one isdir per start, and after the first start there is nothing to find.
-        """
-        old = name_rules.ARCHIVE_DIR
-        inside = self.storage.list_dirs(old)
-        if not inside:
-            return
-        marks = self._marks()
-        for name, _mtime in inside:
-            landed = self._free_name(name)
-            self.storage.rename_dir(f"{old}/{name}", landed)
-            if landed not in marks:
-                marks.append(landed)
-        self._write_marks(marks)
-        # Only when it really is empty. Anything unexpected left in there is somebody's, and
-        # list() steps over the folder for exactly this case.
-        if not self.storage.list_dirs(old) and not self.storage.list_files(old):
-            self.storage.delete_dir(old)
-
-    def _free_name(self, name):
-        """The name itself when the root is free, otherwise one beside it.
-
-        Before madde 223 an archived name could be handed to a new project -- that is the bug the
-        user reported, so this pair really can be sitting on their Drive. Neither one may be lost,
-        so the returning project takes a name that says where it came from. Length is not checked:
-        these are folders that already exist, not names anybody is typing.
-        """
-        if not self.storage.dir_exists(name):
-            return name
-        candidate = f"{name} (arşiv)"
-        nth = 2
-        while self.storage.dir_exists(candidate):
-            candidate = f"{name} (arşiv {nth})"
-            nth += 1
-        return candidate
