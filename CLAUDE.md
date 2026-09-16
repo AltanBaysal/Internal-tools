@@ -23,44 +23,50 @@ How a tool is installed and run is its own README's, not this file's.
 
 ## Working a roadmap
 
-**A roadmap is one version of one tool:** a numbered list of items, worked in order on that
-version's branch. One problem, one item, ordered so nothing is built before what it stands on, each
-saying what will work and how it will be seen. Numbering never shifts: written specs cite it. A spec
-derives from its source document, never the reverse.
+Work arrives from the user in pieces, across days and sessions that do not remember each other. The
+roadmap is that memory: what is being built, what was decided and why, and where it stands. Specs
+derive from it, never the reverse.
 
-**IMPORTANT — approval starts a task, nothing else does.** Once given, run to the end. Stop only for
-a decision with two readings or no way back, and ask it in plain text: one question, numbered
-options, a recommendation.
+A roadmap is one version of one tool, and a version is a branch. The user is not there between
+items, so the roadmap runs as a loop:
 
-**An item ending is not a stop.** With nothing to ask, the next item starts in the same breath —
-finishing one and waiting for permission to begin the next is the stop this rule forbids. One
-approval carries the whole roadmap.
+1. **A branch is opened, and one roadmap is written for it.** It goes in
+   [docs/superpowers/roadmaps/](docs/superpowers/roadmaps/), apart from the per-item plans in
+   `plans/`, as `YYYY-MM-DD-<tool>-v<N>-roadmap.md`: the day it opened, the tool's own folder name,
+   that tool's version. Its header names the branch and shows progress as *Durum: N/M*.
+2. **Items are written.** One problem, one item, each saying what will work and how it will be
+   seen.
+3. **Items are ordered by what depends on what**: nothing is built before what it stands on. The
+   user may reorder them, and the order they give is the order worked.
+4. **IMPORTANT — approval is given, and the roadmap runs.** Nothing else starts it. Once given, it
+   runs to the end: one approval carries the whole roadmap.
+5. **YOU MUST work each item as two full superpowers tours**, down to a two-line deletion. Every
+   spec starts from the tool's `FOUNDATION.md` and `CODE-STANDARD.md`:
+   - **Test tour:** spec, plan, then the tests only. The suite is run, seen failing, and committed
+     red (`skip`/`xfail` are not how a suite is made green).
+   - **Implementation tour:** a second spec and plan, for the code itself. What the committed tests
+     describe is implemented, the suite is seen green, and it is committed.
 
-**YOU MUST run every task as two full superpowers tours**, down to a two-line deletion:
+   Test and code are never written in one pass: written together, a test inherits the code's blind
+   spots.
+6. **What an item needs from the user is written at the top of its spec**, and asked for there — not
+   discovered halfway, where it leaves an item that cannot be marked.
+7. **The user is stopped for only a decision with two readings or no way back**, asked in plain
+   text: one question, numbered options, a recommendation.
+8. **Work that turns up mid-roadmap is added as an item** to the roadmap already running, never a
+   second document. Numbers never shift: written specs cite them.
+9. **A finished item is marked, and the next one starts in the same breath.** Finishing one and
+   waiting for permission to begin the next is the stop this loop forbids.
+10. **The user tests at the end of the roadmap**, not between items.
 
-1. **Test tour** — spec, plan, then implement *the tests only*. Run the suite, see them fail,
-   commit them red (`skip`/`xfail` are not how a suite is made green).
-2. **Implementation tour** — a second spec and plan, now for the code itself. Implement what the
-   committed tests describe, see the suite go green, commit.
+**Versions.** A version belongs to one tool's counter, which starts at v1. A roadmap that reaches
+into the other tool says which items did so in its own header and claims no counter of its own.
+Work done with no branch of its own is the first section of the roadmap whose branch came next.
 
-Never write test and code in one pass: written together, a test inherits the code's blind spots.
-
-The user tests at the end of a roadmap, not between items.
-
-Roadmaps live in [docs/superpowers/roadmaps/](docs/superpowers/roadmaps/), apart from the per-item
-plans in `plans/` — listing that folder is how you see which version a tool is on, so every name
-there is `YYYY-MM-DD-<tool>-v<N>-roadmap.md`: the day the roadmap opened, the tool's own folder name,
-and that tool's version.
-
-**A version belongs to one tool's counter, which starts at v1.** A roadmap that reaches into the
-other tool says which items did so in its own header and claims no counter of its own. Work done
-with no branch of its own is the first section of the roadmap whose branch came next.
-
-**A version is a branch, and that branch gets one roadmap named for it.** Work that turns up
-mid-roadmap is an item added to the roadmap already running, never a second document. The name is
-therefore the record of which version a tool is on, and it only stays one while every roadmap's name
-matches the branch in its own header: those parted company here, unnoticed for eight roadmaps, until
-thirteen documents sat on four branches.
+**Why the name matters.** Listing the roadmaps folder is how you see which version a tool is on, so
+the name is the record, and it only stays one while every roadmap's name matches the branch in its
+own header: those parted company here, unnoticed for eight roadmaps, until thirteen documents sat on
+four branches.
 
 ## Gotchas
 
@@ -71,6 +77,9 @@ thirteen documents sat on four branches.
 
 ## Style
 
+- **Of the solutions that work, the simplest is chosen.** AI overengineers by default: a layer
+  nobody needed, an option nobody asked for, a guard against a case that does not happen. Each one
+  is paid for on every later edit. When in doubt, fewer parts.
 - **A comment says WHY, and only what is true now.** `# OLD:` / `# NEW:` traces are banned; on a
   conflict the comment is fixed to match the code.
 - **Never invent a cause in an error message.** Print what the command or the service actually said;
@@ -85,5 +94,9 @@ thirteen documents sat on four branches.
 ## Where the rest lives
 
 Each tool carries its own README and its own rules (`FOUNDATION.md`, `CODE-STANDARD.md`,
-`NOTEBOOK-STANDARD.md`). They bind, the code does not repeat them, and this file does not either —
-read them before touching that tool.
+`NOTEBOOK-STANDARD.md`). They bind, the code does not repeat them, and this file does not either.
+
+**YOU MUST read the tool's `FOUNDATION.md` and `CODE-STANDARD.md` before its spec is written.**
+FOUNDATION says which value wins when two collide — correctness, then simplicity, then generality,
+then performance — and why code is kept simple enough to be rewritten from its spec. CODE-STANDARD
+says where code goes and what may import what.
