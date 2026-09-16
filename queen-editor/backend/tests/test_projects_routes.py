@@ -44,9 +44,8 @@ def client_for(drive_root, dist_dir, halted=None):
         rename_project=partial(rename_project, store, lambda old, new, do: do()),
         get_settings=partial(get_settings, settings_store),
         save_settings=partial(save_settings, settings_store),
-        archive_project=partial(archive_project, store,
-                                lambda project: (halted if halted is not None else []).append(
-                                    project)),
+        # No halt port: since madde 227 nothing moves, so there is no production to stop.
+        archive_project=partial(archive_project, store),
         restore_project=partial(restore_project, store),
         list_archived_projects=partial(list_archived_projects, store),
     )
@@ -62,9 +61,9 @@ def make_client(tmp_path, halted=None):
     return client_for(drive, dist, halted), drive
 
 
-def test_archiving_a_project_takes_it_off_the_list_without_losing_a_file(tmp_path):
-    """Madde 221. The folder moves under the root's archive folder; nothing is deleted, and the
-    projects screen simply stops showing it."""
+def test_archiving_a_project_takes_it_off_the_list_without_moving_anything(tmp_path):
+    """Madde 227. The projects screen stops showing it and that is the whole of what happened: the
+    folder does not move, so everything that reaches the project by name still finds it."""
     client, drive = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
     (drive / "düğün" / "0_a.png").write_bytes(b"PNG")
@@ -73,7 +72,7 @@ def test_archiving_a_project_takes_it_off_the_list_without_losing_a_file(tmp_pat
 
     assert resp.status_code == 204
     assert client.get("/api/projects").get_json()["projects"] == []
-    assert (drive / "arsiv" / "düğün" / "0_a.png").read_bytes() == b"PNG"
+    assert (drive / "düğün" / "0_a.png").read_bytes() == b"PNG"
 
 
 def test_the_archive_is_listed_on_its_own(tmp_path):
@@ -90,14 +89,20 @@ def test_the_archive_is_listed_on_its_own(tmp_path):
     assert isinstance(resp.get_json()["projects"][0]["modifiedAt"], int)
 
 
-def test_archiving_stops_a_running_production(tmp_path):
-    halted = []
-    client, _drive = make_client(tmp_path, halted)
+def test_an_archived_project_still_answers_for_its_settings(tmp_path):
+    """Madde 227. The moving archive closed nine use cases at once because they all reach a project
+    by name; the user asked for the opposite -- an archived project goes on working."""
+    client, _drive = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
-
     client.post("/api/projects/düğün/archive")
 
-    assert halted == ["düğün"]
+    read = client.get("/api/projects/düğün/settings")
+    written = client.put("/api/projects/düğün/settings",
+                         json={"prompts": "kırmızı", "negative": "", "variants": 1, "model": ""})
+
+    assert read.status_code == 200
+    assert written.status_code == 204
+    assert client.get("/api/projects/düğün/settings").get_json()["prompts"] == "kırmızı"
 
 
 def test_restoring_brings_the_project_back(tmp_path):
@@ -120,22 +125,6 @@ def test_archiving_a_project_that_is_not_there_answers_404(tmp_path):
 
     assert resp.status_code == 404
     assert resp.get_json()["error"] == "Proje yok: yok"
-
-
-def test_restoring_onto_a_live_name_answers_409(tmp_path):
-    """The same code rename answers with, because it is the same collision -- the frontend has one
-    language for "that name is taken" and archive must not invent a second."""
-    client, drive = make_client(tmp_path)
-    client.post("/api/projects", json={"name": "düğün"})
-    client.post("/api/projects/düğün/archive")
-    # Made straight on the disk: since madde 223 no request hands out a name the archive holds, and
-    # that is what keeps the way back open. This guard answers for a folder that arrived some other
-    # way, so the test has to arrive that way too.
-    (drive / "düğün").mkdir()
-
-    resp = client.post("/api/projects/düğün/restore")
-
-    assert resp.status_code == 409
 
 
 def test_a_name_the_archive_holds_cannot_be_taken_by_a_new_project(tmp_path):

@@ -192,17 +192,28 @@ describe("ProjectsScreen archiving a project", () => {
     expect(screen.queryByText("düğün")).toBeNull();
   });
 
-  it("an archived card offers only the way back", async () => {
+  it("an archived card is an ordinary card with the way back on it", async () => {
+    // Madde 227: archiving says which list a project is drawn in and nothing else, so nothing it
+    // could do before is taken away. Only the middle button changes hands.
     await openScreen();
     listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
 
     await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
 
     expect(screen.getByLabelText("Projeyi geri al")).toBeTruthy();
-    // Nothing is deleted or renamed from in here: it is out of the way, and that is all it is.
-    expect(screen.queryByLabelText("Projeyi sil")).toBeNull();
-    expect(screen.queryByLabelText("Projeyi yeniden adlandır")).toBeNull();
+    expect(screen.getByLabelText("Projeyi yeniden adlandır")).toBeTruthy();
+    expect(screen.getByLabelText("Projeyi sil")).toBeTruthy();
     expect(screen.queryByLabelText("Projeyi arşivle")).toBeNull();
+  });
+
+  it("an archived card opens its project like any other", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    fireEvent.click(screen.getByText("eski iş"));
+
+    expect(navigate).toHaveBeenCalledWith("/projects/eski%20i%C5%9F");
   });
 
   it("restores and reads both lists again", async () => {

@@ -3,7 +3,7 @@ import pytest
 from backend.features.projects.domain import name_rules
 
 FORBIDDEN_MESSAGE = 'Proje adında şu karakterler kullanılamaz: / \\ : * ? " < > |'
-RESERVED_MESSAGE = "Bu ad ayrılmış: arşivlenen projeler orada duruyor. Başka bir ad dene."
+RESERVED_MESSAGE = "Bu ad ayrılmış, başka bir ad dene."
 
 
 @pytest.mark.parametrize(
@@ -28,9 +28,10 @@ def test_valid_names_return_none(name):
         (".gizli", "Proje adı nokta ile başlayamaz veya bitemez."),
         ("düğün.", "Proje adı nokta ile başlayamaz veya bitemez."),
         ("..", "Proje adı nokta ile başlayamaz veya bitemez."),
-        # Madde 221: the archive is a folder under the same root, so its name cannot also be a
-        # project's. Every case of it, because the repo runs on Windows too and "Arsiv" is the same
-        # folder there.
+        # The rule outlived its first reason. Madde 221 kept it because the archive WAS a folder
+        # under the same root; since madde 227 it is kept because the migration looks in that folder
+        # and would carry a project called arsiv's subfolders out as projects of their own. Every
+        # case of it, because the repo runs on Windows too and "Arsiv" is the same folder there.
         ("arsiv", RESERVED_MESSAGE),
         ("Arsiv", RESERVED_MESSAGE),
         ("ARSIV", RESERVED_MESSAGE),

@@ -21,8 +21,8 @@ def _archive():
     return archive_project
 
 
-def archive_project(store, halt, name):
-    return _archive().archive_project(store, halt, name)
+def archive_project(store, name):
+    return _archive().archive_project(store, name)
 
 
 def restore_project(store, name):
@@ -85,11 +85,10 @@ class RecordingStore(FakeStore):
         return bool(gone)
 
     def archive(self, name):
-        """The archived project, None when the archive already holds that name, False when there
-        was nothing to move -- the answers rename already gives, because it is the same move."""
+        """The marked project, or False when there is no such project. Nothing can collide any more
+        (madde 227): the mark says which list the project is drawn in, and the project itself does
+        not go anywhere."""
         self.log.append(f"archive:{name}")
-        if any(p.name == name for p in self.archived):
-            return None
         found = next((p for p in self.projects if p.name == name), None)
         if found is None:
             return False
@@ -99,8 +98,6 @@ class RecordingStore(FakeStore):
 
     def restore(self, name):
         self.log.append(f"restore:{name}")
-        if any(p.name == name for p in self.projects):
-            return None
         found = next((p for p in self.archived if p.name == name), None)
         if found is None:
             return False
@@ -132,49 +129,28 @@ def test_list_projects_newest_change_first():
     assert [p.name for p in list_projects(store)] == ["yeni", "orta", "eski"]
 
 
-def test_archiving_a_project_stops_its_production_first():
-    """Archiving is a move, and a worker writing into a folder that is being moved leaves half a
-    project here and half there -- the same reason delete halts before it removes."""
+def test_archiving_a_project_leaves_its_production_alone():
+    """Madde 227. Halting was the moving archive's debt: a worker writing into a folder on its way
+    somewhere else left half a project here and half there. Nothing moves now, and the project is
+    meant to go on working -- so there is nothing to stop, and no port to stop it with."""
     log = []
     store = RecordingStore(log)
 
-    archive_project(store, lambda project: log.append(f"halt:{project}"), "düğün")
+    archive_project(store, "düğün")
 
-    assert log == ["halt:düğün", "archive:düğün"]
+    assert log == ["archive:düğün"]
 
 
 def test_archiving_something_that_is_not_there_says_so():
-    log = []
     with pytest.raises(ProjectMissing) as exc:
-        archive_project(RecordingStore(log), lambda project: None, "yok")
+        archive_project(RecordingStore([]), "yok")
     assert str(exc.value) == "Proje yok: yok"
-
-
-def test_archiving_onto_a_name_the_archive_already_holds():
-    """A project archived, a new one made under the same name, and that one archived too. The
-    folder already in the archive is the only copy of its work."""
-    store = RecordingStore([], projects=("düğün",), archived=("düğün",))
-
-    with pytest.raises(NameTaken) as exc:
-        archive_project(store, lambda project: None, "düğün")
-
-    assert "arşiv" in str(exc.value).lower()
 
 
 def test_restoring_something_the_archive_does_not_hold():
     with pytest.raises(ProjectMissing) as exc:
         restore_project(RecordingStore([], projects=()), "yok")
     assert str(exc.value) == "Proje yok: yok"
-
-
-def test_restoring_onto_a_live_name():
-    """Bringing it back would land on a project that exists now and was made after it left."""
-    store = RecordingStore([], projects=("düğün",), archived=("düğün",))
-
-    with pytest.raises(NameTaken) as exc:
-        restore_project(store, "düğün")
-
-    assert str(exc.value) == "Bu ad zaten kullanılıyor. Başka bir ad dene."
 
 
 def test_creating_onto_a_name_the_archive_holds_is_refused():

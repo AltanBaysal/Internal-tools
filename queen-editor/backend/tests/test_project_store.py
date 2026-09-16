@@ -32,9 +32,9 @@ def test_list_returns_projects_for_every_folder(tmp_path):
     assert all(p.modified_at > 0 for p in store.list())
 
 
-def test_the_archive_folder_is_not_a_project(tmp_path):
-    """It sits under the same root as the projects, and the root's folders ARE the projects -- so
-    without this the archive shows up on the projects screen as a project called arsiv."""
+def test_an_archived_project_is_off_the_projects_list(tmp_path):
+    """Which list a project is drawn in is the whole of what archiving changes (madde 227), so this
+    is the one thing the mark has to do."""
     store = store_at(tmp_path)
     store.create("düğün")
     store.archive("düğün")
@@ -55,16 +55,17 @@ def test_the_archive_lists_what_was_put_in_it(tmp_path):
     assert [p.name for p in store.list()] == ["test"]
 
 
-def test_archiving_moves_the_folder_out_of_the_root(tmp_path):
+def test_archiving_leaves_the_folder_exactly_where_it_was(tmp_path):
+    """Madde 227. Archiving says which list a project is drawn in and nothing else -- the user asked
+    for exactly that after using the moving version: the project has to go on working."""
     store = store_at(tmp_path)
     store.create("düğün")
     (tmp_path / "düğün" / "0_a.png").write_bytes(b"PNG")
 
     store.archive("düğün")
 
-    assert not (tmp_path / "düğün").exists()
-    # Everything the project knows lives in its folder, so everything travels with it.
-    assert (tmp_path / "arsiv" / "düğün" / "0_a.png").read_bytes() == b"PNG"
+    assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
+    assert not (tmp_path / "arsiv").exists()
 
 
 def test_restoring_brings_it_back(tmp_path):
@@ -78,39 +79,69 @@ def test_restoring_brings_it_back(tmp_path):
     assert store.list_archived() == []
 
 
-def test_an_archived_project_is_not_there_any_more(tmp_path):
-    """What the decision buys for free. Generation and export reach a project by name through
-    dir_exists, so a project that has been moved is closed to both -- and no second rule anywhere
-    had to be written to say so."""
+def test_restoring_only_lifts_the_mark(tmp_path):
+    store = store_at(tmp_path)
+    store.create("düğün")
+    (tmp_path / "düğün" / "0_a.png").write_bytes(b"PNG")
+    store.archive("düğün")
+
+    store.restore("düğün")
+
+    assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
+
+
+def test_an_archived_project_is_still_there_for_everything_that_asks_by_name(tmp_path):
+    """The whole of madde 227 in one line. Nine use cases reach a project through dir_exists, and
+    the moving version closed all nine at once -- which is what the user did not want."""
     storage = DriveStorage(str(tmp_path))
     store = DriveProjectStore(storage)
     store.create("düğün")
 
     store.archive("düğün")
 
-    assert storage.dir_exists("düğün") is False
+    assert storage.dir_exists("düğün") is True
 
 
-def test_archiving_the_same_name_twice_is_refused(tmp_path):
-    """The one already in the archive must not be overwritten: a project's own folder is the only
-    copy of its work.
-
-    The second folder is made by hand rather than through create, because since madde 223 create
-    refuses a name the archive holds. So this guard is no longer on the path a user can walk -- it
-    answers for a folder that turned up in the root some other way, and it stays for that.
-    """
+def test_renaming_an_archived_project_carries_the_mark_along(tmp_path):
+    """The mark is no longer the disk itself, so it hangs on a name and has to follow it."""
     store = store_at(tmp_path)
     store.create("düğün")
     store.archive("düğün")
-    (tmp_path / "düğün").mkdir()
 
-    assert store.archive("düğün") is None
+    store.rename("düğün", "kına")
+
+    assert [p.name for p in store.list_archived()] == ["kına"]
+    assert store.list() == []
+
+
+def test_deleting_an_archived_project_drops_its_mark(tmp_path):
+    """The quiet one: a leftover name breaks no list -- there is no folder under it -- right up
+    until somebody makes a project with that name, which would then be born archived."""
+    store = store_at(tmp_path)
+    store.create("düğün")
+    store.archive("düğün")
+
+    store.delete("düğün")
+    store.create("düğün")
+
+    assert [p.name for p in store.list()] == ["düğün"]
+    assert store.list_archived() == []
+
+
+def test_an_unreadable_mark_file_reads_as_an_empty_archive(tmp_path):
+    """settings.json's own rule: nothing unreadable may make the list impossible to draw."""
+    store = store_at(tmp_path)
+    store.create("düğün")
+    (tmp_path / "arsiv.json").write_text("{bozuk", encoding="utf-8")
+
+    assert [p.name for p in store.list()] == ["düğün"]
+    assert store.list_archived() == []
 
 
 def test_a_name_the_archive_holds_cannot_be_created(tmp_path):
-    """Madde 223. The archive is one folder down, so make_dir cannot see a name sitting in it --
-    and the project that owns that name could then never come back out, because the archived card
-    offers the way back and nothing else."""
+    """Madde 223 asked for this against a moving archive. Since madde 227 the archived project sits
+    in the root like any other, so the name is taken by the folder itself -- the rule holds without
+    being written anywhere, and that is the point of asking it here."""
     store = store_at(tmp_path)
     store.create("düğün")
     store.archive("düğün")
@@ -118,20 +149,21 @@ def test_a_name_the_archive_holds_cannot_be_created(tmp_path):
     assert store.create("düğün") is None
 
 
-def test_a_refused_name_leaves_no_folder_in_the_root(tmp_path):
-    """Where the rule has to sit: before the mkdir. A folder made and then taken back is a project
-    that existed for a moment, and a create that fails must leave the disk as it found it."""
+def test_a_refused_name_does_not_touch_what_is_already_there(tmp_path):
+    """A create that fails must leave the disk as it found it -- and what is under that name now is
+    somebody's archived project, files and all."""
     store = store_at(tmp_path)
     store.create("düğün")
+    (tmp_path / "düğün" / "0_a.png").write_bytes(b"PNG")
     store.archive("düğün")
 
     store.create("düğün")
 
-    assert not (tmp_path / "düğün").exists()
+    assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
 
 
 def test_a_project_cannot_be_renamed_onto_an_archived_name(tmp_path):
-    """The same hole from the other side: rename_dir asks the root whether the target is free."""
+    """The same question from the other side: the target name is a folder that is really there."""
     store = store_at(tmp_path)
     store.create("düğün")
     store.archive("düğün")
@@ -167,15 +199,49 @@ def test_archiving_something_that_is_not_there_says_so(tmp_path):
     assert store_at(tmp_path).archive("yok") is False
 
 
-def test_restoring_onto_a_live_name_is_refused(tmp_path):
-    # Made by hand for the same reason the double-archive test is: create will not hand out a name
-    # the archive holds any more (madde 223), which is exactly what keeps the way back open.
+def test_the_old_archive_folder_is_carried_back_into_the_root(tmp_path):
+    """Madde 227's migration. Madde 221 moved archived projects into arsiv/, and the mark knows
+    nothing about them -- left there they would show in neither list, which is a project the user
+    cannot see rather than a project they put away."""
+    (tmp_path / "arsiv" / "düğün").mkdir(parents=True)
+    (tmp_path / "arsiv" / "düğün" / "0_a.png").write_bytes(b"PNG")
+
+    store = store_at(tmp_path)
+
+    assert [p.name for p in store.list_archived()] == ["düğün"]
+    assert (tmp_path / "düğün" / "0_a.png").read_bytes() == b"PNG"
+
+
+def test_the_emptied_archive_folder_is_removed(tmp_path):
+    (tmp_path / "arsiv" / "düğün").mkdir(parents=True)
+
+    store_at(tmp_path)
+
+    assert not (tmp_path / "arsiv").exists()
+
+
+def test_a_name_that_is_taken_is_carried_back_beside_it(tmp_path):
+    """Before madde 223 an archived name could be handed to a new project -- that is the very bug
+    the user reported, so this pair really can exist on their Drive. Nothing is overwritten and
+    nothing is left behind: the returning one takes a free name that says where it came from."""
+    (tmp_path / "arsiv" / "düğün").mkdir(parents=True)
+    (tmp_path / "arsiv" / "düğün" / "eski.png").write_bytes(b"ESKI")
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "yeni.png").write_bytes(b"YENI")
+
+    store = store_at(tmp_path)
+
+    assert (tmp_path / "düğün" / "yeni.png").read_bytes() == b"YENI"
+    assert (tmp_path / "düğün (arşiv)" / "eski.png").read_bytes() == b"ESKI"
+    assert [p.name for p in store.list_archived()] == ["düğün (arşiv)"]
+
+
+def test_nothing_happens_when_there_never_was_an_old_archive(tmp_path):
     store = store_at(tmp_path)
     store.create("düğün")
-    store.archive("düğün")
-    (tmp_path / "düğün").mkdir()
 
-    assert store.restore("düğün") is None
+    assert [p.name for p in store_at(tmp_path).list()] == ["düğün"]
+    assert not (tmp_path / "arsiv").exists()
 
 
 def test_restoring_something_the_archive_does_not_hold_says_so(tmp_path):
