@@ -21,7 +21,12 @@ npm run build --prefix queen-editor/frontend
 
 How a tool is installed and run is its own README's, not this file's.
 
-## Workflow
+## Working a roadmap
+
+**A roadmap is one version of one tool:** a numbered list of items, worked in order on that
+version's branch. One problem, one item, ordered so nothing is built before what it stands on, each
+saying what will work and how it will be seen. Numbering never shifts: written specs cite it. A spec
+derives from its source document, never the reverse.
 
 **IMPORTANT — approval starts a task, nothing else does.** Once given, run to the end. Stop only for
 a decision with two readings or no way back, and ask it in plain text: one question, numbered
@@ -29,7 +34,7 @@ options, a recommendation.
 
 **An item ending is not a stop.** With nothing to ask, the next item starts in the same breath —
 finishing one and waiting for permission to begin the next is the stop this rule forbids. One
-approval carries the whole run.
+approval carries the whole roadmap.
 
 **YOU MUST run every task as two full superpowers tours**, down to a two-line deletion:
 
@@ -40,21 +45,22 @@ approval carries the whole run.
 
 Never write test and code in one pass: written together, a test inherits the code's blind spots.
 
-The user tests at the end of a run, not between items.
+The user tests at the end of a roadmap, not between items.
 
 Roadmaps live in [docs/superpowers/roadmaps/](docs/superpowers/roadmaps/), apart from the per-item
 plans in `plans/` — listing that folder is how you see which version a tool is on, so every name
-there is `YYYY-MM-DD-<tool>-v<N>-roadmap.md`: the day the run opened, the tool's own folder name, and
-that tool's version. **A version belongs to one tool's counter, which starts at v1** — a run that
-reaches into the other tool says which items did so in its own header and claims no counter of its
-own, and a run with no branch of its own is the first run inside the version whose branch came next.
-**A version is a branch, and that branch gets one roadmap named for it** — work that turns up mid-run is an item added to the
-roadmap already running, never a second document. The name is therefore the record of which version
-a tool is on, and it only stays one while every roadmap's name matches the branch in its own header:
-those parted company here, unnoticed across eight runs, until thirteen documents sat on four
-branches. One problem, one item, ordered so nothing
-is built before what it stands on, each saying what will work and how it will be seen. Numbering never shifts: written specs cite it. A spec
-derives from its source document, never the reverse.
+there is `YYYY-MM-DD-<tool>-v<N>-roadmap.md`: the day the roadmap opened, the tool's own folder name,
+and that tool's version.
+
+**A version belongs to one tool's counter, which starts at v1.** A roadmap that reaches into the
+other tool says which items did so in its own header and claims no counter of its own. Work done
+with no branch of its own is the first section of the roadmap whose branch came next.
+
+**A version is a branch, and that branch gets one roadmap named for it.** Work that turns up
+mid-roadmap is an item added to the roadmap already running, never a second document. The name is
+therefore the record of which version a tool is on, and it only stays one while every roadmap's name
+matches the branch in its own header: those parted company here, unnoticed for eight roadmaps, until
+thirteen documents sat on four branches.
 
 ## Gotchas
 
