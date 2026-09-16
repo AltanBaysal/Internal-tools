@@ -105,6 +105,10 @@ def test_the_photo_group_carries_everything_the_graph_reads():
     assert rows[0] == {"folder": "checkpoints", "suffix": ".safetensors"}
     assert [(row["folder"], row["name"]) for row in rows[1:]] == [
         ("loras", "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"),
+        # Both loras come with the group whichever recipes were installed: a recipe only changes
+        # which checkpoint renders and which slots the loader ends up with, and tying the panel's
+        # count to that choice would make "installed" mean something different per machine.
+        ("loras", "translucent_penetration_v5.safetensors"),
         ("upscale_models", "4x_foolhardy_Remacri.pth"),
         ("ultralytics/bbox", "face_yolov9c.pt"),
         ("sams", "sam_vit_b_01ec64.pth"),

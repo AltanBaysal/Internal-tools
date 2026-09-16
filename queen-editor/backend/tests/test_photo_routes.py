@@ -111,7 +111,8 @@ def make_client(tmp_path, generator=None, runner=None):
         remove_layer=partial(remove_layer, record, store, plan_store, order_store,
                              lambda: "2026-08-05T10:00:00+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
-        list_models=partial(list_models, generator),
+        # No recipe ids: a checkout with no notebook behind it, which is what these tests are.
+        list_models=partial(list_models, generator, []),
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_summary=partial(export_summary, record, store, plan_store, order_store,
                                lambda: 5),
@@ -397,7 +398,12 @@ def test_the_models_endpoint_lists_what_the_renderer_has(tmp_path):
     resp = client.get("/api/models")
 
     assert resp.status_code == 200
-    assert resp.get_json() == {"models": ["nova.safetensors", "b.safetensors"]}
+    # A row, not a name: what the panel shows and what it sends back are two different strings
+    # once a row can be a recipe rather than a file.
+    assert resp.get_json() == {"models": [
+        {"value": "nova.safetensors", "label": "nova.safetensors"},
+        {"value": "b.safetensors", "label": "b.safetensors"},
+    ]}
 
 
 def test_an_unreachable_renderer_answers_with_its_own_words(tmp_path):

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getStatus,
   listFrames,
+  listModels,
   regenerateFrame,
   removeFrames,
   removeLayer,
@@ -17,6 +18,7 @@ vi.mock("../../shared/api.js", () => ({
   generateBatch: vi.fn(),
   getStatus: vi.fn(),
   listFrames: vi.fn(),
+  listModels: vi.fn(),
   regenerateFrame: vi.fn(),
   removeFrames: vi.fn(),
   removeLayer: vi.fn(),
@@ -65,9 +67,12 @@ async function settle(ms = 0) {
 }
 
 // The page is opened by the frame's identity: that is what the address carries.
-async function open(fid, { frames = PHOTOS, status = IDLE } = {}) {
+async function open(fid, { frames = PHOTOS, status = IDLE, models = [] } = {}) {
   listFrames.mockResolvedValue(frames);
   getStatus.mockResolvedValue(status);
+  // The rows the renderer offers. Needed here because a row can be a recipe, and then the stored
+  // value is an id -- the name the user chose it by lives in this list and nowhere else.
+  listModels.mockResolvedValue(models);
   render(<PhotoDetail project="düğün" frame={fid} />);
   await settle();
 }
@@ -320,6 +325,26 @@ describe("PhotoDetail — the layer tabs", () => {
     // Without this the line above would pass on the stored name as well: it is a prefix match, and
     // the extension is noise in a 300px column that already carries a file name of its own.
     expect(screen.queryByText(/\.safetensors/)).toBeNull();
+  });
+
+  it("says a recipe by the name it was picked by", async () => {
+    // A recipe is stored as its id, because that is what survives a renamed label. `recipe:slime`
+    // on screen would be an address shown to the person who chose "Slime" from a list.
+    await open("P0_0", {
+      frames: [{ ...LAYERED, model: "recipe:slime" }],
+      models: [{ value: "recipe:slime", label: "Slime" }],
+    });
+
+    expect(screen.getByText("Model").parentElement.textContent).toContain("Slime");
+    expect(screen.queryByText(/recipe:/)).toBeNull();
+  });
+
+  it("falls back to what the frame stored when the row list is not there", async () => {
+    // The list is a fetch of its own and it can fail. Drawing nothing would lose a row the frame
+    // really does carry; the stored value is worse than the label and better than silence.
+    await open("P0_0", { frames: [{ ...LAYERED, model: "recipe:slime" }], models: [] });
+
+    expect(screen.getByText("Model").parentElement.textContent).toContain("recipe:slime");
   });
 
   it("draws no model row for a frame that never carried one", async () => {

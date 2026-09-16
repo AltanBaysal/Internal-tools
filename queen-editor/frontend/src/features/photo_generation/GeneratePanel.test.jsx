@@ -15,7 +15,12 @@ beforeEach(async () => {
 const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4, model: "" };
 const PROMPT_BOX = '["ilk prompt", "ikinci prompt"]';
 const RUNNING = { status: "running", project: "düğün", done: 7, failed: 0, total: 48 };
-const MODELS = ["nova.safetensors", "başka.safetensors"];
+// A row, not a name: since madde 214 a row can be a recipe -- a label the user reads and a value
+// the renderer is sent, and for a recipe those two are not the same string.
+const MODELS = [
+  { value: "nova.safetensors", label: "nova.safetensors" },
+  { value: "recipe:slime", label: "Slime" },
+];
 
 function renderPanel(props) {
   return render(
@@ -107,44 +112,48 @@ describe("GeneratePanel — the button", () => {
 });
 
 describe("GeneratePanel — the model field", () => {
-  it("is the first field, and offers what the renderer reported", () => {
+  it("is the first field, and shows the labels while sending the values", () => {
     renderPanel();
 
     expect(screen.getByText("Model")).toBeTruthy();
-    expect([...modelBox().options].map((o) => o.value)).toEqual(MODELS);
+    expect([...modelBox().options].map((o) => o.value))
+      .toEqual(["nova.safetensors", "recipe:slime"]);
+    // What the user reads is the recipe's name; `recipe:slime` is an address, not a label.
+    expect([...modelBox().options].map((o) => o.textContent))
+      .toEqual(["nova.safetensors", "Slime"]);
     // First in the document: the design has put it at the top of the panel since v1.
     expect(screen.getByText("Model").compareDocumentPosition(screen.getByText("Prompt listesi"))
       & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("opens on the saved model rather than the first one", () => {
-    renderPanel({ settings: { ...SETTINGS, model: "başka.safetensors" } });
+    renderPanel({ settings: { ...SETTINGS, model: "recipe:slime" } });
 
-    expect(modelBox().value).toBe("başka.safetensors");
+    expect(modelBox().value).toBe("recipe:slime");
   });
 
-  it("falls back to the first model when nothing was saved", () => {
+  it("falls back to the first row when nothing was saved", () => {
     renderPanel();
 
     expect(modelBox().value).toBe("nova.safetensors");
   });
 
-  it("sends the chosen model with the batch", async () => {
+  it("sends the chosen row's value with the batch", async () => {
     const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
     renderPanel({ onGenerate });
 
-    fireEvent.change(modelBox(), { target: { value: "başka.safetensors" } });
+    fireEvent.change(modelBox(), { target: { value: "recipe:slime" } });
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
-      model: "başka.safetensors",
+      model: "recipe:slime",
     }));
   });
 
-  it("keeps a saved model that is no longer installed, and says so", () => {
-    renderPanel({ settings: { ...SETTINGS, model: "gitmiş.safetensors" } });
+  it("keeps a saved pick that is no longer offered, and says so", () => {
+    renderPanel({ settings: { ...SETTINGS, model: "recipe:gitmiş" } });
 
-    expect(modelBox().value).toBe("gitmiş.safetensors");
+    expect(modelBox().value).toBe("recipe:gitmiş");
     expect(screen.getByText("Bu model artık kurulu değil.")).toBeTruthy();
   });
 
@@ -315,7 +324,7 @@ describe("GeneratePanel — coming back to the form", () => {
     const first = renderPanel();
 
     fireEvent.change(screen.getByDisplayValue(""), { target: { value: "bulanık" } });
-    fireEvent.change(modelBox(), { target: { value: "başka.safetensors" } });
+    fireEvent.change(modelBox(), { target: { value: "recipe:slime" } });
     fireEvent.change(variantBox(), { target: { value: "9" } });
     first.unmount();
 
@@ -324,7 +333,7 @@ describe("GeneratePanel — coming back to the form", () => {
     renderPanel();
 
     expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
-    expect(modelBox().value).toBe("başka.safetensors");
+    expect(modelBox().value).toBe("recipe:slime");
     expect(variantBox().value).toBe("9");
   });
 

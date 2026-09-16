@@ -23,6 +23,13 @@ NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 SWITCH = {"photo": "INSTALL_PHOTO", "video": "INSTALL_VIDEO", "audio": "INSTALL_AUDIO"}
 
 
+def _recipes():
+    """The app's recipe table. Imported where it is used rather than at the top: a module that is
+    not there yet would fail collection and take every other question in this file down with it."""
+    from backend.features.photo_generation.domain.recipes import RECIPES
+    return RECIPES
+
+
 def _source():
     """Every cell's source as one blob. Parsed rather than read raw: the file is JSON, so a raw
     read would be searching escaped quotes and line breaks instead of the code the cell runs."""
@@ -139,16 +146,16 @@ def test_the_form_separates_the_two_groups_of_boxes():
     """
     config = _cell("# === CONFIG ===")
     divider = config.find("#@markdown ---")
-    heading = config.find("#@markdown ### Fotoğraf modelleri")
+    heading = config.find("#@markdown ### Fotoğraf tarifleri")
     first_box = re.search(r"^PHOTO_\w+ = (?:True|False)  #@param", config, re.M)
 
     assert divider != -1, "Formda iki grubu ayıran çizgi yok"
-    assert heading != -1, "Fotoğraf modelleri başlığı yok"
-    assert first_box, "CONFIG'de tek bir model kutusu yok"
+    assert heading != -1, "Fotoğraf tarifleri başlığı yok"
+    assert first_box, "CONFIG'de tek bir tarif kutusu yok"
     assert divider < heading < first_box.start(), "Ayraç ve başlık kutuların önünde değil"
 
 
-def test_the_form_leaves_the_model_section_at_its_heading():
+def test_the_form_leaves_the_recipe_section_at_its_heading():
     """Every sentence that stood under this heading was a copy of something the run already says:
     the guard below prints the pick-at-least-one rule in Turkish, the boxes show for themselves
     that they come empty, and the download cell prints the disk cost computed from what was
@@ -163,8 +170,8 @@ def test_the_form_leaves_the_model_section_at_its_heading():
     assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
     tail = drawn[drawn.index("#@markdown ---"):]
 
-    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri"], \
-        f"Model bölümü başlıktan ibaret değil: {tail}"
+    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf tarifleri"], \
+        f"Tarif bölümü başlıktan ibaret değil: {tail}"
 
 
 def test_choosing_nothing_stops_the_notebook():
@@ -202,21 +209,53 @@ def test_an_unticked_group_costs_no_bytes():
                 f"{name} kendi anahtarının arkasında değil"
 
 
-def test_every_photo_model_has_a_checkbox_of_its_own():
-    """The switch has to sit in CONFIG -- Colab draws #@param only where it is written -- and the row
-    saying what to fetch sits in the model cell. Two lists, and a name in one but not the other is
-    either a box that downloads nothing or a download nobody can turn off.
+def test_every_recipe_the_app_knows_has_a_checkbox_of_its_own():
+    """A row is a recipe now -- a name, a checkpoint and a lora arrangement -- and it is written down
+    twice on purpose: the name and the arrangement in the app, because it is the side that patches
+    the graph, and the version id and the size in the notebook, because addresses live there
+    (FOUNDATION 9). This is the seam that keeps the two halves naming the same recipes.
 
-    Every checkpoint is here, the group's own included: which models come down is the user's pick.
+    The switch has to sit in CONFIG -- Colab draws #@param only where it is written.
     """
     boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
-    rows = re.findall(r"^\s*\((PHOTO_\w+),", _cell("PHOTO_MODELS = ["), re.M)
+    known = sorted("PHOTO_" + recipe["id"].upper() for recipe in _recipes())
 
-    assert boxes, "CONFIG'de tek bir model kutusu yok"
+    assert boxes, "CONFIG'de tek bir tarif kutusu yok"
+    assert sorted(boxes) == known, f"Kutular {sorted(boxes)}, uygulamanın tarifleri {known}"
+
+
+def test_every_recipe_box_reaches_a_row_that_says_what_to_fetch():
+    """A box with no row downloads nothing; a row with no box cannot be turned off."""
+    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
+    rows = re.findall(r"^\s*\((PHOTO_\w+),", _cell("PHOTO_RECIPES = ["), re.M)
+
+    assert rows, "Tarif satırı yok"
     assert sorted(boxes) == sorted(rows), f"Kutular {sorted(boxes)}, satırlar {sorted(rows)}"
 
 
-def test_every_photo_model_comes_switched_off():
+def test_two_recipes_sharing_a_checkpoint_fetch_it_once():
+    """Slime renders on Nova 3DCG's checkpoint. Ticking both is the ordinary case, and a list built
+    per recipe would fetch that 7 GiB file twice and warn about 14 GiB of disk for it.
+
+    Pinned as the one name both the download list and the size sum read, built as a set: two
+    expressions deriving the same thing separately is how they come to disagree.
+    """
+    cell = _cell("PHOTO_RECIPES = [")
+
+    assert "CHOSEN_CHECKPOINTS = sorted({" in cell, \
+        "Seçilen checkpoint'ler tekilleştirilmiyor"
+    assert "CHOSEN_CHECKPOINTS" in _cell("PHOTO_GIB ="), \
+        "Disk hesabı tekilleştirilmiş listeyi okumuyor"
+
+
+def test_the_app_is_told_which_recipes_the_notebook_chose():
+    """The disk cannot answer this: Slime installs Nova's checkpoint, so a Slime-only machine has
+    that file sitting there and the renderer lists it. Only the notebook knows what was ticked."""
+    assert '"QE_PHOTO_RECIPES"' in _source(), \
+        "Defter seçilen tarifleri uygulamaya geçirmiyor"
+
+
+def test_every_recipe_comes_switched_off():
     """Photo ticked draws the boxes empty and picks nothing heavy for anyone.
 
     The first assertion is not spare: with no PHOTO_* line at all the second one holds for free.
@@ -225,53 +264,63 @@ def test_every_photo_model_comes_switched_off():
     boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
     on = re.findall(r"^(PHOTO_\w+) = True  #@param", config, re.M)
 
-    assert boxes, "CONFIG'de tek bir model kutusu yok"
-    assert on == [], f"Model açık geliyor: {on}"
+    assert boxes, "CONFIG'de tek bir tarif kutusu yok"
+    assert on == [], f"Tarif açık geliyor: {on}"
 
 
-def test_choosing_photo_without_a_model_stops_the_notebook():
-    """Photo ticked and every model box empty means a renderer with nothing to render with. Asked in
+def test_choosing_photo_without_a_recipe_stops_the_notebook():
+    """Photo ticked and every recipe box empty means a renderer with nothing to render with. Asked in
     CONFIG like every other gate: a second here beats ten minutes after ComfyUI's install.
 
-    The expected line is built from the boxes rather than written down, so a model added without
+    The expected line is built from the boxes rather than written down, so a recipe added without
     being added to the guard fails here instead of silently reopening the hole.
     """
     config = _cell("# === CONFIG ===")
     boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
     guard = "assert not INSTALL_PHOTO or " + " or ".join(boxes)
 
-    assert boxes, "CONFIG'de tek bir model kutusu yok"
+    assert boxes, "CONFIG'de tek bir tarif kutusu yok"
     assert guard in config, f"Beklenen kontrol yok:\n{guard}"
 
 
-def test_an_unticked_photo_model_costs_no_bytes():
+def test_an_unticked_recipe_costs_no_bytes():
     """The rule the three producer boxes already follow, one level down: a row is reached only
     through its own switch."""
-    assert "in PHOTO_MODELS if on" in _cell("PHOTO_MODELS = ["), \
-        "PHOTO_MODELS satırları kendi anahtarıyla süzülmüyor"
+    assert "in PHOTO_RECIPES if on" in _cell("PHOTO_RECIPES = ["), \
+        "PHOTO_RECIPES satırları kendi anahtarıyla süzülmüyor"
 
 
 def test_the_photo_estimate_counts_only_what_the_group_always_takes():
-    """The base is the four files the graph's branches read -- the lora, the upscaler, the detector,
-    the SAM. The checkpoints are the user's pick, so counting one of them into the base would warn a
-    single-model run about disk it was never going to use."""
+    """The base is the files every photo run takes whatever was ticked -- both loras, the upscaler,
+    the detector, the SAM. The checkpoints come from the recipes, so counting one of them into the
+    base would warn a single-recipe run about disk it was never going to use."""
     assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
         "SIZES foto için hâlâ sabit bir sayı taşıyor"
     assert "PHOTO_GIB = 2 +" in _cell("PHOTO_GIB ="), \
         "Disk tabanı hâlâ bir checkpoint'in payını taşıyor"
 
 
-def test_the_notebook_offers_every_photo_model():
-    """Named rather than derived: this is the one place saying which models the notebook can fetch,
+def test_the_notebook_offers_every_checkpoint_a_recipe_asks_for():
+    """Named rather than derived: this is the one place saying which files the notebook can fetch,
     so a silent edit cannot quietly change what a run is able to install. Reading the list itself
     would only say that the list contains what it contains."""
-    cell = _cell("PHOTO_MODELS = [")
+    cell = _cell("PHOTO_CHECKPOINTS = [")
 
     for name in ("nova3DCGXL_ilV90.safetensors", "novaOrangeXL_rexV10.safetensors",
                  "novaAnimeXL_ilV190.safetensors"):
-        assert name in cell, f"Defter bu modeli indirmiyor: {name}"
+        assert name in cell, f"Defter bu checkpoint'i indirmiyor: {name}"
     for version in ("2744564", "2945776", "2940478"):
         assert version in cell, f"Civitai version id defterde yok: {version}"
+
+
+def test_every_checkpoint_a_recipe_names_is_one_the_notebook_can_fetch():
+    """A recipe pointing at a file the notebook never downloads is a row that renders nothing --
+    and it would say so only after the install, as a missing-model error from ComfyUI."""
+    cell = _cell("PHOTO_CHECKPOINTS = [")
+
+    for recipe in _recipes():
+        assert recipe["checkpoint"] in cell, \
+            f"{recipe['id']}: tarifin checkpoint'i defterde yok — {recipe['checkpoint']}"
 
 
 def test_the_disk_is_measured_before_the_download_starts():
