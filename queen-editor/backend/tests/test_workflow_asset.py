@@ -131,34 +131,33 @@ def _video_size(graph, node_id):
     return inputs["Xi"], inputs["Yi"]
 
 
-def test_the_photo_graph_renders_the_landscape_size():
-    """Madde 218. The number comes from the graph author's own table of supported sizes, whose one
-    landscape row is 1344x768 -> 1536x864 -- the High-Res column, which is the one this graph feeds
-    straight into EmptyLatentImage."""
+def test_the_photo_graph_renders_the_portrait_size():
+    """Madde 228: back to the size before 218 made it landscape. 1024x1536 is in the graph author's
+    own table of supported sizes -- the High-Res column, which this graph feeds straight into
+    EmptyLatentImage."""
     photo, _standard, _first_last = _graphs()
 
-    assert photo["1"]["inputs"]["value"] == 1536
-    assert photo["11"]["inputs"]["value"] == 864
+    assert photo["1"]["inputs"]["value"] == 1024
+    assert photo["11"]["inputs"]["value"] == 1536
 
 
-def test_both_video_graphs_render_the_same_landscape_size():
-    """848x480 rather than an exact 16:9, because 16:9 at 480 rows is 853.33 and the resizer wants a
-    multiple of 16. The 480 is what matters: it is the height WAN 2.2's I2V class was trained at.
+def test_both_video_graphs_render_the_same_portrait_size():
+    """480 wide keeps the short side at the 480 WAN 2.2's I2V class was trained at, and 720 makes
+    it exactly the photo's 2:3.
 
     The two graphs are asserted against each other as well as against the number -- a project mixes
     standard and first-last videos in one export, and two sizes there is a broken file.
     """
     _photo, standard, first_last = _graphs()
 
-    assert _video_size(standard, "208") == (848, 480)
-    assert _video_size(first_last, "328") == (848, 480)
+    assert _video_size(standard, "208") == (480, 720)
+    assert _video_size(first_last, "328") == (480, 720)
 
 
 def test_the_photo_and_the_video_agree_on_the_shape_of_the_frame():
     """The rule behind the numbers, and the one that outlives them: the video graph pulls the photo
     to its own size with keep_proportion "stretch", so two shapes that drift apart do not fail --
-    they squash the picture, silently. One percent is well under what an eye catches and well over
-    the 0.63% these two sizes really differ by.
+    they squash the picture, silently. One percent is well under what an eye catches.
     """
     photo, standard, _first_last = _graphs()
     photo_shape = photo["1"]["inputs"]["value"] / photo["11"]["inputs"]["value"]
@@ -167,15 +166,15 @@ def test_the_photo_and_the_video_agree_on_the_shape_of_the_frame():
     assert abs(photo_shape - width / height) / photo_shape < 0.01
 
 
-def test_every_graph_makes_a_landscape_frame():
-    """The item itself, asked of the thing rather than of the numbers: a later edit that keeps the
-    ratio but flips both graphs back to portrait would pass every assertion above."""
+def test_every_graph_makes_a_portrait_frame():
+    """The item itself, asked of the thing rather than of the numbers: an edit that keeps the ratio
+    but swaps width and height in both graphs would pass the shape assertion above."""
     photo, standard, first_last = _graphs()
 
-    assert photo["1"]["inputs"]["value"] > photo["11"]["inputs"]["value"]
+    assert photo["1"]["inputs"]["value"] < photo["11"]["inputs"]["value"]
     for graph, node_id in ((standard, "208"), (first_last, "328")):
         width, height = _video_size(graph, node_id)
-        assert width > height
+        assert width < height
 
 
 def _model_files(node):
