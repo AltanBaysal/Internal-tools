@@ -12,8 +12,8 @@ sözlerinden doğdu, backlog'a hiç uğramadan.
 222, 213, 226. Koşulacak sıra bu tablonun sırasıdır, numaraların sırası değil: 213 denendikten sonra
 sona alındı ve satırı da oraya taşındı — 226 sonradan **onun da arkasına** girdi *(kullanıcı, 16
 Eylül: "roadmap'in sonuna ekle")*, yani bugün son satır odur; 218 ile 219–226 koşu başladıktan sonra
-eklendi. **221 öne
-alındı** çünkü kalanların tersine ComfyUI'da bir deneme beklemiyordu — yalnız iki karar bekliyordu.
+eklendi. **221 öne alındı** çünkü kalanların tersine ComfyUI'da bir deneme beklemiyordu — yalnız iki
+karar bekliyordu.
 **Kalanın sırasını kullanıcı verdi** *(16 Eylül)*: 217, 220, 219, en sonda 213 — yani **217 sondan
 öne geçti**. 222 aynı gün eklendi ve ComfyUI'da denenecek üçlünün arkasına girdi: denemesi 220 ve
 219'unkiyle aynı deftere, aynı oturuma biniyor.
