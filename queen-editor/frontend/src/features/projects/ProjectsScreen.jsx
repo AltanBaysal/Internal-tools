@@ -152,14 +152,26 @@ export default function ProjectsScreen() {
         }}
       >
         <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
-        {/* The title says which of the two lists is open, and the button says where the other one
-            is -- so neither word is ever on screen twice. */}
+        {/* The title says which of the two lists is open. */}
         <Hand size={20}>{inArchive ? "Arşiv" : "Projeler"}</Hand>
+        {/* The archive is a place that is entered, so it carries its own buttons (madde 224).
+            Nothing here makes a project: what one made would land among the projects rather than in
+            the list being looked at, so the button would lie about where it is. It is not drawn at
+            all rather than disabled -- a disabled one says it could have been here.
+            The way out is worded the way every other place in this app is left (ProjectScreen's
+            "Projeden çık"), and wears the same ghost. Entering keeps the look it had: what was
+            asked about was the way out. */}
         <div style={{ justifySelf: "end", display: "flex", gap: 8 }}>
-          <Btn onClick={toggleArchive}>{inArchive ? "Projeler" : "Arşiv"}</Btn>
-          <Btn hl onClick={() => setModalOpen(true)}>
-            <Icon.Plus /> Yeni proje
-          </Btn>
+          {inArchive ? (
+            <Btn ghost onClick={toggleArchive}>Arşivden çık</Btn>
+          ) : (
+            <>
+              <Btn onClick={toggleArchive}>Arşiv</Btn>
+              <Btn hl onClick={() => setModalOpen(true)}>
+                <Icon.Plus /> Yeni proje
+              </Btn>
+            </>
+          )}
         </div>
       </div>
 
