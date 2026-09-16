@@ -110,6 +110,74 @@ def test_both_video_graphs_agree_on_how_long_a_render_runs():
     assert standard["178"]["inputs"]["value"] == first_last["335"]["inputs"]["value"]
 
 
+def _graphs():
+    """The three shipped graphs, read fresh. Every size question below needs all of them: the rule
+    is about how they agree, not about any one of them."""
+    graphs = []
+    for path in (config.WORKFLOW_PATH, config.VIDEO_WORKFLOW_PATH,
+                 config.VIDEO_FIRST_LAST_WORKFLOW_PATH):
+        with open(path, encoding="utf-8") as f:
+            graphs.append(json.load(f))
+    return graphs
+
+
+def _video_size(graph, node_id):
+    """The mxSlider2D's width and height. It carries each as a pair -- the slider's own value and
+    the one it displays -- and a render that read one while a test read the other would pass here
+    and produce something else, so both are asserted equal."""
+    inputs = graph[node_id]["inputs"]
+    assert inputs["Xi"] == inputs["Xf"], f"{node_id}: X çifti ayrışmış"
+    assert inputs["Yi"] == inputs["Yf"], f"{node_id}: Y çifti ayrışmış"
+    return inputs["Xi"], inputs["Yi"]
+
+
+def test_the_photo_graph_renders_the_landscape_size():
+    """Madde 218. The number comes from the graph author's own table of supported sizes, whose one
+    landscape row is 1344x768 -> 1536x864 -- the High-Res column, which is the one this graph feeds
+    straight into EmptyLatentImage."""
+    photo, _standard, _first_last = _graphs()
+
+    assert photo["1"]["inputs"]["value"] == 1536
+    assert photo["11"]["inputs"]["value"] == 864
+
+
+def test_both_video_graphs_render_the_same_landscape_size():
+    """848x480 rather than an exact 16:9, because 16:9 at 480 rows is 853.33 and the resizer wants a
+    multiple of 16. The 480 is what matters: it is the height WAN 2.2's I2V class was trained at.
+
+    The two graphs are asserted against each other as well as against the number -- a project mixes
+    standard and first-last videos in one export, and two sizes there is a broken file.
+    """
+    _photo, standard, first_last = _graphs()
+
+    assert _video_size(standard, "208") == (848, 480)
+    assert _video_size(first_last, "328") == (848, 480)
+
+
+def test_the_photo_and_the_video_agree_on_the_shape_of_the_frame():
+    """The rule behind the numbers, and the one that outlives them: the video graph pulls the photo
+    to its own size with keep_proportion "stretch", so two shapes that drift apart do not fail --
+    they squash the picture, silently. One percent is well under what an eye catches and well over
+    the 0.63% these two sizes really differ by.
+    """
+    photo, standard, _first_last = _graphs()
+    photo_shape = photo["1"]["inputs"]["value"] / photo["11"]["inputs"]["value"]
+    width, height = _video_size(standard, "208")
+
+    assert abs(photo_shape - width / height) / photo_shape < 0.01
+
+
+def test_every_graph_makes_a_landscape_frame():
+    """The item itself, asked of the thing rather than of the numbers: a later edit that keeps the
+    ratio but flips both graphs back to portrait would pass every assertion above."""
+    photo, standard, first_last = _graphs()
+
+    assert photo["1"]["inputs"]["value"] > photo["11"]["inputs"]["value"]
+    for graph, node_id in ((standard, "208"), (first_last, "328")):
+        width, height = _video_size(graph, node_id)
+        assert width > height
+
+
 def _model_files(node):
     """Every .safetensors named anywhere in the graph, nested widgets included -- Power Lora Loader
     keeps its loras inside dicts, so a flat scan over node inputs would miss half of them.

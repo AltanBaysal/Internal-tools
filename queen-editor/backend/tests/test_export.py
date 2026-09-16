@@ -237,21 +237,45 @@ def test_a_second_run_of_the_same_mode_is_refused_while_one_is_going():
     assert runner.start("merged", lambda: None) is True
 
 
-class FakeRun:
-    """subprocess.run's answer, and a note of what it was asked to run."""
+class _Answer:
+    """What subprocess.run hands back for one call."""
 
-    def __init__(self, returncode=0, stderr=""):
+    def __init__(self, returncode, stdout, stderr):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+class FakeRun:
+    """subprocess.run's answer, and a note of what it was asked to run.
+
+    `sizes` maps a file name to what ffprobe prints for it; a file nobody named answers with the
+    first size, so a test that does not care about sizes says nothing about them. A probe and a
+    concat fail differently, so each carries its own exit code and message.
+    """
+
+    def __init__(self, returncode=0, stderr="", sizes=None, probe_returncode=0, probe_stderr=""):
         self.calls = []
         self.returncode = returncode
         self.stderr = stderr
+        self.sizes = dict(sizes or {})
+        self.probe_returncode = probe_returncode
+        self.probe_stderr = probe_stderr
 
     def __call__(self, args, **kwargs):
         self.calls.append(args)
-        return self
+        if "ffprobe" in args[0]:
+            size = self.sizes.get(args[-1], next(iter(self.sizes.values()), "848x480"))
+            return _Answer(self.probe_returncode, size + "\n", self.probe_stderr)
+        return _Answer(self.returncode, "", self.stderr)
 
-    @property
-    def stdout(self):
-        return ""
+
+def ffmpeg_calls(run):
+    return [call for call in run.calls if call[0] == "ffmpeg"]
+
+
+def probe_calls(run):
+    return [call for call in run.calls if "ffprobe" in call[0]]
 
 
 def test_a_silent_piece_is_copied_rather_than_re_encoded():
@@ -286,6 +310,61 @@ def test_merging_hands_ffmpeg_a_list_and_takes_it_away_again(tmp_path):
 
     FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], target)
 
-    assert run.calls[0][:8] == ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
-                                str(tmp_path / "pieces.txt")]
+    # The concat itself is unchanged; it is no longer the first thing run, because the sizes are
+    # asked first.
+    assert ffmpeg_calls(run)[0][:8] == ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
+                                        str(tmp_path / "pieces.txt")]
     assert not (tmp_path / "pieces.txt").exists()
+
+
+def test_merging_asks_every_piece_how_big_it_is(tmp_path):
+    """Streams are copied rather than re-encoded, which is only safe while every piece is the same
+    size. Nothing checked that until madde 218 made it possible for one project to hold two."""
+    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "848x480"})
+
+    FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+
+    assert [call[-1] for call in probe_calls(run)] == ["a.mp4", "b.mp4"]
+
+
+def test_mixed_sizes_stop_the_merge_and_name_what_was_found(tmp_path):
+    """A project made before the frames went landscape and added to afterwards. concat -c copy
+    would write a file whose later pieces are unplayable, and say nothing.
+
+    The message is a list rather than a sentence: "the pieces are different sizes" does not tell
+    anyone which frame to re-render.
+    """
+    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "480x720"})
+
+    with pytest.raises(RuntimeError) as caught:
+        FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+
+    said = str(caught.value)
+    assert "a.mp4" in said and "848x480" in said
+    assert "b.mp4" in said and "480x720" in said
+
+
+def test_nothing_is_merged_when_the_sizes_disagree(tmp_path):
+    """Stopping after writing half a file would leave exactly what the export's own rule forbids:
+    a folder that looks finished."""
+    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "480x720"})
+
+    with pytest.raises(RuntimeError):
+        FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+
+    assert ffmpeg_calls(run) == []
+    assert not (tmp_path / "pieces.txt").exists()
+
+
+def test_a_size_that_cannot_be_read_says_what_ffprobe_said(tmp_path):
+    """A missing file, a file that is not a video, an ffprobe that is not installed -- three causes
+    with one symptom, and only ffprobe knows which. Guessing one here would be the repo's own
+    "never invent a cause" rule broken in the place it was written for.
+    """
+    run = FakeRun(sizes={"a.mp4": ""}, probe_returncode=1,
+                  probe_stderr="a.mp4: No such file or directory")
+
+    with pytest.raises(RuntimeError) as caught:
+        FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+
+    assert "a.mp4: No such file or directory" in str(caught.value)
