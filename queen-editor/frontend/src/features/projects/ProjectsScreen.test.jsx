@@ -31,6 +31,15 @@ async function settle() {
   await act(async () => { await Promise.resolve(); });
 }
 
+// A promise the test decides when to keep. Without one there is no "while it is working" to look
+// at: a mock that resolves at once is finished before the screen has drawn anything (madde 225).
+function deferred() {
+  let keep;
+  let drop;
+  const promise = new Promise((resolve, reject) => { keep = resolve; drop = reject; });
+  return { promise, keep, drop };
+}
+
 async function openScreen() {
   listProjects.mockResolvedValue([{ name: "düğün", modifiedAt: 1754300000 }]);
   render(<ProjectsScreen />);
@@ -282,6 +291,93 @@ describe("ProjectsScreen archiving a project", () => {
 
     expect(screen.getByText("düğün")).toBeTruthy();
     expect(screen.queryByText("eski iş")).toBeNull();
+  });
+
+  // Madde 225. Between the press and the list coming back there is a trip to Drive, and the screen
+  // said nothing for the whole of it -- the button even stayed pressable, so a second press really
+  // sent a second request.
+  it("says what it is doing while the archive is in flight", async () => {
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    // The app's own waiting language: a word, the way every window here says Siliniyor…
+    expect(screen.getByText("Arşivleniyor…")).toBeTruthy();
+
+    await act(async () => { working.keep(null); await working.promise; });
+  });
+
+  it("does not send a second request while the first is in flight", async () => {
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    fireEvent.click(screen.getByLabelText("Projeyi arşivle"));
+
+    expect(archiveProject).toHaveBeenCalledTimes(1);
+
+    await act(async () => { working.keep(null); await working.promise; });
+  });
+
+  it("closes the card's other buttons too while it works", async () => {
+    // All three reach the same folder and the same mark, so none of them may slip in between.
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(screen.getByLabelText("Projeyi sil").disabled).toBe(true);
+    expect(screen.getByLabelText("Projeyi yeniden adlandır").disabled).toBe(true);
+
+    await act(async () => { working.keep(null); await working.promise; });
+  });
+
+  it("takes the word away once the list has been read again", async () => {
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+    // There first, or the question below answers itself.
+    expect(screen.getByText("Arşivleniyor…")).toBeTruthy();
+    listProjects.mockResolvedValue([]);
+
+    await act(async () => { working.keep(null); await working.promise; });
+
+    expect(screen.queryByText("Arşivleniyor…")).toBeNull();
+  });
+
+  it("says what it is doing while a restore is in flight", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+    const working = deferred();
+    restoreProject.mockReturnValue(working.promise);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi geri al")); });
+
+    expect(screen.getByText("Geri alınıyor…")).toBeTruthy();
+
+    await act(async () => { working.keep(null); await working.promise; });
+  });
+
+  it("takes the word away when it fails, and leaves the sentence", async () => {
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+    expect(screen.getByText("Arşivleniyor…")).toBeTruthy();
+
+    await act(async () => {
+      working.drop(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+      await working.promise.catch(() => {});
+    });
+
+    expect(screen.queryByText("Arşivleniyor…")).toBeNull();
+    expect(screen.getByText("Sunucuya ulaşılamadı — bağlantıyı kontrol et.")).toBeTruthy();
   });
 
   // Madde 223. Every failure here was silent: neither handler caught, so the server's sentence
