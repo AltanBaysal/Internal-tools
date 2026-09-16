@@ -58,6 +58,10 @@ export default function ProjectsScreen() {
   // than on mount: a user who never archives anything should not pay for a second request.
   const [archived, setArchived] = useState(null);
   const [archiveError, setArchiveError] = useState(null);
+  // What the last archive or restore came back with, or null. Its own state rather than
+  // archiveError's: that one replaces the list, which is right for a list that would not load and
+  // wrong for a button that did not work -- the cards have to stay for the next try (madde 223).
+  const [actionError, setActionError] = useState(null);
   const shown = inArchive ? (archived || []) : projects;
   const crowded = shown.length > FITS;
 
@@ -72,20 +76,37 @@ export default function ProjectsScreen() {
     }
   }
 
+  // Both of these used to let the rejection go: the server's sentence became an unhandled promise
+  // rejection, so a refused archive looked like a button that did nothing at all. What is caught is
+  // shown verbatim -- api.js throws the server's own words, and there is no cause to invent here.
   async function handleArchive(name) {
-    await archiveProject(name);
+    try {
+      await archiveProject(name);
+      setActionError(null);
+    } catch (err) {
+      setActionError(err.message);
+      return;   // nothing moved, so there is nothing to re-read
+    }
     // Drive is the single source of truth here too -- and both lists changed, so both are re-read.
     await reload();
     if (archived) await refreshArchive();
   }
 
   async function handleRestore(name) {
-    await restoreProject(name);
+    try {
+      await restoreProject(name);
+      setActionError(null);
+    } catch (err) {
+      setActionError(err.message);
+      return;
+    }
     await refreshArchive();
     await reload();
   }
 
   async function toggleArchive() {
+    // One list's failure must not be left standing over the other one.
+    setActionError(null);
     if (!inArchive) await refreshArchive();
     setInArchive(!inArchive);
   }
@@ -149,6 +170,13 @@ export default function ProjectsScreen() {
         <div data-list className="qe-thin-scroll"
              style={{ height: "100%", overflowY: "auto", padding: "24px 32px",
                       boxSizing: "border-box" }}>
+          {/* Above the list and not in place of it: the cards are what the next try needs. */}
+          {actionError && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+              <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
+              <Note size={13} style={{ color: "var(--danger)" }}>{actionError}</Note>
+            </div>
+          )}
           {inArchive && archiveError ? (
             <div style={CENTERED}>
               <StatusErrorCard text="Arşiv yüklenemedi" raw={archiveError}

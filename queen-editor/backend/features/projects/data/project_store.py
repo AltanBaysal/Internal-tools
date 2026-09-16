@@ -30,6 +30,12 @@ class DriveProjectStore:
     def restore(self, name):
         return self._moved(self.storage.rename_dir(self._in_archive(name), name), name)
 
+    def is_archived(self, name):
+        """Is there an archived project under this name? Asked by create and rename to tell their
+        two refusals apart -- only once one of them has refused, because over Drive every question
+        is a round trip."""
+        return self.storage.dir_exists(self._in_archive(name))
+
     @staticmethod
     def _in_archive(name):
         # Always a forward slash: this is a path handed to the storage layer, which joins it, and
@@ -44,6 +50,12 @@ class DriveProjectStore:
         return Project(name, answer)
 
     def create(self, name):
+        # A name the archive holds is taken too (madde 223). make_dir cannot see it -- the archive is
+        # one folder down -- and a project whose name was handed to somebody else can never come back
+        # out, because the archived card offers the way back and nothing else. Asked BEFORE the
+        # mkdir: a folder made and then taken back is a project that existed for a moment.
+        if self.is_archived(name):
+            return None
         mtime = self.storage.make_dir(name)
         if mtime is None:
             return None
@@ -55,6 +67,10 @@ class DriveProjectStore:
 
     def rename(self, old, new):
         """The renamed project, None when the new name is taken, False when the old one is gone."""
+        # The same hole from the other side: rename_dir asks the root whether the target is free, and
+        # the archive is not in the root (madde 223).
+        if self.is_archived(new):
+            return None
         moved = self.storage.rename_dir(old, new)
         # `is` and not truthiness: an mtime can be 0.0 and that is a success.
         if moved is None or moved is False:

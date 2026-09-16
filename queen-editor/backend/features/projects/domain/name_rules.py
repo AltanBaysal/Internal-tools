@@ -32,3 +32,16 @@ def validate(name):
     if name.casefold() == ARCHIVE_DIR:
         return "Bu ad ayrılmış: arşivlenen projeler orada duruyor. Başka bir ad dene."
     return None
+
+
+def archive_taken(name):
+    """What a user is told when the name they asked for is sitting in the archive (madde 223).
+
+    Its own sentence rather than the usual "bu ad zaten kullanılıyor": that one would send someone
+    looking among their projects for a name that is not there. Both ways out are named, because both
+    are real -- pick another name, or take that project out first.
+
+    Here rather than in either use case: creating and renaming share it, and one situation gets one
+    sentence whichever window the user is in.
+    """
+    return f"Arşivde {name} adlı bir proje var. Başka bir ad seç ya da önce onu arşivden çıkar."

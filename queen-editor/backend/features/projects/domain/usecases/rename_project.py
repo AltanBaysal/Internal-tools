@@ -26,6 +26,8 @@ def rename_project(store, move, old, new):
     # `is` and not truthiness: the two failures are two different sentences and neither is falsy by
     # accident.
     if answer is None:
-        raise NameTaken("Bu ad zaten kullanılıyor. Başka bir ad dene.")
+        # The same two sentences creating has, chosen the same way (madde 223).
+        raise NameTaken(name_rules.archive_taken(new) if store.is_archived(new)
+                        else "Bu ad zaten kullanılıyor. Başka bir ad dene.")
     if answer is False:
         raise ProjectMissing(f"Proje yok: {old}")
