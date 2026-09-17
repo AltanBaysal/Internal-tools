@@ -1,4 +1,5 @@
 import pytest
+import requests
 
 from backend.services.comfy.client import ComfyClient
 from backend.services.comfy.errors import ComfyExecutionError
@@ -22,9 +23,11 @@ class FakeResponse:
 class FakeHttp:
     """Stands in for the requests module: records calls, replays queued responses."""
 
-    def __init__(self, post=None, gets=()):
+    def __init__(self, post=None, gets=(), refuse=False):
         self._post = post or FakeResponse({"prompt_id": "p1"})
         self._gets = list(gets)
+        # Nobody listening on the port: what requests raises when ComfyUI is not up.
+        self._refuse = refuse
         self.posted = None
         self.post_calls = []
         self.get_calls = []
@@ -32,11 +35,21 @@ class FakeHttp:
     def post(self, url, json=None, timeout=None, files=None, data=None):
         self.posted = (url, json)
         self.post_calls.append({"url": url, "json": json, "files": files, "data": data})
+        if self._refuse:
+            raise requests.ConnectionError(REFUSED)
         return self._post
 
     def get(self, url, timeout=None, params=None):
         self.get_calls.append((url, params))
+        if self._refuse:
+            raise requests.ConnectionError(REFUSED)
         return self._gets.pop(0) if self._gets else FakeResponse({})
+
+
+# The sentence the user brought back from the session, word for word (madde 230).
+REFUSED = ("HTTPConnectionPool(host='127.0.0.1', port=8188): Max retries exceeded with url: "
+           "/upload/image (Caused by NewConnectionError('Failed to establish a new connection: "
+           "[Errno 111] Connection refused'))")
 
 
 def client_with(http, **kw):
@@ -63,6 +76,71 @@ def test_submit_raises_on_node_errors():
     with pytest.raises(RuntimeError) as exc:
         client_with(http).submit({})
     assert "node_errors" in str(exc.value)
+
+
+def _comfy_log(tmp_path, lines=40):
+    path = tmp_path / "comfyui.log"
+    path.write_text("".join(f"log satırı {n}\n" for n in range(1, lines + 1)), encoding="utf-8")
+    return str(path)
+
+
+def _refused_upload(tmp_path, log_path=None):
+    """What an upload raises when nobody listens. The error class is looked up here rather than
+    imported at the top: a name that does not exist yet would fail collection and take every other
+    test in this file down with it."""
+    client = client_with(FakeHttp(refuse=True), log_path=log_path or _comfy_log(tmp_path))
+    with pytest.raises(Exception) as exc:
+        client.upload_image("P0_0.png", b"PNG")
+    return exc.value
+
+
+def test_an_unreachable_server_is_named_in_the_first_line(tmp_path):
+    error = _refused_upload(tmp_path)
+
+    assert str(error).splitlines()[0] == "ComfyUI'ye bağlanılamadı — http://comfy:8188"
+
+
+def test_the_connection_errors_own_words_are_kept_whole(tmp_path):
+    # The cause is not guessed, so what requests really said has to stay: the user copies it out.
+    assert REFUSED in str(_refused_upload(tmp_path))
+
+
+def test_the_last_thirty_lines_of_the_comfy_log_ride_along(tmp_path):
+    """Why ComfyUI was not there is only in its own log, and the log dies with the session. Read
+    at the moment of failure, it is on the screen while it still exists."""
+    text = str(_refused_upload(tmp_path))
+
+    assert "--- comfyui.log · son 30 satır ---" in text
+    assert "log satırı 11\n" in text and text.rstrip().endswith("log satırı 40")
+    assert "log satırı 10\n" not in text
+
+
+def test_an_unreadable_log_is_said_with_its_path_and_the_error_still_comes(tmp_path):
+    missing = str(tmp_path / "yok.log")
+
+    text = str(_refused_upload(tmp_path, log_path=missing))
+
+    assert text.splitlines()[0] == "ComfyUI'ye bağlanılamadı — http://comfy:8188"
+    assert missing in text
+
+
+def test_waiting_on_history_names_an_unreachable_server_too(tmp_path):
+    client = client_with(FakeHttp(refuse=True), log_path=_comfy_log(tmp_path))
+
+    with pytest.raises(Exception) as exc:
+        client.wait("p1", timeout=100)
+
+    assert str(exc.value).splitlines()[0] == "ComfyUI'ye bağlanılamadı — http://comfy:8188"
+
+
+def test_an_unreachable_server_is_the_runs_fault_not_the_frames(tmp_path):
+    from backend.services.comfy.errors import ComfyUnreachable
+
+    error = _refused_upload(tmp_path)
+
+    assert isinstance(error, ComfyUnreachable)
+    # No answer came at all, so no frame is to blame: the queue retries it and then stops.
+    assert not getattr(error, "frame_level", False)
 
 
 def test_wait_returns_entry_when_history_appears():

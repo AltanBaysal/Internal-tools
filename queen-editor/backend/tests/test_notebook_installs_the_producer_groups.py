@@ -255,6 +255,14 @@ def test_the_app_is_told_which_recipes_the_notebook_chose():
         "Defter seçilen tarifleri uygulamaya geçirmiyor"
 
 
+def test_the_app_is_told_where_comfyui_writes_its_log():
+    """When ComfyUI stops answering, its log is the only thing that knows why -- and it dies with
+    the session. The app reads its tail into the error, so it has to know where the notebook
+    sends it (madde 230)."""
+    assert '"QE_COMFY_LOG"' in _source(), \
+        "Defter ComfyUI log'unun yolunu uygulamaya geçirmiyor"
+
+
 def test_every_recipe_comes_switched_off():
     """Photo ticked draws the boxes empty and picks nothing heavy for anyone.
 
