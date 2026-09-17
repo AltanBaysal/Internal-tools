@@ -4,9 +4,35 @@ There is one thing this module says beyond passing the server's words through ve
 this exception at all means ComfyUI ran the graph and answered that the render failed. That makes it
 the frame's failure rather than the run's, which is the only split the queue's stop rule needs
 (backend/features/photo_generation/domain/policy.py). Everything else -- an unreachable server, an
-HTTP error, a timeout -- leaves this exception unraised and travels up as itself.
+HTTP error, a timeout -- leaves this exception unraised. An unreachable server is the one of those
+given its own shape, ComfyUnreachable, because its cause is only in ComfyUI's log.
 """
 import json
+from collections import deque
+
+LOG_LINES = 30
+
+
+class ComfyUnreachable(RuntimeError):
+    """Nobody answered on ComfyUI's port, so no request reached it.
+
+    Not frame_level: no frame is to blame when the server is not there. The message is what we
+    know and nothing more -- the address, the transport's own words, and the tail of ComfyUI's log,
+    which is the only thing that can say why it was gone and which dies with the session.
+    """
+
+    def __init__(self, base, cause, log_path):
+        super().__init__(f"ComfyUI'ye bağlanılamadı — {base}\n{cause}\n{_log_tail(log_path)}")
+
+
+def _log_tail(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as handle:
+            tail = deque(handle, maxlen=LOG_LINES)
+    except OSError as exc:
+        # Not a second failure: the connection is the error, and an unreadable log only says so.
+        return f"--- comfyui.log okunamadı: {path} ---\n{exc}"
+    return f"--- comfyui.log · son {LOG_LINES} satır ---\n" + "".join(tail).rstrip("\n")
 
 
 class ComfyExecutionError(RuntimeError):

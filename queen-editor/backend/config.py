@@ -22,6 +22,10 @@ COMFY_URL = os.environ.get("QE_COMFY_URL", "http://127.0.0.1:8188")
 # below is only the fallback.
 COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
 
+# Where the notebook sends ComfyUI's output. When ComfyUI cannot be reached, its tail goes into the
+# error: nothing else can say why it was gone, and the file dies with the session.
+COMFY_LOG = os.environ.get("QE_COMFY_LOG", "/content/comfyui.log")
+
 # Which recipes the notebook installed, by id. The disk cannot answer this: Slime renders on Nova
 # 3DCG's checkpoint, so a Slime-only machine has that file and the renderer lists it. Empty means
 # photo was not installed, and the Model box offers nothing.

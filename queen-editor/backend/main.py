@@ -73,7 +73,8 @@ _project_store = DriveProjectStore(_storage)
 _settings_store = DriveSettingsStore(_storage)
 
 _photo_store = DrivePhotoStore(_storage)
-_comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL)
+_comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
+                            log_path=config.COMFY_LOG)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
 _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
                                        config.VIDEO_FIRST_LAST_WORKFLOW_PATH,
