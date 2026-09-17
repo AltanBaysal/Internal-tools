@@ -813,6 +813,84 @@ describe("PhotoDetail", () => {
   });
 });
 
+describe("PhotoDetail — deleting keeps the direction (madde 234)", () => {
+  // Newest first, as the gallery stands: ‹ steps to the frame above in this list, › to the one below.
+  const FIVE = [done("4_a.png", "beşinci"), done("3_a.png", "dördüncü"), done("2_a.png", "üçüncü"),
+                done("1_a.png", "ikinci"), done("0_a.png", "ilk")];
+
+  // The router swaps the frame under a page that stays mounted, so a test does the same: one
+  // render, then rerender on the frame the press navigated to.
+  async function mount(fid, frames = FIVE) {
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue([]);
+    const view = render(<PhotoDetail project="düğün" frame={fid} />);
+    await settle();
+    return (next) => { view.rerender(<PhotoDetail project="düğün" frame={next} />); return settle(); };
+  }
+
+  // The answer names the frame by identity, so the hook takes it out of its own list and the next
+  // deletion looks at the neighbours that are really left.
+  async function remove(fid) {
+    removeFrames.mockResolvedValue({ deleted: [fid], removed: [] });
+    navigate.mockClear();
+    fireEvent.click(screen.getByText("Sil"));
+    await act(async () => { fireEvent.click(confirmButton()); });
+  }
+
+  it("after the back arrow, deleting opens the frame before it", async () => {
+    const goTo = await mount("1_a");
+    fireEvent.click(screen.getByText("‹"));
+    await goTo("2_a");
+
+    await remove("2_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/3_a");
+  });
+
+  it("after the left key, deleting opens the frame before it", async () => {
+    const goTo = await mount("1_a");
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    await goTo("2_a");
+
+    await remove("2_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/3_a");
+  });
+
+  it("after the forward arrow, deleting opens the frame after it", async () => {
+    const goTo = await mount("3_a");
+    fireEvent.click(screen.getByText("›"));
+    await goTo("2_a");
+
+    await remove("2_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/1_a");
+  });
+
+  it("a second deletion keeps walking backwards", async () => {
+    const goTo = await mount("1_a");
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    await goTo("2_a");
+    await remove("2_a");
+    await goTo("3_a");
+
+    await remove("3_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/4_a");
+  });
+
+  it("walking backwards off the end, deleting falls to the frame after it", async () => {
+    const goTo = await mount("3_a");
+    fireEvent.click(screen.getByText("‹"));
+    await goTo("4_a");
+
+    await remove("4_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/3_a");
+  });
+});
+
 describe("PhotoDetail — the counter is the gallery's badge", () => {
   it("gives the newest frame the largest number, the same one its tile carries", async () => {
     await open("2_a");
