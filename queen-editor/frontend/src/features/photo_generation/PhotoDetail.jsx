@@ -293,6 +293,14 @@ export default function PhotoDetail({ project, frame: fid }) {
   const frame = index >= 0 ? frames[index] : null;
   const previous = index > 0 ? frames[index - 1] : null;
   const next = frames && index >= 0 && index < frames.length - 1 ? frames[index + 1] : null;
+  // Which way the last arrow went, so a deletion moves on the way the user was walking (madde 234).
+  // A ref, not state: nothing on screen depends on it. It lives as long as the page, which the
+  // arrows keep mounted -- a detail opened fresh from the gallery starts forwards, as it always did.
+  const backwards = useRef(false);
+  function step(to, back) {
+    backwards.current = back;
+    navigate(photoPath(project, to.id));
+  }
   // Which layer the worker is holding on THIS frame, if any -- the one thing about a frame that
   // has no state on disk.
   const running = frame && frame.id === current ? (currentLayer || "photo") : null;
@@ -396,20 +404,21 @@ export default function PhotoDetail({ project, frame: fid }) {
     const onKey = (e) => {
       if (asking) return;                        // the modal owns the keyboard while it is open
       if (e.key === "Escape") navigate(projectPath(project));
-      if (e.key === "ArrowLeft" && previous) navigate(photoPath(project, previous.id));
-      if (e.key === "ArrowRight" && next) navigate(photoPath(project, next.id));
+      if (e.key === "ArrowLeft" && previous) step(previous, true);
+      if (e.key === "ArrowRight" && next) step(next, false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [project, previous, next, asking]);
 
   // One button, two meanings: a photo is deleted from Drive and asks first, a frame only leaves the
-  // queue and does not. Where to go afterwards is decided before the list changes -- the next frame,
-  // the one before it when this was the last, or the gallery when nothing is left.
+  // queue and does not. Where to go afterwards is decided before the list changes -- the neighbour
+  // on the side the last arrow went, the other one when that side is empty, or the gallery when
+  // nothing is left. Moving on is not an arrow, so a run of deletions keeps walking the same way.
   function handleRemove() {
     setBusy(true);
     setRefused(false);
-    const after = next || previous;
+    const after = backwards.current ? previous || next : next || previous;
     return removePhotos([fid]).then((body) => {
       setBusy(false);
       setAsking(null);
@@ -502,11 +511,9 @@ export default function PhotoDetail({ project, frame: fid }) {
               </Corner>
             ) : null}
             <Arrow glyph="‹" side="left"
-                   onClick={previous
-                     ? () => navigate(photoPath(project, previous.id))
-                     : undefined} />
+                   onClick={previous ? () => step(previous, true) : undefined} />
             <Arrow glyph="›" side="right"
-                   onClick={next ? () => navigate(photoPath(project, next.id)) : undefined} />
+                   onClick={next ? () => step(next, false) : undefined} />
             {holds && open !== "photo" ? (
               /* The layer's own tab plays it. The sound opens no player of its own: it rides the
                  video, which is what "sesli oynar" means here (madde 74). */
