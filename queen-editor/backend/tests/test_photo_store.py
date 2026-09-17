@@ -1,3 +1,5 @@
+import os
+
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.services.drive.storage import DriveStorage
 
@@ -78,3 +80,16 @@ def test_a_photo_already_in_the_export_is_not_written_again(tmp_path):
     landed = tmp_path / "düğün" / "export" / "2026-08-12 14-32" / "photos" / "01.png"
     assert landed.read_bytes() == b"PNG"
     assert [path.name for path in landed.parent.iterdir()] == ["01.png"]
+
+
+def test_the_pieces_of_a_merged_export_are_cut_off_drive(tmp_path):
+    """Drive is the slow disk, and a merged export's pieces are thrown away the moment they are
+    joined -- so they are cut on the machine's own disk (madde 235)."""
+    store = store_at(tmp_path)
+
+    pieces = store.make_pieces_dir()
+
+    assert os.path.isdir(pieces)
+    assert not pieces.startswith(str(tmp_path))
+    store.remove_dir(pieces)
+    assert not os.path.exists(pieces)
