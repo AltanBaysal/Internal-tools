@@ -454,6 +454,105 @@ describe("PhotoDetail — the layer tabs", () => {
   });
 });
 
+// The second frame with a sound of its own, for the sound tab to step onto.
+const SECOND_SOUND = { ...SECOND_VIDEO,
+                       layers: { ...SECOND_VIDEO.layers, audio: "P1_0_V1_0_S1_0.wav" },
+                       prompts: { ...SECOND_VIDEO.prompts, audio: "adım sesleri" } };
+
+describe("PhotoDetail — the stage follows the frame (madde 232)", () => {
+  // Opens the first frame on the given tab and hands back the way to step onto the second.
+  async function stepping(frames, tabName) {
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue([]);
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    if (tabName) fireEvent.click(tab(tabName));
+    return async () => {
+      rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+      await settle();
+    };
+  }
+
+  it("throws the old picture away when the frame changes", async () => {
+    // A kept <img> with a new src goes on drawing the old picture until the new one loads -- the
+    // column says one frame while the stage shows another.
+    const next = await stepping([LAYERED, SECOND]);
+    const before = screen.getByAltText("P0_0.png");
+
+    await next();
+
+    expect(before.isConnected).toBe(false);
+    expect(screen.getByAltText("P1_0.png")).toBeTruthy();
+  });
+
+  it("says it is loading until the new picture arrives", async () => {
+    const next = await stepping([LAYERED, SECOND]);
+    fireEvent.load(screen.getByAltText("P0_0.png"));
+
+    await next();
+
+    expect(screen.getByText("yükleniyor…")).toBeTruthy();
+    fireEvent.load(screen.getByAltText("P1_0.png"));
+    expect(screen.queryByText("yükleniyor…")).toBeNull();
+  });
+
+  it("says so when the picture does not come, and which one", async () => {
+    const next = await stepping([LAYERED, SECOND]);
+
+    await next();
+    fireEvent.error(screen.getByAltText("P1_0.png"));
+
+    expect(screen.getByText("Dosya yüklenemedi")).toBeTruthy();
+    expect(screen.queryByText("yükleniyor…")).toBeNull();
+    // The browser gives no reason for a failed image, so the address is what is known -- and what
+    // the copy button hands over.
+    expect(document.querySelector("[data-raw]").textContent).toContain("/photos/düğün/P1_0.png");
+  });
+
+  it("throws the old video away when the frame changes", async () => {
+    const next = await stepping([LAYERED, SECOND_VIDEO], "Video");
+    const before = document.querySelector("video");
+
+    await next();
+
+    expect(before.isConnected).toBe(false);
+    expect(document.querySelector("video").getAttribute("src")).toBe("/photos/düğün/P1_0_V1_0.mp4");
+  });
+
+  it("throws the old sound away when the frame changes", async () => {
+    const next = await stepping([LAYERED, SECOND_SOUND], "Ses");
+    const before = document.querySelector("audio");
+
+    await next();
+
+    expect(before.isConnected).toBe(false);
+    expect(document.querySelector("audio").getAttribute("src"))
+      .toBe("/photos/düğün/P1_0_V1_0_S1_0.wav");
+  });
+
+  it("says it is loading until the video arrives", async () => {
+    const next = await stepping([LAYERED, SECOND_VIDEO], "Video");
+
+    await next();
+
+    expect(screen.getByText("yükleniyor…")).toBeTruthy();
+    fireEvent.loadedData(document.querySelector("video"));
+    expect(screen.queryByText("yükleniyor…")).toBeNull();
+  });
+
+  it("says so when the video does not come, and which one", async () => {
+    const next = await stepping([LAYERED, SECOND_VIDEO], "Video");
+
+    await next();
+    fireEvent.error(document.querySelector("video"));
+
+    expect(screen.getByText("Dosya yüklenemedi")).toBeTruthy();
+    expect(document.querySelector("[data-raw]").textContent)
+      .toContain("/photos/düğün/P1_0_V1_0.mp4");
+  });
+});
+
 describe("PhotoDetail — how the video was made", () => {
   const LOOPED = { ...LAYERED, modes: { video: "loop" } };
   const LINKED = { ...LAYERED, modes: { video: "linked" }, endsOn: { video: "P1_0.png" } };
