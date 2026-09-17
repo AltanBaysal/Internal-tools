@@ -83,6 +83,31 @@ Varılan kararlar da buraya ya da maddenin satırına yazılır.
 
 Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek.
 
+### Cumshot güncellemesi — video LoRA'ları
+
+*(Kullanıcı, 17 Eylül.)* Video tarafında cumshot için LoRA'lar denenecek. Kullanıcının sakladığı
+bağlantılar aşağıda. Açıklamalar yalnız bağlantının kendi adından okunuyor, sayfalar henüz
+açılmadı.
+
+**Modeller:**
+- [HMCumshot — MiniMax H3 için](https://civitai.red/models/2857340/hmcumshot-cumshot-lora-for-minimax-h3?modelVersionId=3238531)
+  *(sürüm 3238531)*. MiniMax H3 için olduğundan v5'in 213. maddesiyle ilgili.
+- [Epic Cumshots](https://civitai.red/models/2621242/epic-cumshots?modelVersionId=2946870)
+  *(sürüm 2946870)*
+- [CumFacial — WAN 2.2](https://civitai.red/models/1962545/cumfacial-wan22?modelVersionId=3112727)
+  *(sürüm 3112727)*
+- [F4C3SPL4SH — WAN 2.2 i2v](https://civitai.red/models/1922973/f4c3spl4sh-cumshot-i2v-wan-22-video-lora-k3nk?modelVersionId=2176450)
+  *(sürüm 2176450)*
+
+**Örnek görseller:**
+[141692376](https://civitai.red/images/141692376),
+[142849014](https://civitai.red/images/142849014),
+[142760376](https://civitai.red/images/142760376),
+[140992432](https://civitai.red/images/140992432)
+
+**Kararlaşmadı:** hangi LoRA'nın kullanılacağı, hangi video modeliyle (bugünkü WAN 2.2 mi, MiniMax
+H3 mü) ve uygulamada nasıl seçileceği.
+
 ### Karakter LoRA'sı eklenecek
 
 *(Kullanıcı, 6 Eylül.)* Aynı kişinin her karede aynı çıkması için. Bugün bunu tutan tek şey etiket:
