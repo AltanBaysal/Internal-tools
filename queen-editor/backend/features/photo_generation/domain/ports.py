@@ -20,10 +20,6 @@ class PhotoGenerator(Protocol):
         """
         ...
 
-    def models(self) -> list:
-        """Which models can render right now -- asked of the renderer, never kept here."""
-        ...
-
 
 class PromptWriter(Protocol):
     def write(self, prompts: dict) -> str:

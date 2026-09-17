@@ -72,12 +72,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
 
     @bp.get("/api/models")
     def models():
-        try:
-            return jsonify({"models": list_models()})
-        except Exception as exc:
-            # Whatever the renderer said or failed to say, verbatim -- the panel prints it under
-            # the model field and generating stays possible without a choice.
-            return jsonify({"error": str(exc)}), 502
+        return jsonify({"models": list_models()})
 
     @bp.get("/api/status")
     def status():

@@ -23,8 +23,8 @@ COMFY_URL = os.environ.get("QE_COMFY_URL", "http://127.0.0.1:8188")
 COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
 
 # Which recipes the notebook installed, by id. The disk cannot answer this: Slime renders on Nova
-# 3DCG's checkpoint, so a Slime-only machine has that file and the renderer lists it. Empty -- a
-# checkout with no notebook behind it -- means the panel falls back to the renderer's own list.
+# 3DCG's checkpoint, so a Slime-only machine has that file and the renderer lists it. Empty means
+# photo was not installed, and the Model box offers nothing.
 PHOTO_RECIPES = [part.strip() for part in os.environ.get("QE_PHOTO_RECIPES", "").split(",")
                  if part.strip()]
 

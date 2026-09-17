@@ -26,10 +26,6 @@ class ComfyPhotoGenerator:
         self._workflow_path = workflow_path
         self._timeout = timeout
 
-    def models(self):
-        """Which checkpoints are installed -- asked of the server, never listed here."""
-        return self._client.checkpoints()
-
     def generate(self, prompt, negative, seed, model="", source=None, end=None):
         """`source` and `end` are nobody's business here: a picture is made from its words alone and
         arrives nowhere. Both are taken because the queue has one call shape for every producer --

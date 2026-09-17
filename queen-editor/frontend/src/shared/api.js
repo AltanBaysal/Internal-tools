@@ -102,8 +102,8 @@ export async function generateBatch(project, { prompts, negative, variants, mode
   });
 }
 
-// Which models can render right now. Not a project's question: the renderer answers it, and the
-// app keeps no list of its own (the notebook decides what is installed).
+// Which models can render right now. Not a project's question: the notebook decides which recipes
+// are installed and the server reports them.
 export async function listModels() {
   const body = await request("/api/models");
   return body.models;

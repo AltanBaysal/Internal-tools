@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listModels } from "../../shared/api.js";
 import { failureText } from "../../shared/failure_text.js";
 
-// Which models can render, asked once when the project screen opens. There is no list here and no
-// list on the server either: the notebook decides what is installed and the renderer reports it.
+// Which models can render, asked once when the project screen opens. There is no list here: the
+// notebook decides which recipes are installed and the server reports them.
 //
 // Not knowing the list is not a reason to stop working: on failure the list reads as empty and the
 // error is handed to the panel, which says so while the button stays pressable -- a frame with no

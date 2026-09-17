@@ -103,13 +103,13 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   }, [project, prompts, negative, model, variants]);
 
   // Nothing saved yet: the field has to show a real choice rather than a blank, so the first row
-  // the renderer lists is taken. Only ever fills an empty box -- a saved choice is never moved.
+  // the server lists is taken. Only ever fills an empty box -- a saved choice is never moved.
   useEffect(() => {
     if (!model && models && models.length) setModel(models[0].value);
   }, [models, model]);
 
   const loadingModels = models === null;
-  // A saved pick the renderer no longer offers stays selected: quietly sliding the user onto
+  // A saved pick the server no longer offers stays selected: quietly sliding the user onto
   // another row would mean the next batch renders with one they never picked. Compared by value,
   // because a row's label is what the user reads and its value is what the frame stores.
   const gone = Boolean(model) && Boolean(models) && models.length > 0
