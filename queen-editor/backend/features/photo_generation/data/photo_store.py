@@ -65,8 +65,18 @@ class DrivePhotoStore:
         return os.path.join(folder, filename)
 
     def remove_dir(self, path):
-        """Take a folder and everything in it. Used on a failed or cancelled export."""
+        """Take a folder and everything in it. Used on a failed or cancelled export, and on the
+        pieces of a merged one."""
         shutil.rmtree(path, ignore_errors=True)
+
+    def make_pieces_dir(self):
+        """An empty folder on the machine's own disk, for files that are thrown away again.
+
+        A merged export cuts one piece per frame only to join them: the pieces are scaffolding, and
+        Drive is the slow disk the user watches (madde 235). They also never collide with the other
+        export mode's files this way -- the two modes share one dated folder on Drive.
+        """
+        return tempfile.mkdtemp(prefix="qe-export-")
 
     def copy_photo(self, source, folder, filename):
         """Put one picture in the export's photos folder, unless it is already there.
