@@ -76,12 +76,13 @@ class ComfyPhotoGenerator:
         """The recipe this value names, or None when it names a file or nothing at all.
 
         An id nobody knows stops the render. Falling back to a plain one would hand back a picture
-        that is not what was asked for, with nothing anywhere saying the recipe went unapplied.
+        that is not what was asked for, with nothing anywhere saying the recipe went unapplied. A
+        removed one is not unknown: the user decided where it falls (recipes.RETIRED).
         """
         if not model.startswith(recipes.PREFIX):
             return None
         recipe_id = model[len(recipes.PREFIX):]
-        recipe = recipes.find(recipe_id)
+        recipe = recipes.find(recipes.RETIRED.get(recipe_id, recipe_id))
         if recipe is None:
             raise RuntimeError(f"Tanınmayan tarif: {recipe_id} — uygulama bu tarifi bilmiyor, "
                                "defter bu depodan yeni olabilir")

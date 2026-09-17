@@ -13,20 +13,22 @@ with it, so a Slime-only machine has that file sitting there and the renderer li
 """
 
 # The lora the photo graph has always shipped with, switched on in its Power Lora Loader. Named
-# here because a recipe replaces the loader's slots outright rather than adding to them: the three
-# checkpoint recipes have to put it back, or picking one would quietly drop it.
+# here because a recipe replaces the loader's slots outright rather than adding to them: the plain
+# checkpoint recipe has to put it back, or picking it would quietly drop it.
 _USNR = {"lora": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors", "strength": 0.8}
 
 PREFIX = "recipe:"
 
+# Recipes that were removed, and the one a frame still naming them renders as. Nova Orange and Nova
+# Anime were never used; the user's call was that a project saved with one falls to Nova 3DCG
+# quietly rather than stopping its queue (madde 226). Read by the renderer alone: the panel's list
+# offers what exists, and an old name there would be a second Nova 3DCG row.
+RETIRED = {"novaorange": "nova3dcg", "novaanime": "nova3dcg"}
+
 RECIPES = [
     {"id": "nova3dcg", "label": "Nova 3DCG XL",
      "checkpoint": "nova3DCGXL_ilV90.safetensors", "loras": [_USNR], "trigger": ""},
-    {"id": "novaorange", "label": "Nova Orange XL",
-     "checkpoint": "novaOrangeXL_rexV10.safetensors", "loras": [_USNR], "trigger": ""},
-    {"id": "novaanime", "label": "Nova Anime XL",
-     "checkpoint": "novaAnimeXL_ilV190.safetensors", "loras": [_USNR], "trigger": ""},
-    # Tried against the other two candidates in ComfyUI on 15 September and picked on what came
+    # Tried against two other candidates in ComfyUI on 15 September and picked on what came
     # out: this lora alone, at 0.9, with USNR switched off. The trigger travels with it because a
     # lora nobody names in the prompt renders an ordinary photo and raises nothing.
     {"id": "slime", "label": "Slime",
