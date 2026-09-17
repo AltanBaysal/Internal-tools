@@ -102,19 +102,13 @@ class FrameFault(RuntimeError):
 class FakeGenerator:
     """Records what each frame asked for; `fail_on` names the prompts whose render fails."""
 
-    def __init__(self, fail_on=(), installed=("nova.safetensors",)):
+    def __init__(self, fail_on=()):
         self.calls = []
         self.sources = []
         # Kept apart from sources: what a layer is made from and where it arrives are two different
         # questions, and one list holding both could not answer either.
         self.ends = []
-        self.models_called = 0
         self.fail_on = list(fail_on)
-        self.installed = list(installed)
-
-    def models(self):
-        self.models_called += 1
-        return list(self.installed)
 
     def generate(self, prompt, negative, seed, model="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
@@ -3262,25 +3256,17 @@ def test_nothing_is_written_when_nobody_asked_for_timings():
     assert runner.status()["status"] == "done"
 
 
-def test_with_no_recipes_named_the_list_is_the_renderers_own_answer():
-    """The app runs outside the notebook too -- from a checkout, against any ComfyUI. Nobody has
-    said which recipes were installed there, so the honest answer is still the renderer's: what it
-    can load, under the names it loads them by."""
-    generator = FakeGenerator(installed=["nova.safetensors", "başka.safetensors"])
-
-    assert list_models(generator, []) == [
-        {"value": "nova.safetensors", "label": "nova.safetensors"},
-        {"value": "başka.safetensors", "label": "başka.safetensors"},
-    ]
-    assert generator.models_called == 1
+def test_with_no_recipes_chosen_the_list_is_empty():
+    """The app only runs behind the notebook, and there no recipe means photo was not installed --
+    a video-only session. Asking the renderer for checkpoints then could only come back empty or
+    fall over, and falling over put an error card on the project screen (madde 229)."""
+    assert list_models([]) == []
 
 
 def test_the_recipes_the_notebook_chose_are_what_the_panel_lists():
     """A row is a recipe now -- a name, a checkpoint and a lora arrangement -- and the notebook is
     the side that knows which ones it installed."""
-    generator = FakeGenerator(installed=["nova3DCGXL_ilV90.safetensors"])
-
-    rows = list_models(generator, ["nova3dcg", "slime"])
+    rows = list_models(["nova3dcg", "slime"])
 
     assert rows == [{"value": "recipe:nova3dcg", "label": "Nova 3DCG XL"},
                     {"value": "recipe:slime", "label": "Slime"}]
@@ -3289,17 +3275,13 @@ def test_the_recipes_the_notebook_chose_are_what_the_panel_lists():
 def test_a_recipe_the_notebook_did_not_choose_is_not_offered():
     """Slime renders on Nova's checkpoint, so installing Slime alone puts that file on the disk.
     Reading the disk would offer Nova as well -- a row the user never asked the notebook for."""
-    generator = FakeGenerator(installed=["nova3DCGXL_ilV90.safetensors"])
-
-    assert list_models(generator, ["slime"]) == [{"value": "recipe:slime", "label": "Slime"}]
+    assert list_models(["slime"]) == [{"value": "recipe:slime", "label": "Slime"}]
 
 
 def test_an_unknown_recipe_id_is_dropped_and_takes_nothing_with_it():
     """An id the app does not know is a notebook that moved ahead of this checkout. The rows it
     does know still render, because losing the whole list over one unknown name would take the
     panel down for a reason the user cannot act on."""
-    generator = FakeGenerator(installed=["nova3DCGXL_ilV90.safetensors"])
-
-    assert list_models(generator, ["yok", "slime"]) == [
+    assert list_models(["yok", "slime"]) == [
         {"value": "recipe:slime", "label": "Slime"},
     ]

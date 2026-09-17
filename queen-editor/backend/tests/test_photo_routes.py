@@ -31,12 +31,8 @@ from backend.web.app import create_app
 
 
 class FakeGenerator:
-    def __init__(self, installed=("nova.safetensors",)):
-        self.installed = list(installed)
+    def __init__(self):
         self.calls = []
-
-    def models(self):
-        return list(self.installed)
 
     def generate(self, prompt, negative, seed, model="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
@@ -111,8 +107,8 @@ def make_client(tmp_path, generator=None, runner=None):
         remove_layer=partial(remove_layer, record, store, plan_store, order_store,
                              lambda: "2026-08-05T10:00:00+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
-        # No recipe ids: a checkout with no notebook behind it, which is what these tests are.
-        list_models=partial(list_models, generator, []),
+        # No recipe ids: a notebook that installed no photo, which is the case madde 229 is about.
+        list_models=partial(list_models, []),
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_summary=partial(export_summary, record, store, plan_store, order_store,
                                lambda: 5),
@@ -391,32 +387,15 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     assert statuses_of(client) == [("P1_0.png", "done"), ("P0_0.png", "failed")]
 
 
-def test_the_models_endpoint_lists_what_the_renderer_has(tmp_path):
-    client, _ = make_client(tmp_path,
-                            generator=FakeGenerator(installed=["nova.safetensors", "b.safetensors"]))
+def test_with_no_recipes_the_models_endpoint_answers_an_empty_list(tmp_path):
+    # Not an error: a video-only session has no photo recipe, and the panel's install card is what
+    # says photo is not here. A 502 put a failure card on top of that (madde 229).
+    client, _ = make_client(tmp_path)
 
     resp = client.get("/api/models")
 
     assert resp.status_code == 200
-    # A row, not a name: what the panel shows and what it sends back are two different strings
-    # once a row can be a recipe rather than a file.
-    assert resp.get_json() == {"models": [
-        {"value": "nova.safetensors", "label": "nova.safetensors"},
-        {"value": "b.safetensors", "label": "b.safetensors"},
-    ]}
-
-
-def test_an_unreachable_renderer_answers_with_its_own_words(tmp_path):
-    class Unreachable(FakeGenerator):
-        def models(self):
-            raise RuntimeError("Connection refused: 127.0.0.1:8188")
-
-    client, _ = make_client(tmp_path, generator=Unreachable())
-
-    resp = client.get("/api/models")
-
-    assert resp.status_code == 502
-    assert resp.get_json()["error"] == "Connection refused: 127.0.0.1:8188"
+    assert resp.get_json() == {"models": []}
 
 
 def test_every_frame_of_a_batch_carries_the_chosen_model(tmp_path):

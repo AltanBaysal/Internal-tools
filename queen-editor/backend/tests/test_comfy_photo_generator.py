@@ -6,13 +6,9 @@ from backend.features.photo_generation.data.comfy_photo_generator import ComfyPh
 
 
 class FakeClient:
-    def __init__(self, checkpoints=()):
+    def __init__(self):
         self.submitted = None
         self.waited = None
-        self._checkpoints = list(checkpoints)
-
-    def checkpoints(self):
-        return list(self._checkpoints)
 
     def submit(self, workflow):
         self.submitted = workflow
@@ -197,13 +193,6 @@ def test_a_recipe_on_a_graph_with_no_lora_loader_says_which_node_is_missing(tmp_
         generator.generate("kraliçe", "", 1, "recipe:slime")
 
     assert "27" in str(exc.value)
-
-
-def test_the_installed_models_come_from_the_server(tmp_path):
-    client = FakeClient(checkpoints=["nova.safetensors", "başka.safetensors"])
-    generator = ComfyPhotoGenerator(client, write_graph(tmp_path), timeout=60)
-
-    assert generator.models() == ["nova.safetensors", "başka.safetensors"]
 
 
 @pytest.mark.parametrize("missing", ["3", "4", "40", "45"])
