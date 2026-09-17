@@ -29,6 +29,56 @@ süresi, adım başına süre ve GPU elde yok. Geri gelirse oradan başlar — �
 - Hyper-SDXL'in **8-step CFG** LoRA'sı CFG 5–8'i koruyor: negative prompt ve yüz düzeltici bugünkü
   gibi çalışır, kazanç daha az. Denenmedi.
 
+### Fotoğrafta NSFW detailer
+
+*(Kullanıcı, 16 Eylül.)* Fotoğraf grafiğinde NSFW detailer açılacak.
+
+**v5'te madde 219 olarak yol haritasındaydı, koşulmadan backlog'a döndü** *(kullanıcı, 17 Eylül)*.
+Numara 219 olarak kalır; geri gelirse aynı numarayla gelir.
+
+**Bilinenler:** Bugün üretim grafiğinde **tek** dedektör var, o da yüz: `bbox/face_yolov9c.pt`,
+`workflow_api.json`'da iki yerde *(94 ve 446)*. Creator'ın tam grafiğinde üç dal daha duruyor ve
+**bypass'lı oldukları için export'a hiç girmemişler**: NSFW
+*(`segm/ntd11_anime_nsfw_segm_v5-variant1.pt`)*, el *(`bbox/hand_yolov9c.pt`)* ve göz
+*(`bbox/Eyeful_v2-Individual.pt`)*. **Üç dosya da depoda hiçbir yerde inmiyor**, ne defterde ne
+`model_groups`'ta; yani bugün o dal açılsa "model bulunamadı" ile düşer. Detailer, FaceDetailer'ın
+başka bölgeye uygulanmış hâli: bölgeyi buluyor, kırpıp tam çözünürlükte yeniden render ediyor ve
+düşük denoise ile geri yapıştırıyor. **Bedeli** her fotoğrafta bir kırpma render'ı daha, kabaca
+**%20-40 süre**.
+
+**Kararlaşmadı:** Yalnız NSFW mi açılacak, yoksa el ve göz de mi *(üçü de ayrı dedektör, ayrı
+süre)*? Dedektörlerin kaynağı da henüz bulunmadı. **Kullanıcıdan gereken:** dalı ComfyUI'da açıp
+çıkana bakması, beğenirse de **Export (API)**'yi yeniden vermesi. Dal bizim dosyada olmadığı için
+grafik yeniden export edilmeden koda giremez.
+
+### Kare başına negatif prompt alınacak
+
+*(Kullanıcı, 17 Eylül.)* İş iki görevdir: negatif prompt'ları **QueenAgent üretir**, queen-editor
+**alır ve kullanır**. Bu görev queen-editor'ün yarısı. Üreten yarı
+[QueenAgent'ın backlog'unda](../queen-agent/BACKLOG.md) *"Kare başına negatif prompt üretilecek"*
+başlığıyla duruyor.
+
+Kareler kendi negatif prompt'larıyla gelebilecek, gerekiyorsa her kare için ayrı. Üç katmanın her
+biri kendi başlığında:
+
+#### Fotoğraf
+
+Fotoğraf karesi kendi negatif prompt'unu alır ve onunla üretilir.
+
+#### Video
+
+Video katmanı kendi negatif prompt'unu alır ve onunla üretilir.
+
+#### Ses
+
+Ses katmanı kendi negatif prompt'unu alır ve onunla üretilir.
+
+**Kararlaşmadı:** Negatif gelmeyen kare ya da katman ne olacak? Bugünkü varsayılanla mı üretilecek?
+
+**Başlamadan önce kullanıcıyla ayrıntılı konuşulur** *(kullanıcı, 17 Eylül)*. Madde sırası gelince
+koşulacak, ama ilk turun spec'i yazılmadan önce üç başlığın her biri kullanıcıyla tek tek konuşulur.
+Varılan kararlar da buraya ya da maddenin satırına yazılır.
+
 ### Video LoRA denemesi — anatomik hatalar
 
 Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek.
@@ -58,17 +108,6 @@ bunu sonraya bıraktı, ve buraya bir tahmin yazılmıyor.
 **Kararlaşmadı:** karakterin videoda konuşması mı *(ağzın sözle uyumu)*, kareye konuşma sesinin
 binmesi mi *(metinden ses, bugünkü ses katmanının yanına ya da yerine)*, yoksa ikisi birden mi. Bunun
 ardından gelen soru da açık: konuşmanın metnini kim yazıyor — kullanıcı mı, QueenAgent mı.
-
-### Toplu seçme — Shift ile aralık
-
-*(Kullanıcı, 11 Eylül.)* Galeride kartlar **Windows'ta dosya seçer gibi** seçilecek: bir karta
-tıklanır, Shift basılı tutulup başka bir karta tıklanır, ve aradaki bütün kartlar seçili gelir.
-
-Kullanıcının çerçevesi: bu **tümünü seç'in alternatifi** — arada kalan bir yol, çünkü bugün bir kare
-grubunu seçmenin yolu ya tek tek tıklamak ya da hepsini birden almak.
-
-**Kararlaşmadı:** Ctrl ile tek tek ekleme de gelecek mi. Windows'ta ikisi birlikte gelir, ama
-kullanıcı yalnız Shift'i saydı.
 
 ### Karta sağ tık — bağlam menüsü
 

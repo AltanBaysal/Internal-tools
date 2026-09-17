@@ -3,6 +3,35 @@
 Gerçek ama henüz bir koşuya bağlanmamış işler. Sırası gelince buradan çıkar, o koşunun yol
 haritasına girer.
 
+## Kare başına negatif prompt üretilecek
+
+*(Kullanıcı, 17 Eylül.)* İş iki görevdir: negatif prompt'ları **QueenAgent üretir**, queen-editor
+**alır ve kullanır**. Bu görev QueenAgent'ın yarısı. Alan yarı
+[queen-editor'ün backlog'unda](../queen-editor/BACKLOG.md) *"Kare başına negatif prompt alınacak"*
+başlığıyla duruyor.
+
+QueenAgent prompt'ları yazarken negatif prompt'ları da yazacak, gerekiyorsa her kare için ayrı. Üç
+katmanın her biri kendi başlığında:
+
+### Fotoğraf
+
+Her fotoğraf karesi için, gerekiyorsa, kendi negatif prompt'u yazılır.
+
+### Video
+
+Her kare için, gerekiyorsa, kendi video negatif prompt'u yazılır.
+
+### Ses
+
+Her kare için, gerekiyorsa, kendi ses negatif prompt'u yazılır.
+
+**Kararlaşmadı:** "Gerekiyorsa" neye göre belirlenecek? Negatif prompt her karede mi yazılacak, yoksa
+yalnız o kareye özgü bir şey olduğunda mı?
+
+**Başlamadan önce kullanıcıyla ayrıntılı konuşulur** *(kullanıcı, 17 Eylül)*. Madde sırası gelince
+koşulacak, ama ilk turun spec'i yazılmadan önce üç başlığın her biri kullanıcıyla tek tek konuşulur.
+Varılan kararlar da buraya ya da maddenin satırına yazılır.
+
 ## Model menüsü DeepSeek'in 10 Eylül değişikliğine göre yenilenecek
 
 *(DeepSeek'in [10 Eylül 2026 duyurusu](https://api-docs.deepseek.com/news/news260910), 11 Eylül'de
