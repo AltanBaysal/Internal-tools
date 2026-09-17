@@ -167,6 +167,19 @@ def test_a_recipe_with_no_trigger_leaves_the_prompt_and_the_negative_alone(tmp_p
     assert client.submitted["4"]["inputs"]["populated_text"] == "blurry"
 
 
+@pytest.mark.parametrize("retired", ["novaorange", "novaanime"])
+def test_a_retired_nova_recipe_renders_as_nova_3dcg(tmp_path, retired):
+    """A frame planned with one of the two removed Novas still carries its name, in the plan and in
+    the project's settings. The user's call (madde 226): it renders as Nova 3DCG, quietly, rather
+    than stopping the queue over a model nobody used."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, f"recipe:{retired}")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == SHIPPED_LORAS
+
+
 def test_an_unknown_recipe_stops_the_render(tmp_path):
     """Falling back to a plain render would hand back a photo that is not what was asked for, with
     nothing anywhere saying the recipe was never applied."""

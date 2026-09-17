@@ -76,8 +76,8 @@ def test_the_notebook_carries_the_tool_s_own_name():
 
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
     """A row naming a kind rather than a file is skipped here and covered by
-    test_the_notebook_offers_every_photo_model instead, which pins all three checkpoints by name and
-    by version id -- a tighter guard than this one, not a looser one."""
+    test_the_notebook_offers_every_checkpoint_a_recipe_asks_for instead, which pins the checkpoint by
+    name and by version id -- a tighter guard than this one, not a looser one."""
     missing = [row["name"] for group in GROUPS.values() for row in group
                if "name" in row and row["name"] not in _source()]
 
@@ -314,11 +314,19 @@ def test_the_notebook_offers_every_checkpoint_a_recipe_asks_for():
     would only say that the list contains what it contains."""
     cell = _cell("PHOTO_CHECKPOINTS = [")
 
-    for name in ("nova3DCGXL_ilV90.safetensors", "novaOrangeXL_rexV10.safetensors",
-                 "novaAnimeXL_ilV190.safetensors"):
-        assert name in cell, f"Defter bu checkpoint'i indirmiyor: {name}"
-    for version in ("2744564", "2945776", "2940478"):
-        assert version in cell, f"Civitai version id defterde yok: {version}"
+    assert "nova3DCGXL_ilV90.safetensors" in cell, \
+        "Defter bu checkpoint'i indirmiyor: nova3DCGXL_ilV90.safetensors"
+    assert "2744564" in cell, "Civitai version id defterde yok: 2744564"
+
+
+def test_the_retired_nova_checkpoints_are_gone_from_the_notebook():
+    """Nova Orange and Nova Anime left the recipe list (madde 226). A row left behind here would
+    still be a box somebody could tick for 7 GiB that renders nothing the app offers."""
+    source = _source()
+
+    for leftover in ("novaOrangeXL_rexV10.safetensors", "novaAnimeXL_ilV190.safetensors",
+                     "2945776", "2940478"):
+        assert leftover not in source, f"Defterde kaldırılan Nova'dan iz kaldı: {leftover}"
 
 
 def test_every_checkpoint_a_recipe_names_is_one_the_notebook_can_fetch():

@@ -3256,6 +3256,14 @@ def test_nothing_is_written_when_nobody_asked_for_timings():
     assert runner.status()["status"] == "done"
 
 
+def test_the_recipe_list_is_nova_3dcg_and_slime_alone():
+    """Nova Orange and Nova Anime were never used, and each one cost a 7 GiB checkpoint of its own
+    to anyone who ticked it (madde 226)."""
+    from backend.features.photo_generation.domain.recipes import RECIPES
+
+    assert [recipe["id"] for recipe in RECIPES] == ["nova3dcg", "slime"]
+
+
 def test_with_no_recipes_chosen_the_list_is_empty():
     """The app only runs behind the notebook, and there no recipe means photo was not installed --
     a video-only session. Asking the renderer for checkpoints then could only come back empty or
