@@ -148,6 +148,83 @@ describe("Gallery ordering", () => {
 
 });
 
+describe("Gallery — shift and ctrl (madde 231)", () => {
+  const FIVE = [done("4_a.png"), done("3_a.png"), done("2_a.png"), done("1_a.png"),
+                done("0_a.png")];
+
+  // What the gallery last said its selection is. Sorted: which order the presses came in is not
+  // this item's question, which cards are chosen is.
+  function chosen(onSelectionChange) {
+    return [...onSelectionChange.mock.calls.at(-1)[0]].sort();
+  }
+
+  it("selects every card between the anchor and a shift-press, top to bottom", () => {
+    const onSelectionChange = vi.fn();
+    renderGallery({ frames: FIVE, onSelectionChange });
+
+    fireEvent.click(checkOf("4_a.png"));
+    fireEvent.click(photoOf("1_a.png"), { shiftKey: true });
+
+    expect(chosen(onSelectionChange)).toEqual(["1_a", "2_a", "3_a", "4_a"]);
+    expect(screen.getByText("4 seçili")).toBeTruthy();
+  });
+
+  it("selects the same run bottom to top", () => {
+    const onSelectionChange = vi.fn();
+    renderGallery({ frames: FIVE, onSelectionChange });
+
+    fireEvent.click(checkOf("1_a.png"));
+    fireEvent.click(photoOf("4_a.png"), { shiftKey: true });
+
+    expect(chosen(onSelectionChange)).toEqual(["1_a", "2_a", "3_a", "4_a"]);
+  });
+
+  it("starts the run from the last plain press and keeps what was chosen before", () => {
+    const onSelectionChange = vi.fn();
+    renderGallery({ frames: FIVE, onSelectionChange });
+
+    fireEvent.click(checkOf("4_a.png"));
+    fireEvent.click(checkOf("2_a.png"));
+    fireEvent.click(photoOf("0_a.png"), { shiftKey: true });
+
+    // 3_a stays out: the run starts at 2_a. 4_a stays in: a card the user picked is not dropped.
+    expect(chosen(onSelectionChange)).toEqual(["0_a", "1_a", "2_a", "4_a"]);
+  });
+
+  it("leaves the frame the worker holds out of the run", () => {
+    const onSelectionChange = vi.fn();
+    renderGallery({ frames: FIVE, current: "2_a", onSelectionChange });
+
+    fireEvent.click(checkOf("4_a.png"));
+    fireEvent.click(photoOf("0_a.png"), { shiftKey: true });
+
+    expect(chosen(onSelectionChange)).toEqual(["0_a", "1_a", "3_a", "4_a"]);
+  });
+
+  it("starts a selection with a shift-press instead of opening the frame", () => {
+    const onSelectionChange = vi.fn();
+    renderGallery({ frames: FIVE, onSelectionChange });
+
+    fireEvent.click(photoOf("3_a.png"), { shiftKey: true });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(chosen(onSelectionChange)).toEqual(["3_a"]);
+  });
+
+  it("adds a card with ctrl and takes it out again, without opening it", () => {
+    const onSelectionChange = vi.fn();
+    renderGallery({ frames: FIVE, onSelectionChange });
+
+    fireEvent.click(photoOf("3_a.png"), { ctrlKey: true });
+    fireEvent.click(photoOf("1_a.png"), { ctrlKey: true });
+    expect(chosen(onSelectionChange)).toEqual(["1_a", "3_a"]);
+
+    fireEvent.click(photoOf("3_a.png"), { ctrlKey: true });
+    expect(chosen(onSelectionChange)).toEqual(["1_a"]);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
 describe("Gallery — dragging a selection", () => {
   // Five, not three: a scattered selection needs cards left standing between its members, and with
   // three there is only one such card.
