@@ -77,16 +77,16 @@ function useWaveform(audioUrl) {
 // time, the progress and the time again -- all of it inside the picture (Fark 114). The sound tab
 // opens no player of its own (madde 74) -- it is this same one with the wav playing alongside and a
 // waveform where the bar was.
-export default function LayerPlayer({ videoUrl, audioUrl }) {
+//
+// A new frame or tab builds a new player (madde 232), so nothing that was playing carries over.
+// onReady and onFail say when the video has arrived or will not.
+export default function LayerPlayer({ videoUrl, audioUrl, onReady, onFail }) {
   const video = useRef(null);
   const audio = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [at, setAt] = useState(0);
   const [length, setLength] = useState(0);
   const peaks = useWaveform(audioUrl);
-
-  // A tab change swaps the source under a mounted player: whatever was playing does not carry over.
-  useEffect(() => { setPlaying(false); setAt(0); }, [videoUrl, audioUrl]);
 
   function toggle() {
     const shown = video.current;
@@ -124,6 +124,7 @@ export default function LayerPlayer({ videoUrl, audioUrl }) {
                onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
                onTimeUpdate={onTime}
                onLoadedMetadata={() => setLength(video.current?.duration || 0)}
+               onLoadedData={onReady} onError={onFail}
                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
         {audioUrl && <audio ref={audio} src={audioUrl} loop />}
         {/* Madde 212: a 64px disc over the middle of a five second clip covers what is being looked

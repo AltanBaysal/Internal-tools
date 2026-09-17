@@ -7,6 +7,7 @@ import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Corner, Making, Pill, Rendering, StatusPill } from "./frame_status.jsx";
 import { CopyGlyph, PlayGlyph, SoundGlyph } from "./glyphs.jsx";
+import Arriving from "./Arriving.jsx";
 import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
@@ -362,6 +363,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Was this layer already sent, and was any of the presses a retry? The corner says which.
   const wasSent = (layer) => sent.some((one) => one.layer === layer);
   const retried = sent.some((one) => one.retry);
+  // What the stage's media belongs to. A new frame or tab builds new media under it, so nothing of
+  // the one before can stay on screen while the next file is on its way (madde 232).
+  const stageKey = `${fid}/${open}`;
 
   // The arrows swap the frame under a page that stays mounted, so anything said about the old one
   // has to go with it -- a refusal card from the previous frame would read as this one's.
@@ -506,18 +510,28 @@ export default function PhotoDetail({ project, frame: fid }) {
             {holds && open !== "photo" ? (
               /* The layer's own tab plays it. The sound opens no player of its own: it rides the
                  video, which is what "sesli oynar" means here (madde 74). */
-              <LayerPlayer videoUrl={fileUrl(project, frame.layers.video)}
-                           audioUrl={open === "audio"
-                             ? fileUrl(project, frame.layers.audio)
-                             : null} />
+              <Arriving key={stageKey} url={fileUrl(project, frame.layers.video)}>
+                {({ onReady, onFail }) => (
+                  <LayerPlayer videoUrl={fileUrl(project, frame.layers.video)}
+                               audioUrl={open === "audio"
+                                 ? fileUrl(project, frame.layers.audio)
+                                 : null}
+                               onReady={onReady} onFail={onFail} />
+                )}
+              </Arriving>
             ) : openState === "running" ? (
               produced ? (
                 /* Fark 113: the picture stays and a box over it says what is being made. For the
                    length of a render it is the one thing left to look at. */
-                <div style={FRAMED}>
-                  <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE} />
-                  <Making layer={open} />
-                </div>
+                <Arriving key={stageKey} url={fileUrl(project, frame.file)}>
+                  {({ onReady, onFail }) => (
+                    <div style={FRAMED}>
+                      <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE}
+                           onLoad={onReady} onError={onFail} />
+                      <Making layer={open} />
+                    </div>
+                  )}
+                </Arriving>
               ) : (
                 /* A photo being made has no picture to keep: this is the holder's own case. */
                 <Rendering style={HOLDER} />
@@ -541,9 +555,14 @@ export default function PhotoDetail({ project, frame: fid }) {
             ) : produced ? (
               /* The picture the frame holds -- its own, or its source's when this is a copy waiting
                  for the layer above it (madde 81). */
-              <div style={FRAMED}>
-                <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE} />
-              </div>
+              <Arriving key={stageKey} url={fileUrl(project, frame.file)}>
+                {({ onReady, onFail }) => (
+                  <div style={FRAMED}>
+                    <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE}
+                         onLoad={onReady} onError={onFail} />
+                  </div>
+                )}
+              </Arriving>
             ) : (
               /* Madde 82: the holder keeps the frame's own shape and its two lines are drawn
                  faintly -- a frame with no pixels yet is not an error, only not here yet. The word
