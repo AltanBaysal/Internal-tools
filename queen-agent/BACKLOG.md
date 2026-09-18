@@ -3,6 +3,35 @@
 Gerçek ama henüz bir koşuya bağlanmamış işler. Sırası gelince buradan çıkar, o koşunun yol
 haritasına girer.
 
+## Proje oluşturma ve yönetimi geliştirilecek
+
+*(Kullanıcı, 18 Eylül.)* İki yarısı var:
+
+- **Oluşturma.** Bu yarı aşağıdaki *"Yeni proje ve yeni sohbet açmak karmaşık"* maddesiyle aynı
+  yere dokunuyor. Sırası gelince ikisi tek maddede koşulur.
+- **Yönetim.** Bugün bir proje için iki eylem var: yeniden adlandırmak ve silmek. İkisi de hem kenar
+  çubuğunun menüsünde hem proje ekranında duruyor
+  *([Sidebar.jsx](frontend/src/features/workspace/Sidebar.jsx),
+  [ProjectScreen.jsx](frontend/src/features/workspace/ProjectScreen.jsx))*.
+
+**Kararlaşmadı: neyin geliştirileceği.** Kullanıcı hangi eylemlerin eksik ya da zayıf olduğunu
+söylemedi. Sıralama, arşivleme, arama, kopyalama gibi ihtimallerin hiçbiri kararlaşmadı. **Başlamadan
+önce kullanıcıyla konuşulur**, ve varılan karar buraya yazılır.
+
+## Compilation skill'i eklenecek
+
+*(Kullanıcı, 18 Eylül.)* Skill seçicisine üçüncü bir satır girecek: **Compilation**. Bugün iki satır
+var — *Start a scenario* ve *Edit prompts* *(Madde 101)*.
+
+**Kararlaşmadı: skill'in ne yaptığı.** Kullanıcı yalnız adını verdi; neyi derlediği, girdisinin ve
+çıktısının ne olduğu konuşulmadı. **Başlamadan önce kullanıcıyla konuşulur**, ve varılan karar buraya
+yazılır.
+
+**Değişen:** [domain/skills.py](backend/features/workspace/domain/skills.py) *(`INSTRUCTIONS`)*,
+[domain/prompt.py](backend/features/workspace/domain/prompt.py) *(skill'in metni)*,
+[skills.js](frontend/src/features/workspace/skills.js) *(`SKILLS`)*; ve bunları çivileyen testler —
+`test_skills.py`, `skills.test.js`, `SkillPicker.test.jsx`; `dist`.
+
 ## Kare başına negatif prompt üretilecek
 
 *(Kullanıcı, 17 Eylül.)* İş iki görevdir: negatif prompt'ları **QueenAgent üretir**, queen-editor
