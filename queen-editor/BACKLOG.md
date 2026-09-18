@@ -70,6 +70,27 @@ süre)*? Dedektörlerin kaynağı da henüz bulunmadı. **Kullanıcıdan gereken
 çıkana bakması, beğenirse de **Export (API)**'yi yeniden vermesi. Dal bizim dosyada olmadığı için
 grafik yeniden export edilmeden koda giremez.
 
+### queen-editor'ün defteri, aynı model için manuel defterden yavaş açılıyor
+
+*(Kullanıcı, 17 Eylül — "comfyui manuel denersem fotoğraf vs daha hızlı iniyor, queen editörde çok
+daha yavaş"; ardından: "üretim hızı değil, yüklenip cloudflare verme hızı".)*
+
+**v5'te madde 233 olarak yol haritasındaydı, koşulmadan backlog'a döndü** *(kullanıcı, 18 Eylül)*.
+Numara 233 olarak kalır; geri gelirse aynı numarayla gelir.
+
+Konu dosyaların ekrana gelmesi değil, **defterin açılış süresi**.
+`photo_generator/nova-3dcg/manual.ipynb` fotoğraf için ~10 dakikada açılıyor, `queeneditor.ipynb`
+aynı modelle ~20 dakika sürüyor gibi — **ölçülmedi**. **Önce ölçülecek, sorun varsa çözülecek**
+*(kullanıcı)*.
+
+**İki defterden okunan aday, henüz sebep değil** *(17 Eylül)*: manuel defter **8** custom node
+kuruyor, queen-editor **20** — aradaki 11'i yalnız video grafiğinin, ve defterin kendi notu
+*"node'lar seçime bağlı değil, hepsi kurulur"* diyor. Birkaçı kendi pip bağımlılıklarını kuruyor.
+Küçük ekler de var: repo klonu, `ffmpeg` kurulumu, `cloudflared` indirmesi.
+
+**Ölçüm:** Colab'ın gösterdiği hücre süreleri, iki defterde aynı modelle yan yana. **Kullanıcıdan
+gereken:** iki defteri aynı fotoğraf seçimiyle açıp her hücrenin süresini vermesi.
+
 ### Kare başına negatif prompt alınacak
 
 *(Kullanıcı, 17 Eylül.)* İş iki görevdir: negatif prompt'ları **QueenAgent üretir**, queen-editor
@@ -174,6 +195,10 @@ yetenek değil, modelin kendi eğilimi.
 
 **Kararlaşmadı:** çözümün yeni bir fotoğraf modeli eklemek mi *(bugünkünün yanına, kare bazında
 seçilebilir)*, bugünküyü değiştirmek mi, yoksa LoRA ya da prompt tarafında kalmak mı olduğu.
+
+### Gerçekçi bir model eklenecek
+
+*(Kullanıcı, 18 Eylül — "gerçekçi bir model eklenecek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ## MiniMax H3
 
