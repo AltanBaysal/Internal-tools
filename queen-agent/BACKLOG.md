@@ -18,6 +18,11 @@ haritasına girer.
 söylemedi. Sıralama, arşivleme, arama, kopyalama gibi ihtimallerin hiçbiri kararlaşmadı. **Başlamadan
 önce kullanıcıyla konuşulur**, ve varılan karar buraya yazılır.
 
+## LoRA önekleri
+
+*(Kullanıcı, 18 Eylül — "QueenAgent lora önekini yazınca ne olacağını bilsin".)* **Ayrıntılar
+kullanıcıyla konuşulacak.**
+
 ## Compilation skill'i eklenecek
 
 *(Kullanıcı, 18 Eylül.)* Skill seçicisine üçüncü bir satır girecek: **Compilation**. Bugün iki satır

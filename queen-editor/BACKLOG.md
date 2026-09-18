@@ -175,6 +175,20 @@ yetenek değil, modelin kendi eğilimi.
 **Kararlaşmadı:** çözümün yeni bir fotoğraf modeli eklemek mi *(bugünkünün yanına, kare bazında
 seçilebilir)*, bugünküyü değiştirmek mi, yoksa LoRA ya da prompt tarafında kalmak mı olduğu.
 
+## MiniMax H3
+
+*(Kullanıcı, 18 Eylül.)* MiniMax H3 üzerindeki yeni işler.
+
+### Referansla içerik üretimi — H3 ile
+
+*(Kullanıcı, 18 Eylül.)* H3 kullanılarak referansla içerik üretimi. **Ayrıntılar kullanıcıyla
+konuşulacak.**
+
+### H3 denemeleri
+
+*(Kullanıcı, 18 Eylül — "belki biraz daha denersek daha kaliteli bir şeyler çıkarabiliriz".)*
+**Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler
