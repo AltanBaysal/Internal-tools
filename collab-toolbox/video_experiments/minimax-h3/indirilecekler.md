@@ -175,3 +175,67 @@ Bu, sürümün **primary** dosyasını indirir — yani istenen int8'i. Dosya `d
 altına, grafiğin aradığı adla konur.
 
 **Bu dosya olmadan da deneme yapılabilir:** § 3'teki açık `fl2va` ile, 25 adımda.
+
+---
+
+## 7) 🔒 Kullanıcının verdiği LoRA'lar *(18 Eylül)*
+
+Grafik bunların hiçbirini adlandırmıyor ve depoda emsalleri yok: linkleri **kullanıcı verdi**. Hepsi
+Civitai'de, login-gated. Kaynağı kullanıcının paylaştığı bir tarifin *"Resources used"* listesi
+*(checkpoint'i DaSiWa Hybrid v1)*.
+
+| LoRA | Tarifteki sürüm adı | Link |
+|---|---|---|
+| [MMH3] Mystic XXX | v2.0 | https://civitai.red/models/2856467/mmh3-mystic-xxx?modelVersionId=3242519 |
+| Faster! Harder! Shake Harder! \| H3 Motion Booster (ANIME Edition Update) | V0.2 | https://civitai.red/models/2840146/faster-harder-shake-harder-or-h3-motion-boosteranime-edition-update?modelVersionId=3228867 |
+| H3 – LTX 2.3 – I2V T2V Video Reasoning lora VBVR | H3 V1 | https://civitai.red/models/2497207/h3-ltx-23-i2v-t2v-video-reasoning-lora-vbvr?modelVersionId=3220766 |
+| Minimax H3 Turbo Loras | lightx2v_4step_v0.1 | https://civitai.red/models/2837571/minimax-h3-turbo-loras?modelVersionId=3206543 |
+
+### İndirilen sürümler
+
+Tarif eski sürümleri kullanıyor. İnen, **her sayfanın en yeni sürümü** *(kullanıcı kararı, 18 Eylül)*;
+sürüm numaraları kullanıcının yapıştırdığı sayfaların `AIR` satırından, dosyalar Civitai API'sinden
+*(`/api/v1/model-versions/<id>`)*. Üçünün de base model'i **MiniMax H3**. `manual.ipynb` her birinin
+birincil dosyasını `models/loras/` altına, bu adla indiriyor.
+
+| LoRA | Sürüm | Dosya | Boyut | Tarifteki |
+|---|---|---|---|---|
+| Mystic XXX | **v4.0** · 3266628 | `MysticXXX_MMH3-V4.safetensors` | 148 MB | v2.0 · 3242519 |
+| Motion Booster | **V0.2** · 3228867 | `H3_Motion_BoosterV2.safetensors` | 148 MB | aynı |
+| VBVR | **H3 VBVR Pro** · 3306139 | `H3_VBVR_Pro_attn_only.safetensors` | 63 MB | H3 V1 · 3220766 |
+
+Grafik bunları adlandırmıyor: `DaSiWa_LTX2LoraLoader`'ın on yuvası boş gelir, UI'da elle seçilirler.
+
+### Sayfalarda yazanlar
+
+**Mystic XXX v4.0**
+- Tetik kelime yok.
+- Ağırlık **0.2–1**; yazar v4'ü 1'de koşuyor. Turbo LoRA'larla görünümü değiştirebiliyor.
+- T2V, I2V ve ilk-son kare (FFLF) modlarında çalışıyor.
+- Yorumlarda: biri I2V'de artefakt yüzünden 0.5'e inmiş; biri Asyalı karakterlerde v2'yi tercih ediyor.
+
+**Motion Booster V0.2**
+- Tetik kelime **`dynv2`**, hareket bölümünün başına yazılır.
+- Ağırlık **0.6–0.8**, 0.7'den başla.
+- En iyi I2V'de; T2V daha çok yeniden deneme istiyor.
+- Prompt H3'ün bölümleriyle yazılıyor: `integrated_multimodal_description:`, `overall_soundscape:`,
+  `non_diegetic_music:`.
+- Ağzın oynaması için sesler konuşma satırı olarak hareket bölümüne yazılır. Yalnız
+  `overall_soundscape`'e yazılırsa görüntü sessiz kalıyor, ses ayrı bir iz gibi duyuluyor.
+- Canlı çekim mi anime versiyonu mu, sayfa açıkça söylemiyor.
+
+**VBVR Pro**
+- Tetik kelime yok.
+- Ağırlık **0.7–1.0**; normal H3'te 1.0'dan başla. 1.5–2.0 prompt'a daha sıkı bağlılık veriyor ama
+  video 16 fps gibi görünmeye başlıyor.
+- Stili değiştirmiyor, hareket LoRA'larıyla birlikte kullanılabiliyor.
+- Prompt adım adım ve düz yazılır: başlangıç durumu → ne oluyor → bitiş durumu.
+- Yorumlarda biri hareket kalitesini düşürdüğünü söylüyor.
+
+### Turbo LoRA
+
+`lightx2v_4step_v0.1` *(3206543)* **inmiyor**: Turbo v2 hızı zaten içinde taşıyor. Birincil dosyası
+`minimax_h3_fl2v_lightx2v_turbo_4step_v0.1_comfy.safetensors` *(1,9 GB)*; yanında küçültülmüş bir hâli
+*(307 MB)* ve bir `MiniMax_H3_Lightx2v.json` var. Nasıl kullanılacağı
+[queen-editor/BACKLOG.md](../../../queen-editor/BACKLOG.md)'deki turbo maddesinde, kullanıcıyla
+konuşulacak.

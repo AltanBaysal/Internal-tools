@@ -5,6 +5,25 @@ haritasına girer.
 
 ---
 
+### MiniMax H3'te turbo: checkpoint mi, LoRA mı
+
+*(Kullanıcı, 18 Eylül — "turbo olayını backlog'a yaz, user ile konuşulup align olunacak".)* 213'ün
+denemesi sırasında çıktı.
+
+**Bilinen:** Kullanıcının paylaştığı tarif normal bir checkpoint'e hızı LoRA'yla veriyor:
+**DaSiWa Hybrid v1** *(Civitai sürüm 3251526, adında `turbo` yok)* + **`lightx2v_4step_v0.1`**
+*("Minimax H3 Turbo Loras")*. `minimax-h3/manual.ipynb` ise hızı checkpoint'in içinde taşıyan
+**DaSiWa Hybrid Turbo v2**'yi *(3314686)* indiriyor ve grafik onunla 8 adımda koşuyor —
+[indirilecekler.md § 6](../collab-toolbox/video_experiments/minimax-h3/indirilecekler.md).
+
+**Bilinmeyen:** Turbo checkpoint'in üstüne bir hız LoRA'sı daha takmanın hızlandırmayı iki kez
+uygulayıp uygulamadığı. Depoda WAN için aynı uyarı var, H3'te **denenmedi**. `lightx2v_4step`'in
+adresini kullanıcı verdi *(Civitai sürüm 3206543)*, linkiyle birlikte
+[indirilecekler.md § 7](../collab-toolbox/video_experiments/minimax-h3/indirilecekler.md)'de duruyor.
+
+**Kararlaşmadı:** hangi yolun kullanılacağı. **Başlamadan önce kullanıcıyla konuşulur**, ve varılan
+karar buraya yazılır.
+
 ### Fotoğraf üretim hızı — hız LoRA'ları
 
 Üretim hızlansın; yol olarak hız LoRA'ları denenecek. Kazanç fotoğraf tarafında görünüyor, video

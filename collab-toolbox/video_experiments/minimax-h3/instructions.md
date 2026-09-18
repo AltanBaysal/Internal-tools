@@ -88,7 +88,7 @@ indirmiyor.
 - `ComfyUI-DD-Translation` eklentisi node bağlantılarını bozuyor — kurma.
 - ⚠️ **T4 bu modeli koşturmuyor.** 16 GB VRAM yetmiyor ve makinenin sistem RAM'i de yetmiyor;
   *"Not enough GPU memory"* ile duruyor. Çalışan koşu **80 GB**'lık kartta oldu. Runtime'ı **A100**
-  seç — ve runtime tipini değiştirmek makineyi sıfırladığı için 39,7 GB yeniden iner.
+  seç — ve runtime tipini değiştirmek makineyi sıfırladığı için 40,1 GB yeniden iner.
 - ✅ `MiniMaxH3*` node'ları hiçbir custom node paketinde adı geçmiyor çünkü **ComfyUI'nin kendinde**:
   grafik yüklendiğinde tek bir "missing node" uyarısı çıkmadı *(14 Eylül)*. Model 3 Ağustos 2026'da
   açık ağırlıklarla yayınlandığında ComfyUI desteği aynı gün girmiş.
