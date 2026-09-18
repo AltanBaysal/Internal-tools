@@ -54,7 +54,7 @@ class ComfyVideoGenerator:
         self._first_last_path = first_last_path
         self._timeout = timeout
 
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         """`source` is the frame's photo as (name, bytes) -- an I2V render hangs on a picture.
 
         `end` is the picture the video arrives at, same shape, and giving one is the whole of the
@@ -63,8 +63,8 @@ class ComfyVideoGenerator:
         for a loop, the next one's for a linked video -- is the queue's answer, so the word "mode"
         never reaches this layer.
 
-        `negative` and `model` belong to the port rather than to these graphs: both are baked into
-        the exports, and a video job carries neither.
+        `negative`, `model` and `lora` belong to the port rather than to these graphs: all three are
+        baked into the exports, and a video job carries none of them.
         """
         if not source:
             # The ending frame is where the video arrives, not what it is built on.

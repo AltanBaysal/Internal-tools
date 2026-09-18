@@ -94,19 +94,18 @@ export async function saveSettings(project, { prompts, negative, variants, model
   });
 }
 
-export async function generateBatch(project, { prompts, negative, variants, model }) {
+export async function generateBatch(project, { prompts, negative, variants, model, lora }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompts, negative, variants, model }),
+    body: JSON.stringify({ prompts, negative, variants, model, lora }),
   });
 }
 
-// Which models can render right now. Not a project's question: the notebook decides which recipes
-// are installed and the server reports them.
+// What can render right now: `{models, loras}`, the two boxes of the photo panel. Not a project's
+// question: the notebook decides which models are installed and the server reports them.
 export async function listModels() {
-  const body = await request("/api/models");
-  return body.models;
+  return request("/api/models");
 }
 
 // Hang a layer on every frame in scope. No "files" key means every frame that does not hold it; a

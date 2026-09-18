@@ -101,6 +101,9 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
         "negative": negative if kind == layers.PHOTO else "",
         "seed": new_seed() if kind == layers.PHOTO else None,
         "model": source.get("model", "") if kind == layers.PHOTO else "",
+        # The lora goes with the model: dropping it would hand back a plain Nova where the user had
+        # Slime, with nothing on the page saying it changed (madde 237).
+        "lora": source.get("lora", "") if kind == layers.PHOTO else "",
         **mark,
     }])
     order_store.write(project, placed([frame["id"] for frame in gallery], {source["id"]: [born]}))

@@ -50,10 +50,12 @@ class DrivePlanStore:
                 continue
             negative = frame.get("negative")
             model = frame.get("model")
+            lora = frame.get("lora")
             identity = frame.get("id")
             kind = frame.get("type")
             # A frame planned before models could be chosen carries none, and empty means "the
-            # graph's own checkpoint" -- so those frames render exactly as they always did. One
+            # graph's own checkpoint" -- so those frames render exactly as they always did. The
+            # lora is the same one level down: empty is Standart, the model's own arrangement. One
             # planned before identities were written down keeps the one it was born with, or the
             # gallery order pointing at it would stop finding it. One planned before the queue knew
             # types can only be a photo job, because that was the only kind there was.
@@ -62,14 +64,15 @@ class DrivePlanStore:
                            else legacy_frame_id(frame["number"], frame.get("letter", "a")),
                            "type": kind if isinstance(kind, str) else layers.PHOTO,
                            "negative": negative if isinstance(negative, str) else legacy,
-                           "model": model if isinstance(model, str) else ""})
+                           "model": model if isinstance(model, str) else "",
+                           "lora": lora if isinstance(lora, str) else ""})
         return {"negative": legacy, "frames": frames}
 
     def append(self, project, frames):
         """Put frames at the end of the queue.
 
-        frames: [{"id", "number", "variant", "prompt", "negative", "seed", "model"}] in render
-        order.
+        frames: [{"id", "number", "variant", "prompt", "negative", "seed", "model", "lora"}] in
+        render order.
         """
         self._write(project, self.read(project)["frames"] + frames)
 

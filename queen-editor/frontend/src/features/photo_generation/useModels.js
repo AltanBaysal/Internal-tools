@@ -3,8 +3,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { listModels } from "../../shared/api.js";
 import { failureText } from "../../shared/failure_text.js";
 
-// Which models can render, asked once when the project screen opens. There is no list here: the
-// notebook decides which recipes are installed and the server reports them.
+// Which models and loras can render, asked once when the project screen opens. There is no list
+// here: the notebook decides which models are installed and the server reports them, with the loras
+// in the same answer (madde 237).
 //
 // Not knowing the list is not a reason to stop working: on failure the list reads as empty and the
 // error is handed to the panel, which says so while the button stays pressable -- a frame with no
@@ -16,19 +17,21 @@ import { failureText } from "../../shared/failure_text.js";
 let remembered = null;
 
 export function useModels() {
-  // null = not known yet (first fetch still flying), [] = nothing installed, or nothing readable.
-  const [models, setModels] = useState(remembered);
+  // null = not known yet (first fetch still flying). An answer's `models` can be [] -- nothing
+  // installed, or nothing readable.
+  const [answer, setAnswer] = useState(remembered);
   const [error, setError] = useState(null);
   const alive = useRef(true);
 
   const reload = useCallback(() => (
     listModels()
-      .then((list) => { if (alive.current) { setModels(list); setError(null); } })
+      .then((body) => { if (alive.current) { setAnswer(body); setError(null); } })
       .catch((err) => {
         if (!alive.current) return;
         // Only a first read empties the box, so the panel can stop waiting and the queue stays
-        // usable. Over a list the visit already has, a refresh that fell over changes nothing.
-        if (!remembered) setModels([]);
+        // usable. Over a list the visit already has, a refresh that fell over changes nothing. The
+        // lora box needs no answer to stand: it opens on Standart either way.
+        if (!remembered) setAnswer({ models: [], loras: null });
         setError(failureText(err));
       })
   ), []);
@@ -40,11 +43,12 @@ export function useModels() {
   }, [reload]);
 
   // An empty list is a real answer -- nothing installed -- and an unreadable one looks exactly like
-  // it. The error beside it is what tells them apart, so only a list that arrived without one is
+  // it. The error beside it is what tells them apart, so only an answer that arrived without one is
   // remembered.
   useEffect(() => {
-    if (models && !error) remembered = models;
-  }, [models, error]);
+    if (answer && !error) remembered = answer;
+  }, [answer, error]);
 
-  return { models, error, reload };
+  return { models: answer ? answer.models : null, loras: answer ? answer.loras : null, error,
+           reload };
 }

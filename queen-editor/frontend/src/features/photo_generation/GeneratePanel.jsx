@@ -27,14 +27,19 @@ const CONFIRM_MS = 10000;
 // Memory only, like the seven stores before it: a reload fills the boxes from the record again.
 const REMEMBERED = new Map();
 
-/** What the four boxes open with.
+// The lora box's own first row, drawn before the server has answered: it is not a file the machine
+// may or may not have but the model's own arrangement, so it needs nobody's word (madde 237).
+const STANDARD = [{ value: "", label: "Standart" }];
+
+/** What the boxes open with.
  *
  * A draft the user left behind wins over the project's record. The record is only written when the
  * queue button is pressed, so a draft is by definition the newer of the two -- it is exactly what
  * was typed after the last send.
  *
  * This is also the one place the record's shape becomes the boxes' shape: the boxes carry text, the
- * record carries a number that may be null and a model that may be empty.
+ * record carries a number that may be null and a model that may be empty. The lora is not in the
+ * record at all: the box defaults to Standart, and only a draft of this visit carries another pick.
  */
 function opening(project, settings) {
   const draft = REMEMBERED.get(project);
@@ -43,6 +48,7 @@ function opening(project, settings) {
     prompts: settings.prompts,
     negative: settings.negative,
     model: settings.model || "",
+    lora: "",
     variants: settings.variants === null ? FIRST_VARIANTS : String(settings.variants),
   };
 }
@@ -75,8 +81,8 @@ function boxLabel(message) {
 // puts them at the end of the queue. What the run has to say is not here: progress, pauses,
 // failures and the finish card all live in the queue panel (QueuePanel.jsx).
 export default function GeneratePanel({ job, error, errorField, busyElsewhere, settings, project,
-                                        models = null, modelsError = null, producer = null,
-                                        onGenerate, onClearError, onInstall }) {
+                                        models = null, loras = null, modelsError = null,
+                                        producer = null, onGenerate, onClearError, onInstall }) {
   // Read at mount and never again: the store lives at module level, and asking it on every render
   // would make the render itself impure. One question, four answers.
   const [boxes] = useState(() => opening(project, settings));
@@ -85,6 +91,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   const [prompts, setPrompts] = useState(boxes.prompts);
   const [negative, setNegative] = useState(boxes.negative);
   const [model, setModel] = useState(boxes.model);
+  const [lora, setLora] = useState(boxes.lora);
   const [variants, setVariants] = useState(boxes.variants);
   const [submitting, setSubmitting] = useState(false);
   // How many frames the last submission added, straight from the server; null once it has faded.
@@ -95,12 +102,12 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   useEffect(() => () => clearTimeout(fade.current), []);
 
   // Whatever the boxes hold is what a later mount starts from. One effect rather than a write in
-  // each of the four setters: the model box has a second writer -- it fills itself from the
-  // renderer's list when nothing was saved -- and a store written in five places would be five
-  // chances to forget one.
+  // each of the setters: the model box has a second writer -- it fills itself from the renderer's
+  // list when nothing was saved -- and a store written in six places would be six chances to forget
+  // one.
   useEffect(() => {
-    REMEMBERED.set(project, { prompts, negative, model, variants });
-  }, [project, prompts, negative, model, variants]);
+    REMEMBERED.set(project, { prompts, negative, model, lora, variants });
+  }, [project, prompts, negative, model, lora, variants]);
 
   // Nothing saved yet: the field has to show a real choice rather than a blank, so the first row
   // the server lists is taken. Only ever fills an empty box -- a saved choice is never moved.
@@ -114,9 +121,10 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   // because a row's label is what the user reads and its value is what the frame stores.
   const gone = Boolean(model) && Boolean(models) && models.length > 0
     && !models.some((row) => row.value === model);
-  // The lost pick is drawn under its own value: a recipe id is a poor label, and inventing a
+  // The lost pick is drawn under its own value: an id is a poor label, and inventing a
   // prettier one for a row nobody offers any more would be inventing what it used to be called.
   const options = gone ? [{ value: model, label: model }, ...models] : (models || []);
+  const loraOptions = loras && loras.length ? loras : STANDARD;
 
   const perPrompt = Number(variants);
   // What the server blamed, if it blamed anything. A named field means the request never reached
@@ -158,6 +166,7 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
       negative,
       variants: Number.isInteger(perPrompt) && variants.trim() !== "" ? perPrompt : null,
       model,
+      lora,
     })
       .then((result) => {
         if (result && typeof result.added === "number") {
@@ -180,11 +189,12 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
     <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
       <InstallCard producer={producer} onInstall={onInstall} />
 
-      {/* The panel's first field, as it has been in the design since v1. A row is a recipe -- a
-          name over a checkpoint and a lora arrangement -- so the label is read and the value sent. */}
+      {/* The panel's first field, as it has been in the design since v1. A row is a checkpoint by
+          its id, so the label is read and the value sent. */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <Mono size={11} style={LABEL}>Model</Mono>
-        <select className="wf-input" value={model} disabled={loadingModels || !options.length}
+        <select className="wf-input" aria-label="Model" value={model}
+                disabled={loadingModels || !options.length}
                 onChange={(e) => setModel(e.target.value)}
                 style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
           {loadingModels ? (
@@ -200,6 +210,18 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
         )}
         {/* Not a separate screen and not a blocker: the list failed, the queue has not. */}
         {modelsError && <StatusErrorCard text="Model listesi okunamadı" raw={modelsError} />}
+      </div>
+
+      {/* Under the model, because it finishes what the model box started: one lora laid over the
+          checkpoint, or Standart -- the model's own arrangement. One pick and no more, the user's
+          words (madde 237). */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <Mono size={11} style={LABEL}>LoRA</Mono>
+        <select className="wf-input" aria-label="LoRA" value={lora}
+                onChange={(e) => setLora(e.target.value)}
+                style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
+          {loraOptions.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)}
+        </select>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>

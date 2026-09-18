@@ -301,7 +301,8 @@ def test_progress_is_reported_before_each_frame():
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
     assert seen[0]["current"] == {"id": "P0_0", "type": "photo", "number": 0, "variant": 0,
-                                  "prompt": "a", "negative": "neg", "seed": 42, "model": ""}
+                                  "prompt": "a", "negative": "neg", "seed": 42, "model": "",
+                                  "lora": ""}
     assert (seen[0]["done"], seen[0]["total"]) == (0, 2)
     assert (seen[1]["done"], seen[1]["total"]) == (1, 2)
 
@@ -2928,9 +2929,9 @@ def test_the_plan_is_appended_before_the_first_frame_renders():
               plan_store=plan_store)
     assert plan_store.appended == [
         [{"id": "P0_0", "type": "photo", "number": 0, "variant": 0, "prompt": "a",
-          "negative": "neg", "seed": 42, "model": ""},
+          "negative": "neg", "seed": 42, "model": "", "lora": ""},
          {"id": "P0_1", "type": "photo", "number": 0, "variant": 1, "prompt": "a",
-          "negative": "neg", "seed": 42, "model": ""}]]
+          "negative": "neg", "seed": 42, "model": "", "lora": ""}]]
 
 
 def test_each_produced_photo_gets_a_record_row():

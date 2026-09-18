@@ -3,7 +3,7 @@ from typing import Protocol
 
 
 class PhotoGenerator(Protocol):
-    def generate(self, prompt: str, negative: str, seed: int, model: str = "",
+    def generate(self, prompt: str, negative: str, seed: int, model: str = "", lora: str = "",
                  source: tuple | None = None, end: tuple | None = None) -> bytes:
         """Render one layer and return its bytes -- nothing else, and no name.
 
@@ -16,7 +16,9 @@ class PhotoGenerator(Protocol):
 
         The file's name is the domain's (photo_name.layer_file), never the producer's.
 
-        An empty model means the graph's own default.
+        An empty model means the graph's own default, and an empty lora means the model's own
+        arrangement (Standart). Only a photo has either; a video and a sound take both and ignore
+        them, like `end`.
         """
         ...
 

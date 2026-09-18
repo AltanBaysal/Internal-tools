@@ -34,7 +34,8 @@ REMOVABLE = (layers.VIDEO, layers.AUDIO)
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
-                                    regenerate, remove_layer, list_frames, list_models, save_order,
+                                    regenerate, remove_layer, list_frames, list_models, list_loras,
+                                    save_order,
                                     export_summary, export_state, run_export, cancel_export,
                                     remove_frames, copy_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
@@ -52,8 +53,11 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         model = body.get("model")
         # No model is legitimate too: the graph renders with its own checkpoint.
         model = model if isinstance(model, str) else ""
+        lora = body.get("lora")
+        # And no lora is Standart, the model's own arrangement.
+        lora = lora if isinstance(lora, str) else ""
         try:
-            added = start_batch(project, prompts, negative, body.get("variants"), model)
+            added = start_batch(project, prompts, negative, body.get("variants"), model, lora=lora)
         # Which box was wrong travels with the message: the screen marks that field instead of
         # guessing from the wording.
         except InvalidPrompts as exc:
@@ -70,9 +74,11 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # a second round-trip, and until it lands the frames it was just told about are nowhere.
         return jsonify({"job": "running", "added": added, "frames": list_frames(project)}), 202
 
+    # One answer for both boxes: the panel draws them together, and a second request would be a
+    # second way for one of them to be missing (madde 237).
     @bp.get("/api/models")
     def models():
-        return jsonify({"models": list_models()})
+        return jsonify({"models": list_models(), "loras": list_loras()})
 
     @bp.get("/api/status")
     def status():

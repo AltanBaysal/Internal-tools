@@ -14,7 +14,7 @@ from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
-from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.usecases.list_models import list_loras, list_models
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
@@ -109,8 +109,9 @@ def make_client(tmp_path, generator=None, runner=None):
         remove_layer=partial(remove_layer, record, store, plan_store, order_store,
                              lambda: "2026-08-05T10:00:00+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
-        # No recipe ids: a notebook that installed no photo, which is the case madde 229 is about.
+        # No model ids: a notebook that installed no photo, which is the case madde 229 is about.
         list_models=partial(list_models, []),
+        list_loras=list_loras,
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_summary=partial(export_summary, record, store, plan_store, order_store,
                                lambda: 5),

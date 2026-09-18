@@ -11,7 +11,7 @@ A new export can renumber these; then this file changes and nothing else does.
 """
 import json
 
-from backend.features.photo_generation.domain import recipes
+from backend.features.photo_generation.domain import catalog
 
 PROMPT_NODE = "3"
 NEGATIVE_NODE = "4"
@@ -26,17 +26,19 @@ class ComfyPhotoGenerator:
         self._workflow_path = workflow_path
         self._timeout = timeout
 
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         """`source` and `end` are nobody's business here: a picture is made from its words alone and
         arrives nowhere. Both are taken because the queue has one call shape for every producer --
         see ports.PhotoGenerator.
         """
         workflow = self._load()
-        recipe = self._recipe(model)
-        if recipe:
+        model, lora = catalog.LEGACY.get(model, (model, lora))
+        chosen = self._model(model)
+        extra = self._lora(lora)
+        if extra and extra["trigger"]:
             # A lora that is loaded but never named in the prompt renders an ordinary photo and
-            # raises nothing anywhere -- so the recipe's word goes in front of the user's own.
-            prompt = f"{recipe['trigger']}, {prompt}" if recipe["trigger"] else prompt
+            # raises nothing anywhere -- so its word goes in front of the user's own.
+            prompt = f"{extra['trigger']}, {prompt}"
         self._set_text(workflow, PROMPT_NODE, prompt)
         # An empty negative is written through as empty: leaving the export's own text in place
         # would mean "no negative" silently kept a negative.
@@ -46,9 +48,11 @@ class ComfyPhotoGenerator:
         workflow[SEED_NODE]["inputs"]["seed"] = seed
         # No model means the export's own checkpoint: frames planned before models could be chosen
         # render exactly as they used to, and so does every frame when the list cannot be read.
-        if recipe:
-            workflow[MODEL_NODE]["inputs"]["ckpt_name"] = recipe["checkpoint"]
-            self._set_loras(workflow, recipe["loras"])
+        if chosen:
+            workflow[MODEL_NODE]["inputs"]["ckpt_name"] = chosen["checkpoint"]
+            # A chosen lora replaces the model's standard rather than joining it: Slime was liked
+            # with USNR off (madde 214). No lora is Standart -- the model's own arrangement.
+            self._set_loras(workflow, [extra] if extra else chosen["loras"])
         elif model:
             # A bare file name is a checkpoint and nothing more: picking one has never meant picking
             # a lora arrangement, and a frame planned that way keeps rendering the way it did.
@@ -72,29 +76,37 @@ class ComfyPhotoGenerator:
         return workflow
 
     @staticmethod
-    def _recipe(model):
-        """The recipe this value names, or None when it names a file or nothing at all.
+    def _model(model):
+        """The catalog model this value names, or None when it names a file or nothing at all.
 
-        An id nobody knows stops the render. Falling back to a plain one would hand back a picture
-        that is not what was asked for, with nothing anywhere saying the recipe went unapplied. A
-        removed one is not unknown: the user decided where it falls (recipes.RETIRED).
+        An old `recipe:` value that catalog.LEGACY does not know stops the render. Falling back to a
+        plain one would hand back a picture that is not what was asked for, with nothing anywhere
+        saying the pick went unapplied.
         """
-        if not model.startswith(recipes.PREFIX):
+        if model.startswith(catalog.LEGACY_PREFIX):
+            raise RuntimeError(f"Tanınmayan tarif: {model[len(catalog.LEGACY_PREFIX):]} — "
+                               "uygulama bu tarifi bilmiyor, defter bu depodan yeni olabilir")
+        return catalog.find_model(model)
+
+    @staticmethod
+    def _lora(lora):
+        """The catalog lora this value names, or None for Standart. An id nobody knows stops the
+        render, for the same reason an unknown model does."""
+        if not lora:
             return None
-        recipe_id = model[len(recipes.PREFIX):]
-        recipe = recipes.find(recipes.RETIRED.get(recipe_id, recipe_id))
-        if recipe is None:
-            raise RuntimeError(f"Tanınmayan tarif: {recipe_id} — uygulama bu tarifi bilmiyor, "
+        found = catalog.find_lora(lora)
+        if found is None:
+            raise RuntimeError(f"Tanınmayan LoRA: {lora} — uygulama bu LoRA'yı bilmiyor, "
                                "defter bu depodan yeni olabilir")
-        return recipe
+        return found
 
     @staticmethod
     def _set_loras(workflow, loras):
-        """Hand the loader the recipe's loras and nothing else.
+        """Hand the loader these loras and nothing else.
 
         A replacement rather than an addition: the graph ships with its own lora switched on, and
         the whole of madde 214 is that Slime was liked with that one OFF. Every lora_* slot goes,
-        then the recipe's are written from lora_1 -- the loader reads them in that order.
+        then these are written from lora_1 -- the loader reads them in that order.
         """
         node = workflow.get(LORA_NODE)
         if node is None:

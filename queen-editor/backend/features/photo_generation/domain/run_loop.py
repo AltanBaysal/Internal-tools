@@ -213,7 +213,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # detail page prints for a linked one.
                 ending = _end_for(current, store, slots, project, fid, under)
                 data = producer.generate(prompt, current["negative"], chosen,
-                                         current["model"], source=under, end=ending)
+                                         current["model"], current.get("lora", ""),
+                                         source=under, end=ending)
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job

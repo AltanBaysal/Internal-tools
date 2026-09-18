@@ -36,7 +36,7 @@ from backend.features.photo_generation.domain.usecases.retry_failed import retry
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
-from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.usecases.list_models import list_loras, list_models
 from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
@@ -177,7 +177,8 @@ _photo_bp = make_photo_generation_blueprint(
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
-    list_models=partial(list_models, config.PHOTO_RECIPES),
+    list_models=partial(list_models, config.PHOTO_MODELS),
+    list_loras=list_loras,
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
     # How long one video runs is the video graph's own setting, so the producer that owns that
     # graph is who answers it -- the summary keeps no number of its own.

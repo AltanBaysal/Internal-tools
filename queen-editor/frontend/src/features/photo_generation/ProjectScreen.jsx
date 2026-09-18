@@ -31,7 +31,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos, copyPhotos, removeLayer } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
-  const { models, error: modelsError } = useModels();
+  const { models, loras, error: modelsError } = useModels();
   // The machine's own question, not this project's: which producers are here.
   const producers = useProducers();
   // The gallery's own scroll box, kept across the steps in and out of a frame's page.
@@ -116,7 +116,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
                    settingsError={settingsError} onRetrySettings={onRetrySettings}
                    project={project}
                    stopping={stopping} queue={queue} failures={failures}
-                   models={models} modelsError={modelsError} producers={producers}
+                   models={models} loras={loras} modelsError={modelsError} producers={producers}
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onRetryAll={retryAll} />

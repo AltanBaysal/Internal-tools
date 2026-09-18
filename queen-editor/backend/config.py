@@ -26,11 +26,11 @@ COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
 # error: nothing else can say why it was gone, and the file dies with the session.
 COMFY_LOG = os.environ.get("QE_COMFY_LOG", "/content/comfyui.log")
 
-# Which recipes the notebook installed, by id. The disk cannot answer this: Slime renders on Nova
-# 3DCG's checkpoint, so a Slime-only machine has that file and the renderer lists it. Empty means
-# photo was not installed, and the Model box offers nothing.
-PHOTO_RECIPES = [part.strip() for part in os.environ.get("QE_PHOTO_RECIPES", "").split(",")
-                 if part.strip()]
+# Which models the notebook installed, by id. The disk cannot answer this: a checkpoint left from
+# another run would be listed as if it had been ticked. Empty means photo was not installed, and the
+# Model box offers nothing. The loras need no such list: they come with the photo group.
+PHOTO_MODELS = [part.strip() for part in os.environ.get("QE_PHOTO_MODELS", "").split(",")
+                if part.strip()]
 
 # The graph ships in the repo (our own copy -- never read collab-toolbox's file).
 WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")

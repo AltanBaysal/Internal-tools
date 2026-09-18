@@ -258,10 +258,10 @@ function PromptBox({ label, value, changed, height, onChange }) {
 export default function PhotoDetail({ project, frame: fid }) {
   const { frames, current, currentLayer, error, removePhotos, removeLayer, regenerate,
           retry } = useGeneration(project);
-  // The rows the renderer offers, for one line in the column on the right: a frame stores its pick
-  // as a value, and for a recipe that value is an id -- the name it was picked by is in this list
-  // and nowhere else. The hook remembers the answer for the visit, so opening frames costs nothing.
-  const { models } = useModels();
+  // The rows the renderer offers, for two lines in the column on the right: a frame stores its
+  // model and its lora as ids -- the names they were picked by are in these lists and nowhere else.
+  // The hook remembers the answer for the visit, so opening frames costs nothing.
+  const { models, loras } = useModels();
   // Which window is open, not merely that one is: a failed layer's way out deletes the FRAME while
   // a layer tab is open, and deciding from the open tab would show it the layer's words.
   const [asking, setAsking] = useState(null);              // "frame" | "layer" | null
@@ -339,14 +339,20 @@ export default function PhotoDetail({ project, frame: fid }) {
   // How the open layer was made, when its line said so. Only a video has an answer today, and only
   // a produced one: a failed or deleted layer's latest line names no mode.
   const madeIn = (frame?.modes || {})[open];
-  // What rendered this frame. The plan row carries what was picked: a file name the notebook
-  // downloaded, or a recipe's id. A recipe is shown by the name it was picked by -- `recipe:slime`
-  // is an address, and the person who chose "Slime" from a list never saw it. Without the list the
-  // stored value stands in: worse than the label, better than an empty row.
+  // What rendered this frame. The plan row carries what was picked: a model's id, or a file name
+  // from before models had ids. A model is shown by the name it was picked by -- `dasiwa` is an
+  // address, and the person who chose it from a list never saw it. Without the list the stored
+  // value stands in: worse than the label, better than an empty row.
   // The extension comes off a file name because the column already has a file-name row of its own.
   const storedModel = frame?.model || "";
   const madeWith = (models?.find((row) => row.value === storedModel)?.label || storedModel)
     .replace(/\.safetensors$/, "");
+  // And the lora laid over it, by the same rule. No lora is Standart -- the model's own
+  // arrangement, a real answer rather than a missing one (madde 237).
+  const storedLora = frame?.lora || "";
+  const laidOver = storedLora
+    ? (loras?.find((row) => row.value === storedLora)?.label || storedLora)
+    : "Standart";
   // Linked names the picture rather than the frame's number -- the sequence can be dragged, and a
   // number would then be a lie about a video nobody touched.
   const arrivesAt = (frame?.endsOn || {})[open];
@@ -605,6 +611,9 @@ export default function PhotoDetail({ project, frame: fid }) {
                    says which checkpoint the graph shipped that day, so naming one would invent it. */
                 <Field label="Model" value={madeWith} />
               )}
+              {/* Under the model and on the same terms: a frame that never carried a model has no
+                  record of what went over it either. */}
+              {open === "photo" && madeWith && <Field label="LoRA" value={laidOver} />}
               {open === "video" && madeIn && (
                 /* Information, never a control: changing the mode is making the video again, and
                    that is the form further down (madde 94). */

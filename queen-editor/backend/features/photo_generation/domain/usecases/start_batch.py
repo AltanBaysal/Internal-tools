@@ -26,7 +26,7 @@ class ProjectMissing(Exception):
     """No such project folder."""
 
 
-def plan_frames(start, prompts, negative, variants, new_seed, model=""):
+def plan_frames(start, prompts, negative, variants, new_seed, model="", lora=""):
     """[{"id", "type", "number", "variant", "prompt", …}] photo jobs in prompt-major order.
 
     Prompt-major means P0_0 P0_1 … P1_0. Number = prompt, variant = which of its variants -- the
@@ -37,16 +37,17 @@ def plan_frames(start, prompts, negative, variants, new_seed, model=""):
     frame on Drive the moment the naming scheme changed, and the gallery order the user dragged into
     place points at exactly these strings.
 
-    The negative and the model ride on the frame rather than on the plan: a live queue holds
-    batches submitted under different settings, and a frame has to render with the ones it was
-    submitted under.
+    The negative, the model and the lora ride on the frame rather than on the plan: a live queue
+    holds batches submitted under different settings, and a frame has to render with the ones it
+    was submitted under.
 
     Seeds are drawn here, when the frames are planned, rather than when a frame renders: the plan is
     what a resumed run reads back, so a frame has to produce the image it was planned to produce.
     """
     return [{"id": frame_id(start + index, variant), "type": layers.PHOTO,
              "number": start + index, "variant": variant,
-             "prompt": prompt, "negative": negative, "seed": new_seed(), "model": model}
+             "prompt": prompt, "negative": negative, "seed": new_seed(), "model": model,
+             "lora": lora}
             for index, prompt in enumerate(prompts)
             for variant in range(variants)]
 
@@ -72,7 +73,7 @@ def next_number(store, plan_store, record, project):
 
 def start_batch(runner, store, record, plan_store, producers, new_seed, now,
                 project, text, negative, variants, model="", log=None, order_store=None,
-                writers=None):
+                writers=None, lora=""):
     prompts = parse_prompts(text)          # raises InvalidPrompts
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \
@@ -81,10 +82,10 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
 
-    # The model is not checked against what is installed: whether it can be loaded is the
-    # renderer's answer to give, at render time, in its own words (Madde 8's rule).
+    # Neither the model nor the lora is checked against what is installed: whether they can be
+    # loaded is the renderer's answer to give, at render time, in its own words (Madde 8's rule).
     frames = plan_frames(next_number(store, plan_store, record, project), prompts, negative,
-                         variants, new_seed, model)
+                         variants, new_seed, model, lora)
     # Appended before the worker is asked to run: a run that dies leaves behind what it meant to
     # make, and a loop already in flight finds the frames on its next turn.
     plan_store.append(project, frames)
