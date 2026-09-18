@@ -87,6 +87,24 @@ def with_videos(sound_on=()):
     return store, record, plan_store
 
 
+def with_a_copy():
+    """One picture, two videos: the second frame is a copy and holds the first one's photo.
+
+    That is what a copy frame is -- it produces no picture of its own, its photo row names the
+    source's file -- and it is why one export used to write the same image under two numbers
+    (madde 236).
+    """
+    store, record = ExportStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0), frame(0, letter="b")])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    record.append("düğün", {"file": "0_a.png", "frame": "0_b", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_b_V1_0.mp4", "frame": "0_b", "layer": "video",
+                            "status": "done"})
+    return store, record, plan_store
+
+
 def export(store, record, plan_store, exporter, mode="separate", runner=None):
     return run_export(runner or sync_runner(), store, record, plan_store, FakeOrderStore(),
                       exporter, lambda: "2026-08-12 14-32", "düğün", mode)
@@ -178,6 +196,65 @@ def test_a_frame_with_no_video_leaves_no_photo_either():
 
     # The photos folder is the video list, picture for picture: a frame the sequence does not hold
     # has no number to be filed under.
+    assert len(store.photos) == 2
+
+
+def test_frames_sharing_one_photo_leave_one_picture_in_the_export():
+    """The folder is read by a person using the pictures, and the same image three times over is
+    what the user kept running into (madde 236)."""
+    store, record, plan_store = with_a_copy()
+
+    export(store, record, plan_store, FakeExporter())
+
+    assert store.photos == [("/fake/düğün/0_a.png", FOLDER, "01.png")]
+
+
+def test_a_shared_photo_is_filed_under_the_first_frame_that_uses_it():
+    """The number stays the frame's own, gaps and all: it is what says which video the picture
+    belongs to, and consecutive numbering would buy tidiness by cutting that tie."""
+    store, record, plan_store = with_a_copy()
+    record.append("düğün", {"file": "1_a.png", "frame": "1_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "1_a_V1_0.mp4", "frame": "1_a", "layer": "video",
+                            "status": "done"})
+
+    export(store, record, plan_store, FakeExporter())
+
+    # 1_a leads: the plan does not know it, and a frame the plan lost stands at the end of the
+    # gallery, which the export reads from its foot. So the shared picture is 02, not 01, and the
+    # copy frame's 03 writes nothing.
+    assert store.photos == [
+        ("/fake/düğün/1_a.png", FOLDER, "01.png"),
+        ("/fake/düğün/0_a.png", FOLDER, "02.png"),
+    ]
+
+
+def test_a_copy_frames_video_is_written_all_the_same():
+    """Only the picture is shared. The copy frame's video is its own file and its own place in the
+    sequence."""
+    store, record, plan_store = with_a_copy()
+    exporter = FakeExporter()
+
+    export(store, record, plan_store, exporter)
+
+    assert [target for _v, _a, target in exporter.pieces] == [
+        f"{FOLDER}/01.mp4", f"{FOLDER}/02.mp4"]
+    assert [video for video, _a, _t in exporter.pieces] == [
+        "/fake/düğün/0_a_V1_0.mp4", "/fake/düğün/0_b_V1_0.mp4"]
+
+
+def test_a_merged_export_writes_the_shared_photo_once_too():
+    store, record, plan_store = with_a_copy()
+
+    export(store, record, plan_store, FakeExporter(), mode="merged")
+
+    assert store.photos == [("/fake/düğün/0_a.png", FOLDER, "01.png")]
+
+
+def test_frames_with_pictures_of_their_own_each_leave_one():
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter())
+
     assert len(store.photos) == 2
 
 
