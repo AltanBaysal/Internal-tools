@@ -126,14 +126,27 @@ def test_the_intro_agrees_with_the_custom_node_list():
         f"Giriş hücresindeki sayı listeyle uyuşmuyor: {listed} satır"
 
 
-def test_every_producer_has_a_checkbox_of_its_own():
+def test_photo_and_sound_each_have_a_checkbox_of_their_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
-    Default False, so nothing heavy starts by accident."""
+    Default False, so nothing heavy starts by accident. Video is not a box since madde 243: it is a
+    pick among models, asked below."""
     source = _source()
 
-    for kind in GROUPS:
+    for kind in ("photo", "audio"):
         assert f'{SWITCH[kind]} = False  #@param {{type:"boolean"}}' in source, \
             f"{kind}: CONFIG'de kapalı gelen bir onay kutusu yok"
+
+
+def test_video_is_one_pick_among_none_wan_and_h3():
+    """Two boxes would let both be ticked, and the two never share a session (user's call, madde
+    243). A list makes that impossible rather than an error. It opens on Yok, so nothing heavy
+    starts by accident, and INSTALL_VIDEO is derived from it so every gate that asks it still
+    asks the right thing."""
+    config = _cell("# === CONFIG ===")
+
+    assert 'VIDEO_MODEL = "Yok"  #@param ["Yok", "WAN", "H3"]' in config
+    assert 'INSTALL_VIDEO = VIDEO_MODEL != "Yok"' in config
+    assert "INSTALL_VIDEO = False  #@param" not in config
 
 
 def test_the_form_names_the_producer_boxes_too():
@@ -212,11 +225,12 @@ def test_an_unticked_group_costs_no_bytes():
     """The whole point of the checkboxes: a group's list is only reached through its own switch."""
     source = _source()
 
-    for names, kind in ((("CIVITAI_PHOTO", "OPEN_PHOTO"), "photo"),
-                        (("CIVITAI_VIDEO", "OPEN_VIDEO"), "video"),
-                        (("OPEN_AUDIO",), "audio")):
+    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO"), SWITCH["photo"]),
+                          (("CIVITAI_VIDEO", "OPEN_VIDEO"), 'VIDEO_MODEL == "WAN"'),
+                          (("CIVITAI_H3", "OPEN_H3"), 'VIDEO_MODEL == "H3"'),
+                          (("OPEN_AUDIO",), SWITCH["audio"])):
         for name in names:
-            assert f"{name} if {SWITCH[kind]} else []" in source, \
+            assert f"{name} if {switch} else []" in source, \
                 f"{name} kendi anahtarının arkasında değil"
 
 
@@ -428,6 +442,79 @@ def test_the_key_is_trimmed_where_it_is_read():
     before the probe uses it and before it is handed to the app."""
     assert 'XAI_API_KEY = (userdata.get("XAI_API_KEY") or "").strip()' in _source(), \
         "Secret'tan okunan anahtar kırpılmıyor"
+
+
+def test_every_file_the_h3_group_counts_is_fetched_by_the_notebook():
+    """The group names a file the way the graph loads it, MiniMaxH3/ included; the notebook names
+    the file itself and puts it in that folder."""
+    from backend.features.producers.domain.model_groups import H3_VIDEO
+    source = _source()
+
+    missing = [row["name"] for row in H3_VIDEO if os.path.basename(row["name"]) not in source]
+
+    assert missing == [], f"Defter bu H3 dosyalarını indirmiyor: {missing}"
+
+
+def test_the_notebook_fetches_the_h3_checkpoint_and_lora_by_their_versions():
+    """Named rather than derived, like the photo checkpoints: the DaSiWa Hybrid Turbo v2 the graph
+    ships configured for, and the one lora the user kept (madde 213)."""
+    cell = _cell("CIVITAI_H3 = [")
+
+    for version in ("3314686", "3228867"):
+        assert version in cell, f"Civitai version id defterde yok: {version}"
+
+
+def test_the_h3_files_from_huggingface_come_down_over_one_connection():
+    """HF keeps these in its Xet store, whose signed URLs answer parallel byte ranges with 403 --
+    aria2c's sixteen connections fail where one curl gets through."""
+    pattern = (r'for [^\n]+ in \(OPEN_H3 if VIDEO_MODEL == "H3" else \[\]\):\n'
+               r'\s+fetch\([^\n]*parallel=False')
+
+    assert re.search(pattern, _source()), "H3'ün HF dosyaları tek bağlantıyla inmiyor"
+
+
+def test_the_quantizer_stamp_is_cut_before_a_file_is_judged():
+    """The tool behind the H3 quants leaves a line of ASCII after the last tensor. ComfyUI's own
+    reader walks past it and Rust's refuses the file -- and check_safetensors calls it too long.
+    Cutting it before every check is what makes the same file load whichever reader runs."""
+    cell = _cell("def fetch(")
+    body = cell[cell.index("def fetch("):cell.index("# === Civitai ===")]
+
+    assert "def strip_unreferenced_tail" in cell, "Damga kesici defterde yok"
+    assert "strip_unreferenced_tail(" in body, "fetch damgayı kesmiyor"
+
+
+def test_the_notebook_installs_the_nodes_the_h3_graph_asks_for():
+    """SeedControl, EnhancedVideoCombine and the lora stack come from this package. ComfyUI
+    validates every node it is sent, so a missing one fails every H3 render."""
+    assert "darksidewalker/ComfyUI-DaSiWa-Nodes" in _cell("CUSTOM_NODES = [")
+
+
+def test_the_disk_estimate_counts_h3_when_h3_is_picked():
+    assert '(VIDEO_MODEL == "H3", ' in _cell("SIZES = ["), "Disk hesabı H3'ü saymıyor"
+
+
+def test_the_app_is_told_which_video_model_the_notebook_installed():
+    """The disk cannot answer this for the producer to use -- only the notebook knows what was
+    picked."""
+    assert '"QE_VIDEO_MODEL"' in _cell("# === Start Flask"), \
+        "Defter seçilen video modelini uygulamaya geçirmiyor"
+
+
+def test_the_clone_checks_for_the_h3_graphs_too():
+    clone = _cell("# === Clone ===")
+
+    for name in ("workflow_video_h3_api.json", "workflow_video_h3_first_last_api.json"):
+        assert name in clone, f"Klon {name} dosyasını aramıyor"
+
+
+def test_the_form_says_h3_does_not_run_on_a_t4():
+    """Information, not an order (user's call, madde 243): the machine is picked by what is being
+    installed that day, and knowing this saves a ~37 GiB download on the wrong one."""
+    drawn = _drawn(_cell("# === CONFIG ===")).splitlines()
+
+    assert any("H3" in line and "T4" in line for line in drawn), \
+        "Formda H3'ün T4'te koşmadığı yazmıyor"
 
 
 def test_the_tunnel_is_opened_over_tcp_rather_than_quic():

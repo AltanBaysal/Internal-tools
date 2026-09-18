@@ -51,6 +51,19 @@ describe("LayerPlayer", () => {
     expect(document.querySelector("[data-progress]").style.width).toBe("40%");
   });
 
+  // Madde 243: an H3 video carries a sound of its own, and a sound layer takes its place.
+  it("mutes the video while a sound layer plays over it", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" />);
+
+    expect(videoOf().muted).toBe(true);
+  });
+
+  it("lets a video with no sound layer play its own sound", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+
+    expect(videoOf().muted).toBe(false);
+  });
+
   it("brings the sound along and draws a waveform in place of the bar", () => {
     render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" />);
 

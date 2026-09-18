@@ -436,11 +436,15 @@ def test_a_silent_piece_is_copied_rather_than_re_encoded():
 
 
 def test_a_sound_is_laid_over_the_video():
+    """The picture from the video, the sound from the layer -- named, not left to ffmpeg. An H3
+    video carries a sound of its own (madde 243), and a sound layer takes its place; left to its
+    own choice ffmpeg keeps whichever stream it likes best."""
     run = FakeRun()
 
     FfmpegVideoExporter(run=run).piece("0.mp4", "0.wav", "01.mp4")
 
-    assert run.calls[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "0.wav", "-c:v", "copy",
+    assert run.calls[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "0.wav",
+                            "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
                             "-c:a", "aac", "-shortest", "01.mp4"]
 
 

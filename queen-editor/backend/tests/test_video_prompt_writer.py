@@ -56,3 +56,31 @@ def test_a_frame_with_no_video_prompt_still_sends_what_it_has():
 def test_the_sound_instruction_asks_for_the_scenes_own_sounds():
     assert "No music" in AUDIO_INSTRUCTION
     assert "No speech" in AUDIO_INSTRUCTION
+
+
+def _h3():
+    """Imported where it is used: a name that is not there yet would fail collection and take the
+    WAN and sound questions above down with it."""
+    from backend.features.photo_generation.data import xai_prompt_writer
+    return xai_prompt_writer.H3_VIDEO_INSTRUCTION, xai_prompt_writer.H3VideoPromptWriter
+
+
+def test_the_h3_writer_converts_the_photo_prompt_with_its_own_instruction():
+    instruction, writer = _h3()
+    client = FakeClient(answer="integrated_multimodal_description: dynv2. she turns")
+
+    written = writer(client).write({"photo": "kırmızı elbiseli kadın"})
+
+    assert written == "integrated_multimodal_description: dynv2. she turns"
+    assert client.calls == [(instruction, "kırmızı elbiseli kadın")]
+
+
+def test_the_h3_instruction_asks_for_the_trigger_and_the_three_sections():
+    """H3's prompt is sectioned, and the sound comes from the same pass -- so the writer writes the
+    soundscape too. The trigger is the writer's line rather than the code's (user's call, madde
+    243): it stays visible in the prompt box, where it can be corrected."""
+    instruction, _writer = _h3()
+
+    for said in ("dynv2", "integrated_multimodal_description:", "overall_soundscape:",
+                 "non_diegetic_music: N/A"):
+        assert said in instruction, said

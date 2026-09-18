@@ -136,3 +136,48 @@ def test_no_group_carries_an_address_the_app_would_have_to_fetch():
     for group in model_groups.GROUPS.values():
         for row in group:
             assert set(row) in ({"folder", "name"}, {"folder", "suffix"}), row
+
+
+# MiniMax H3 (madde 243): one video model per session, and the panel judges the one installed.
+
+H3_FILES = [
+    ("diffusion_models", "MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
+                         "row-wise_convrot_runtime_mixed.safetensors"),
+    ("text_encoders", "qwen3vl_32b_minimax_h3_int4_convrot.safetensors"),
+    ("vae", "MiniMaxH3/minimax_h3_video_vae_int8_convrot.safetensors"),
+    ("vae", "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"),
+    ("vae_approx", "taeh3.safetensors"),
+    ("loras", "H3_Motion_BoosterV2.safetensors"),
+]
+
+
+def test_the_h3_group_names_its_files_the_way_the_graph_loads_them():
+    """MiniMaxH3/ is part of the name, not of the folder: the graph's loaders ask for
+    "MiniMaxH3/<file>", and that is also where the file sits under the folder."""
+    assert [(row["folder"], row["name"]) for row in model_groups.H3_VIDEO] == H3_FILES
+
+
+def test_the_panel_judges_video_by_the_model_the_notebook_installed():
+    groups = model_groups.groups_for("h3")
+
+    assert groups["video"] == model_groups.H3_VIDEO
+    assert groups["photo"] == model_groups.GROUPS["photo"]
+    assert groups["audio"] == model_groups.GROUPS["audio"]
+
+
+def test_wan_and_no_video_at_all_are_judged_by_wan_s_group():
+    """No video model means no video installed, and WAN's files are then absent like any others --
+    the panel reads "kurulu değil" either way."""
+    for model in ("wan", ""):
+        assert model_groups.groups_for(model)["video"] == model_groups.GROUPS["video"]
+
+
+def test_a_machine_with_h3_on_it_has_a_video_producer():
+    files = FakeFiles(present=H3_FILES)
+
+    assert list_producers(model_groups.groups_for("h3"), files)[1]["installed"] is True
+
+
+def test_the_h3_group_carries_no_address_either():
+    for row in model_groups.H3_VIDEO:
+        assert set(row) == {"folder", "name"}, row
