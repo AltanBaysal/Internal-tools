@@ -58,7 +58,8 @@ const MIXED = [waiting("3_a.png", "dördüncü", "bulanık"),
                done("0_a.png", "ilk", "düşük çözünürlük")];
 
 const IDLE = { status: "idle" };
-const LORAS = [{ value: "", label: "Standart" }, { value: "slime", label: "Slime" }];
+const LORAS = [{ value: "usnr", label: "USNR" }, { value: "slime", label: "Slime" },
+               { value: "none", label: "Boş" }];
 const RUNNING = { status: "running", project: "düğün", current: { id: "2_a" } };
 
 // Advancing the fake clock inside act() flushes both the timers and the promises they unblock --
@@ -88,6 +89,7 @@ const LAYERED = {
   // The plan row's own shape: list_frames spreads that row into the frame, so the name arrives with
   // the extension it is stored under and trimming it is the panel's job.
   model: "novaAnimeXL_ilV190.safetensors",
+  lora: "usnr",
   layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" },
   failed: [], owed: [],
   prompts: { photo: "kırmızı elbise", video: "kadın dönüyor", audio: "kumaş hışırtısı" },
@@ -357,13 +359,23 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.getByText("LoRA").parentElement.textContent).toContain("Slime");
   });
 
-  it("calls a frame with no lora Standart, which is what it was made with", async () => {
-    // Every frame before the lora box existed, and every one sent with Standart since: the model's
-    // own arrangement is a real answer, not a missing one.
-    await open("P0_0", { frames: [{ ...LAYERED, model: "nova3dcg" }],
+  it.each([["usnr", "USNR"], ["none", "Boş"]])(
+    "says the lora %s by the name it was picked by (madde 238)", async (value, label) => {
+      await open("P0_0", { frames: [{ ...LAYERED, model: "nova3dcg", lora: value }],
+                           models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }] });
+
+      expect(screen.getByText("LoRA").parentElement.textContent).toContain(label);
+    });
+
+  it("draws no lora row for a frame that never named one", async () => {
+    // A name there would be a guess: a recipe:slime frame names no lora and was made with Slime,
+    // and a DaSiWa frame sent under Standart was made with none. The model row follows the same
+    // rule for a frame that never carried a model (madde 238).
+    await open("P0_0", { frames: [{ ...LAYERED, model: "nova3dcg", lora: "" }],
                          models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }] });
 
-    expect(screen.getByText("LoRA").parentElement.textContent).toContain("Standart");
+    expect(screen.getByText("Model")).toBeTruthy();
+    expect(screen.queryByText("LoRA")).toBeNull();
   });
 
   it("draws no model row for a frame that never carried one", async () => {

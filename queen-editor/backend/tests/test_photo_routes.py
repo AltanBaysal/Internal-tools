@@ -402,8 +402,9 @@ def test_with_no_models_the_models_endpoint_answers_an_empty_list(tmp_path):
     resp = client.get("/api/models")
 
     assert resp.status_code == 200
-    assert resp.get_json() == {"models": [], "loras": [{"value": "", "label": "Standart"},
-                                                       {"value": "slime", "label": "Slime"}]}
+    assert resp.get_json() == {"models": [], "loras": [{"value": "usnr", "label": "USNR"},
+                                                       {"value": "slime", "label": "Slime"},
+                                                       {"value": "none", "label": "Boş"}]}
 
 
 def test_every_frame_of_a_batch_carries_the_chosen_lora(tmp_path):
@@ -417,14 +418,30 @@ def test_every_frame_of_a_batch_carries_the_chosen_lora(tmp_path):
     assert {frame["lora"] for frame in plan["frames"]} == {"slime"}
 
 
-def test_a_lora_of_the_wrong_type_is_sent_as_the_standard(tmp_path):
-    """Coerced the way the model already is: a non-string is nobody's pick."""
+def test_a_lora_of_the_wrong_type_is_sent_as_no_pick(tmp_path):
+    """Coerced the way the model already is: a non-string is nobody's pick, and a frame that names no
+    lora renders with the default."""
     generator = FakeGenerator()
     client, _ = make_client(tmp_path, generator=generator)
 
     generate(client, prompts='["a"]', variants=1, lora=7)
 
     assert generator.loras == [""]
+
+
+def test_a_lora_the_app_does_not_know_is_refused_with_its_field(tmp_path):
+    """The backend says what is valid, not the panel (madde 238): the sentence comes back under the
+    button, named after the box, and the queue takes nothing."""
+    generator = FakeGenerator()
+    client, drive = make_client(tmp_path, generator=generator)
+
+    resp = generate(client, prompts='["a"]', variants=1, lora="gitmiş")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "lora"
+    assert "gitmiş" in resp.get_json()["error"]
+    assert generator.loras == []
+    assert not (drive / "düğün" / "plan.json").exists()
 
 
 def test_every_frame_of_a_batch_carries_the_chosen_model(tmp_path):

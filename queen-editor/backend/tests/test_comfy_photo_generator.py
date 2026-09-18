@@ -23,7 +23,7 @@ class FakeClient:
 
 
 # The lora loader as the real export ships it: one slot, switched on, carrying the style lora the
-# graph has always rendered with. A recipe is what replaces this.
+# graph has always rendered with. A model's frame replaces this with the lora box's pick.
 SHIPPED_LORAS = {"lora_1": {"on": True, "lora": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors",
                             "strength": 0.8}}
 
@@ -128,11 +128,11 @@ USNR = {"lora_1": {"on": True, "lora": "USNR_STYLE_ILL_V1_lokr3-000024.safetenso
 SLIME = {"lora_1": {"on": True, "lora": "translucent_penetration_v5.safetensors", "strength": 0.9}}
 
 
-def test_a_model_renders_with_its_own_checkpoint_and_its_standard_loras(tmp_path):
+def test_a_nova_frame_that_names_no_lora_renders_with_usnr(tmp_path):
     """The value is the model's id, not its file -- written into the loader as-is it would ask
-    ComfyUI for a checkpoint called `nova3dcg`. And no lora chosen means Standart: the model's own
-    usual arrangement, which for Nova is USNR at 0.8, so every photo renders as it did before the
-    lora box existed (madde 237)."""
+    ComfyUI for a checkpoint called `nova3dcg`. And a frame that names no lora renders with the
+    default, USNR at 0.8 (madde 238): what Standart meant on Nova, so a frame sent under it renders
+    as it did."""
     client, generator = generator_at(tmp_path)
 
     generator.generate("kraliçe", "", 1, "nova3dcg")
@@ -141,21 +141,43 @@ def test_a_model_renders_with_its_own_checkpoint_and_its_standard_loras(tmp_path
     assert lora_slots(client.submitted["27"]["inputs"]) == USNR
 
 
-def test_dasiwa_renders_on_its_own_checkpoint_with_no_lora(tmp_path):
-    """DaSiWa's standard is bare. Leaving the export's USNR switched on would be a lora nobody
-    chose for this model."""
+def test_a_dasiwa_frame_that_names_no_lora_renders_with_usnr(tmp_path):
+    """The default is the lora box's, not the model's: there is no arrangement of a model's own any
+    more, and the user asked for USNR on every model (madde 238)."""
     client, generator = generator_at(tmp_path)
 
     generator.generate("kraliçe", "", 1, "dasiwa")
 
     assert client.submitted["45"]["inputs"]["ckpt_name"] == \
         "DasiwaIllustriousAnime_epitaphecstasy.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == USNR
+
+
+@pytest.mark.parametrize("model", ["nova3dcg", "dasiwa"])
+def test_usnr_chosen_loads_usnr_alone_and_leaves_the_prompt(tmp_path, model):
+    """USNR is a row of the lora box now, over any model. It needs no word in the prompt."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, model, "usnr")
+
+    assert lora_slots(client.submitted["27"]["inputs"]) == USNR
+    assert client.submitted["3"]["inputs"]["populated_text"] == "kraliçe"
+
+
+@pytest.mark.parametrize("model", ["nova3dcg", "dasiwa"])
+def test_none_chosen_loads_no_lora_and_leaves_the_prompt(tmp_path, model):
+    """Boş means no lora at all -- the export's USNR goes too, or Boş would still render with it."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, model, "none")
+
     assert lora_slots(client.submitted["27"]["inputs"]) == {}
+    assert client.submitted["3"]["inputs"]["populated_text"] == "kraliçe"
 
 
-def test_a_chosen_lora_replaces_the_models_standard_arrangement(tmp_path):
-    """The user picked Slime because USNR was off when they liked what they saw (madde 214). A lora
-    added beside the model's own would render something nobody chose."""
+def test_a_chosen_lora_replaces_whatever_the_loader_shipped(tmp_path):
+    """The export ships USNR switched on, and the user picked Slime because USNR was off when they
+    liked what they saw (madde 214). A pick fills the slots alone, never beside what was there."""
     client, generator = generator_at(tmp_path)
 
     generator.generate("kraliçe", "", 1, "nova3dcg", "slime")
@@ -176,7 +198,7 @@ def test_a_chosen_loras_trigger_opens_the_prompt(tmp_path):
     assert node3["populated_text"] == "translucent penetration, kraliçe tahtta"
 
 
-def test_the_standard_arrangement_leaves_the_prompt_and_the_negative_alone(tmp_path):
+def test_the_default_leaves_the_prompt_and_the_negative_alone(tmp_path):
     """Only a lora that needs a word carries one, and the negative is nobody's lora."""
     client, generator = generator_at(tmp_path)
 
@@ -211,7 +233,7 @@ def test_an_old_slime_recipe_renders_as_nova_with_slime(tmp_path):
         "translucent penetration, kraliçe tahtta"
 
 
-def test_an_old_nova_recipe_renders_as_nova_with_its_standard(tmp_path):
+def test_an_old_nova_recipe_renders_as_nova_with_usnr(tmp_path):
     client, generator = generator_at(tmp_path)
 
     generator.generate("kraliçe", "", 1, "recipe:nova3dcg")

@@ -27,7 +27,8 @@ beforeEach(async () => {
 
 const NOVA = { value: "nova3dcg", label: "Nova 3DCG XL" };
 const DASIWA = { value: "dasiwa", label: "DaSiWa Illustrious | Anime" };
-const LORAS = [{ value: "", label: "Standart" }, { value: "slime", label: "Slime" }];
+const LORAS = [{ value: "usnr", label: "USNR" }, { value: "slime", label: "Slime" },
+               { value: "none", label: "Boş" }];
 
 describe("useModels", () => {
   it("reports what the renderer has, in the order it reported it", async () => {
@@ -57,8 +58,11 @@ describe("useModels", () => {
     const { result } = renderHook(() => useModels());
     await settle();
 
-    // Empty, not null: the panel has to stop waiting and let the queue be used regardless.
+    // Empty, not null: the panel has to stop waiting and let the queue be used regardless. Both
+    // boxes: the lora box has no row of its own to fall back on -- the names are the server's
+    // (madde 238).
     expect(result.current.models).toEqual([]);
+    expect(result.current.loras).toEqual([]);
     expect(result.current.error).toContain("Sunucuya ulaşılamadı");
   });
 

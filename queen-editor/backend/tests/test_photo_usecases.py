@@ -535,6 +535,30 @@ def test_missing_project_is_rejected():
     assert str(exc.value) == "Proje yok: yok"
 
 
+def test_a_lora_the_app_does_not_know_is_refused_before_anything_is_planned():
+    """A lora the catalog does not know renders on no machine: every lora file comes down with the
+    photo group, so this is the app's own list being asked, not the disk. Saying so at the button
+    beats a frame that fails later in the queue -- and it is the backend's word, not the panel's
+    (madde 238). Imported here: a name that is not there yet would take the whole file down."""
+    from backend.features.photo_generation.domain.usecases.start_batch import InvalidLora
+
+    plan_store, generator = FakePlanStore(), FakeGenerator()
+    with pytest.raises(InvalidLora) as exc:
+        run_batch(sync_runner(), FakeStore(), generator, plan_store=plan_store, lora="gitmiş")
+
+    assert "gitmiş" in str(exc.value)
+    assert plan_store.frames == [] and generator.calls == []
+
+
+@pytest.mark.parametrize("lora", ["", "usnr", "slime", "none"])
+def test_every_lora_the_box_offers_is_accepted(lora):
+    """Empty as well: a frame that names no lora is not wrong, it renders with the default."""
+    generator = FakeGenerator()
+    run_batch(sync_runner(), FakeStore(), generator, text='["a"]', variants=1, lora=lora)
+
+    assert generator.loras == [lora]
+
+
 def test_a_worker_held_by_another_project_is_rejected():
     runner = PhotoRunner(spawn=lambda fn: None)   # stays "running"
     run_batch(runner, FakeStore(projects=("başka",)), FakeGenerator(), project="başka")
@@ -3195,7 +3219,9 @@ def test_a_frame_is_rendered_with_the_lora_it_was_submitted_under():
     assert generator.loras == ["slime", ""]
 
 
-def test_a_frame_planned_before_loras_renders_with_the_models_standard():
+def test_a_frame_planned_before_loras_reaches_the_renderer_naming_none():
+    # Empty is not Boş: it is a frame that never named a lora, and the renderer reads it as the
+    # default (madde 238).
     plan_store, generator = FakePlanStore(), FakeGenerator()
     # A model but no "lora" key -- what every plan written before this item holds.
     plan_store.frames = [{"number": 0, "letter": "a", "prompt": "eski", "negative": "", "seed": 1,
@@ -3308,12 +3334,12 @@ def test_the_model_list_is_nova_3dcg_and_dasiwa():
     assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa"]
 
 
-def test_the_lora_list_is_slime_alone():
-    """Slime left the Model box for this one -- it was never a checkpoint, it is Nova's checkpoint
-    with another lora over it."""
+def test_the_lora_list_is_usnr_then_slime():
+    """USNR left Nova's own arrangement for this list, so it can go over any model and come off Nova
+    (madde 238). First, because it is the default."""
     from backend.features.photo_generation.domain.catalog import LORAS
 
-    assert [lora["id"] for lora in LORAS] == ["slime"]
+    assert [lora["id"] for lora in LORAS] == ["usnr", "slime"]
 
 
 def test_with_no_models_chosen_the_list_is_empty():
@@ -3348,17 +3374,18 @@ def test_an_unknown_model_id_is_dropped_and_takes_nothing_with_it():
     ]
 
 
-def test_the_lora_box_opens_with_standart_and_offers_every_lora():
-    """The first row is the one nobody has to think about: the model's own usual arrangement, which
-    is what every photo before this item was rendered with (madde 237).
+def test_the_lora_box_offers_usnr_slime_and_none_in_that_order():
+    """The user's three rows, in the user's order (madde 238). USNR comes first because the panel
+    fills an empty box with the first row, and USNR is the default. Boş is a pick with a value of its
+    own: an empty value is a frame that named no lora, and a box holding one gets filled.
 
-    Every lora follows it, with no notebook list to filter them: the lora files come down with the
-    photo group whatever was ticked -- together under 1.1 GiB -- so a box per lora would decide
-    nothing about what is on the disk."""
+    No notebook list filters them: the lora files come down with the photo group whatever was
+    ticked -- together under 1.1 GiB -- so a box per lora would decide nothing about the disk."""
     from backend.features.photo_generation.domain.usecases.list_models import list_loras
 
-    assert list_loras() == [{"value": "", "label": "Standart"},
-                            {"value": "slime", "label": "Slime"}]
+    assert list_loras() == [{"value": "usnr", "label": "USNR"},
+                            {"value": "slime", "label": "Slime"},
+                            {"value": "none", "label": "Boş"}]
 
 
 def test_a_planned_frame_carries_the_lora_it_was_submitted_under():

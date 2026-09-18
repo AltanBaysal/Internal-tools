@@ -56,9 +56,9 @@ def test_a_frame_planned_before_models_reads_back_without_one(tmp_path):
     assert store_at(tmp_path).read("düğün")["frames"][0]["model"] == ""
 
 
-def test_a_frame_planned_before_loras_reads_back_with_the_standard(tmp_path):
-    # Empty means Standart -- the model's own arrangement, which is what every frame planned before
-    # the lora box was rendered with (madde 237).
+def test_a_frame_planned_before_loras_reads_back_naming_none(tmp_path):
+    # Empty is a frame that never named a lora, and the renderer gives it the default (madde 238).
+    # Not Boş: that one is a pick of its own.
     (tmp_path / "düğün").mkdir()
     (tmp_path / "düğün" / "plan.json").write_text(json.dumps({"frames": [
         {"number": 0, "letter": "a", "prompt": "eski", "negative": "n", "seed": 1,
@@ -67,7 +67,7 @@ def test_a_frame_planned_before_loras_reads_back_with_the_standard(tmp_path):
     assert store_at(tmp_path).read("düğün")["frames"][0]["lora"] == ""
 
 
-def test_a_lora_of_the_wrong_type_reads_back_as_the_standard(tmp_path):
+def test_a_lora_of_the_wrong_type_reads_back_naming_none(tmp_path):
     (tmp_path / "düğün").mkdir()
     (tmp_path / "düğün" / "plan.json").write_text(json.dumps({"frames": [
         {"number": 0, "letter": "a", "prompt": "p", "negative": "", "seed": 1, "lora": 7}]}),

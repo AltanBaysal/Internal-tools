@@ -12,7 +12,7 @@ beforeEach(async () => {
   ({ default: GeneratePanel } = await import("./GeneratePanel.jsx"));
 });
 
-const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4, model: "" };
+const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4, model: "", lora: "" };
 const PROMPT_BOX = '["ilk prompt", "ikinci prompt"]';
 const RUNNING = { status: "running", project: "düğün", done: 7, failed: 0, total: 48 };
 // A row, not a name: a label the user reads and a value the renderer is sent, and those two are not
@@ -21,10 +21,12 @@ const MODELS = [
   { value: "nova3dcg", label: "Nova 3DCG XL" },
   { value: "dasiwa", label: "DaSiWa Illustrious | Anime" },
 ];
-// Standart first, with no value: it is the model's own arrangement, not a file (madde 237).
+// The user's three rows in the user's order (madde 238). Boş carries a value of its own: an empty
+// value is a box nothing has been picked in yet.
 const LORAS = [
-  { value: "", label: "Standart" },
+  { value: "usnr", label: "USNR" },
   { value: "slime", label: "Slime" },
+  { value: "none", label: "Boş" },
 ];
 
 function renderPanel(props) {
@@ -181,13 +183,13 @@ describe("GeneratePanel — the model field", () => {
   });
 });
 
-describe("GeneratePanel — the lora field (madde 237)", () => {
-  it("sits right under the model, and opens on Standart", () => {
+describe("GeneratePanel — the lora field (madde 237, 238)", () => {
+  it("sits right under the model, and opens on the list's first row", () => {
     renderPanel();
 
     expect(screen.getByText("LoRA")).toBeTruthy();
-    expect(loraBox().value).toBe("");
-    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["Standart", "Slime"]);
+    expect(loraBox().value).toBe("usnr");
+    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["USNR", "Slime", "Boş"]);
     // Between the model and the prompt list: it finishes what the model box started.
     expect(modelBox().compareDocumentPosition(loraBox())
       & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -214,21 +216,64 @@ describe("GeneratePanel — the lora field (madde 237)", () => {
     }));
   });
 
-  it("sends Standart as no lora at all", async () => {
+  it("sends USNR when the box was left alone", async () => {
+    // What the box shows is what goes: a box that reads USNR and sends nothing would be two
+    // answers to one question, even if the server happened to agree with the first.
     const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
     renderPanel({ onGenerate });
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "" }));
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "usnr" }));
   });
 
-  it("shows Standart before the list has arrived", () => {
+  it("keeps Boş once it is picked, and sends it as none", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate });
+
+    fireEvent.change(loraBox(), { target: { value: "none" } });
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(loraBox().value).toBe("none");
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "none" }));
+  });
+
+  it("opens on the lora the project was last sent with", async () => {
+    // Like the model: a project worked in Slime opens on Slime (the user's call, madde 238).
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, settings: { ...SETTINGS, lora: "slime" } });
+
+    expect(loraBox().value).toBe("slime");
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "slime" }));
+  });
+
+  it("keeps a saved pick that is no longer offered, under its own value", () => {
+    // Sliding the user onto another row would render with one they never picked. Whether the pick
+    // is still good is the server's to say when the batch is sent -- not the panel's.
+    renderPanel({ settings: { ...SETTINGS, lora: "gitmiş" } });
+
+    expect(loraBox().value).toBe("gitmiş");
+  });
+
+  it("waits rather than showing a row before the list has arrived", () => {
     renderPanel({ loras: null });
 
-    // Standart is not something the server has to say: it is the model's own arrangement.
-    expect(loraBox().value).toBe("");
-    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["Standart"]);
+    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["yükleniyor…"]);
+    expect(loraBox().disabled).toBe(true);
+  });
+
+  it("says the list could not be read, and still sends the saved pick", async () => {
+    // The names are the server's, so the box has none to show. The button stays: the pick the
+    // project holds goes as it is, and if it is no good the server says so (the user's call).
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate, models: [], loras: [], settings: { ...SETTINGS, lora: "slime" },
+                  modelsError: "Sunucuya ulaşılamadı — bağlantıyı kontrol et." });
+
+    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["liste okunamadı"]);
+    expect(loraBox().disabled).toBe(true);
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "slime" }));
   });
 });
 

@@ -221,8 +221,8 @@ def test_an_unticked_group_costs_no_bytes():
 
 
 def test_every_model_the_app_knows_has_a_checkbox_of_its_own():
-    """A model is written down twice on purpose: its name and its standard loras in the app,
-    because that is the side that patches the graph, and its version id and size in the notebook,
+    """A model is written down twice on purpose: its name and its checkpoint in the app, because
+    that is the side that patches the graph, and its version id and size in the notebook,
     because addresses live there (FOUNDATION 9). This is the seam that keeps the two halves naming
     the same models (madde 237).
 
@@ -340,7 +340,8 @@ def test_the_retired_nova_checkpoints_are_gone_from_the_notebook():
 def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
     """A model or a lora pointing at a file the notebook never downloads is a row that renders
     nothing -- and it would say so only after the install, as a missing-model error from ComfyUI.
-    A model's standard loras count too: Nova's USNR is on every Nova render."""
+    USNR is among the loras now, and it is the default: every frame that names none renders with
+    it (madde 238)."""
     models, loras = _catalog()
     checkpoints = _cell("PHOTO_CHECKPOINTS = [")
     source = _source()
@@ -348,9 +349,6 @@ def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
     for model in models:
         assert model["checkpoint"] in checkpoints, \
             f"{model['id']}: modelin checkpoint'i defterde yok — {model['checkpoint']}"
-        for standard in model["loras"]:
-            assert standard["lora"] in source, \
-                f"{model['id']}: standart LoRA defterde yok — {standard['lora']}"
     for lora in loras:
         assert lora["lora"] in source, f"{lora['id']}: LoRA defterde yok — {lora['lora']}"
 
