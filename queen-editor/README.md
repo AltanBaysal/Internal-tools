@@ -22,11 +22,12 @@ set once, nothing to paste again and nothing to commit.
 
 ## Run
 
-In the **CONFIG** cell pick the producers you want — `INSTALL_PHOTO` (~8 GiB), `VIDEO_MODEL`
-(`WAN` ~39 GiB or `H3` ~37 GiB; one per session, and H3 does not run on a T4), `INSTALL_AUDIO`
-(~9 GiB). Pick the runtime for what you install: a T4 carries photo and sound, video wants more disk
-and H3 more memory. Everything starts off and the notebook stops if nothing is chosen, because an
-app with no producer opens fine and renders nothing.
+In the **CONFIG** cell tick the producers you want — `INSTALL_PHOTO` (~8 GiB), `INSTALL_VIDEO`,
+`INSTALL_AUDIO` (~9 GiB) — and under them the models: at least one photo model, and exactly one
+video model, `VIDEO_WAN` (~39 GiB) or `VIDEO_H3` (~37 GiB), since the two never share a session.
+Pick the runtime for what you install: video wants more disk than a T4 has. Everything starts off
+and the notebook stops if nothing is chosen, because an app with no producer opens fine and renders
+nothing.
 
 Then **Runtime → Run all** and grant Drive access in the popup. Open the printed link: the
 **Üreticiler** panel says what is on the machine, and anything missing is installed by running the
