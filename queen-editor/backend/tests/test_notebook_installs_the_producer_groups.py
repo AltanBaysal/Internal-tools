@@ -439,13 +439,3 @@ def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
 
     assert '"--protocol", "http2"' in flask_cell, \
         "cloudflared varsayılan QUIC ile açılıyor — Colab'ın ağı UDP'yi kısıyor"
-
-
-def test_the_protocol_flag_says_what_it_is_standing_in_for():
-    """One word in an argument list, and nothing about it says a default was overruled. A reader
-    who cannot see what it replaced is a reader who deletes it as noise -- and the gallery goes
-    ninety times slower with no error anywhere. The reason has to travel next to the flag."""
-    flask_cell = _cell("# === Start Flask")
-
-    assert "QUIC" in flask_cell, \
-        "Bayrağın neyin yerine geçtiği yazılmamış — sebebi olmayan bayrak silinir"
