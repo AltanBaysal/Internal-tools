@@ -21,10 +21,13 @@ class FfmpegVideoExporter:
     def piece(self, video, audio, target):
         """One frame's video at `target`, with its sound over it when there is one."""
         if audio:
+            # The picture from the video and the sound from the layer, named: an H3 video carries a
+            # sound of its own, and left to choose ffmpeg keeps whichever stream it likes best.
             # -shortest: the sound is written for the video it was made from, but a frame off
             # either way must not stretch the piece.
             self._ffmpeg_run([
-                "-i", video, "-i", audio, "-c:v", "copy", "-c:a", "aac", "-shortest", target])
+                "-i", video, "-i", audio, "-map", "0:v:0", "-map", "1:a:0",
+                "-c:v", "copy", "-c:a", "aac", "-shortest", target])
         else:
             self._ffmpeg_run(["-i", video, "-c", "copy", target])
 

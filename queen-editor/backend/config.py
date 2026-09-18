@@ -40,6 +40,14 @@ VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_vide
 # one above with a node swapped, so it ships beside it and standard production is untouched.
 VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR),
                                               "workflow_video_first_last_api.json")
+# Which video model the notebook installed: "wan", "h3", or empty when video was not installed. The
+# two never share a session (madde 243), and the disk cannot say which one was picked.
+VIDEO_MODEL = os.environ.get("QE_VIDEO_MODEL", "")
+# MiniMax H3's two graphs, exported in madde 213's trial and made sterile in 242: I2VA for a video
+# that hangs on a photo, FL2VA for one that arrives at another.
+H3_VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_video_h3_api.json")
+H3_VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR),
+                                                 "workflow_video_h3_first_last_api.json")
 # Sound has no graph: MMAudio runs inside this process, so its weights are a model file like any
 # other, installed by the notebook rather than shipped here.
 

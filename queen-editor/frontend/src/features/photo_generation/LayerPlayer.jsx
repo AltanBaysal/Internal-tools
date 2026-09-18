@@ -119,8 +119,10 @@ export default function LayerPlayer({ videoUrl, audioUrl, onReady, onFail }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
       <div data-scene style={SCENE} onClick={toggle}>
-        {/* Loops by itself: the design asks for a five second clip that keeps going round. */}
-        <video ref={video} src={videoUrl} loop playsInline
+        {/* Loops by itself: the design asks for a five second clip that keeps going round. Muted
+            under a sound layer: an H3 video carries a sound of its own, and the layer takes its
+            place (madde 243). */}
+        <video ref={video} src={videoUrl} loop playsInline muted={Boolean(audioUrl)}
                onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
                onTimeUpdate={onTime}
                onLoadedMetadata={() => setLength(video.current?.duration || 0)}

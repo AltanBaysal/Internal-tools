@@ -62,6 +62,28 @@ GROUPS = {
     ],
 }
 
+# What the MiniMax H3 graphs read (madde 243). MiniMaxH3/ is part of the name rather than of the
+# folder: the graph's loaders ask for "MiniMaxH3/<file>", and that is also where the file sits.
+H3_VIDEO = [
+    {"folder": "diffusion_models",
+     "name": "MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
+             "row-wise_convrot_runtime_mixed.safetensors"},
+    {"folder": "text_encoders", "name": "qwen3vl_32b_minimax_h3_int4_convrot.safetensors"},
+    {"folder": "vae", "name": "MiniMaxH3/minimax_h3_video_vae_int8_convrot.safetensors"},
+    {"folder": "vae", "name": "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"},
+    # The preview the graph samples through; a model node in its chain, so a render needs it too.
+    {"folder": "vae_approx", "name": "taeh3.safetensors"},
+    # Inside the lora stack's JSON, where a scan for model names cannot see it.
+    {"folder": "loras", "name": "H3_Motion_BoosterV2.safetensors"},
+]
+
+
+def groups_for(video_model):
+    """The three groups the panel counts, video judged by the model the notebook installed. WAN and
+    H3 never share a session; with no video model at all WAN's files are as absent as any others,
+    so the answer is "not installed" either way."""
+    return {**GROUPS, "video": H3_VIDEO if video_model == "h3" else GROUPS["video"]}
+
 
 def audio_weights(files):
     """Where the sound weights sit, built from the row above rather than spelled out a second time:

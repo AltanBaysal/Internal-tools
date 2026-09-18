@@ -33,6 +33,34 @@ surrounding quotes, no numbering, no explanations, no markdown code fences, no e
 """
 
 
+# Written for MiniMax H3 (madde 243), whose prompt is sectioned and whose sound comes out of the same
+# pass as the picture -- so the soundscape is this writer's too. The sections are the graph's own
+# examples' (collab-toolbox's minimax-h3/workflow.json). The sentence saying which picture sits where
+# is not asked for: the producer writes it, because it is the graph's fact rather than the scene's.
+# dynv2 wakes the Motion Booster lora the graph carries; the writer writes it rather than the code
+# (user's call), so it stays visible in the prompt box.
+H3_VIDEO_INSTRUCTION = """
+You are an expert prompt engineer for image-to-video generation with the MiniMax H3 model, which
+makes the picture and its sound in one pass.
+I will give you one SDXL prompt that was used to generate a still image. The video starts from that
+image. Write the MiniMax H3 prompt for it, in exactly these three sections, in this order:
+
+integrated_multimodal_description: [Shot 1] dynv2. followed by the motion — the word dynv2 and its
+full stop always open it. Don't re-describe the static scene in detail — the model already receives the
+image; define the motion. Keep the camera static. Bring the subject's main activity to life as
+natural, continuous movement, with subtle secondary motion (hair, clothing, breathing, the
+environment). Keep it physically plausible, and specify pacing and mood.
+
+overall_soundscape: what would be heard — the sounds the scene and the motion imply, and nothing
+they do not.
+
+non_diegetic_music: N/A
+
+Separate the sections with one blank line. Output only the prompt itself: no surrounding quotes,
+no explanations, no markdown code fences, no extra text.
+"""
+
+
 # Written for MMAudio, which takes a short list of what should be heard.
 AUDIO_INSTRUCTION = """
 You write the audio prompt for MMAudio, which adds sound to a short silent video clip.
@@ -61,6 +89,15 @@ class VideoPromptWriter:
         """`prompts` is what the frame already says, layer by layer. A video is made from the photo,
         so that is the one this writer reads."""
         return self._client.complete(VIDEO_INSTRUCTION, prompts.get("photo", ""))
+
+
+class H3VideoPromptWriter:
+    def __init__(self, client):
+        self._client = client
+
+    def write(self, prompts):
+        """Made from the photo, like WAN's: the video starts from that picture."""
+        return self._client.complete(H3_VIDEO_INSTRUCTION, prompts.get("photo", ""))
 
 
 class AudioPromptWriter:
