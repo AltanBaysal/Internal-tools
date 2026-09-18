@@ -64,6 +64,7 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
     runner.report(mode, state="running", written=0, total=len(frames), target=folder,
                   error=None)
     pieces = []
+    written = set()                    # the picture files already in the export's photos folder
     try:
         for index, frame in enumerate(frames, start=1):
             if runner.cancelled(mode):
@@ -79,8 +80,14 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
             # The picture goes in under its video's own number, so the photos folder reads as the
             # same sequence and nothing has to be matched up by hand. A frame that somehow has no
             # picture leaves none: its video is written all the same.
+            #
+            # And each picture goes in once. A copy frame produces no picture of its own -- it holds
+            # the source's file -- so a photo with three videos used to be written three times, and
+            # the folder read as the same image over and over (madde 236). The number stays the
+            # first frame's, gaps and all: it is what says which video the picture belongs to.
             photo = frame.get("layers", {}).get(layers.PHOTO)
-            if photo:
+            if photo and photo not in written:
+                written.add(photo)
                 store.copy_photo(store.file_path(project, photo), folder,
                                  f"{index:02d}{_extension(photo)}")
             runner.report(mode, written=index)
