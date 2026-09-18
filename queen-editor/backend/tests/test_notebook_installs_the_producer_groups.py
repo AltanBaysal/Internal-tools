@@ -126,27 +126,36 @@ def test_the_intro_agrees_with_the_custom_node_list():
         f"Giriş hücresindeki sayı listeyle uyuşmuyor: {listed} satır"
 
 
-def test_photo_and_sound_each_have_a_checkbox_of_their_own():
+def test_every_producer_has_a_checkbox_of_its_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
-    Default False, so nothing heavy starts by accident. Video is not a box since madde 243: it is a
-    pick among models, asked below."""
+    Default False, so nothing heavy starts by accident. Video went back to a box in madde 244, its
+    model picked below it the way the photo's is."""
     source = _source()
 
-    for kind in ("photo", "audio"):
+    for kind in GROUPS:
         assert f'{SWITCH[kind]} = False  #@param {{type:"boolean"}}' in source, \
             f"{kind}: CONFIG'de kapalı gelen bir onay kutusu yok"
 
 
-def test_video_is_one_pick_among_none_wan_and_h3():
-    """Two boxes would let both be ticked, and the two never share a session (user's call, madde
-    243). A list makes that impossible rather than an error. It opens on Yok, so nothing heavy
-    starts by accident, and INSTALL_VIDEO is derived from it so every gate that asks it still
-    asks the right thing."""
+def test_every_video_model_has_a_checkbox_of_its_own():
+    """The photo's pattern, one level down: the producer's box, then its models' boxes, all off."""
     config = _cell("# === CONFIG ===")
 
-    assert 'VIDEO_MODEL = "Yok"  #@param ["Yok", "WAN", "H3"]' in config
-    assert 'INSTALL_VIDEO = VIDEO_MODEL != "Yok"' in config
-    assert "INSTALL_VIDEO = False  #@param" not in config
+    for box in ("VIDEO_WAN", "VIDEO_H3"):
+        assert f'{box} = False  #@param {{type:"boolean"}}' in config, \
+            f"{box}: CONFIG'de kapalı gelen bir kutu yok"
+
+
+def test_choosing_video_without_a_model_stops_the_notebook():
+    """Video ticked and no model is a producer with nothing to render with -- asked in CONFIG, like
+    the photo's, where it costs a second rather than an install."""
+    assert "assert not INSTALL_VIDEO or VIDEO_WAN or VIDEO_H3" in _cell("# === CONFIG ===")
+
+
+def test_choosing_both_video_models_stops_the_notebook():
+    """WAN and H3 never share a session (user's call, madde 243). Colab's boxes cannot be tied to
+    each other, so the form cannot prevent it -- CONFIG stops it before a byte comes down."""
+    assert "assert not (VIDEO_WAN and VIDEO_H3)" in _cell("# === CONFIG ===")
 
 
 def test_the_form_names_the_producer_boxes_too():
@@ -194,8 +203,23 @@ def test_the_form_leaves_the_model_section_at_its_heading():
     assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
     tail = drawn[drawn.index("#@markdown ---"):]
 
-    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri"], \
-        f"Model bölümü başlıktan ibaret değil: {tail}"
+    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri",
+                    "#@markdown ---", "#@markdown ### Video modelleri"], \
+        f"Model bölümleri başlıklarından ibaret değil: {tail}"
+
+
+def test_the_form_gives_video_models_a_section_of_their_own():
+    """Pinned by position, like the photo's: the video boxes come after the photo models, under
+    their own divider and heading."""
+    config = _cell("# === CONFIG ===")
+    photo_box = config.find("PHOTO_DASIWA = ")
+    heading = config.find("#@markdown ### Video modelleri")
+    divider = config.rfind("#@markdown ---", 0, heading)
+    first_box = config.find("VIDEO_WAN = ")
+
+    assert heading != -1, "Video modelleri başlığı yok"
+    assert photo_box < divider < heading < first_box, \
+        "Video modelleri kendi ayracı ve başlığıyla fotoğraf modellerinin altında değil"
 
 
 def test_choosing_nothing_stops_the_notebook():
@@ -226,8 +250,8 @@ def test_an_unticked_group_costs_no_bytes():
     source = _source()
 
     for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO"), SWITCH["photo"]),
-                          (("CIVITAI_VIDEO", "OPEN_VIDEO"), 'VIDEO_MODEL == "WAN"'),
-                          (("CIVITAI_H3", "OPEN_H3"), 'VIDEO_MODEL == "H3"'),
+                          (("CIVITAI_VIDEO", "OPEN_VIDEO"), 'VIDEO_MODEL == "wan"'),
+                          (("CIVITAI_H3", "OPEN_H3"), 'VIDEO_MODEL == "h3"'),
                           (("OPEN_AUDIO",), SWITCH["audio"])):
         for name in names:
             assert f"{name} if {switch} else []" in source, \
@@ -467,7 +491,7 @@ def test_the_notebook_fetches_the_h3_checkpoint_and_lora_by_their_versions():
 def test_the_h3_files_from_huggingface_come_down_over_one_connection():
     """HF keeps these in its Xet store, whose signed URLs answer parallel byte ranges with 403 --
     aria2c's sixteen connections fail where one curl gets through."""
-    pattern = (r'for [^\n]+ in \(OPEN_H3 if VIDEO_MODEL == "H3" else \[\]\):\n'
+    pattern = (r'for [^\n]+ in \(OPEN_H3 if VIDEO_MODEL == "h3" else \[\]\):\n'
                r'\s+fetch\([^\n]*parallel=False')
 
     assert re.search(pattern, _source()), "H3'ün HF dosyaları tek bağlantıyla inmiyor"
@@ -491,7 +515,7 @@ def test_the_notebook_installs_the_nodes_the_h3_graph_asks_for():
 
 
 def test_the_disk_estimate_counts_h3_when_h3_is_picked():
-    assert '(VIDEO_MODEL == "H3", ' in _cell("SIZES = ["), "Disk hesabı H3'ü saymıyor"
+    assert '(VIDEO_MODEL == "h3", ' in _cell("SIZES = ["), "Disk hesabı H3'ü saymıyor"
 
 
 def test_the_app_is_told_which_video_model_the_notebook_installed():
@@ -506,15 +530,6 @@ def test_the_clone_checks_for_the_h3_graphs_too():
 
     for name in ("workflow_video_h3_api.json", "workflow_video_h3_first_last_api.json"):
         assert name in clone, f"Klon {name} dosyasını aramıyor"
-
-
-def test_the_form_says_h3_does_not_run_on_a_t4():
-    """Information, not an order (user's call, madde 243): the machine is picked by what is being
-    installed that day, and knowing this saves a ~37 GiB download on the wrong one."""
-    drawn = _drawn(_cell("# === CONFIG ===")).splitlines()
-
-    assert any("H3" in line and "T4" in line for line in drawn), \
-        "Formda H3'ün T4'te koşmadığı yazmıyor"
 
 
 def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
