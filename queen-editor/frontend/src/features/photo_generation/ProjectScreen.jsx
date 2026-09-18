@@ -55,7 +55,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
     try {
       await onSaveSettings({
         prompts: form.prompts, negative: form.negative, variants: form.variants,
-        model: form.model,
+        model: form.model, lora: form.lora,
       });
     } catch (err) {
       setSaveError(err.message);

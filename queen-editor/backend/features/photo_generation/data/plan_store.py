@@ -55,7 +55,8 @@ class DrivePlanStore:
             kind = frame.get("type")
             # A frame planned before models could be chosen carries none, and empty means "the
             # graph's own checkpoint" -- so those frames render exactly as they always did. The
-            # lora is the same one level down: empty is Standart, the model's own arrangement. One
+            # lora is the same one level down: empty is a frame that named none, and gets the
+            # default. One
             # planned before identities were written down keeps the one it was born with, or the
             # gallery order pointing at it would stop finding it. One planned before the queue knew
             # types can only be a photo job, because that was the only kind there was.

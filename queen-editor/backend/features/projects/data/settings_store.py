@@ -12,7 +12,7 @@ FILE = "settings.json"
 
 
 def _empty():
-    return {"prompts": "", "negative": "", "variants": None, "model": ""}
+    return {"prompts": "", "negative": "", "variants": None, "model": "", "lora": ""}
 
 
 def _text(value):
@@ -45,8 +45,9 @@ class DriveSettingsStore:
                 "negative": _text(data.get("negative")),
                 "variants": _count(data.get("variants")),
                 # Settings written before models could be chosen have none; empty means the panel
-                # shows whatever the renderer lists first.
-                "model": _text(data.get("model"))}
+                # shows whatever the renderer lists first. The lora likewise, since madde 238.
+                "model": _text(data.get("model")),
+                "lora": _text(data.get("lora"))}
 
     def write(self, project, settings):
         self._storage.write_text(

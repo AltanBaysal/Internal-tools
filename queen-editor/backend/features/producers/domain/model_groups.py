@@ -26,9 +26,9 @@ GROUPS = {
         # is anything to hand it. Naming one made the panel call the producer uninstalled for
         # anyone who picked a different model.
         {"folder": "checkpoints", "suffix": ".safetensors"},
-        # Both loras come down whichever models were ticked: USNR is Nova's standard and Slime can
-        # go over any model, and hanging the panel's count on either choice would make "installed"
-        # mean a different set of files on every machine.
+        # Both loras come down whichever models were ticked: either can go over any model, and
+        # hanging the panel's count on the choice would make "installed" mean a different set of
+        # files on every machine.
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
         {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},

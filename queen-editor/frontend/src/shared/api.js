@@ -86,11 +86,11 @@ export async function getSettings(project) {
   return request(`/api/projects/${encodeURIComponent(project)}/settings`);
 }
 
-export async function saveSettings(project, { prompts, negative, variants, model }) {
+export async function saveSettings(project, { prompts, negative, variants, model, lora }) {
   return request(`/api/projects/${encodeURIComponent(project)}/settings`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompts, negative, variants, model }),
+    body: JSON.stringify({ prompts, negative, variants, model, lora }),
   });
 }
 

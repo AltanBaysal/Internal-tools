@@ -18,6 +18,7 @@ from backend.features.photo_generation.domain.usecases.retry_frame import FrameM
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
 from backend.features.photo_generation.domain.usecases.start_batch import (
     Busy,
+    InvalidLora,
     InvalidVariants,
     ProjectMissing,
 )
@@ -54,7 +55,7 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # No model is legitimate too: the graph renders with its own checkpoint.
         model = model if isinstance(model, str) else ""
         lora = body.get("lora")
-        # And no lora is Standart, the model's own arrangement.
+        # And no lora is no pick: the renderer gives it the default.
         lora = lora if isinstance(lora, str) else ""
         try:
             added = start_batch(project, prompts, negative, body.get("variants"), model, lora=lora)
@@ -64,6 +65,8 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
             return jsonify({"error": str(exc), "field": "prompts"}), 400
         except InvalidVariants as exc:
             return jsonify({"error": str(exc), "field": "variants"}), 400
+        except InvalidLora as exc:
+            return jsonify({"error": str(exc), "field": "lora"}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except Busy as exc:

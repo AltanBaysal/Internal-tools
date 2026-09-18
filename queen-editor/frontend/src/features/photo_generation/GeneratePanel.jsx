@@ -27,10 +27,6 @@ const CONFIRM_MS = 10000;
 // Memory only, like the seven stores before it: a reload fills the boxes from the record again.
 const REMEMBERED = new Map();
 
-// The lora box's own first row, drawn before the server has answered: it is not a file the machine
-// may or may not have but the model's own arrangement, so it needs nobody's word (madde 237).
-const STANDARD = [{ value: "", label: "Standart" }];
-
 /** What the boxes open with.
  *
  * A draft the user left behind wins over the project's record. The record is only written when the
@@ -38,8 +34,8 @@ const STANDARD = [{ value: "", label: "Standart" }];
  * was typed after the last send.
  *
  * This is also the one place the record's shape becomes the boxes' shape: the boxes carry text, the
- * record carries a number that may be null and a model that may be empty. The lora is not in the
- * record at all: the box defaults to Standart, and only a draft of this visit carries another pick.
+ * record carries a number that may be null, and a model and a lora that may be empty -- an empty
+ * box is filled with the server's first row once the list is here.
  */
 function opening(project, settings) {
   const draft = REMEMBERED.get(project);
@@ -48,7 +44,7 @@ function opening(project, settings) {
     prompts: settings.prompts,
     negative: settings.negative,
     model: settings.model || "",
-    lora: "",
+    lora: settings.lora || "",
     variants: settings.variants === null ? FIRST_VARIANTS : String(settings.variants),
   };
 }
@@ -102,9 +98,9 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   useEffect(() => () => clearTimeout(fade.current), []);
 
   // Whatever the boxes hold is what a later mount starts from. One effect rather than a write in
-  // each of the setters: the model box has a second writer -- it fills itself from the renderer's
-  // list when nothing was saved -- and a store written in six places would be six chances to forget
-  // one.
+  // each of the setters: the model and lora boxes have a second writer -- each fills itself from
+  // the server's list when nothing was saved -- and a store written in six places would be six
+  // chances to forget one.
   useEffect(() => {
     REMEMBERED.set(project, { prompts, negative, model, lora, variants });
   }, [project, prompts, negative, model, lora, variants]);
@@ -115,6 +111,12 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
     if (!model && models && models.length) setModel(models[0].value);
   }, [models, model]);
 
+  // The same for the lora, and the first row is the default by the server's order (madde 238):
+  // what the box shows is then what is sent. Boş is a value of its own, so a pick of it stays.
+  useEffect(() => {
+    if (!lora && loras && loras.length) setLora(loras[0].value);
+  }, [loras, lora]);
+
   const loadingModels = models === null;
   // A saved pick the server no longer offers stays selected: quietly sliding the user onto
   // another row would mean the next batch renders with one they never picked. Compared by value,
@@ -124,7 +126,12 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
   // The lost pick is drawn under its own value: an id is a poor label, and inventing a
   // prettier one for a row nobody offers any more would be inventing what it used to be called.
   const options = gone ? [{ value: model, label: model }, ...models] : (models || []);
-  const loraOptions = loras && loras.length ? loras : STANDARD;
+  // The lora box on the model box's terms, without its note: whether a lost pick is still good is
+  // the server's to say when the batch is sent (the user's call, madde 238).
+  const loadingLoras = loras === null;
+  const loraGone = Boolean(lora) && Boolean(loras) && loras.length > 0
+    && !loras.some((row) => row.value === lora);
+  const loraOptions = loraGone ? [{ value: lora, label: lora }, ...loras] : (loras || []);
 
   const perPrompt = Number(variants);
   // What the server blamed, if it blamed anything. A named field means the request never reached
@@ -213,14 +220,22 @@ export default function GeneratePanel({ job, error, errorField, busyElsewhere, s
       </div>
 
       {/* Under the model, because it finishes what the model box started: one lora laid over the
-          checkpoint, or Standart -- the model's own arrangement. One pick and no more, the user's
-          words (madde 237). */}
+          checkpoint, or Boş. One pick and no more, the user's words (madde 237). A list that could
+          not be read leaves the button alone: the pick the box holds goes as it is, and the server
+          says whether it is good (madde 238). */}
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <Mono size={11} style={LABEL}>LoRA</Mono>
         <select className="wf-input" aria-label="LoRA" value={lora}
+                disabled={loadingLoras || !loraOptions.length}
                 onChange={(e) => setLora(e.target.value)}
                 style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
-          {loraOptions.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)}
+          {loadingLoras ? (
+            <option value="">yükleniyor…</option>
+          ) : loraOptions.length ? (
+            loraOptions.map((row) => <option key={row.value} value={row.value}>{row.label}</option>)
+          ) : (
+            <option value="">liste okunamadı</option>
+          )}
         </select>
       </div>
 

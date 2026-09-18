@@ -10,8 +10,8 @@ error card on the project screen (madde 229).
 """
 from backend.features.photo_generation.domain import catalog
 
-# The lora box's first row. No value: it is not a lora but the model's own arrangement.
-STANDARD = {"value": "", "label": "Standart"}
+# The lora box's last row: no lora at all.
+NONE = {"value": catalog.NO_LORA, "label": "Boş"}
 
 
 def list_models(chosen):
@@ -23,6 +23,7 @@ def list_models(chosen):
 
 
 def list_loras():
-    """Standart, then every lora. Not filtered by the notebook: the lora files come down with the
-    photo group whatever was ticked, so every one of them is on any machine that renders photos."""
-    return [STANDARD] + [{"value": lora["id"], "label": lora["label"]} for lora in catalog.LORAS]
+    """Every lora, the default first, then Boş. Not filtered by the notebook: the lora files come
+    down with the photo group whatever was ticked, so every one of them is on any machine that
+    renders photos."""
+    return [{"value": lora["id"], "label": lora["label"]} for lora in catalog.LORAS] + [NONE]

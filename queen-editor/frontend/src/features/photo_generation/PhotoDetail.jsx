@@ -347,12 +347,12 @@ export default function PhotoDetail({ project, frame: fid }) {
   const storedModel = frame?.model || "";
   const madeWith = (models?.find((row) => row.value === storedModel)?.label || storedModel)
     .replace(/\.safetensors$/, "");
-  // And the lora laid over it, by the same rule. No lora is Standart -- the model's own
-  // arrangement, a real answer rather than a missing one (madde 237).
+  // And the lora laid over it, by the same rule. A frame that names none gets no row: a
+  // recipe:slime frame names none and was made with Slime, and a DaSiWa one sent under Standart was
+  // made with none, so any name there would be a guess (madde 238).
   const storedLora = frame?.lora || "";
   const laidOver = storedLora
-    ? (loras?.find((row) => row.value === storedLora)?.label || storedLora)
-    : "Standart";
+    && (loras?.find((row) => row.value === storedLora)?.label || storedLora);
   // Linked names the picture rather than the frame's number -- the sequence can be dragged, and a
   // number would then be a lie about a video nobody touched.
   const arrivesAt = (frame?.endsOn || {})[open];
@@ -611,9 +611,8 @@ export default function PhotoDetail({ project, frame: fid }) {
                    says which checkpoint the graph shipped that day, so naming one would invent it. */
                 <Field label="Model" value={madeWith} />
               )}
-              {/* Under the model and on the same terms: a frame that never carried a model has no
-                  record of what went over it either. */}
-              {open === "photo" && madeWith && <Field label="LoRA" value={laidOver} />}
+              {/* Under the model and on the same terms: drawn only where the frame says. */}
+              {open === "photo" && madeWith && laidOver && <Field label="LoRA" value={laidOver} />}
               {open === "video" && madeIn && (
                 /* Information, never a control: changing the mode is making the video again, and
                    that is the form further down (madde 94). */

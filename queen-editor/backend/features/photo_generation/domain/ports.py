@@ -16,9 +16,8 @@ class PhotoGenerator(Protocol):
 
         The file's name is the domain's (photo_name.layer_file), never the producer's.
 
-        An empty model means the graph's own default, and an empty lora means the model's own
-        arrangement (Standart). Only a photo has either; a video and a sound take both and ignore
-        them, like `end`.
+        An empty model means the graph's own default, and an empty lora means the default lora.
+        Only a photo has either; a video and a sound take both and ignore them, like `end`.
         """
         ...
 

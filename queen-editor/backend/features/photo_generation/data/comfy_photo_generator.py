@@ -50,12 +50,13 @@ class ComfyPhotoGenerator:
         # render exactly as they used to, and so does every frame when the list cannot be read.
         if chosen:
             workflow[MODEL_NODE]["inputs"]["ckpt_name"] = chosen["checkpoint"]
-            # A chosen lora replaces the model's standard rather than joining it: Slime was liked
-            # with USNR off (madde 214). No lora is Standart -- the model's own arrangement.
-            self._set_loras(workflow, [extra] if extra else chosen["loras"])
+            # The pick fills the loader alone rather than joining the lora the export ships with:
+            # Slime was liked with USNR off (madde 214). Boş empties it.
+            self._set_loras(workflow, [extra] if extra else [])
         elif model:
             # A bare file name is a checkpoint and nothing more: picking one has never meant picking
-            # a lora arrangement, and a frame planned that way keeps rendering the way it did.
+            # a lora, and a frame planned that way keeps rendering the way it did -- with the
+            # export's own USNR, which is the default anyway.
             workflow[MODEL_NODE]["inputs"]["ckpt_name"] = model
 
         prompt_id = self._client.submit(workflow)
@@ -90,10 +91,12 @@ class ComfyPhotoGenerator:
 
     @staticmethod
     def _lora(lora):
-        """The catalog lora this value names, or None for Standart. An id nobody knows stops the
-        render, for the same reason an unknown model does."""
-        if not lora:
+        """The catalog lora this value names, or None for Boş. A frame that names none renders with
+        the default (madde 238). An id nobody knows stops the render, for the same reason an unknown
+        model does."""
+        if lora == catalog.NO_LORA:
             return None
+        lora = lora or catalog.DEFAULT_LORA
         found = catalog.find_lora(lora)
         if found is None:
             raise RuntimeError(f"Tanınmayan LoRA: {lora} — uygulama bu LoRA'yı bilmiyor, "

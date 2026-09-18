@@ -120,7 +120,7 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
         body = request.get_json(silent=True) or {}
         prompts, negative, variants = (body.get("prompts"), body.get("negative"),
                                        body.get("variants"))
-        model = body.get("model")
+        model, lora = body.get("model"), body.get("lora")
         try:
             save_settings(
                 project,
@@ -129,6 +129,7 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
                 # bool is an int in Python, and True would silently mean "1 variant".
                 variants if isinstance(variants, int) and not isinstance(variants, bool) else None,
                 model if isinstance(model, str) else "",
+                lora if isinstance(lora, str) else "",
             )
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

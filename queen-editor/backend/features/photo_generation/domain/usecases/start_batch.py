@@ -7,7 +7,7 @@ Pure: the seed comes from an injected `new_seed`, and runner/store/generator are
 exception messages are the user-facing Turkish text; presentation maps them to status codes and
 forwards them untouched.
 """
-from backend.features.photo_generation.domain import layers
+from backend.features.photo_generation.domain import catalog, layers
 from backend.features.photo_generation.domain.photo_name import frame_id
 from backend.features.photo_generation.domain.prompt_list import parse_prompts
 from backend.features.photo_generation.domain.usecases.run_queue import Busy, run_queue  # noqa: F401
@@ -24,6 +24,10 @@ class InvalidVariants(Exception):
 
 class ProjectMissing(Exception):
     """No such project folder."""
+
+
+class InvalidLora(Exception):
+    """A lora the app does not list (message is user-facing)."""
 
 
 def plan_frames(start, prompts, negative, variants, new_seed, model="", lora=""):
@@ -79,6 +83,12 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
     if isinstance(variants, bool) or not isinstance(variants, int) \
             or not 1 <= variants <= MAX_VARIANTS:
         raise InvalidVariants(f"Varyant sayısı 1-{MAX_VARIANTS} arası bir tam sayı olmalı.")
+    # The app's own list, not the disk: a lora it does not know renders on no machine, and saying so
+    # here keeps the frame out of a queue it would only fail in. The panel sends whatever it holds
+    # -- a saved pick can outlive its row -- so this is the one place that answers (madde 238).
+    # Empty is no pick, and renders with the default.
+    if lora not in ("", catalog.NO_LORA) and catalog.find_lora(lora) is None:
+        raise InvalidLora(f"Tanınmayan LoRA: {lora} — listeden başka bir LoRA seç.")
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
 

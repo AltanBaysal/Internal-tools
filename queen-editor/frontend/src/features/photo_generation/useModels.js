@@ -28,10 +28,10 @@ export function useModels() {
       .then((body) => { if (alive.current) { setAnswer(body); setError(null); } })
       .catch((err) => {
         if (!alive.current) return;
-        // Only a first read empties the box, so the panel can stop waiting and the queue stays
-        // usable. Over a list the visit already has, a refresh that fell over changes nothing. The
-        // lora box needs no answer to stand: it opens on Standart either way.
-        if (!remembered) setAnswer({ models: [], loras: null });
+        // Only a first read empties the boxes, so the panel can stop waiting and the queue stays
+        // usable. Over a list the visit already has, a refresh that fell over changes nothing. Both
+        // lists go empty: the lora names are the server's too, and the panel has none of its own.
+        if (!remembered) setAnswer({ models: [], loras: [] });
         setError(failureText(err));
       })
   ), []);
