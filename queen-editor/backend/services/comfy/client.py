@@ -98,10 +98,13 @@ class ComfyClient:
                             tuple(extensions)):
                         continue
                     outputs.append(item)
-        if len(outputs) != 1:
+        came = json.dumps(history_entry.get("outputs", {}), indent=2, ensure_ascii=False)
+        if not outputs:
+            wanted = ", ".join(extensions) if extensions else "görsel"
+            raise RuntimeError(f"{wanted} çıktısı gelmedi — gelenler:\n{came}")
+        if len(outputs) > 1:
             raise RuntimeError(
-                f"1 çıktı bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n"
-                + json.dumps(history_entry.get("outputs", {}), indent=2, ensure_ascii=False))
+                f"1 çıktı bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n{came}")
         item = outputs[0]
         resp = self._send("get", f"{self.base}/view", timeout=300, params={
             "filename": item["filename"],

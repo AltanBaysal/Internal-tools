@@ -5,8 +5,8 @@
         "2730",
         8
       ],
-      "codec": "Auto",
-      "container": "Auto",
+      "codec": "H.264",
+      "container": "MP4",
       "bit_depth": "Auto",
       "quality": 21,
       "log_level": "Standard",
