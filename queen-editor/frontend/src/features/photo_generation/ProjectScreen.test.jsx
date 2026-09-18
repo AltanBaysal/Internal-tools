@@ -17,7 +17,10 @@ vi.mock("../../shared/api.js", () => ({
   generateBatch: vi.fn(),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   listFrames: vi.fn().mockResolvedValue([]),
-  listModels: vi.fn().mockResolvedValue(["nova.safetensors"]),
+  listModels: vi.fn().mockResolvedValue({
+    models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }],
+    loras: [{ value: "", label: "Standart" }],
+  }),
   listProducers: vi.fn().mockResolvedValue([]),
   fileUrl: (project, file) => `/photos/${project}/${file}`,
   resumeBatch: vi.fn(),

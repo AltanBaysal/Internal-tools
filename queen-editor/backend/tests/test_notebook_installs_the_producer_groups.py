@@ -23,11 +23,22 @@ NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 SWITCH = {"photo": "INSTALL_PHOTO", "video": "INSTALL_VIDEO", "audio": "INSTALL_AUDIO"}
 
 
-def _recipes():
-    """The app's recipe table. Imported where it is used rather than at the top: a module that is
-    not there yet would fail collection and take every other question in this file down with it."""
-    from backend.features.photo_generation.domain.recipes import RECIPES
-    return RECIPES
+def _catalog():
+    """The app's models and loras. Imported where it is used rather than at the top: a module that
+    is not there yet would fail collection and take every other question in this file down with
+    it."""
+    from backend.features.photo_generation.domain.catalog import LORAS, MODELS
+    return MODELS, LORAS
+
+
+def _boxes():
+    """Every PHOTO_* checkbox CONFIG draws -- models and loras alike."""
+    return re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
+
+
+def _rows(listing):
+    """The switches the rows of one list are filed under, e.g. PHOTO_MODELS."""
+    return re.findall(r"^\s*\((PHOTO_\w+),", _cell(f"{listing} = ["), re.M)
 
 
 def _source():
@@ -76,7 +87,7 @@ def test_the_notebook_carries_the_tool_s_own_name():
 
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
     """A row naming a kind rather than a file is skipped here and covered by
-    test_the_notebook_offers_every_checkpoint_a_recipe_asks_for instead, which pins the checkpoint by
+    test_the_notebook_offers_every_checkpoint_a_model_asks_for instead, which pins the checkpoint by
     name and by version id -- a tighter guard than this one, not a looser one."""
     missing = [row["name"] for group in GROUPS.values() for row in group
                if "name" in row and row["name"] not in _source()]
@@ -146,16 +157,16 @@ def test_the_form_separates_the_two_groups_of_boxes():
     """
     config = _cell("# === CONFIG ===")
     divider = config.find("#@markdown ---")
-    heading = config.find("#@markdown ### Fotoğraf tarifleri")
+    heading = config.find("#@markdown ### Fotoğraf modelleri")
     first_box = re.search(r"^PHOTO_\w+ = (?:True|False)  #@param", config, re.M)
 
     assert divider != -1, "Formda iki grubu ayıran çizgi yok"
-    assert heading != -1, "Fotoğraf tarifleri başlığı yok"
-    assert first_box, "CONFIG'de tek bir tarif kutusu yok"
+    assert heading != -1, "Fotoğraf modelleri başlığı yok"
+    assert first_box, "CONFIG'de tek bir model kutusu yok"
     assert divider < heading < first_box.start(), "Ayraç ve başlık kutuların önünde değil"
 
 
-def test_the_form_leaves_the_recipe_section_at_its_heading():
+def test_the_form_leaves_the_model_section_at_its_heading():
     """Every sentence that stood under this heading was a copy of something the run already says:
     the guard below prints the pick-at-least-one rule in Turkish, the boxes show for themselves
     that they come empty, and the download cell prints the disk cost computed from what was
@@ -170,8 +181,8 @@ def test_the_form_leaves_the_recipe_section_at_its_heading():
     assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
     tail = drawn[drawn.index("#@markdown ---"):]
 
-    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf tarifleri"], \
-        f"Tarif bölümü başlıktan ibaret değil: {tail}"
+    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri"], \
+        f"Model bölümü başlıktan ibaret değil: {tail}"
 
 
 def test_choosing_nothing_stops_the_notebook():
@@ -209,50 +220,47 @@ def test_an_unticked_group_costs_no_bytes():
                 f"{name} kendi anahtarının arkasında değil"
 
 
-def test_every_recipe_the_app_knows_has_a_checkbox_of_its_own():
-    """A row is a recipe now -- a name, a checkpoint and a lora arrangement -- and it is written down
-    twice on purpose: the name and the arrangement in the app, because it is the side that patches
-    the graph, and the version id and the size in the notebook, because addresses live there
-    (FOUNDATION 9). This is the seam that keeps the two halves naming the same recipes.
+def test_every_model_the_app_knows_has_a_checkbox_of_its_own():
+    """A model is written down twice on purpose: its name and its standard loras in the app,
+    because that is the side that patches the graph, and its version id and size in the notebook,
+    because addresses live there (FOUNDATION 9). This is the seam that keeps the two halves naming
+    the same models (madde 237).
 
     The switch has to sit in CONFIG -- Colab draws #@param only where it is written.
     """
-    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
-    known = sorted("PHOTO_" + recipe["id"].upper() for recipe in _recipes())
+    models, _loras = _catalog()
+    known = sorted("PHOTO_" + model["id"].upper() for model in models)
 
-    assert boxes, "CONFIG'de tek bir tarif kutusu yok"
-    assert sorted(boxes) == known, f"Kutular {sorted(boxes)}, uygulamanın tarifleri {known}"
-
-
-def test_every_recipe_box_reaches_a_row_that_says_what_to_fetch():
-    """A box with no row downloads nothing; a row with no box cannot be turned off."""
-    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
-    rows = re.findall(r"^\s*\((PHOTO_\w+),", _cell("PHOTO_RECIPES = ["), re.M)
-
-    assert rows, "Tarif satırı yok"
-    assert sorted(boxes) == sorted(rows), f"Kutular {sorted(boxes)}, satırlar {sorted(rows)}"
+    assert sorted(_rows("PHOTO_MODELS")) == known, \
+        f"Model satırları {sorted(_rows('PHOTO_MODELS'))}, uygulamanın modelleri {known}"
 
 
-def test_two_recipes_sharing_a_checkpoint_fetch_it_once():
-    """Slime renders on Nova 3DCG's checkpoint. Ticking both is the ordinary case, and a list built
-    per recipe would fetch that 7 GiB file twice and warn about 14 GiB of disk for it.
+def test_every_photo_box_is_a_model():
+    """A box with no row downloads nothing; a row with no box cannot be turned off. And every box is
+    a model: the lora files come with the photo group whatever was ticked, so a lora box would
+    decide nothing about the disk -- Slime's old box went with the recipes (madde 237)."""
+    rows = _rows("PHOTO_MODELS")
 
-    Pinned as the one name both the download list and the size sum read, built as a set: two
-    expressions deriving the same thing separately is how they come to disagree.
-    """
-    cell = _cell("PHOTO_RECIPES = [")
+    assert rows, "Model satırı yok"
+    assert sorted(_boxes()) == sorted(rows), f"Kutular {sorted(_boxes())}, satırlar {sorted(rows)}"
 
-    assert "CHOSEN_CHECKPOINTS = sorted({" in cell, \
-        "Seçilen checkpoint'ler tekilleştirilmiyor"
+
+def test_the_disk_estimate_reads_the_chosen_checkpoints():
+    """Pinned as the one name both the download list and the size sum read: two expressions
+    deriving the same thing separately is how they come to disagree."""
+    assert "CHOSEN_CHECKPOINTS" in _cell("PHOTO_MODELS = ["), \
+        "Seçilen checkpoint'ler model satırlarından çıkarılmıyor"
     assert "CHOSEN_CHECKPOINTS" in _cell("PHOTO_GIB ="), \
-        "Disk hesabı tekilleştirilmiş listeyi okumuyor"
+        "Disk hesabı seçilen checkpoint'leri okumuyor"
 
 
-def test_the_app_is_told_which_recipes_the_notebook_chose():
-    """The disk cannot answer this: Slime installs Nova's checkpoint, so a Slime-only machine has
-    that file sitting there and the renderer lists it. Only the notebook knows what was ticked."""
-    assert '"QE_PHOTO_RECIPES"' in _source(), \
-        "Defter seçilen tarifleri uygulamaya geçirmiyor"
+def test_the_app_is_told_which_models_the_notebook_chose():
+    """The disk cannot answer this: a checkpoint left from another run would be listed as if it had
+    been ticked. Only the notebook knows what was ticked."""
+    source = _source()
+
+    assert '"QE_PHOTO_MODELS"' in source, "Defter seçilen modelleri uygulamaya geçirmiyor"
+    assert '"QE_PHOTO_RECIPES"' not in source, "Defter hâlâ tarif kimlikleri geçiriyor"
 
 
 def test_the_app_is_told_where_comfyui_writes_its_log():
@@ -263,60 +271,60 @@ def test_the_app_is_told_where_comfyui_writes_its_log():
         "Defter ComfyUI log'unun yolunu uygulamaya geçirmiyor"
 
 
-def test_every_recipe_comes_switched_off():
+def test_every_photo_box_comes_switched_off():
     """Photo ticked draws the boxes empty and picks nothing heavy for anyone.
 
     The first assertion is not spare: with no PHOTO_* line at all the second one holds for free.
     """
-    config = _cell("# === CONFIG ===")
-    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
-    on = re.findall(r"^(PHOTO_\w+) = True  #@param", config, re.M)
+    on = re.findall(r"^(PHOTO_\w+) = True  #@param", _cell("# === CONFIG ==="), re.M)
 
-    assert boxes, "CONFIG'de tek bir tarif kutusu yok"
-    assert on == [], f"Tarif açık geliyor: {on}"
+    assert _boxes(), "CONFIG'de tek bir fotoğraf kutusu yok"
+    assert on == [], f"Kutu açık geliyor: {on}"
 
 
-def test_choosing_photo_without_a_recipe_stops_the_notebook():
-    """Photo ticked and every recipe box empty means a renderer with nothing to render with. Asked in
-    CONFIG like every other gate: a second here beats ten minutes after ComfyUI's install.
+def test_choosing_photo_without_a_model_stops_the_notebook():
+    """Photo ticked and every model box empty means a renderer with nothing to render with. A lora
+    is not enough: it rides on a checkpoint. Asked in CONFIG like every other gate: a second here
+    beats ten minutes after ComfyUI's install.
 
-    The expected line is built from the boxes rather than written down, so a recipe added without
-    being added to the guard fails here instead of silently reopening the hole.
+    The expected line is built from the model rows rather than written down, so a model added
+    without being added to the guard fails here instead of silently reopening the hole.
     """
-    config = _cell("# === CONFIG ===")
-    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
-    guard = "assert not INSTALL_PHOTO or " + " or ".join(boxes)
+    models = _rows("PHOTO_MODELS")
+    guard = "assert not INSTALL_PHOTO or " + " or ".join(models)
 
-    assert boxes, "CONFIG'de tek bir tarif kutusu yok"
-    assert guard in config, f"Beklenen kontrol yok:\n{guard}"
+    assert models, "Model satırı yok"
+    assert guard in _cell("# === CONFIG ==="), f"Beklenen kontrol yok:\n{guard}"
 
 
-def test_an_unticked_recipe_costs_no_bytes():
+def test_an_unticked_model_costs_no_bytes():
     """The rule the three producer boxes already follow, one level down: a row is reached only
     through its own switch."""
-    assert "in PHOTO_RECIPES if on" in _cell("PHOTO_RECIPES = ["), \
-        "PHOTO_RECIPES satırları kendi anahtarıyla süzülmüyor"
+    assert "in PHOTO_MODELS if on" in _cell("PHOTO_MODELS = ["), \
+        "PHOTO_MODELS satırları kendi anahtarıyla süzülmüyor"
 
 
 def test_the_photo_estimate_counts_only_what_the_group_always_takes():
     """The base is the files every photo run takes whatever was ticked -- both loras, the upscaler,
-    the detector, the SAM. The checkpoints come from the recipes, so counting one of them into the
-    base would warn a single-recipe run about disk it was never going to use."""
+    the detector, the SAM. The checkpoints come from the model boxes, so counting one of them into
+    the base would warn a single-model run about disk it was never going to use."""
     assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
         "SIZES foto için hâlâ sabit bir sayı taşıyor"
     assert "PHOTO_GIB = 2 +" in _cell("PHOTO_GIB ="), \
         "Disk tabanı hâlâ bir checkpoint'in payını taşıyor"
 
 
-def test_the_notebook_offers_every_checkpoint_a_recipe_asks_for():
+def test_the_notebook_offers_every_checkpoint_a_model_asks_for():
     """Named rather than derived: this is the one place saying which files the notebook can fetch,
     so a silent edit cannot quietly change what a run is able to install. Reading the list itself
     would only say that the list contains what it contains."""
     cell = _cell("PHOTO_CHECKPOINTS = [")
 
-    assert "nova3DCGXL_ilV90.safetensors" in cell, \
-        "Defter bu checkpoint'i indirmiyor: nova3DCGXL_ilV90.safetensors"
-    assert "2744564" in cell, "Civitai version id defterde yok: 2744564"
+    for filename, version in (("nova3DCGXL_ilV90.safetensors", "2744564"),
+                              # madde 237: read from Civitai's own API in madde 222's trial.
+                              ("DasiwaIllustriousAnime_epitaphecstasy.safetensors", "3012006")):
+        assert filename in cell, f"Defter bu checkpoint'i indirmiyor: {filename}"
+        assert version in cell, f"Civitai version id defterde yok: {version}"
 
 
 def test_the_retired_nova_checkpoints_are_gone_from_the_notebook():
@@ -329,14 +337,22 @@ def test_the_retired_nova_checkpoints_are_gone_from_the_notebook():
         assert leftover not in source, f"Defterde kaldırılan Nova'dan iz kaldı: {leftover}"
 
 
-def test_every_checkpoint_a_recipe_names_is_one_the_notebook_can_fetch():
-    """A recipe pointing at a file the notebook never downloads is a row that renders nothing --
-    and it would say so only after the install, as a missing-model error from ComfyUI."""
-    cell = _cell("PHOTO_CHECKPOINTS = [")
+def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
+    """A model or a lora pointing at a file the notebook never downloads is a row that renders
+    nothing -- and it would say so only after the install, as a missing-model error from ComfyUI.
+    A model's standard loras count too: Nova's USNR is on every Nova render."""
+    models, loras = _catalog()
+    checkpoints = _cell("PHOTO_CHECKPOINTS = [")
+    source = _source()
 
-    for recipe in _recipes():
-        assert recipe["checkpoint"] in cell, \
-            f"{recipe['id']}: tarifin checkpoint'i defterde yok — {recipe['checkpoint']}"
+    for model in models:
+        assert model["checkpoint"] in checkpoints, \
+            f"{model['id']}: modelin checkpoint'i defterde yok — {model['checkpoint']}"
+        for standard in model["loras"]:
+            assert standard["lora"] in source, \
+                f"{model['id']}: standart LoRA defterde yok — {standard['lora']}"
+    for lora in loras:
+        assert lora["lora"] in source, f"{lora['id']}: LoRA defterde yok — {lora['lora']}"
 
 
 def test_the_disk_is_measured_before_the_download_starts():

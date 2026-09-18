@@ -15,11 +15,16 @@ beforeEach(async () => {
 const SETTINGS = { prompts: '["ilk prompt"]', negative: "", variants: 4, model: "" };
 const PROMPT_BOX = '["ilk prompt", "ikinci prompt"]';
 const RUNNING = { status: "running", project: "düğün", done: 7, failed: 0, total: 48 };
-// A row, not a name: since madde 214 a row can be a recipe -- a label the user reads and a value
-// the renderer is sent, and for a recipe those two are not the same string.
+// A row, not a name: a label the user reads and a value the renderer is sent, and those two are not
+// the same string.
 const MODELS = [
-  { value: "nova.safetensors", label: "nova.safetensors" },
-  { value: "recipe:slime", label: "Slime" },
+  { value: "nova3dcg", label: "Nova 3DCG XL" },
+  { value: "dasiwa", label: "DaSiWa Illustrious | Anime" },
+];
+// Standart first, with no value: it is the model's own arrangement, not a file (madde 237).
+const LORAS = [
+  { value: "", label: "Standart" },
+  { value: "slime", label: "Slime" },
 ];
 
 function renderPanel(props) {
@@ -31,6 +36,7 @@ function renderPanel(props) {
       settings={SETTINGS}
       project="düğün"
       models={MODELS}
+      loras={LORAS}
       modelsError={null}
       onGenerate={() => Promise.resolve({ added: 4 })}
       onClearError={() => {}}
@@ -41,7 +47,9 @@ function renderPanel(props) {
 
 const promptBox = () => screen.getByPlaceholderText(PROMPT_BOX);
 const variantBox = () => screen.getByRole("spinbutton");
-const modelBox = () => screen.getByRole("combobox");
+// Two selects in one panel now, so each is found by the name it is read by.
+const modelBox = () => screen.getByRole("combobox", { name: "Model" });
+const loraBox = () => screen.getByRole("combobox", { name: "LoRA" });
 
 describe("GeneratePanel — the button", () => {
   it("adds to the queue instead of starting a run", () => {
@@ -116,37 +124,36 @@ describe("GeneratePanel — the model field", () => {
     renderPanel();
 
     expect(screen.getByText("Model")).toBeTruthy();
-    expect([...modelBox().options].map((o) => o.value))
-      .toEqual(["nova.safetensors", "recipe:slime"]);
-    // What the user reads is the recipe's name; `recipe:slime` is an address, not a label.
+    expect([...modelBox().options].map((o) => o.value)).toEqual(["nova3dcg", "dasiwa"]);
+    // What the user reads is the model's name; `nova3dcg` is an address, not a label.
     expect([...modelBox().options].map((o) => o.textContent))
-      .toEqual(["nova.safetensors", "Slime"]);
+      .toEqual(["Nova 3DCG XL", "DaSiWa Illustrious | Anime"]);
     // First in the document: the design has put it at the top of the panel since v1.
     expect(screen.getByText("Model").compareDocumentPosition(screen.getByText("Prompt listesi"))
       & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("opens on the saved model rather than the first one", () => {
-    renderPanel({ settings: { ...SETTINGS, model: "recipe:slime" } });
+    renderPanel({ settings: { ...SETTINGS, model: "dasiwa" } });
 
-    expect(modelBox().value).toBe("recipe:slime");
+    expect(modelBox().value).toBe("dasiwa");
   });
 
   it("falls back to the first row when nothing was saved", () => {
     renderPanel();
 
-    expect(modelBox().value).toBe("nova.safetensors");
+    expect(modelBox().value).toBe("nova3dcg");
   });
 
   it("sends the chosen row's value with the batch", async () => {
     const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
     renderPanel({ onGenerate });
 
-    fireEvent.change(modelBox(), { target: { value: "recipe:slime" } });
+    fireEvent.change(modelBox(), { target: { value: "dasiwa" } });
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
-      model: "recipe:slime",
+      model: "dasiwa",
     }));
   });
 
@@ -171,6 +178,57 @@ describe("GeneratePanel — the model field", () => {
 
     expect(screen.getByText("yükleniyor…")).toBeTruthy();
     expect(screen.queryByText("model bulunamadı")).toBeNull();
+  });
+});
+
+describe("GeneratePanel — the lora field (madde 237)", () => {
+  it("sits right under the model, and opens on Standart", () => {
+    renderPanel();
+
+    expect(screen.getByText("LoRA")).toBeTruthy();
+    expect(loraBox().value).toBe("");
+    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["Standart", "Slime"]);
+    // Between the model and the prompt list: it finishes what the model box started.
+    expect(modelBox().compareDocumentPosition(loraBox())
+      & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(loraBox().compareDocumentPosition(screen.getByText("Prompt listesi"))
+      & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("offers one pick and no more", () => {
+    renderPanel();
+
+    // The user's words: one lora from a dropdown, nothing that would make it complicated.
+    expect(loraBox().multiple).toBe(false);
+  });
+
+  it("sends the chosen lora with the batch", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate });
+
+    fireEvent.change(loraBox(), { target: { value: "slime" } });
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "nova3dcg", lora: "slime",
+    }));
+  });
+
+  it("sends Standart as no lora at all", async () => {
+    const onGenerate = vi.fn().mockResolvedValue({ added: 4 });
+    renderPanel({ onGenerate });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onGenerate).toHaveBeenCalledWith(expect.objectContaining({ lora: "" }));
+  });
+
+  it("shows Standart before the list has arrived", () => {
+    renderPanel({ loras: null });
+
+    // Standart is not something the server has to say: it is the model's own arrangement.
+    expect(loraBox().value).toBe("");
+    expect([...loraBox().options].map((o) => o.textContent)).toEqual(["Standart"]);
   });
 });
 
@@ -320,20 +378,22 @@ describe("GeneratePanel — coming back to the form", () => {
     expect(promptBox().value).toBe('["yazdım ama göndermedim"]');
   });
 
-  it("keeps the negative, the model and the variant count too", () => {
+  it("keeps the negative, the model, the lora and the variant count too", () => {
     const first = renderPanel();
 
     fireEvent.change(screen.getByDisplayValue(""), { target: { value: "bulanık" } });
-    fireEvent.change(modelBox(), { target: { value: "recipe:slime" } });
+    fireEvent.change(modelBox(), { target: { value: "dasiwa" } });
+    fireEvent.change(loraBox(), { target: { value: "slime" } });
     fireEvent.change(variantBox(), { target: { value: "9" } });
     first.unmount();
 
-    // One form, one loss: remembering the prompt and forgetting the three boxes under it would be
+    // One form, one loss: remembering the prompt and forgetting the boxes under it would be
     // remembering half of an unfinished piece of work.
     renderPanel();
 
     expect(screen.getByDisplayValue("bulanık")).toBeTruthy();
-    expect(modelBox().value).toBe("recipe:slime");
+    expect(modelBox().value).toBe("dasiwa");
+    expect(loraBox().value).toBe("slime");
     expect(variantBox().value).toBe("9");
   });
 

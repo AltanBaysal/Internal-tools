@@ -20,7 +20,7 @@ vi.mock("./shared/api.js", () => ({
   getSettings: vi.fn(),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   listFrames: vi.fn().mockResolvedValue([]),
-  listModels: vi.fn().mockResolvedValue([]),
+  listModels: vi.fn().mockResolvedValue({ models: [], loras: [] }),
   listProducers: vi.fn().mockResolvedValue([]),
   listProjects: vi.fn().mockResolvedValue([]),
   queueLayer: vi.fn(),

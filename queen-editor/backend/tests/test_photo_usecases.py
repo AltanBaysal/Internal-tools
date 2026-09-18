@@ -108,10 +108,14 @@ class FakeGenerator:
         # Kept apart from sources: what a layer is made from and where it arrives are two different
         # questions, and one list holding both could not answer either.
         self.ends = []
+        self.loras = []
         self.fail_on = list(fail_on)
 
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
+        # Apart from calls, like sources: the tuple's shape is read by a hundred tests that never
+        # ask which lora a frame was sent with.
+        self.loras.append(lora)
         self.sources.append(source)
         self.ends.append(end)
         if prompt in self.fail_on:
@@ -143,7 +147,8 @@ class FakePlanStore:
                             "id": f.get("id") or legacy_frame_id(f["number"],
                                                                  f.get("letter", "a")),
                             "negative": f.get("negative", self.negative),
-                            "model": f.get("model", "")}
+                            "model": f.get("model", ""),
+                            "lora": f.get("lora", "")}
                            for f in self.frames]}
 
     def max_number(self, project):
@@ -240,24 +245,24 @@ def photo_statuses(record, project="düğün"):
 
 
 def run_batch(runner, store, generator, project="düğün", text='["a", "b"]', negative="neg",
-              variants=2, seed=42, record=None, plan_store=None, model="", log=None):
+              variants=2, seed=42, record=None, plan_store=None, model="", log=None, lora=""):
     return start_batch(runner, store, record or FakeRecord(), plan_store or FakePlanStore(),
                        {layers.PHOTO: generator}, lambda: seed,
                        lambda: "2026-08-03T14:32:11+00:00",
-                       project, text, negative, variants, model, log)
+                       project, text, negative, variants, model, log, lora=lora)
 
 
 def test_plan_frames_is_prompt_major():
     seeds = iter([11, 22, 33, 44])
     assert plan_frames(3, ["ilk", "ikinci"], "neg", 2, lambda: next(seeds), "nova.safetensors") == [
         {"id": "P3_0", "type": "photo", "number": 3, "variant": 0, "prompt": "ilk",
-         "negative": "neg", "seed": 11, "model": "nova.safetensors"},
+         "negative": "neg", "seed": 11, "model": "nova.safetensors", "lora": ""},
         {"id": "P3_1", "type": "photo", "number": 3, "variant": 1, "prompt": "ilk",
-         "negative": "neg", "seed": 22, "model": "nova.safetensors"},
+         "negative": "neg", "seed": 22, "model": "nova.safetensors", "lora": ""},
         {"id": "P4_0", "type": "photo", "number": 4, "variant": 0, "prompt": "ikinci",
-         "negative": "neg", "seed": 33, "model": "nova.safetensors"},
+         "negative": "neg", "seed": 33, "model": "nova.safetensors", "lora": ""},
         {"id": "P4_1", "type": "photo", "number": 4, "variant": 1, "prompt": "ikinci",
-         "negative": "neg", "seed": 44, "model": "nova.safetensors"},
+         "negative": "neg", "seed": 44, "model": "nova.safetensors", "lora": ""},
     ]
 
 
@@ -289,9 +294,9 @@ def test_progress_is_reported_before_each_frame():
     seen = []
     original = generator.generate
 
-    def spy(prompt, negative, seed, model="", source=None, end=None):
+    def spy(prompt, negative, seed, model="", lora="", source=None, end=None):
         seen.append(runner.status())
-        return original(prompt, negative, seed, model, source, end)
+        return original(prompt, negative, seed, model, lora, source, end)
 
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
@@ -308,7 +313,7 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             self.calls += 1
             if self.calls <= 3:
                 raise FrameFault("node 41: OOM")
@@ -326,7 +331,7 @@ def test_a_job_the_producer_drops_is_tried_three_times_before_it_turns_red():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             self.calls += 1
             if prompt == "patlak":
                 raise FrameFault("node 41: OOM")
@@ -345,7 +350,7 @@ def test_a_dropped_job_writes_nothing_until_its_attempts_run_out():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             self.calls += 1
             if self.calls == 1:
                 raise FrameFault("node 41: OOM")
@@ -363,7 +368,7 @@ def test_each_job_gets_its_own_three_drops():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             self.calls += 1
             raise FrameFault("node 41: OOM")
 
@@ -378,7 +383,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
     """The old rule counted three failed frames in a row; the new one counts attempts on ONE frame,
     so a queue of bad prompts turns red to the end instead of stopping partway."""
     class AlwaysBroken:
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             raise FrameFault("node 41: OOM")
 
     store, runner = FakeStore(), sync_runner()
@@ -391,7 +396,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
 def test_a_loader_failure_is_no_longer_special():
     """It used to stop the run on the first frame. ComfyUI answered, so it is now the frame's."""
     class BrokenLoader:
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             raise FrameFault("node 9 (CheckpointLoaderSimple): dosya yok")
 
     runner = sync_runner()
@@ -405,7 +410,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
         def __init__(self):
             self.calls = []
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             self.calls.append(prompt)
             raise RuntimeError("Connection refused")
 
@@ -424,7 +429,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
 
 def test_a_frame_the_run_gave_up_on_is_still_owed():
     class Unreachable:
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             raise RuntimeError("Connection refused")
 
     record, plan_store = FakeRecord(), FakePlanStore()
@@ -440,7 +445,7 @@ def test_an_attempt_that_lands_costs_the_frame_nothing():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             self.calls += 1
             if self.calls <= 2:
                 raise RuntimeError("Connection refused")
@@ -460,7 +465,7 @@ def test_every_frame_gets_its_own_three_attempts():
             self.failed = set()
             self.calls = []
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             self.calls.append(prompt)
             if prompt not in self.failed:
                 self.failed.add(prompt)
@@ -482,7 +487,7 @@ def test_stop_request_ends_the_batch_between_frames():
         def __init__(self):
             self.calls = 0
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             self.calls += 1
             runner.request_stop()
             return b"PNG"
@@ -499,7 +504,7 @@ def test_frame_killed_by_user_stop_is_not_a_failure():
     store, runner = FakeStore(), sync_runner()
 
     class StoppingGenerator:
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             runner.request_stop()          # the user's stop lands mid-render
             raise RuntimeError("interrupted")
 
@@ -1113,7 +1118,7 @@ class FailsTwice:
     def __init__(self):
         self.calls = []
 
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
         if len(self.calls) < 3:
             raise FrameFault(f"node 41: {prompt}")
@@ -2244,6 +2249,21 @@ def test_regenerating_with_the_same_prompt_stays_in_the_family():
     assert (job["type"], job["prompt"], job["seed"]) == ("photo", "p", 7)
 
 
+def test_a_regenerated_photo_keeps_the_model_and_the_lora_of_its_frame():
+    """A new picture of the same frame is the same pick made again: dropping the lora would hand
+    back a plain Nova where the user had Slime, with nothing on the page saying it changed
+    (madde 237)."""
+    store, record, plan_store = video_project((0, "a"))
+    plan_store.frames[0].update(model="nova3dcg", lora="slime")
+
+    regenerate(sync_runner(), store, record, plan_store, FakeOrderStore(),
+               {layers.PHOTO: FakeGenerator()}, lambda: 7, lambda: "t",
+               "düğün", "0_a", layers.PHOTO, "p")
+
+    job = plan_store.appended[-1][0]
+    assert (job["model"], job["lora"]) == ("nova3dcg", "slime")
+
+
 def test_a_changed_prompt_takes_the_next_prompt_number():
     store, record, plan_store = video_project((0, "a"))
 
@@ -2900,7 +2920,7 @@ def test_the_plan_is_appended_before_the_first_frame_renders():
     plan_store, runner = FakePlanStore(), sync_runner()
 
     class ChecksThePlan:
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             assert plan_store.appended, "the batch started before the plan was appended to"
             return b"PNG"
 
@@ -2991,12 +3011,12 @@ def test_frames_added_while_the_loop_runs_are_produced_in_the_same_run():
     plan_store, record, generator, seen = FakePlanStore(), FakeRecord(), FakeGenerator(), []
     rendering = generator.generate
 
-    def spy(prompt, negative, seed, model="", source=None, end=None):
+    def spy(prompt, negative, seed, model="", lora="", source=None, end=None):
         seen.append(prompt)
         if prompt == "ilk":
             plan_store.append("düğün", [{"number": 9, "letter": "a", "prompt": "sonradan",
                                          "negative": "", "seed": 7, "model": ""}])
-        return rendering(prompt, negative, seed, model, source, end)
+        return rendering(prompt, negative, seed, model, lora, source, end)
 
     generator.generate = spy
     run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,
@@ -3163,6 +3183,29 @@ def test_a_second_batch_renders_with_its_own_model():
                                                                 "başka.safetensors"]
 
 
+def test_a_frame_is_rendered_with_the_lora_it_was_submitted_under():
+    """The model and the lora are two picks now, and the renderer is handed both (madde 237)."""
+    plan_store, record, generator = FakePlanStore(), FakeRecord(), FakeGenerator()
+    run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,
+              record=record, plan_store=plan_store, model="nova3dcg", lora="slime")
+    run_batch(sync_runner(), FakeStore(), generator, text='["ikinci"]', variants=1,
+              record=record, plan_store=plan_store, model="nova3dcg")
+
+    assert generator.loras == ["slime", ""]
+
+
+def test_a_frame_planned_before_loras_renders_with_the_models_standard():
+    plan_store, generator = FakePlanStore(), FakeGenerator()
+    # A model but no "lora" key -- what every plan written before this item holds.
+    plan_store.frames = [{"number": 0, "letter": "a", "prompt": "eski", "negative": "", "seed": 1,
+                          "model": "nova3dcg"}]
+
+    resume_batch(sync_runner(), FakeStore(), FakeRecord(), plan_store, {layers.PHOTO: generator},
+                 lambda: "t1", "düğün")
+
+    assert generator.loras == [""]
+
+
 def test_a_frame_planned_before_models_renders_with_the_graphs_own():
     plan_store, generator = FakePlanStore(), FakeGenerator()
     # No "model" key at all -- exactly what an older plan file holds.
@@ -3227,7 +3270,7 @@ def test_the_loop_finishes_photos_before_it_starts_videos():
         def __init__(self, kind):
             self.kind = kind
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             done.append(self.kind)
             return b"X"
 
@@ -3256,40 +3299,71 @@ def test_nothing_is_written_when_nobody_asked_for_timings():
     assert runner.status()["status"] == "done"
 
 
-def test_the_recipe_list_is_nova_3dcg_and_slime_alone():
-    """Nova Orange and Nova Anime were never used, and each one cost a 7 GiB checkpoint of its own
-    to anyone who ticked it (madde 226)."""
-    from backend.features.photo_generation.domain.recipes import RECIPES
+def test_the_model_list_is_nova_3dcg_and_dasiwa():
+    """A row in the Model box is a checkpoint again, and nothing else: the lora is its own box now
+    (madde 237)."""
+    from backend.features.photo_generation.domain.catalog import MODELS
 
-    assert [recipe["id"] for recipe in RECIPES] == ["nova3dcg", "slime"]
+    assert [model["id"] for model in MODELS] == ["nova3dcg", "dasiwa"]
 
 
-def test_with_no_recipes_chosen_the_list_is_empty():
-    """The app only runs behind the notebook, and there no recipe means photo was not installed --
+def test_the_lora_list_is_slime_alone():
+    """Slime left the Model box for this one -- it was never a checkpoint, it is Nova's checkpoint
+    with another lora over it."""
+    from backend.features.photo_generation.domain.catalog import LORAS
+
+    assert [lora["id"] for lora in LORAS] == ["slime"]
+
+
+def test_with_no_models_chosen_the_list_is_empty():
+    """The app only runs behind the notebook, and there no model means photo was not installed --
     a video-only session. Asking the renderer for checkpoints then could only come back empty or
     fall over, and falling over put an error card on the project screen (madde 229)."""
     assert list_models([]) == []
 
 
-def test_the_recipes_the_notebook_chose_are_what_the_panel_lists():
-    """A row is a recipe now -- a name, a checkpoint and a lora arrangement -- and the notebook is
-    the side that knows which ones it installed."""
-    rows = list_models(["nova3dcg", "slime"])
+def test_the_models_the_notebook_chose_are_what_the_panel_lists():
+    """The notebook is the side that knows which checkpoints it installed, and the value it sends
+    is the plain id: nothing carries a `recipe:` prefix any more (madde 237)."""
+    rows = list_models(["nova3dcg", "dasiwa"])
 
-    assert rows == [{"value": "recipe:nova3dcg", "label": "Nova 3DCG XL"},
-                    {"value": "recipe:slime", "label": "Slime"}]
-
-
-def test_a_recipe_the_notebook_did_not_choose_is_not_offered():
-    """Slime renders on Nova's checkpoint, so installing Slime alone puts that file on the disk.
-    Reading the disk would offer Nova as well -- a row the user never asked the notebook for."""
-    assert list_models(["slime"]) == [{"value": "recipe:slime", "label": "Slime"}]
+    assert rows == [{"value": "nova3dcg", "label": "Nova 3DCG XL"},
+                    {"value": "dasiwa", "label": "DaSiWa Illustrious | Anime"}]
 
 
-def test_an_unknown_recipe_id_is_dropped_and_takes_nothing_with_it():
+def test_a_model_the_notebook_did_not_choose_is_not_offered():
+    """A lora can bring a checkpoint onto the disk with it, so reading the disk would offer rows the
+    user never ticked."""
+    assert list_models(["dasiwa"]) == [
+        {"value": "dasiwa", "label": "DaSiWa Illustrious | Anime"}]
+
+
+def test_an_unknown_model_id_is_dropped_and_takes_nothing_with_it():
     """An id the app does not know is a notebook that moved ahead of this checkout. The rows it
     does know still render, because losing the whole list over one unknown name would take the
     panel down for a reason the user cannot act on."""
-    assert list_models(["yok", "slime"]) == [
-        {"value": "recipe:slime", "label": "Slime"},
+    assert list_models(["yok", "nova3dcg"]) == [
+        {"value": "nova3dcg", "label": "Nova 3DCG XL"},
     ]
+
+
+def test_the_lora_box_opens_with_standart_and_offers_every_lora():
+    """The first row is the one nobody has to think about: the model's own usual arrangement, which
+    is what every photo before this item was rendered with (madde 237).
+
+    Every lora follows it, with no notebook list to filter them: the lora files come down with the
+    photo group whatever was ticked -- together under 1.1 GiB -- so a box per lora would decide
+    nothing about what is on the disk."""
+    from backend.features.photo_generation.domain.usecases.list_models import list_loras
+
+    assert list_loras() == [{"value": "", "label": "Standart"},
+                            {"value": "slime", "label": "Slime"}]
+
+
+def test_a_planned_frame_carries_the_lora_it_was_submitted_under():
+    """Like the model and the negative, and for the same reason: a live queue holds batches sent
+    under different settings, and a frame renders with its own."""
+    frames = plan_frames(0, ["kraliçe"], "", 1, lambda: 7, model="nova3dcg", lora="slime")
+
+    assert frames[0]["model"] == "nova3dcg"
+    assert frames[0]["lora"] == "slime"

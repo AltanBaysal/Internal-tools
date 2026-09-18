@@ -123,48 +123,112 @@ def test_a_bare_file_name_still_leaves_the_loras_alone(tmp_path):
     assert lora_slots(client.submitted["27"]["inputs"]) == SHIPPED_LORAS
 
 
-def test_a_recipe_renders_with_its_own_checkpoint(tmp_path):
-    """The value carries the recipe, not the file. Writing it into the loader as-is would ask
-    ComfyUI for a checkpoint called `recipe:slime`."""
+USNR = {"lora_1": {"on": True, "lora": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors",
+                   "strength": 0.8}}
+SLIME = {"lora_1": {"on": True, "lora": "translucent_penetration_v5.safetensors", "strength": 0.9}}
+
+
+def test_a_model_renders_with_its_own_checkpoint_and_its_standard_loras(tmp_path):
+    """The value is the model's id, not its file -- written into the loader as-is it would ask
+    ComfyUI for a checkpoint called `nova3dcg`. And no lora chosen means Standart: the model's own
+    usual arrangement, which for Nova is USNR at 0.8, so every photo renders as it did before the
+    lora box existed (madde 237)."""
     client, generator = generator_at(tmp_path)
 
-    generator.generate("kraliçe", "", 1, "recipe:slime")
+    generator.generate("kraliçe", "", 1, "nova3dcg")
 
     assert client.submitted["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == USNR
 
 
-def test_a_recipe_leaves_only_its_own_loras_switched_on(tmp_path):
-    """This is the whole item: the user picked Slime because USNR was off when they liked what they
-    saw. A recipe that adds its lora beside the shipped one renders something nobody chose."""
+def test_dasiwa_renders_on_its_own_checkpoint_with_no_lora(tmp_path):
+    """DaSiWa's standard is bare. Leaving the export's USNR switched on would be a lora nobody
+    chose for this model."""
     client, generator = generator_at(tmp_path)
 
-    generator.generate("kraliçe", "", 1, "recipe:slime")
+    generator.generate("kraliçe", "", 1, "dasiwa")
 
-    assert lora_slots(client.submitted["27"]["inputs"]) == {
-        "lora_1": {"on": True, "lora": "translucent_penetration_v5.safetensors", "strength": 0.9},
-    }
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == \
+        "DasiwaIllustriousAnime_epitaphecstasy.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == {}
 
 
-def test_a_recipes_trigger_opens_the_prompt(tmp_path):
+def test_a_chosen_lora_replaces_the_models_standard_arrangement(tmp_path):
+    """The user picked Slime because USNR was off when they liked what they saw (madde 214). A lora
+    added beside the model's own would render something nobody chose."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, "nova3dcg", "slime")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == SLIME
+
+
+def test_a_chosen_loras_trigger_opens_the_prompt(tmp_path):
     """A lora that is loaded but never named in the prompt changes nothing -- the render comes back
-    ordinary and no error is raised anywhere. The recipe carries the word, so picking it is enough."""
+    ordinary and no error is raised anywhere. The lora carries the word, so picking it is enough."""
     client, generator = generator_at(tmp_path)
 
-    generator.generate("kraliçe tahtta", "", 1, "recipe:slime")
+    generator.generate("kraliçe tahtta", "", 1, "nova3dcg", "slime")
 
     node3 = client.submitted["3"]["inputs"]
     assert node3["wildcard_text"] == "translucent penetration, kraliçe tahtta"
     assert node3["populated_text"] == "translucent penetration, kraliçe tahtta"
 
 
-def test_a_recipe_with_no_trigger_leaves_the_prompt_and_the_negative_alone(tmp_path):
-    """Only a recipe whose lora needs a word carries one, and the negative is nobody's recipe."""
+def test_the_standard_arrangement_leaves_the_prompt_and_the_negative_alone(tmp_path):
+    """Only a lora that needs a word carries one, and the negative is nobody's lora."""
     client, generator = generator_at(tmp_path)
 
-    generator.generate("kraliçe", "blurry", 1, "recipe:nova3dcg")
+    generator.generate("kraliçe", "blurry", 1, "nova3dcg")
 
     assert client.submitted["3"]["inputs"]["populated_text"] == "kraliçe"
     assert client.submitted["4"]["inputs"]["populated_text"] == "blurry"
+
+
+def test_a_lora_goes_onto_any_model_it_is_chosen_with(tmp_path):
+    """The two boxes are independent: Slime over DaSiWa is a pick the panel allows, and it is what
+    madde 222's trial is about."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, "dasiwa", "slime")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == \
+        "DasiwaIllustriousAnime_epitaphecstasy.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == SLIME
+
+
+def test_an_old_slime_recipe_renders_as_nova_with_slime(tmp_path):
+    """Frames planned before the split carry `recipe:slime` in the plan. No migration is written
+    (the user's call), but they render as they were picked."""
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe tahtta", "", 1, "recipe:slime")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == SLIME
+    assert client.submitted["3"]["inputs"]["populated_text"] == \
+        "translucent penetration, kraliçe tahtta"
+
+
+def test_an_old_nova_recipe_renders_as_nova_with_its_standard(tmp_path):
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1, "recipe:nova3dcg")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == USNR
+
+
+def test_an_unknown_lora_stops_the_render(tmp_path):
+    """Rendering without it would hand back a photo that is not what was asked for, with nothing
+    anywhere saying the lora was never applied."""
+    _client, generator = generator_at(tmp_path)
+
+    with pytest.raises(RuntimeError) as exc:
+        generator.generate("kraliçe", "", 1, "nova3dcg", "yok")
+
+    assert "yok" in str(exc.value)
 
 
 @pytest.mark.parametrize("retired", ["novaorange", "novaanime"])
@@ -177,7 +241,7 @@ def test_a_retired_nova_recipe_renders_as_nova_3dcg(tmp_path, retired):
     generator.generate("kraliçe", "", 1, f"recipe:{retired}")
 
     assert client.submitted["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
-    assert lora_slots(client.submitted["27"]["inputs"]) == SHIPPED_LORAS
+    assert lora_slots(client.submitted["27"]["inputs"]) == USNR
 
 
 def test_an_unknown_recipe_stops_the_render(tmp_path):
@@ -191,8 +255,8 @@ def test_an_unknown_recipe_stops_the_render(tmp_path):
     assert "yok" in str(exc.value)
 
 
-def test_a_recipe_on_a_graph_with_no_lora_loader_says_which_node_is_missing(tmp_path):
-    """A re-export can renumber the graph. Asked for only when a recipe needs it: demanding the
+def test_a_model_on_a_graph_with_no_lora_loader_says_which_node_is_missing(tmp_path):
+    """A re-export can renumber the graph. Asked for only when a model needs it: demanding the
     loader on every render would break a graph that never had one."""
     graph = {
         "3": {"inputs": {"wildcard_text": "", "populated_text": ""}},
@@ -203,7 +267,7 @@ def test_a_recipe_on_a_graph_with_no_lora_loader_says_which_node_is_missing(tmp_
     _client, generator = generator_at(tmp_path, graph)
 
     with pytest.raises(RuntimeError) as exc:
-        generator.generate("kraliçe", "", 1, "recipe:slime")
+        generator.generate("kraliçe", "", 1, "nova3dcg", "slime")
 
     assert "27" in str(exc.value)
 

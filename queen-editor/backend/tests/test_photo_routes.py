@@ -33,9 +33,11 @@ from backend.web.app import create_app
 class FakeGenerator:
     def __init__(self):
         self.calls = []
+        self.loras = []
 
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
+        self.loras.append(lora)
         return b"PNGDATA"
 
 
@@ -48,7 +50,7 @@ class StopsAfter:
         self.count = count
         self.calls = 0
 
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         self.calls += 1
         if self.calls > self.count:
             self.runner.request_stop()
@@ -247,7 +249,7 @@ def test_adding_to_the_running_projects_own_queue_is_accepted(tmp_path):
 
 def test_failed_batch_shows_the_real_error_in_status(tmp_path):
     class Broken:
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             raise RuntimeError("node 9 (CheckpointLoaderSimple): dosya yok")
 
     client, _ = make_client(tmp_path, generator=Broken())
@@ -374,7 +376,7 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     class BlowsUpOnTheFirstPrompt:
         """Drops the same job every time it is offered -- three attempts, then red."""
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             if prompt == "a":
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
@@ -387,15 +389,41 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     assert statuses_of(client) == [("P1_0.png", "done"), ("P0_0.png", "failed")]
 
 
-def test_with_no_recipes_the_models_endpoint_answers_an_empty_list(tmp_path):
-    # Not an error: a video-only session has no photo recipe, and the panel's install card is what
+def test_with_no_models_the_models_endpoint_answers_an_empty_list(tmp_path):
+    # Not an error: a video-only session has no photo model, and the panel's install card is what
     # says photo is not here. A 502 put a failure card on top of that (madde 229).
+    #
+    # The loras ride in the same answer: the panel draws the two boxes together (madde 237). They
+    # are not filtered by the notebook -- the lora files come with the photo group whatever was
+    # ticked -- so they are listed even here, where the install card is what stops a batch.
     client, _ = make_client(tmp_path)
 
     resp = client.get("/api/models")
 
     assert resp.status_code == 200
-    assert resp.get_json() == {"models": []}
+    assert resp.get_json() == {"models": [], "loras": [{"value": "", "label": "Standart"},
+                                                       {"value": "slime", "label": "Slime"}]}
+
+
+def test_every_frame_of_a_batch_carries_the_chosen_lora(tmp_path):
+    generator = FakeGenerator()
+    client, drive = make_client(tmp_path, generator=generator)
+
+    generate(client, prompts='["a"]', variants=2, model="nova3dcg", lora="slime")
+
+    assert generator.loras == ["slime", "slime"]
+    plan = json.loads((drive / "düğün" / "plan.json").read_text(encoding="utf-8"))
+    assert {frame["lora"] for frame in plan["frames"]} == {"slime"}
+
+
+def test_a_lora_of_the_wrong_type_is_sent_as_the_standard(tmp_path):
+    """Coerced the way the model already is: a non-string is nobody's pick."""
+    generator = FakeGenerator()
+    client, _ = make_client(tmp_path, generator=generator)
+
+    generate(client, prompts='["a"]', variants=1, lora=7)
+
+    assert generator.loras == [""]
 
 
 def test_every_frame_of_a_batch_carries_the_chosen_model(tmp_path):
@@ -452,7 +480,7 @@ def test_retry_without_a_file_puts_every_red_frame_back(tmp_path):
         def __init__(self):
             self.forgiving = False
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             if not self.forgiving:
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"

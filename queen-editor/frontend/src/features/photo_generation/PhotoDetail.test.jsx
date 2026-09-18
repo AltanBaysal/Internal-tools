@@ -58,6 +58,7 @@ const MIXED = [waiting("3_a.png", "dördüncü", "bulanık"),
                done("0_a.png", "ilk", "düşük çözünürlük")];
 
 const IDLE = { status: "idle" };
+const LORAS = [{ value: "", label: "Standart" }, { value: "slime", label: "Slime" }];
 const RUNNING = { status: "running", project: "düğün", current: { id: "2_a" } };
 
 // Advancing the fake clock inside act() flushes both the timers and the promises they unblock --
@@ -67,12 +68,12 @@ async function settle(ms = 0) {
 }
 
 // The page is opened by the frame's identity: that is what the address carries.
-async function open(fid, { frames = PHOTOS, status = IDLE, models = [] } = {}) {
+async function open(fid, { frames = PHOTOS, status = IDLE, models = [], loras = LORAS } = {}) {
   listFrames.mockResolvedValue(frames);
   getStatus.mockResolvedValue(status);
-  // The rows the renderer offers. Needed here because a row can be a recipe, and then the stored
-  // value is an id -- the name the user chose it by lives in this list and nowhere else.
-  listModels.mockResolvedValue(models);
+  // The rows the renderer offers. Needed here because the stored value is an id -- the name the
+  // user chose it by lives in this list and nowhere else. The loras ride in the same answer.
+  listModels.mockResolvedValue({ models, loras });
   render(<PhotoDetail project="düğün" frame={fid} />);
   await settle();
 }
@@ -327,54 +328,75 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.queryByText(/\.safetensors/)).toBeNull();
   });
 
-  it("says a recipe by the name it was picked by", async () => {
-    // A recipe is stored as its id, because that is what survives a renamed label. `recipe:slime`
-    // on screen would be an address shown to the person who chose "Slime" from a list.
+  it("says a model by the name it was picked by", async () => {
+    // A model is stored as its id, because that is what survives a renamed label. `dasiwa` on
+    // screen would be an address shown to the person who chose it from a list.
     await open("P0_0", {
-      frames: [{ ...LAYERED, model: "recipe:slime" }],
-      models: [{ value: "recipe:slime", label: "Slime" }],
+      frames: [{ ...LAYERED, model: "dasiwa" }],
+      models: [{ value: "dasiwa", label: "DaSiWa Illustrious | Anime" }],
     });
 
-    expect(screen.getByText("Model").parentElement.textContent).toContain("Slime");
-    expect(screen.queryByText(/recipe:/)).toBeNull();
+    expect(screen.getByText("Model").parentElement.textContent)
+      .toContain("DaSiWa Illustrious | Anime");
   });
 
   it("falls back to what the frame stored when the row list is not there", async () => {
     // The list is a fetch of its own and it can fail. Drawing nothing would lose a row the frame
     // really does carry; the stored value is worse than the label and better than silence.
-    await open("P0_0", { frames: [{ ...LAYERED, model: "recipe:slime" }], models: [] });
+    await open("P0_0", { frames: [{ ...LAYERED, model: "dasiwa" }], models: [] });
 
-    expect(screen.getByText("Model").parentElement.textContent).toContain("recipe:slime");
+    expect(screen.getByText("Model").parentElement.textContent).toContain("dasiwa");
+  });
+
+  it("says which lora the frame was made with (madde 237)", async () => {
+    await open("P0_0", {
+      frames: [{ ...LAYERED, model: "nova3dcg", lora: "slime" }],
+      models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }],
+    });
+
+    expect(screen.getByText("LoRA").parentElement.textContent).toContain("Slime");
+  });
+
+  it("calls a frame with no lora Standart, which is what it was made with", async () => {
+    // Every frame before the lora box existed, and every one sent with Standart since: the model's
+    // own arrangement is a real answer, not a missing one.
+    await open("P0_0", { frames: [{ ...LAYERED, model: "nova3dcg" }],
+                         models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }] });
+
+    expect(screen.getByText("LoRA").parentElement.textContent).toContain("Standart");
   });
 
   it("draws no model row for a frame that never carried one", async () => {
     // Frames planned before models could be chosen carry none, and no record says which checkpoint
     // the graph shipped that day. Naming one would be inventing it; the row is simply not drawn --
-    // the rule "Üretim modu" already follows.
+    // the rule "Üretim modu" already follows. Its lora goes with it for the same reason.
     await open("0_a", { frames: PHOTOS });
 
     expect(screen.queryByText("Model")).toBeNull();
+    expect(screen.queryByText("LoRA")).toBeNull();
   });
 
-  it("keeps the model on the photo tab alone", async () => {
-    // The model is the photo's: video and sound jobs are planned with none. On their tabs the name
-    // would read as the model that made THAT layer.
+  it("keeps the model and the lora on the photo tab alone", async () => {
+    // Both are the photo's: video and sound jobs are planned with neither. On their tabs the names
+    // would read as what made THAT layer.
     await open("P0_0", { frames: [LAYERED] });
 
     fireEvent.click(tab("Video"));
     expect(screen.queryByText("Model")).toBeNull();
+    expect(screen.queryByText("LoRA")).toBeNull();
 
     fireEvent.click(tab("Ses"));
     expect(screen.queryByText("Model")).toBeNull();
+    expect(screen.queryByText("LoRA")).toBeNull();
   });
 
-  it("keeps the photo tab's top group to its three rows", async () => {
+  it("keeps the photo tab's top group to its four rows", async () => {
     // The video tab's own list is pinned above. This is the photo tab's, and it pins the order too:
-    // the model goes last, behind the two rows that say which frame this is.
+    // the model and its lora go last, behind the two rows that say which frame this is.
     await open("P0_0", { frames: [LAYERED] });
 
     expect([...document.querySelectorAll("[data-field]")].map((one) => one.textContent))
-      .toEqual(["Sıra", "Dosya adı", "Model"]);
+      .toEqual(["Sıra", "Dosya adı", "Model", "LoRA"]);
   });
 
   it("centres the one line a waiting box holds", async () => {
@@ -464,7 +486,7 @@ describe("PhotoDetail — the stage follows the frame (madde 232)", () => {
   async function stepping(frames, tabName) {
     listFrames.mockResolvedValue(frames);
     getStatus.mockResolvedValue(IDLE);
-    listModels.mockResolvedValue([]);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
     const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
     await settle();
     if (tabName) fireEvent.click(tab(tabName));
@@ -823,7 +845,7 @@ describe("PhotoDetail — deleting keeps the direction (madde 234)", () => {
   async function mount(fid, frames = FIVE) {
     listFrames.mockResolvedValue(frames);
     getStatus.mockResolvedValue(IDLE);
-    listModels.mockResolvedValue([]);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
     const view = render(<PhotoDetail project="düğün" frame={fid} />);
     await settle();
     return (next) => { view.rerender(<PhotoDetail project="düğün" frame={next} />); return settle(); };
