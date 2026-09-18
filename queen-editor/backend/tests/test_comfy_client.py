@@ -235,6 +235,17 @@ def test_fetch_output_says_what_came_when_no_output_has_the_wanted_extension():
     assert "v.webm" in str(blew_up.value)
 
 
+def test_fetch_output_names_the_wanted_extension_when_none_came():
+    # Nothing matched, so the batch size is not the question -- the extension is (madde 245).
+    entry = {"outputs": {"81": {"gifs": [{"filename": "v.webm", "type": "output"}]}}}
+
+    with pytest.raises(RuntimeError) as blew_up:
+        client_with(FakeHttp()).fetch_output(entry, extensions=(".mp4",))
+
+    assert ".mp4" in str(blew_up.value)
+    assert "Batch Size" not in str(blew_up.value)
+
+
 def test_interrupt_posts_to_comfy():
     http = FakeHttp()
     client_with(http).interrupt()

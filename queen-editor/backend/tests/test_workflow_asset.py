@@ -287,6 +287,15 @@ def test_the_h3_graphs_carry_motion_booster_alone_at_seventy():
     assert "H3_Motion_BoosterV2.safetensors" in {row["name"] for row in model_groups.H3_VIDEO}
 
 
+def test_both_h3_graphs_save_an_mp4():
+    """Left on Auto the saver wrote WebM/AV1 in the user's trial (madde 245), which the producer never
+    picks up -- and the rest of the app names, plays and joins videos as mp4."""
+    for graph in _h3_graphs():
+        saver = graph["2568"]
+        assert saver["class_type"] == "DaSiWa_EnhancedVideoCombine"
+        assert (saver["inputs"]["container"], saver["inputs"]["codec"]) == ("MP4", "H.264")
+
+
 def test_the_app_knows_no_video_model_until_the_notebook_names_one():
     """Empty means video was not installed: the disk cannot say which model was picked, only the
     notebook can."""
