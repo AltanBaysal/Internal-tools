@@ -200,6 +200,16 @@ seçilebilir)*, bugünküyü değiştirmek mi, yoksa LoRA ya da prompt tarafınd
 
 *(Kullanıcı, 18 Eylül — "gerçekçi bir model eklenecek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### Video prompt'larında daha fazla kontrol
+
+*(Kullanıcı, 19 Eylül — "video promptlarında daha fazla kontrol kazanmak".)* **Başlamadan önce
+kullanıcıyla konuşulacak; ayrıntılar o konuşmada netleşecek.**
+
+### Modeller bir yere yüklenip daha hızlı indirilebilir mi
+
+*(Kullanıcı, 19 Eylül — "modelleri bir yere yükleyip daha hızlı indirebilir miyiz".)* **Ayrıntılar
+kullanıcıyla konuşulacak.**
+
 ## MiniMax H3
 
 *(Kullanıcı, 18 Eylül.)* MiniMax H3 üzerindeki yeni işler.
