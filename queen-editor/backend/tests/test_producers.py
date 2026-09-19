@@ -172,6 +172,13 @@ def test_wan_and_no_video_at_all_are_judged_by_wan_s_group():
         assert model_groups.groups_for(model)["video"] == model_groups.GROUPS["video"]
 
 
+def test_the_video_row_names_the_model_the_notebook_installed():
+    """The video panel's box shows this name (madde 247). The rule is the one the server picks its
+    producer by: h3 is H3, anything else is WAN."""
+    for model, name in (("h3", "MiniMax H3"), ("wan", "WAN 2.2 I2V"), ("", "WAN 2.2 I2V")):
+        assert list_producers(GROUPS, FakeFiles(), model)[1]["model"] == name, model
+
+
 def test_a_machine_with_h3_on_it_has_a_video_producer():
     files = FakeFiles(present=H3_FILES)
 

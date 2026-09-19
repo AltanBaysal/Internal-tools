@@ -261,14 +261,29 @@ describe("LayerPanel — the panel's own shape", () => {
     expect(rowOf("Loop").style.padding).toBe("10px 12px");
   });
 
+  const VIDEO_ROW = { id: "video", name: "Video üreticisi", installed: true };
+  const offered = () => [...screen.getByRole("combobox").options].map((one) => one.textContent);
+
   it("offers the model in the same box the photo panel uses", () => {
-    // One option, because there is one model per layer -- a box that opens and shows the only
-    // thing there is. The frame and the arrow are the design's; the choice is not invented.
-    renderPanel();
+    // One option, because one video model is installed per session -- a box that opens and shows
+    // the only thing there is. The name is the server's (madde 247): the notebook picked it.
+    renderPanel({ producer: { ...VIDEO_ROW, model: "MiniMax H3" } });
 
     expect(screen.getByRole("combobox").className).toContain("wf-input");
-    expect([...screen.getByRole("combobox").options].map((one) => one.textContent))
-      .toEqual(["WAN 2.2 I2V"]);
+    expect(offered()).toEqual(["MiniMax H3"]);
+  });
+
+  it("offers WAN when the server says WAN", () => {
+    renderPanel({ producer: { ...VIDEO_ROW, model: "WAN 2.2 I2V" } });
+
+    expect(offered()).toEqual(["WAN 2.2 I2V"]);
+  });
+
+  it("names no model before the server has said which", () => {
+    // A name made up here is what showed WAN over an H3 session.
+    renderPanel();
+
+    expect(offered()).not.toContain("WAN 2.2 I2V");
   });
 
   it("has no block of its own for the length", () => {
