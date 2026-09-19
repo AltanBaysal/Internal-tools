@@ -4,6 +4,7 @@ import { fileUrl } from "../../shared/api.js";
 import { navigate, photoPath, projectPath } from "../../shared/router.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
+import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Corner, Making, Pill, Rendering, StatusPill } from "./frame_status.jsx";
 import { CopyGlyph, PlayGlyph, SoundGlyph } from "./glyphs.jsx";
@@ -476,7 +477,7 @@ export default function PhotoDetail({ project, frame: fid }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={HEADER}>
-        <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
+        <Hand size={20}><span className="wf-hl">{`Queen Editor ${VERSION}`}</span></Hand>
         <Hand size={20}>{project}</Hand>
         <Btn ghost style={{ justifySelf: "end" }} onClick={() => navigate(projectPath(project))}>
           <Icon.Left /> Galeriye dön

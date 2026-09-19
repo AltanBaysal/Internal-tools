@@ -9,6 +9,7 @@ import {
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, projectPath } from "../../shared/router.js";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
+import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { useGeneration } from "./useGeneration.js";
 
@@ -116,7 +117,7 @@ export default function ExportScreen({ project }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={HEADER}>
-        <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
+        <Hand size={20}><span className="wf-hl">{`Queen Editor ${VERSION}`}</span></Hand>
         <Hand size={20}>{project} · Export</Hand>
         <Btn ghost style={{ justifySelf: "end" }} onClick={leave}>
           <Icon.Left /> Galeriye dön

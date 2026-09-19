@@ -10,6 +10,7 @@ import {
 } from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
+import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import NameModal from "./NameModal.jsx";
 import ProjectCard from "./ProjectCard.jsx";
@@ -165,7 +166,7 @@ export default function ProjectsScreen() {
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
+        <Hand size={20}><span className="wf-hl">{`Queen Editor ${VERSION}`}</span></Hand>
         {/* The title says which of the two lists is open. */}
         <Hand size={20}>{inArchive ? "Arşiv" : "Projeler"}</Hand>
         {/* The archive is a place that is entered, so it carries its own buttons (madde 224).

@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { exportPath, navigate } from "../../shared/router.js";
+import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Note } from "../../vendor/kit.jsx";
 import { useProducers } from "../producers/useProducers.js";
 import Gallery from "./Gallery.jsx";
@@ -67,7 +68,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={HEADER}>
-        <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
+        <Hand size={20}><span className="wf-hl">{`Queen Editor ${VERSION}`}</span></Hand>
         <Hand size={20}>{project}</Hand>
         <div style={{ display: "flex", gap: 8, justifySelf: "end" }}>
           {/* A button now, not a download link: Export opens the fourth screen and nothing leaves
