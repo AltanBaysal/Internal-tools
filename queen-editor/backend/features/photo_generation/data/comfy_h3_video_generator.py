@@ -30,6 +30,9 @@ FL2VA_SENTENCE = ("How the reference pictures align with the target video — Pi
                   "aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) "
                   "aligns with the {seconds:.2f}-second mark of the target video.")
 
+# Motion Booster's word; the writer decides whether a scene gets it (madde 246).
+TRIGGER = "dynv2"
+
 # The graph previews through a tiny VAE as it samples; only the mp4 is the render.
 VIDEO_EXTENSIONS = (".mp4",)
 
@@ -70,7 +73,13 @@ class ComfyH3VideoGenerator:
             opening = FL2VA_SENTENCE.format(seconds=float(director["duration"]))
         else:
             opening = I2VA_SENTENCE
-        written = f"{opening}\n\n{prompt}"
+        if prompt.startswith(TRIGGER):
+            # The lora only wakes when its word is the first thing H3 reads (user, madde 246), and
+            # the picture sentence is ours -- so the word is lifted out and put in front of it.
+            rest = prompt[len(TRIGGER):].lstrip(". \n")
+            written = f"{TRIGGER}. {opening}\n\n{rest}"
+        else:
+            written = f"{opening}\n\n{prompt}"
         director["prompt"] = written
         timeline["builder_state"]["simple_prompt"] = written
         timeline["resolved_prompt"] = written
