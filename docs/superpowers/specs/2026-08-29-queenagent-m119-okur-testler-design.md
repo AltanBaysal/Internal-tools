@@ -1,6 +1,6 @@
 # Madde 119 — Şema okurunu söyler · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 119.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 119.
 **Gözlenen** *(28 Ağustos, beşinci deneme)*: yapı dosyasında hareket yönetmenliği — `head moving
 back and forth`, `riding with hips moving` — çünkü modelin okuduğu hiçbir metin promptların kime
 gittiğini söylemiyor: SDXL/etiket bilgisi (K9) yalnız modelin görmediği belgelerde, karenin tek

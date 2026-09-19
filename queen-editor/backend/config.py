@@ -22,6 +22,16 @@ COMFY_URL = os.environ.get("QE_COMFY_URL", "http://127.0.0.1:8188")
 # below is only the fallback.
 COMFY_ROOT = os.environ.get("QE_COMFY_ROOT", "/content/ComfyUI")
 
+# Where the notebook sends ComfyUI's output. When ComfyUI cannot be reached, its tail goes into the
+# error: nothing else can say why it was gone, and the file dies with the session.
+COMFY_LOG = os.environ.get("QE_COMFY_LOG", "/content/comfyui.log")
+
+# Which models the notebook installed, by id. The disk cannot answer this: a checkpoint left from
+# another run would be listed as if it had been ticked. Empty means photo was not installed, and the
+# Model box offers nothing. The loras need no such list: they come with the photo group.
+PHOTO_MODELS = [part.strip() for part in os.environ.get("QE_PHOTO_MODELS", "").split(",")
+                if part.strip()]
+
 # The graph ships in the repo (our own copy -- never read collab-toolbox's file).
 WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
 # The video graph the same way: our own WAN 2.2 I2V export, exported from ComfyUI and committed.
@@ -30,6 +40,14 @@ VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_vide
 # one above with a node swapped, so it ships beside it and standard production is untouched.
 VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR),
                                               "workflow_video_first_last_api.json")
+# Which video model the notebook installed: "wan", "h3", or empty when video was not installed. The
+# two never share a session (madde 243), and the disk cannot say which one was picked.
+VIDEO_MODEL = os.environ.get("QE_VIDEO_MODEL", "")
+# MiniMax H3's two graphs, exported in madde 213's trial and made sterile in 242: I2VA for a video
+# that hangs on a photo, FL2VA for one that arrives at another.
+H3_VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_video_h3_api.json")
+H3_VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR),
+                                                 "workflow_video_h3_first_last_api.json")
 # Sound has no graph: MMAudio runs inside this process, so its weights are a model file like any
 # other, installed by the notebook rather than shipped here.
 

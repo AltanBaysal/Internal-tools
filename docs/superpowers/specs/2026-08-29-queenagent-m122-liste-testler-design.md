@@ -1,6 +1,6 @@
 # Madde 122 — Numaralı liste bire takılmıyor · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 122.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 122.
 **Gözlenen** *(28 Ağustos)*: sohbette numaralı liste `1 2 3` yerine `1 1 1` sayıyor.
 
 ## Kök neden — bulundu

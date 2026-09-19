@@ -1,6 +1,6 @@
 # Görev 9 — Yan barda açık ikona basınca panel kapansın
 
-**Roadmap:** [v7](../plans/2026-08-13-queen-editor-v7-roadmap.md) · Blok 4
+**Roadmap:** [v3 Koşu 3](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 4
 
 ## Sorun
 

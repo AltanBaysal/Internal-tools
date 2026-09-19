@@ -1,7 +1,7 @@
 # Queen Editor v4 · Madde 1 — Canlı kuyruk (arka uç)
 
 **Tarih:** 2026-08-08 · **Yol haritası:**
-[v4 Madde 1](../plans/2026-08-08-queen-editor-v4-roadmap.md) · **Kapsadığı kodlar:** G12, ve
+[v2 Madde 1](../roadmaps/2026-08-08-queen-editor-v2-roadmap.md) · **Kapsadığı kodlar:** G12, ve
 P4 · P5 · G3'ün zemini · **Katman:** yalnız arka uç
 
 ## Amaç

@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getStatus, listFrames, listProducers, resumeBatch } from "../../shared/api.js";
+import { generateBatch, getStatus, listFrames, listProducers, resumeBatch }
+  from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import ProjectScreen from "./ProjectScreen.jsx";
 
@@ -17,7 +18,11 @@ vi.mock("../../shared/api.js", () => ({
   generateBatch: vi.fn(),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   listFrames: vi.fn().mockResolvedValue([]),
-  listModels: vi.fn().mockResolvedValue(["nova.safetensors"]),
+  listModels: vi.fn().mockResolvedValue({
+    models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }],
+    loras: [{ value: "usnr", label: "USNR" }, { value: "slime", label: "Slime" },
+            { value: "none", label: "Boş" }],
+  }),
   listProducers: vi.fn().mockResolvedValue([]),
   fileUrl: (project, file) => `/photos/${project}/${file}`,
   resumeBatch: vi.fn(),
@@ -42,6 +47,13 @@ beforeEach(() => {
 });
 
 describe("ProjectScreen app bar", () => {
+  it("puts the version next to the name", () => {
+    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    renderScreen();
+
+    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+  });
+
   it("opens the export screen instead of downloading a file", () => {
     renderScreen();
 
@@ -315,6 +327,26 @@ describe("ProjectScreen — coming back to where the gallery was", () => {
 
     // The list was already remembered across mounts; this is the other half of standing still.
     expect(boxOf().scrollTop).toBe(640);
+  });
+});
+
+describe("ProjectScreen — the lora is kept with the project (madde 238)", () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => vi.useRealTimers());
+
+  it("saves the pick with the rest of the panel when the batch is sent", async () => {
+    // The record is what a project opens on, and the model has always been in it. The lora is a
+    // real choice now, so it rides along: a Slime project opens on Slime.
+    const onSaveSettings = vi.fn().mockResolvedValue();
+    generateBatch.mockResolvedValue({ job: "running", added: 1, frames: [] });
+    render(<ProjectScreen project="lora" onSaveSettings={onSaveSettings}
+                          settings={{ ...SETTINGS, prompts: '["a"]', model: "nova3dcg",
+                                      lora: "slime" }} />);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onSaveSettings).toHaveBeenCalledWith(expect.objectContaining({ lora: "slime" }));
   });
 });
 

@@ -1,6 +1,6 @@
 # Queen Editor v9 · Görev 1 — Kurulum uygulamadan kalksın
 
-**Tarih:** 2026-08-13 · **Yol haritası:** [v9](../plans/2026-08-13-queen-editor-v9-roadmap.md) · Görev 1
+**Tarih:** 2026-08-13 · **Yol haritası:** [v3 Koşu 5](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Görev 1
 **Karar sahibi:** kullanıcı (2026-08-13).
 
 ## Problem

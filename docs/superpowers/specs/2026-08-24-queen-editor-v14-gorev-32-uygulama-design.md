@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-24 · **Kaynak:** kullanıcı kuralı, Colab turu
 **Öncesi:** [Görev 32 test spec'i](2026-08-24-queen-editor-v14-gorev-32-testler-design.md)
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 32
+**Yol haritası:** [v4](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 32
 
 ## Ne yeşile döndürülüyor
 

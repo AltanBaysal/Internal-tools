@@ -13,17 +13,46 @@ from backend.features.projects.domain.usecases.rename_project import rename_proj
 from backend.features.projects.domain.usecases.save_settings import save_settings
 
 
+def _archive():
+    """The archive use cases, reached where they are used rather than at the top of the file: the
+    module does not exist yet in the test tour, and an import up there would fail collection and
+    take every other question in this file down with it."""
+    from backend.features.projects.domain.usecases import archive_project
+    return archive_project
+
+
+def archive_project(store, name):
+    return _archive().archive_project(store, name)
+
+
+def restore_project(store, name):
+    return _archive().restore_project(store, name)
+
+
+def list_archived_projects(store):
+    return _archive().list_archived_projects(store)
+
+
 class FakeStore:
     """In-memory ProjectStore -- no Drive, no filesystem."""
 
     def __init__(self, projects=()):
         self.projects = list(projects)
+        self.archived = []
 
     def list(self):
         return list(self.projects)
 
+    def list_archived(self):
+        return list(self.archived)
+
+    def is_archived(self, name):
+        return any(p.name == name for p in self.archived)
+
     def create(self, name):
-        if any(p.name == name for p in self.projects):
+        # A name the archive holds is taken too (madde 223): without this the project that owns it
+        # has no way back, because the archived card offers the way back and nothing else.
+        if any(p.name == name for p in self.projects) or self.is_archived(name):
             return None
         project = Project(name, 100.0)
         self.projects.append(project)
@@ -31,7 +60,7 @@ class FakeStore:
 
     def rename(self, old, new):
         """The renamed project, None when the new name is taken, False when the old one is gone."""
-        if any(p.name == new for p in self.projects):
+        if any(p.name == new for p in self.projects) or self.is_archived(new):
             return None
         found = next((p for p in self.projects if p.name == old), None)
         if found is None:
@@ -42,17 +71,39 @@ class FakeStore:
 
 
 class RecordingStore(FakeStore):
-    """A store that writes down when it was asked to delete, so order can be asserted."""
+    """A store that writes down when it was asked to delete or archive, so order can be asserted."""
 
-    def __init__(self, log, projects=("düğün",)):
+    def __init__(self, log, projects=("düğün",), archived=()):
         super().__init__([Project(name, 100.0) for name in projects])
         self.log = log
+        self.archived = [Project(name, 100.0) for name in archived]
 
     def delete(self, name):
         self.log.append(f"delete:{name}")
         gone = [p for p in self.projects if p.name == name]
         self.projects = [p for p in self.projects if p.name != name]
         return bool(gone)
+
+    def archive(self, name):
+        """The marked project, or False when there is no such project. Nothing can collide any more
+        (madde 227): the mark says which list the project is drawn in, and the project itself does
+        not go anywhere."""
+        self.log.append(f"archive:{name}")
+        found = next((p for p in self.projects if p.name == name), None)
+        if found is None:
+            return False
+        self.projects = [p for p in self.projects if p.name != name]
+        self.archived.append(found)
+        return found
+
+    def restore(self, name):
+        self.log.append(f"restore:{name}")
+        found = next((p for p in self.archived if p.name == name), None)
+        if found is None:
+            return False
+        self.archived = [p for p in self.archived if p.name != name]
+        self.projects.append(found)
+        return found
 
 
 def test_deleting_a_project_stops_its_production_before_the_folder_goes():
@@ -76,6 +127,93 @@ def test_deleting_an_unknown_project_still_says_so():
 def test_list_projects_newest_change_first():
     store = FakeStore([Project("eski", 100.0), Project("yeni", 300.0), Project("orta", 200.0)])
     assert [p.name for p in list_projects(store)] == ["yeni", "orta", "eski"]
+
+
+def test_archiving_a_project_leaves_its_production_alone():
+    """Madde 227. Halting was the moving archive's debt: a worker writing into a folder on its way
+    somewhere else left half a project here and half there. Nothing moves now, and the project is
+    meant to go on working -- so there is nothing to stop, and no port to stop it with."""
+    log = []
+    store = RecordingStore(log)
+
+    archive_project(store, "düğün")
+
+    assert log == ["archive:düğün"]
+
+
+def test_archiving_something_that_is_not_there_says_so():
+    with pytest.raises(ProjectMissing) as exc:
+        archive_project(RecordingStore([]), "yok")
+    assert str(exc.value) == "Proje yok: yok"
+
+
+def test_restoring_something_the_archive_does_not_hold():
+    with pytest.raises(ProjectMissing) as exc:
+        restore_project(RecordingStore([], projects=()), "yok")
+    assert str(exc.value) == "Proje yok: yok"
+
+
+def test_creating_onto_a_name_the_archive_holds_is_refused():
+    """Madde 223, and what the user hit: the name went to a new project, and the archived one could
+    never come back out."""
+    store = RecordingStore([], projects=(), archived=("düğün",))
+
+    with pytest.raises(NameTaken):
+        create_project(store, "düğün")
+
+    assert [p.name for p in store.list()] == []
+
+
+def test_the_refusal_says_the_name_is_in_the_archive():
+    """Not the usual sentence: someone reading "bu ad zaten kullanılıyor" would go looking for it
+    among their projects, where it is not."""
+    store = RecordingStore([], projects=(), archived=("düğün",))
+
+    with pytest.raises(NameTaken) as exc:
+        create_project(store, "düğün")
+
+    assert "arşiv" in str(exc.value).lower()
+    assert "düğün" in str(exc.value)
+
+
+def test_renaming_onto_a_name_the_archive_holds_says_the_same_thing():
+    """One situation, one sentence -- the rule rename already follows for a name a project holds."""
+    store = RecordingStore([], projects=("nikah",), archived=("düğün",))
+
+    with pytest.raises(NameTaken) as renaming_says:
+        rename_project(store, straight, "nikah", "düğün")
+    with pytest.raises(NameTaken) as creating_says:
+        create_project(store, "düğün")
+
+    assert str(renaming_says.value) == str(creating_says.value)
+
+
+def test_a_name_a_live_project_holds_keeps_the_sentence_it_had():
+    """The new sentence belongs to the archive alone: sending someone to the archive over a name
+    that is sitting on their own screen would read worse than the old wording."""
+    store = RecordingStore([], projects=("düğün",), archived=())
+
+    with pytest.raises(NameTaken) as exc:
+        create_project(store, "düğün")
+
+    assert str(exc.value) == "Bu ad zaten kullanılıyor. Başka bir ad dene."
+
+
+def test_restoring_puts_it_back_among_the_projects():
+    store = RecordingStore([], projects=(), archived=("düğün",))
+
+    restore_project(store, "düğün")
+
+    assert [p.name for p in store.list()] == ["düğün"]
+    assert store.archived == []
+
+
+def test_the_archive_list_is_newest_change_first_too():
+    """One screen, one order: the archive is read with the same use case the projects are."""
+    store = FakeStore()
+    store.archived = [Project("eski", 100.0), Project("yeni", 300.0)]
+
+    assert [p.name for p in list_archived_projects(store)] == ["yeni", "eski"]
 
 
 def test_list_projects_returns_empty_list():
@@ -178,9 +316,9 @@ def test_get_settings_rejects_a_missing_project():
 
 def test_save_settings_stores_what_it_was_given():
     store = FakeSettingsStore()
-    save_settings(store, "düğün", '["a"]', "neg", 4, "nova.safetensors")
+    save_settings(store, "düğün", '["a"]', "neg", 4, "nova3dcg", "slime")
     assert store.saved["düğün"] == {"prompts": '["a"]', "negative": "neg", "variants": 4,
-                                    "model": "nova.safetensors"}
+                                    "model": "nova3dcg", "lora": "slime"}
 
 
 def test_save_settings_keeps_text_the_server_would_reject():

@@ -335,7 +335,7 @@ Expected: dördü de yeşil.
 
 - [ ] **Step 1: Yol haritasını işaretle**
 
-`docs/superpowers/plans/2026-08-20-queen-editor-v14-roadmap.md`: 2. maddenin **İş** hücresi ✅ ile
+`docs/superpowers/roadmaps/2026-08-20-queen-editor-v4-roadmap.md`: 2. maddenin **İş** hücresi ✅ ile
 başlar, başlıktaki sayaç `1/31` → `2/31`.
 
 - [ ] **Step 2: Commit**

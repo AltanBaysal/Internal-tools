@@ -1,6 +1,6 @@
 # Madde 11 — Kaydırma sözleşmesi · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 11](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 11](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynaklar:** fark 13 · **karar 5** · `HANDOFF.md` §2
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

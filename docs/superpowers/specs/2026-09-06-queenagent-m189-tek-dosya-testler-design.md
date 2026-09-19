@@ -1,6 +1,6 @@
 # Madde 189 · test turu — modele giden her metin tek dosyada
 
-**Kaynağı:** [yol haritası, Madde 189](../plans/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 189](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 183 `793fd38`'de kapandı.
 
 ---

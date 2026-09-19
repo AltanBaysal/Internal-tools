@@ -1,6 +1,6 @@
 # Madde 20 — Ray katlanır · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 20](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 20](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** fark 50, 51 · `HANDOFF.md` §2, §8
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

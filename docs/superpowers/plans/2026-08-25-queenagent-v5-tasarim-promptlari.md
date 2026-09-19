@@ -1,6 +1,6 @@
 # QueenAgent v5 — claude.ai/design promptları
 
-**Tarih:** 2026-08-25 · **Kaynak:** [v5 yol haritası](2026-08-25-queenagent-v5-roadmap.md)
+**Tarih:** 2026-08-25 · **Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md)
 
 Beş iş, beş prompt. **Teker teker atılır**: biri gidip tasarım düzelene kadar öteki beklenir —
 üçü aynı alana (cevabın kendi bölgesi ve composer) bakıyor ve aynı anda giderlerse birbirinin

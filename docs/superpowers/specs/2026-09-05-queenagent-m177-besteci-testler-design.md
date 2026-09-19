@@ -1,6 +1,6 @@
 # Madde 177 · test turu — besteci iki satır
 
-**Kaynağı:** [yol haritası](../plans/2026-09-05-queenagent-v7-roadmap.md), Madde 177. Dilim 3'ün
+**Kaynağı:** [yol haritası](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md), Madde 177. Dilim 3'ün
 ilk maddesi, ve koşunun ön yüze dokunan tek yeri.
 
 Bu tur **yalnız testleri** yazıyor ve kırmızı commit'liyor. `dist` derlenmiyor — kaynak

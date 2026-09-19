@@ -1,6 +1,6 @@
 # Madde 52 — Çatal, kullanıcı gitmişse karar vermez · Plan (iki tur)
 
-**Madde:** [v3 yol haritası Madde 52](2026-08-18-queenagent-v3-roadmap.md) ·
+**Madde:** [v2 yol haritası Koşu 2 · Madde 52](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md) ·
 **Kaynak:** [test bulguları, bulgu 15](../research/2026-08-18-queenagent-test-bulgulari.md)
 **Test komutları (değişmez, ikisi de):**
 `python -m pytest queen-agent -q` · `npm test --prefix queen-agent/frontend`

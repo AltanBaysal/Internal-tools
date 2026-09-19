@@ -1,6 +1,6 @@
 # v14 · Görev 9 — Detayda Yeni mod seçicisi · **test turu**
 
-**Kaynak:** [yol haritası v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) 9. madde —
+**Kaynak:** [yol haritası v4](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) 9. madde —
 [İstek 3](../plans/2026-08-20-queen-editor-istekler.md) ve
 [fark listesi](../research/2026-08-20-queen-editor-tasarim-v4-farklari.md) 94, 95, 96.
 

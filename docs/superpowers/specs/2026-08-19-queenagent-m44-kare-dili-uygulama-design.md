@@ -1,6 +1,6 @@
 # Madde 44 — Kare listesi konuşulan dilde ve dosyada · Uygulama Turu Tasarım Belgesi
 
-**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v3 yol haritası Madde 44](../plans/2026-08-18-queenagent-v3-roadmap.md)
+**Tarih:** 2026-08-19 · **Branch:** `fix/mira` · **Madde:** [v2 yol haritası Koşu 2 · Madde 44](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Test turu:** [2026-08-19-queenagent-m44-kare-dili-testler-design.md](2026-08-19-queenagent-m44-kare-dili-testler-design.md) — kırmızı commit `b50e039`
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queen-agent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queen-agent/CODE-STANDARD.md)
 

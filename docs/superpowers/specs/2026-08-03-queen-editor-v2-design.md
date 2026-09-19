@@ -3,7 +3,7 @@
 **Tarih:** 2026-08-03 · **Durum:** onay bekliyor
 **Kaynak:** claude.ai/design projesi `Queen Editor` → `Queen Editor Basit v1.html` + `HANDOFF.md` (kullanıcının güncellediği hâl; brief + 19 ekran artboard'u)
 **İlişki:** [2026-07-24 şemsiye spec'in](2026-07-24-queen-editor-v1-design.md) üstüne gelir — oradaki mimari kararlar (feature-first, servis sınırları, Flask, Vite+dist, Drive düzeni, node id'leri, numaralandırma, seed) **aynen geçerli**; bu spec yalnız tasarımın getirdiği davranış kararlarını ekler ve eskiyenleri düzeltir.
-**Plan:** [2026-08-03-queen-editor-v2-roadmap.md](../plans/2026-08-03-queen-editor-v2-roadmap.md) (Bölüm 6-13)
+**Plan:** [2026-08-03-queen-editor-v1-roadmap.md](../roadmaps/2026-08-03-queen-editor-v1-roadmap.md) (Bölüm 6-13)
 
 ## Amaç
 

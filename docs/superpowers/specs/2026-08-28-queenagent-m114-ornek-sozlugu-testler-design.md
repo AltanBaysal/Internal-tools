@@ -1,6 +1,6 @@
 # Madde 114 — Şemanın örneği model sözlüğüyle yazılır · Tur 1 (testler) tasarımı
 
-**Kaynak madde:** [v5 yol haritası, Blok 8, Madde 114](../plans/2026-08-25-queenagent-v5-roadmap.md)
+**Kaynak madde:** [v5 yol haritası, Blok 8, Madde 114](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md)
 
 ## Neyi tarif ediyoruz
 

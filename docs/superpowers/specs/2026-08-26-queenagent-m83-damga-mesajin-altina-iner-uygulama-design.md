@@ -1,7 +1,7 @@
 # Madde 83 — Mesajın damgası altına iner · **uygulama turu**
 
 **Tarih:** 2026-08-26 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 4, Madde 83 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 4, Madde 83 ·
 **Test turu:** [testler spec'i](2026-08-26-queenagent-m83-damga-mesajin-altina-iner-testler-design.md) ·
 commit `5e46002`, **11 kırmızı**.
 **Tur:** ikiden ikincisi — bu belge **kodu** tarif eder. Testler yazıldı ve kırmızı commit'lendi;

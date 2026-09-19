@@ -1,7 +1,7 @@
 # Madde 66 — Tool call'lar sohbette görünür · **uygulama turu**
 
 **Tarih:** 2026-08-25 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md), Madde 66 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md), Madde 66 ·
 **Önceki tur:** [test tasarımı](2026-08-25-queenagent-m66-tool-satiri-testler-design.md) — yirmi
 test `2be8d6e`'de kırmızı commit'lendi.
 **Tur:** ikiden ikincisi.

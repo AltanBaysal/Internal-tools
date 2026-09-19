@@ -1,6 +1,7 @@
 import json
 
 from backend import config
+from backend.features.producers.domain import model_groups
 from backend.features.producers.domain.model_groups import GROUPS
 
 # The shipped graph is an asset, so its shape is verified here: a UI-format export or a renamed
@@ -110,6 +111,73 @@ def test_both_video_graphs_agree_on_how_long_a_render_runs():
     assert standard["178"]["inputs"]["value"] == first_last["335"]["inputs"]["value"]
 
 
+def _graphs():
+    """The three shipped graphs, read fresh. Every size question below needs all of them: the rule
+    is about how they agree, not about any one of them."""
+    graphs = []
+    for path in (config.WORKFLOW_PATH, config.VIDEO_WORKFLOW_PATH,
+                 config.VIDEO_FIRST_LAST_WORKFLOW_PATH):
+        with open(path, encoding="utf-8") as f:
+            graphs.append(json.load(f))
+    return graphs
+
+
+def _video_size(graph, node_id):
+    """The mxSlider2D's width and height. It carries each as a pair -- the slider's own value and
+    the one it displays -- and a render that read one while a test read the other would pass here
+    and produce something else, so both are asserted equal."""
+    inputs = graph[node_id]["inputs"]
+    assert inputs["Xi"] == inputs["Xf"], f"{node_id}: X çifti ayrışmış"
+    assert inputs["Yi"] == inputs["Yf"], f"{node_id}: Y çifti ayrışmış"
+    return inputs["Xi"], inputs["Yi"]
+
+
+def test_the_photo_graph_renders_the_portrait_size():
+    """Madde 228: back to the size before 218 made it landscape. 1024x1536 is in the graph author's
+    own table of supported sizes -- the High-Res column, which this graph feeds straight into
+    EmptyLatentImage."""
+    photo, _standard, _first_last = _graphs()
+
+    assert photo["1"]["inputs"]["value"] == 1024
+    assert photo["11"]["inputs"]["value"] == 1536
+
+
+def test_both_video_graphs_render_the_same_portrait_size():
+    """480 wide keeps the short side at the 480 WAN 2.2's I2V class was trained at, and 720 makes
+    it exactly the photo's 2:3.
+
+    The two graphs are asserted against each other as well as against the number -- a project mixes
+    standard and first-last videos in one export, and two sizes there is a broken file.
+    """
+    _photo, standard, first_last = _graphs()
+
+    assert _video_size(standard, "208") == (480, 720)
+    assert _video_size(first_last, "328") == (480, 720)
+
+
+def test_the_photo_and_the_video_agree_on_the_shape_of_the_frame():
+    """The rule behind the numbers, and the one that outlives them: the video graph pulls the photo
+    to its own size with keep_proportion "stretch", so two shapes that drift apart do not fail --
+    they squash the picture, silently. One percent is well under what an eye catches.
+    """
+    photo, standard, _first_last = _graphs()
+    photo_shape = photo["1"]["inputs"]["value"] / photo["11"]["inputs"]["value"]
+    width, height = _video_size(standard, "208")
+
+    assert abs(photo_shape - width / height) / photo_shape < 0.01
+
+
+def test_every_graph_makes_a_portrait_frame():
+    """The item itself, asked of the thing rather than of the numbers: an edit that keeps the ratio
+    but swaps width and height in both graphs would pass the shape assertion above."""
+    photo, standard, first_last = _graphs()
+
+    assert photo["1"]["inputs"]["value"] < photo["11"]["inputs"]["value"]
+    for graph, node_id in ((standard, "208"), (first_last, "328")):
+        width, height = _video_size(graph, node_id)
+        assert width < height
+
+
 def _model_files(node):
     """Every .safetensors named anywhere in the graph, nested widgets included -- Power Lora Loader
     keeps its loras inside dicts, so a flat scan over node inputs would miss half of them.
@@ -145,3 +213,90 @@ def test_every_model_the_first_last_graph_loads_is_in_the_video_group():
     listed = {row["name"] for row in GROUPS["video"]}
     missing = sorted(_model_files(workflow) - listed)
     assert not missing, f"Graf bu dosyaları yüklüyor ama grup saymıyor: {missing}"
+
+
+# MiniMax H3 (madde 243): two graphs exported by the user in 213's trial and made sterile in 242.
+
+
+def _h3_graphs():
+    """I2VA first, FL2VA second -- the order the producer reads them in."""
+    graphs = []
+    for path in (config.H3_VIDEO_WORKFLOW_PATH, config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH):
+        with open(path, encoding="utf-8") as f:
+            graphs.append(json.load(f))
+    return graphs
+
+
+def test_both_h3_graphs_are_api_format_with_the_nodes_we_patch():
+    """The Director keeps the pictures and the prompt; SeedControl keeps the noise seed. A node that
+    kept its id but renamed an input would swallow the patch and only surface as a bad render."""
+    for graph in _h3_graphs():
+        assert "nodes" not in graph, "UI formatında export — 'Workflow → Export (API)' gerekiyor"
+        assert graph["2730"]["class_type"] == "MiniMaxH3Director"
+        assert {"prompt", "timeline_data", "builder_state", "duration"} <= set(
+            graph["2730"]["inputs"])
+        assert graph["2739"]["class_type"] == "DaSiWa_SeedControl"
+        assert "seed_value" in graph["2739"]["inputs"]
+
+
+def test_the_h3_graphs_are_one_per_mode_with_room_for_their_pictures():
+    """The producer writes the pictures in by position, so the room each graph has is part of its
+    contract: one for a video that hangs on a photo, two for one that arrives at another."""
+    i2va, fl2va = _h3_graphs()
+
+    assert i2va["2730"]["inputs"]["mode"] == "I2VA"
+    assert fl2va["2730"]["inputs"]["mode"] == "FL2VA"
+    assert len(json.loads(i2va["2730"]["inputs"]["timeline_data"])["items"]) == 1
+    assert len(json.loads(fl2va["2730"]["inputs"]["timeline_data"])["items"]) == 2
+
+
+def test_both_h3_graphs_render_four_seconds_at_512_by_768():
+    """The user's settings from 213's trial. One number is quoted for every video, and one export
+    joins both kinds -- two lengths or two sizes there would be a lie and a broken file."""
+    for graph in _h3_graphs():
+        director = graph["2730"]["inputs"]
+        assert (director["duration"], director["width"], director["height"]) == (4, 512, 768)
+
+
+def test_the_photo_and_the_h3_video_agree_on_the_shape_of_the_frame():
+    photo = _graphs()[0]
+    photo_shape = photo["1"]["inputs"]["value"] / photo["11"]["inputs"]["value"]
+
+    for graph in _h3_graphs():
+        director = graph["2730"]["inputs"]
+        assert abs(photo_shape - director["width"] / director["height"]) / photo_shape < 0.01
+
+
+def test_every_model_the_h3_graphs_load_is_in_the_h3_group():
+    listed = {row["name"] for row in model_groups.H3_VIDEO}
+
+    for graph in _h3_graphs():
+        missing = sorted(_model_files(graph) - listed)
+        assert not missing, f"Graf bu dosyaları yüklüyor ama grup saymıyor: {missing}"
+
+
+def test_the_h3_graphs_carry_motion_booster_alone_at_seventy():
+    """The user's pick from 213's trial. The stack keeps its loras inside a JSON string, which the
+    model scan above cannot see into -- so it is read here, and its file held to the group."""
+    for graph in _h3_graphs():
+        stack = json.loads(graph["2678"]["inputs"]["stack_data"])
+        loaded = [(slot["lora"], slot["str"]) for slot in stack
+                  if slot["on"] and slot["lora"] != "None"]
+        assert loaded == [("H3_Motion_BoosterV2.safetensors", 0.7)]
+
+    assert "H3_Motion_BoosterV2.safetensors" in {row["name"] for row in model_groups.H3_VIDEO}
+
+
+def test_both_h3_graphs_save_an_mp4():
+    """Left on Auto the saver wrote WebM/AV1 in the user's trial (madde 245), which the producer never
+    picks up -- and the rest of the app names, plays and joins videos as mp4."""
+    for graph in _h3_graphs():
+        saver = graph["2568"]
+        assert saver["class_type"] == "DaSiWa_EnhancedVideoCombine"
+        assert (saver["inputs"]["container"], saver["inputs"]["codec"]) == ("MP4", "H.264")
+
+
+def test_the_app_knows_no_video_model_until_the_notebook_names_one():
+    """Empty means video was not installed: the disk cannot say which model was picked, only the
+    notebook can."""
+    assert config.VIDEO_MODEL == ""

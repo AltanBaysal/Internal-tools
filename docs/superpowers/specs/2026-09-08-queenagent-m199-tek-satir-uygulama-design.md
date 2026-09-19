@@ -1,6 +1,6 @@
 # Madde 199 · uygulama turu — şerit ve kalem tek satırda
 
-**Kaynağı:** [v8 yol haritası](../plans/2026-09-06-queenagent-v8-roadmap.md), Madde 199, ve
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 199, ve
 [test turu](2026-09-08-queenagent-m199-tek-satir-testler-design.md) — 6 kırmızı.
 
 ---

@@ -1,6 +1,6 @@
 # Queen Editor — Bölüm 14: Sağlamlık
 
-**Tarih:** 2026-08-05 · **Yol haritası:** [2026-08-03-queen-editor-v2-roadmap.md](../plans/2026-08-03-queen-editor-v2-roadmap.md) Bölüm 14
+**Tarih:** 2026-08-05 · **Yol haritası:** [2026-08-03-queen-editor-v1-roadmap.md](../roadmaps/2026-08-03-queen-editor-v1-roadmap.md) Bölüm 14
 **Tasarım kaynağı:** claude.ai/design `Queen Editor Basit v1.html` — `ArtboardS_GenError`,
 `ArtboardS_GenStopped`.
 

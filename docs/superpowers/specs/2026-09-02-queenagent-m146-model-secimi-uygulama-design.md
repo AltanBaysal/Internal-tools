@@ -1,7 +1,7 @@
 # Madde 146 · Tur 2 (uygulama) — Tasarım
 
 **Kaynak:** [Tur 1 tasarımı](2026-09-02-queenagent-m146-model-secimi-testler-design.md) ·
-[v6 yol haritası](../plans/2026-09-01-v6-roadmap.md), Madde 146
+[v6 yol haritası](../roadmaps/2026-09-01-queen-agent-v6-roadmap.md), Madde 146
 **Dal:** `feat/v6` · **Kırmızı commit:** `769e2e7` *(38 kırmızı, 1218 yeşil)*
 
 Bu tur yeni bir davranış tarif etmiyor — kırmızı commit'in tarif ettiğini yazıyor. Burada karara

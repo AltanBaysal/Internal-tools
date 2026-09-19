@@ -1,6 +1,6 @@
 # Madde 105 — Skill seçimi sohbetin olur · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 105.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 105.
 **Belirti** *(kullanıcı, 28 Ağustos)*: bir sohbette seçilen skill o sohbete özel kalmıyor.
 
 ## Bugün ve karar

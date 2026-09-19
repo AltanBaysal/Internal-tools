@@ -15,7 +15,7 @@ galeri, sıra ve silme onu okur. Yeni proje dosyası, yeni uç nokta ve arayüz 
 üretilmez.
 
 **Spec:** [Görev 1 — Kare katman yığını](../specs/2026-08-12-queen-editor-v5-gorev-1-kare-katman-yigini-design.md)
-**Yol haritası:** [v5 Görev 1](2026-08-12-queen-editor-v5-roadmap.md)
+**Yol haritası:** [v3 Koşu 1 · Görev 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md)
 
 ## Genel kısıtlar
 

@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 11 — Şerit yeni düzeni + Üreticiler paneli · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v5-roadmap.md) — Blok 4, Görev 11 ·
+**Yol haritası:** [roadmap v3 Koşu 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 4, Görev 11 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 8, 48 · madde 7'nin ilk adımı · **Tür:** arka uç + ön yüz.
 

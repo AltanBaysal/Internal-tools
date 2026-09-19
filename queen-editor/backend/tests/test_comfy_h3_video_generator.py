@@ -1,0 +1,270 @@
+"""The MiniMax H3 video producer: two graphs, a Director that keeps its pictures and its prompt inside
+its own JSON, and a SeedControl that takes the noise seed.
+
+Imported inside each test rather than at the top: a module that is not there yet would fail
+collection and take every other question in this file down with it.
+"""
+import json
+
+import pytest
+
+I2VA_SENTENCE = ("For the target video, at 0.00 seconds into the target video, Picture 1 (from "
+                 "Shot 1) is fully referenced.")
+
+
+def fl2va_sentence(seconds):
+    return ("How the reference pictures align with the target video — Picture 1 (from Shot 1) "
+            "aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) aligns "
+            f"with the {seconds}-second mark of the target video.")
+
+
+def director(mode, pictures, duration=4):
+    """The Director as the export carries it: the pictures and the prompt live inside two JSON
+    strings, and the prompt a third and a fourth time besides."""
+    state = {"version": 2, "mode": mode, "prompt_mode": "simple", "simple_prompt": ""}
+    timeline = {"version": 1,
+                "items": [{"id": f"image-{slot}", "slot": slot, "start": slot, "type": "image",
+                           "value": "example.png"} for slot in range(pictures)],
+                "builder_state": state, "resolved_prompt": ""}
+    return {"class_type": "MiniMaxH3Director",
+            "inputs": {"mode": mode, "prompt": "", "duration": duration, "width": 512,
+                       "height": 768, "timeline_data": json.dumps(timeline),
+                       "builder_state": json.dumps(state)}}
+
+
+def seed_control(value=7):
+    return {"class_type": "DaSiWa_SeedControl", "inputs": {"seed_value": value}}
+
+
+I2VA_GRAPH = {"2730": director("I2VA", 1), "2739": seed_control()}
+FL2VA_GRAPH = {"2730": director("FL2VA", 2), "2739": seed_control()}
+
+
+class FakeClient:
+    def __init__(self):
+        self.uploads = []
+        self.submitted = None
+        self.fetched = None
+
+    def upload_image(self, name, data):
+        self.uploads.append((name, data))
+        return f"server-{name}"
+
+    def submit(self, workflow):
+        self.submitted = workflow
+        return "p1"
+
+    def wait(self, prompt_id, timeout):
+        return {"outputs": "history"}
+
+    def fetch_output(self, history_entry, extensions=None):
+        self.fetched = (history_entry, extensions)
+        return b"MP4DATA"
+
+
+def graphs_at(tmp_path, i2va=None, fl2va=None):
+    standard = tmp_path / "workflow_video_h3_api.json"
+    standard.write_text(json.dumps(i2va if i2va is not None else I2VA_GRAPH), encoding="utf-8")
+    ends = tmp_path / "workflow_video_h3_first_last_api.json"
+    ends.write_text(json.dumps(fl2va if fl2va is not None else FL2VA_GRAPH), encoding="utf-8")
+    return str(standard), str(ends)
+
+
+def generator(tmp_path, client, i2va=None, fl2va=None, standard_path=None):
+    from backend.features.photo_generation.data.comfy_h3_video_generator import (
+        ComfyH3VideoGenerator,
+    )
+    standard, ends = graphs_at(tmp_path, i2va, fl2va)
+    return ComfyH3VideoGenerator(client, standard_path or standard, ends, timeout=60)
+
+
+def sent_director(client):
+    return client.submitted["2730"]["inputs"]
+
+
+def sent_pictures(client):
+    return [item["value"] for item in json.loads(sent_director(client)["timeline_data"])["items"]]
+
+
+def test_a_video_with_no_end_frame_is_rendered_by_the_i2va_graph(tmp_path):
+    client = FakeClient()
+
+    data = generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    assert data == b"MP4DATA"
+    assert client.uploads == [("P0_0.png", b"PNG")]
+    assert sent_director(client)["mode"] == "I2VA"
+    assert sent_pictures(client) == ["server-P0_0.png"]
+
+
+def test_a_video_with_an_end_frame_is_rendered_by_the_fl2va_graph(tmp_path):
+    """The producer is told an ending picture, never a mode -- the same seam WAN's producer has, so
+    loop and linked videos reach both engines in one shape."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+                                         end=("P1_0.png", b"END"))
+
+    assert client.uploads == [("P0_0.png", b"PNG"), ("P1_0.png", b"END")]
+    assert sent_director(client)["mode"] == "FL2VA"
+    # In order: the first picture is where the video starts, the second where it arrives.
+    assert sent_pictures(client) == ["server-P0_0.png", "server-P1_0.png"]
+
+
+def test_an_i2va_prompt_opens_with_the_first_frame_sentence(tmp_path):
+    """Which picture sits where is the graph's fact, not the scene's -- so the code says it, in the
+    words of the graph's own example, and the writer only writes what happens."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    assert sent_director(client)["prompt"] == f"{I2VA_SENTENCE}\n\nmotion"
+
+
+def test_an_fl2va_prompt_says_where_the_video_arrives_in_the_graph_s_own_seconds(tmp_path):
+    client = FakeClient()
+    longer = {"2730": director("FL2VA", 2, duration=6), "2739": seed_control()}
+
+    generator(tmp_path, client, fl2va=longer).generate(
+        "motion", "", 42, source=("P0_0.png", b"PNG"), end=("P1_0.png", b"END"))
+
+    assert sent_director(client)["prompt"] == f"{fl2va_sentence('6.00')}\n\nmotion"
+
+
+WRITTEN = "dynv2.\n\nintegrated_multimodal_description: [Shot 1] she turns"
+SECTIONS = "integrated_multimodal_description: [Shot 1] she turns"
+
+
+def test_dynv2_goes_before_the_i2va_picture_sentence(tmp_path):
+    """The Motion Booster lora only wakes when dynv2 is the very first word H3 reads (user, madde
+    246) -- and the picture sentence is the producer's, so the producer is what can put it there."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate(WRITTEN, "", 42, source=("P0_0.png", b"PNG"))
+
+    assert sent_director(client)["prompt"] == f"dynv2. {I2VA_SENTENCE}\n\n{SECTIONS}"
+
+
+def test_dynv2_goes_before_the_fl2va_picture_sentence(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate(WRITTEN, "", 42, source=("P0_0.png", b"PNG"),
+                                         end=("P1_0.png", b"END"))
+
+    assert sent_director(client)["prompt"] == f"dynv2. {fl2va_sentence('4.00')}\n\n{SECTIONS}"
+
+
+def test_the_prompt_lands_in_all_four_places_the_director_keeps_one(tmp_path):
+    """Which of the four the node reads cannot be told without running it; all four the same makes
+    the question go away."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    said = sent_director(client)
+    timeline = json.loads(said["timeline_data"])
+    written = f"{I2VA_SENTENCE}\n\nmotion"
+    assert said["prompt"] == written
+    assert timeline["builder_state"]["simple_prompt"] == written
+    assert timeline["resolved_prompt"] == written
+    assert json.loads(said["builder_state"])["simple_prompt"] == written
+
+
+def test_the_seed_goes_to_the_seed_control(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    assert client.submitted["2739"]["inputs"]["seed_value"] == 42
+
+
+def test_a_seed_the_job_never_carried_leaves_the_graphs_own(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", None, source=("P0_0.png", b"PNG"))
+
+    assert client.submitted["2739"]["inputs"]["seed_value"] == 7
+
+
+def test_only_an_mp4_counts_as_the_render(tmp_path):
+    # The graph previews through a tiny VAE as it samples; that must not be mistaken for the video.
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    assert client.fetched == ({"outputs": "history"}, (".mp4",))
+
+
+def test_how_long_a_video_runs_is_the_director_s_duration(tmp_path):
+    """Read from the I2VA graph alone, like WAN's standard graph: one number is quoted for every
+    video, and the two graphs are held to it by test_workflow_asset."""
+    longer = {"2730": director("FL2VA", 2, duration=6), "2739": seed_control()}
+
+    assert generator(tmp_path, FakeClient(), fl2va=longer).seconds() == 4.0
+
+
+def test_the_shipped_graph_is_never_written_back(tmp_path):
+    """Fresh copy per render: a patched prompt left in the file would be the next frame's prompt."""
+    client = FakeClient()
+    gen = generator(tmp_path, client)
+
+    gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    with open(tmp_path / "workflow_video_h3_api.json", encoding="utf-8") as f:
+        assert json.load(f)["2730"]["inputs"]["prompt"] == ""
+
+
+def test_a_video_without_a_photo_to_hang_on_says_so(tmp_path):
+    with pytest.raises(RuntimeError) as blew_up:
+        generator(tmp_path, FakeClient()).generate("motion", "", 42)
+
+    assert "foto" in str(blew_up.value).lower()
+
+
+def test_an_end_frame_does_not_stand_in_for_the_photo(tmp_path):
+    with pytest.raises(RuntimeError) as blew_up:
+        generator(tmp_path, FakeClient()).generate("motion", "", 42, end=("P1_0.png", b"END"))
+
+    assert "foto" in str(blew_up.value).lower()
+
+
+def test_a_missing_graph_names_the_file_it_wants(tmp_path):
+    gen = generator(tmp_path, FakeClient(), standard_path=str(tmp_path / "yok.json"))
+
+    with pytest.raises(RuntimeError) as blew_up:
+        gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    assert "yok.json" in str(blew_up.value)
+
+
+def test_a_graph_exported_in_ui_format_says_which_export_to_use(tmp_path):
+    gen = generator(tmp_path, FakeClient(), i2va={"nodes": [], "links": []})
+
+    with pytest.raises(RuntimeError) as blew_up:
+        gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    assert "Export (API)" in str(blew_up.value)
+
+
+@pytest.mark.parametrize("gone", ["2730", "2739"])
+def test_a_graph_whose_nodes_moved_names_the_missing_one(tmp_path, gone):
+    moved = {k: v for k, v in I2VA_GRAPH.items() if k != gone}
+    gen = generator(tmp_path, FakeClient(), i2va=moved)
+
+    with pytest.raises(RuntimeError) as blew_up:
+        gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    assert gone in str(blew_up.value)
+
+
+def test_a_timeline_holding_a_different_number_of_pictures_says_both(tmp_path):
+    """The pictures are written in by position. A graph with room for two, handed one, would render
+    with the export's placeholder in the second place and say nothing."""
+    wrong = {"2730": director("I2VA", 2), "2739": seed_control()}
+    gen = generator(tmp_path, FakeClient(), i2va=wrong)
+
+    with pytest.raises(RuntimeError) as blew_up:
+        gen.generate("motion", "", 42, source=("P0_0.png", b"PNG"))
+
+    said = str(blew_up.value)
+    assert "2" in said and "1" in said

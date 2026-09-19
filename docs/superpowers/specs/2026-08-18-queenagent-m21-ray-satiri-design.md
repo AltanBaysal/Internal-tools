@@ -1,6 +1,6 @@
 # Madde 21 — Ray satırı ve zemin · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 21](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 21](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** fark 45'in satır yarısı, 52, 57 · `HANDOFF.md` §2, §3
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

@@ -104,6 +104,10 @@ const Icon = {
   Plus: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>,
   Sparkle: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5l1.2 3.3L11.5 6 8.2 7.2 7 10.5 5.8 7.2 2.5 6l3.3-1.2L7 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>,
   Warn: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2l5.5 9.5h-11L7 2z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/><path d="M7 6v2.5M7 10.2v.1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/></svg>,
+  // A box with a lid: what a project goes into when it is put away rather than thrown out.
+  Archive: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1.8 3.2h10.4v2.2H1.8V3.2z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M2.8 5.4v5.4h8.4V5.4" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M5.6 7.6h2.8" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>,
+  // The arrow that curves back out of it.
+  Undo: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2.5 6.5h6a3 3 0 0 1 0 6H6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/><path d="M4.8 4.2L2.5 6.5l2.3 2.3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>,
 };
 
 // Annotation arrow (uses inline SVG)

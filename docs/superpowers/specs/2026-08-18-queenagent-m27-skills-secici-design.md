@@ -1,6 +1,6 @@
 # Madde 27 — Skills seçici arayüzü · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 27](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 27](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** fark 33, 34, **67** · karar 1, 18 · [beceriler tasarım kararları](../research/2026-08-18-queenagent-beceriler-tasarim-kararlari.md)
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

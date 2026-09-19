@@ -5,9 +5,9 @@ from backend.services.drive.storage import DriveStorage
 
 FRAMES = [
     {"id": "P3_0", "type": "photo", "number": 3, "variant": 0, "prompt": "kraliçe tahtta",
-     "negative": "bulanık", "seed": 11, "model": "nova.safetensors"},
+     "negative": "bulanık", "seed": 11, "model": "nova3dcg", "lora": "slime"},
     {"id": "P4_0", "type": "photo", "number": 4, "variant": 0, "prompt": "kraliçe balkonda",
-     "negative": "bulanık", "seed": 22, "model": "nova.safetensors"},
+     "negative": "bulanık", "seed": 22, "model": "nova3dcg", "lora": ""},
 ]
 
 
@@ -54,6 +54,26 @@ def test_a_frame_planned_before_models_reads_back_without_one(tmp_path):
         encoding="utf-8")
 
     assert store_at(tmp_path).read("düğün")["frames"][0]["model"] == ""
+
+
+def test_a_frame_planned_before_loras_reads_back_naming_none(tmp_path):
+    # Empty is a frame that never named a lora, and the renderer gives it the default (madde 238).
+    # Not Boş: that one is a pick of its own.
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "plan.json").write_text(json.dumps({"frames": [
+        {"number": 0, "letter": "a", "prompt": "eski", "negative": "n", "seed": 1,
+         "model": "recipe:slime"}]}), encoding="utf-8")
+
+    assert store_at(tmp_path).read("düğün")["frames"][0]["lora"] == ""
+
+
+def test_a_lora_of_the_wrong_type_reads_back_naming_none(tmp_path):
+    (tmp_path / "düğün").mkdir()
+    (tmp_path / "düğün" / "plan.json").write_text(json.dumps({"frames": [
+        {"number": 0, "letter": "a", "prompt": "p", "negative": "", "seed": 1, "lora": 7}]}),
+        encoding="utf-8")
+
+    assert store_at(tmp_path).read("düğün")["frames"][0]["lora"] == ""
 
 
 def test_reading_a_project_without_a_plan_gives_no_frames(tmp_path):

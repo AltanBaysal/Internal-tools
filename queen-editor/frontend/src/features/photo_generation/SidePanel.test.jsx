@@ -122,6 +122,17 @@ describe("SidePanel — the icon rail", () => {
     expect(screen.getByText("MMAudio v2")).toBeTruthy();
   });
 
+  it("hands the layer panel what the photo panel already gets", () => {
+    // Madde 215: busyElsewhere and error reached the photo panel and the queue panel and stopped
+    // there, so pressing Kuyruğa ekle in the video panel of a second project did nothing anybody
+    // could see. The panel's own tests say what it does with them; this one says they arrive.
+    renderColumn({ job: { status: "running", project: "balo" }, busyElsewhere: true, frames: [] });
+
+    fireEvent.click(screen.getByLabelText("Video üret"));
+
+    expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
+  });
+
   it("puts the producers panel at the foot of the rail", () => {
     renderColumn();
 

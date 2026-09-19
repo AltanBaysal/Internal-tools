@@ -1,6 +1,6 @@
 # Madde 126 · Tur 2 (uygulama) — Tasarım
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](../plans/2026-08-25-queenagent-v5-roadmap.md) · Madde 126
+**Kaynak:** [2026-08-25-queen-agent-v5-roadmap.md](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) · Madde 126
 **Test kırmızı commit'te (166e8a7).** Bu tur yalnız `skills.py`'nin akış metnine dokunur.
 
 ## Cümle

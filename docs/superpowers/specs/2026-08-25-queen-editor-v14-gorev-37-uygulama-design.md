@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-25 · **Kaynak:** Kullanıcı, 25 Ağustos
 **Öncesi:** [Görev 37 test spec'i](2026-08-25-queen-editor-v14-gorev-37-testler-design.md)
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 37
+**Yol haritası:** [v4](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 37
 
 ## Ne yeşile döndürülüyor
 

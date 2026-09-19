@@ -11,10 +11,13 @@ A row says nothing about installing, because the app does not install: the model
 Colab notebook, before the app starts (FOUNDATION 9). Reading the disk is the whole of what this
 answer is, so it cannot go stale while nobody is installing anything.
 """
-from backend.features.producers.domain.producers import NAMES, ORDER
+from backend.features.producers.domain.model_groups import video_model_name
+from backend.features.producers.domain.producers import NAMES, ORDER, VIDEO
 
 
-def list_producers(groups, files):
+def list_producers(groups, files, video_model=""):
+    """`video_model` is the notebook's pick. The video row names it, because the panel cannot know
+    which model the notebook installed any other way (madde 247)."""
     rows = []
     for kind in ORDER:
         group = groups.get(kind) or []
@@ -22,5 +25,8 @@ def list_producers(groups, files):
             files.exists(spec["folder"], spec["name"]) if "name" in spec
             else files.has_any(spec["folder"], spec["suffix"])
             for spec in group)
-        rows.append({"id": kind, "name": NAMES[kind], "installed": installed})
+        row = {"id": kind, "name": NAMES[kind], "installed": installed}
+        if kind == VIDEO:
+            row["model"] = video_model_name(video_model)
+        rows.append(row)
     return rows

@@ -1,6 +1,6 @@
 # Madde 208 — tek kare yazan araç kalkar · test turu
 
-**Kaynak:** [yol haritasının Madde 208'i](../plans/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynak:** [yol haritasının Madde 208'i](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 
 ## Ne kanıtlanacak
 

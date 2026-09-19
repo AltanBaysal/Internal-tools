@@ -1,6 +1,6 @@
 # Madde 34 — Durum ekranları ve erişilebilirlik · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 34](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 34](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** fark 64, 65, 69 · [tasarım v2 farkları](../research/2026-08-14-mira-tasarim-farklari.md)
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

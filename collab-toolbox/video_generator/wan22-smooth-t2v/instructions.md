@@ -31,7 +31,7 @@ Görsel girdi yok: `WanImageToVideo` (node **50**) `start_image` bağlanmadan ku
 ## Kullanım
 
 1. Runtime → Change runtime type → **A100 GPU** (Colab Pro gerekli).
-2. `manual.ipynb`'yi yükle → CONFIG'de Civitai cookie'yi kontrol et → **Run all**. (~35.3 GiB iner.)
+2. `manual.ipynb`'yi yükle → Colab **Secrets**'ta `CIVITAI_COOKIE`'nin güncel olduğunu kontrol et → **Run all**. (~35.3 GiB iner.)
 3. Son hücrenin bastığı `trycloudflare` linkine gir. **O hücreyi kapatma** — kapanırsa Colab runtime'ı idle sayıp tüneli öldürür.
 4. UI'da bu klasördeki **`workflow_manual.json`**'u yükle (Workflow → Open, ya da dosyayı tarayıcıya sürükle).
 5. **"Choose Your Workflow"** (Fast Groups Bypasser) → **TEXT2VIDEO**'yu aç. Grafik tamamen bypass'lı gelir; hiçbir grup açık değildir.

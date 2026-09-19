@@ -1,7 +1,7 @@
 # Madde 198 · uygulama turu — akış karakterle başlar, plan işaretlenir
 
 **Kaynağı:** [test turu](2026-09-08-queenagent-m198-akis-ve-plan-testler-design.md), ve onun
-kaynağı [v8 yol haritası](../plans/2026-09-06-queenagent-v8-roadmap.md), Madde 198.
+kaynağı [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 198.
 
 Kırmızı: arka uçta 13.
 

@@ -1,6 +1,6 @@
 # Madde 110 — Kalite etiketleri koddan gelir · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 110.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 110.
 **Sebep:** `quality` bugün dosyanın alanı, yani modelin yazdığı şey — ve model onu şemadaki
 örnekten kopyalıyor. Örnekteki dizi iki ayrı model ailesinin karışımı olduğu için her senaryo o
 karışımı taşıyor. Zincir senaryodan senaryoya değişmiyor: koda iner.

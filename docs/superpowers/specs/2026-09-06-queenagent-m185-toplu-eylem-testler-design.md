@@ -1,6 +1,6 @@
 # Madde 185 · test turu — action'ı olmayan bütün kareleri dolduran araç
 
-**Kaynağı:** [yol haritası, Madde 185](../plans/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 185](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 184 `d6eeaee`'de kapandı.
 
 ---

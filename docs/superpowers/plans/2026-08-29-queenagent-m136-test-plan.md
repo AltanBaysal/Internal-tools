@@ -1,6 +1,6 @@
 # Madde 136 · Tur 1 (test) — Plan
 
-**Kaynak:** [2026-08-25-queenagent-v5-roadmap.md](2026-08-25-queenagent-v5-roadmap.md) · Madde 136
+**Kaynak:** [2026-08-25-queen-agent-v5-roadmap.md](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) · Madde 136
 **Bu tur yalnız test dosyalarına dokunur.**
 **Test komutları (değişmez, ikisi de):**
 `python -m pytest queen-agent -q` · `npm test --prefix queen-agent/frontend`

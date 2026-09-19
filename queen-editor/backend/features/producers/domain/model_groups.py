@@ -26,7 +26,11 @@ GROUPS = {
         # is anything to hand it. Naming one made the panel call the producer uninstalled for
         # anyone who picked a different model.
         {"folder": "checkpoints", "suffix": ".safetensors"},
+        # Both loras come down whichever models were ticked: either can go over any model, and
+        # hanging the panel's count on the choice would make "installed" mean a different set of
+        # files on every machine.
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
+        {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},
         # UltralyticsDetectorProvider lists this one as "bbox/<name>", so the folder is nested.
         {"folder": "ultralytics/bbox", "name": "face_yolov9c.pt"},
@@ -57,6 +61,34 @@ GROUPS = {
         {"folder": "mmaudio", "name": HF_MMAUDIO_NSFW},
     ],
 }
+
+# What the MiniMax H3 graphs read (madde 243). MiniMaxH3/ is part of the name rather than of the
+# folder: the graph's loaders ask for "MiniMaxH3/<file>", and that is also where the file sits.
+H3_VIDEO = [
+    {"folder": "diffusion_models",
+     "name": "MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
+             "row-wise_convrot_runtime_mixed.safetensors"},
+    {"folder": "text_encoders", "name": "qwen3vl_32b_minimax_h3_int4_convrot.safetensors"},
+    {"folder": "vae", "name": "MiniMaxH3/minimax_h3_video_vae_int8_convrot.safetensors"},
+    {"folder": "vae", "name": "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"},
+    # The preview the graph samples through; a model node in its chain, so a render needs it too.
+    {"folder": "vae_approx", "name": "taeh3.safetensors"},
+    # Inside the lora stack's JSON, where a scan for model names cannot see it.
+    {"folder": "loras", "name": "H3_Motion_BoosterV2.safetensors"},
+]
+
+
+def groups_for(video_model):
+    """The three groups the panel counts, video judged by the model the notebook installed. WAN and
+    H3 never share a session; with no video model at all WAN's files are as absent as any others,
+    so the answer is "not installed" either way."""
+    return {**GROUPS, "video": H3_VIDEO if video_model == "h3" else GROUPS["video"]}
+
+
+def video_model_name(video_model):
+    """What the video panel's box calls the model (madde 247), judged the way groups_for judges it:
+    the box, the panel's count and the producer main.py builds all follow the same pick."""
+    return "MiniMax H3" if video_model == "h3" else "WAN 2.2 I2V"
 
 
 def audio_weights(files):

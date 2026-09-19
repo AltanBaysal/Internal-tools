@@ -12,7 +12,7 @@ klonlar; eski oturum eski `dist/`'i servis eder).
 Maddeler sırayla gitmek üzere dizildi: üsttekiler alttakilerin ön şartını hazırlıyor. Bir madde
 kırmızıysa **not düş ve devam et** — hepsi tek fix dalgasında kapatılacak.
 
-**Güncelleme (2026-08-08):** canlı kuyruk kararıyla ([v3 yol haritası](2026-08-08-queen-editor-v3-roadmap.md))
+**Güncelleme (2026-08-08):** canlı kuyruk kararıyla ([v1 yol haritası · Koşu 3](../roadmaps/2026-08-03-queen-editor-v1-roadmap.md))
 **F2-F5 geçersizleşti** (Durdur / Devam et / İptal et kalkıyor) ve **G1-G2 ertelendi** (elle "Kaldığı
 yerden devam et"in yerini otomatik devam alacak). Kalan test işi **G3, G4, H1, H2** ve bunlar v3'ün
 **son maddesinde**, canlı kuyruğun kendi listesiyle aynı dalgada denenecek.

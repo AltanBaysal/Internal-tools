@@ -1,6 +1,6 @@
 # Madde 167 · test turu — `start_scenario` yapı dosyasını doğurur
 
-**Kaynağı:** [v7 yol haritası, Madde 167](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [v7 yol haritası, Madde 167](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md).
 Bu tur **yalnız testleri** yazar; kod değişmez ve takım kırmızı commit'lenir.
 
 ---

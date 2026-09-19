@@ -1,6 +1,6 @@
 # Queen Editor — Bölüm 11: Foto detay sayfası
 
-**Tarih:** 2026-08-05 · **Yol haritası:** [2026-08-03-queen-editor-v2-roadmap.md](../plans/2026-08-03-queen-editor-v2-roadmap.md) Bölüm 11
+**Tarih:** 2026-08-05 · **Yol haritası:** [2026-08-03-queen-editor-v1-roadmap.md](../roadmaps/2026-08-03-queen-editor-v1-roadmap.md) Bölüm 11
 **Tasarım kaynağı:** claude.ai/design projesi `Queen Editor` → `Queen Editor Basit v1.html`
 (<https://claude.ai/design/p/efad1f83-69d3-4e07-89fa-3783839c81c3>), `PhotoDetailScreen` +
 `DeleteConfirmModal`.

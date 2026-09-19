@@ -1,7 +1,7 @@
 # v13 Görev 1 — Galeri resimleri sunucuyu aç bırakıyor: TEST döngüsü (tasarım)
 
 **Tarih:** 2026-08-14 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v13](../plans/2026-08-14-queen-editor-v13-roadmap.md) · **Döngü:** 1/2
+**Yol haritası:** [v3 Koşu 8](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 1/2
 **Bu döngüde mantık yazılmıyor** — testler, ve testlerin koşabilmesi için boş iskelet. Takım kırmızı
 commit'leniyor.
 

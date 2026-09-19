@@ -1,6 +1,6 @@
 # Madde 123 — Skill metinleri persona ile açılır ve kısalır · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 123.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 123.
 **Dal:** `feat/queenagent-m123-skill-rewrite` — beğenilirse v5'e merge.
 
 ## Yaklaşım — writing-skills'ten

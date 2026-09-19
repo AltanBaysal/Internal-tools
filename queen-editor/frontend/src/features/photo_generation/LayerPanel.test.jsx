@@ -34,7 +34,8 @@ describe("LayerPanel — the scope", () => {
   it("says what pressing the button would do", () => {
     renderPanel();
 
-    expect(screen.getByText("2 video üretilecek — her kare kendi videosunu alır.")).toBeTruthy();
+    // Madde 216: the panel opens on loop, so the estimate opens in loop's words.
+    expect(screen.getByText("2 loop video üretilecek — her video kendine döner.")).toBeTruthy();
   });
 
   it("follows the gallery's selection rather than keeping one of its own", () => {
@@ -42,7 +43,7 @@ describe("LayerPanel — the scope", () => {
 
     expect(screen.getByText("Seçili kareler").closest("button").style.borderColor)
       .toBe("var(--accent)");
-    expect(screen.getByText("1 video üretilecek — her kare kendi videosunu alır.")).toBeTruthy();
+    expect(screen.getByText("1 loop video üretilecek — her video kendine döner.")).toBeTruthy();
   });
 
   it("leaves the selection row out of reach while nothing is selected", () => {
@@ -67,7 +68,7 @@ describe("LayerPanel — variants", () => {
 
     fireEvent.change(variantBox(), { target: { value: "3" } });
 
-    expect(screen.getByText("6 video üretilecek — her kare kendi videosunu alır.")).toBeTruthy();
+    expect(screen.getByText("6 loop video üretilecek — her video kendine döner.")).toBeTruthy();
   });
 
   it("refuses a count the server would refuse", () => {
@@ -84,7 +85,7 @@ describe("LayerPanel — variants", () => {
 
     expect(screen.getByText("Seçili kareler").closest("button").textContent).toContain("1");
     expect(screen.getByText(
-      "1 video üretilecek — videolu 1 kare için yeniler kopya kare olur, eskisi durur."))
+      "1 loop video üretilecek — videolu 1 kare için yeniler kopya kare olur, eskisi durur."))
       .toBeTruthy();
   });
 
@@ -260,14 +261,29 @@ describe("LayerPanel — the panel's own shape", () => {
     expect(rowOf("Loop").style.padding).toBe("10px 12px");
   });
 
+  const VIDEO_ROW = { id: "video", name: "Video üreticisi", installed: true };
+  const offered = () => [...screen.getByRole("combobox").options].map((one) => one.textContent);
+
   it("offers the model in the same box the photo panel uses", () => {
-    // One option, because there is one model per layer -- a box that opens and shows the only
-    // thing there is. The frame and the arrow are the design's; the choice is not invented.
-    renderPanel();
+    // One option, because one video model is installed per session -- a box that opens and shows
+    // the only thing there is. The name is the server's (madde 247): the notebook picked it.
+    renderPanel({ producer: { ...VIDEO_ROW, model: "MiniMax H3" } });
 
     expect(screen.getByRole("combobox").className).toContain("wf-input");
-    expect([...screen.getByRole("combobox").options].map((one) => one.textContent))
-      .toEqual(["WAN 2.2 I2V"]);
+    expect(offered()).toEqual(["MiniMax H3"]);
+  });
+
+  it("offers WAN when the server says WAN", () => {
+    renderPanel({ producer: { ...VIDEO_ROW, model: "WAN 2.2 I2V" } });
+
+    expect(offered()).toEqual(["WAN 2.2 I2V"]);
+  });
+
+  it("names no model before the server has said which", () => {
+    // A name made up here is what showed WAN over an H3 session.
+    renderPanel();
+
+    expect(offered()).not.toContain("WAN 2.2 I2V");
   });
 
   it("has no block of its own for the length", () => {
@@ -284,6 +300,45 @@ describe("LayerPanel — the panel's own shape", () => {
   });
 });
 
+describe("LayerPanel — another project holds the worker", () => {
+  const ELSEWHERE = { job: { status: "running", project: "balo" }, busyElsewhere: true };
+
+  it("is disabled while another project holds the worker", () => {
+    // Madde 215: there is one worker, so a second project has to wait -- and the photo panel has
+    // said so properly all along. This panel was never handed what it needed to say it.
+    renderPanel(ELSEWHERE);
+
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
+    expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
+  });
+
+  it("says the same thing on the sound panel", () => {
+    render(
+      <LayerPanel layer="audio" frames={FRAMES} selected={[]} producer={null} {...ELSEWHERE}
+                  onQueue={() => Promise.resolve({ added: 1 })} onInstall={() => {}} />,
+    );
+
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(true);
+    expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
+  });
+
+  it("shows a refusal where the press was made", () => {
+    // busyElsewhere arrives with the poll, so the other run can start between two of them and the
+    // press goes through. The side column draws one panel at a time, and neither of the two that
+    // drew the server's answer is this one -- so the press did nothing visible at all.
+    renderPanel({ error: "Zaten bir üretim sürüyor." });
+
+    expect(screen.getByText("Zaten bir üretim sürüyor.")).toBeTruthy();
+  });
+
+  it("leaves the button alone when nobody else is running", () => {
+    renderPanel();
+
+    expect(screen.getByText("Kuyruğa ekle").closest("button").disabled).toBe(false);
+    expect(screen.queryByText(/Üretim sürüyor/)).toBeNull();
+  });
+});
+
 describe("LayerPanel — sending", () => {
   it("asks for every frame with no video when that is the scope", async () => {
     const onQueue = vi.fn().mockResolvedValue({ added: 2 });
@@ -291,8 +346,10 @@ describe("LayerPanel — sending", () => {
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
-    expect(screen.getByText("2 video kuyruğa eklendi")).toBeTruthy();
+    // Madde 216: untouched, the video panel now asks for loop -- and the card confirms in that
+    // mode's own noun.
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "loop");
+    expect(screen.getByText("2 loop video kuyruğa eklendi")).toBeTruthy();
   });
 
   it("asks only for what is selected when that is the scope", async () => {
@@ -303,7 +360,7 @@ describe("LayerPanel — sending", () => {
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(["0_a.png"], 1, "standard");
+    expect(onQueue).toHaveBeenCalledWith(["0_a.png"], 1, "loop");
   });
 
   it("sends the variant count along with the scope", async () => {
@@ -313,7 +370,7 @@ describe("LayerPanel — sending", () => {
     fireEvent.change(variantBox(), { target: { value: "2" } });
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null, 2, "standard");
+    expect(onQueue).toHaveBeenCalledWith(null, 2, "loop");
   });
 
   it("does not explain who writes the prompt -- the frame's own page does", () => {
@@ -338,11 +395,12 @@ describe("LayerPanel — the production mode", () => {
     expect(modeRow("Sonrakine bağla")).toBeTruthy();
   });
 
-  it("opens on the plain one", () => {
+  it("opens on loop", () => {
+    // Madde 216: loop is what gets asked for, so it is what the panel offers first.
     renderPanel();
 
-    expect(modeRow("Standart").style.borderColor).toBe("var(--accent)");
-    expect(modeRow("Loop").style.borderColor).toBe("var(--border)");
+    expect(modeRow("Loop").style.borderColor).toBe("var(--accent)");
+    expect(modeRow("Standart").style.borderColor).toBe("var(--border)");
     expect(modeRow("Sonrakine bağla").style.borderColor).toBe("var(--border)");
   });
 
@@ -366,14 +424,15 @@ describe("LayerPanel — the production mode", () => {
     expect(onQueue).toHaveBeenCalledWith(null, 1, "loop");
   });
 
-  it("sends the plain mode when nobody touched the row", async () => {
+  it("sends loop when nobody touched the row", async () => {
     const onQueue = vi.fn().mockResolvedValue({ added: 2 });
     renderPanel({ onQueue });
 
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "loop");
   });
+
 });
 
 describe("LayerPanel — linking wants neighbours", () => {
@@ -495,7 +554,7 @@ describe("LayerPanel — the estimate warns about copies", () => {
     // now nothing said so and the gallery growing by one was the first news of it.
     renderPanel({ selected: ["1_a"] });
 
-    expect(screen.getByText(`1 video üretilecek — ${COPY}`)).toBeTruthy();
+    expect(screen.getByText(`1 loop video üretilecek — ${COPY}`)).toBeTruthy();
   });
 
   it("counts only the frames in scope that hold the layer", () => {
@@ -503,7 +562,7 @@ describe("LayerPanel — the estimate warns about copies", () => {
     // different numbers and a single count would read as either.
     renderPanel({ selected: ["1_a", "0_a"] });
 
-    expect(screen.getByText(`2 video üretilecek — ${COPY}`)).toBeTruthy();
+    expect(screen.getByText(`2 loop video üretilecek — ${COPY}`)).toBeTruthy();
   });
 
   it("never warns on the scope that leaves those frames out", () => {
@@ -573,6 +632,19 @@ describe("LayerPanel — sound", () => {
 
     expect(screen.getByText("MMAudio v2")).toBeTruthy();
     expect(screen.getByText("1 ses üretilecek — her kare kendi sesini alır.")).toBeTruthy();
+  });
+
+  it("still asks for the plain mode", async () => {
+    // Madde 216: the mode is kept by both panels though only the video one draws the row, so a
+    // default written without asking which layer it belongs to would travel with a sound job too --
+    // and the server refuses any mode but the plain one here (production_mode.validate). Nothing on
+    // screen would say why; the user would only see that no sound was made.
+    const onQueue = vi.fn().mockResolvedValue({ added: 1 });
+    renderSound({ onQueue });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "standard");
   });
 
   it("already names its own scope in full", () => {

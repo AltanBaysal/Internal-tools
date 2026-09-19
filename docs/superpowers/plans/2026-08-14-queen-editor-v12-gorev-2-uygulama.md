@@ -142,7 +142,7 @@ Run: `npm run build --prefix queen-editor/frontend`
 
 - [ ] **Step 2: Yol haritasının durumunu güncelle**
 
-`docs/superpowers/plans/2026-08-14-queen-editor-v12-roadmap.md` başlığındaki
+`docs/superpowers/roadmaps/2026-08-12-queen-editor-v3-roadmap.md` başlığındaki
 `**Durum:** 0/2` → `**Durum:** 2/2 — bitti, Colab turu bekliyor`.
 
 - [ ] **Step 3: Commit**

@@ -6,7 +6,8 @@ from backend.features.projects.domain.usecases.get_settings import ProjectMissin
 
 
 def make_projects_blueprint(list_projects, create_project, check_name, delete_project,
-                            rename_project, get_settings, save_settings):
+                            rename_project, get_settings, save_settings,
+                            archive_project, restore_project, list_archived_projects):
     """Every argument is a use case already bound to a store (see main.py)."""
     bp = Blueprint("projects", __name__)
 
@@ -71,6 +72,40 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
         # the order come from.
         return jsonify({"name": name})
 
+    # Before the <project> routes in the file only for reading: Flask prefers a literal segment to a
+    # variable one whatever the order, and this path is one segment deep where those are two.
+    @bp.get("/api/projects/archived")
+    def get_archived_projects():
+        try:
+            projects = list_archived_projects()
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        return jsonify({"projects": [payload(p) for p in projects]})
+
+    # No 409 on either of these: since madde 227 archiving marks a project rather than moving it, so
+    # there is no name for it to land on. Catching something that cannot be raised would show a
+    # later reader a road that is not there.
+    @bp.post("/api/projects/<project>/archive")
+    def post_archive_project(project):
+        try:
+            archive_project(project)
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        # 204, like delete: the client re-reads both lists, which is all that changed.
+        return "", 204
+
+    @bp.post("/api/projects/<project>/restore")
+    def post_restore_project(project):
+        try:
+            restore_project(project)
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        except OSError as exc:
+            return jsonify({"error": str(exc)}), 500
+        return "", 204
+
     @bp.get("/api/projects/<project>/settings")
     def get_project_settings(project):
         try:
@@ -85,7 +120,7 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
         body = request.get_json(silent=True) or {}
         prompts, negative, variants = (body.get("prompts"), body.get("negative"),
                                        body.get("variants"))
-        model = body.get("model")
+        model, lora = body.get("model"), body.get("lora")
         try:
             save_settings(
                 project,
@@ -94,6 +129,7 @@ def make_projects_blueprint(list_projects, create_project, check_name, delete_pr
                 # bool is an int in Python, and True would silently mean "1 variant".
                 variants if isinstance(variants, int) and not isinstance(variants, bool) else None,
                 model if isinstance(model, str) else "",
+                lora if isinstance(lora, str) else "",
             )
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

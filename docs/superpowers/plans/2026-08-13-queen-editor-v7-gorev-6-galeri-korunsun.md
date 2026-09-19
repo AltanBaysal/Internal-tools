@@ -1,7 +1,7 @@
 # Görev 6 — Ekran değişince galeri sıfırdan yüklenmesin (uygulama planı)
 
 **Spec:** [Görev 6](../specs/2026-08-13-queen-editor-v7-gorev-6-galeri-korunsun-design.md) ·
-**Roadmap:** [v7](2026-08-13-queen-editor-v7-roadmap.md) · Blok 3
+**Roadmap:** [v3 Koşu 3](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 3
 
 **Amaç:** `useGeneration` bir projenin son listesini mount'lar arası hatırlasın; galeri ↔ detay
 geçişi beklemesiz olsun.

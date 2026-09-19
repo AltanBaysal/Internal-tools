@@ -1,16 +1,26 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { deleteProject, listProjects, renameProject } from "../../shared/api.js";
+import {
+  archiveProject,
+  deleteProject,
+  listArchivedProjects,
+  listProjects,
+  renameProject,
+  restoreProject,
+} from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import ProjectsScreen from "./ProjectsScreen.jsx";
 
 vi.mock("../../shared/api.js", () => ({
+  archiveProject: vi.fn(),
   checkProjectName: vi.fn().mockResolvedValue({ error: null }),
   createProject: vi.fn(),
   deleteProject: vi.fn(),
+  listArchivedProjects: vi.fn().mockResolvedValue([]),
   listProjects: vi.fn(),
   renameProject: vi.fn(),
+  restoreProject: vi.fn(),
 }));
 vi.mock("../../shared/router.js", () => ({
   navigate: vi.fn(),
@@ -19,6 +29,15 @@ vi.mock("../../shared/router.js", () => ({
 
 async function settle() {
   await act(async () => { await Promise.resolve(); });
+}
+
+// A promise the test decides when to keep. Without one there is no "while it is working" to look
+// at: a mock that resolves at once is finished before the screen has drawn anything (madde 225).
+function deferred() {
+  let keep;
+  let drop;
+  const promise = new Promise((resolve, reject) => { keep = resolve; drop = reject; });
+  return { promise, keep, drop };
 }
 
 async function openScreen() {
@@ -39,6 +58,15 @@ async function openWith(count) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("ProjectsScreen header", () => {
+  it("puts the version next to the name", async () => {
+    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    await openScreen();
+
+    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+  });
 });
 
 describe("ProjectsScreen with nothing in it yet", () => {
@@ -145,6 +173,267 @@ describe("ProjectsScreen renaming a project", () => {
     fireEvent.change(screen.getByDisplayValue("nikah"), { target: { value: "nikah töreni" } });
 
     expect(screen.queryByText("Bu ad zaten kullanılıyor. Başka bir ad dene.")).toBeNull();
+  });
+});
+
+describe("ProjectsScreen archiving a project", () => {
+  it("offers archiving beside the pencil and the bin", async () => {
+    await openScreen();
+
+    // Neither red nor a question: archiving takes nothing away, it only moves the folder. The bin
+    // keeps its mark by being the only one wearing it.
+    const button = screen.getByLabelText("Projeyi arşivle");
+    expect(button.style.color).not.toBe("var(--danger)");
+  });
+
+  it("archives without asking, and reads the list again", async () => {
+    await openScreen();
+    archiveProject.mockResolvedValue(null);
+    listProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(archiveProject).toHaveBeenCalledWith("düğün");
+    // Drive is the single source of truth: re-read rather than guess which card left.
+    expect(listProjects).toHaveBeenCalledTimes(2);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("opens the archive from the header and shows what is in it", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    expect(screen.getByText("eski iş")).toBeTruthy();
+    // One list at a time: the archive is where the projects were, not beside them.
+    expect(screen.queryByText("düğün")).toBeNull();
+  });
+
+  it("an archived card is an ordinary card with the way back on it", async () => {
+    // Madde 227: archiving says which list a project is drawn in and nothing else, so nothing it
+    // could do before is taken away. Only the middle button changes hands.
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    expect(screen.getByLabelText("Projeyi geri al")).toBeTruthy();
+    expect(screen.getByLabelText("Projeyi yeniden adlandır")).toBeTruthy();
+    expect(screen.getByLabelText("Projeyi sil")).toBeTruthy();
+    expect(screen.queryByLabelText("Projeyi arşivle")).toBeNull();
+  });
+
+  it("an archived card opens its project like any other", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    fireEvent.click(screen.getByText("eski iş"));
+
+    expect(navigate).toHaveBeenCalledWith("/projects/eski%20i%C5%9F");
+  });
+
+  it("restores and reads both lists again", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+    restoreProject.mockResolvedValue(null);
+    listArchivedProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi geri al")); });
+
+    expect(restoreProject).toHaveBeenCalledWith("eski iş");
+    expect(screen.queryByText("eski iş")).toBeNull();
+  });
+
+  it("says the archive is empty rather than showing the projects' own empty state", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    expect(screen.getByText("arşivde proje yok")).toBeTruthy();
+    // The projects' empty state invites a first project, which is the wrong invitation here.
+    expect(screen.queryByText("İlk projeni oluştur, karelerin burada toplansın")).toBeNull();
+  });
+
+  // Madde 224. The archive is a place that is entered, so its header is its own: nothing that makes
+  // a project, and a way out worded the way every other place in this app words it.
+  it("has no way to make a project from inside the archive", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    // Not disabled -- drawn at all it would say a project could be made here, and what it makes
+    // lands among the projects rather than in the list being looked at.
+    expect(screen.queryByText("Yeni proje")).toBeNull();
+  });
+
+  it("offers nothing to press in an empty archive either", async () => {
+    // The projects' own empty state carries a create button, and this is where it would sneak in.
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    expect(screen.queryByText("Yeni proje")).toBeNull();
+    expect(screen.queryByText("İlk projeyi oluştur")).toBeNull();
+  });
+
+  it("is left the way every other place in this app is left", async () => {
+    await openScreen();
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    // The project screen's own word (Projeden çık). A toggle reads both ways; this is an exit.
+    expect(screen.getByText("Arşivden çık")).toBeTruthy();
+  });
+
+  it("comes back to the projects when the way out is pressed", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+
+    await act(async () => { fireEvent.click(screen.getByText("Arşivden çık")); });
+
+    expect(screen.getByText("düğün")).toBeTruthy();
+    expect(screen.queryByText("eski iş")).toBeNull();
+  });
+
+  // Madde 225. Between the press and the list coming back there is a trip to Drive, and the screen
+  // said nothing for the whole of it -- the button even stayed pressable, so a second press really
+  // sent a second request.
+  it("says what it is doing while the archive is in flight", async () => {
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    // The app's own waiting language: a word, the way every window here says Siliniyor…
+    expect(screen.getByText("Arşivleniyor…")).toBeTruthy();
+
+    await act(async () => { working.keep(null); await working.promise; });
+  });
+
+  it("does not send a second request while the first is in flight", async () => {
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    fireEvent.click(screen.getByLabelText("Projeyi arşivle"));
+
+    expect(archiveProject).toHaveBeenCalledTimes(1);
+
+    await act(async () => { working.keep(null); await working.promise; });
+  });
+
+  it("closes the card's other buttons too while it works", async () => {
+    // All three reach the same folder and the same mark, so none of them may slip in between.
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(screen.getByLabelText("Projeyi sil").disabled).toBe(true);
+    expect(screen.getByLabelText("Projeyi yeniden adlandır").disabled).toBe(true);
+
+    await act(async () => { working.keep(null); await working.promise; });
+  });
+
+  it("takes the word away once the list has been read again", async () => {
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+    // There first, or the question below answers itself.
+    expect(screen.getByText("Arşivleniyor…")).toBeTruthy();
+    listProjects.mockResolvedValue([]);
+
+    await act(async () => { working.keep(null); await working.promise; });
+
+    expect(screen.queryByText("Arşivleniyor…")).toBeNull();
+  });
+
+  it("says what it is doing while a restore is in flight", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+    const working = deferred();
+    restoreProject.mockReturnValue(working.promise);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi geri al")); });
+
+    expect(screen.getByText("Geri alınıyor…")).toBeTruthy();
+
+    await act(async () => { working.keep(null); await working.promise; });
+  });
+
+  it("takes the word away when it fails, and leaves the sentence", async () => {
+    await openScreen();
+    const working = deferred();
+    archiveProject.mockReturnValue(working.promise);
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+    expect(screen.getByText("Arşivleniyor…")).toBeTruthy();
+
+    await act(async () => {
+      working.drop(new Error("Sunucuya ulaşılamadı — bağlantıyı kontrol et."));
+      await working.promise.catch(() => {});
+    });
+
+    expect(screen.queryByText("Arşivleniyor…")).toBeNull();
+    expect(screen.getByText("Sunucuya ulaşılamadı — bağlantıyı kontrol et.")).toBeTruthy();
+  });
+
+  // Madde 223. Every failure here was silent: neither handler caught, so the server's sentence
+  // became an unhandled rejection and the user saw a button that did nothing at all.
+  it("says what the server said when archiving fails", async () => {
+    await openScreen();
+    archiveProject.mockRejectedValue(new Error("Arşivde düğün adlı bir proje var."));
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(screen.getByText("Arşivde düğün adlı bir proje var.")).toBeTruthy();
+  });
+
+  it("leaves the list where it is when archiving fails", async () => {
+    // An action that failed is not a list that failed: taking the cards away would cost the user
+    // the thing they were about to try again.
+    await openScreen();
+    archiveProject.mockRejectedValue(new Error("Arşivde düğün adlı bir proje var."));
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(screen.getByText("düğün")).toBeTruthy();
+  });
+
+  it("says what the server said when restoring fails", async () => {
+    await openScreen();
+    listArchivedProjects.mockResolvedValue([{ name: "eski iş", modifiedAt: 1754300000 }]);
+    await act(async () => { fireEvent.click(screen.getByText("Arşiv")); });
+    restoreProject.mockRejectedValue(new Error("Bu ad zaten kullanılıyor. Başka bir ad dene."));
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi geri al")); });
+
+    expect(screen.getByText("Bu ad zaten kullanılıyor. Başka bir ad dene.")).toBeTruthy();
+  });
+
+  it("clears the sentence once something works", async () => {
+    await openScreen();
+    archiveProject.mockRejectedValueOnce(new Error("Arşivde düğün adlı bir proje var."));
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+    // There first, or the question below answers itself.
+    expect(screen.getByText("Arşivde düğün adlı bir proje var.")).toBeTruthy();
+    archiveProject.mockResolvedValue(null);
+    listProjects.mockResolvedValue([]);
+
+    await act(async () => { fireEvent.click(screen.getByLabelText("Projeyi arşivle")); });
+
+    expect(screen.queryByText("Arşivde düğün adlı bir proje var.")).toBeNull();
   });
 });
 

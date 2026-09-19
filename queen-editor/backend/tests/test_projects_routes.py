@@ -22,6 +22,13 @@ def client_for(drive_root, dist_dir, halted=None):
     The halt port stands in for the photo worker: this feature never knows what is behind it, so a
     list that writes down the name is the whole of it here.
     """
+    # Imported here rather than at the top: the module does not exist yet in the test tour, and an
+    # import up there would fail collection and take this whole file's questions with it.
+    from backend.features.projects.domain.usecases.archive_project import (
+        archive_project,
+        list_archived_projects,
+        restore_project,
+    )
     storage = DriveStorage(str(drive_root))
     store = DriveProjectStore(storage)
     settings_store = DriveSettingsStore(storage)
@@ -37,6 +44,10 @@ def client_for(drive_root, dist_dir, halted=None):
         rename_project=partial(rename_project, store, lambda old, new, do: do()),
         get_settings=partial(get_settings, settings_store),
         save_settings=partial(save_settings, settings_store),
+        # No halt port: since madde 227 nothing moves, so there is no production to stop.
+        archive_project=partial(archive_project, store),
+        restore_project=partial(restore_project, store),
+        list_archived_projects=partial(list_archived_projects, store),
     )
     return create_app(dist_dir=str(dist_dir), blueprints=[blueprint]).test_client()
 
@@ -48,6 +59,108 @@ def make_client(tmp_path, halted=None):
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
     return client_for(drive, dist, halted), drive
+
+
+def test_archiving_a_project_takes_it_off_the_list_without_moving_anything(tmp_path):
+    """Madde 227. The projects screen stops showing it and that is the whole of what happened: the
+    folder does not move, so everything that reaches the project by name still finds it."""
+    client, drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    (drive / "düğün" / "0_a.png").write_bytes(b"PNG")
+
+    resp = client.post("/api/projects/düğün/archive")
+
+    assert resp.status_code == 204
+    assert client.get("/api/projects").get_json()["projects"] == []
+    assert (drive / "düğün" / "0_a.png").read_bytes() == b"PNG"
+
+
+def test_the_archive_is_listed_on_its_own(tmp_path):
+    client, _drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects", json={"name": "nikah"})
+    client.post("/api/projects/düğün/archive")
+
+    resp = client.get("/api/projects/archived")
+
+    assert resp.status_code == 200
+    assert [p["name"] for p in resp.get_json()["projects"]] == ["düğün"]
+    # Same shape as a live project: the screen draws both with one card.
+    assert isinstance(resp.get_json()["projects"][0]["modifiedAt"], int)
+
+
+def test_an_archived_project_still_answers_for_its_settings(tmp_path):
+    """Madde 227. The moving archive closed nine use cases at once because they all reach a project
+    by name; the user asked for the opposite -- an archived project goes on working."""
+    client, _drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects/düğün/archive")
+
+    read = client.get("/api/projects/düğün/settings")
+    written = client.put("/api/projects/düğün/settings",
+                         json={"prompts": "kırmızı", "negative": "", "variants": 1, "model": ""})
+
+    assert read.status_code == 200
+    assert written.status_code == 204
+    assert client.get("/api/projects/düğün/settings").get_json()["prompts"] == "kırmızı"
+
+
+def test_restoring_brings_the_project_back(tmp_path):
+    client, drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects/düğün/archive")
+
+    resp = client.post("/api/projects/düğün/restore")
+
+    assert resp.status_code == 204
+    assert [p["name"] for p in client.get("/api/projects").get_json()["projects"]] == ["düğün"]
+    assert client.get("/api/projects/archived").get_json()["projects"] == []
+    assert (drive / "düğün").is_dir()
+
+
+def test_archiving_a_project_that_is_not_there_answers_404(tmp_path):
+    client, _drive = make_client(tmp_path)
+
+    resp = client.post("/api/projects/yok/archive")
+
+    assert resp.status_code == 404
+    assert resp.get_json()["error"] == "Proje yok: yok"
+
+
+def test_a_name_the_archive_holds_cannot_be_taken_by_a_new_project(tmp_path):
+    """Madde 223. Same code a taken name has always answered with: the archive must not teach the
+    frontend a second error language."""
+    client, _drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects/düğün/archive")
+
+    resp = client.post("/api/projects", json={"name": "düğün"})
+
+    assert resp.status_code == 409
+    assert "arşiv" in resp.get_json()["error"].lower()
+
+
+def test_a_project_cannot_be_renamed_onto_a_name_the_archive_holds(tmp_path):
+    client, _drive = make_client(tmp_path)
+    client.post("/api/projects", json={"name": "düğün"})
+    client.post("/api/projects/düğün/archive")
+    client.post("/api/projects", json={"name": "nikah"})
+
+    resp = client.post("/api/projects/nikah/rename", json={"name": "düğün"})
+
+    assert resp.status_code == 409
+    assert "arşiv" in resp.get_json()["error"].lower()
+
+
+def test_the_archive_name_cannot_be_taken_by_a_project(tmp_path):
+    """Otherwise the archive folder itself would be a project, and archiving anything would look
+    like it moved into another project."""
+    client, _drive = make_client(tmp_path)
+
+    resp = client.post("/api/projects", json={"name": "arsiv"})
+
+    assert resp.status_code == 400
+    assert "ayrılmış" in resp.get_json()["error"]
 
 
 def test_deleting_a_project_removes_the_folder_with_everything_in_it(tmp_path):
@@ -201,18 +314,20 @@ def test_settings_start_empty_for_a_new_project(tmp_path):
     client, _ = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
     assert client.get("/api/projects/düğün/settings").get_json() == {
-        "prompts": "", "negative": "", "variants": None, "model": ""}
+        "prompts": "", "negative": "", "variants": None, "model": "", "lora": ""}
 
 
 def test_settings_survive_a_put_and_come_back(tmp_path):
+    # The lora rides with the model: a project opens on the pick it was last sent with (madde 238).
     client, _ = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
     resp = client.put("/api/projects/düğün/settings",
                       json={"prompts": '["a"]', "negative": "neg", "variants": 4,
-                            "model": "nova.safetensors"})
+                            "model": "nova3dcg", "lora": "slime"})
     assert resp.status_code == 204
     assert client.get("/api/projects/düğün/settings").get_json() == {
-        "prompts": '["a"]', "negative": "neg", "variants": 4, "model": "nova.safetensors"}
+        "prompts": '["a"]', "negative": "neg", "variants": 4, "model": "nova3dcg",
+        "lora": "slime"}
 
 
 def test_settings_of_an_unknown_project_return_404(tmp_path):
@@ -234,6 +349,6 @@ def test_settings_of_the_wrong_type_are_coerced(tmp_path):
     client, _ = make_client(tmp_path)
     client.post("/api/projects", json={"name": "düğün"})
     client.put("/api/projects/düğün/settings",
-               json={"prompts": 5, "negative": None, "variants": "4", "model": 7})
+               json={"prompts": 5, "negative": None, "variants": "4", "model": 7, "lora": 7})
     assert client.get("/api/projects/düğün/settings").get_json() == {
-        "prompts": "", "negative": "", "variants": None, "model": ""}
+        "prompts": "", "negative": "", "variants": None, "model": "", "lora": ""}

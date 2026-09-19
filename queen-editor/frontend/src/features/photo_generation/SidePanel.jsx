@@ -129,7 +129,7 @@ function RailButton({ panel, active, busy, onSelect }) {
 // yet -- now have a panel each, and the status cards that sat under the form live next door.
 export default function SidePanel({ job, known, error, errorField, busyElsewhere, settings,
                                     settingsError, project, stopping, queue, failures, models,
-                                    modelsError, producers, frames, selected, onQueueLayer,
+                                    loras, modelsError, producers, frames, selected, onQueueLayer,
                                     onGenerate, onStop, onResume, onCancel, onClearError,
                                     onRetryAll, onRetrySettings }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
@@ -169,7 +169,7 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
         ) : (
           <GeneratePanel job={job} error={error} errorField={errorField}
                          busyElsewhere={busyElsewhere} settings={settings} project={project}
-                         models={models} modelsError={modelsError}
+                         models={models} loras={loras} modelsError={modelsError}
                          producer={(producers?.producers || []).find((p) => p.id === "photo")}
                          onGenerate={onGenerate} onClearError={onClearError}
                          onInstall={producers?.install} />
@@ -178,6 +178,7 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
             the scope rule differ (see LayerPanel). */}
         {(open === "video" || open === "audio") && (
           <LayerPanel layer={open} frames={frames} selected={selected}
+                      job={job} busyElsewhere={busyElsewhere} error={error}
                       producer={(producers?.producers || []).find((p) => p.id === open)}
                       onQueue={(files, variants, mode) => onQueueLayer(open, files, variants, mode)}
                       onInstall={producers?.install} />

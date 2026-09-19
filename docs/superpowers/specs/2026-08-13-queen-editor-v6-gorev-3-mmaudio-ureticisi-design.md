@@ -1,6 +1,6 @@
 # Görev 3 — MMAudio üreticisi
 
-**Roadmap:** [v6](../plans/2026-08-13-queen-editor-v6-roadmap.md) · Blok 2
+**Roadmap:** [v3 Koşu 2](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 2
 
 ## Sorun
 

@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-24 · **Kaynak:** [test spec'i](2026-08-24-queen-editor-v14-gorev-27-testler-design.md)
 **Ölçüm:** [araştırma belgesi](../research/2026-08-23-queen-editor-galeri-yavasligi.md) §0
-**Yol haritası:** [v14](../plans/2026-08-20-queen-editor-v14-roadmap.md) madde 27
+**Yol haritası:** [v4](../roadmaps/2026-08-20-queen-editor-v4-roadmap.md) madde 27
 
 ## Kırmızı testlerin istediği
 

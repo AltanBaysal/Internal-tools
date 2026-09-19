@@ -1,6 +1,6 @@
 # Madde 109 — Kıyafet giyenin olur · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 109.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 109.
 **Gözlenen** *(28 Ağustos)*: iki karakterli senaryoda model tek `outfits` girdisi yazdı ve ikisine
 birden verdi —
 

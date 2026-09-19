@@ -251,7 +251,7 @@ kararı satıra not düşer.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add docs/superpowers/specs/2026-08-21-queen-editor-v14-gorev-24-proje-ekrani-uygulama-design.md docs/superpowers/plans/2026-08-21-queen-editor-v14-gorev-24-uygulama.md docs/superpowers/plans/2026-08-20-queen-editor-v14-roadmap.md queen-editor/frontend/src queen-editor/frontend/dist
+git add docs/superpowers/specs/2026-08-21-queen-editor-v14-gorev-24-proje-ekrani-uygulama-design.md docs/superpowers/plans/2026-08-21-queen-editor-v14-gorev-24-uygulama.md docs/superpowers/roadmaps/2026-08-20-queen-editor-v4-roadmap.md queen-editor/frontend/src queen-editor/frontend/dist
 git commit -m @'
 feat(queen-editor): the projects screen finds its measures
 '@

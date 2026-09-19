@@ -1,7 +1,7 @@
 # Madde 98 — Karakter tek başına denenir · **uygulama turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 98 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 6, Madde 98 ·
 **Turun birincisi:** [test turu](2026-08-27-queenagent-m98-karakter-denemesi-testler-design.md) —
 on dört kırmızı commit'lendi *(`cea56ca`)*.
 **Tur:** ikiden ikincisi — bu belge **yalnız kodu** tarif eder.

@@ -9,34 +9,27 @@ import uuid
 
 import requests
 
-from backend.services.comfy.errors import ComfyExecutionError, describe
+from backend.services.comfy.errors import ComfyExecutionError, ComfyUnreachable, describe
 
 
 class ComfyClient:
     def __init__(self, base_url, http=requests, poll_interval=5, sleep=time.sleep,
-                 now=time.monotonic):
+                 now=time.monotonic, log_path=""):
         self.base = base_url.rstrip("/")
         self.client_id = str(uuid.uuid4())
         self._http = http
         self._poll_interval = poll_interval
         self._sleep = sleep
         self._now = now
+        # ComfyUI's own log, read only when it cannot be reached (madde 230).
+        self._log_path = log_path
 
-    def checkpoints(self):
-        """Every checkpoint the loader node can see, in the order the server lists them.
-
-        Asked rather than configured: the notebook decides what gets installed, and a second list
-        living in the app would disagree with it the first time a model is added.
-        """
-        resp = self._http.get(f"{self.base}/object_info/CheckpointLoaderSimple", timeout=30)
-        info = resp.json()
+    def _send(self, method, url, **kwargs):
+        """Every request goes through here, so none of them can forget what a refusal means."""
         try:
-            names = info["CheckpointLoaderSimple"]["input"]["required"]["ckpt_name"][0]
-        except (KeyError, IndexError, TypeError):
-            # The server's own answer, printed whole -- an unrecognised shape must stay visible.
-            raise RuntimeError("GET /object_info/CheckpointLoaderSimple -> beklenmeyen yanıt\n"
-                               + json.dumps(info, ensure_ascii=False)[:2000]) from None
-        return [name for name in names if isinstance(name, str)]
+            return getattr(self._http, method)(url, **kwargs)
+        except requests.ConnectionError as exc:
+            raise ComfyUnreachable(self.base, exc, self._log_path) from exc
 
     def upload_image(self, name, data):
         """Put an image in ComfyUI's input folder and return the name the server kept it under.
@@ -45,7 +38,7 @@ class ComfyClient:
         travel over HTTP. overwrite=true because the name is the frame's own: uploading the same
         frame again has to replace it, not become "P0_0 (1).png" that LoadImage never looks at.
         """
-        resp = self._http.post(f"{self.base}/upload/image",
+        resp = self._send("post", f"{self.base}/upload/image",
                                files={"image": (name, data)},
                                data={"overwrite": "true"}, timeout=120)
         if resp.status_code >= 400:
@@ -54,7 +47,7 @@ class ComfyClient:
 
     def submit(self, workflow):
         """Queue the graph; returns ComfyUI's prompt_id."""
-        resp = self._http.post(f"{self.base}/prompt",
+        resp = self._send("post", f"{self.base}/prompt",
                                json={"prompt": workflow, "client_id": self.client_id}, timeout=30)
         if resp.status_code >= 400:
             # The server's own body, not a summary of it.
@@ -71,7 +64,7 @@ class ComfyClient:
         while True:
             if self._now() - start > timeout:
                 raise TimeoutError(f"prompt {prompt_id}: {timeout}s içinde bitmedi")
-            history = self._http.get(f"{self.base}/history/{prompt_id}", timeout=30).json()
+            history = self._send("get", f"{self.base}/history/{prompt_id}", timeout=30).json()
             if prompt_id in history:
                 entry = history[prompt_id]
                 status = entry.get("status", {})
@@ -105,12 +98,15 @@ class ComfyClient:
                             tuple(extensions)):
                         continue
                     outputs.append(item)
-        if len(outputs) != 1:
+        came = json.dumps(history_entry.get("outputs", {}), indent=2, ensure_ascii=False)
+        if not outputs:
+            wanted = ", ".join(extensions) if extensions else "görsel"
+            raise RuntimeError(f"{wanted} çıktısı gelmedi — gelenler:\n{came}")
+        if len(outputs) > 1:
             raise RuntimeError(
-                f"1 çıktı bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n"
-                + json.dumps(history_entry.get("outputs", {}), indent=2, ensure_ascii=False))
+                f"1 çıktı bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n{came}")
         item = outputs[0]
-        resp = self._http.get(f"{self.base}/view", timeout=300, params={
+        resp = self._send("get", f"{self.base}/view", timeout=300, params={
             "filename": item["filename"],
             "subfolder": item.get("subfolder", ""),
             "type": "output",
@@ -120,5 +116,5 @@ class ComfyClient:
 
     def interrupt(self):
         """Cut whatever ComfyUI is rendering right now; harmless when nothing runs."""
-        resp = self._http.post(f"{self.base}/interrupt", timeout=30)
+        resp = self._send("post", f"{self.base}/interrupt", timeout=30)
         resp.raise_for_status()

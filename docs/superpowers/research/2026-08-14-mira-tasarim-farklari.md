@@ -8,7 +8,7 @@
 
 **İki taraf.** Bir yanda bugün repoda çalışan uygulama; tarifi
 [Mira v1 tasarım belgesi](../specs/2026-08-09-mira-v1-design.md) ve
-[v1 yol haritası](../plans/2026-08-09-mira-v1-roadmap.md). Öte yanda claude.ai/design'daki tasarımın
+[v1 yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md). Öte yanda claude.ai/design'daki tasarımın
 yeni sürümü; kendine **"v2 (post road-map)"** diyor. Belge boyunca ikisi de tam adıyla anılır:
 **Mira v1** ve **tasarım v2**.
 

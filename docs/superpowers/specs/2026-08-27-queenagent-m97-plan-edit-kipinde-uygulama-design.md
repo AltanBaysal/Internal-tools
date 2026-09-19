@@ -1,7 +1,7 @@
 # Madde 97 — Plan yazmak edit kipinin de işi olur · **uygulama turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 97 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 6, Madde 97 ·
 **Turun birincisi:** [test turu](2026-08-27-queenagent-m97-plan-edit-kipinde-testler-design.md) —
 bir kırmızı commit'lendi *(`bd26faa`)*.
 **Tur:** ikiden ikincisi — bu belge **yalnız kodu** tarif eder.

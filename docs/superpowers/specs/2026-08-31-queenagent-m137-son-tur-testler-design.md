@@ -2,7 +2,7 @@
 
 **Kaynak:** kullanıcının 31 Ağustos'taki isteği, ve aynı gün `stream_answer` üzerinde yapılan hata
 incelemesi. Yeni bir yol haritası açılmadı *(kullanıcı kararı, 31 Ağustos)*; numara
-[v5 yol haritasının](../plans/2026-08-25-queenagent-v5-roadmap.md) kapanış kuralından geliyor —
+[v5 yol haritasının](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) kapanış kuralından geliyor —
 *"madde nereye eklenirse eklensin 137'den devam eder."*
 **Dal:** `feat/queenagent-m137-son-tur`.
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { navigate, photoPath } from "../../shared/router.js";
@@ -117,6 +117,11 @@ function statusOf(frame, rendering, flowing) {
   return (frame.owed || []).map((layer) => ({ layer, state: flowing ? "pending" : "waiting" }));
 }
 
+// A press with shift or ctrl (⌘ on a Mac) is a choice, not a way into the frame (madde 231).
+function choosing(event) {
+  return event.shiftKey || event.ctrlKey || event.metaKey;
+}
+
 function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck, children }) {
   const nameColor = danger ? "var(--danger)" : muted ? "var(--ink-4)" : "var(--ink-3)";
   return (
@@ -150,7 +155,7 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
         {onCheck && (
           <div data-check className={selected ? "qe-check qe-check--on" : "qe-check"}
                style={{ ...CHECK, ...(selected ? CHECK_ON : CHECK_OFF) }}
-               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCheck(); }}>
+               onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCheck(e); }}>
             {selected ? "✓" : ""}
           </div>
         )}
@@ -177,6 +182,9 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
   // Derived rather than a flag of its own, because the two drifting apart is exactly what left a
   // gallery covered in rings after its bar had already gone.
   const selecting = selected.length > 0;
+  // Where a shift-press measures its run from: the last card pressed without shift, the way a file
+  // list picks. Drawn nowhere, so a ref (madde 231).
+  const anchor = useRef(null);
   const [confirming, setConfirming] = useState(null);
   const [deleting, setDeleting] = useState(false);
   // Which frames have just been sent back. The screen's own memory: the server keeps no "asked for"
@@ -219,6 +227,24 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
     setSelected((current) => (current.includes(fid)
       ? current.filter((chosen) => chosen !== fid)
       : [...current, fid]));
+  }
+
+  // Every press that chooses -- the ring, the card, the card's link -- comes through here. Shift adds
+  // the run from the anchor in the gallery's own order, and adds rather than replaces: a card the user
+  // picked is never dropped for them. Anything else, ctrl included, is one card in or out.
+  function press(fid, event) {
+    const ids = frames.map((frame) => frame.id);
+    const from = ids.indexOf(anchor.current);
+    // No selection, no anchor: one left over from a selection that was closed starts nothing.
+    if (event.shiftKey && selecting && from >= 0) {
+      const to = ids.indexOf(fid);
+      const run = ids.slice(Math.min(from, to), Math.max(from, to) + 1)
+        .filter((id) => id !== current);
+      setSelected((chosen) => [...chosen, ...run.filter((id) => !chosen.includes(id))]);
+      return;
+    }
+    anchor.current = fid;
+    toggle(fid);
   }
 
   function handleDelete() {
@@ -379,7 +405,11 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
               onDragOver={(e) => { e.preventDefault(); setOverIndex(index); }}
               onDrop={handleDrop}
               onDragEnd={() => { setDragIndex(null); setOverIndex(null); }}
-              onClick={selecting && state !== "running" ? () => toggle(frame.id) : undefined}
+              // With shift or ctrl held a press chooses even when nothing is chosen yet, the way a
+              // file list starts a selection.
+              onClick={state !== "running"
+                ? (e) => { if (selecting || choosing(e)) press(frame.id, e); }
+                : undefined}
               style={dragging ? DRAGGED : undefined}
             >
               {isSlot ? (
@@ -399,7 +429,7 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                                        ground="var(--bg-2)" onRetry={sendBack} />
                         </div>
                       )}
-                      onCheck={state === "running" ? undefined : () => toggle(frame.id)}
+                      onCheck={state === "running" ? undefined : (e) => press(frame.id, e)}
                       selected={selected.includes(frame.id)}>
                   {/* Every frame opens its own page, produced or not -- the detail page knows all
                       four states, and a waiting frame's prompt is only readable there. A real link
@@ -411,7 +441,7 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
                      style={{ display: "block" }}
                      onClick={(e) => {
                        e.preventDefault();
-                       if (!selecting) navigate(photoPath(project, frame.id));
+                       if (!selecting && !choosing(e)) navigate(photoPath(project, frame.id));
                      }}>
                     {state === "done" ? (
                       /* The picture asks a queue before it downloads: every tile is a request

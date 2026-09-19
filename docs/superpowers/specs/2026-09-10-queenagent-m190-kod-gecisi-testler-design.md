@@ -1,6 +1,6 @@
 # Madde 190 — okumanın kod geçişi · test turu
 
-**Kaynak:** [yol haritasının Madde 190'ı](../plans/2026-09-06-queenagent-v8-roadmap.md),
+**Kaynak:** [yol haritasının Madde 190'ı](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md),
 [düzeltme log'u](../../2026-09-09-queenagent-metin-duzeltmeleri.md) *(35 kayıt)* ve
 [okuma kopyası](../../2026-09-09-queenagent-modele-giden-metinler.md) *(metinlerin yeni hâli)*.
 

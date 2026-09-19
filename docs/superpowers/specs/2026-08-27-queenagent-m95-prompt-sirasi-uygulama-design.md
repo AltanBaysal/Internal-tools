@@ -1,7 +1,7 @@
 # Madde 95 — Promptun sırası düzelir, kişi sayısı yerine oturur · **uygulama turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 95 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 6, Madde 95 ·
 **Turun birincisi:** [test turu](2026-08-27-queenagent-m95-prompt-sirasi-testler-design.md) —
 dokuz kırmızı commit'lendi *(`397cb77`)*.
 **Tur:** ikiden ikincisi — bu belge **yalnız kodu** tarif eder; testler yerinde ve değişmiyor.

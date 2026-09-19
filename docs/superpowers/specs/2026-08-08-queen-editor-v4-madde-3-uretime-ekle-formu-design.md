@@ -1,7 +1,7 @@
 # Queen Editor v4 · Madde 3 — Üretime ekle formu
 
 **Tarih:** 2026-08-08 · **Yol haritası:**
-[v4 Madde 3](../plans/2026-08-08-queen-editor-v4-roadmap.md) · **Kapsadığı kodlar:** P4-P11, P13,
+[v2 Madde 3](../roadmaps/2026-08-08-queen-editor-v2-roadmap.md) · **Kapsadığı kodlar:** P4-P11, P13,
 G9 · **sapma:** format hatasının fazlasını söylemesi · **Katman:** ön yüz + arka uçta iki metin
 
 ## Amaç

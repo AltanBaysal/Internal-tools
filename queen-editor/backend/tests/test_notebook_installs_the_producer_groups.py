@@ -23,6 +23,24 @@ NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 SWITCH = {"photo": "INSTALL_PHOTO", "video": "INSTALL_VIDEO", "audio": "INSTALL_AUDIO"}
 
 
+def _catalog():
+    """The app's models and loras. Imported where it is used rather than at the top: a module that
+    is not there yet would fail collection and take every other question in this file down with
+    it."""
+    from backend.features.photo_generation.domain.catalog import LORAS, MODELS
+    return MODELS, LORAS
+
+
+def _boxes():
+    """Every PHOTO_* checkbox CONFIG draws -- models and loras alike."""
+    return re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
+
+
+def _rows(listing):
+    """The switches the rows of one list are filed under, e.g. PHOTO_MODELS."""
+    return re.findall(r"^\s*\((PHOTO_\w+),", _cell(f"{listing} = ["), re.M)
+
+
 def _source():
     """Every cell's source as one blob. Parsed rather than read raw: the file is JSON, so a raw
     read would be searching escaped quotes and line breaks instead of the code the cell runs."""
@@ -69,8 +87,8 @@ def test_the_notebook_carries_the_tool_s_own_name():
 
 def test_every_file_the_panel_counts_is_fetched_by_the_notebook():
     """A row naming a kind rather than a file is skipped here and covered by
-    test_the_notebook_offers_every_photo_model instead, which pins all three checkpoints by name and
-    by version id -- a tighter guard than this one, not a looser one."""
+    test_the_notebook_offers_every_checkpoint_a_model_asks_for instead, which pins the checkpoint by
+    name and by version id -- a tighter guard than this one, not a looser one."""
     missing = [row["name"] for group in GROUPS.values() for row in group
                if "name" in row and row["name"] not in _source()]
 
@@ -110,12 +128,34 @@ def test_the_intro_agrees_with_the_custom_node_list():
 
 def test_every_producer_has_a_checkbox_of_its_own():
     """Colab draws a `#@param {type:"boolean"}` line as a checkbox: that is how the user picks.
-    Default False, so nothing heavy starts by accident."""
+    Default False, so nothing heavy starts by accident. Video went back to a box in madde 244, its
+    model picked below it the way the photo's is."""
     source = _source()
 
     for kind in GROUPS:
         assert f'{SWITCH[kind]} = False  #@param {{type:"boolean"}}' in source, \
             f"{kind}: CONFIG'de kapalı gelen bir onay kutusu yok"
+
+
+def test_every_video_model_has_a_checkbox_of_its_own():
+    """The photo's pattern, one level down: the producer's box, then its models' boxes, all off."""
+    config = _cell("# === CONFIG ===")
+
+    for box in ("VIDEO_WAN", "VIDEO_H3"):
+        assert f'{box} = False  #@param {{type:"boolean"}}' in config, \
+            f"{box}: CONFIG'de kapalı gelen bir kutu yok"
+
+
+def test_choosing_video_without_a_model_stops_the_notebook():
+    """Video ticked and no model is a producer with nothing to render with -- asked in CONFIG, like
+    the photo's, where it costs a second rather than an install."""
+    assert "assert not INSTALL_VIDEO or VIDEO_WAN or VIDEO_H3" in _cell("# === CONFIG ===")
+
+
+def test_choosing_both_video_models_stops_the_notebook():
+    """WAN and H3 never share a session (user's call, madde 243). Colab's boxes cannot be tied to
+    each other, so the form cannot prevent it -- CONFIG stops it before a byte comes down."""
+    assert "assert not (VIDEO_WAN and VIDEO_H3)" in _cell("# === CONFIG ===")
 
 
 def test_the_form_names_the_producer_boxes_too():
@@ -163,8 +203,23 @@ def test_the_form_leaves_the_model_section_at_its_heading():
     assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
     tail = drawn[drawn.index("#@markdown ---"):]
 
-    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri"], \
-        f"Model bölümü başlıktan ibaret değil: {tail}"
+    assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri",
+                    "#@markdown ---", "#@markdown ### Video modelleri"], \
+        f"Model bölümleri başlıklarından ibaret değil: {tail}"
+
+
+def test_the_form_gives_video_models_a_section_of_their_own():
+    """Pinned by position, like the photo's: the video boxes come after the photo models, under
+    their own divider and heading."""
+    config = _cell("# === CONFIG ===")
+    photo_box = config.find("PHOTO_DASIWA = ")
+    heading = config.find("#@markdown ### Video modelleri")
+    divider = config.rfind("#@markdown ---", 0, heading)
+    first_box = config.find("VIDEO_WAN = ")
+
+    assert heading != -1, "Video modelleri başlığı yok"
+    assert photo_box < divider < heading < first_box, \
+        "Video modelleri kendi ayracı ve başlığıyla fotoğraf modellerinin altında değil"
 
 
 def test_choosing_nothing_stops_the_notebook():
@@ -194,57 +249,93 @@ def test_an_unticked_group_costs_no_bytes():
     """The whole point of the checkboxes: a group's list is only reached through its own switch."""
     source = _source()
 
-    for names, kind in ((("CIVITAI_PHOTO", "OPEN_PHOTO"), "photo"),
-                        (("CIVITAI_VIDEO", "OPEN_VIDEO"), "video"),
-                        (("OPEN_AUDIO",), "audio")):
+    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO"), SWITCH["photo"]),
+                          (("CIVITAI_VIDEO", "OPEN_VIDEO"), 'VIDEO_MODEL == "wan"'),
+                          (("CIVITAI_H3", "OPEN_H3"), 'VIDEO_MODEL == "h3"'),
+                          (("OPEN_AUDIO",), SWITCH["audio"])):
         for name in names:
-            assert f"{name} if {SWITCH[kind]} else []" in source, \
+            assert f"{name} if {switch} else []" in source, \
                 f"{name} kendi anahtarının arkasında değil"
 
 
-def test_every_photo_model_has_a_checkbox_of_its_own():
-    """The switch has to sit in CONFIG -- Colab draws #@param only where it is written -- and the row
-    saying what to fetch sits in the model cell. Two lists, and a name in one but not the other is
-    either a box that downloads nothing or a download nobody can turn off.
+def test_every_model_the_app_knows_has_a_checkbox_of_its_own():
+    """A model is written down twice on purpose: its name and its checkpoint in the app, because
+    that is the side that patches the graph, and its version id and size in the notebook,
+    because addresses live there (FOUNDATION 9). This is the seam that keeps the two halves naming
+    the same models (madde 237).
 
-    Every checkpoint is here, the group's own included: which models come down is the user's pick.
+    The switch has to sit in CONFIG -- Colab draws #@param only where it is written.
     """
-    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", _cell("# === CONFIG ==="), re.M)
-    rows = re.findall(r"^\s*\((PHOTO_\w+),", _cell("PHOTO_MODELS = ["), re.M)
+    models, _loras = _catalog()
+    known = sorted("PHOTO_" + model["id"].upper() for model in models)
 
-    assert boxes, "CONFIG'de tek bir model kutusu yok"
-    assert sorted(boxes) == sorted(rows), f"Kutular {sorted(boxes)}, satırlar {sorted(rows)}"
+    assert sorted(_rows("PHOTO_MODELS")) == known, \
+        f"Model satırları {sorted(_rows('PHOTO_MODELS'))}, uygulamanın modelleri {known}"
 
 
-def test_every_photo_model_comes_switched_off():
+def test_every_photo_box_is_a_model():
+    """A box with no row downloads nothing; a row with no box cannot be turned off. And every box is
+    a model: the lora files come with the photo group whatever was ticked, so a lora box would
+    decide nothing about the disk -- Slime's old box went with the recipes (madde 237)."""
+    rows = _rows("PHOTO_MODELS")
+
+    assert rows, "Model satırı yok"
+    assert sorted(_boxes()) == sorted(rows), f"Kutular {sorted(_boxes())}, satırlar {sorted(rows)}"
+
+
+def test_the_disk_estimate_reads_the_chosen_checkpoints():
+    """Pinned as the one name both the download list and the size sum read: two expressions
+    deriving the same thing separately is how they come to disagree."""
+    assert "CHOSEN_CHECKPOINTS" in _cell("PHOTO_MODELS = ["), \
+        "Seçilen checkpoint'ler model satırlarından çıkarılmıyor"
+    assert "CHOSEN_CHECKPOINTS" in _cell("PHOTO_GIB ="), \
+        "Disk hesabı seçilen checkpoint'leri okumuyor"
+
+
+def test_the_app_is_told_which_models_the_notebook_chose():
+    """The disk cannot answer this: a checkpoint left from another run would be listed as if it had
+    been ticked. Only the notebook knows what was ticked."""
+    source = _source()
+
+    assert '"QE_PHOTO_MODELS"' in source, "Defter seçilen modelleri uygulamaya geçirmiyor"
+    assert '"QE_PHOTO_RECIPES"' not in source, "Defter hâlâ tarif kimlikleri geçiriyor"
+
+
+def test_the_app_is_told_where_comfyui_writes_its_log():
+    """When ComfyUI stops answering, its log is the only thing that knows why -- and it dies with
+    the session. The app reads its tail into the error, so it has to know where the notebook
+    sends it (madde 230)."""
+    assert '"QE_COMFY_LOG"' in _source(), \
+        "Defter ComfyUI log'unun yolunu uygulamaya geçirmiyor"
+
+
+def test_every_photo_box_comes_switched_off():
     """Photo ticked draws the boxes empty and picks nothing heavy for anyone.
 
     The first assertion is not spare: with no PHOTO_* line at all the second one holds for free.
     """
-    config = _cell("# === CONFIG ===")
-    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
-    on = re.findall(r"^(PHOTO_\w+) = True  #@param", config, re.M)
+    on = re.findall(r"^(PHOTO_\w+) = True  #@param", _cell("# === CONFIG ==="), re.M)
 
-    assert boxes, "CONFIG'de tek bir model kutusu yok"
-    assert on == [], f"Model açık geliyor: {on}"
+    assert _boxes(), "CONFIG'de tek bir fotoğraf kutusu yok"
+    assert on == [], f"Kutu açık geliyor: {on}"
 
 
 def test_choosing_photo_without_a_model_stops_the_notebook():
-    """Photo ticked and every model box empty means a renderer with nothing to render with. Asked in
-    CONFIG like every other gate: a second here beats ten minutes after ComfyUI's install.
+    """Photo ticked and every model box empty means a renderer with nothing to render with. A lora
+    is not enough: it rides on a checkpoint. Asked in CONFIG like every other gate: a second here
+    beats ten minutes after ComfyUI's install.
 
-    The expected line is built from the boxes rather than written down, so a model added without
-    being added to the guard fails here instead of silently reopening the hole.
+    The expected line is built from the model rows rather than written down, so a model added
+    without being added to the guard fails here instead of silently reopening the hole.
     """
-    config = _cell("# === CONFIG ===")
-    boxes = re.findall(r"^(PHOTO_\w+) = (?:True|False)  #@param", config, re.M)
-    guard = "assert not INSTALL_PHOTO or " + " or ".join(boxes)
+    models = _rows("PHOTO_MODELS")
+    guard = "assert not INSTALL_PHOTO or " + " or ".join(models)
 
-    assert boxes, "CONFIG'de tek bir model kutusu yok"
-    assert guard in config, f"Beklenen kontrol yok:\n{guard}"
+    assert models, "Model satırı yok"
+    assert guard in _cell("# === CONFIG ==="), f"Beklenen kontrol yok:\n{guard}"
 
 
-def test_an_unticked_photo_model_costs_no_bytes():
+def test_an_unticked_model_costs_no_bytes():
     """The rule the three producer boxes already follow, one level down: a row is reached only
     through its own switch."""
     assert "in PHOTO_MODELS if on" in _cell("PHOTO_MODELS = ["), \
@@ -252,26 +343,52 @@ def test_an_unticked_photo_model_costs_no_bytes():
 
 
 def test_the_photo_estimate_counts_only_what_the_group_always_takes():
-    """The base is the four files the graph's branches read -- the lora, the upscaler, the detector,
-    the SAM. The checkpoints are the user's pick, so counting one of them into the base would warn a
-    single-model run about disk it was never going to use."""
+    """The base is the files every photo run takes whatever was ticked -- both loras, the upscaler,
+    the detector, the SAM. The checkpoints come from the model boxes, so counting one of them into
+    the base would warn a single-model run about disk it was never going to use."""
     assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
         "SIZES foto için hâlâ sabit bir sayı taşıyor"
     assert "PHOTO_GIB = 2 +" in _cell("PHOTO_GIB ="), \
         "Disk tabanı hâlâ bir checkpoint'in payını taşıyor"
 
 
-def test_the_notebook_offers_every_photo_model():
-    """Named rather than derived: this is the one place saying which models the notebook can fetch,
+def test_the_notebook_offers_every_checkpoint_a_model_asks_for():
+    """Named rather than derived: this is the one place saying which files the notebook can fetch,
     so a silent edit cannot quietly change what a run is able to install. Reading the list itself
     would only say that the list contains what it contains."""
-    cell = _cell("PHOTO_MODELS = [")
+    cell = _cell("PHOTO_CHECKPOINTS = [")
 
-    for name in ("nova3DCGXL_ilV90.safetensors", "novaOrangeXL_rexV10.safetensors",
-                 "novaAnimeXL_ilV190.safetensors"):
-        assert name in cell, f"Defter bu modeli indirmiyor: {name}"
-    for version in ("2744564", "2945776", "2940478"):
+    for filename, version in (("nova3DCGXL_ilV90.safetensors", "2744564"),
+                              # madde 237: read from Civitai's own API in madde 222's trial.
+                              ("DasiwaIllustriousAnime_epitaphecstasy.safetensors", "3012006")):
+        assert filename in cell, f"Defter bu checkpoint'i indirmiyor: {filename}"
         assert version in cell, f"Civitai version id defterde yok: {version}"
+
+
+def test_the_retired_nova_checkpoints_are_gone_from_the_notebook():
+    """Nova Orange and Nova Anime left the recipe list (madde 226). A row left behind here would
+    still be a box somebody could tick for 7 GiB that renders nothing the app offers."""
+    source = _source()
+
+    for leftover in ("novaOrangeXL_rexV10.safetensors", "novaAnimeXL_ilV190.safetensors",
+                     "2945776", "2940478"):
+        assert leftover not in source, f"Defterde kaldırılan Nova'dan iz kaldı: {leftover}"
+
+
+def test_every_file_the_app_renders_with_is_one_the_notebook_can_fetch():
+    """A model or a lora pointing at a file the notebook never downloads is a row that renders
+    nothing -- and it would say so only after the install, as a missing-model error from ComfyUI.
+    USNR is among the loras now, and it is the default: every frame that names none renders with
+    it (madde 238)."""
+    models, loras = _catalog()
+    checkpoints = _cell("PHOTO_CHECKPOINTS = [")
+    source = _source()
+
+    for model in models:
+        assert model["checkpoint"] in checkpoints, \
+            f"{model['id']}: modelin checkpoint'i defterde yok — {model['checkpoint']}"
+    for lora in loras:
+        assert lora["lora"] in source, f"{lora['id']}: LoRA defterde yok — {lora['lora']}"
 
 
 def test_the_disk_is_measured_before_the_download_starts():
@@ -351,6 +468,70 @@ def test_the_key_is_trimmed_where_it_is_read():
         "Secret'tan okunan anahtar kırpılmıyor"
 
 
+def test_every_file_the_h3_group_counts_is_fetched_by_the_notebook():
+    """The group names a file the way the graph loads it, MiniMaxH3/ included; the notebook names
+    the file itself and puts it in that folder."""
+    from backend.features.producers.domain.model_groups import H3_VIDEO
+    source = _source()
+
+    missing = [row["name"] for row in H3_VIDEO if os.path.basename(row["name"]) not in source]
+
+    assert missing == [], f"Defter bu H3 dosyalarını indirmiyor: {missing}"
+
+
+def test_the_notebook_fetches_the_h3_checkpoint_and_lora_by_their_versions():
+    """Named rather than derived, like the photo checkpoints: the DaSiWa Hybrid Turbo v2 the graph
+    ships configured for, and the one lora the user kept (madde 213)."""
+    cell = _cell("CIVITAI_H3 = [")
+
+    for version in ("3314686", "3228867"):
+        assert version in cell, f"Civitai version id defterde yok: {version}"
+
+
+def test_the_h3_files_from_huggingface_come_down_over_one_connection():
+    """HF keeps these in its Xet store, whose signed URLs answer parallel byte ranges with 403 --
+    aria2c's sixteen connections fail where one curl gets through."""
+    pattern = (r'for [^\n]+ in \(OPEN_H3 if VIDEO_MODEL == "h3" else \[\]\):\n'
+               r'\s+fetch\([^\n]*parallel=False')
+
+    assert re.search(pattern, _source()), "H3'ün HF dosyaları tek bağlantıyla inmiyor"
+
+
+def test_the_quantizer_stamp_is_cut_before_a_file_is_judged():
+    """The tool behind the H3 quants leaves a line of ASCII after the last tensor. ComfyUI's own
+    reader walks past it and Rust's refuses the file -- and check_safetensors calls it too long.
+    Cutting it before every check is what makes the same file load whichever reader runs."""
+    cell = _cell("def fetch(")
+    body = cell[cell.index("def fetch("):cell.index("# === Civitai ===")]
+
+    assert "def strip_unreferenced_tail" in cell, "Damga kesici defterde yok"
+    assert "strip_unreferenced_tail(" in body, "fetch damgayı kesmiyor"
+
+
+def test_the_notebook_installs_the_nodes_the_h3_graph_asks_for():
+    """SeedControl, EnhancedVideoCombine and the lora stack come from this package. ComfyUI
+    validates every node it is sent, so a missing one fails every H3 render."""
+    assert "darksidewalker/ComfyUI-DaSiWa-Nodes" in _cell("CUSTOM_NODES = [")
+
+
+def test_the_disk_estimate_counts_h3_when_h3_is_picked():
+    assert '(VIDEO_MODEL == "h3", ' in _cell("SIZES = ["), "Disk hesabı H3'ü saymıyor"
+
+
+def test_the_app_is_told_which_video_model_the_notebook_installed():
+    """The disk cannot answer this for the producer to use -- only the notebook knows what was
+    picked."""
+    assert '"QE_VIDEO_MODEL"' in _cell("# === Start Flask"), \
+        "Defter seçilen video modelini uygulamaya geçirmiyor"
+
+
+def test_the_clone_checks_for_the_h3_graphs_too():
+    clone = _cell("# === Clone ===")
+
+    for name in ("workflow_video_h3_api.json", "workflow_video_h3_first_last_api.json"):
+        assert name in clone, f"Klon {name} dosyasını aramıyor"
+
+
 def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
     """cloudflared speaks QUIC by default, and QUIC rides on UDP. Colab's network throttles UDP and
     leaves TCP alone: on 2026-08-24 the same photo took 17.74 s over the default tunnel and 0.18 s
@@ -360,13 +541,3 @@ def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
 
     assert '"--protocol", "http2"' in flask_cell, \
         "cloudflared varsayılan QUIC ile açılıyor — Colab'ın ağı UDP'yi kısıyor"
-
-
-def test_the_protocol_flag_says_what_it_is_standing_in_for():
-    """One word in an argument list, and nothing about it says a default was overruled. A reader
-    who cannot see what it replaced is a reader who deletes it as noise -- and the gallery goes
-    ninety times slower with no error anywhere. The reason has to travel next to the flag."""
-    flask_cell = _cell("# === Start Flask")
-
-    assert "QUIC" in flask_cell, \
-        "Bayrağın neyin yerine geçtiği yazılmamış — sebebi olmayan bayrak silinir"

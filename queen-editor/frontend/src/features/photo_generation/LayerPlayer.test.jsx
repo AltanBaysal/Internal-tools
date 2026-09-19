@@ -51,6 +51,19 @@ describe("LayerPlayer", () => {
     expect(document.querySelector("[data-progress]").style.width).toBe("40%");
   });
 
+  // Madde 243: an H3 video carries a sound of its own, and a sound layer takes its place.
+  it("mutes the video while a sound layer plays over it", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" />);
+
+    expect(videoOf().muted).toBe(true);
+  });
+
+  it("lets a video with no sound layer play its own sound", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+
+    expect(videoOf().muted).toBe(false);
+  });
+
   it("brings the sound along and draws a waveform in place of the bar", () => {
     render(<LayerPlayer videoUrl="/v.mp4" audioUrl="/s.wav" />);
 
@@ -112,5 +125,46 @@ describe("LayerPlayer", () => {
     const button = screen.getByRole("button", { name: "Oynat" });
     expect(button.style.borderStyle).toBe("solid");
     expect(button.querySelector("[data-glyph=play]")).toBeTruthy();
+  });
+
+  it("hides the button while the video plays", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+
+    // Madde 212: a 64px disc in the middle of a five second clip covers the part being looked at.
+    // It stays in the DOM rather than unmounting -- that is what keeps a keyboard able to pause --
+    // and draws nothing.
+    fireEvent.click(screen.getByRole("button", { name: "Oynat" }));
+    expect(screen.getByRole("button", { name: "Duraklat" }).style.opacity).toBe("0");
+
+    fireEvent.click(screen.getByRole("button", { name: "Duraklat" }));
+    expect(screen.getByRole("button", { name: "Oynat" }).style.opacity).toBe("1");
+  });
+
+  it("starts the video when the picture is clicked", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+
+    fireEvent.click(document.querySelector("[data-scene]"));
+
+    expect(screen.getByRole("button", { name: "Duraklat" })).toBeTruthy();
+  });
+
+  it("pauses the video when the picture is clicked", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+    fireEvent.click(screen.getByRole("button", { name: "Oynat" }));
+
+    // With the button drawn away, the picture itself is what is left to click.
+    fireEvent.click(document.querySelector("[data-scene]"));
+
+    expect(screen.getByRole("button", { name: "Oynat" }).style.opacity).toBe("1");
+  });
+
+  it("turns the video once when the button itself is clicked", () => {
+    render(<LayerPlayer videoUrl="/v.mp4" />);
+
+    // The button sits inside the scene, so its click reaches the scene too: turned twice, the video
+    // would come back to where it started and the button would look dead.
+    fireEvent.click(screen.getByRole("button", { name: "Oynat" }));
+
+    expect(screen.getByRole("button", { name: "Duraklat" })).toBeTruthy();
   });
 });

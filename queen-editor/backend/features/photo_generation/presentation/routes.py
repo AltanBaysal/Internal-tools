@@ -18,6 +18,7 @@ from backend.features.photo_generation.domain.usecases.retry_frame import FrameM
 from backend.features.photo_generation.domain.usecases.save_order import InvalidOrder
 from backend.features.photo_generation.domain.usecases.start_batch import (
     Busy,
+    InvalidLora,
     InvalidVariants,
     ProjectMissing,
 )
@@ -34,7 +35,8 @@ REMOVABLE = (layers.VIDEO, layers.AUDIO)
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
                                     cancel_generation, retry_frame, retry_failed, queue_layer,
-                                    regenerate, remove_layer, list_frames, list_models, save_order,
+                                    regenerate, remove_layer, list_frames, list_models, list_loras,
+                                    save_order,
                                     export_summary, export_state, run_export, cancel_export,
                                     remove_frames, copy_frames, photo_dir):
     """The callables are already bound to a runner/store/generator (see main.py)."""
@@ -52,14 +54,19 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         model = body.get("model")
         # No model is legitimate too: the graph renders with its own checkpoint.
         model = model if isinstance(model, str) else ""
+        lora = body.get("lora")
+        # And no lora is no pick: the renderer gives it the default.
+        lora = lora if isinstance(lora, str) else ""
         try:
-            added = start_batch(project, prompts, negative, body.get("variants"), model)
+            added = start_batch(project, prompts, negative, body.get("variants"), model, lora=lora)
         # Which box was wrong travels with the message: the screen marks that field instead of
         # guessing from the wording.
         except InvalidPrompts as exc:
             return jsonify({"error": str(exc), "field": "prompts"}), 400
         except InvalidVariants as exc:
             return jsonify({"error": str(exc), "field": "variants"}), 400
+        except InvalidLora as exc:
+            return jsonify({"error": str(exc), "field": "lora"}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
         except Busy as exc:
@@ -70,14 +77,11 @@ def make_photo_generation_blueprint(start_batch, get_status, stop_generation, re
         # a second round-trip, and until it lands the frames it was just told about are nowhere.
         return jsonify({"job": "running", "added": added, "frames": list_frames(project)}), 202
 
+    # One answer for both boxes: the panel draws them together, and a second request would be a
+    # second way for one of them to be missing (madde 237).
     @bp.get("/api/models")
     def models():
-        try:
-            return jsonify({"models": list_models()})
-        except Exception as exc:
-            # Whatever the renderer said or failed to say, verbatim -- the panel prints it under
-            # the model field and generating stays possible without a choice.
-            return jsonify({"error": str(exc)}), 502
+        return jsonify({"models": list_models(), "loras": list_loras()})
 
     @bp.get("/api/status")
     def status():

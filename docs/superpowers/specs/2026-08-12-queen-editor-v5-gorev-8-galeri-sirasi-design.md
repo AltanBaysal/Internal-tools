@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 8 — Galeri sırası ve sürükleme · Tasarım
 
 **Tarih:** 2026-08-12 · **Dal:** `feat/queen-editor-v3` ·
-**Yol haritası:** [roadmap v5](../plans/2026-08-12-queen-editor-v5-roadmap.md) — Blok 2, Görev 8 ·
+**Yol haritası:** [roadmap v3 Koşu 1](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) — Blok 2, Görev 8 ·
 **Kaynak maddeler:** [tasarım v3 farkları](../research/2026-08-11-queen-editor-tasarim-v3-farklari.md)
 59, 60 · **Tür:** arka uç + ön yüz.
 

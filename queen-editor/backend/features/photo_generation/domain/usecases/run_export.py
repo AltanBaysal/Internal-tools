@@ -56,26 +56,38 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
     """Writes into a fresh dated folder and returns it; None when the run was cancelled."""
     frames = exportable(list_frames(record, store, plan_store, order_store, project))
     folder = store.make_export_folder(project, now())
+    # Where the pieces are cut. A separate export's pieces ARE the export, so they are written where
+    # the user will look for them. A merged one's are scaffolding for the join and go on the
+    # machine's own disk instead: Drive is slow, and the set would be written there twice over
+    # (madde 235).
+    cutting = store.make_pieces_dir() if mode == MERGED else folder
     runner.report(mode, state="running", written=0, total=len(frames), target=folder,
                   error=None)
     pieces = []
+    written = set()                    # the picture files already in the export's photos folder
     try:
         for index, frame in enumerate(frames, start=1):
             if runner.cancelled(mode):
                 # Between pieces, never inside one: cutting ffmpeg off mid-file would leave half a
                 # video, and the folder is going anyway.
-                store.remove_dir(folder)
+                _clean(store, folder, cutting)
                 runner.report(mode, state="idle", written=0, target=None)
                 return None
-            target = store.export_path(folder, f"{index:02d}.mp4")
+            target = store.export_path(cutting, f"{index:02d}.mp4")
             exporter.piece(store.file_path(project, frame["layers"][layers.VIDEO]),
                            _audio(store, project, frame), target)
             pieces.append(target)
             # The picture goes in under its video's own number, so the photos folder reads as the
             # same sequence and nothing has to be matched up by hand. A frame that somehow has no
             # picture leaves none: its video is written all the same.
+            #
+            # And each picture goes in once. A copy frame produces no picture of its own -- it holds
+            # the source's file -- so a photo with three videos used to be written three times, and
+            # the folder read as the same image over and over (madde 236). The number stays the
+            # first frame's, gaps and all: it is what says which video the picture belongs to.
             photo = frame.get("layers", {}).get(layers.PHOTO)
-            if photo:
+            if photo and photo not in written:
+                written.add(photo)
                 store.copy_photo(store.file_path(project, photo), folder,
                                  f"{index:02d}{_extension(photo)}")
             runner.report(mode, written=index)
@@ -83,10 +95,21 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
             runner.report(mode, state="merging")
             exporter.merge(pieces, store.export_path(folder, f"{project}.mp4"))
     except Exception:
-        store.remove_dir(folder)
+        _clean(store, folder, cutting)
         raise
+    if cutting != folder:
+        # The join is written; the pieces have nothing left to say.
+        store.remove_dir(cutting)
     runner.report(mode, state="done")
     return folder
+
+
+def _clean(store, folder, cutting):
+    """A run that did not finish leaves neither folder: half an export looks like a finished one
+    (madde 94), and pieces nobody joined are so much scaffolding."""
+    store.remove_dir(folder)
+    if cutting != folder:
+        store.remove_dir(cutting)
 
 
 def _audio(store, project, frame):

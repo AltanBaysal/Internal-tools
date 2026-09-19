@@ -10,9 +10,11 @@ const BARS = 46;
 // it, and correcting on every tick would make the sound stutter.
 const DRIFT = 0.25;
 
+// Madde 212: the picture itself takes the click, so it says so -- while the video plays there is no
+// button drawn to say it instead.
 const SCENE = { position: "relative", width: "100%", maxWidth: "calc(100% - 120px)",
                 aspectRatio: "16/9", background: "#000", borderRadius: "var(--r-sm)",
-                overflow: "hidden" };
+                overflow: "hidden", cursor: "pointer" };
 // Fark 116: an outline and a darker ground, so the button reads as a button over any frame the
 // video happens to be paused on. Written in longhands -- the shorthand is not reliably read back.
 const BUTTON = { position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)",
@@ -75,16 +77,16 @@ function useWaveform(audioUrl) {
 // time, the progress and the time again -- all of it inside the picture (Fark 114). The sound tab
 // opens no player of its own (madde 74) -- it is this same one with the wav playing alongside and a
 // waveform where the bar was.
-export default function LayerPlayer({ videoUrl, audioUrl }) {
+//
+// A new frame or tab builds a new player (madde 232), so nothing that was playing carries over.
+// onReady and onFail say when the video has arrived or will not.
+export default function LayerPlayer({ videoUrl, audioUrl, onReady, onFail }) {
   const video = useRef(null);
   const audio = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [at, setAt] = useState(0);
   const [length, setLength] = useState(0);
   const peaks = useWaveform(audioUrl);
-
-  // A tab change swaps the source under a mounted player: whatever was playing does not carry over.
-  useEffect(() => { setPlaying(false); setAt(0); }, [videoUrl, audioUrl]);
 
   function toggle() {
     const shown = video.current;
@@ -116,16 +118,24 @@ export default function LayerPlayer({ videoUrl, audioUrl }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-      <div data-scene style={SCENE}>
-        {/* Loops by itself: the design asks for a five second clip that keeps going round. */}
-        <video ref={video} src={videoUrl} loop playsInline
+      <div data-scene style={SCENE} onClick={toggle}>
+        {/* Loops by itself: the design asks for a five second clip that keeps going round. Muted
+            under a sound layer: an H3 video carries a sound of its own, and the layer takes its
+            place (madde 243). */}
+        <video ref={video} src={videoUrl} loop playsInline muted={Boolean(audioUrl)}
                onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
                onTimeUpdate={onTime}
                onLoadedMetadata={() => setLength(video.current?.duration || 0)}
+               onLoadedData={onReady} onError={onFail}
                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
         {audioUrl && <audio ref={audio} src={audioUrl} loop />}
-        <button type="button" aria-label={playing ? "Duraklat" : "Oynat"} onClick={toggle}
-                style={BUTTON}>
+        {/* Madde 212: a 64px disc over the middle of a five second clip covers what is being looked
+            at. It stays mounted and only stops drawing -- unmounted, a keyboard would have nothing
+            left to focus and pausing would be a mouse-only move. The click is stopped here because
+            the scene takes clicks too: turned twice, the video comes back to where it started. */}
+        <button type="button" aria-label={playing ? "Duraklat" : "Oynat"}
+                onClick={(event) => { event.stopPropagation(); toggle(); }}
+                style={{ ...BUTTON, opacity: playing ? 0 : 1 }}>
           {playing ? <PauseGlyph size={22} /> : <PlayGlyph size={22} />}
         </button>
 

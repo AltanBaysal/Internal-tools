@@ -1,6 +1,6 @@
 # Madde 205 — hazır parça aracı kalkar · uygulama turu
 
-**Kaynak:** [yol haritasının Madde 205'i](../plans/2026-09-06-queenagent-v8-roadmap.md).
+**Kaynak:** [yol haritasının Madde 205'i](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md).
 **Testler:** [test turunun spec'i](2026-09-10-queenagent-m205-hazir-parca-testler-design.md), üç
 kırmızı commitlendi.
 

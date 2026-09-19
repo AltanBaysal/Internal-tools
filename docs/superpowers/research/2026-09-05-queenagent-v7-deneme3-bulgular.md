@@ -140,7 +140,7 @@ eklenen 21 kare **action'sız** döndü ve bir saat önce yazdırılmış **21 G
 Teşhisi ilk yazışımda *"toplu silme lazım"* diye koymuştum — **yanlıştı.** Toplu silme yalnız
 raundları düşürürdü; kaybolan action'ları kurtarmazdı. Gereken şey **araya ekleme**.
 
-**Kararı verildi:** `add_scene`'e isteğe bağlı `before` — [Madde 180](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kararı verildi:** `add_scene`'e isteğe bağlı `before` — [Madde 180](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md).
 
 ## E · Uzun yazma turu sessizce bitti
 

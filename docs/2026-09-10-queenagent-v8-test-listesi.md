@@ -2,7 +2,7 @@
 
 **Dal:** `feat/queenagent-v8`, kapanış commit'i `543be16` *(sunucuda)*.
 **Süit:** 923 arka uç + 652 ön uç, hepsi yeşil.
-**Kaynağı:** [yol haritası](superpowers/plans/2026-09-06-queenagent-v8-roadmap.md) — yirmi beş madde,
+**Kaynağı:** [yol haritası](superpowers/roadmaps/2026-09-06-queen-agent-v8-roadmap.md) — yirmi beş madde,
 183'ten 209'a, 188 ile 204 boş.
 
 **Bu belge ne değil:** yol haritasının kopyası değil. Orası **neden** yapıldığını yazıyor; burası
@@ -148,7 +148,7 @@ Bunlar tek bir maddenin değil, koşunun **toplamının** sonucu:
   [okuma kopyasında](2026-09-09-queenagent-modele-giden-metinler.md), gerekçesi
   [log'da](2026-09-09-queenagent-metin-duzeltmeleri.md). İkisi de kodla eşit; kod değişirse doğru
   olan koddur.
-- **Bir madde neden böyle diye sorarsan** — [yol haritası](superpowers/plans/2026-09-06-queenagent-v8-roadmap.md),
+- **Bir madde neden böyle diye sorarsan** — [yol haritası](superpowers/roadmaps/2026-09-06-queen-agent-v8-roadmap.md),
   her maddenin *Sorun / Ne çalışır / Nasıl görülür* satırları.
 - **Ön uçta bir şey görünmüyorsa** — `dist` her ön uç commit'inde derlendi; notebook depoyu klonlar
   ve hiç derlemez, yani orada gördüğün şey son push'un `dist`'idir.

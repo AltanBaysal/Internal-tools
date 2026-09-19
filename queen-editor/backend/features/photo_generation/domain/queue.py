@@ -47,6 +47,26 @@ def _status(slots, job):
     return cell["status"] if cell else None
 
 
+def _latest_per_frame(jobs):
+    """One line per frame: the last one written for it, in the plan's own order.
+
+    The status lives per (frame, layer) while the plan may hold several lines for that pair -- a
+    layer asked for, dropped, and asked for again appends a line each time and the old ones stay.
+    Reopening the cell reopens every one of them, so the frame was owed the same video twice and the
+    engine made it from the oldest line: the job that had been dropped. Asking for loop gave back the
+    standard video that was deleted (madde 211).
+
+    The plan is not corrected -- it records what was asked for, and it was asked for three times.
+    What is single here is the debt, because the status that settles it is single.
+    """
+    latest = {}
+    for job in jobs:
+        latest[job["id"]] = job
+    # Rebuilt by walking the plan rather than the dict, so each surviving line keeps the place its
+    # own line stands in and the gallery's order still decides ties.
+    return [job for job in jobs if latest[job["id"]] is job]
+
+
 def open_jobs(jobs, slots, order=()):
     """The jobs still owed, in the order the engine will do them.
 
@@ -70,7 +90,7 @@ def open_jobs(jobs, slots, order=()):
 
     owed = []
     for kind in ORDER:
-        same = [j for j in jobs if type_of(j) == kind]
+        same = _latest_per_frame([j for j in jobs if type_of(j) == kind])
         fresh = [j for j in same if _status(slots, j) is None]
         requeued = [j for j in same if _status(slots, j) == QUEUED]
         owed += sorted(fresh, key=place) + sorted(requeued, key=place)

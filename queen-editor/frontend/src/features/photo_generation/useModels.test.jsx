@@ -25,16 +25,31 @@ beforeEach(async () => {
   vi.clearAllMocks();
 });
 
+const NOVA = { value: "nova3dcg", label: "Nova 3DCG XL" };
+const DASIWA = { value: "dasiwa", label: "DaSiWa Illustrious | Anime" };
+const LORAS = [{ value: "usnr", label: "USNR" }, { value: "slime", label: "Slime" },
+               { value: "none", label: "Boş" }];
+
 describe("useModels", () => {
   it("reports what the renderer has, in the order it reported it", async () => {
-    listModels.mockResolvedValue(["nova.safetensors", "başka.safetensors"]);
+    listModels.mockResolvedValue({ models: [NOVA, DASIWA], loras: LORAS });
 
     const { result } = renderHook(() => useModels());
     expect(result.current.models).toBeNull();      // not known yet, not "none installed"
     await settle();
 
-    expect(result.current.models).toEqual(["nova.safetensors", "başka.safetensors"]);
+    expect(result.current.models).toEqual([NOVA, DASIWA]);
     expect(result.current.error).toBeNull();
+  });
+
+  it("reports the loras from the same answer (madde 237)", async () => {
+    listModels.mockResolvedValue({ models: [NOVA], loras: LORAS });
+
+    const { result } = renderHook(() => useModels());
+    expect(result.current.loras).toBeNull();
+    await settle();
+
+    expect(result.current.loras).toEqual(LORAS);
   });
 
   it("answers an unreadable list with an empty one and the server's own words", async () => {
@@ -43,13 +58,16 @@ describe("useModels", () => {
     const { result } = renderHook(() => useModels());
     await settle();
 
-    // Empty, not null: the panel has to stop waiting and let the queue be used regardless.
+    // Empty, not null: the panel has to stop waiting and let the queue be used regardless. Both
+    // boxes: the lora box has no row of its own to fall back on -- the names are the server's
+    // (madde 238).
     expect(result.current.models).toEqual([]);
+    expect(result.current.loras).toEqual([]);
     expect(result.current.error).toContain("Sunucuya ulaşılamadı");
   });
 
   it("opens with the list it already learned", async () => {
-    listModels.mockResolvedValue(["nova.safetensors"]);
+    listModels.mockResolvedValue({ models: [NOVA], loras: LORAS });
 
     const first = renderHook(() => useModels());
     await settle();
@@ -58,11 +76,12 @@ describe("useModels", () => {
     // Coming back from a frame builds this hook again. The box saying yükleniyor… over a list the
     // screen already had is the flicker this removes.
     const { result } = renderHook(() => useModels());
-    expect(result.current.models).toEqual(["nova.safetensors"]);
+    expect(result.current.models).toEqual([NOVA]);
+    expect(result.current.loras).toEqual(LORAS);
   });
 
   it("keeps the learned list when the next read cannot be made", async () => {
-    listModels.mockResolvedValue(["nova.safetensors"]);
+    listModels.mockResolvedValue({ models: [NOVA], loras: LORAS });
 
     const first = renderHook(() => useModels());
     await settle();
@@ -74,6 +93,6 @@ describe("useModels", () => {
 
     // Emptying a box over a refresh that fell over is not quiet. With nothing remembered yet the
     // answer is still the empty list -- that is the test above this one.
-    expect(result.current.models).toEqual(["nova.safetensors"]);
+    expect(result.current.models).toEqual([NOVA]);
   });
 });

@@ -1,6 +1,6 @@
 # Madde 57 · Tur 2 (uygulama) — Tasarım
 
-**Madde:** [v4 yol haritası Madde 57](../plans/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 57](../roadmaps/2026-08-20-queen-agent-v4-roadmap.md)
 **Turun kırmızısı:** [Tur 1 tasarımı](2026-08-20-queenagent-m57-test-design.md) —
 `test_notebook.py`, sekiz test.
 **Bu belgenin konusu:** sunucu hücresinin kendisi.

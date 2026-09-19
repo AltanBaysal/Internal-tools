@@ -1,6 +1,6 @@
 # Madde 201 · test turu — eylem satırını ana ajan düzeltir
 
-**Kaynağı:** [v8 yol haritası](../plans/2026-09-06-queenagent-v8-roadmap.md), Madde 201.
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 201.
 
 ---
 

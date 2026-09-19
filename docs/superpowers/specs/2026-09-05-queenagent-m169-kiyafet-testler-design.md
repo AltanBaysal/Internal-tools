@@ -1,6 +1,6 @@
 # Madde 169 · test turu — kıyafet yönetimi
 
-**Kaynağı:** [v7 yol haritası, Madde 169](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [v7 yol haritası, Madde 169](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md).
 Kalıbı [Madde 168](2026-09-05-queenagent-m168-karakter-testler-design.md) kurdu; bu madde onu
 **ikinci kaynağa** taşıyor. Bu tur yalnız testleri yazar.
 

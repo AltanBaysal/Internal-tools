@@ -1,7 +1,7 @@
 # Görev 1 — Üretim sözleşmesi tek olsun (uygulama planı)
 
 **Spec:** [Görev 1](../specs/2026-08-13-queen-editor-v7-gorev-1-uretim-sozlesmesi-design.md) ·
-**Roadmap:** [v7](2026-08-13-queen-editor-v7-roadmap.md) · Blok 1
+**Roadmap:** [v3 Koşu 3](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · Blok 1
 
 **Amaç:** Üç üretici de kuyruğun beklediği tek sözleşmeyi karşılasın
 (`generate(prompt, negative, seed, model="", source=None) -> bytes`), ve bu sözleşmeyi kuyrukla

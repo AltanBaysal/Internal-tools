@@ -12,6 +12,8 @@ from backend.tests.test_photo_usecases import (
 )
 
 FOLDER = "/fake/düğün/export/2026-08-12 14-32"
+# Not under /fake: the pieces of a merged export are cut on the machine's own disk, never on Drive.
+PIECES = "/tmp/fake-pieces"
 
 
 class ExportStore(FakeStore):
@@ -33,6 +35,12 @@ class ExportStore(FakeStore):
 
     def remove_dir(self, path):
         self.removed.append(path)
+
+    def make_pieces_dir(self):
+        """Where a merged export cuts its pieces -- the real one answers with a folder on the
+        machine's own disk, and the path here is outside the Drive root on purpose."""
+        self.pieces_dir = PIECES
+        return PIECES
 
     def copy_photo(self, source, folder, filename):
         """Every call is written down and none is skipped.
@@ -76,6 +84,24 @@ def with_videos(sound_on=()):
         if fid in sound_on:
             record.append("düğün", {"file": f"{fid}_V1_0_S1_0.wav", "frame": fid, "layer": "audio",
                                     "status": "done"})
+    return store, record, plan_store
+
+
+def with_a_copy():
+    """One picture, two videos: the second frame is a copy and holds the first one's photo.
+
+    That is what a copy frame is -- it produces no picture of its own, its photo row names the
+    source's file -- and it is why one export used to write the same image under two numbers
+    (madde 236).
+    """
+    store, record = ExportStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0), frame(0, letter="b")])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    record.append("düğün", {"file": "0_a.png", "frame": "0_b", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "0_b_V1_0.mp4", "frame": "0_b", "layer": "video",
+                            "status": "done"})
     return store, record, plan_store
 
 
@@ -173,13 +199,136 @@ def test_a_frame_with_no_video_leaves_no_photo_either():
     assert len(store.photos) == 2
 
 
+def test_frames_sharing_one_photo_leave_one_picture_in_the_export():
+    """The folder is read by a person using the pictures, and the same image three times over is
+    what the user kept running into (madde 236)."""
+    store, record, plan_store = with_a_copy()
+
+    export(store, record, plan_store, FakeExporter())
+
+    assert store.photos == [("/fake/düğün/0_a.png", FOLDER, "01.png")]
+
+
+def test_a_shared_photo_is_filed_under_the_first_frame_that_uses_it():
+    """The number stays the frame's own, gaps and all: it is what says which video the picture
+    belongs to, and consecutive numbering would buy tidiness by cutting that tie."""
+    store, record, plan_store = with_a_copy()
+    record.append("düğün", {"file": "1_a.png", "frame": "1_a", "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": "1_a_V1_0.mp4", "frame": "1_a", "layer": "video",
+                            "status": "done"})
+
+    export(store, record, plan_store, FakeExporter())
+
+    # 1_a leads: the plan does not know it, and a frame the plan lost stands at the end of the
+    # gallery, which the export reads from its foot. So the shared picture is 02, not 01, and the
+    # copy frame's 03 writes nothing.
+    assert store.photos == [
+        ("/fake/düğün/1_a.png", FOLDER, "01.png"),
+        ("/fake/düğün/0_a.png", FOLDER, "02.png"),
+    ]
+
+
+def test_a_copy_frames_video_is_written_all_the_same():
+    """Only the picture is shared. The copy frame's video is its own file and its own place in the
+    sequence."""
+    store, record, plan_store = with_a_copy()
+    exporter = FakeExporter()
+
+    export(store, record, plan_store, exporter)
+
+    assert [target for _v, _a, target in exporter.pieces] == [
+        f"{FOLDER}/01.mp4", f"{FOLDER}/02.mp4"]
+    assert [video for video, _a, _t in exporter.pieces] == [
+        "/fake/düğün/0_a_V1_0.mp4", "/fake/düğün/0_b_V1_0.mp4"]
+
+
+def test_a_merged_export_writes_the_shared_photo_once_too():
+    store, record, plan_store = with_a_copy()
+
+    export(store, record, plan_store, FakeExporter(), mode="merged")
+
+    assert store.photos == [("/fake/düğün/0_a.png", FOLDER, "01.png")]
+
+
+def test_frames_with_pictures_of_their_own_each_leave_one():
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter())
+
+    assert len(store.photos) == 2
+
+
 def test_merged_export_writes_one_file_named_after_the_project():
     store, record, plan_store = with_videos()
     exporter = FakeExporter()
 
     export(store, record, plan_store, exporter, mode="merged")
 
-    assert exporter.merged == ([f"{FOLDER}/01.mp4", f"{FOLDER}/02.mp4"], f"{FOLDER}/düğün.mp4")
+    assert exporter.merged == ([f"{PIECES}/01.mp4", f"{PIECES}/02.mp4"], f"{FOLDER}/düğün.mp4")
+
+
+def test_a_merged_export_cuts_its_pieces_outside_the_drive_folder():
+    """The pieces are scaffolding for the join, and Drive is slow enough that writing the whole set
+    there a second time is what the user felt (madde 235)."""
+    store, record, plan_store = with_videos()
+    exporter = FakeExporter()
+
+    export(store, record, plan_store, exporter, mode="merged")
+
+    assert [target for _v, _a, target in exporter.pieces] == [
+        f"{PIECES}/01.mp4", f"{PIECES}/02.mp4"]
+
+
+def test_a_merged_export_takes_its_pieces_away_and_leaves_the_export_alone():
+    store, record, plan_store = with_videos()
+
+    folder = export(store, record, plan_store, FakeExporter(), mode="merged")
+
+    assert store.removed == [PIECES]
+    assert folder == FOLDER
+
+
+def test_a_merged_export_leaves_the_photos_in_the_drive_folder():
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter(), mode="merged")
+
+    # The user's call: the pictures stay whichever export wrote them.
+    assert store.photos == [
+        ("/fake/düğün/0_a.png", FOLDER, "01.png"),
+        ("/fake/düğün/1_a.png", FOLDER, "02.png"),
+    ]
+
+
+def test_a_separate_export_writes_its_pieces_into_the_drive_folder_and_removes_nothing():
+    """Separate export's whole job is those files: nothing here is scaffolding."""
+    store, record, plan_store = with_videos()
+    exporter = FakeExporter()
+
+    export(store, record, plan_store, exporter)
+
+    assert [target for _v, _a, target in exporter.pieces] == [
+        f"{FOLDER}/01.mp4", f"{FOLDER}/02.mp4"]
+    assert store.removed == []
+
+
+def test_a_merged_export_that_blows_up_leaves_neither_folder_behind():
+    store, record, plan_store = with_videos()
+    exporter = FakeExporter(fails_on=f"{PIECES}/02.mp4")
+
+    with pytest.raises(RuntimeError):
+        export(store, record, plan_store, exporter, mode="merged")
+
+    assert sorted(store.removed) == sorted([FOLDER, PIECES])
+
+
+def test_a_cancelled_merged_export_leaves_neither_folder_behind():
+    store, record, plan_store = with_videos()
+    runner = sync_runner()
+    runner.cancel("merged")
+
+    assert export(store, record, plan_store, FakeExporter(), mode="merged", runner=runner) is None
+    assert sorted(store.removed) == sorted([FOLDER, PIECES])
 
 
 def test_a_failed_export_takes_its_half_written_folder_with_it():
@@ -237,21 +386,45 @@ def test_a_second_run_of_the_same_mode_is_refused_while_one_is_going():
     assert runner.start("merged", lambda: None) is True
 
 
-class FakeRun:
-    """subprocess.run's answer, and a note of what it was asked to run."""
+class _Answer:
+    """What subprocess.run hands back for one call."""
 
-    def __init__(self, returncode=0, stderr=""):
+    def __init__(self, returncode, stdout, stderr):
+        self.returncode = returncode
+        self.stdout = stdout
+        self.stderr = stderr
+
+
+class FakeRun:
+    """subprocess.run's answer, and a note of what it was asked to run.
+
+    `sizes` maps a file name to what ffprobe prints for it; a file nobody named answers with the
+    first size, so a test that does not care about sizes says nothing about them. A probe and a
+    concat fail differently, so each carries its own exit code and message.
+    """
+
+    def __init__(self, returncode=0, stderr="", sizes=None, probe_returncode=0, probe_stderr=""):
         self.calls = []
         self.returncode = returncode
         self.stderr = stderr
+        self.sizes = dict(sizes or {})
+        self.probe_returncode = probe_returncode
+        self.probe_stderr = probe_stderr
 
     def __call__(self, args, **kwargs):
         self.calls.append(args)
-        return self
+        if "ffprobe" in args[0]:
+            size = self.sizes.get(args[-1], next(iter(self.sizes.values()), "848x480"))
+            return _Answer(self.probe_returncode, size + "\n", self.probe_stderr)
+        return _Answer(self.returncode, "", self.stderr)
 
-    @property
-    def stdout(self):
-        return ""
+
+def ffmpeg_calls(run):
+    return [call for call in run.calls if call[0] == "ffmpeg"]
+
+
+def probe_calls(run):
+    return [call for call in run.calls if "ffprobe" in call[0]]
 
 
 def test_a_silent_piece_is_copied_rather_than_re_encoded():
@@ -263,11 +436,15 @@ def test_a_silent_piece_is_copied_rather_than_re_encoded():
 
 
 def test_a_sound_is_laid_over_the_video():
+    """The picture from the video, the sound from the layer -- named, not left to ffmpeg. An H3
+    video carries a sound of its own (madde 243), and a sound layer takes its place; left to its
+    own choice ffmpeg keeps whichever stream it likes best."""
     run = FakeRun()
 
     FfmpegVideoExporter(run=run).piece("0.mp4", "0.wav", "01.mp4")
 
-    assert run.calls[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "0.wav", "-c:v", "copy",
+    assert run.calls[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "0.wav",
+                            "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
                             "-c:a", "aac", "-shortest", "01.mp4"]
 
 
@@ -286,6 +463,61 @@ def test_merging_hands_ffmpeg_a_list_and_takes_it_away_again(tmp_path):
 
     FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], target)
 
-    assert run.calls[0][:8] == ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
-                                str(tmp_path / "pieces.txt")]
+    # The concat itself is unchanged; it is no longer the first thing run, because the sizes are
+    # asked first.
+    assert ffmpeg_calls(run)[0][:8] == ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i",
+                                        str(tmp_path / "pieces.txt")]
     assert not (tmp_path / "pieces.txt").exists()
+
+
+def test_merging_asks_every_piece_how_big_it_is(tmp_path):
+    """Streams are copied rather than re-encoded, which is only safe while every piece is the same
+    size. Nothing checked that until madde 218 made it possible for one project to hold two."""
+    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "848x480"})
+
+    FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+
+    assert [call[-1] for call in probe_calls(run)] == ["a.mp4", "b.mp4"]
+
+
+def test_mixed_sizes_stop_the_merge_and_name_what_was_found(tmp_path):
+    """A project made before the frames went landscape and added to afterwards. concat -c copy
+    would write a file whose later pieces are unplayable, and say nothing.
+
+    The message is a list rather than a sentence: "the pieces are different sizes" does not tell
+    anyone which frame to re-render.
+    """
+    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "480x720"})
+
+    with pytest.raises(RuntimeError) as caught:
+        FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+
+    said = str(caught.value)
+    assert "a.mp4" in said and "848x480" in said
+    assert "b.mp4" in said and "480x720" in said
+
+
+def test_nothing_is_merged_when_the_sizes_disagree(tmp_path):
+    """Stopping after writing half a file would leave exactly what the export's own rule forbids:
+    a folder that looks finished."""
+    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "480x720"})
+
+    with pytest.raises(RuntimeError):
+        FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+
+    assert ffmpeg_calls(run) == []
+    assert not (tmp_path / "pieces.txt").exists()
+
+
+def test_a_size_that_cannot_be_read_says_what_ffprobe_said(tmp_path):
+    """A missing file, a file that is not a video, an ffprobe that is not installed -- three causes
+    with one symptom, and only ffprobe knows which. Guessing one here would be the repo's own
+    "never invent a cause" rule broken in the place it was written for.
+    """
+    run = FakeRun(sizes={"a.mp4": ""}, probe_returncode=1,
+                  probe_stderr="a.mp4: No such file or directory")
+
+    with pytest.raises(RuntimeError) as caught:
+        FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
+
+    assert "a.mp4: No such file or directory" in str(caught.value)

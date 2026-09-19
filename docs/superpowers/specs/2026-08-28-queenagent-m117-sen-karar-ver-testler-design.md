@@ -1,6 +1,6 @@
 # Madde 117 — *Sen karar ver* yalnız sorulduğu adımı kapatır · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 117.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 117.
 **Gözlenen** *(28 Ağustos, dördüncü deneme)*: mekân sorusu *"yatak odası, açık renkler, sen karar
 ver"* ile cevaplandı ve akış bunu akışın tamamının yetkisi olarak okudu — mekân adımı onaysız
 kapandı, sahne adımının *"kaç sahne, hangi anlar"* sorusu hiç sorulmadı, ve plana karar adsız

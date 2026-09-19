@@ -1,6 +1,6 @@
 # Madde 171 · test turu — `create_file` ve `edit_file` `.json`'a dokunamaz
 
-**Kaynağı:** [v7 yol haritası, Madde 171](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [v7 yol haritası, Madde 171](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md).
 Bu tur yalnız testleri yazar.
 
 ---

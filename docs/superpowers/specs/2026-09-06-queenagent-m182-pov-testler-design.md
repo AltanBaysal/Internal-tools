@@ -1,6 +1,6 @@
 # Madde 182 · test turu — POV ayrı bir karakter
 
-**Kaynağı:** [yol haritası, Madde 182](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [yol haritası, Madde 182](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md).
 Madde 181 `ba20e72`'de kapandı. Koşunun son maddesi.
 
 ---

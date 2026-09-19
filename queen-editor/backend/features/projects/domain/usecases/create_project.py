@@ -20,5 +20,8 @@ def create_project(store, name):
         raise InvalidName(error)
     project = store.create(name)
     if project is None:
-        raise NameTaken("Bu ad zaten kullanılıyor. Başka bir ad dene.")
+        # Taken says nothing about by whom, and the two have different sentences -- so the store is
+        # asked, and only here: a name that was free costs no extra question (madde 223).
+        raise NameTaken(name_rules.archive_taken(name) if store.is_archived(name)
+                        else "Bu ad zaten kullanılıyor. Başka bir ad dene.")
     return project

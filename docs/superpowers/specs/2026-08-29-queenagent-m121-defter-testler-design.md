@@ -1,6 +1,6 @@
 # Madde 121 — Action sızıntıları kural defterine girer · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 121.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 121.
 **Gözlenen** *(28 Ağustos, beşinci deneme)*: beş sızıntı ve hiçbirini defter yakalamıyor —
 action'da hareket, action'da kamera sözü, action'da rol adı, action'da `or`, giyene göre
 adlandırılmış ve ikilenmiş outfit girdileri.

@@ -1,6 +1,6 @@
 # Madde 192 · test turu — dosyalar tazelenir, hem liste hem detay
 
-**Kaynağı:** [v8 yol haritası](../plans/2026-09-06-queenagent-v8-roadmap.md), Madde 192.
+**Kaynağı:** [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 192.
 
 ---
 

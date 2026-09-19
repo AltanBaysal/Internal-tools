@@ -1,6 +1,6 @@
 # Madde 122 — Numaralı liste bire takılmıyor · Tur 2 (uygulama) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 122 ve
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 122 ve
 [tur 1'in tasarımı](2026-08-29-queenagent-m122-liste-testler-design.md). Kök neden orada:
 boş satır her listeyi bitiriyor, üç `<ol>` üçü de 1'den sayıyor.
 

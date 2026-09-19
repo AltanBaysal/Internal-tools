@@ -28,7 +28,7 @@ NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 #
 # BEFORE MERGING: this goes back to "main", and so does the notebook. A trial changes this line and
 # the notebook's together and never one of them, and the change comes back the way it went in.
-BRANCH = "main"
+BRANCH = "feat/queen-editor-v5"
 
 
 def _source():

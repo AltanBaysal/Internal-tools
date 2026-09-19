@@ -1,6 +1,6 @@
 # Madde 54 · Tur 2 (uygulama) — Tasarım
 
-**Madde:** [v4 yol haritası Madde 54](../plans/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 54](../roadmaps/2026-08-20-queen-agent-v4-roadmap.md)
 **Turun kırmızısı:** [Tur 1 tasarımı](2026-08-20-queenagent-m54-test-design.md) —
 `test_dist_is_committed.py`, iki test.
 **Bu belgenin konusu:** kuralın kendisi. Testler onu zaten tarif etti; burada **nerede** ve **neden

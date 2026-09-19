@@ -1,7 +1,7 @@
 # Madde 196 · uygulama turu — sistem promptunun ikinci parçası
 
 **Kaynağı:** [test turu](2026-09-08-queenagent-m196-ikinci-parca-testler-design.md), ve onun
-kaynağı [v8 yol haritası](../plans/2026-09-06-queenagent-v8-roadmap.md), Madde 196.
+kaynağı [v8 yol haritası](../roadmaps/2026-09-06-queen-agent-v8-roadmap.md), Madde 196.
 
 Kırmızı: arka uçta 5.
 

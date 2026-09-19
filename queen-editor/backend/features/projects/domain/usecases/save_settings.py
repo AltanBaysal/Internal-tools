@@ -7,8 +7,8 @@ one, and every folder under the root counts as a project.
 from backend.features.projects.domain.usecases.get_settings import ProjectMissing
 
 
-def save_settings(store, project, prompts, negative, variants, model=""):
+def save_settings(store, project, prompts, negative, variants, model="", lora=""):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     store.write(project, {"prompts": prompts, "negative": negative, "variants": variants,
-                          "model": model})
+                          "model": model, "lora": lora})

@@ -1,7 +1,7 @@
 # Queen Editor v5 · Görev 2 — Dosya adları katman şemasına geçer
 
 **Tarih:** 2026-08-12 · **Yol haritası:**
-[v5 Görev 2](../plans/2026-08-12-queen-editor-v5-roadmap.md) · **Kapsadığı madde:** 97 ·
+[v3 Koşu 1 · Görev 2](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Kapsadığı madde:** 97 ·
 **Katman:** yalnız arka uç
 
 ## Amaç

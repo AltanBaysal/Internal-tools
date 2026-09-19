@@ -1,6 +1,6 @@
 # Madde 36 — Ayarlar ekranı ve xAI anahtarı · Tasarım Belgesi
 
-**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 36](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-18 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 36](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** kullanıcı isteği (18 Ağustos) — tasarım belgelerinde karşılığı yok
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

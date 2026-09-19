@@ -1,7 +1,7 @@
 # Madde 9 — Projeler ekranı
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/queen-editor-v2` · **Yol haritası:**
-[v4, Madde 9](../plans/2026-08-08-queen-editor-v4-roadmap.md) ·
+[v2, Madde 9](../roadmaps/2026-08-08-queen-editor-v2-roadmap.md) ·
 **Kaynak:** [tasarım v2 farkları](../research/2026-08-08-queen-editor-tasarim-v2-farklari.md),
 **N3**, **N4** ve iki ad uyarısı sapması
 

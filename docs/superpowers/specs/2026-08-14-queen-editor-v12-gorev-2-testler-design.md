@@ -1,7 +1,7 @@
 # v12 Görev 2 — Kareler yeniden sürüklenebiliyor: TEST döngüsü (tasarım)
 
 **Tarih:** 2026-08-14 · **Araç:** queen-editor · **Dal:** `feat/queen-editor-v3`
-**Yol haritası:** [v12](../plans/2026-08-14-queen-editor-v12-roadmap.md) · **Döngü:** 1/2
+**Yol haritası:** [v3 Koşu 7](../roadmaps/2026-08-12-queen-editor-v3-roadmap.md) · **Döngü:** 1/2
 **Bu döngüde kod yazılmıyor** — yalnız testler, ve takım kırmızı commit'leniyor.
 
 ## Ne biliyoruz

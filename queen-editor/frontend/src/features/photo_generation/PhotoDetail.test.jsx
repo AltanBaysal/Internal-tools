@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getStatus,
   listFrames,
+  listModels,
   regenerateFrame,
   removeFrames,
   removeLayer,
@@ -17,6 +18,7 @@ vi.mock("../../shared/api.js", () => ({
   generateBatch: vi.fn(),
   getStatus: vi.fn(),
   listFrames: vi.fn(),
+  listModels: vi.fn(),
   regenerateFrame: vi.fn(),
   removeFrames: vi.fn(),
   removeLayer: vi.fn(),
@@ -56,6 +58,8 @@ const MIXED = [waiting("3_a.png", "dördüncü", "bulanık"),
                done("0_a.png", "ilk", "düşük çözünürlük")];
 
 const IDLE = { status: "idle" };
+const LORAS = [{ value: "usnr", label: "USNR" }, { value: "slime", label: "Slime" },
+               { value: "none", label: "Boş" }];
 const RUNNING = { status: "running", project: "düğün", current: { id: "2_a" } };
 
 // Advancing the fake clock inside act() flushes both the timers and the promises they unblock --
@@ -65,9 +69,12 @@ async function settle(ms = 0) {
 }
 
 // The page is opened by the frame's identity: that is what the address carries.
-async function open(fid, { frames = PHOTOS, status = IDLE } = {}) {
+async function open(fid, { frames = PHOTOS, status = IDLE, models = [], loras = LORAS } = {}) {
   listFrames.mockResolvedValue(frames);
   getStatus.mockResolvedValue(status);
+  // The rows the renderer offers. Needed here because the stored value is an id -- the name the
+  // user chose it by lives in this list and nowhere else. The loras ride in the same answer.
+  listModels.mockResolvedValue({ models, loras });
   render(<PhotoDetail project="düğün" frame={fid} />);
   await settle();
 }
@@ -82,6 +89,7 @@ const LAYERED = {
   // The plan row's own shape: list_frames spreads that row into the frame, so the name arrives with
   // the extension it is stored under and trimming it is the panel's job.
   model: "novaAnimeXL_ilV190.safetensors",
+  lora: "usnr",
   layers: { photo: "P0_0.png", video: "P0_0_V1_0.mp4", audio: "P0_0_V1_0_S1_0.wav" },
   failed: [], owed: [],
   prompts: { photo: "kırmızı elbise", video: "kadın dönüyor", audio: "kumaş hışırtısı" },
@@ -134,6 +142,15 @@ beforeEach(() => {
 // The frame the worker is holding a layer of: its photo is on disk, its video is not yet.
 const RENDERING = { ...LAYERED, layers: { photo: "P0_0.png" }, owed: ["video"],
                     prompts: { photo: "kırmızı elbise" } };
+
+describe("PhotoDetail — the header", () => {
+  it("puts the version next to the name", async () => {
+    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    await open("0_a");
+
+    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+  });
+});
 
 describe("PhotoDetail — the stage", () => {
   it("opens the stage from the top and drops the strip closer to it", async () => {
@@ -322,34 +339,85 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.queryByText(/\.safetensors/)).toBeNull();
   });
 
+  it("says a model by the name it was picked by", async () => {
+    // A model is stored as its id, because that is what survives a renamed label. `dasiwa` on
+    // screen would be an address shown to the person who chose it from a list.
+    await open("P0_0", {
+      frames: [{ ...LAYERED, model: "dasiwa" }],
+      models: [{ value: "dasiwa", label: "DaSiWa Illustrious | Anime" }],
+    });
+
+    expect(screen.getByText("Model").parentElement.textContent)
+      .toContain("DaSiWa Illustrious | Anime");
+  });
+
+  it("falls back to what the frame stored when the row list is not there", async () => {
+    // The list is a fetch of its own and it can fail. Drawing nothing would lose a row the frame
+    // really does carry; the stored value is worse than the label and better than silence.
+    await open("P0_0", { frames: [{ ...LAYERED, model: "dasiwa" }], models: [] });
+
+    expect(screen.getByText("Model").parentElement.textContent).toContain("dasiwa");
+  });
+
+  it("says which lora the frame was made with (madde 237)", async () => {
+    await open("P0_0", {
+      frames: [{ ...LAYERED, model: "nova3dcg", lora: "slime" }],
+      models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }],
+    });
+
+    expect(screen.getByText("LoRA").parentElement.textContent).toContain("Slime");
+  });
+
+  it.each([["usnr", "USNR"], ["none", "Boş"]])(
+    "says the lora %s by the name it was picked by (madde 238)", async (value, label) => {
+      await open("P0_0", { frames: [{ ...LAYERED, model: "nova3dcg", lora: value }],
+                           models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }] });
+
+      expect(screen.getByText("LoRA").parentElement.textContent).toContain(label);
+    });
+
+  it("draws no lora row for a frame that never named one", async () => {
+    // A name there would be a guess: a recipe:slime frame names no lora and was made with Slime,
+    // and a DaSiWa frame sent under Standart was made with none. The model row follows the same
+    // rule for a frame that never carried a model (madde 238).
+    await open("P0_0", { frames: [{ ...LAYERED, model: "nova3dcg", lora: "" }],
+                         models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }] });
+
+    expect(screen.getByText("Model")).toBeTruthy();
+    expect(screen.queryByText("LoRA")).toBeNull();
+  });
+
   it("draws no model row for a frame that never carried one", async () => {
     // Frames planned before models could be chosen carry none, and no record says which checkpoint
     // the graph shipped that day. Naming one would be inventing it; the row is simply not drawn --
-    // the rule "Üretim modu" already follows.
+    // the rule "Üretim modu" already follows. Its lora goes with it for the same reason.
     await open("0_a", { frames: PHOTOS });
 
     expect(screen.queryByText("Model")).toBeNull();
+    expect(screen.queryByText("LoRA")).toBeNull();
   });
 
-  it("keeps the model on the photo tab alone", async () => {
-    // The model is the photo's: video and sound jobs are planned with none. On their tabs the name
-    // would read as the model that made THAT layer.
+  it("keeps the model and the lora on the photo tab alone", async () => {
+    // Both are the photo's: video and sound jobs are planned with neither. On their tabs the names
+    // would read as what made THAT layer.
     await open("P0_0", { frames: [LAYERED] });
 
     fireEvent.click(tab("Video"));
     expect(screen.queryByText("Model")).toBeNull();
+    expect(screen.queryByText("LoRA")).toBeNull();
 
     fireEvent.click(tab("Ses"));
     expect(screen.queryByText("Model")).toBeNull();
+    expect(screen.queryByText("LoRA")).toBeNull();
   });
 
-  it("keeps the photo tab's top group to its three rows", async () => {
+  it("keeps the photo tab's top group to its four rows", async () => {
     // The video tab's own list is pinned above. This is the photo tab's, and it pins the order too:
-    // the model goes last, behind the two rows that say which frame this is.
+    // the model and its lora go last, behind the two rows that say which frame this is.
     await open("P0_0", { frames: [LAYERED] });
 
     expect([...document.querySelectorAll("[data-field]")].map((one) => one.textContent))
-      .toEqual(["Sıra", "Dosya adı", "Model"]);
+      .toEqual(["Sıra", "Dosya adı", "Model", "LoRA"]);
   });
 
   it("centres the one line a waiting box holds", async () => {
@@ -426,6 +494,105 @@ describe("PhotoDetail — the layer tabs", () => {
     // frame never had would be a tab on nothing.
     expect(tab("Foto").getAttribute("aria-current")).toBe("page");
     expect(tab("Video").disabled).toBe(true);
+  });
+});
+
+// The second frame with a sound of its own, for the sound tab to step onto.
+const SECOND_SOUND = { ...SECOND_VIDEO,
+                       layers: { ...SECOND_VIDEO.layers, audio: "P1_0_V1_0_S1_0.wav" },
+                       prompts: { ...SECOND_VIDEO.prompts, audio: "adım sesleri" } };
+
+describe("PhotoDetail — the stage follows the frame (madde 232)", () => {
+  // Opens the first frame on the given tab and hands back the way to step onto the second.
+  async function stepping(frames, tabName) {
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    if (tabName) fireEvent.click(tab(tabName));
+    return async () => {
+      rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+      await settle();
+    };
+  }
+
+  it("throws the old picture away when the frame changes", async () => {
+    // A kept <img> with a new src goes on drawing the old picture until the new one loads -- the
+    // column says one frame while the stage shows another.
+    const next = await stepping([LAYERED, SECOND]);
+    const before = screen.getByAltText("P0_0.png");
+
+    await next();
+
+    expect(before.isConnected).toBe(false);
+    expect(screen.getByAltText("P1_0.png")).toBeTruthy();
+  });
+
+  it("says it is loading until the new picture arrives", async () => {
+    const next = await stepping([LAYERED, SECOND]);
+    fireEvent.load(screen.getByAltText("P0_0.png"));
+
+    await next();
+
+    expect(screen.getByText("yükleniyor…")).toBeTruthy();
+    fireEvent.load(screen.getByAltText("P1_0.png"));
+    expect(screen.queryByText("yükleniyor…")).toBeNull();
+  });
+
+  it("says so when the picture does not come, and which one", async () => {
+    const next = await stepping([LAYERED, SECOND]);
+
+    await next();
+    fireEvent.error(screen.getByAltText("P1_0.png"));
+
+    expect(screen.getByText("Dosya yüklenemedi")).toBeTruthy();
+    expect(screen.queryByText("yükleniyor…")).toBeNull();
+    // The browser gives no reason for a failed image, so the address is what is known -- and what
+    // the copy button hands over.
+    expect(document.querySelector("[data-raw]").textContent).toContain("/photos/düğün/P1_0.png");
+  });
+
+  it("throws the old video away when the frame changes", async () => {
+    const next = await stepping([LAYERED, SECOND_VIDEO], "Video");
+    const before = document.querySelector("video");
+
+    await next();
+
+    expect(before.isConnected).toBe(false);
+    expect(document.querySelector("video").getAttribute("src")).toBe("/photos/düğün/P1_0_V1_0.mp4");
+  });
+
+  it("throws the old sound away when the frame changes", async () => {
+    const next = await stepping([LAYERED, SECOND_SOUND], "Ses");
+    const before = document.querySelector("audio");
+
+    await next();
+
+    expect(before.isConnected).toBe(false);
+    expect(document.querySelector("audio").getAttribute("src"))
+      .toBe("/photos/düğün/P1_0_V1_0_S1_0.wav");
+  });
+
+  it("says it is loading until the video arrives", async () => {
+    const next = await stepping([LAYERED, SECOND_VIDEO], "Video");
+
+    await next();
+
+    expect(screen.getByText("yükleniyor…")).toBeTruthy();
+    fireEvent.loadedData(document.querySelector("video"));
+    expect(screen.queryByText("yükleniyor…")).toBeNull();
+  });
+
+  it("says so when the video does not come, and which one", async () => {
+    const next = await stepping([LAYERED, SECOND_VIDEO], "Video");
+
+    await next();
+    fireEvent.error(document.querySelector("video"));
+
+    expect(screen.getByText("Dosya yüklenemedi")).toBeTruthy();
+    expect(document.querySelector("[data-raw]").textContent)
+      .toContain("/photos/düğün/P1_0_V1_0.mp4");
   });
 });
 
@@ -686,6 +853,84 @@ describe("PhotoDetail", () => {
     await open("yok");
 
     expect(screen.getByText("Kare bulunamadı")).toBeTruthy();
+  });
+});
+
+describe("PhotoDetail — deleting keeps the direction (madde 234)", () => {
+  // Newest first, as the gallery stands: ‹ steps to the frame above in this list, › to the one below.
+  const FIVE = [done("4_a.png", "beşinci"), done("3_a.png", "dördüncü"), done("2_a.png", "üçüncü"),
+                done("1_a.png", "ikinci"), done("0_a.png", "ilk")];
+
+  // The router swaps the frame under a page that stays mounted, so a test does the same: one
+  // render, then rerender on the frame the press navigated to.
+  async function mount(fid, frames = FIVE) {
+    listFrames.mockResolvedValue(frames);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const view = render(<PhotoDetail project="düğün" frame={fid} />);
+    await settle();
+    return (next) => { view.rerender(<PhotoDetail project="düğün" frame={next} />); return settle(); };
+  }
+
+  // The answer names the frame by identity, so the hook takes it out of its own list and the next
+  // deletion looks at the neighbours that are really left.
+  async function remove(fid) {
+    removeFrames.mockResolvedValue({ deleted: [fid], removed: [] });
+    navigate.mockClear();
+    fireEvent.click(screen.getByText("Sil"));
+    await act(async () => { fireEvent.click(confirmButton()); });
+  }
+
+  it("after the back arrow, deleting opens the frame before it", async () => {
+    const goTo = await mount("1_a");
+    fireEvent.click(screen.getByText("‹"));
+    await goTo("2_a");
+
+    await remove("2_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/3_a");
+  });
+
+  it("after the left key, deleting opens the frame before it", async () => {
+    const goTo = await mount("1_a");
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    await goTo("2_a");
+
+    await remove("2_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/3_a");
+  });
+
+  it("after the forward arrow, deleting opens the frame after it", async () => {
+    const goTo = await mount("3_a");
+    fireEvent.click(screen.getByText("›"));
+    await goTo("2_a");
+
+    await remove("2_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/1_a");
+  });
+
+  it("a second deletion keeps walking backwards", async () => {
+    const goTo = await mount("1_a");
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+    await goTo("2_a");
+    await remove("2_a");
+    await goTo("3_a");
+
+    await remove("3_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/4_a");
+  });
+
+  it("walking backwards off the end, deleting falls to the frame after it", async () => {
+    const goTo = await mount("3_a");
+    fireEvent.click(screen.getByText("‹"));
+    await goTo("4_a");
+
+    await remove("4_a");
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/3_a");
   });
 });
 

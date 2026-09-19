@@ -1,6 +1,6 @@
 # Madde 111 — Kamera tek tipten çıkar · Tur 1 (testler) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 111.
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 111.
 **Gözlenen** *(28 Ağustos)*: on karelik senaryonun yedisi düz `medium shot` çıktı — on sahne, tek
 kadraj.
 

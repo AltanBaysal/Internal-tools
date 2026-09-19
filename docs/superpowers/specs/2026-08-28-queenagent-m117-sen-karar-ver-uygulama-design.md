@@ -1,6 +1,6 @@
 # Madde 117 — *Sen karar ver* yalnız sorulduğu adımı kapatır · Tur 2 (uygulama) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 117 ve
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 117 ve
 [tur 1'in tasarımı](2026-08-28-queenagent-m117-sen-karar-ver-testler-design.md). Testler kırmızı
 commit'te; bu tur onların tarif ettiği cümleleri yazar.
 

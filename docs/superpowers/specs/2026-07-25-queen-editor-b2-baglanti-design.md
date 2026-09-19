@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-07-25 · **Durum:** onaylandı, implementasyon planı bekliyor
 **Şemsiye tasarım:** [2026-07-24-queen-editor-v1-design.md](2026-07-24-queen-editor-v1-design.md)
-**Yol haritası:** [2026-07-24-queen-editor-roadmap.md](../plans/2026-07-24-queen-editor-roadmap.md) — Bölüm 2
+**Yol haritası:** [2026-08-03-queen-editor-v1-roadmap.md](../roadmaps/2026-08-03-queen-editor-v1-roadmap.md) — Bölüm 2
 **Notebook standardı:** [collab-toolbox/NOTEBOOK-STANDARD.md](../../../collab-toolbox/NOTEBOOK-STANDARD.md)
 
 ## Amaç

@@ -1,6 +1,6 @@
 # Madde 140 · Tur 1 (test) — Tasarım
 
-**Kaynak:** [v6 yol haritası](../plans/2026-09-01-v6-roadmap.md), Madde 140
+**Kaynak:** [v6 yol haritası](../roadmaps/2026-09-01-queen-agent-v6-roadmap.md), Madde 140
 **Dal:** `feat/v6`
 **Bu tur yalnız test yazar.** Defter bu turda ellenmez.
 
@@ -106,7 +106,7 @@ satırının bir kutusu olmasını zorunlu kıldığı için LoRA o listeye zate
   20 adım / CFG 4.5. Örnekleyici tutuyor *(`euler_ancestral`)*, CFG tutmuyor — ama arayüzde CFG
   alanı yok ve değeri modele göre değiştirmek bu maddenin işi değil. Karşılaştırma okunurken
   hatırlanacak, yol haritasına yazıldı.
-- **Anima** — [Madde 142](../plans/2026-09-01-v6-roadmap.md). Başka bir mimari, başka bir grafik.
+- **Anima** — [Madde 142](../roadmaps/2026-09-01-queen-agent-v6-roadmap.md). Başka bir mimari, başka bir grafik.
 
 ## Colab'da görülecek
 

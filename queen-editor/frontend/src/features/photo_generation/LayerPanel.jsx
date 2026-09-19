@@ -16,7 +16,8 @@ const MAX_VARIANTS = 26;
 // "video panelinin birebir aynısı" -- so only these words and the scope rule differ between them.
 const WORDS = {
   video: {
-    model: "WAN 2.2 I2V",
+    // No model name here: which video model runs is the notebook's pick, and the producers row
+    // carries it (madde 247).
     missing: "Videosu olmayan kareler",
     // The bare noun for counting, and the possessive the estimate line needs -- Turkish does not
     // build one from the other.
@@ -178,12 +179,20 @@ function ModeRow({ label, active, disabled, onPick }) {
 // Artboard: the photo panel's shape with a different subject. What it does not ask for is the
 // point -- the prompt is written by a language model when the job's turn comes, and the length is
 // fixed, so the only questions left are which frames, and how many of each.
-export default function LayerPanel({ layer, frames, selected, producer, onQueue, onInstall }) {
+// `job`, `busyElsewhere` and `error` are here for one sentence each, the way the photo panel takes
+// them: there is a single worker, so a run started from another project refuses this one, and until
+// madde 215 this panel was told none of it -- the press went out, came back 409, and the answer
+// landed in a panel that was not the open one.
+export default function LayerPanel({ layer, frames, selected, producer, job, busyElsewhere, error,
+                                     onQueue, onInstall }) {
   const words = WORDS[layer];
   const [scope, setScope] = useState("missing");
   // Kept by both panels though only the video one shows the row: a sound ends nowhere, so it has
   // nothing to choose -- and one call shape means the server never asks where a request came from.
-  const [mode, setMode] = useState(STANDARD);
+  // Which is why the default has to ask the layer (madde 216): loop is what gets asked for of a
+  // video, while a sound carrying any mode but the plain one is refused outright by the server
+  // (production_mode.validate) -- and that refusal never reaches the screen.
+  const [mode, setMode] = useState(layer === "video" ? LOOP : STANDARD);
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState("1");
   const [submitting, setSubmitting] = useState(false);
@@ -240,6 +249,9 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
   // there is exactly such a move. A press changes none of the three, so the answer stays up.
   useEffect(() => { setRefused(null); }, [chosen, scope, variants]);
   const missingProducer = Boolean(producer) && !producer.installed;
+  // The server's name first -- it knows which model the notebook installed. Until it answers the
+  // box stays empty rather than guessing.
+  const model = producer?.model || words.model || "";
 
   function handleAdd() {
     const why = refusalOf(words, can, scope, scoped, variants);
@@ -270,13 +282,12 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <Mono size={11} data-label style={LABEL}>Model</Mono>
-        {/* The photo panel's own box, with the one option there is: a layer has a single model and
-            the job that goes to the queue carries no model at all -- the engine picks it. The frame
-            and the arrow are the design's (Fark 32); the choice is not invented, and the day a
-            second model arrives the box is already here. */}
-        <select className="wf-input" value={words.model} onChange={() => {}}
+        {/* The photo panel's own box, with the one option there is: a session has a single model
+            per layer and the job that goes to the queue carries no model at all -- the engine picks
+            it. The frame and the arrow are the design's (Fark 32); the choice is not invented. */}
+        <select className="wf-input" value={model} onChange={() => {}}
                 style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
-          <option value={words.model}>{words.model}</option>
+          <option value={model}>{model}</option>
         </select>
       </div>
 
@@ -328,7 +339,7 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
             which is the design's own exception: not a field but an engine that is not here yet, and
             the card at the top of the panel says so. */}
         <button type="button" className="wf-btn wf-btn--hl"
-                disabled={submitting || missingProducer} onClick={handleAdd}
+                disabled={submitting || missingProducer || busyElsewhere} onClick={handleAdd}
                 style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}>
           {submitting
             ? <><span className="qe-spinner" aria-hidden="true" /> Ekleniyor…</>
@@ -354,6 +365,21 @@ export default function LayerPanel({ layer, frames, selected, producer, onQueue,
             <Note size={12} style={{ color: "var(--danger)" }}>✕</Note>
             <Note size={12} style={{ color: "var(--danger)" }}>{refused}</Note>
           </div>
+        ) : error ? (
+          // The same card for the server's refusal: both answer why this press went nowhere, and
+          // they cannot both be true -- one belongs to a press never sent, the other to one that was.
+          <div className="wf-stroke"
+               style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: 8,
+                        borderColor: "var(--danger)", background: "var(--danger-bg)" }}>
+            <Note size={12} style={{ color: "var(--danger)" }}>✕</Note>
+            <Note size={12} style={{ color: "var(--danger)" }}>{error}</Note>
+          </div>
+        ) : busyElsewhere ? (
+          // Not red: another project running is a state, not a fault. It says why the button above
+          // it is closed, in the photo panel's own words.
+          <Note size={12} style={{ color: "var(--ink-3)" }}>
+            Üretim sürüyor: {job.project} — bitmesini bekle.
+          </Note>
         ) : owed ? (
           // The copy warning takes the mode's tail, never its head: the mode is already named in
           // what comes out, so what is given up is an echo of the marked row just above.

@@ -1,6 +1,6 @@
 # Madde 168 · test turu — karakter yönetimi
 
-**Kaynağı:** [v7 yol haritası, Madde 168](../plans/2026-09-05-queenagent-v7-roadmap.md).
+**Kaynağı:** [v7 yol haritası, Madde 168](../roadmaps/2026-09-05-queen-agent-v7-roadmap.md).
 Bu tur **yalnız testleri** yazar; kod değişmez ve takım kırmızı commit'lenir.
 
 Bu madde üç aracın yanında **iki ortak parçayı** da doğuruyor, ve 169–174 onları olduğu gibi

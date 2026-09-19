@@ -1,6 +1,6 @@
 # Madde 121 — Action sızıntıları kural defterine girer · Tur 2 (uygulama) tasarımı
 
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) Madde 121 ve
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) Madde 121 ve
 [tur 1'in tasarımı](2026-08-29-queenagent-m121-defter-testler-design.md). Testler kırmızı
 commit'te.
 

@@ -1,6 +1,6 @@
 # Madde 55 · Tur 1 (test) — Tasarım
 
-**Madde:** [v4 yol haritası Madde 55](../plans/2026-08-20-queenagent-v4-colab-roadmap.md)
+**Madde:** [v4 yol haritası Madde 55](../roadmaps/2026-08-20-queen-agent-v4-roadmap.md)
 **Bu belgenin konusu:** CONFIG hücresini **ne tutacak**.
 
 ---

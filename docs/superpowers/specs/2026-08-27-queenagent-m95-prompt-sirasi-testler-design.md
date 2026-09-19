@@ -1,7 +1,7 @@
 # Madde 95 — Promptun sırası düzelir, kişi sayısı yerine oturur · **test turu**
 
 **Tarih:** 2026-08-27 · **Branch:** `feat/queenagent-v5` ·
-**Kaynak:** [v5 yol haritası](../plans/2026-08-25-queenagent-v5-roadmap.md) — Blok 6, Madde 95 ·
+**Kaynak:** [v5 yol haritası](../roadmaps/2026-08-25-queen-agent-v5-roadmap.md) — Blok 6, Madde 95 ·
 **Kararları:** [karar defteri](../../2026-08-27-queenagent-skill-kararlari.md) K1–K8, K25–K27 ·
 **Şartı yok** — bloğun ilk maddesi, ve 96 ile 98 bunun üstüne biniyor
 **Tur:** ikiden birincisi — bu belge **yalnız testleri** tarif eder.

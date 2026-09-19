@@ -2,7 +2,7 @@
 
 **Tarih:** 2026-08-09 · **Branch:** `feat/mira-v1`
 **Üst belgeler:** [tasarım v1](2026-08-09-mira-v1-design.md) ·
-[yol haritası](../plans/2026-08-09-mira-v1-roadmap.md) · [Faz 6](2026-08-09-mira-faz-6-grok-design.md)
+[yol haritası](../roadmaps/2026-08-09-queen-agent-v1-roadmap.md) · [Faz 6](2026-08-09-mira-faz-6-grok-design.md)
 
 **Kapsam:** cevabın parça parça akması (Madde 15) · hata kartı ve **Try again** (Madde 16).
 **Kapsam dışı:** araçlar (Faz 8) · çevrimdışı şeridi (Faz 14).

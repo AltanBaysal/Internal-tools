@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { exportPath, navigate } from "../../shared/router.js";
+import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Note } from "../../vendor/kit.jsx";
 import { useProducers } from "../producers/useProducers.js";
 import Gallery from "./Gallery.jsx";
@@ -31,7 +32,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos, copyPhotos, removeLayer } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
-  const { models, error: modelsError } = useModels();
+  const { models, loras, error: modelsError } = useModels();
   // The machine's own question, not this project's: which producers are here.
   const producers = useProducers();
   // The gallery's own scroll box, kept across the steps in and out of a frame's page.
@@ -55,7 +56,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
     try {
       await onSaveSettings({
         prompts: form.prompts, negative: form.negative, variants: form.variants,
-        model: form.model,
+        model: form.model, lora: form.lora,
       });
     } catch (err) {
       setSaveError(err.message);
@@ -67,7 +68,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={HEADER}>
-        <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
+        <Hand size={20}><span className="wf-hl">{`Queen Editor ${VERSION}`}</span></Hand>
         <Hand size={20}>{project}</Hand>
         <div style={{ display: "flex", gap: 8, justifySelf: "end" }}>
           {/* A button now, not a download link: Export opens the fourth screen and nothing leaves
@@ -116,7 +117,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
                    settingsError={settingsError} onRetrySettings={onRetrySettings}
                    project={project}
                    stopping={stopping} queue={queue} failures={failures}
-                   models={models} modelsError={modelsError} producers={producers}
+                   models={models} loras={loras} modelsError={modelsError} producers={producers}
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onRetryAll={retryAll} />

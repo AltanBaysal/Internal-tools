@@ -4,13 +4,16 @@ import { fileUrl } from "../../shared/api.js";
 import { navigate, photoPath, projectPath } from "../../shared/router.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
+import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Corner, Making, Pill, Rendering, StatusPill } from "./frame_status.jsx";
 import { CopyGlyph, PlayGlyph, SoundGlyph } from "./glyphs.jsx";
+import Arriving from "./Arriving.jsx";
 import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
+import { useModels } from "./useModels.js";
 
 // minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
 // bar past the window and take the whole page sideways with it (madde 107).
@@ -256,6 +259,10 @@ function PromptBox({ label, value, changed, height, onChange }) {
 export default function PhotoDetail({ project, frame: fid }) {
   const { frames, current, currentLayer, error, removePhotos, removeLayer, regenerate,
           retry } = useGeneration(project);
+  // The rows the renderer offers, for two lines in the column on the right: a frame stores its
+  // model and its lora as ids -- the names they were picked by are in these lists and nowhere else.
+  // The hook remembers the answer for the visit, so opening frames costs nothing.
+  const { models, loras } = useModels();
   // Which window is open, not merely that one is: a failed layer's way out deletes the FRAME while
   // a layer tab is open, and deciding from the open tab would show it the layer's words.
   const [asking, setAsking] = useState(null);              // "frame" | "layer" | null
@@ -287,6 +294,14 @@ export default function PhotoDetail({ project, frame: fid }) {
   const frame = index >= 0 ? frames[index] : null;
   const previous = index > 0 ? frames[index - 1] : null;
   const next = frames && index >= 0 && index < frames.length - 1 ? frames[index + 1] : null;
+  // Which way the last arrow went, so a deletion moves on the way the user was walking (madde 234).
+  // A ref, not state: nothing on screen depends on it. It lives as long as the page, which the
+  // arrows keep mounted -- a detail opened fresh from the gallery starts forwards, as it always did.
+  const backwards = useRef(false);
+  function step(to, back) {
+    backwards.current = back;
+    navigate(photoPath(project, to.id));
+  }
   // Which layer the worker is holding on THIS frame, if any -- the one thing about a frame that
   // has no state on disk.
   const running = frame && frame.id === current ? (currentLayer || "photo") : null;
@@ -325,10 +340,20 @@ export default function PhotoDetail({ project, frame: fid }) {
   // How the open layer was made, when its line said so. Only a video has an answer today, and only
   // a produced one: a failed or deleted layer's latest line names no mode.
   const madeIn = (frame?.modes || {})[open];
-  // Which checkpoint rendered this frame. The plan row carries the file name the notebook
-  // downloaded, and the column already has a file-name row of its own -- so the extension comes off
-  // and this row says the model. Only .safetensors: that is the one kind the notebook installs.
-  const madeWith = (frame?.model || "").replace(/\.safetensors$/, "");
+  // What rendered this frame. The plan row carries what was picked: a model's id, or a file name
+  // from before models had ids. A model is shown by the name it was picked by -- `dasiwa` is an
+  // address, and the person who chose it from a list never saw it. Without the list the stored
+  // value stands in: worse than the label, better than an empty row.
+  // The extension comes off a file name because the column already has a file-name row of its own.
+  const storedModel = frame?.model || "";
+  const madeWith = (models?.find((row) => row.value === storedModel)?.label || storedModel)
+    .replace(/\.safetensors$/, "");
+  // And the lora laid over it, by the same rule. A frame that names none gets no row: a
+  // recipe:slime frame names none and was made with Slime, and a DaSiWa one sent under Standart was
+  // made with none, so any name there would be a guess (madde 238).
+  const storedLora = frame?.lora || "";
+  const laidOver = storedLora
+    && (loras?.find((row) => row.value === storedLora)?.label || storedLora);
   // Linked names the picture rather than the frame's number -- the sequence can be dragged, and a
   // number would then be a lie about a video nobody touched.
   const arrivesAt = (frame?.endsOn || {})[open];
@@ -353,6 +378,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Was this layer already sent, and was any of the presses a retry? The corner says which.
   const wasSent = (layer) => sent.some((one) => one.layer === layer);
   const retried = sent.some((one) => one.retry);
+  // What the stage's media belongs to. A new frame or tab builds new media under it, so nothing of
+  // the one before can stay on screen while the next file is on its way (madde 232).
+  const stageKey = `${fid}/${open}`;
 
   // The arrows swap the frame under a page that stays mounted, so anything said about the old one
   // has to go with it -- a refusal card from the previous frame would read as this one's.
@@ -383,20 +411,21 @@ export default function PhotoDetail({ project, frame: fid }) {
     const onKey = (e) => {
       if (asking) return;                        // the modal owns the keyboard while it is open
       if (e.key === "Escape") navigate(projectPath(project));
-      if (e.key === "ArrowLeft" && previous) navigate(photoPath(project, previous.id));
-      if (e.key === "ArrowRight" && next) navigate(photoPath(project, next.id));
+      if (e.key === "ArrowLeft" && previous) step(previous, true);
+      if (e.key === "ArrowRight" && next) step(next, false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [project, previous, next, asking]);
 
   // One button, two meanings: a photo is deleted from Drive and asks first, a frame only leaves the
-  // queue and does not. Where to go afterwards is decided before the list changes -- the next frame,
-  // the one before it when this was the last, or the gallery when nothing is left.
+  // queue and does not. Where to go afterwards is decided before the list changes -- the neighbour
+  // on the side the last arrow went, the other one when that side is empty, or the gallery when
+  // nothing is left. Moving on is not an arrow, so a run of deletions keeps walking the same way.
   function handleRemove() {
     setBusy(true);
     setRefused(false);
-    const after = next || previous;
+    const after = backwards.current ? previous || next : next || previous;
     return removePhotos([fid]).then((body) => {
       setBusy(false);
       setAsking(null);
@@ -448,7 +477,7 @@ export default function PhotoDetail({ project, frame: fid }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <div style={HEADER}>
-        <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
+        <Hand size={20}><span className="wf-hl">{`Queen Editor ${VERSION}`}</span></Hand>
         <Hand size={20}>{project}</Hand>
         <Btn ghost style={{ justifySelf: "end" }} onClick={() => navigate(projectPath(project))}>
           <Icon.Left /> Galeriye dön
@@ -489,26 +518,34 @@ export default function PhotoDetail({ project, frame: fid }) {
               </Corner>
             ) : null}
             <Arrow glyph="‹" side="left"
-                   onClick={previous
-                     ? () => navigate(photoPath(project, previous.id))
-                     : undefined} />
+                   onClick={previous ? () => step(previous, true) : undefined} />
             <Arrow glyph="›" side="right"
-                   onClick={next ? () => navigate(photoPath(project, next.id)) : undefined} />
+                   onClick={next ? () => step(next, false) : undefined} />
             {holds && open !== "photo" ? (
               /* The layer's own tab plays it. The sound opens no player of its own: it rides the
                  video, which is what "sesli oynar" means here (madde 74). */
-              <LayerPlayer videoUrl={fileUrl(project, frame.layers.video)}
-                           audioUrl={open === "audio"
-                             ? fileUrl(project, frame.layers.audio)
-                             : null} />
+              <Arriving key={stageKey} url={fileUrl(project, frame.layers.video)}>
+                {({ onReady, onFail }) => (
+                  <LayerPlayer videoUrl={fileUrl(project, frame.layers.video)}
+                               audioUrl={open === "audio"
+                                 ? fileUrl(project, frame.layers.audio)
+                                 : null}
+                               onReady={onReady} onFail={onFail} />
+                )}
+              </Arriving>
             ) : openState === "running" ? (
               produced ? (
                 /* Fark 113: the picture stays and a box over it says what is being made. For the
                    length of a render it is the one thing left to look at. */
-                <div style={FRAMED}>
-                  <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE} />
-                  <Making layer={open} />
-                </div>
+                <Arriving key={stageKey} url={fileUrl(project, frame.file)}>
+                  {({ onReady, onFail }) => (
+                    <div style={FRAMED}>
+                      <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE}
+                           onLoad={onReady} onError={onFail} />
+                      <Making layer={open} />
+                    </div>
+                  )}
+                </Arriving>
               ) : (
                 /* A photo being made has no picture to keep: this is the holder's own case. */
                 <Rendering style={HOLDER} />
@@ -532,9 +569,14 @@ export default function PhotoDetail({ project, frame: fid }) {
             ) : produced ? (
               /* The picture the frame holds -- its own, or its source's when this is a copy waiting
                  for the layer above it (madde 81). */
-              <div style={FRAMED}>
-                <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE} />
-              </div>
+              <Arriving key={stageKey} url={fileUrl(project, frame.file)}>
+                {({ onReady, onFail }) => (
+                  <div style={FRAMED}>
+                    <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE}
+                         onLoad={onReady} onError={onFail} />
+                  </div>
+                )}
+              </Arriving>
             ) : (
               /* Madde 82: the holder keeps the frame's own shape and its two lines are drawn
                  faintly -- a frame with no pixels yet is not an error, only not here yet. The word
@@ -570,6 +612,8 @@ export default function PhotoDetail({ project, frame: fid }) {
                    says which checkpoint the graph shipped that day, so naming one would invent it. */
                 <Field label="Model" value={madeWith} />
               )}
+              {/* Under the model and on the same terms: drawn only where the frame says. */}
+              {open === "photo" && madeWith && laidOver && <Field label="LoRA" value={laidOver} />}
               {open === "video" && madeIn && (
                 /* Information, never a control: changing the mode is making the video again, and
                    that is the form further down (madde 94). */

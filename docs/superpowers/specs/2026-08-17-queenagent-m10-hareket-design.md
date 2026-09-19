@@ -1,6 +1,6 @@
 # Madde 10 — Hareket bandı · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 10](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 10](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynaklar:** fark 76 · sapma 87 · **karar 3** · `HANDOFF.md` §10
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

@@ -88,6 +88,41 @@ def test_list_dirs_raises_when_root_missing(tmp_path):
         DriveStorage(str(tmp_path / "yok")).list_dirs()
 
 
+def test_list_dirs_can_be_asked_about_a_subfolder(tmp_path):
+    """The archive is a folder under the same root (madde 221), so listing it is listing a
+    subfolder -- the same question this already answers about the root."""
+    storage = DriveStorage(str(tmp_path))
+    storage.make_dir("arsiv")
+    (tmp_path / "arsiv" / "düğün").mkdir()
+    storage.make_dir("kapak çekimi")
+
+    entries = storage.list_dirs("arsiv")
+
+    assert [name for name, _ in entries] == ["düğün"]
+    assert all(mtime > 0 for _, mtime in entries)
+
+
+def test_list_dirs_of_a_folder_that_is_not_there_is_empty(tmp_path):
+    """Nothing archived yet and no archive folder yet are the same answer to the caller -- there is
+    nothing in it. The rule list_files already follows; a raise here would make an empty archive an
+    error on every fresh install."""
+    assert DriveStorage(str(tmp_path)).list_dirs("arsiv") == []
+
+
+def test_rename_dir_opens_the_targets_parent(tmp_path):
+    """The first archiving of the first project happens before any archive folder exists. Without
+    this the move fails, and it fails with an errno rather than with anything a user could act on."""
+    storage = DriveStorage(str(tmp_path))
+    storage.make_dir("düğün")
+    (tmp_path / "düğün" / "0_a.png").write_bytes(b"PNG")
+
+    assert storage.rename_dir("düğün", "arsiv/düğün") > 0
+
+    # Moved, not copied: the whole point of using rename here (see the method's own docstring).
+    assert not (tmp_path / "düğün").exists()
+    assert (tmp_path / "arsiv" / "düğün" / "0_a.png").read_bytes() == b"PNG"
+
+
 def test_dir_exists(tmp_path):
     storage = DriveStorage(str(tmp_path))
     storage.make_dir("düğün")

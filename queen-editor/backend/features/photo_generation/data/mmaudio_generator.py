@@ -30,11 +30,12 @@ class MMAudioGenerator:
         self._ffmpeg = ffmpeg
         self._tmp_dir = tmp_dir
 
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         """`source` is the frame's video as (name, bytes); the answer is its sound as bytes.
 
         `end` is a video's business alone -- a sound is laid over the whole of one and arrives
-        nowhere. Taken and ignored, because the queue has one call shape for every producer.
+        nowhere -- and `model` and `lora` are a photo's. Taken and ignored, because the queue has
+        one call shape for every producer.
 
         The name is not ours to give: the queue names every layer file from the domain's scheme
         (photo_name.layer_file), and a second name written here drifts from it -- as it had.

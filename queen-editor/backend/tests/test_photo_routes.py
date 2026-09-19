@@ -14,7 +14,7 @@ from backend.features.photo_generation.export_runner import MODES, ExportRunner
 from backend.features.photo_generation.domain.usecases.cancel_generation import cancel_generation
 from backend.features.photo_generation.domain.usecases.get_status import get_status
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
-from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.usecases.list_models import list_loras, list_models
 from backend.features.photo_generation.domain.usecases.queue_layer import queue_layer
 from backend.features.photo_generation.domain.usecases.regenerate import regenerate
 from backend.features.photo_generation.domain.usecases.remove_layer import remove_layer
@@ -31,15 +31,13 @@ from backend.web.app import create_app
 
 
 class FakeGenerator:
-    def __init__(self, installed=("nova.safetensors",)):
-        self.installed = list(installed)
+    def __init__(self):
         self.calls = []
+        self.loras = []
 
-    def models(self):
-        return list(self.installed)
-
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         self.calls.append((prompt, negative, seed, model))
+        self.loras.append(lora)
         return b"PNGDATA"
 
 
@@ -52,7 +50,7 @@ class StopsAfter:
         self.count = count
         self.calls = 0
 
-    def generate(self, prompt, negative, seed, model="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
         self.calls += 1
         if self.calls > self.count:
             self.runner.request_stop()
@@ -111,7 +109,9 @@ def make_client(tmp_path, generator=None, runner=None):
         remove_layer=partial(remove_layer, record, store, plan_store, order_store,
                              lambda: "2026-08-05T10:00:00+00:00"),
         list_frames=partial(list_frames, record, store, plan_store, order_store),
-        list_models=partial(list_models, generator),
+        # No model ids: a notebook that installed no photo, which is the case madde 229 is about.
+        list_models=partial(list_models, []),
+        list_loras=list_loras,
         save_order=partial(save_order, record, store, plan_store, order_store),
         export_summary=partial(export_summary, record, store, plan_store, order_store,
                                lambda: 5),
@@ -250,7 +250,7 @@ def test_adding_to_the_running_projects_own_queue_is_accepted(tmp_path):
 
 def test_failed_batch_shows_the_real_error_in_status(tmp_path):
     class Broken:
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             raise RuntimeError("node 9 (CheckpointLoaderSimple): dosya yok")
 
     client, _ = make_client(tmp_path, generator=Broken())
@@ -377,7 +377,7 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     class BlowsUpOnTheFirstPrompt:
         """Drops the same job every time it is offered -- three attempts, then red."""
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             if prompt == "a":
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"
@@ -390,27 +390,58 @@ def test_the_gallery_keeps_a_red_frame_after_the_worker_is_gone(tmp_path):
     assert statuses_of(client) == [("P1_0.png", "done"), ("P0_0.png", "failed")]
 
 
-def test_the_models_endpoint_lists_what_the_renderer_has(tmp_path):
-    client, _ = make_client(tmp_path,
-                            generator=FakeGenerator(installed=["nova.safetensors", "b.safetensors"]))
+def test_with_no_models_the_models_endpoint_answers_an_empty_list(tmp_path):
+    # Not an error: a video-only session has no photo model, and the panel's install card is what
+    # says photo is not here. A 502 put a failure card on top of that (madde 229).
+    #
+    # The loras ride in the same answer: the panel draws the two boxes together (madde 237). They
+    # are not filtered by the notebook -- the lora files come with the photo group whatever was
+    # ticked -- so they are listed even here, where the install card is what stops a batch.
+    client, _ = make_client(tmp_path)
 
     resp = client.get("/api/models")
 
     assert resp.status_code == 200
-    assert resp.get_json() == {"models": ["nova.safetensors", "b.safetensors"]}
+    assert resp.get_json() == {"models": [], "loras": [{"value": "usnr", "label": "USNR"},
+                                                       {"value": "slime", "label": "Slime"},
+                                                       {"value": "none", "label": "Boş"}]}
 
 
-def test_an_unreachable_renderer_answers_with_its_own_words(tmp_path):
-    class Unreachable(FakeGenerator):
-        def models(self):
-            raise RuntimeError("Connection refused: 127.0.0.1:8188")
+def test_every_frame_of_a_batch_carries_the_chosen_lora(tmp_path):
+    generator = FakeGenerator()
+    client, drive = make_client(tmp_path, generator=generator)
 
-    client, _ = make_client(tmp_path, generator=Unreachable())
+    generate(client, prompts='["a"]', variants=2, model="nova3dcg", lora="slime")
 
-    resp = client.get("/api/models")
+    assert generator.loras == ["slime", "slime"]
+    plan = json.loads((drive / "düğün" / "plan.json").read_text(encoding="utf-8"))
+    assert {frame["lora"] for frame in plan["frames"]} == {"slime"}
 
-    assert resp.status_code == 502
-    assert resp.get_json()["error"] == "Connection refused: 127.0.0.1:8188"
+
+def test_a_lora_of_the_wrong_type_is_sent_as_no_pick(tmp_path):
+    """Coerced the way the model already is: a non-string is nobody's pick, and a frame that names no
+    lora renders with the default."""
+    generator = FakeGenerator()
+    client, _ = make_client(tmp_path, generator=generator)
+
+    generate(client, prompts='["a"]', variants=1, lora=7)
+
+    assert generator.loras == [""]
+
+
+def test_a_lora_the_app_does_not_know_is_refused_with_its_field(tmp_path):
+    """The backend says what is valid, not the panel (madde 238): the sentence comes back under the
+    button, named after the box, and the queue takes nothing."""
+    generator = FakeGenerator()
+    client, drive = make_client(tmp_path, generator=generator)
+
+    resp = generate(client, prompts='["a"]', variants=1, lora="gitmiş")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["field"] == "lora"
+    assert "gitmiş" in resp.get_json()["error"]
+    assert generator.loras == []
+    assert not (drive / "düğün" / "plan.json").exists()
 
 
 def test_every_frame_of_a_batch_carries_the_chosen_model(tmp_path):
@@ -467,7 +498,7 @@ def test_retry_without_a_file_puts_every_red_frame_back(tmp_path):
         def __init__(self):
             self.forgiving = False
 
-        def generate(self, prompt, negative, seed, model="", source=None, end=None):
+        def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
             if not self.forgiving:
                 raise RenderFailed("node 41: OOM")
             return b"PNGDATA"

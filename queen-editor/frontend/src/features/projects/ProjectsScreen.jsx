@@ -1,8 +1,16 @@
 import { useState } from "react";
 
-import { createProject, deleteProject, renameProject } from "../../shared/api.js";
+import {
+  archiveProject,
+  createProject,
+  deleteProject,
+  listArchivedProjects,
+  renameProject,
+  restoreProject,
+} from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
+import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import NameModal from "./NameModal.jsx";
 import ProjectCard from "./ProjectCard.jsx";
@@ -44,7 +52,79 @@ export default function ProjectsScreen() {
   // what the request is addressed to.
   const [renamingName, setRenamingName] = useState(null);
   const [busy, setBusy] = useState(false);
-  const crowded = projects.length > FITS;
+  // Which of the two lists is on screen. One at a time: drawing the archive beside the projects
+  // would make the list longer, which is the thing archiving is for (madde 221).
+  const [inArchive, setInArchive] = useState(false);
+  // The archive as last read, or null while it has never been read. Read when it is opened rather
+  // than on mount: a user who never archives anything should not pay for a second request.
+  const [archived, setArchived] = useState(null);
+  const [archiveError, setArchiveError] = useState(null);
+  // What the last archive or restore came back with, or null. Its own state rather than
+  // archiveError's: that one replaces the list, which is right for a list that would not load and
+  // wrong for a button that did not work -- the cards have to stay for the next try (madde 223).
+  const [actionError, setActionError] = useState(null);
+  // Which project is being worked on and what its card should say, or null. Between the press and
+  // the list coming back there is a trip to Drive, and the screen used to say nothing for the whole
+  // of it -- the button even stayed pressable (madde 225).
+  const [working, setWorking] = useState(null);
+  const shown = inArchive ? (archived || []) : projects;
+  const crowded = shown.length > FITS;
+
+  async function refreshArchive() {
+    try {
+      setArchived(await listArchivedProjects());
+      setArchiveError(null);
+    } catch (err) {
+      // Same shape as the projects list: the server's own words, and the screen stays usable.
+      setArchived([]);
+      setArchiveError(err.message);
+    }
+  }
+
+  // Both of these used to let the rejection go: the server's sentence became an unhandled promise
+  // rejection, so a refused archive looked like a button that did nothing at all. What is caught is
+  // shown verbatim -- api.js throws the server's own words, and there is no cause to invent here.
+  // The word is cleared in two places on purpose. On success it goes only after the lists have been
+  // read again -- that read is another trip to Drive, and clearing on the answer would put the
+  // silence back in a smaller place. On failure it goes at once, so the sentence below is the only
+  // thing on screen.
+  async function handleArchive(name) {
+    setWorking({ name, label: "Arşivleniyor…" });
+    try {
+      await archiveProject(name);
+      setActionError(null);
+    } catch (err) {
+      setActionError(err.message);
+      setWorking(null);
+      return;   // nothing changed, so there is nothing to re-read
+    }
+    // Drive is the single source of truth here too -- and both lists changed, so both are re-read.
+    await reload();
+    if (archived) await refreshArchive();
+    setWorking(null);
+  }
+
+  async function handleRestore(name) {
+    setWorking({ name, label: "Geri alınıyor…" });
+    try {
+      await restoreProject(name);
+      setActionError(null);
+    } catch (err) {
+      setActionError(err.message);
+      setWorking(null);
+      return;
+    }
+    await refreshArchive();
+    await reload();
+    setWorking(null);
+  }
+
+  async function toggleArchive() {
+    // One list's failure must not be left standing over the other one.
+    setActionError(null);
+    if (!inArchive) await refreshArchive();
+    setInArchive(!inArchive);
+  }
 
   async function handleDelete() {
     setBusy(true);
@@ -86,11 +166,28 @@ export default function ProjectsScreen() {
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <Hand size={20}><span className="wf-hl">Queen Editor</span></Hand>
-        <Hand size={20}>Projeler</Hand>
-        <Btn hl style={{ justifySelf: "end" }} onClick={() => setModalOpen(true)}>
-          <Icon.Plus /> Yeni proje
-        </Btn>
+        <Hand size={20}><span className="wf-hl">{`Queen Editor ${VERSION}`}</span></Hand>
+        {/* The title says which of the two lists is open. */}
+        <Hand size={20}>{inArchive ? "Arşiv" : "Projeler"}</Hand>
+        {/* The archive is a place that is entered, so it carries its own buttons (madde 224).
+            Nothing here makes a project: what one made would land among the projects rather than in
+            the list being looked at, so the button would lie about where it is. It is not drawn at
+            all rather than disabled -- a disabled one says it could have been here.
+            The way out is worded the way every other place in this app is left (ProjectScreen's
+            "Projeden çık"), and wears the same ghost. Entering keeps the look it had: what was
+            asked about was the way out. */}
+        <div style={{ justifySelf: "end", display: "flex", gap: 8 }}>
+          {inArchive ? (
+            <Btn ghost onClick={toggleArchive}>Arşivden çık</Btn>
+          ) : (
+            <>
+              <Btn onClick={toggleArchive}>Arşiv</Btn>
+              <Btn hl onClick={() => setModalOpen(true)}>
+                <Icon.Plus /> Yeni proje
+              </Btn>
+            </>
+          )}
+        </div>
       </div>
 
       {/* The header stays put and the projects move under it, the way the app's other four screens
@@ -100,30 +197,57 @@ export default function ProjectsScreen() {
         <div data-list className="qe-thin-scroll"
              style={{ height: "100%", overflowY: "auto", padding: "24px 32px",
                       boxSizing: "border-box" }}>
-          {status === "error" ? (
+          {/* Above the list and not in place of it: the cards are what the next try needs. */}
+          {actionError && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 16 }}>
+              <span style={{ color: "var(--danger)" }}><Icon.Warn /></span>
+              <Note size={13} style={{ color: "var(--danger)" }}>{actionError}</Note>
+            </div>
+          )}
+          {inArchive && archiveError ? (
+            <div style={CENTERED}>
+              <StatusErrorCard text="Arşiv yüklenemedi" raw={archiveError}
+                               onRetry={refreshArchive} />
+            </div>
+          ) : !inArchive && status === "error" ? (
             <div style={CENTERED}>
               <StatusErrorCard text="Projeler yüklenemedi" raw={error} onRetry={reload} />
             </div>
-          ) : status === "loading" ? (
+          ) : !inArchive && status === "loading" ? (
             <div style={CENTERED}>
               <span className="wf-spinner" />
             </div>
-          ) : projects.length === 0 ? (
-            <div style={CENTERED}>
-              <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz proje yok</Mono>
-              <Note size={13} style={{ color: "var(--ink-3)" }}>
-                İlk projeni oluştur, karelerin burada toplansın
-              </Note>
-              <Btn hl style={{ marginTop: 8 }} onClick={() => setModalOpen(true)}>
-                <Icon.Plus /> İlk projeyi oluştur
-              </Btn>
-            </div>
+          ) : shown.length === 0 ? (
+            // The archive's own sentence: the projects' empty state invites a first project, and
+            // an empty archive is not an invitation to anything.
+            inArchive ? (
+              <div style={CENTERED}>
+                <Mono size={12} style={{ color: "var(--ink-3)" }}>arşivde proje yok</Mono>
+                <Note size={13} style={{ color: "var(--ink-3)" }}>
+                  Bir projeyi arşivlersen listeden çıkar, dosyaları burada durur
+                </Note>
+              </div>
+            ) : (
+              <div style={CENTERED}>
+                <Mono size={12} style={{ color: "var(--ink-3)" }}>henüz proje yok</Mono>
+                <Note size={13} style={{ color: "var(--ink-3)" }}>
+                  İlk projeni oluştur, karelerin burada toplansın
+                </Note>
+                <Btn hl style={{ marginTop: 8 }} onClick={() => setModalOpen(true)}>
+                  <Icon.Plus /> İlk projeyi oluştur
+                </Btn>
+              </div>
+            )
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-              {projects.map((p) => (
+              {shown.map((p) => (
                 <ProjectCard key={p.name} name={p.name} modifiedAt={p.modifiedAt}
+                             archived={inArchive}
+                             busy={working?.name === p.name ? working.label : null}
                              onDelete={() => setDeletingName(p.name)}
-                             onRename={() => setRenamingName(p.name)} />
+                             onRename={() => setRenamingName(p.name)}
+                             onArchive={() => handleArchive(p.name)}
+                             onRestore={() => handleRestore(p.name)} />
               ))}
             </div>
           )}

@@ -1,6 +1,6 @@
 # Madde 7 — Kenar çubuğu daralma basamakları · Tasarım Belgesi
 
-**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 7](../plans/2026-08-15-queenagent-v2-roadmap.md)
+**Tarih:** 2026-08-17 · **Branch:** `fix/mira` · **Madde:** [yol haritası Madde 7](../roadmaps/2026-08-15-queen-agent-v2-roadmap.md)
 **Kaynak:** fark 10 (`değişecek` · görsel · **kesin**, Y1·Y2·Y3) · `HANDOFF.md` §8
 **Bağlayıcı belgeler:** [FOUNDATION.md](../../../queenagent/FOUNDATION.md) · [CODE-STANDARD.md](../../../queenagent/CODE-STANDARD.md)
 

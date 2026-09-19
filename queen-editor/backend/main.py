@@ -9,9 +9,11 @@ from backend.features.photo_generation.data.comfy_photo_generator import ComfyPh
 from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
+from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.xai_prompt_writer import (
     AudioPromptWriter,
+    H3VideoPromptWriter,
     VideoPromptWriter,
 )
 from backend.features.photo_generation.domain import layers, seed
@@ -36,7 +38,7 @@ from backend.features.photo_generation.domain.usecases.retry_failed import retry
 from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
 from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
-from backend.features.photo_generation.domain.usecases.list_models import list_models
+from backend.features.photo_generation.domain.usecases.list_models import list_loras, list_models
 from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
@@ -44,6 +46,11 @@ from backend.features.photo_generation.presentation.routes import make_photo_gen
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
+from backend.features.projects.domain.usecases.archive_project import (
+    archive_project,
+    list_archived_projects,
+    restore_project,
+)
 from backend.features.projects.domain.usecases.check_name import check_name
 from backend.features.projects.domain.usecases.create_project import create_project
 from backend.features.projects.domain.usecases.delete_project import delete_project
@@ -52,7 +59,7 @@ from backend.features.projects.domain.usecases.list_projects import list_project
 from backend.features.projects.domain.usecases.rename_project import rename_project
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
-from backend.features.producers.domain.model_groups import GROUPS, audio_weights
+from backend.features.producers.domain.model_groups import audio_weights, groups_for
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.presentation.routes import make_producers_blueprint
 from backend.features.projects.presentation.routes import make_projects_blueprint
@@ -68,11 +75,21 @@ _project_store = DriveProjectStore(_storage)
 _settings_store = DriveSettingsStore(_storage)
 
 _photo_store = DrivePhotoStore(_storage)
-_comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL)
+_comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
+                            log_path=config.COMFY_LOG)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
-_video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
-                                       config.VIDEO_FIRST_LAST_WORKFLOW_PATH,
-                                       config.VIDEO_TIMEOUT)
+# One video model per session (madde 243): the notebook installs WAN or H3, never both, and says
+# which. Each comes with the writer that knows its prompt.
+if config.VIDEO_MODEL == "h3":
+    _video_generator = ComfyH3VideoGenerator(_comfy_client, config.H3_VIDEO_WORKFLOW_PATH,
+                                             config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH,
+                                             config.VIDEO_TIMEOUT)
+    _video_writer_class = H3VideoPromptWriter
+else:
+    _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
+                                           config.VIDEO_FIRST_LAST_WORKFLOW_PATH,
+                                           config.VIDEO_TIMEOUT)
+    _video_writer_class = VideoPromptWriter
 # Sound is the one producer that is not a ComfyUI graph: MMAudio runs inside this process. Where
 # its weights live is the producers feature's answer, so the path is taken from the group it
 # installs rather than spelled out here a second time.
@@ -84,7 +101,7 @@ _producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator,
               layers.AUDIO: _audio_generator}
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
 _xai = XaiClient(config.XAI_API_KEY, config.XAI_MODEL, config.XAI_URL, timeout=config.XAI_TIMEOUT)
-_writers = {layers.VIDEO: VideoPromptWriter(_xai), layers.AUDIO: AudioPromptWriter(_xai)}
+_writers = {layers.VIDEO: _video_writer_class(_xai), layers.AUDIO: AudioPromptWriter(_xai)}
 _photo_runner = PhotoRunner()
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
@@ -109,6 +126,11 @@ _projects_bp = make_projects_blueprint(
                            partial(follow_rename, _photo_runner)),
     get_settings=partial(get_settings, _settings_store),
     save_settings=partial(save_settings, _settings_store),
+    # No halt port: archiving marks the project rather than moving it (madde 227), so a worker
+    # writing into that folder is not a problem -- the project going on working is the point.
+    archive_project=partial(archive_project, _project_store),
+    restore_project=partial(restore_project, _project_store),
+    list_archived_projects=partial(list_archived_projects, _project_store),
 )
 
 
@@ -166,7 +188,8 @@ _photo_bp = make_photo_generation_blueprint(
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
-    list_models=partial(list_models, _photo_generator),
+    list_models=partial(list_models, config.PHOTO_MODELS),
+    list_loras=list_loras,
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
     # How long one video runs is the video graph's own setting, so the producer that owns that
     # graph is who answers it -- the summary keeps no number of its own.
@@ -184,9 +207,10 @@ _photo_bp = make_photo_generation_blueprint(
 
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
-# (FOUNDATION 9), so the panel only reads.
+# (FOUNDATION 9), so the panel only reads. Video is judged by the model the notebook installed.
 _producers_bp = make_producers_blueprint(
-    list_producers=lambda: list_producers(GROUPS, _model_files))
+    list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
+                                          config.VIDEO_MODEL))
 
 app = create_app(blueprints=[_projects_bp, _photo_bp, _producers_bp])
 

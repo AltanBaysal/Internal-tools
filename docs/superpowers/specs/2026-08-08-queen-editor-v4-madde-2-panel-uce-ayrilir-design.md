@@ -1,7 +1,7 @@
 # Queen Editor v4 · Madde 2 — Panel üçe ayrılır
 
 **Tarih:** 2026-08-08 · **Yol haritası:**
-[v4 Madde 2](../plans/2026-08-08-queen-editor-v4-roadmap.md) · **Kapsadığı kodlar:** P1, P2, P3,
+[v2 Madde 2](../roadmaps/2026-08-08-queen-editor-v2-roadmap.md) · **Kapsadığı kodlar:** P1, P2, P3,
 P28, P29 · **Katman:** yalnız ön yüz
 
 ## Amaç
