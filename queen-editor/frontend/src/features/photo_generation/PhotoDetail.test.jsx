@@ -143,6 +143,15 @@ beforeEach(() => {
 const RENDERING = { ...LAYERED, layers: { photo: "P0_0.png" }, owed: ["video"],
                     prompts: { photo: "kırmızı elbise" } };
 
+describe("PhotoDetail — the header", () => {
+  it("puts the version next to the name", async () => {
+    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    await open("0_a");
+
+    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+  });
+});
+
 describe("PhotoDetail — the stage", () => {
   it("opens the stage from the top and drops the strip closer to it", async () => {
     await open("P0_0", { frames: [LAYERED] });

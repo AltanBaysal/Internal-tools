@@ -47,6 +47,13 @@ beforeEach(() => {
 });
 
 describe("ProjectScreen app bar", () => {
+  it("puts the version next to the name", () => {
+    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    renderScreen();
+
+    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+  });
+
   it("opens the export screen instead of downloading a file", () => {
     renderScreen();
 

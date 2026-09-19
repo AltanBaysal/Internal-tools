@@ -60,6 +60,15 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe("ProjectsScreen header", () => {
+  it("puts the version next to the name", async () => {
+    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    await openScreen();
+
+    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+  });
+});
+
 describe("ProjectsScreen with nothing in it yet", () => {
   it("says what a project would fill up with", async () => {
     listProjects.mockResolvedValue([]);

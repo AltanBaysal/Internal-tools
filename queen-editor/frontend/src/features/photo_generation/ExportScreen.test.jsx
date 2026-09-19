@@ -59,6 +59,15 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+describe("ExportScreen header", () => {
+  it("puts the version next to the name", async () => {
+    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    await open();
+
+    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+  });
+});
+
 describe("ExportScreen", () => {
   it("says how many videos there are and how long they run", async () => {
     await open();
