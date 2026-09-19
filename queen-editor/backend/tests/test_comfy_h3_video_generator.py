@@ -131,6 +131,29 @@ def test_an_fl2va_prompt_says_where_the_video_arrives_in_the_graph_s_own_seconds
     assert sent_director(client)["prompt"] == f"{fl2va_sentence('6.00')}\n\nmotion"
 
 
+WRITTEN = "dynv2.\n\nintegrated_multimodal_description: [Shot 1] she turns"
+SECTIONS = "integrated_multimodal_description: [Shot 1] she turns"
+
+
+def test_dynv2_goes_before_the_i2va_picture_sentence(tmp_path):
+    """The Motion Booster lora only wakes when dynv2 is the very first word H3 reads (user, madde
+    246) -- and the picture sentence is the producer's, so the producer is what can put it there."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate(WRITTEN, "", 42, source=("P0_0.png", b"PNG"))
+
+    assert sent_director(client)["prompt"] == f"dynv2. {I2VA_SENTENCE}\n\n{SECTIONS}"
+
+
+def test_dynv2_goes_before_the_fl2va_picture_sentence(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate(WRITTEN, "", 42, source=("P0_0.png", b"PNG"),
+                                         end=("P1_0.png", b"END"))
+
+    assert sent_director(client)["prompt"] == f"dynv2. {fl2va_sentence('4.00')}\n\n{SECTIONS}"
+
+
 def test_the_prompt_lands_in_all_four_places_the_director_keeps_one(tmp_path):
     """Which of the four the node reads cannot be told without running it; all four the same makes
     the question go away."""
