@@ -209,7 +209,8 @@ _photo_bp = make_photo_generation_blueprint(
 # Nothing is installed from here -- the notebook does that before this process starts
 # (FOUNDATION 9), so the panel only reads. Video is judged by the model the notebook installed.
 _producers_bp = make_producers_blueprint(
-    list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files))
+    list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
+                                          config.VIDEO_MODEL))
 
 app = create_app(blueprints=[_projects_bp, _photo_bp, _producers_bp])
 

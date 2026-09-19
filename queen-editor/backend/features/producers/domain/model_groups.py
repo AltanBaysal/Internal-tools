@@ -85,6 +85,12 @@ def groups_for(video_model):
     return {**GROUPS, "video": H3_VIDEO if video_model == "h3" else GROUPS["video"]}
 
 
+def video_model_name(video_model):
+    """What the video panel's box calls the model (madde 247), judged the way groups_for judges it:
+    the box, the panel's count and the producer main.py builds all follow the same pick."""
+    return "MiniMax H3" if video_model == "h3" else "WAN 2.2 I2V"
+
+
 def audio_weights(files):
     """Where the sound weights sit, built from the row above rather than spelled out a second time:
     a renamed file then moves the panel and the sampler together."""

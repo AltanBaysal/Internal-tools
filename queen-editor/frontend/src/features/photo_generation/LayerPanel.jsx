@@ -16,7 +16,8 @@ const MAX_VARIANTS = 26;
 // "video panelinin birebir aynısı" -- so only these words and the scope rule differ between them.
 const WORDS = {
   video: {
-    model: "WAN 2.2 I2V",
+    // No model name here: which video model runs is the notebook's pick, and the producers row
+    // carries it (madde 247).
     missing: "Videosu olmayan kareler",
     // The bare noun for counting, and the possessive the estimate line needs -- Turkish does not
     // build one from the other.
@@ -248,6 +249,9 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   // there is exactly such a move. A press changes none of the three, so the answer stays up.
   useEffect(() => { setRefused(null); }, [chosen, scope, variants]);
   const missingProducer = Boolean(producer) && !producer.installed;
+  // The server's name first -- it knows which model the notebook installed. Until it answers the
+  // box stays empty rather than guessing.
+  const model = producer?.model || words.model || "";
 
   function handleAdd() {
     const why = refusalOf(words, can, scope, scoped, variants);
@@ -278,13 +282,12 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         <Mono size={11} data-label style={LABEL}>Model</Mono>
-        {/* The photo panel's own box, with the one option there is: a layer has a single model and
-            the job that goes to the queue carries no model at all -- the engine picks it. The frame
-            and the arrow are the design's (Fark 32); the choice is not invented, and the day a
-            second model arrives the box is already here. */}
-        <select className="wf-input" value={words.model} onChange={() => {}}
+        {/* The photo panel's own box, with the one option there is: a session has a single model
+            per layer and the job that goes to the queue carries no model at all -- the engine picks
+            it. The frame and the arrow are the design's (Fark 32); the choice is not invented. */}
+        <select className="wf-input" value={model} onChange={() => {}}
                 style={{ fontSize: 12.5, color: "var(--ink)", cursor: "pointer" }}>
-          <option value={words.model}>{words.model}</option>
+          <option value={model}>{model}</option>
         </select>
       </div>
 
