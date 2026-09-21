@@ -24,6 +24,12 @@ vi.mock("../../shared/api.js", () => ({
             { value: "none", label: "Boş" }],
   }),
   listProducers: vi.fn().mockResolvedValue([]),
+  listReferences: vi.fn().mockResolvedValue({
+    references: [], limits: { picture: 9, video: 3, audio: 3 },
+  }),
+  removeReference: vi.fn(),
+  uploadReferences: vi.fn(),
+  referenceUrl: (project, name) => `/references/${project}/${name}`,
   fileUrl: (project, file) => `/photos/${project}/${file}`,
   resumeBatch: vi.fn(),
   retryFailed: vi.fn(),
@@ -44,6 +50,31 @@ function renderScreen(project = "düğün") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe("ProjectScreen reference panel", () => {
+  it("opens with the pool beside the cards, and closes it like an editor does", async () => {
+    // The user's own picture of it: a panel on the left of the cards, closable the way VS Code
+    // closes a side bar.
+    renderScreen();
+    await act(async () => {});
+
+    expect(screen.getByText("Referanslar")).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText("Referans panelini kapat"));
+
+    expect(screen.queryByText("Referanslar")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Referans panelini aç"));
+    expect(screen.getByText("Referanslar")).toBeTruthy();
+  });
+
+  it("gives the card panel no way to close", async () => {
+    // The user's decision: the pool is closable, the cards' own panel is not.
+    renderScreen();
+    await act(async () => {});
+
+    expect(screen.queryByLabelText("Kart panelini kapat")).toBeNull();
+  });
 });
 
 describe("ProjectScreen app bar", () => {

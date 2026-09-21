@@ -81,6 +81,37 @@ describe("api.request", () => {
     expect(failure.evidence).toBe("GET /api/status\nZaman aşımı (10 sn)");
   });
 
+  it("sends reference files as a form the browser describes itself", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ references: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File([new Uint8Array([1, 2])], "kedi.png", { type: "image/png" });
+
+    await api.uploadReferences("düğün", [file]);
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/references`);
+    expect(options.body).toBeInstanceOf(FormData);
+    expect(options.body.getAll("files").map((one) => one.name)).toEqual(["kedi.png"]);
+    // No Content-Type of ours: multipart carries a boundary, and only the browser knows it.
+    expect(options.headers).toBeUndefined();
+  });
+
+  it("gives an upload longer than the ten seconds every other request gets", async () => {
+    // A fifteen second video onto Drive is not a ten second request, and a cut upload would come
+    // back as "sunucuya ulaşılamadı" -- a sentence about the wrong thing.
+    vi.useFakeTimers();
+    const signals = [];
+    vi.stubGlobal("fetch", vi.fn((path, options) => {
+      signals.push(options.signal);
+      return new Promise(() => {});
+    }));
+
+    api.uploadReferences("düğün", []).catch(() => {});
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(signals[0].aborted).toBe(false);
+  });
+
   it("sends the ordering with PUT", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ order: ["1_a.png"] }));
     vi.stubGlobal("fetch", fetchMock);
