@@ -646,10 +646,13 @@ def test_an_unusable_gpu_leaves_the_export_running_on_the_cpu(tmp_path):
 
 def test_a_merged_export_is_encoded_on_the_gpu_too(tmp_path):
     """The join is where the whole timeline is encoded, so it is where the GPU is worth most."""
-    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"}, nvenc=True)
+    # Pieces with a folder of their own, the way run_export hands them over: the concat list is
+    # written beside them (madde 284).
+    first, second = str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")
+    run = FakeRun(sizes={first: "480x720", second: "480x720"}, nvenc=True)
     target = str(tmp_path / "düğün.mp4")
 
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge([first, second], target)
 
     assert ffmpeg_calls(run)[0] == [
         "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(tmp_path / "pieces.txt"),
@@ -696,7 +699,7 @@ def test_merging_hands_ffmpeg_a_list_and_takes_it_away_again(tmp_path):
     run = FakeRun()
     target = str(tmp_path / "düğün.mp4")
 
-    FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], target)
+    FfmpegVideoExporter(run=run).merge([str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")], target)
 
     # The concat itself is unchanged; it is no longer the first thing run, because the sizes are
     # asked first.
@@ -753,10 +756,11 @@ def test_a_merged_export_joins_and_stamps_in_one_call(tmp_path):
 
     The sound is mapped and copied: the pieces carry their own, and `?` is for a set that has none.
     """
-    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"})
+    first, second = str(tmp_path / "a.mp4"), str(tmp_path / "b.mp4")
+    run = FakeRun(sizes={first: "480x720", second: "480x720"})
     target = str(tmp_path / "düğün.mp4")
 
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge([first, second], target)
 
     assert ffmpeg_calls(run)[0] == [
         "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(tmp_path / "pieces.txt"),

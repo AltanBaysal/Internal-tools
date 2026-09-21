@@ -221,10 +221,12 @@ class FfmpegVideoExporter:
                 "okunamaz. Eski oranla üretilmiş kareleri yeniden üret ya da dışa aktarmayı ayrı "
                 "dosyalar olarak al."
             )
-        # concat's list file lives beside the pieces: ffmpeg reads the paths relative to it, and
-        # -safe 0 is what lets an absolute path through.
-        folder = os.path.dirname(target)
-        list_file = os.path.join(folder, "pieces.txt")
+        # concat's list file lives beside the pieces, whose reading order it is -- not beside the
+        # target, which it has nothing to do with: while the target was on Drive that put
+        # scaffolding in the user's folder, and left it there if the session died mid-run (madde
+        # 284). ffmpeg reads the paths relative to the list, and -safe 0 lets an absolute one
+        # through.
+        list_file = os.path.join(os.path.dirname(pieces[0]), "pieces.txt")
         with open(list_file, "w", encoding="utf-8") as handle:
             for piece in self._evened_out(pieces):
                 # Single quotes are concat's own escaping for a path with spaces in it.
