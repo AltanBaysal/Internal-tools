@@ -7,6 +7,7 @@ from functools import partial
 from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
+from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
 from backend.features.photo_generation.data.ffmpeg_stills import FfmpegStills
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
@@ -222,9 +223,10 @@ _photo_bp = make_photo_generation_blueprint(
 # The project's reference pool: a folder of its own inside the project, and its own surface
 # (madde 297). Beside the cards' blueprint rather than inside it -- the two answer different
 # questions.
-_reference_store = DriveReferenceStore(_storage)
+_clips = FfmpegClips()
+_reference_store = DriveReferenceStore(_storage, _clips)
 _references_bp = make_reference_blueprint(
-    add_references=partial(add_references, _photo_store, _reference_store),
+    add_references=partial(add_references, _photo_store, _reference_store, _clips),
     list_references=partial(list_references, _photo_store, _reference_store),
     remove_reference=partial(remove_reference, _photo_store, _reference_store),
     reference_dir=_reference_store.dir_path,

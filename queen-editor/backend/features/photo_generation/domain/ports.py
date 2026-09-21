@@ -48,13 +48,17 @@ class ReferenceStore(Protocol):
         """Put one reference in the project's pool, under the name the domain chose."""
         ...
 
-    def names(self, project: str) -> list:
-        """Every file in the pool, in one stable order -- by name.
+    def items(self, project: str) -> list:
+        """[(name, seconds)] for every file in the pool, in one stable order -- by name.
 
         Not the order they were written in: a file's timestamp is coarser than the writes, so two
         files of one upload sometimes share one, and the pool would read back differently on two
         machines. Which order the USER wants them in is a different question, and it gets a
         document of its own (madde 300).
+
+        `seconds` is None for anything with no length -- a picture, or a file the pool cannot read.
+        It is taken off the file every time rather than remembered, so a reference replaced in
+        Drive counts as what it now is.
         """
         ...
 

@@ -11,6 +11,7 @@ lives in exactly one place (the domain).
 """
 from flask import Blueprint, jsonify, request, send_from_directory
 
+from backend.features.photo_generation.domain.references import PoolLimit
 from backend.features.photo_generation.domain.usecases.add_references import UnknownReference
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
@@ -26,7 +27,9 @@ def make_reference_blueprint(add_references, list_references, remove_reference, 
         files = [(file.filename or "", file.read()) for file in request.files.getlist("files")]
         try:
             return jsonify({"references": add_references(project, files)})
-        except UnknownReference as exc:
+        except (UnknownReference, PoolLimit) as exc:
+            # Two refusals, one answer: the user asked for a file to go in and it cannot, and the
+            # sentence is the whole difference between them.
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

@@ -23,6 +23,20 @@ KNOWN = {
 }
 
 
+# What H3 takes, counted by the app rather than left to the model (madde 298): H3 complains in a
+# Colab log the user never opens, and a refusal they cannot see is a refusal that does not exist.
+LIMITS = {PICTURE: 9, VIDEO: 3, AUDIO: 3}
+# What one clip may run, in seconds, and what a kind's clips may run together. A picture has no
+# duration at all -- the count of pictures is the whole of its limit, and "the visual total" is the
+# videos' total, which is the only reading of the rule that can be computed.
+SHORTEST, LONGEST = 2, 15
+TOGETHER = 15
+
+
+class PoolLimit(Exception):
+    """This file cannot go in the pool, and the sentence says why (message is user-facing)."""
+
+
 def kind_of(name):
     """Which of the three this file is, or None when the pool cannot read it."""
     return KNOWN.get(os.path.splitext(name)[1].lower())
@@ -48,3 +62,36 @@ def free_name(name, taken):
     while f"{stem}-{number}{extension}" in taken:
         number += 1
     return f"{stem}-{number}{extension}"
+
+
+# What each kind is called in a refusal. The pool's own words are H3's labels, which the user has
+# never seen; what they see on the screen is this.
+SAID = {PICTURE: "fotoğraf", VIDEO: "video", AUDIO: "ses"}
+
+
+def check(pool, incoming):
+    """May these references join that pool? Raises PoolLimit with the sentence that says why.
+
+    Both sides carry the same shape -- {"name", "kind", "seconds"} -- because the limits are about
+    the two of them together: what is already in the pool counts, and a press is weighed whole
+    rather than file by file.
+    """
+    for row in incoming:
+        seconds = row["seconds"]
+        if seconds is None:
+            continue                    # a picture: held by the count, not by a clock
+        if not SHORTEST <= seconds <= LONGEST:
+            raise PoolLimit(f"{row['name']} {seconds:g} saniye — bir referans klibi "
+                            f"{SHORTEST}-{LONGEST} saniye arası olmalı.")
+    for kind, limit in LIMITS.items():
+        held = [row for row in pool if row["kind"] == kind]
+        arriving = [row for row in incoming if row["kind"] == kind]
+        if not arriving:
+            continue
+        if len(held) + len(arriving) > limit:
+            raise PoolLimit(f"{arriving[-1]['name']} havuza sığmıyor — en çok {limit} "
+                            f"{SAID[kind]} referansı olabilir, şu an {len(held)} tane var.")
+        total = sum(row["seconds"] or 0 for row in held + arriving)
+        if total > TOGETHER:
+            raise PoolLimit(f"{arriving[-1]['name']} havuza sığmıyor — {SAID[kind]} referansları "
+                            f"toplam {TOGETHER} saniyeyi geçemez, bu {total:g} saniye eder.")
