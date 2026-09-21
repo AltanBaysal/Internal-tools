@@ -714,11 +714,11 @@ export default function PhotoDetail({ project, frame: fid }) {
                                  raw={error} />
               )}
 
-              {/* One way out per tab (madde 80), and what it says is what the press costs. Only a
-                  frame whose picture is its own loses a file, and only that one asks first. The
-                  last two branches take the FRAME rather than the layer: the queue removes frames
-                  and not layers, so there is no press behind a button that would leave one
-                  (karar 38). */}
+              {/* What each tab offers to destroy, and what it says is what the press costs. Only a
+                  frame whose picture is its own loses a file, and only that one asks first. Every
+                  branch but the layer's own takes the FRAME rather than the layer: the queue
+                  removes frames and not layers, so there is no press behind a button that would
+                  leave one (karar 38). */}
               {open === "photo" ? (
                 <Btn sm disabled={busy || state === "running"}
                      onClick={ownsItsPhoto ? () => setAsking("frame") : handleRemove}
@@ -728,9 +728,18 @@ export default function PhotoDetail({ project, frame: fid }) {
                     : (awaited ? "Kuyruktan çıkar" : "Kareyi sil")}
                 </Btn>
               ) : holds ? (
-                <Btn sm disabled={busy} onClick={() => setAsking("layer")} style={bin(busy)}>
-                  <Icon.Trash /> {DESTRUCTIVE[open].label}
-                </Btn>
+                /* Two ways out, because they cost different things: the layer alone, or the card
+                   with everything in it. The card's own used to live on the photo tab and nowhere
+                   else, which made throwing one away a trip through a tab the user was not on
+                   (madde 295). Narrow first, then wide -- the page reads that way throughout. */
+                <>
+                  <Btn sm disabled={busy} onClick={() => setAsking("layer")} style={bin(busy)}>
+                    <Icon.Trash /> {DESTRUCTIVE[open].label}
+                  </Btn>
+                  <Btn sm disabled={busy} onClick={() => setAsking("frame")} style={bin(busy)}>
+                    <Icon.Trash /> Kareyi sil
+                  </Btn>
+                </>
               ) : openState === "pending" ? (
                 /* Fark 99: the button lived on the photo tab alone, which is not the tab the user
                    is on while they wait for what it shows. */
