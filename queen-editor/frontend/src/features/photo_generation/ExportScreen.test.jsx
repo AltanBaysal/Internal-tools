@@ -169,12 +169,35 @@ describe("ExportScreen", () => {
     expect(button("Birleşik videoyu export et").disabled).toBe(false);
   });
 
-  it("says it is joining the pieces while the merged one finishes", async () => {
+  it("names the disclaimer step while the merged one finishes", async () => {
+    // The user waited past five minutes on "birleştiriliyor…" with nothing on screen saying which
+    // work was under way -- and the work that eats the time is the disclaimer, not the join: the
+    // overlay is a new picture, so the whole timeline is encoded, on a 1920x1080 canvas since
+    // madde 259. So the step is named after it, in the user's own words (madde 255).
     await open(SUMMARY, IDLE, { ...NOTHING, merged: { state: "merging", written: 22, total: 22 } });
 
     await press("Birleşik videoyu export et");
 
-    expect(screen.getByText("birleştiriliyor…")).toBeTruthy();
+    expect(screen.getByText("Disclaimer ekleniyor…")).toBeTruthy();
+    // One line in the button, not two: the question was which step, and the counter belongs to the
+    // step that writes the pieces.
+    expect(screen.queryByText("birleştiriliyor…")).toBeNull();
+    expect(screen.queryByText("22 / 22 yazıldı…")).toBeNull();
+    // The label's name changed, the step did not: it is still a run in progress.
+    expect(button("Birleşik videoyu export et").disabled).toBe(true);
+    expect(button("Videoları ayrı export et").disabled).toBe(false);
+  });
+
+  it("never names the disclaimer while the separate one runs", async () => {
+    // Nothing is stamped there: every piece is copied as it is (madde 261), so the sentence would
+    // be a lie. Its step counts pieces, which is what it does.
+    await open(SUMMARY, IDLE,
+               { ...NOTHING, separate: { state: "running", written: 7, total: 22 } });
+
+    await press("Videoları ayrı export et");
+
+    expect(screen.queryByText(/Disclaimer/)).toBeNull();
+    expect(screen.getByText("7 / 22 yazıldı…")).toBeTruthy();
   });
 
   it("says where the finished export went", async () => {
