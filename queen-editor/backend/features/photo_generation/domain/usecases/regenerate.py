@@ -44,7 +44,7 @@ class NoNextFrame(Exception):
 
 def regenerate(runner, store, record, plan_store, order_store, producers, new_seed, now,
                project, fid, kind, prompt, negative="", log=None, writers=None,
-               mode=production_mode.STANDARD):
+               mode=production_mode.STANDARD, stills=None):
     """Returns the identity of the frame the new layer will be made on.
 
     The source is named by its identity rather than by a file: a copy frame shares its source's
@@ -108,5 +108,5 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
     }])
     order_store.write(project, placed([frame["id"] for frame in gallery], {source["id"]: [born]}))
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers)
+              order_store=order_store, writers=writers, stills=stills)
     return born

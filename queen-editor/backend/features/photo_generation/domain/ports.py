@@ -33,6 +33,16 @@ class PromptWriter(Protocol):
         ...
 
 
+class Stills(Protocol):
+    def first_frame(self, video: bytes) -> bytes:
+        """The video's opening frame, as the bytes of a picture.
+
+        What a card with no photo gets when its video lands (madde 296). Raising is not a failure of
+        the job: the video is made and its row is written, and the picture is a convenience.
+        """
+        ...
+
+
 class PhotoStore(Protocol):
     def project_exists(self, project: str) -> bool:
         ...

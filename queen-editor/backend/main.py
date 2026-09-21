@@ -7,6 +7,7 @@ from functools import partial
 from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
+from backend.features.photo_generation.data.ffmpeg_stills import FfmpegStills
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
@@ -102,6 +103,9 @@ _producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator,
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
 _xai = XaiClient(config.XAI_API_KEY, config.XAI_MODEL, config.XAI_URL, timeout=config.XAI_TIMEOUT)
 _writers = {layers.VIDEO: _video_writer_class(_xai), layers.AUDIO: AudioPromptWriter(_xai)}
+# What a card with no picture gets when its video lands (madde 296). ffmpeg is already on the
+# machine -- the sound engine cuts with it, and the export joins with it.
+_stills = FfmpegStills()
 _photo_runner = PhotoRunner()
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
@@ -159,32 +163,32 @@ _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers, seed.random_seed,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, order_store=_order_store, writers=_writers),
+                        log=_timing, order_store=_order_store, writers=_writers, stills=_stills),
     get_status=partial(get_status, _photo_runner),
     stop_generation=partial(stop_generation, _photo_runner, _comfy_client.interrupt),
     resume_batch=partial(resume_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing, order_store=_order_store, writers=_writers),
+                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills),
     cancel_generation=partial(cancel_generation, _photo_runner, _photo_store, _photo_record,
                               _plan_store,
                               lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     retry_frame=partial(retry_frame, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, order_store=_order_store, writers=_writers),
+                        log=_timing, order_store=_order_store, writers=_writers, stills=_stills),
     retry_failed=partial(retry_failed, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing, order_store=_order_store, writers=_writers),
+                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills),
     queue_layer=partial(queue_layer, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _order_store, _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, writers=_writers),
+                        log=_timing, writers=_writers, stills=_stills),
     regenerate=partial(regenerate, _photo_runner, _photo_store, _photo_record, _plan_store,
                        _order_store, _producers, seed.random_seed,
                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       log=_timing, writers=_writers),
+                       log=_timing, writers=_writers, stills=_stills),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),

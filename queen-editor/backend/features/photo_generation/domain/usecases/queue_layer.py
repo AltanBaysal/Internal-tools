@@ -100,7 +100,7 @@ def _mark(kind, mode, gallery, fid):
 
 def queue_layer(runner, store, record, plan_store, order_store, producers, now, project, kind,
                 files=None, variants=1, log=None, writers=None,
-                mode=production_mode.STANDARD):
+                mode=production_mode.STANDARD, stills=None):
     """Returns how many jobs of this kind the queue took."""
     if files is not None and (not isinstance(files, list)
                               or any(not isinstance(name, str) for name in files)):
@@ -161,5 +161,5 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         order_store.write(project, placed([frame["id"] for frame in gallery], born))
     plan_store.append(project, jobs)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers)
+              order_store=order_store, writers=writers, stills=stills)
     return len(jobs)
