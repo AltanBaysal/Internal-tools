@@ -61,13 +61,20 @@ class FfmpegVideoExporter:
             self._ffmpeg_run(["-i", video, "-c", "copy", target])
 
     def _stamp(self, video):
-        """The filtergraph that lays the disclaimer on this video's first minute.
+        """The filtergraph for a video whose size nobody has asked for yet."""
+        width, height = (int(part) for part in self.size(video).split("x"))
+        return self._stamp_for(width, height)
+
+    def _stamp_for(self, width, height):
+        """The filtergraph that lays the disclaimer on the first minute of what it is given.
 
         Centring is left to ffmpeg -- `(W-w)/2` -- because the scaled picture's width is ffmpeg's
         number, not ours. `enable`'s single quotes are ffmpeg's own escaping: without them the comma
         in `lt(t,60)` would split the chain in two.
+
+        A piece and a join both want this, and they differ only in whose clock `t` is: a piece's own
+        for a separate export, the joined video's for a merged one (madde 250).
         """
-        width, height = (int(part) for part in self.size(video).split("x"))
         return (f"[1:v]scale={round(width * DISCLAIMER_WIDTH)}:-1[d];"
                 f"[0:v][d]overlay=(W-w)/2:H-h-{round(height * DISCLAIMER_MARGIN)}:"
                 f"enable='lt(t,{DISCLAIMER_SECONDS})'[v]")
@@ -88,22 +95,27 @@ class FfmpegVideoExporter:
         return (done.stdout or "").strip()
 
     def merge(self, pieces, target):
-        """The pieces, in the order given, as one file.
+        """The pieces, in the order given, as one file, with the disclaimer over its first minute.
 
-        Asked of every piece first, because the join below copies streams instead of re-encoding
-        them: that is only sound while they are all the same size, and since madde 218 one project
-        can hold both shapes. Re-encoding to one size would be the wrong fix -- nobody can say
-        which shape was meant, and the answer would be a crop or a bar the user never asked for.
+        The size is asked of every piece first. Mixed sizes still stop the join, although the
+        picture is now encoded rather than copied: which of the two shapes was meant is a question
+        nobody can answer, and answering it would mean a crop or a bar the user never asked for
+        (madde 218's call).
+
+        The disclaimer rides on the join rather than on the pieces, so `t` is the joined video's own
+        clock and the minute ends on the minute even when a frame straddles it (madde 250). It also
+        keeps every piece a plain copy -- an encoded piece next to a copied one is what concat
+        cannot swallow.
         """
         sizes = [(piece, self.size(piece)) for piece in pieces]
         if len({size for _piece, size in sizes}) > 1:
             # Piece by piece: "the pieces are different sizes" does not say which frame to redo.
             found = ", ".join(f"{os.path.basename(piece)} {size}" for piece, size in sizes)
             raise RuntimeError(
-                "Videolar farklı ölçüde, birleştirilemez — " + found + ". Birleştirme yeniden "
-                "kodlamıyor, o yüzden çıkacak dosya bozuk olurdu. Aynı projede iki oran var: "
-                "eski oranla üretilmiş kareleri yeniden üret ya da dışa aktarmayı ayrı dosyalar "
-                "olarak al."
+                "Videolar farklı ölçüde, birleştirilemez — " + found + ". Aynı projede iki oran "
+                "var, ve tek dosyanın tek oranı olur: hangisinin istendiğini kimse söyleyemez, "
+                "ikisini birden sığdırmak da kırpmak ya da bant koymak olurdu. Eski oranla "
+                "üretilmiş kareleri yeniden üret ya da dışa aktarmayı ayrı dosyalar olarak al."
             )
         # concat's list file lives beside the pieces: ffmpeg reads the paths relative to it, and
         # -safe 0 is what lets an absolute path through.
@@ -113,8 +125,14 @@ class FfmpegVideoExporter:
             for piece in pieces:
                 # Single quotes are concat's own escaping for a path with spaces in it.
                 handle.write(f"file '{piece}'\n")
+        width, height = (int(part) for part in sizes[0][1].split("x"))
         try:
-            self._ffmpeg_run(["-f", "concat", "-safe", "0", "-i", list_file, "-c", "copy", target])
+            # The sound is mapped and copied: the pieces carry their own, already aac, and `?` is
+            # for a set that has none.
+            self._ffmpeg_run(["-f", "concat", "-safe", "0", "-i", list_file,
+                              "-i", self._disclaimer, "-filter_complex",
+                              self._stamp_for(width, height), "-map", "[v]", "-map", "0:a?",
+                              *_ENCODE, "-c:a", "copy", target])
         finally:
             # The list is scaffolding, not part of the export.
             os.remove(list_file)
