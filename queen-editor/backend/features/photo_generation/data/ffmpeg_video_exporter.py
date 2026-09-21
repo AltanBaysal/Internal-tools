@@ -2,10 +2,9 @@
 
 Streams are copied wherever they can be: the graph already produced the size, codec and frame rate
 the export wants, so re-encoding would cost minutes and quality for nothing. Two things are encoded.
-A sound being laid over a video, because a wav cannot ride in an mp4 as it is. And a piece carrying
-the disclaimer (madde 249) -- an overlay is a new picture, so the picture is encoded rather than
-copied, and that is what the disclaimer costs. Where the card can do that encoding, it does
-(madde 253).
+A sound being laid over a video, because a wav cannot ride in an mp4 as it is. And the merged
+export, because it carries the disclaimer (madde 250) and an overlay is a new picture. Cutting the
+pieces stays a copy (madde 261). Where the card can do that encoding, it does (madde 253).
 
 `run` is injected so tests can read the command instead of needing ffmpeg on the machine; Colab has
 ffmpeg installed, which is where this really runs.
@@ -46,25 +45,18 @@ class FfmpegVideoExporter:
         # asked once: see _encode below.
         self._encode = None
 
-    def piece(self, video, audio, target, disclaimer=False):
+    def piece(self, video, audio, target):
         """One frame's video at `target`, with its sound over it when there is one.
 
-        `disclaimer` is a separate export's business: its pieces ARE the export. A merged export's
-        pieces are scaffolding, and the disclaimer there belongs to the joined video's clock.
+        Nothing here is encoded. The disclaimer was laid on every piece for a while (madde 249) and
+        came off again (261): at 480 wide it could not be read, and burning it cost the copy. It
+        lives on the merged export instead, where the canvas is wide enough for it.
         """
-        # The picture from the video and the sound from the layer, named: an H3 video carries a
-        # sound of its own, and left to choose ffmpeg keeps whichever stream it likes best.
-        # -shortest: the sound is written for the video it was made from, but a frame off either
-        # way must not stretch the piece.
-        if disclaimer:
-            sound = ["-i", audio] if audio else []
-            mapping = ["-map", "[v]"] + (["-map", "2:a:0"] if audio else [])
-            encode = self._encoder() + (["-c:a", "aac", "-shortest"] if audio else [])
-            # The disclaimer is the second input and the sound the third, whether or not there is a
-            # sound: putting the picture last would tie the filter's input number to the sound.
-            self._ffmpeg_run(["-i", video, "-i", self._disclaimer, *sound,
-                              "-filter_complex", self._stamp(video), *mapping, *encode, target])
-        elif audio:
+        if audio:
+            # The picture from the video and the sound from the layer, named: an H3 video carries a
+            # sound of its own, and left to choose ffmpeg keeps whichever stream it likes best.
+            # -shortest: the sound is written for the video it was made from, but a frame off
+            # either way must not stretch the piece.
             self._ffmpeg_run([
                 "-i", video, "-i", audio, "-map", "0:v:0", "-map", "1:a:0",
                 "-c:v", "copy", "-c:a", "aac", "-shortest", target])
@@ -93,11 +85,6 @@ class FfmpegVideoExporter:
             self._encode = _GPU_ENCODE if done.returncode == 0 else _CPU_ENCODE
         return self._encode
 
-    def _stamp(self, video):
-        """The filtergraph for a video whose size nobody has asked for yet."""
-        width, height = (int(part) for part in self.size(video).split("x"))
-        return self._stamp_for(width, height)
-
     def _stamp_for(self, width, height):
         """The filtergraph that lays the disclaimer on the first minute of what it is given.
 
@@ -105,8 +92,7 @@ class FfmpegVideoExporter:
         number, not ours. `enable`'s single quotes are ffmpeg's own escaping: without them the comma
         in `lt(t,60)` would split the chain in two.
 
-        A piece and a join both want this, and they differ only in whose clock `t` is: a piece's own
-        for a separate export, the joined video's for a merged one (madde 250).
+        Only the join asks for it (madde 261), and `t` is the joined video's own clock.
         """
         return (f"[1:v]scale={round(width * DISCLAIMER_WIDTH)}:-1[d];"
                 f"[0:v][d]overlay=(W-w)/2:H-h-{round(height * DISCLAIMER_MARGIN)}:"

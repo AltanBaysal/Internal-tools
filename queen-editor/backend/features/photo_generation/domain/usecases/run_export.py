@@ -74,11 +74,8 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
                 runner.report(mode, state="idle", written=0, target=None)
                 return None
             target = store.export_path(cutting, f"{index:02d}.mp4")
-            # The disclaimer goes on where the piece is the export. A merged one's pieces are
-            # scaffolding, and its disclaimer is measured on the joined video instead (madde 250):
-            # a piece stamped from its own start would be answering the wrong clock.
             exporter.piece(store.file_path(project, frame["layers"][layers.VIDEO]),
-                           _audio(store, project, frame), target, disclaimer=mode != MERGED)
+                           _audio(store, project, frame), target)
             pieces.append(target)
             # The picture goes in under its video's own number, so the photos folder reads as the
             # same sequence and nothing has to be matched up by hand. A frame that somehow has no
