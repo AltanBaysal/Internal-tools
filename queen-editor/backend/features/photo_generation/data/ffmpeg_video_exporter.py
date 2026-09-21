@@ -135,6 +135,64 @@ class FfmpegVideoExporter:
             raise RuntimeError(tail[0])
         return (done.stdout or "").strip()
 
+    def sound(self, video):
+        """What sound the file carries as (sample rate, channel layout), or None for none at all.
+
+        size's sibling, and one question each: asking ffprobe for every stream at once would come
+        back with an answer that has to be picked apart, and two simple questions beat one clever
+        one. The cost is one more small call per piece.
+
+        An empty answer is an answer, not a failure: a WAN video with no sound layer has no audio
+        stream, and ffprobe says so by printing nothing.
+        """
+        done = self._run(
+            [self._ffprobe, "-v", "error", "-select_streams", "a:0",
+             "-show_entries", "stream=sample_rate,channel_layout", "-of", "csv=s=:p=0", video],
+            capture_output=True, text=True)
+        if done.returncode != 0:
+            tail = (done.stderr or "").strip().splitlines()[-1:] or ["ffprobe başarısız oldu"]
+            raise RuntimeError(tail[0])
+        said = (done.stdout or "").strip()
+        if not said:
+            return None
+        rate, _colon, layout = said.partition(":")
+        return (rate, layout)
+
+    def _with_sound(self, piece, rate, layout):
+        """The piece again, beside itself, with a silent track of the given shape.
+
+        Only a stream is added: `-c:v copy` means not one frame is re-encoded. `-shortest` is what
+        stops anullsrc, which runs forever.
+
+        The shape comes from a piece that has sound rather than from a guess: an audio stream that
+        does not match the others stops concat just as surely as a missing one (madde 286).
+        """
+        head, _dot, _tail = piece.rpartition(".")
+        target = f"{head or piece}-sound.mp4"
+        self._ffmpeg_run(["-i", piece, "-f", "lavfi", "-i", f"anullsrc=r={rate}:cl={layout}",
+                          "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac",
+                          "-shortest", target])
+        return target
+
+    def _evened_out(self, pieces):
+        """The pieces to join, with silence written into the ones that carry no sound.
+
+        concat reads the files as they are and wants every one of them to carry the same streams,
+        so a project whose frames are only partly sounded would join wrongly and say nothing --
+        and `-map 0:a?` does not save it: that only allows a set with no sound anywhere.
+
+        One rule: if any piece has sound, all of them must. Both even sets therefore cost nothing --
+        all sounded needs no silence, and none sounded has no shape to copy and needs none
+        (FOUNDATION 3). The user's call, in their own words: sesi olmayan karelere sessiz eklenir.
+        """
+        sounds = [self.sound(piece) for piece in pieces]
+        carried = next((sound for sound in sounds if sound), None)
+        if carried is None:
+            return list(pieces)
+        rate, layout = carried
+        return [piece if sound else self._with_sound(piece, rate, layout)
+                for piece, sound in zip(pieces, sounds)]
+
     def merge(self, pieces, target):
         """The pieces, in the order given, on the landscape canvas, with the disclaimer over its
         first minute.
@@ -143,6 +201,10 @@ class FfmpegVideoExporter:
         explicit now (madde 259), so the reason is no longer which shape was meant: concat reads the
         pieces as they are and rescales nothing, so two sizes cannot be read as one stream -- and
         what it cannot read it cannot hand to a filter either.
+
+        Sound is asked too, and answered rather than refused: a partly sounded set gets silence
+        written into the pieces that have none (madde 286). Refusing there would have cost the user
+        an export over something we can repair.
 
         The disclaimer rides on the join rather than on the pieces, so `t` is the joined video's own
         clock and the minute ends on the minute even when a frame straddles it (madde 250). It also
@@ -164,7 +226,7 @@ class FfmpegVideoExporter:
         folder = os.path.dirname(target)
         list_file = os.path.join(folder, "pieces.txt")
         with open(list_file, "w", encoding="utf-8") as handle:
-            for piece in pieces:
+            for piece in self._evened_out(pieces):
                 # Single quotes are concat's own escaping for a path with spaces in it.
                 handle.write(f"file '{piece}'\n")
         try:
