@@ -4,7 +4,8 @@ Streams are copied wherever they can be: the graph already produced the size, co
 the export wants, so re-encoding would cost minutes and quality for nothing. Two things are encoded.
 A sound being laid over a video, because a wav cannot ride in an mp4 as it is. And a piece carrying
 the disclaimer (madde 249) -- an overlay is a new picture, so the picture is encoded rather than
-copied, and that is what the disclaimer costs.
+copied, and that is what the disclaimer costs. Where the card can do that encoding, it does
+(madde 253).
 
 `run` is injected so tests can read the command instead of needing ffmpeg on the machine; Colab has
 ffmpeg installed, which is where this really runs.
@@ -19,9 +20,16 @@ DISCLAIMER_WIDTH = 0.8      # of the video's width
 DISCLAIMER_MARGIN = 0.04    # of the video's height, up from the bottom edge
 DISCLAIMER_SECONDS = 60     # from the start of the video
 
-# What a stamped piece is encoded with. veryfast is the preset that keeps a Colab CPU waiting least;
-# crf 18 is close enough to lossless by eye; yuv420p is what makes the file open everywhere.
-_ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
+# What encoded work is encoded with. The GPU is the answer where there is one: an export leaves the
+# T4 idle while two Colab vCPUs do the work, and the user measured a merge past five minutes
+# (madde 253). NVENC uses its own block on the card, so it does not fight ComfyUI for CUDA.
+#
+# nvenc takes -rc/-cq where x264 takes -crf, and "fast" rather than the p1-p7 levels: Colab's ffmpeg
+# may be old enough not to know them. On the CPU side, veryfast keeps the wait shortest and crf 18
+# is close enough to lossless by eye. yuv420p in both, which is what makes the file open everywhere.
+_GPU = "h264_nvenc"
+_GPU_ENCODE = ["-c:v", _GPU, "-preset", "fast", "-rc", "vbr", "-cq", "23", "-pix_fmt", "yuv420p"]
+_CPU_ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
 
 
 class FfmpegVideoExporter:
@@ -34,6 +42,9 @@ class FfmpegVideoExporter:
         # The picture laid over a stamped piece. Injected like the tools above: config knows where
         # the repo keeps it, and tests hand over a path of their own.
         self._disclaimer = disclaimer
+        # Which encoder this machine has, once it has been asked. Asked rather than assumed, and
+        # asked once: see _encode below.
+        self._encode = None
 
     def piece(self, video, audio, target, disclaimer=False):
         """One frame's video at `target`, with its sound over it when there is one.
@@ -48,7 +59,7 @@ class FfmpegVideoExporter:
         if disclaimer:
             sound = ["-i", audio] if audio else []
             mapping = ["-map", "[v]"] + (["-map", "2:a:0"] if audio else [])
-            encode = _ENCODE + (["-c:a", "aac", "-shortest"] if audio else [])
+            encode = self._encoder() + (["-c:a", "aac", "-shortest"] if audio else [])
             # The disclaimer is the second input and the sound the third, whether or not there is a
             # sound: putting the picture last would tie the filter's input number to the sound.
             self._ffmpeg_run(["-i", video, "-i", self._disclaimer, *sound,
@@ -59,6 +70,24 @@ class FfmpegVideoExporter:
                 "-c:v", "copy", "-c:a", "aac", "-shortest", target])
         else:
             self._ffmpeg_run(["-i", video, "-c", "copy", target])
+
+    def _encoder(self):
+        """The encoder arguments for this machine, asked of ffmpeg once.
+
+        Asked rather than assumed: whether Colab's ffmpeg is built with NVENC was never verified,
+        and assuming it would end every export with ffmpeg's "Unknown encoder" -- a whole export
+        lost to a guess. Once, because the answer cannot change while the process lives, and a
+        separate export writes one piece per frame.
+
+        A failure to ask is not a failure to export: a machine that cannot answer is treated as a
+        machine without the encoder, which is where the code stood before madde 253.
+        """
+        if self._encode is None:
+            done = self._run([self._ffmpeg, "-hide_banner", "-encoders"],
+                             capture_output=True, text=True)
+            has_gpu = done.returncode == 0 and _GPU in (done.stdout or "")
+            self._encode = _GPU_ENCODE if has_gpu else _CPU_ENCODE
+        return self._encode
 
     def _stamp(self, video):
         """The filtergraph for a video whose size nobody has asked for yet."""
@@ -132,7 +161,7 @@ class FfmpegVideoExporter:
             self._ffmpeg_run(["-f", "concat", "-safe", "0", "-i", list_file,
                               "-i", self._disclaimer, "-filter_complex",
                               self._stamp_for(width, height), "-map", "[v]", "-map", "0:a?",
-                              *_ENCODE, "-c:a", "copy", target])
+                              *self._encoder(), "-c:a", "copy", target])
         finally:
             # The list is scaffolding, not part of the export.
             os.remove(list_file)
