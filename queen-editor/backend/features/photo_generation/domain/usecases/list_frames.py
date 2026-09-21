@@ -8,9 +8,10 @@ why a frame turns into a photo without moving.
 not leave one behind), so the screen learns it from the live worker and draws the pending frame it
 already has in place.
 
-Only the photo slot decides whether a frame is here at all. Nothing deletes a photo on its own --
-the photo is the base layer, so deleting it is deleting the frame -- while video and audio change
-how a frame looks, never whether it exists.
+A frame is a box, and the layer that opened it decides whether it is here: a card exists because
+something was planned for it, and the first thing planned is what its row is read from (madde 292).
+Nothing about the photo is special any more -- a card opened by a video is a card, and the jobs that
+come after the opening one are that card's layers rather than cards of their own.
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.gallery_order import apply_order
@@ -39,15 +40,17 @@ def _owed_layers(jobs, slots):
     return owed
 
 
-def _words(said, planned):
+def _words(said, planned, kind=layers.PHOTO):
     """What each of the frame's layers was made from.
 
-    The record answers for every layer; the photo's own prompt can also come from the plan, which is
-    where a frame planned before the record carried prompts still keeps it.
+    The record answers for every layer; the opening layer's own prompt can also come from the plan,
+    which is where a frame planned before the record carried prompts still keeps it. `kind` is that
+    opening layer, and it defaults to the photo because every frame written before madde 292 was
+    opened by one.
     """
     words = dict(said)
-    if planned and not words.get(layers.PHOTO):
-        words[layers.PHOTO] = planned
+    if planned and not words.get(kind):
+        words[kind] = planned
     return words
 
 
@@ -87,23 +90,32 @@ def list_frames(record, store, plan_store, order_store, project):
     owed = _owed_layers(planned, slots)
     said = record.prompts(project)
 
+    # The job that opened each card, read in the plan's own order. Nothing is written down for this:
+    # the plan's sequence already says which job came first, and a field repeating it would be a
+    # second answer to one question.
+    opening = {}
+    for frame in planned:
+        opening.setdefault(frame["id"], frame)
+
     frames = []
     seen = set()
     # Newest first, the same direction the record answers in, so an unordered gallery already reads
     # the way the design wants it.
     for frame in reversed(planned):
-        if queue.type_of(frame) != layers.PHOTO:
-            # A frame's row comes from its photo job alone. The plan holds one job per layer, and a
-            # video job is that frame's layer -- read as a row of its own it would draw the frame
-            # twice.
-            continue
         fid = frame["id"]
+        if opening[fid] is not frame:
+            # Every job after the opening one is this card's layer. Read as a row of its own it
+            # would draw the card twice.
+            continue
         cells = slots.get(fid, {})
-        photo = cells.get(layers.PHOTO)
-        status = photo["status"] if photo else None
+        # The card's own state is its opening layer's: a card born from a video is done when that
+        # video landed, exactly as a card born from a photo is done when the photo did.
+        opened = cells.get(queue.type_of(frame))
+        status = opened["status"] if opened else None
         if status is not None and status not in SHOWN and not queue.is_open(status):
             continue                    # removed or deleted: it has no place in the gallery
         seen.add(fid)
+        photo = cells.get(layers.PHOTO)
         # The photo slot's own file once there is one: a copy frame's picture is its source's, not
         # the name its own number would give. A frame with nothing produced yet is drawn under the
         # name it is planned to take.
@@ -113,7 +125,8 @@ def list_frames(record, store, plan_store, order_store, project):
                        "owed": owed.get(fid, []), "failed": _failed_layers(cells),
                        "errors": _reasons(cells), "modes": _per_layer(cells, "mode"),
                        "endsOn": _per_layer(cells, "endsOn"),
-                       "prompts": _words(said.get(fid, {}), frame.get("prompt")),
+                       "prompts": _words(said.get(fid, {}), frame.get("prompt"),
+                                         queue.type_of(frame)),
                        "status": status if status in SHOWN else "pending"})
 
     # Photos the plan no longer knows about: projects generated before the plan became permanent
