@@ -205,6 +205,27 @@ seçilebilir)*, bugünküyü değiştirmek mi, yoksa LoRA ya da prompt tarafınd
 *(Kullanıcı, 19 Eylül — "video promptlarında daha fazla kontrol kazanmak".)* **Başlamadan önce
 kullanıcıyla konuşulacak; ayrıntılar o konuşmada netleşecek.**
 
+### Video prompt'unu yazan model fotoğrafı görsün
+
+*(Kullanıcı, 21 Eylül — "bazen fotoğraf niyetimizle tutmuyor, ve video prompt ile fotoğraf tutmayınca
+saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koşulmadan backlog'a döndü**
+*(kullanıcı, 21 Eylül — "o kadar saçmalamıyormuş, test edildi")*: belirti beklenenden küçük çıktı.
+
+**Bilinenler, geri gelirse işe yarar:**
+- Bugün yazara verilen tek şey fotoğrafın **SDXL prompt'u** *(`data/xai_prompt_writer.py`)*, yani
+  fotoğrafın *olması gereken* hâli. Fotoğraf niyetten saparsa hareket, orada olmayan bir sahneye
+  yazılır.
+- Kararlar alınmıştı: fotoğraf SDXL prompt'uyla **birlikte** gider ve talimat *"ikisi ayrılırsa
+  fotoğraf kazanır"* der; yalnız **H3'ün yazarına**; fotoğraf gönderilemezse **iş düşer**, sessizce
+  metin-yoluna dönülmez.
+- İki engel: istemci bugün yalnız metin gönderiyor *(`services/xai/client.py`)*, ve modelin resim
+  kabul etmesi gerekiyor — `grok-4.3` etmezse model ayarı değişir *(kullanıcı: "almazsa
+  değiştiririz")*.
+- **Maliyet ölçüldü** *(21 Eylül)*: xAI resmi 448×448 karolara bölüp karo başına 256 token sayıyor,
+  artı bir karo, en çok altı karo — yani en çok ~1792 token. `grok-4.3`'ün girdisi $1.25/1M
+  olduğundan kare başına ~$0.0008'den ~$0.0030'a çıkar; **1000 kare $0.75 yerine $3.00**.
+  Küçültülmüş bir kopya *(448×672 ≈ 768 token)* bunu yarıdan aza indirir.
+
 ### Okunur bir disclaimer tasarlanacak — ayrı çıktılar için
 
 *(Kullanıcı, 21 Eylül — "şimdilik disclaimer yok çünkü okunmuyor, okunacak yeni disclaimer
