@@ -705,6 +705,32 @@ def test_merging_hands_ffmpeg_a_list_and_takes_it_away_again(tmp_path):
     assert not (tmp_path / "pieces.txt").exists()
 
 
+def test_the_concat_list_lives_with_the_pieces_not_with_the_target(tmp_path):
+    """The list is the pieces' own reading order, so it belongs beside them. It used to follow the
+    target, and while the target was on Drive that put scaffolding in the user's folder for the
+    length of the export -- and left it there if the session died mid-run, since the cleanup only
+    happens while Python is alive (madde 284, the user's question).
+
+    Madde 282 moved the target onto the local disk, which took the symptom away but left the rule
+    pointing at the wrong thing: a target that goes back to Drive would take the list with it, and
+    nothing would stop it.
+    """
+    pieces = tmp_path / "parçalar"
+    drive = tmp_path / "drive"
+    pieces.mkdir()
+    drive.mkdir()
+    piece = str(pieces / "01.mp4")
+    run = FakeRun(sizes={piece: "480x720"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge([piece], str(drive / "düğün.mp4"))
+
+    said = ffmpeg_calls(run)[0]
+    listed = said[said.index("-i") + 1]
+    assert os.path.dirname(listed) == str(pieces)
+    # And nothing of ours is left in the target's folder, during the run or after it.
+    assert list(drive.iterdir()) == []
+
+
 def test_merging_asks_every_piece_how_big_it_is(tmp_path):
     """Streams are copied rather than re-encoded, which is only safe while every piece is the same
     size. Nothing checked that until madde 218 made it possible for one project to hold two."""
