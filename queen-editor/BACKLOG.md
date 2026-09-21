@@ -213,6 +213,23 @@ tasarlanacak".)* v6'nın 249. maddesi ayrı export'a disclaimer koydu ve 261 onu
 satır başına ~10 piksel kalıyor. Birleşik export'ta disclaimer duruyor — orada tuval yatay ve dosya
 kendi ölçüsünde oturuyor. **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### Export hızı — çözme ve filtreler de karta
+
+*(Kullanıcı, 21 Eylül, v6 testinin ortasında — "bu hız olayını backloga ekleyelim, şimdilik".)*
+**v6'da madde 281 olarak yol haritasındaydı, koşulmadan backlog'a döndü.** Numara 281 olarak
+kalır; geri gelirse aynı numarayla gelir.
+
+**Bilinen, ve kullanıcının kendi ölçümü:** Colab'da `h264_nvenc` ile yapılan deneme kodlaması
+döndü — yani **kart gerçekten kodluyor**, ve *"kodlama CPU'ya düşmüş"* ihtimali elendi. Geriye
+kodlamanın etrafındaki CPU zinciri kalıyor: videoyu çözmek, 1920×1080 tuvale sığdırmak, bant
+koymak, disclaimer'ı bindirmek — hepsi Colab'ın 2 vCPU'sunda.
+
+**Kararlaşmadı:** zincirin karta taşınıp taşınmayacağı. Taşımanın iki bilinen bedeli var —
+`overlay_cuda` saydam PNG'de bozabiliyor *(girdinin `yuva420p`'ye çevrilip `hwupload` ile
+yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. **Ölçüm önce gelir:** 287'den beri
+ekran her adımın saniyesini yazıyor, yani sıradaki her export bu sayıyı veriyor. Kaldıraçların
+tamamı [2026-09-21 export hızı araştırmasında](../docs/superpowers/research/2026-09-21-queen-editor-export-hizi.md).
+
 ### Modeller bir yere yüklenip daha hızlı indirilebilir mi
 
 *(Kullanıcı, 19 Eylül — "modelleri bir yere yükleyip daha hızlı indirebilir miyiz".)* **Ayrıntılar
