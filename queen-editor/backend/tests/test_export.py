@@ -510,9 +510,10 @@ class FakeRun:
     first size, so a test that does not care about sizes says nothing about them. A probe and a
     concat fail differently, so each carries its own exit code and message.
 
-    `sounds` answers the other probe -- a piece's sample rate and channel layout, or an empty line
-    for a piece with no audio at all. Nothing is the default: a set where no piece carries sound is
-    one of the two even sets, so a test that says nothing about sound asks about that (madde 286).
+    `sounds` answers the other probe -- a piece's sample rate and channel layout, separated the way
+    csv separates by itself (madde 288), or an empty line for a piece with no audio at all. Nothing
+    is the default: a set where no piece carries sound is one of the two even sets, so a test that
+    says nothing about sound asks about that (madde 286).
     """
 
     def __init__(self, returncode=0, stderr="", sizes=None, probe_returncode=0, probe_stderr="",
@@ -840,10 +841,45 @@ def test_every_piece_is_asked_whether_it_carries_sound(tmp_path):
     assert [call[-1] for call in sound_calls(run)] == ["a.mp4", "b.mp4"]
 
 
+def test_the_sound_question_is_written_out_word_for_word(tmp_path):
+    """The whole command, not a piece of it: what broke the export in Colab was one argument of it.
+
+    `-of csv=s=:p=0` asked csv to separate with a colon, and a colon is what ffprobe splits the
+    writer's own option string on -- so `s=` was left with no value and the writer refused the
+    string, taking the merge down before a single piece was joined (madde 288). The separator is
+    csv's own now: an option that is not written cannot be written wrong.
+
+    FakeRun answers a command without judging it -- it is not ffprobe and cannot be -- so a
+    malformed argument is invisible to every test that only asks whether something was asked.
+    """
+    run = FakeRun(sizes={"a.mp4": "480x720"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "düğün.mp4"))
+
+    assert sound_calls(run)[0] == [
+        "ffprobe", "-v", "error", "-select_streams", "a:0",
+        "-show_entries", "stream=sample_rate,channel_layout", "-of", "csv=p=0", "a.mp4"]
+
+
+def test_the_size_question_is_written_out_word_for_word(tmp_path):
+    """The sibling, and it is right: `s=x` reads back as 848x480 because x is no delimiter.
+
+    Green the day it was written, and that is the point of it -- the two questions came from one
+    pattern and the pattern is what broke (madde 288). This one keeps the half that works honest.
+    """
+    run = FakeRun(sizes={"a.mp4": "480x720"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "düğün.mp4"))
+
+    assert size_calls(run)[0] == [
+        "ffprobe", "-v", "error", "-select_streams", "v:0",
+        "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", "a.mp4"]
+
+
 def test_a_set_that_all_carries_sound_is_joined_with_nothing_written_first(tmp_path):
     """The rule costs nothing where nothing is wrong: the join is still the only writing call."""
     run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
-                  sounds={"a.mp4": "48000:stereo", "b.mp4": "48000:stereo"})
+                  sounds={"a.mp4": "48000,stereo", "b.mp4": "48000,stereo"})
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
                                                            str(tmp_path / "düğün.mp4"))
@@ -873,7 +909,7 @@ def test_a_silent_piece_gets_silence_written_beside_it_when_another_has_sound(tm
     anullsrc, which runs forever.
     """
     run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
-                  sounds={"a.mp4": "48000:stereo"})
+                  sounds={"a.mp4": "48000,stereo"})
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
                                                            str(tmp_path / "düğün.mp4"))
@@ -891,7 +927,7 @@ def test_the_silence_matches_the_sound_the_other_pieces_carry(tmp_path):
     """A guessed 48000:stereo would stop concat just as surely as no stream at all: what has to
     match is the set's own sound, so the numbers come from the piece that has some."""
     run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
-                  sounds={"a.mp4": "44100:mono"})
+                  sounds={"a.mp4": "44100,mono"})
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
                                                            str(tmp_path / "düğün.mp4"))
