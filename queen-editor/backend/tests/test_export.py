@@ -749,12 +749,12 @@ def test_a_sound_is_laid_over_the_video():
 
 # How the joined picture is made. The canvas is the user's call and it is landscape: exports are
 # taken landscape either way, and the disclaimer only becomes readable at that width (madde 259).
-# `decrease` fits rather than crops, so nothing is lost and the sides get bars; the disclaimer then
-# spans the whole 1920, which is what the 1902-wide PNG was drawn for.
+# `decrease` fits rather than crops, so nothing is lost and the sides get bars; the disclaimer takes
+# 80% of the width, leaving room either side (madde 291).
 FIT = ("scale=1920:1080:force_original_aspect_ratio=decrease,"
        "pad=1920:1080:(ow-iw)/2:(oh-ih)/2")
 STAMP = (f"[0:v]{FIT}[c];"
-         "[1:v]scale=1920:-1[d];"
+         "[1:v]scale=1536:-1[d];"
          "[c][d]overlay=(W-w)/2:H-h-43:enable='lt(t,60)'[v]")
 ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
 # What the same work looks like on the GPU (madde 253). nvenc takes -rc/-cq where x264 takes -crf,
@@ -964,20 +964,20 @@ def test_a_merged_export_stands_on_a_landscape_canvas(tmp_path):
     assert "crop" not in said and "increase" not in said
 
 
-def test_the_disclaimer_fills_the_canvas_width(tmp_path):
-    """The user asked for it twice over -- "disclaimerı da ona göre büyüt, asıl videodan büyük
-    olabilir" and "yatayda dolduracak şekilde" -- so the 80% of madde 249 is gone. The PNG is
-    1902 wide, which means 1920 barely scales it and its two lines stay about 99 pixels tall:
-    the first size at which they can be read.
+def test_the_disclaimer_leaves_room_either_side(tmp_path):
+    """The user's call once they had seen a real export: disclaimer sağdan soldan az boşluk ver,
+    ekranın %80'i olsun (21 Eylül). So 1536 of the 1920, and 192 pixels of room each side.
 
-    The 720-pixel video does not bound it: the disclaimer runs over the bars, which is exactly what
-    "asıl videodan büyük olabilir" allows.
+    The cost was said out loud and taken: the PNG is 1902 wide, drawn for the full canvas, so at
+    80% its two lines shrink with it -- about 39 pixels tall rather than 49.
+
+    The 720-pixel video still does not bound it: the disclaimer runs over the bars.
     """
     said = filtergraph(merged({"a.mp4": "480x720"}, tmp_path))
 
-    assert "[1:v]scale=1920:-1[d]" in said
-    assert "scale=384:-1" not in said              # 80% of the old 480-wide canvas
-    assert "H-h-43" in said                        # 4% of 1080, measured from the canvas now
+    assert "[1:v]scale=1536:-1[d]" in said
+    assert "scale=1920:-1" not in said             # the full width it used to take
+    assert "H-h-43" in said                        # 4% of 1080, the margin the user kept
 
 
 def test_every_piece_is_asked_whether_it_carries_sound(tmp_path):
