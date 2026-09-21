@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v7
 
-**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v7` · **Durum:** 0/15
+**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v7` · **Durum:** 0/16
 **Öncesi:** [v6](2026-09-21-queen-editor-v6-roadmap.md) — koşuyor. v7 o kapandıktan sonra kendi
 dalında başlar.
 **Kaynak:** Maddelerin hepsi kullanıcının 21 Eylül'deki sözlerinden doğdu. Referans ailesi
@@ -12,7 +12,8 @@ aynı iş olduğu kullanıcıyla doğrulandı ve girdi
 Başlıktaki dal koşunun dalı; yazıldığı yer başka.
 
 **Numara kimliktir, sıra değildir.** v6 249 ve 250 ile açıldı ve koşarken 261'e kadar madde ekledi;
-277–280 [QueenAgent v9](2026-09-21-queen-agent-v9-roadmap.md)'da. Bu koşu **262'den** başlıyor.
+277–280 [QueenAgent v9](2026-09-21-queen-agent-v9-roadmap.md)'da. Bu koşu **262'den** başlıyor; 281
+konuşma sürerken eklendi ve numarası sonda olsa da **267'den önce koşuyor**.
 **Bu belge iki kez yeniden numaralandı** *(21 Eylül)*: ilk taslak 251–252'yi, ikincisi 255–269'u
 kullanıyordu, ve v6 biz yazarken ikisini de aldı. Numara tekrar kullanılmadığı için maddeler
 taşındı — hiçbir spec eskilerine atıf yapmamıştı. **Bunun kuralı yok**, ve 276'da yazılacaklardan
@@ -25,9 +26,10 @@ biri de bu: koşulmayan bir yol haritası yazılırken numara nasıl ayrılır.
 **Her madde iki tur.** Önce yalnız testler: spec → plan → testleri yaz → commit; takım kırmızı kalır.
 Sonra implementasyon: spec → plan → kodu yaz → commit; takım yeşile döner.
 
-**İki aile var, ikisi de 21 Eylül'de kullanıcıyla konuşuldu.** 262–266 kart modelini değiştiriyor;
-267–275 referansla video üretimini kuruyor, ve kararları aşağıda tek yerde duruyor — maddeler oraya
-yaslanıyor, her satır tekrarlamıyor. Bölünmelerinin sebebi kullanıcının isteği: *"olabildiğince küçük
+**İki aile ve iki tek madde var; hepsi 21 Eylül'de kullanıcıyla konuşuldu.** 262–266 kart modelini
+değiştiriyor; **281 tek başına durur** ve referanstan önce koşar *(kullanıcı — "bunu referanstan önce
+yapalım")*; 267–275 referansla video üretimini kuruyor, ve kararları aşağıda tek yerde duruyor —
+maddeler oraya yaslanıyor, her satır tekrarlamıyor. Bölünmelerinin sebebi kullanıcının isteği: *"olabildiğince küçük
 test edilebilir maddeler böl, böylece geliştirme kolaylaşır"*.
 
 **276 ötekiler gibi koşmaz.** Kullanıcıyla birlikte, adım adım yazılır — metni kullanıcı okur ve
@@ -86,6 +88,7 @@ uyguluyor.
 | 264 | **Fotoğraf da silinebilir bir katman.** **Bugün** fotoğrafı silmek kartı silmek demek, ve `remove_layer` fotoğrafı hiç kabul etmiyor *([remove_layer.py:15](../../../queen-editor/backend/features/photo_generation/domain/usecases/remove_layer.py#L15))*. **Olacak:** fotoğraf da öteki katmanlar gibi silinir, yuvası boşalır, kart durmaya devam eder — **son katman gidince kutu gider**. Fotoğrafı silinen kartın videosu durur: video zaten üretilmiştir, fotoğrafa ihtiyacı yoktur. | Fotoğrafı silinen kart galeride videosuyla duruyor; videosu da silinince kart galeriden gidiyor. |
 | 265 | **Kartı sil, ekranda tek hareket.** *(Kullanıcı, 21 Eylül — "biz silme ve temizleme yaparken bunun da sıkıntısını yaşıyorduk: fotoğraf geç sil, geri videoya geç".)* **Bugün** sunucu tarafı bunu zaten yapıyor — `remove_frames` kartın sahip olduğu her katmanı diskten çıkarıyor — ama ekran kullanıcıyı katman seçmeye zorluyor. **Olacak:** seçili kartlar katman seçtirmeden, içindeki her şeyle birlikte siliniyor. | Seçili üç kart tek hareketle siliniyor; fotoğrafları, videoları ve sesleri diskten gidiyor. |
 | 266 | **Video indiğinde ilk karesi fotoğraf yuvasına yazılıyor.** *(Kullanıcı, 21 Eylül — "card'da olabilir bence, bazen hızlıca dolanmak istiyoruz ve videonun yüklenmesi daha yavaş sürüyor".)* Fotoğrafı olmayan bir karta video indiğinde ilk karesi `ffmpeg` ile çıkarılıp fotoğraf yuvasına yazılıyor. Galeri ve export bundan hiç haberdar olmuyor: ikisi de zaten fotoğrafı çiziyor ve yazıyor. **Bir üretim işi ilk kez iki yuvayı birden dolduruyor** — bugün her iş tek yuva doldurur, ve bu maddeyle değişen tek kural bu. | Fotoğrafsız bir karta video indikten sonra kartın fotoğraf yuvası dolu, ve galeri videoyu değil o kareyi çiziyor. |
+| 281 | **Video prompt'unu yazan model fotoğrafı görecek.** *(Kullanıcı, 21 Eylül — "bazen fotoğraf niyetimizle tutmuyor, ve video prompt ile fotoğraf tutmayınca saçma şeyler ortaya çıkıyor … ilk başta direkt fotoğrafı da veririz".)* **Bugün** yazara verilen tek şey fotoğrafın **SDXL prompt'u**, yani fotoğrafın *olması gereken* hâli *(`data/xai_prompt_writer.py`)*. Fotoğraf niyetten saptıysa hareket, orada olmayan bir sahneye yazılıyor — kullanıcının gördüğü saçmalığın kaynağı bu. **Olacak:** karenin **fotoğrafı da** modele gidiyor, SDXL prompt'uyla birlikte, ve talimat çelişkiyi karara bağlıyor: **ikisi ayrılırsa fotoğraf kazanır**. Böylece niyet kaybolmuyor ama hareket gerçekten oradaki sahneye yazılıyor. **Yalnız H3'ün yazarına** *(kullanıcı kararı)*. **İki engel, ikisi de küçük:** istemci bugün yalnız metin gönderiyor — mesajın içeriği parça listesine dönecek *(`services/xai/client.py`)*; ve modelin resim kabul etmesi gerekiyor — `grok-4.3` etmiyorsa model ayarı değişir *(kullanıcı: "almazsa değiştiririz, sıkıntı yok")*. **Fotoğraf gönderilemezse iş düşer** ve sebebi sunucunun kendi cümlesiyle görünür; sessizce metin-yoluna dönmek, aynı saçmalığı sebebi görünmeden üretmek olurdu. **Maliyeti ölçüldü** *(21 Eylül)*: xAI resmi 448×448 karolara bölüp karo başına 256 token sayıyor, artı bir karo, en çok altı karo — yani bir resim en çok ~1792 token. `grok-4.3`'ün girdisi $1.25/1M olduğundan kare başına ~$0.0008'den ~$0.0030'a çıkıyor; **1000 kare $0.75 yerine $3.00**. Küçültülmüş bir kopya göndermek bunu yarıdan aza indiriyor *(448×672 ≈ 768 token)*; hangi ölçünün yeteceği spec'te ölçülür. | Fotoğrafı SDXL prompt'undan sapmış bir karede üretilen video, prompt'un değil **fotoğrafın** sahnesine göre hareket ediyor; fotoğraf gönderilemediğinde iş düşüyor ve sebebi ekranda yazıyor. |
 | 267 | **Referans havuzu diskte.** Referans dosyaları projenin klasörüne yazılıyor, listeleniyor, siliniyor. Tarayıcı Drive'a uzanmadığı için yükleme de okuma da sunucudan geçer *(FOUNDATION 4)*, ve havuz diskte durur *(FOUNDATION 2)*. Sınır yok, ekran yok — yalnız saklama. | İki referans yükleniyor, listeleniyor, biri siliniyor; sunucu yeniden başlatılınca kalan hâlâ orada. |
 | 268 | **Havuzun sınırları sunucuda.** Adet *(9 fotoğraf / 3 video / 3 ses)*, klip süresi *(2–15 sn)* ve toplamlar *(görsel 15 sn, ses 15 sn)* doğrulanıyor. Süre dosyanın kendisinden okunuyor — `ffprobe`; ffmpeg zaten kurulu. | Onuncu fotoğraf, 20 saniyelik bir klip ve toplamı taşıran bir ekleme reddediliyor; reddin cümlesi hangi sınıra takıldığını söylüyor. |
 | 269 | **Havuz ekranda.** Kartların solunda kapanabilir panel; tipe göre sıralar; yükleme ve silme. Sıranın başlığı doluluğu söylüyor *("Fotoğraflar 4/9")*. Panelin açık mı kapalı mı olduğu tarayıcının bileceği şey, sunucuya sorulmaz. | Ekrandan iki referans ekleniyor, biri siliniyor, panel kapanıp açılıyor; sayfa yenilenince havuz duruyor. |
