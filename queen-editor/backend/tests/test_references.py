@@ -37,3 +37,68 @@ def test_a_name_cannot_climb_out_of_the_folder():
     """The name arrives from a browser, so it is not a name until this says it is."""
     assert references.free_name("../../gizli.png", []) == "gizli.png"
     assert references.free_name("C:\\işler\\kedi.png", []) == "kedi.png"
+
+
+def item(name, kind, seconds=None):
+    """One line of the pool, the shape the rule reads: what it is and how long it runs."""
+    return {"name": name, "kind": kind, "seconds": seconds}
+
+
+def pictures(count):
+    return [item(f"{n}.png", references.PICTURE) for n in range(count)]
+
+
+def refusal(pool, incoming):
+    with pytest.raises(references.PoolLimit) as exc:
+        references.check(pool, incoming)
+    return str(exc.value)
+
+
+def test_a_kind_that_is_full_refuses_the_next_one():
+    """The app counts and refuses rather than leaving it to H3: that error lands in a Colab log the
+    user never opens."""
+    said = refusal(pictures(9), [item("onuncu.png", references.PICTURE)])
+
+    assert "onuncu.png" in said and "9" in said
+
+
+def test_a_clip_shorter_than_the_model_takes_is_refused():
+    assert "kısa.mp4" in refusal([], [item("kısa.mp4", references.VIDEO, 1.0)])
+
+
+def test_a_clip_longer_than_the_model_takes_is_refused():
+    assert "uzun.mp4" in refusal([], [item("uzun.mp4", references.VIDEO, 20.0)])
+
+
+def test_the_videos_together_cannot_pass_fifteen_seconds():
+    # Each one is fine on its own; what the pool cannot take is the two of them.
+    said = refusal([], [item("bir.mp4", references.VIDEO, 8.0),
+                        item("iki.mp4", references.VIDEO, 8.0)])
+
+    assert "15" in said
+
+
+def test_sound_is_counted_apart_from_the_pictures_and_videos():
+    pool = [item("bir.mp4", references.VIDEO, 15.0)]
+
+    references.check(pool, [item("rüzgar.wav", references.AUDIO, 10.0)])
+
+
+def test_a_picture_has_no_duration_to_count():
+    """A picture is held by the count of pictures, never by a total of seconds -- it has none."""
+    references.check([], pictures(9))
+
+
+def test_what_is_already_in_the_pool_counts():
+    pool = [item("bir.mp4", references.VIDEO, 7.0), item("iki.mp4", references.VIDEO, 7.0)]
+
+    assert "15" in refusal(pool, [item("üç.mp4", references.VIDEO, 7.0)])
+
+
+def test_a_press_is_counted_as_a_whole():
+    # Three videos is the limit, and this press is where the fourth would come from.
+    pool = [item("bir.mp4", references.VIDEO, 3.0)]
+    incoming = [item("iki.mp4", references.VIDEO, 3.0), item("üç.mp4", references.VIDEO, 3.0),
+                item("dört.mp4", references.VIDEO, 3.0)]
+
+    assert "3" in refusal(pool, incoming)

@@ -1,6 +1,7 @@
 from functools import partial
 from io import BytesIO
 
+from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
 from backend.features.photo_generation.domain.usecases.add_references import add_references
@@ -13,27 +14,35 @@ from backend.services.drive.storage import DriveStorage
 from backend.web.app import create_app
 
 
-def client_over(drive, dist):
+def fixed_length(seconds=4.0):
+    """ffprobe's answer, without ffprobe: the test machine has no such tool, and how long a clip
+    runs is the clip tool's own test to make (test_ffmpeg_clips)."""
+    return FfmpegClips(run=lambda args, **_kwargs: type(
+        "Done", (), {"returncode": 0, "stdout": f"{seconds}\n", "stderr": ""})())
+
+
+def client_over(drive, dist, clips=None):
     """A server over this Drive folder. A second one is what a restart looks like from here: the
     pool is a folder, not a session."""
     storage = DriveStorage(str(drive))
     store = DrivePhotoStore(storage)
-    pool = DriveReferenceStore(storage)
+    clips = clips or fixed_length()
+    pool = DriveReferenceStore(storage, clips)
     blueprint = make_reference_blueprint(
-        add_references=partial(add_references, store, pool),
+        add_references=partial(add_references, store, pool, clips),
         list_references=partial(list_references, store, pool),
         remove_reference=partial(remove_reference, store, pool),
         reference_dir=pool.dir_path)
     return create_app(dist_dir=str(dist), blueprints=[blueprint]).test_client()
 
 
-def make_client(tmp_path):
+def make_client(tmp_path, clips=None):
     drive = tmp_path / "drive"
     (drive / "düğün").mkdir(parents=True)
     dist = tmp_path / "dist"
     dist.mkdir()
     (dist / "index.html").write_text("x", encoding="utf-8")
-    return client_over(drive, dist), drive, dist
+    return client_over(drive, dist, clips), drive, dist
 
 
 def upload(client, *files, project="düğün"):
@@ -60,8 +69,9 @@ def test_two_references_are_uploaded_listed_and_one_is_deleted(tmp_path):
     assert (drive / "düğün" / "referans" / "kedi.png").read_bytes() == b"PNG"
 
     listed = client.get("/api/projects/düğün/references")
-    assert [(row["name"], row["kind"]) for row in listed.get_json()["references"]] == [
-        ("dans.mp4", "video"), ("kedi.png", "picture")]
+    assert [(row["name"], row["kind"], row["seconds"])
+            for row in listed.get_json()["references"]] == [
+        ("dans.mp4", "video", 4.0), ("kedi.png", "picture", None)]
 
     gone = client.post("/api/projects/düğün/references/kedi.png/delete")
     assert gone.status_code == 200
@@ -96,6 +106,17 @@ def test_a_file_the_pool_cannot_read_is_refused(tmp_path):
     assert resp.status_code == 400
     assert "notlar.txt" in resp.get_json()["error"]
     assert not (drive / "düğün" / "referans").exists()
+
+
+def test_a_reference_that_passes_a_limit_is_a_400(tmp_path):
+    """The app counts and refuses: H3's own complaint would land in a Colab log nobody opens."""
+    client, drive, _dist = make_client(tmp_path, clips=fixed_length(20.0))
+
+    resp = upload(client, ("uzun.mp4", b"MP4"))
+
+    assert resp.status_code == 400
+    assert "uzun.mp4" in resp.get_json()["error"]
+    assert not (drive / "düğün" / "referans" / "uzun.mp4").exists()
 
 
 def test_a_pool_asked_of_a_project_that_does_not_exist_is_a_404(tmp_path):
