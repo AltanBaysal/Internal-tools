@@ -67,17 +67,22 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
     pieces = []
     written = set()                    # the picture files already in the export's photos folder
     try:
+        # The videos first, all of them, and the pictures after -- the user asked for the two steps
+        # apart, and it is what lets them be timed apart: while they were one loop, a slow counter
+        # did not say whether the time went on reading a video off Drive or writing a picture back
+        # to it (madde 289). Both walk the same list in the same order, which is what keeps the
+        # numbering one sequence: the number is the frame's place, not the loop's.
         for index, frame in enumerate(frames, start=1):
-            if runner.cancelled(mode):
-                # Between pieces, never inside one: cutting ffmpeg off mid-file would leave half a
-                # video, and the folder is going anyway.
-                _clean(store, folder, scaffolding)
-                runner.report(mode, state="idle", written=0, target=None)
+            if _stopped(runner, store, mode, folder, scaffolding):
                 return None
             target = store.export_path(cutting, f"{index:02d}.mp4")
             exporter.piece(store.file_path(project, frame["layers"][layers.VIDEO]),
                            _audio(store, project, frame), target)
             pieces.append(target)
+            runner.report(mode, written=index)
+        for index, frame in enumerate(frames, start=1):
+            if _stopped(runner, store, mode, folder, scaffolding):
+                return None
             # The picture goes in under its video's own number, so the photos folder reads as the
             # same sequence and nothing has to be matched up by hand. A frame that somehow has no
             # picture leaves none: its video is written all the same.
@@ -91,7 +96,6 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
                 written.add(photo)
                 store.copy_photo(store.file_path(project, photo), folder,
                                  f"{index:02d}{_extension(photo)}")
-            runner.report(mode, written=index)
         if mode == MERGED:
             runner.report(mode, state="merging")
             # The join is written on the machine's own disk and copied to Drive once it is whole.
@@ -111,6 +115,20 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
         store.remove_dir(scaffolding)
     runner.report(mode, state="done")
     return folder
+
+
+def _stopped(runner, store, mode, folder, scaffolding):
+    """Whether the run was cancelled -- and if it was, it is taken down here.
+
+    Asked between work units, never inside one: cutting ffmpeg off mid-file would leave half a
+    video, and a copy stopped halfway leaves half a picture. Both loops ask it, and they ask the
+    same question, so it is written once.
+    """
+    if not runner.cancelled(mode):
+        return False
+    _clean(store, folder, scaffolding)
+    runner.report(mode, state="idle", written=0, target=None)
+    return True
 
 
 def _clean(store, folder, pieces):
