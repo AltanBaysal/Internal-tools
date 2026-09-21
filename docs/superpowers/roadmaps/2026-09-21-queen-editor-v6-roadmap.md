@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v6
 
-**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v6` · **Durum:** 3/4
+**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v6` · **Durum:** 4/4
 **Öncesi:** [v5](2026-09-11-queen-editor-v5-roadmap.md) — 36/36 kapandı ve `497b0a3e` ile main'e
 birleşti.
 **Kaynak:** İki madde de kullanıcının 21 Eylül'deki sözlerinden doğdu, backlog'a hiç uğramadan.
@@ -40,9 +40,16 @@ bindirmenin ekranda kapladığı yeri belirleyen şey.
 
 | 251 | ✅ **Grafikler de `assets/` altına girecek.** *(Kullanıcı, 21 Eylül, 249 koşarken — "hatta workflowları da oraya koyabilirsin".)* 249 disclaimer için `queen-editor/assets/` açtı; beş grafik JSON'u hâlâ `queen-editor/` kökünde duruyor — `workflow_api.json`, `workflow_video_api.json`, `workflow_video_first_last_api.json` ve iki H3 grafiği. **Olacak:** beşi de `assets/`'e taşınıyor. Yollarını söyleyen tek yer `config.py`'nin beş sabiti; onların dışında dosya adını **defterin bir hücresi** *(üçünü adıyla anıyor)* ve **üç test dosyası** taşıyor. **Bu madde davranışı hiç değiştirmiyor**, yani bitişini gösteren şey de ekranda bir şey değil: takımın yeşil kalması, ve kökte JSON kalmaması. | `queen-editor/` kökünde grafik JSON'u kalmamış, beşi `assets/` altında, dört satır yeşil, ve defterin grafikleri anan hücresi hâlâ duran dosyaları adlıyor. **Kapandı** *(`762fa021` kırmızı, `aae187d3` yeşil)*. `test_producer_contract.py` kendi üç yolunu bıraktı ve `config`'in sabitlerine geçti: taşımanın onu kırması, yolun neden tek evi olması gerektiğinin kanıtı. |
 
-| 252 | **Defter koşulan dalı klonlayacak.** *(251'in yolunda çıktı, 21 Eylül.)* Defterin CONFIG hücresi `BRANCH = "feat/queen-editor-v5"` diyor, ve `test_notebook_clones_its_branch.py` aynı adı taşıyor — **ikisi de v5 koşusunun denemesinden kalmış**. O dosyanın kendi kuralı *"merge'den önce ikisi de `main`'e döner"* diyor; v5 merge'inde dönmemişler. **Sonucu bu koşuyu doğrudan vuruyor:** Colab depoyu klonluyor, yani defter bugün açılırsa v5'in ağacını indirir ve v6'nın üç maddesinin hiçbiri görünmez — kullanıcının koşu sonundaki testi yanlış kodu test eder. **Olacak:** iki yer birden `feat/queen-editor-v6` olur. **Ve borç yazıya geçer:** merge'den önce ikisi de `main`'e döner, bu maddenin satırında. | Defter ve testin sabiti aynı dalı söylüyor, o dal bu koşunun dalı, ve dört satır yeşil. |
+| 252 | ✅ **Defter koşulan dalı klonlayacak.** *(251'in yolunda çıktı, 21 Eylül.)* Defterin CONFIG hücresi `BRANCH = "feat/queen-editor-v5"` diyor, ve `test_notebook_clones_its_branch.py` aynı adı taşıyor — **ikisi de v5 koşusunun denemesinden kalmış**. O dosyanın kendi kuralı *"merge'den önce ikisi de `main`'e döner"* diyor; v5 merge'inde dönmemişler. **Sonucu bu koşuyu doğrudan vuruyor:** Colab depoyu klonluyor, yani defter bugün açılırsa v5'in ağacını indirir ve v6'nın üç maddesinin hiçbiri görünmez — kullanıcının koşu sonundaki testi yanlış kodu test eder. **Olacak:** iki yer birden `feat/queen-editor-v6` olur. **Ve borç yazıya geçer:** merge'den önce ikisi de `main`'e döner, bu maddenin satırında. | Defter ve testin sabiti aynı dalı söylüyor, o dal bu koşunun dalı, ve dört satır yeşil. **Kapandı** *(`f96765e3` kırmızı, `94b61baf` yeşil)*. Sabit v6'ya döndüğünde **iki test birden** düştü — ikincisi *"defterde başka dal adı kalmamış"*, çünkü defterdeki v5 o anda ikinci ad oldu; ikisi de defterin tek satırıyla yeşile döndü. **Ödenecek borç:** merge'den önce defterin `BRANCH` satırı ve `test_notebook_clones_its_branch.py`'nin sabiti birlikte `main`'e döner. |
 
 ---
+
+**Koşu bitti, kullanıcının testi kaldı** *(döngünün 10. adımı)*. Dört madde de kapandı, takımın dört
+satırı yeşil — queen-editor 925, ön yüzü 666, queen-agent 923 ve 652. Colab'da denenmeden bilinmeyen
+tek şey **bindirmenin gerçek ffmpeg'de nasıl göründüğü ve export'u ne kadar yavaşlattığı**: testler
+komutu okuyor, bu makinede ffmpeg yok, ve buraya bir tahmin yazılmıyor.
+
+**Merge'den önce:** 252'nin satırındaki iki satır `main`'e döner.
 
 **Bir sonraki koşu.** Kullanıcı v7'yi bu koşunun ardından birlikte yazacağını söyledi *(21 Eylül —
 "sonra v7 yazıcaz senle bide")*. v7'nin maddeleri buraya girmiyor: bu koşuya sonradan iş eklenirse o
