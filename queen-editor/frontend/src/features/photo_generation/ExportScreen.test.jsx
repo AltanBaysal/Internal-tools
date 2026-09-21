@@ -8,6 +8,7 @@ import {
   startExport,
 } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
+import { VERSION } from "../../shared/version.js";
 import ExportScreen from "./ExportScreen.jsx";
 import { useGeneration } from "./useGeneration.js";
 
@@ -61,10 +62,13 @@ beforeEach(() => {
 
 describe("ExportScreen header", () => {
   it("puts the version next to the name", async () => {
-    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    // The module's value, not a pattern: the number is shared/version.js's to say (madde 248), and
+    // nothing held the screen to saying what that module says -- a screen with "V5" typed into it
+    // would have passed a pattern test just as well (madde 285). The value itself is still not
+    // pinned here: it is a decision, and pinning it would put one decision in two places.
     await open();
 
-    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+    expect(screen.getByText(`Queen Editor ${VERSION}`)).toBeTruthy();
   });
 });
 
