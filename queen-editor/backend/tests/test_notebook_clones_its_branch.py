@@ -28,7 +28,11 @@ NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 #
 # BEFORE MERGING: this goes back to "main", and so does the notebook. A trial changes this line and
 # the notebook's together and never one of them, and the change comes back the way it went in.
-BRANCH = "feat/queen-editor-v5"
+#
+# v5's trial did not come back: it merged with both lines still on feat/queen-editor-v5, and this
+# suite stayed green the whole time -- what the tests below hold is that the two agree, not that
+# they name a branch that is still being worked on (madde 252).
+BRANCH = "feat/queen-editor-v6"
 
 
 def _source():
