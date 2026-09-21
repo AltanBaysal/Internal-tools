@@ -727,11 +727,21 @@ def test_deleting_a_video_leaves_the_frame_in_the_gallery(tmp_path):
     assert (drive / "düğün" / "P0_0.png").exists()
 
 
-def test_the_photo_layer_is_not_deleted_this_way(tmp_path):
-    client, _ = make_client(tmp_path)
+def test_the_photo_is_a_layer_that_can_be_deleted(tmp_path):
+    """Madde 294: the picture comes off like any other layer and the card stays, because the video
+    was made from it once and does not hang on it now (madde 293)."""
+    client, drive = make_client(tmp_path)
     generate(client, prompts='["a"]', variants=1)
+    give_it_a_video(drive)
 
-    assert delete_layer_request(client, ["P0_0"], layer="photo").status_code == 404
+    resp = delete_layer_request(client, ["P0_0"], layer="photo")
+
+    assert resp.status_code == 200
+    assert resp.get_json() == {"deleted": ["P0_0.png"]}
+    assert not (drive / "düğün" / "P0_0.png").exists()
+    assert (drive / "düğün" / "P0_0_V1_0.mp4").exists()
+    gallery = client.get("/api/projects/düğün/frames").get_json()["frames"]
+    assert [frame["layers"] for frame in gallery] == [{"video": "P0_0_V1_0.mp4"}]
 
 
 def test_deleting_a_layer_of_an_unknown_frame_is_skipped(tmp_path):

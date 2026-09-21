@@ -879,6 +879,86 @@ def test_a_video_born_frames_planned_prompt_is_the_videos():
     assert frames[0]["prompts"] == {"video": "hareket"}
 
 
+def a_card_whose_photo_went(fid="0_a", picture="0_a.png"):
+    """A card opened by a photo, given a video, and then stripped of the picture (madde 294).
+
+    Written through the record's own lines rather than a prepared state: `deleted` is what
+    remove_layer writes, and a gallery test that invented a different word would prove nothing.
+    """
+    record = FakeRecord()
+    record.append("düğün", {"file": picture, "frame": fid, "layer": "photo", "status": "done"})
+    record.append("düğün", {"file": f"{fid}_v0.mp4", "frame": fid, "layer": "video",
+                            "status": "done"})
+    record.mark("düğün", fid, "photo", picture, "deleted", "t1")
+    return record
+
+
+def test_a_card_whose_photo_is_deleted_keeps_its_video():
+    """A box is not its picture: the card stays as long as one of its layers can speak for it.
+
+    The layer that opened this card is gone, so the next one that is still there opens it instead.
+    """
+    plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(a_card_whose_photo_went(), FakeStore(), plan_store, FakeOrderStore(),
+                         "düğün")
+
+    assert [(f["id"], f["status"]) for f in frames] == [("0_a", "done")]
+    assert frames[0]["layers"] == {"video": "0_a_v0.mp4"}
+
+
+def test_a_card_with_no_photo_is_drawn_under_its_own_name():
+    """A copy holds its source's picture (madde 102), which is the only way to tell the two answers
+    apart: the deleted file is 0_a.png and the card's own name is C1_0_a.png."""
+    plan_store = planned_layers(("C1_0_a", layers.PHOTO, "ilk"),
+                                ("C1_0_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(a_card_whose_photo_went("C1_0_a"), FakeStore(), plan_store,
+                         FakeOrderStore(), "düğün")
+
+    assert frames[0]["file"] == photo_file("C1_0_a")
+
+
+def test_a_card_whose_every_layer_is_gone_leaves_the_gallery():
+    """Boş kutu yaşamaz (kullanıcı, 21 Eylül): with nothing left to speak for it, the card goes."""
+    record = a_card_whose_photo_went()
+    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t2")
+    # A second card nobody touched, so an empty gallery cannot pass this for the wrong reason.
+    plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"),
+                                ("1_a", layers.PHOTO, "ikinci"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [f["id"] for f in frames] == ["1_a"]
+
+
+def test_a_card_still_owed_a_layer_stays_though_its_photo_went():
+    """What keeps the box alive is a job that can speak for it, not a file it holds: the video has
+    not been made yet, and the card is waiting for it."""
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t1")
+    plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [(f["id"], f["status"]) for f in frames] == [("0_a", "pending")]
+
+
+def test_deleting_the_photo_leaves_the_card_where_it_was():
+    """The card is read from another layer, but it is still the card the plan put in that place."""
+    record = a_card_whose_photo_went("1_a", "1_a.png")
+    for fid in ("0_a", "2_a"):
+        record.append("düğün", {"file": f"{fid}.png", "frame": fid, "layer": "photo",
+                                "status": "done"})
+    plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("1_a", layers.PHOTO, "ikinci"),
+                                ("1_a", layers.VIDEO, "hareket"), ("2_a", layers.PHOTO, "üçüncü"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [f["id"] for f in frames] == ["2_a", "1_a", "0_a"]
+
+
 def test_a_frame_whose_video_is_queued_is_still_one_frame():
     # The plan holds a job per layer; the gallery holds a row per frame.
     record = FakeRecord()
