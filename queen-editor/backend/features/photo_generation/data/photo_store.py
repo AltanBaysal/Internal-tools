@@ -18,7 +18,11 @@ from backend.features.photo_generation.domain.photo_name import number_of
 # The project folder's own export area; a run makes a dated folder inside it (design v3, madde 92).
 EXPORT_DIR = "export"
 # The pictures ride inside the export in a folder of their own, so the mp4s stay a bare sequence.
-PHOTOS_DIR = "photos"
+# Folders the user opens in Drive, so they read in Turkish like the rest of what the user sees
+# (madde 283, their own naming). An export written before this keeps the folder it was written
+# with: every export has a dated folder of its own.
+PHOTOS_DIR = "foto"
+VIDEOS_DIR = "video"
 
 
 class DrivePhotoStore:
@@ -103,6 +107,17 @@ class DrivePhotoStore:
         os.close(handle)
         shutil.copyfile(source, temporary)
         os.replace(temporary, target)
+
+    def make_videos_dir(self, folder):
+        """Where a separate export writes its videos: a folder of its own inside the dated one.
+
+        The dated folder held one mp4 per frame beside the photos folder, and the user asked for
+        them gathered (madde 283). Unlike the pieces of a merged export, these are the export
+        itself -- they stay on Drive, and nothing takes them away again.
+        """
+        videos = os.path.join(folder, VIDEOS_DIR)
+        os.makedirs(videos, exist_ok=True)
+        return videos
 
     def copy_export(self, source, folder, filename):
         """Bring the merged file in from the machine's own disk, whole.
