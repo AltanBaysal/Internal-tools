@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v7
 
-**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v7` · **Durum:** 0/16
+**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v7` · **Durum:** 0/17
 **Öncesi:** [v6](2026-09-21-queen-editor-v6-roadmap.md) — koşuyor. v7 o kapandıktan sonra kendi
 dalında başlar.
 **Kaynak:** Maddelerin hepsi kullanıcının 21 Eylül'deki sözlerinden doğdu. Referans ailesi *(7–15)*
@@ -26,10 +26,11 @@ CLAUDE.md'de yok**, ve 16. maddeye yazılacaklardan biri de bu.
 **Her madde iki tur.** Önce yalnız testler: spec → plan → testleri yaz → commit; takım kırmızı kalır.
 Sonra implementasyon: spec → plan → kodu yaz → commit; takım yeşile döner.
 
-**İki aile ve iki tek madde var; hepsi 21 Eylül'de kullanıcıyla konuşuldu.** **1 en başta, tek
+**İki aile ve üç tek madde var; hepsi 21 Eylül'de kullanıcıyla konuşuldu.** **1 en başta, tek
 başına** *(kullanıcı — "bu madde ilk madde olsun, son olmasın")*; 2–6 kart modelini değiştiriyor;
 7–15 referansla video üretimini kuruyor, ve kararları aşağıda tek yerde duruyor — maddeler oraya
-yaslanıyor, her satır tekrarlamıyor.
+yaslanıyor, her satır tekrarlamıyor. **17 hiçbir şeye bağlı değil** — koşarken çıkmış bir hata, ve
+sırası bu yüzden serbest.
 
 **16 ötekiler gibi koşmaz.** Kullanıcıyla birlikte, adım adım yazılır — metni kullanıcı okur ve
 kararlar o anda verilir. Koşunun en sonunda durmasının sebebi bu.
@@ -97,4 +98,5 @@ uyguluyor.
 | 13 | **Referans işi kart doğuruyor.** Kuyruğa giren referans işi yeni kartlar yaratıyor — N prompt × M varyant kadar, fotoğraf katmanı olmadan. *2 ve 3'ün üstünde duruyor; üretici bu maddede sahte, o yüzden kartlar henüz boş.* | Üç prompt ve iki varyantla altı kart doğuyor, hiçbirinde fotoğraf katmanı yok, ve galeri onları gösteriyor. |
 | 14 | **Üretici REF2VA'yı koşuyor — fotoğraf referanslarıyla.** H3 üreticisi `mode`'u `REF2VA` yapıyor, havuzun fotoğraflarını ComfyUI'ye yükleyip timeline'a yazıyor, mp4'ü alıyor. Grafik değişmiyor; fotoğraf referansının alanları elimizdeki export'tan okunuyor. | Fotoğraf referanslarıyla referans modunda üretilen kartın videosu iniyor ve referansa benziyor. |
 | 15 | **Video ve ses referansları da giriyor.** Timeline'a video ve ses satırları da yazılıyor. **Alanları node'un kaynağından okundu** *(21 Eylül, [nodes_minimax_h3_director.py](https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes/blob/main/nodes/nodes_minimax_h3_director.py))*, yani tahmin yok: bir satır `type` *(`image` · `video` · `audio`)*, `value` *(yüklenen dosyanın adı)*, `slot` ve `order` *(sıra; varsayılanları listedeki indeks)*, `enabled` *(varsayılan `true`)*, `trim_start` / `trim_end` *(varsayılan `0` / `None` — klip kırpması)*, `duration`, `start`, `id` taşıyor. Yalnız video satırında bir alan daha var: **`media_mode`**, üç değerden biri — `video` · `audio` · `video_audio` — ve grafiğin arayüzündeki V / A / V+A düğmeleri bu. Video ve ses de fotoğraf gibi ComfyUI'ye yüklenip adıyla anılıyor, yani üreticinin bugünkü yükleme yolu aynen kullanılıyor. | Havuzunda video ve ses de bulunan bir üretimde ikisi de H3'e gidiyor, ve inen videoda etkileri görülüyor. |
+| 17 | **Ok tuşları prompt yazarken kareyi değiştirmeyecek.** *(Kullanıcı, 21 Eylül — "prompt düzenlerken prompt textinde sağa sola gitmek için ok tuşunu kullanırsam aynı zamanda bu fotoğraflar arasında geçiş yaptırtıyor".)* **Bugün** kare detay sayfası pencereye bir tuş dinleyicisi bağlıyor: sol ok önceki kareye, sağ ok sonrakine, Escape galeriye *([PhotoDetail.jsx:410-419](../../../queen-editor/frontend/src/features/photo_generation/PhotoDetail.jsx#L410-L419))*. Dinleyici **odağın nerede olduğuna bakmıyor** — tek istisnası açık bir modal. Prompt kutusunda yazarken ok tuşu hem imleci kaydırıyor hem kareyi değiştiriyor, yani kullanıcı düzenlediği kareden düşüyor. **Escape aynı hatanın ikinci yüzü:** yazarken basıldığında galeriye atıyor. **Olacak:** tuş bir metin kutusundan geliyorsa dinleyici onu kendine almıyor, metne bırakıyor. | Prompt kutusunda yazarken sol/sağ ok imleci metinde gezdiriyor ve kare değişmiyor; Escape de sayfayı kapatmıyor. Kutunun dışındayken ikisi de bugünkü gibi çalışıyor. |
 | 16 | **CLAUDE.md, yol haritası ve backlog madde yazımı için güncellenecek.** *(Kullanıcı, 21 Eylül — "claude core roadmap ve backlog madde yazımı için güncellenecek".)* **Bu madde kullanıcıyla birlikte, adım adım yapılır** *(kullanıcı, 21 Eylül — "bu maddeyi aslında seninle beraber adım adım yapacağız, o an kararlaştıracağız, ben promptları vs okuyacağım; bu senin yapabileceğin bir şey değil")*: metin tek başına yazılmaz, kullanıcı okur ve kararlar o anda verilir. **Koşunun en sonunda**, bu sebeple. Bugün CLAUDE.md'nin yol haritası bölümü maddenin ne zaman yazıldığını, nasıl sıralandığını ve nasıl koşulduğunu söylüyor; **içinin nasıl yazılacağı** için tek cümlesi var, ve **backlog kelimesi hiç geçmiyor**. Bu belgenin bir günde üç kez numara çakışması da buraya bir kural borcu bıraktı: **koşmayan bir yol haritası numarasını nereden alır**, ve koşu açılırken nasıl gerçek numaraya döner. | Kullanıcıyla birlikte yazılıp kullanıcı tarafından onaylanınca. |
