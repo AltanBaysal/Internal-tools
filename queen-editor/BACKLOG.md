@@ -222,11 +222,6 @@ kullanıcıyla konuşulacak.**
 
 *(Kullanıcı, 18 Eylül.)* MiniMax H3 üzerindeki yeni işler.
 
-### Referansla içerik üretimi — H3 ile
-
-*(Kullanıcı, 18 Eylül.)* H3 kullanılarak referansla içerik üretimi. **Ayrıntılar kullanıcıyla
-konuşulacak.**
-
 ### H3 denemeleri
 
 *(Kullanıcı, 18 Eylül — "belki biraz daha denersek daha kaliteli bir şeyler çıkarabiliriz".)*

@@ -3,7 +3,10 @@
 **Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v7` · **Durum:** 0/15
 **Öncesi:** [v6](2026-09-21-queen-editor-v6-roadmap.md) — 4/4 kapandı; kalan tek şey kullanıcının
 Colab'daki kendi testi. v7 ondan sonra kendi dalında başlar.
-**Kaynak:** Maddelerin hepsi kullanıcının 21 Eylül'deki sözlerinden doğdu.
+**Kaynak:** Maddelerin hepsi kullanıcının 21 Eylül'deki sözlerinden doğdu. Referans ailesi
+*(260–268)* backlog'da **"Referansla içerik üretimi — H3 ile"** başlığıyla da duruyordu *(18 Eylül)*;
+aynı iş olduğu kullanıcıyla doğrulandı ve girdi
+[BACKLOG.md](../../../queen-editor/BACKLOG.md)'den çıkarıldı.
 
 **Belge v6 dalında yazıldı** *(kullanıcı, 21 Eylül — "sen bu dalda oluştur roadmapi sıkıntı yok")*.
 Başlıktaki dal koşunun dalı; yazıldığı yer başka.

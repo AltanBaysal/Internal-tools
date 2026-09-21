@@ -1,33 +1,35 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/2
+**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/4
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
-**Kaynak:** 253 kullanıcının 21 Eylül'deki sözlerinden doğdu, backlog'a hiç uğramadan. 254
-[BACKLOG.md](../../../queen-agent/BACKLOG.md)'den geliyor ve girdisi oradan çıkar.
+**Kaynak:** 253, 270 ve 271 kullanıcının 21 Eylül'deki sözlerinden doğdu. 254
+[BACKLOG.md](../../../queen-agent/BACKLOG.md)'den geliyor; ne yaptığı aynı gün konuşuldu.
 
 **Belge `feat/queen-editor-v6` dalında yazıldı** *(kullanıcı, 21 Eylül — "sen bu dalda oluştur
 roadmapi sıkıntı yok")*. Başlıktaki dal koşunun dalı; yazıldığı yer başka.
 
 **Neden ayrı belge.** İş [Queen Editor v7](2026-09-21-queen-editor-v7-roadmap.md)'nin referans
-maddelerine bağlı — prompt'u QueenAgent yazıyor, videoyu queen-editor üretiyor. Kullanıcı ikisinin tek koşuda
-birleşmesini değil, **ayrı belge ve ayrı dal** istedi *(21 Eylül — "Ayrı bir QueenAgent v9 yol
-haritası. Kendi belgesi, kendi dalı (feat/queenagent-v9), ayrı koşulur.")*.
+maddelerine bağlı — prompt'u QueenAgent yazıyor, videoyu queen-editor üretiyor. Kullanıcı ikisinin
+tek koşuda birleşmesini değil, **ayrı belge ve ayrı dal** istedi *(21 Eylül — "Ayrı bir QueenAgent v9
+yol haritası. Kendi belgesi, kendi dalı (feat/queenagent-v9), ayrı koşulur.")*.
 
 **Numara kimliktir, sıra değildir.** Sayaç iki aracın arasında ortak ilerliyor: queen-editor'ün v6
-koşusu 249–252'yi aldı, bu koşu 253'ten başlıyor, ve
-[Queen Editor v7](2026-09-21-queen-editor-v7-roadmap.md) 255'ten.
+koşusu 249–252'yi, [v7](2026-09-21-queen-editor-v7-roadmap.md) 255–269'u aldı. Bu koşu 253 ve 254 ile
+açıldı; 270 ile 271 konuşma sürerken doğdu ve **ikisi de 253'ten önce koşuyor**.
+
+**Koşulacak sıra bu dosyanın sırası.**
 
 ## Nasıl koşulacak
 
 **Her madde iki tur.** Önce yalnız testler: spec → plan → testleri yaz → commit; takım kırmızı kalır.
 Sonra implementasyon: spec → plan → kodu yaz → commit; takım yeşile döner.
 
-**İki madde de spec'ten önce kullanıcıyla ayrıca konuşulur.** 253'ün satırındaki biçim 21 Eylül'deki
-konuşmadan ve H3'ün kendi dokümanından geliyor — ama madde **kapanmadı**, kullanıcı ayrıca
-konuşulacağını söyledi *(21 Eylül — "yine 253 ayrıca konuşuruz direkt kapatma")*. 254'ün ayrıntısı
-ise hiç yok: kullanıcı yalnız adını verdi.
+**Dördü de 21 Eylül'de konuşuldu.** Üçü kapandı; **253 kapanmadı** — kullanıcı spec'inden önce ayrıca
+konuşulacağını söyledi *(21 Eylül — "yine 253 ayrıca konuşuruz direkt kapatma")*.
 
-**İkisi de skill seçicisine satır ekliyor**, yani aynı üç dosyaya dokunuyorlar. Hangisi önce
+**270 ötekilerin temeli.** 254 ve 253 onun formatına yazıyor, 271 o formatı düzenliyor.
+
+**253 ve 254 skill seçicisine birer satır ekliyor**, yani aynı üç dosyaya dokunuyorlar. Hangisi önce
 koşarsa ikincisi onun bıraktığı listeye eklenir; sıra bu yüzden önemli değil, ama ikisi aynı anda
 koşulmaz.
 
@@ -35,5 +37,7 @@ koşulmaz.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 253 | **Referanstan video üretimi için prompt'lar — kendi skill'iyle.** *(Kullanıcı, 21 Eylül — "queen agent içinde bir roadmap kaçta kaldıysa referanstan video üretimi adında promptları oluşturmalı o da çünkü", ve "queen agent oluşturucak onun için skill ekleyeceğiz".)* **Bugün** skill seçicisinde iki satır var — *Start a scenario* ve *Edit prompts* *(madde 101)* — ve QueenAgent'ın yazdığı video prompt'u düz metin. **Olacak:** referanslı video için üçüncü bir skill; çıkardığı prompt H3'ün REF2VA biçiminde. **Biçim, H3'ün kendi kuralı:** altı bölüm — `subject_definitions`, `summary`, `retention_analysis`, `detailed_description`, `overall_soundscape`, `non_diegetic_music` — ve referanslara etiketle atıf: `<Subject N>` *(referanstan soyutlanan görünen şey)*, `<Picture N>` *(kare çıpası)*, `<Video N>` *(kurgu, süreklilik, ritim)*, `<Audio N>` *(ses sinyali)*. Numaralar **tipe göre ayrı** ve **sıraya göre** verilir. **Kullanıcı da elle yazabilir** — fotoğraf prompt'larında olduğu gibi; skill yazmanın tek yolu değil, kolay yolu. **Kararlaşmadı:** skill'in girdisi — QueenAgent referans dosyalarını göremez, yalnız kaç tane ve hangi tipte olduğunu bilebilir; bunu kullanıcı mı söylüyor, yoksa queen-editor mü veriyor. **Madde kapanmadı:** spec'ten önce kullanıcıyla ayrıca konuşulur. | QueenAgent'tan referanslı video için istenen prompt altı bölümü ve etiketleri taşıyarak çıkıyor; queen-editor'ün toplu prompt kutusuna olduğu gibi giriyor. |
-| 254 | **Compilation skill'i eklenecek.** *(Kullanıcı, 18 Eylül; backlog'dan.)* Skill seçicisine üçüncü bir satır girecek: **Compilation**. Bugün iki satır var — *Start a scenario* ve *Edit prompts* *(madde 101)*. **Kararlaşmadı: skill'in ne yaptığı** — kullanıcı yalnız adını verdi; neyi derlediği, girdisinin ve çıktısının ne olduğu konuşulmadı. **Başlamadan önce kullanıcıyla konuşulur.** **Değişen:** [domain/skills.py](../../../queen-agent/backend/features/workspace/domain/skills.py) *(`INSTRUCTIONS`)*, [domain/prompt.py](../../../queen-agent/backend/features/workspace/domain/prompt.py) *(skill'in metni)*, [skills.js](../../../queen-agent/frontend/src/features/workspace/skills.js) *(`SKILLS`)*; ve bunları çivileyen testler — `test_skills.py`, `skills.test.js`, `SkillPicker.test.jsx`; `dist`. | Konuşmada belirlenir. |
+| 270 | **Sade senaryo formatı.** *(Kullanıcı, 21 Eylül — "yeni json yapısı yapabiliriz senaryo prompt şeklinde çok basit olan", "AI'a alan bırakalım tekte üretmesi için".)* **Bugün** QueenAgent'ın ürettiği her prompt **kod tarafından** kuruluyor: yapı dosyasının karakterleri, kıyafetleri ve mekânları aranıp diziliyor, `BREAK` konuyor, kalite zinciri başa ekleniyor *(`domain/build_prompts.py`)*. **Olacak:** ikinci ve sade bir format — sahneler, her sahnede `senaryo` ve `prompt`. `senaryo` kullanıcının okuması için; `prompt` modelin yazdığı prompt'un kendisi ve **olduğu gibi** listeye giriyor. **Kod hiçbir şey eklemiyor**, kalite etiketlerini de model yazıyor *(kullanıcı kararı, 21 Eylül — "sade yapıda ekstra kod eklemeyelim, kalite promptlarını direkt AI eklesin")*. **Bedeli yazıya geçiyor:** kalite zinciri koda tam da bu yüzden alınmıştı — model şemadan kopyalarken **iki model ailesini karıştıran bir zincir gerçek dosyalara ulaşmıştı** *(madde 110, 166)*. Risk bilerek geri alınıyor. **Start a scenario değişmiyor:** süreklilik zengin yapıyı istiyor, ve QueenAgent bundan sonra **iki formatlı** oluyor. | Sade formatta yazılmış bir dosyadan prompt listesi çıkıyor, prompt'lar dosyada yazdığı gibi; zengin format bugünkü gibi çalışmaya devam ediyor. |
+| 254 | **Compilation skill'i.** *(Kullanıcı, 18 Eylül; backlog'dan. Ne yaptığı 21 Eylül'de konuşuldu.)* Skill seçicisine üçüncü satır. **Kullanıcıya iki şey sorar** — konunun ne olacağı ve **kaç sahne** istendiği — ve o kadar kareyi tek seferde üretir. **Süreklilik yoktur:** kareler birbirinin devamı değil, kadro kareden kareye değişir. Konu neyin görüneceğini belirler — *hastane* dendiyse hemşire, doktor, çalışanlar; *30 yaş üzeri gotik kızlar* dendiyse kareler onu taşır. **Her karenin kendi karakteri, tek kullanımlıktır:** tip kareler arasında tekrar etmez, kullanıcının istediği çeşitlilik oradan gelir. **270'in sade formatına yazar**, yani prompt'u baştan sona model kurar — kalite etiketleri de, iki kişili bir karede `BREAK` de. *Start a scenario*'dan farkı tek cümlede: o **süreklilik** üretir, bu **çeşitlilik**. | Konu ve sahne sayısı verilince o kadar sahne çıkıyor, her biri kendi kadrosuyla, ve dosya sade formatta. |
+| 253 | **Referanstan video üretimi için prompt'lar — kendi skill'iyle.** *(Kullanıcı, 21 Eylül — "queen agent içinde bir roadmap kaçta kaldıysa referanstan video üretimi adında promptları oluşturmalı o da çünkü", ve "queen agent oluşturucak onun için skill ekleyeceğiz".)* Compilation'ın sorma biçimini ödünç alır — konu ve kaç sahne — ve **270'in sade formatına** yazar. **Çıkardığı prompt H3'ün REF2VA biçiminde:** altı bölüm — `subject_definitions`, `summary`, `retention_analysis`, `detailed_description`, `overall_soundscape`, `non_diegetic_music` — ve referanslara etiketle atıf: `<Subject N>` *(referanstan soyutlanan görünen şey)*, `<Picture N>` *(kare çıpası)*, `<Video N>` *(kurgu, süreklilik, ritim)*, `<Audio N>` *(ses sinyali)*, tipe göre ayrı ve sıraya göre numaralı. **Kalite etiketi yok:** `score_9_up` SDXL'in dili, H3'ün altı bölümünde anlamsız kelime olur. **Tutarlılığı referans taşır, prompt değil** — karakteri ve mekânı prompt'a yazan yapıya bu yüzden gerek yok. **Kullanıcı elle de yazabilir**, fotoğraf prompt'larında olduğu gibi. **Kararlaşmadı:** skill'in girdisi — QueenAgent havuzdaki referans dosyalarını göremez, yalnız kaç tane ve hangi tipte olduklarını bilebilir; bunu kullanıcı mı söylüyor, yoksa queen-editor mü veriyor. **Madde kapanmadı:** spec'ten önce kullanıcıyla ayrıca konuşulur. | Referanslı video için istenen prompt altı bölümü ve etiketleri taşıyarak çıkıyor; queen-editor'ün toplu prompt kutusuna olduğu gibi giriyor. |
+| 271 | **Edit prompts sade formatı da düzenler.** *(Kullanıcı, 21 Eylül — "edit prompt zaten senaryo düzenliyor, o yüzden onu da düzeltiriz".)* **Bugün** *Edit prompts* prompt'u değil **yapıyı** düzeltiyor: karakteri, kıyafeti ya da mekânı değiştiriyor ve prompt oradan yeniden kuruluyor *(`domain/prompt.py`, `EDIT_PROMPTS`)*. **Olacak:** sade formatta düzeltilecek şey yapı değil, sahnenin kendi `senaryo` ve `prompt` metni. Zengin formattaki bugünkü davranışı aynen kalıyor. | Sade formatta yazılmış bir dosyada bir sahnenin prompt'u kullanıcının isteğiyle değişiyor, ve zengin formattaki düzenleme bugünkü gibi çalışıyor. |
