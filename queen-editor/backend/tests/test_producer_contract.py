@@ -11,6 +11,7 @@ contract in practice.
 """
 import os
 
+from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
@@ -22,6 +23,27 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 PHOTO_GRAPH = os.path.join(ROOT, "workflow_api.json")
 VIDEO_GRAPH = os.path.join(ROOT, "workflow_video_api.json")
 FIRST_LAST_GRAPH = os.path.join(ROOT, "workflow_video_first_last_api.json")
+
+# Every graph config knows the way to -- the five it names, in one place.
+GRAPHS = (config.WORKFLOW_PATH, config.VIDEO_WORKFLOW_PATH,
+          config.VIDEO_FIRST_LAST_WORKFLOW_PATH, config.H3_VIDEO_WORKFLOW_PATH,
+          config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH)
+
+
+def test_no_graph_is_left_in_the_tool_root():
+    """The graphs live under assets/ with the disclaimer (madde 251, user's call). A copy left in
+    the root would be the one somebody edits next, and nothing would say it is not the one that
+    ships."""
+    left = [name for name in os.listdir(ROOT)
+            if name.startswith("workflow_") and name.endswith(".json")]
+
+    assert left == [], f"Kökte grafik kalmış: {left}"
+
+
+def test_every_graph_config_names_is_a_file():
+    """Moving is not deleting, and the test above cannot tell the two apart on its own."""
+    for path in GRAPHS:
+        assert os.path.isfile(path), f"Grafik yok: {path}"
 
 
 class PhotoComfy:
