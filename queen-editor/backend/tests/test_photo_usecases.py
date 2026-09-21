@@ -6,6 +6,7 @@ from backend.features.photo_generation.domain import layers, production_mode, qu
 from backend.features.photo_generation.domain.photo_name import (
     frame_id,
     frame_id_of,
+    layer_file,
     legacy_frame_id,
     number_of,
     photo_file,
@@ -2950,6 +2951,39 @@ def test_a_failed_frame_leaves_the_gallery_the_same_way():
     assert result == {"deleted": [], "removed": ["1_a"]}
     assert [f["file"] for f in
             list_frames(record, store, plan_store, FakeOrderStore(), "düğün")] == ["0_a.png"]
+
+
+def test_a_card_pulled_out_of_the_queue_leaves_no_job_behind():
+    """Madde 295: taking a card out closes every job it was owed, not just its photo.
+
+    A job still open keeps the card in the gallery (madde 294), so a card removed with one of its
+    layers still coming would come straight back.
+    """
+    store, record = FakeStore(), FakeRecord()
+    plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"),
+                                ("1_a", layers.PHOTO, "ikinci"))
+
+    result = remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+
+    assert result == {"deleted": [], "removed": ["0_a"]}
+    assert {slot: cell["status"] for slot, cell in record.slots("düğün")["0_a"].items()} == {
+        "photo": "removed", "video": "removed"}
+    assert [f["id"] for f in
+            list_frames(record, store, plan_store, FakeOrderStore(), "düğün")] == ["1_a"]
+
+
+def test_a_card_planned_only_as_a_video_can_be_pulled_out():
+    """The line goes on the layer the card is actually owed, under the name that job would have
+    taken -- a card born from a video has no photo job to write about (madde 292)."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"), ("1_a", layers.VIDEO, "ikinci"))
+
+    remove_frames(record, store, plan_store, FakeOrderStore(), stamped, "düğün", ["0_a"])
+
+    assert record.slots("düğün")["0_a"] == {
+        "video": {"status": "removed", "file": layer_file(layers.VIDEO, "0_a")}}
+    assert [f["id"] for f in
+            list_frames(record, store, plan_store, FakeOrderStore(), "düğün")] == ["1_a"]
 
 
 def test_deleting_a_frame_takes_all_of_its_layer_files():
