@@ -183,8 +183,10 @@ describe("ExportScreen", () => {
     // step that writes the pieces.
     expect(screen.queryByText("birleştiriliyor…")).toBeNull();
     expect(screen.queryByText("22 / 22 yazıldı…")).toBeNull();
-    // The label's name changed, the step did not: it is still a run in progress.
-    expect(button("Birleşik videoyu export et").disabled).toBe(true);
+    // The label's name changed, the step did not: it is still a run in progress. Asked through the
+    // sentence rather than the mode's name, because that name is exactly what the running button
+    // no longer says -- its own place carries the progress instead (madde 93).
+    expect(button("Disclaimer ekleniyor…").disabled).toBe(true);
     expect(button("Videoları ayrı export et").disabled).toBe(false);
   });
 

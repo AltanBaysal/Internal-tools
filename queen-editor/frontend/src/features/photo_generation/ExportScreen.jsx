@@ -186,8 +186,14 @@ export default function ExportScreen({ project }) {
                           {/* A live dot, no percentage and no bar (madde 93). */}
                           <span aria-hidden="true" className="qe-dot qe-dot--alive"
                                 style={{ background: "currentColor", width: 6, height: 6 }} />
+                          {/* The step is named after the work that takes the time, not after the
+                              join: the overlay is a new picture, so the whole timeline is encoded
+                              on the landscape canvas (madde 250, 259), while the join itself is a
+                              concat copy. The user waited past five minutes on "birleştiriliyor…"
+                              with nothing on screen saying which work was under way (madde 255).
+                              One line, and no percentage: that decision waits on a measurement. */}
                           {run.state === "merging"
-                            ? "birleştiriliyor…"
+                            ? "Disclaimer ekleniyor…"
                             : `${run.written} / ${run.total} yazıldı…`}
                         </>
                       ) : LABEL[mode]}
