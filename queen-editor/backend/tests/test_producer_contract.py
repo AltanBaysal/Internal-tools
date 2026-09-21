@@ -20,9 +20,11 @@ from backend.features.photo_generation.domain.running_name import RunningName
 from backend.features.photo_generation.domain.run_loop import make_job
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-PHOTO_GRAPH = os.path.join(ROOT, "workflow_api.json")
-VIDEO_GRAPH = os.path.join(ROOT, "workflow_video_api.json")
-FIRST_LAST_GRAPH = os.path.join(ROOT, "workflow_video_first_last_api.json")
+# The shipped graphs, asked of config: where they live is its answer, and a second copy of the
+# path here would go on being right about the old place (madde 251).
+PHOTO_GRAPH = config.WORKFLOW_PATH
+VIDEO_GRAPH = config.VIDEO_WORKFLOW_PATH
+FIRST_LAST_GRAPH = config.VIDEO_FIRST_LAST_WORKFLOW_PATH
 
 # Every graph config knows the way to -- the five it names, in one place.
 GRAPHS = (config.WORKFLOW_PATH, config.VIDEO_WORKFLOW_PATH,
