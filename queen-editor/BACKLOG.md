@@ -205,6 +205,14 @@ seçilebilir)*, bugünküyü değiştirmek mi, yoksa LoRA ya da prompt tarafınd
 *(Kullanıcı, 19 Eylül — "video promptlarında daha fazla kontrol kazanmak".)* **Başlamadan önce
 kullanıcıyla konuşulacak; ayrıntılar o konuşmada netleşecek.**
 
+### Okunur bir disclaimer tasarlanacak — ayrı çıktılar için
+
+*(Kullanıcı, 21 Eylül — "şimdilik disclaimer yok çünkü okunmuyor, okunacak yeni disclaimer
+tasarlanacak".)* v6'nın 249. maddesi ayrı export'a disclaimer koydu ve 261 onu geri aldı: verilen PNG
+`1902 × 98`, yani 1920 genişlikte bir yatay video için tasarlanmış, ve 480 genişliğe sıkıştırıldığında
+satır başına ~10 piksel kalıyor. Birleşik export'ta disclaimer duruyor — orada tuval yatay ve dosya
+kendi ölçüsünde oturuyor. **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ### Modeller bir yere yüklenip daha hızlı indirilebilir mi
 
 *(Kullanıcı, 19 Eylül — "modelleri bir yere yükleyip daha hızlı indirebilir miyiz".)* **Ayrıntılar
