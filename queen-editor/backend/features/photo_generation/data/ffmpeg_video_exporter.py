@@ -144,10 +144,16 @@ class FfmpegVideoExporter:
 
         An empty answer is an answer, not a failure: a WAN video with no sound layer has no audio
         stream, and ffprobe says so by printing nothing.
+
+        No separator is named, unlike size's `s=x`: ffprobe splits the writer's option string on
+        colons, so asking csv to separate with one left `s=` without a value and the writer refused
+        the whole string -- which took the merged export down before a piece was joined (madde
+        288). csv separates with a comma by itself, and an option that is not written cannot be
+        written wrong.
         """
         done = self._run(
             [self._ffprobe, "-v", "error", "-select_streams", "a:0",
-             "-show_entries", "stream=sample_rate,channel_layout", "-of", "csv=s=:p=0", video],
+             "-show_entries", "stream=sample_rate,channel_layout", "-of", "csv=p=0", video],
             capture_output=True, text=True)
         if done.returncode != 0:
             tail = (done.stderr or "").strip().splitlines()[-1:] or ["ffprobe başarısız oldu"]
@@ -155,7 +161,7 @@ class FfmpegVideoExporter:
         said = (done.stdout or "").strip()
         if not said:
             return None
-        rate, _colon, layout = said.partition(":")
+        rate, _comma, layout = said.partition(",")
         return (rate, layout)
 
     def _with_sound(self, piece, rate, layout):
