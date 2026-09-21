@@ -1,3 +1,4 @@
+import inspect
 import os
 
 import pytest
@@ -59,14 +60,12 @@ class FakeExporter:
     def __init__(self, fails_on=None):
         self.pieces = []
         self.merged = None
-        self.disclaimers = []             # whether each piece was asked to carry the disclaimer
         self.fails_on = fails_on          # the target whose write blows up
 
-    def piece(self, video, audio, target, disclaimer=False):
+    def piece(self, video, audio, target):
         if target == self.fails_on:
             raise RuntimeError("ffmpeg: disk dolu")
         self.pieces.append((video, audio, target))
-        self.disclaimers.append(disclaimer)
 
     def merge(self, pieces, target):
         self.merged = (list(pieces), target)
@@ -317,27 +316,23 @@ def test_a_separate_export_writes_its_pieces_into_the_drive_folder_and_removes_n
     assert store.removed == []
 
 
-def test_a_separate_export_asks_for_the_disclaimer_on_every_piece():
-    """Every video carries it, not only the first one: a disclaimer standing in one file out of
-    twenty-two has stopped being a disclaimer (madde 249, user's call)."""
+def test_a_separate_export_copies_every_piece_untouched():
+    """The separate export carries no disclaimer at all: at 480 wide it could not be read, and the
+    user took it off until a readable one is drawn (madde 261). So nothing is asked of a piece
+    beyond the three things it has always taken.
+
+    Both modes go through the same call now, which is the point -- the merged export's disclaimer
+    rides on the join (madde 250), never on a piece.
+    """
     store, record, plan_store = with_videos()
     exporter = FakeExporter()
 
     export(store, record, plan_store, exporter)
 
-    assert exporter.disclaimers == [True, True]
-
-
-def test_a_merged_export_cuts_its_pieces_clean():
-    """A merged export's pieces are scaffolding for the join, and the disclaimer belongs to the
-    joined video's own clock (madde 250). A piece stamped from its own start would answer the
-    wrong clock."""
-    store, record, plan_store = with_videos()
-    exporter = FakeExporter()
-
-    export(store, record, plan_store, exporter, mode="merged")
-
-    assert exporter.disclaimers == [False, False]
+    assert exporter.pieces == [
+        ("/fake/düğün/0_a_V1_0.mp4", None, f"{FOLDER}/01.mp4"),
+        ("/fake/düğün/1_a_V1_0.mp4", None, f"{FOLDER}/02.mp4"),
+    ]
 
 
 def test_a_merged_export_that_blows_up_leaves_neither_folder_behind():
@@ -503,81 +498,35 @@ TRIAL = ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "nullsrc", "-t", "0.1",
          "-c:v", "h264_nvenc", "-f", "null", "-"]
 
 
-def test_a_stamped_piece_carries_the_disclaimer_over_its_first_minute():
-    """The picture cannot be copied any more -- an overlay is a new picture. The numbers are the
-    video's own: 80% of 480 wide, and 4% of 720 up from the bottom edge (madde 249, user's call).
-    """
-    run = FakeRun(sizes={"0.mp4": "480x720"})
-
-    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
-                                                           disclaimer=True)
-
-    assert ffmpeg_calls(run)[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "d.png",
-                                    "-filter_complex", STAMP, "-map", "[v]", *ENCODE, "01.mp4"]
+def test_piece_takes_no_disclaimer():
+    """The separate export went back to what it was before madde 249: its pieces are copies, and
+    there is no caller left that would ask for an overlay. A flag defaulting to False would only
+    make the next reader look for the place that passes True (madde 261)."""
+    assert list(inspect.signature(FfmpegVideoExporter.piece).parameters) == [
+        "self", "video", "audio", "target"]
 
 
-def test_a_stamped_piece_with_a_sound_keeps_the_sound_and_the_disclaimer():
-    """The disclaimer is the second input and the sound the third, whether or not there is a sound:
-    putting the picture last would tie the filter's input number to the sound's presence."""
-    run = FakeRun(sizes={"0.mp4": "480x720"})
-
-    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", "0.wav", "01.mp4",
-                                                           disclaimer=True)
-
-    assert ffmpeg_calls(run)[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "d.png", "-i", "0.wav",
-                                    "-filter_complex", STAMP, "-map", "[v]", "-map", "2:a:0",
-                                    *ENCODE, "-c:a", "aac", "-shortest", "01.mp4"]
-
-
-def test_the_disclaimer_is_measured_from_the_video_it_goes_on():
-    """No pixel is written into the code: the frame's size changed once already -- madde 218 made it
-    landscape, 228 brought it back -- and a constant would have gone on being right about the old
-    shape."""
-    run = FakeRun(sizes={"0.mp4": "848x480"})
-
-    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
-                                                           disclaimer=True)
-
-    said = ffmpeg_calls(run)[0][ffmpeg_calls(run)[0].index("-filter_complex") + 1]
-    assert "scale=678:-1" in said                  # 80% of 848
-    assert "H-h-19" in said                        # 4% of 480
-
-
-def test_a_stamped_piece_is_encoded_on_the_gpu_when_ffmpeg_has_nvenc():
-    """The T4 sits idle through an export while two vCPUs do the encoding (madde 253). Nothing about
-    the disclaimer changes -- its clock, its size and its place are the same; only the hardware
-    doing the work is different."""
-    run = FakeRun(sizes={"0.mp4": "480x720"}, nvenc=True)
-
-    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
-                                                           disclaimer=True)
-
-    assert ffmpeg_calls(run)[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "d.png",
-                                    "-filter_complex", STAMP, "-map", "[v]", *NVENC, "01.mp4"]
-
-
-def test_the_gpu_is_tried_rather_than_looked_up_in_a_list():
+def test_the_gpu_is_tried_rather_than_looked_up_in_a_list(tmp_path):
     """`ffmpeg -encoders` answers for the build, not for the machine: a box with no card, a driver
     that does not match or a card whose encoder sessions are taken all list h264_nvenc and then
     fail mid-export (madde 257). So the card is tried, on a tenth of a second written nowhere."""
-    run = FakeRun(sizes={"0.mp4": "480x720"}, nvenc=True)
+    run = FakeRun(sizes={"a.mp4": "480x720"}, nvenc=True)
 
-    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
-                                                           disclaimer=True)
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "d.mp4"))
 
     assert encoder_calls(run) == [TRIAL]
 
 
-def test_an_unusable_gpu_leaves_the_export_running_on_the_cpu():
+def test_an_unusable_gpu_leaves_the_export_running_on_the_cpu(tmp_path):
     """The trial failing is an answer, not an error: losing a whole export to a guess is worse than
     a slow export (FOUNDATION 1)."""
-    run = FakeRun(sizes={"0.mp4": "480x720"}, nvenc=False)
+    run = FakeRun(sizes={"a.mp4": "480x720"}, nvenc=False)
 
-    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
-                                                           disclaimer=True)
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4"], str(tmp_path / "d.mp4"))
 
-    assert ffmpeg_calls(run)[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "d.png",
-                                    "-filter_complex", STAMP, "-map", "[v]", *ENCODE, "01.mp4"]
+    said = ffmpeg_calls(run)[0]
+    assert ENCODE == [part for part in said if part in ENCODE]
+    assert "h264_nvenc" not in said
 
 
 def test_a_merged_export_is_encoded_on_the_gpu_too(tmp_path):
@@ -593,14 +542,13 @@ def test_a_merged_export_is_encoded_on_the_gpu_too(tmp_path):
         *NVENC, "-c:a", "copy", target]
 
 
-def test_the_encoder_is_asked_of_ffmpeg_once_rather_than_per_piece():
-    """A separate export writes one piece per frame; asking twenty-two times would be twenty-two
-    processes for an answer that cannot change."""
-    run = FakeRun(sizes={"0.mp4": "480x720"}, nvenc=True)
+def test_the_card_is_tried_once_and_not_again(tmp_path):
+    """The answer cannot change while the process lives, and a trial costs a process."""
+    run = FakeRun(sizes={"a.mp4": "480x720"}, nvenc=True)
     exporter = FfmpegVideoExporter(run=run, disclaimer="d.png")
 
-    exporter.piece("0.mp4", None, "01.mp4", disclaimer=True)
-    exporter.piece("0.mp4", None, "02.mp4", disclaimer=True)
+    exporter.merge(["a.mp4"], str(tmp_path / "bir.mp4"))
+    exporter.merge(["a.mp4"], str(tmp_path / "iki.mp4"))
 
     assert len(encoder_calls(run)) == 1
 

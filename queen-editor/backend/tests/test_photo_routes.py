@@ -64,7 +64,7 @@ class RecordingExporter:
     def __init__(self):
         self.pieces = []
 
-    def piece(self, video, audio, target, disclaimer=False):
+    def piece(self, video, audio, target):
         self.pieces.append(target)
 
     def merge(self, pieces, target):
