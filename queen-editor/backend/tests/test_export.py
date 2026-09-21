@@ -545,10 +545,98 @@ def test_the_state_counts_what_has_been_written():
 
     export(store, record, plan_store, FakeExporter(), runner=runner)
 
-    assert runner.state()["separate"] == {"state": "done", "written": 2, "total": 2,
-                                          "target": FOLDER, "error": None}
+    # The steps each carry their own second now (madde 287); this test is about the counter, so it
+    # reads the rest of the state and leaves them to the tests that are about them.
+    state = runner.state()["separate"]
+    assert {key: value for key, value in state.items() if key != "steps"} == {
+        "state": "done", "written": 2, "total": 2, "target": FOLDER, "error": None}
     # The mode nobody asked for is untouched.
     assert runner.state()["merged"]["state"] == "idle"
+
+
+class FakeClock:
+    """A clock that moves a second every time it is read, so a duration is a count of readings.
+
+    No test waits a real second, and none of them is allowed to read differently on a slow
+    machine: what is asserted here is which step was timed, not how fast this box is.
+    """
+
+    def __init__(self):
+        self.readings = 0
+
+    def __call__(self):
+        self.readings += 1
+        return float(self.readings)
+
+
+def timed_runner(clock):
+    return ExportRunner(spawn=lambda fn: fn(), clock=clock)
+
+
+def test_a_merged_export_leaves_every_step_with_its_own_seconds():
+    """255 gave the step a name, and a name says where the run is. This says which step is
+    expensive, which is what the user asked for: neye zaman harcadığımızı görürüz (21 Eylül).
+
+    Four steps, in the order the run walks them. The copy to Drive is the one that had no name at
+    all: while it ran, the screen still said the disclaimer was being stamped (madde 282 opened it,
+    287 closes it).
+    """
+    store, record, plan_store = with_videos()
+    runner = timed_runner(FakeClock())
+
+    export(store, record, plan_store, FakeExporter(), mode="merged", runner=runner)
+
+    assert [step["step"] for step in runner.state()["merged"]["steps"]] == [
+        "running", "photos", "merging", "saving"]
+    assert [step["seconds"] for step in runner.state()["merged"]["steps"]] == [1.0, 1.0, 1.0, 1.0]
+
+
+def test_a_separate_export_leaves_the_two_steps_it_has():
+    """The roadmap's line said a separate export has one step -- 289 spent that reason: it writes
+    all the videos and then all the photos, like the merged one. So the same two reports serve both
+    modes, and the screen stops saying N/N yazıldı while pictures are still going to Drive."""
+    store, record, plan_store = with_videos()
+    runner = timed_runner(FakeClock())
+
+    export(store, record, plan_store, FakeExporter(), runner=runner)
+
+    assert [step["step"] for step in runner.state()["separate"]["steps"]] == ["running", "photos"]
+
+
+def test_the_clock_is_read_once_a_step_and_not_once_a_frame():
+    """The measurement is meant to be cheap: a clock around the steps, and nothing parsed out of
+    ffmpeg's output -- that was the cost 255 turned down."""
+    store, record, plan_store = with_videos()
+    clock = FakeClock()
+
+    export(store, record, plan_store, FakeExporter(), mode="merged", runner=timed_runner(clock))
+
+    # One reading opens the run, and one closes each of the four steps.
+    assert clock.readings == 5
+
+
+def test_a_mode_writing_its_photos_is_busy():
+    """The guard asked whether the state was running or merging, and a list like that goes stale
+    the moment a step is added: a second export could have started while the pictures were being
+    written. Busy is the other side of resting now."""
+    runner = ExportRunner(spawn=lambda fn: None)
+
+    runner.start("separate", lambda: None)
+    runner.report("separate", state="photos")
+
+    assert runner.start("separate", lambda: None) is False
+
+
+def test_a_cancelled_run_leaves_no_steps_on_the_screen():
+    """The steps of a run that was called off say nothing about anything: the folder is gone and
+    so is the reason to read them."""
+    store, record, plan_store = with_videos()
+    runner = timed_runner(FakeClock())
+    exporter = ExporterThatCancelsOnTheLastPiece(runner, "separate", total=2)
+
+    export(store, record, plan_store, exporter, runner=runner)
+
+    assert runner.state()["separate"]["steps"] == ()
 
 
 def test_a_second_run_of_the_same_mode_is_refused_while_one_is_going():

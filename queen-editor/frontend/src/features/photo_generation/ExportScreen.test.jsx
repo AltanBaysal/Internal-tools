@@ -194,6 +194,51 @@ describe("ExportScreen", () => {
     expect(button("Videoları ayrı export et").disabled).toBe(false);
   });
 
+  it("names the photos step while the pictures go to Drive", async () => {
+    // 289 took the pictures out of the cutting loop, and until this item the screen sat on
+    // "N / N yazıldı…" for the whole of that pass -- the counter had finished counting and the
+    // work had not.
+    await open(SUMMARY, IDLE, { ...NOTHING, merged: { state: "photos", written: 22, total: 22 } });
+
+    await press("Birleşik videoyu export et");
+
+    expect(screen.getByText("Fotoğraflar ekleniyor…")).toBeTruthy();
+    expect(button("Fotoğraflar ekleniyor…").disabled).toBe(true);
+    expect(screen.queryByText("22 / 22 yazıldı…")).toBeNull();
+  });
+
+  it("names the copy to Drive, which used to run under the disclaimer's name", async () => {
+    // 282 moved the join onto the machine's own disk and copied the file over once it was whole.
+    // The step the user wonders about most was showing under the wrong name the whole time it ran.
+    await open(SUMMARY, IDLE, { ...NOTHING, merged: { state: "saving", written: 22, total: 22 } });
+
+    await press("Birleşik videoyu export et");
+
+    expect(screen.getByText("Drive'a kopyalanıyor…")).toBeTruthy();
+    expect(screen.queryByText("Disclaimer ekleniyor…")).toBeNull();
+    expect(button("Drive'a kopyalanıyor…").disabled).toBe(true);
+  });
+
+  it("leaves every finished step on screen with its own seconds", async () => {
+    // The user's words: neye zaman harcadığımızı görürüz. A name says where the run is; the second
+    // says which step is expensive, and that is the question being asked.
+    await open(SUMMARY, IDLE, { ...NOTHING,
+                                merged: { state: "saving", written: 22, total: 22,
+                                          steps: [{ step: "running", seconds: 41.2 },
+                                                  { step: "photos", seconds: 8 },
+                                                  { step: "merging", seconds: 312.75 }] } });
+
+    await press("Birleşik videoyu export et");
+
+    // Turkish names and a Turkish decimal comma: the person reading this reads Turkish.
+    expect(screen.getByText("Videolar")).toBeTruthy();
+    expect(screen.getByText("41,2 sn")).toBeTruthy();
+    expect(screen.getByText("Fotoğraflar")).toBeTruthy();
+    expect(screen.getByText("8,0 sn")).toBeTruthy();
+    expect(screen.getByText("Disclaimer")).toBeTruthy();
+    expect(screen.getByText("312,8 sn")).toBeTruthy();
+  });
+
   it("never names the disclaimer while the separate one runs", async () => {
     // Nothing is stamped there: every piece is copied as it is (madde 261), so the sentence would
     // be a lie. Its step counts pieces, which is what it does.
