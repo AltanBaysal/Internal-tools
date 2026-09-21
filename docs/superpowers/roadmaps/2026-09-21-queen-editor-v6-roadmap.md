@@ -1,0 +1,40 @@
+# Queen Editor — Yol Haritası v6
+
+**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v6` · **Durum:** 0/2
+**Öncesi:** [v5](2026-09-11-queen-editor-v5-roadmap.md) — 36/36 kapandı ve `497b0a3e` ile main'e
+birleşti.
+**Kaynak:** İki madde de kullanıcının 21 Eylül'deki sözlerinden doğdu, backlog'a hiç uğramadan.
+[BACKLOG.md](../../../queen-editor/BACKLOG.md)'deki işler yerinde duruyor: bu koşu küçük
+*(kullanıcı — "v6 küçük bir koşu olucak", "bu kadar")*.
+
+**Neden v6.** Dal sayacı: `git branch -a` queen-editor için `v1`–`v5` gösteriyor ve beşi de main'e
+girmiş, sonuncusu 20 Eylül'de. Sıradaki dal `feat/queen-editor-v6` — bu belgenin başlığında yazan
+dal.
+
+**Numara kimliktir, sıra değildir.** 248 v5'in son maddesiydi; bu koşu 249'dan başlıyor.
+
+**Sıra bağımlılığa göre: 249, 250.** İkisi aynı bindirmeyi istiyor ama aynı saati istemiyor: tekli
+export süreyi videonun kendi başından sayıyor, birleşik export birleşmiş zaman çizgisinden. 249
+bindirmeyi kuruyor, 250 yalnız saatini değiştiriyor — bindirme yokken sayılacak bir şey de yok.
+
+## Nasıl koşulacak
+
+**Her madde iki tur.** Önce yalnız testler: spec → plan → testleri yaz → commit; takım kırmızı kalır.
+Sonra implementasyon: spec → plan → kodu yaz → commit; takım yeşile döner.
+
+**Kullanıcıdan gereken tek şey disclaimer PNG'si**, ve o 249'un ilk turunun spec'inin başında
+istenir — koşunun ortasında değil, başında. Dosya gelmeden kod başlamaz: PNG'nin kendi ölçüsü,
+bindirmenin ekranda kapladığı yeri belirleyen şey.
+
+---
+
+| # | İş | Bitti sayılır |
+|---|---|---|
+| 249 | **Tekli export'ta disclaimer.** *(Kullanıcı, 21 Eylül — "exportlara disclaimer eklenecek ... ben sana png olarak atıcam", "videonun başında ilk 1 dakika", "ekranın alt ortasında olacak".)* **Bugün export videonun içine hiç dokunmuyor:** ayrı dosyalar modu (`separate`) her kareyi kendi mp4'ü olarak yazıyor ve akışları kopyalıyor — `piece()`, `-c copy` *(`data/ffmpeg_video_exporter.py`)*. **Olacak:** kullanıcının verdiği PNG videonun üstüne biniyor, **ekranın alt ortasında**, videonun **başından itibaren 60 saniye**. Bir karenin videosu grafiğin verdiği sabit uzunlukta — bugün ~5 saniye, ve uzunluk koddan değil grafikten geliyor *(`domain/usecases/export_summary.py`)* — yani 60 saniye pratikte videonun tamamını kaplıyor. Süre yine de **60 olarak yazılır**: grafiğin uzunluğu değişince kuralın değişmemesi için. **Bedeli, ve kaçışı yok:** bindirme kopyalamayı bitiriyor, video yeniden kodlanıyor; export'un bugünkü saniyeler süren hızı buradan gidiyor. Kodlama ayarları spec'te seçilir. **Fotoğraflara dokunulmuyor:** export klasörüne videoların yanında çıkan fotoğraflar *(`domain/usecases/run_export.py`)* olduğu gibi kalıyor — istenen şey videonun başı. **Kullanıcıdan gereken** *(spec'in başında istenir)*: disclaimer PNG'si. | Ayrı dosyalar olarak alınan bir export'tan çıkan mp4 açıldığında disclaimer ekranın alt ortasında duruyor; video kendi ölçüsünü ve üstündeki sesi kaybetmemiş. |
+| 250 | **Birleşik export'ta disclaimer ilk 1 dakika.** *(Kullanıcı, 21 Eylül — "hem tekli exportlar için hem de birleşik exportta".)* **Bugün birleşik mod parçaları makinenin kendi diskinde kesiyor**, sonra `concat` ile **kopyalayarak** birleştiriyor — hiçbir kare yeniden kodlanmıyor *(madde 235; `merge()`)*. **Olacak:** disclaimer **birleşmiş dosyanın ilk 60 saniyesinde** duruyor, 60. saniyeden sonra görünmüyor. Saat parçanın değil **birleşmiş videonun** saati: her parça kendinden öncekilerin toplam süresini devralıyor, yani ~5 saniyelik karelerle ilk on iki kare bindirmeyi taşıyor, sonrakiler taşımıyor. **İki karar spec'e kalıyor:** 60. saniyeye **ortasından denk gelen** parçanın ne yapacağı, ve yeniden kodlanmış parçalarla kopyalananların yan yana konmasının `concat`'in kopyalamasını bozup bozmayacağı. İkincisinde yön belli: **kopyalama korunmaya çalışılır**, çünkü birleşik export'un hızını taşıyan şey o. | Birleşik dosya açıldığında disclaimer ilk 60 saniyede ekranın alt ortasında duruyor, 60. saniyeden sonra görünmüyor, ve dosya baştan sona tek parça oynuyor. |
+
+---
+
+**Bir sonraki koşu.** Kullanıcı v7'yi bu koşunun ardından birlikte yazacağını söyledi *(21 Eylül —
+"sonra v7 yazıcaz senle bide")*. v7'nin maddeleri buraya girmiyor: bu koşuya sonradan iş eklenirse o
+kendi numarasıyla bu tabloya girer, ikinci bir belge açılmaz.
