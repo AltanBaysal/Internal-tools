@@ -1570,6 +1570,116 @@ def render_one_video(mode, linked_to=None, gallery=((0, "a"), (1, "a")), photos=
     return generator, record
 
 
+class FakeStills:
+    """Stands in for ffmpeg: keeps the bytes it was handed and answers with a picture.
+
+    `fails` makes it raise the way the real one does -- with ffmpeg's own words, which is what the
+    loop has to pass on rather than a cause of its own invention.
+    """
+
+    def __init__(self, fails=None):
+        self.saw = []
+        self.fails = fails
+
+    def first_frame(self, video):
+        self.saw.append(video)
+        if self.fails:
+            raise RuntimeError(self.fails)
+        return b"FIRSTFRAME"
+
+
+class FakeVideoGenerator:
+    """Answers with something recognisably a video, so the bytes that reach the extractor can be
+    told apart from every picture in this file."""
+
+    def generate(self, *_args, **_kwargs):
+        return b"MP4"
+
+
+def render_a_video(record, store, stills=None, log=None):
+    """One video job on a card, run to completion; returns (the run's state, the plan)."""
+    plan_store = FakePlanStore(frames=[{"id": "0_a", "type": "video", "number": 0, "variant": 0,
+                                        "prompt": "p", "negative": "", "seed": 1, "model": ""}])
+    state = make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeVideoGenerator()},
+                     lambda: "t", "düğün", stills=stills, log=log)()
+    return state, plan_store
+
+
+def test_a_video_landing_on_a_pictureless_card_writes_its_first_frame():
+    """Madde 296: one job fills two slots, and it is the only job that ever does.
+
+    The user's reason is speed -- a gallery of videos is slow to walk through -- and the second one
+    is export, which writes the photo slot and now finds one on every card.
+    """
+    store, record, stills = FakeStore(), FakeRecord(), FakeStills()
+
+    render_a_video(record, store, stills=stills)
+
+    # The video's own bytes reached the extractor, and what came back is the card's picture.
+    assert stills.saw == [b"MP4"]
+    assert record.slots("düğün")["0_a"]["photo"] == {"status": "done", "file": "0_a.png"}
+    assert store.files["0_a.png"] == b"FIRSTFRAME"
+
+
+def test_a_card_that_has_a_picture_keeps_it():
+    """üret = ekle: a produced layer is never written over, and the user's own work is the last
+    thing a convenience may touch."""
+    store, record, stills = FakeStore(), FakeRecord(), FakeStills()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    store.files["0_a.png"] = b"PNG"
+
+    render_a_video(record, store, stills=stills)
+
+    assert stills.saw == []
+    assert store.files["0_a.png"] == b"PNG"
+
+
+def test_a_red_photo_slot_is_not_filled_behind_the_users_back():
+    """A failed layer holds its slot and is rescued by Tekrar dene alone; a picture written here
+    would take that rescue away."""
+    store, record, stills = FakeStore(), FakeRecord(), FakeStills()
+    record.mark("düğün", "0_a", "photo", "0_a.png", "failed", "t")
+
+    render_a_video(record, store, stills=stills)
+
+    assert stills.saw == []
+    assert record.slots("düğün")["0_a"]["photo"]["status"] == "failed"
+
+
+def test_a_video_stands_on_its_own_when_no_stills_port_was_handed():
+    store, record = FakeStore(), FakeRecord()
+
+    render_a_video(record, store)
+
+    assert [name for name, _data in store.saved] == ["0_a_V1_0.mp4"]
+    assert "photo" not in record.slots("düğün")["0_a"]
+
+
+def test_a_first_frame_that_cannot_be_read_leaves_the_video_done():
+    """The video is what was asked for, it is on disk, and its row is written. The picture is a
+    convenience, so losing it stops nothing -- and what went wrong is ffmpeg's own sentence."""
+    store, record = FakeStore(), FakeRecord()
+    lines = []
+
+    state, _plan = render_a_video(record, store, stills=FakeStills(fails="moov atom not found"),
+                                  log=lines.append)
+
+    assert state["status"] == "done"
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
+    assert "photo" not in record.slots("düğün")["0_a"]
+    assert any("moov atom not found" in line for line in lines)
+
+
+def test_the_gallery_draws_the_frame_the_video_left():
+    store, record = FakeStore(), FakeRecord()
+
+    _state, plan_store = render_a_video(record, store, stills=FakeStills())
+
+    frame = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+    assert frame["file"] == "0_a.png"
+    assert frame["layers"] == {"photo": "0_a.png", "video": "0_a_V1_0.mp4"}
+
+
 def test_a_plain_video_is_produced_with_no_ending_frame():
     generator, _record = render_one_video(production_mode.STANDARD)
 
