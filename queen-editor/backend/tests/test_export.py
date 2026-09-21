@@ -424,14 +424,20 @@ class FakeRun:
     `sizes` maps a file name to what ffprobe prints for it; a file nobody named answers with the
     first size, so a test that does not care about sizes says nothing about them. A probe and a
     concat fail differently, so each carries its own exit code and message.
+
+    `sounds` answers the other probe -- a piece's sample rate and channel layout, or an empty line
+    for a piece with no audio at all. Nothing is the default: a set where no piece carries sound is
+    one of the two even sets, so a test that says nothing about sound asks about that (madde 286).
     """
 
     def __init__(self, returncode=0, stderr="", sizes=None, probe_returncode=0, probe_stderr="",
-                 nvenc=False):
+                 nvenc=False, sounds=None):
         self.calls = []
         self.returncode = returncode
         self.stderr = stderr
         self.sizes = dict(sizes or {})
+        self.sounds = dict(sounds or {})
+        self.joined = None                # what the concat list held when it was read
         self.probe_returncode = probe_returncode
         self.probe_stderr = probe_stderr
         # Whether the trial encode on the card comes back. False is a machine that cannot encode
@@ -440,7 +446,15 @@ class FakeRun:
 
     def __call__(self, args, **kwargs):
         self.calls.append(args)
+        if "concat" in args:
+            # Read the list while it is still there, the way ffmpeg would: merge takes it away
+            # again, so a test can only see what it held at the moment of the call.
+            with open(args[args.index("-i") + 1], encoding="utf-8") as handle:
+                self.joined = [line.strip()[len("file '"):-1] for line in handle]
         if "ffprobe" in args[0]:
+            if "a:0" in args:
+                # An empty answer is what a file with no audio stream gets, and it is an answer.
+                return _Answer(0, self.sounds.get(args[-1], "") + "\n", "")
             size = self.sizes.get(args[-1], next(iter(self.sizes.values()), "848x480"))
             return _Answer(self.probe_returncode, size + "\n", self.probe_stderr)
         if "nullsrc" in args:
@@ -461,6 +475,15 @@ def encoder_calls(run):
 
 def probe_calls(run):
     return [call for call in run.calls if "ffprobe" in call[0]]
+
+
+def size_calls(run):
+    return [call for call in probe_calls(run) if "a:0" not in call]
+
+
+def sound_calls(run):
+    """The other question asked of a piece: what sound it carries, if any (madde 286)."""
+    return [call for call in probe_calls(run) if "a:0" in call]
 
 
 def test_a_silent_piece_is_copied_rather_than_re_encoded():
@@ -604,7 +627,9 @@ def test_merging_asks_every_piece_how_big_it_is(tmp_path):
 
     FfmpegVideoExporter(run=run).merge(["a.mp4", "b.mp4"], str(tmp_path / "düğün.mp4"))
 
-    assert [call[-1] for call in probe_calls(run)] == ["a.mp4", "b.mp4"]
+    # The size question only: a piece is asked about its sound as well now (madde 286), and this
+    # test is about the older of the two.
+    assert [call[-1] for call in size_calls(run)] == ["a.mp4", "b.mp4"]
 
 
 def test_a_merged_export_joins_and_stamps_in_one_call(tmp_path):
@@ -683,6 +708,80 @@ def test_the_disclaimer_fills_the_canvas_width(tmp_path):
     assert "[1:v]scale=1920:-1[d]" in said
     assert "scale=384:-1" not in said              # 80% of the old 480-wide canvas
     assert "H-h-43" in said                        # 4% of 1080, measured from the canvas now
+
+
+def test_every_piece_is_asked_whether_it_carries_sound(tmp_path):
+    """merge asks a piece its size and refuses a set holding two, but it never asked about the
+    streams -- and concat wants every file to carry the same ones. A piece has sound when its frame
+    had a sound layer, or when the source video carried its own (an H3 video does, madde 243); a
+    WAN video with no sound layer has none. So one project can hold both, and `-map 0:a?` does not
+    save it: that only allows a set with no sound at all (madde 286).
+    """
+    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    assert [call[-1] for call in sound_calls(run)] == ["a.mp4", "b.mp4"]
+
+
+def test_a_set_that_all_carries_sound_is_joined_with_nothing_written_first(tmp_path):
+    """The rule costs nothing where nothing is wrong: the join is still the only writing call."""
+    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
+                  sounds={"a.mp4": "48000:stereo", "b.mp4": "48000:stereo"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    assert len(ffmpeg_calls(run)) == 1
+    assert run.joined == ["a.mp4", "b.mp4"]
+
+
+def test_a_set_that_carries_no_sound_at_all_is_joined_untouched(tmp_path):
+    """The other even set, and the common one: a WAN project with no sound layers. `-map 0:a?`
+    already carries it, so silence would be work bought for nothing (FOUNDATION 3)."""
+    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    assert len(ffmpeg_calls(run)) == 1
+    assert run.joined == ["a.mp4", "b.mp4"]
+
+
+def test_a_silent_piece_gets_silence_written_beside_it_when_another_has_sound(tmp_path):
+    """The user's call, in their own words: "sesi olmayan karelere sessiz eklenir gayet basit".
+    Nothing is lost -- the sounded pieces keep their sound, and the silent ones become silent
+    rather than streamless.
+
+    The video is copied, not encoded: only a sound track is added. `-shortest` is what stops
+    anullsrc, which runs forever.
+    """
+    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
+                  sounds={"a.mp4": "48000:stereo"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    written = ffmpeg_calls(run)[0]
+    assert written == ["ffmpeg", "-y", "-i", "b.mp4",
+                       "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo",
+                       "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac",
+                       "-shortest", "b-sound.mp4"]
+    # And the join reads the repaired piece in the silent one's place, order untouched.
+    assert run.joined == ["a.mp4", "b-sound.mp4"]
+
+
+def test_the_silence_matches_the_sound_the_other_pieces_carry(tmp_path):
+    """A guessed 48000:stereo would stop concat just as surely as no stream at all: what has to
+    match is the set's own sound, so the numbers come from the piece that has some."""
+    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"},
+                  sounds={"a.mp4": "44100:mono"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    assert "anullsrc=r=44100:cl=mono" in ffmpeg_calls(run)[0]
 
 
 def test_mixed_sizes_stop_the_merge_and_name_what_was_found(tmp_path):
