@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v6
 
-**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v6` · **Durum:** 8/9
+**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v6` · **Durum:** 9/9
 **Koşudan çıkan dört madde:** 254 *(kullanıcı yanlış görmüş, belirti yok)*, 256 *(ölçülmüş problem
 yok — FOUNDATION 3)*, 258 *(kullanıcı kararı: ayrı çıktılara hiç dokunulmuyor)* ve 260 *(kullanıcı
 kararı: çözünürlük seçilmiyor, 1080 otomatik)*. Numaraları kendilerinde kalır; geri gelirlerse aynı
@@ -57,7 +57,7 @@ bindirmenin ekranda kapladığı yeri belirleyen şey.
 
 | 254 | ❌ **Koşudan çıktı — belirti yoktu.** *(Kullanıcı, 21 Eylül — "ben yanlış görmüşüm yatay vermiyormuşsun".)* Madde bir yanlış görmeye dayanıyordu, ve **kod da onu söylüyordu:** bindirme çıkan videonun ölçüsünü değiştiremez, çıkan ölçü kaynağın ölçüsüdür — sebep bu yüzden bulunamadı, çünkü yoktu. Aranan `ffprobe` da artık gerekmiyor. Numara 254 olarak kalır; geri gelirse aynı numarayla gelir. **Altındaki asıl istek düşmedi:** kullanıcı videoların TikTok biçiminde çıkmasını istiyor, ve o bir düzeltme değil yeni bir karar — **258** olarak duruyor — o bir bozulmayı düzeltmiyor, TikTok'un `9:16`'sına geçiyor, çünkü bugünkü `480 × 720` ve `512 × 768` **2:3** ve hiçbir zaman 9:16 değildi. **Teşhis metni silindi:** dayanağı kalmayan bir teşhis belgede durursa, duran bir yanlış olur. | — *(koşulmadı)* |
 
-| 255 | **Export ekranı disclaimer adımını söyleyecek.** *(Kullanıcı, 21 Eylül — "akışta da disclaimer eklenirken disclaimer ekleniyor densin yani".)* Bugün birleşik export'ta ekran **iki şey söylüyor**: kaç parça yazıldığı, sonra *"birleştiriliyor"*. Kullanıcı o son durumda **beş dakikadan fazla** bekledi ve ekran bu sürenin tamamı boyunca aynı cümleyi gösterdi — ne ilerleme, ne hangi işin sürdüğü. Araştırmanın **K6**'sı: kazancı sıfır saniye, ve buna rağmen şikâyetin yarısı. **Olacak:** disclaimer'ın bindiği adım ekranda kendi adıyla görünür. **Karar, kullanıcıyla 21 Eylül:** **yalnız adımın adı** — *"birleştiriliyor"* yerine disclaimer'ın bindiği adımda *"Disclaimer ekleniyor"*. **Yüzde yapılmıyor**, ve bu sıraya bağlı bir karar: GPU'dan sonraki süre ölçülmedi; birleştirme 20 saniyeye indiyse yüzdenin değeri kalmıyor, hâlâ dakikalarsa yüzde kendi maddesi olur ve asıl çözüm o olur. Yüzde ayrıca exporter'ın ffmpeg'i bekleme biçimini değiştiriyor — bugün `subprocess.run` bitmesini bekliyor — yani ucuz da değil. **Tekli export'a dokunulmuyor** *(bizim kararımız)*: orada her parça bindirme taşıyor, yani *"yazılıyor"* ile *"disclaimer ekleniyor"* aynı şey, ve ekranda sayaç zaten dönüyor. | Birleşik export koşarken ekran, parçalar yazıldıktan sonraki adımda disclaimer'ın bindiğini söylüyor, ve bunu tutan bir test var. |
+| 255 | ✅ **Export ekranı disclaimer adımını söyleyecek.** *(Kullanıcı, 21 Eylül — "akışta da disclaimer eklenirken disclaimer ekleniyor densin yani".)* Bugün birleşik export'ta ekran **iki şey söylüyor**: kaç parça yazıldığı, sonra *"birleştiriliyor"*. Kullanıcı o son durumda **beş dakikadan fazla** bekledi ve ekran bu sürenin tamamı boyunca aynı cümleyi gösterdi — ne ilerleme, ne hangi işin sürdüğü. Araştırmanın **K6**'sı: kazancı sıfır saniye, ve buna rağmen şikâyetin yarısı. **Olacak:** disclaimer'ın bindiği adım ekranda kendi adıyla görünür. **Karar, kullanıcıyla 21 Eylül:** **yalnız adımın adı** — *"birleştiriliyor"* yerine disclaimer'ın bindiği adımda *"Disclaimer ekleniyor"*. **Yüzde yapılmıyor**, ve bu sıraya bağlı bir karar: GPU'dan sonraki süre ölçülmedi; birleştirme 20 saniyeye indiyse yüzdenin değeri kalmıyor, hâlâ dakikalarsa yüzde kendi maddesi olur ve asıl çözüm o olur. Yüzde ayrıca exporter'ın ffmpeg'i bekleme biçimini değiştiriyor — bugün `subprocess.run` bitmesini bekliyor — yani ucuz da değil. **Tekli export'a dokunulmuyor** *(bizim kararımız)*: orada her parça bindirme taşıyor, yani *"yazılıyor"* ile *"disclaimer ekleniyor"* aynı şey, ve ekranda sayaç zaten dönüyor. | Birleşik export koşarken ekran, parçalar yazıldıktan sonraki adımda disclaimer'ın bindiğini söylüyor, ve bunu tutan bir test var. **Kapandı** *(`08737b3d` kırmızı, `dd69c082` yeşil)* — **tek satır**, ve arka uca hiç dokunulmadı: adımı `run_export` zaten bildiriyor *(`state="merging"`)*, ve bir durumun hangi cümleyle göründüğü ekranın işi *(CODE-STANDARD; FOUNDATION 4 tersini istemiyor, tarayıcı burada bir kural hesaplamıyor)*. Adım iki iş yapıyor — birleştirme ve bindirme — ve **süreyi yiyen** söyleniyor: birleştirme `concat` kopyası, kodlama ise disclaimer'ın bedeli. **Kırmızı bir değil bir buçuk çıktı:** ikinci test *(ayrı export bu cümleyi söylemiyor)* doğuştan yeşildi ve bilerek bırakıldı — cümle iki modun ortak yerine konursa kırmızıya döner; sonra uygulama turunda ilk testin kendi hatası ortaya çıktı, koşan düğmeye **adını** soruyordu, ve koşan bir düğmenin söylemediği tek şey o. Gösterilen cümleden soruldu. | 
 
 | 256 | ❌ **Koşudan çıktı — ölçülmüş problem yok.** *(Karar bizim, 21 Eylül; kullanıcı: "teknik ise kendin en mantıklı şekilde çöz".)* FOUNDATION 3 açık: *ölçülmüş bir problem olmadan optimizasyon yok.* 253 ile 257 kodlamayı karta taşıdı ve **o değişiklikten sonraki hiçbir export ölçülmedi** — bu madde ise karşılığında gerçek bir risk alıyor: kodlanmış bölümle kopyalanmış bölüm yan yana geldiğinde çıkan dosya ilk dakikadan sonra sessizce bozulabilir, ve bunu hiçbir hata mesajı söylemez. Kazanç 4 dakikaysa değer, 3 saniyeyse riski bedavaya almış oluruz. **Sıradaki birleşik export hâlâ rahatsız ederse madde kendi numarasıyla ve kendi sayısıyla geri gelir.** Metni aşağıda duruyor, çünkü teşhis değil **tasarım**: geri geldiğinde buradan başlar. **Yalnız ilk dakika kodlanacak, gerisi kopyalanacak.** *(Kullanıcı, 21 Eylül — "zaten uzun videoda sadece ilk dakikaya eklenecek ya", "önce videoyu oluştur sonra disclaimer ekle".)* Araştırmanın **K3**'ü. Disclaimer ilk 60 saniyede; kalan bölüm bindirme taşımıyor, yani teorik olarak kopyalanabilir — 5 dakikalık bir videoda karelerin beşte biri kodlanır. **Kazanç videonun uzunluğuyla doğru orantılı, ve bir dakikalık projede sıfırdır.** **Bedeli iki tane, ikisi de gerçek:** kodlanmış bölümle kopyalanmış bölümü tek `concat`'te yan yana koymak ikisinin kodlayıcı parametrelerinin birebir aynı olmasını istiyor *(250 bu riski bilerek doğurmadı)*, ve kesme noktasının bir keyframe'e düşmesi gerekiyor. Parçalar birleştirmeden önce zaten ayrı dosya olduğu için **sınır bedavaya bir parça sınırına düşürülebilir** — ilk 60 saniyeye giren parçalar bindirmeyle kodlanır, sonrakiler kopyalanır. **Bu madde 253'ten sonra açılır ve açılmayabilir:** NVENC kodlamayı gerçek zamanın kat kat üstüne çıkarırsa kazanılacak süre kalmaz, ve o zaman bu maddenin tek getirdiği şey `concat` riski olur. **Açan ölçüm:** 253'ten sonraki export süresi, ve tipik proje uzunluğu. | Birleşik export'ta ilk 60 saniyeye girmeyen hiçbir kare yeniden kodlanmıyor, çıkan dosya baştan sona tek parça oynuyor, ve disclaimer yine tam 60. saniyede kalkıyor. |
 
@@ -73,13 +73,24 @@ bindirmenin ekranda kapladığı yeri belirleyen şey.
 
 ---
 
-**Koşu sürüyor: 255 kaldı.** Kapanan sekiz maddenin ardından takımın dört satırı yeşil —
-queen-editor 929, ön yüzü 666, queen-agent 923 ve 652. **Kullanıcının testi koşunun sonunda**
+**Koşu bitti: 9/9, ve kullanıcının testi kaldı** *(döngünün 10. adımı)*. Takımın dört satırı yeşil
+— queen-editor 929, ön yüzü 667, queen-agent 923 ve 652.
+
+**Kullanıcının bakacağı üç şey.** Ayrı export: dosyalar **dikey**, disclaimer yok, ve **saniyeler**
+sürüyor — hiçbir kare kodlanmıyor *(261)*. Birleşik export: dosya **`1920 × 1080` yatay**, video
+ortada ve iki yanı bant, disclaimer **tam genişlikte** ve ilk 60 saniyede — okunuyor mu, asıl soru
+bu *(259)*. Ve koşarken ekran, parçalar yazıldıktan sonra **"Disclaimer ekleniyor"** diyor *(255)*.
+
+**Colab'a girmesi için dalın push'lanması gerekiyor** — defter depoyu klonluyor, push'lanmamış iş
+orada görünmez *(FOUNDATION kararı 1)*. **Kullanıcının testi koşunun sonunda**
 *(döngünün 10. adımı)*, tek seferde.
 
-**Colab'da denenmeden bilinmeyen iki şey var, ve buraya tahmin yazılmıyor:** bindirmenin gerçek
-ffmpeg'de nasıl göründüğü, ve export'un kart devreye girdikten sonra kaç dakika sürdüğü. Testler
-komutu okuyor, bu makinede ffmpeg yok. 255'in yüzde kararı da bu ölçüme bakıyor.
+**Colab'da denenmeden bilinmeyen üç şey var, ve buraya tahmin yazılmıyor:** bindirmenin gerçek
+ffmpeg'de nasıl göründüğü, kartın NVENC'le kodlayıp kodlamadığı, ve export'un kaç dakika sürdüğü.
+Testler komutu okuyor, bu makinede ffmpeg yok. **İkisi bir maddeyi bekletiyor:** süre hâlâ
+dakikalarsa yüzde kendi maddesi olur *(255'in kararı)*, ve 256 *(yalnız ilk dakikayı kodlamak)*
+kendi numarasıyla geri gelir. 259 çerçeveyi karelerin **2,25 katına** çıkardı, yani ölçüm bu koşudan
+sonra daha da anlamlı.
 
 **Merge'den önce:** 252'nin satırındaki iki satır `main`'e döner.
 
