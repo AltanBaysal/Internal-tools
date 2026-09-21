@@ -559,6 +559,41 @@ def test_merging_asks_every_piece_how_big_it_is(tmp_path):
     assert [call[-1] for call in probe_calls(run)] == ["a.mp4", "b.mp4"]
 
 
+def test_a_merged_export_joins_and_stamps_in_one_call(tmp_path):
+    """The disclaimer rides on the join rather than on the pieces, which is what makes its clock the
+    joined video's own: `lt(t,60)` counts the merged stream, so the minute ends exactly on the
+    minute even when a frame straddles it (madde 250, user's call).
+
+    Joining is one read already, and the filter sits on top of that read -- so nothing has to know
+    which frame starts at which second, and no piece is ever encoded next to a copied one.
+
+    The sound is mapped and copied: the pieces carry their own, and `?` is for a set that has none.
+    """
+    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"})
+    target = str(tmp_path / "düğün.mp4")
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
+
+    assert ffmpeg_calls(run)[0] == [
+        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(tmp_path / "pieces.txt"),
+        "-i", "d.png", "-filter_complex", STAMP, "-map", "[v]", "-map", "0:a?",
+        *ENCODE, "-c:a", "copy", target]
+
+
+def test_the_merged_disclaimer_is_measured_from_the_pieces_it_joins(tmp_path):
+    """The size is already in merge's hands -- it asks every piece -- so the overlay costs no second
+    ffprobe."""
+    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "848x480"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
+                                                           str(tmp_path / "düğün.mp4"))
+
+    call = ffmpeg_calls(run)[0]
+    said = call[call.index("-filter_complex") + 1]
+    assert "scale=678:-1" in said                  # 80% of 848
+    assert "H-h-19" in said                        # 4% of 480
+
+
 def test_mixed_sizes_stop_the_merge_and_name_what_was_found(tmp_path):
     """A project made before the frames went landscape and added to afterwards. concat -c copy
     would write a file whose later pieces are unplayable, and say nothing.
