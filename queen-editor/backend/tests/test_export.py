@@ -1,5 +1,8 @@
+import os
+
 import pytest
 
+from backend import config
 from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
 from backend.features.photo_generation.domain.usecases.run_export import run_export
 from backend.features.photo_generation.export_runner import ExportRunner
@@ -56,12 +59,14 @@ class FakeExporter:
     def __init__(self, fails_on=None):
         self.pieces = []
         self.merged = None
+        self.disclaimers = []             # whether each piece was asked to carry the disclaimer
         self.fails_on = fails_on          # the target whose write blows up
 
-    def piece(self, video, audio, target):
+    def piece(self, video, audio, target, disclaimer=False):
         if target == self.fails_on:
             raise RuntimeError("ffmpeg: disk dolu")
         self.pieces.append((video, audio, target))
+        self.disclaimers.append(disclaimer)
 
     def merge(self, pieces, target):
         self.merged = (list(pieces), target)
@@ -312,6 +317,29 @@ def test_a_separate_export_writes_its_pieces_into_the_drive_folder_and_removes_n
     assert store.removed == []
 
 
+def test_a_separate_export_asks_for_the_disclaimer_on_every_piece():
+    """Every video carries it, not only the first one: a disclaimer standing in one file out of
+    twenty-two has stopped being a disclaimer (madde 249, user's call)."""
+    store, record, plan_store = with_videos()
+    exporter = FakeExporter()
+
+    export(store, record, plan_store, exporter)
+
+    assert exporter.disclaimers == [True, True]
+
+
+def test_a_merged_export_cuts_its_pieces_clean():
+    """A merged export's pieces are scaffolding for the join, and the disclaimer belongs to the
+    joined video's own clock (madde 250). A piece stamped from its own start would answer the
+    wrong clock."""
+    store, record, plan_store = with_videos()
+    exporter = FakeExporter()
+
+    export(store, record, plan_store, exporter, mode="merged")
+
+    assert exporter.disclaimers == [False, False]
+
+
 def test_a_merged_export_that_blows_up_leaves_neither_folder_behind():
     store, record, plan_store = with_videos()
     exporter = FakeExporter(fails_on=f"{PIECES}/02.mp4")
@@ -446,6 +474,57 @@ def test_a_sound_is_laid_over_the_video():
     assert run.calls[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "0.wav",
                             "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy",
                             "-c:a", "aac", "-shortest", "01.mp4"]
+
+
+STAMP = ("[1:v]scale=384:-1[d];"
+         "[0:v][d]overlay=(W-w)/2:H-h-29:enable='lt(t,60)'[v]")
+ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
+
+
+def test_a_stamped_piece_carries_the_disclaimer_over_its_first_minute():
+    """The picture cannot be copied any more -- an overlay is a new picture. The numbers are the
+    video's own: 80% of 480 wide, and 4% of 720 up from the bottom edge (madde 249, user's call).
+    """
+    run = FakeRun(sizes={"0.mp4": "480x720"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
+                                                           disclaimer=True)
+
+    assert ffmpeg_calls(run)[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "d.png",
+                                    "-filter_complex", STAMP, "-map", "[v]", *ENCODE, "01.mp4"]
+
+
+def test_a_stamped_piece_with_a_sound_keeps_the_sound_and_the_disclaimer():
+    """The disclaimer is the second input and the sound the third, whether or not there is a sound:
+    putting the picture last would tie the filter's input number to the sound's presence."""
+    run = FakeRun(sizes={"0.mp4": "480x720"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", "0.wav", "01.mp4",
+                                                           disclaimer=True)
+
+    assert ffmpeg_calls(run)[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "d.png", "-i", "0.wav",
+                                    "-filter_complex", STAMP, "-map", "[v]", "-map", "2:a:0",
+                                    *ENCODE, "-c:a", "aac", "-shortest", "01.mp4"]
+
+
+def test_the_disclaimer_is_measured_from_the_video_it_goes_on():
+    """No pixel is written into the code: the frame's size changed once already -- madde 218 made it
+    landscape, 228 brought it back -- and a constant would have gone on being right about the old
+    shape."""
+    run = FakeRun(sizes={"0.mp4": "848x480"})
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
+                                                           disclaimer=True)
+
+    said = ffmpeg_calls(run)[0][ffmpeg_calls(run)[0].index("-filter_complex") + 1]
+    assert "scale=678:-1" in said                  # 80% of 848
+    assert "H-h-19" in said                        # 4% of 480
+
+
+def test_the_disclaimer_ships_in_the_repo():
+    """The notebook clones this repo and builds nothing, so a file that is not committed is a file
+    every export fails on (FOUNDATION 1 and 3)."""
+    assert os.path.isfile(config.DISCLAIMER_PATH)
 
 
 def test_a_failure_says_what_the_tool_said():
