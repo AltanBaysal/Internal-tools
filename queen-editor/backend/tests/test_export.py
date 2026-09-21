@@ -16,6 +16,9 @@ from backend.tests.test_photo_usecases import (
 )
 
 FOLDER = "/fake/düğün/export/2026-08-12 14-32"
+# Where a separate export's videos go: the dated folder held 22 of them beside the photos folder,
+# and the user asked for them gathered (madde 283).
+VIDEOS = f"{FOLDER}/video"
 # Not under /fake: the pieces of a merged export are cut on the machine's own disk, never on Drive.
 PIECES = "/tmp/fake-pieces"
 
@@ -41,6 +44,10 @@ class ExportStore(FakeStore):
 
     def remove_dir(self, path):
         self.removed.append(path)
+
+    def make_videos_dir(self, folder):
+        """Where a separate export writes its videos -- a folder of its own inside the dated one."""
+        return f"{folder}/video"
 
     def make_pieces_dir(self):
         """Where a merged export cuts its pieces -- the real one answers with a folder on the
@@ -141,7 +148,7 @@ def test_separate_export_numbers_the_videos_from_the_foot_of_the_gallery():
 
     # The gallery reads 1_a above 0_a; the sequence starts at its foot, so 0_a is 01.
     assert [target for _v, _a, target in exporter.pieces] == [
-        f"{FOLDER}/01.mp4", f"{FOLDER}/02.mp4"]
+        f"{VIDEOS}/01.mp4", f"{VIDEOS}/02.mp4"]
     assert [video for video, _a, _t in exporter.pieces] == [
         "/fake/düğün/0_a_V1_0.mp4", "/fake/düğün/1_a_V1_0.mp4"]
     assert folder == FOLDER
@@ -260,7 +267,7 @@ def test_a_copy_frames_video_is_written_all_the_same():
     export(store, record, plan_store, exporter)
 
     assert [target for _v, _a, target in exporter.pieces] == [
-        f"{FOLDER}/01.mp4", f"{FOLDER}/02.mp4"]
+        f"{VIDEOS}/01.mp4", f"{VIDEOS}/02.mp4"]
     assert [video for video, _a, _t in exporter.pieces] == [
         "/fake/düğün/0_a_V1_0.mp4", "/fake/düğün/0_b_V1_0.mp4"]
 
@@ -334,8 +341,25 @@ def test_a_separate_export_writes_its_pieces_into_the_drive_folder_and_removes_n
     export(store, record, plan_store, exporter)
 
     assert [target for _v, _a, target in exporter.pieces] == [
-        f"{FOLDER}/01.mp4", f"{FOLDER}/02.mp4"]
+        f"{VIDEOS}/01.mp4", f"{VIDEOS}/02.mp4"]
     assert store.removed == []
+
+
+def test_a_separate_exports_videos_are_never_taken_away_again():
+    """The trap this item walks into. A finished run removes the folder it cut into when that is
+    not the dated folder -- a rule written for a merged export's pieces on the machine's own disk
+    (madde 235). Now that the videos sit in a folder of their own, that rule would match the
+    separate export too and delete exactly what the user asked for.
+
+    So the condition belongs to the mode, not to the paths. FOUNDATION 1: the user's work is
+    sacred, and nothing this item does is worth a deleted export.
+    """
+    store, record, plan_store = with_videos()
+
+    folder = export(store, record, plan_store, FakeExporter())
+
+    assert store.removed == []
+    assert folder == FOLDER
 
 
 def test_a_separate_export_copies_every_piece_untouched():
@@ -352,8 +376,8 @@ def test_a_separate_export_copies_every_piece_untouched():
     export(store, record, plan_store, exporter)
 
     assert exporter.pieces == [
-        ("/fake/düğün/0_a_V1_0.mp4", None, f"{FOLDER}/01.mp4"),
-        ("/fake/düğün/1_a_V1_0.mp4", None, f"{FOLDER}/02.mp4"),
+        ("/fake/düğün/0_a_V1_0.mp4", None, f"{VIDEOS}/01.mp4"),
+        ("/fake/düğün/1_a_V1_0.mp4", None, f"{VIDEOS}/02.mp4"),
     ]
 
 
@@ -417,7 +441,7 @@ def test_a_cancelled_merged_export_leaves_neither_folder_behind():
 
 def test_a_failed_export_takes_its_half_written_folder_with_it():
     store, record, plan_store = with_videos()
-    exporter = FakeExporter(fails_on=f"{FOLDER}/02.mp4")
+    exporter = FakeExporter(fails_on=f"{VIDEOS}/02.mp4")
     runner = sync_runner()
 
     with pytest.raises(RuntimeError):
@@ -432,7 +456,7 @@ def test_the_reason_a_run_failed_is_the_tool_own_words():
 
     runner.start("separate", lambda: run_export(
         runner, store, record, plan_store, FakeOrderStore(),
-        FakeExporter(fails_on=f"{FOLDER}/01.mp4"), lambda: "2026-08-12 14-32", "düğün", "separate"))
+        FakeExporter(fails_on=f"{VIDEOS}/01.mp4"), lambda: "2026-08-12 14-32", "düğün", "separate"))
 
     assert runner.state()["separate"]["state"] == "error"
     assert runner.state()["separate"]["error"] == "ffmpeg: disk dolu"

@@ -77,9 +77,25 @@ def test_a_photo_already_in_the_export_is_not_written_again(tmp_path):
     # to the minute is one folder for both. The second one finds the picture already there.
     store.copy_photo(source, folder, "01.png")
 
-    landed = tmp_path / "düğün" / "export" / "2026-08-12 14-32" / "photos" / "01.png"
+    # The name the user sees in Drive, so it reads in Turkish like the rest of what they see
+    # (madde 283, their own naming). Older exports keep the folder they were written with.
+    landed = tmp_path / "düğün" / "export" / "2026-08-12 14-32" / "foto" / "01.png"
     assert landed.read_bytes() == b"PNG"
     assert [path.name for path in landed.parent.iterdir()] == ["01.png"]
+
+
+def test_a_separate_exports_videos_get_a_folder_of_their_own(tmp_path):
+    """The dated folder held 22 videos beside the photos folder, and the user asked for them
+    gathered: "tekli ve çok videolar için klasör açalım" (madde 283)."""
+    store = store_at(tmp_path)
+    (tmp_path / "düğün").mkdir()
+    folder = store.make_export_folder("düğün", "2026-08-12 14-32")
+
+    videos = store.make_videos_dir(folder)
+
+    assert os.path.isdir(videos)
+    assert os.path.basename(videos) == "video"
+    assert os.path.dirname(videos) == folder
 
 
 def test_the_merged_file_is_copied_into_the_export_folder(tmp_path):
