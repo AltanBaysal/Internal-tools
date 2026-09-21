@@ -310,7 +310,6 @@ describe("ExportScreen", () => {
   it("asks before leaving while an export is running, and cancels it", async () => {
     await open(SUMMARY, IDLE,
                { ...NOTHING, separate: { state: "running", written: 1, total: 3 } });
-    await press("Videoları ayrı export et");
 
     fireEvent.click(screen.getByText("Galeriye dön"));
     expect(screen.getByText("Export sürüyor — çıkılsın mı?")).toBeTruthy();

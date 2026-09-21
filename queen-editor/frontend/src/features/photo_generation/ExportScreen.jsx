@@ -96,6 +96,27 @@ export default function ExportScreen({ project }) {
     return () => { alive = false; };
   }, [project, frames]);
 
+  // What the exports were doing before this screen existed. Asked once, on open: the screen used to
+  // learn of a run only from the press that started it, so a refresh mid-export left it blind --
+  // idle looking buttons over a run that was still going (madde 290).
+  //
+  // Only a running one is taken. A finished one is the user's call: zaten önceden bittiyse
+  // gösterme, devam ediyorsa göster çünkü butonu kullanamıyoruz. The state lives as long as the
+  // session does, so adopting a finished run would hang an hour-old card on every open -- and the
+  // reason to say anything here is the dead button, which a finished run does not have.
+  //
+  // That rule also settles a race: this answer can land after the user has pressed, and one
+  // carrying nothing must not wipe what the press wrote.
+  useEffect(() => {
+    let alive = true;
+    getExportState(project).then((body) => {
+      const going = Object.fromEntries(
+        Object.entries(body).filter(([, run]) => busy(run)));
+      if (alive && Object.keys(going).length > 0) setRuns(going);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [project]);
+
   // No video means nothing to export: the card turns into the sentence that says what to do
   // instead, and it is not drawn as an error (madde 95).
   const empty = summary && summary.videos === 0;
