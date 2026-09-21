@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v6
 
-**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v6` · **Durum:** 16/18
+**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queen-editor-v6` · **Durum:** 17/18
 **Koşudan çıkan dört madde:** 254 *(kullanıcı yanlış görmüş, belirti yok)*, 256 *(259'un tuvaliyle
 bağdaşmıyor — bir kez ölçüm için düşmüş, kullanıcının testiyle geri gelmiş, sonra kendi tanımı
 yüzünden tekrar düşmüştü)*, 258 *(kullanıcı kararı: ayrı çıktılara hiç dokunulmuyor)* ve 260
@@ -86,19 +86,21 @@ bindirmenin ekranda kapladığı yeri belirleyen şey.
 
 | 289 | ✅ **Videolar, fotoğraflar, disclaimer — üçü ayrı adım olacak.** *(Kullanıcı, 21 Eylül — "fotoğraf alımı ile galiba video yüklemesi aynı anda oluyor, bunu da ayıralım: ilk videolar yüklensin, sonra fotoğraflar eklensin, sonra disclaimer eklensin gibi".)* **Kullanıcı doğru görmüş:** `run_export` bugün **kare kare** ilerliyor — bir kareyi kesiyor, hemen o karenin fotoğrafını Drive'a kopyalıyor, sonra sıradakine geçiyor. İki iş iç içe. **Olacak:** önce bütün videolar, sonra bütün fotoğraflar, sonra *(birleşik modda)* disclaimer. **Sebebi yalnız düzen değil, ölçüm:** iç içe oldukları sürece 287 süreyi ölçse bile **hangisinin pahalı olduğunu ayıramaz** — sayaç yavaş akıyorsa sebebi videoyu Drive'dan okumak mı, fotoğrafı Drive'a yazmak mı belli olmaz. **O yüzden 287'den önce:** adımlar isimlenip ölçülmeden önce gerçekten ayrı adım olmaları gerekiyor. **Değişmeyen üç kural:** numaralandırma *(`foto/03.png` hâlâ `video/03.mp4`'ün fotoğrafı)*, paylaşılan fotoğrafın **bir kez** yazılması ve ilk kullanan karenin numarasını alması *(236)*, ve iptalin **iş birimleri arasında** olması — ikinci döngünün de kendi iptal kontrolü olacak. **Yarıda kalan koşu yine iki klasörü de götürüyor** *(madde 94)*. **İki modda da geçerli:** fotoğraflar her iki modda da yazılıyor, ve ayrım çıkan dosyaları değiştirmiyor — yalnız yazılma sıraları değişiyor. | Birleşik export'ta önce bütün videolar, sonra bütün fotoğraflar, sonra disclaimer yazılıyor; çıkan dosyalar ve numaraları bugünküyle birebir aynı; ve iptal her iki döngüde de iş birimleri arasında çalışıyor. **Kapandı** *(`a717baa9` kırmızı, `b2711a1f` yeşil)* — üç kırmızı. **Numaralandırma kendiliğinden korundu**, ve sebebi yazıya geçti: iki döngü de aynı listeyi aynı sırayla geziyor, yani numara döngünün değil **karenin sırası**; 236'yı tutan beş test bir kez bile kırmızıya dönmedi. **İptal kendi işlevine taşındı** — iki döngü aynı soruyu soruyor, ve işin neden birim aralarında kesildiği artık tek yerde yazılı. **Ekran bilerek değişmedi:** fotoğraf evresinin adı yok, o yüzden videolar bittikten sonra sayaç `N/N`'de bekliyor — boşluk gerçek ve adı **287**, çünkü bir durumun hangi cümleyle göründüğü ekranın işi *(255)* ve orada açılacak bir durum ön yüzü de `dist`'i de değiştirirdi. |
 
-| 287 | **Ekran her adımı adıyla ve süresiyle söyleyecek.** *(Kullanıcı, 21 Eylül — "drive'dan okuyor yazıyor vs gibi daha açıklayıcı mı yazsak mesajı, ben de anlarım neyin yavaş olduğunu", ve ardından "neye zaman harcadığımızı görürüz".)* **255 adımın adını verdi, bu madde süresini veriyor** — ve fark şu: ad nerede olduğunu söyler, **süre hangisinin pahalı olduğunu** söyler. Kullanıcının istediği ikincisi. **Bugünkü boşluk somut, ve 282 açtı:** birleştirme bitip dosya Drive'a kopyalanırken ekran hâlâ *"Disclaimer ekleniyor"* diyor — en çok merak edilen adım **yanlış isimle** görünüyor. **Olacak:** birleşik export'un adımları kendi adıyla görünüyor ve biten her adım **kendi süresini** ekranda bırakıyor. **Ölçüm ucuz, ve bilerek böyle:** adımların etrafına saat konuyor, ffmpeg'in çıktısı ayrıştırılmıyor — o, 255'te reddedilen *"yüzde"* maliyetiydi ve bu madde ona hiç girmiyor. **FOUNDATION 4:** süreyi arka uç ölçüp bildiriyor *(adımların saati onun)*, ekran yalnız biçimlendiriyor. **Neden 281'den önce:** 281 *"zaman filtrelerde mi"* sorusuna sayı istiyor, ve bu madde o sayıyı **kullanıcı kronometre tutmadan** veriyor. **Tekli export'a dokunulmuyor** — orada tek adım var ve sayacı zaten dönüyor. | Birleşik export bittiğinde ekran adımları adıyla ve kaç saniye sürdüğüyle gösteriyor, ve kullanıcı bakıp hangisinin pahalı olduğunu söyleyebiliyor. |
+| 287 | ✅ **Ekran her adımı adıyla ve süresiyle söyleyecek.** *(Kullanıcı, 21 Eylül — "drive'dan okuyor yazıyor vs gibi daha açıklayıcı mı yazsak mesajı, ben de anlarım neyin yavaş olduğunu", ve ardından "neye zaman harcadığımızı görürüz".)* **255 adımın adını verdi, bu madde süresini veriyor** — ve fark şu: ad nerede olduğunu söyler, **süre hangisinin pahalı olduğunu** söyler. Kullanıcının istediği ikincisi. **Bugünkü boşluk somut, ve 282 açtı:** birleştirme bitip dosya Drive'a kopyalanırken ekran hâlâ *"Disclaimer ekleniyor"* diyor — en çok merak edilen adım **yanlış isimle** görünüyor. **Olacak:** birleşik export'un adımları kendi adıyla görünüyor ve biten her adım **kendi süresini** ekranda bırakıyor. **Ölçüm ucuz, ve bilerek böyle:** adımların etrafına saat konuyor, ffmpeg'in çıktısı ayrıştırılmıyor — o, 255'te reddedilen *"yüzde"* maliyetiydi ve bu madde ona hiç girmiyor. **FOUNDATION 4:** süreyi arka uç ölçüp bildiriyor *(adımların saati onun)*, ekran yalnız biçimlendiriyor. **Neden 281'den önce:** 281 *"zaman filtrelerde mi"* sorusuna sayı istiyor, ve bu madde o sayıyı **kullanıcı kronometre tutmadan** veriyor. **Tekli export'a dokunulmuyor** — orada tek adım var ve sayacı zaten dönüyor. | Birleşik export bittiğinde ekran adımları adıyla ve kaç saniye sürdüğüyle gösteriyor, ve kullanıcı bakıp hangisinin pahalı olduğunu söyleyebiliyor. **Kapandı** *(`6b546847` kırmızı, `1a00e004` yeşil)* — sekiz kırmızı, beşi arka uçta üçü ekranda. **Adım, `state`'in kendisi oldu**, yanına ikinci bir alan konmadı: aynı soruya iki cevap, ikisini birbirine uydurmak demekti. **Saati koşucu tutuyor**, çünkü bir adımın başladığını ve bittiğini bilen tek şey durum değişikliği; `run_export`'a eklenen iki satır, ölçüm sıfır. Aynı saat okuması bir adımı kapatıp diğerini açıyor, yani koşunun hiçbir saniyesi ikisinin arasına düşmüyor. **Yolda bir tuzak kapandı:** `start` ikinci koşuyu *"running ya da merging ise"* diye reddediyordu, ve o liste yeni adımlarla eksik kalırdı — `photos` evresinde ikinci bir export başlayabilirdi. Soru tersine çevrildi: **meşgul = dinlenmiyor**, hem arka uçta hem ekranda. **Tekli export'a da dokunuldu, ve satırın kendi gerekçesi bunu istedi:** *"orada tek adım var"* 289'da doldu, yani iki mod da aynı iki adımı bildiriyor ve kodda mod soran bir dal yok. |
 
 | 285 | ✅ **Ekran V6 diyecek.** *(Kullanıcının göreceği bir yanlış; 21 Eylül.)* Başlık hâlâ **"Queen Editor V5"** yazıyor — [version.js:7](../../../queen-editor/frontend/src/shared/version.js#L7)'de `VERSION = "V5"` — ama v6 gerçek davranış değiştirdi: yatay birleşik çıktı, disclaimer, yeni adım adı. **Olacak:** sayı v6 olur. Sayıyı tutan tek yer o satır, ve testi zaten `/^V\d+$/` diye soruyor *(248'in kararı: sayı iki yerde yazılmaz)* — yani testi değiştirmeye gerek yok, ve bu maddenin ilk turu **o kararın hâlâ geçerli olduğunu** çiviliyor: sayının nereden geldiğini soran bir test. **Ön yüz değiştiği için `dist/` aynı commit'te build'lenir** *(FOUNDATION 3)*. **Borç neden burada:** sürüm numarası koşuyla birlikte artıyor, ve v5 kapanırken artmamış; bu satır o borcu kapatıyor. | Export ekranının başlığı "Queen Editor V6" diyor, ve sayıyı hâlâ tek bir dosya söylüyor. **Kapandı** *(`80d6c99d` test turu, `48345c8a` yeşil)*, ve **bu maddenin test turu kırmızı vermedi** — `skip`/`xfail` ile gizlenmedi, sebebi yazıldı: 248 sayıyı elle yazılan bir **karar** yaptı, ve `"V6"`yı bir teste çivilemek o kararı iki yere koymak olurdu. Ama çivilenecek gerçek bir şey vardı: **hiçbir test ekranı modülün değerine bağlamıyordu** — içine elle `"V5"` yazılmış bir ekran kalıp testini de geçerdi. Başlık artık modülü okuyor, ve sayı değiştiğinde hiçbir test değişmedi: turun kazancı tam buydu. |
 
 ---
 
-**On altı madde kapandı, ve koşulacak iki madde kaldı: 287 → 281** — sonuncusu ölçüme bağlı,
-kendi satırında yazılı. Takımın dört satırı yeşil: queen-editor **947**, ön yüzü **667**,
-queen-agent 923 ve 652.
+**On yedi madde kapandı, ve koşulabilecek madde kalmadı.** Geriye **281** duruyor, ve kendi satırı
+onu koşturmuyor: bir ölçüm istiyor, ve o ölçüm ancak Colab'da alınan bir export'tan çıkıyor.
+**287 tam o sayıyı veriyor** — kullanıcı kronometre tutmadan, ekranda adım adım. Takımın dört
+satırı yeşil: queen-editor **952**, ön yüzü **670**, queen-agent 923 ve 652.
 
-**Kullanıcının ikinci testi bunun üstüne geliyor**, ve bakacağı şeyler: birleşik export'un süresi
-*(281'i açan ya da kapatan sayı)*, tarihli klasörün yeni düzeni — teklide `video/` ve `foto/`,
-birleşikte `<proje>.mp4` ve `foto/` — ve başlıkta **V6**.
+**Kullanıcının ikinci testi bunun üstüne geliyor**, ve bakacağı şeyler: **düğmelerin altındaki
+adım süreleri** — *Videolar · Fotoğraflar · Disclaimer · Drive'a kopyalama*, her biri kendi
+saniyesiyle, ve **281'i açan ya da kapatan sayı orada** — tarihli klasörün yeni düzeni, teklide
+`video/` ve `foto/`, birleşikte `<proje>.mp4` ve `foto/`, ve başlıkta **V6**.
 
 **Birinci test koşuyu yeniden açtı.** Kullanıcının cevabı *"beğenmediğim kadar uzun sürdü"* oldu, ve
 ardından iki istek geldi: *"gpu varsa olabildiğince gpu kullanalım, cpu değil, sağlam gpumuz var
@@ -128,9 +130,12 @@ bildirilmiş. Elimizde kalan hız kaldıracı **282**, ve onu destekleyen şey �
 Drive'ın FUSE mount'una akış yazmak Colab'da bilinen bir yavaşlık, ve bilinen çözümü yerel diske
 yazıp sonunda kopyalamak.
 
-**Ölçüm hâlâ eksik, ve artık bir maddeyi doğrudan bekletiyor.** Kullanıcının yargısı
-*("beğenmediğim kadar uzun sürdü")* maddeleri açmaya yetti, ama **281 sayı olmadan koşmaz**:
-önündeki maddeler bittikten sonra bir export ölçülür, ve o sayı 281'i ya koşturur ya kapatır.
+**Ölçüm hâlâ eksik, ve tek kalan maddeyi bekletiyor.** Kullanıcının yargısı *("beğenmediğim kadar
+uzun sürdü")* maddeleri açmaya yetti, ama **281 sayı olmadan koşmaz**. Önündeki maddeler bitti, ve
+**ölçüm artık kendiliğinden geliyor:** 287 her adımın saniyesini ekrana yazıyor, yani koşunun
+sonundaki test aynı zamanda 281'in ölçümü. Sayı *Disclaimer* adımını gösterirse — kodlama ve
+filtreler orada — 281 koşar; *Drive'a kopyalama*'yı ya da hiçbir şeyi gösterirse **254 gibi
+kapanır**.
 
 **Colab'a girmesi için dalın push'lanması gerekiyor** — defter depoyu klonluyor, push'lanmamış iş
 orada görünmez *(FOUNDATION kararı 1)*. **Kullanıcının testi koşunun sonunda**
