@@ -18,7 +18,11 @@ from backend.features.photo_generation.domain.photo_name import number_of
 # The project folder's own export area; a run makes a dated folder inside it (design v3, madde 92).
 EXPORT_DIR = "export"
 # The pictures ride inside the export in a folder of their own, so the mp4s stay a bare sequence.
-PHOTOS_DIR = "photos"
+# Folders the user opens in Drive, so they read in Turkish like the rest of what the user sees
+# (madde 283, their own naming). An export written before this keeps the folder it was written
+# with: every export has a dated folder of its own.
+PHOTOS_DIR = "foto"
+VIDEOS_DIR = "video"
 
 
 class DrivePhotoStore:
@@ -103,6 +107,36 @@ class DrivePhotoStore:
         os.close(handle)
         shutil.copyfile(source, temporary)
         os.replace(temporary, target)
+
+    def make_videos_dir(self, folder):
+        """Where a separate export writes its videos: a folder of its own inside the dated one.
+
+        The dated folder held one mp4 per frame beside the photos folder, and the user asked for
+        them gathered (madde 283). Unlike the pieces of a merged export, these are the export
+        itself -- they stay on Drive, and nothing takes them away again.
+        """
+        videos = os.path.join(folder, VIDEOS_DIR)
+        os.makedirs(videos, exist_ok=True)
+        return videos
+
+    def copy_export(self, source, folder, filename):
+        """Bring the merged file in from the machine's own disk, whole.
+
+        ffmpeg writes the join locally now: writing an encoded stream onto Drive's FUSE mount a
+        piece at a time is a known Colab slowness, and the known answer is to write locally and
+        copy at the end -- the call madde 235 made for the pieces, applied to the output (282).
+
+        One move, like copy_photo: Drive is slow enough that the window in which a half written
+        file could be seen is a real one, and a folder that looks finished is what madde 94 forbids.
+        os.replace rather than os.rename, so Windows behaves like Linux over a target that exists.
+
+        No "already there" answer here: the pieces' folder is this run's own, and a second run of
+        the same mode is refused by ExportRunner.
+        """
+        handle, temporary = tempfile.mkstemp(dir=folder)
+        os.close(handle)
+        shutil.copyfile(source, temporary)
+        os.replace(temporary, os.path.join(folder, filename))
 
     def export_dir(self, project):
         """Where an export lands: one folder inside the project, next to its photos.

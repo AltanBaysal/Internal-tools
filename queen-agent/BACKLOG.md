@@ -23,20 +23,6 @@ söylemedi. Sıralama, arşivleme, arama, kopyalama gibi ihtimallerin hiçbiri k
 *(Kullanıcı, 18 Eylül — "QueenAgent lora önekini yazınca ne olacağını bilsin".)* **Ayrıntılar
 kullanıcıyla konuşulacak.**
 
-## Compilation skill'i eklenecek
-
-*(Kullanıcı, 18 Eylül.)* Skill seçicisine üçüncü bir satır girecek: **Compilation**. Bugün iki satır
-var — *Start a scenario* ve *Edit prompts* *(Madde 101)*.
-
-**Kararlaşmadı: skill'in ne yaptığı.** Kullanıcı yalnız adını verdi; neyi derlediği, girdisinin ve
-çıktısının ne olduğu konuşulmadı. **Başlamadan önce kullanıcıyla konuşulur**, ve varılan karar buraya
-yazılır.
-
-**Değişen:** [domain/skills.py](backend/features/workspace/domain/skills.py) *(`INSTRUCTIONS`)*,
-[domain/prompt.py](backend/features/workspace/domain/prompt.py) *(skill'in metni)*,
-[skills.js](frontend/src/features/workspace/skills.js) *(`SKILLS`)*; ve bunları çivileyen testler —
-`test_skills.py`, `skills.test.js`, `SkillPicker.test.jsx`; `dist`.
-
 ## Kare başına negatif prompt üretilecek
 
 *(Kullanıcı, 17 Eylül.)* İş iki görevdir: negatif prompt'ları **QueenAgent üretir**, queen-editor

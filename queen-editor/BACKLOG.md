@@ -205,6 +205,44 @@ seçilebilir)*, bugünküyü değiştirmek mi, yoksa LoRA ya da prompt tarafınd
 *(Kullanıcı, 19 Eylül — "video promptlarında daha fazla kontrol kazanmak".)* **Başlamadan önce
 kullanıcıyla konuşulacak; ayrıntılar o konuşmada netleşecek.**
 
+### Okunur bir disclaimer tasarlanacak — ayrı çıktılar için
+
+*(Kullanıcı, 21 Eylül — "şimdilik disclaimer yok çünkü okunmuyor, okunacak yeni disclaimer
+tasarlanacak".)* v6'nın 249. maddesi ayrı export'a disclaimer koydu ve 261 onu geri aldı: verilen PNG
+`1902 × 98`, yani 1920 genişlikte bir yatay video için tasarlanmış, ve 480 genişliğe sıkıştırıldığında
+satır başına ~10 piksel kalıyor. Birleşik export'ta disclaimer duruyor — orada tuval yatay ve dosya
+kendi ölçüsünde oturuyor. **Ayrıntılar kullanıcıyla konuşulacak.**
+
+### Export hızı — çözme ve filtreler de karta
+
+*(Kullanıcı, 21 Eylül, v6 testinin ortasında — "bu hız olayını backloga ekleyelim, şimdilik".)*
+**v6'da madde 281 olarak yol haritasındaydı, koşulmadan backlog'a döndü.** Numara 281 olarak
+kalır; geri gelirse aynı numarayla gelir.
+
+**Bilinen, ve kullanıcının kendi ölçümü:** Colab'da `h264_nvenc` ile yapılan deneme kodlaması
+döndü — yani **kart gerçekten kodluyor**, ve *"kodlama CPU'ya düşmüş"* ihtimali elendi. Geriye
+kodlamanın etrafındaki CPU zinciri kalıyor: videoyu çözmek, 1920×1080 tuvale sığdırmak, bant
+koymak, disclaimer'ı bindirmek — hepsi Colab'ın 2 vCPU'sunda.
+
+**Ölçüm alındı** *(kullanıcı, 21 Eylül, Colab — 287'nin ekrana yazdığı dört satır)*:
+
+| Adım | Süre |
+|---|---|
+| Videolar | 21,9 sn |
+| Fotoğraflar | 0,5 sn |
+| **Disclaimer** | **159,0 sn** |
+| Drive'a kopyalama | 1,7 sn |
+
+**Yani export'un %87'si tek adımda.** Diğer üçü toplam 24 saniye, ve 282'nin çözdüğü Drive yazması
+artık 1,7 saniye. Kabaca 110 saniyelik video *(22 kare × ~5 sn)* 32 kare/saniyede ~3520 kare
+eder, yani zincir **~22 kare/saniye** koşuyor — NVENC tek başına bunun kat kat üstünde olurdu, ve
+kartın kodladığı doğrulandı. **Kalan aday, kodlamanın etrafındaki CPU zinciri.**
+
+**Kararlaşmadı:** zincirin karta taşınıp taşınmayacağı. Taşımanın iki bilinen bedeli var —
+`overlay_cuda` saydam PNG'de bozabiliyor *(girdinin `yuva420p`'ye çevrilip `hwupload` ile
+yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçların tamamı
+[2026-09-21 export hızı araştırmasında](../docs/superpowers/research/2026-09-21-queen-editor-export-hizi.md).
+
 ### Modeller bir yere yüklenip daha hızlı indirilebilir mi
 
 *(Kullanıcı, 19 Eylül — "modelleri bir yere yükleyip daha hızlı indirebilir miyiz".)* **Ayrıntılar
@@ -213,11 +251,6 @@ kullanıcıyla konuşulacak.**
 ## MiniMax H3
 
 *(Kullanıcı, 18 Eylül.)* MiniMax H3 üzerindeki yeni işler.
-
-### Referansla içerik üretimi — H3 ile
-
-*(Kullanıcı, 18 Eylül.)* H3 kullanılarak referansla içerik üretimi. **Ayrıntılar kullanıcıyla
-konuşulacak.**
 
 ### H3 denemeleri
 

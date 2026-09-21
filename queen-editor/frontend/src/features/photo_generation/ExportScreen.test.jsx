@@ -8,6 +8,7 @@ import {
   startExport,
 } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
+import { VERSION } from "../../shared/version.js";
 import ExportScreen from "./ExportScreen.jsx";
 import { useGeneration } from "./useGeneration.js";
 
@@ -61,10 +62,13 @@ beforeEach(() => {
 
 describe("ExportScreen header", () => {
   it("puts the version next to the name", async () => {
-    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    // The module's value, not a pattern: the number is shared/version.js's to say (madde 248), and
+    // nothing held the screen to saying what that module says -- a screen with "V5" typed into it
+    // would have passed a pattern test just as well (madde 285). The value itself is still not
+    // pinned here: it is a decision, and pinning it would put one decision in two places.
     await open();
 
-    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+    expect(screen.getByText(`Queen Editor ${VERSION}`)).toBeTruthy();
   });
 });
 
@@ -162,19 +166,121 @@ describe("ExportScreen", () => {
     await open(SUMMARY, IDLE,
                { ...NOTHING, separate: { state: "running", written: 7, total: 22 } });
 
-    await press("Videoları ayrı export et");
-
     expect(screen.getByText("7 / 22 yazıldı…")).toBeTruthy();
     // The other one stays pressable: the two exports can run side by side (madde 93).
     expect(button("Birleşik videoyu export et").disabled).toBe(false);
   });
 
-  it("says it is joining the pieces while the merged one finishes", async () => {
+  it("asks what the exports are doing as soon as it opens", async () => {
+    // Nothing is pressed here. The screen used to learn about a run only from the press that
+    // started it, so a refresh mid-export left it blind (madde 290).
+    await open();
+
+    expect(getExportState).toHaveBeenCalledWith("düğün");
+  });
+
+  it("picks up a run that was already going when the page opened", async () => {
+    // What the user hit: the disclaimer step was on screen, they refreshed, and the run vanished
+    // from the screen while it carried on in the background (21 Eylül).
+    await open(SUMMARY, IDLE,
+               { ...NOTHING,
+                 merged: { state: "merging", written: 22, total: 22,
+                           steps: [{ step: "running", seconds: 21.9 },
+                                   { step: "photos", seconds: 0.5 }] } });
+
+    expect(screen.getByText("Disclaimer ekleniyor…")).toBeTruthy();
+    expect(button("Disclaimer ekleniyor…").disabled).toBe(true);
+    // And what it has cost so far is back too.
+    expect(screen.getByText("Videolar")).toBeTruthy();
+    expect(screen.getByText("21,9 sn")).toBeTruthy();
+  });
+
+  it("says nothing about an export that had already finished", async () => {
+    // The user's call: zaten önceden bittiyse gösterme, gerek yok ona -- devam ediyorsa göster
+    // çünkü butonu kullanamıyoruz (21 Eylül). The state lives for the whole session, so adopting a
+    // finished one would hang an hour-old green card on every open.
+    await open(SUMMARY, IDLE, { ...NOTHING,
+                                separate: { state: "done", written: 3, total: 3,
+                                            target: "/drive/düğün/export/2026-08-12 14-32" } });
+
+    expect(screen.queryByText("✓ Export tamamlandı")).toBeNull();
+    expect(button("Videoları ayrı export et").disabled).toBe(false);
+  });
+
+  it("says nothing about an export that had already failed", async () => {
+    await open(SUMMARY, IDLE,
+               { ...NOTHING, separate: { state: "error", error: "ffmpeg: disk dolu" } });
+
+    expect(screen.queryByText("Export başarısız")).toBeNull();
+    expect(button("Videoları ayrı export et").disabled).toBe(false);
+  });
+
+  it("names the disclaimer step while the merged one finishes", async () => {
+    // The user waited past five minutes on "birleştiriliyor…" with nothing on screen saying which
+    // work was under way -- and the work that eats the time is the disclaimer, not the join: the
+    // overlay is a new picture, so the whole timeline is encoded, on a 1920x1080 canvas since
+    // madde 259. So the step is named after it, in the user's own words (madde 255).
     await open(SUMMARY, IDLE, { ...NOTHING, merged: { state: "merging", written: 22, total: 22 } });
 
-    await press("Birleşik videoyu export et");
+    expect(screen.getByText("Disclaimer ekleniyor…")).toBeTruthy();
+    // One line in the button, not two: the question was which step, and the counter belongs to the
+    // step that writes the pieces.
+    expect(screen.queryByText("birleştiriliyor…")).toBeNull();
+    expect(screen.queryByText("22 / 22 yazıldı…")).toBeNull();
+    // The label's name changed, the step did not: it is still a run in progress. Asked through the
+    // sentence rather than the mode's name, because that name is exactly what the running button
+    // no longer says -- its own place carries the progress instead (madde 93).
+    expect(button("Disclaimer ekleniyor…").disabled).toBe(true);
+    expect(button("Videoları ayrı export et").disabled).toBe(false);
+  });
 
-    expect(screen.getByText("birleştiriliyor…")).toBeTruthy();
+  it("names the photos step while the pictures go to Drive", async () => {
+    // 289 took the pictures out of the cutting loop, and until this item the screen sat on
+    // "N / N yazıldı…" for the whole of that pass -- the counter had finished counting and the
+    // work had not.
+    await open(SUMMARY, IDLE, { ...NOTHING, merged: { state: "photos", written: 22, total: 22 } });
+
+    expect(screen.getByText("Fotoğraflar ekleniyor…")).toBeTruthy();
+    expect(button("Fotoğraflar ekleniyor…").disabled).toBe(true);
+    expect(screen.queryByText("22 / 22 yazıldı…")).toBeNull();
+  });
+
+  it("names the copy to Drive, which used to run under the disclaimer's name", async () => {
+    // 282 moved the join onto the machine's own disk and copied the file over once it was whole.
+    // The step the user wonders about most was showing under the wrong name the whole time it ran.
+    await open(SUMMARY, IDLE, { ...NOTHING, merged: { state: "saving", written: 22, total: 22 } });
+
+    expect(screen.getByText("Drive'a kopyalanıyor…")).toBeTruthy();
+    expect(screen.queryByText("Disclaimer ekleniyor…")).toBeNull();
+    expect(button("Drive'a kopyalanıyor…").disabled).toBe(true);
+  });
+
+  it("leaves every finished step on screen with its own seconds", async () => {
+    // The user's words: neye zaman harcadığımızı görürüz. A name says where the run is; the second
+    // says which step is expensive, and that is the question being asked.
+    await open(SUMMARY, IDLE, { ...NOTHING,
+                                merged: { state: "saving", written: 22, total: 22,
+                                          steps: [{ step: "running", seconds: 41.2 },
+                                                  { step: "photos", seconds: 8 },
+                                                  { step: "merging", seconds: 312.75 }] } });
+
+    // Turkish names and a Turkish decimal comma: the person reading this reads Turkish.
+    expect(screen.getByText("Videolar")).toBeTruthy();
+    expect(screen.getByText("41,2 sn")).toBeTruthy();
+    expect(screen.getByText("Fotoğraflar")).toBeTruthy();
+    expect(screen.getByText("8,0 sn")).toBeTruthy();
+    expect(screen.getByText("Disclaimer")).toBeTruthy();
+    expect(screen.getByText("312,8 sn")).toBeTruthy();
+  });
+
+  it("never names the disclaimer while the separate one runs", async () => {
+    // Nothing is stamped there: every piece is copied as it is (madde 261), so the sentence would
+    // be a lie. Its step counts pieces, which is what it does.
+    await open(SUMMARY, IDLE,
+               { ...NOTHING, separate: { state: "running", written: 7, total: 22 } });
+
+    expect(screen.queryByText(/Disclaimer/)).toBeNull();
+    expect(screen.getByText("7 / 22 yazıldı…")).toBeTruthy();
   });
 
   it("says where the finished export went", async () => {
@@ -204,7 +310,6 @@ describe("ExportScreen", () => {
   it("asks before leaving while an export is running, and cancels it", async () => {
     await open(SUMMARY, IDLE,
                { ...NOTHING, separate: { state: "running", written: 1, total: 3 } });
-    await press("Videoları ayrı export et");
 
     fireEvent.click(screen.getByText("Galeriye dön"));
     expect(screen.getByText("Export sürüyor — çıkılsın mı?")).toBeTruthy();

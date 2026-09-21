@@ -532,6 +532,16 @@ def test_the_clone_checks_for_the_h3_graphs_too():
         assert name in clone, f"Klon {name} dosyasını aramıyor"
 
 
+def test_the_clone_looks_for_the_graphs_under_assets():
+    """The graphs moved in madde 251, and the notebook is the only reader Colab can break: the app
+    asks config, so a wrong path here is invisible to the suite and stops the run with "Grafik yok"
+    on the machine instead."""
+    clone = _cell("# === Clone ===")
+
+    assert 'os.path.join(CLONE_DIR, "queen-editor", "assets", _name)' in clone, \
+        "Klon grafikleri assets/ altında aramıyor"
+
+
 def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
     """cloudflared speaks QUIC by default, and QUIC rides on UDP. Colab's network throttles UDP and
     leaves TCP alone: on 2026-08-24 the same photo took 17.74 s over the default tunnel and 0.18 s

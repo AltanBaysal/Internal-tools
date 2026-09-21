@@ -16,8 +16,24 @@ import { useGeneration } from "./useGeneration.js";
 // The two exports, and what the buttons say. Order is the design's: merged first.
 const MODES = ["merged", "separate"];
 const LABEL = { merged: "Birleşik videoyu export et", separate: "Videoları ayrı export et" };
-// A write in flight, either while pieces are being cut or while they are being joined.
-const RUNNING = ["running", "merging"];
+// Not doing anything. A write is in flight whenever the state is none of these -- asked this way
+// round because the server asks it this way round, and because a list of working states goes stale
+// the moment a step is added (madde 287).
+const RESTING = ["idle", "done", "error"];
+// What each step is called while it runs, and what it is called once it is over. The step the
+// server names is a key; the sentence is the screen's (madde 255). A state with no line of its own
+// carries the counter instead, which is what the cutting step does.
+const DOING = {
+  photos: "Fotoğraflar ekleniyor…",
+  merging: "Disclaimer ekleniyor…",
+  saving: "Drive'a kopyalanıyor…",
+};
+const STEP = {
+  running: "Videolar",
+  photos: "Fotoğraflar",
+  merging: "Disclaimer",
+  saving: "Drive'a kopyalama",
+};
 const POLL_MS = 1000;
 
 const HEADER = {
@@ -34,6 +50,9 @@ const RULE = { height: 1, background: "var(--border)" };
 const BLOCKED = { border: "1px solid var(--danger)", borderRadius: "var(--r-sm)",
                   background: "var(--danger-bg)", padding: 14,
                   display: "flex", flexDirection: "column", gap: 6 };
+// The steps and their seconds: a plain list, no border of its own -- it is a reading of the run
+// above it, not a card beside it.
+const STEPS = { display: "flex", flexDirection: "column", gap: 4, padding: "0 2px" };
 // Full width, and the only green on the screen: the export landed.
 const DONE = { border: "1px solid #4ade80", borderRadius: "var(--r-sm)",
                background: "rgba(74,222,128,.08)", padding: 14,
@@ -42,6 +61,17 @@ const DONE = { border: "1px solid #4ade80", borderRadius: "var(--r-sm)",
 /** Seconds as the design writes them: "1:50". Minutes are never padded, seconds always are. */
 function clock(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/** A step's own seconds, Turkish: one decimal, and a comma for it. Plain seconds rather than
+ *  minutes, because the question is which step is expensive, not what the time is. */
+function took(seconds) {
+  return `${seconds.toFixed(1).replace(".", ",")} sn`;
+}
+
+/** Whether this mode is doing something. An unknown state is not: the screen starts with none. */
+function busy(run) {
+  return Boolean(run.state) && !RESTING.includes(run.state);
 }
 
 // Artboard 12: the fourth screen. It is the confirm step itself -- pressing an export button opens
@@ -66,6 +96,27 @@ export default function ExportScreen({ project }) {
     return () => { alive = false; };
   }, [project, frames]);
 
+  // What the exports were doing before this screen existed. Asked once, on open: the screen used to
+  // learn of a run only from the press that started it, so a refresh mid-export left it blind --
+  // idle looking buttons over a run that was still going (madde 290).
+  //
+  // Only a running one is taken. A finished one is the user's call: zaten önceden bittiyse
+  // gösterme, devam ediyorsa göster çünkü butonu kullanamıyoruz. The state lives as long as the
+  // session does, so adopting a finished run would hang an hour-old card on every open -- and the
+  // reason to say anything here is the dead button, which a finished run does not have.
+  //
+  // That rule also settles a race: this answer can land after the user has pressed, and one
+  // carrying nothing must not wipe what the press wrote.
+  useEffect(() => {
+    let alive = true;
+    getExportState(project).then((body) => {
+      const going = Object.fromEntries(
+        Object.entries(body).filter(([, run]) => busy(run)));
+      if (alive && Object.keys(going).length > 0) setRuns(going);
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [project]);
+
   // No video means nothing to export: the card turns into the sentence that says what to do
   // instead, and it is not drawn as an error (madde 95).
   const empty = summary && summary.videos === 0;
@@ -76,7 +127,7 @@ export default function ExportScreen({ project }) {
   // Every condition that has one, in the design's own words; a count of zero writes no row at all
   // (madde 89). The queued line belongs here only while nothing is flowing -- otherwise the red
   // card under the card says it, with what to do about it.
-  const going = MODES.some((mode) => RUNNING.includes((runs[mode] || {}).state));
+  const going = MODES.some((mode) => busy(runs[mode] || {}));
 
   // Only while something is being written: an idle screen asks nothing.
   useEffect(() => {
@@ -177,24 +228,43 @@ export default function ExportScreen({ project }) {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {MODES.map((mode) => {
                   const run = runs[mode] || {};
-                  const busy = RUNNING.includes(run.state);
+                  const working = busy(run);
                   return (
-                    <Btn key={mode} hl disabled={empty || flowing || busy}
+                    <Btn key={mode} hl disabled={empty || flowing || working}
                          onClick={() => begin(mode)} style={{ justifyContent: "center" }}>
-                      {busy ? (
+                      {working ? (
                         <>
                           {/* A live dot, no percentage and no bar (madde 93). */}
                           <span aria-hidden="true" className="qe-dot qe-dot--alive"
                                 style={{ background: "currentColor", width: 6, height: 6 }} />
-                          {run.state === "merging"
-                            ? "birleştiriliyor…"
-                            : `${run.written} / ${run.total} yazıldı…`}
+                          {/* Each step in its own words. The join's line is named after the work
+                              that takes the time rather than after the join: the overlay is a new
+                              picture, so the whole timeline is encoded on the landscape canvas
+                              (madde 250, 259), while the join itself is a concat copy (madde 255).
+                              Still no percentage -- what the user asked for was which step, and
+                              the seconds below answer which one was expensive. */}
+                          {DOING[run.state] || `${run.written} / ${run.total} yazıldı…`}
                         </>
                       ) : LABEL[mode]}
                     </Btn>
                   );
                 })}
               </div>
+
+              {/* What each finished step took. It fills in as the run goes and stays put when it
+                  ends -- one block for both, because it is the same list either way. The seconds
+                  are the server's: the screen measures nothing (FOUNDATION 4). */}
+              {MODES.filter((mode) => ((runs[mode] || {}).steps || []).length > 0).map((mode) => (
+                <div key={mode} style={STEPS}>
+                  {runs[mode].steps.map((step) => (
+                    <div key={step.step} style={{ display: "flex", justifyContent: "space-between",
+                                                  gap: 12 }}>
+                      <Note size={14} style={{ color: "var(--ink-2)" }}>{STEP[step.step]}</Note>
+                      <Mono size={12} style={{ color: "var(--ink-3)" }}>{took(step.seconds)}</Mono>
+                    </div>
+                  ))}
+                </div>
+              ))}
 
               {MODES.filter((mode) => (runs[mode] || {}).state === "done").map((mode) => (
                 <div key={mode} style={DONE}>

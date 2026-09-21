@@ -4,4 +4,4 @@
  * opens, the number moves, and nothing in a build or a commit knows that happened. Its own module so
  * that whoever opens the next run finds it without reading a screen -- four of them draw it.
  */
-export const VERSION = "V5";
+export const VERSION = "V6";

@@ -57,26 +57,35 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
     frames = exportable(list_frames(record, store, plan_store, order_store, project))
     folder = store.make_export_folder(project, now())
     # Where the pieces are cut. A separate export's pieces ARE the export, so they are written where
-    # the user will look for them. A merged one's are scaffolding for the join and go on the
-    # machine's own disk instead: Drive is slow, and the set would be written there twice over
-    # (madde 235).
-    cutting = store.make_pieces_dir() if mode == MERGED else folder
+    # the user will look for them -- in a folder of their own, because the dated folder held one
+    # mp4 per frame (madde 283). A merged one's are scaffolding for the join and go on the machine's
+    # own disk instead: Drive is slow, and the set would be written there twice over (madde 235).
+    scaffolding = store.make_pieces_dir() if mode == MERGED else None
+    cutting = scaffolding or store.make_videos_dir(folder)
     runner.report(mode, state="running", written=0, total=len(frames), target=folder,
                   error=None)
     pieces = []
     written = set()                    # the picture files already in the export's photos folder
     try:
+        # The videos first, all of them, and the pictures after -- the user asked for the two steps
+        # apart, and it is what lets them be timed apart: while they were one loop, a slow counter
+        # did not say whether the time went on reading a video off Drive or writing a picture back
+        # to it (madde 289). Both walk the same list in the same order, which is what keeps the
+        # numbering one sequence: the number is the frame's place, not the loop's.
         for index, frame in enumerate(frames, start=1):
-            if runner.cancelled(mode):
-                # Between pieces, never inside one: cutting ffmpeg off mid-file would leave half a
-                # video, and the folder is going anyway.
-                _clean(store, folder, cutting)
-                runner.report(mode, state="idle", written=0, target=None)
+            if _stopped(runner, store, mode, folder, scaffolding):
                 return None
             target = store.export_path(cutting, f"{index:02d}.mp4")
             exporter.piece(store.file_path(project, frame["layers"][layers.VIDEO]),
                            _audio(store, project, frame), target)
             pieces.append(target)
+            runner.report(mode, written=index)
+        # Its own step, in both modes: the counter has finished counting and the work has not, so a
+        # screen still reading N/N would be naming the wrong one (madde 287).
+        runner.report(mode, state="photos")
+        for index, frame in enumerate(frames, start=1):
+            if _stopped(runner, store, mode, folder, scaffolding):
+                return None
             # The picture goes in under its video's own number, so the photos folder reads as the
             # same sequence and nothing has to be matched up by hand. A frame that somehow has no
             # picture leaves none: its video is written all the same.
@@ -90,26 +99,54 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
                 written.add(photo)
                 store.copy_photo(store.file_path(project, photo), folder,
                                  f"{index:02d}{_extension(photo)}")
-            runner.report(mode, written=index)
         if mode == MERGED:
             runner.report(mode, state="merging")
-            exporter.merge(pieces, store.export_path(folder, f"{project}.mp4"))
+            # The join is written on the machine's own disk and copied to Drive once it is whole.
+            # ffmpeg used to write the encoded stream onto the Drive mount a piece at a time, which
+            # is a known Colab slowness (madde 282); and while it runs, the Drive folder now holds
+            # nothing, so a half written mp4 is never there to be seen (madde 94).
+            joined = store.export_path(cutting, f"{project}.mp4")
+            exporter.merge(pieces, joined)
+            # The trip to Drive is its own step: it used to run under the disclaimer's name, which
+            # is the step the user wonders about most (madde 287).
+            runner.report(mode, state="saving")
+            store.copy_export(joined, folder, f"{project}.mp4")
     except Exception:
-        _clean(store, folder, cutting)
+        _clean(store, folder, scaffolding)
         raise
-    if cutting != folder:
-        # The join is written; the pieces have nothing left to say.
-        store.remove_dir(cutting)
+    if scaffolding:
+        # The join is written; the pieces have nothing left to say. A separate export has no
+        # scaffolding at all: it cuts into a folder of its own now, and those files are what the
+        # user asked for (madde 283).
+        store.remove_dir(scaffolding)
     runner.report(mode, state="done")
     return folder
 
 
-def _clean(store, folder, cutting):
+def _stopped(runner, store, mode, folder, scaffolding):
+    """Whether the run was cancelled -- and if it was, it is taken down here.
+
+    Asked between work units, never inside one: cutting ffmpeg off mid-file would leave half a
+    video, and a copy stopped halfway leaves half a picture. Both loops ask it, and they ask the
+    same question, so it is written once.
+    """
+    if not runner.cancelled(mode):
+        return False
+    _clean(store, folder, scaffolding)
+    runner.report(mode, state="idle", written=0, target=None)
+    return True
+
+
+def _clean(store, folder, pieces):
     """A run that did not finish leaves neither folder: half an export looks like a finished one
-    (madde 94), and pieces nobody joined are so much scaffolding."""
+    (madde 94), and pieces nobody joined are so much scaffolding.
+
+    `pieces` is the folder on the machine's own disk, or None when there is none -- a separate
+    export's videos live inside the dated folder and go with it.
+    """
     store.remove_dir(folder)
-    if cutting != folder:
-        store.remove_dir(cutting)
+    if pieces:
+        store.remove_dir(pieces)
 
 
 def _audio(store, project, frame):

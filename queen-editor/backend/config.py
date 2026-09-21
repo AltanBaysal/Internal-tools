@@ -32,24 +32,32 @@ COMFY_LOG = os.environ.get("QE_COMFY_LOG", "/content/comfyui.log")
 PHOTO_MODELS = [part.strip() for part in os.environ.get("QE_PHOTO_MODELS", "").split(",")
                 if part.strip()]
 
+# Everything the repo ships for the app to read -- the graphs and the disclaimer (madde 251).
+_ASSETS_DIR = os.path.join(os.path.dirname(_BACKEND_DIR), "assets")
+
 # The graph ships in the repo (our own copy -- never read collab-toolbox's file).
-WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_api.json")
+WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_api.json")
 # The video graph the same way: our own WAN 2.2 I2V export, exported from ComfyUI and committed.
-VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_video_api.json")
+VIDEO_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_video_api.json")
 # The second video graph: a video that ends on a chosen picture. Its own pipeline rather than the
 # one above with a node swapped, so it ships beside it and standard production is untouched.
-VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR),
-                                              "workflow_video_first_last_api.json")
+VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_video_first_last_api.json")
 # Which video model the notebook installed: "wan", "h3", or empty when video was not installed. The
 # two never share a session (madde 243), and the disk cannot say which one was picked.
 VIDEO_MODEL = os.environ.get("QE_VIDEO_MODEL", "")
 # MiniMax H3's two graphs, exported in madde 213's trial and made sterile in 242: I2VA for a video
 # that hangs on a photo, FL2VA for one that arrives at another.
-H3_VIDEO_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "workflow_video_h3_api.json")
-H3_VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR),
+H3_VIDEO_WORKFLOW_PATH = os.path.join(_ASSETS_DIR, "workflow_video_h3_api.json")
+H3_VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(_ASSETS_DIR,
                                                  "workflow_video_h3_first_last_api.json")
 # Sound has no graph: MMAudio runs inside this process, so its weights are a model file like any
 # other, installed by the notebook rather than shipped here.
+
+# The disclaimer laid over an exported video. It ships in the repo like the graphs do, and for the
+# same reason: the notebook clones and builds nothing, so a file that is not committed is a file
+# every export fails on. Which picture it is, is a file rather than a setting -- replacing the
+# disclaimer is replacing this file, and no code hears about it.
+DISCLAIMER_PATH = os.path.join(_ASSETS_DIR, "disclaimer.png")
 
 RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so this is a stall guard
 VIDEO_TIMEOUT = 30 * 60    # seconds for one video; 5s of WAN takes minutes, so this is a stall guard
