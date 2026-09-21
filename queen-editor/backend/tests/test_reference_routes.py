@@ -54,12 +54,14 @@ def test_two_references_are_uploaded_listed_and_one_is_deleted(tmp_path):
     added = upload(client, ("kedi.png", b"PNG"), ("dans.mp4", b"MP4"))
 
     assert added.status_code == 200
-    assert names_of(added.get_json()) == ["kedi.png", "dans.mp4"]
+    # By name, whichever order they were picked in: a file's timestamp is coarser than the writes,
+    # so the order they arrived in is not on the disk to be read back.
+    assert names_of(added.get_json()) == ["dans.mp4", "kedi.png"]
     assert (drive / "düğün" / "referans" / "kedi.png").read_bytes() == b"PNG"
 
     listed = client.get("/api/projects/düğün/references")
     assert [(row["name"], row["kind"]) for row in listed.get_json()["references"]] == [
-        ("kedi.png", "picture"), ("dans.mp4", "video")]
+        ("dans.mp4", "video"), ("kedi.png", "picture")]
 
     gone = client.post("/api/projects/düğün/references/kedi.png/delete")
     assert gone.status_code == 200

@@ -21,10 +21,10 @@ class FakeStore:
 
 
 class FakeReferenceStore:
-    """The pool as a dict per project, in insertion order.
+    """The pool as a dict per project, answering by name like the real one.
 
-    Insertion order is what the real one answers in: it sorts by the file's own timestamp, so the
-    pool reads in the order it was filled.
+    By name because that is the one order a folder can promise: a file's timestamp is coarser than
+    the writes, so the order they were written in is not on the disk to be read.
     """
 
     def __init__(self):
@@ -34,7 +34,7 @@ class FakeReferenceStore:
         self.pools.setdefault(project, {})[name] = data
 
     def names(self, project):
-        return list(self.pools.get(project, {}))
+        return sorted(self.pools.get(project, {}))
 
     def delete(self, project, name):
         self.pools.get(project, {}).pop(name, None)
@@ -73,14 +73,16 @@ def test_a_reference_for_a_project_that_does_not_exist_is_refused():
         add_references(store, pool, "yok", [("kedi.png", b"PNG")])
 
 
-def test_the_pool_lists_in_the_order_it_was_filled():
+def test_the_pool_lists_in_one_stable_order():
+    """By name, whichever order they arrived in: that is the one order a folder can promise, and
+    the order the user WANTS is a document of its own (madde 300)."""
     store, pool = FakeStore(), FakeReferenceStore()
 
-    add_references(store, pool, "düğün", [("kedi.png", b"PNG"), ("dans.mp4", b"MP4")])
-    add_references(store, pool, "düğün", [("rüzgar.wav", b"WAV")])
+    add_references(store, pool, "düğün", [("kedi.png", b"PNG")])
+    add_references(store, pool, "düğün", [("rüzgar.wav", b"WAV"), ("dans.mp4", b"MP4")])
 
-    assert pool_of(store, pool) == [{"name": "kedi.png", "kind": references.PICTURE},
-                                    {"name": "dans.mp4", "kind": references.VIDEO},
+    assert pool_of(store, pool) == [{"name": "dans.mp4", "kind": references.VIDEO},
+                                    {"name": "kedi.png", "kind": references.PICTURE},
                                     {"name": "rüzgar.wav", "kind": references.AUDIO}]
 
 

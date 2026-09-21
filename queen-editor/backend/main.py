@@ -22,7 +22,11 @@ from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
+from backend.features.photo_generation.data.reference_store import DriveReferenceStore
+from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
+from backend.features.photo_generation.domain.usecases.list_references import list_references
+from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
@@ -43,6 +47,9 @@ from backend.features.photo_generation.domain.usecases.list_models import list_l
 from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
+from backend.features.photo_generation.presentation.reference_routes import (
+    make_reference_blueprint,
+)
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
@@ -212,11 +219,22 @@ _photo_bp = make_photo_generation_blueprint(
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
 # (FOUNDATION 9), so the panel only reads. Video is judged by the model the notebook installed.
+# The project's reference pool: a folder of its own inside the project, and its own surface
+# (madde 297). Beside the cards' blueprint rather than inside it -- the two answer different
+# questions.
+_reference_store = DriveReferenceStore(_storage)
+_references_bp = make_reference_blueprint(
+    add_references=partial(add_references, _photo_store, _reference_store),
+    list_references=partial(list_references, _photo_store, _reference_store),
+    remove_reference=partial(remove_reference, _photo_store, _reference_store),
+    reference_dir=_reference_store.dir_path,
+)
+
 _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
                                           config.VIDEO_MODEL))
 
-app = create_app(blueprints=[_projects_bp, _photo_bp, _producers_bp])
+app = create_app(blueprints=[_projects_bp, _photo_bp, _references_bp, _producers_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

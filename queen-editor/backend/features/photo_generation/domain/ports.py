@@ -43,6 +43,26 @@ class Stills(Protocol):
         ...
 
 
+class ReferenceStore(Protocol):
+    def save(self, project: str, name: str, data: bytes) -> None:
+        """Put one reference in the project's pool, under the name the domain chose."""
+        ...
+
+    def names(self, project: str) -> list:
+        """Every file in the pool, in one stable order -- by name.
+
+        Not the order they were written in: a file's timestamp is coarser than the writes, so two
+        files of one upload sometimes share one, and the pool would read back differently on two
+        machines. Which order the USER wants them in is a different question, and it gets a
+        document of its own (madde 300).
+        """
+        ...
+
+    def delete(self, project: str, name: str) -> None:
+        """Take one out; a name that is not there is not an error."""
+        ...
+
+
 class PhotoStore(Protocol):
     def project_exists(self, project: str) -> bool:
         ...
