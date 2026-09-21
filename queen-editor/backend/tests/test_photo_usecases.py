@@ -802,6 +802,83 @@ def test_the_gallery_says_where_a_linked_video_ended():
     assert frames[0]["endsOn"] == {"video": "1_a.png"}
 
 
+def planned_layers(*jobs):
+    """A plan store holding these jobs as (frame id, layer, prompt), in the order they were queued.
+
+    `planned` writes photo jobs and nothing else, which is all a gallery test needed while a card was
+    a photo. This one opens a card with any layer: the plan has carried a job's type since the queue
+    learned about layers, and a card's row comes from whichever job opened it (madde 292).
+    """
+    return FakePlanStore(frames=[{"id": fid, "type": kind, "prompt": prompt, "seed": 1}
+                                 for fid, kind, prompt in jobs])
+
+
+def test_a_frame_planned_only_as_video_is_in_the_gallery():
+    """A card is a box, not a picture: it exists because something was planned for it."""
+    plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(FakeRecord(), FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [f["id"] for f in frames] == ["0_a"]
+
+
+def test_a_video_born_frames_status_comes_from_its_video():
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a_v0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done"})
+    plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"),
+                                ("1_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    # Newest first, like every other gallery: the one nobody has produced yet is pending.
+    assert [(f["id"], f["status"]) for f in frames] == [("1_a", "pending"), ("0_a", "done")]
+
+
+def test_a_video_born_frame_keeps_its_name():
+    """`file` is what the selection and the stored order point at, and it is a pure function of the
+    identity -- so a card with no photo still answers with one."""
+    plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(FakeRecord(), FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert frames[0]["file"] == photo_file("0_a")
+
+
+def test_a_frame_that_has_a_photo_job_still_opens_with_it():
+    """Every card made before this madde was opened by its photo, and none of them may move."""
+    record = FakeRecord()
+    record.append("düğün", {"file": "0_a.png", "status": "done"})
+    plan_store = planned_layers(("0_a", layers.PHOTO, "ilk"), ("0_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    # One row: the video is this card's layer, never a card of its own.
+    assert [(f["id"], f["status"]) for f in frames] == [("0_a", "done")]
+
+
+def test_a_video_born_frame_leaves_the_gallery_when_its_video_is_deleted():
+    """The rule that takes a card out of the gallery reads the layer that opened it. Generalising it
+    to "the last layer" is madde 294's."""
+    record = FakeRecord()
+    record.mark("düğün", "0_a", "video", "0_a_v0.mp4", "deleted", "t1")
+    # A second card nobody deleted, so an empty gallery cannot pass this for the wrong reason.
+    plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"),
+                                ("1_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(record, FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert [f["id"] for f in frames] == ["1_a"]
+
+
+def test_a_video_born_frames_planned_prompt_is_the_videos():
+    plan_store = planned_layers(("0_a", layers.VIDEO, "hareket"))
+
+    frames = list_frames(FakeRecord(), FakeStore(), plan_store, FakeOrderStore(), "düğün")
+
+    assert frames[0]["prompts"] == {"video": "hareket"}
+
+
 def test_a_frame_whose_video_is_queued_is_still_one_frame():
     # The plan holds a job per layer; the gallery holds a row per frame.
     record = FakeRecord()
