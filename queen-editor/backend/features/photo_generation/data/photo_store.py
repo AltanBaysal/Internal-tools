@@ -104,6 +104,25 @@ class DrivePhotoStore:
         shutil.copyfile(source, temporary)
         os.replace(temporary, target)
 
+    def copy_export(self, source, folder, filename):
+        """Bring the merged file in from the machine's own disk, whole.
+
+        ffmpeg writes the join locally now: writing an encoded stream onto Drive's FUSE mount a
+        piece at a time is a known Colab slowness, and the known answer is to write locally and
+        copy at the end -- the call madde 235 made for the pieces, applied to the output (282).
+
+        One move, like copy_photo: Drive is slow enough that the window in which a half written
+        file could be seen is a real one, and a folder that looks finished is what madde 94 forbids.
+        os.replace rather than os.rename, so Windows behaves like Linux over a target that exists.
+
+        No "already there" answer here: the pieces' folder is this run's own, and a second run of
+        the same mode is refused by ExportRunner.
+        """
+        handle, temporary = tempfile.mkstemp(dir=folder)
+        os.close(handle)
+        shutil.copyfile(source, temporary)
+        os.replace(temporary, os.path.join(folder, filename))
+
     def export_dir(self, project):
         """Where an export lands: one folder inside the project, next to its photos.
 

@@ -93,7 +93,13 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
             runner.report(mode, written=index)
         if mode == MERGED:
             runner.report(mode, state="merging")
-            exporter.merge(pieces, store.export_path(folder, f"{project}.mp4"))
+            # The join is written on the machine's own disk and copied to Drive once it is whole.
+            # ffmpeg used to write the encoded stream onto the Drive mount a piece at a time, which
+            # is a known Colab slowness (madde 282); and while it runs, the Drive folder now holds
+            # nothing, so a half written mp4 is never there to be seen (madde 94).
+            joined = store.export_path(cutting, f"{project}.mp4")
+            exporter.merge(pieces, joined)
+            store.copy_export(joined, folder, f"{project}.mp4")
     except Exception:
         _clean(store, folder, cutting)
         raise
