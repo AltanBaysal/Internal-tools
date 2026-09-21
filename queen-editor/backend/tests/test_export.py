@@ -432,34 +432,36 @@ class FakeRun:
     """
 
     def __init__(self, returncode=0, stderr="", sizes=None, probe_returncode=0, probe_stderr="",
-                 encoders=""):
+                 nvenc=False):
         self.calls = []
         self.returncode = returncode
         self.stderr = stderr
         self.sizes = dict(sizes or {})
         self.probe_returncode = probe_returncode
         self.probe_stderr = probe_stderr
-        # What `ffmpeg -encoders` prints. Empty is a machine with no nvenc, which is what every
-        # test that says nothing about encoders is asking about (madde 253).
-        self.encoders = encoders
+        # Whether the trial encode on the card comes back. False is a machine that cannot encode
+        # with nvenc -- what every test that says nothing about it is asking about (madde 257).
+        self.nvenc = nvenc
 
     def __call__(self, args, **kwargs):
         self.calls.append(args)
         if "ffprobe" in args[0]:
             size = self.sizes.get(args[-1], next(iter(self.sizes.values()), "848x480"))
             return _Answer(self.probe_returncode, size + "\n", self.probe_stderr)
-        if "-encoders" in args:
-            return _Answer(0, self.encoders, "")
+        if "nullsrc" in args:
+            return _Answer(0 if self.nvenc else 1, "",
+                           "" if self.nvenc else "No capable devices found")
         return _Answer(self.returncode, "", self.stderr)
 
 
 def ffmpeg_calls(run):
-    """The writing calls -- asking which encoders there are is not one of them."""
-    return [call for call in run.calls if call[0] == "ffmpeg" and "-encoders" not in call]
+    """The writing calls -- trying the card out is not one of them."""
+    return [call for call in run.calls if call[0] == "ffmpeg" and "nullsrc" not in call]
 
 
 def encoder_calls(run):
-    return [call for call in run.calls if "-encoders" in call]
+    """The trial encodes: what this machine can do is tried, not looked up (madde 257)."""
+    return [call for call in run.calls if "nullsrc" in call]
 
 
 def probe_calls(run):
@@ -494,8 +496,11 @@ ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "y
 # and "fast" rather than p1-p7: Colab's ffmpeg may be old enough not to know the p-levels.
 NVENC = ["-c:v", "h264_nvenc", "-preset", "fast", "-rc", "vbr", "-cq", "23",
          "-pix_fmt", "yuv420p"]
-# One line of what `ffmpeg -encoders` prints on a machine that has it.
-HAS_NVENC = " V....D h264_nvenc           NVIDIA NVENC H.264 encoder\n"
+# The question asked of ffmpeg: not which encoders it was built with, but whether this machine can
+# encode with the card. nullsrc is a made-up picture, -t 0.1 a tenth of a second of it, and
+# `-f null -` writes it nowhere (madde 257).
+TRIAL = ["ffmpeg", "-hide_banner", "-f", "lavfi", "-i", "nullsrc", "-t", "0.1",
+         "-c:v", "h264_nvenc", "-f", "null", "-"]
 
 
 def test_a_stamped_piece_carries_the_disclaimer_over_its_first_minute():
@@ -542,7 +547,7 @@ def test_a_stamped_piece_is_encoded_on_the_gpu_when_ffmpeg_has_nvenc():
     """The T4 sits idle through an export while two vCPUs do the encoding (madde 253). Nothing about
     the disclaimer changes -- its clock, its size and its place are the same; only the hardware
     doing the work is different."""
-    run = FakeRun(sizes={"0.mp4": "480x720"}, encoders=HAS_NVENC)
+    run = FakeRun(sizes={"0.mp4": "480x720"}, nvenc=True)
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
                                                            disclaimer=True)
@@ -551,9 +556,33 @@ def test_a_stamped_piece_is_encoded_on_the_gpu_when_ffmpeg_has_nvenc():
                                     "-filter_complex", STAMP, "-map", "[v]", *NVENC, "01.mp4"]
 
 
+def test_the_gpu_is_tried_rather_than_looked_up_in_a_list():
+    """`ffmpeg -encoders` answers for the build, not for the machine: a box with no card, a driver
+    that does not match or a card whose encoder sessions are taken all list h264_nvenc and then
+    fail mid-export (madde 257). So the card is tried, on a tenth of a second written nowhere."""
+    run = FakeRun(sizes={"0.mp4": "480x720"}, nvenc=True)
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
+                                                           disclaimer=True)
+
+    assert encoder_calls(run) == [TRIAL]
+
+
+def test_an_unusable_gpu_leaves_the_export_running_on_the_cpu():
+    """The trial failing is an answer, not an error: losing a whole export to a guess is worse than
+    a slow export (FOUNDATION 1)."""
+    run = FakeRun(sizes={"0.mp4": "480x720"}, nvenc=False)
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
+                                                           disclaimer=True)
+
+    assert ffmpeg_calls(run)[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "d.png",
+                                    "-filter_complex", STAMP, "-map", "[v]", *ENCODE, "01.mp4"]
+
+
 def test_a_merged_export_is_encoded_on_the_gpu_too(tmp_path):
     """The join is where the whole timeline is encoded, so it is where the GPU is worth most."""
-    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"}, encoders=HAS_NVENC)
+    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"}, nvenc=True)
     target = str(tmp_path / "düğün.mp4")
 
     FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
@@ -567,7 +596,7 @@ def test_a_merged_export_is_encoded_on_the_gpu_too(tmp_path):
 def test_the_encoder_is_asked_of_ffmpeg_once_rather_than_per_piece():
     """A separate export writes one piece per frame; asking twenty-two times would be twenty-two
     processes for an answer that cannot change."""
-    run = FakeRun(sizes={"0.mp4": "480x720"}, encoders=HAS_NVENC)
+    run = FakeRun(sizes={"0.mp4": "480x720"}, nvenc=True)
     exporter = FfmpegVideoExporter(run=run, disclaimer="d.png")
 
     exporter.piece("0.mp4", None, "01.mp4", disclaimer=True)
