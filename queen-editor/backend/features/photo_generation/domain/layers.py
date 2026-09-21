@@ -1,4 +1,7 @@
-"""A frame is a stack of layers: a photo, at most one video, at most one audio.
+"""A frame is a box of layers: a photo, at most one video, at most one audio.
+
+A box, not a stack: what a layer needs under it is NEEDS' answer and nothing else's, so a frame can
+hold a video with no picture, or lose its picture and keep the video (madde 293).
 
 The unit is the slot, not the file. Two frames can point at one file -- a copy frame shares its
 source's photo -- so "what happened to this layer" is a question about a (frame, slot) pair, and a
@@ -29,20 +32,36 @@ QUEUED = "queued"       # a settled job put back in line
 # rescued by Tekrar dene alone, so one frame never gets two ways to be produced at once.
 TAKEN = (DONE, FAILED)
 
+# What each layer hangs on, in one place (madde 293). A layer that hangs on nothing is absent rather
+# than written down as None: what is said about the photo is that there is nothing to say.
+#
+# This is not the engine's ORDER. That order is when things are made -- photos, then videos, then
+# audio -- and reading it as a stack is what made a deleted photo take the video with it, a video
+# that was never hanging on it.
+NEEDS = {AUDIO: VIDEO}
+
 
 def is_taken(status):
     """True while a layer occupies the slot."""
     return status in TAKEN
 
 
+def falls_with(kind):
+    """The slots that close when `kind` closes: the layer itself, then whatever hangs on it.
+
+    Walked rather than listed, so a third link added to NEEDS needs nothing changed here.
+    """
+    hanging = tuple(slot for slot, under in NEEDS.items() if under == kind)
+    return (kind,) + sum((falls_with(slot) for slot in hanging), ())
+
+
 def can_produce(slots, slot):
     """slots: {slot name: status} for ONE frame. May a new layer be written into `slot`?"""
     if is_taken(slots.get(slot)):
         return False
-    if slot == AUDIO:
-        # Audio is mixed over a video, so a frame without one has nowhere to put it.
-        return is_taken(slots.get(VIDEO))
-    return True
+    under = NEEDS.get(slot)
+    # Sound is mixed over a video, so a frame without one has nowhere to put it.
+    return under is None or is_taken(slots.get(under))
 
 
 def files_to_unlink(slots, closing):
