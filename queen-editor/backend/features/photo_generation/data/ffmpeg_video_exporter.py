@@ -20,10 +20,12 @@ import subprocess
 MERGED_WIDTH = 1920
 MERGED_HEIGHT = 1080
 
-# How the disclaimer sits on the canvas, and for how long -- the user's call, 21 September. It spans
-# the full width ("yatayda dolduracak şekilde"), so there is no width fraction left to name. The
-# margin stays a fraction because the rule is a fraction: text stuck to the bottom edge sits under
-# the player's bar on a phone.
+# How the disclaimer sits on the canvas, and for how long -- the user's call, 21 September. It took
+# the full width until they saw a real export, and then asked for room either side: sağdan soldan az
+# boşluk ver, ekranın %80'i olsun (madde 291). Both are fractions because both rules are: the canvas
+# can move, and the numbers move with it. The margin is a fraction for its own reason -- text stuck
+# to the bottom edge sits under the player's bar on a phone.
+DISCLAIMER_WIDTH = 0.8      # of the canvas width
 DISCLAIMER_MARGIN = 0.04    # of the canvas height, up from the bottom edge
 DISCLAIMER_SECONDS = 60     # from the start of the video
 
@@ -116,7 +118,7 @@ class FfmpegVideoExporter:
         """
         return (f"[0:v]scale={MERGED_WIDTH}:{MERGED_HEIGHT}:force_original_aspect_ratio=decrease,"
                 f"pad={MERGED_WIDTH}:{MERGED_HEIGHT}:(ow-iw)/2:(oh-ih)/2[c];"
-                f"[1:v]scale={MERGED_WIDTH}:-1[d];"
+                f"[1:v]scale={round(MERGED_WIDTH * DISCLAIMER_WIDTH)}:-1[d];"
                 f"[c][d]overlay=(W-w)/2:H-h-{round(MERGED_HEIGHT * DISCLAIMER_MARGIN)}:"
                 f"enable='lt(t,{DISCLAIMER_SECONDS})'[v]")
 
