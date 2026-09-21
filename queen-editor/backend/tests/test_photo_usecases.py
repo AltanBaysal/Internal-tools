@@ -1937,6 +1937,27 @@ def test_audio_skips_a_frame_that_has_no_video():
     assert frames_in_scope(gallery, layers.AUDIO, ["0_a.png"]) == []
 
 
+def test_a_frame_with_no_photo_can_still_take_a_video():
+    """Madde 293: a video hangs on nothing, so a card born from one (madde 292) takes another.
+
+    Read through the selection, because the panel's unselected row means "frames without a video"
+    and this card has one.
+    """
+    gallery = [{"id": "0_a", "file": "0_a.png", "status": "done",
+                "layers": {"video": "0_a_V1_0.mp4"}, "failed": []}]
+
+    assert [f["id"] for f in frames_in_scope(gallery, layers.VIDEO, ["0_a.png"])] == ["0_a"]
+
+
+def test_sound_still_needs_a_video_under_it():
+    # The one rule that survives madde 293, now read from the table instead of written here.
+    gallery = [{"id": "0_a", "file": "0_a.png", "status": "done", "layers": {}, "failed": []},
+               {"id": "1_a", "file": "1_a.png", "status": "done",
+                "layers": {"video": "1_a_V1_0.mp4"}, "failed": []}]
+
+    assert [f["id"] for f in frames_in_scope(gallery, layers.AUDIO)] == ["1_a"]
+
+
 def test_audio_skips_a_video_that_blew_up():
     gallery = [{"id": "0_a", "file": "0_a.png", "status": "done",
                 "layers": {"video": "0_a_V1_0.mp4"}, "failed": ["video"]}]
@@ -2612,6 +2633,23 @@ def test_deleting_a_sound_leaves_the_video_alone():
 
     assert store.deleted == ["0_a_V1_0_S1_0.wav"]
     assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
+
+
+def test_deleting_the_photo_leaves_the_video_alone():
+    """Madde 293: what goes is what depends on the layer, not what stands above it in the order.
+
+    The photo is at the foot of the engine's order and nothing hangs on it, so a frame can lose its
+    picture and keep the video that was made from it.
+    """
+    store, record, plan_store = layered_project()
+
+    gone = remove_layer(record, store, plan_store, FakeOrderStore(), lambda: "t",
+                        "düğün", ["0_a"], layers.PHOTO)
+
+    assert gone == {"deleted": ["0_a.png"]}
+    assert record.slots("düğün")["0_a"]["photo"]["status"] == "deleted"
+    assert record.slots("düğün")["0_a"]["video"]["status"] == "done"
+    assert record.slots("düğün")["0_a"]["audio"]["status"] == "done"
 
 
 def test_a_layer_the_frame_does_not_carry_costs_nothing():

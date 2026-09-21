@@ -36,6 +36,33 @@ def test_a_photo_slot_needs_nothing_under_it():
     assert layers.can_produce({}, layers.PHOTO) is True
 
 
+def test_the_dependency_rule_is_a_single_table():
+    """Which layer hangs on which is one sentence, in one place (madde 293).
+
+    Read by three places that each used to carry their own copy: what may be produced, which frames
+    a job can be hung on, and what falls when a layer is deleted.
+    """
+    assert layers.NEEDS[layers.AUDIO] == layers.VIDEO
+    # Neither of the others hangs on anything: a video does not wait for a picture.
+    assert layers.PHOTO not in layers.NEEDS
+    assert layers.VIDEO not in layers.NEEDS
+
+
+def test_a_layer_falls_with_what_depends_on_it():
+    # A sound lies over a video, so the video's deletion takes it (madde 31).
+    assert layers.falls_with(layers.VIDEO) == (layers.VIDEO, layers.AUDIO)
+    assert layers.falls_with(layers.AUDIO) == (layers.AUDIO,)
+
+
+def test_nothing_depends_on_the_photo():
+    """The whole of madde 293: order is not dependency.
+
+    The photo sits at the foot of the engine's order, and reading that order as a stack made its
+    deletion take the video away with it -- a video that was never hanging on it.
+    """
+    assert layers.falls_with(layers.PHOTO) == (layers.PHOTO,)
+
+
 def cell(file, status=queue.DONE):
     return {"status": status, "file": file}
 
