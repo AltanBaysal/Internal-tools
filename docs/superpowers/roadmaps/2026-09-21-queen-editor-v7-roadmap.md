@@ -31,11 +31,10 @@ test edilebilir maddeler böl, böylece geliştirme kolaylaşır"*.
 **269 ötekiler gibi koşmaz.** Kullanıcıyla birlikte, adım adım yazılır — metni kullanıcı okur ve
 kararlar o anda verilir. Koşunun en sonunda durmasının sebebi bu.
 
-**Kullanıcıdan gereken tek şey 268'de**, ve o maddenin ilk turunun spec'inin başında istenir: REF2VA
-moduna **bir fotoğraf, bir video, bir ses** konmuş hâlde alınmış bir **Export (API)** dosyası.
-Grafiğin kendisi değişmiyor; gereken şey video ve ses referansının timeline'da hangi alanlarla
-yazıldığı. Fotoğrafınki elimizdeki export'tan okunuyor, ötekiler okunmuyor, ve tahmin edilmiyor.
-**Dokuz parçanın sekizi o dosya gelmeden koşar** — bekleyen yalnız 268.
+**Bu koşu kullanıcıdan hiçbir şey beklemiyor.** Bir ara 268 için REF2VA'ya konmuş bir Export (API)
+dosyası istenecekti — video ve ses referansının `timeline_data`'da hangi alanlarla yazıldığı
+bilinmiyordu. **Node'un kaynağı okununca gerek kalmadı** *(21 Eylül)*; alanlar 268'in satırında,
+adlarıyla duruyor.
 
 ## Referansla video üretiminin kararları
 
@@ -93,5 +92,5 @@ uyguluyor.
 | 265 | **Üretimin reddi.** Üç durumda üretim başlamıyor ve sebebini söylüyor: H3 kurulu değil, havuz boş, arada boş yuva var. | Üç durumun her birinde üretim kuyruğa hiç girmiyor ve ekrandaki cümle hangisi olduğunu söylüyor. |
 | 266 | **Referans işi kart doğuruyor.** Kuyruğa giren referans işi yeni kartlar yaratıyor — N prompt × M varyant kadar, fotoğraf katmanı olmadan. *255 ve 256'nın üstünde duruyor; üretici bu maddede sahte, o yüzden kartlar henüz boş.* | Üç prompt ve iki varyantla altı kart doğuyor, hiçbirinde fotoğraf katmanı yok, ve galeri onları gösteriyor. |
 | 267 | **Üretici REF2VA'yı koşuyor — fotoğraf referanslarıyla.** H3 üreticisi `mode`'u `REF2VA` yapıyor, havuzun fotoğraflarını ComfyUI'ye yükleyip timeline'a yazıyor, mp4'ü alıyor. Grafik değişmiyor; fotoğraf referansının alanları elimizdeki export'tan okunuyor. | Fotoğraf referanslarıyla referans modunda üretilen kartın videosu iniyor ve referansa benziyor. |
-| 268 | **Video ve ses referansları da giriyor.** Timeline'a video ve ses satırları da yazılıyor. **Kullanıcıdan gereken** *(spec'in başında istenir)*: içinde bir fotoğraf, bir video ve bir ses bulunan bir REF2VA **Export (API)** dosyası — video ve sesin hangi alanlarla yazıldığı başka hiçbir yerden okunamıyor. | Havuzunda video ve ses de bulunan bir üretimde ikisi de H3'e gidiyor, ve inen videoda etkileri görülüyor. |
+| 268 | **Video ve ses referansları da giriyor.** Timeline'a video ve ses satırları da yazılıyor. **Alanları node'un kaynağından okundu** *(21 Eylül, [nodes_minimax_h3_director.py](https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes/blob/main/nodes/nodes_minimax_h3_director.py))*, yani tahmin yok: bir satır `type` *(`image` · `video` · `audio`)*, `value` *(yüklenen dosyanın adı)*, `slot` ve `order` *(sıra; varsayılanları listedeki indeks)*, `enabled` *(varsayılan `true`)*, `trim_start` / `trim_end` *(varsayılan `0` / `None` — klip kırpması)*, `duration`, `start`, `id` taşıyor. Yalnız video satırında bir alan daha var: **`media_mode`**, üç değerden biri — `video` · `audio` · `video_audio` — ve grafiğin arayüzündeki V / A / V+A düğmeleri bu. Video ve ses de fotoğraf gibi ComfyUI'ye yüklenip adıyla anılıyor, yani üreticinin bugünkü yükleme yolu aynen kullanılıyor. | Havuzunda video ve ses de bulunan bir üretimde ikisi de H3'e gidiyor, ve inen videoda etkileri görülüyor. |
 | 269 | **CLAUDE.md, yol haritası ve backlog madde yazımı için güncellenecek.** *(Kullanıcı, 21 Eylül — "claude core roadmap ve backlog madde yazımı için güncellenecek".)* **Bu madde kullanıcıyla birlikte, adım adım yapılır** *(kullanıcı, 21 Eylül — "bu maddeyi aslında seninle beraber adım adım yapacağız, o an kararlaştıracağız, ben promptları vs okuyacağım; bu senin yapabileceğin bir şey değil")*: metin tek başına yazılmaz, kullanıcı okur ve kararlar o anda verilir. **Koşunun en sonunda**, bu sebeple. Bugün CLAUDE.md'nin yol haritası bölümü maddenin ne zaman yazıldığını, nasıl sıralandığını ve nasıl koşulduğunu söylüyor; **içinin nasıl yazılacağı** için tek cümlesi var, ve **backlog kelimesi hiç geçmiyor**. | Kullanıcıyla birlikte yazılıp kullanıcı tarafından onaylanınca. |
