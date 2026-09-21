@@ -28,9 +28,10 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
 # prompts, not by hanging a layer on a frame that already exists.
 QUEUEABLE = (layers.VIDEO, layers.AUDIO)
 
-# The layers that can be taken off a frame on their own. The photo is not among them either: it is
-# the base layer, so removing it is removing the frame (POST …/frames/delete).
-REMOVABLE = (layers.VIDEO, layers.AUDIO)
+# The layers that can be taken off a frame on their own -- the photo among them: a card outlives its
+# picture, and it goes when its last layer does (madde 294). Deleting a whole card in one press is
+# still its own door (POST …/frames/delete).
+REMOVABLE = (layers.PHOTO, layers.VIDEO, layers.AUDIO)
 
 
 def make_photo_generation_blueprint(start_batch, get_status, stop_generation, resume_batch,
