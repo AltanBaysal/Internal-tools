@@ -63,6 +63,7 @@ class ExportStore(FakeStore):
         their own double instead of the code.
         """
         self.photos.append((source, folder, filename))
+        self.order.append("copy_photo")
 
     def copy_export(self, source, folder, filename):
         """The merged file's one trip to Drive, written down.
@@ -80,14 +81,17 @@ class FakeExporter:
         self.pieces = []
         self.merged = None
         self.fails_on = fails_on          # the target whose write blows up
-        # When a store is handed over, the order of the two steps is written down in it: the copy
-        # to Drive has to come after the join, or a half file is what Drive holds.
+        # When a store is handed over, the export's steps are written into its one timeline: the
+        # copy to Drive has to come after the join, and the videos all have to come before the
+        # first photo (madde 289).
         self.store = store
 
     def piece(self, video, audio, target):
         if target == self.fails_on:
             raise RuntimeError("ffmpeg: disk dolu")
         self.pieces.append((video, audio, target))
+        if self.store is not None:
+            self.store.order.append("piece")
 
     def merge(self, pieces, target):
         if target == self.fails_on:
@@ -391,12 +395,43 @@ def test_the_merged_file_reaches_drive_once_it_is_whole():
 
 def test_the_copy_to_drive_comes_after_the_join():
     """The order is the whole point: while the join runs, the Drive folder holds nothing, so a
-    half written mp4 is never there to be seen (FOUNDATION 1, madde 94's own reasoning)."""
+    half written mp4 is never there to be seen (FOUNDATION 1, madde 94's own reasoning).
+
+    The timeline holds the cutting and the photos as well now (madde 289), and this test is about
+    the last two steps of it -- so it reads only those.
+    """
     store, record, plan_store = with_videos()
 
     export(store, record, plan_store, FakeExporter(store=store), mode="merged")
 
-    assert store.order == ["merge", "copy_export"]
+    assert [step for step in store.order if step in ("merge", "copy_export")] == [
+        "merge", "copy_export"]
+
+
+def test_the_videos_are_all_written_before_the_first_photo():
+    """The user saw the two jobs happening at once and asked for them apart: ilk videolar
+    yüklensin, sonra fotoğraflar eklensin (21 Eylül).
+
+    Not for tidiness -- the files that come out are the same either way. It is that 287 cannot say
+    which step is expensive while both live inside one: a counter crawling through a frame does not
+    say whether the time went on reading a video off Drive or writing a picture back to it.
+    """
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter(store=store))
+
+    assert store.order == ["piece", "piece", "copy_photo", "copy_photo"]
+
+
+def test_a_merged_export_stamps_the_disclaimer_after_the_photos_are_in():
+    """The third step the user named. The disclaimer rides on the join itself (madde 250), so
+    "sonra disclaimer" means the join standing behind both loops -- and what moves here is the
+    photos, which gather in front of it."""
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter(store=store), mode="merged")
+
+    assert store.order == ["piece", "piece", "copy_photo", "copy_photo", "merge", "copy_export"]
 
 
 def test_a_join_that_blew_up_copies_nothing_to_drive():
@@ -470,6 +505,37 @@ def test_cancelling_stops_between_pieces_and_removes_the_folder():
 
     assert export(store, record, plan_store, exporter, runner=runner) is None
     assert exporter.pieces == []
+    assert store.removed == [FOLDER]
+
+
+class ExporterThatCancelsOnTheLastPiece(FakeExporter):
+    """Cancels the run as the last piece is cut, which puts the stop in the gap between the two
+    loops: every video is written and no photo is."""
+
+    def __init__(self, runner, mode, total):
+        super().__init__()
+        self._runner, self._mode, self._total = runner, mode, total
+
+    def piece(self, video, audio, target):
+        super().piece(video, audio, target)
+        if len(self.pieces) == self._total:
+            self._runner.cancel(self._mode)
+
+
+def test_cancelling_once_the_videos_are_done_leaves_no_photos_and_no_folder():
+    """The second loop carries a cancel check of its own, and it sits at the top of it -- so
+    "before the first photo" and "between two photos" are one line (FOUNDATION 3).
+
+    The stop stays between work units: half a copied picture is as bad as half a cut video, and
+    the folder goes either way (madde 94).
+    """
+    store, record, plan_store = with_videos()
+    runner = sync_runner()
+    exporter = ExporterThatCancelsOnTheLastPiece(runner, "separate", total=2)
+
+    assert export(store, record, plan_store, exporter, runner=runner) is None
+    assert len(exporter.pieces) == 2
+    assert store.photos == []
     assert store.removed == [FOLDER]
 
 
