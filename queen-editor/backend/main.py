@@ -108,7 +108,7 @@ _plan_store = DrivePlanStore(_storage)
 _order_store = DriveOrderStore(_storage)
 
 _export_runner = ExportRunner()
-_video_exporter = FfmpegVideoExporter()
+_video_exporter = FfmpegVideoExporter(disclaimer=config.DISCLAIMER_PATH)
 
 # The one place the two features meet: deleting a project has to stop the production that project
 # owns, and the worker that owns it belongs to photo generation. The projects feature is handed the

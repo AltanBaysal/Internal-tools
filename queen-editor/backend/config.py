@@ -51,6 +51,12 @@ H3_VIDEO_FIRST_LAST_WORKFLOW_PATH = os.path.join(os.path.dirname(_BACKEND_DIR),
 # Sound has no graph: MMAudio runs inside this process, so its weights are a model file like any
 # other, installed by the notebook rather than shipped here.
 
+# The disclaimer laid over an exported video. It ships in the repo like the graphs do, and for the
+# same reason: the notebook clones and builds nothing, so a file that is not committed is a file
+# every export fails on. Which picture it is, is a file rather than a setting -- replacing the
+# disclaimer is replacing this file, and no code hears about it.
+DISCLAIMER_PATH = os.path.join(os.path.dirname(_BACKEND_DIR), "assets", "disclaimer.png")
+
 RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so this is a stall guard
 VIDEO_TIMEOUT = 30 * 60    # seconds for one video; 5s of WAN takes minutes, so this is a stall guard
 POLL_INTERVAL = 5          # seconds between /history polls

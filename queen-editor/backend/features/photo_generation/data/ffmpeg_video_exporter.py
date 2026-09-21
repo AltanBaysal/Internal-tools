@@ -1,8 +1,10 @@
 """VideoExporter over ffmpeg -- the only place that knows how a video file is cut or joined.
 
-Streams are copied, never re-encoded: the graph already produced the size, codec and frame rate the
-export wants, so re-encoding would cost minutes and quality for nothing. The only stream that is
-encoded is a sound being laid over a video, because a wav cannot ride in an mp4 as it is.
+Streams are copied wherever they can be: the graph already produced the size, codec and frame rate
+the export wants, so re-encoding would cost minutes and quality for nothing. Two things are encoded.
+A sound being laid over a video, because a wav cannot ride in an mp4 as it is. And a piece carrying
+the disclaimer (madde 249) -- an overlay is a new picture, so the picture is encoded rather than
+copied, and that is what the disclaimer costs.
 
 `run` is injected so tests can read the command instead of needing ffmpeg on the machine; Colab has
 ffmpeg installed, which is where this really runs.
@@ -10,26 +12,65 @@ ffmpeg installed, which is where this really runs.
 import os
 import subprocess
 
+# How the disclaimer sits on the video, and for how long -- the user's call, 21 September. Fractions
+# of the frame rather than pixels: the frame's shape changed once already (madde 218 made it
+# landscape, 228 brought it back), and a pixel would have gone on being right about the old one.
+DISCLAIMER_WIDTH = 0.8      # of the video's width
+DISCLAIMER_MARGIN = 0.04    # of the video's height, up from the bottom edge
+DISCLAIMER_SECONDS = 60     # from the start of the video
+
+# What a stamped piece is encoded with. veryfast is the preset that keeps a Colab CPU waiting least;
+# crf 18 is close enough to lossless by eye; yuv420p is what makes the file open everywhere.
+_ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
+
 
 class FfmpegVideoExporter:
-    def __init__(self, run=None, ffmpeg="ffmpeg", ffprobe="ffprobe"):
+    def __init__(self, run=None, ffmpeg="ffmpeg", ffprobe="ffprobe", disclaimer=None):
         self._run = run or subprocess.run
         self._ffmpeg = ffmpeg
-        # Ships with ffmpeg, and the notebook installs them together. Only merge uses it.
+        # Ships with ffmpeg, and the notebook installs them together. merge uses it, and so does a
+        # stamped piece -- the overlay is measured from the video's own size.
         self._ffprobe = ffprobe
+        # The picture laid over a stamped piece. Injected like the tools above: config knows where
+        # the repo keeps it, and tests hand over a path of their own.
+        self._disclaimer = disclaimer
 
-    def piece(self, video, audio, target):
-        """One frame's video at `target`, with its sound over it when there is one."""
-        if audio:
-            # The picture from the video and the sound from the layer, named: an H3 video carries a
-            # sound of its own, and left to choose ffmpeg keeps whichever stream it likes best.
-            # -shortest: the sound is written for the video it was made from, but a frame off
-            # either way must not stretch the piece.
+    def piece(self, video, audio, target, disclaimer=False):
+        """One frame's video at `target`, with its sound over it when there is one.
+
+        `disclaimer` is a separate export's business: its pieces ARE the export. A merged export's
+        pieces are scaffolding, and the disclaimer there belongs to the joined video's clock.
+        """
+        # The picture from the video and the sound from the layer, named: an H3 video carries a
+        # sound of its own, and left to choose ffmpeg keeps whichever stream it likes best.
+        # -shortest: the sound is written for the video it was made from, but a frame off either
+        # way must not stretch the piece.
+        if disclaimer:
+            sound = ["-i", audio] if audio else []
+            mapping = ["-map", "[v]"] + (["-map", "2:a:0"] if audio else [])
+            encode = _ENCODE + (["-c:a", "aac", "-shortest"] if audio else [])
+            # The disclaimer is the second input and the sound the third, whether or not there is a
+            # sound: putting the picture last would tie the filter's input number to the sound.
+            self._ffmpeg_run(["-i", video, "-i", self._disclaimer, *sound,
+                              "-filter_complex", self._stamp(video), *mapping, *encode, target])
+        elif audio:
             self._ffmpeg_run([
                 "-i", video, "-i", audio, "-map", "0:v:0", "-map", "1:a:0",
                 "-c:v", "copy", "-c:a", "aac", "-shortest", target])
         else:
             self._ffmpeg_run(["-i", video, "-c", "copy", target])
+
+    def _stamp(self, video):
+        """The filtergraph that lays the disclaimer on this video's first minute.
+
+        Centring is left to ffmpeg -- `(W-w)/2` -- because the scaled picture's width is ffmpeg's
+        number, not ours. `enable`'s single quotes are ffmpeg's own escaping: without them the comma
+        in `lt(t,60)` would split the chain in two.
+        """
+        width, height = (int(part) for part in self.size(video).split("x"))
+        return (f"[1:v]scale={round(width * DISCLAIMER_WIDTH)}:-1[d];"
+                f"[0:v][d]overlay=(W-w)/2:H-h-{round(height * DISCLAIMER_MARGIN)}:"
+                f"enable='lt(t,{DISCLAIMER_SECONDS})'[v]")
 
     def size(self, video):
         """The picture's size as ffprobe writes it -- "848x480".
