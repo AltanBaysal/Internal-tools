@@ -224,11 +224,24 @@ döndü — yani **kart gerçekten kodluyor**, ve *"kodlama CPU'ya düşmüş"* 
 kodlamanın etrafındaki CPU zinciri kalıyor: videoyu çözmek, 1920×1080 tuvale sığdırmak, bant
 koymak, disclaimer'ı bindirmek — hepsi Colab'ın 2 vCPU'sunda.
 
+**Ölçüm alındı** *(kullanıcı, 21 Eylül, Colab — 287'nin ekrana yazdığı dört satır)*:
+
+| Adım | Süre |
+|---|---|
+| Videolar | 21,9 sn |
+| Fotoğraflar | 0,5 sn |
+| **Disclaimer** | **159,0 sn** |
+| Drive'a kopyalama | 1,7 sn |
+
+**Yani export'un %87'si tek adımda.** Diğer üçü toplam 24 saniye, ve 282'nin çözdüğü Drive yazması
+artık 1,7 saniye. Kabaca 110 saniyelik video *(22 kare × ~5 sn)* 32 kare/saniyede ~3520 kare
+eder, yani zincir **~22 kare/saniye** koşuyor — NVENC tek başına bunun kat kat üstünde olurdu, ve
+kartın kodladığı doğrulandı. **Kalan aday, kodlamanın etrafındaki CPU zinciri.**
+
 **Kararlaşmadı:** zincirin karta taşınıp taşınmayacağı. Taşımanın iki bilinen bedeli var —
 `overlay_cuda` saydam PNG'de bozabiliyor *(girdinin `yuva420p`'ye çevrilip `hwupload` ile
-yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. **Ölçüm önce gelir:** 287'den beri
-ekran her adımın saniyesini yazıyor, yani sıradaki her export bu sayıyı veriyor. Kaldıraçların
-tamamı [2026-09-21 export hızı araştırmasında](../docs/superpowers/research/2026-09-21-queen-editor-export-hizi.md).
+yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçların tamamı
+[2026-09-21 export hızı araştırmasında](../docs/superpowers/research/2026-09-21-queen-editor-export-hizi.md).
 
 ### Modeller bir yere yüklenip daha hızlı indirilebilir mi
 
