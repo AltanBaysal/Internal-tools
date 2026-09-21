@@ -72,21 +72,25 @@ class FfmpegVideoExporter:
             self._ffmpeg_run(["-i", video, "-c", "copy", target])
 
     def _encoder(self):
-        """The encoder arguments for this machine, asked of ffmpeg once.
+        """The encoder arguments for this machine, settled once by trying the card out.
 
-        Asked rather than assumed: whether Colab's ffmpeg is built with NVENC was never verified,
-        and assuming it would end every export with ffmpeg's "Unknown encoder" -- a whole export
-        lost to a guess. Once, because the answer cannot change while the process lives, and a
-        separate export writes one piece per frame.
+        Tried rather than looked up: `ffmpeg -encoders` answers for the build, not for the machine,
+        so a box with no card, a mismatched driver or a card whose encoder sessions are all taken
+        lists h264_nvenc and then fails in the middle of an export (madde 257). The trial is a made
+        up picture, a tenth of a second of it, written nowhere.
 
-        A failure to ask is not a failure to export: a machine that cannot answer is treated as a
-        machine without the encoder, which is where the code stood before madde 253.
+        A trial that does not come back is an answer, not an error: the export runs on the CPU,
+        which is where it stood before madde 253. Losing a whole export to a guess is worse than a
+        slow export (FOUNDATION 1).
+
+        Once, because the answer cannot change while the process lives, and a separate export
+        writes one piece per frame.
         """
         if self._encode is None:
-            done = self._run([self._ffmpeg, "-hide_banner", "-encoders"],
+            done = self._run([self._ffmpeg, "-hide_banner", "-f", "lavfi", "-i", "nullsrc",
+                              "-t", "0.1", "-c:v", _GPU, "-f", "null", "-"],
                              capture_output=True, text=True)
-            has_gpu = done.returncode == 0 and _GPU in (done.stdout or "")
-            self._encode = _GPU_ENCODE if has_gpu else _CPU_ENCODE
+            self._encode = _GPU_ENCODE if done.returncode == 0 else _CPU_ENCODE
         return self._encode
 
     def _stamp(self, video):
