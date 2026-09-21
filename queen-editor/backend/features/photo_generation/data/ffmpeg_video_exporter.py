@@ -3,8 +3,9 @@
 Streams are copied wherever they can be: the graph already produced the size, codec and frame rate
 the export wants, so re-encoding would cost minutes and quality for nothing. Two things are encoded.
 A sound being laid over a video, because a wav cannot ride in an mp4 as it is. And the merged
-export, because it carries the disclaimer (madde 250) and an overlay is a new picture. Cutting the
-pieces stays a copy (madde 261). Where the card can do that encoding, it does (madde 253).
+export, which stands on a landscape canvas of its own (madde 259) and carries the disclaimer over
+its first minute (250) -- a frame moved onto another canvas with a picture over it is a new picture.
+Cutting the pieces stays a copy (madde 261). Where the card can do that encoding, it does (253).
 
 `run` is injected so tests can read the command instead of needing ffmpeg on the machine; Colab has
 ffmpeg installed, which is where this really runs.
@@ -12,11 +13,18 @@ ffmpeg installed, which is where this really runs.
 import os
 import subprocess
 
-# How the disclaimer sits on the video, and for how long -- the user's call, 21 September. Fractions
-# of the frame rather than pixels: the frame's shape changed once already (madde 218 made it
-# landscape, 228 brought it back), and a pixel would have gone on being right about the old one.
-DISCLAIMER_WIDTH = 0.8      # of the video's width
-DISCLAIMER_MARGIN = 0.04    # of the video's height, up from the bottom edge
+# The canvas a merged export stands on -- landscape and fixed, the user's call (madde 259): exports
+# are taken landscape either way, and no resolution is offered (260 dropped, "1080 otomatik").
+# Written down rather than taken from the pieces, which is the whole item: the pieces are 480x720,
+# and a disclaimer squeezed into 480 could not be read.
+MERGED_WIDTH = 1920
+MERGED_HEIGHT = 1080
+
+# How the disclaimer sits on the canvas, and for how long -- the user's call, 21 September. It spans
+# the full width ("yatayda dolduracak şekilde"), so there is no width fraction left to name. The
+# margin stays a fraction because the rule is a fraction: text stuck to the bottom edge sits under
+# the player's bar on a phone.
+DISCLAIMER_MARGIN = 0.04    # of the canvas height, up from the bottom edge
 DISCLAIMER_SECONDS = 60     # from the start of the video
 
 # What encoded work is encoded with. The GPU is the answer where there is one: an export leaves the
@@ -35,10 +43,11 @@ class FfmpegVideoExporter:
     def __init__(self, run=None, ffmpeg="ffmpeg", ffprobe="ffprobe", disclaimer=None):
         self._run = run or subprocess.run
         self._ffmpeg = ffmpeg
-        # Ships with ffmpeg, and the notebook installs them together. merge uses it, and so does a
-        # stamped piece -- the overlay is measured from the video's own size.
+        # Ships with ffmpeg, and the notebook installs them together. One caller left: merge asks
+        # every piece its size, and only to refuse a set that holds two of them -- the canvas is
+        # written down, so nothing is measured from a piece any more (madde 259).
         self._ffprobe = ffprobe
-        # The picture laid over a stamped piece. Injected like the tools above: config knows where
+        # The picture laid over the merged export. Injected like the tools above: config knows where
         # the repo keeps it, and tests hand over a path of their own.
         self._disclaimer = disclaimer
         # Which encoder this machine has, once it has been asked. Asked rather than assumed, and
@@ -85,17 +94,30 @@ class FfmpegVideoExporter:
             self._encode = _GPU_ENCODE if done.returncode == 0 else _CPU_ENCODE
         return self._encode
 
-    def _stamp_for(self, width, height):
-        """The filtergraph that lays the disclaimer on the first minute of what it is given.
+    def _stamp(self):
+        """The filtergraph that puts the joined video on the canvas and stamps its first minute.
 
-        Centring is left to ffmpeg -- `(W-w)/2` -- because the scaled picture's width is ffmpeg's
-        number, not ours. `enable`'s single quotes are ffmpeg's own escaping: without them the comma
-        in `lt(t,60)` would split the chain in two.
+        Two steps, and they have to share one read: ffmpeg is given the join once, so fitting and
+        stamping happen in the same filter_complex.
 
-        Only the join asks for it (madde 261), and `t` is the joined video's own clock.
+        `decrease` fits rather than fills -- the largest size that goes inside the canvas with the
+        source's own aspect ratio kept -- and `pad` centres it, so a 480x720 frame becomes 720x1080
+        with a bar either side. `increase` would fill the canvas by cutting the frame's top and
+        bottom off, and a user's finished frame is not traded for a tidy edge (FOUNDATION 1). The
+        user was shown the bars and took them (madde 259).
+
+        Centring is left to ffmpeg -- `(W-w)/2`, `(ow-iw)/2` -- because the scaled picture's width
+        is ffmpeg's number, not ours. `enable`'s single quotes are ffmpeg's own escaping: without
+        them the comma in `lt(t,60)` would split the chain in two.
+
+        Nothing here is measured from the pieces, which is what makes the canvas a decision rather
+        than an inheritance. Only the join asks for it (madde 261), and `t` is the joined video's
+        own clock (madde 250).
         """
-        return (f"[1:v]scale={round(width * DISCLAIMER_WIDTH)}:-1[d];"
-                f"[0:v][d]overlay=(W-w)/2:H-h-{round(height * DISCLAIMER_MARGIN)}:"
+        return (f"[0:v]scale={MERGED_WIDTH}:{MERGED_HEIGHT}:force_original_aspect_ratio=decrease,"
+                f"pad={MERGED_WIDTH}:{MERGED_HEIGHT}:(ow-iw)/2:(oh-ih)/2[c];"
+                f"[1:v]scale={MERGED_WIDTH}:-1[d];"
+                f"[c][d]overlay=(W-w)/2:H-h-{round(MERGED_HEIGHT * DISCLAIMER_MARGIN)}:"
                 f"enable='lt(t,{DISCLAIMER_SECONDS})'[v]")
 
     def size(self, video):
@@ -114,12 +136,13 @@ class FfmpegVideoExporter:
         return (done.stdout or "").strip()
 
     def merge(self, pieces, target):
-        """The pieces, in the order given, as one file, with the disclaimer over its first minute.
+        """The pieces, in the order given, on the landscape canvas, with the disclaimer over its
+        first minute.
 
-        The size is asked of every piece first. Mixed sizes still stop the join, although the
-        picture is now encoded rather than copied: which of the two shapes was meant is a question
-        nobody can answer, and answering it would mean a crop or a bar the user never asked for
-        (madde 218's call).
+        The size is asked of every piece first, and mixed sizes stop the join. The canvas is
+        explicit now (madde 259), so the reason is no longer which shape was meant: concat reads the
+        pieces as they are and rescales nothing, so two sizes cannot be read as one stream -- and
+        what it cannot read it cannot hand to a filter either.
 
         The disclaimer rides on the join rather than on the pieces, so `t` is the joined video's own
         clock and the minute ends on the minute even when a frame straddles it (madde 250). It also
@@ -131,10 +154,10 @@ class FfmpegVideoExporter:
             # Piece by piece: "the pieces are different sizes" does not say which frame to redo.
             found = ", ".join(f"{os.path.basename(piece)} {size}" for piece, size in sizes)
             raise RuntimeError(
-                "Videolar farklı ölçüde, birleştirilemez — " + found + ". Aynı projede iki oran "
-                "var, ve tek dosyanın tek oranı olur: hangisinin istendiğini kimse söyleyemez, "
-                "ikisini birden sığdırmak da kırpmak ya da bant koymak olurdu. Eski oranla "
-                "üretilmiş kareleri yeniden üret ya da dışa aktarmayı ayrı dosyalar olarak al."
+                "Videolar farklı ölçüde, birleştirilemez — " + found + ". Birleştirme parçaları "
+                "olduğu gibi okuyor, ölçülerini değiştirmiyor: iki farklı ölçü tek bir akış olarak "
+                "okunamaz. Eski oranla üretilmiş kareleri yeniden üret ya da dışa aktarmayı ayrı "
+                "dosyalar olarak al."
             )
         # concat's list file lives beside the pieces: ffmpeg reads the paths relative to it, and
         # -safe 0 is what lets an absolute path through.
@@ -144,13 +167,12 @@ class FfmpegVideoExporter:
             for piece in pieces:
                 # Single quotes are concat's own escaping for a path with spaces in it.
                 handle.write(f"file '{piece}'\n")
-        width, height = (int(part) for part in sizes[0][1].split("x"))
         try:
             # The sound is mapped and copied: the pieces carry their own, already aac, and `?` is
             # for a set that has none.
             self._ffmpeg_run(["-f", "concat", "-safe", "0", "-i", list_file,
                               "-i", self._disclaimer, "-filter_complex",
-                              self._stamp_for(width, height), "-map", "[v]", "-map", "0:a?",
+                              self._stamp(), "-map", "[v]", "-map", "0:a?",
                               *self._encoder(), "-c:a", "copy", target])
         finally:
             # The list is scaffolding, not part of the export.
