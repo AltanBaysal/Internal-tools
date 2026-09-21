@@ -484,8 +484,15 @@ def test_a_sound_is_laid_over_the_video():
                             "-c:a", "aac", "-shortest", "01.mp4"]
 
 
-STAMP = ("[1:v]scale=384:-1[d];"
-         "[0:v][d]overlay=(W-w)/2:H-h-29:enable='lt(t,60)'[v]")
+# How the joined picture is made. The canvas is the user's call and it is landscape: exports are
+# taken landscape either way, and the disclaimer only becomes readable at that width (madde 259).
+# `decrease` fits rather than crops, so nothing is lost and the sides get bars; the disclaimer then
+# spans the whole 1920, which is what the 1902-wide PNG was drawn for.
+FIT = ("scale=1920:1080:force_original_aspect_ratio=decrease,"
+       "pad=1920:1080:(ow-iw)/2:(oh-ih)/2")
+STAMP = (f"[0:v]{FIT}[c];"
+         "[1:v]scale=1920:-1[d];"
+         "[c][d]overlay=(W-w)/2:H-h-43:enable='lt(t,60)'[v]")
 ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
 # What the same work looks like on the GPU (madde 253). nvenc takes -rc/-cq where x264 takes -crf,
 # and "fast" rather than p1-p7: Colab's ffmpeg may be old enough not to know the p-levels.
@@ -621,18 +628,61 @@ def test_a_merged_export_joins_and_stamps_in_one_call(tmp_path):
         *ENCODE, "-c:a", "copy", target]
 
 
-def test_the_merged_disclaimer_is_measured_from_the_pieces_it_joins(tmp_path):
-    """The size is already in merge's hands -- it asks every piece -- so the overlay costs no second
-    ffprobe."""
-    run = FakeRun(sizes={"a.mp4": "848x480", "b.mp4": "848x480"})
-
-    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"],
-                                                           str(tmp_path / "düğün.mp4"))
-
+def filtergraph(run):
+    """What the merged call handed -filter_complex."""
     call = ffmpeg_calls(run)[0]
-    said = call[call.index("-filter_complex") + 1]
-    assert "scale=678:-1" in said                  # 80% of 848
-    assert "H-h-19" in said                        # 4% of 480
+    return call[call.index("-filter_complex") + 1]
+
+
+def merged(sizes, tmp_path, name="düğün.mp4"):
+    """One merged export over pieces of the given sizes, and the FakeRun that watched it."""
+    run = FakeRun(sizes=sizes)
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(list(sizes), str(tmp_path / name))
+    return run
+
+
+def test_the_merged_canvas_is_the_same_whatever_the_pieces_measure(tmp_path):
+    """The canvas is written down, not inherited. It used to be the first piece's own size, which is
+    why the merged file came out vertical at 480 wide and the disclaimer could not be read there
+    (madde 259).
+
+    Two projects, one vertical and one landscape, and one frame: whatever the graph produced, the
+    export stands on the same 1920x1080. This is what makes the item need no measurement -- what
+    today's file measures cannot change the answer.
+    """
+    vertical = merged({"a.mp4": "480x720", "b.mp4": "480x720"}, tmp_path, "dikey.mp4")
+    landscape = merged({"c.mp4": "848x480", "d.mp4": "848x480"}, tmp_path, "yatay.mp4")
+
+    assert filtergraph(vertical) == filtergraph(landscape) == STAMP
+
+
+def test_a_merged_export_stands_on_a_landscape_canvas(tmp_path):
+    """Fitted, never cropped: the user's word was "sığdır", and they took the bars knowingly --
+    a 480x720 frame becomes 720x1080 with 600 pixels of bar either side. `decrease` is what picks
+    the largest size that fits inside the canvas; `increase` would fill it by cutting the frame's
+    top and bottom off, and FOUNDATION 1 does not trade a user's finished frame for a tidy edge.
+    """
+    said = filtergraph(merged({"a.mp4": "480x720"}, tmp_path))
+
+    assert "scale=1920:1080:force_original_aspect_ratio=decrease" in said
+    assert "pad=1920:1080:(ow-iw)/2:(oh-ih)/2" in said
+    assert "crop" not in said and "increase" not in said
+
+
+def test_the_disclaimer_fills_the_canvas_width(tmp_path):
+    """The user asked for it twice over -- "disclaimerı da ona göre büyüt, asıl videodan büyük
+    olabilir" and "yatayda dolduracak şekilde" -- so the 80% of madde 249 is gone. The PNG is
+    1902 wide, which means 1920 barely scales it and its two lines stay about 99 pixels tall:
+    the first size at which they can be read.
+
+    The 720-pixel video does not bound it: the disclaimer runs over the bars, which is exactly what
+    "asıl videodan büyük olabilir" allows.
+    """
+    said = filtergraph(merged({"a.mp4": "480x720"}, tmp_path))
+
+    assert "[1:v]scale=1920:-1[d]" in said
+    assert "scale=384:-1" not in said              # 80% of the old 480-wide canvas
+    assert "H-h-43" in said                        # 4% of 1080, measured from the canvas now
 
 
 def test_mixed_sizes_stop_the_merge_and_name_what_was_found(tmp_path):
