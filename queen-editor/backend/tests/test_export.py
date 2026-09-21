@@ -431,24 +431,35 @@ class FakeRun:
     concat fail differently, so each carries its own exit code and message.
     """
 
-    def __init__(self, returncode=0, stderr="", sizes=None, probe_returncode=0, probe_stderr=""):
+    def __init__(self, returncode=0, stderr="", sizes=None, probe_returncode=0, probe_stderr="",
+                 encoders=""):
         self.calls = []
         self.returncode = returncode
         self.stderr = stderr
         self.sizes = dict(sizes or {})
         self.probe_returncode = probe_returncode
         self.probe_stderr = probe_stderr
+        # What `ffmpeg -encoders` prints. Empty is a machine with no nvenc, which is what every
+        # test that says nothing about encoders is asking about (madde 253).
+        self.encoders = encoders
 
     def __call__(self, args, **kwargs):
         self.calls.append(args)
         if "ffprobe" in args[0]:
             size = self.sizes.get(args[-1], next(iter(self.sizes.values()), "848x480"))
             return _Answer(self.probe_returncode, size + "\n", self.probe_stderr)
+        if "-encoders" in args:
+            return _Answer(0, self.encoders, "")
         return _Answer(self.returncode, "", self.stderr)
 
 
 def ffmpeg_calls(run):
-    return [call for call in run.calls if call[0] == "ffmpeg"]
+    """The writing calls -- asking which encoders there are is not one of them."""
+    return [call for call in run.calls if call[0] == "ffmpeg" and "-encoders" not in call]
+
+
+def encoder_calls(run):
+    return [call for call in run.calls if "-encoders" in call]
 
 
 def probe_calls(run):
@@ -479,6 +490,12 @@ def test_a_sound_is_laid_over_the_video():
 STAMP = ("[1:v]scale=384:-1[d];"
          "[0:v][d]overlay=(W-w)/2:H-h-29:enable='lt(t,60)'[v]")
 ENCODE = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p"]
+# What the same work looks like on the GPU (madde 253). nvenc takes -rc/-cq where x264 takes -crf,
+# and "fast" rather than p1-p7: Colab's ffmpeg may be old enough not to know the p-levels.
+NVENC = ["-c:v", "h264_nvenc", "-preset", "fast", "-rc", "vbr", "-cq", "23",
+         "-pix_fmt", "yuv420p"]
+# One line of what `ffmpeg -encoders` prints on a machine that has it.
+HAS_NVENC = " V....D h264_nvenc           NVIDIA NVENC H.264 encoder\n"
 
 
 def test_a_stamped_piece_carries_the_disclaimer_over_its_first_minute():
@@ -519,6 +536,53 @@ def test_the_disclaimer_is_measured_from_the_video_it_goes_on():
     said = ffmpeg_calls(run)[0][ffmpeg_calls(run)[0].index("-filter_complex") + 1]
     assert "scale=678:-1" in said                  # 80% of 848
     assert "H-h-19" in said                        # 4% of 480
+
+
+def test_a_stamped_piece_is_encoded_on_the_gpu_when_ffmpeg_has_nvenc():
+    """The T4 sits idle through an export while two vCPUs do the encoding (madde 253). Nothing about
+    the disclaimer changes -- its clock, its size and its place are the same; only the hardware
+    doing the work is different."""
+    run = FakeRun(sizes={"0.mp4": "480x720"}, encoders=HAS_NVENC)
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4",
+                                                           disclaimer=True)
+
+    assert ffmpeg_calls(run)[0] == ["ffmpeg", "-y", "-i", "0.mp4", "-i", "d.png",
+                                    "-filter_complex", STAMP, "-map", "[v]", *NVENC, "01.mp4"]
+
+
+def test_a_merged_export_is_encoded_on_the_gpu_too(tmp_path):
+    """The join is where the whole timeline is encoded, so it is where the GPU is worth most."""
+    run = FakeRun(sizes={"a.mp4": "480x720", "b.mp4": "480x720"}, encoders=HAS_NVENC)
+    target = str(tmp_path / "düğün.mp4")
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").merge(["a.mp4", "b.mp4"], target)
+
+    assert ffmpeg_calls(run)[0] == [
+        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(tmp_path / "pieces.txt"),
+        "-i", "d.png", "-filter_complex", STAMP, "-map", "[v]", "-map", "0:a?",
+        *NVENC, "-c:a", "copy", target]
+
+
+def test_the_encoder_is_asked_of_ffmpeg_once_rather_than_per_piece():
+    """A separate export writes one piece per frame; asking twenty-two times would be twenty-two
+    processes for an answer that cannot change."""
+    run = FakeRun(sizes={"0.mp4": "480x720"}, encoders=HAS_NVENC)
+    exporter = FfmpegVideoExporter(run=run, disclaimer="d.png")
+
+    exporter.piece("0.mp4", None, "01.mp4", disclaimer=True)
+    exporter.piece("0.mp4", None, "02.mp4", disclaimer=True)
+
+    assert len(encoder_calls(run)) == 1
+
+
+def test_a_copied_piece_never_asks_which_encoder_there_is():
+    """Copying has no encoder, so it has no question either."""
+    run = FakeRun()
+
+    FfmpegVideoExporter(run=run, disclaimer="d.png").piece("0.mp4", None, "01.mp4")
+
+    assert encoder_calls(run) == []
 
 
 def test_the_disclaimer_ships_in_the_repo():
