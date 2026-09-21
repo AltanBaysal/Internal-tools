@@ -27,6 +27,8 @@ class ExportStore(FakeStore):
         super().__init__(*args, **kwargs)
         self.removed = []
         self.photos = []
+        self.exports = []
+        self.order = []               # what happened, in the order it happened
 
     def file_path(self, project, filename):
         return f"/fake/{project}/{filename}"
@@ -55,12 +57,25 @@ class ExportStore(FakeStore):
         """
         self.photos.append((source, folder, filename))
 
+    def copy_export(self, source, folder, filename):
+        """The merged file's one trip to Drive, written down.
+
+        The real one lands in a single move, and that is tested against a real folder in
+        test_photo_store.py: ffmpeg now writes the join on the machine's own disk, and Drive sees
+        the file only once it is whole (madde 282).
+        """
+        self.exports.append((source, folder, filename))
+        self.order.append("copy_export")
+
 
 class FakeExporter:
-    def __init__(self, fails_on=None):
+    def __init__(self, fails_on=None, store=None):
         self.pieces = []
         self.merged = None
         self.fails_on = fails_on          # the target whose write blows up
+        # When a store is handed over, the order of the two steps is written down in it: the copy
+        # to Drive has to come after the join, or a half file is what Drive holds.
+        self.store = store
 
     def piece(self, video, audio, target):
         if target == self.fails_on:
@@ -68,7 +83,11 @@ class FakeExporter:
         self.pieces.append((video, audio, target))
 
     def merge(self, pieces, target):
+        if target == self.fails_on:
+            raise RuntimeError("ffmpeg: disk dolu")
         self.merged = (list(pieces), target)
+        if self.store is not None:
+            self.store.order.append("merge")
 
 
 def sync_runner():
@@ -268,7 +287,10 @@ def test_merged_export_writes_one_file_named_after_the_project():
 
     export(store, record, plan_store, exporter, mode="merged")
 
-    assert exporter.merged == ([f"{PIECES}/01.mp4", f"{PIECES}/02.mp4"], f"{FOLDER}/düğün.mp4")
+    # The join happens on the machine's own disk, beside the pieces: ffmpeg used to write the
+    # encoded stream onto the Drive mount a piece at a time, which is a known Colab slowness
+    # (madde 282). The name is still the project's.
+    assert exporter.merged == ([f"{PIECES}/01.mp4", f"{PIECES}/02.mp4"], f"{PIECES}/düğün.mp4")
 
 
 def test_a_merged_export_cuts_its_pieces_outside_the_drive_folder():
@@ -333,6 +355,45 @@ def test_a_separate_export_copies_every_piece_untouched():
         ("/fake/düğün/0_a_V1_0.mp4", None, f"{FOLDER}/01.mp4"),
         ("/fake/düğün/1_a_V1_0.mp4", None, f"{FOLDER}/02.mp4"),
     ]
+
+
+def test_the_merged_file_reaches_drive_once_it_is_whole():
+    store, record, plan_store = with_videos()
+
+    folder = export(store, record, plan_store, FakeExporter(), mode="merged")
+
+    assert store.exports == [(f"{PIECES}/düğün.mp4", folder, "düğün.mp4")]
+
+
+def test_the_copy_to_drive_comes_after_the_join():
+    """The order is the whole point: while the join runs, the Drive folder holds nothing, so a
+    half written mp4 is never there to be seen (FOUNDATION 1, madde 94's own reasoning)."""
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter(store=store), mode="merged")
+
+    assert store.order == ["merge", "copy_export"]
+
+
+def test_a_join_that_blew_up_copies_nothing_to_drive():
+    store, record, plan_store = with_videos()
+    exporter = FakeExporter(fails_on=f"{PIECES}/düğün.mp4")
+
+    with pytest.raises(RuntimeError):
+        export(store, record, plan_store, exporter, mode="merged")
+
+    assert store.exports == []
+    assert sorted(store.removed) == sorted([FOLDER, PIECES])
+
+
+def test_a_separate_export_has_no_copying_step_at_all():
+    """Its pieces are the export, and they are written where the user will look for them -- 235's
+    call, and this item does not touch it."""
+    store, record, plan_store = with_videos()
+
+    export(store, record, plan_store, FakeExporter())
+
+    assert store.exports == []
 
 
 def test_a_merged_export_that_blows_up_leaves_neither_folder_behind():

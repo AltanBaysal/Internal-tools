@@ -82,6 +82,24 @@ def test_a_photo_already_in_the_export_is_not_written_again(tmp_path):
     assert [path.name for path in landed.parent.iterdir()] == ["01.png"]
 
 
+def test_the_merged_file_is_copied_into_the_export_folder(tmp_path):
+    """The join is written on the machine's own disk and comes here whole (madde 282). Landing in
+    one move matters more here than anywhere: Drive is slow, so the window in which a half written
+    file could be seen is a real one, and a folder that looks finished is what madde 94 forbids."""
+    store = store_at(tmp_path)
+    (tmp_path / "düğün").mkdir()
+    folder = store.make_export_folder("düğün", "2026-08-12 14-32")
+    joined = tmp_path / "düğün.mp4"
+    joined.write_bytes(b"MP4")
+
+    store.copy_export(str(joined), folder, "düğün.mp4")
+
+    landed = tmp_path / "düğün" / "export" / "2026-08-12 14-32" / "düğün.mp4"
+    assert landed.read_bytes() == b"MP4"
+    # Nothing half written and nothing left over: the folder holds the file and nothing else.
+    assert [path.name for path in landed.parent.iterdir()] == ["düğün.mp4"]
+
+
 def test_the_pieces_of_a_merged_export_are_cut_off_drive(tmp_path):
     """Drive is the slow disk, and a merged export's pieces are thrown away the moment they are
     joined -- so they are cut on the machine's own disk (madde 235)."""
