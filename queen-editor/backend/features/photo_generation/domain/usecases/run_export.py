@@ -80,6 +80,9 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
                            _audio(store, project, frame), target)
             pieces.append(target)
             runner.report(mode, written=index)
+        # Its own step, in both modes: the counter has finished counting and the work has not, so a
+        # screen still reading N/N would be naming the wrong one (madde 287).
+        runner.report(mode, state="photos")
         for index, frame in enumerate(frames, start=1):
             if _stopped(runner, store, mode, folder, scaffolding):
                 return None
@@ -104,6 +107,9 @@ def run_export(runner, store, record, plan_store, order_store, exporter, now, pr
             # nothing, so a half written mp4 is never there to be seen (madde 94).
             joined = store.export_path(cutting, f"{project}.mp4")
             exporter.merge(pieces, joined)
+            # The trip to Drive is its own step: it used to run under the disclaimer's name, which
+            # is the step the user wonders about most (madde 287).
+            runner.report(mode, state="saving")
             store.copy_export(joined, folder, f"{project}.mp4")
     except Exception:
         _clean(store, folder, scaffolding)
