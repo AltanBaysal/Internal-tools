@@ -1609,3 +1609,35 @@ describe("PhotoDetail — the negative prompt", () => {
     expect(screen.getByText("dördüncü").className).toContain("wf-mono");
   });
 });
+
+describe("PhotoDetail — the keyboard while a prompt is being typed", () => {
+  const promptBox = () => document.querySelector("[data-box]");
+
+  it("leaves the arrow keys to the text they are moving through", async () => {
+    // The user's own report: the caret moved AND the page changed frame under it, so what they
+    // were writing went with it.
+    await open("1_a");
+
+    fireEvent.keyDown(promptBox(), { key: "ArrowRight" });
+    fireEvent.keyDown(promptBox(), { key: "ArrowLeft" });
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("leaves Escape to the text box as well", async () => {
+    // The same mistake seen from the other side: Escape closed the page mid-sentence.
+    await open("1_a");
+
+    fireEvent.keyDown(promptBox(), { key: "Escape" });
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("still walks the frames when the keys come from outside a box", async () => {
+    await open("1_a");
+
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/2_a");
+  });
+});
