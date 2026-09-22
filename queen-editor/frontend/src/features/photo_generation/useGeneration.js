@@ -8,6 +8,7 @@ import {
   listFrames,
   removeFrames,
   removeLayer as deleteLayer,
+  produceFromReferences,
   queueLayer as postLayer,
   regenerateFrame,
   resumeBatch,
@@ -17,6 +18,7 @@ import {
   stopGeneration,
 } from "../../shared/api.js";
 import { failureText } from "../../shared/failure_text.js";
+import { FROM_POOL } from "./production_modes.js";
 
 const POLL_MS = 2000;
 
@@ -191,8 +193,12 @@ export function useGeneration(project) {
 
   // Hang a layer on every frame in scope. Resolves with the server's answer so the panel can quote
   // how many the queue took, or null when it was refused.
-  const queueLayer = useCallback((kind, files, variants, mode) => (
-    postLayer(project, kind, files, variants, mode)
+  const queueLayer = useCallback((kind, files, variants, mode, prompts) => (
+    // From the pool it is not a layer job at all: no frame is involved and cards are what come
+    // back, so it goes to its own door (madde 302).
+    (mode === FROM_POOL
+      ? produceFromReferences(project, prompts, variants)
+      : postLayer(project, kind, files, variants, mode))
       .then((body) => {
         if (!alive.current) return null;
         startPolling(body?.frames);

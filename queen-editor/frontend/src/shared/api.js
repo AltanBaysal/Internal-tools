@@ -284,6 +284,16 @@ export async function removeReference(project, name) {
                  + `${encodeURIComponent(name)}/delete`, { method: "POST" });
 }
 
+// A production made of the pool rather than of a frame: no frames go up, and what comes back are
+// cards (madde 302, 303). Its own door for that reason -- the layer one is about frames that exist.
+export async function produceFromReferences(project, prompts, variants) {
+  return request(`/api/projects/${encodeURIComponent(project)}/references/produce`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompts, variants }),
+  });
+}
+
 // Plain URL, like fileUrl: the pool's own file area, which the browser loads into a tag.
 export function referenceUrl(project, name) {
   return `/references/${encodeURIComponent(project)}/${encodeURIComponent(name)}`;

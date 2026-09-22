@@ -1,4 +1,4 @@
-"""/api/projects/<project>/references · …/references/order · /references/<project>/<file>
+"""/api/projects/<project>/references · …/order · …/produce · /references/<project>/<file>
 
 The project's reference pool, over HTTP: the browser cannot reach Drive, so every byte in and out
 goes through here (FOUNDATION 4).
@@ -11,16 +11,21 @@ lives in exactly one place (the domain).
 """
 from flask import Blueprint, jsonify, request, send_from_directory
 
+from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
 from backend.features.photo_generation.domain.references import LIMITS, PoolLimit
+from backend.features.photo_generation.domain.usecases.queue_references import NoReferenceProducer
 from backend.features.photo_generation.domain.usecases.add_references import UnknownReference
 from backend.features.photo_generation.domain.usecases.save_reference_order import (
     InvalidReferenceOrder,
 )
-from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
+from backend.features.photo_generation.domain.usecases.start_batch import (
+    InvalidVariants,
+    ProjectMissing,
+)
 
 
 def make_reference_blueprint(add_references, list_references, remove_reference,
-                             save_reference_order, reference_dir):
+                             save_reference_order, queue_references, reference_dir):
     """The callables are already bound to a store and a pool (see main.py)."""
     bp = Blueprint("references", __name__)
 
@@ -69,6 +74,21 @@ def make_reference_blueprint(add_references, list_references, remove_reference,
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
+
+    @bp.post("/api/projects/<project>/references/produce")
+    def post_reference_run(project):
+        body = request.get_json(silent=True) or {}
+        prompts = body.get("prompts")
+        # A non-string body field is treated as empty text -> the prompt list's own refusal.
+        prompts = prompts if isinstance(prompts, str) else ""
+        try:
+            added = queue_references(project, prompts, body.get("variants", 1))
+        except (InvalidPrompts, InvalidVariants, NoReferenceProducer, PoolLimit) as exc:
+            # Five refusals, one answer: the run cannot start, and the sentence is the difference.
+            return jsonify({"error": str(exc)}), 400
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+        return jsonify({"added": added}), 202
 
     @bp.get("/references/<project>/<filename>")
     def serve_reference(project, filename):

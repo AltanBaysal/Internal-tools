@@ -30,6 +30,7 @@ from backend.features.photo_generation.data.reference_store import DriveReferenc
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.list_references import list_references
+from backend.features.photo_generation.domain.usecases.queue_references import queue_references
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
 from backend.features.photo_generation.domain.usecases.save_reference_order import (
     save_reference_order,
@@ -241,6 +242,10 @@ _references_bp = make_reference_blueprint(
     remove_reference=partial(remove_reference, _photo_store, _reference_store, _reference_orders),
     save_reference_order=partial(save_reference_order, _photo_store, _reference_store,
                                  _reference_orders),
+    # Which video model the notebook installed is the installation's own answer, and only H3 can be
+    # handed references at all (madde 302).
+    queue_references=partial(queue_references, _photo_store, _reference_store, _reference_orders,
+                             config.VIDEO_MODEL == "h3"),
     reference_dir=_reference_store.dir_path,
 )
 
