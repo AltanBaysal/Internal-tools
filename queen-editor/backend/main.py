@@ -175,6 +175,18 @@ def _timing(line):
     print(line, flush=True)
 
 
+# The project's reference pool: a folder of its own inside the project (madde 297). Defined above
+# the cards' blueprint because that blueprint is handed _reference_files, and a module body runs
+# top to bottom.
+_clips = FfmpegClips()
+_reference_store = DriveReferenceStore(_storage, _clips)
+# Which slot each reference stands in: the folder cannot answer that, so it has a document of its
+# own beside the gallery's order file (madde 300).
+_reference_orders = DriveReferenceOrderStore(_storage)
+# What a pool-made video is rendered from, asked at the job's turn (madde 304). Every door into the
+# queue carries it, because any run can reach a card that was made of the pool.
+_reference_files = partial(reference_files, _photo_store, _reference_store, _reference_orders)
+
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers, seed.random_seed,
@@ -231,20 +243,8 @@ _photo_bp = make_photo_generation_blueprint(
     photo_dir=_photo_store.photo_dir,
 )
 
-# Every producer is judged by its own model group: installed means those files are on this machine.
-# Nothing is installed from here -- the notebook does that before this process starts
-# (FOUNDATION 9), so the panel only reads. Video is judged by the model the notebook installed.
-# The project's reference pool: a folder of its own inside the project, and its own surface
-# (madde 297). Beside the cards' blueprint rather than inside it -- the two answer different
-# questions.
-_clips = FfmpegClips()
-_reference_store = DriveReferenceStore(_storage, _clips)
-# Which slot each reference stands in: the folder cannot answer that, so it has a document of its
-# own beside the gallery's order file (madde 300).
-_reference_orders = DriveReferenceOrderStore(_storage)
-# What a pool-made video is rendered from, asked at the job's turn (madde 304). Every door into the
-# queue carries it, because any run can reach a card that was made of the pool.
-_reference_files = partial(reference_files, _photo_store, _reference_store, _reference_orders)
+# The pool's own surface, beside the cards' blueprint rather than inside it -- the two answer
+# different questions.
 _references_bp = make_reference_blueprint(
     add_references=partial(add_references, _photo_store, _reference_store, _reference_orders,
                            _clips),
@@ -264,6 +264,9 @@ _references_bp = make_reference_blueprint(
     reference_dir=_reference_store.dir_path,
 )
 
+# Every producer is judged by its own model group: installed means those files are on this machine.
+# Nothing is installed from here -- the notebook does that before this process starts
+# (FOUNDATION 9), so the panel only reads. Video is judged by the model the notebook installed.
 _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
                                           config.VIDEO_MODEL))
