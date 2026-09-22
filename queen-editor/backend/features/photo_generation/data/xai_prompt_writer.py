@@ -7,6 +7,7 @@ notebook asks the user for the audio prompt, so there was nothing to bring over.
 
 The transport is services/xai/client.py; this file only decides what to say.
 """
+from backend.features.photo_generation.domain import production_mode
 
 # English, and it stays English: it is written for the model, not for a reader of the screen. Wan's
 # own prompts are English too.
@@ -65,6 +66,24 @@ Rules:
 """
 
 
+# What a loop video's prompt has to ask for, appended to whichever engine's instruction is being
+# used (madde 307). One sentence for both, because loop is a mode of both engines.
+#
+# The clip is laid end to end several times, and its last frame IS its first. The model slows down
+# to land on that frame and the next repeat starts from rest, which reads as a pulse every four
+# seconds. A motion that returns arrives there by its own rhythm instead.
+#
+# Cutting the slowing frames off the end was the other way, and the user reasoned it out: it would
+# take the last frame away from being the first, so the clip would stop looping at all.
+LOOP_RULE = """
+This clip loops: it is played several times back to back, and its last frame is its first frame.
+Write a motion that returns to where it started -- a cycle, not a movement that ends. Swaying,
+breathing, a step that comes back, hair that settles where it was.
+It must be a motion that does not end: one that finishes and comes to rest reads as a stop every
+time the clip repeats.
+"""
+
+
 # Written for MMAudio, which takes a short list of what should be heard.
 AUDIO_INSTRUCTION = """
 You write the audio prompt for MMAudio, which adds sound to a short silent video clip.
@@ -85,32 +104,45 @@ Output only the audio prompt itself, as plain text. No list markers, no quotes, 
 """
 
 
+def asked(instruction, mode):
+    """The engine's own instruction, plus what this mode adds to it.
+
+    Appended rather than woven in: a plain video is asked exactly what it was asked before, and one
+    test holds that.
+    """
+    return instruction + LOOP_RULE if mode == production_mode.LOOP else instruction
+
+
 class VideoPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts):
+    def write(self, prompts, mode=production_mode.STANDARD):
         """`prompts` is what the frame already says, layer by layer. A video is made from the photo,
         so that is the one this writer reads."""
-        return self._client.complete(VIDEO_INSTRUCTION, prompts.get("photo", ""))
+        return self._client.complete(asked(VIDEO_INSTRUCTION, mode), prompts.get("photo", ""))
 
 
 class H3VideoPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts):
+    def write(self, prompts, mode=production_mode.STANDARD):
         """Made from the photo, like WAN's: the video starts from that picture."""
-        return self._client.complete(H3_VIDEO_INSTRUCTION, prompts.get("photo", ""))
+        return self._client.complete(asked(H3_VIDEO_INSTRUCTION, mode), prompts.get("photo", ""))
 
 
 class AudioPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts):
+    def write(self, prompts, mode=production_mode.STANDARD):
         """Sound is made from the whole frame: the scene is in the photo's prompt and what happens
-        is in the video's, so both go in one message, each under its own label."""
+        is in the video's, so both go in one message, each under its own label.
+
+        `mode` is a video's business -- a sound is laid over the whole of one however it was made.
+        Taken and ignored, because the queue has one call shape for every writer.
+        """
         said = [f"Scene: {prompts.get('photo', '')}"]
         video = prompts.get("video")
         if video:

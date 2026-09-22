@@ -27,12 +27,16 @@ class PhotoGenerator(Protocol):
 
 
 class PromptWriter(Protocol):
-    def write(self, prompts: dict) -> str:
+    def write(self, prompts: dict, mode: str) -> str:
         """The prompt a job of this type should be produced with.
 
         `prompts` is what the frame already says: {"photo": …} today, plus the video's own when
         audio joins. Raising is a failure like any other -- the loop's three attempts and its
         frame-fault rule apply to it unchanged.
+
+        `mode` is how the job is being produced (domain/production_mode.py). A loop video has to be
+        asked for a motion that returns (madde 307); a sound takes the argument and ignores it, the
+        way every producer takes `references`.
         """
         ...
 

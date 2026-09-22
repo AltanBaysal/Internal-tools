@@ -234,7 +234,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     # Nothing to convert: asking would buy an invented prompt. I2V sees the picture
                     # itself, so producing with an empty prompt is a real answer here.
                     if any(source.values()):
-                        written = writer.write(source)
+                        # The mode goes with the words: a loop video has to be asked for a motion
+                        # that returns, and the frame's own prompts cannot say that (madde 307).
+                        written = writer.write(source, production_mode.of(current))
                 prompt = current["prompt"] or written or ""
                 # Held in a variable because a loop ends on the very file it is made from: reading
                 # it twice would be the same download from Drive twice, once per video.
