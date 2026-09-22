@@ -296,7 +296,7 @@ describe("LayerPanel — the panel's own shape", () => {
   it("keeps only the blocks the design leaves standing", () => {
     renderPanel();
 
-    expect(blocks()).toEqual(["Model", "Kapsam", "Üretim modu", "Varyant"]);
+    expect(blocks()).toEqual(["Model", "Üretim", "Kapsam", "Üretim modu", "Varyant"]);
   });
 });
 
@@ -736,18 +736,20 @@ describe("LayerPanel — producing from the reference pool", () => {
 
   function openReference(props) {
     const view = renderPanel(props);
-    fireEvent.click(screen.getByText("Referans"));
+    fireEvent.click(screen.getByText("Referanstan"));
     return view;
   }
 
   it("asks the video panel where the video comes from, and never the sound panel", () => {
     renderPanel();
-    expect(screen.getByText("Standart")).toBeTruthy();
-    expect(screen.getByText("Referans")).toBeTruthy();
+    // Named for what they are made from: Standart already means something a row below, where it
+    // says where a video ends.
+    expect(screen.getByText("Karelerden")).toBeTruthy();
+    expect(screen.getByText("Referanstan")).toBeTruthy();
 
     renderPanel({ layer: "audio" });
     // A sound is laid over a video that already exists; the pool has nothing to do with it.
-    expect(screen.queryAllByText("Referans")).toHaveLength(1);
+    expect(screen.queryAllByText("Referanstan")).toHaveLength(1);
   });
 
   it("closes the rows that have no meaning without frames", () => {
@@ -781,7 +783,7 @@ describe("LayerPanel — producing from the reference pool", () => {
     fireEvent.change(promptBox(), { target: { value: "gotik kız" } });
 
     expect(screen.queryByText(/= \d+ kart/)).toBeNull();
-    expect(screen.getByText(/Prompt listesi/)).toBeTruthy();
+    expect(screen.getByText(/biçiminde olmalı/)).toBeTruthy();
   });
 
   it("sends nothing when there are no prompts to send", async () => {
@@ -791,7 +793,7 @@ describe("LayerPanel — producing from the reference pool", () => {
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
     expect(onQueue).not.toHaveBeenCalled();
-    expect(screen.getByText(/Prompt listesi/)).toBeTruthy();
+    expect(screen.getByText(/biçiminde olmalı/)).toBeTruthy();
   });
 
   it("sends the prompts and the variants under the reference kind", async () => {

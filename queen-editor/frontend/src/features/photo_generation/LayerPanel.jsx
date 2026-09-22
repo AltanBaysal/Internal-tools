@@ -3,7 +3,16 @@ import { useEffect, useRef, useState } from "react";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
-import { LINKED, LOOP, MODES, STANDARD, nounOf } from "./production_modes.js";
+import {
+  FROM_FRAME,
+  FROM_POOL,
+  LINKED,
+  LOOP,
+  MODES,
+  SOURCES,
+  STANDARD,
+  nounOf,
+} from "./production_modes.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
@@ -85,6 +94,25 @@ function acceptsVariants(text) {
 
 // The one reason that belongs to no layer: the box is on both panels and says the same thing.
 const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
+// The reference window's own, for a list that is not one. Says the shape rather than the parser's
+// complaint: what the user has to do about it is write the brackets.
+const NO_PROMPTS = 'Prompt listesi ["ilk prompt", "ikinci prompt"] biçiminde olmalı.';
+
+/** The prompts a list holds, or null when it is not a list of them.
+ *
+ * The screen's own count, for the line that says how many cards a press would make. Not a rule:
+ * what really goes to the queue is the server's own reading of the same text (prompt_list.py), and
+ * the card that comes back says how many it took.
+ */
+function promptsIn(text) {
+  try {
+    const list = JSON.parse(text);
+    if (!Array.isArray(list) || !list.length) return null;
+    return list.every((one) => typeof one === "string" && one.trim()) ? list : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Why this press cannot go to the queue, or null when it can.
  *
@@ -99,8 +127,10 @@ const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
  * No dead branch: for a video `can` is the produced frames themselves, so its noBase is exactly
  * "nothing is produced yet"; for a sound it is the frames holding a video, and its noBase says so.
  */
-function refusalOf(words, can, scope, scoped, variants) {
+function refusalOf(words, can, scope, scoped, variants, fromPool, prompts) {
   if (variants === "") return NO_VARIANTS;
+  // From the pool there are no frames to weigh: the words are the whole of what is asked for.
+  if (fromPool) return prompts ? null : NO_PROMPTS;
   if (scoped.length) return null;
   if (!can.length) return words.noBase;
   if (scope === "selected") return words.chosenNoBase;
@@ -193,6 +223,12 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   // video, while a sound carrying any mode but the plain one is refused outright by the server
   // (production_mode.validate) -- and that refusal never reaches the screen.
   const [mode, setMode] = useState(layer === "video" ? LOOP : STANDARD);
+  // Where the video's pictures come from. Only the video panel asks (madde 301); a sound is laid
+  // over a video that already exists, so the pool has nothing to do with it.
+  const [source, setSource] = useState(FROM_FRAME);
+  // The words a pool production is made from -- the photo panel's own shape, because that is how
+  // the user already writes a batch of prompts.
+  const [prompts, setPrompts] = useState("");
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState("1");
   const [submitting, setSubmitting] = useState(false);
@@ -222,6 +258,8 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   // saying "these ones", and the radio would be arguing with the user to stay where it was.
   useEffect(() => { setScope(chosen.length ? "selected" : "missing"); }, [chosen.length]);
 
+  const fromPool = layer === "video" && source === FROM_POOL;
+  const written = promptsIn(prompts);
   const counts = { missing: missing.length, selected: inSelection.length };
   const scoped = scope === "selected" ? inSelection : missing;
   // What the queue would take: every frame in scope, once per variant.
@@ -254,7 +292,7 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   const model = producer?.model || words.model || "";
 
   function handleAdd() {
-    const why = refusalOf(words, can, scope, scoped, variants);
+    const why = refusalOf(words, can, scope, scoped, variants, fromPool, written);
     if (why) {
       setAdded(null);
       clearTimeout(fade.current);
@@ -264,9 +302,17 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
     setSubmitting(true);
     setAdded(null);
     clearTimeout(fade.current);
-    const sent = mode;
-    onQueue(scope === "selected" ? inSelection.map((frame) => frame.file) : null, Number(variants),
-            sent)
+    // From the pool nothing is scoped and no mode applies: the request carries the words and how
+    // many of each, and the server makes a card per pair (madde 303).
+    const sent = fromPool ? FROM_POOL : mode;
+    const files = scope === "selected" && !fromPool
+      ? inSelection.map((frame) => frame.file) : null;
+    // The words ride along only when they are what the press is about: every other call keeps the
+    // shape it has always had.
+    const asked = fromPool
+      ? onQueue(null, Number(variants), sent, prompts)
+      : onQueue(files, Number(variants), sent);
+    asked
       .then((body) => {
         if (body && typeof body.added === "number") {
           setAdded({ count: body.added, mode: sent });
@@ -291,16 +337,42 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
         </select>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <Mono size={11} data-label style={LABEL}>Kapsam</Mono>
-        <ScopeRow label={words.missing} count={counts.missing} active={scope === "missing"}
-                  onPick={() => setScope("missing")} />
-        <ScopeRow label="Seçili kareler" count={counts.selected} active={scope === "selected"}
-                  disabled={!chosen.length} onPick={() => setScope("selected")} />
-      </div>
+      {/* Where the pictures come from. Only the video panel asks: a sound is laid over a video
+          that already exists, and the pool has nothing to do with it (madde 301). */}
+      {layer === "video" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Üretim</Mono>
+          {SOURCES.map((one) => (
+            <ModeRow key={one.id} label={one.label} active={source === one.id}
+                     onPick={() => setSource(one.id)} />
+          ))}
+        </div>
+      )}
+
+      {!fromPool && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Kapsam</Mono>
+          <ScopeRow label={words.missing} count={counts.missing} active={scope === "missing"}
+                    onPick={() => setScope("missing")} />
+          <ScopeRow label="Seçili kareler" count={counts.selected} active={scope === "selected"}
+                    disabled={!chosen.length} onPick={() => setScope("selected")} />
+        </div>
+      )}
+
+      {fromPool && (
+        /* The photo panel's own shape, because that is how the user already writes a batch. The
+           box is what the whole production is made of here: there is no frame to hang on. */
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
+          <Mono size={11} data-label style={LABEL}>Promptlar</Mono>
+          <textarea className="wf-input" rows={8} value={prompts} aria-label="Prompt listesi"
+                    placeholder={'["ilk prompt", "ikinci prompt"]'}
+                    onChange={(e) => setPrompts(e.target.value)}
+                    style={{ fontSize: 11.5, flex: 1, fontFamily: "IBM Plex Mono, monospace" }} />
+        </div>
+      )}
 
       {/* Only a video ends on a picture, so only the video panel has this to ask. */}
-      {layer === "video" && (
+      {layer === "video" && !fromPool && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Mono size={11} data-label style={LABEL}>Üretim modu</Mono>
           {MODES.map((one) => (
@@ -379,6 +451,15 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
           // it is closed, in the photo panel's own words.
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Üretim sürüyor: {job.project} — bitmesini bekle.
+          </Note>
+        ) : fromPool ? (
+          // Nothing is counted from the gallery here: a press makes a card per prompt per variant,
+          // and the line says so in the user's own arithmetic.
+          <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
+            {written
+              ? `${written.length} prompt × ${Number(variants) || 0} varyant = `
+                + `${written.length * (Number(variants) || 0)} kart`
+              : NO_PROMPTS}
           </Note>
         ) : owed ? (
           // The copy warning takes the mode's tail, never its head: the mode is already named in

@@ -17,6 +17,19 @@ export const MODES = [
   { id: LINKED, label: "Sonrakine bağla" },
 ];
 
+// Where a video's pictures come from. A different question from the modes above, which say where a
+// video ENDS: this one says what it is MADE OF -- the frame's own photo, or the project's reference
+// pool (madde 301). Here beside them because one window asks both.
+export const FROM_FRAME = "standard";
+export const FROM_POOL = "reference";
+
+// Named for what they are made FROM rather than "Standart / Referans": the row below already has a
+// Standart, which says where a video ends, and one panel cannot carry that word twice.
+export const SOURCES = [
+  { id: FROM_FRAME, label: "Karelerden" },
+  { id: FROM_POOL, label: "Referanstan" },
+];
+
 /** The mode's own name, for the places that report a mode rather than offer one.
  *
  * The id itself is the fallback: a value this list does not know is corrupted data, and printing it
