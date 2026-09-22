@@ -41,7 +41,8 @@ npm run build --prefix queen-editor/frontend
   from looking like a real one. The items take their real numbers when
   [the roadmap starts running](#running-a-roadmap).
 - **Work that turns up mid-roadmap is added as an item** to the roadmap already running, never a
-  second document.
+  second document. The item goes at the end unless the user places the item somewhere else, and
+  takes the next real number straight away — the run is open, so the count is readable.
 
 **A roadmap is written in this order:**
 
@@ -96,12 +97,14 @@ npm run build --prefix queen-editor/frontend
    exists.
 2. **Give the items their real numbers.** The numbers come from one count shared by the whole repo,
    and once taken a number never changes, because written specs refer to items by number.
-3. **Take the next item in the roadmap's order, and read the item's mark.**
-   - **`ALIGNED`** — go on to 4.
+3. **Work the items one at a time, in the roadmap's order**, going straight from a finished item to
+   the next without asking. The approval given at the start covers every item. For each item:
+4. **Read the item's mark.**
+   - **`ALIGNED`** — go on.
    - **`UNALIGNED`** — stop and ask the user to align the item
-     ([*Aligning an item*](#aligning-an-item)), then go on to 4. Unaligned, the meaning of the item
-     is still your guess, and a wrong guess is expensive.
-4. **Test tour:**
+     ([*Aligning an item*](#aligning-an-item)), then go on. Unaligned, the meaning of the item is
+     still your guess, and a wrong guess is expensive.
+5. **Test tour:**
    1. Write the test spec — `superpowers:brainstorming`. **Anything the item needs from the user —
       a decision, a file, a measurement — goes at the top of the test spec, and is asked before the
       work starts.** Finding out halfway leaves the item half-built and unfinishable: the item
@@ -111,7 +114,7 @@ npm run build --prefix queen-editor/frontend
    4. Run the suite — the four lines under [*Commands*](#commands), exactly as written — and watch
       the new tests fail.
    5. Commit the suite red.
-5. **Implementation tour:**
+6. **Implementation tour:**
    1. Write the implementation spec — `superpowers:brainstorming`.
    2. Write the implementation plan — `superpowers:writing-plans`.
    3. Write the code the implementation plan lays out — what the committed tests describe, and no
@@ -119,9 +122,7 @@ npm run build --prefix queen-editor/frontend
    4. Run the suite — the four lines under [*Commands*](#commands), exactly as written — and watch
       the suite go green.
    5. Commit the code.
-6. **Mark the item finished**, and move the header's *Durum: N/M* on by one.
-7. **If any item is still unmarked, go straight back to 3** and carry on without asking. The
-   approval given at the start covers every item.
+7. **Mark the item finished**, and move the header's *Durum: N/M* on by one.
 8. **When every item is marked, the user tests the roadmap** — at the end, not between items.
 
 ## Aligning an item
