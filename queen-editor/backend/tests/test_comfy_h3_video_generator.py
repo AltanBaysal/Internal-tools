@@ -268,3 +268,62 @@ def test_a_timeline_holding_a_different_number_of_pictures_says_both(tmp_path):
 
     said = str(blew_up.value)
     assert "2" in said and "1" in said
+
+
+POOL = [("kedi.png", b"ONE", "picture"), ("kuş.png", b"TWO", "picture")]
+
+
+def test_a_video_made_from_references_is_rendered_in_ref2va(tmp_path):
+    """The mode is a plain string on the Director and ref2va_model is already filled, so no new
+    export was needed (madde 304)."""
+    client = FakeClient()
+
+    data = generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    assert data == b"MP4DATA"
+    assert sent_director(client)["mode"] == "REF2VA"
+
+
+def test_every_reference_picture_is_uploaded_and_written_in_order(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    assert client.uploads == [("kedi.png", b"ONE"), ("kuş.png", b"TWO")]
+    assert sent_pictures(client) == ["server-kedi.png", "server-kuş.png"]
+    items = json.loads(sent_director(client)["timeline_data"])["items"]
+    # H3 numbers references by their order, so the row carries where each one stands.
+    assert [(item["slot"], item["order"], item["type"]) for item in items] == [
+        (0, 0, "image"), (1, 1, "image")]
+    assert all(item["enabled"] for item in items)
+
+
+def test_a_reference_video_needs_no_source_picture(tmp_path):
+    # The card is born from the video itself: there is no picture under it (madde 303).
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    assert client.uploads == [("kedi.png", b"ONE"), ("kuş.png", b"TWO")]
+
+
+def test_a_reference_prompt_goes_in_as_the_user_wrote_it(tmp_path):
+    """The picture sentence belongs to I2VA and FL2VA, where the producer knows which picture sits
+    where. A REF2VA prompt is the user's own six sections, and nothing is put in front of it."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    director_inputs = sent_director(client)
+    assert director_inputs["prompt"] == "altı bölüm"
+    assert json.loads(director_inputs["timeline_data"])["resolved_prompt"] == "altı bölüm"
+
+
+def test_a_video_with_no_references_is_made_the_way_it_always_was(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+                                         references=())
+
+    assert sent_director(client)["mode"] == "I2VA"
+    assert sent_director(client)["prompt"].startswith(I2VA_SENTENCE)

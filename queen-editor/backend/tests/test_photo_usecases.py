@@ -111,10 +111,16 @@ class FakeGenerator:
         # questions, and one list holding both could not answer either.
         self.ends = []
         self.loras = []
+        # What the pool handed this render, per call. Kept apart like sources and ends: a reference
+        # run is made of the pool and a plain video of the frame under it, and one list holding
+        # both could not answer either.
+        self.references = []
         self.fail_on = list(fail_on)
 
-    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
+                 references=()):
         self.calls.append((prompt, negative, seed, model))
+        self.references.append(list(references))
         # Apart from calls, like sources: the tuple's shape is read by a hundred tests that never
         # ask which lora a frame was sent with.
         self.loras.append(lora)
@@ -3738,13 +3744,17 @@ def test_a_planned_frame_carries_the_lora_it_was_submitted_under():
 
 
 class FakePool:
-    """The project's reference pool, as much of it as a production run asks: what is in it."""
+    """The project's reference pool, as much of it as a production run asks: what is in it, and
+    the bytes of each -- named after itself so a test can tell them apart."""
 
     def __init__(self, names=("kedi.png",)):
         self.names = list(names)
 
     def items(self, _project):
         return [(name, None) for name in self.names]
+
+    def read(self, _project, name):
+        return f"{name} bytes".encode()
 
 
 class FakeReferenceOrders:
@@ -3830,3 +3840,30 @@ def test_the_cards_a_reference_run_made_are_in_the_gallery():
     gallery = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")
     assert len(gallery) == 6
     assert all("photo" not in frame["layers"] for frame in gallery)
+
+
+def test_a_reference_job_is_rendered_with_the_pools_own_files():
+    """Read when the job's turn comes rather than written into the plan: the user's own call is
+    that a retry produces with the pool as it stands now (roadmap decision)."""
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+    generator = FakeGenerator()
+
+    run_references(store, record, plan_store, generator=generator,
+                   pool=FakePool(["kedi.png", "kus.png"]))
+
+    assert generator.references == [[("kedi.png", b"kedi.png bytes", "picture"),
+                                     ("kus.png", b"kus.png bytes", "picture")]]
+
+
+def test_a_plain_video_is_rendered_with_no_references_at_all():
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done"})
+    store.files["0_a.png"] = b"PNG"
+    plan_store.append("düğün", [{"id": "0_a", "type": "video", "number": 0, "variant": 0,
+                                 "prompt": "p", "negative": "", "seed": 1, "model": ""}])
+    generator = FakeGenerator()
+
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", "düğün")()
+
+    assert generator.references == [[]]
