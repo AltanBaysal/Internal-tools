@@ -95,6 +95,74 @@ def test_what_is_already_in_the_pool_counts():
     assert "15" in refusal(pool, [item("üç.mp4", references.VIDEO, 7.0)])
 
 
+def video(name, seconds=4.0):
+    return item(name, references.VIDEO, seconds)
+
+
+def test_the_stored_order_gives_each_reference_its_slot():
+    rows = [item("kuş.png", references.PICTURE), item("kedi.png", references.PICTURE)]
+
+    placed = references.placed({references.PICTURE: ["kedi.png", "kuş.png"]}, rows)
+
+    assert [(row["name"], row["slot"]) for row in placed] == [("kedi.png", 1), ("kuş.png", 2)]
+
+
+def test_a_slot_whose_file_is_gone_stays_empty():
+    """The heart of madde 300: deleting one does not move the others.
+
+    H3 numbers references by their order and not by the slot they sit in, so a reference that
+    slid up would quietly become the <Picture N> the prompt meant for another one.
+    """
+    order = {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}
+
+    placed = references.placed(order, [item("bir.png", references.PICTURE),
+                                       item("üç.png", references.PICTURE)])
+
+    assert [(row["name"], row["slot"]) for row in placed] == [("bir.png", 1), ("üç.png", 3)]
+
+
+def test_a_file_the_order_never_heard_of_waits_at_the_end():
+    order = {references.PICTURE: ["kedi.png"]}
+    rows = [item("kedi.png", references.PICTURE), item("zebra.png", references.PICTURE),
+            item("aslan.png", references.PICTURE)]
+
+    placed = references.placed(order, rows)
+
+    # By name among themselves, which is what a pool with no order at all reads as.
+    assert [row["name"] for row in placed] == ["kedi.png", "aslan.png", "zebra.png"]
+
+
+def test_with_no_stored_order_the_pool_reads_by_name():
+    rows = [item("kuş.png", references.PICTURE), item("kedi.png", references.PICTURE)]
+
+    placed = references.placed({}, rows)
+
+    assert [(row["name"], row["slot"]) for row in placed] == [("kedi.png", 1), ("kuş.png", 2)]
+
+
+def test_each_kind_counts_its_own_slots():
+    order = {references.PICTURE: ["kedi.png"], references.VIDEO: ["dans.mp4"]}
+
+    placed = references.placed(order, [item("kedi.png", references.PICTURE), video("dans.mp4")])
+
+    assert [(row["name"], row["slot"]) for row in placed] == [("kedi.png", 1), ("dans.mp4", 1)]
+
+
+def test_a_missing_slot_in_the_middle_is_a_gap():
+    rows = [{"name": "bir.png", "kind": references.PICTURE, "slot": 1},
+            {"name": "üç.png", "kind": references.PICTURE, "slot": 3}]
+
+    assert references.gaps(rows) == [references.PICTURE]
+
+
+def test_the_last_one_leaving_is_not_a_gap():
+    # Dense from one is the whole rule; nothing has to come after the last reference.
+    rows = [{"name": "bir.png", "kind": references.PICTURE, "slot": 1},
+            {"name": "iki.png", "kind": references.PICTURE, "slot": 2}]
+
+    assert references.gaps(rows) == []
+
+
 def test_a_press_is_counted_as_a_whole():
     # Three videos is the limit, and this press is where the fourth would come from.
     pool = [item("bir.mp4", references.VIDEO, 3.0)]

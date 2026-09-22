@@ -7,6 +7,10 @@ from backend.features.photo_generation.domain.usecases.add_references import (
 )
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
+from backend.features.photo_generation.domain.usecases.save_reference_order import (
+    InvalidReferenceOrder,
+    save_reference_order,
+)
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 
@@ -68,20 +72,35 @@ class FakeReferenceStore:
         return self._clips.seconds(data)
 
 
-def pool_of(store, references_store, project="düğün"):
-    return list_references(store, references_store, project)
+class FakeOrderStore:
+    """The order the user dragged, per project. A document of its own, because it answers a
+    question the folder cannot: which slot each reference stands in."""
+
+    def __init__(self, orders=None):
+        self.orders = dict(orders or {})
+
+    def read(self, project):
+        return self.orders.get(project, {})
+
+    def write(self, project, order):
+        self.orders[project] = order
 
 
-def added(store, pool, files, clips=None, project="düğün"):
-    return add_references(store, pool, clips or FakeClips(), project, files)
+def pool_of(store, references_store, orders=None, project="düğün"):
+    return list_references(store, references_store, orders or FakeOrderStore(), project)
 
 
-def picture(name="kedi.png"):
-    return {"name": name, "kind": references.PICTURE, "seconds": None}
+def added(store, pool, files, clips=None, orders=None, project="düğün"):
+    return add_references(store, pool, orders or FakeOrderStore(), clips or FakeClips(),
+                          project, files)
 
 
-def clip(name, kind, seconds=4.0):
-    return {"name": name, "kind": kind, "seconds": seconds}
+def picture(name="kedi.png", slot=1):
+    return {"name": name, "kind": references.PICTURE, "seconds": None, "slot": slot}
+
+
+def clip(name, kind, seconds=4.0, slot=1):
+    return {"name": name, "kind": kind, "seconds": seconds, "slot": slot}
 
 
 def test_a_reference_is_written_into_the_projects_pool():
@@ -122,6 +141,7 @@ def test_the_pool_lists_in_one_stable_order():
     added(store, pool, [("kedi.png", b"PNG")], clips)
     added(store, pool, [("rüzgar.wav", b"WAV"), ("dans.mp4", b"MP4")], clips)
 
+    # Each kind counts its own slots, so all three stand first in their own row.
     assert pool_of(store, pool) == [clip("dans.mp4", references.VIDEO), picture(),
                                     clip("rüzgar.wav", references.AUDIO)]
 
@@ -202,7 +222,7 @@ def test_removing_takes_the_file_off_the_disk():
     store, pool = FakeStore(), FakeReferenceStore(clips)
     added(store, pool, [("kedi.png", b"PNG"), ("dans.mp4", b"MP4")], clips)
 
-    remove_reference(store, pool, "düğün", "kedi.png")
+    remove_reference(store, pool, FakeOrderStore(), "düğün", "kedi.png")
 
     assert pool_of(store, pool) == [clip("dans.mp4", references.VIDEO)]
 
@@ -211,4 +231,60 @@ def test_removing_something_that_is_not_there_is_not_an_error():
     """Deleting twice has to end where deleting once ends: another tab can get there first."""
     store, pool = FakeStore(), FakeReferenceStore()
 
-    assert remove_reference(store, pool, "düğün", "kedi.png") == []
+    assert remove_reference(store, pool, FakeOrderStore(), "düğün", "kedi.png") == []
+
+
+def test_the_pool_carries_the_slot_each_reference_stands_in():
+    orders = FakeOrderStore({"düğün": {references.PICTURE: ["kuş.png", "kedi.png"]}})
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [("kedi.png", b"ONE"), ("kuş.png", b"TWO")], orders=orders)
+
+    assert [(row["name"], row["slot"]) for row in pool_of(store, pool, orders)] == [
+        ("kuş.png", 1), ("kedi.png", 2)]
+
+
+def test_removing_the_middle_one_leaves_its_slot_empty():
+    """Madde 300's whole point: what is left does not slide up, because H3 would then read the
+    prompt's <Picture 3> off a different picture."""
+    orders = FakeOrderStore({"düğün": {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}})
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [(f"{name}.png", b"PNG") for name in ("bir", "iki", "üç")], orders=orders)
+
+    left = remove_reference(store, pool, orders, "düğün", "iki.png")
+
+    assert [(row["name"], row["slot"]) for row in left] == [("bir.png", 1), ("üç.png", 3)]
+    # The order is not touched at all: the name holds its slot, and the slot is now empty.
+    assert orders.read("düğün")[references.PICTURE] == ["bir.png", "iki.png", "üç.png"]
+
+
+def test_the_order_the_user_dragged_is_stored():
+    orders = FakeOrderStore()
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [("kedi.png", b"ONE"), ("kuş.png", b"TWO")], orders=orders)
+
+    left = save_reference_order(store, pool, orders,
+                                "düğün", {references.PICTURE: ["kuş.png", "kedi.png"]})
+
+    assert [row["name"] for row in left] == ["kuş.png", "kedi.png"]
+    assert orders.read("düğün") == {references.PICTURE: ["kuş.png", "kedi.png"]}
+
+
+def test_a_dragged_order_drops_the_names_it_left_out():
+    """How a gap is closed: the screen sends the sequence it now shows, and the dead name that was
+    holding a slot is simply not in it."""
+    orders = FakeOrderStore({"düğün": {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}})
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [("bir.png", b"ONE"), ("üç.png", b"THREE")], orders=orders)
+
+    left = save_reference_order(store, pool, orders,
+                                "düğün", {references.PICTURE: ["bir.png", "üç.png"]})
+
+    assert [(row["name"], row["slot"]) for row in left] == [("bir.png", 1), ("üç.png", 2)]
+
+
+@pytest.mark.parametrize("order", ["kedi.png", {"picture": "kedi.png"}, {"picture": [7]}])
+def test_an_order_that_is_not_lists_of_names_is_refused(order):
+    store, pool = FakeStore(), FakeReferenceStore()
+
+    with pytest.raises(InvalidReferenceOrder):
+        save_reference_order(store, pool, FakeOrderStore(), "düğün", order)

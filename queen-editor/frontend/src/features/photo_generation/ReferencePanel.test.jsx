@@ -1,12 +1,18 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { listReferences, removeReference, uploadReferences } from "../../shared/api.js";
+import {
+  listReferences,
+  removeReference,
+  saveReferenceOrder,
+  uploadReferences,
+} from "../../shared/api.js";
 import ReferencePanel from "./ReferencePanel.jsx";
 
 vi.mock("../../shared/api.js", () => ({
   listReferences: vi.fn(),
   removeReference: vi.fn(),
+  saveReferenceOrder: vi.fn(),
   uploadReferences: vi.fn(),
   referenceUrl: (project, name) => `/references/${project}/${name}`,
 }));
@@ -14,7 +20,7 @@ vi.mock("../../shared/api.js", () => ({
 const LIMITS = { picture: 9, video: 3, audio: 3 };
 
 const POOL = {
-  references: [{ name: "kedi.png", kind: "picture", seconds: null }],
+  references: [{ name: "kedi.png", kind: "picture", seconds: null, slot: 1 }],
   limits: LIMITS,
 };
 
@@ -63,9 +69,39 @@ describe("ReferencePanel", () => {
   });
 
   it("says how long a clip runs", async () => {
-    await open(pool([{ name: "dans.mp4", kind: "video", seconds: 4.2 }]));
+    await open(pool([{ name: "dans.mp4", kind: "video", seconds: 4.2, slot: 1 }]));
 
     expect(screen.getByText("4,2 sn")).toBeTruthy();
+  });
+
+  it("draws the slot a deleted reference left empty", async () => {
+    // The gap is the point of madde 300: what is left does not slide up, so the user can see the
+    // hole and drag it closed.
+    await open(pool([{ name: "bir.png", kind: "picture", seconds: null, slot: 1 },
+                     { name: "üç.png", kind: "picture", seconds: null, slot: 3 }]));
+
+    expect(screen.getByLabelText("2. yuva boş")).toBeTruthy();
+    expect(screen.queryByLabelText("1. yuva boş")).toBeNull();
+  });
+
+  it("sends the order a drag makes", async () => {
+    const { container } = await open(pool([
+      { name: "bir.png", kind: "picture", seconds: null, slot: 1 },
+      { name: "iki.png", kind: "picture", seconds: null, slot: 2 },
+    ]));
+    saveReferenceOrder.mockResolvedValue(pool([]));
+    const tile = (name) => container.querySelector(`[data-reference="${name}"]`);
+
+    await act(async () => {
+      fireEvent.dragStart(tile("iki.png"));
+      fireEvent.dragOver(tile("bir.png"));
+      fireEvent.drop(tile("bir.png"));
+    });
+
+    // The whole row goes down, because a slot is a place in a sequence and the sequence is what
+    // the server stores.
+    expect(saveReferenceOrder).toHaveBeenCalledWith("düğün",
+                                                    { picture: ["iki.png", "bir.png"] });
   });
 
   it("sends the files that were picked, and draws what comes back", async () => {

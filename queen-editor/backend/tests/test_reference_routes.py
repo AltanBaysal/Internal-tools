@@ -3,10 +3,16 @@ from io import BytesIO
 
 from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
+from backend.features.photo_generation.data.reference_order_store import (
+    DriveReferenceOrderStore,
+)
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
+from backend.features.photo_generation.domain.usecases.save_reference_order import (
+    save_reference_order,
+)
 from backend.features.photo_generation.presentation.reference_routes import (
     make_reference_blueprint,
 )
@@ -28,10 +34,12 @@ def client_over(drive, dist, clips=None):
     store = DrivePhotoStore(storage)
     clips = clips or fixed_length()
     pool = DriveReferenceStore(storage, clips)
+    orders = DriveReferenceOrderStore(storage)
     blueprint = make_reference_blueprint(
-        add_references=partial(add_references, store, pool, clips),
-        list_references=partial(list_references, store, pool),
-        remove_reference=partial(remove_reference, store, pool),
+        add_references=partial(add_references, store, pool, orders, clips),
+        list_references=partial(list_references, store, pool, orders),
+        remove_reference=partial(remove_reference, store, pool, orders),
+        save_reference_order=partial(save_reference_order, store, pool, orders),
         reference_dir=pool.dir_path)
     return create_app(dist_dir=str(dist), blueprints=[blueprint]).test_client()
 
@@ -106,6 +114,33 @@ def test_a_file_the_pool_cannot_read_is_refused(tmp_path):
     assert resp.status_code == 400
     assert "notlar.txt" in resp.get_json()["error"]
     assert not (drive / "düğün" / "referans").exists()
+
+
+def test_the_order_is_saved_and_read_back(tmp_path):
+    """The order is a document of its own, so it outlives the session that dragged it."""
+    client, drive, dist = make_client(tmp_path)
+    upload(client, ("kedi.png", b"ONE"), ("kuş.png", b"TWO"))
+
+    saved = client.put("/api/projects/düğün/references/order",
+                       json={"order": {"picture": ["kuş.png", "kedi.png"]}})
+
+    assert saved.status_code == 200
+    assert names_of(saved.get_json()) == ["kuş.png", "kedi.png"]
+
+    again = client_over(drive, dist).get("/api/projects/düğün/references")
+    assert names_of(again.get_json()) == ["kuş.png", "kedi.png"]
+
+
+def test_a_deleted_reference_leaves_its_slot_where_it_was(tmp_path):
+    client, _drive, _dist = make_client(tmp_path)
+    upload(client, ("bir.png", b"1"), ("iki.png", b"2"), ("üç.png", b"3"))
+    client.put("/api/projects/düğün/references/order",
+               json={"order": {"picture": ["bir.png", "iki.png", "üç.png"]}})
+
+    left = client.post("/api/projects/düğün/references/iki.png/delete")
+
+    assert [(row["name"], row["slot"]) for row in left.get_json()["references"]] == [
+        ("bir.png", 1), ("üç.png", 3)]
 
 
 def test_a_reference_that_passes_a_limit_is_a_400(tmp_path):
