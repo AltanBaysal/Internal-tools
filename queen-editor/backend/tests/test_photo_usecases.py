@@ -1306,9 +1306,13 @@ class FakeWriter:
         self.answer = answer
         self.blows_up = blows_up
         self.calls = []
+        self.modes = []
 
-    def write(self, prompts):
+    def write(self, prompts, mode="standard"):
         self.calls.append(prompts)
+        # Kept apart from the words: which mode a job is in is a different question, and one list
+        # holding both could not answer either (madde 307).
+        self.modes.append(mode)
         if self.blows_up:
             raise self.blows_up
         return self.answer
@@ -3882,3 +3886,21 @@ def test_a_plain_video_is_rendered_with_no_references_at_all():
              lambda: "t", "düğün")()
 
     assert generator.references == [[]]
+
+
+def test_the_writer_is_told_which_mode_the_job_is_in():
+    """A loop video's prompt has to ask for a motion that returns (madde 307), and the writer
+    cannot know that from the frame's words alone."""
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo",
+                            "status": "done", "prompt": "kırmızı elbiseli kadın"})
+    store.files["0_a.png"] = b"PNG"
+    plan_store.append("düğün", [{"id": "0_a", "type": "video", "number": 0, "variant": 0,
+                                 "prompt": "", "negative": "", "seed": 1, "model": "",
+                                 "mode": "loop"}])
+    writer = FakeWriter()
+
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+             lambda: "t", "düğün", writers={layers.VIDEO: writer})()
+
+    assert writer.modes == ["loop"]

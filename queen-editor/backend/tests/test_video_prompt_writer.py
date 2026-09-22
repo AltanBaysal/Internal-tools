@@ -102,3 +102,56 @@ def test_the_h3_instruction_asks_for_the_three_sections():
     for said in ("integrated_multimodal_description:", "overall_soundscape:",
                  "non_diegetic_music: N/A"):
         assert said in instruction, said
+
+
+def _loop_rule():
+    from backend.features.photo_generation.data import xai_prompt_writer
+    return xai_prompt_writer.LOOP_RULE
+
+
+def test_a_loop_video_is_asked_for_a_motion_that_returns():
+    """Madde 307: the clip is played several times back to back, and the model slowing down to land
+    on the last frame is what reads as a pulse. A motion that returns arrives by its own rhythm."""
+    _instruction, writer = _h3()
+    client = FakeClient()
+
+    writer(client).write({"photo": "kırmızı elbiseli kadın"}, "loop")
+
+    assert _loop_rule() in client.calls[0][0]
+
+
+def test_a_plain_video_is_asked_for_nothing_extra():
+    instruction, writer = _h3()
+    client = FakeClient()
+
+    writer(client).write({"photo": "kırmızı elbiseli kadın"}, "standard")
+
+    assert client.calls == [(instruction, "kırmızı elbiseli kadın")]
+
+
+def test_wan_asks_for_the_same_returning_motion():
+    # Loop is a mode of both engines, so the rule belongs to both writers -- as one sentence.
+    client = FakeClient()
+
+    VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "loop")
+
+    assert _loop_rule() in client.calls[0][0]
+
+
+def test_the_loop_rule_says_what_it_wants_and_what_it_refuses():
+    # The whole of the fix is in these words: a cycle, not a movement that ends.
+    rule = _loop_rule()
+
+    assert "returns" in rule and "loop" in rule.lower()
+    assert "does not end" in rule or "not a motion that ends" in rule
+
+
+def test_the_sound_writer_takes_the_mode_and_ignores_it():
+    """One call shape: the loop hands every writer the same arguments, and a sound is laid over the
+    whole of a video however that video was made."""
+    client = FakeClient(answer="fabric rustling")
+
+    written = AudioPromptWriter(client).write({"photo": "a", "video": "b"}, "loop")
+
+    assert written == "fabric rustling"
+    assert "loop" not in client.calls[0][0].lower()
