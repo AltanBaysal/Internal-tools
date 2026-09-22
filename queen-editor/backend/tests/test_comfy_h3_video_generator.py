@@ -327,3 +327,63 @@ def test_a_video_with_no_references_is_made_the_way_it_always_was(tmp_path):
 
     assert sent_director(client)["mode"] == "I2VA"
     assert sent_director(client)["prompt"].startswith(I2VA_SENTENCE)
+
+
+MIXED_POOL = [("kedi.png", b"PIC", "picture"),
+              ("dans.mp4", b"VID", "video"),
+              ("ruzgar.wav", b"SND", "audio")]
+
+
+def sent_items(client):
+    return json.loads(sent_director(client)["timeline_data"])["items"]
+
+
+def test_every_kind_of_reference_is_written_with_its_own_type(tmp_path):
+    """The fields are the node's own, read off its source (21 Eylul): a row says what it is."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    assert [item["type"] for item in sent_items(client)] == ["image", "video", "audio"]
+
+
+def test_every_kind_of_reference_is_uploaded(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    assert client.uploads == [("kedi.png", b"PIC"), ("dans.mp4", b"VID"), ("ruzgar.wav", b"SND")]
+    assert [item["value"] for item in sent_items(client)] == [
+        "server-kedi.png", "server-dans.mp4", "server-ruzgar.wav"]
+
+
+def test_only_a_video_row_says_which_half_of_it_is_used(tmp_path):
+    """media_mode is the V / A / V+A buttons of the node's own panel, and it belongs to a video row
+    alone. Both halves go: the user put that clip in the pool to be followed, and throwing away
+    half of it would be a choice nobody asked for."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    modes = [item.get("media_mode") for item in sent_items(client)]
+    assert modes == [None, "video_audio", None]
+
+
+def test_the_rows_keep_the_pools_own_order(tmp_path):
+    # One counter for the whole timeline: the row's order is its place there, whatever kind it is.
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    assert [(item["slot"], item["order"], item["start"]) for item in sent_items(client)] == [
+        (0, 0, 0), (1, 1, 1), (2, 2, 2)]
+
+
+def test_no_row_asks_for_a_trim(tmp_path):
+    """The node's own defaults are no trim at all, and a clip in the pool has already been through
+    the limits (madde 298). Trimming would be the user's to ask for, in an item of its own."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    assert all("trim_start" not in item and "trim_end" not in item for item in sent_items(client))
