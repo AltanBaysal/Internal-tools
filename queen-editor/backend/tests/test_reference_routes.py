@@ -9,6 +9,7 @@ from backend.features.photo_generation.data.reference_order_store import (
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.list_references import list_references
+from backend.features.photo_generation.domain.usecases.queue_references import queue_references
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
 from backend.features.photo_generation.domain.usecases.save_reference_order import (
     save_reference_order,
@@ -27,7 +28,7 @@ def fixed_length(seconds=4.0):
         "Done", (), {"returncode": 0, "stdout": f"{seconds}\n", "stderr": ""})())
 
 
-def client_over(drive, dist, clips=None):
+def client_over(drive, dist, clips=None, has_h3=True):
     """A server over this Drive folder. A second one is what a restart looks like from here: the
     pool is a folder, not a session."""
     storage = DriveStorage(str(drive))
@@ -40,6 +41,7 @@ def client_over(drive, dist, clips=None):
         list_references=partial(list_references, store, pool, orders),
         remove_reference=partial(remove_reference, store, pool, orders),
         save_reference_order=partial(save_reference_order, store, pool, orders),
+        queue_references=partial(queue_references, store, pool, orders, has_h3),
         reference_dir=pool.dir_path)
     return create_app(dist_dir=str(dist), blueprints=[blueprint]).test_client()
 
@@ -159,3 +161,30 @@ def test_a_pool_asked_of_a_project_that_does_not_exist_is_a_404(tmp_path):
     client, _drive, _dist = make_client(tmp_path)
 
     assert client.get("/api/projects/yok/references").status_code == 404
+
+
+def produce(client, prompts='["gotik kız"]', variants=1, project="düğün"):
+    return client.post(f"/api/projects/{project}/references/produce",
+                       json={"prompts": prompts, "variants": variants})
+
+
+def test_a_refused_reference_run_is_a_400_with_its_reason(tmp_path):
+    """Nothing is on the pool yet, so there is nothing to make a video out of."""
+    client, _drive, _dist = make_client(tmp_path)
+
+    resp = produce(client)
+
+    assert resp.status_code == 400
+    assert "referans" in resp.get_json()["error"].lower()
+
+
+def test_a_reference_run_that_can_go_ahead_answers_with_what_it_took(tmp_path):
+    client, _drive, _dist = make_client(tmp_path)
+    upload(client, ("kedi.png", b"PNG"))
+
+    resp = produce(client, variants=2)
+
+    assert resp.status_code == 202
+    # Nobody is born yet -- that is madde 303's -- and the shape of the answer is already the one
+    # the screen reads from every other production.
+    assert resp.get_json() == {"added": 0}

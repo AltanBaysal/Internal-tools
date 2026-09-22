@@ -6,12 +6,20 @@ from backend.features.photo_generation.domain.usecases.add_references import (
     add_references,
 )
 from backend.features.photo_generation.domain.usecases.list_references import list_references
+from backend.features.photo_generation.domain.prompt_list import InvalidPrompts
+from backend.features.photo_generation.domain.usecases.queue_references import (
+    NoReferenceProducer,
+    queue_references,
+)
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
 from backend.features.photo_generation.domain.usecases.save_reference_order import (
     InvalidReferenceOrder,
     save_reference_order,
 )
-from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
+from backend.features.photo_generation.domain.usecases.start_batch import (
+    InvalidVariants,
+    ProjectMissing,
+)
 
 
 class FakeStore:
@@ -288,3 +296,71 @@ def test_an_order_that_is_not_lists_of_names_is_refused(order):
 
     with pytest.raises(InvalidReferenceOrder):
         save_reference_order(store, pool, FakeOrderStore(), "düğün", order)
+
+
+def ready_pool(orders=None):
+    """A pool with one picture in it and no holes -- everything a reference run needs."""
+    orders = orders or FakeOrderStore()
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [("kedi.png", b"PNG")], orders=orders)
+    return store, pool, orders
+
+
+def run(store, pool, orders, prompts='["gotik kız"]', variants=1, has_h3=True, project="düğün"):
+    # The flag rides with the stores rather than with the press: which video model the notebook
+    # installed is the installation's answer, and main.py binds it once.
+    return queue_references(store, pool, orders, has_h3, project, prompts, variants)
+
+
+def test_a_reference_run_without_h3_is_refused():
+    """Only H3 has a mode that reads references; WAN has nothing to be handed them."""
+    store, pool, orders = ready_pool()
+
+    with pytest.raises(NoReferenceProducer) as exc:
+        run(store, pool, orders, has_h3=False)
+
+    assert "H3" in str(exc.value)
+
+
+def test_a_reference_run_with_an_empty_pool_is_refused():
+    store, pool = FakeStore(), FakeReferenceStore()
+
+    with pytest.raises(references.PoolLimit) as exc:
+        run(store, pool, FakeOrderStore())
+
+    assert "referans" in str(exc.value).lower()
+
+
+def test_a_reference_run_with_a_gap_in_the_pool_is_refused():
+    """H3 packs references tight and numbers them by order, so a hole would quietly move every
+    reference after it (madde 300)."""
+    orders = FakeOrderStore({"düğün": {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}})
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [("bir.png", b"1"), ("üç.png", b"3")], orders=orders)
+
+    with pytest.raises(references.PoolLimit) as exc:
+        run(store, pool, orders)
+
+    assert "fotoğraf" in str(exc.value)
+
+
+def test_a_reference_run_with_everything_in_place_is_accepted():
+    # Nothing is born yet -- that is madde 303's -- but nothing refuses it either.
+    store, pool, orders = ready_pool()
+
+    assert run(store, pool, orders) == 0
+
+
+def test_a_reference_run_reads_the_prompt_list_the_way_the_photo_panel_does():
+    store, pool, orders = ready_pool()
+
+    with pytest.raises(InvalidPrompts):
+        run(store, pool, orders, prompts="gotik kız")
+
+
+@pytest.mark.parametrize("variants", [0, 27])
+def test_a_reference_run_counts_variants_the_way_a_batch_does(variants):
+    store, pool, orders = ready_pool()
+
+    with pytest.raises(InvalidVariants):
+        run(store, pool, orders, variants=variants)
