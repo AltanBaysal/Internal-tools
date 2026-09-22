@@ -1,4 +1,4 @@
-"""/api/projects/<project>/references · /references/<project>/<file>
+"""/api/projects/<project>/references · …/references/order · /references/<project>/<file>
 
 The project's reference pool, over HTTP: the browser cannot reach Drive, so every byte in and out
 goes through here (FOUNDATION 4).
@@ -13,10 +13,14 @@ from flask import Blueprint, jsonify, request, send_from_directory
 
 from backend.features.photo_generation.domain.references import LIMITS, PoolLimit
 from backend.features.photo_generation.domain.usecases.add_references import UnknownReference
+from backend.features.photo_generation.domain.usecases.save_reference_order import (
+    InvalidReferenceOrder,
+)
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 
-def make_reference_blueprint(add_references, list_references, remove_reference, reference_dir):
+def make_reference_blueprint(add_references, list_references, remove_reference,
+                             save_reference_order, reference_dir):
     """The callables are already bound to a store and a pool (see main.py)."""
     bp = Blueprint("references", __name__)
 
@@ -53,6 +57,16 @@ def make_reference_blueprint(add_references, list_references, remove_reference, 
     def delete_reference(project, name):
         try:
             return pool(remove_reference(project, name))
+        except ProjectMissing as exc:
+            return jsonify({"error": str(exc)}), 404
+
+    @bp.put("/api/projects/<project>/references/order")
+    def put_reference_order(project):
+        body = request.get_json(silent=True) or {}
+        try:
+            return pool(save_reference_order(project, body.get("order")))
+        except InvalidReferenceOrder as exc:
+            return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404
 

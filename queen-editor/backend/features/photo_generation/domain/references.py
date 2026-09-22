@@ -69,6 +69,45 @@ def free_name(name, taken):
 SAID = {PICTURE: "fotoğraf", VIDEO: "video", AUDIO: "ses"}
 
 
+def placed(order, rows):
+    """The pool with each reference's slot on it -- its place inside its own kind, counting from 1.
+
+    `order` is {kind: [name, …]}, the sequence the user dragged. A name stays in that sequence after
+    its file is gone, and that is the whole of how a gap exists: deleting a reference touches the
+    folder and leaves the order alone, so the ones after it do not move (madde 300).
+
+    They must not move, because H3 numbers references densely and by order -- a reference that slid
+    up would quietly become the <Picture N> the prompt meant for another one.
+
+    A file the order has never heard of waits at the end, among those by name: that is a fresh
+    upload, and it is also what a pool with no stored order at all reads as.
+    """
+    out = []
+    for kind in LIMITS:
+        held = {row["name"]: row for row in rows if row["kind"] == kind}
+        sequence = [name for name in order.get(kind, []) if isinstance(name, str)]
+        unheard = sorted(name for name in held if name not in sequence)
+        for slot, name in enumerate(sequence + unheard, start=1):
+            if name in held:
+                out.append({**held[name], "slot": slot})
+    return out
+
+
+def gaps(rows):
+    """The kinds whose slots are not dense from 1 -- a hole somebody has to close.
+
+    Nothing has to come after the last reference, so only a missing slot BEFORE a filled one is a
+    gap. Production refuses while one is open (madde 302): H3 would pack the references tight and
+    the prompt's own numbers would point at the wrong ones.
+    """
+    open_kinds = []
+    for kind in LIMITS:
+        slots = sorted(row["slot"] for row in rows if row["kind"] == kind)
+        if slots and slots != list(range(1, len(slots) + 1)):
+            open_kinds.append(kind)
+    return open_kinds
+
+
 def check(pool, incoming):
     """May these references join that pool? Raises PoolLimit with the sentence that says why.
 

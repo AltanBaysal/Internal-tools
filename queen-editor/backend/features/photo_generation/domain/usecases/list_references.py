@@ -6,14 +6,19 @@ so anything at all can be in it, and only what H3 could be handed is a reference
 
 The length is here rather than in a place of its own because both readers want the same number: the
 limits are counted from it (madde 298), and the screen draws it (299).
+
+Every row also says which slot it stands in, and a slot nobody stands in is a gap -- the screen
+draws it and production refuses over it (madde 300, 302).
 """
 from backend.features.photo_generation.domain import references
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 
-def list_references(store, pool, project):
+def list_references(store, pool, orders, project):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     rows = [{"name": name, "kind": references.kind_of(name), "seconds": seconds}
             for name, seconds in pool.items(project)]
-    return [row for row in rows if row["kind"]]
+    # The slot each one stands in, from the order the user dragged (madde 300). Here rather than in
+    # the store, because a slot is a rule about the pool and the store only knows the folder.
+    return references.placed(orders.read(project), [row for row in rows if row["kind"]])

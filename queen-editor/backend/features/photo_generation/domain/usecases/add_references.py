@@ -31,11 +31,11 @@ def _length(clips, name, kind, data):
         raise references.PoolLimit(f"{name} havuza giremez — süresi okunamadı: {exc}") from exc
 
 
-def add_references(store, pool, clips, project, files):
+def add_references(store, pool, orders, clips, project, files):
     """`files` is [(the name the browser sent, the bytes)]."""
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
-    held = list_references(store, pool, project)
+    held = list_references(store, pool, orders, project)
     taken = [row["name"] for row in held]
     arriving, writing = [], []
     for name, data in files:
@@ -52,4 +52,4 @@ def add_references(store, pool, clips, project, files):
     # Nothing at all is written above, so a refusal leaves the pool exactly as it was.
     for name, data in writing:
         pool.save(project, name, data)
-    return list_references(store, pool, project)
+    return list_references(store, pool, orders, project)

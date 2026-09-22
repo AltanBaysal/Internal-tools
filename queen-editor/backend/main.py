@@ -23,11 +23,17 @@ from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
+from backend.features.photo_generation.data.reference_order_store import (
+    DriveReferenceOrderStore,
+)
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
+from backend.features.photo_generation.domain.usecases.save_reference_order import (
+    save_reference_order,
+)
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
@@ -225,10 +231,16 @@ _photo_bp = make_photo_generation_blueprint(
 # questions.
 _clips = FfmpegClips()
 _reference_store = DriveReferenceStore(_storage, _clips)
+# Which slot each reference stands in: the folder cannot answer that, so it has a document of its
+# own beside the gallery's order file (madde 300).
+_reference_orders = DriveReferenceOrderStore(_storage)
 _references_bp = make_reference_blueprint(
-    add_references=partial(add_references, _photo_store, _reference_store, _clips),
-    list_references=partial(list_references, _photo_store, _reference_store),
-    remove_reference=partial(remove_reference, _photo_store, _reference_store),
+    add_references=partial(add_references, _photo_store, _reference_store, _reference_orders,
+                           _clips),
+    list_references=partial(list_references, _photo_store, _reference_store, _reference_orders),
+    remove_reference=partial(remove_reference, _photo_store, _reference_store, _reference_orders),
+    save_reference_order=partial(save_reference_order, _photo_store, _reference_store,
+                                 _reference_orders),
     reference_dir=_reference_store.dir_path,
 )
 

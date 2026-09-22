@@ -133,8 +133,8 @@ def test_a_reference_for_a_project_that_does_not_exist_is_refused():
 
 
 def test_the_pool_lists_in_one_stable_order():
-    """By name, whichever order they arrived in: that is the one order a folder can promise, and
-    the order the user WANTS is a document of its own (madde 300)."""
+    """Kind by kind, and by name inside a kind while nobody has dragged anything: a slot is a place
+    inside a row, so the pool is read a row at a time (madde 300)."""
     clips = FakeClips()
     store, pool = FakeStore(), FakeReferenceStore(clips)
 
@@ -142,7 +142,7 @@ def test_the_pool_lists_in_one_stable_order():
     added(store, pool, [("rüzgar.wav", b"WAV"), ("dans.mp4", b"MP4")], clips)
 
     # Each kind counts its own slots, so all three stand first in their own row.
-    assert pool_of(store, pool) == [clip("dans.mp4", references.VIDEO), picture(),
+    assert pool_of(store, pool) == [picture(), clip("dans.mp4", references.VIDEO),
                                     clip("rüzgar.wav", references.AUDIO)]
 
 
@@ -154,7 +154,7 @@ def test_the_pool_says_how_long_each_clip_is():
 
     added(store, pool, [("kedi.png", b"PNG"), ("dans.mp4", b"MP4")], clips)
 
-    assert pool_of(store, pool) == [clip("dans.mp4", references.VIDEO, 6.5), picture()]
+    assert pool_of(store, pool) == [picture(), clip("dans.mp4", references.VIDEO, 6.5)]
 
 
 def test_only_a_clip_is_asked_how_long_it_is():

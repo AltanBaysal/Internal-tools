@@ -269,6 +269,16 @@ export async function uploadReferences(project, files) {
                  { method: "POST", body: form, timeout: UPLOAD_TIMEOUT_MS });
 }
 
+// The order a drag made, per kind. The whole row goes down because a slot is a place in a sequence,
+// and a name the list leaves out is a slot the pool stops holding open (madde 300).
+export async function saveReferenceOrder(project, order) {
+  return request(`/api/projects/${encodeURIComponent(project)}/references/order`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order }),
+  });
+}
+
 export async function removeReference(project, name) {
   return request(`/api/projects/${encodeURIComponent(project)}/references/`
                  + `${encodeURIComponent(name)}/delete`, { method: "POST" });

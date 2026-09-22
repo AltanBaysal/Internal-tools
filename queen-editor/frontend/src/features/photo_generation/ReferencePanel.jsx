@@ -1,6 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { listReferences, referenceUrl, removeReference, uploadReferences } from "../../shared/api.js";
+import {
+  listReferences,
+  referenceUrl,
+  removeReference,
+  saveReferenceOrder,
+  uploadReferences,
+} from "../../shared/api.js";
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono, Note } from "../../vendor/kit.jsx";
@@ -34,16 +40,35 @@ const FRAME = { width: 68, height: 48, objectFit: "cover", background: "var(--bg
 const BIN = { position: "absolute", top: 2, right: 2, width: 16, height: 16, lineHeight: "14px",
               padding: 0, fontSize: 11, background: "var(--bg)", border: "1px solid var(--border)",
               color: "var(--ink-2)", cursor: "pointer" };
+// A slot with nothing in it: drawn, because the user has to see the hole to drag it closed.
+const HOLE = { width: 68, height: 48, border: "1px dashed var(--border)",
+               background: "var(--bg-2)" };
 
 /** How long a clip runs, in the user's own numbers. */
 function ran(seconds) {
   return `${seconds.toFixed(1).replace(".", ",")} sn`;
 }
 
-function Tile({ project, row, onRemove }) {
+/** One kind's row as places rather than as files: a slot nobody stands in comes back as null.
+ *
+ * The server says which slot each reference holds and says nothing about the empty ones -- there is
+ * nothing to say. The row is as long as its last reference. */
+function slotted(rows) {
+  const last = rows.reduce((high, row) => Math.max(high, row.slot), 0);
+  return Array.from({ length: last }, (_, index) =>
+    rows.find((row) => row.slot === index + 1) || null);
+}
+
+function Tile({ project, row, onRemove, onDragStart, onDrop }) {
   const url = referenceUrl(project, row.name);
   return (
-    <div style={TILE}>
+    // Draggable from the start, not after a hold: the browser decides at mousedown whether a press
+    // may become a drag, so a tile armed later is never a drag source at all (the gallery's own
+    // lesson).
+    <div style={TILE} data-reference={row.name} draggable
+         onDragStart={onDragStart}
+         onDragOver={(e) => e.preventDefault()}
+         onDrop={onDrop}>
       {row.kind === "picture" && <img src={url} alt={row.name} style={FRAME} />}
       {/* Muted and controlless: the browser draws the opening frame, which is all a tile needs. */}
       {row.kind === "video" && <video src={url} muted preload="metadata" style={FRAME} />}
@@ -78,6 +103,9 @@ export default function ReferencePanel({ project, onClose }) {
   const [error, setError] = useState(null);
   const [asking, setAsking] = useState(null);
   const [busy, setBusy] = useState(false);
+  // What is being dragged. A ref and not state: it is a gesture in flight, nothing is drawn from
+  // it, and a drop has to read what the drag start wrote however the browser batched the two.
+  const drag = useRef(null);
 
   const load = useCallback(() => {
     listReferences(project).then(setPool).catch((err) => setError(err.message));
@@ -99,6 +127,28 @@ export default function ReferencePanel({ project, onClose }) {
       setError(err.message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Where the drag ends: the row is rebuilt as a sequence, and the whole of it goes down.
+   *
+   * The slots are not sent -- a place in the list IS the slot. The dead names that were holding
+   * empty slots are simply not in what the screen shows, which is how a gap closes.
+   */
+  async function handleDrop(kind, index) {
+    const dragged = drag.current;
+    drag.current = null;
+    if (!dragged || dragged.kind !== kind) return;
+    const names = pool.references.filter((row) => row.kind === kind).map((row) => row.name);
+    const from = names.indexOf(dragged.name);
+    const placed = names.filter((name) => name !== dragged.name);
+    // Count the hole as a place: dropping into it is what fills it.
+    placed.splice(Math.min(index, placed.length), 0, dragged.name);
+    if (from === -1 || placed.join() === names.join()) return;
+    try {
+      setPool(await saveReferenceOrder(project, { [kind]: placed }));
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -138,9 +188,17 @@ export default function ReferencePanel({ project, onClose }) {
               </Mono>
             </div>
             <div style={TILES}>
-              {rows.map((row) => (
-                <Tile key={row.name} project={project} row={row} onRemove={setAsking} />
-              ))}
+              {slotted(rows).map((row, index) => (row ? (
+                <Tile key={row.name} project={project} row={row} onRemove={setAsking}
+                      onDragStart={() => { drag.current = { kind, name: row.name }; }}
+                      onDrop={() => handleDrop(kind, index)} />
+              ) : (
+                /* The hole a deleted reference left. It is a drop target too: dragging into it is
+                   how the user closes it (madde 300). */
+                <div key={`boş-${index}`} aria-label={`${index + 1}. yuva boş`} style={HOLE}
+                     onDragOver={(e) => e.preventDefault()}
+                     onDrop={() => handleDrop(kind, index)} />
+              )))}
             </div>
           </div>
         );
