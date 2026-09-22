@@ -38,6 +38,10 @@ class DriveReferenceStore:
         return [(name, self._seconds(subdir, name))
                 for name in sorted(self._storage.list_files(subdir))]
 
+    def read(self, project, name):
+        """One reference's bytes -- what a REF2VA render is handed (madde 304)."""
+        return self._storage.read_bytes(self._subdir(project), name)
+
     def delete(self, project, name):
         self._storage.delete_file(self._subdir(project), name)
 

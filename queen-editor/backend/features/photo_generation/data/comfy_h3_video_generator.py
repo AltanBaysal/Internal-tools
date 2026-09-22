@@ -33,6 +33,14 @@ FL2VA_SENTENCE = ("How the reference pictures align with the target video — Pi
 # Motion Booster's word; the writer decides whether a scene gets it (madde 246).
 TRIGGER = "dynv2"
 
+# The mode the Director runs a pool-made video in. A plain string on the node, which is why no new
+# export was needed: the ref2va_model slot of the shipped graph is already filled (madde 304).
+REF2VA = "REF2VA"
+# What a reference row of the timeline carries, read off the shipped export rather than guessed at.
+# source_width and source_height are deliberately absent: the producer does not know the size of a
+# file it was handed, and the node has a ref_image_size input of its own.
+REFERENCE_ITEM = {"enabled": True, "duration": 1, "thumbnail": None}
+
 # The graph previews through a tiny VAE as it samples; only the mp4 is the render.
 VIDEO_EXTENSIONS = (".mp4",)
 
@@ -44,13 +52,20 @@ class ComfyH3VideoGenerator:
         self._first_last_path = first_last_path
         self._timeout = timeout
 
-    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
+                 references=()):
         """`source` is the frame's photo as (name, bytes); `end`, when given, is the picture the video
         arrives at, and giving one is the whole of the choice between the two graphs.
+
+        `references` is the project's pool as (name, bytes, kind). Given any, the video is made of
+        THEM and of no frame at all: the mode becomes REF2VA and no source picture is asked for
+        (madde 304).
 
         `negative`, `model` and `lora` belong to the port rather than to these graphs: the lora and
         its strength are baked into the exports (madde 213), and a video job carries none of them.
         """
+        if references:
+            return self._from_pool(prompt, seed, references)
         if not source:
             # The ending frame is where the video arrives, not what it is built on.
             raise RuntimeError("Video için kaynak foto verilmedi")
@@ -80,6 +95,33 @@ class ComfyH3VideoGenerator:
             written = f"{TRIGGER}. {opening}\n\n{rest}"
         else:
             written = f"{opening}\n\n{prompt}"
+        return self._render(workflow, director, timeline, written, seed)
+
+    def _from_pool(self, prompt, seed, references):
+        """The same graph, run in REF2VA: the timeline is the pool rather than the frame.
+
+        The I2VA export is what is loaded, because the mode is a string and the node's ref2va_model
+        slot is already filled -- there is no second graph to keep in step.
+
+        The prompt goes in as the user wrote it. The opening sentence the other two modes carry is
+        the producer telling H3 which picture sits where; here the prompt is the user's own six
+        sections and nothing is put in front of it.
+        """
+        workflow = self._load(self._workflow_path)
+        director = workflow[DIRECTOR_NODE]["inputs"]
+        director["mode"] = REF2VA
+        timeline = json.loads(director["timeline_data"])
+        # Ordered rows, because H3 numbers references by their order and a prompt's <Picture 2>
+        # counts from there (madde 300).
+        timeline["items"] = [
+            {**REFERENCE_ITEM, "id": f"image-{index}", "order": index, "slot": index,
+             "start": index, "type": "image",
+             "value": self._client.upload_image(name, data)}
+            for index, (name, data, _kind) in enumerate(references)]
+        return self._render(workflow, director, timeline, prompt, seed)
+
+    def _render(self, workflow, director, timeline, written, seed):
+        """Write the prompt in all four places the node may read it, and run the graph."""
         director["prompt"] = written
         timeline["builder_state"]["simple_prompt"] = written
         timeline["resolved_prompt"] = written

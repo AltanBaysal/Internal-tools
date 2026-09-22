@@ -12,10 +12,13 @@ What comes back are CARDS, not layers on frames that exist: one per prompt per v
 from a video and holding no picture at all (madde 303). The gallery draws them because madde 292
 taught it that a card is a box rather than a photo.
 """
-from backend.features.photo_generation.domain import layers, references
+from functools import partial
+
+from backend.features.photo_generation.domain import layers, production_mode, references
 from backend.features.photo_generation.domain.photo_name import frame_id
 from backend.features.photo_generation.domain.prompt_list import parse_prompts
 from backend.features.photo_generation.domain.usecases.list_references import list_references
+from backend.features.photo_generation.domain.usecases.reference_files import reference_files
 from backend.features.photo_generation.domain.usecases.run_queue import run_queue
 from backend.features.photo_generation.domain.usecases.start_batch import (
     MAX_VARIANTS,
@@ -23,11 +26,6 @@ from backend.features.photo_generation.domain.usecases.start_batch import (
     ProjectMissing,
     next_number,
 )
-
-# What a card's own line says it was made from. The same word the screen picks with
-# (production_modes.js), and the engine reads it to know which graph to load (madde 304).
-FROM_POOL = "reference"
-
 
 def plan_reference_cards(start, prompts, variants, new_seed):
     """[{"id", "type", "number", "variant", "prompt", …}] -- one video job per prompt per variant.
@@ -46,7 +44,7 @@ def plan_reference_cards(start, prompts, variants, new_seed):
     return [{"id": frame_id(start + index, variant), "type": layers.VIDEO,
              "number": start + index, "variant": variant,
              "prompt": prompt, "negative": "", "seed": new_seed(), "model": "",
-             "mode": FROM_POOL}
+             "mode": production_mode.REFERENCE}
             for index, prompt in enumerate(prompts)
             for variant in range(variants)]
 
@@ -88,5 +86,8 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     # turn.
     plan_store.append(project, cards)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers, stills=stills)
+              order_store=order_store, writers=writers, stills=stills,
+              # The pool is read at each job's turn, not now: it is the user's to change while the
+              # queue runs, and a card does not remember what it was made from (madde 304).
+              references=partial(reference_files, store, pool, orders))
     return len(cards)

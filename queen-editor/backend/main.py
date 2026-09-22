@@ -31,6 +31,7 @@ from backend.features.photo_generation.domain.usecases.add_references import add
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.usecases.queue_references import queue_references
+from backend.features.photo_generation.domain.usecases.reference_files import reference_files
 from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
 from backend.features.photo_generation.domain.usecases.save_reference_order import (
     save_reference_order,
@@ -178,32 +179,38 @@ _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers, seed.random_seed,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, order_store=_order_store, writers=_writers, stills=_stills),
+                        log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
+                        references=_reference_files),
     get_status=partial(get_status, _photo_runner),
     stop_generation=partial(stop_generation, _photo_runner, _comfy_client.interrupt),
     resume_batch=partial(resume_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills),
+                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
+                        references=_reference_files),
     cancel_generation=partial(cancel_generation, _photo_runner, _photo_store, _photo_record,
                               _plan_store,
                               lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     retry_frame=partial(retry_frame, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, order_store=_order_store, writers=_writers, stills=_stills),
+                        log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
+                        references=_reference_files),
     retry_failed=partial(retry_failed, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills),
+                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
+                        references=_reference_files),
     queue_layer=partial(queue_layer, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _order_store, _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, writers=_writers, stills=_stills),
+                        log=_timing, writers=_writers, stills=_stills,
+                        references=_reference_files),
     regenerate=partial(regenerate, _photo_runner, _photo_store, _photo_record, _plan_store,
                        _order_store, _producers, seed.random_seed,
                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       log=_timing, writers=_writers, stills=_stills),
+                       log=_timing, writers=_writers, stills=_stills,
+                       references=_reference_files),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
@@ -235,6 +242,9 @@ _reference_store = DriveReferenceStore(_storage, _clips)
 # Which slot each reference stands in: the folder cannot answer that, so it has a document of its
 # own beside the gallery's order file (madde 300).
 _reference_orders = DriveReferenceOrderStore(_storage)
+# What a pool-made video is rendered from, asked at the job's turn (madde 304). Every door into the
+# queue carries it, because any run can reach a card that was made of the pool.
+_reference_files = partial(reference_files, _photo_store, _reference_store, _reference_orders)
 _references_bp = make_reference_blueprint(
     add_references=partial(add_references, _photo_store, _reference_store, _reference_orders,
                            _clips),
@@ -249,7 +259,8 @@ _references_bp = make_reference_blueprint(
                              _producers, seed.random_seed,
                              lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                              config.VIDEO_MODEL == "h3",
-                             log=_timing, writers=_writers, stills=_stills),
+                             log=_timing, writers=_writers, stills=_stills,
+                        references=_reference_files),
     reference_dir=_reference_store.dir_path,
 )
 

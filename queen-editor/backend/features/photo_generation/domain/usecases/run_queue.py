@@ -13,18 +13,20 @@ class Busy(Exception):
 
 
 def run_queue(runner, store, record, plan_store, producers, now, project, log=None,
-              order_store=None, writers=None, stills=None):
+              order_store=None, writers=None, stills=None, references=None):
     """`producers` is the {job type: producer} map the loop dispatches on and `writers` the one it
     finds a job's prompt writer in; `stills` is what pulls a picture out of a landed video;
-    `order_store` is where the loop reads the sequence from; `log` is only carried through, because
-    where the loop's timing line lands is main.py's choice."""
+    `references` answers with the project's reference pool for a job made of it; `order_store` is
+    where the loop reads the sequence from; `log` is only carried through, because where the loop's
+    timing line lands is main.py's choice."""
     state = runner.status()
     if state.get("status") == "running":
         if state.get("project") == project:
             return                      # the live loop will reach the new jobs by itself
         raise Busy("Zaten bir üretim sürüyor.")
     job = make_job(runner, store, record, plan_store, producers, now, project, log=log,
-                   order_store=order_store, writers=writers, stills=stills)
+                   order_store=order_store, writers=writers, stills=stills,
+                   references=references)
     if not runner.start(project, job):
         # Lost the race against another request between status() and start().
         raise Busy("Zaten bir üretim sürüyor.")

@@ -54,7 +54,8 @@ class ComfyVideoGenerator:
         self._first_last_path = first_last_path
         self._timeout = timeout
 
-    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
+                 references=()):
         """`source` is the frame's photo as (name, bytes) -- an I2V render hangs on a picture.
 
         `end` is the picture the video arrives at, same shape, and giving one is the whole of the

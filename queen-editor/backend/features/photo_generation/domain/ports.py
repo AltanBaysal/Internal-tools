@@ -4,7 +4,8 @@ from typing import Protocol
 
 class PhotoGenerator(Protocol):
     def generate(self, prompt: str, negative: str, seed: int, model: str = "", lora: str = "",
-                 source: tuple | None = None, end: tuple | None = None) -> bytes:
+                 source: tuple | None = None, end: tuple | None = None,
+                 references: tuple = ()) -> bytes:
         """Render one layer and return its bytes -- nothing else, and no name.
 
         `source` is the file this layer is made from as (name, bytes): a video's photo, a sound's
@@ -13,6 +14,9 @@ class PhotoGenerator(Protocol):
 
         `end` is the picture the layer arrives at, same shape. Only a video has one; a photo and a
         sound take the argument and ignore it, for the same reason `source` is taken by all three.
+
+        `references` is the project's reference pool as (name, bytes, kind), in the pool's own
+        order -- only a video made from it has any, and only H3 can read them (madde 304).
 
         The file's name is the domain's (photo_name.layer_file), never the producer's.
 
@@ -60,6 +64,10 @@ class ReferenceStore(Protocol):
         It is taken off the file every time rather than remembered, so a reference replaced in
         Drive counts as what it now is.
         """
+        ...
+
+    def read(self, project: str, name: str) -> bytes | None:
+        """One reference's bytes; None when it is not there."""
         ...
 
     def delete(self, project: str, name: str) -> None:

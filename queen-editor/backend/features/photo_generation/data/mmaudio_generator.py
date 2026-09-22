@@ -30,7 +30,8 @@ class MMAudioGenerator:
         self._ffmpeg = ffmpeg
         self._tmp_dir = tmp_dir
 
-    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
+                 references=()):
         """`source` is the frame's video as (name, bytes); the answer is its sound as bytes.
 
         `end` is a video's business alone -- a sound is laid over the whole of one and arrives

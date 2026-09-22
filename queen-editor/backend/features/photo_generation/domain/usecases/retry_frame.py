@@ -19,7 +19,7 @@ class FrameMissing(Exception):
 
 
 def retry_frame(runner, store, record, plan_store, producers, now, project, fid, log=None,
-                order_store=None, writers=None, stills=None):
+                order_store=None, writers=None, stills=None, references=None):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     frames = plan_store.read(project)["frames"]
@@ -37,4 +37,5 @@ def retry_frame(runner, store, record, plan_store, producers, now, project, fid,
         # what retry meant before a frame had layers.
         record.mark(project, fid, layers.PHOTO, photo_file(fid), queue.QUEUED, now())
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers, stills=stills)
+              order_store=order_store, writers=writers, stills=stills,
+              references=references)

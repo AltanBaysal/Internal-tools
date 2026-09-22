@@ -26,7 +26,8 @@ class ComfyPhotoGenerator:
         self._workflow_path = workflow_path
         self._timeout = timeout
 
-    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None):
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
+                 references=()):
         """`source` and `end` are nobody's business here: a picture is made from its words alone and
         arrives nowhere. Both are taken because the queue has one call shape for every producer --
         see ports.PhotoGenerator.
