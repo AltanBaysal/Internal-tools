@@ -5,6 +5,7 @@ import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Note } from "../../vendor/kit.jsx";
 import { useProducers } from "../producers/useProducers.js";
 import Gallery from "./Gallery.jsx";
+import ReferencePanel from "./ReferencePanel.jsx";
 import SidePanel from "./SidePanel.jsx";
 import { useGeneration } from "./useGeneration.js";
 import { useKeptScroll } from "./useKeptScroll.js";
@@ -46,6 +47,9 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
   // The gallery's own selection, echoed here so the video panel can scope itself to it. Read-only:
   // the gallery stays its owner.
   const [selected, setSelected] = useState([]);
+  // Whether the reference pool is open. The browser's own business and nobody else's: the pool
+  // lives on disk, so a panel that starts open loses nothing (madde 299).
+  const [poolOpen, setPoolOpen] = useState(true);
 
   // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
@@ -100,6 +104,17 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        {/* The pool on the left of the cards, closable the way an editor closes a side bar. The
+            cards' own panel on the right does not close -- the user's decision. */}
+        {poolOpen ? (
+          <ReferencePanel project={project} onClose={() => setPoolOpen(false)} />
+        ) : (
+          <button type="button" aria-label="Referans panelini aç" className="wf-stroke"
+                  onClick={() => setPoolOpen(true)}
+                  style={{ width: 24, flexShrink: 0, background: "var(--bg-2)",
+                           borderRight: "1px solid var(--border)", color: "var(--ink-3)",
+                           cursor: "pointer", padding: 0 }}>›</button>
+        )}
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div data-scroll ref={box} style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
