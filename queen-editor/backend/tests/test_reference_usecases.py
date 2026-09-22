@@ -307,9 +307,17 @@ def ready_pool(orders=None):
 
 
 def run(store, pool, orders, prompts='["gotik kız"]', variants=1, has_h3=True, project="düğün"):
-    # The flag rides with the stores rather than with the press: which video model the notebook
-    # installed is the installation's answer, and main.py binds it once.
-    return queue_references(store, pool, orders, has_h3, project, prompts, variants)
+    """A reference run, as far as its refusals.
+
+    Everything a run would need once it is allowed to start is None here on purpose: these tests
+    are about the checks that come first, and nothing past them is touched. What a run that IS
+    allowed does is tested beside the queue's own fakes (test_photo_usecases).
+
+    The H3 flag rides with the stores rather than with the press: which video model the notebook
+    installed is the installation's answer, and main.py binds it once.
+    """
+    return queue_references(None, store, None, None, None, pool, orders, None, None, None,
+                            has_h3, project, prompts, variants)
 
 
 def test_a_reference_run_without_h3_is_refused():
@@ -342,13 +350,6 @@ def test_a_reference_run_with_a_gap_in_the_pool_is_refused():
         run(store, pool, orders)
 
     assert "fotoğraf" in str(exc.value)
-
-
-def test_a_reference_run_with_everything_in_place_is_accepted():
-    # Nothing is born yet -- that is madde 303's -- but nothing refuses it either.
-    store, pool, orders = ready_pool()
-
-    assert run(store, pool, orders) == 0
 
 
 def test_a_reference_run_reads_the_prompt_list_the_way_the_photo_panel_does():

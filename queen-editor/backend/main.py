@@ -244,8 +244,12 @@ _references_bp = make_reference_blueprint(
                                  _reference_orders),
     # Which video model the notebook installed is the installation's own answer, and only H3 can be
     # handed references at all (madde 302).
-    queue_references=partial(queue_references, _photo_store, _reference_store, _reference_orders,
-                             config.VIDEO_MODEL == "h3"),
+    queue_references=partial(queue_references, _photo_runner, _photo_store, _photo_record,
+                             _plan_store, _order_store, _reference_store, _reference_orders,
+                             _producers, seed.random_seed,
+                             lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                             config.VIDEO_MODEL == "h3",
+                             log=_timing, writers=_writers, stills=_stills),
     reference_dir=_reference_store.dir_path,
 )
 

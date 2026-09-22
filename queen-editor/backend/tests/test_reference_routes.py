@@ -2,11 +2,15 @@ from functools import partial
 from io import BytesIO
 
 from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
+from backend.features.photo_generation.data.order_store import DriveOrderStore
+from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.reference_order_store import (
     DriveReferenceOrderStore,
 )
+from backend.features.photo_generation.data.plan_store import DrivePlanStore
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
+from backend.features.photo_generation.domain import layers
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.usecases.queue_references import queue_references
@@ -17,8 +21,17 @@ from backend.features.photo_generation.domain.usecases.save_reference_order impo
 from backend.features.photo_generation.presentation.reference_routes import (
     make_reference_blueprint,
 )
+from backend.features.photo_generation.runner import PhotoRunner
 from backend.services.drive.storage import DriveStorage
 from backend.web.app import create_app
+
+
+class FakeGenerator:
+    """A video engine that answers with bytes. What H3 really does with references is madde 304's;
+    this file is about the door."""
+
+    def generate(self, *_args, **_kwargs):
+        return b"MP4"
 
 
 def fixed_length(seconds=4.0):
@@ -33,6 +46,10 @@ def client_over(drive, dist, clips=None, has_h3=True):
     pool is a folder, not a session."""
     storage = DriveStorage(str(drive))
     store = DrivePhotoStore(storage)
+    record = DrivePhotoRecord(storage)
+    plan_store = DrivePlanStore(storage)
+    gallery = DriveOrderStore(storage)
+    runner = PhotoRunner(spawn=lambda fn: fn())
     clips = clips or fixed_length()
     pool = DriveReferenceStore(storage, clips)
     orders = DriveReferenceOrderStore(storage)
@@ -41,7 +58,9 @@ def client_over(drive, dist, clips=None, has_h3=True):
         list_references=partial(list_references, store, pool, orders),
         remove_reference=partial(remove_reference, store, pool, orders),
         save_reference_order=partial(save_reference_order, store, pool, orders),
-        queue_references=partial(queue_references, store, pool, orders, has_h3),
+        queue_references=partial(queue_references, runner, store, record, plan_store, gallery,
+                                 pool, orders, {layers.VIDEO: FakeGenerator()}, lambda: 7,
+                                 lambda: "t", has_h3),
         reference_dir=pool.dir_path)
     return create_app(dist_dir=str(dist), blueprints=[blueprint]).test_client()
 
@@ -185,6 +204,6 @@ def test_a_reference_run_that_can_go_ahead_answers_with_what_it_took(tmp_path):
     resp = produce(client, variants=2)
 
     assert resp.status_code == 202
-    # Nobody is born yet -- that is madde 303's -- and the shape of the answer is already the one
-    # the screen reads from every other production.
-    assert resp.get_json() == {"added": 0}
+    # One prompt, two variants: two cards, and the answer has the shape every other production
+    # answers in.
+    assert resp.get_json() == {"added": 2}
