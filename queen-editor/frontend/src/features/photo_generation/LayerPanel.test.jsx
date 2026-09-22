@@ -730,3 +730,79 @@ describe("LayerPanel — sound", () => {
     expect(screen.queryByText(/LLM/)).toBeNull();
   });
 });
+
+describe("LayerPanel — producing from the reference pool", () => {
+  const promptBox = () => screen.getByLabelText("Prompt listesi");
+
+  function openReference(props) {
+    const view = renderPanel(props);
+    fireEvent.click(screen.getByText("Referans"));
+    return view;
+  }
+
+  it("asks the video panel where the video comes from, and never the sound panel", () => {
+    renderPanel();
+    expect(screen.getByText("Standart")).toBeTruthy();
+    expect(screen.getByText("Referans")).toBeTruthy();
+
+    renderPanel({ layer: "audio" });
+    // A sound is laid over a video that already exists; the pool has nothing to do with it.
+    expect(screen.queryAllByText("Referans")).toHaveLength(1);
+  });
+
+  it("closes the rows that have no meaning without frames", () => {
+    openReference();
+
+    // No frame is involved at all: production makes cards (madde 303).
+    expect(screen.queryByText("Videosu olmayan kareler")).toBeNull();
+    // Loop and linking are a plain video's business (the roadmap's own decision).
+    expect(screen.queryByText("Loop")).toBeNull();
+    expect(screen.queryByText("Sonrakine bağla")).toBeNull();
+  });
+
+  it("takes a list of prompts, the way the photo panel does", () => {
+    openReference();
+
+    expect(promptBox()).toBeTruthy();
+  });
+
+  it("counts the cards the press would make", () => {
+    openReference();
+
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız", "dans"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    expect(screen.getByText("2 prompt × 3 varyant = 6 kart")).toBeTruthy();
+  });
+
+  it("says what is wrong with a list it cannot read, instead of a count", () => {
+    openReference();
+
+    fireEvent.change(promptBox(), { target: { value: "gotik kız" } });
+
+    expect(screen.queryByText(/= \d+ kart/)).toBeNull();
+    expect(screen.getByText(/Prompt listesi/)).toBeTruthy();
+  });
+
+  it("sends nothing when there are no prompts to send", async () => {
+    const onQueue = vi.fn();
+    openReference({ onQueue });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).not.toHaveBeenCalled();
+    expect(screen.getByText(/Prompt listesi/)).toBeTruthy();
+  });
+
+  it("sends the prompts and the variants under the reference kind", async () => {
+    const onQueue = vi.fn().mockResolvedValue({ added: 6 });
+    openReference({ onQueue });
+
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız", "dans"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    // No frames: what the queue is handed is the words and how many of each.
+    expect(onQueue).toHaveBeenCalledWith(null, 3, "reference", '["gotik kız", "dans"]');
+  });
+});
