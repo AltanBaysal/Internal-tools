@@ -93,6 +93,17 @@ const LAYER_LABEL = Object.fromEntries(TABS.map((row) => [row.id, row.label]));
 const STRIP = { position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
                 display: "flex", gap: 8, zIndex: 2 };
 
+/** Is this key being typed into something that writes text?
+ *
+ * The three places the browser's own caret lives. A page shortcut may not sit on top of them: the
+ * arrow keys were walking to another frame while they moved the caret, so what the user was writing
+ * left with the frame (madde 306).
+ */
+function typing(target) {
+  const tag = target?.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || Boolean(target?.isContentEditable);
+}
+
 // The one destructive thing a layer tab offers (madde 80): it takes its own layer and whatever
 // lies over it, and says what survives. The photo tab is not here -- deleting the base layer is
 // deleting the frame, and that window counts the frame's layers instead of naming one.
@@ -410,6 +421,7 @@ export default function PhotoDetail({ project, frame: fid }) {
   useEffect(() => {
     const onKey = (e) => {
       if (asking) return;                        // the modal owns the keyboard while it is open
+      if (typing(e.target)) return;              // and so does the text being written (madde 306)
       if (e.key === "Escape") navigate(projectPath(project));
       if (e.key === "ArrowLeft" && previous) step(previous, true);
       if (e.key === "ArrowRight" && next) step(next, false);
