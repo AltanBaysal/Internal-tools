@@ -20,6 +20,7 @@ from backend.features.photo_generation.domain.usecases.get_status import get_sta
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 from backend.features.photo_generation.domain.usecases.list_models import list_models
 from backend.features.photo_generation.domain.production_mode import InvalidMode
+from backend.features.photo_generation.domain.usecases.queue_references import queue_references
 from backend.features.photo_generation.domain.usecases.queue_layer import (
     frames_in_scope,
     queue_layer,
@@ -3734,3 +3735,98 @@ def test_a_planned_frame_carries_the_lora_it_was_submitted_under():
 
     assert frames[0]["model"] == "nova3dcg"
     assert frames[0]["lora"] == "slime"
+
+
+class FakePool:
+    """The project's reference pool, as much of it as a production run asks: what is in it."""
+
+    def __init__(self, names=("kedi.png",)):
+        self.names = list(names)
+
+    def items(self, _project):
+        return [(name, None) for name in self.names]
+
+
+class FakeReferenceOrders:
+    """No order dragged, which is the state a fresh pool is in."""
+
+    def read(self, _project):
+        return {}
+
+
+def run_references(store, record, plan_store, prompts='["gotik kız"]', variants=1,
+                   pool=None, generator=None):
+    """A reference production, run to completion."""
+    return queue_references(sync_runner(), store, record, plan_store, FakeOrderStore(),
+                            pool or FakePool(), FakeReferenceOrders(),
+                            {layers.VIDEO: generator or FakeGenerator()}, lambda: 7, lambda: "t",
+                            True, "düğün", prompts, variants)
+
+
+def reference_jobs(plan_store):
+    return plan_store.appended[-1] if plan_store.appended else []
+
+
+def test_a_reference_run_makes_a_card_per_prompt_and_variant():
+    """Madde 303: no frame is involved at all -- the press is what brings the cards into being."""
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+
+    added = run_references(store, record, plan_store,
+                           prompts='["gotik kız", "dans", "rüzgar"]', variants=2)
+
+    assert added == 6
+    # Prompt-major, the photo batch's own order: a prompt's variants stand together.
+    assert [job["id"] for job in reference_jobs(plan_store)] == [
+        "P0_0", "P0_1", "P1_0", "P1_1", "P2_0", "P2_1"]
+
+
+def test_every_card_a_reference_run_makes_is_a_video_job():
+    """The card is born from a video and never holds a photo job: madde 292's box, first used
+    here."""
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+
+    run_references(store, record, plan_store, prompts='["gotik kız", "dans"]')
+
+    assert {job["type"] for job in reference_jobs(plan_store)} == {"video"}
+
+
+def test_the_cards_carry_the_words_the_user_wrote():
+    """A video job is usually planned with no prompt and given one by a language model when its
+    turn comes. Here the user wrote it, so it rides on the line -- and the writer leaves a line
+    that has one alone."""
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+
+    run_references(store, record, plan_store, prompts='["gotik kız", "dans"]', variants=2)
+
+    assert [job["prompt"] for job in reference_jobs(plan_store)] == [
+        "gotik kız", "gotik kız", "dans", "dans"]
+
+
+def test_the_cards_are_marked_as_made_from_references():
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+
+    run_references(store, record, plan_store)
+
+    assert reference_jobs(plan_store)[0]["mode"] == "reference"
+
+
+def test_a_reference_run_takes_numbers_nobody_has_used():
+    # A number is the project's to claim, not the photos': reusing one would bind a name to two
+    # different cards.
+    store, record, plan_store = FakeStore(next_no=4), FakeRecord(), FakePlanStore()
+
+    run_references(store, record, plan_store)
+
+    assert reference_jobs(plan_store)[0]["id"] == "P4_0"
+
+
+def test_the_cards_a_reference_run_made_are_in_the_gallery():
+    """The whole of madde 303 as the user sees it: six cards, none of them holding a picture."""
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+
+    run_references(store, record, plan_store,
+                   prompts='["gotik kız", "dans", "rüzgar"]', variants=2)
+
+    gallery = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")
+    assert len(gallery) == 6
+    assert all("photo" not in frame["layers"] for frame in gallery)
