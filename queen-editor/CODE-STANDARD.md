@@ -31,7 +31,7 @@ shared file, no shared Drive folder. What we inherit is knowledge, not code:
 | The ComfyUI graphs — copied into `queen-editor/workflow_api.json` and `workflow_video_api.json` as our own files | Reading `collab-toolbox`'s copies, or Drive's copy of either |
 | Injection node ids — photo (`"3"`, `"4"`, `"40"`, `"45"`), video (`"287"`, `"233:240"`, `"210"`) | `api.ipynb`'s or `photo_to_video.ipynb`'s CONFIG cell |
 | MMAudio's settings — architecture, fine-tune, steps, cfg, solver, negative, chunk lengths — written into our own files | Importing anything from `mmaudio_generate.ipynb`, or running it. Sound is the one engine we call as a library rather than through ComfyUI ([FOUNDATION 6](FOUNDATION.md)) |
-| Setup cells — custom nodes, headless ComfyUI, the model downloads — copied **verbatim** into `queeneditor.ipynb`, because that machinery is proven | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
+| Setup cells — custom nodes, headless ComfyUI — copied **verbatim** into `queeneditor.ipynb`, because that machinery is proven. The model downloads started as a copy too and moved to `colab/` in madde 310, where they run under test | Running or importing their cells, or reading a file they own. A copy is not a dependency; its cost is that the two notebooks are maintained separately |
 | Which model files each pipeline needs: the **names** into `features/producers/` so the panel can answer whether they are here, the **addresses** into `queeneditor.ipynb` where they are fetched ([FOUNDATION 9](FOUNDATION.md)) | Two places knowing one address. The app carries no URL at all — a producer's group is a reading list, and reading it is all the app does with it |
 | Proven behaviour: `/prompt` → `/history` → `/view`, and the idea that a failure is either the frame's or the run's | Copying those functions — we write them into our own layers. The stop rule itself is **ours**: the same frame is retried three times, not three frames in a row ([Madde 8](../docs/superpowers/specs/2026-08-09-queen-editor-v4-madde-8-durma-kurali-design.md)) |
 
@@ -89,6 +89,14 @@ Concrete classes are wired only in the composition root (`backend/main.py`).
 Cross-cutting HTTP plumbing that is not a domain feature: the app factory (`app.py`) and probes
 like `health.py`. No `features/` folder is created until a real feature exists.
 
+## Notebook code (`colab/`)
+The notebook's own code: what `queeneditor.ipynb` imports from its clone — the console helpers
+(`console.py`) and the model downloads (`downloads.py`). It sits outside `backend/` because the app
+downloads nothing ([FOUNDATION 9](FOUNDATION.md)): the app never imports `colab/`, and `colab/`
+imports nothing from the app. The lists of what to download stay in the notebook, next to the boxes
+that choose them. Why a module and not cells: a cell never runs under pytest, and the notebook has a
+size ceiling (madde 239).
+
 ## Frontend (`frontend/src/`)
 Same feature-first shape: `features/<name>/` with components + hooks (data access);
 `shared/` for the fetch wrapper and app CSS; `vendor/` for verbatim design files.
@@ -106,6 +114,9 @@ User-facing UI text and notebook markdown / `print` / `assert`: **Turkish**.
 
 ## Tests
 Backend: domain and use cases test with fake ports — no ComfyUI, no Drive.
+
+Notebook code: `colab/` runs under pytest with the network faked — Hugging Face's downloader swapped
+in `sys.modules`, the curl/aria2c call replaced — and real files on disk.
 
 Frontend: vitest + jsdom. Test files sit next to
 their source as `<name>.test.js(x)`; they are never imported, so they stay out of `dist/`. Network
