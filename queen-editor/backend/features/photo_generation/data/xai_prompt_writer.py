@@ -75,12 +75,18 @@ Rules:
 #
 # Cutting the slowing frames off the end was the other way, and the user reasoned it out: it would
 # take the last frame away from being the first, so the clip would stop looping at all.
+#
+# The last sentence asks for one speed to the end (madde 315). Most generators ease the subject
+# toward stillness in the last frames, and asking for a cycle does not forbid that; H3's own loop
+# advice asks for a constant speed too. Words can lessen the ease, not remove it -- the fix that does
+# gives the seam a few frames of motion from both sides, and waits in the backlog.
 LOOP_RULE = """
 This clip loops: it is played several times back to back, and its last frame is its first frame.
 Write a motion that returns to where it started -- a cycle, not a movement that ends. Swaying,
 breathing, a step that comes back, hair that settles where it was.
 It must be a motion that does not end: one that finishes and comes to rest reads as a stop every
 time the clip repeats.
+Keep the same speed from the first frame to the last: the motion must not slow down toward the end.
 """
 
 
