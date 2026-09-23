@@ -239,12 +239,24 @@ def test_choosing_nothing_stops_the_notebook():
     assert "assert INSTALL_PHOTO or INSTALL_VIDEO or INSTALL_AUDIO" in _source()
 
 
-def test_the_cookie_is_only_demanded_by_the_groups_that_are_gated():
-    """Only photo and video pull from Civitai. A sound-only run must not stop for a cookie it
-    never sends. Pinned as the two lines together: `if INSTALL_PHOTO or INSTALL_VIDEO` appears
-    elsewhere too, so the switch alone would prove nothing about the cookie."""
-    assert ('if INSTALL_PHOTO or INSTALL_VIDEO:\n'
-            '    assert len(COOKIE_VALUE or "") > 200') in _source()
+def test_civitai_files_come_down_through_the_mirror():
+    """Each gated file is looked up in the user's own Hugging Face repo first (madde 311)."""
+    assert re.search(r"for [^\n]+ in civitai_jobs:\n\s+civitai_fetch\(HF_MIRROR, ",
+                     _cell("# === Target folders ===")), "Civitai dosyaları aynadan geçmiyor"
+
+
+def test_the_mirror_is_named_once_in_config():
+    """A repo is named where the Drive folder is: in CONFIG, once."""
+    assert re.search(r'^HF_MIRROR\s*=\s*"[\w.-]+/[\w.-]+"', _cell("# === CONFIG ==="), re.M), \
+        "Ayna CONFIG'de adlanmıyor"
+    assert len(re.findall(r"^HF_MIRROR\s*=", _source(), re.M)) == 1, \
+        "Ayna birden çok yerde adlanıyor"
+
+
+def test_config_does_not_demand_the_cookie():
+    """Only a file that falls back to Civitai needs the cookie (madde 311). Demanded in CONFIG, it
+    would stop a run whose files are all mirrored, for nothing."""
+    assert "len(COOKIE_VALUE" not in _cell("# === CONFIG ==="), "CONFIG çerezi hâlâ baştan istiyor"
 
 
 def test_an_unticked_group_costs_no_bytes():
@@ -506,15 +518,6 @@ def test_huggingface_files_come_down_through_hf_fetch():
     assert re.search(r"for [^\n]+ in hf_jobs:\n\s+hf_fetch\(", _cell("# === Target folders ===")), \
         "HF dosyaları hf_fetch ile inmiyor"
     assert re.search(r"pip install[^\n]*hf_xet", _source()), "Defter hf_xet'i kurmuyor"
-
-
-def test_the_gated_files_are_probed_before_anything_comes_down():
-    """A dead cookie heard after the open files came down costs their whole download; the 1 KB probe
-    asks first."""
-    cell = _cell("# === Target folders ===")
-    probe, first = cell.find("civitai_probe("), cell.find("fetch(")
-
-    assert -1 < probe < first, "Kapılı dosyalar indirmeden önce yoklanmıyor"
 
 
 def test_every_name_the_notebook_imports_from_its_code_exists():
