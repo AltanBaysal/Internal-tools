@@ -97,6 +97,11 @@ imports nothing from the app. The lists of what to download stay in the notebook
 that choose them. Why a module and not cells: a cell never runs under pytest, and the notebook has a
 size ceiling (madde 239).
 
+One piece of the notebook's own code stays in a cell: the timer that opens CONFIG and ends every
+cell's output with how long it took (madde 312). The cells it times include the Drive mount and the
+clone, and `colab/` arrives with the clone, so the timer could not import it. Its section needs
+nothing but `time` and IPython, and the suite cuts it out by its heading and runs it.
+
 ## Frontend (`frontend/src/`)
 Same feature-first shape: `features/<name>/` with components + hooks (data access);
 `shared/` for the fetch wrapper and app CSS; `vendor/` for verbatim design files.

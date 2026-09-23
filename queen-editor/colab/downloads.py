@@ -97,14 +97,17 @@ def _settled(path, label, floor):
 
 
 def _landed(label, source, size, took, msg):
+    """The file's line, and its row for the table the models cell ends with (madde 312)."""
     log(f"{label}: indirildi — {source}, {human(size)}, {took:.0f} sn, "
         f"{size / took / 2**20:.1f} MB/s ({msg})", "OK")
+    return label, size, took
 
 
 def fetch(url, target_dir, filename, label, *, parallel, headers=None, floor=None):
     """A file by its address. parallel=True is aria2c's sixteen connections. A gated file goes by
     curl: Civitai redirects to its store, the store answers 403 when the login cookie comes along,
-    and curl drops the cookie when the host changes where aria2c carries it."""
+    and curl drops the cookie when the host changes where aria2c carries it. Its row for the summary,
+    or None when the file was already in place."""
     target = os.path.join(target_dir, filename)
     part = target + ".part"
     hdrs = f"/tmp/{filename}.headers"
@@ -154,14 +157,18 @@ def fetch(url, target_dir, filename, label, *, parallel, headers=None, floor=Non
                            f"--- response headers ---\n{head_text(hdrs)}\n"
                            f"--- file head ---\n{head_text(part)}")
     os.replace(part, target)
-    _landed(label, url.split("/")[2], os.path.getsize(target) - before,
-            time.perf_counter() - start, msg)
+    return _landed(label, url.split("/")[2], os.path.getsize(target) - before,
+                   time.perf_counter() - start, msg)
 
 
 def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
     """A file by its repo and path, through Hugging Face's own downloader. With hf_xet behind it the
     file's Xet chunks come straight from storage in parallel; an address went through HF's bridge,
-    which cuts a plain download to 8.7 MB/s on most of its servers (xet-core #821)."""
+    which cuts a plain download to 8.7 MB/s on most of its servers (xet-core #821). Its row for the
+    summary, or None when the file was already in place."""
+    # huggingface_hub reads its variables once, when it is imported, so the switch comes first. It
+    # has hf_xet try to fill the machine's bandwidth and use every CPU core (madde 312).
+    os.environ["HF_XET_HIGH_PERFORMANCE"] = "1"
     # Imported here: Colab ships it, and this module has to import where it is not installed.
     from huggingface_hub import hf_hub_download
 
@@ -178,7 +185,7 @@ def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
         raise RuntimeError(f"{label}: HF {repo}/{path} — {type(e).__name__}: {e}") from None
     msg = _settled(got, label, floor)
     os.replace(got, target)
-    _landed(label, "HF", os.path.getsize(target), time.perf_counter() - start, msg)
+    return _landed(label, "HF", os.path.getsize(target), time.perf_counter() - start, msg)
 
 
 def civitai_url(version_id):
@@ -208,11 +215,11 @@ def _upload(mirror, path, target, label):
 def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
     """A Civitai file, from the user's Hugging Face mirror when it is there. When it is not -- or will
     not come down -- the mirror's own sentence is printed, the file comes from Civitai the way it
-    always did, and it goes up to the mirror so the next run takes the fast road (madde 311)."""
+    always did, and it goes up to the mirror so the next run takes the fast road (madde 311). Either
+    way the row is the download's; the upload has its own line."""
     path = f"{version_id}/{filename}"
     try:
-        hf_fetch(mirror, path, target_dir, filename, label)
-        return
+        return hf_fetch(mirror, path, target_dir, filename, label)
     except RuntimeError as e:
         log(f"{label}: aynadan alınamadı, Civitai'den inecek — {e}", "WARN")
     if len(cookie or "") <= 200:
@@ -221,9 +228,10 @@ def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
             f"Secrets'a 'CIVITAI_COOKIE' adıyla ekle: civitai.red → giriş → F12 → Application → "
             f"Cookies → __Secure-civ-token değeri (ES256 JWT)")
     civitai_probe(version_id, label, cookie)
-    fetch(civitai_url(version_id), target_dir, filename, label, parallel=False,
-          headers=cookie_header(cookie))
+    row = fetch(civitai_url(version_id), target_dir, filename, label, parallel=False,
+                headers=cookie_header(cookie))
     _upload(mirror, path, os.path.join(target_dir, filename), label)
+    return row
 
 
 def civitai_probe(version_id, label, cookie):
@@ -246,3 +254,25 @@ def civitai_probe(version_id, label, cookie):
         return
     raise RuntimeError(f"❌ {label}: HTTP {code} — Civitai yanıtı: "
                        f"{body.decode('utf-8', 'replace').strip() or '(boş gövde — binary değil)'}")
+
+
+def _duration(seconds):
+    minutes, seconds = divmod(round(seconds), 60)
+    return f"{minutes} dk {seconds} sn" if minutes else f"{seconds} sn"
+
+
+def download_summary(rows):
+    """The table the models cell ends with (madde 312): every file that came down in this run -- one
+    already in place hands back None and stays out -- and under them a Toplam, whose speed is the
+    average of the whole download. The times are the downloads' own; the cell's own line, under the
+    table, has the rest, uploads and probes included."""
+    rows = [row for row in rows if row]
+    if not rows:
+        log("İndirme özeti: bu koşuda inen dosya yok")
+        return
+    rows.append(("Toplam", sum(size for _, size, _ in rows), sum(took for _, _, took in rows)))
+    width = max(len(label) for label, _, _ in rows)
+    print("\nİndirme özeti:")
+    for label, size, took in rows:
+        print(f"   {label:<{width}}  {human(size):>8}  {_duration(took):>11}  "
+              f"{size / took / 2**20:6.1f} MB/s")
