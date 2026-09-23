@@ -264,11 +264,6 @@ kartın kodladığı doğrulandı. **Kalan aday, kodlamanın etrafındaki CPU zi
 yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçların tamamı
 [2026-09-21 export hızı araştırmasında](../docs/superpowers/research/2026-09-21-queen-editor-export-hizi.md).
 
-### Modeller bir yere yüklenip daha hızlı indirilebilir mi
-
-*(Kullanıcı, 19 Eylül — "modelleri bir yere yükleyip daha hızlı indirebilir miyiz".)* **Ayrıntılar
-kullanıcıyla konuşulacak.**
-
 ### Queen Editor Playwright MCP ile kontrol edilebilecek
 
 *(Kullanıcı, 23 Eylül — "queen agent playwright mcp ile kontrol edilebilmek için düzenleme
