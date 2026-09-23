@@ -146,6 +146,15 @@ def test_the_loop_rule_says_what_it_wants_and_what_it_refuses():
     assert "does not end" in rule or "not a motion that ends" in rule
 
 
+def test_the_loop_rule_asks_for_one_speed_to_the_end():
+    # Madde 315: most generators ease into the last frame, and the next repeat starts from rest. The
+    # rule asks for the same speed all the way to the last frame -- the user's words, "hareket sonuna
+    # kadar aynı hızda sürsün, sona doğru yavaşlamasın".
+    rule = _loop_rule()
+
+    assert "same speed" in rule and "slow down" in rule
+
+
 def test_the_sound_writer_takes_the_mode_and_ignores_it():
     """One call shape: the loop hands every writer the same arguments, and a sound is laid over the
     whole of a video however that video was made."""
