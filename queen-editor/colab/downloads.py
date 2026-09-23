@@ -166,9 +166,6 @@ def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
     file's Xet chunks come straight from storage in parallel; an address went through HF's bridge,
     which cuts a plain download to 8.7 MB/s on most of its servers (xet-core #821). Its row for the
     summary, or None when the file was already in place."""
-    # huggingface_hub reads its variables once, when it is imported, so the switch comes first. It
-    # has hf_xet try to fill the machine's bandwidth and use every CPU core (madde 312).
-    os.environ["HF_XET_HIGH_PERFORMANCE"] = "1"
     # Imported here: Colab ships it, and this module has to import where it is not installed.
     from huggingface_hub import hf_hub_download
 
