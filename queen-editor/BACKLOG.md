@@ -277,6 +277,35 @@ konuşulacak.**
 birden kare sabitleyerek loop'u kapatmak bir deneme maddesi olur. WAN'da ise yeni model (VACE)
 gerektiriyor."; ve "bunu backlog'a at o zaman".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### HF'nin yüksek hız ayarı — 429 çözülürse geri açılır
+
+*(Kullanıcı, 23 Eylül — 312'nin ilk denemesinde H3 Qwen3-VL %69'da düştü: `HTTP status client error
+(429 Too Many Requests), domain: https://us.gcp.cdn.hf.co/xorbs/…`; "internetten araştırır mısın
+lütfen durumu", "araştırıp çözelim, bunun için madde açar mısın". 24 Eylül — "Hugging Face'in
+ekstra hızını kapatalım, hata veriyor gibi, şimdilik kapatalım, backlog'a atalım".)*
+
+**v7'de madde 313 olarak yol haritasındaydı, koşulmadan backlog'a döndü** *(kullanıcı, 24 Eylül)*;
+ayarı madde 316 kapattı. Numara 313 olarak kalır; geri gelirse aynı numarayla gelir.
+
+**Bilinenler:**
+- Ayar açıkken Qwen3-VL 276–394 MB/s ile iniyordu, kapalıykenkinin 2–3 katı. 47 saniyede 10.2 GB'a
+  vardıktan sonra HF'nin parça sunucusu 429 döndü; dosya ve koşu düştü. Ayar kapalıyken iki tam
+  koşuda 429 hiç gelmedi; kapalı koşunun indirmesi 11 dk 18 sn sürdü.
+- HF'nin belgelediği istek sınırları `/resolve/` adresleri için; parça sunucusunun (`cdn.hf.co`)
+  sınırı hiçbir belgede yok *([Hub Rate limits](https://huggingface.co/docs/hub/rate-limits))*.
+- Ayar paralel akışları 1 yerine 16'dan başlatıyor, tavanı 64'ten 124'e çıkarıyor, tamponları
+  büyütüyor; HF onu en az 64 GB RAM'li makineler için yazıyor
+  *([Using Xet Storage](https://huggingface.co/docs/hub/en/xet/using-xet-storage))*.
+- `hf_xet`'in kaynağına göre parça indirmesindeki 429 yeniden deneniyor, sunucunun `Retry-After`'ına
+  bakılmadan. Beklemeler 3, 9, 27, 81, 243 sn diye büyüyor, her biri rastgele kısaltılıyor ve en
+  fazla 6 dakika *([xet-core](https://github.com/huggingface/xet-core))* — yani beş denemenin 47
+  saniyede tükenmesi beklenmiyor. `hf_xet`'in neden bu kadar çabuk bıraktığı **bilinmiyor**.
+
+**Geri gelirse ilk iş** ayar açıkken düşen bir koşunun `hf_xet` log'u:
+`!grep -h -i -E "429|retry|concurrency" ~/.cache/huggingface/xet/logs/* | tail -n 80`. 429 yeniden
+denendiyse `hf_xet`'e daha uzun deneme süresi vermek yetebilir; hiç denenmediyse ya da hemen
+bırakıldıysa yeniden denemeyi bizim kodumuz yapar.
+
 ## MiniMax H3
 
 *(Kullanıcı, 18 Eylül.)* MiniMax H3 üzerindeki yeni işler.
