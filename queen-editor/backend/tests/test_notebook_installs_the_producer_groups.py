@@ -64,6 +64,15 @@ def _cell(marker):
     return ""
 
 
+def _between(start, end):
+    """The text of the one cell carrying `start`, from `start` up to `end` -- a function and nothing
+    after it, when `end` is the section header that follows. "" when either marker is missing, so a
+    function that is not there yet fails the assertion that reads it instead of erroring."""
+    cell = _cell(start)
+    head, tail = cell.find(start), cell.find(end)
+    return cell[head:tail] if -1 < head < tail else ""
+
+
 def _drawn(cell):
     """The part of a CONFIG cell Colab draws into the form: #@markdown lines only.
 
@@ -249,10 +258,10 @@ def test_an_unticked_group_costs_no_bytes():
     """The whole point of the checkboxes: a group's list is only reached through its own switch."""
     source = _source()
 
-    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO"), SWITCH["photo"]),
-                          (("CIVITAI_VIDEO", "OPEN_VIDEO"), 'VIDEO_MODEL == "wan"'),
-                          (("CIVITAI_H3", "OPEN_H3"), 'VIDEO_MODEL == "h3"'),
-                          (("OPEN_AUDIO",), SWITCH["audio"])):
+    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
+                          (("CIVITAI_VIDEO", "HF_VIDEO"), 'VIDEO_MODEL == "wan"'),
+                          (("CIVITAI_H3", "HF_H3"), 'VIDEO_MODEL == "h3"'),
+                          (("HF_AUDIO",), SWITCH["audio"])):
         for name in names:
             assert f"{name} if {switch} else []" in source, \
                 f"{name} kendi anahtarının arkasında değil"
@@ -488,13 +497,41 @@ def test_the_notebook_fetches_the_h3_checkpoint_and_lora_by_their_versions():
         assert version in cell, f"Civitai version id defterde yok: {version}"
 
 
-def test_the_h3_files_from_huggingface_come_down_over_one_connection():
-    """HF keeps these in its Xet store, whose signed URLs answer parallel byte ranges with 403 --
-    aria2c's sixteen connections fail where one curl gets through."""
-    pattern = (r'for [^\n]+ in \(OPEN_H3 if VIDEO_MODEL == "h3" else \[\]\):\n'
-               r'\s+fetch\([^\n]*parallel=False')
+def test_no_huggingface_file_is_fetched_by_its_address():
+    """An address sends the file through HF's bridge, which cuts a plain download to 8.7 MB/s on most
+    of its servers (xet-core #821) -- the user timed H3's install at about a hundred minutes (madde
+    310). Named by repo and path, a file can only come down through HF's own downloader."""
+    cell = _cell("# === Target folders ===")
 
-    assert re.search(pattern, _source()), "H3'ün HF dosyaları tek bağlantıyla inmiyor"
+    assert cell, "İndirme hücresi bulunamadı"
+    assert "huggingface.co" not in cell, "İndirme hücresinde hâlâ HF adresi var"
+
+
+def test_huggingface_files_come_down_through_hugging_face_s_own_downloader():
+    """hf_xet pulls a file's Xet chunks from storage in parallel and never touches the bridge -- the
+    same parallel ranges sent to the bridge by aria2c were answered 403. Without hf_xet installed,
+    huggingface_hub falls back to the bridge with nothing but a log line, so installing it is half of
+    the rule."""
+    assert "hf_hub_download(" in _between("def hf_fetch(", "# === Civitai ==="), \
+        "hf_fetch HF'nin kendi indiricisini çağırmıyor"
+    assert re.search(r"pip install[^\n]*hf_xet", _source()), "Defter hf_xet'i kurmuyor"
+
+
+def test_the_quantizer_stamp_is_cut_before_a_huggingface_file_is_judged():
+    """The int4 text encoder H3 takes from HF arrives stamped (NOTEBOOK-STANDARD, section 3). A path
+    that judged it uncut would call a whole file too long and stop the run."""
+    assert "strip_unreferenced_tail(" in _between("def hf_fetch(", "# === Civitai ==="), \
+        "hf_fetch damgayı kesmiyor"
+
+
+def test_every_download_prints_where_it_came_from_and_how_fast():
+    """The user compares the sources by reading the console (madde 310, "ama lütfen console
+    basılsın"): one line per file saying where it came from and how fast it came."""
+    by_address = _between("def fetch(", "# === Hugging Face ===")
+    by_repo = _between("def hf_fetch(", "# === Civitai ===")
+
+    assert re.search(r"log\([^\n]*MB/s", by_address), "fetch hızı basmıyor"
+    assert re.search(r"log\([^\n]*HF[^\n]*MB/s", by_repo), "hf_fetch kaynağı ve hızı basmıyor"
 
 
 def test_the_quantizer_stamp_is_cut_before_a_file_is_judged():
