@@ -7,7 +7,12 @@ each producer sits behind its own switch, the outside world is probed before the
 and the tunnel is opened the way that measured fast.
 
 The notebook is read, never run.
+
+The download machinery left the notebook for colab/ in madde 310 and is run in
+test_colab_downloads.py. What stays here is the seam: the notebook imports names the module gives,
+finds the module in its clone, and defines none of it again.
 """
+import importlib
 import json
 import os
 import re
@@ -64,13 +69,10 @@ def _cell(marker):
     return ""
 
 
-def _between(start, end):
-    """The text of the one cell carrying `start`, from `start` up to `end` -- a function and nothing
-    after it, when `end` is the section header that follows. "" when either marker is missing, so a
-    function that is not there yet fails the assertion that reads it instead of erroring."""
-    cell = _cell(start)
-    head, tail = cell.find(start), cell.find(end)
-    return cell[head:tail] if -1 < head < tail else ""
+def _imports_from_code():
+    """(module, names) for every line the notebook imports its own code with."""
+    return [(module, [name.strip() for name in names.split(",")])
+            for module, names in re.findall(r"^from (colab\.\w+) import ([\w, ]+)$", _source(), re.M)]
 
 
 def _drawn(cell):
@@ -243,15 +245,6 @@ def test_the_cookie_is_only_demanded_by_the_groups_that_are_gated():
     elsewhere too, so the switch alone would prove nothing about the cookie."""
     assert ('if INSTALL_PHOTO or INSTALL_VIDEO:\n'
             '    assert len(COOKIE_VALUE or "") > 200') in _source()
-
-
-def test_the_gated_files_are_fetched_the_way_that_works():
-    """curl, not aria2c: Civitai redirects to its store, which answers 403 if the login cookie
-    travels with the request. aria2c forwards it; curl drops it when the host changes."""
-    source = _source()
-
-    assert "civitai_probe" in source, "Ağır indirmeden önce kapılı erişim yoklanmalı"
-    assert "civitai.red/api/download/models" in source
 
 
 def test_an_unticked_group_costs_no_bytes():
@@ -507,42 +500,60 @@ def test_no_huggingface_file_is_fetched_by_its_address():
     assert "huggingface.co" not in cell, "İndirme hücresinde hâlâ HF adresi var"
 
 
-def test_huggingface_files_come_down_through_hugging_face_s_own_downloader():
-    """hf_xet pulls a file's Xet chunks from storage in parallel and never touches the bridge -- the
-    same parallel ranges sent to the bridge by aria2c were answered 403. Without hf_xet installed,
-    huggingface_hub falls back to the bridge with nothing but a log line, so installing it is half of
-    the rule."""
-    assert "hf_hub_download(" in _between("def hf_fetch(", "# === Civitai ==="), \
-        "hf_fetch HF'nin kendi indiricisini çağırmıyor"
+def test_huggingface_files_come_down_through_hf_fetch():
+    """hf_fetch is the path around HF's bridge. Without hf_xet installed, huggingface_hub goes back to
+    the bridge with nothing but a log line, so installing it is half of the rule."""
+    assert re.search(r"for [^\n]+ in hf_jobs:\n\s+hf_fetch\(", _cell("# === Target folders ===")), \
+        "HF dosyaları hf_fetch ile inmiyor"
     assert re.search(r"pip install[^\n]*hf_xet", _source()), "Defter hf_xet'i kurmuyor"
 
 
-def test_the_quantizer_stamp_is_cut_before_a_huggingface_file_is_judged():
-    """The int4 text encoder H3 takes from HF arrives stamped (NOTEBOOK-STANDARD, section 3). A path
-    that judged it uncut would call a whole file too long and stop the run."""
-    assert "strip_unreferenced_tail(" in _between("def hf_fetch(", "# === Civitai ==="), \
-        "hf_fetch damgayı kesmiyor"
+def test_the_gated_files_are_probed_before_anything_comes_down():
+    """A dead cookie heard after the open files came down costs their whole download; the 1 KB probe
+    asks first."""
+    cell = _cell("# === Target folders ===")
+    probe, first = cell.find("civitai_probe("), cell.find("fetch(")
+
+    assert -1 < probe < first, "Kapılı dosyalar indirmeden önce yoklanmıyor"
 
 
-def test_every_download_prints_where_it_came_from_and_how_fast():
-    """The user compares the sources by reading the console (madde 310, "ama lütfen console
-    basılsın"): one line per file saying where it came from and how fast it came."""
-    by_address = _between("def fetch(", "# === Hugging Face ===")
-    by_repo = _between("def hf_fetch(", "# === Civitai ===")
+def test_every_name_the_notebook_imports_from_its_code_exists():
+    """The notebook cannot run here, but its import lines can: a name the module does not give is an
+    ImportError on the machine, after the clone and before a single model comes down."""
+    imports = _imports_from_code()
 
-    assert re.search(r"log\([^\n]*MB/s", by_address), "fetch hızı basmıyor"
-    assert re.search(r"log\([^\n]*HF[^\n]*MB/s", by_repo), "hf_fetch kaynağı ve hızı basmıyor"
+    assert imports, "Defter kendi kodunu import etmiyor"
+    for module, names in imports:
+        found = importlib.import_module(module)
+        missing = [name for name in names if not hasattr(found, name)]
+        assert missing == [], f"{module} bu adları vermiyor: {missing}"
 
 
-def test_the_quantizer_stamp_is_cut_before_a_file_is_judged():
-    """The tool behind the H3 quants leaves a line of ASCII after the last tensor. ComfyUI's own
-    reader walks past it and Rust's refuses the file -- and check_safetensors calls it too long.
-    Cutting it before every check is what makes the same file load whichever reader runs."""
-    cell = _cell("def fetch(")
-    body = cell[cell.index("def fetch("):cell.index("# === Civitai ===")]
+def test_the_notebook_reaches_its_code_through_the_clone():
+    """The module lives in the clone, which is not on the kernel's path until the notebook puts it
+    there -- and it has to be there before the first import."""
+    helpers = _cell("# === Shared helpers ===")
+    path, first = helpers.find("sys.path.insert(0, APP_DIR)"), helpers.find("from colab.")
 
-    assert "def strip_unreferenced_tail" in cell, "Damga kesici defterde yok"
-    assert "strip_unreferenced_tail(" in body, "fetch damgayı kesmiyor"
+    assert -1 < path < first, "Yardımcılar hücresi klonu yola import'tan önce koymuyor"
+
+
+def test_a_rerun_imports_the_code_it_just_cloned():
+    """The clone cell deletes and clones the repo on every run, so a re-run picks up a push without a
+    new runtime. Python keeps a module it imported for as long as the kernel lives: unless the cell
+    drops it, a re-run clones the new code and keeps running the old."""
+    assert "del sys.modules[" in _cell("# === Shared helpers ==="), \
+        "Yardımcılar hücresi önceki koşunun modülünü bırakmıyor"
+
+
+def test_the_notebook_defines_none_of_the_code_it_imports():
+    """One home per function: a copy left in a cell would run instead of the tested one."""
+    source = _source()
+    names = [name for _module, names in _imports_from_code() for name in names]
+
+    assert names, "Defter kendi kodunu import etmiyor"
+    assert [name for name in names if f"def {name}(" in source] == [], \
+        "Defter import ettiği kodu kendisi tanımlıyor"
 
 
 def test_the_notebook_installs_the_nodes_the_h3_graph_asks_for():
