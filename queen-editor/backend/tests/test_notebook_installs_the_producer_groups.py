@@ -8,9 +8,9 @@ and the tunnel is opened the way that measured fast.
 
 The notebook is read, never run.
 
-The download machinery left the notebook for colab/ in madde 310 and is run in
-test_colab_downloads.py. What stays here is the seam: the notebook imports names the module gives,
-finds the module in its clone, and defines none of it again.
+The download machinery left the notebook for colab/ in madde 310, and the custom node install in
+madde 314; both are run in test_colab_*.py. What stays here is the seam: the notebook imports names
+the modules give, finds them in its clone, and defines none of them again.
 """
 import importlib
 import json
@@ -135,6 +135,17 @@ def test_the_intro_agrees_with_the_custom_node_list():
     assert listed, "CUSTOM_NODES listesi okunamadı"
     assert f"({listed} custom node)" in intro, \
         f"Giriş hücresindeki sayı listeyle uyuşmuyor: {listed} satır"
+
+
+def test_the_notebook_installs_its_nodes_through_install_node():
+    """The loop left the ComfyUI cell for colab/ in madde 314, where it runs under test. The list
+    stays in the notebook, like the download lists."""
+    imported = [name for module, names in _imports_from_code() if module == "colab.nodes"
+                for name in names]
+
+    assert re.search(r"for name, url in CUSTOM_NODES:\n\s+install_node\(name, url, ",
+                     _cell("CUSTOM_NODES = [")), "Defter node'ları install_node ile kurmuyor"
+    assert "install_node" in imported, "Defter install_node'u klondan import etmiyor"
 
 
 def test_every_producer_has_a_checkbox_of_its_own():
