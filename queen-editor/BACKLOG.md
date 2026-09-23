@@ -269,6 +269,12 @@ yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçları
 *(Kullanıcı, 19 Eylül — "modelleri bir yere yükleyip daha hızlı indirebilir miyiz".)* **Ayrıntılar
 kullanıcıyla konuşulacak.**
 
+### Queen Editor Playwright MCP ile kontrol edilebilecek
+
+*(Kullanıcı, 23 Eylül — "queen agent playwright mcp ile kontrol edilebilmek için düzenleme
+gerekiyorsa onu da ekle", "queen editor olanları bakloga ekle".)* **Ayrıntılar kullanıcıyla
+konuşulacak.**
+
 ## MiniMax H3
 
 *(Kullanıcı, 18 Eylül.)* MiniMax H3 üzerindeki yeni işler.
