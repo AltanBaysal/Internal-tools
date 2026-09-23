@@ -270,6 +270,13 @@ yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçları
 gerekiyorsa onu da ekle", "queen editor olanları bakloga ekle".)* **Ayrıntılar kullanıcıyla
 konuşulacak.**
 
+### Loop'larda sona doğru tempo düşmesi — asıl çözüm
+
+*(Kullanıcı, 23 Eylül — loop'lardaki tempo düşmesi için yapılan internet araştırmasının cevabından
+şu paragrafı alıp: "Asıl çözüm: 3. yol. Hangi modelde yapılacağına göre iş değişiyor. H3'te iki uca
+birden kare sabitleyerek loop'u kapatmak bir deneme maddesi olur. WAN'da ise yeni model (VACE)
+gerektiriyor."; ve "bunu backlog'a at o zaman".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ## MiniMax H3
 
 *(Kullanıcı, 18 Eylül.)* MiniMax H3 üzerindeki yeni işler.
