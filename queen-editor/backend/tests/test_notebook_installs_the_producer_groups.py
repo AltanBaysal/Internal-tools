@@ -240,9 +240,11 @@ def test_choosing_nothing_stops_the_notebook():
 
 
 def test_civitai_files_come_down_through_the_mirror():
-    """Each gated file is looked up in the user's own Hugging Face repo first (madde 311)."""
-    assert re.search(r"for [^\n]+ in civitai_jobs:\n\s+civitai_fetch\(HF_MIRROR, ",
-                     _cell("# === Target folders ===")), "Civitai dosyaları aynadan geçmiyor"
+    """Each gated file is looked up in the user's own Hugging Face repo first (madde 311), and its row
+    is kept for the table (madde 312)."""
+    assert re.search(r"for [^\n]+ in civitai_jobs:\n\s+landed\.append\(civitai_fetch\(HF_MIRROR, ",
+                     _cell("# === Target folders ===")), \
+        "Civitai dosyaları aynadan geçmiyor ya da satırları tutulmuyor"
 
 
 def test_the_mirror_is_named_once_in_config():
@@ -514,10 +516,28 @@ def test_no_huggingface_file_is_fetched_by_its_address():
 
 def test_huggingface_files_come_down_through_hf_fetch():
     """hf_fetch is the path around HF's bridge. Without hf_xet installed, huggingface_hub goes back to
-    the bridge with nothing but a log line, so installing it is half of the rule."""
-    assert re.search(r"for [^\n]+ in hf_jobs:\n\s+hf_fetch\(", _cell("# === Target folders ===")), \
-        "HF dosyaları hf_fetch ile inmiyor"
+    the bridge with nothing but a log line, so installing it is half of the rule. Each download's row
+    is kept for the table the cell ends with (madde 312)."""
+    assert re.search(r"for [^\n]+ in hf_jobs:\n\s+landed\.append\(hf_fetch\(",
+                     _cell("# === Target folders ===")), \
+        "HF dosyaları hf_fetch ile inmiyor ya da satırları tutulmuyor"
     assert re.search(r"pip install[^\n]*hf_xet", _source()), "Defter hf_xet'i kurmuyor"
+
+
+def test_the_models_cell_ends_with_the_download_summary():
+    """The rows the downloads hand back are collected in one list and printed as a table once
+    everything is down (madde 312)."""
+    cell = _cell("# === Target folders ===")
+    imported = [name for module, names in _imports_from_code() if module == "colab.downloads"
+                for name in names]
+
+    assert -1 < cell.find("landed = []") < cell.find("in hf_jobs:"), \
+        "Satır listesi döngülerden önce açılmıyor"
+    assert re.search(r"for [^\n]+ in open_jobs:\n\s+landed\.append\(fetch\(", cell), \
+        "Açık adresli indirmelerin satırı tutulmuyor"
+    assert cell.find("download_summary(landed)") > cell.find("in civitai_jobs:") > -1, \
+        "Özet tablosu indirmelerden sonra basılmıyor"
+    assert "download_summary" in imported, "Defter özet tablosunu klondan import etmiyor"
 
 
 def test_every_name_the_notebook_imports_from_its_code_exists():

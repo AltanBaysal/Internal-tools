@@ -346,3 +346,110 @@ def test_a_fallback_is_probed_before_it_comes_down(downloads, monkeypatch, tmp_p
     downloads.civitai_fetch(MIRROR, 3314686, str(tmp_path), "m.safetensors", "DaSiWa H3", COOKIE)
 
     assert asked == [0], f"Yoklama inmeden önce yapılmadı: {asked}"
+
+
+def test_hugging_face_s_downloader_is_taken_in_high_performance_mode(downloads, monkeypatch, tmp_path):
+    """HF_XET_HIGH_PERFORMANCE has hf_xet try to fill the machine's bandwidth and use every CPU core
+    (madde 312). huggingface_hub reads its variables once, when it is imported, so the switch has to
+    be on by the moment the downloader is taken from the library -- whatever the environment held."""
+    monkeypatch.setenv("HF_XET_HIGH_PERFORMANCE", "0")
+    _hub(monkeypatch, _safetensors())
+    hub, seen = sys.modules["huggingface_hub"], []
+
+    class Library:
+        @property
+        def hf_hub_download(self):
+            seen.append(os.environ.get("HF_XET_HIGH_PERFORMANCE"))
+            return hub.hf_hub_download
+
+    monkeypatch.setitem(sys.modules, "huggingface_hub", Library())
+
+    downloads.hf_fetch("Kijai/MiniMax-H3-TAE", "vae_approx/taeh3.safetensors",
+                       str(tmp_path), "taeh3.safetensors", "H3 TAE")
+
+    assert seen == ["1"], f"HF'nin indiricisi yüksek hız ayarı kapalıyken alındı: {seen}"
+
+
+def test_a_download_hands_back_its_row_for_the_summary(downloads, monkeypatch, tmp_path):
+    """The models cell collects one row per file that came down and ends with a table of them
+    (madde 312): the label, the bytes that came down and the seconds they took."""
+    _hub(monkeypatch, _safetensors())
+
+    row = downloads.hf_fetch("Kijai/MiniMax-H3-TAE", "vae_approx/taeh3.safetensors",
+                             str(tmp_path), "taeh3.safetensors", "H3 TAE")
+
+    assert row and row[:2] == ("H3 TAE", len(_safetensors())), f"Satır bu inişi anlatmıyor: {row}"
+    assert row[2] > 0, f"Satırda süre yok: {row}"
+
+
+def test_a_file_already_in_place_stays_out_of_the_summary(downloads, monkeypatch, tmp_path, capsys):
+    """The table is this run's downloads: a file that was already there came down in an earlier one."""
+    _hub(monkeypatch, _safetensors())
+    _transfer(monkeypatch, downloads, b"")
+    (tmp_path / "old.safetensors").write_bytes(_safetensors())
+    (tmp_path / "sam.pth").write_bytes(b"\0" * 1000)
+
+    rows = [downloads.hf_fetch("r/old", "old.safetensors", str(tmp_path), "old.safetensors", "Eski"),
+            downloads.fetch("https://dl.fbaipublicfiles.com/segment_anything/sam.pth", str(tmp_path),
+                            "sam.pth", "SAM", parallel=True, floor=500),
+            downloads.hf_fetch("r/new", "new.safetensors", str(tmp_path), "new.safetensors", "Yeni")]
+    capsys.readouterr()
+    downloads.download_summary(rows)
+
+    table = capsys.readouterr().out
+    assert "Yeni" in table, f"Tabloda inen dosya yok:\n{table}"
+    assert "Eski" not in table and "SAM" not in table, f"Tabloda yerinde duran dosya var:\n{table}"
+
+
+def test_a_resumed_download_s_row_counts_only_what_came_down_this_time(downloads, monkeypatch, tmp_path):
+    """The row says what the line says: bytes the .part already held did not come down in this run."""
+    (tmp_path / "sam.pth.part").write_bytes(b"\0" * 100)
+    _transfer(monkeypatch, downloads, b"\0" * 900, append=True)
+
+    row = downloads.fetch("https://dl.fbaipublicfiles.com/segment_anything/sam.pth", str(tmp_path),
+                          "sam.pth", "SAM", parallel=True, floor=500)
+
+    assert row and row[:2] == ("SAM", 900), f"Satır bu koşuda ineni saymıyor: {row}"
+
+
+def test_a_civitai_file_hands_back_the_row_of_the_road_it_took(downloads, monkeypatch, tmp_path):
+    """From the mirror or from Civitai, the file came down and is counted. The upload after a Civitai
+    download has its own line and is not part of the row."""
+    _mirror(monkeypatch, {"3314686/a.safetensors": _safetensors()})
+    commands = _transfer(monkeypatch, downloads, _safetensors())
+    _probe(monkeypatch, downloads, commands)
+
+    mirrored = downloads.civitai_fetch(MIRROR, 3314686, str(tmp_path), "a.safetensors", "Aynadan", "")
+    fell_back = downloads.civitai_fetch(MIRROR, 3228867, str(tmp_path), "b.safetensors", "Civitai'den",
+                                        COOKIE)
+
+    assert mirrored and mirrored[:2] == ("Aynadan", len(_safetensors())), \
+        f"Aynadan inen dosyanın satırı yok: {mirrored}"
+    assert fell_back and fell_back[:2] == ("Civitai'den", len(_safetensors())), \
+        f"Civitai'den inen dosyanın satırı yok: {fell_back}"
+
+
+def test_the_summary_lists_each_download_and_a_total(downloads, capsys):
+    """One line per file that came down, and a Toplam line under them: the whole download's size, its
+    seconds and the average speed -- "ortalama indirme hızını yazalım" (madde 312). The per-file lines
+    say the same, scattered between the progress bars; the table is where they are read together."""
+    downloads.download_summary([("Kısa", 60 * 2**20, 20.0), None, ("Uzun", 2 * 2**30, 100.0)])
+
+    lines = capsys.readouterr().out.splitlines()
+    expected = [("Kısa", "60.0MB", "20 sn", "3.0 MB/s"),
+                ("Uzun", "2.0GB", "1 dk 40 sn", "20.5 MB/s"),
+                ("Toplam", "2.1GB", "2 dk 0 sn", "17.6 MB/s")]
+    found = [next((i for i, line in enumerate(lines) if all(part in line for part in row)), None)
+             for row in expected]
+
+    assert any("İndirme özeti" in line for line in lines), f"Tablonun başlığı yok: {lines}"
+    assert None not in found and found == sorted(found), "Tablo böyle değil:\n" + "\n".join(lines)
+
+
+def test_a_run_with_nothing_downloaded_says_so(downloads, capsys):
+    """Run all a second time in one session and every file is already there: a Toplam of nothing would
+    read like a download that took no time."""
+    downloads.download_summary([None, None])
+
+    out = capsys.readouterr().out
+    assert "inen dosya yok" in out and "Toplam" not in out, f"Özet boş koşuyu söylemiyor:\n{out}"
