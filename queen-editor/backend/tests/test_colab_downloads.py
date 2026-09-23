@@ -348,26 +348,20 @@ def test_a_fallback_is_probed_before_it_comes_down(downloads, monkeypatch, tmp_p
     assert asked == [0], f"Yoklama inmeden önce yapılmadı: {asked}"
 
 
-def test_hugging_face_s_downloader_is_taken_in_high_performance_mode(downloads, monkeypatch, tmp_path):
-    """HF_XET_HIGH_PERFORMANCE has hf_xet try to fill the machine's bandwidth and use every CPU core
-    (madde 312). huggingface_hub reads its variables once, when it is imported, so the switch has to
-    be on by the moment the downloader is taken from the library -- whatever the environment held."""
+def test_hugging_face_s_downloader_is_taken_with_high_performance_left_off(
+        downloads, monkeypatch, tmp_path):
+    """High-performance mode had HF's chunk server answer 429 on its first run, and the run died;
+    with it off, two full runs never saw one (madde 316). hf_fetch leaves the switch to the
+    environment, where a fresh Colab machine has nothing -- it comes back with 313, from the
+    backlog, once the 429 is solved."""
     monkeypatch.setenv("HF_XET_HIGH_PERFORMANCE", "0")
     _hub(monkeypatch, _safetensors())
-    hub, seen = sys.modules["huggingface_hub"], []
-
-    class Library:
-        @property
-        def hf_hub_download(self):
-            seen.append(os.environ.get("HF_XET_HIGH_PERFORMANCE"))
-            return hub.hf_hub_download
-
-    monkeypatch.setitem(sys.modules, "huggingface_hub", Library())
 
     downloads.hf_fetch("Kijai/MiniMax-H3-TAE", "vae_approx/taeh3.safetensors",
                        str(tmp_path), "taeh3.safetensors", "H3 TAE")
 
-    assert seen == ["1"], f"HF'nin indiricisi yüksek hız ayarı kapalıyken alındı: {seen}"
+    assert os.environ["HF_XET_HIGH_PERFORMANCE"] == "0", \
+        "hf_fetch HF'nin yüksek hız ayarını açtı"
 
 
 def test_a_download_hands_back_its_row_for_the_summary(downloads, monkeypatch, tmp_path):
