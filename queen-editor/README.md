@@ -17,7 +17,8 @@ set once, nothing to paste again and nothing to commit.
 | Secret | What it is for |
 |---|---|
 | `GITHUB_TOKEN` | Cloning this repo. Make it fine-grained, **this repository only, Contents: read-only** — leaked, it can only read this one repo. |
-| `CIVITAI_COOKIE` | The `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). The notebook downloads the gated photo and video files with it. It expires every ~30 days; re-paste it when an install stops with Civitai's own response. A sound-only run needs none. |
+| `CIVITAI_COOKIE` | The `__Secure-civ-token` cookie from `civitai.red` (log in → F12 → Application → Cookies). Only a gated file the Hugging Face mirror does not hold yet comes from Civitai, with this cookie; once everything is mirrored a run needs none. It expires every ~30 days; re-paste it when an install stops with Civitai's own response. |
+| `HF_TOKEN` | Your private Hugging Face repo that mirrors the Civitai files (`HF_MIRROR` in CONFIG). A file it holds comes from there, fast; a file it lacks comes from Civitai once and is uploaded to it. Make it fine-grained, **that one repo only, read and write**. |
 | `XAI_API_KEY` | Video only: a video's prompt is written by xAI when the job's turn comes. Without it photos still render and a video job stops with the client's own sentence. |
 
 ## Run

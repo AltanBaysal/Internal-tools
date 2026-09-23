@@ -189,6 +189,43 @@ def cookie_header(cookie):
     return f"Cookie: __Secure-civ-token={cookie}"
 
 
+def _upload(mirror, path, target, label):
+    """Up to the mirror. A refusal is printed, not raised: the file is already down and usable, and
+    the next run tries again."""
+    from huggingface_hub import HfApi
+
+    start = time.perf_counter()
+    try:
+        HfApi().upload_file(path_or_fileobj=target, path_in_repo=path, repo_id=mirror,
+                            commit_message=f"{label} (Civitai {path})")
+    except Exception as e:
+        log(f"{label}: aynaya yüklenemedi — {type(e).__name__}: {e}", "WARN")
+        return
+    size, took = os.path.getsize(target), time.perf_counter() - start
+    log(f"{label}: aynaya yüklendi — {human(size)}, {took:.0f} sn, {size / took / 2**20:.1f} MB/s", "OK")
+
+
+def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
+    """A Civitai file, from the user's Hugging Face mirror when it is there. When it is not -- or will
+    not come down -- the mirror's own sentence is printed, the file comes from Civitai the way it
+    always did, and it goes up to the mirror so the next run takes the fast road (madde 311)."""
+    path = f"{version_id}/{filename}"
+    try:
+        hf_fetch(mirror, path, target_dir, filename, label)
+        return
+    except RuntimeError as e:
+        log(f"{label}: aynadan alınamadı, Civitai'den inecek — {e}", "WARN")
+    if len(cookie or "") <= 200:
+        raise RuntimeError(
+            f"❌ {label}: aynada yok, ve Civitai'den inmesi için CIVITAI_COOKIE gerekiyor — Colab 🔑 "
+            f"Secrets'a 'CIVITAI_COOKIE' adıyla ekle: civitai.red → giriş → F12 → Application → "
+            f"Cookies → __Secure-civ-token değeri (ES256 JWT)")
+    civitai_probe(version_id, label, cookie)
+    fetch(civitai_url(version_id), target_dir, filename, label, parallel=False,
+          headers=cookie_header(cookie))
+    _upload(mirror, path, os.path.join(target_dir, filename), label)
+
+
 def civitai_probe(version_id, label, cookie):
     out = "/content/_probe.bin"
     done = subprocess.run(
