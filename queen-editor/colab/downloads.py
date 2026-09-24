@@ -212,7 +212,10 @@ def _upload(mirror, path, target, label):
 # Files on trial stay out of the mirror (madde 327): they come straight from Civitai and are never
 # uploaded -- a file we may not keep has no business there. Keyed by file name, not by Civitai
 # version: the version is the file's address, and addresses live in the notebook (FOUNDATION 9).
-MIRRORLESS = set()
+MIRRORLESS = {
+    # H3's Mystic XXX lora, while the user tries it (madde 328).
+    "MysticXXX_MMH3-V4.safetensors",
+}
 
 
 def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):

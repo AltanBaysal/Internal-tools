@@ -73,8 +73,9 @@ H3_VIDEO = [
     {"folder": "vae", "name": "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"},
     # The preview the graph samples through; a model node in its chain, so a render needs it too.
     {"folder": "vae_approx", "name": "taeh3.safetensors"},
-    # Inside the lora stack's JSON, where a scan for model names cannot see it.
+    # The lora stack's two, inside its JSON where a scan for model names cannot see them.
     {"folder": "loras", "name": "H3_Motion_BoosterV2.safetensors"},
+    {"folder": "loras", "name": "MysticXXX_MMH3-V4.safetensors"},
 ]
 
 
