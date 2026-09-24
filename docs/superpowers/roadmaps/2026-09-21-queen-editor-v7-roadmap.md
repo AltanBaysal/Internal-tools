@@ -64,6 +64,14 @@ değiştiriyor. Düzen:
   ötekinin yeşil koşusunu bozmasın. Kol içinde her madde bugünkü gibi iki tur *(spec → plan → test →
   kırmızı commit; spec → plan → kod → yeşil commit)*, dört test satırı yazıldığı gibi, ve maddeler
   sırayla.
+- **Her madde bir alt ajan, iki kontrolle** *(kullanıcı, 24 Eylül — "her taskı bir subagent yapsın
+  sana dönsün sen kontrol et feedback ver veya tamamla sonra o kolun sonraki subagentini başlat")*.
+  Ajan kırmızı commit'ten sonra durur ve döner: testlerin maddeyi sorup sormadığına, doğru sebeple
+  kırmızı olup olmadığına, eski davranışı soran testlerin *Değişen*e yazılıp yazılmadığına bakılır.
+  Aynı ajan uygulama turunu koşar ve yeşil commit'ten sonra yine döner: kod spec'e, FOUNDATION'a ve
+  CODE-STANDARD'a göre okunur. Bulunan eksik ajana geri gönderilir; kolun sıradaki ajanı ancak iki
+  kontrol geçince başlar. Tek ajanın bütün kolu koşması seçilmedi: yanlış bir karar ancak sonda
+  görünür, ve sonraki maddeler onun üstüne kurulmuş olur.
 - **Dist kolların içinde derlenmez.** İki kol aynı dosyayı yeniden üretir ve her birleşmede
   çakışırdı. CLAUDE.md'nin *"dist kaynakla aynı commit'te"* kuralı bu yüzden kollar boyunca askıda;
   **birleşme commit'i dist'i bir kez derleyip taşır**, ve bu dala o anda döner.
