@@ -72,6 +72,15 @@ değiştiriyor. Düzen:
   CODE-STANDARD'a göre okunur. Bulunan eksik ajana geri gönderilir; kolun sıradaki ajanı ancak iki
   kontrol geçince başlar. Tek ajanın bütün kolu koşması seçilmedi: yanlış bir karar ancak sonda
   görünür, ve sonraki maddeler onun üstüne kurulmuş olur.
+- **Worktree'ler projenin içinde, `.worktrees/kol-a` ve `.worktrees/kol-b`** *(`.git/info/exclude`
+  ile gizli)*, ve **dört satırı ben koşuyorum**. Alt ajanın kabuğu her çağrıda ana klasöre dönüyor,
+  proje dışındaki bir klasöre `cd` de tutmuyor; satırlar yazıldığı gibi ancak dizini kalan bir
+  kabuktan koşulabiliyor. Ajan yazıp durur, koşuyu ben yapıp çıktıyı ona dönerim; commit koşu
+  istenen sonucu verince atılır.
+- **Kol B 320'yi Kol A'dan aldı** *(`3ce81cca`, ileri sarma)*: kolların ortak tabanı 320'nin kırmızı
+  testlerini taşıyordu, ve Kol B'nin takımı 320'nin kodu gelmeden hiç yeşile dönemezdi. Kol A'nın
+  sonraki maddeleri Kol B'ye alınmaz — kendi testleri kendi kolunda kırmızı başlayıp orada yeşile
+  dönüyor.
 - **Dist kolların içinde derlenmez.** İki kol aynı dosyayı yeniden üretir ve her birleşmede
   çakışırdı. CLAUDE.md'nin *"dist kaynakla aynı commit'te"* kuralı bu yüzden kollar boyunca askıda;
   **birleşme commit'i dist'i bir kez derleyip taşır**, ve bu dala o anda döner.
