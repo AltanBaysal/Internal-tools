@@ -128,6 +128,11 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
 gerekiyorsa onu da ekle", "queen editor olanları bakloga ekle".)* **Ayrıntılar kullanıcıyla
 konuşulacak.**
 
+### Üretim süreleri kaydedilip gösterilecek
+
+*(Kullanıcı, 24 Eylül — "her fotoğraf video ses ne kadar sürede üretildi kayıt edilim ve
+gösterleim"; grubu: "önemliye ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ## Diğer
 
 ### Cumshot güncellemesi — video LoRA'ları
@@ -247,11 +252,6 @@ bırakıldıysa yeniden denemeyi bizim kodumuz yapar.
 
 *(Kullanıcı, 24 Eylül — "noteboboku sadeleştirmek kodları olanbildğince test edilevilir python
 koduna dönüştürmek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
-### Üretim süreleri kaydedilip gösterilecek
-
-*(Kullanıcı, 24 Eylül — "her fotoğraf video ses ne kadar sürede üretildi kayıt edilim ve
-gösterleim".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ---
 
