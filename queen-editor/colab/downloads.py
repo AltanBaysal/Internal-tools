@@ -209,25 +209,42 @@ def _upload(mirror, path, target, label):
     log(f"{label}: aynaya yüklendi — {human(size)}, {took:.0f} sn, {size / took / 2**20:.1f} MB/s", "OK")
 
 
+# Files on trial stay out of the mirror (madde 327): they come straight from Civitai and are never
+# uploaded -- a file we may not keep has no business there. Keyed by file name, not by Civitai
+# version: the version is the file's address, and addresses live in the notebook (FOUNDATION 9).
+MIRRORLESS = set()
+
+
 def civitai_fetch(mirror, version_id, target_dir, filename, label, cookie):
     """A Civitai file, from the user's Hugging Face mirror when it is there. When it is not -- or will
     not come down -- the mirror's own sentence is printed, the file comes from Civitai the way it
-    always did, and it goes up to the mirror so the next run takes the fast road (madde 311). Either
-    way the row is the download's; the upload has its own line."""
+    always did, and it goes up to the mirror so the next run takes the fast road (madde 311). A file
+    in MIRRORLESS skips the mirror both ways and comes straight from Civitai (madde 327). Either way
+    the row is the download's; the upload has its own line. A file already in place asks nothing of
+    anyone, the probe included."""
     path = f"{version_id}/{filename}"
-    try:
-        return hf_fetch(mirror, path, target_dir, filename, label)
-    except RuntimeError as e:
-        log(f"{label}: aynadan alınamadı, Civitai'den inecek — {e}", "WARN")
+    target = os.path.join(target_dir, filename)
+    if os.path.exists(target):
+        log(f"{label}: zaten var ({_settled(target, label, None)})")
+        return
+    mirrored = filename not in MIRRORLESS
+    if mirrored:
+        try:
+            return hf_fetch(mirror, path, target_dir, filename, label)
+        except RuntimeError as e:
+            log(f"{label}: aynadan alınamadı, Civitai'den inecek — {e}", "WARN")
+    else:
+        log(f"{label}: aynası kapalı — Civitai'den aynasız iniyor (madde 327)")
     if len(cookie or "") <= 200:
         raise RuntimeError(
-            f"❌ {label}: aynada yok, ve Civitai'den inmesi için CIVITAI_COOKIE gerekiyor — Colab 🔑 "
-            f"Secrets'a 'CIVITAI_COOKIE' adıyla ekle: civitai.red → giriş → F12 → Application → "
-            f"Cookies → __Secure-civ-token değeri (ES256 JWT)")
+            f"❌ {label}: {'aynada yok' if mirrored else 'aynası kapalı'}, ve Civitai'den inmesi için "
+            f"CIVITAI_COOKIE gerekiyor — Colab 🔑 Secrets'a 'CIVITAI_COOKIE' adıyla ekle: civitai.red → "
+            f"giriş → F12 → Application → Cookies → __Secure-civ-token değeri (ES256 JWT)")
     civitai_probe(version_id, label, cookie)
     row = fetch(civitai_url(version_id), target_dir, filename, label, parallel=False,
                 headers=cookie_header(cookie))
-    _upload(mirror, path, os.path.join(target_dir, filename), label)
+    if mirrored:
+        _upload(mirror, path, target, label)
     return row
 
 
