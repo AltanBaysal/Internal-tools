@@ -320,7 +320,8 @@ describe("LayerPanel — the panel's own shape", () => {
   it("keeps only the blocks the design leaves standing", () => {
     renderPanel();
 
-    expect(blocks()).toEqual(["Model", "Üretim", "Kapsam", "Üretim modu", "Varyant"]);
+    // The Üretim row is gone: where a video is made from is the tabs over the panel (madde 317).
+    expect(blocks()).toEqual(["Model", "Kapsam", "Üretim modu", "Varyant"]);
   });
 });
 

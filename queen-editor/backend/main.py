@@ -62,6 +62,7 @@ from backend.features.photo_generation.presentation.reference_routes import (
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
+from backend.features.projects.data.reference_settings_store import DriveReferenceSettingsStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
 from backend.features.projects.domain.usecases.archive_project import (
     archive_project,
@@ -74,11 +75,17 @@ from backend.features.projects.domain.usecases.delete_project import delete_proj
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.rename_project import rename_project
+from backend.features.projects.domain.usecases.save_reference_settings import (
+    save_reference_settings,
+)
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
 from backend.features.producers.domain.model_groups import audio_weights, groups_for
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.presentation.routes import make_producers_blueprint
+from backend.features.projects.presentation.reference_settings_routes import (
+    make_reference_settings_blueprint,
+)
 from backend.features.projects.presentation.routes import make_projects_blueprint
 from backend.services.comfy.client import ComfyClient
 from backend.services.drive.storage import DriveStorage
@@ -90,6 +97,7 @@ _storage = DriveStorage(config.DRIVE_ROOT)
 
 _project_store = DriveProjectStore(_storage)
 _settings_store = DriveSettingsStore(_storage)
+_reference_settings_store = DriveReferenceSettingsStore(_storage)
 
 _photo_store = DrivePhotoStore(_storage)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
@@ -151,6 +159,12 @@ _projects_bp = make_projects_blueprint(
     archive_project=partial(archive_project, _project_store),
     restore_project=partial(restore_project, _project_store),
     list_archived_projects=partial(list_archived_projects, _project_store),
+)
+
+# Referanstan's boxes: the photo panel's question, in a file and at a door of their own (madde 317).
+_reference_settings_bp = make_reference_settings_blueprint(
+    get_reference_settings=partial(get_settings, _reference_settings_store),
+    save_reference_settings=partial(save_reference_settings, _reference_settings_store),
 )
 
 
@@ -271,7 +285,8 @@ _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
                                           config.VIDEO_MODEL))
 
-app = create_app(blueprints=[_projects_bp, _photo_bp, _references_bp, _producers_bp])
+app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
+                             _producers_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

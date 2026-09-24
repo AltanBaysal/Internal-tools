@@ -179,7 +179,7 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
             layer in front: a list of named arguments here would drop whatever the panel adds -- the
             pool's prompts ride fourth (madde 325). */}
         {(open === "video" || open === "audio") && (
-          <LayerPanel layer={open} frames={frames} selected={selected}
+          <LayerPanel layer={open} project={project} frames={frames} selected={selected}
                       job={job} busyElsewhere={busyElsewhere} error={error}
                       producer={(producers?.producers || []).find((p) => p.id === open)}
                       onQueue={(...asked) => onQueueLayer(open, ...asked)}

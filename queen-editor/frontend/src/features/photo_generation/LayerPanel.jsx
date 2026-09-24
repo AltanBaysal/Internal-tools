@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { getReferenceSettings, saveReferenceSettings } from "../../shared/api.js";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
@@ -18,6 +19,12 @@ const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "u
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
 // panel's card uses).
 const CONFIRM_MS = 10000;
+
+// What Referanstan's boxes were last holding, per project (madde 317). The photo panel's own rule
+// (GeneratePanel's REMEMBERED): this panel is built afresh on every opening and on every step in and
+// out of a frame, and without this the prompt list typed there would go with it. Memory only: a
+// reload asks the project's record instead.
+const DRAFTS = new Map();
 
 const MAX_VARIANTS = 26;
 
@@ -213,8 +220,8 @@ function ModeRow({ label, active, disabled, onPick }) {
 // them: there is a single worker, so a run started from another project refuses this one, and until
 // madde 215 this panel was told none of it -- the press went out, came back 409, and the answer
 // landed in a panel that was not the open one.
-export default function LayerPanel({ layer, frames, selected, producer, job, busyElsewhere, error,
-                                     onQueue, onInstall }) {
+export default function LayerPanel({ layer, project, frames, selected, producer, job,
+                                     busyElsewhere, error, onQueue, onInstall }) {
   const words = WORDS[layer];
   const [scope, setScope] = useState("missing");
   // Kept by both panels though only the video one shows the row: a sound ends nowhere, so it has
@@ -226,11 +233,20 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   // Where the video's pictures come from. Only the video panel asks (madde 301); a sound is laid
   // over a video that already exists, so the pool has nothing to do with it.
   const [source, setSource] = useState(FROM_FRAME);
+  // Referanstan's draft, when this visit left one. Only the video panel keeps one.
+  const kept = layer === "video" ? DRAFTS.get(project) : undefined;
   // The words a pool production is made from -- the photo panel's own shape, because that is how
   // the user already writes a batch of prompts.
-  const [prompts, setPrompts] = useState("");
+  const [prompts, setPrompts] = useState(kept?.prompts ?? "");
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState("1");
+  // Referanstan's own count. Kareden's opens at one every time, as it always has; this one is kept
+  // with the prompt list it multiplies.
+  const [poolVariants, setPoolVariants] = useState(kept?.variants ?? "1");
+  // Whether the Referanstan boxes hold this visit's words yet -- a kept draft, the project's record,
+  // or a keystroke. Until then there is nothing to keep, and the record is still worth asking for.
+  const settled = useRef(Boolean(kept));
+  const recordAsked = useRef(false);
   const [submitting, setSubmitting] = useState(false);
   // What the queue took and what it was told to make: both from the moment the request went out.
   // The card stands for ten seconds and the mode row is one click away, so reading the live mode
@@ -259,11 +275,39 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   useEffect(() => { setScope(chosen.length ? "selected" : "missing"); }, [chosen.length]);
 
   const fromPool = layer === "video" && source === FROM_POOL;
+  // The box shows, and the press reads, the open tab's own count.
+  const shownVariants = fromPool ? poolVariants : variants;
+
+  // The project's record fills the boxes once per visit, the first time the tab is open. What was
+  // typed while it flew stays: a draft is one thing, never half the record and half the hand. A
+  // record that cannot be read leaves the boxes empty -- all that is lost is a prefill, and a dead
+  // server is said by the press, whose write fails first.
+  useEffect(() => {
+    if (!fromPool || settled.current || recordAsked.current) return;
+    recordAsked.current = true;
+    getReferenceSettings(project)
+      .then((record) => {
+        if (settled.current) return;
+        settled.current = true;
+        setPrompts(record.prompts);
+        setPoolVariants(record.variants === null ? "1" : String(record.variants));
+      })
+      .catch(() => {});
+  }, [fromPool, project]);
+
+  // Kept only once settled: a panel built and closed without the tab ever opening would otherwise
+  // leave an empty draft, and the record would never be asked again this visit.
+  useEffect(() => {
+    if (layer === "video" && settled.current) {
+      DRAFTS.set(project, { prompts, variants: poolVariants });
+    }
+  }, [layer, project, prompts, poolVariants]);
+
   const written = promptsIn(prompts);
   const counts = { missing: missing.length, selected: inSelection.length };
   const scoped = scope === "selected" ? inSelection : missing;
   // What the queue would take: every frame in scope, once per variant.
-  const owed = scoped.length * (Number(variants) || 0);
+  const owed = scoped.length * (Number(shownVariants) || 0);
   // Frames in scope that already carry this layer. Production does not write over one -- it makes
   // a copy frame beside it -- and nothing on screen said so until now. Read from the scope rather
   // than the raw selection: Videosu olmayan kareler leaves those frames out by its own definition,
@@ -285,14 +329,14 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   // the number it read. Move any of the three and it becomes a stale answer standing under a button
   // about to be pressed again. The gallery's selection is in here too -- picking other frames over
   // there is exactly such a move. A press changes none of the three, so the answer stays up.
-  useEffect(() => { setRefused(null); }, [chosen, scope, variants]);
+  useEffect(() => { setRefused(null); }, [chosen, scope, shownVariants]);
   const missingProducer = Boolean(producer) && !producer.installed;
   // The server's name first -- it knows which model the notebook installed. Until it answers the
   // box stays empty rather than guessing.
   const model = producer?.model || words.model || "";
 
   function handleAdd() {
-    const why = refusalOf(words, can, scope, scoped, variants, fromPool, written);
+    const why = refusalOf(words, can, scope, scoped, shownVariants, fromPool, written);
     if (why) {
       setAdded(null);
       clearTimeout(fade.current);
@@ -305,13 +349,17 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
     // From the pool nothing is scoped and no mode applies: the request carries the words and how
     // many of each, and the server makes a card per pair (madde 303).
     const sent = fromPool ? FROM_POOL : mode;
+    const count = Number(shownVariants);
     const files = scope === "selected" && !fromPool
       ? inSelection.map((frame) => frame.file) : null;
-    // The words ride along only when they are what the press is about: every other call keeps the
-    // shape it has always had.
+    // From the pool the boxes are written down first, the photo panel's way (ProjectScreen's
+    // handleGenerate): the record and the work land in the same folder, so a record that cannot be
+    // written means the work could not be either, and nothing is sent. The words ride along only
+    // when they are what the press is about: every other call keeps the shape it has always had.
     const asked = fromPool
-      ? onQueue(null, Number(variants), sent, prompts)
-      : onQueue(files, Number(variants), sent);
+      ? saveReferenceSettings(project, { prompts, variants: count })
+        .then(() => onQueue(null, count, sent, prompts))
+      : onQueue(files, count, sent);
     asked
       .then((body) => {
         if (body && typeof body.added === "number") {
@@ -319,11 +367,26 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
           fade.current = setTimeout(() => setAdded(null), CONFIRM_MS);
         }
       })
+      .catch((err) => setRefused(err.message))
       .finally(() => setSubmitting(false));
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
+      {/* Where the video is made from, as two tabs over the whole panel (madde 317): each tab is a
+          form of its own. Only the video panel has them -- a sound is laid over a video that
+          already exists, and the pool has nothing to give it. */}
+      {layer === "video" && (
+        <div className="wf-segment" style={{ display: "flex" }}>
+          {SOURCES.map((one) => (
+            <button key={one.id} type="button" className={source === one.id ? "is-on" : ""}
+                    style={{ flex: 1 }} onClick={() => setSource(one.id)}>
+              {one.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <InstallCard producer={producer} onInstall={onInstall} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -337,18 +400,6 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
         </select>
       </div>
 
-      {/* Where the pictures come from. Only the video panel asks: a sound is laid over a video
-          that already exists, and the pool has nothing to do with it (madde 301). */}
-      {layer === "video" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <Mono size={11} data-label style={LABEL}>Üretim</Mono>
-          {SOURCES.map((one) => (
-            <ModeRow key={one.id} label={one.label} active={source === one.id}
-                     onPick={() => setSource(one.id)} />
-          ))}
-        </div>
-      )}
-
       {!fromPool && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Mono size={11} data-label style={LABEL}>Kapsam</Mono>
@@ -360,13 +411,21 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
       )}
 
       {fromPool && (
+        // The pool's own block. What it holds -- the button that opens the pool in the middle -- is
+        // madde 318's.
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Referanslar</Mono>
+        </div>
+      )}
+
+      {fromPool && (
         /* The photo panel's own shape, because that is how the user already writes a batch. The
            box is what the whole production is made of here: there is no frame to hang on. */
         <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
-          <Mono size={11} data-label style={LABEL}>Promptlar</Mono>
+          <Mono size={11} data-label style={LABEL}>Prompt listesi</Mono>
           <textarea className="wf-input" rows={8} value={prompts} aria-label="Prompt listesi"
                     placeholder={'["ilk prompt", "ikinci prompt"]'}
-                    onChange={(e) => setPrompts(e.target.value)}
+                    onChange={(e) => { settled.current = true; setPrompts(e.target.value); }}
                     style={{ fontSize: 11.5, flex: 1, fontFamily: "IBM Plex Mono, monospace" }} />
         </div>
       )}
@@ -395,13 +454,21 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
           type="number"
           min={1}
           max={MAX_VARIANTS}
-          value={variants}
-          onChange={(e) => { if (acceptsVariants(e.target.value)) setVariants(e.target.value); }}
+          value={shownVariants}
+          onChange={(e) => {
+            if (!acceptsVariants(e.target.value)) return;
+            if (fromPool) {
+              settled.current = true;
+              setPoolVariants(e.target.value);
+            } else {
+              setVariants(e.target.value);
+            }
+          }}
           /* Red while it is empty, and it stays empty: the silent reset to 1 on the way out is what
              kept the box from ever showing that (Fark 29). What the emptiness means is said when
              the button is pressed. */
           style={{ width: 56, textAlign: "center", fontSize: 13,
-                   ...(variants === "" ? { borderColor: "var(--danger)" } : {}) }}
+                   ...(shownVariants === "" ? { borderColor: "var(--danger)" } : {}) }}
         />
       </div>
 
@@ -457,8 +524,8 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
           // and the line says so in the user's own arithmetic.
           <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
             {written
-              ? `${written.length} prompt × ${Number(variants) || 0} varyant = `
-                + `${written.length * (Number(variants) || 0)} kart`
+              ? `${written.length} prompt × ${Number(shownVariants) || 0} varyant = `
+                + `${written.length * (Number(shownVariants) || 0)} kart`
               : NO_PROMPTS}
           </Note>
         ) : owed ? (

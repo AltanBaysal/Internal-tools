@@ -100,6 +100,21 @@ export async function saveSettings(project, { prompts, negative, variants, model
   });
 }
 
+// Referanstan's own record (madde 317): what its boxes open with once a visit's draft is gone. An
+// address of its own because it is written at a moment of its own -- a reference production, not a
+// photo batch.
+export async function getReferenceSettings(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/reference-settings`);
+}
+
+export async function saveReferenceSettings(project, { prompts, variants }) {
+  return request(`/api/projects/${encodeURIComponent(project)}/reference-settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompts, variants }),
+  });
+}
+
 export async function generateBatch(project, { prompts, negative, variants, model, lora }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",

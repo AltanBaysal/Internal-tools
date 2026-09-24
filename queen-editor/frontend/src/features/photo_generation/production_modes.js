@@ -23,10 +23,11 @@ export const MODES = [
 export const FROM_FRAME = "standard";
 export const FROM_POOL = "reference";
 
-// Named for what they are made FROM rather than "Standart / Referans": the row below already has a
-// Standart, which says where a video ends, and one panel cannot carry that word twice.
+// Named for what they are made FROM rather than "Standart / Referans": the Kareden tab already has a
+// Standart, which says where a video ends, and one panel cannot carry that word twice. They are the
+// video panel's two tabs (madde 317).
 export const SOURCES = [
-  { id: FROM_FRAME, label: "Karelerden" },
+  { id: FROM_FRAME, label: "Kareden" },
   { id: FROM_POOL, label: "Referanstan" },
 ];
 
