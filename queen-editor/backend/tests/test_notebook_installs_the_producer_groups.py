@@ -7,7 +7,12 @@ each producer sits behind its own switch, the outside world is probed before the
 and the tunnel is opened the way that measured fast.
 
 The notebook is read, never run.
+
+The download machinery left the notebook for colab/ in madde 310, and the custom node install in
+madde 314; both are run in test_colab_*.py. What stays here is the seam: the notebook imports names
+the modules give, finds them in its clone, and defines none of them again.
 """
+import importlib
 import json
 import os
 import re
@@ -62,6 +67,12 @@ def _cell(marker):
         if marker in source:
             return source
     return ""
+
+
+def _imports_from_code():
+    """(module, names) for every line the notebook imports its own code with."""
+    return [(module, [name.strip() for name in names.split(",")])
+            for module, names in re.findall(r"^from (colab\.\w+) import ([\w, ]+)$", _source(), re.M)]
 
 
 def _drawn(cell):
@@ -124,6 +135,17 @@ def test_the_intro_agrees_with_the_custom_node_list():
     assert listed, "CUSTOM_NODES listesi okunamadı"
     assert f"({listed} custom node)" in intro, \
         f"Giriş hücresindeki sayı listeyle uyuşmuyor: {listed} satır"
+
+
+def test_the_notebook_installs_its_nodes_through_install_node():
+    """The loop left the ComfyUI cell for colab/ in madde 314, where it runs under test. The list
+    stays in the notebook, like the download lists."""
+    imported = [name for module, names in _imports_from_code() if module == "colab.nodes"
+                for name in names]
+
+    assert re.search(r"for name, url in CUSTOM_NODES:\n\s+install_node\(name, url, ",
+                     _cell("CUSTOM_NODES = [")), "Defter node'ları install_node ile kurmuyor"
+    assert "install_node" in imported, "Defter install_node'u klondan import etmiyor"
 
 
 def test_every_producer_has_a_checkbox_of_its_own():
@@ -228,31 +250,36 @@ def test_choosing_nothing_stops_the_notebook():
     assert "assert INSTALL_PHOTO or INSTALL_VIDEO or INSTALL_AUDIO" in _source()
 
 
-def test_the_cookie_is_only_demanded_by_the_groups_that_are_gated():
-    """Only photo and video pull from Civitai. A sound-only run must not stop for a cookie it
-    never sends. Pinned as the two lines together: `if INSTALL_PHOTO or INSTALL_VIDEO` appears
-    elsewhere too, so the switch alone would prove nothing about the cookie."""
-    assert ('if INSTALL_PHOTO or INSTALL_VIDEO:\n'
-            '    assert len(COOKIE_VALUE or "") > 200') in _source()
+def test_civitai_files_come_down_through_the_mirror():
+    """Each gated file is looked up in the user's own Hugging Face repo first (madde 311), and its row
+    is kept for the table (madde 312)."""
+    assert re.search(r"for [^\n]+ in civitai_jobs:\n\s+landed\.append\(civitai_fetch\(HF_MIRROR, ",
+                     _cell("# === Target folders ===")), \
+        "Civitai dosyaları aynadan geçmiyor ya da satırları tutulmuyor"
 
 
-def test_the_gated_files_are_fetched_the_way_that_works():
-    """curl, not aria2c: Civitai redirects to its store, which answers 403 if the login cookie
-    travels with the request. aria2c forwards it; curl drops it when the host changes."""
-    source = _source()
+def test_the_mirror_is_named_once_in_config():
+    """A repo is named where the Drive folder is: in CONFIG, once."""
+    assert re.search(r'^HF_MIRROR\s*=\s*"[\w.-]+/[\w.-]+"', _cell("# === CONFIG ==="), re.M), \
+        "Ayna CONFIG'de adlanmıyor"
+    assert len(re.findall(r"^HF_MIRROR\s*=", _source(), re.M)) == 1, \
+        "Ayna birden çok yerde adlanıyor"
 
-    assert "civitai_probe" in source, "Ağır indirmeden önce kapılı erişim yoklanmalı"
-    assert "civitai.red/api/download/models" in source
+
+def test_config_does_not_demand_the_cookie():
+    """Only a file that falls back to Civitai needs the cookie (madde 311). Demanded in CONFIG, it
+    would stop a run whose files are all mirrored, for nothing."""
+    assert "len(COOKIE_VALUE" not in _cell("# === CONFIG ==="), "CONFIG çerezi hâlâ baştan istiyor"
 
 
 def test_an_unticked_group_costs_no_bytes():
     """The whole point of the checkboxes: a group's list is only reached through its own switch."""
     source = _source()
 
-    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO"), SWITCH["photo"]),
-                          (("CIVITAI_VIDEO", "OPEN_VIDEO"), 'VIDEO_MODEL == "wan"'),
-                          (("CIVITAI_H3", "OPEN_H3"), 'VIDEO_MODEL == "h3"'),
-                          (("OPEN_AUDIO",), SWITCH["audio"])):
+    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
+                          (("CIVITAI_VIDEO", "HF_VIDEO"), 'VIDEO_MODEL == "wan"'),
+                          (("CIVITAI_H3", "HF_H3"), 'VIDEO_MODEL == "h3"'),
+                          (("HF_AUDIO",), SWITCH["audio"])):
         for name in names:
             assert f"{name} if {switch} else []" in source, \
                 f"{name} kendi anahtarının arkasında değil"
@@ -479,33 +506,126 @@ def test_every_file_the_h3_group_counts_is_fetched_by_the_notebook():
     assert missing == [], f"Defter bu H3 dosyalarını indirmiyor: {missing}"
 
 
-def test_the_notebook_fetches_the_h3_checkpoint_and_lora_by_their_versions():
-    """Named rather than derived, like the photo checkpoints: the DaSiWa Hybrid Turbo v2 the graph
-    ships configured for, and the one lora the user kept (madde 213)."""
+def test_the_notebook_fetches_motion_booster_by_its_version():
+    """Named rather than derived, like the photo checkpoints: the one lora the user kept from 213's
+    trial."""
+    assert "3228867" in _cell("CIVITAI_H3 = ["), "Civitai version id defterde yok: 3228867"
+
+
+def test_the_notebook_fetches_eros_max_from_its_author_s_repo_into_the_h3_diffusion_models():
+    """Madde 333, the user's pick after trying both (329, 332): the file the author says to use by
+    default (TURBO-hybrid int8), from the Hugging Face repo the Civitai page points at -- Civitai's
+    own version link hands out a different, w4a8 file. A row of HF_H3: only an H3 run reaches it
+    (test_an_unticked_group_costs_no_bytes), and hf_fetch uploads nothing, so the file never touches
+    the mirror. H3DIFF is where the graph's MiniMaxH3/ prefix looks."""
+    cell = _cell("HF_H3 = [")
+    listing = cell[cell.find("HF_H3 = ["):]
+    listing = listing[:listing.find("\n]")]
+
+    assert re.search(r'\(\s*"TenStrip/10Eros-Max",'
+                     r'\s*"10Eros_Max_h3_TURBO-hybrid_beta5_int8\.safetensors",'
+                     r'\s*H3DIFF,\s*"10Eros_Max_h3_TURBO-hybrid_beta5_int8\.safetensors",',
+                     listing), f"HF_H3'te Eros satırı yok:\n{listing}"
+
+
+def test_the_retired_dasiwa_h3_checkpoint_is_gone_from_the_notebook():
+    """Eros took its place (madde 333). A row left behind would still bring ~21 GB down on every H3
+    run, for a file no graph loads. The file itself stays in the mirror (the user's call, "dasiwa
+    silinmesin, dursun"): the notebook only stops fetching it."""
+    source = _source()
+
+    for leftover in ("dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
+                     "row-wise_convrot_runtime_mixed.safetensors", "3314686"):
+        assert leftover not in source, f"Defterde DaSiWa H3'ten iz kaldı: {leftover}"
+
+
+def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():
+    """Madde 328: the address is the user's -- Civitai version 3266628, "v4.0 (FL2VA & REF2VA)" -- and
+    the file lands in loras/ under the name the lora stack would load it by. Madde 330 took it out of
+    the stack and kept this row: the file stays on the disk, so turning it back on is a graph edit
+    and no notebook change. A row of CIVITAI_H3, which only an H3 run reaches
+    (test_an_unticked_group_costs_no_bytes)."""
     cell = _cell("CIVITAI_H3 = [")
+    listing = cell[cell.find("CIVITAI_H3 = ["):]
+    listing = listing[:listing.find("\n]")]
 
-    for version in ("3314686", "3228867"):
-        assert version in cell, f"Civitai version id defterde yok: {version}"
-
-
-def test_the_h3_files_from_huggingface_come_down_over_one_connection():
-    """HF keeps these in its Xet store, whose signed URLs answer parallel byte ranges with 403 --
-    aria2c's sixteen connections fail where one curl gets through."""
-    pattern = (r'for [^\n]+ in \(OPEN_H3 if VIDEO_MODEL == "h3" else \[\]\):\n'
-               r'\s+fetch\([^\n]*parallel=False')
-
-    assert re.search(pattern, _source()), "H3'ün HF dosyaları tek bağlantıyla inmiyor"
+    assert re.search(r'\(3266628,\s*LORA,\s*"MysticXXX_MMH3-V4\.safetensors",', listing), \
+        f"CIVITAI_H3'te Mystic XXX satırı yok:\n{listing}"
 
 
-def test_the_quantizer_stamp_is_cut_before_a_file_is_judged():
-    """The tool behind the H3 quants leaves a line of ASCII after the last tensor. ComfyUI's own
-    reader walks past it and Rust's refuses the file -- and check_safetensors calls it too long.
-    Cutting it before every check is what makes the same file load whichever reader runs."""
-    cell = _cell("def fetch(")
-    body = cell[cell.index("def fetch("):cell.index("# === Civitai ===")]
+def test_no_huggingface_file_is_fetched_by_its_address():
+    """An address sends the file through HF's bridge, which cuts a plain download to 8.7 MB/s on most
+    of its servers (xet-core #821) -- the user timed H3's install at about a hundred minutes (madde
+    310). Named by repo and path, a file can only come down through HF's own downloader."""
+    cell = _cell("# === Target folders ===")
 
-    assert "def strip_unreferenced_tail" in cell, "Damga kesici defterde yok"
-    assert "strip_unreferenced_tail(" in body, "fetch damgayı kesmiyor"
+    assert cell, "İndirme hücresi bulunamadı"
+    assert "huggingface.co" not in cell, "İndirme hücresinde hâlâ HF adresi var"
+
+
+def test_huggingface_files_come_down_through_hf_fetch():
+    """hf_fetch is the path around HF's bridge. Without hf_xet installed, huggingface_hub goes back to
+    the bridge with nothing but a log line, so installing it is half of the rule. Each download's row
+    is kept for the table the cell ends with (madde 312)."""
+    assert re.search(r"for [^\n]+ in hf_jobs:\n\s+landed\.append\(hf_fetch\(",
+                     _cell("# === Target folders ===")), \
+        "HF dosyaları hf_fetch ile inmiyor ya da satırları tutulmuyor"
+    assert re.search(r"pip install[^\n]*hf_xet", _source()), "Defter hf_xet'i kurmuyor"
+
+
+def test_the_models_cell_ends_with_the_download_summary():
+    """The rows the downloads hand back are collected in one list and printed as a table once
+    everything is down (madde 312)."""
+    cell = _cell("# === Target folders ===")
+    imported = [name for module, names in _imports_from_code() if module == "colab.downloads"
+                for name in names]
+
+    assert -1 < cell.find("landed = []") < cell.find("in hf_jobs:"), \
+        "Satır listesi döngülerden önce açılmıyor"
+    assert re.search(r"for [^\n]+ in open_jobs:\n\s+landed\.append\(fetch\(", cell), \
+        "Açık adresli indirmelerin satırı tutulmuyor"
+    assert cell.find("download_summary(landed)") > cell.find("in civitai_jobs:") > -1, \
+        "Özet tablosu indirmelerden sonra basılmıyor"
+    assert "download_summary" in imported, "Defter özet tablosunu klondan import etmiyor"
+
+
+def test_every_name_the_notebook_imports_from_its_code_exists():
+    """The notebook cannot run here, but its import lines can: a name the module does not give is an
+    ImportError on the machine, after the clone and before a single model comes down."""
+    imports = _imports_from_code()
+
+    assert imports, "Defter kendi kodunu import etmiyor"
+    for module, names in imports:
+        found = importlib.import_module(module)
+        missing = [name for name in names if not hasattr(found, name)]
+        assert missing == [], f"{module} bu adları vermiyor: {missing}"
+
+
+def test_the_notebook_reaches_its_code_through_the_clone():
+    """The module lives in the clone, which is not on the kernel's path until the notebook puts it
+    there -- and it has to be there before the first import."""
+    helpers = _cell("# === Shared helpers ===")
+    path, first = helpers.find("sys.path.insert(0, APP_DIR)"), helpers.find("from colab.")
+
+    assert -1 < path < first, "Yardımcılar hücresi klonu yola import'tan önce koymuyor"
+
+
+def test_a_rerun_imports_the_code_it_just_cloned():
+    """The clone cell deletes and clones the repo on every run, so a re-run picks up a push without a
+    new runtime. Python keeps a module it imported for as long as the kernel lives: unless the cell
+    drops it, a re-run clones the new code and keeps running the old."""
+    assert "del sys.modules[" in _cell("# === Shared helpers ==="), \
+        "Yardımcılar hücresi önceki koşunun modülünü bırakmıyor"
+
+
+def test_the_notebook_defines_none_of_the_code_it_imports():
+    """One home per function: a copy left in a cell would run instead of the tested one."""
+    source = _source()
+    names = [name for _module, names in _imports_from_code() for name in names]
+
+    assert names, "Defter kendi kodunu import etmiyor"
+    assert [name for name in names if f"def {name}(" in source] == [], \
+        "Defter import ettiği kodu kendisi tanımlıyor"
 
 
 def test_the_notebook_installs_the_nodes_the_h3_graph_asks_for():

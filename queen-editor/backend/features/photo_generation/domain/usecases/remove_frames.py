@@ -5,7 +5,9 @@ is a single window over a mixed selection, so the request behind it is a single 
 costs is decided here, from its own state:
 
   produced  -> every layer it owns leaves the disk and the log says deleted
-  not yet   -> nothing to delete; the log says removed and the queue skips it
+  not yet   -> nothing to delete; the log says removed on every layer the queue still owes it, and
+               those jobs are skipped. Every one of them, because an open job is what keeps a card
+               in the gallery (madde 294) -- one left behind would bring the card straight back.
 
 Which files really go is decided before a single line is written: a picture two frames share stays
 where it is until the last of them lets go (design v3, madde 101). The disk is touched first, so a
@@ -26,6 +28,7 @@ about a slot wins, so a removal that raced it is undone by the photo itself.
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.frame_list import checked
+from backend.features.photo_generation.domain.photo_name import layer_file
 from backend.features.photo_generation.domain.usecases.list_frames import list_frames
 
 
@@ -55,9 +58,12 @@ def remove_frames(record, store, plan_store, order_store, now, project, frames):
     for fid, slot in sorted(closing):
         record.mark(project, fid, slot, slots[fid][slot]["file"], queue.DELETED, now())
     for fid in removed:
-        # The name it was planned to take: nothing was ever produced under it, and a line still has
-        # to say which file the frame was about.
-        record.mark(project, fid, layers.PHOTO, gallery[fid]["file"], queue.REMOVED, now())
+        # The name each job was planned to take: nothing was ever produced under it, and a line
+        # still has to say which file it was about. A card owed nothing at all is closed on its
+        # photo slot, so that "never produced" is written down rather than left as a silence.
+        video = (slots.get(fid, {}).get(layers.VIDEO) or {}).get("file")
+        for slot in gallery[fid].get("owed") or (layers.PHOTO,):
+            record.mark(project, fid, slot, layer_file(slot, fid, video), queue.REMOVED, now())
 
     gone = set(deleted + removed)
     if gone:

@@ -8,6 +8,8 @@ import json
 
 import pytest
 
+from backend import config
+
 I2VA_SENTENCE = ("For the target video, at 0.00 seconds into the target video, Picture 1 (from "
                  "Shot 1) is fully referenced.")
 
@@ -268,3 +270,174 @@ def test_a_timeline_holding_a_different_number_of_pictures_says_both(tmp_path):
 
     said = str(blew_up.value)
     assert "2" in said and "1" in said
+
+
+POOL = [("kedi.png", b"ONE", "picture"), ("kuş.png", b"TWO", "picture")]
+
+
+def test_a_video_made_from_references_is_rendered_in_ref2va(tmp_path):
+    """The mode is a plain string on the Director and ref2va_model is already filled, so no new
+    export was needed (madde 304)."""
+    client = FakeClient()
+
+    data = generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    assert data == b"MP4DATA"
+    assert sent_director(client)["mode"] == "REF2VA"
+
+
+def test_every_reference_picture_is_uploaded_and_written_in_order(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    assert client.uploads == [("kedi.png", b"ONE"), ("kuş.png", b"TWO")]
+    assert sent_pictures(client) == ["server-kedi.png", "server-kuş.png"]
+    items = json.loads(sent_director(client)["timeline_data"])["items"]
+    # H3 numbers references by their order, so the row carries where each one stands.
+    assert [(item["slot"], item["order"], item["type"]) for item in items] == [
+        (0, 0, "image"), (1, 1, "image")]
+    assert all(item["enabled"] for item in items)
+
+
+def test_a_reference_video_needs_no_source_picture(tmp_path):
+    # The card is born from the video itself: there is no picture under it (madde 303).
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    assert client.uploads == [("kedi.png", b"ONE"), ("kuş.png", b"TWO")]
+
+
+def test_a_reference_prompt_goes_in_as_the_user_wrote_it(tmp_path):
+    """The picture sentence belongs to I2VA and FL2VA, where the producer knows which picture sits
+    where. A REF2VA prompt is the user's own six sections, and nothing is put in front of it."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("altı bölüm", "", 42, references=POOL)
+
+    director_inputs = sent_director(client)
+    assert director_inputs["prompt"] == "altı bölüm"
+    assert json.loads(director_inputs["timeline_data"])["resolved_prompt"] == "altı bölüm"
+
+
+def test_a_video_with_no_references_is_made_the_way_it_always_was(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+                                         references=())
+
+    assert sent_director(client)["mode"] == "I2VA"
+    assert sent_director(client)["prompt"].startswith(I2VA_SENTENCE)
+
+
+MIXED_POOL = [("kedi.png", b"PIC", "picture"),
+              ("dans.mp4", b"VID", "video"),
+              ("ruzgar.wav", b"SND", "audio")]
+
+
+def sent_items(client):
+    return json.loads(sent_director(client)["timeline_data"])["items"]
+
+
+def test_every_kind_of_reference_is_written_with_its_own_type(tmp_path):
+    """The fields are the node's own, read off its source (21 Eylul): a row says what it is."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    assert [item["type"] for item in sent_items(client)] == ["image", "video", "audio"]
+
+
+def test_every_kind_of_reference_is_uploaded(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    assert client.uploads == [("kedi.png", b"PIC"), ("dans.mp4", b"VID"), ("ruzgar.wav", b"SND")]
+    assert [item["value"] for item in sent_items(client)] == [
+        "server-kedi.png", "server-dans.mp4", "server-ruzgar.wav"]
+
+
+def test_only_a_video_row_says_which_half_of_it_is_used(tmp_path):
+    """media_mode is the V / A / V+A buttons of the node's own panel, and it belongs to a video row
+    alone. Both halves go: the user put that clip in the pool to be followed, and throwing away
+    half of it would be a choice nobody asked for."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    modes = [item.get("media_mode") for item in sent_items(client)]
+    assert modes == [None, "video_audio", None]
+
+
+def test_the_rows_keep_the_pools_own_order(tmp_path):
+    # One counter for the whole timeline: the row's order is its place there, whatever kind it is.
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    assert [(item["slot"], item["order"], item["start"]) for item in sent_items(client)] == [
+        (0, 0, 0), (1, 1, 1), (2, 2, 2)]
+
+
+def test_no_row_asks_for_a_trim(tmp_path):
+    """The node's own defaults are no trim at all, and a clip in the pool has already been through
+    the limits (madde 298). Trimming would be the user's to ask for, in an item of its own."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
+
+    assert all("trim_start" not in item and "trim_end" not in item for item in sent_items(client))
+
+
+# The graph's own lora stack; the producer never touches it -- loras are baked into the exports.
+STACK_NODE = "2678"
+
+
+def shipped_generator(client):
+    """The producer over the graphs that ship rather than the test's own: the stack is theirs."""
+    from backend.features.photo_generation.data.comfy_h3_video_generator import (
+        ComfyH3VideoGenerator,
+    )
+    return ComfyH3VideoGenerator(client, config.H3_VIDEO_WORKFLOW_PATH,
+                                 config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
+
+
+# Kareden's two graphs and Referanstan: every H3 video of the session.
+every_mode = pytest.mark.parametrize("asked", [
+    {"source": ("P0_0.png", b"PNG")},
+    {"source": ("P0_0.png", b"PNG"), "end": ("P1_0.png", b"END")},
+    {"references": POOL},
+], ids=["i2va", "fl2va", "ref2va"])
+
+
+@every_mode
+def test_every_h3_video_is_rendered_with_eros_max_beta5(asked):
+    """Madde 333, the user's pick after both were tried. The Director picks one of the graph's two
+    model loaders by its mode, so what reaches ComfyUI is asked of every loader it is sent -- and
+    REF2VA has no graph of its own and runs on the I2VA export with its mode changed (madde 304), so
+    only the producer can say which model its render loads."""
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, **asked)
+
+    loaded = {node["inputs"]["unet_name"] for node in client.submitted.values()
+              if node["class_type"] == "UNETLoader"}
+    assert loaded == {"MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors"}, \
+        f"ComfyUI'ye giden model düğümleri bunları yüklüyor: {loaded}"
+
+
+@every_mode
+def test_no_h3_video_is_rendered_with_mystic_xxx(asked):
+    """Madde 330: the stack carries Motion Booster alone, in every mode. Mystic's file still comes down -- its notebook row
+    stays, so turning it back on is a graph edit -- which is why the stack is what is asked: by name,
+    on or off, because whether the loader honours `on` is unknown. Only the producer can say what
+    REF2VA's render carries: it has no graph of its own (madde 304)."""
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, **asked)
+
+    stack = json.loads(client.submitted[STACK_NODE]["inputs"]["stack_data"])
+    named = [slot["lora"] for slot in stack if slot["lora"] != "None"]
+    assert "MysticXXX_MMH3-V4.safetensors" not in named, f"Yığının adı olan yuvaları: {named}"

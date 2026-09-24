@@ -1231,7 +1231,7 @@ describe("PhotoDetail — what the page says it did", () => {
   });
 });
 
-describe("PhotoDetail — one destructive action per tab", () => {
+describe("PhotoDetail — what each tab offers to destroy", () => {
   it("offers the frame on the photo tab and the layer on the others", async () => {
     await open("P0_0", { frames: [LAYERED] });
     expect(screen.getByText("Sil")).toBeTruthy();
@@ -1243,6 +1243,36 @@ describe("PhotoDetail — one destructive action per tab", () => {
     fireEvent.click(tab("Ses"));
     expect(screen.getByText("Sesi sil — video kalır")).toBeTruthy();
     expect(screen.queryByText("Videoyu sil — kare kalır")).toBeNull();
+  });
+
+  it("keeps the card's own way out on every tab", async () => {
+    // Madde 295, the user's own words: going back to the photo tab to throw the card away is the
+    // detour. The layer's way out stays beside it -- both are wanted, and they cost different
+    // things.
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    expect(screen.getByText("Kareyi sil")).toBeTruthy();
+
+    fireEvent.click(tab("Ses"));
+    expect(screen.getByText("Kareyi sil")).toBeTruthy();
+  });
+
+  it("takes the card and not the layer when that way out is pressed", async () => {
+    removeFrames.mockResolvedValue({ deleted: ["P0_0"], removed: [] });
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(tab("Video"));
+    fireEvent.click(screen.getByText("Kareyi sil"));
+
+    // The selection bar's own window, counting what the card loses with it (Fark 102).
+    expect(screen.getByText("1 kare silinsin mi?")).toBeTruthy();
+    expect(screen.getByText(/Karenin videosu ve sesi de birlikte silinir/)).toBeTruthy();
+
+    await act(async () => { fireEvent.click(confirmButton()); });
+
+    expect(removeLayer).not.toHaveBeenCalled();
+    expect(removeFrames).toHaveBeenCalledWith("düğün", ["P0_0"]);
   });
 
   it("asks with the design's own words before taking a video", async () => {
@@ -1577,5 +1607,37 @@ describe("PhotoDetail — the negative prompt", () => {
     await open("3_a", { frames: MIXED });
 
     expect(screen.getByText("dördüncü").className).toContain("wf-mono");
+  });
+});
+
+describe("PhotoDetail — the keyboard while a prompt is being typed", () => {
+  const promptBox = () => document.querySelector("[data-box]");
+
+  it("leaves the arrow keys to the text they are moving through", async () => {
+    // The user's own report: the caret moved AND the page changed frame under it, so what they
+    // were writing went with it.
+    await open("1_a");
+
+    fireEvent.keyDown(promptBox(), { key: "ArrowRight" });
+    fireEvent.keyDown(promptBox(), { key: "ArrowLeft" });
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("leaves Escape to the text box as well", async () => {
+    // The same mistake seen from the other side: Escape closed the page mid-sentence.
+    await open("1_a");
+
+    fireEvent.keyDown(promptBox(), { key: "Escape" });
+
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("still walks the frames when the keys come from outside a box", async () => {
+    await open("1_a");
+
+    fireEvent.keyDown(window, { key: "ArrowLeft" });
+
+    expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/2_a");
   });
 });

@@ -68,7 +68,8 @@ def _end_for(job, store, slots, project, fid, source):
     handed back rather than read a second time.
     """
     mode = production_mode.of(job)
-    if mode == production_mode.STANDARD:
+    if mode in (production_mode.STANDARD, production_mode.REFERENCE):
+        # A video made of the pool arrives nowhere either: it is not hung on a frame at all.
         return None
     if mode == production_mode.LOOP:
         return source
@@ -79,6 +80,28 @@ def _end_for(job, store, slots, project, fid, source):
         # told to end on" is the one thing the user cannot work out from the tile.
         raise MissingEndFrame(f"Bağlanacak karenin fotoğrafı yok: {target or '?'}")
     return (cell["file"], store.read(project, cell["file"]))
+
+
+def _held(slots, fid):
+    """{slot: status} for one frame -- the shape layers' rules are asked in."""
+    return {slot: cell["status"] for slot, cell in slots.get(fid, {}).items()}
+
+
+def _first_frame(stills, video, log):
+    """The video's opening frame, or None when nobody can pull one or it could not be pulled.
+
+    A failed extraction is not the job's failure: the video was asked for, it is on disk, and its
+    row is written -- the picture is a convenience. What went wrong is said rather than swallowed,
+    in ffmpeg's own words.
+    """
+    if stills is None:
+        return None
+    try:
+        return stills.first_frame(video)
+    except Exception as exc:
+        if log:
+            log(f"⚠ İlk kare çıkarılamadı: {exc}")
+        return None
 
 
 def _made_with(job, end):
@@ -102,7 +125,7 @@ def _made_with(job, end):
 
 def make_job(runner, store, record, plan_store, producers, now, project,
              clock=time.monotonic, log=None, order_store=None, writers=None,
-             new_seed=seed.random_seed, named=None):
+             new_seed=seed.random_seed, named=None, stills=None, references=None):
     """Returns the callable PhotoRunner.start expects: it drains this project's queue.
 
     `producers` maps a job type to the thing that can do it (see ports.PhotoGenerator). A type with
@@ -126,6 +149,13 @@ def make_job(runner, store, record, plan_store, producers, now, project,
     `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
     says is decided here; where it lands is main.py's to choose, so the loop can be tested without
     capturing output and the clock can be faked instead of waited on.
+
+    `stills` is what pulls a picture out of a video (see ports.Stills). None means no picture is
+    pulled at all, which is what the loop did before madde 296 and what a run with no ffmpeg does.
+
+    `references` answers with the project's reference pool as files, for a job that is made of it
+    (madde 304). Asked at the job's turn rather than read off the plan: a card does not remember
+    what it was made from, so a retry produces with the pool as it stands now.
 
     `named` is where the project's name is read from, turn by turn: a project IS a folder and it can
     be renamed under a run, so a name captured once would leave the next turn reading a folder that
@@ -204,17 +234,24 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     # Nothing to convert: asking would buy an invented prompt. I2V sees the picture
                     # itself, so producing with an empty prompt is a real answer here.
                     if any(source.values()):
-                        written = writer.write(source)
+                        # The mode goes with the words: a loop video has to be asked for a motion
+                        # that returns, and the frame's own prompts cannot say that (madde 307).
+                        written = writer.write(source, production_mode.of(current))
                 prompt = current["prompt"] or written or ""
                 # Held in a variable because a loop ends on the very file it is made from: reading
                 # it twice would be the same download from Drive twice, once per video.
                 under = _source_for(kind, store, slots, project, fid)
+                # Only a job made of the pool has any, and it is asked for now rather than when
+                # the job was queued: the pool is the user's to change in between.
+                pool = (references(project)
+                        if references and production_mode.of(current) == production_mode.REFERENCE
+                        else ())
                 # Held because the row names it too: the picture the video arrives at is what the
                 # detail page prints for a linked one.
                 ending = _end_for(current, store, slots, project, fid, under)
                 data = producer.generate(prompt, current["negative"], chosen,
                                          current["model"], current.get("lora", ""),
-                                         source=under, end=ending)
+                                         source=under, end=ending, references=pool)
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job
@@ -249,6 +286,21 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                                         "prompt": prompt, "negative": current["negative"],
                                         "seed": chosen, "createdAt": now(),
                                         **_made_with(current, ending)})
+                # The one job that fills two slots: a card whose picture is missing takes the
+                # video's first frame as its own, so the gallery and the export both find one
+                # (madde 296). Under the same gate as the video, for the same reason. Whether the
+                # slot is free is layers' rule, not a second reading of it here -- a red picture
+                # holds its slot and is rescued by Tekrar dene alone.
+                if kind == layers.VIDEO and layers.can_produce(_held(slots, fid), layers.PHOTO):
+                    picture = _first_frame(stills, data, log)
+                    if picture is not None:
+                        written = store.save(project, photo_file(fid), picture)
+                        # No words on the row: nobody wrote this picture, and the video's own
+                        # prompt on it would answer "what was this made from" with a lie.
+                        record.append(project, {"file": written, "frame": fid,
+                                                "layer": layers.PHOTO, "status": queue.DONE,
+                                                "prompt": "", "negative": "", "seed": None,
+                                                "createdAt": now()})
             if log:
                 # Two numbers, never one: the render is the GPU's share and the writes are the
                 # pipeline's, and speed decisions need to tell them apart.

@@ -14,6 +14,12 @@ vi.mock("./shared/api.js", () => ({
   createProject: vi.fn(),
   deleteProject: vi.fn(),
   fileUrl: (project, file) => `/photos/${project}/${file}`,
+  referenceUrl: (project, name) => `/references/${project}/${name}`,
+  listReferences: vi.fn().mockResolvedValue({
+    references: [], limits: { picture: 9, video: 3, audio: 3 },
+  }),
+  removeReference: vi.fn(),
+  uploadReferences: vi.fn(),
   generateBatch: vi.fn(),
   getExportState: vi.fn(),
   getExportSummary: vi.fn(),

@@ -1,8 +1,9 @@
 """Take one layer off the frames named -- the frames themselves stay in the gallery.
 
-"sil = kaldır" read at one height of the stack: what goes is the named layer and everything ABOVE
-it, because a sound is mixed over a video and a sound whose video is gone lies over nothing (madde
-31). What is under it is not touched.
+"sil = kaldır" read for one layer: what goes is the named layer and whatever HANGS ON it, because a
+sound is mixed over a video and a sound whose video is gone lies over nothing (madde 31). The rule
+is layers.NEEDS' and not this file's, so a photo takes nothing with it -- the engine makes it first,
+but nothing depends on it (madde 293).
 
 One use case for one frame and for many: the selection bar takes a layer off a whole selection and
 the detail page takes it off one. The layer is still singular -- only the frames are not.
@@ -12,8 +13,8 @@ The whole press is decided before a single line is written, the way a deletion d
 unlinked once BOTH of them have let go, and a frame-at-a-time reading would still see the first one
 holding it while the second was being worked out.
 
-Removing the photo is not this use case's business: the photo is the base layer, so deleting it is
-deleting the frame, and remove_frames is where that lives.
+Which layers the screen offers is the route's list (REMOVABLE), not this rule's: the photo comes off
+here exactly like any other layer, and whether a user can ask for that is decided there.
 
 An identity the gallery does not know is skipped, not refused: another tab can take a frame away
 while the confirm sits open, and one gone name must not undo the rest.
@@ -36,10 +37,10 @@ def remove_layer(record, store, plan_store, order_store, now, project, frames, k
     gallery = {frame["id"]: frame
                for frame in list_frames(record, store, plan_store, order_store, project)}
     slots = record.slots(project)
-    over = queue.ORDER[queue.ORDER.index(kind):]      # the layer itself and everything above it
+    over = layers.falls_with(kind)      # the layer itself and whatever hangs on it
 
-    # Which slots close, and which jobs above them never get to be made -- both for the whole press,
-    # before anything is written.
+    # Which slots close, and which jobs hanging on them never get to be made -- both for the whole
+    # press, before anything is written.
     closing, dropping = set(), []
     for fid in frames:
         frame = gallery.get(fid)
@@ -48,7 +49,7 @@ def remove_layer(record, store, plan_store, order_store, now, project, frames, k
         cells = slots.get(fid, {})
         closing |= {(fid, slot) for slot in over
                     if layers.is_taken((cells.get(slot) or {}).get("status"))}
-        # A job the queue still owes above the closed layer would go looking for a video that is no
+        # A job the queue still owes on a closed layer would go looking for a video that is no
         # longer there. The name written down is the one it would have taken -- worked out here,
         # while the video's own row is still readable.
         dropping += [(fid, slot, layer_file(slot, fid, (cells.get(layers.VIDEO) or {}).get("file")))

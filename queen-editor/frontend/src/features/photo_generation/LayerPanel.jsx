@@ -1,14 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 
+import { getReferenceSettings, saveReferenceSettings } from "../../shared/api.js";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import InstallCard from "../producers/InstallCard.jsx";
 import { SoundGlyph, VideoGlyph } from "./glyphs.jsx";
-import { LINKED, LOOP, MODES, STANDARD, nounOf } from "./production_modes.js";
+import {
+  FROM_FRAME,
+  FROM_POOL,
+  LINKED,
+  LOOP,
+  MODES,
+  SOURCES,
+  STANDARD,
+  nounOf,
+} from "./production_modes.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
 // panel's card uses).
 const CONFIRM_MS = 10000;
+
+// What Referanstan's boxes were last holding, per project (madde 317). The photo panel's own rule
+// (GeneratePanel's REMEMBERED): this panel is built afresh on every opening and on every step in and
+// out of a frame, and without this the prompt list typed there would go with it. Memory only: a
+// reload asks the project's record instead.
+const DRAFTS = new Map();
 
 const MAX_VARIANTS = 26;
 
@@ -86,6 +102,42 @@ function acceptsVariants(text) {
 // The one reason that belongs to no layer: the box is on both panels and says the same thing.
 const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
 
+// What stops a run from the pool, said before the press (madde 324). The server's own sentences
+// (queue_references.py), word for word: the line shows the refusal a press would get.
+const H3_ONLY = "Referanstan üretim için H3 gerekiyor — bu oturumda başka bir video modeli kurulu.";
+const NO_REFERENCES = "Havuzda referans yok — önce en az bir referans ekle.";
+
+// A list pasted out of a notebook cell may carry its name in front: prompt_list.py's own pattern.
+const NAMED = /^[A-Za-z_]\w*\s*=\s*/;
+// One quoted item and what follows it -- a comma, or the end of the list. Either quote; a backslash
+// takes the next character with it, so an escaped quote does not end the item.
+const ITEM = /^(["'])((?:\\.|(?!\1)[^\\])*)\1\s*(?:,\s*|$)/;
+
+/** How many prompts a press would send, or 0 when the screen cannot tell.
+ *
+ * A preview for the line under the button, never a rule (FOUNDATION 4): the press goes whatever this
+ * makes of the list, and the server's own reading (prompt_list.py) decides and says what is wrong.
+ * It reads what that one reads as far as a count needs -- a JSON array or a Python list or tuple of
+ * strings in either quote, with an optional `NAME =` in front, blank items left out. A JSON array of
+ * strings is written the way a Python list is, so one loop reads both. The items are counted, never
+ * decoded: a corner only Python reads, like a triple-quoted item, leaves the line empty and is still
+ * sent.
+ */
+function promptCount(text) {
+  const body = text.trim().replace(NAMED, "");
+  const close = { "[": "]", "(": ")" }[body[0]];
+  if (!close || !body.endsWith(close)) return 0;
+  let rest = body.slice(1, -1).trim();
+  let count = 0;
+  while (rest) {
+    const item = ITEM.exec(rest);
+    if (!item) return 0;
+    if (item[2].trim()) count += 1;
+    rest = rest.slice(item[0].length);
+  }
+  return count;
+}
+
 /** Why this press cannot go to the queue, or null when it can.
  *
  * Read in the order a person would: the box in front of them first, then whether the project holds
@@ -99,12 +151,28 @@ const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
  * No dead branch: for a video `can` is the produced frames themselves, so its noBase is exactly
  * "nothing is produced yet"; for a sound it is the frames holding a video, and its noBase says so.
  */
-function refusalOf(words, can, scope, scoped, variants) {
+function refusalOf(words, can, scope, scoped, variants, fromPool) {
   if (variants === "") return NO_VARIANTS;
+  // From the pool there are no frames to weigh, and the list is the server's to read
+  // (prompt_list.py): what is wrong with it comes back in its own words.
+  if (fromPool) return null;
   if (scoped.length) return null;
   if (!can.length) return words.noBase;
   if (scope === "selected") return words.chosenNoBase;
   return words.allHeld;
+}
+
+/** What the line above the button says on Referanstan, or null (madde 324).
+ *
+ * The app's order, one sentence at a time: the model, then the pool. A preview of the server's own
+ * refusals, never a rule (FOUNDATION 4): what has not answered yet -- the producers, the pool --
+ * says nothing, and the press goes. With no video producer there is no wrong model: the install card
+ * at the top says what is missing. One reference of any kind is enough.
+ */
+function poolRefusal(producer, pool) {
+  if (producer?.installed && !producer.reads_references) return H3_ONLY;
+  if (pool && !pool.references.length) return NO_REFERENCES;
+  return null;
 }
 
 // Why linking closes when the chosen frames are scattered. Says the reason rather than the remedy:
@@ -183,8 +251,9 @@ function ModeRow({ label, active, disabled, onPick }) {
 // them: there is a single worker, so a run started from another project refuses this one, and until
 // madde 215 this panel was told none of it -- the press went out, came back 409, and the answer
 // landed in a panel that was not the open one.
-export default function LayerPanel({ layer, frames, selected, producer, job, busyElsewhere, error,
-                                     onQueue, onInstall }) {
+export default function LayerPanel({ layer, project, frames, selected, producer, job,
+                                     busyElsewhere, error, poolShown, pool, onShowPool, onQueue,
+                                     onInstall }) {
   const words = WORDS[layer];
   const [scope, setScope] = useState("missing");
   // Kept by both panels though only the video one shows the row: a sound ends nowhere, so it has
@@ -193,8 +262,26 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   // video, while a sound carrying any mode but the plain one is refused outright by the server
   // (production_mode.validate) -- and that refusal never reaches the screen.
   const [mode, setMode] = useState(layer === "video" ? LOOP : STANDARD);
+  // Where the video's pictures come from. Only the video panel asks (madde 301); a sound is laid
+  // over a video that already exists, so the pool has nothing to do with it.
+  const [source, setSource] = useState(FROM_FRAME);
+  // Referanstan's draft, when this visit left one. Only the video panel keeps one.
+  const kept = layer === "video" ? DRAFTS.get(project) : undefined;
+  // The words a pool production is made from -- the photo panel's own shape, because that is how
+  // the user already writes a batch of prompts.
+  const [prompts, setPrompts] = useState(kept?.prompts ?? "");
   // Text, not a number: the field has to survive being cleared while typing.
   const [variants, setVariants] = useState("1");
+  // Referanstan's own count. Kareden's opens at one every time, as it always has; this one is kept
+  // with the prompt list it multiplies.
+  const [poolVariants, setPoolVariants] = useState(kept?.variants ?? "1");
+  // Whether the Referanstan boxes hold this visit's words yet -- a kept draft, the project's record,
+  // or a keystroke. Until then there is nothing to keep, and the record is still worth asking for.
+  const settled = useRef(Boolean(kept));
+  const recordAsked = useRef(false);
+  // The pool in the middle belongs to this panel's Referanstan tab: when the panel goes -- closed,
+  // or another one opened -- the cards come back.
+  useEffect(() => () => { if (layer === "video") onShowPool(false); }, []);
   const [submitting, setSubmitting] = useState(false);
   // What the queue took and what it was told to make: both from the moment the request went out.
   // The card stands for ten seconds and the mode row is one click away, so reading the live mode
@@ -222,10 +309,40 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   // saying "these ones", and the radio would be arguing with the user to stay where it was.
   useEffect(() => { setScope(chosen.length ? "selected" : "missing"); }, [chosen.length]);
 
+  const fromPool = layer === "video" && source === FROM_POOL;
+  // The box shows, and the press reads, the open tab's own count.
+  const shownVariants = fromPool ? poolVariants : variants;
+
+  // The project's record fills the boxes once per visit, the first time the tab is open. What was
+  // typed while it flew stays: a draft is one thing, never half the record and half the hand. A
+  // record that cannot be read leaves the boxes empty -- all that is lost is a prefill, and a dead
+  // server is said by the press, whose write fails first.
+  useEffect(() => {
+    if (!fromPool || settled.current || recordAsked.current) return;
+    recordAsked.current = true;
+    getReferenceSettings(project)
+      .then((record) => {
+        if (settled.current) return;
+        settled.current = true;
+        setPrompts(record.prompts);
+        setPoolVariants(record.variants === null ? "1" : String(record.variants));
+      })
+      .catch(() => {});
+  }, [fromPool, project]);
+
+  // Kept only once settled: a panel built and closed without the tab ever opening would otherwise
+  // leave an empty draft, and the record would never be asked again this visit.
+  useEffect(() => {
+    if (layer === "video" && settled.current) {
+      DRAFTS.set(project, { prompts, variants: poolVariants });
+    }
+  }, [layer, project, prompts, poolVariants]);
+
+  const listed = promptCount(prompts);
   const counts = { missing: missing.length, selected: inSelection.length };
   const scoped = scope === "selected" ? inSelection : missing;
   // What the queue would take: every frame in scope, once per variant.
-  const owed = scoped.length * (Number(variants) || 0);
+  const owed = scoped.length * (Number(shownVariants) || 0);
   // Frames in scope that already carry this layer. Production does not write over one -- it makes
   // a copy frame beside it -- and nothing on screen said so until now. Read from the scope rather
   // than the raw selection: Videosu olmayan kareler leaves those frames out by its own definition,
@@ -247,14 +364,16 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
   // the number it read. Move any of the three and it becomes a stale answer standing under a button
   // about to be pressed again. The gallery's selection is in here too -- picking other frames over
   // there is exactly such a move. A press changes none of the three, so the answer stays up.
-  useEffect(() => { setRefused(null); }, [chosen, scope, variants]);
+  useEffect(() => { setRefused(null); }, [chosen, scope, shownVariants]);
   const missingProducer = Boolean(producer) && !producer.installed;
+  // Referanstan's line, and nothing on Kareden: the frame form answers after the press.
+  const missingLine = fromPool ? poolRefusal(producer, pool) : null;
   // The server's name first -- it knows which model the notebook installed. Until it answers the
   // box stays empty rather than guessing.
   const model = producer?.model || words.model || "";
 
   function handleAdd() {
-    const why = refusalOf(words, can, scope, scoped, variants);
+    const why = refusalOf(words, can, scope, scoped, shownVariants, fromPool);
     if (why) {
       setAdded(null);
       clearTimeout(fade.current);
@@ -264,20 +383,48 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
     setSubmitting(true);
     setAdded(null);
     clearTimeout(fade.current);
-    const sent = mode;
-    onQueue(scope === "selected" ? inSelection.map((frame) => frame.file) : null, Number(variants),
-            sent)
+    // From the pool nothing is scoped and no mode applies: the request carries the words and how
+    // many of each, and the server makes a card per pair (madde 303).
+    const sent = fromPool ? FROM_POOL : mode;
+    const count = Number(shownVariants);
+    const files = scope === "selected" && !fromPool
+      ? inSelection.map((frame) => frame.file) : null;
+    // From the pool the boxes are written down first, the photo panel's way (ProjectScreen's
+    // handleGenerate): the record and the work land in the same folder, so a record that cannot be
+    // written means the work could not be either, and nothing is sent. The words ride along only
+    // when they are what the press is about: every other call keeps the shape it has always had.
+    const asked = fromPool
+      ? saveReferenceSettings(project, { prompts, variants: count })
+        .then(() => onQueue(null, count, sent, prompts))
+      : onQueue(files, count, sent);
+    asked
       .then((body) => {
         if (body && typeof body.added === "number") {
           setAdded({ count: body.added, mode: sent });
           fade.current = setTimeout(() => setAdded(null), CONFIRM_MS);
         }
       })
+      .catch((err) => setRefused(err.message))
       .finally(() => setSubmitting(false));
   }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1, minHeight: 0 }}>
+      {/* Where the video is made from, as two tabs over the whole panel (madde 317): each tab is a
+          form of its own. Only the video panel has them -- a sound is laid over a video that
+          already exists, and the pool has nothing to give it. */}
+      {layer === "video" && (
+        <div className="wf-segment" style={{ display: "flex" }}>
+          {SOURCES.map((one) => (
+            <button key={one.id} type="button" className={source === one.id ? "is-on" : ""}
+                    style={{ flex: 1 }}
+                    onClick={() => { setSource(one.id); onShowPool(one.id === FROM_POOL); }}>
+              {one.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <InstallCard producer={producer} onInstall={onInstall} />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -291,16 +438,41 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
         </select>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <Mono size={11} data-label style={LABEL}>Kapsam</Mono>
-        <ScopeRow label={words.missing} count={counts.missing} active={scope === "missing"}
-                  onPick={() => setScope("missing")} />
-        <ScopeRow label="Seçili kareler" count={counts.selected} active={scope === "selected"}
-                  disabled={!chosen.length} onPick={() => setScope("selected")} />
-      </div>
+      {!fromPool && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Kapsam</Mono>
+          <ScopeRow label={words.missing} count={counts.missing} active={scope === "missing"}
+                    onPick={() => setScope("missing")} />
+          <ScopeRow label="Seçili kareler" count={counts.selected} active={scope === "selected"}
+                    disabled={!chosen.length} onPick={() => setScope("selected")} />
+        </div>
+      )}
+
+      {fromPool && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Referanslar</Mono>
+          {/* One button, one place: it swaps the middle between the pool and the cards. */}
+          <button type="button" className="wf-btn wf-btn--sm" style={{ alignSelf: "flex-start" }}
+                  onClick={() => onShowPool(!poolShown)}>
+            {poolShown ? "Referansları kapat" : "Referansları aç"}
+          </button>
+        </div>
+      )}
+
+      {fromPool && (
+        /* The photo panel's own shape, because that is how the user already writes a batch. The
+           box is what the whole production is made of here: there is no frame to hang on. */
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1, minHeight: 0 }}>
+          <Mono size={11} data-label style={LABEL}>Prompt listesi</Mono>
+          <textarea className="wf-input" rows={8} value={prompts} aria-label="Prompt listesi"
+                    placeholder={'["ilk prompt", "ikinci prompt"]'}
+                    onChange={(e) => { settled.current = true; setPrompts(e.target.value); }}
+                    style={{ fontSize: 11.5, flex: 1, fontFamily: "IBM Plex Mono, monospace" }} />
+        </div>
+      )}
 
       {/* Only a video ends on a picture, so only the video panel has this to ask. */}
-      {layer === "video" && (
+      {layer === "video" && !fromPool && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Mono size={11} data-label style={LABEL}>Üretim modu</Mono>
           {MODES.map((one) => (
@@ -323,23 +495,41 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
           type="number"
           min={1}
           max={MAX_VARIANTS}
-          value={variants}
-          onChange={(e) => { if (acceptsVariants(e.target.value)) setVariants(e.target.value); }}
+          value={shownVariants}
+          onChange={(e) => {
+            if (!acceptsVariants(e.target.value)) return;
+            if (fromPool) {
+              settled.current = true;
+              setPoolVariants(e.target.value);
+            } else {
+              setVariants(e.target.value);
+            }
+          }}
           /* Red while it is empty, and it stays empty: the silent reset to 1 on the way out is what
              kept the box from ever showing that (Fark 29). What the emptiness means is said when
              the button is pressed. */
           style={{ width: 56, textAlign: "center", fontSize: 13,
-                   ...(variants === "" ? { borderColor: "var(--danger)" } : {}) }}
+                   ...(shownVariants === "" ? { borderColor: "var(--danger)" } : {}) }}
         />
       </div>
 
+      {missingLine && (
+        // Above the button it stops, in the ordinary ink: a state of the session, said before the
+        // press rather than after it.
+        <Note size={12} style={{ color: "var(--ink-2)", textAlign: "center" }}>{missingLine}</Note>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {/* Nothing the user could fill in locks this: an empty field is answered after the press,
-            in the card below (Fark 27). What is left is one request in flight -- and the producer,
-            which is the design's own exception: not a field but an engine that is not here yet, and
-            the card at the top of the panel says so. */}
+        {/* On Kareden nothing the user could fill in locks this: an empty field is answered after
+            the press, in the card below (Fark 27). What locks it is one request in flight -- and
+            the producer, which is the design's own exception: not a field but an engine that is
+            not here yet, and the card at the top of the panel says so. Referanstan says what it
+            lacks before the press instead (madde 324): whatever the line above says, and a prompt
+            box with nothing in it. */}
         <button type="button" className="wf-btn wf-btn--hl"
-                disabled={submitting || missingProducer || busyElsewhere} onClick={handleAdd}
+                disabled={submitting || missingProducer || busyElsewhere
+                          || (fromPool && (Boolean(missingLine) || !prompts.trim()))}
+                onClick={handleAdd}
                 style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}>
           {submitting
             ? <><span className="qe-spinner" aria-hidden="true" /> Ekleniyor…</>
@@ -380,6 +570,16 @@ export default function LayerPanel({ layer, frames, selected, producer, job, bus
           <Note size={12} style={{ color: "var(--ink-3)" }}>
             Üretim sürüyor: {job.project} — bitmesini bekle.
           </Note>
+        ) : fromPool ? (
+          // Nothing is counted from the gallery here: a press makes a card per prompt per variant,
+          // and the line says so in the user's own arithmetic. With nothing it can count it says
+          // nothing -- what is wrong with a list is the server's to say, after the press.
+          listed ? (
+            <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
+              {`${listed} prompt × ${Number(shownVariants) || 0} varyant = `
+                + `${listed * (Number(shownVariants) || 0)} kart`}
+            </Note>
+          ) : null
         ) : owed ? (
           // The copy warning takes the mode's tail, never its head: the mode is already named in
           // what comes out, so what is given up is an echo of the marked row just above.

@@ -7,8 +7,9 @@ the stack.
 Scope is decided here rather than on screen: what a frame really holds is the record's answer, and a
 panel that decided it would be a second truth about the same question.
 
-A frame whose photo has not landed is skipped: every layer hangs on a picture, and there is nothing
-to hang it on yet. A frame that already has this layer is never written over -- "üret = ekle" means
+A frame whose own layer has not landed is skipped: the card has not settled yet, so there is nothing
+to hang anything on. What a layer needs UNDER it is layers.NEEDS' answer -- a video hangs on nothing
+(madde 293). A frame that already has this layer is never written over -- "üret = ekle" means
 the extra one becomes a frame of its own, sharing what is under it and taking the next variant of
 its source's number (madde 25, 102).
 """
@@ -48,15 +49,17 @@ def frames_in_scope(gallery, kind, files=None):
     for frame in gallery:
         if chosen is not None and frame["file"] not in chosen:
             continue
-        # Only a produced photo can carry anything. A name that claims no number cannot be planned
-        # at all: the plan keeps a number per job and reads back only the jobs that have one.
+        # Only a card that has settled can carry anything -- the layer that opened it landed (madde
+        # 292). A name that claims no number cannot be planned at all: the plan keeps a number per
+        # job and reads back only the jobs that have one.
         if frame["status"] != "done" or family(frame)[0] is None:
             continue
         held, broken = frame.get("layers", {}), frame.get("failed", [])
-        # Sound is mixed over a video, so a frame without one -- or whose video blew up -- is never
-        # in its scope, however it was chosen (madde 31). The photo needs no check of its own: a
-        # frame whose status is done has one.
-        if kind == layers.AUDIO and (layers.VIDEO not in held or layers.VIDEO in broken):
+        # What this layer hangs on has to be there and has to be sound: a frame without it -- or
+        # whose copy of it blew up -- is never in scope, however it was chosen (madde 31). The rule
+        # is layers.NEEDS', read here rather than written again.
+        under = layers.NEEDS.get(kind)
+        if under is not None and (under not in held or under in broken):
             continue
         if chosen is None and kind in held:
             continue
@@ -97,7 +100,7 @@ def _mark(kind, mode, gallery, fid):
 
 def queue_layer(runner, store, record, plan_store, order_store, producers, now, project, kind,
                 files=None, variants=1, log=None, writers=None,
-                mode=production_mode.STANDARD):
+                mode=production_mode.STANDARD, stills=None, references=None):
     """Returns how many jobs of this kind the queue took."""
     if files is not None and (not isinstance(files, list)
                               or any(not isinstance(name, str) for name in files)):
@@ -158,5 +161,6 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         order_store.write(project, placed([frame["id"] for frame in gallery], born))
     plan_store.append(project, jobs)
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers)
+              order_store=order_store, writers=writers, stills=stills,
+              references=references)
     return len(jobs)

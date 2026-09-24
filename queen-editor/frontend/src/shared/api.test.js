@@ -81,6 +81,48 @@ describe("api.request", () => {
     expect(failure.evidence).toBe("GET /api/status\nZaman aşımı (10 sn)");
   });
 
+  it("sends reference files as a form the browser describes itself", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ references: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File([new Uint8Array([1, 2])], "kedi.png", { type: "image/png" });
+
+    await api.uploadReferences("düğün", [file]);
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/references`);
+    expect(options.body).toBeInstanceOf(FormData);
+    expect(options.body.getAll("files").map((one) => one.name)).toEqual(["kedi.png"]);
+    // No Content-Type of ours: multipart carries a boundary, and only the browser knows it.
+    expect(options.headers).toBeUndefined();
+  });
+
+  it("sends the row a file was picked into with the upload", async () => {
+    // Madde 320: which row's card a file came from is the server's to hold the file to.
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ references: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File([new Uint8Array([1])], "kedi.png", { type: "image/png" });
+
+    await api.uploadReferences("düğün", [file], "picture");
+
+    expect(fetchMock.mock.calls[0][1].body.get("kind")).toBe("picture");
+  });
+
+  it("gives an upload longer than the ten seconds every other request gets", async () => {
+    // A fifteen second video onto Drive is not a ten second request, and a cut upload would come
+    // back as "sunucuya ulaşılamadı" -- a sentence about the wrong thing.
+    vi.useFakeTimers();
+    const signals = [];
+    vi.stubGlobal("fetch", vi.fn((path, options) => {
+      signals.push(options.signal);
+      return new Promise(() => {});
+    }));
+
+    api.uploadReferences("düğün", []).catch(() => {});
+    await vi.advanceTimersByTimeAsync(10_000);
+
+    expect(signals[0].aborted).toBe(false);
+  });
+
   it("sends the ordering with PUT", async () => {
     const fetchMock = vi.fn().mockResolvedValue(okResponse({ order: ["1_a.png"] }));
     vi.stubGlobal("fetch", fetchMock);
@@ -121,6 +163,23 @@ describe("api.request", () => {
     const [url, options] = fetchMock.mock.calls[0];
     expect(url).toBe(`/api/projects/${encodeURIComponent("düğün")}/layers/video`);
     expect(JSON.parse(options.body)).toEqual({ files: ["0_a.png"], variants: 2, mode: "loop" });
+  });
+
+  it("reads and writes Referanstan's record at the project's own address", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ prompts: "", variants: null }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Through the module, so a missing export fails this test rather than the file.
+    await api.getReferenceSettings("düğün");
+    await api.saveReferenceSettings("düğün", { prompts: '["a"]', variants: 2 });
+
+    const url = `/api/projects/${encodeURIComponent("düğün")}/reference-settings`;
+    expect(fetchMock.mock.calls[0][0]).toBe(url);
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
+    const [putUrl, put] = fetchMock.mock.calls[1];
+    expect(putUrl).toBe(url);
+    expect(put.method).toBe("PUT");
+    expect(JSON.parse(put.body)).toEqual({ prompts: '["a"]', variants: 2 });
   });
 
   it("does not abort a request after its answer has arrived", async () => {

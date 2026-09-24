@@ -7,6 +7,8 @@ from functools import partial
 from backend import config
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
+from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
+from backend.features.photo_generation.data.ffmpeg_stills import FfmpegStills
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
 from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
@@ -21,7 +23,19 @@ from backend.features.photo_generation.data.order_store import DriveOrderStore
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.features.photo_generation.data.photo_store import DrivePhotoStore
 from backend.features.photo_generation.data.plan_store import DrivePlanStore
+from backend.features.photo_generation.data.reference_order_store import (
+    DriveReferenceOrderStore,
+)
+from backend.features.photo_generation.data.reference_store import DriveReferenceStore
+from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
+from backend.features.photo_generation.domain.usecases.list_references import list_references
+from backend.features.photo_generation.domain.usecases.queue_references import queue_references
+from backend.features.photo_generation.domain.usecases.reference_files import reference_files
+from backend.features.photo_generation.domain.usecases.remove_reference import remove_reference
+from backend.features.photo_generation.domain.usecases.save_reference_order import (
+    save_reference_order,
+)
 from backend.features.photo_generation.domain.usecases.remove_frames import remove_frames
 from backend.features.photo_generation.data.ffmpeg_video_exporter import FfmpegVideoExporter
 from backend.features.photo_generation.domain.usecases.export_summary import export_summary
@@ -42,9 +56,13 @@ from backend.features.photo_generation.domain.usecases.list_models import list_l
 from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
+from backend.features.photo_generation.presentation.reference_routes import (
+    make_reference_blueprint,
+)
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
+from backend.features.projects.data.reference_settings_store import DriveReferenceSettingsStore
 from backend.features.projects.data.settings_store import DriveSettingsStore
 from backend.features.projects.domain.usecases.archive_project import (
     archive_project,
@@ -57,11 +75,17 @@ from backend.features.projects.domain.usecases.delete_project import delete_proj
 from backend.features.projects.domain.usecases.get_settings import get_settings
 from backend.features.projects.domain.usecases.list_projects import list_projects
 from backend.features.projects.domain.usecases.rename_project import rename_project
+from backend.features.projects.domain.usecases.save_reference_settings import (
+    save_reference_settings,
+)
 from backend.features.projects.domain.usecases.save_settings import save_settings
 from backend.features.producers.data.comfy_models import ComfyModelFiles
 from backend.features.producers.domain.model_groups import audio_weights, groups_for
 from backend.features.producers.domain.usecases.list_producers import list_producers
 from backend.features.producers.presentation.routes import make_producers_blueprint
+from backend.features.projects.presentation.reference_settings_routes import (
+    make_reference_settings_blueprint,
+)
 from backend.features.projects.presentation.routes import make_projects_blueprint
 from backend.services.comfy.client import ComfyClient
 from backend.services.drive.storage import DriveStorage
@@ -73,6 +97,7 @@ _storage = DriveStorage(config.DRIVE_ROOT)
 
 _project_store = DriveProjectStore(_storage)
 _settings_store = DriveSettingsStore(_storage)
+_reference_settings_store = DriveReferenceSettingsStore(_storage)
 
 _photo_store = DrivePhotoStore(_storage)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
@@ -102,6 +127,9 @@ _producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator,
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
 _xai = XaiClient(config.XAI_API_KEY, config.XAI_MODEL, config.XAI_URL, timeout=config.XAI_TIMEOUT)
 _writers = {layers.VIDEO: _video_writer_class(_xai), layers.AUDIO: AudioPromptWriter(_xai)}
+# What a card with no picture gets when its video lands (madde 296). ffmpeg is already on the
+# machine -- the sound engine cuts with it, and the export joins with it.
+_stills = FfmpegStills()
 _photo_runner = PhotoRunner()
 _photo_record = DrivePhotoRecord(_storage)
 _plan_store = DrivePlanStore(_storage)
@@ -133,6 +161,12 @@ _projects_bp = make_projects_blueprint(
     list_archived_projects=partial(list_archived_projects, _project_store),
 )
 
+# Referanstan's boxes: the photo panel's question, in a file and at a door of their own (madde 317).
+_reference_settings_bp = make_reference_settings_blueprint(
+    get_reference_settings=partial(get_settings, _reference_settings_store),
+    save_reference_settings=partial(save_reference_settings, _reference_settings_store),
+)
+
 
 _start_export = partial(
     start_export, _export_runner, _photo_store, _photo_record, _plan_store, _order_store,
@@ -155,36 +189,54 @@ def _timing(line):
     print(line, flush=True)
 
 
+# The project's reference pool: a folder of its own inside the project (madde 297). Defined above
+# the cards' blueprint because that blueprint is handed _reference_files, and a module body runs
+# top to bottom.
+_clips = FfmpegClips()
+_reference_store = DriveReferenceStore(_storage, _clips)
+# Which slot each reference stands in: the folder cannot answer that, so it has a document of its
+# own beside the gallery's order file (madde 300).
+_reference_orders = DriveReferenceOrderStore(_storage)
+# What a pool-made video is rendered from, asked at the job's turn (madde 304). Every door into the
+# queue carries it, because any run can reach a card that was made of the pool.
+_reference_files = partial(reference_files, _photo_store, _reference_store, _reference_orders)
+
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers, seed.random_seed,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, order_store=_order_store, writers=_writers),
+                        log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
+                        references=_reference_files),
     get_status=partial(get_status, _photo_runner),
     stop_generation=partial(stop_generation, _photo_runner, _comfy_client.interrupt),
     resume_batch=partial(resume_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing, order_store=_order_store, writers=_writers),
+                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
+                        references=_reference_files),
     cancel_generation=partial(cancel_generation, _photo_runner, _photo_store, _photo_record,
                               _plan_store,
                               lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     retry_frame=partial(retry_frame, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, order_store=_order_store, writers=_writers),
+                        log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
+                        references=_reference_files),
     retry_failed=partial(retry_failed, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                         log=_timing, order_store=_order_store, writers=_writers),
+                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
+                        references=_reference_files),
     queue_layer=partial(queue_layer, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _order_store, _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                        log=_timing, writers=_writers),
+                        log=_timing, writers=_writers, stills=_stills,
+                        references=_reference_files),
     regenerate=partial(regenerate, _photo_runner, _photo_store, _photo_record, _plan_store,
                        _order_store, _producers, seed.random_seed,
                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
-                       log=_timing, writers=_writers),
+                       log=_timing, writers=_writers, stills=_stills,
+                       references=_reference_files),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
@@ -205,6 +257,26 @@ _photo_bp = make_photo_generation_blueprint(
     photo_dir=_photo_store.photo_dir,
 )
 
+# The pool's own surface, beside the cards' blueprint rather than inside it -- the two answer
+# different questions.
+_references_bp = make_reference_blueprint(
+    add_references=partial(add_references, _photo_store, _reference_store, _reference_orders,
+                           _clips),
+    list_references=partial(list_references, _photo_store, _reference_store, _reference_orders),
+    remove_reference=partial(remove_reference, _photo_store, _reference_store, _reference_orders),
+    save_reference_order=partial(save_reference_order, _photo_store, _reference_store,
+                                 _reference_orders),
+    # Which video model the notebook installed is the installation's own answer, and only H3 can be
+    # handed references at all (madde 302).
+    queue_references=partial(queue_references, _photo_runner, _photo_store, _photo_record,
+                             _plan_store, _order_store, _reference_store, _reference_orders,
+                             _producers, seed.random_seed,
+                             lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                             config.VIDEO_MODEL == "h3",
+                             log=_timing, writers=_writers, stills=_stills),
+    reference_dir=_reference_store.dir_path,
+)
+
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
 # (FOUNDATION 9), so the panel only reads. Video is judged by the model the notebook installed.
@@ -212,7 +284,8 @@ _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
                                           config.VIDEO_MODEL))
 
-app = create_app(blueprints=[_projects_bp, _photo_bp, _producers_bp])
+app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
+                             _producers_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

@@ -14,7 +14,7 @@ class NothingToResume(Exception):
 
 
 def resume_batch(runner, store, record, plan_store, producers, now, project, log=None,
-                 order_store=None, writers=None):
+                 order_store=None, writers=None, stills=None, references=None):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     jobs = plan_store.read(project)["frames"]
@@ -23,4 +23,5 @@ def resume_batch(runner, store, record, plan_store, producers, now, project, log
     if not queue.open_jobs(jobs, record.slots(project)):
         raise NothingToResume("Devam edilecek kare yok.")
     run_queue(runner, store, record, plan_store, producers, now, project, log,
-              order_store=order_store, writers=writers)
+              order_store=order_store, writers=writers, stills=stills,
+              references=references)

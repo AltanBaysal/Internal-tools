@@ -141,8 +141,7 @@ def test_no_group_carries_an_address_the_app_would_have_to_fetch():
 # MiniMax H3 (madde 243): one video model per session, and the panel judges the one installed.
 
 H3_FILES = [
-    ("diffusion_models", "MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
-                         "row-wise_convrot_runtime_mixed.safetensors"),
+    ("diffusion_models", "MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors"),
     ("text_encoders", "qwen3vl_32b_minimax_h3_int4_convrot.safetensors"),
     ("vae", "MiniMaxH3/minimax_h3_video_vae_int8_convrot.safetensors"),
     ("vae", "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"),
@@ -177,6 +176,14 @@ def test_the_video_row_names_the_model_the_notebook_installed():
     producer by: h3 is H3, anything else is WAN."""
     for model, name in (("h3", "MiniMax H3"), ("wan", "WAN 2.2 I2V"), ("", "WAN 2.2 I2V")):
         assert list_producers(GROUPS, FakeFiles(), model)[1]["model"] == name, model
+
+
+def test_the_video_row_says_whether_its_model_makes_video_from_references():
+    """Only H3 has a mode that reads the pool (madde 302), and the video panel says so before the
+    press (madde 324). It reads it here rather than off the model's name: the name is a word for the
+    box, and the rule is the server's."""
+    for model, reads in (("h3", True), ("wan", False), ("", False)):
+        assert list_producers(GROUPS, FakeFiles(), model)[1]["reads_references"] is reads, model
 
 
 def test_a_machine_with_h3_on_it_has_a_video_producer():

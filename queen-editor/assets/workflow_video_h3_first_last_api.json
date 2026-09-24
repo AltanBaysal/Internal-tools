@@ -108,7 +108,7 @@
   },
   "1512:2586": {
     "inputs": {
-      "unet_name": "MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_row-wise_convrot_runtime_mixed.safetensors",
+      "unet_name": "MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",
@@ -206,7 +206,7 @@
   },
   "1512:2588": {
     "inputs": {
-      "unet_name": "MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_row-wise_convrot_runtime_mixed.safetensors",
+      "unet_name": "MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors",
       "weight_dtype": "default"
     },
     "class_type": "UNETLoader",

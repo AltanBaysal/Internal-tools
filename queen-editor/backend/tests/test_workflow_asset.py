@@ -275,16 +275,39 @@ def test_every_model_the_h3_graphs_load_is_in_the_h3_group():
         assert not missing, f"Graf bu dosyaları yüklüyor ama grup saymıyor: {missing}"
 
 
-def test_the_h3_graphs_carry_motion_booster_alone_at_seventy():
-    """The user's pick from 213's trial. The stack keeps its loras inside a JSON string, which the
-    model scan above cannot see into -- so it is read here, and its file held to the group."""
-    for graph in _h3_graphs():
-        stack = json.loads(graph["2678"]["inputs"]["stack_data"])
-        loaded = [(slot["lora"], slot["str"]) for slot in stack
-                  if slot["on"] and slot["lora"] != "None"]
-        assert loaded == [("H3_Motion_BoosterV2.safetensors", 0.7)]
+def test_both_h3_graphs_load_eros_max_beta5():
+    """Madde 333: Eros, the user's pick after trying it (329) and DaSiWa again (332). Each graph has
+    two model loaders -- the Director takes one as its FL2VA model and the other as its REF2VA model,
+    and picks by mode -- so every loader is asked, found by its class rather than its id: what is
+    asked is which model the graph loads, and a third loader would slip past a test naming two ids.
+    Whether the group counts the file is the scan's question above: unet_name is a plain input it
+    sees."""
+    expected = {("MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors", "default")}
 
-    assert "H3_Motion_BoosterV2.safetensors" in {row["name"] for row in model_groups.H3_VIDEO}
+    for graph in _h3_graphs():
+        loaded = {(node["inputs"]["unet_name"], node["inputs"]["weight_dtype"])
+                  for node in graph.values() if node["class_type"] == "UNETLoader"}
+        assert loaded == expected, f"Grafiğin model düğümleri bunları yüklüyor: {loaded}"
+
+
+def test_the_h3_graphs_carry_motion_booster_alone_at_seventy():
+    """Motion Booster at 0.7 is the user's pick from 213's trial, and since madde 330 the stack's only
+    lora: Mystic XXX came off there. One stack serves all three modes: it takes the model the Director picked for its mode (output 5), and
+    REF2VA runs on the I2VA graph (madde 304). A slot is read by its name, not filtered by `on`:
+    whether the loader honours `on` is unknown, and "None" is how every empty slot has loaded nothing
+    since 213 -- so a lora switched off but still named stays red here. The stack keeps its loras
+    inside a JSON string, which the model scan above cannot see into -- so it is read here, and its
+    file held to the group."""
+    for graph in _h3_graphs():
+        stack = graph["2678"]["inputs"]
+        assert stack["model"] == ["2730", 5], "Yığın Director'ın kipine göre seçtiği modeli almıyor"
+        named = [(slot["lora"], slot["str"], slot["on"]) for slot in json.loads(stack["stack_data"])
+                 if slot["lora"] != "None"]
+        assert named == [("H3_Motion_BoosterV2.safetensors", 0.7, True)], \
+            f"Yığının adı olan yuvaları: {named}"
+
+    assert "H3_Motion_BoosterV2.safetensors" in {row["name"] for row in model_groups.H3_VIDEO}, \
+        "Grup yığının LoRA'sını saymıyor"
 
 
 def test_both_h3_graphs_save_an_mp4():

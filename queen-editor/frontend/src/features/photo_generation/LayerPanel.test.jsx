@@ -1,7 +1,15 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getReferenceSettings, saveReferenceSettings } from "../../shared/api.js";
 import LayerPanel from "./LayerPanel.jsx";
+
+// Referanstan's record is the server's; everything else the panel needs arrives as props.
+vi.mock("../../shared/api.js", async (importOriginal) => ({
+  ...(await importOriginal()),
+  getReferenceSettings: vi.fn(),
+  saveReferenceSettings: vi.fn(),
+}));
 
 const done = (file, layers = {}) => ({ id: file.replace(".png", ""), file, status: "done", layers,
                                        failed: [] });
@@ -15,10 +23,26 @@ const FRAMES = [
 
 const variantBox = () => screen.getByRole("spinbutton");
 
+// Referanstan's draft is kept per project for the length of a visit, in the module. A name of its
+// own for every render keeps one test's typing out of the next one's panel.
+let rendered = 0;
+const freshProject = () => `proje-${++rendered}`;
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  getReferenceSettings.mockResolvedValue({ prompts: "", variants: null });
+  saveReferenceSettings.mockResolvedValue(null);
+});
+
+const tab = (name) => screen.getByRole("button", { name });
+const labels = (view) => [...view.container.querySelectorAll("[data-label]")]
+  .map((one) => one.textContent);
+
 function renderPanel(props) {
   return render(
-    <LayerPanel layer="video" frames={FRAMES} selected={[]} producer={null}
-                onQueue={() => Promise.resolve({ added: 2 })} onInstall={() => {}} {...props} />,
+    <LayerPanel layer="video" project={freshProject()} frames={FRAMES} selected={[]}
+                producer={null} onQueue={() => Promise.resolve({ added: 2 })}
+                onInstall={() => {}} poolShown={false} onShowPool={() => {}} {...props} />,
   );
 }
 
@@ -296,6 +320,7 @@ describe("LayerPanel — the panel's own shape", () => {
   it("keeps only the blocks the design leaves standing", () => {
     renderPanel();
 
+    // The Üretim row is gone: where a video is made from is the tabs over the panel (madde 317).
     expect(blocks()).toEqual(["Model", "Kapsam", "Üretim modu", "Varyant"]);
   });
 });
@@ -728,5 +753,405 @@ describe("LayerPanel — sound", () => {
     renderSound();
 
     expect(screen.queryByText(/LLM/)).toBeNull();
+  });
+});
+
+describe("LayerPanel — producing from the reference pool", () => {
+  const promptBox = () => screen.getByLabelText("Prompt listesi");
+
+  function openReference(props) {
+    const view = renderPanel(props);
+    fireEvent.click(screen.getByText("Referanstan"));
+    return view;
+  }
+
+  it("asks the video panel where the video comes from, and never the sound panel", () => {
+    renderPanel();
+    // Kareden, not Standart: Standart already names a mode on the Kareden tab itself.
+    expect(screen.getByText("Kareden")).toBeTruthy();
+    expect(screen.getByText("Referanstan")).toBeTruthy();
+
+    renderPanel({ layer: "audio" });
+    // A sound is laid over a video that already exists; the pool has nothing to do with it.
+    expect(screen.queryAllByText("Referanstan")).toHaveLength(1);
+  });
+
+  it("closes the rows that have no meaning without frames", () => {
+    openReference();
+
+    // No frame is involved at all: production makes cards (madde 303).
+    expect(screen.queryByText("Videosu olmayan kareler")).toBeNull();
+    // Loop and linking are a plain video's business (the roadmap's own decision).
+    expect(screen.queryByText("Loop")).toBeNull();
+    expect(screen.queryByText("Sonrakine bağla")).toBeNull();
+  });
+
+  it("takes a list of prompts, the way the photo panel does", () => {
+    openReference();
+
+    expect(promptBox()).toBeTruthy();
+  });
+
+  it("counts the cards the press would make", () => {
+    openReference();
+
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız", "dans"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    expect(screen.getByText("2 prompt × 3 varyant = 6 kart")).toBeTruthy();
+  });
+
+  it("reads a Python list with a name in front, the way the photo panel does", () => {
+    // Madde 323: a list that works in the photo panel works here -- pasted out of a notebook cell,
+    // in single quotes, with its name in front.
+    openReference();
+
+    fireEvent.change(promptBox(), { target: { value: "PROMPTS = ['a', 'b']" } });
+
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+  });
+
+  it("reads a tuple, in either quote", () => {
+    openReference();
+
+    fireEvent.change(promptBox(), { target: { value: `("gotik kız", 'dans')` } });
+
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+  });
+
+  it("leaves the blank items out of the count", () => {
+    // An empty item is how a line is switched off in the photo panel's list (prompt_list.py).
+    openReference();
+
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız", "", "  ", "dans"]' } });
+
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+  });
+
+  it("says nothing under the button while the box is empty or its list cannot be read", () => {
+    // Madde 323: the line counts what a press would make and nothing else. What is wrong with a
+    // list is the server's to say, when the button is pressed.
+    openReference();
+    expect(screen.queryByText(/biçiminde olmalı/)).toBeNull();
+
+    fireEvent.change(promptBox(), { target: { value: "gotik kız" } });
+
+    expect(screen.queryByText(/= \d+ kart/)).toBeNull();
+    expect(screen.queryByText(/biçiminde olmalı/)).toBeNull();
+    expect(screen.queryByText(/Format hatası/)).toBeNull();
+  });
+
+  it("sends a list it cannot read as it was typed", async () => {
+    // Madde 323: the screen reads the list only to count it. The press goes whatever that reading
+    // made of it, and the refusal comes back in the server's own words (prompt_list.py).
+    const onQueue = vi.fn().mockResolvedValue(null);
+    openReference({ onQueue });
+
+    fireEvent.change(promptBox(), { target: { value: "gotik kız" } });
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "reference", "gotik kız");
+    expect(screen.queryByText(/biçiminde olmalı/)).toBeNull();
+  });
+
+  it("sends the prompts and the variants under the reference kind", async () => {
+    const onQueue = vi.fn().mockResolvedValue({ added: 6 });
+    openReference({ onQueue });
+
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız", "dans"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    // No frames: what the queue is handed is the words and how many of each.
+    expect(onQueue).toHaveBeenCalledWith(null, 3, "reference", '["gotik kız", "dans"]');
+  });
+});
+
+describe("LayerPanel — the two tabs", () => {
+  it("opens the video panel on Kareden, with the frame form", () => {
+    const view = renderPanel();
+
+    expect(tab("Kareden").className).toContain("is-on");
+    expect(tab("Referanstan").className).not.toContain("is-on");
+    expect(labels(view)).toEqual(["Model", "Kapsam", "Üretim modu", "Varyant"]);
+    // The row the tabs replace, and its old word for the frame side.
+    expect(screen.queryByText("Üretim")).toBeNull();
+    expect(screen.queryByText("Karelerden")).toBeNull();
+  });
+
+  it("lays Referanstan out in the design's order", () => {
+    const view = renderPanel();
+
+    fireEvent.click(tab("Referanstan"));
+
+    expect(tab("Referanstan").className).toContain("is-on");
+    expect(tab("Kareden").className).not.toContain("is-on");
+    expect(labels(view)).toEqual(["Model", "Referanslar", "Prompt listesi", "Varyant"]);
+  });
+
+  it("gives the sound panel no tabs", () => {
+    // A sound is laid over a video that already exists: the pool has nothing to give it.
+    renderPanel({ layer: "audio" });
+
+    expect(screen.queryByText("Kareden")).toBeNull();
+    expect(screen.queryByText("Referanstan")).toBeNull();
+  });
+});
+
+describe("LayerPanel — what Referanstan keeps", () => {
+  const promptBox = () => screen.getByLabelText("Prompt listesi");
+
+  it("keeps its prompt list and variants across the tabs, and Kareden keeps its own one", () => {
+    renderPanel();
+    fireEvent.click(tab("Referanstan"));
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    fireEvent.click(tab("Kareden"));
+    // Kareden is the frame form as it was: its count starts at one on every opening.
+    expect(variantBox().value).toBe("1");
+
+    fireEvent.click(tab("Referanstan"));
+    expect(promptBox().value).toBe('["gotik kız"]');
+    expect(variantBox().value).toBe("3");
+  });
+
+  it("keeps them when the panel is built again, which opens on Kareden", async () => {
+    // Opening the panel from the rail, or stepping into a frame and back, builds it afresh.
+    const first = renderPanel({ project: "düğün-a" });
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+    first.unmount();
+
+    renderPanel({ project: "düğün-a" });
+
+    expect(tab("Kareden").className).toContain("is-on");
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    expect(promptBox().value).toBe('["gotik kız"]');
+    expect(variantBox().value).toBe("3");
+    // A draft is newer than the record by definition, so the record is asked once per visit.
+    expect(getReferenceSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("fills the boxes from the project's record when nothing was typed this visit", async () => {
+    getReferenceSettings.mockResolvedValue({ prompts: '["kayıt"]', variants: 4 });
+    renderPanel({ project: "düğün-b" });
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    expect(getReferenceSettings).toHaveBeenCalledWith("düğün-b");
+    expect(promptBox().value).toBe('["kayıt"]');
+    expect(variantBox().value).toBe("4");
+  });
+
+  it("opens Referanstan on one variant when the record has none", async () => {
+    renderPanel({ project: "düğün-c" });
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+
+    expect(getReferenceSettings).toHaveBeenCalledWith("düğün-c");
+    expect(variantBox().value).toBe("1");
+  });
+
+  it("does not write the record over what was typed while it was on its way", async () => {
+    let answer;
+    getReferenceSettings.mockReturnValue(new Promise((resolve) => { answer = resolve; }));
+    renderPanel({ project: "düğün-d" });
+    fireEvent.click(tab("Referanstan"));
+    fireEvent.change(promptBox(), { target: { value: '["yeni"]' } });
+
+    await act(async () => { answer({ prompts: '["eski"]', variants: 5 }); });
+
+    expect(getReferenceSettings).toHaveBeenCalledWith("düğün-d");
+    // Neither box: a draft is one thing, never half the record and half the hand.
+    expect(promptBox().value).toBe('["yeni"]');
+    expect(variantBox().value).toBe("1");
+  });
+
+  it("writes the record first when the press goes out, then sends the work", async () => {
+    const onQueue = vi.fn().mockResolvedValue({ added: 3 });
+    renderPanel({ project: "düğün-e", onQueue });
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız"]' } });
+    fireEvent.change(variantBox(), { target: { value: "3" } });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(saveReferenceSettings).toHaveBeenCalledWith(
+      "düğün-e", { prompts: '["gotik kız"]', variants: 3 });
+    expect(onQueue).toHaveBeenCalledWith(null, 3, "reference", '["gotik kız"]');
+    expect(saveReferenceSettings.mock.invocationCallOrder[0])
+      .toBeLessThan(onQueue.mock.invocationCallOrder[0]);
+
+    // Kareden's press is about frames: it writes no reference record.
+    fireEvent.click(tab("Kareden"));
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+    expect(saveReferenceSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends nothing when the record cannot be written", async () => {
+    // The photo panel's rule: the record and the work land in the same folder, so a record that
+    // cannot be written means the work could not be either.
+    saveReferenceSettings.mockRejectedValue(new Error("Proje yok: düğün-g"));
+    const onQueue = vi.fn();
+    renderPanel({ project: "düğün-g", onQueue });
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız"]' } });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueue).not.toHaveBeenCalled();
+    expect(screen.getByText("Proje yok: düğün-g")).toBeTruthy();
+  });
+});
+
+describe("LayerPanel — the pool's one button", () => {
+  it("asks for the pool on Referanstan and for the cards on Kareden", () => {
+    const onShowPool = vi.fn();
+    renderPanel({ onShowPool });
+
+    fireEvent.click(tab("Referanstan"));
+    expect(onShowPool).toHaveBeenLastCalledWith(true);
+
+    fireEvent.click(tab("Kareden"));
+    expect(onShowPool).toHaveBeenLastCalledWith(false);
+  });
+
+  it("closes the pool from the Referanslar block while it is shown", () => {
+    const onShowPool = vi.fn();
+    renderPanel({ poolShown: true, onShowPool });
+    fireEvent.click(tab("Referanstan"));
+
+    fireEvent.click(screen.getByText("Referansları kapat"));
+
+    expect(onShowPool).toHaveBeenLastCalledWith(false);
+  });
+
+  it("opens it again from the same place while the cards are shown", () => {
+    const onShowPool = vi.fn();
+    renderPanel({ onShowPool });
+    fireEvent.click(tab("Referanstan"));
+
+    fireEvent.click(screen.getByText("Referansları aç"));
+
+    expect(onShowPool).toHaveBeenLastCalledWith(true);
+  });
+
+  it("gives the cards back when the panel goes", () => {
+    // The pool belongs to this panel's tab: with the panel gone there is nothing it belongs to.
+    const onShowPool = vi.fn();
+    const view = renderPanel({ onShowPool });
+    fireEvent.click(tab("Referanstan"));
+
+    view.unmount();
+
+    expect(onShowPool).toHaveBeenLastCalledWith(false);
+  });
+});
+
+describe("LayerPanel — what stops a run from the pool (madde 324)", () => {
+  // The design's own sentences (V2-UPDATE §1); the second is the server's too.
+  const H3_ONLY =
+    "Referanstan üretim için H3 gerekiyor — bu oturumda başka bir video modeli kurulu.";
+  const NO_REFERENCES = "Havuzda referans yok — önce en az bir referans ekle.";
+  const LIMITS = { picture: 9, video: 3, audio: 3 };
+  // The pool the way the server answers it.
+  const pool = (references) => ({ references, limits: LIMITS });
+  const EMPTY = pool([]);
+  const KEDI = pool([{ name: "kedi.png", kind: "picture", seconds: null, slot: 1 }]);
+  // The video row as the server gives it: whether its model reads references is the server's to say.
+  const H3 = { id: "video", name: "Video üreticisi", installed: true, model: "MiniMax H3",
+               reads_references: true };
+  const WAN = { ...H3, model: "WAN 2.2 I2V", reads_references: false };
+  const MISSING = { ...WAN, installed: false };
+
+  const promptBox = () => screen.getByLabelText("Prompt listesi");
+  const addButton = () => screen.getByText("Kuyruğa ekle").closest("button");
+  const write = (text) => fireEvent.change(promptBox(), { target: { value: text } });
+
+  // One project per test, and the same one when a test hands the panel a new pool: a rerender of
+  // the same panel, as when the pool in the middle answers again.
+  async function openReference(props) {
+    const project = freshProject();
+    const panel = (more) => (
+      <LayerPanel layer="video" project={project} frames={FRAMES} selected={[]} producer={H3}
+                  onQueue={() => Promise.resolve({ added: 1 })} onInstall={() => {}}
+                  poolShown={false} onShowPool={() => {}} {...props} {...more} />
+    );
+    const view = render(panel());
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    return { again: (more) => view.rerender(panel(more)) };
+  }
+
+  it("says an empty pool before anything is pressed, between the variant box and the button",
+     async () => {
+    await openReference({ pool: EMPTY });
+
+    const line = screen.getByText(NO_REFERENCES);
+    // Right above the button it stops: the design's own place for it.
+    expect(variantBox().compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    expect(line.compareDocumentPosition(addButton()) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+  });
+
+  it("lets the line go the moment the pool holds one reference of any kind", async () => {
+    const view = await openReference({ pool: EMPTY });
+    write('["gotik kız"]');
+    expect(screen.getByText(NO_REFERENCES)).toBeTruthy();
+    expect(addButton().disabled).toBe(true);
+
+    // A sound alone: one reference of any kind is enough (V2-UPDATE §1).
+    view.again({ pool: pool([{ name: "kisa.wav", kind: "audio", seconds: 3, slot: 1 }]) });
+
+    expect(screen.queryByText(NO_REFERENCES)).toBeNull();
+    expect(addButton().disabled).toBe(false);
+  });
+
+  it("says H3 is needed on a session with another video model, and keeps the button closed",
+     async () => {
+    await openReference({ producer: WAN, pool: KEDI });
+    write('["gotik kız"]');
+
+    expect(screen.getByText(H3_ONLY)).toBeTruthy();
+    expect(addButton().disabled).toBe(true);
+  });
+
+  it("says one thing at a time, in the app's order: the model before the pool", async () => {
+    await openReference({ producer: WAN, pool: EMPTY });
+
+    expect(screen.getByText(H3_ONLY)).toBeTruthy();
+    expect(screen.queryByText(NO_REFERENCES)).toBeNull();
+  });
+
+  it("leaves the model to the install card while the video producer is missing", async () => {
+    // With no video model there is no wrong one: the card at the top says what is missing.
+    await openReference({ producer: MISSING, pool: EMPTY });
+
+    expect(screen.queryByText(H3_ONLY)).toBeNull();
+    expect(screen.getByText(NO_REFERENCES)).toBeTruthy();
+  });
+
+  it("keeps the button closed while the prompt box is empty", async () => {
+    await openReference({ pool: KEDI });
+    expect(addButton().disabled).toBe(true);
+
+    write("  \n ");
+    expect(addButton().disabled).toBe(true);
+
+    write('["gotik kız"]');
+    expect(addButton().disabled).toBe(false);
+  });
+
+  it("keeps the line and its locks to Referanstan", async () => {
+    await openReference({ pool: EMPTY });
+    expect(screen.getByText(NO_REFERENCES)).toBeTruthy();
+
+    fireEvent.click(tab("Kareden"));
+
+    // The frame form is as it was: nothing it lacks locks it before the press (Fark 27).
+    expect(screen.queryByText(NO_REFERENCES)).toBeNull();
+    expect(addButton().disabled).toBe(false);
   });
 });

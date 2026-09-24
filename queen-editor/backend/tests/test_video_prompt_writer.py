@@ -82,16 +82,19 @@ def test_the_h3_instruction_says_the_photo_is_the_first_frame():
     assert "This photo is the first frame of the video." in instruction
 
 
-def test_the_h3_instruction_opens_with_dynv2_unless_the_scene_is_calm():
-    """The trigger is the writer's line rather than the code's (user's call, madde 243): it stays
-    visible in the prompt box. Whether it is written is the scene's call, leaning to yes (madde 246);
-    the producer then puts it first, so it no longer sits inside the section."""
-    instruction, _writer = _h3()
+def test_the_h3_instruction_never_asks_for_dynv2():
+    """Madde 331: the writer leaves the trigger out of every scene -- the user's call, "hiç
+    yazılmasın ... istediğin prompt'a elle eklersin". Asked of what the writer actually sends, loop
+    included, so no rule appended to the instruction can bring the word back. Adding it by hand still
+    works: the producer puts a leading dynv2 first (test_comfy_h3_video_generator)."""
+    _instruction, writer = _h3()
+    client = FakeClient()
 
-    assert "dynv2. is the first line." in instruction
-    assert "Write it for most scenes." in instruction
-    assert "Leave it out only if the scene is calm or still." in instruction
-    assert "[Shot 1] dynv2" not in instruction
+    for mode in ("standard", "loop"):
+        writer(client).write({"photo": "kırmızı elbiseli kadın"}, mode)
+
+    for sent, _photo in client.calls:
+        assert "dynv2" not in sent, f"Talimat hâlâ dynv2 istiyor:\n{sent}"
 
 
 def test_the_h3_instruction_asks_for_the_three_sections():
@@ -102,3 +105,65 @@ def test_the_h3_instruction_asks_for_the_three_sections():
     for said in ("integrated_multimodal_description:", "overall_soundscape:",
                  "non_diegetic_music: N/A"):
         assert said in instruction, said
+
+
+def _loop_rule():
+    from backend.features.photo_generation.data import xai_prompt_writer
+    return xai_prompt_writer.LOOP_RULE
+
+
+def test_a_loop_video_is_asked_for_a_motion_that_returns():
+    """Madde 307: the clip is played several times back to back, and the model slowing down to land
+    on the last frame is what reads as a pulse. A motion that returns arrives by its own rhythm."""
+    _instruction, writer = _h3()
+    client = FakeClient()
+
+    writer(client).write({"photo": "kırmızı elbiseli kadın"}, "loop")
+
+    assert _loop_rule() in client.calls[0][0]
+
+
+def test_a_plain_video_is_asked_for_nothing_extra():
+    instruction, writer = _h3()
+    client = FakeClient()
+
+    writer(client).write({"photo": "kırmızı elbiseli kadın"}, "standard")
+
+    assert client.calls == [(instruction, "kırmızı elbiseli kadın")]
+
+
+def test_wan_asks_for_the_same_returning_motion():
+    # Loop is a mode of both engines, so the rule belongs to both writers -- as one sentence.
+    client = FakeClient()
+
+    VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "loop")
+
+    assert _loop_rule() in client.calls[0][0]
+
+
+def test_the_loop_rule_says_what_it_wants_and_what_it_refuses():
+    # The whole of the fix is in these words: a cycle, not a movement that ends.
+    rule = _loop_rule()
+
+    assert "returns" in rule and "loop" in rule.lower()
+    assert "does not end" in rule or "not a motion that ends" in rule
+
+
+def test_the_loop_rule_asks_for_one_speed_to_the_end():
+    # Madde 315: most generators ease into the last frame, and the next repeat starts from rest. The
+    # rule asks for the same speed all the way to the last frame -- the user's words, "hareket sonuna
+    # kadar aynı hızda sürsün, sona doğru yavaşlamasın".
+    rule = _loop_rule()
+
+    assert "same speed" in rule and "slow down" in rule
+
+
+def test_the_sound_writer_takes_the_mode_and_ignores_it():
+    """One call shape: the loop hands every writer the same arguments, and a sound is laid over the
+    whole of a video however that video was made."""
+    client = FakeClient(answer="fabric rustling")
+
+    written = AudioPromptWriter(client).write({"photo": "a", "video": "b"}, "loop")
+
+    assert written == "fabric rustling"
+    assert "loop" not in client.calls[0][0].lower()

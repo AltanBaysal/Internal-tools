@@ -4,7 +4,8 @@ from typing import Protocol
 
 class PhotoGenerator(Protocol):
     def generate(self, prompt: str, negative: str, seed: int, model: str = "", lora: str = "",
-                 source: tuple | None = None, end: tuple | None = None) -> bytes:
+                 source: tuple | None = None, end: tuple | None = None,
+                 references: tuple = ()) -> bytes:
         """Render one layer and return its bytes -- nothing else, and no name.
 
         `source` is the file this layer is made from as (name, bytes): a video's photo, a sound's
@@ -13,6 +14,9 @@ class PhotoGenerator(Protocol):
 
         `end` is the picture the layer arrives at, same shape. Only a video has one; a photo and a
         sound take the argument and ignore it, for the same reason `source` is taken by all three.
+
+        `references` is the project's reference pool as (name, bytes, kind), in the pool's own
+        order -- only a video made from it has any, and only H3 can read them (madde 304).
 
         The file's name is the domain's (photo_name.layer_file), never the producer's.
 
@@ -23,13 +27,55 @@ class PhotoGenerator(Protocol):
 
 
 class PromptWriter(Protocol):
-    def write(self, prompts: dict) -> str:
+    def write(self, prompts: dict, mode: str) -> str:
         """The prompt a job of this type should be produced with.
 
         `prompts` is what the frame already says: {"photo": …} today, plus the video's own when
         audio joins. Raising is a failure like any other -- the loop's three attempts and its
         frame-fault rule apply to it unchanged.
+
+        `mode` is how the job is being produced (domain/production_mode.py). A loop video has to be
+        asked for a motion that returns (madde 307); a sound takes the argument and ignores it, the
+        way every producer takes `references`.
         """
+        ...
+
+
+class Stills(Protocol):
+    def first_frame(self, video: bytes) -> bytes:
+        """The video's opening frame, as the bytes of a picture.
+
+        What a card with no photo gets when its video lands (madde 296). Raising is not a failure of
+        the job: the video is made and its row is written, and the picture is a convenience.
+        """
+        ...
+
+
+class ReferenceStore(Protocol):
+    def save(self, project: str, name: str, data: bytes) -> None:
+        """Put one reference in the project's pool, under the name the domain chose."""
+        ...
+
+    def items(self, project: str) -> list:
+        """[(name, seconds)] for every file in the pool, in one stable order -- by name.
+
+        Not the order they were written in: a file's timestamp is coarser than the writes, so two
+        files of one upload sometimes share one, and the pool would read back differently on two
+        machines. Which order the USER wants them in is a different question, and it gets a
+        document of its own (madde 300).
+
+        `seconds` is None for anything with no length -- a picture, or a file the pool cannot read.
+        It is taken off the file every time rather than remembered, so a reference replaced in
+        Drive counts as what it now is.
+        """
+        ...
+
+    def read(self, project: str, name: str) -> bytes | None:
+        """One reference's bytes; None when it is not there."""
+        ...
+
+    def delete(self, project: str, name: str) -> None:
+        """Take one out; a name that is not there is not an error."""
         ...
 
 

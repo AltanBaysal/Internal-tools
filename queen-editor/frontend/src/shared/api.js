@@ -6,6 +6,9 @@
 // fetch has no timeout of its own; when the Colab runtime dies, the Cloudflare edge can hold a
 // request open for minutes, so the poll's catch never fires and the screen freezes on stale state.
 const TIMEOUT_MS = 10_000;
+// An upload is not one of those: a fifteen second video onto Drive can take minutes, and cutting it
+// at ten seconds tells the user the server is unreachable -- about the wrong thing entirely.
+const UPLOAD_TIMEOUT_MS = 120_000;
 
 // The sentence a panel shows, and beside it what a developer needs to act: which request, what came
 // back, and the body verbatim. Never a guessed cause -- every line is either what we did or what
@@ -18,16 +21,19 @@ function failure(said, evidence) {
 
 async function request(path, options) {
   const method = options?.method || "GET";
+  // Ours, not fetch's: it is taken out of the options so nothing hands the browser a key it has no
+  // use for.
+  const { timeout = TIMEOUT_MS, ...sent } = options || {};
   let resp;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    resp = await fetch(path, { ...options, signal: controller.signal });
+    resp = await fetch(path, { ...sent, signal: controller.signal });
   } catch (err) {
     // fetch rejects with a browser-English TypeError (or AbortError on timeout) when the tunnel is
     // unreachable. AbortError's own text names our own abort rather than the server, so what goes
     // down is what we can honestly say: which request, and that we cut it after ten seconds.
-    const detail = err.name === "AbortError" ? `Zaman aşımı (${TIMEOUT_MS / 1000} sn)` : err.message;
+    const detail = err.name === "AbortError" ? `Zaman aşımı (${timeout / 1000} sn)` : err.message;
     throw failure("Sunucuya ulaşılamadı — bağlantıyı kontrol et.", `${method} ${path}\n${detail}`);
   } finally {
     clearTimeout(timer);
@@ -91,6 +97,21 @@ export async function saveSettings(project, { prompts, negative, variants, model
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompts, negative, variants, model, lora }),
+  });
+}
+
+// Referanstan's own record (madde 317): what its boxes open with once a visit's draft is gone. An
+// address of its own because it is written at a moment of its own -- a reference production, not a
+// photo batch.
+export async function getReferenceSettings(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/reference-settings`);
+}
+
+export async function saveReferenceSettings(project, { prompts, variants }) {
+  return request(`/api/projects/${encodeURIComponent(project)}/reference-settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompts, variants }),
   });
 }
 
@@ -246,6 +267,53 @@ export async function getStatus() {
 // the server's own name for the project's file area.
 export function fileUrl(project, file) {
   return `/photos/${encodeURIComponent(project)}/${encodeURIComponent(file)}`;
+}
+
+// The project's reference pool (madde 297). The answer carries the limits beside the files, so the
+// panel can head a row with 4/9 without keeping its own copy of the numbers.
+export async function listReferences(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/references`);
+}
+
+// A form rather than JSON, and no Content-Type of ours: multipart carries a boundary, and only the
+// browser knows what it wrote. The kind is the row whose Ekle card picked the files: the server
+// holds them to it (madde 320).
+export async function uploadReferences(project, files, kind) {
+  const form = new FormData();
+  for (const file of files) form.append("files", file);
+  form.append("kind", kind);
+  return request(`/api/projects/${encodeURIComponent(project)}/references`,
+                 { method: "POST", body: form, timeout: UPLOAD_TIMEOUT_MS });
+}
+
+// The order a drag made, per kind. The whole row goes down because a slot is a place in a sequence
+// (madde 300).
+export async function saveReferenceOrder(project, order) {
+  return request(`/api/projects/${encodeURIComponent(project)}/references/order`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order }),
+  });
+}
+
+export async function removeReference(project, name) {
+  return request(`/api/projects/${encodeURIComponent(project)}/references/`
+                 + `${encodeURIComponent(name)}/delete`, { method: "POST" });
+}
+
+// A production made of the pool rather than of a frame: no frames go up, and what comes back are
+// cards (madde 302, 303). Its own door for that reason -- the layer one is about frames that exist.
+export async function produceFromReferences(project, prompts, variants) {
+  return request(`/api/projects/${encodeURIComponent(project)}/references/produce`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompts, variants }),
+  });
+}
+
+// Plain URL, like fileUrl: the pool's own file area, which the browser loads into a tag.
+export function referenceUrl(project, name) {
+  return `/references/${encodeURIComponent(project)}/${encodeURIComponent(name)}`;
 }
 
 // What an export would write: how many videos, how long they run, and the folder they would land

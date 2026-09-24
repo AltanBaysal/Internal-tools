@@ -3,26 +3,12 @@
 Gerçek ama henüz bir koşuya bağlanmamış işler. Sırası gelince buradan çıkar, o koşunun yol
 haritasına girer.
 
+İşler iki grupta durur: **Önemli** ve **Diğer**. Bir işin grubunu kullanıcı söyler; grup
+söylenmeden eklenen iş Diğer'e girer.
+
 ---
 
-### MiniMax H3'te turbo: checkpoint mi, LoRA mı
-
-*(Kullanıcı, 18 Eylül — "turbo olayını backlog'a yaz, user ile konuşulup align olunacak".)* 213'ün
-denemesi sırasında çıktı.
-
-**Bilinen:** Kullanıcının paylaştığı tarif normal bir checkpoint'e hızı LoRA'yla veriyor:
-**DaSiWa Hybrid v1** *(Civitai sürüm 3251526, adında `turbo` yok)* + **`lightx2v_4step_v0.1`**
-*("Minimax H3 Turbo Loras")*. `minimax-h3/manual.ipynb` ise hızı checkpoint'in içinde taşıyan
-**DaSiWa Hybrid Turbo v2**'yi *(3314686)* indiriyor ve grafik onunla 8 adımda koşuyor —
-[indirilecekler.md § 6](../collab-toolbox/video_experiments/minimax-h3/indirilecekler.md).
-
-**Bilinmeyen:** Turbo checkpoint'in üstüne bir hız LoRA'sı daha takmanın hızlandırmayı iki kez
-uygulayıp uygulamadığı. Depoda WAN için aynı uyarı var, H3'te **denenmedi**. `lightx2v_4step`'in
-adresini kullanıcı verdi *(Civitai sürüm 3206543)*, linkiyle birlikte
-[indirilecekler.md § 7](../collab-toolbox/video_experiments/minimax-h3/indirilecekler.md)'de duruyor.
-
-**Kararlaşmadı:** hangi yolun kullanılacağı. **Başlamadan önce kullanıcıyla konuşulur**, ve varılan
-karar buraya yazılır.
+## Önemli
 
 ### Fotoğraf üretim hızı — hız LoRA'ları
 
@@ -70,27 +56,6 @@ süre)*? Dedektörlerin kaynağı da henüz bulunmadı. **Kullanıcıdan gereken
 çıkana bakması, beğenirse de **Export (API)**'yi yeniden vermesi. Dal bizim dosyada olmadığı için
 grafik yeniden export edilmeden koda giremez.
 
-### queen-editor'ün defteri, aynı model için manuel defterden yavaş açılıyor
-
-*(Kullanıcı, 17 Eylül — "comfyui manuel denersem fotoğraf vs daha hızlı iniyor, queen editörde çok
-daha yavaş"; ardından: "üretim hızı değil, yüklenip cloudflare verme hızı".)*
-
-**v5'te madde 233 olarak yol haritasındaydı, koşulmadan backlog'a döndü** *(kullanıcı, 18 Eylül)*.
-Numara 233 olarak kalır; geri gelirse aynı numarayla gelir.
-
-Konu dosyaların ekrana gelmesi değil, **defterin açılış süresi**.
-`photo_generator/nova-3dcg/manual.ipynb` fotoğraf için ~10 dakikada açılıyor, `queeneditor.ipynb`
-aynı modelle ~20 dakika sürüyor gibi — **ölçülmedi**. **Önce ölçülecek, sorun varsa çözülecek**
-*(kullanıcı)*.
-
-**İki defterden okunan aday, henüz sebep değil** *(17 Eylül)*: manuel defter **8** custom node
-kuruyor, queen-editor **20** — aradaki 11'i yalnız video grafiğinin, ve defterin kendi notu
-*"node'lar seçime bağlı değil, hepsi kurulur"* diyor. Birkaçı kendi pip bağımlılıklarını kuruyor.
-Küçük ekler de var: repo klonu, `ffmpeg` kurulumu, `cloudflared` indirmesi.
-
-**Ölçüm:** Colab'ın gösterdiği hücre süreleri, iki defterde aynı modelle yan yana. **Kullanıcıdan
-gereken:** iki defteri aynı fotoğraf seçimiyle açıp her hücrenin süresini vermesi.
-
 ### Kare başına negatif prompt alınacak
 
 *(Kullanıcı, 17 Eylül.)* İş iki görevdir: negatif prompt'ları **QueenAgent üretir**, queen-editor
@@ -122,6 +87,58 @@ Varılan kararlar da buraya ya da maddenin satırına yazılır.
 ### Video LoRA denemesi — anatomik hatalar
 
 Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek.
+
+### Editör kısmı eklenecek
+
+*(Kullanıcı, 6 Eylül.)* Uygulama bugün **üretip dışa aktarıyor**: kare bir fotoğrafla başlıyor,
+üstüne video ve ses biniyor, dışa aktarma hepsini tek klasörde birleştiriyor. Çıkanı **değiştiren**
+hiçbir yer yok — beğenilmeyen kare yeniden üretiliyor.
+
+Neyi kapsayacağı **kararlaşmadı**: fotoğrafın kendisine dokunmak mı *(kırpma, rötuş, inpaint)*,
+video/ses tarafını kesip düzenlemek mi, yoksa karelerin sırasıyla oynamak mı.
+
+### Gerçekçi bir model eklenecek
+
+*(Kullanıcı, 18 Eylül — "gerçekçi bir model eklenecek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+### Video prompt'unu yazan model fotoğrafı görsün
+
+*(Kullanıcı, 21 Eylül — "bazen fotoğraf niyetimizle tutmuyor, ve video prompt ile fotoğraf tutmayınca
+saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koşulmadan backlog'a döndü**
+*(kullanıcı, 21 Eylül — "o kadar saçmalamıyormuş, test edildi")*: belirti beklenenden küçük çıktı.
+
+**Bilinenler, geri gelirse işe yarar:**
+- Bugün yazara verilen tek şey fotoğrafın **SDXL prompt'u** *(`data/xai_prompt_writer.py`)*, yani
+  fotoğrafın *olması gereken* hâli. Fotoğraf niyetten saparsa hareket, orada olmayan bir sahneye
+  yazılır.
+- Kararlar alınmıştı: fotoğraf SDXL prompt'uyla **birlikte** gider ve talimat *"ikisi ayrılırsa
+  fotoğraf kazanır"* der; yalnız **H3'ün yazarına**; fotoğraf gönderilemezse **iş düşer**, sessizce
+  metin-yoluna dönülmez.
+- İki engel: istemci bugün yalnız metin gönderiyor *(`services/xai/client.py`)*, ve modelin resim
+  kabul etmesi gerekiyor — `grok-4.3` etmezse model ayarı değişir *(kullanıcı: "almazsa
+  değiştiririz")*.
+- **Maliyet ölçüldü** *(21 Eylül)*: xAI resmi 448×448 karolara bölüp karo başına 256 token sayıyor,
+  artı bir karo, en çok altı karo — yani en çok ~1792 token. `grok-4.3`'ün girdisi $1.25/1M
+  olduğundan kare başına ~$0.0008'den ~$0.0030'a çıkar; **1000 kare $0.75 yerine $3.00**.
+  Küçültülmüş bir kopya *(448×672 ≈ 768 token)* bunu yarıdan aza indirir.
+
+### Queen Editor Playwright MCP ile kontrol edilebilecek
+
+*(Kullanıcı, 23 Eylül — "queen agent playwright mcp ile kontrol edilebilmek için düzenleme
+gerekiyorsa onu da ekle", "queen editor olanları bakloga ekle".)* **Ayrıntılar kullanıcıyla
+konuşulacak.**
+
+### Üretim süreleri kaydedilip gösterilecek
+
+*(Kullanıcı, 24 Eylül — "her fotoğraf video ses ne kadar sürede üretildi kayıt edilim ve
+gösterleim"; grubu: "önemliye ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+### H3 için üretilen video seçme özelliği
+
+*(Kullanıcı, 24 Eylül — "h3 için üretilen video seçme özelliği ekleyelim backloga önemliye
+ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Diğer
 
 ### Cumshot güncellemesi — video LoRA'ları
 
@@ -156,37 +173,6 @@ QueenAgent karakteri bir kez yazıp onu adlayan her kareye koyuyor, ama etiket b
 **Kararlaşmadı:** hazır bir LoRA yüklemek mi, yoksa karakter başına eğitmek mi — ve eğitilecekse o
 işin nerede koşacağı.
 
-### Editör kısmı eklenecek
-
-*(Kullanıcı, 6 Eylül.)* Uygulama bugün **üretip dışa aktarıyor**: kare bir fotoğrafla başlıyor,
-üstüne video ve ses biniyor, dışa aktarma hepsini tek klasörde birleştiriyor. Çıkanı **değiştiren**
-hiçbir yer yok — beğenilmeyen kare yeniden üretiliyor.
-
-Neyi kapsayacağı **kararlaşmadı**: fotoğrafın kendisine dokunmak mı *(kırpma, rötuş, inpaint)*,
-video/ses tarafını kesip düzenlemek mi, yoksa karelerin sırasıyla oynamak mı.
-
-### Konuşma özelliği eklenecek
-
-*(Kullanıcı, 11 Eylül.)* Karelerde konuşma olacak. Ne olduğu **daha detaylandırılacak** — kullanıcı
-bunu sonraya bıraktı, ve buraya bir tahmin yazılmıyor.
-
-**Kararlaşmadı:** karakterin videoda konuşması mı *(ağzın sözle uyumu)*, kareye konuşma sesinin
-binmesi mi *(metinden ses, bugünkü ses katmanının yanına ya da yerine)*, yoksa ikisi birden mi. Bunun
-ardından gelen soru da açık: konuşmanın metnini kim yazıyor — kullanıcı mı, QueenAgent mı.
-
-### Karta sağ tık — bağlam menüsü
-
-*(Kullanıcı, 11 Eylül.)* Karta sağ tıklanınca bir menü açılacak ve oradan iş yapılabilecek; kullanıcı
-ikisini saydı, **silme** ve **kopyalama**, ve *"vs"* diyerek listeyi açık bıraktı. Yine **Windows
-gibi**.
-
-Eylemlerin kendisi bugün var — seçim barında duruyorlar. Menü yeni bir yetenek değil, aynı işlere
-ikinci bir kapı.
-
-**Kararlaşmadı:** menüde silme ve kopyalama dışında ne olacağı. Ve asıl soru: birden çok kart
-seçiliyken sağ tıklanan menü **seçimin tamamına** mı uygulanır yoksa yalnız tıklanan karta mı —
-Windows'ta seçime uygulanır, ama bu karar burada da aynı olmak zorunda değil.
-
 ### Fotoğraf modeli her şeyi NSFW'ye çeviriyor
 
 *(Kullanıcı, 11 Eylül.)* Bugünkü fotoğraf modeli, **başka bir şey istense bile** çıkanı NSFW'ye
@@ -196,43 +182,10 @@ yetenek değil, modelin kendi eğilimi.
 **Kararlaşmadı:** çözümün yeni bir fotoğraf modeli eklemek mi *(bugünkünün yanına, kare bazında
 seçilebilir)*, bugünküyü değiştirmek mi, yoksa LoRA ya da prompt tarafında kalmak mı olduğu.
 
-### Gerçekçi bir model eklenecek
-
-*(Kullanıcı, 18 Eylül — "gerçekçi bir model eklenecek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
 ### Video prompt'larında daha fazla kontrol
 
 *(Kullanıcı, 19 Eylül — "video promptlarında daha fazla kontrol kazanmak".)* **Başlamadan önce
 kullanıcıyla konuşulacak; ayrıntılar o konuşmada netleşecek.**
-
-### Video prompt'unu yazan model fotoğrafı görsün
-
-*(Kullanıcı, 21 Eylül — "bazen fotoğraf niyetimizle tutmuyor, ve video prompt ile fotoğraf tutmayınca
-saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koşulmadan backlog'a döndü**
-*(kullanıcı, 21 Eylül — "o kadar saçmalamıyormuş, test edildi")*: belirti beklenenden küçük çıktı.
-
-**Bilinenler, geri gelirse işe yarar:**
-- Bugün yazara verilen tek şey fotoğrafın **SDXL prompt'u** *(`data/xai_prompt_writer.py`)*, yani
-  fotoğrafın *olması gereken* hâli. Fotoğraf niyetten saparsa hareket, orada olmayan bir sahneye
-  yazılır.
-- Kararlar alınmıştı: fotoğraf SDXL prompt'uyla **birlikte** gider ve talimat *"ikisi ayrılırsa
-  fotoğraf kazanır"* der; yalnız **H3'ün yazarına**; fotoğraf gönderilemezse **iş düşer**, sessizce
-  metin-yoluna dönülmez.
-- İki engel: istemci bugün yalnız metin gönderiyor *(`services/xai/client.py`)*, ve modelin resim
-  kabul etmesi gerekiyor — `grok-4.3` etmezse model ayarı değişir *(kullanıcı: "almazsa
-  değiştiririz")*.
-- **Maliyet ölçüldü** *(21 Eylül)*: xAI resmi 448×448 karolara bölüp karo başına 256 token sayıyor,
-  artı bir karo, en çok altı karo — yani en çok ~1792 token. `grok-4.3`'ün girdisi $1.25/1M
-  olduğundan kare başına ~$0.0008'den ~$0.0030'a çıkar; **1000 kare $0.75 yerine $3.00**.
-  Küçültülmüş bir kopya *(448×672 ≈ 768 token)* bunu yarıdan aza indirir.
-
-### Okunur bir disclaimer tasarlanacak — ayrı çıktılar için
-
-*(Kullanıcı, 21 Eylül — "şimdilik disclaimer yok çünkü okunmuyor, okunacak yeni disclaimer
-tasarlanacak".)* v6'nın 249. maddesi ayrı export'a disclaimer koydu ve 261 onu geri aldı: verilen PNG
-`1902 × 98`, yani 1920 genişlikte bir yatay video için tasarlanmış, ve 480 genişliğe sıkıştırıldığında
-satır başına ~10 piksel kalıyor. Birleşik export'ta disclaimer duruyor — orada tuval yatay ve dosya
-kendi ölçüsünde oturuyor. **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ### Export hızı — çözme ve filtreler de karta
 
@@ -264,19 +217,53 @@ kartın kodladığı doğrulandı. **Kalan aday, kodlamanın etrafındaki CPU zi
 yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçların tamamı
 [2026-09-21 export hızı araştırmasında](../docs/superpowers/research/2026-09-21-queen-editor-export-hizi.md).
 
-### Modeller bir yere yüklenip daha hızlı indirilebilir mi
+### Loop'larda sona doğru tempo düşmesi — asıl çözüm
 
-*(Kullanıcı, 19 Eylül — "modelleri bir yere yükleyip daha hızlı indirebilir miyiz".)* **Ayrıntılar
-kullanıcıyla konuşulacak.**
+*(Kullanıcı, 23 Eylül — loop'lardaki tempo düşmesi için yapılan internet araştırmasının cevabından
+şu paragrafı alıp: "Asıl çözüm: 3. yol. Hangi modelde yapılacağına göre iş değişiyor. H3'te iki uca
+birden kare sabitleyerek loop'u kapatmak bir deneme maddesi olur. WAN'da ise yeni model (VACE)
+gerektiriyor."; ve "bunu backlog'a at o zaman".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
-## MiniMax H3
+### HF'nin yüksek hız ayarı — 429 çözülürse geri açılır
 
-*(Kullanıcı, 18 Eylül.)* MiniMax H3 üzerindeki yeni işler.
+*(Kullanıcı, 23 Eylül — 312'nin ilk denemesinde H3 Qwen3-VL %69'da düştü: `HTTP status client error
+(429 Too Many Requests), domain: https://us.gcp.cdn.hf.co/xorbs/…`; "internetten araştırır mısın
+lütfen durumu", "araştırıp çözelim, bunun için madde açar mısın". 24 Eylül — "Hugging Face'in
+ekstra hızını kapatalım, hata veriyor gibi, şimdilik kapatalım, backlog'a atalım".)*
 
-### H3 denemeleri
+**v7'de madde 313 olarak yol haritasındaydı, koşulmadan backlog'a döndü** *(kullanıcı, 24 Eylül)*;
+ayarı madde 316 kapattı. Numara 313 olarak kalır; geri gelirse aynı numarayla gelir.
 
-*(Kullanıcı, 18 Eylül — "belki biraz daha denersek daha kaliteli bir şeyler çıkarabiliriz".)*
-**Ayrıntılar kullanıcıyla konuşulacak.**
+**Bilinenler:**
+- Ayar açıkken Qwen3-VL 276–394 MB/s ile iniyordu, kapalıykenkinin 2–3 katı. 47 saniyede 10.2 GB'a
+  vardıktan sonra HF'nin parça sunucusu 429 döndü; dosya ve koşu düştü. Ayar kapalıyken iki tam
+  koşuda 429 hiç gelmedi; kapalı koşunun indirmesi 11 dk 18 sn sürdü.
+- HF'nin belgelediği istek sınırları `/resolve/` adresleri için; parça sunucusunun (`cdn.hf.co`)
+  sınırı hiçbir belgede yok *([Hub Rate limits](https://huggingface.co/docs/hub/rate-limits))*.
+- Ayar paralel akışları 1 yerine 16'dan başlatıyor, tavanı 64'ten 124'e çıkarıyor, tamponları
+  büyütüyor; HF onu en az 64 GB RAM'li makineler için yazıyor
+  *([Using Xet Storage](https://huggingface.co/docs/hub/en/xet/using-xet-storage))*.
+- `hf_xet`'in kaynağına göre parça indirmesindeki 429 yeniden deneniyor, sunucunun `Retry-After`'ına
+  bakılmadan. Beklemeler 3, 9, 27, 81, 243 sn diye büyüyor, her biri rastgele kısaltılıyor ve en
+  fazla 6 dakika *([xet-core](https://github.com/huggingface/xet-core))* — yani beş denemenin 47
+  saniyede tükenmesi beklenmiyor. `hf_xet`'in neden bu kadar çabuk bıraktığı **bilinmiyor**.
+
+**Geri gelirse ilk iş** ayar açıkken düşen bir koşunun `hf_xet` log'u:
+`!grep -h -i -E "429|retry|concurrency" ~/.cache/huggingface/xet/logs/* | tail -n 80`. 429 yeniden
+denendiyse `hf_xet`'e daha uzun deneme süresi vermek yetebilir; hiç denenmediyse ya da hemen
+bırakıldıysa yeniden denemeyi bizim kodumuz yapar.
+
+### Notebook sadeleşecek — kodu test edilebilir Python'a
+
+*(Kullanıcı, 24 Eylül — "noteboboku sadeleştirmek kodları olanbildğince test edilevilir python
+koduna dönüştürmek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+### Videoda uzaktaki yüzler daha detaylı olacak
+
+*(Kullanıcı, 24 Eylül — "yüzler bir tık daha detaylı olsa videonun gerisine göre daha güzel olur,
+böyle face detailer tarzı şeyler var mı"; H3'ün referanslı test videolarından sonra: "yakın çekimde
+çok iyi, uzakta sıkıntı", "backloga atalım bunu şimdilik".)* **Ayrıntılar kullanıcıyla
+konuşulacak.**
 
 ---
 

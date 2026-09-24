@@ -5,6 +5,8 @@ import {
   generateBatch,
   getStatus,
   listFrames,
+  produceFromReferences,
+  queueLayer,
   resumeBatch,
   saveOrder,
   stopGeneration,
@@ -13,6 +15,8 @@ import { useGeneration } from "./useGeneration.js";
 
 vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
+  queueLayer: vi.fn(),
+  produceFromReferences: vi.fn(),
   deletePhotos: vi.fn(),
   generateBatch: vi.fn(),
   getStatus: vi.fn(),
@@ -463,5 +467,24 @@ describe("useGeneration — whose report is this", () => {
     await settle();
 
     expect(result.current.queue).toEqual([{ layer: "video", owed: 1 }]);
+  });
+});
+
+
+describe("useGeneration — producing from the reference pool", () => {
+  it("sends a reference run to its own door, not to the layer one", async () => {
+    // It is not a layer job at all: no frame is involved, and what comes back are cards.
+    getStatus.mockResolvedValue({ status: "idle" });
+    listFrames.mockResolvedValue([]);
+    produceFromReferences.mockResolvedValue({ added: 6 });
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    await act(async () => {
+      await result.current.queueLayer("video", null, 3, "reference", '["gotik kız", "dans"]');
+    });
+
+    expect(produceFromReferences).toHaveBeenCalledWith("düğün", '["gotik kız", "dans"]', 3);
+    expect(queueLayer).not.toHaveBeenCalled();
   });
 });

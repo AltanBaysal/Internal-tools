@@ -1,6 +1,6 @@
-"""How a video job says where it ends.
+"""How a video job is made: where it ends, or that it is made of the pool.
 
-Three identities and nothing else. What the user reads in Turkish is the frontend's business: a name
+Four identities and nothing else. What the user reads in Turkish is the frontend's business: a name
 and its label pulled apart on purpose, so renaming one on screen never touches what is written in a
 plan file that has to keep reading back for months.
 
@@ -12,9 +12,17 @@ from backend.features.photo_generation.domain import layers, queue
 STANDARD = "standard"
 LOOP = "loop"
 LINKED = "linked"
+# Made of the project's reference pool rather than of the frame's picture (madde 303). The same
+# word the screen picks with (production_modes.js), and the engine reads it to know which graph to
+# load.
+REFERENCE = "reference"
 
-# What the queue validates against. A mode missing from here could never be asked for.
+# What the LAYER door validates against: these are the three a video hung on a frame can be asked
+# for. Reference is deliberately not among them -- it has a door of its own, because it makes cards
+# rather than layers, and letting it through here would plan a card-less reference video.
 ALL = (STANDARD, LOOP, LINKED)
+# Every mode a planned job can honestly carry.
+KNOWN = ALL + (REFERENCE,)
 
 
 def of(job):
@@ -26,7 +34,7 @@ def of(job):
     rendered the plain reading is the only honest one left.
     """
     mode = job.get("mode")
-    return mode if mode in ALL else STANDARD
+    return mode if mode in KNOWN else STANDARD
 
 
 class InvalidMode(Exception):
