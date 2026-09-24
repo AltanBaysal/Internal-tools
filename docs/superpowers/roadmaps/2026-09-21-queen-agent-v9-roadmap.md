@@ -1,10 +1,10 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/6
+**Tarih:** 2026-09-21 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/7
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Kaynak:** 3, 5 ve 6 kullanıcının 21 Eylül'deki sözlerinden doğdu. 4
 [BACKLOG.md](../../../queen-agent/BACKLOG.md)'den geliyor; ne yaptığı aynı gün konuşuldu. 1 ve 2
-kullanıcının 23 Eylül'deki sözlerinden doğdu.
+kullanıcının 23 Eylül'deki sözlerinden doğdu, 7 de 24 Eylül'dekilerden.
 
 **Belge `feat/queen-editor-v6` dalında yazıldı** *(kullanıcı, 21 Eylül — "sen bu dalda oluştur
 roadmapi sıkıntı yok")*. Başlıktaki dal koşunun dalı; yazıldığı yer başka.
@@ -26,7 +26,8 @@ madde eklemeye devam etti ve bu iki belgenin seçtiği aralıkları üç kez ald
 **Her madde iki tur.** Önce yalnız testler: spec → plan → testleri yaz → commit; takım kırmızı kalır.
 Sonra implementasyon: spec → plan → kodu yaz → commit; takım yeşile döner.
 
-**1 en başta koşulur** *(kullanıcı, 23 Eylül — "madde 1 yap böylece diğer maddelerde queen agentta
+**7 hepsinden önce koşulur** *(kullanıcı, 24 Eylül — "v9'un ilk adımı yap bunu")*: numarası
+sonradan geldiği için 7, yeri tablonun başı. **1 ondan sonra, ötekilerden önce koşulur** *(kullanıcı, 23 Eylül — "madde 1 yap böylece diğer maddelerde queen agentta
 playwright mcpyi kullanabiliriz")*: ötekiler Playwright MCP'yi kullanabilsin diye. **2 hemen
 ardından gelir** *(kullanıcı, 23 Eylül — "evet")*: QueenAgent'ı tarayıcıda kullanmanın önünde bir
 engel varsa 3–6 başlamadan kalkar.
@@ -46,6 +47,7 @@ koşulmaz.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
+| 7 | `UNALIGNED` **DeepSeek istekleri şimdilik OpenRouter'dan gidecek.** *(Kullanıcı, 24 Eylül — "şu anda deepseek'e kredi yükleyemiyorum, deepseek isteğini şimdilik openrouter'a yönlendirebilir miyiz queenagent'ta?"; "bir vendor ile sınırlaman gerek yok deepseek'i"; yerine: "v9'un ilk adımı yap bunu, roadmap'e yaz, şimdi yapma".)* | *(Align olunca yazılır.)* |
 | 1 | `ALIGNED` **Playwright MCP bu depoda kullanılacak şekilde ayarlanacak.** *(Kullanıcı, 23 Eylül — "cihazda var bu repoda kullanmak için ayarlanmasını ekle tasklara ve queen agenta ekle".)* **Araç kullanıcı için değil, Claude için:** Claude QueenAgent'ı tarayıcıda kendisi açar, ekran görüntüsünü alır ve arayüzü kullanır. **Örnek [queen-design](../../../../queen-design/.mcp.json)** *(kullanıcı — "sen karar ver queen design ayarı yaptıysa kopyalayabilirsin kullanımı")*: orada aynı iş 22 Eylül'de yapıldı ve denendi. Buradan alınanlar: **ayar depoda durur**, yani depoyu çeken her makinede Claude aynı sunucuyu görür ve yalnız bir kez onaylar; **sürüm sabittir** *(`@latest` değil)*; **tarayıcı arka planda açılır**, pencere görünmez *(kullanıcı — "queen design gibi")*. Cihazda nasıl kurulu olduğu koşuda bulunacak *(kullanıcı — "araştırıp bulursun")*. | Claude Code yeniden açıldığında bu depoda Playwright araçları görünüyor, ve Claude bir sayfayı açıp ekran görüntüsünü alabiliyor. |
 | 2 | `ALIGNED` **QueenAgent Playwright MCP ile kontrol edilebilecek.** *(Kullanıcı, 23 Eylül — "queen agent playwright mcp ile kontrol edilebilmek için düzenleme gerekiyorsa onu da ekle".)* **Ne için:** Claude QueenAgent'ı tarayıcıda açıp kullanıcının yerine kullanır ve bakar — *"tasarıma uyuyor mu, beklenen gibi çalışıyor mu"* *(kullanıcı)*. **Açılan QueenAgent bu bilgisayarda yerel olarak çalışanı**, Colab'daki değil *(kullanıcı — "1")*. **Gerçek AI çağrısı yapılabilir** *(kullanıcı — "gerçek ai çağrısı yapma yapabilirsin evet")*: skill denenirken xAI'a istek gider. Kullanmanın önünde bir engel varsa bu maddede kalkar; engel çıkmazsa madde düzenleme yapılmadan kapanır. | Claude yerel QueenAgent'ı Playwright ile açıp bir skill'i baştan sona çalıştırabiliyor ve sonucu ekranda görüyor. |
 | 3 | **Sade senaryo formatı.** *(Kullanıcı, 21 Eylül — "yeni json yapısı yapabiliriz senaryo prompt şeklinde çok basit olan", "AI'a alan bırakalım tekte üretmesi için".)* **Bugün** QueenAgent'ın ürettiği her prompt **kod tarafından** kuruluyor: yapı dosyasının karakterleri, kıyafetleri ve mekânları aranıp diziliyor, `BREAK` konuyor, kalite zinciri başa ekleniyor *(`domain/build_prompts.py`)*. **Olacak:** ikinci ve sade bir format — sahneler, her sahnede `senaryo` ve `prompt`. `senaryo` kullanıcının okuması için; `prompt` modelin yazdığı prompt'un kendisi ve **olduğu gibi** listeye giriyor. **Kod hiçbir şey eklemiyor**, kalite etiketlerini de model yazıyor *(kullanıcı kararı, 21 Eylül — "sade yapıda ekstra kod eklemeyelim, kalite promptlarını direkt AI eklesin")*. **Bedeli yazıya geçiyor:** kalite zinciri koda tam da bu yüzden alınmıştı — model şemadan kopyalarken **iki model ailesini karıştıran bir zincir gerçek dosyalara ulaşmıştı** *(madde 110, 166)*. Risk bilerek geri alınıyor. **Start a scenario değişmiyor:** süreklilik zengin yapıyı istiyor, ve QueenAgent bundan sonra **iki formatlı** oluyor. | Sade formatta yazılmış bir dosyadan prompt listesi çıkıyor, prompt'lar dosyada yazdığı gibi; zengin format bugünkü gibi çalışmaya devam ediyor. |
