@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -140,5 +140,48 @@ describe("ReferencePanel", () => {
 
     expect(removeReference).toHaveBeenCalledWith("düğün", "kedi.png");
     expect(screen.getByText("Fotoğraflar 0/9")).toBeTruthy();
+  });
+});
+
+describe("ReferencePanel — what a row shows (madde 319)", () => {
+  const tile = (container, name) => container.querySelector(`[data-reference="${name}"]`);
+  const addCard = (container, kind) => container.querySelector(`[data-add="${kind}"]`);
+
+  it("draws each reference at 144 × 108 with its slot number on it", async () => {
+    const { container } = await open(pool([
+      { name: "bir.png", kind: "picture", seconds: null, slot: 1 },
+      { name: "iki.png", kind: "picture", seconds: null, slot: 2 },
+    ]));
+
+    // The number a prompt calls it by: the N of <Picture N>.
+    expect(within(tile(container, "iki.png")).getByText("2")).toBeTruthy();
+    const face = screen.getByAltText("iki.png");
+    expect(face.style.width).toBe("144px");
+    expect(face.style.height).toBe("108px");
+  });
+
+  it("follows a row's last reference with one Ekle card", async () => {
+    const { container } = await open();
+
+    const card = addCard(container, "picture");
+    expect(card.textContent).toContain("Ekle");
+    // After the reference, not before it: a new one goes in at the end.
+    expect(card.previousElementSibling).toBe(tile(container, "kedi.png"));
+  });
+
+  it("gives a full row no Ekle card", async () => {
+    const { container } = await open(pool([1, 2, 3].map((slot) => (
+      { name: `klip-${slot}.mp4`, kind: "video", seconds: 3, slot }))));
+
+    expect(addCard(container, "video")).toBeNull();
+    expect(addCard(container, "picture")).toBeTruthy();
+  });
+
+  it("shows an empty pool as three rows holding only their Ekle cards", async () => {
+    const { container } = await open(pool([]));
+
+    expect(["picture", "video", "audio"].map((kind) => Boolean(addCard(container, kind))))
+      .toEqual([true, true, true]);
+    expect(container.querySelector("[data-reference]")).toBeNull();
   });
 });
