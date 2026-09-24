@@ -12,7 +12,7 @@ npm install
 npm run build           # dist is committed, so this is only needed after a source change
 
 cd ..
-export XAI_API_KEY=...  # or set it however your shell does
+export OPENROUTER_API_KEY=...  # or set it however your shell does
 python main.py          # http://127.0.0.1:8100
 ```
 
@@ -21,11 +21,11 @@ Colab notebook that clones this repo and never builds ([FOUNDATION.md](FOUNDATIO
 and 3). So a frontend change is not finished until `dist` is rebuilt and committed **with** its
 source — `backend/tests/test_dist_is_committed.py` refuses the alternative.
 
-The key is read at startup and the app saves none of it — there is no screen for typing one and no
-endpoint that answers with one, which is what makes the Colab address survivable. Without a key the
-app still starts; only asking for an answer fails, and it fails saying so.
+The keys are read at startup and the app saves none of them — there is no screen for typing one and
+no endpoint that answers with one, which is what makes the Colab address survivable. Without a key
+the app still starts; only asking for an answer fails, and it fails saying so.
 
-Where your projects live is `QUEENAGENT_ROOT` — that, the key and every other setting are named in
+Where your projects live is `QUEENAGENT_ROOT` — that, the keys and every other setting are named in
 [backend/config.py](backend/config.py), which is the one place they exist.
 
 ## Develop

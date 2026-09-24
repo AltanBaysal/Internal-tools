@@ -17,13 +17,16 @@ store = Store(config.ROOT)
 #
 # Where the key comes from is still this file's decision, not the client's -- which is why it is
 # handed over as a function even though the value settles once, at startup. `engine_for` is asked
-# for each id in turn, so the address and the key a model spends stay its own.
+# for each id in turn, so the address and the key a model spends stay its own -- and since Madde
+# 334 so do the name its provider knows it by and what its row adds to the body. The map stays
+# keyed by the app's own id, the one a message carries; only the client is told the provider's.
 engine = XaiEngine(
     {
         model: XaiClient(
             lambda wiring=config.engine_for(model): wiring[2],
-            model,
+            config.engine_for(model)[3],
             config.engine_for(model)[1],
+            extra=config.engine_for(model)[4],
         )
         for model in config.MODELS
     },

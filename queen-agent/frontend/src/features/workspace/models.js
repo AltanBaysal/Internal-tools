@@ -6,11 +6,12 @@
 // knows is what an id MEANS -- its address and the key it spends (config.py) -- never which one is
 // selected. The selection is the session's and rides on each message.
 //
-// The names are this file's own, and only this file's. An id is what the provider is told the model
-// is called -- client.py sends it as the model field -- so renaming one in config.py would break
-// the call, and Queen Flash and Queen Pro are what a person sees instead. Nothing enforces that the
-// ids here match config.py's table: Python and JS cannot read each other, and this sentence is the
-// whole of what keeps the two in step.
+// The names are this file's own, and only this file's. An id is the key config.py's table is
+// looked up by and what every message on disk records, so renaming one strands the records that
+// name it -- and what the provider is told is config.py's business, which since Madde 334 is not
+// always the id. Queen Flash and Queen Pro are what a person sees instead. Nothing enforces that
+// the ids here match config.py's table: Python and JS cannot read each other, and this sentence is
+// the whole of what keeps the two in step.
 //
 // The detail is the price, because choosing between these is a price question -- Madde 146 exists
 // because of the bill, and a menu that hid the number would answer a question nobody asked.
