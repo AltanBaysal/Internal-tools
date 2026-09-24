@@ -429,14 +429,15 @@ def test_every_h3_video_is_rendered_with_eros_max_beta5(asked):
 
 
 @every_mode
-def test_every_h3_video_is_rendered_with_mystic_xxx_at_half_strength(asked):
-    """Every H3 video of the session carries Mystic XXX (madde 328), at half strength under Eros
-    (madde 329). The graph test reads the files; this reads what reaches ComfyUI -- only the producer
-    can say REF2VA's render carries the stack."""
+def test_no_h3_video_is_rendered_with_mystic_xxx(asked):
+    """Madde 330: Eros is tried alone, in every mode. Mystic's file still comes down -- its notebook row
+    stays, so turning it back on is a graph edit -- which is why the stack is what is asked: by name,
+    on or off, because whether the loader honours `on` is unknown. Only the producer can say what
+    REF2VA's render carries: it has no graph of its own (madde 304)."""
     client = FakeClient()
 
     shipped_generator(client).generate("motion", "", 42, **asked)
 
     stack = json.loads(client.submitted[STACK_NODE]["inputs"]["stack_data"])
-    loaded = {slot["lora"]: slot["str"] for slot in stack if slot["on"] and slot["lora"] != "None"}
-    assert loaded.get("MysticXXX_MMH3-V4.safetensors") == 0.5, f"Yığın bunları yüklüyor: {loaded}"
+    named = [slot["lora"] for slot in stack if slot["lora"] != "None"]
+    assert "MysticXXX_MMH3-V4.safetensors" not in named, f"Yığının adı olan yuvaları: {named}"

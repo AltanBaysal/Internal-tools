@@ -147,7 +147,6 @@ H3_FILES = [
     ("vae", "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"),
     ("vae_approx", "taeh3.safetensors"),
     ("loras", "H3_Motion_BoosterV2.safetensors"),
-    ("loras", "MysticXXX_MMH3-V4.safetensors"),
 ]
 
 

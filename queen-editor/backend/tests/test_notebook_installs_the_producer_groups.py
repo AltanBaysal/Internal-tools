@@ -540,8 +540,10 @@ def test_the_retired_dasiwa_h3_checkpoint_is_gone_from_the_notebook():
 
 def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():
     """Madde 328: the address is the user's -- Civitai version 3266628, "v4.0 (FL2VA & REF2VA)" -- and
-    the name is the one the lora stack loads from loras/. A row of CIVITAI_H3, which only an H3 run
-    reaches (test_an_unticked_group_costs_no_bytes)."""
+    the file lands in loras/ under the name the lora stack would load it by. Madde 330 took it out of
+    the stack and kept this row: the file stays on the disk, so turning it back on is a graph edit
+    and no notebook change. A row of CIVITAI_H3, which only an H3 run reaches
+    (test_an_unticked_group_costs_no_bytes)."""
     cell = _cell("CIVITAI_H3 = [")
     listing = cell[cell.find("CIVITAI_H3 = ["):]
     listing = listing[:listing.find("\n]")]
