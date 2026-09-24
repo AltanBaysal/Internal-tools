@@ -47,23 +47,40 @@ const ADD = { width: 144, height: 108, border: "1px dashed var(--border)",
               background: "var(--bg-2)", borderRadius: "var(--r-sm)", boxSizing: "border-box",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               fontSize: 12, color: "var(--ink-3)" };
+// The gallery's own lift for the tile in flight (Gallery.jsx, DRAGGED -- the design's .dragged).
+const DRAGGED = { transform: "rotate(-3deg) scale(1.04) translate(14px, -10px)",
+                  filter: "drop-shadow(0 12px 24px rgba(0,0,0,.55))", zIndex: 5,
+                  position: "relative" };
+// Where the tile in flight would land: the tile under the pointer gives its place to the gallery's
+// dashed slot, drawn over its face at the face's own size (the design's .rv-tile.is-over::before).
+const SLOT = { position: "absolute", top: 0, left: 0, width: 144, height: 108,
+               border: "2px dashed var(--accent)", borderRadius: "var(--r-sm)",
+               background: "var(--bg-3)", boxSizing: "border-box" };
 
 /** How long a clip runs, in the user's own numbers. */
 function ran(seconds) {
   return `${seconds.toFixed(1).replace(".", ",")} sn`;
 }
 
-function Tile({ project, row, onRemove, onDragStart, onDrop }) {
+function Tile({ project, row, lifted, open, onRemove, onDragStart, onDragOver, onDrop,
+                onDragEnd }) {
   const url = referenceUrl(project, row.name);
+  // Under the slot the words keep their place unseen, so the row keeps its height.
+  const unseen = open ? { visibility: "hidden" } : null;
   return (
     // Draggable from the start, not after a hold: the browser decides at mousedown whether a press
     // may become a drag, so a tile armed later is never a drag source at all (the gallery's own
     // lesson).
-    <div style={TILE} data-reference={row.name} draggable
+    <div style={lifted ? { ...TILE, ...DRAGGED } : TILE} data-reference={row.name} draggable
          onDragStart={onDragStart}
-         onDragOver={(e) => e.preventDefault()}
-         onDrop={onDrop}>
-      {row.kind === "picture" && <img src={url} alt={row.name} style={FRAME} />}
+         onDragOver={onDragOver}
+         onDrop={onDrop}
+         onDragEnd={onDragEnd}>
+      {/* Not draggable itself, as in the gallery: otherwise the browser drags the bare picture
+          instead of the tile. */}
+      {row.kind === "picture" && (
+        <img src={url} alt={row.name} style={FRAME} draggable={false} />
+      )}
       {/* Muted and controlless: the browser draws the opening frame, which is all a tile needs. */}
       {row.kind === "video" && <video src={url} muted preload="metadata" style={FRAME} />}
       {row.kind === "audio" && (
@@ -77,12 +94,14 @@ function Tile({ project, row, onRemove, onDragStart, onDrop }) {
       <button type="button" aria-label={`${row.name} referansını sil`} style={BIN}
               className="wf-stroke" onClick={() => onRemove(row.name)}>×</button>
       <Note size={11} style={{ color: "var(--ink-3)", overflow: "hidden",
-                               textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                               textOverflow: "ellipsis", whiteSpace: "nowrap", ...unseen }}>
         {row.name}
       </Note>
       {row.seconds != null && (
-        <Note size={11} style={{ color: "var(--ink-2)" }}>{ran(row.seconds)}</Note>
+        <Note size={11} style={{ color: "var(--ink-2)", ...unseen }}>{ran(row.seconds)}</Note>
       )}
+      {/* Last, so it stands over the face, the number and the ×. */}
+      {open && <div style={SLOT} />}
     </div>
   );
 }
@@ -125,9 +144,13 @@ export default function ReferencePanel({ project }) {
   const [error, setError] = useState(null);
   // The kind of the row whose file is on its way, or null.
   const [uploading, setUploading] = useState(null);
-  // What is being dragged. A ref and not state: it is a gesture in flight, nothing is drawn from
-  // it, and a drop has to read what the drag start wrote however the browser batched the two.
+  // What is being dragged. A ref and not state: a drop has to read what the drag start wrote
+  // however the browser batched the two.
   const drag = useRef(null);
+  // What the drag draws, the gallery's way: the tile in flight, and the tile whose place opened
+  // under the pointer. Names, because a row is keyed by them.
+  const [lifted, setLifted] = useState(null);
+  const [over, setOver] = useState(null);
 
   const load = useCallback(() => {
     listReferences(project).then(setPool).catch((err) => setError(err.message));
@@ -152,13 +175,34 @@ export default function ReferencePanel({ project }) {
     }
   }
 
+  function handleDragStart(kind, name) {
+    drag.current = { kind, name };
+    setLifted(name);
+  }
+
+  /** Only a tile of the dragged one's own row opens a place (madde 322). Anywhere else the default
+   * stands, so the browser shows no drop and never fires one -- another row, and the Ekle card,
+   * which listens to no drag at all. */
+  function handleDragOver(kind, name, event) {
+    if (drag.current?.kind !== kind) return;
+    event.preventDefault();
+    setOver(name);
+  }
+
+  /** Dropped or let go, the drag is over: nothing is lifted and no place is open. */
+  function endDrag() {
+    drag.current = null;
+    setLifted(null);
+    setOver(null);
+  }
+
   /** Where the drag ends: the row is rebuilt as a sequence, and the whole of it goes down.
    *
    * The slots are not sent -- a place in the list IS the slot.
    */
   async function handleDrop(kind, index) {
     const dragged = drag.current;
-    drag.current = null;
+    endDrag();
     if (!dragged || dragged.kind !== kind) return;
     const names = pool.references.filter((row) => row.kind === kind).map((row) => row.name);
     const from = names.indexOf(dragged.name);
@@ -203,8 +247,13 @@ export default function ReferencePanel({ project }) {
             <div style={TILES}>
               {rows.map((row, index) => (
                 <Tile key={row.name} project={project} row={row} onRemove={handleRemove}
-                      onDragStart={() => { drag.current = { kind, name: row.name }; }}
-                      onDrop={() => handleDrop(kind, index)} />
+                      lifted={lifted === row.name}
+                      // The tile in flight opens nothing over itself: that place is its own.
+                      open={over === row.name && lifted !== row.name}
+                      onDragStart={() => handleDragStart(kind, row.name)}
+                      onDragOver={(event) => handleDragOver(kind, row.name, event)}
+                      onDrop={() => handleDrop(kind, index)}
+                      onDragEnd={endDrag} />
               ))}
               {rows.length < (pool.limits[kind] ?? 0) && (
                 <AddCard kind={kind} accept={accept} picker={picker} uploading={uploading}
