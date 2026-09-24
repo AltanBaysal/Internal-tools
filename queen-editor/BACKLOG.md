@@ -248,6 +248,11 @@ bırakıldıysa yeniden denemeyi bizim kodumuz yapar.
 *(Kullanıcı, 24 Eylül — "noteboboku sadeleştirmek kodları olanbildğince test edilevilir python
 koduna dönüştürmek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### Üretim süreleri kaydedilip gösterilecek
+
+*(Kullanıcı, 24 Eylül — "her fotoğraf video ses ne kadar sürede üretildi kayıt edilim ve
+gösterleim".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler
