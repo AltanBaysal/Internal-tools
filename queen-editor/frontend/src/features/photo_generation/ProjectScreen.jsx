@@ -47,9 +47,9 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
   // The gallery's own selection, echoed here so the video panel can scope itself to it. Read-only:
   // the gallery stays its owner.
   const [selected, setSelected] = useState([]);
-  // Whether the reference pool is open. The browser's own business and nobody else's: the pool
-  // lives on disk, so a panel that starts open loses nothing (madde 299).
-  const [poolOpen, setPoolOpen] = useState(true);
+  // Whether the middle shows the reference pool instead of the cards (madde 318). The video panel's
+  // Referanstan tab says so, and its one button; the screen only holds the answer.
+  const [poolShown, setPoolShown] = useState(false);
 
   // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
@@ -104,28 +104,21 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
       </div>
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        {/* The pool on the left of the cards, closable the way an editor closes a side bar. The
-            cards' own panel on the right does not close -- the user's decision. */}
-        {poolOpen ? (
-          <ReferencePanel project={project} onClose={() => setPoolOpen(false)} />
-        ) : (
-          <button type="button" aria-label="Referans panelini aç" className="wf-stroke"
-                  onClick={() => setPoolOpen(true)}
-                  style={{ width: 24, flexShrink: 0, background: "var(--bg-2)",
-                           borderRight: "1px solid var(--border)", color: "var(--ink-3)",
-                           cursor: "pointer", padding: 0 }}>›</button>
-        )}
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div data-scroll ref={box} style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
-          {/* Whether the queue is moving is the gallery's business too: an owed layer reads as
-              queued while it flows and as waiting once it has stopped, and only this screen knows
-              which -- the worker is global, so a neighbour's batch moves nothing here. */}
-          <Gallery project={project} frames={frames} current={current} currentLayer={currentLayer}
-                   running={running}
-                   onReorder={reorder} onDelete={removePhotos} onCopy={copyPhotos}
-                   onRemoveLayer={removeLayer} onRetry={retry}
-                   onSelectionChange={setSelected} />
+          {poolShown && <ReferencePanel project={project} />}
+          {/* Hidden rather than taken down: the gallery keeps its own selection. Whether the queue
+              is moving is the gallery's business too: an owed layer reads as queued while it flows
+              and as waiting once it has stopped, and only this screen knows which -- the worker is
+              global, so a neighbour's batch moves nothing here. */}
+          <div hidden={poolShown}>
+            <Gallery project={project} frames={frames} current={current}
+                     currentLayer={currentLayer} running={running}
+                     onReorder={reorder} onDelete={removePhotos} onCopy={copyPhotos}
+                     onRemoveLayer={removeLayer} onRetry={retry}
+                     onSelectionChange={setSelected} />
+          </div>
         </div>
         <SidePanel job={job} known={known} error={saveError || error} errorField={errorField}
                    busyElsewhere={busyElsewhere} settings={settings}
@@ -135,7 +128,8 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
                    models={models} loras={loras} modelsError={modelsError} producers={producers}
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
-                   onClearError={clearError} onRetryAll={retryAll} />
+                   onClearError={clearError} onRetryAll={retryAll}
+                   poolShown={poolShown} onShowPool={setPoolShown} />
       </div>
 
     </div>

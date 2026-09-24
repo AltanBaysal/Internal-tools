@@ -20,17 +20,12 @@ const ROWS = [
   { kind: "audio", title: "Sesler", Glyph: SoundGlyph },
 ];
 
+// The pool in the middle, in place of the cards: the design's own room around it.
 const PANEL = {
-  width: 260,
-  borderRight: "1px solid var(--border)",
-  padding: 16,
+  padding: "24px 32px 48px",
   display: "flex",
   flexDirection: "column",
   gap: 14,
-  overflowY: "auto",
-  overflowX: "hidden",
-  boxSizing: "border-box",
-  flexShrink: 0,
 };
 
 const TILES = { display: "flex", flexWrap: "wrap", gap: 6 };
@@ -92,13 +87,14 @@ function Tile({ project, row, onRemove, onDragStart, onDrop }) {
 }
 
 /**
- * The project's reference pool, beside the cards (madde 299).
+ * The project's reference pool, in the middle in place of the cards while the video panel is on
+ * Referanstan (madde 318).
  *
  * It asks for its own pool rather than being handed one: nothing else on this screen has a use for
  * it, and the answer carries the limits it heads its rows with -- so the numbers are never written
  * down twice (madde 298 owns them).
  */
-export default function ReferencePanel({ project, onClose }) {
+export default function ReferencePanel({ project }) {
   const [pool, setPool] = useState({ references: [], limits: {} });
   const [error, setError] = useState(null);
   const [asking, setAsking] = useState(null);
@@ -166,17 +162,7 @@ export default function ReferencePanel({ project, onClose }) {
   }
 
   return (
-    <div className="wf-panel" style={PANEL}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <Mono size={11} style={{ color: "var(--ink-2)", letterSpacing: "0.08em",
-                                 textTransform: "uppercase" }}>
-          Referanslar
-        </Mono>
-        <button type="button" aria-label="Referans panelini kapat" className="wf-stroke"
-                onClick={onClose}
-                style={{ ...BIN, position: "static", width: 18, height: 18 }}>×</button>
-      </div>
-
+    <div style={PANEL}>
       {ROWS.map(({ kind, title, Glyph }) => {
         const rows = pool.references.filter((one) => one.kind === kind);
         return (

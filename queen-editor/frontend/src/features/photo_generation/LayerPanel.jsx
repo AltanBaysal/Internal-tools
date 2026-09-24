@@ -221,7 +221,8 @@ function ModeRow({ label, active, disabled, onPick }) {
 // madde 215 this panel was told none of it -- the press went out, came back 409, and the answer
 // landed in a panel that was not the open one.
 export default function LayerPanel({ layer, project, frames, selected, producer, job,
-                                     busyElsewhere, error, onQueue, onInstall }) {
+                                     busyElsewhere, error, poolShown, onShowPool, onQueue,
+                                     onInstall }) {
   const words = WORDS[layer];
   const [scope, setScope] = useState("missing");
   // Kept by both panels though only the video one shows the row: a sound ends nowhere, so it has
@@ -247,6 +248,9 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   // or a keystroke. Until then there is nothing to keep, and the record is still worth asking for.
   const settled = useRef(Boolean(kept));
   const recordAsked = useRef(false);
+  // The pool in the middle belongs to this panel's Referanstan tab: when the panel goes -- closed,
+  // or another one opened -- the cards come back.
+  useEffect(() => () => { if (layer === "video") onShowPool(false); }, []);
   const [submitting, setSubmitting] = useState(false);
   // What the queue took and what it was told to make: both from the moment the request went out.
   // The card stands for ten seconds and the mode row is one click away, so reading the live mode
@@ -380,7 +384,8 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
         <div className="wf-segment" style={{ display: "flex" }}>
           {SOURCES.map((one) => (
             <button key={one.id} type="button" className={source === one.id ? "is-on" : ""}
-                    style={{ flex: 1 }} onClick={() => setSource(one.id)}>
+                    style={{ flex: 1 }}
+                    onClick={() => { setSource(one.id); onShowPool(one.id === FROM_POOL); }}>
               {one.label}
             </button>
           ))}
@@ -411,10 +416,13 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
       )}
 
       {fromPool && (
-        // The pool's own block. What it holds -- the button that opens the pool in the middle -- is
-        // madde 318's.
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <Mono size={11} data-label style={LABEL}>Referanslar</Mono>
+          {/* One button, one place: it swaps the middle between the pool and the cards. */}
+          <button type="button" className="wf-btn wf-btn--sm" style={{ alignSelf: "flex-start" }}
+                  onClick={() => onShowPool(!poolShown)}>
+            {poolShown ? "Referansları kapat" : "Referansları aç"}
+          </button>
         </div>
       )}
 

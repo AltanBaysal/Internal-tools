@@ -131,7 +131,9 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
                                     settingsError, project, stopping, queue, failures, models,
                                     loras, modelsError, producers, frames, selected, onQueueLayer,
                                     onGenerate, onStop, onResume, onCancel, onClearError,
-                                    onRetryAll, onRetrySettings }) {
+                                    onRetryAll, onRetrySettings, poolShown,
+                                    // A column drawn on its own has no middle to show a pool in.
+                                    onShowPool = () => {} }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
   // has a reason to know it. null means none of them -- pressing the open panel's own icon closes
   // it and gives the width back to the gallery, the way a code editor's side bar behaves.
@@ -177,9 +179,12 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
         {/* One panel, two layers: the design asks for the same screen twice, so only the words and
             the scope rule differ (see LayerPanel). The panel's call goes through whole, with the
             layer in front: a list of named arguments here would drop whatever the panel adds -- the
-            pool's prompts ride fourth (madde 325). */}
+            pool's prompts ride fourth (madde 325). Keyed by the layer: drawn in the same place,
+            the two would otherwise be one panel, and the video one's tab and words would pass to
+            the sound one. */}
         {(open === "video" || open === "audio") && (
-          <LayerPanel layer={open} project={project} frames={frames} selected={selected}
+          <LayerPanel key={open} layer={open} project={project} frames={frames} selected={selected}
+                      poolShown={poolShown} onShowPool={onShowPool}
                       job={job} busyElsewhere={busyElsewhere} error={error}
                       producer={(producers?.producers || []).find((p) => p.id === open)}
                       onQueue={(...asked) => onQueueLayer(open, ...asked)}
