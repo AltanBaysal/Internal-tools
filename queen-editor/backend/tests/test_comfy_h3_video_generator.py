@@ -413,19 +413,18 @@ every_mode = pytest.mark.parametrize("asked", [
 
 
 @every_mode
-def test_every_h3_video_is_rendered_with_dasiwa_hybrid_turbo_v2(asked):
-    """Madde 332, back from Eros (329). The Director picks one of the graph's two model loaders by
-    its mode, so what reaches ComfyUI is asked of every loader it is sent -- and REF2VA has no graph
-    of its own and runs on the I2VA export with its mode changed (madde 304), so only the producer
-    can say which model its render loads."""
+def test_every_h3_video_is_rendered_with_eros_max_beta5(asked):
+    """Madde 333, the user's pick after both were tried. The Director picks one of the graph's two
+    model loaders by its mode, so what reaches ComfyUI is asked of every loader it is sent -- and
+    REF2VA has no graph of its own and runs on the I2VA export with its mode changed (madde 304), so
+    only the producer can say which model its render loads."""
     client = FakeClient()
 
     shipped_generator(client).generate("motion", "", 42, **asked)
 
     loaded = {node["inputs"]["unet_name"] for node in client.submitted.values()
               if node["class_type"] == "UNETLoader"}
-    assert loaded == {"MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
-                      "row-wise_convrot_runtime_mixed.safetensors"}, \
+    assert loaded == {"MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors"}, \
         f"ComfyUI'ye giden model düğümleri bunları yüklüyor: {loaded}"
 
 

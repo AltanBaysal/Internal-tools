@@ -275,15 +275,14 @@ def test_every_model_the_h3_graphs_load_is_in_the_h3_group():
         assert not missing, f"Graf bu dosyaları yüklüyor ama grup saymıyor: {missing}"
 
 
-def test_both_h3_graphs_load_dasiwa_hybrid_turbo_v2():
-    """Madde 332: back to DaSiWa after Eros's trial (329), the user wanting both tried. Each graph
-    has two model loaders -- the Director takes one as its FL2VA model and the other as its REF2VA
-    model, and picks by mode -- so every loader is asked, found by its class rather than its id: what
-    is asked is which model the graph loads, and a third loader would slip past a test naming two
-    ids. Whether the group counts the file is the scan's question above: unet_name is a plain input
-    it sees."""
-    expected = {("MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
-                 "row-wise_convrot_runtime_mixed.safetensors", "default")}
+def test_both_h3_graphs_load_eros_max_beta5():
+    """Madde 333: Eros, the user's pick after trying it (329) and DaSiWa again (332). Each graph has
+    two model loaders -- the Director takes one as its FL2VA model and the other as its REF2VA model,
+    and picks by mode -- so every loader is asked, found by its class rather than its id: what is
+    asked is which model the graph loads, and a third loader would slip past a test naming two ids.
+    Whether the group counts the file is the scan's question above: unet_name is a plain input it
+    sees."""
+    expected = {("MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors", "default")}
 
     for graph in _h3_graphs():
         loaded = {(node["inputs"]["unet_name"], node["inputs"]["weight_dtype"])
