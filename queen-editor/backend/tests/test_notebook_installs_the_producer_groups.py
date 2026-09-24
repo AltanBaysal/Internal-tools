@@ -512,30 +512,26 @@ def test_the_notebook_fetches_motion_booster_by_its_version():
     assert "3228867" in _cell("CIVITAI_H3 = ["), "Civitai version id defterde yok: 3228867"
 
 
-def test_the_notebook_fetches_eros_max_from_its_author_s_repo_into_the_h3_diffusion_models():
-    """Madde 329: the file the author says to use by default (TURBO-hybrid int8), from the Hugging
-    Face repo the Civitai page points at -- Civitai's own version link hands out a different, w4a8
-    file. A row of HF_H3: only an H3 run reaches it (test_an_unticked_group_costs_no_bytes), and
-    hf_fetch uploads nothing, so the file never touches the mirror. H3DIFF is where the graph's
-    MiniMaxH3/ prefix looks."""
-    cell = _cell("HF_H3 = [")
-    listing = cell[cell.find("HF_H3 = ["):]
+def test_the_notebook_fetches_dasiwa_by_its_version_into_the_h3_diffusion_models():
+    """Madde 332: back to the model H3 ran on before 329, fetched as it was then -- by its Civitai
+    version, through the mirror (madde 311). A row of CIVITAI_H3, which only an H3 run reaches
+    (test_an_unticked_group_costs_no_bytes); H3DIFF is where the graph's MiniMaxH3/ prefix looks."""
+    cell = _cell("CIVITAI_H3 = [")
+    listing = cell[cell.find("CIVITAI_H3 = ["):]
     listing = listing[:listing.find("\n]")]
 
-    assert re.search(r'\(\s*"TenStrip/10Eros-Max",'
-                     r'\s*"10Eros_Max_h3_TURBO-hybrid_beta5_int8\.safetensors",'
-                     r'\s*H3DIFF,\s*"10Eros_Max_h3_TURBO-hybrid_beta5_int8\.safetensors",',
-                     listing), f"HF_H3'te Eros satırı yok:\n{listing}"
+    assert re.search(r'\(3314686,\s*H3DIFF,\s*"dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_'
+                     r'row-wise_convrot_runtime_mixed\.safetensors",', listing), \
+        f"CIVITAI_H3'te DaSiWa satırı yok:\n{listing}"
 
 
-def test_the_retired_dasiwa_h3_checkpoint_is_gone_from_the_notebook():
-    """Eros took its place (madde 329). A row left behind would still bring ~21 GB down on every H3
-    run, for a file no graph loads."""
+def test_the_retired_eros_max_is_gone_from_the_notebook():
+    """DaSiWa took its place back (madde 332). A row left behind would still bring 21 GB down on every
+    H3 run, for a file no graph loads."""
     source = _source()
 
-    for leftover in ("dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
-                     "row-wise_convrot_runtime_mixed.safetensors", "3314686"):
-        assert leftover not in source, f"Defterde DaSiWa H3'ten iz kaldı: {leftover}"
+    for leftover in ("TenStrip/10Eros-Max", "10Eros_Max_h3_TURBO-hybrid_beta5_int8"):
+        assert leftover not in source, f"Defterde Eros'tan iz kaldı: {leftover}"
 
 
 def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():

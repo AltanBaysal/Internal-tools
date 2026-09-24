@@ -275,14 +275,15 @@ def test_every_model_the_h3_graphs_load_is_in_the_h3_group():
         assert not missing, f"Graf bu dosyaları yüklüyor ama grup saymıyor: {missing}"
 
 
-def test_both_h3_graphs_load_eros_max_beta5():
-    """Madde 329: the checkpoint the user's liked example was made with, tried after Mystic XXX over
-    DaSiWa disappointed. Each graph has two model loaders -- the Director takes one as its FL2VA model
-    and the other as its REF2VA model, and picks by mode -- so every loader is asked, found by its
-    class rather than its id: what is asked is which model the graph loads, and a third loader would
-    slip past a test naming two ids. Whether the group counts the file is the scan's question above:
-    unet_name is a plain input it sees."""
-    expected = {("MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors", "default")}
+def test_both_h3_graphs_load_dasiwa_hybrid_turbo_v2():
+    """Madde 332: back to DaSiWa after Eros's trial (329), the user wanting both tried. Each graph
+    has two model loaders -- the Director takes one as its FL2VA model and the other as its REF2VA
+    model, and picks by mode -- so every loader is asked, found by its class rather than its id: what
+    is asked is which model the graph loads, and a third loader would slip past a test naming two
+    ids. Whether the group counts the file is the scan's question above: unet_name is a plain input
+    it sees."""
+    expected = {("MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
+                 "row-wise_convrot_runtime_mixed.safetensors", "default")}
 
     for graph in _h3_graphs():
         loaded = {(node["inputs"]["unet_name"], node["inputs"]["weight_dtype"])
@@ -292,8 +293,7 @@ def test_both_h3_graphs_load_eros_max_beta5():
 
 def test_the_h3_graphs_carry_motion_booster_alone_at_seventy():
     """Motion Booster at 0.7 is the user's pick from 213's trial, and since madde 330 the stack's only
-    lora: Eros is tried alone, its author having folded Mystic XXX into the checkpoint itself. One
-    stack serves all three modes: it takes the model the Director picked for its mode (output 5), and
+    lora: Mystic XXX came off there. One stack serves all three modes: it takes the model the Director picked for its mode (output 5), and
     REF2VA runs on the I2VA graph (madde 304). A slot is read by its name, not filtered by `on`:
     whether the loader honours `on` is unknown, and "None" is how every empty slot has loaded nothing
     since 213 -- so a lora switched off but still named stays red here. The stack keeps its loras
