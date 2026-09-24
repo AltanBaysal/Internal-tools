@@ -529,3 +529,11 @@ def test_turning_one_file_s_mirror_off_leaves_the_others_on_it(downloads, monkey
 
     assert (tmp_path / "m.safetensors").read_bytes() == _safetensors(), "Aynadaki dosya inmedi"
     assert commands == [] and asked == [], "Aynası açık dosya için Civitai'ye gidildi"
+
+
+def test_mystic_xxx_is_kept_out_of_the_mirror(downloads):
+    """Madde 328, the list's first entry: the lora is on trial ("şimdilik hugging face gitmesin, önce
+    test edeyim"). What the list does is asked by 327's tests above; this asks that the file is on it,
+    under the name the notebook downloads it by."""
+    assert "MysticXXX_MMH3-V4.safetensors" in downloads.MIRRORLESS, \
+        f"Mystic XXX aynasız listede değil: {downloads.MIRRORLESS}"

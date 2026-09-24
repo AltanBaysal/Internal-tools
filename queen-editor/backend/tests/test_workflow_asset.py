@@ -275,16 +275,25 @@ def test_every_model_the_h3_graphs_load_is_in_the_h3_group():
         assert not missing, f"Graf bu dosyaları yüklüyor ama grup saymıyor: {missing}"
 
 
-def test_the_h3_graphs_carry_motion_booster_alone_at_seventy():
-    """The user's pick from 213's trial. The stack keeps its loras inside a JSON string, which the
-    model scan above cannot see into -- so it is read here, and its file held to the group."""
-    for graph in _h3_graphs():
-        stack = json.loads(graph["2678"]["inputs"]["stack_data"])
-        loaded = [(slot["lora"], slot["str"]) for slot in stack
-                  if slot["on"] and slot["lora"] != "None"]
-        assert loaded == [("H3_Motion_BoosterV2.safetensors", 0.7)]
+def test_the_h3_graphs_carry_motion_booster_at_seventy_and_mystic_xxx_at_one():
+    """Motion Booster at 0.7 is the user's pick from 213's trial; Mystic XXX at full strength is madde
+    328's, for every H3 video of the session. One stack serves all three modes: it takes the model
+    the Director picked for its mode (output 5), and REF2VA runs on the I2VA graph (madde 304) -- that
+    wire is why the lora needed no new export. The stack keeps its loras inside a JSON string, which
+    the model scan above cannot see into -- so it is read here, and its files held to the group.
+    Sorted: what is asked is what the stack loads, not which slot holds it."""
+    expected = [("H3_Motion_BoosterV2.safetensors", 0.7), ("MysticXXX_MMH3-V4.safetensors", 1)]
 
-    assert "H3_Motion_BoosterV2.safetensors" in {row["name"] for row in model_groups.H3_VIDEO}
+    for graph in _h3_graphs():
+        stack = graph["2678"]["inputs"]
+        assert stack["model"] == ["2730", 5], "Yığın Director'ın kipine göre seçtiği modeli almıyor"
+        loaded = sorted((slot["lora"], slot["str"]) for slot in json.loads(stack["stack_data"])
+                        if slot["on"] and slot["lora"] != "None")
+        assert loaded == expected, f"Yığın bunları yüklüyor: {loaded}"
+
+    listed = {row["name"] for row in model_groups.H3_VIDEO}
+    missing = [name for name, _strength in expected if name not in listed]
+    assert missing == [], f"Grup yığının bu LoRA'larını saymıyor: {missing}"
 
 
 def test_both_h3_graphs_save_an_mp4():

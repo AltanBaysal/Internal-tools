@@ -8,6 +8,8 @@ import json
 
 import pytest
 
+from backend import config
+
 I2VA_SENTENCE = ("For the target video, at 0.00 seconds into the target video, Picture 1 (from "
                  "Shot 1) is fully referenced.")
 
@@ -387,3 +389,35 @@ def test_no_row_asks_for_a_trim(tmp_path):
     generator(tmp_path, client).generate("alti bolum", "", 42, references=MIXED_POOL)
 
     assert all("trim_start" not in item and "trim_end" not in item for item in sent_items(client))
+
+
+# The graph's own lora stack; the producer never touches it -- loras are baked into the exports.
+STACK_NODE = "2678"
+
+
+def shipped_generator(client):
+    """The producer over the graphs that ship rather than the test's own: the stack is theirs."""
+    from backend.features.photo_generation.data.comfy_h3_video_generator import (
+        ComfyH3VideoGenerator,
+    )
+    return ComfyH3VideoGenerator(client, config.H3_VIDEO_WORKFLOW_PATH,
+                                 config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
+
+
+@pytest.mark.parametrize("asked", [
+    {"source": ("P0_0.png", b"PNG")},
+    {"source": ("P0_0.png", b"PNG"), "end": ("P1_0.png", b"END")},
+    {"references": POOL},
+], ids=["i2va", "fl2va", "ref2va"])
+def test_every_h3_video_is_rendered_with_mystic_xxx_at_full_strength(asked):
+    """Every H3 video of the session, Kareden's two graphs and Referanstan alike (madde 328). The graph
+    test reads the files; this reads what reaches ComfyUI -- REF2VA has no graph of its own and runs
+    on the I2VA export with its mode changed (madde 304), so only the producer can say its render
+    carries the stack."""
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, **asked)
+
+    stack = json.loads(client.submitted[STACK_NODE]["inputs"]["stack_data"])
+    loaded = {slot["lora"]: slot["str"] for slot in stack if slot["on"] and slot["lora"] != "None"}
+    assert loaded.get("MysticXXX_MMH3-V4.safetensors") == 1, f"Yığın bunları yüklüyor: {loaded}"
