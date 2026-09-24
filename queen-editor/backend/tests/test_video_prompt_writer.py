@@ -82,16 +82,19 @@ def test_the_h3_instruction_says_the_photo_is_the_first_frame():
     assert "This photo is the first frame of the video." in instruction
 
 
-def test_the_h3_instruction_opens_with_dynv2_unless_the_scene_is_calm():
-    """The trigger is the writer's line rather than the code's (user's call, madde 243): it stays
-    visible in the prompt box. Whether it is written is the scene's call, leaning to yes (madde 246);
-    the producer then puts it first, so it no longer sits inside the section."""
-    instruction, _writer = _h3()
+def test_the_h3_instruction_never_asks_for_dynv2():
+    """Madde 331: the writer leaves the trigger out of every scene -- the user's call, "hiç
+    yazılmasın ... istediğin prompt'a elle eklersin". Asked of what the writer actually sends, loop
+    included, so no rule appended to the instruction can bring the word back. Adding it by hand still
+    works: the producer puts a leading dynv2 first (test_comfy_h3_video_generator)."""
+    _instruction, writer = _h3()
+    client = FakeClient()
 
-    assert "dynv2. is the first line." in instruction
-    assert "Write it for most scenes." in instruction
-    assert "Leave it out only if the scene is calm or still." in instruction
-    assert "[Shot 1] dynv2" not in instruction
+    for mode in ("standard", "loop"):
+        writer(client).write({"photo": "kırmızı elbiseli kadın"}, mode)
+
+    for sent, _photo in client.calls:
+        assert "dynv2" not in sent, f"Talimat hâlâ dynv2 istiyor:\n{sent}"
 
 
 def test_the_h3_instruction_asks_for_the_three_sections():
