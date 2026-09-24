@@ -70,3 +70,17 @@ def test_the_app_serves_referanstans_record(import_main, video_model):
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "Proje yok: m317-yok"}
+
+
+@pytest.mark.parametrize("video_model", ["", "h3"])
+def test_the_app_hands_a_reference_run_to_the_use_case(import_main, video_model):
+    """Madde 326: main.py hung this door with an argument queue_references does not take, and every
+    press came back 500 -- the door's own tests wire it by hand. A missing project is the use case's
+    first question, so its answer proves the call got in."""
+    main = import_main(video_model)
+
+    response = main.app.test_client().post("/api/projects/m326-yok/references/produce",
+                                           json={"prompts": '["a"]', "variants": 1})
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Proje yok: m326-yok"}
