@@ -167,8 +167,9 @@ def test_the_order_is_saved_and_read_back(tmp_path):
     assert names_of(again.get_json()) == ["kuş.png", "kedi.png"]
 
 
-def test_a_deleted_reference_leaves_its_slot_where_it_was(tmp_path):
-    client, _drive, _dist = make_client(tmp_path)
+def test_a_deleted_reference_leaves_no_hole_after_a_restart(tmp_path):
+    """Madde 321: the ones after it move up, and a reload reads the same row."""
+    client, drive, dist = make_client(tmp_path)
     upload(client, ("bir.png", b"1"), ("iki.png", b"2"), ("üç.png", b"3"))
     client.put("/api/projects/düğün/references/order",
                json={"order": {"picture": ["bir.png", "iki.png", "üç.png"]}})
@@ -176,7 +177,10 @@ def test_a_deleted_reference_leaves_its_slot_where_it_was(tmp_path):
     left = client.post("/api/projects/düğün/references/iki.png/delete")
 
     assert [(row["name"], row["slot"]) for row in left.get_json()["references"]] == [
-        ("bir.png", 1), ("üç.png", 3)]
+        ("bir.png", 1), ("üç.png", 2)]
+    again = client_over(drive, dist).get("/api/projects/düğün/references")
+    assert [(row["name"], row["slot"]) for row in again.get_json()["references"]] == [
+        ("bir.png", 1), ("üç.png", 2)]
 
 
 def test_a_reference_that_passes_a_limit_is_a_400(tmp_path):

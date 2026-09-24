@@ -3777,17 +3777,21 @@ class FakePool:
 
 
 class FakeReferenceOrders:
-    """No order dragged, which is the state a fresh pool is in."""
+    """The order the user dragged -- none unless a test gives one, which is the state a fresh pool
+    is in."""
+
+    def __init__(self, order=None):
+        self.order = order or {}
 
     def read(self, _project):
-        return {}
+        return self.order
 
 
 def run_references(store, record, plan_store, prompts='["gotik kız"]', variants=1,
-                   pool=None, generator=None):
+                   pool=None, generator=None, orders=None):
     """A reference production, run to completion."""
     return queue_references(sync_runner(), store, record, plan_store, FakeOrderStore(),
-                            pool or FakePool(), FakeReferenceOrders(),
+                            pool or FakePool(), orders or FakeReferenceOrders(),
                             {layers.VIDEO: generator or FakeGenerator()}, lambda: 7, lambda: "t",
                             True, "düğün", prompts, variants)
 
@@ -3870,6 +3874,22 @@ def test_a_reference_job_is_rendered_with_the_pools_own_files():
     run_references(store, record, plan_store, generator=generator,
                    pool=FakePool(["kedi.png", "kus.png"]))
 
+    assert generator.references == [[("kedi.png", b"kedi.png bytes", "picture"),
+                                     ("kus.png", b"kus.png bytes", "picture")]]
+
+
+def test_a_file_gone_from_the_pool_by_hand_does_not_stop_a_reference_run():
+    """Madde 321: the order still names a file deleted in Drive, and that is no hole -- the run goes
+    ahead, and H3 is handed what is really there, in order."""
+    store, record, plan_store = FakeStore(), FakeRecord(), FakePlanStore()
+    generator = FakeGenerator()
+
+    added = run_references(store, record, plan_store, generator=generator,
+                           pool=FakePool(["kedi.png", "kus.png"]),
+                           orders=FakeReferenceOrders(
+                               {"picture": ["kedi.png", "at.png", "kus.png"]}))
+
+    assert added == 1
     assert generator.references == [[("kedi.png", b"kedi.png bytes", "picture"),
                                      ("kus.png", b"kus.png bytes", "picture")]]
 
