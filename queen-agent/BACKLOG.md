@@ -3,6 +3,117 @@
 Gerçek ama henüz bir koşuya bağlanmamış işler. Sırası gelince buradan çıkar, o koşunun yol
 haritasına girer.
 
+## Playwright MCP — bu depoda ayarı, ve QueenAgent'ın onunla kontrolü
+
+*(Kullanıcı, 23 Eylül. [v9](../docs/superpowers/roadmaps/2026-09-21-queen-agent-v9-roadmap.md)'un 2.
+ve 3. maddeleriydi; 24 Eylül'de koşulmadan buraya döndü — "Playwringi backloga koy şimdilik gerek
+yok".)* İki yarısı var, ve ikisi de 23 Eylül'de konuşulup kapanmıştı:
+
+- **Ayar** *("cihazda var bu repoda kullanmak için ayarlanmasını ekle tasklara ve queen agenta
+  ekle")*. Araç kullanıcı için değil, Claude için: Claude QueenAgent'ı tarayıcıda kendisi açar,
+  ekran görüntüsünü alır ve arayüzü kullanır. Örnek [queen-design](../../queen-design/.mcp.json)
+  *("sen karar ver queen design ayarı yaptıysa kopyalayabilirsin kullanımı")*: ayar depoda durur,
+  sürüm sabittir *(`@latest` değil)*, tarayıcı arka planda açılır *("queen design gibi")*. Cihazda
+  nasıl kurulu olduğu koşuda bulunacak *("araştırıp bulursun")*.
+- **Kontrol** *("queen agent playwright mcp ile kontrol edilebilmek için düzenleme gerekiyorsa onu da
+  ekle")*. Claude QueenAgent'ı açıp kullanıcının yerine kullanır ve bakar — *"tasarıma uyuyor mu,
+  beklenen gibi çalışıyor mu"*. Açılan QueenAgent bu bilgisayarda yerel çalışan, Colab'daki değil.
+  Gerçek AI çağrısı yapılabilir *("gerçek ai çağrısı yapma yapabilirsin evet")*. Önünde bir engel
+  çıkmazsa bu yarı düzenleme yapılmadan kapanır.
+
+## Sade senaryo formatı
+
+*(Kullanıcı, 21 Eylül — "yeni json yapısı yapabiliriz senaryo prompt şeklinde çok basit olan", "AI'a
+alan bırakalım tekte üretmesi için". [v9](../docs/superpowers/roadmaps/2026-09-21-queen-agent-v9-roadmap.md)'un
+4. maddesiydi; 24 Eylül'de koşulmadan buraya döndü — "bunları backloga al".)*
+
+**Bugün** QueenAgent'ın ürettiği her prompt **kod tarafından** kuruluyor: yapı dosyasının
+karakterleri, kıyafetleri ve mekânları aranıp diziliyor, `BREAK` konuyor, kalite zinciri başa
+ekleniyor *(`domain/build_prompts.py`)*. **Olacak:** ikinci ve sade bir format — sahneler, her
+sahnede `senaryo` ve `prompt`. `senaryo` kullanıcının okuması için; `prompt` modelin yazdığı
+prompt'un kendisi ve **olduğu gibi** listeye giriyor. **Kod hiçbir şey eklemiyor**, kalite
+etiketlerini de model yazıyor *(kullanıcı kararı, 21 Eylül — "sade yapıda ekstra kod eklemeyelim,
+kalite promptlarını direkt AI eklesin")*. **Bedeli yazıya geçiyor:** kalite zinciri koda tam da bu
+yüzden alınmıştı — model şemadan kopyalarken **iki model ailesini karıştıran bir zincir gerçek
+dosyalara ulaşmıştı** *(madde 110, 166)*. Risk bilerek geri alınıyor. **Start a scenario
+değişmiyor:** süreklilik zengin yapıyı istiyor, ve QueenAgent bundan sonra **iki formatlı** oluyor.
+
+**Bitti sayılır:** Sade formatta yazılmış bir dosyadan prompt listesi çıkıyor, prompt'lar dosyada
+yazdığı gibi; zengin format bugünkü gibi çalışmaya devam ediyor.
+
+## Compilation skill'i
+
+*(Kullanıcı, 18 Eylül; ne yaptığı 21 Eylül'de konuşuldu.
+[v9](../docs/superpowers/roadmaps/2026-09-21-queen-agent-v9-roadmap.md)'un 5. maddesiydi; 24 Eylül'de
+koşulmadan buraya döndü — "o da backloga gitsin abi".)*
+
+Skill seçicisine üçüncü satır. **Kullanıcıya iki şey sorar** — konunun ne olacağı ve **kaç sahne**
+istendiği — ve o kadar kareyi tek seferde üretir. **Süreklilik yoktur:** kareler birbirinin devamı
+değil, kadro kareden kareye değişir. Konu neyin görüneceğini belirler — *hastane* dendiyse hemşire,
+doktor, çalışanlar; *30 yaş üzeri gotik kızlar* dendiyse kareler onu taşır. **Her karenin kendi
+karakteri, tek kullanımlıktır:** tip kareler arasında tekrar etmez, kullanıcının istediği çeşitlilik
+oradan gelir. **Yukarıdaki sade formata yazar**, yani prompt'u baştan sona model kurar — kalite
+etiketleri de, iki kişili bir karede `BREAK` de. *Start a scenario*'dan farkı tek cümlede: o
+**süreklilik** üretir, bu **çeşitlilik**.
+
+**Değişen:** [domain/skills.py](backend/features/workspace/domain/skills.py) *(`INSTRUCTIONS`)*,
+[domain/prompt.py](backend/features/workspace/domain/prompt.py) *(skill'in metni)*,
+[skills.js](frontend/src/features/workspace/skills.js) *(`SKILLS`)*; ve bunları çivileyen testler —
+`test_skills.py`, `skills.test.js`, `SkillPicker.test.jsx`; `dist`.
+
+**Bitti sayılır:** Konu ve sahne sayısı verilince o kadar sahne çıkıyor, her biri kendi kadrosuyla,
+ve dosya sade formatta.
+
+## Referanstan video üretimi için prompt'lar — kendi skill'iyle
+
+*(Kullanıcı, 21 Eylül — "queen agent içinde bir roadmap kaçta kaldıysa referanstan video üretimi
+adında promptları oluşturmalı o da çünkü", ve "queen agent oluşturucak onun için skill ekleyeceğiz".
+[v9](../docs/superpowers/roadmaps/2026-09-21-queen-agent-v9-roadmap.md)'un 6. maddesiydi; 24 Eylül'de
+koşulmadan buraya döndü — "bunları backloga al".)* Aynı gün bir kez daha ele alındı *("yine ayrıca
+konuşuruz, direkt kapatma", ardından "alalım, tam hazır olsun roadmapler")*: açık kalan yeri,
+skill'in referansları nereden bildiği, o konuşmada karara bağlandı.
+
+Compilation'ın sorma biçimini ödünç alır — konu ve kaç sahne — ve **yukarıdaki sade formata** yazar.
+**Çıkardığı prompt H3'ün REF2VA biçiminde:** altı bölüm — `subject_definitions`, `summary`,
+`retention_analysis`, `detailed_description`, `overall_soundscape`, `non_diegetic_music` — ve
+referanslara etiketle atıf: `<Subject N>` *(referanstan soyutlanan görünen şey)*, `<Picture N>`
+*(kare çıpası)*, `<Video N>` *(kurgu, süreklilik, ritim)*, `<Audio N>` *(ses sinyali)*, tipe göre
+ayrı ve sıraya göre numaralı. **Kalite etiketi yok:** `score_9_up` SDXL'in dili, H3'ün altı
+bölümünde anlamsız kelime olur. **Tutarlılığı referans taşır, prompt değil** — karakteri ve mekânı
+prompt'a yazan yapıya bu yüzden gerek yok. **Kullanıcı elle de yazabilir**, fotoğraf prompt'larında
+olduğu gibi.
+
+**Referansları anlatan kendi dosyası olur.** QueenAgent havuzdaki dosyaları göremez —
+`IMG_2931.jpg` kimseye bir şey söylemez, referansın ne olduğunu yalnız kullanıcı bilir. Skill ilk
+seferde sorar, aldığı cevabı bir JSON'a yazar ve sonraki üretimlerde oradan okur; havuz değişince
+kullanıcı söyler, skill günceller. Dosya tipe göre üç liste tutar — fotoğraflar, videolar, sesler —
+ve **listedeki sıra etiketin numarasıdır**: `fotograflar`'ın üçüncüsü `<Picture 3>`, `videolar`'ın
+ilki `<Video 1>`. Ayrı bir numara alanı yoktur; olsaydı sıra ile numara bir gün çelişirdi.
+
+**Elle yazılıp denenen prompt'ların bulguları:**
+[2026-09-24-h3-referans-prompt-bulgulari.md](../docs/superpowers/research/2026-09-24-h3-referans-prompt-bulgulari.md)
+— madde koşulurken spec onu okur *(kullanıcı, 24 Eylül — "şu prompt hakkında öğrendiklerimizi
+queenagent koşusunu yaparken kullanalım", "kaybetmeyelim ilerlememizi")*. Oradan açık kalan: **stil
+bir seçenek olabilir** *(kullanıcı — "still bir seçenek olabilir")* — skill'in stili sorup sormayacağı
+koşuda konuşulacak.
+
+**Bitti sayılır:** Referanslı video için istenen prompt altı bölümü ve etiketleri taşıyarak çıkıyor;
+queen-editor'ün toplu prompt kutusuna olduğu gibi giriyor.
+
+## Edit prompts sade formatı da düzenler
+
+*(Kullanıcı, 21 Eylül — "edit prompt zaten senaryo düzenliyor, o yüzden onu da düzeltiriz".
+[v9](../docs/superpowers/roadmaps/2026-09-21-queen-agent-v9-roadmap.md)'un 7. maddesiydi; 24 Eylül'de
+koşulmadan buraya döndü — "bunları backloga al".)* Yukarıdaki sade formata dayanır.
+
+**Bugün** *Edit prompts* prompt'u değil **yapıyı** düzeltiyor: karakteri, kıyafeti ya da mekânı
+değiştiriyor ve prompt oradan yeniden kuruluyor *(`domain/prompt.py`, `EDIT_PROMPTS`)*. **Olacak:**
+sade formatta düzeltilecek şey yapı değil, sahnenin kendi `senaryo` ve `prompt` metni. Zengin
+formattaki bugünkü davranışı aynen kalıyor.
+
+**Bitti sayılır:** Sade formatta yazılmış bir dosyada bir sahnenin prompt'u kullanıcının isteğiyle
+değişiyor, ve zengin formattaki düzenleme bugünkü gibi çalışıyor.
+
 ## Proje oluşturma ve yönetimi geliştirilecek
 
 *(Kullanıcı, 18 Eylül.)* İki yarısı var:
