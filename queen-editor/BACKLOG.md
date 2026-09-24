@@ -243,6 +243,11 @@ ayarı madde 316 kapattı. Numara 313 olarak kalır; geri gelirse aynı numarayl
 denendiyse `hf_xet`'e daha uzun deneme süresi vermek yetebilir; hiç denenmediyse ya da hemen
 bırakıldıysa yeniden denemeyi bizim kodumuz yapar.
 
+### Notebook sadeleşecek — kodu test edilebilir Python'a
+
+*(Kullanıcı, 24 Eylül — "noteboboku sadeleştirmek kodları olanbildğince test edilevilir python
+koduna dönüştürmek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler
