@@ -258,6 +258,13 @@ bırakıldıysa yeniden denemeyi bizim kodumuz yapar.
 *(Kullanıcı, 24 Eylül — "noteboboku sadeleştirmek kodları olanbildğince test edilevilir python
 koduna dönüştürmek".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### Videoda uzaktaki yüzler daha detaylı olacak
+
+*(Kullanıcı, 24 Eylül — "yüzler bir tık daha detaylı olsa videonun gerisine göre daha güzel olur,
+böyle face detailer tarzı şeyler var mı"; H3'ün referanslı test videolarından sonra: "yakın çekimde
+çok iyi, uzakta sıkıntı", "backloga atalım bunu şimdilik".)* **Ayrıntılar kullanıcıyla
+konuşulacak.**
+
 ---
 
 ## Hedefler
