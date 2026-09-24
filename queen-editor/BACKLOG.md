@@ -133,6 +133,11 @@ konuşulacak.**
 *(Kullanıcı, 24 Eylül — "her fotoğraf video ses ne kadar sürede üretildi kayıt edilim ve
 gösterleim"; grubu: "önemliye ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### H3 için üretilen video seçme özelliği
+
+*(Kullanıcı, 24 Eylül — "h3 için üretilen video seçme özelliği ekleyelim backloga önemliye
+ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ## Diğer
 
 ### Cumshot güncellemesi — video LoRA'ları
