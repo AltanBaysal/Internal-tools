@@ -13,11 +13,14 @@ import { Mono, Note } from "../../vendor/kit.jsx";
 import { PhotoGlyph, PlusGlyph, SoundGlyph, VideoGlyph } from "./glyphs.jsx";
 
 // The three rows, in the order the pool is read in. The words are the user's; the keys are H3's
-// own labels, which is what the server answers with.
+// own labels, which is what the server answers with. `accept` only narrows the browser's picker --
+// it can be switched to every file, and which row a file may go in is the server's to say
+// (FOUNDATION 4).
 const ROWS = [
-  { kind: "picture", title: "Fotoğraflar", Glyph: PhotoGlyph },
-  { kind: "video", title: "Videolar", Glyph: VideoGlyph },
-  { kind: "audio", title: "Sesler", Glyph: SoundGlyph },
+  { kind: "picture", title: "Fotoğraflar", Glyph: PhotoGlyph, accept: "image/*",
+    picker: "fotoğraf ekle" },
+  { kind: "video", title: "Videolar", Glyph: VideoGlyph, accept: "video/*", picker: "video ekle" },
+  { kind: "audio", title: "Sesler", Glyph: SoundGlyph, accept: "audio/*", picker: "ses ekle" },
 ];
 
 // The pool in the middle, in place of the cards: the design's own room around it.
@@ -45,7 +48,7 @@ const HOLE = { width: 144, height: 108, border: "1px dashed var(--border)",
 // The card after a row's last reference is where a file goes in: dashed, because nothing is
 // there yet.
 const ADD = { ...HOLE, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              fontSize: 12, color: "var(--ink-3)" };
+              fontSize: 12, color: "var(--ink-3)", cursor: "pointer" };
 
 /** How long a clip runs, in the user's own numbers. */
 function ran(seconds) {
@@ -96,6 +99,29 @@ function Tile({ project, row, onRemove, onDragStart, onDrop }) {
   );
 }
 
+/** A row's way in, after its last reference until the row holds all it may: a press opens a picker
+ * for this row's kind, one file at a time (madde 320).
+ *
+ * Not a label around the input: a label's words name what it holds, and every card says Ekle while
+ * each picker is named for its own kind. The input stands after the card, not inside it: the click
+ * the card hands the input would bubble back into the card's own handler. */
+function AddCard({ kind, accept, picker, uploading, onPick }) {
+  const input = useRef(null);
+  return (
+    <>
+      <div data-add={kind} style={ADD} onClick={() => input.current.click()}>
+        {uploading === kind
+          ? <><span className="qe-spinner" aria-hidden="true" /> Yükleniyor…</>
+          : <><PlusGlyph size={14} /> Ekle</>}
+      </div>
+      {/* Any file on its way holds every card: two in flight would each be weighed against a pool
+          without the other. */}
+      <input ref={input} type="file" accept={accept} aria-label={picker}
+             disabled={uploading !== null} style={{ display: "none" }} onChange={onPick} />
+    </>
+  );
+}
+
 /**
  * The project's reference pool, in the middle in place of the cards while the video panel is on
  * Referanstan (madde 318).
@@ -109,6 +135,8 @@ export default function ReferencePanel({ project }) {
   const [error, setError] = useState(null);
   const [asking, setAsking] = useState(null);
   const [busy, setBusy] = useState(false);
+  // The kind of the row whose file is on its way, or null.
+  const [uploading, setUploading] = useState(null);
   // What is being dragged. A ref and not state: it is a gesture in flight, nothing is drawn from
   // it, and a drop has to read what the drag start wrote however the browser batched the two.
   const drag = useRef(null);
@@ -119,20 +147,20 @@ export default function ReferencePanel({ project }) {
 
   useEffect(load, [load]);
 
-  async function handlePick(event) {
+  async function handlePick(kind, event) {
     const files = Array.from(event.target.files || []);
     // The same file picked twice in a row has to arrive twice: without this the input holds the
     // old value and fires nothing.
     event.target.value = "";
     if (!files.length) return;
     setError(null);
-    setBusy(true);
+    setUploading(kind);
     try {
-      setPool(await uploadReferences(project, files));
+      setPool(await uploadReferences(project, files, kind));
     } catch (err) {
       setError(err.message);
     } finally {
-      setBusy(false);
+      setUploading(null);
     }
   }
 
@@ -173,7 +201,10 @@ export default function ReferencePanel({ project }) {
 
   return (
     <div style={PANEL}>
-      {ROWS.map(({ kind, title, Glyph }) => {
+      {/* Above the rows: where the eye is when a pick comes back refused. */}
+      {error && <StatusErrorCard text={error} />}
+
+      {ROWS.map(({ kind, title, Glyph, accept, picker }) => {
         const rows = pool.references.filter((one) => one.kind === kind);
         return (
           <div key={kind} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -196,23 +227,13 @@ export default function ReferencePanel({ project }) {
                      onDrop={() => handleDrop(kind, index)} />
               )))}
               {rows.length < (pool.limits[kind] ?? 0) && (
-                // The way in: after the last reference, until the row holds all it may. What a
-                // press on it does is madde 320's.
-                <div data-add={kind} style={ADD}><PlusGlyph size={14} /> Ekle</div>
+                <AddCard kind={kind} accept={accept} picker={picker} uploading={uploading}
+                         onPick={(event) => handlePick(kind, event)} />
               )}
             </div>
           </div>
         );
       })}
-
-      {/* A label rather than a button: the browser's own picker, wearing the app's button. */}
-      <label className="wf-btn wf-btn--sm" style={{ justifyContent: "center", cursor: "pointer" }}>
-        {busy ? "Yükleniyor…" : "Ekle"}
-        <input type="file" multiple aria-label="Ekle" disabled={busy}
-               style={{ display: "none" }} onChange={handlePick} />
-      </label>
-
-      {error && <StatusErrorCard text={error} />}
 
       {asking && (
         <ConfirmModal title={`${asking} silinsin mi?`}

@@ -87,8 +87,9 @@ a.wf-btn {
   50% { opacity: 0.25; }
 }
 
-/* The "Ekleniyor…" indicator inside the add button: a ring with one quarter cut out, turning.
-   Ours, not the design system's -- hence the qe- prefix. */
+/* What turns inside a press still in flight -- Ekleniyor… on the add buttons, Yükleniyor… on the
+   reference pool's Ekle card: a ring with one quarter cut out. Ours, not the design system's --
+   hence the qe- prefix. */
 .qe-spinner {
   display: inline-block;
   width: 12px;

@@ -276,10 +276,12 @@ export async function listReferences(project) {
 }
 
 // A form rather than JSON, and no Content-Type of ours: multipart carries a boundary, and only the
-// browser knows what it wrote.
-export async function uploadReferences(project, files) {
+// browser knows what it wrote. The kind is the row whose Ekle card picked the files: the server
+// holds them to it (madde 320).
+export async function uploadReferences(project, files, kind) {
   const form = new FormData();
   for (const file of files) form.append("files", file);
+  form.append("kind", kind);
   return request(`/api/projects/${encodeURIComponent(project)}/references`,
                  { method: "POST", body: form, timeout: UPLOAD_TIMEOUT_MS });
 }

@@ -14,7 +14,8 @@ from backend.features.photo_generation.domain.usecases.start_batch import Projec
 
 
 class UnknownReference(Exception):
-    """A file the pool cannot read (message is user-facing)."""
+    """A file the pool cannot read, or one picked into another kind's row (message is
+    user-facing)."""
 
 
 def _length(clips, name, kind, data):
@@ -31,8 +32,13 @@ def _length(clips, name, kind, data):
         raise references.PoolLimit(f"{name} havuza giremez — süresi okunamadı: {exc}") from exc
 
 
-def add_references(store, pool, orders, clips, project, files):
-    """`files` is [(the name the browser sent, the bytes)]."""
+def add_references(store, pool, orders, clips, project, files, row=None):
+    """`files` is [(the name the browser sent, the bytes)].
+
+    `row` is the kind of the row whose Ekle card the files were picked from (madde 320). The user
+    asked for them in that row, so a file of another kind is refused there rather than quietly filed
+    under its own. Without a row, each file goes to its own kind's.
+    """
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     held = list_references(store, pool, orders, project)
@@ -43,6 +49,9 @@ def add_references(store, pool, orders, clips, project, files):
         if kind is None:
             raise UnknownReference(
                 f"Bu dosya referans olamaz: {name} — fotoğraf, video ya da ses olmalı.")
+        if row is not None and kind != row:
+            raise UnknownReference(f"{name} {references.SAID[row]} yuvasına giremez — "
+                                   f"bu dosya {references.SAID[kind]}.")
         free = references.free_name(name, taken)
         taken.append(free)
         arriving.append({"name": free, "kind": kind,
