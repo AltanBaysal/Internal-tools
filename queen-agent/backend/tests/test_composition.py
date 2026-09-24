@@ -48,6 +48,23 @@ def test_the_prompt_writer_is_wired_from_config():
     assert "config.PROMPT_MODEL" in _main(), "Prompt yazan model config'ten bağlanmıyor"
 
 
+def test_each_client_is_built_with_the_name_its_provider_knows():
+    """Madde 334. The engine finds a client by the app's own id, and the client sends the model it
+    was built with -- so what OpenRouter is told has to be handed over here, from config's wiring
+    like the address and the key beside it."""
+    assert "config.engine_for(model)[3]" in _main(), (
+        "İstemci, modelin sağlayıcıdaki adıyla kurulmuyor"
+    )
+
+
+def test_each_client_is_handed_what_its_row_adds_to_the_body():
+    """Madde 334. The pin that keeps the DeepSeek pair on DeepSeek travels in the request body, and
+    only the client writes the body -- so what engine_for gives for it has to be handed over here."""
+    assert "config.engine_for(model)[4]" in _main(), (
+        "İstemciye satırın gövdeye eklediği alanlar verilmiyor"
+    )
+
+
 def test_no_settings_feature_is_wired_in():
     """The engine used to read the key out of a saved settings file. That file was served back in
     plain text over a link with no password, which is why it is gone rather than merely unused."""

@@ -47,6 +47,17 @@ def test_the_deepseek_key_comes_from_the_environment(monkeypatch):
         _reloaded()
 
 
+def test_the_openrouter_key_comes_from_the_environment(monkeypatch):
+    # Madde 334: the DeepSeek pair is answered through OpenRouter until DeepSeek's own account is
+    # paid for, and that key travels the road the other two do.
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-from-the-environment")
+    try:
+        assert _reloaded().OPENROUTER_API_KEY == "or-from-the-environment"
+    finally:
+        monkeypatch.undo()
+        _reloaded()
+
+
 def test_the_default_model_is_the_cheaper_queen():
     # Pinned like MAX_ROUNDS: this is a decision, and changing it without noticing changes what the
     # user pays and what fits. It is also what an old record resolves to -- every message written
@@ -61,7 +72,7 @@ def test_the_default_model_is_the_cheaper_queen():
 def test_the_grok_row_is_kept_as_the_way_back():
     # Madde 202 took the writing off it, so by Madde 183's own rule -- a row nobody will use is dead
     # configuration -- this one would go. It stays, knowingly: deleting it would drag XAI_API_KEY and
-    # the notebook's three secrets along with it, and the way back is one constant either way. If the
+    # its secret in the notebook along with it, and the way back is one constant either way. If the
     # lines DeepSeek writes come out worse, the road is still here.
     assert "grok-4.3" in config.MODELS
 
@@ -78,18 +89,19 @@ def test_the_writer_grok_4_3_replaced_is_gone_from_the_table():
 
 def test_the_three_models_resolve_to_their_provider():
     assert config.MODELS["grok-4.3"]["base_url"] == "https://api.x.ai/v1"
-    # No /v1 on this one: it is DeepSeek's documented base, and the client appends
-    # /chat/completions to whatever it is given.
-    assert config.MODELS["deepseek-v4-flash"]["base_url"] == "https://api.deepseek.com"
-    assert config.MODELS["deepseek-v4-pro"]["base_url"] == "https://api.deepseek.com"
+    # Madde 334: the DeepSeek pair goes through OpenRouter while DeepSeek's own account has no
+    # credit, and there it is held to DeepSeek itself -- the pin test further down.
+    assert config.MODELS["deepseek-v4-flash"]["base_url"] == "https://openrouter.ai/api/v1"
+    assert config.MODELS["deepseek-v4-pro"]["base_url"] == "https://openrouter.ai/api/v1"
 
 
 def test_each_model_names_the_key_it_spends():
-    # Two providers, two keys. Which one a model costs is the model's own business rather than
-    # something the composition root is told twice.
+    # Which key a model costs is the model's own business rather than something the composition
+    # root is told twice. Madde 334 leaves DEEPSEEK_API_KEY without a row and still read: going
+    # back to DeepSeek's own API is a madde of its own, and the way back is these two rows.
     assert config.MODELS["grok-4.3"]["key"] == "XAI_API_KEY"
-    assert config.MODELS["deepseek-v4-flash"]["key"] == "DEEPSEEK_API_KEY"
-    assert config.MODELS["deepseek-v4-pro"]["key"] == "DEEPSEEK_API_KEY"
+    assert config.MODELS["deepseek-v4-flash"]["key"] == "OPENROUTER_API_KEY"
+    assert config.MODELS["deepseek-v4-pro"]["key"] == "OPENROUTER_API_KEY"
 
 
 def test_the_prompt_writer_is_a_role_rather_than_a_choice():
@@ -107,8 +119,48 @@ def test_the_prompt_writer_is_one_of_the_models_that_are_wired():
 
 
 def test_a_known_model_resolves_to_its_own_wiring():
-    model, base_url, _ = config.engine_for("deepseek-v4-flash")
-    assert (model, base_url) == ("deepseek-v4-flash", "https://api.deepseek.com")
+    # The first value is still the app's own id -- the one a message is written with and the engine
+    # finds its client by. What the provider is told comes after the key (Madde 334).
+    model, base_url = config.engine_for("deepseek-v4-flash")[:2]
+    assert (model, base_url) == ("deepseek-v4-flash", "https://openrouter.ai/api/v1")
+
+
+def test_the_deepseek_pair_is_sent_under_openrouter_s_names():
+    # Madde 334. OpenRouter knows a model as author/slug, while the menu and every stored message
+    # carry DeepSeek's own ids -- so the table says what the provider is told, and the ids stay.
+    # One name for both rows: DeepSeek's own API had been answering both with V4.1 Flash since 14
+    # September, and this keeps that (the user's decision, 25 Eylül).
+    assert config.engine_for("deepseek-v4-flash")[3] == "deepseek/deepseek-v4.1-flash"
+    assert config.engine_for("deepseek-v4-pro")[3] == "deepseek/deepseek-v4.1-flash"
+
+
+def test_grok_is_sent_under_its_own_id():
+    # xAI knows its model by the id the table is keyed by, and Madde 334 leaves the xAI models as
+    # they are.
+    assert config.engine_for("grok-4.3")[3] == "grok-4.3"
+
+
+PINNED_TO_DEEPSEEK = {"provider": {"order": ["deepseek"], "allow_fallbacks": False}}
+
+
+def test_the_deepseek_pair_is_answered_by_deepseek_alone():
+    """A terms assertion rather than a routing preference (Madde 334, the user's call of 25 Eylül).
+
+    OpenRouter serves these weights from many providers and picks one on its own; `order` names
+    DeepSeek and `allow_fallbacks` false is what keeps it from going anywhere else. Whichever
+    provider answers is whose terms the request runs under, at least one of them forbids this work,
+    and DeepSeek's are the ones the direct API ran under. When DeepSeek does not answer, the error
+    shows rather than another provider answering. Madde 149's road, with DeepSeek where DeepInfra
+    was.
+    """
+    assert config.engine_for("deepseek-v4-flash")[4] == PINNED_TO_DEEPSEEK
+    assert config.engine_for("deepseek-v4-pro")[4] == PINNED_TO_DEEPSEEK
+
+
+def test_grok_adds_nothing_to_its_body():
+    # Asked as "nothing" in whatever shape config settles on: the point is that an xAI request does
+    # not carry OpenRouter's routing.
+    assert not config.engine_for("grok-4.3")[4]
 
 
 def test_an_unknown_or_absent_model_falls_back_to_the_default():

@@ -142,6 +142,68 @@ def test_a_one_shot_write_sends_no_tools():
     assert "tools" not in seen["body"]
 
 
+# --- what a row adds to the body (Madde 334) -----------------------------------------------------
+#
+# OpenRouter reads which provider may answer from the request body, and config holds the DeepSeek
+# pair to DeepSeek there. The client carries whatever its row hands it and knows nothing of what it
+# means.
+
+_PINNED = {"provider": {"order": ["deepseek"], "allow_fallbacks": False}}
+
+
+def _openrouter(opener, extra):
+    return XaiClient(
+        lambda: "key",
+        "deepseek/deepseek-v4.1-flash",
+        "https://openrouter.ai/api/v1",
+        extra=extra,
+        opener=opener,
+    )
+
+
+def test_what_a_row_adds_reaches_a_one_shot_request():
+    # The frame writer's road (config.PROMPT_MODEL). A pin that held only on the stream would leave
+    # every written frame to whichever provider OpenRouter picked.
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return _Response({"choices": [{"message": {"content": "hi"}}]})
+
+    _openrouter(opener, _PINNED).write_once(MESSAGES)
+    assert seen["body"]["provider"] == _PINNED["provider"]
+
+
+def test_what_a_row_adds_reaches_a_streamed_request_too():
+    # The road every answer the user waits on takes.
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return _Lines([b"data: [DONE]"])
+
+    list(_openrouter(opener, _PINNED).stream(MESSAGES))
+    assert seen["body"]["provider"] == _PINNED["provider"]
+
+
+def test_the_clients_own_fields_win_over_what_a_row_adds():
+    """A row adds; it never takes over. The model is the name the client was built with and the rest
+    is the call's own, so what a row adds goes in first and the client writes over it. An order
+    rather than a list of names a row may not use: such a list would be a second place to keep up
+    to date, and the day it fell behind it would fail open."""
+    seen = {}
+
+    def opener(request):
+        seen["body"] = json.loads(request.data.decode("utf-8"))
+        return _Lines([b"data: [DONE]"])
+
+    extra = {"model": "a-model-nobody-asked-for", "messages": [], "stream": False}
+    list(_openrouter(opener, extra).stream(MESSAGES))
+    assert seen["body"]["model"] == "deepseek/deepseek-v4.1-flash"
+    assert seen["body"]["messages"] == MESSAGES
+    assert seen["body"]["stream"] is True
+
+
 def test_an_http_error_carries_the_services_own_words():
     def opener(request):
         raise urllib.error.HTTPError(

@@ -162,11 +162,10 @@ def test_the_deepseek_key_comes_from_secrets():
 
 
 def test_a_missing_deepseek_key_says_what_to_do():
-    """Both keys are required rather than one of them (kullanıcı kararı, 2 Eylül).
-
-    The composer draws three rows, so a run opened on a single key promises two models it cannot
-    answer with -- offering three is what obliges all three to work.
-    """
+    """Required rather than optional (kullanıcı kararı, 2 Eylül), and still required though no row
+    spends it since Madde 334: the DeepSeek pair goes through OpenRouter only until DeepSeek's own
+    account is paid for, and the way back is two rows in config.py -- a secret dropped here would
+    be a third thing to bring back."""
     said = _cell("assert DEEPSEEK_API_KEY")
     assert said, "DeepSeek anahtarı yokken defter sessizce devam ediyor"
     assert "Secrets" in said and "DEEPSEEK_API_KEY" in said, "Ne yapılacağı söylenmiyor"
@@ -175,6 +174,28 @@ def test_a_missing_deepseek_key_says_what_to_do():
 def test_the_deepseek_key_travels_to_the_app_in_the_environment():
     assert '"DEEPSEEK_API_KEY": DEEPSEEK_API_KEY' in _cell(SERVE), (
         "DeepSeek anahtarı uygulamaya geçirilmiyor"
+    )
+
+
+def test_the_openrouter_key_comes_from_secrets():
+    """Madde 334: both models the composer offers are answered through OpenRouter until DeepSeek's
+    own account is paid for, and the key takes the road the others take."""
+    assert 'userdata.get("OPENROUTER_API_KEY")' in _source(), (
+        "OpenRouter anahtarı Secrets'tan okunmuyor"
+    )
+
+
+def test_a_missing_openrouter_key_says_what_to_do():
+    """Every model the composer offers spends it, and so does the frame writer -- a run opened
+    without it could answer nothing at all."""
+    said = _cell("assert OPENROUTER_API_KEY")
+    assert said, "OpenRouter anahtarı yokken defter sessizce devam ediyor"
+    assert "Secrets" in said and "OPENROUTER_API_KEY" in said, "Ne yapılacağı söylenmiyor"
+
+
+def test_the_openrouter_key_travels_to_the_app_in_the_environment():
+    assert '"OPENROUTER_API_KEY": OPENROUTER_API_KEY' in _cell(SERVE), (
+        "OpenRouter anahtarı uygulamaya geçirilmiyor"
     )
 
 
@@ -193,9 +214,10 @@ def test_no_api_key_is_ever_printed():
     sentence the user needs. The name belongs in the output; only the value must never reach it, and
     it can only get there by interpolation or as the argument itself.
 
-    Over both keys since Madde 146: a rule written for one of two is a rule the second one escapes.
+    Over every key since Madde 146, and the third joined in Madde 334: a rule written for some of
+    them is a rule the rest escape.
     """
-    for name in ("XAI_API_KEY", "DEEPSEEK_API_KEY"):
+    for name in ("XAI_API_KEY", "DEEPSEEK_API_KEY", "OPENROUTER_API_KEY"):
         for line in _source().splitlines():
             if "print(" not in line:
                 continue
