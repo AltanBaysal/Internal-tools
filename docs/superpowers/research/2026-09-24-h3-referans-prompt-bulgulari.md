@@ -2,7 +2,7 @@
 
 **Neden var:** kullanıcı queen-editor v7'nin Referanstan'ını Colab'da denerken H3'e prompt'ları
 elle yazdık ve denedik. Öğrenilenler [QueenAgent v9](../roadmaps/2026-09-21-queen-agent-v9-roadmap.md)'un
-5. maddesinde, referanstan video prompt'larını yazan skill'de kullanılacak *(kullanıcı, 24 Eylül —
+6. maddesinde, referanstan video prompt'larını yazan skill'de kullanılacak *(kullanıcı, 24 Eylül —
 "şu prompt hakkında öğrendiklerimizi queenagent koşusunu yaparken kullanalım", "kaybetmeyelim
 ilerlememizi")*.
 
