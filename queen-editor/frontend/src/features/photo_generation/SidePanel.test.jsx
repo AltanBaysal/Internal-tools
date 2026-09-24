@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Which panel is open is remembered for the length of a visit, and that memory lives in the module.
@@ -131,6 +131,23 @@ describe("SidePanel — the icon rail", () => {
     fireEvent.click(screen.getByLabelText("Video üret"));
 
     expect(screen.getByText("Üretim sürüyor: balo — bitmesini bekle.")).toBeTruthy();
+  });
+
+  it("passes the reference prompt list through to the queue", async () => {
+    // Madde 325: the panel hands onQueue four arguments from the pool, and the column's wiring
+    // passed on three -- the prompts were dropped on the way and the server got none. The panel's
+    // own test cannot see this; only the column's wiring can.
+    const onQueueLayer = vi.fn().mockResolvedValue({ added: 2 });
+    renderColumn({ frames: [], onQueueLayer });
+
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    fireEvent.click(screen.getByText("Referanstan"));
+    fireEvent.change(screen.getByLabelText("Prompt listesi"),
+                     { target: { value: '["gotik kız", "dans"]' } });
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(onQueueLayer).toHaveBeenCalledWith("video", null, 1, "reference",
+                                              '["gotik kız", "dans"]');
   });
 
   it("puts the producers panel at the foot of the rail", () => {
