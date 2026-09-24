@@ -138,6 +138,20 @@ def test_a_file_the_pool_cannot_read_is_refused(tmp_path):
     assert not (drive / "düğün" / "referans").exists()
 
 
+def test_the_row_a_file_was_picked_into_comes_with_the_upload(tmp_path):
+    """Madde 320: the screen says which row's card the file came from, and the server holds the
+    file to it."""
+    client, drive, _dist = make_client(tmp_path)
+
+    resp = client.post("/api/projects/düğün/references",
+                       data={"files": [(BytesIO(b"WAV"), "kisa-2.wav")], "kind": "picture"},
+                       content_type="multipart/form-data")
+
+    assert resp.status_code == 400
+    assert resp.get_json()["error"] == "kisa-2.wav fotoğraf yuvasına giremez — bu dosya ses."
+    assert not (drive / "düğün" / "referans").exists()
+
+
 def test_the_order_is_saved_and_read_back(tmp_path):
     """The order is a document of its own, so it outlives the session that dragged it."""
     client, drive, dist = make_client(tmp_path)

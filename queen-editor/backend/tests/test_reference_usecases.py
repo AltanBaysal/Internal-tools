@@ -133,6 +133,28 @@ def test_a_file_nobody_can_read_is_refused():
     assert pool.pools == {}
 
 
+def test_a_file_of_another_kind_is_refused_by_the_row_it_was_picked_into():
+    """Madde 320: a row's own Ekle card picks into that row, and that a sound is not a picture is
+    the server's rule to say (FOUNDATION 4). Nothing is written."""
+    store, pool = FakeStore(), FakeReferenceStore()
+
+    with pytest.raises(UnknownReference) as exc:
+        add_references(store, pool, FakeOrderStore(), FakeClips(), "düğün",
+                       [("kisa-2.wav", b"WAV")], row=references.PICTURE)
+
+    assert str(exc.value) == "kisa-2.wav fotoğraf yuvasına giremez — bu dosya ses."
+    assert pool.pools == {}
+
+
+def test_a_file_of_its_rows_kind_goes_into_that_row():
+    store, pool = FakeStore(), FakeReferenceStore()
+
+    answer = add_references(store, pool, FakeOrderStore(), FakeClips(), "düğün",
+                            [("kedi.png", b"PNG")], row=references.PICTURE)
+
+    assert answer == [picture()]
+
+
 def test_a_reference_for_a_project_that_does_not_exist_is_refused():
     store, pool = FakeStore(), FakeReferenceStore()
 

@@ -96,6 +96,17 @@ describe("api.request", () => {
     expect(options.headers).toBeUndefined();
   });
 
+  it("sends the row a file was picked into with the upload", async () => {
+    // Madde 320: which row's card a file came from is the server's to hold the file to.
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ references: [] }));
+    vi.stubGlobal("fetch", fetchMock);
+    const file = new File([new Uint8Array([1])], "kedi.png", { type: "image/png" });
+
+    await api.uploadReferences("düğün", [file], "picture");
+
+    expect(fetchMock.mock.calls[0][1].body.get("kind")).toBe("picture");
+  });
+
   it("gives an upload longer than the ten seconds every other request gets", async () => {
     // A fifteen second video onto Drive is not a ten second request, and a cut upload would come
     // back as "sunucuya ulaşılamadı" -- a sentence about the wrong thing.

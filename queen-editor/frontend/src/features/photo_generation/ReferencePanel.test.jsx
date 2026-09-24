@@ -35,8 +35,9 @@ async function open(answer = POOL) {
   return view;
 }
 
-function pick(files) {
-  fireEvent.change(screen.getByLabelText("Ekle"), { target: { files } });
+// A row's own Ekle card picks into that row (madde 320); the picture row's unless said otherwise.
+function pick(files, card = "fotoğraf ekle") {
+  fireEvent.change(screen.getByLabelText(card), { target: { files } });
 }
 
 beforeEach(() => {
@@ -111,7 +112,7 @@ describe("ReferencePanel", () => {
 
     await act(async () => { pick([file]); });
 
-    expect(uploadReferences).toHaveBeenCalledWith("düğün", [file]);
+    expect(uploadReferences).toHaveBeenCalledWith("düğün", [file], "picture");
     expect(screen.getByText("Fotoğraflar 1/9")).toBeTruthy();
   });
 
@@ -120,7 +121,7 @@ describe("ReferencePanel", () => {
     uploadReferences.mockRejectedValue(new Error("uzun.mp4 20 saniye — bir referans klibi 2-15 "
                                                  + "saniye arası olmalı."));
 
-    await act(async () => { pick([new File([new Uint8Array([1])], "uzun.mp4")]); });
+    await act(async () => { pick([new File([new Uint8Array([1])], "uzun.mp4")], "video ekle"); });
 
     // The sentence lives in the backend and the screen prints it: one place for the rule and its
     // wording.
@@ -183,5 +184,63 @@ describe("ReferencePanel — what a row shows (madde 319)", () => {
     expect(["picture", "video", "audio"].map((kind) => Boolean(addCard(container, kind))))
       .toEqual([true, true, true]);
     expect(container.querySelector("[data-reference]")).toBeNull();
+  });
+});
+
+describe("ReferencePanel — adding from a row's card (madde 320)", () => {
+  const input = (label) => screen.getByLabelText(label);
+  const LABELS = ["fotoğraf ekle", "video ekle", "ses ekle"];
+
+  it("opens a picker for the row's own kind, one file at a time", async () => {
+    await open(pool([]));
+
+    expect(LABELS.map((label) => [input(label).accept, input(label).multiple])).toEqual(
+      [["image/*", false], ["video/*", false], ["audio/*", false]]);
+  });
+
+  it("sends the file with the kind of the row it was picked into", async () => {
+    await open(pool([]));
+    uploadReferences.mockResolvedValue(pool([]));
+    const file = new File([new Uint8Array([1])], "dans.mp4", { type: "video/mp4" });
+
+    await act(async () => { pick([file], "video ekle"); });
+
+    expect(uploadReferences).toHaveBeenCalledWith("düğün", [file], "video");
+  });
+
+  it("says Yükleniyor on the card in flight, and no card takes a press", async () => {
+    const { container } = await open(pool([]));
+    uploadReferences.mockReturnValue(new Promise(() => {}));
+
+    await act(async () => { pick([new File([new Uint8Array([1])], "dans.mp4")], "video ekle"); });
+
+    expect(container.querySelector('[data-add="video"]').textContent).toContain("Yükleniyor…");
+    expect(container.querySelector('[data-add="picture"]').textContent)
+      .not.toContain("Yükleniyor…");
+    expect(LABELS.map((label) => input(label).disabled)).toEqual([true, true, true]);
+  });
+
+  it("puts a refusal at the top of the pool, and the next pick clears it", async () => {
+    await open(pool([]));
+    uploadReferences.mockRejectedValueOnce(
+      new Error("kisa-2.wav fotoğraf yuvasına giremez — bu dosya ses."));
+
+    await act(async () => { pick([new File([new Uint8Array([1])], "kisa-2.wav")]); });
+
+    const said = screen.getByText(/yuvasına giremez/);
+    // Above the rows, where the eye is when the pick comes back.
+    expect(said.compareDocumentPosition(screen.getByText("Fotoğraflar 0/9"))
+           & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    uploadReferences.mockReturnValue(new Promise(() => {}));
+    await act(async () => { pick([new File([new Uint8Array([1])], "kedi.png")]); });
+
+    expect(screen.queryByText(/yuvasına giremez/)).toBeNull();
+  });
+
+  it("has no shared Ekle for every kind any more", async () => {
+    await open(pool([]));
+
+    expect(screen.queryByLabelText("Ekle")).toBeNull();
   });
 });
