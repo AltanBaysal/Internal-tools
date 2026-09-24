@@ -273,8 +273,7 @@ _references_bp = make_reference_blueprint(
                              _producers, seed.random_seed,
                              lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                              config.VIDEO_MODEL == "h3",
-                             log=_timing, writers=_writers, stills=_stills,
-                        references=_reference_files),
+                             log=_timing, writers=_writers, stills=_stills),
     reference_dir=_reference_store.dir_path,
 )
 
