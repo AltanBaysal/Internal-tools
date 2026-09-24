@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateBatch, getStatus, listFrames, listProducers, resumeBatch }
-  from "../../shared/api.js";
+import { generateBatch, getStatus, listFrames, listProducers, produceFromReferences, resumeBatch,
+         saveReferenceSettings } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import ProjectScreen from "./ProjectScreen.jsx";
 
@@ -25,6 +25,7 @@ vi.mock("../../shared/api.js", () => ({
             { value: "none", label: "Boş" }],
   }),
   listProducers: vi.fn().mockResolvedValue([]),
+  produceFromReferences: vi.fn(),
   listReferences: vi.fn().mockResolvedValue({
     references: [], limits: { picture: 9, video: 3, audio: 3 },
   }),
@@ -143,6 +144,25 @@ describe("ProjectScreen — the pool opens in place of the cards (madde 318)", (
     // The video panel's own icon closes it.
     fireEvent.click(screen.getByLabelText("Video üret"));
     expect(pool()).toBeNull();
+  });
+});
+
+describe("ProjectScreen — a prompt list the server cannot read (madde 323)", () => {
+  it("says the server's own sentence under the button", async () => {
+    // The screen reads the list only to count it. What cannot be read goes to the server, which
+    // refuses it in the photo panel's words, and the answer lands in the panel that was pressed.
+    saveReferenceSettings.mockResolvedValueOnce(null);
+    produceFromReferences.mockRejectedValueOnce(new Error("Format hatası — liste okunamadı"));
+    renderScreen("liste-a");
+    await act(async () => {});
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Referanstan" })); });
+    fireEvent.change(screen.getByLabelText("Prompt listesi"), { target: { value: "gotik kız" } });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(produceFromReferences).toHaveBeenCalledWith("liste-a", "gotik kız", 1);
+    expect(screen.getByText("Format hatası — liste okunamadı")).toBeTruthy();
   });
 });
 

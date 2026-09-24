@@ -801,23 +801,57 @@ describe("LayerPanel — producing from the reference pool", () => {
     expect(screen.getByText("2 prompt × 3 varyant = 6 kart")).toBeTruthy();
   });
 
-  it("says what is wrong with a list it cannot read, instead of a count", () => {
+  it("reads a Python list with a name in front, the way the photo panel does", () => {
+    // Madde 323: a list that works in the photo panel works here -- pasted out of a notebook cell,
+    // in single quotes, with its name in front.
     openReference();
+
+    fireEvent.change(promptBox(), { target: { value: "PROMPTS = ['a', 'b']" } });
+
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+  });
+
+  it("reads a tuple, in either quote", () => {
+    openReference();
+
+    fireEvent.change(promptBox(), { target: { value: `("gotik kız", 'dans')` } });
+
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+  });
+
+  it("leaves the blank items out of the count", () => {
+    // An empty item is how a line is switched off in the photo panel's list (prompt_list.py).
+    openReference();
+
+    fireEvent.change(promptBox(), { target: { value: '["gotik kız", "", "  ", "dans"]' } });
+
+    expect(screen.getByText("2 prompt × 1 varyant = 2 kart")).toBeTruthy();
+  });
+
+  it("says nothing under the button while the box is empty or its list cannot be read", () => {
+    // Madde 323: the line counts what a press would make and nothing else. What is wrong with a
+    // list is the server's to say, when the button is pressed.
+    openReference();
+    expect(screen.queryByText(/biçiminde olmalı/)).toBeNull();
 
     fireEvent.change(promptBox(), { target: { value: "gotik kız" } });
 
     expect(screen.queryByText(/= \d+ kart/)).toBeNull();
-    expect(screen.getByText(/biçiminde olmalı/)).toBeTruthy();
+    expect(screen.queryByText(/biçiminde olmalı/)).toBeNull();
+    expect(screen.queryByText(/Format hatası/)).toBeNull();
   });
 
-  it("sends nothing when there are no prompts to send", async () => {
-    const onQueue = vi.fn();
+  it("sends a list it cannot read as it was typed", async () => {
+    // Madde 323: the screen reads the list only to count it. The press goes whatever that reading
+    // made of it, and the refusal comes back in the server's own words (prompt_list.py).
+    const onQueue = vi.fn().mockResolvedValue(null);
     openReference({ onQueue });
 
+    fireEvent.change(promptBox(), { target: { value: "gotik kız" } });
     await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
 
-    expect(onQueue).not.toHaveBeenCalled();
-    expect(screen.getByText(/biçiminde olmalı/)).toBeTruthy();
+    expect(onQueue).toHaveBeenCalledWith(null, 1, "reference", "gotik kız");
+    expect(screen.queryByText(/biçiminde olmalı/)).toBeNull();
   });
 
   it("sends the prompts and the variants under the reference kind", async () => {
