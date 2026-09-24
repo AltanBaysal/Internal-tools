@@ -179,6 +179,14 @@ def test_the_video_row_names_the_model_the_notebook_installed():
         assert list_producers(GROUPS, FakeFiles(), model)[1]["model"] == name, model
 
 
+def test_the_video_row_says_whether_its_model_makes_video_from_references():
+    """Only H3 has a mode that reads the pool (madde 302), and the video panel says so before the
+    press (madde 324). It reads it here rather than off the model's name: the name is a word for the
+    box, and the rule is the server's."""
+    for model, reads in (("h3", True), ("wan", False), ("", False)):
+        assert list_producers(GROUPS, FakeFiles(), model)[1]["reads_references"] is reads, model
+
+
 def test_a_machine_with_h3_on_it_has_a_video_producer():
     files = FakeFiles(present=H3_FILES)
 

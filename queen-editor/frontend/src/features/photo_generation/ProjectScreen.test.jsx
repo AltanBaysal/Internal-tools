@@ -1,8 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { generateBatch, getStatus, listFrames, listProducers, resumeBatch }
-  from "../../shared/api.js";
+import { generateBatch, getStatus, listFrames, listProducers, listReferences, produceFromReferences,
+         resumeBatch, saveReferenceSettings, uploadReferences } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
 import ProjectScreen from "./ProjectScreen.jsx";
 
@@ -25,9 +25,8 @@ vi.mock("../../shared/api.js", () => ({
             { value: "none", label: "Boş" }],
   }),
   listProducers: vi.fn().mockResolvedValue([]),
-  listReferences: vi.fn().mockResolvedValue({
-    references: [], limits: { picture: 9, video: 3, audio: 3 },
-  }),
+  produceFromReferences: vi.fn(),
+  listReferences: vi.fn(),
   removeReference: vi.fn(),
   uploadReferences: vi.fn(),
   referenceUrl: (project, name) => `/references/${project}/${name}`,
@@ -50,8 +49,25 @@ function renderScreen(project = "düğün") {
   );
 }
 
+const LIMITS = { picture: 9, video: 3, audio: 3 };
+const KEDI = { name: "kedi.png", kind: "picture", seconds: null, slot: 1 };
+
+// The pool the way the server keeps it: a file that goes up is in every listing after it. The video
+// panel's missing line reads the pool (madde 324), so a test that presses from it says what it holds.
+function poolServer(references) {
+  let held = references;
+  listReferences.mockImplementation(async () => ({ references: held, limits: LIMITS }));
+  // One file per pick, at the end of its own row (madde 320).
+  uploadReferences.mockImplementation(async (project, [file], kind) => {
+    held = [...held, { name: file.name, kind, seconds: null,
+                       slot: held.filter((one) => one.kind === kind).length + 1 }];
+    return { references: held, limits: LIMITS };
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
+  poolServer([]);
 });
 
 describe("ProjectScreen — the card panel", () => {
@@ -143,6 +159,56 @@ describe("ProjectScreen — the pool opens in place of the cards (madde 318)", (
     // The video panel's own icon closes it.
     fireEvent.click(screen.getByLabelText("Video üret"));
     expect(pool()).toBeNull();
+  });
+});
+
+describe("ProjectScreen — a prompt list the server cannot read (madde 323)", () => {
+  it("says the server's own sentence under the button", async () => {
+    // The screen reads the list only to count it. What cannot be read goes to the server, which
+    // refuses it in the photo panel's words, and the answer lands in the panel that was pressed.
+    // With a reference in the pool: an empty one closes the button before any press (madde 324).
+    poolServer([KEDI]);
+    saveReferenceSettings.mockResolvedValueOnce(null);
+    produceFromReferences.mockRejectedValueOnce(new Error("Format hatası — liste okunamadı"));
+    renderScreen("liste-a");
+    await act(async () => {});
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Referanstan" })); });
+    fireEvent.change(screen.getByLabelText("Prompt listesi"), { target: { value: "gotik kız" } });
+
+    await act(async () => { fireEvent.click(screen.getByText("Kuyruğa ekle")); });
+
+    expect(produceFromReferences).toHaveBeenCalledWith("liste-a", "gotik kız", 1);
+    expect(screen.getByText("Format hatası — liste okunamadı")).toBeTruthy();
+  });
+});
+
+describe("ProjectScreen — what stops a run from the pool (madde 324)", () => {
+  const NO_REFERENCES = "Havuzda referans yok — önce en az bir referans ekle.";
+  const button = () => screen.getByText("Kuyruğa ekle").closest("button");
+
+  it("lets the line go once a reference lands in the middle, and opens the button for a list",
+     async () => {
+    // The pool in the middle and the line in the panel read the same pool. The wire between them is
+    // what this test is for: the panel's own tests hand it the pool by hand.
+    renderScreen("boş-havuz");
+    await act(async () => {});
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Referanstan" })); });
+    expect(screen.getByText(NO_REFERENCES)).toBeTruthy();
+    expect(button().disabled).toBe(true);
+
+    const file = new File([new Uint8Array([1])], "kedi.png", { type: "image/png" });
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("fotoğraf ekle"), { target: { files: [file] } });
+    });
+
+    expect(screen.queryByText(NO_REFERENCES)).toBeNull();
+    // Still closed: nothing is written in the prompt box yet.
+    expect(button().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText("Prompt listesi"),
+                     { target: { value: '["gotik kız"]' } });
+    expect(button().disabled).toBe(false);
   });
 });
 

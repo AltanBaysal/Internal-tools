@@ -366,12 +366,14 @@ def test_a_reference_run_without_h3_is_refused():
 
 
 def test_a_reference_run_with_an_empty_pool_is_refused():
+    """Word for word the line the video panel shows above its button (madde 324): one state, one
+    sentence, whichever side says it first."""
     store, pool = FakeStore(), FakeReferenceStore()
 
     with pytest.raises(references.PoolLimit) as exc:
         run(store, pool, FakeOrderStore())
 
-    assert "referans" in str(exc.value).lower()
+    assert str(exc.value) == "Havuzda referans yok — önce en az bir referans ekle."
 
 
 def test_a_reference_run_reads_the_prompt_list_the_way_the_photo_panel_does():

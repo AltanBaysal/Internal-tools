@@ -135,12 +135,18 @@ function AddCard({ kind, accept, picker, uploading, onPick }) {
  * The project's reference pool, in the middle in place of the cards while the video panel is on
  * Referanstan (madde 318).
  *
- * It asks for its own pool rather than being handed one: nothing else on this screen has a use for
- * it, and the answer carries the limits it heads its rows with -- so the numbers are never written
- * down twice (madde 298 owns them).
+ * It asks for its own pool rather than being handed one: it is where the pool changes, and the
+ * answer carries the limits it heads its rows with -- so the numbers are never written down twice
+ * (madde 298 owns them). Every answer is handed up as well (onPool): the video panel's missing line
+ * reads the same pool (madde 324).
  */
-export default function ReferencePanel({ project }) {
-  const [pool, setPool] = useState({ references: [], limits: {} });
+export default function ReferencePanel({ project, onPool = () => {} }) {
+  const [pool, showPool] = useState({ references: [], limits: {} });
+  // Only the server's answers go up: the empty stand-in above is the wait, not the pool.
+  const setPool = (answer) => {
+    showPool(answer);
+    onPool(answer);
+  };
   const [error, setError] = useState(null);
   // The kind of the row whose file is on its way, or null.
   const [uploading, setUploading] = useState(null);
