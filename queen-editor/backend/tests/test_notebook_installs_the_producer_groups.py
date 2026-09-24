@@ -506,13 +506,36 @@ def test_every_file_the_h3_group_counts_is_fetched_by_the_notebook():
     assert missing == [], f"Defter bu H3 dosyalarını indirmiyor: {missing}"
 
 
-def test_the_notebook_fetches_the_h3_checkpoint_and_lora_by_their_versions():
-    """Named rather than derived, like the photo checkpoints: the DaSiWa Hybrid Turbo v2 the graph
-    ships configured for, and the one lora the user kept (madde 213)."""
-    cell = _cell("CIVITAI_H3 = [")
+def test_the_notebook_fetches_motion_booster_by_its_version():
+    """Named rather than derived, like the photo checkpoints: the one lora the user kept from 213's
+    trial."""
+    assert "3228867" in _cell("CIVITAI_H3 = ["), "Civitai version id defterde yok: 3228867"
 
-    for version in ("3314686", "3228867"):
-        assert version in cell, f"Civitai version id defterde yok: {version}"
+
+def test_the_notebook_fetches_eros_max_from_its_author_s_repo_into_the_h3_diffusion_models():
+    """Madde 329: the file the author says to use by default (TURBO-hybrid int8), from the Hugging
+    Face repo the Civitai page points at -- Civitai's own version link hands out a different, w4a8
+    file. A row of HF_H3: only an H3 run reaches it (test_an_unticked_group_costs_no_bytes), and
+    hf_fetch uploads nothing, so the file never touches the mirror. H3DIFF is where the graph's
+    MiniMaxH3/ prefix looks."""
+    cell = _cell("HF_H3 = [")
+    listing = cell[cell.find("HF_H3 = ["):]
+    listing = listing[:listing.find("\n]")]
+
+    assert re.search(r'\(\s*"TenStrip/10Eros-Max",'
+                     r'\s*"10Eros_Max_h3_TURBO-hybrid_beta5_int8\.safetensors",'
+                     r'\s*H3DIFF,\s*"10Eros_Max_h3_TURBO-hybrid_beta5_int8\.safetensors",',
+                     listing), f"HF_H3'te Eros satırı yok:\n{listing}"
+
+
+def test_the_retired_dasiwa_h3_checkpoint_is_gone_from_the_notebook():
+    """Eros took its place (madde 329). A row left behind would still bring ~21 GB down on every H3
+    run, for a file no graph loads."""
+    source = _source()
+
+    for leftover in ("dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
+                     "row-wise_convrot_runtime_mixed.safetensors", "3314686"):
+        assert leftover not in source, f"Defterde DaSiWa H3'ten iz kaldı: {leftover}"
 
 
 def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():

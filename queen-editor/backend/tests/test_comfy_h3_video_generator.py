@@ -404,20 +404,39 @@ def shipped_generator(client):
                                  config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
 
 
-@pytest.mark.parametrize("asked", [
+# Kareden's two graphs and Referanstan: every H3 video of the session.
+every_mode = pytest.mark.parametrize("asked", [
     {"source": ("P0_0.png", b"PNG")},
     {"source": ("P0_0.png", b"PNG"), "end": ("P1_0.png", b"END")},
     {"references": POOL},
 ], ids=["i2va", "fl2va", "ref2va"])
-def test_every_h3_video_is_rendered_with_mystic_xxx_at_full_strength(asked):
-    """Every H3 video of the session, Kareden's two graphs and Referanstan alike (madde 328). The graph
-    test reads the files; this reads what reaches ComfyUI -- REF2VA has no graph of its own and runs
-    on the I2VA export with its mode changed (madde 304), so only the producer can say its render
-    carries the stack."""
+
+
+@every_mode
+def test_every_h3_video_is_rendered_with_eros_max_beta5(asked):
+    """Madde 329. The Director picks one of the graph's two model loaders by its mode, so what reaches
+    ComfyUI is asked of every loader it is sent -- and REF2VA has no graph of its own and runs on the
+    I2VA export with its mode changed (madde 304), so only the producer can say which model its
+    render loads."""
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, **asked)
+
+    loaded = {node["inputs"]["unet_name"] for node in client.submitted.values()
+              if node["class_type"] == "UNETLoader"}
+    assert loaded == {"MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors"}, \
+        f"ComfyUI'ye giden model düğümleri bunları yüklüyor: {loaded}"
+
+
+@every_mode
+def test_every_h3_video_is_rendered_with_mystic_xxx_at_half_strength(asked):
+    """Every H3 video of the session carries Mystic XXX (madde 328), at half strength under Eros
+    (madde 329). The graph test reads the files; this reads what reaches ComfyUI -- only the producer
+    can say REF2VA's render carries the stack."""
     client = FakeClient()
 
     shipped_generator(client).generate("motion", "", 42, **asked)
 
     stack = json.loads(client.submitted[STACK_NODE]["inputs"]["stack_data"])
     loaded = {slot["lora"]: slot["str"] for slot in stack if slot["on"] and slot["lora"] != "None"}
-    assert loaded.get("MysticXXX_MMH3-V4.safetensors") == 1, f"Yığın bunları yüklüyor: {loaded}"
+    assert loaded.get("MysticXXX_MMH3-V4.safetensors") == 0.5, f"Yığın bunları yüklüyor: {loaded}"

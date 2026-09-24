@@ -275,14 +275,30 @@ def test_every_model_the_h3_graphs_load_is_in_the_h3_group():
         assert not missing, f"Graf bu dosyaları yüklüyor ama grup saymıyor: {missing}"
 
 
-def test_the_h3_graphs_carry_motion_booster_at_seventy_and_mystic_xxx_at_one():
-    """Motion Booster at 0.7 is the user's pick from 213's trial; Mystic XXX at full strength is madde
-    328's, for every H3 video of the session. One stack serves all three modes: it takes the model
-    the Director picked for its mode (output 5), and REF2VA runs on the I2VA graph (madde 304) -- that
-    wire is why the lora needed no new export. The stack keeps its loras inside a JSON string, which
-    the model scan above cannot see into -- so it is read here, and its files held to the group.
-    Sorted: what is asked is what the stack loads, not which slot holds it."""
-    expected = [("H3_Motion_BoosterV2.safetensors", 0.7), ("MysticXXX_MMH3-V4.safetensors", 1)]
+def test_both_h3_graphs_load_eros_max_beta5():
+    """Madde 329: the checkpoint the user's liked example was made with, tried after Mystic XXX over
+    DaSiWa disappointed. Each graph has two model loaders -- the Director takes one as its FL2VA model
+    and the other as its REF2VA model, and picks by mode -- so every loader is asked, found by its
+    class rather than its id: what is asked is which model the graph loads, and a third loader would
+    slip past a test naming two ids. Whether the group counts the file is the scan's question above:
+    unet_name is a plain input it sees."""
+    expected = {("MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors", "default")}
+
+    for graph in _h3_graphs():
+        loaded = {(node["inputs"]["unet_name"], node["inputs"]["weight_dtype"])
+                  for node in graph.values() if node["class_type"] == "UNETLoader"}
+        assert loaded == expected, f"Grafiğin model düğümleri bunları yüklüyor: {loaded}"
+
+
+def test_the_h3_graphs_carry_motion_booster_at_seventy_and_mystic_xxx_at_half():
+    """Motion Booster at 0.7 is the user's pick from 213's trial. Mystic XXX came with madde 328 and
+    sits at half strength under Eros (madde 329): Eros's author folded Mystic into the checkpoint
+    itself, so full strength would lay it on twice. One stack serves all three modes: it takes the
+    model the Director picked for its mode (output 5), and REF2VA runs on the I2VA graph (madde 304)
+    -- that wire is why the lora needed no new export. The stack keeps its loras inside a JSON string,
+    which the model scan above cannot see into -- so it is read here, and its files held to the
+    group. Sorted: what is asked is what the stack loads, not which slot holds it."""
+    expected = [("H3_Motion_BoosterV2.safetensors", 0.7), ("MysticXXX_MMH3-V4.safetensors", 0.5)]
 
     for graph in _h3_graphs():
         stack = graph["2678"]["inputs"]

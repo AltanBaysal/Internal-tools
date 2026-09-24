@@ -141,8 +141,7 @@ def test_no_group_carries_an_address_the_app_would_have_to_fetch():
 # MiniMax H3 (madde 243): one video model per session, and the panel judges the one installed.
 
 H3_FILES = [
-    ("diffusion_models", "MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
-                         "row-wise_convrot_runtime_mixed.safetensors"),
+    ("diffusion_models", "MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors"),
     ("text_encoders", "qwen3vl_32b_minimax_h3_int4_convrot.safetensors"),
     ("vae", "MiniMaxH3/minimax_h3_video_vae_int8_convrot.safetensors"),
     ("vae", "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"),
