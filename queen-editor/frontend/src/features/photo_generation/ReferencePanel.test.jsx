@@ -261,3 +261,69 @@ describe("ReferencePanel — deleting at once (madde 321)", () => {
     expect(screen.queryByText(/yuvasına giremez/)).toBeNull();
   });
 });
+
+describe("ReferencePanel — dragging within a row (madde 322)", () => {
+  const tile = (container, name) => container.querySelector(`[data-reference="${name}"]`);
+  const picture = (name, slot) => ({ name, kind: "picture", seconds: null, slot });
+  const ROWS = pool([picture("bir.png", 1), picture("iki.png", 2),
+                     { name: "dans.mp4", kind: "video", seconds: 4, slot: 1 }]);
+  // The gallery's own slot: the dashed accent box a tile gives its place to (Gallery.jsx, SLOT).
+  // The Ekle card's dashed line is 1px and the border's colour, so it is never taken for one.
+  const slotIn = (element) => [element, ...element.querySelectorAll("*")]
+    .find((one) => one.style.border === "2px dashed var(--accent)") ?? null;
+  // A place is open where the browser is told a drop may land: the dragover's default is
+  // cancelled. Anywhere else the browser shows no drop and never fires one.
+  const opens = (element) => !fireEvent.dragOver(element);
+
+  it("lifts the tile in flight the way the gallery does, until the drag ends", async () => {
+    const { container } = await open(ROWS);
+
+    fireEvent.dragStart(tile(container, "iki.png"));
+
+    expect(tile(container, "iki.png").style.transform).toContain("rotate(-3deg)");
+    expect(tile(container, "bir.png").style.transform).toBe("");
+
+    fireEvent.dragEnd(tile(container, "iki.png"));
+
+    expect(tile(container, "iki.png").style.transform).toBe("");
+  });
+
+  it("opens the gallery's dashed slot under the pointer, until the drag ends", async () => {
+    const { container } = await open(ROWS);
+    fireEvent.dragStart(tile(container, "iki.png"));
+
+    expect(opens(tile(container, "bir.png"))).toBe(true);
+    expect(slotIn(tile(container, "bir.png"))).toBeTruthy();
+
+    fireEvent.dragEnd(tile(container, "iki.png"));
+
+    expect(slotIn(container)).toBeNull();
+  });
+
+  it("opens no place in another row, and a drop there sends nothing", async () => {
+    const { container } = await open(ROWS);
+    fireEvent.dragStart(tile(container, "iki.png"));
+
+    expect(opens(tile(container, "dans.mp4"))).toBe(false);
+    expect(slotIn(container)).toBeNull();
+
+    await act(async () => { fireEvent.drop(tile(container, "dans.mp4")); });
+
+    expect(saveReferenceOrder).not.toHaveBeenCalled();
+  });
+
+  it("opens no place on the Ekle card, and a drop there sends nothing", async () => {
+    // A row made into one drop zone -- to drop at its end, say -- would open a place on the card
+    // too.
+    const { container } = await open(ROWS);
+    const card = container.querySelector('[data-add="picture"]');
+    fireEvent.dragStart(tile(container, "iki.png"));
+
+    expect(opens(card)).toBe(false);
+    expect(slotIn(container)).toBeNull();
+
+    await act(async () => { fireEvent.drop(card); });
+
+    expect(saveReferenceOrder).not.toHaveBeenCalled();
+  });
+});
