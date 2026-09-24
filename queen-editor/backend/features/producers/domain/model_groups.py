@@ -66,8 +66,7 @@ GROUPS = {
 # folder: the graph's loaders ask for "MiniMaxH3/<file>", and that is also where the file sits.
 H3_VIDEO = [
     {"folder": "diffusion_models",
-     "name": "MiniMaxH3/dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
-             "row-wise_convrot_runtime_mixed.safetensors"},
+     "name": "MiniMaxH3/10Eros_Max_h3_TURBO-hybrid_beta5_int8.safetensors"},
     {"folder": "text_encoders", "name": "qwen3vl_32b_minimax_h3_int4_convrot.safetensors"},
     {"folder": "vae", "name": "MiniMaxH3/minimax_h3_video_vae_int8_convrot.safetensors"},
     {"folder": "vae", "name": "MiniMaxH3/minimax_h3_audio_vae_fp32.safetensors"},
