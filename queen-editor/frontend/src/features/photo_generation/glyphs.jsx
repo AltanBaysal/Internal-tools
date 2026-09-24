@@ -50,6 +50,13 @@ export const SoundGlyph = ({ size }) => (
   </Glyph>
 );
 
+// A plus: what the design puts in front of Ekle on a reference row's last card.
+export const PlusGlyph = ({ size }) => (
+  <Glyph name="plus" size={size}>
+    <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+  </Glyph>
+);
+
 // The play triangle the design asks for on the ownership badge. Filled, not stroked: at 9px a
 // stroked triangle reads as a smudge.
 export const PlayGlyph = ({ size }) => (

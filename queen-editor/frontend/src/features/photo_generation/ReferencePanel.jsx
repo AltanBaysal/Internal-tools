@@ -10,7 +10,7 @@ import {
 import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono, Note } from "../../vendor/kit.jsx";
-import { PhotoGlyph, SoundGlyph, VideoGlyph } from "./glyphs.jsx";
+import { PhotoGlyph, PlusGlyph, SoundGlyph, VideoGlyph } from "./glyphs.jsx";
 
 // The three rows, in the order the pool is read in. The words are the user's; the keys are H3's
 // own labels, which is what the server answers with.
@@ -25,19 +25,27 @@ const PANEL = {
   padding: "24px 32px 48px",
   display: "flex",
   flexDirection: "column",
-  gap: 14,
+  gap: 28,
 };
 
-const TILES = { display: "flex", flexWrap: "wrap", gap: 6 };
-const TILE = { position: "relative", width: 68, display: "flex", flexDirection: "column", gap: 2 };
-const FRAME = { width: 68, height: 48, objectFit: "cover", background: "var(--bg-2)",
-                border: "1px solid var(--border)", display: "block" };
-const BIN = { position: "absolute", top: 2, right: 2, width: 16, height: 16, lineHeight: "14px",
-              padding: 0, fontSize: 11, background: "var(--bg)", border: "1px solid var(--border)",
-              color: "var(--ink-2)", cursor: "pointer" };
+// The design's own measures (proje-ekrani-tam: .rv-*).
+const TILES = { display: "flex", flexWrap: "wrap", gap: 12 };
+const TILE = { position: "relative", width: 144, display: "flex", flexDirection: "column", gap: 4 };
+const FRAME = { width: 144, height: 108, objectFit: "cover", background: "var(--bg-2)",
+                border: "1px solid var(--border)", borderRadius: "var(--r-sm)",
+                boxSizing: "border-box", display: "block" };
+const BIN = { position: "absolute", top: 6, right: 6, width: 18, height: 18, lineHeight: "16px",
+              padding: 0, fontSize: 12, background: "var(--bg)", border: "1px solid var(--border)",
+              color: "var(--ink-2)", cursor: "pointer", borderRadius: 3 };
+// The slot number is the one a prompt calls the reference by, so it sits on the picture.
+const SEQ = { position: "absolute", top: 6, left: 6, background: "rgba(10, 8, 7, .75)" };
 // A slot with nothing in it: drawn, because the user has to see the hole to drag it closed.
-const HOLE = { width: 68, height: 48, border: "1px dashed var(--border)",
-               background: "var(--bg-2)" };
+const HOLE = { width: 144, height: 108, border: "1px dashed var(--border)",
+               background: "var(--bg-2)", borderRadius: "var(--r-sm)", boxSizing: "border-box" };
+// The card after a row's last reference is where a file goes in: dashed, because nothing is
+// there yet.
+const ADD = { ...HOLE, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              fontSize: 12, color: "var(--ink-3)" };
 
 /** How long a clip runs, in the user's own numbers. */
 function ran(seconds) {
@@ -73,14 +81,16 @@ function Tile({ project, row, onRemove, onDragStart, onDrop }) {
           <SoundGlyph />
         </div>
       )}
+      {/* wf-seq's own look, not the kit's Seq: that one pads to 001, and a prompt says <Picture 1>. */}
+      <span className="wf-seq" style={SEQ}>{row.slot}</span>
       <button type="button" aria-label={`${row.name} referansını sil`} style={BIN}
               className="wf-stroke" onClick={() => onRemove(row.name)}>×</button>
-      <Note size={10} style={{ color: "var(--ink-3)", overflow: "hidden",
+      <Note size={11} style={{ color: "var(--ink-3)", overflow: "hidden",
                                textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {row.name}
       </Note>
       {row.seconds != null && (
-        <Note size={10} style={{ color: "var(--ink-2)" }}>{ran(row.seconds)}</Note>
+        <Note size={11} style={{ color: "var(--ink-2)" }}>{ran(row.seconds)}</Note>
       )}
     </div>
   );
@@ -166,10 +176,10 @@ export default function ReferencePanel({ project }) {
       {ROWS.map(({ kind, title, Glyph }) => {
         const rows = pool.references.filter((one) => one.kind === kind);
         return (
-          <div key={kind} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--ink-3)" }}>
+          <div key={kind} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "var(--ink-3)" }}>
               <Glyph />
-              <Mono size={11} style={{ color: "var(--ink-2)" }}>
+              <Mono size={12} style={{ color: "var(--ink-2)" }}>
                 {`${title} ${rows.length}/${pool.limits[kind] ?? 0}`}
               </Mono>
             </div>
@@ -185,6 +195,11 @@ export default function ReferencePanel({ project }) {
                      onDragOver={(e) => e.preventDefault()}
                      onDrop={() => handleDrop(kind, index)} />
               )))}
+              {rows.length < (pool.limits[kind] ?? 0) && (
+                // The way in: after the last reference, until the row holds all it may. What a
+                // press on it does is madde 320's.
+                <div data-add={kind} style={ADD}><PlusGlyph size={14} /> Ekle</div>
+              )}
             </div>
           </div>
         );
