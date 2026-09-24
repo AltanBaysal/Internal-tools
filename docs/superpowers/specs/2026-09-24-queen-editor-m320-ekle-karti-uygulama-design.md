@@ -35,7 +35,8 @@ ve kart her zaman bir sıranın.
   kuralı *(FOUNDATION 4)*, yeni cümle de bunun için.
 - **Kart `AddCard`** — `Tile`'ın yanında küçük bir bileşen: `data-add` kutusu ve hemen ardında gizli
   `<input type="file">` *(`multiple` yok)*; kutuya basmak kendi `ref`'iyle seçiciyi açıyor. Kutunun
-  imleci `pointer`.
+  imleci `pointer`, bir yükleme yoldayken `default` — tasarımın `.rv-add.is-off`'u *(koşucunun
+  kontrolünde eklendi; ilk yeşil commit imleci kilitli kartta da `pointer` bırakmıştı)*.
   - **Label değil:** label'ın kendi sözü içindeki girişin adı olur — üç kartın sözü de `Ekle`, yani üç
     seçici de `Ekle` diye anılırdı. Her seçici kendi tipinin adını taşıyor *(test 9)*.
   - **Seçici kutunun içinde değil, ardında:** içindeyken seçicinin tıklaması kutuya kabarır ve kutu

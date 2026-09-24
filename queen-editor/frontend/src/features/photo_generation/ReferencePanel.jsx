@@ -48,7 +48,7 @@ const HOLE = { width: 144, height: 108, border: "1px dashed var(--border)",
 // The card after a row's last reference is where a file goes in: dashed, because nothing is
 // there yet.
 const ADD = { ...HOLE, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-              fontSize: 12, color: "var(--ink-3)", cursor: "pointer" };
+              fontSize: 12, color: "var(--ink-3)" };
 
 /** How long a clip runs, in the user's own numbers. */
 function ran(seconds) {
@@ -109,7 +109,9 @@ function AddCard({ kind, accept, picker, uploading, onPick }) {
   const input = useRef(null);
   return (
     <>
-      <div data-add={kind} style={ADD} onClick={() => input.current.click()}>
+      {/* A locked card stops looking pressable (the design's .rv-add.is-off). */}
+      <div data-add={kind} style={{ ...ADD, cursor: uploading === null ? "pointer" : "default" }}
+           onClick={() => input.current.click()}>
         {uploading === kind
           ? <><span className="qe-spinner" aria-hidden="true" /> Yükleniyor…</>
           : <><PlusGlyph size={14} /> Ekle</>}
