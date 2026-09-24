@@ -175,12 +175,14 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
                          onInstall={producers?.install} />
         ))}
         {/* One panel, two layers: the design asks for the same screen twice, so only the words and
-            the scope rule differ (see LayerPanel). */}
+            the scope rule differ (see LayerPanel). The panel's call goes through whole, with the
+            layer in front: a list of named arguments here would drop whatever the panel adds -- the
+            pool's prompts ride fourth (madde 325). */}
         {(open === "video" || open === "audio") && (
           <LayerPanel layer={open} frames={frames} selected={selected}
                       job={job} busyElsewhere={busyElsewhere} error={error}
                       producer={(producers?.producers || []).find((p) => p.id === open)}
-                      onQueue={(files, variants, mode) => onQueueLayer(open, files, variants, mode)}
+                      onQueue={(...asked) => onQueueLayer(open, ...asked)}
                       onInstall={producers?.install} />
         )}
         {open === "queue" && (
