@@ -51,6 +51,28 @@ bölümün geri kalanı tasarımın şeridi. **Aşağıdaki kararlardan ikisi de
 hiç ulaşmıyor. Sona değil, **317'nin önüne** kondu *(kullanıcı — "1")*: canlı bir hata, ve 317 aynı
 bağlantıyı yeniden yazıyor.
 
+**320–324 iki paralel kolda, alt ajanlarla koşulur** *(kullanıcı, 24 Eylül — "kalan tasklar her biri
+aynı anda subagent olarak yapılabilir mi, böyle çok uzun sürüyor"; iki kollu düzene: "taskları
+subagent ile çalışacak şekilde düzeltelim")*. Hepsi birden değil, çünkü aynı dosyalarda çakışıyorlar:
+320–322 havuzun bileşenini *(ReferencePanel)*, 323–324 video panelinin basış bölgesini *(LayerPanel)*
+değiştiriyor. Düzen:
+
+- **Kol A — havuz:** 320 *(uygulama turundan; test turu `1bf92234`'te commit'li)* → 321 → 322.
+- **Kol B — video paneli:** 323 → 324. 324 havuzun boş olup olmadığını havuza kendisi sorarak
+  öğreniyor, yani Kol A'yı beklemiyor.
+- **Her kol kendi worktree'sinde ve kendi dalında**, bu dalın ucundan açılır: bir kolun kırmızı testi
+  ötekinin yeşil koşusunu bozmasın. Kol içinde her madde bugünkü gibi iki tur *(spec → plan → test →
+  kırmızı commit; spec → plan → kod → yeşil commit)*, dört test satırı yazıldığı gibi, ve maddeler
+  sırayla.
+- **Dist kolların içinde derlenmez.** İki kol aynı dosyayı yeniden üretir ve her birleşmede
+  çakışırdı. CLAUDE.md'nin *"dist kaynakla aynı commit'te"* kuralı bu yüzden kollar boyunca askıda;
+  **birleşme commit'i dist'i bir kez derleyip taşır**, ve bu dala o anda döner.
+- **Birleşme:** Kol A, ardından Kol B bu dala alınır. Beklenen tek kod çakışması
+  `queue_references.py` — 321 boşluk reddini siliyor, 324 boş havuz cümlesini değiştiriyor. Birleşmeden
+  sonra dört satır bir kez daha koşulur, yeşil olmadan dist derlenmez.
+- **Maddeleri işaretlemek** *(✅ ve `Durum`)* birleşmeden sonra, bu dalda yapılır — iki kol aynı
+  satırları değiştirip çakışmasın.
+
 **Koşulacak sıra bu dosyanın sırası.**
 
 ## Nasıl koşulacak
