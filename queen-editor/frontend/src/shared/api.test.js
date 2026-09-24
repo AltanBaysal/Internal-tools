@@ -154,6 +154,23 @@ describe("api.request", () => {
     expect(JSON.parse(options.body)).toEqual({ files: ["0_a.png"], variants: 2, mode: "loop" });
   });
 
+  it("reads and writes Referanstan's record at the project's own address", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(okResponse({ prompts: "", variants: null }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Through the module, so a missing export fails this test rather than the file.
+    await api.getReferenceSettings("düğün");
+    await api.saveReferenceSettings("düğün", { prompts: '["a"]', variants: 2 });
+
+    const url = `/api/projects/${encodeURIComponent("düğün")}/reference-settings`;
+    expect(fetchMock.mock.calls[0][0]).toBe(url);
+    expect(fetchMock.mock.calls[0][1].method).toBeUndefined();
+    const [putUrl, put] = fetchMock.mock.calls[1];
+    expect(putUrl).toBe(url);
+    expect(put.method).toBe("PUT");
+    expect(JSON.parse(put.body)).toEqual({ prompts: '["a"]', variants: 2 });
+  });
+
   it("does not abort a request after its answer has arrived", async () => {
     vi.useFakeTimers();
     let signal;

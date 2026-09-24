@@ -43,6 +43,14 @@ function renderColumn(props) {
   return render(column(props));
 }
 
+// Referanstan's record the way the server answers it: an empty one to read, nothing back for a
+// write.
+function recordServer() {
+  const answer = (text) => ({ ok: true, status: 200, statusText: "OK", text: async () => text });
+  return vi.fn((path, options) => Promise.resolve(answer(
+    options?.method === "PUT" ? "" : JSON.stringify({ prompts: "", variants: null }))));
+}
+
 describe("SidePanel — the icon rail", () => {
   it("opens on the form panel", () => {
     renderColumn();
@@ -137,6 +145,8 @@ describe("SidePanel — the icon rail", () => {
     // Madde 325: the panel hands onQueue four arguments from the pool, and the column's wiring
     // passed on three -- the prompts were dropped on the way and the server got none. The panel's
     // own test cannot see this; only the column's wiring can.
+    // The press writes Referanstan's record before it sends the work (madde 317).
+    vi.stubGlobal("fetch", recordServer());
     const onQueueLayer = vi.fn().mockResolvedValue({ added: 2 });
     renderColumn({ frames: [], onQueueLayer });
 
@@ -148,6 +158,23 @@ describe("SidePanel — the icon rail", () => {
 
     expect(onQueueLayer).toHaveBeenCalledWith("video", null, 1, "reference",
                                               '["gotik kız", "dans"]');
+  });
+
+  it("opens the video panel on Kareden again, with Referanstan's words still there", async () => {
+    vi.stubGlobal("fetch", recordServer());
+    renderColumn({ frames: [] });
+
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    await act(async () => { fireEvent.click(screen.getByText("Referanstan")); });
+    fireEvent.change(screen.getByLabelText("Prompt listesi"),
+                     { target: { value: '["gotik kız"]' } });
+    // Closed and opened again from the rail: the panel is built afresh.
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    fireEvent.click(screen.getByLabelText("Video üret"));
+
+    expect(screen.getByRole("button", { name: "Kareden" }).className).toContain("is-on");
+    fireEvent.click(screen.getByRole("button", { name: "Referanstan" }));
+    expect(screen.getByLabelText("Prompt listesi").value).toBe('["gotik kız"]');
   });
 
   it("puts the producers panel at the foot of the rail", () => {

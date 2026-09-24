@@ -58,3 +58,15 @@ def test_the_app_comes_up_and_answers_health(import_main, video_model):
     response = main.app.test_client().get("/api/health")
 
     assert response.status_code == 200
+
+
+@pytest.mark.parametrize("video_model", ["", "h3"])
+def test_the_app_serves_referanstans_record(import_main, video_model):
+    """Madde 317: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
+    project that does not exist answers in the door's words -- a door never hung would not."""
+    main = import_main(video_model)
+
+    response = main.app.test_client().get("/api/projects/m317-yok/reference-settings")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Proje yok: m317-yok"}
