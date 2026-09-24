@@ -30,7 +30,7 @@ FL2VA_SENTENCE = ("How the reference pictures align with the target video — Pi
                   "aligns with the 0.00-second mark of the target video; Picture 2 (from Shot 1) "
                   "aligns with the {seconds:.2f}-second mark of the target video.")
 
-# Motion Booster's word; the writer decides whether a scene gets it (madde 246).
+# Motion Booster's word, added by hand to the prompts that want it (madde 331).
 TRIGGER = "dynv2"
 
 # The mode the Director runs a pool-made video in. A plain string on the node, which is why no new

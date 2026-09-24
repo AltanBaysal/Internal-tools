@@ -38,9 +38,8 @@ surrounding quotes, no numbering, no explanations, no markdown code fences, no e
 # pass as the picture -- so the soundscape is this writer's too. The sections are the graph's own
 # examples' (collab-toolbox's minimax-h3/workflow.json). The sentence saying which picture sits where
 # is not asked for: the producer writes it, because it is the graph's fact rather than the scene's.
-# dynv2 wakes the Motion Booster lora the graph carries. Whether the scene wants it is the writer's
-# call, and it stays visible in the prompt box (user's calls, 243 and 246); where it goes is the
-# producer's, which puts it in front of the picture sentence. The wording is the user's own (246).
+# dynv2, the word that wakes the Motion Booster lora, is not asked for either: the user adds it by
+# hand to the prompts that want it (madde 331), and the producer moves it in front (246).
 H3_VIDEO_INSTRUCTION = """
 You are a prompt writer for the MiniMax H3 video model.
 
@@ -50,8 +49,6 @@ I want: the H3 prompt for that video.
 
 Write it like this:
 
-dynv2.
-
 integrated_multimodal_description: [Shot 1] <the motion>
 
 overall_soundscape: <the sounds>
@@ -59,7 +56,6 @@ overall_soundscape: <the sounds>
 non_diegetic_music: N/A
 
 Rules:
-- dynv2. is the first line. Write it for most scenes. Leave it out only if the scene is calm or still.
 - The motion: do not describe the photo again, the model already sees it. Say what moves and how. The camera does not move. Keep it natural.
 - The sounds: only what the scene and the motion would make.
 - Write only the prompt. No quotes, no explanations, no extra text.
