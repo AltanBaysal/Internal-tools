@@ -101,24 +101,36 @@ function acceptsVariants(text) {
 
 // The one reason that belongs to no layer: the box is on both panels and says the same thing.
 const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
-// The reference window's own, for a list that is not one. Says the shape rather than the parser's
-// complaint: what the user has to do about it is write the brackets.
-const NO_PROMPTS = 'Prompt listesi ["ilk prompt", "ikinci prompt"] biçiminde olmalı.';
 
-/** The prompts a list holds, or null when it is not a list of them.
+// A list pasted out of a notebook cell may carry its name in front: prompt_list.py's own pattern.
+const NAMED = /^[A-Za-z_]\w*\s*=\s*/;
+// One quoted item and what follows it -- a comma, or the end of the list. Either quote; a backslash
+// takes the next character with it, so an escaped quote does not end the item.
+const ITEM = /^(["'])((?:\\.|(?!\1)[^\\])*)\1\s*(?:,\s*|$)/;
+
+/** How many prompts a press would send, or 0 when the screen cannot tell.
  *
- * The screen's own count, for the line that says how many cards a press would make. Not a rule:
- * what really goes to the queue is the server's own reading of the same text (prompt_list.py), and
- * the card that comes back says how many it took.
+ * A preview for the line under the button, never a rule (FOUNDATION 4): the press goes whatever this
+ * makes of the list, and the server's own reading (prompt_list.py) decides and says what is wrong.
+ * It reads what that one reads as far as a count needs -- a JSON array or a Python list or tuple of
+ * strings in either quote, with an optional `NAME =` in front, blank items left out. A JSON array of
+ * strings is written the way a Python list is, so one loop reads both. The items are counted, never
+ * decoded: a corner only Python reads, like a triple-quoted item, leaves the line empty and is still
+ * sent.
  */
-function promptsIn(text) {
-  try {
-    const list = JSON.parse(text);
-    if (!Array.isArray(list) || !list.length) return null;
-    return list.every((one) => typeof one === "string" && one.trim()) ? list : null;
-  } catch {
-    return null;
+function promptCount(text) {
+  const body = text.trim().replace(NAMED, "");
+  const close = { "[": "]", "(": ")" }[body[0]];
+  if (!close || !body.endsWith(close)) return 0;
+  let rest = body.slice(1, -1).trim();
+  let count = 0;
+  while (rest) {
+    const item = ITEM.exec(rest);
+    if (!item) return 0;
+    if (item[2].trim()) count += 1;
+    rest = rest.slice(item[0].length);
   }
+  return count;
 }
 
 /** Why this press cannot go to the queue, or null when it can.
@@ -134,10 +146,11 @@ function promptsIn(text) {
  * No dead branch: for a video `can` is the produced frames themselves, so its noBase is exactly
  * "nothing is produced yet"; for a sound it is the frames holding a video, and its noBase says so.
  */
-function refusalOf(words, can, scope, scoped, variants, fromPool, prompts) {
+function refusalOf(words, can, scope, scoped, variants, fromPool) {
   if (variants === "") return NO_VARIANTS;
-  // From the pool there are no frames to weigh: the words are the whole of what is asked for.
-  if (fromPool) return prompts ? null : NO_PROMPTS;
+  // From the pool there are no frames to weigh, and the list is the server's to read
+  // (prompt_list.py): what is wrong with it comes back in its own words.
+  if (fromPool) return null;
   if (scoped.length) return null;
   if (!can.length) return words.noBase;
   if (scope === "selected") return words.chosenNoBase;
@@ -307,7 +320,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
     }
   }, [layer, project, prompts, poolVariants]);
 
-  const written = promptsIn(prompts);
+  const listed = promptCount(prompts);
   const counts = { missing: missing.length, selected: inSelection.length };
   const scoped = scope === "selected" ? inSelection : missing;
   // What the queue would take: every frame in scope, once per variant.
@@ -340,7 +353,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   const model = producer?.model || words.model || "";
 
   function handleAdd() {
-    const why = refusalOf(words, can, scope, scoped, shownVariants, fromPool, written);
+    const why = refusalOf(words, can, scope, scoped, shownVariants, fromPool);
     if (why) {
       setAdded(null);
       clearTimeout(fade.current);
@@ -529,13 +542,14 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           </Note>
         ) : fromPool ? (
           // Nothing is counted from the gallery here: a press makes a card per prompt per variant,
-          // and the line says so in the user's own arithmetic.
-          <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-            {written
-              ? `${written.length} prompt × ${Number(shownVariants) || 0} varyant = `
-                + `${written.length * (Number(shownVariants) || 0)} kart`
-              : NO_PROMPTS}
-          </Note>
+          // and the line says so in the user's own arithmetic. With nothing it can count it says
+          // nothing -- what is wrong with a list is the server's to say, after the press.
+          listed ? (
+            <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
+              {`${listed} prompt × ${Number(shownVariants) || 0} varyant = `
+                + `${listed * (Number(shownVariants) || 0)} kart`}
+            </Note>
+          ) : null
         ) : owed ? (
           // The copy warning takes the mode's tail, never its head: the mode is already named in
           // what comes out, so what is given up is an echo of the marked row just above.
