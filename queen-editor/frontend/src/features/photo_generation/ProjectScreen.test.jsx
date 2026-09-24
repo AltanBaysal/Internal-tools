@@ -16,6 +16,7 @@ vi.mock("../../shared/api.js", () => ({
   cancelGeneration: vi.fn(),
   deletePhotos: vi.fn(),
   generateBatch: vi.fn(),
+  getReferenceSettings: vi.fn().mockResolvedValue({ prompts: "", variants: null }),
   getStatus: vi.fn().mockResolvedValue({ status: "idle" }),
   listFrames: vi.fn().mockResolvedValue([]),
   listModels: vi.fn().mockResolvedValue({
@@ -35,6 +36,7 @@ vi.mock("../../shared/api.js", () => ({
   retryFailed: vi.fn(),
   retryFrame: vi.fn(),
   saveOrder: vi.fn(),
+  saveReferenceSettings: vi.fn(),
   stopGeneration: vi.fn(),
 }));
 
@@ -52,28 +54,95 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("ProjectScreen reference panel", () => {
-  it("opens with the pool beside the cards, and closes it like an editor does", async () => {
-    // The user's own picture of it: a panel on the left of the cards, closable the way VS Code
-    // closes a side bar.
-    renderScreen();
-    await act(async () => {});
-
-    expect(screen.getByText("Referanslar")).toBeTruthy();
-
-    fireEvent.click(screen.getByLabelText("Referans panelini kapat"));
-
-    expect(screen.queryByText("Referanslar")).toBeNull();
-    fireEvent.click(screen.getByLabelText("Referans panelini aç"));
-    expect(screen.getByText("Referanslar")).toBeTruthy();
-  });
-
+describe("ProjectScreen — the card panel", () => {
   it("gives the card panel no way to close", async () => {
     // The user's decision: the pool is closable, the cards' own panel is not.
     renderScreen();
     await act(async () => {});
 
     expect(screen.queryByLabelText("Kart panelini kapat")).toBeNull();
+  });
+});
+
+describe("ProjectScreen — the pool opens in place of the cards (madde 318)", () => {
+  // The pool's first row heading, and the empty gallery's own sentence: one says the pool is in
+  // the middle, the other whether the cards are hidden there.
+  const pool = () => screen.queryByText("Fotoğraflar 0/9");
+  const cardsHidden = () => Boolean(screen.getByText("henüz kare yok").closest("[hidden]"));
+  const tab = (name) => screen.getByRole("button", { name });
+
+  async function open(project) {
+    renderScreen(project);
+    await act(async () => {});
+  }
+
+  async function openReferanstan() {
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+  }
+
+  it("keeps no pool column beside the cards", async () => {
+    await open("havuz-a");
+
+    expect(screen.queryByLabelText("Referans panelini kapat")).toBeNull();
+    expect(screen.queryByLabelText("Referans panelini aç")).toBeNull();
+    expect(pool()).toBeNull();
+    expect(cardsHidden()).toBe(false);
+  });
+
+  it("opens the pool in the middle on Referanstan, with the panel beside it", async () => {
+    await open("havuz-b");
+
+    await openReferanstan();
+
+    expect(pool()).toBeTruthy();
+    expect(cardsHidden()).toBe(true);
+    expect(screen.getByRole("heading", { name: "Video üret" })).toBeTruthy();
+  });
+
+  it("closes the pool and opens it again with one button", async () => {
+    await open("havuz-c");
+    await openReferanstan();
+
+    fireEvent.click(screen.getByText("Referansları kapat"));
+
+    expect(pool()).toBeNull();
+    expect(cardsHidden()).toBe(false);
+
+    await act(async () => { fireEvent.click(screen.getByText("Referansları aç")); });
+
+    expect(pool()).toBeTruthy();
+  });
+
+  it("gives the cards back on Kareden, and Referanstan opens a closed pool again", async () => {
+    await open("havuz-d");
+    await openReferanstan();
+    fireEvent.click(screen.getByText("Referansları kapat"));
+
+    fireEvent.click(tab("Kareden"));
+    expect(pool()).toBeNull();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    expect(pool()).toBeTruthy();
+  });
+
+  it("gives the cards back when another panel opens, or the panel closes", async () => {
+    await open("havuz-e");
+    await openReferanstan();
+
+    fireEvent.click(screen.getByLabelText("Ses üret"));
+    expect(pool()).toBeNull();
+    expect(cardsHidden()).toBe(false);
+
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    // A panel opened from the rail starts on Kareden (madde 317), so the cards stay.
+    expect(tab("Kareden").className).toContain("is-on");
+    expect(pool()).toBeNull();
+
+    await act(async () => { fireEvent.click(tab("Referanstan")); });
+    // The video panel's own icon closes it.
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    expect(pool()).toBeNull();
   });
 });
 

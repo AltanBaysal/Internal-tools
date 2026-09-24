@@ -177,6 +177,21 @@ describe("SidePanel — the icon rail", () => {
     expect(screen.getByLabelText("Prompt listesi").value).toBe('["gotik kız"]');
   });
 
+  it("opens the video panel on Kareden again after the sound panel", async () => {
+    // Two layers, two panels: the sound one does not inherit the video one's tab and words.
+    vi.stubGlobal("fetch", recordServer());
+    renderColumn({ frames: [] });
+
+    fireEvent.click(screen.getByLabelText("Video üret"));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Referanstan" }));
+    });
+    fireEvent.click(screen.getByLabelText("Ses üret"));
+    fireEvent.click(screen.getByLabelText("Video üret"));
+
+    expect(screen.getByRole("button", { name: "Kareden" }).className).toContain("is-on");
+  });
+
   it("puts the producers panel at the foot of the rail", () => {
     renderColumn();
 

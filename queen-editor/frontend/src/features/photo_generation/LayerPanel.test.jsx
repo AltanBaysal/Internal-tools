@@ -42,7 +42,7 @@ function renderPanel(props) {
   return render(
     <LayerPanel layer="video" project={freshProject()} frames={FRAMES} selected={[]}
                 producer={null} onQueue={() => Promise.resolve({ added: 2 })}
-                onInstall={() => {}} {...props} />,
+                onInstall={() => {}} poolShown={false} onShowPool={() => {}} {...props} />,
   );
 }
 
@@ -969,5 +969,49 @@ describe("LayerPanel — what Referanstan keeps", () => {
 
     expect(onQueue).not.toHaveBeenCalled();
     expect(screen.getByText("Proje yok: düğün-g")).toBeTruthy();
+  });
+});
+
+describe("LayerPanel — the pool's one button", () => {
+  it("asks for the pool on Referanstan and for the cards on Kareden", () => {
+    const onShowPool = vi.fn();
+    renderPanel({ onShowPool });
+
+    fireEvent.click(tab("Referanstan"));
+    expect(onShowPool).toHaveBeenLastCalledWith(true);
+
+    fireEvent.click(tab("Kareden"));
+    expect(onShowPool).toHaveBeenLastCalledWith(false);
+  });
+
+  it("closes the pool from the Referanslar block while it is shown", () => {
+    const onShowPool = vi.fn();
+    renderPanel({ poolShown: true, onShowPool });
+    fireEvent.click(tab("Referanstan"));
+
+    fireEvent.click(screen.getByText("Referansları kapat"));
+
+    expect(onShowPool).toHaveBeenLastCalledWith(false);
+  });
+
+  it("opens it again from the same place while the cards are shown", () => {
+    const onShowPool = vi.fn();
+    renderPanel({ onShowPool });
+    fireEvent.click(tab("Referanstan"));
+
+    fireEvent.click(screen.getByText("Referansları aç"));
+
+    expect(onShowPool).toHaveBeenLastCalledWith(true);
+  });
+
+  it("gives the cards back when the panel goes", () => {
+    // The pool belongs to this panel's tab: with the panel gone there is nothing it belongs to.
+    const onShowPool = vi.fn();
+    const view = renderPanel({ onShowPool });
+    fireEvent.click(tab("Referanstan"));
+
+    view.unmount();
+
+    expect(onShowPool).toHaveBeenLastCalledWith(false);
   });
 });
