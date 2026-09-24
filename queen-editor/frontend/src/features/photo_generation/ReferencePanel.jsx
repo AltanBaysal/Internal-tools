@@ -7,7 +7,6 @@ import {
   saveReferenceOrder,
   uploadReferences,
 } from "../../shared/api.js";
-import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { Mono, Note } from "../../vendor/kit.jsx";
 import { PhotoGlyph, PlusGlyph, SoundGlyph, VideoGlyph } from "./glyphs.jsx";
@@ -42,27 +41,16 @@ const BIN = { position: "absolute", top: 6, right: 6, width: 18, height: 18, lin
               color: "var(--ink-2)", cursor: "pointer", borderRadius: 3 };
 // The slot number is the one a prompt calls the reference by, so it sits on the picture.
 const SEQ = { position: "absolute", top: 6, left: 6, background: "rgba(10, 8, 7, .75)" };
-// A slot with nothing in it: drawn, because the user has to see the hole to drag it closed.
-const HOLE = { width: 144, height: 108, border: "1px dashed var(--border)",
-               background: "var(--bg-2)", borderRadius: "var(--r-sm)", boxSizing: "border-box" };
 // The card after a row's last reference is where a file goes in: dashed, because nothing is
 // there yet.
-const ADD = { ...HOLE, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+const ADD = { width: 144, height: 108, border: "1px dashed var(--border)",
+              background: "var(--bg-2)", borderRadius: "var(--r-sm)", boxSizing: "border-box",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               fontSize: 12, color: "var(--ink-3)" };
 
 /** How long a clip runs, in the user's own numbers. */
 function ran(seconds) {
   return `${seconds.toFixed(1).replace(".", ",")} sn`;
-}
-
-/** One kind's row as places rather than as files: a slot nobody stands in comes back as null.
- *
- * The server says which slot each reference holds and says nothing about the empty ones -- there is
- * nothing to say. The row is as long as its last reference. */
-function slotted(rows) {
-  const last = rows.reduce((high, row) => Math.max(high, row.slot), 0);
-  return Array.from({ length: last }, (_, index) =>
-    rows.find((row) => row.slot === index + 1) || null);
 }
 
 function Tile({ project, row, onRemove, onDragStart, onDrop }) {
@@ -135,8 +123,6 @@ function AddCard({ kind, accept, picker, uploading, onPick }) {
 export default function ReferencePanel({ project }) {
   const [pool, setPool] = useState({ references: [], limits: {} });
   const [error, setError] = useState(null);
-  const [asking, setAsking] = useState(null);
-  const [busy, setBusy] = useState(false);
   // The kind of the row whose file is on its way, or null.
   const [uploading, setUploading] = useState(null);
   // What is being dragged. A ref and not state: it is a gesture in flight, nothing is drawn from
@@ -168,8 +154,7 @@ export default function ReferencePanel({ project }) {
 
   /** Where the drag ends: the row is rebuilt as a sequence, and the whole of it goes down.
    *
-   * The slots are not sent -- a place in the list IS the slot. The dead names that were holding
-   * empty slots are simply not in what the screen shows, which is how a gap closes.
+   * The slots are not sent -- a place in the list IS the slot.
    */
   async function handleDrop(kind, index) {
     const dragged = drag.current;
@@ -178,8 +163,7 @@ export default function ReferencePanel({ project }) {
     const names = pool.references.filter((row) => row.kind === kind).map((row) => row.name);
     const from = names.indexOf(dragged.name);
     const placed = names.filter((name) => name !== dragged.name);
-    // Count the hole as a place: dropping into it is what fills it.
-    placed.splice(Math.min(index, placed.length), 0, dragged.name);
+    placed.splice(index, 0, dragged.name);
     if (from === -1 || placed.join() === names.join()) return;
     try {
       setPool(await saveReferenceOrder(project, { [kind]: placed }));
@@ -188,16 +172,16 @@ export default function ReferencePanel({ project }) {
     }
   }
 
-  async function handleRemove() {
-    setBusy(true);
+  /** × is the whole delete. No window asks first: the user's call in madde 321, since a reference
+   * is a copy they put back with one Ekle. What comes back is the pool with the ones after it
+   * moved up. */
+  async function handleRemove(name) {
     try {
-      setPool(await removeReference(project, asking));
+      setPool(await removeReference(project, name));
+      // The next pick or delete clears a refusal (madde 320).
       setError(null);
     } catch (err) {
       setError(err.message);
-    } finally {
-      setBusy(false);
-      setAsking(null);
     }
   }
 
@@ -217,17 +201,11 @@ export default function ReferencePanel({ project }) {
               </Mono>
             </div>
             <div style={TILES}>
-              {slotted(rows).map((row, index) => (row ? (
-                <Tile key={row.name} project={project} row={row} onRemove={setAsking}
+              {rows.map((row, index) => (
+                <Tile key={row.name} project={project} row={row} onRemove={handleRemove}
                       onDragStart={() => { drag.current = { kind, name: row.name }; }}
                       onDrop={() => handleDrop(kind, index)} />
-              ) : (
-                /* The hole a deleted reference left. It is a drop target too: dragging into it is
-                   how the user closes it (madde 300). */
-                <div key={`boş-${index}`} aria-label={`${index + 1}. yuva boş`} style={HOLE}
-                     onDragOver={(e) => e.preventDefault()}
-                     onDrop={() => handleDrop(kind, index)} />
-              )))}
+              ))}
               {rows.length < (pool.limits[kind] ?? 0) && (
                 <AddCard kind={kind} accept={accept} picker={picker} uploading={uploading}
                          onPick={(event) => handlePick(kind, event)} />
@@ -236,13 +214,6 @@ export default function ReferencePanel({ project }) {
           </div>
         );
       })}
-
-      {asking && (
-        <ConfirmModal title={`${asking} silinsin mi?`}
-                      body="Referans havuzdan kalıcı olarak silinir — bu geri alınamaz."
-                      confirmLabel="Sil" busyLabel="Siliniyor…" danger busy={busy}
-                      onCancel={() => setAsking(null)} onConfirm={handleRemove} />
-      )}
     </div>
   );
 }

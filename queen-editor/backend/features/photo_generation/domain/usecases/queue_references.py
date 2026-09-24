@@ -1,9 +1,8 @@
 """Produce videos from the project's reference pool. Returns how many jobs the queue took.
 
-Three things stop a run before it starts (madde 302), and the app says which: the engine that can
-read references is not installed, the pool is empty, or it has a hole in it. All three are the app's
-to count -- H3 complains into a Colab log the user never opens, and about the last two it would not
-complain at all.
+Two things stop a run before it starts (madde 302), and the app says which: the engine that can read
+references is not installed, or the pool is empty. Both are the app's to count -- H3 complains into
+a Colab log the user never opens, and about an empty pool it would not complain at all.
 
 Checked in the order a person would look: what is installed, then what they wrote, then what the
 pool holds. Nothing is written until every one of them has passed.
@@ -72,13 +71,6 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     if not held:
         raise references.PoolLimit(
             "Havuzda referans yok — önce soldaki panele en az bir referans ekle.")
-    open_kinds = references.gaps(held)
-    if open_kinds:
-        # Named, because the user is going to go and close it: H3 packs references tight and
-        # numbers them by order, so a hole would point every prompt after it at the wrong file.
-        said = " ve ".join(references.SAID[kind] for kind in open_kinds)
-        raise references.PoolLimit(
-            f"Havuzda boş yuva var ({said}) — sürükleyip kapatmadan üretim başlamaz.")
     cards = plan_reference_cards(next_number(store, plan_store, record, project),
                                  written, variants, new_seed)
     # Appended before the worker is asked to run, the way a photo batch does it: a run that dies

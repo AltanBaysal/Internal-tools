@@ -2,10 +2,9 @@
 
 The sequence is filtered against what the pool really holds before it is stored, the way the
 gallery's own order is (save_order): the server writes only names it can see itself, so a stale tab
-cannot leave ghosts in the file.
-
-That filter is also how a gap closes. A deleted reference's name goes on holding its slot until
-somebody sends a sequence without it -- and a drag sends exactly what the screen now shows.
+cannot leave ghosts in the file. A ghost would not show -- the pool counts only what is there -- but
+a file uploaded under its name later would slip into its old place rather than join the end of its
+row (madde 321).
 """
 from backend.features.photo_generation.domain.usecases.list_references import list_references
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing

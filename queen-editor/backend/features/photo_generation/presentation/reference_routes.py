@@ -85,7 +85,7 @@ def make_reference_blueprint(add_references, list_references, remove_reference,
         try:
             added = queue_references(project, prompts, body.get("variants", 1))
         except (InvalidPrompts, InvalidVariants, NoReferenceProducer, PoolLimit) as exc:
-            # Five refusals, one answer: the run cannot start, and the sentence is the difference.
+            # Four refusals, one answer: the run cannot start, and the sentence is the difference.
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

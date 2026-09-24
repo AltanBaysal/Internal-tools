@@ -1,8 +1,8 @@
 """The order the user dragged the reference pool into -- the only place that knows this file.
 
 A document of its own beside the folder, because it answers what the folder cannot: which slot each
-reference stands in (madde 300). The folder says what exists; this says where each one sits, and a
-name stays here after its file is gone -- that name's slot is then an empty one.
+reference stands in (madde 300). The folder says what exists; this says in what order. A name can
+outlive its file here -- one deleted by hand in Drive -- and it then stands in no slot (madde 321).
 
 Unreadable is not an error: a missing, half-written or hand-edited file means "no order", and the
 pool falls back to reading by name. A project must never fail to open because of the file that only
