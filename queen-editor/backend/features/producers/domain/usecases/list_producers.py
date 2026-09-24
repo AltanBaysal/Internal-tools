@@ -17,7 +17,10 @@ from backend.features.producers.domain.producers import NAMES, ORDER, VIDEO
 
 def list_producers(groups, files, video_model=""):
     """`video_model` is the notebook's pick. The video row names it, because the panel cannot know
-    which model the notebook installed any other way (madde 247)."""
+    which model the notebook installed any other way (madde 247). It also says whether that model
+    makes video from the reference pool: only H3 has such a mode (madde 302), and the video panel
+    says so before the press (madde 324) -- read from here, not from the name, which is a word for
+    the box."""
     rows = []
     for kind in ORDER:
         group = groups.get(kind) or []
@@ -28,5 +31,6 @@ def list_producers(groups, files, video_model=""):
         row = {"id": kind, "name": NAMES[kind], "installed": installed}
         if kind == VIDEO:
             row["model"] = video_model_name(video_model)
+            row["reads_references"] = video_model == "h3"
         rows.append(row)
     return rows

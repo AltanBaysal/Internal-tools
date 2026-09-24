@@ -102,6 +102,11 @@ function acceptsVariants(text) {
 // The one reason that belongs to no layer: the box is on both panels and says the same thing.
 const NO_VARIANTS = "Varyant sayısı girilmedi — en az 1 yaz.";
 
+// What stops a run from the pool, said before the press (madde 324). The server's own sentences
+// (queue_references.py), word for word: the line shows the refusal a press would get.
+const H3_ONLY = "Referanstan üretim için H3 gerekiyor — bu oturumda başka bir video modeli kurulu.";
+const NO_REFERENCES = "Havuzda referans yok — önce en az bir referans ekle.";
+
 // A list pasted out of a notebook cell may carry its name in front: prompt_list.py's own pattern.
 const NAMED = /^[A-Za-z_]\w*\s*=\s*/;
 // One quoted item and what follows it -- a comma, or the end of the list. Either quote; a backslash
@@ -155,6 +160,19 @@ function refusalOf(words, can, scope, scoped, variants, fromPool) {
   if (!can.length) return words.noBase;
   if (scope === "selected") return words.chosenNoBase;
   return words.allHeld;
+}
+
+/** What the line above the button says on Referanstan, or null (madde 324).
+ *
+ * The app's order, one sentence at a time: the model, then the pool. A preview of the server's own
+ * refusals, never a rule (FOUNDATION 4): what has not answered yet -- the producers, the pool --
+ * says nothing, and the press goes. With no video producer there is no wrong model: the install card
+ * at the top says what is missing. One reference of any kind is enough.
+ */
+function poolRefusal(producer, pool) {
+  if (producer?.installed && !producer.reads_references) return H3_ONLY;
+  if (pool && !pool.references.length) return NO_REFERENCES;
+  return null;
 }
 
 // Why linking closes when the chosen frames are scattered. Says the reason rather than the remedy:
@@ -234,7 +252,7 @@ function ModeRow({ label, active, disabled, onPick }) {
 // madde 215 this panel was told none of it -- the press went out, came back 409, and the answer
 // landed in a panel that was not the open one.
 export default function LayerPanel({ layer, project, frames, selected, producer, job,
-                                     busyElsewhere, error, poolShown, onShowPool, onQueue,
+                                     busyElsewhere, error, poolShown, pool, onShowPool, onQueue,
                                      onInstall }) {
   const words = WORDS[layer];
   const [scope, setScope] = useState("missing");
@@ -348,6 +366,8 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   // there is exactly such a move. A press changes none of the three, so the answer stays up.
   useEffect(() => { setRefused(null); }, [chosen, scope, shownVariants]);
   const missingProducer = Boolean(producer) && !producer.installed;
+  // Referanstan's line, and nothing on Kareden: the frame form answers after the press.
+  const missingLine = fromPool ? poolRefusal(producer, pool) : null;
   // The server's name first -- it knows which model the notebook installed. Until it answers the
   // box stays empty rather than guessing.
   const model = producer?.model || words.model || "";
@@ -493,13 +513,23 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
         />
       </div>
 
+      {missingLine && (
+        // Above the button it stops, in the ordinary ink: a state of the session, said before the
+        // press rather than after it.
+        <Note size={12} style={{ color: "var(--ink-2)", textAlign: "center" }}>{missingLine}</Note>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {/* Nothing the user could fill in locks this: an empty field is answered after the press,
-            in the card below (Fark 27). What is left is one request in flight -- and the producer,
-            which is the design's own exception: not a field but an engine that is not here yet, and
-            the card at the top of the panel says so. */}
+        {/* On Kareden nothing the user could fill in locks this: an empty field is answered after
+            the press, in the card below (Fark 27). What locks it is one request in flight -- and
+            the producer, which is the design's own exception: not a field but an engine that is
+            not here yet, and the card at the top of the panel says so. Referanstan says what it
+            lacks before the press instead (madde 324): whatever the line above says, and a prompt
+            box with nothing in it. */}
         <button type="button" className="wf-btn wf-btn--hl"
-                disabled={submitting || missingProducer || busyElsewhere} onClick={handleAdd}
+                disabled={submitting || missingProducer || busyElsewhere
+                          || (fromPool && (Boolean(missingLine) || !prompts.trim()))}
+                onClick={handleAdd}
                 style={{ justifyContent: "center", padding: "10px 12px", fontSize: 14 }}>
           {submitting
             ? <><span className="qe-spinner" aria-hidden="true" /> Ekleniyor…</>

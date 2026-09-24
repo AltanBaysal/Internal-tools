@@ -71,7 +71,7 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     held = list_references(store, pool, orders, project)
     if not held:
         raise references.PoolLimit(
-            "Havuzda referans yok — önce soldaki panele en az bir referans ekle.")
+            "Havuzda referans yok — önce en az bir referans ekle.")
     open_kinds = references.gaps(held)
     if open_kinds:
         # Named, because the user is going to go and close it: H3 packs references tight and

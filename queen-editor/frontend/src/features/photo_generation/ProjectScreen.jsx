@@ -50,6 +50,10 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
   // Whether the middle shows the reference pool instead of the cards (madde 318). The video panel's
   // Referanstan tab says so, and its one button; the screen only holds the answer.
   const [poolShown, setPoolShown] = useState(false);
+  // The pool's last answer from the server, or null until one came (madde 324). The pool in the
+  // middle is where it changes, and the video panel's missing line has to hear that at once. Kept
+  // while the pool is closed: nothing on this screen changes it then, and opening it reads it again.
+  const [pool, setPool] = useState(null);
 
   // Pressing Kuyruğa ekle persists the panel first, whether or not the frames are accepted -- text
   // the server rejects is still what the user typed. Both writes land in the same folder, so
@@ -107,7 +111,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
             has to scroll, otherwise most of a 48-photo run is unreachable. */}
         <div data-scroll ref={box} style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
-          {poolShown && <ReferencePanel project={project} />}
+          {poolShown && <ReferencePanel project={project} onPool={setPool} />}
           {/* Hidden rather than taken down: the gallery keeps its own selection. Whether the queue
               is moving is the gallery's business too: an owed layer reads as queued while it flows
               and as waiting once it has stopped, and only this screen knows which -- the worker is
@@ -129,7 +133,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
                    frames={frames} selected={selected} onQueueLayer={queueLayer}
                    onGenerate={handleGenerate} onStop={stop} onResume={resume} onCancel={cancel}
                    onClearError={clearError} onRetryAll={retryAll}
-                   poolShown={poolShown} onShowPool={setPoolShown} />
+                   poolShown={poolShown} onShowPool={setPoolShown} pool={pool} />
       </div>
 
     </div>

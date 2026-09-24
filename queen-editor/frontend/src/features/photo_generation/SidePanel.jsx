@@ -131,7 +131,7 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
                                     settingsError, project, stopping, queue, failures, models,
                                     loras, modelsError, producers, frames, selected, onQueueLayer,
                                     onGenerate, onStop, onResume, onCancel, onClearError,
-                                    onRetryAll, onRetrySettings, poolShown,
+                                    onRetryAll, onRetrySettings, poolShown, pool,
                                     // A column drawn on its own has no middle to show a pool in.
                                     onShowPool = () => {} }) {
   // Which panel is open is this column's own business: neither the project screen nor the server
@@ -184,7 +184,7 @@ export default function SidePanel({ job, known, error, errorField, busyElsewhere
             the sound one. */}
         {(open === "video" || open === "audio") && (
           <LayerPanel key={open} layer={open} project={project} frames={frames} selected={selected}
-                      poolShown={poolShown} onShowPool={onShowPool}
+                      poolShown={poolShown} onShowPool={onShowPool} pool={pool}
                       job={job} busyElsewhere={busyElsewhere} error={error}
                       producer={(producers?.producers || []).find((p) => p.id === open)}
                       onQueue={(...asked) => onQueueLayer(open, ...asked)}
