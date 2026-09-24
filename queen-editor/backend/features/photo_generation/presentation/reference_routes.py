@@ -43,7 +43,8 @@ def make_reference_blueprint(add_references, list_references, remove_reference,
         # nothing done is a result, not a failure.
         files = [(file.filename or "", file.read()) for file in request.files.getlist("files")]
         try:
-            return pool(add_references(project, files))
+            # The form's kind is the row the files were picked into (madde 320).
+            return pool(add_references(project, files, row=request.form.get("kind")))
         except (UnknownReference, PoolLimit) as exc:
             # Two refusals, one answer: the user asked for a file to go in and it cannot, and the
             # sentence is the whole difference between them.
@@ -84,7 +85,7 @@ def make_reference_blueprint(add_references, list_references, remove_reference,
         try:
             added = queue_references(project, prompts, body.get("variants", 1))
         except (InvalidPrompts, InvalidVariants, NoReferenceProducer, PoolLimit) as exc:
-            # Five refusals, one answer: the run cannot start, and the sentence is the difference.
+            # Four refusals, one answer: the run cannot start, and the sentence is the difference.
             return jsonify({"error": str(exc)}), 400
         except ProjectMissing as exc:
             return jsonify({"error": str(exc)}), 404

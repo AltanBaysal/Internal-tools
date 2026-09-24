@@ -7,8 +7,8 @@ so anything at all can be in it, and only what H3 could be handed is a reference
 The length is here rather than in a place of its own because both readers want the same number: the
 limits are counted from it (madde 298), and the screen draws it (299).
 
-Every row also says which slot it stands in, and a slot nobody stands in is a gap -- the screen
-draws it and production refuses over it (madde 300, 302).
+Every row also says which slot it stands in: its place in its own kind's row, counting from 1 with
+no hole (madde 300, 321).
 """
 from backend.features.photo_generation.domain import references
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing

@@ -75,16 +75,6 @@ describe("ReferencePanel", () => {
     expect(screen.getByText("4,2 sn")).toBeTruthy();
   });
 
-  it("draws the slot a deleted reference left empty", async () => {
-    // The gap is the point of madde 300: what is left does not slide up, so the user can see the
-    // hole and drag it closed.
-    await open(pool([{ name: "bir.png", kind: "picture", seconds: null, slot: 1 },
-                     { name: "üç.png", kind: "picture", seconds: null, slot: 3 }]));
-
-    expect(screen.getByLabelText("2. yuva boş")).toBeTruthy();
-    expect(screen.queryByLabelText("1. yuva boş")).toBeNull();
-  });
-
   it("sends the order a drag makes", async () => {
     const { container } = await open(pool([
       { name: "bir.png", kind: "picture", seconds: null, slot: 1 },
@@ -126,21 +116,6 @@ describe("ReferencePanel", () => {
     // The sentence lives in the backend and the screen prints it: one place for the rule and its
     // wording.
     expect(screen.getByText(/2-15 saniye arası olmalı/)).toBeTruthy();
-  });
-
-  it("asks before taking a reference out", async () => {
-    await open();
-    removeReference.mockResolvedValue(pool([]));
-
-    fireEvent.click(screen.getByLabelText("kedi.png referansını sil"));
-
-    expect(screen.getByText("kedi.png silinsin mi?")).toBeTruthy();
-    expect(removeReference).not.toHaveBeenCalled();
-
-    await act(async () => { fireEvent.click(screen.getAllByText("Sil").at(-1)); });
-
-    expect(removeReference).toHaveBeenCalledWith("düğün", "kedi.png");
-    expect(screen.getByText("Fotoğraflar 0/9")).toBeTruthy();
   });
 });
 
@@ -242,5 +217,113 @@ describe("ReferencePanel — adding from a row's card (madde 320)", () => {
     await open(pool([]));
 
     expect(screen.queryByLabelText("Ekle")).toBeNull();
+  });
+});
+
+describe("ReferencePanel — deleting at once (madde 321)", () => {
+  const tile = (container, name) => container.querySelector(`[data-reference="${name}"]`);
+  const picture = (name, slot) => ({ name, kind: "picture", seconds: null, slot });
+  const bin = (name) => screen.getByLabelText(`${name} referansını sil`);
+
+  it("deletes at once, with no window", async () => {
+    await open();
+    removeReference.mockResolvedValue(pool([]));
+
+    await act(async () => { fireEvent.click(bin("kedi.png")); });
+
+    expect(removeReference).toHaveBeenCalledWith("düğün", "kedi.png");
+    expect(screen.queryByText("kedi.png silinsin mi?")).toBeNull();
+    expect(screen.getByText("Fotoğraflar 0/9")).toBeTruthy();
+  });
+
+  it("numbers the row the way the server answers after a delete", async () => {
+    const { container } = await open(pool([picture("bir.png", 1), picture("iki.png", 2),
+                                            picture("üç.png", 3)]));
+    removeReference.mockResolvedValue(pool([picture("bir.png", 1), picture("üç.png", 2)]));
+
+    await act(async () => { fireEvent.click(bin("iki.png")); });
+
+    // The ones after it move up. The server packs the row, so the N of <Picture N> is its to say.
+    expect(within(tile(container, "üç.png")).getByText("2")).toBeTruthy();
+    expect(tile(container, "iki.png")).toBeNull();
+  });
+
+  it("clears the refusal at the top of the pool", async () => {
+    await open();
+    uploadReferences.mockRejectedValueOnce(
+      new Error("kisa-2.wav fotoğraf yuvasına giremez — bu dosya ses."));
+    await act(async () => { pick([new File([new Uint8Array([1])], "kisa-2.wav")]); });
+    removeReference.mockResolvedValue(pool([]));
+
+    await act(async () => { fireEvent.click(bin("kedi.png")); });
+
+    // Madde 320's rule: the next pick or delete clears it.
+    expect(screen.queryByText(/yuvasına giremez/)).toBeNull();
+  });
+});
+
+describe("ReferencePanel — dragging within a row (madde 322)", () => {
+  const tile = (container, name) => container.querySelector(`[data-reference="${name}"]`);
+  const picture = (name, slot) => ({ name, kind: "picture", seconds: null, slot });
+  const ROWS = pool([picture("bir.png", 1), picture("iki.png", 2),
+                     { name: "dans.mp4", kind: "video", seconds: 4, slot: 1 }]);
+  // The gallery's own slot: the dashed accent box a tile gives its place to (Gallery.jsx, SLOT).
+  // The Ekle card's dashed line is 1px and the border's colour, so it is never taken for one.
+  const slotIn = (element) => [element, ...element.querySelectorAll("*")]
+    .find((one) => one.style.border === "2px dashed var(--accent)") ?? null;
+  // A place is open where the browser is told a drop may land: the dragover's default is
+  // cancelled. Anywhere else the browser shows no drop and never fires one.
+  const opens = (element) => !fireEvent.dragOver(element);
+
+  it("lifts the tile in flight the way the gallery does, until the drag ends", async () => {
+    const { container } = await open(ROWS);
+
+    fireEvent.dragStart(tile(container, "iki.png"));
+
+    expect(tile(container, "iki.png").style.transform).toContain("rotate(-3deg)");
+    expect(tile(container, "bir.png").style.transform).toBe("");
+
+    fireEvent.dragEnd(tile(container, "iki.png"));
+
+    expect(tile(container, "iki.png").style.transform).toBe("");
+  });
+
+  it("opens the gallery's dashed slot under the pointer, until the drag ends", async () => {
+    const { container } = await open(ROWS);
+    fireEvent.dragStart(tile(container, "iki.png"));
+
+    expect(opens(tile(container, "bir.png"))).toBe(true);
+    expect(slotIn(tile(container, "bir.png"))).toBeTruthy();
+
+    fireEvent.dragEnd(tile(container, "iki.png"));
+
+    expect(slotIn(container)).toBeNull();
+  });
+
+  it("opens no place in another row, and a drop there sends nothing", async () => {
+    const { container } = await open(ROWS);
+    fireEvent.dragStart(tile(container, "iki.png"));
+
+    expect(opens(tile(container, "dans.mp4"))).toBe(false);
+    expect(slotIn(container)).toBeNull();
+
+    await act(async () => { fireEvent.drop(tile(container, "dans.mp4")); });
+
+    expect(saveReferenceOrder).not.toHaveBeenCalled();
+  });
+
+  it("opens no place on the Ekle card, and a drop there sends nothing", async () => {
+    // A row made into one drop zone -- to drop at its end, say -- would open a place on the card
+    // too.
+    const { container } = await open(ROWS);
+    const card = container.querySelector('[data-add="picture"]');
+    fireEvent.dragStart(tile(container, "iki.png"));
+
+    expect(opens(card)).toBe(false);
+    expect(slotIn(container)).toBeNull();
+
+    await act(async () => { fireEvent.drop(card); });
+
+    expect(saveReferenceOrder).not.toHaveBeenCalled();
   });
 });

@@ -1,9 +1,10 @@
 """Take one reference out of the project's pool. Returns the pool as it now stands.
 
-The order is not touched: the name goes on holding its slot, and the slot is now an empty one
-(madde 300). That is the user's own call -- what is left must not slide up, or H3 would read the
-prompt's <Picture 3> off a different picture. The gap is closed by dragging, which sends a sequence
-that simply does not carry the dead name.
+The name leaves the order with its file, so the ones after it move up and their slot numbers change
+(madde 321) -- which is what a prompt's <Picture N> means from then on, because H3 packs the
+references tight and numbers them by order. A name left in the order would not show as a hole (the
+pool counts only what is there), but a file uploaded under it later would slip back into its old
+place rather than join the end of its row.
 
 A name the pool does not have is not an error: another tab can get there first, and deleting twice
 has to end where deleting once ends.
@@ -16,4 +17,6 @@ def remove_reference(store, pool, orders, project, name):
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     pool.delete(project, name)
+    orders.write(project, {kind: [one for one in names if one != name]
+                           for kind, names in orders.read(project).items()})
     return list_references(store, pool, orders, project)

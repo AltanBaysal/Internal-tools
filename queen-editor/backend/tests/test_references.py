@@ -107,18 +107,16 @@ def test_the_stored_order_gives_each_reference_its_slot():
     assert [(row["name"], row["slot"]) for row in placed] == [("kedi.png", 1), ("kuş.png", 2)]
 
 
-def test_a_slot_whose_file_is_gone_stays_empty():
-    """The heart of madde 300: deleting one does not move the others.
-
-    H3 numbers references by their order and not by the slot they sit in, so a reference that
-    slid up would quietly become the <Picture N> the prompt meant for another one.
-    """
+def test_a_file_gone_from_the_folder_leaves_no_hole():
+    """Madde 321: a name the order still holds with no file behind it -- one deleted by hand in
+    Drive -- stands in no slot. The ones after it move up, so <Picture 2> is the second picture that
+    is really there, which is the one H3 will be handed."""
     order = {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}
 
     placed = references.placed(order, [item("bir.png", references.PICTURE),
                                        item("üç.png", references.PICTURE)])
 
-    assert [(row["name"], row["slot"]) for row in placed] == [("bir.png", 1), ("üç.png", 3)]
+    assert [(row["name"], row["slot"]) for row in placed] == [("bir.png", 1), ("üç.png", 2)]
 
 
 def test_a_file_the_order_never_heard_of_waits_at_the_end():
@@ -146,21 +144,6 @@ def test_each_kind_counts_its_own_slots():
     placed = references.placed(order, [item("kedi.png", references.PICTURE), video("dans.mp4")])
 
     assert [(row["name"], row["slot"]) for row in placed] == [("kedi.png", 1), ("dans.mp4", 1)]
-
-
-def test_a_missing_slot_in_the_middle_is_a_gap():
-    rows = [{"name": "bir.png", "kind": references.PICTURE, "slot": 1},
-            {"name": "üç.png", "kind": references.PICTURE, "slot": 3}]
-
-    assert references.gaps(rows) == [references.PICTURE]
-
-
-def test_the_last_one_leaving_is_not_a_gap():
-    # Dense from one is the whole rule; nothing has to come after the last reference.
-    rows = [{"name": "bir.png", "kind": references.PICTURE, "slot": 1},
-            {"name": "iki.png", "kind": references.PICTURE, "slot": 2}]
-
-    assert references.gaps(rows) == []
 
 
 def test_a_press_is_counted_as_a_whole():

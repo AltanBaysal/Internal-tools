@@ -273,18 +273,30 @@ def test_the_pool_carries_the_slot_each_reference_stands_in():
         ("kuş.png", 1), ("kedi.png", 2)]
 
 
-def test_removing_the_middle_one_leaves_its_slot_empty():
-    """Madde 300's whole point: what is left does not slide up, because H3 would then read the
-    prompt's <Picture 3> off a different picture."""
+def test_removing_the_middle_one_moves_the_ones_after_it_up():
+    """Madde 321: the slot numbers change, and that is what a prompt's <Picture N> points at from
+    now on -- H3 packs the references tight and numbers them by order."""
     orders = FakeOrderStore({"düğün": {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}})
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [(f"{name}.png", b"PNG") for name in ("bir", "iki", "üç")], orders=orders)
 
     left = remove_reference(store, pool, orders, "düğün", "iki.png")
 
-    assert [(row["name"], row["slot"]) for row in left] == [("bir.png", 1), ("üç.png", 3)]
-    # The order is not touched at all: the name holds its slot, and the slot is now empty.
-    assert orders.read("düğün")[references.PICTURE] == ["bir.png", "iki.png", "üç.png"]
+    assert [(row["name"], row["slot"]) for row in left] == [("bir.png", 1), ("üç.png", 2)]
+
+
+def test_a_removed_name_uploaded_again_goes_to_the_end():
+    """The deleted name keeps no place in the order: a file uploaded under it later is a new
+    reference, and a new one goes in at the end of its row (madde 320)."""
+    orders = FakeOrderStore({"düğün": {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}})
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [(f"{name}.png", b"PNG") for name in ("bir", "iki", "üç")], orders=orders)
+    remove_reference(store, pool, orders, "düğün", "iki.png")
+
+    again = added(store, pool, [("iki.png", b"NEW")], orders=orders)
+
+    assert [(row["name"], row["slot"]) for row in again] == [
+        ("bir.png", 1), ("üç.png", 2), ("iki.png", 3)]
 
 
 def test_the_order_the_user_dragged_is_stored():
@@ -299,17 +311,18 @@ def test_the_order_the_user_dragged_is_stored():
     assert orders.read("düğün") == {references.PICTURE: ["kuş.png", "kedi.png"]}
 
 
-def test_a_dragged_order_drops_the_names_it_left_out():
-    """How a gap is closed: the screen sends the sequence it now shows, and the dead name that was
-    holding a slot is simply not in it."""
-    orders = FakeOrderStore({"düğün": {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}})
+def test_a_sent_order_keeps_only_the_names_the_pool_holds():
+    """A tab left open from before a delete sends a name whose file is gone. The server writes only
+    what it can see: a dead name left in the order would pull a later file of that name back into
+    the middle of its row."""
+    orders = FakeOrderStore()
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [("bir.png", b"ONE"), ("üç.png", b"THREE")], orders=orders)
 
-    left = save_reference_order(store, pool, orders,
-                                "düğün", {references.PICTURE: ["bir.png", "üç.png"]})
+    save_reference_order(store, pool, orders,
+                         "düğün", {references.PICTURE: ["bir.png", "iki.png", "üç.png"]})
 
-    assert [(row["name"], row["slot"]) for row in left] == [("bir.png", 1), ("üç.png", 2)]
+    assert orders.read("düğün") == {references.PICTURE: ["bir.png", "üç.png"]}
 
 
 @pytest.mark.parametrize("order", ["kedi.png", {"picture": "kedi.png"}, {"picture": [7]}])
@@ -321,7 +334,7 @@ def test_an_order_that_is_not_lists_of_names_is_refused(order):
 
 
 def ready_pool(orders=None):
-    """A pool with one picture in it and no holes -- everything a reference run needs."""
+    """A pool with one picture in it -- everything a reference run needs."""
     orders = orders or FakeOrderStore()
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [("kedi.png", b"PNG")], orders=orders)
@@ -359,19 +372,6 @@ def test_a_reference_run_with_an_empty_pool_is_refused():
         run(store, pool, FakeOrderStore())
 
     assert "referans" in str(exc.value).lower()
-
-
-def test_a_reference_run_with_a_gap_in_the_pool_is_refused():
-    """H3 packs references tight and numbers them by order, so a hole would quietly move every
-    reference after it (madde 300)."""
-    orders = FakeOrderStore({"düğün": {references.PICTURE: ["bir.png", "iki.png", "üç.png"]}})
-    store, pool = FakeStore(), FakeReferenceStore()
-    added(store, pool, [("bir.png", b"1"), ("üç.png", b"3")], orders=orders)
-
-    with pytest.raises(references.PoolLimit) as exc:
-        run(store, pool, orders)
-
-    assert "fotoğraf" in str(exc.value)
 
 
 def test_a_reference_run_reads_the_prompt_list_the_way_the_photo_panel_does():

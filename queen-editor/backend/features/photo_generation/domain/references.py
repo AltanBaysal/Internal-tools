@@ -72,12 +72,11 @@ SAID = {PICTURE: "fotoğraf", VIDEO: "video", AUDIO: "ses"}
 def placed(order, rows):
     """The pool with each reference's slot on it -- its place inside its own kind, counting from 1.
 
-    `order` is {kind: [name, …]}, the sequence the user dragged. A name stays in that sequence after
-    its file is gone, and that is the whole of how a gap exists: deleting a reference touches the
-    folder and leaves the order alone, so the ones after it do not move (madde 300).
-
-    They must not move, because H3 numbers references densely and by order -- a reference that slid
-    up would quietly become the <Picture N> the prompt meant for another one.
+    `order` is {kind: [name, …]}, the sequence the user dragged. Only names whose file is in the pool
+    are counted, so the slots are dense from 1: a name the order still holds after its file went --
+    one deleted by hand in Drive -- stands in no slot, and the ones after it move up (madde 321).
+    That is the numbering H3 reads, since it packs the references tight and numbers them by order:
+    a prompt's <Picture 2> is the second picture that is really there.
 
     A file the order has never heard of waits at the end, among those by name: that is a fresh
     upload, and it is also what a pool with no stored order at all reads as.
@@ -85,27 +84,11 @@ def placed(order, rows):
     out = []
     for kind in LIMITS:
         held = {row["name"]: row for row in rows if row["kind"] == kind}
-        sequence = [name for name in order.get(kind, []) if isinstance(name, str)]
+        sequence = [name for name in order.get(kind, []) if name in held]
         unheard = sorted(name for name in held if name not in sequence)
         for slot, name in enumerate(sequence + unheard, start=1):
-            if name in held:
-                out.append({**held[name], "slot": slot})
+            out.append({**held[name], "slot": slot})
     return out
-
-
-def gaps(rows):
-    """The kinds whose slots are not dense from 1 -- a hole somebody has to close.
-
-    Nothing has to come after the last reference, so only a missing slot BEFORE a filled one is a
-    gap. Production refuses while one is open (madde 302): H3 would pack the references tight and
-    the prompt's own numbers would point at the wrong ones.
-    """
-    open_kinds = []
-    for kind in LIMITS:
-        slots = sorted(row["slot"] for row in rows if row["kind"] == kind)
-        if slots and slots != list(range(1, len(slots) + 1)):
-            open_kinds.append(kind)
-    return open_kinds
 
 
 def check(pool, incoming):
