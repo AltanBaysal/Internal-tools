@@ -265,6 +265,11 @@ böyle face detailer tarzı şeyler var mı"; H3'ün referanslı test videoları
 çok iyi, uzakta sıkıntı", "backloga atalım bunu şimdilik".)* **Ayrıntılar kullanıcıyla
 konuşulacak.**
 
+### Uzun listelerde kart taşımak zor
+
+*(Kullanıcı, 25 Eylül — "uzun listelerde kart taşımak zor", "sürükleyince aşağı kaymıyor ekran, ve
+ekrandaki kartlar kadar hareket ettirebiliyoruz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler
