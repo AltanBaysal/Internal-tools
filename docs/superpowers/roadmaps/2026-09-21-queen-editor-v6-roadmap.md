@@ -120,7 +120,7 @@ girdi** *(döngünün 8. adımı: sonradan çıkan iş koşan yol haritasına ma
 açılmaz)*.
 
 **Numaralar 281'den devam ediyor.** 262–276 [v7](2026-09-21-queen-editor-v7-roadmap.md)'nin,
-277–280 [QueenAgent v9](2026-09-21-queen-agent-v9-roadmap.md)'un — ikisi de biz koşarken yazıldı.
+277–280 QueenAgent v9'un — ikisi de biz koşarken yazıldı.
 **256 ise kendi numarasıyla geri geldi**, bu belgenin sözü olduğu gibi.
 
 **İkinci yarının sırası: 286 → 282 → 283 → 284 → 285 → 288 → 289 → 287 → 281**, ve numara sırası

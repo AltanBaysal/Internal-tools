@@ -151,7 +151,8 @@ kararları uyguluyor.
   `retention_analysis`, `detailed_description`, `overall_soundscape`, `non_diegetic_music` — ve
   referanslara etiketle atıf: `<Subject N>`, `<Picture N>`, `<Video N>`, `<Audio N>`, tipe göre ayrı
   ve sıraya göre numaralı. Kullanıcı elle yazabilir; ya da QueenAgent üretir
-  *([v9'un 6. maddesi](2026-09-21-queen-agent-v9-roadmap.md))*.
+  *([QueenAgent'ın backlog'u](../../../queen-agent/BACKLOG.md), "Referanstan video üretimi için
+  prompt'lar")*.
 - **Video süresi 4 saniye**, bugünkü gibi grafikten. Çeşitlendirme ileride.
 - **Ses:** bugünkü H3 video kartı ne yapıyorsa o — otomatik ses katmanı yok, istenirse sonradan
   eklenir.
