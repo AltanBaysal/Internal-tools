@@ -1,10 +1,10 @@
 # H3 referanstan video prompt'u — 24 Eylül bulguları
 
 **Neden var:** kullanıcı queen-editor v7'nin Referanstan'ını Colab'da denerken H3'e prompt'ları
-elle yazdık ve denedik. Öğrenilenler referanstan video prompt'larını yazan QueenAgent skill'inde kullanılacak — iş
-[QueenAgent'ın backlog'unda](../../../queen-agent/BACKLOG.md) bekliyor *(kullanıcı, 24 Eylül —
-"şu prompt hakkında öğrendiklerimizi queenagent koşusunu yaparken kullanalım", "kaybetmeyelim
-ilerlememizi")*.
+elle yazdık ve denedik. Öğrenilenler referanstan video prompt'larını yazan bir QueenAgent skill'inde
+kullanılacaktı *(kullanıcı, 24 Eylül — "şu prompt hakkında öğrendiklerimizi queenagent koşusunu
+yaparken kullanalım", "kaybetmeyelim ilerlememizi")*; o madde 28 Eylül'de backlog'dan çıkarıldı
+*(kullanıcı — "gerek kalmadı bunlara")*.
 
 **Örnek dosya:** [reference_limits.py](../../../queen-editor/h3-tests/reference_limits.py) — ikinci
 turun 20 prompt'u, Referanstan'ın kutusuna olduğu gibi yapıştırılan hâliyle. Aşağıdaki kuralların

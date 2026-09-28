@@ -58,13 +58,8 @@ grafik yeniden export edilmeden koda giremez.
 
 ### Kare başına negatif prompt alınacak
 
-*(Kullanıcı, 17 Eylül.)* İş iki görevdir: negatif prompt'ları **QueenAgent üretir**, queen-editor
-**alır ve kullanır**. Bu görev queen-editor'ün yarısı. Üreten yarı
-[QueenAgent'ın backlog'unda](../queen-agent/BACKLOG.md) *"Kare başına negatif prompt üretilecek"*
-başlığıyla duruyor.
-
-Kareler kendi negatif prompt'larıyla gelebilecek, gerekiyorsa her kare için ayrı. Üç katmanın her
-biri kendi başlığında:
+*(Kullanıcı, 17 Eylül.)* Kareler kendi negatif prompt'larıyla gelebilecek, gerekiyorsa her kare
+için ayrı. Üç katmanın her biri kendi başlığında:
 
 #### Fotoğraf
 
