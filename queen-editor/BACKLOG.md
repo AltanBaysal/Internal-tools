@@ -265,6 +265,12 @@ konuşulacak.**
 *(Kullanıcı, 25 Eylül — "uzun listelerde kart taşımak zor", "sürükleyince aşağı kaymıyor ekran, ve
 ekrandaki kartlar kadar hareket ettirebiliyoruz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### queen-editor'e bir AI chat gelecek
+
+*(Kullanıcı, 28 Eylül — "ekstra ai chateı queen editore getireli mama tek işlevi şuanda mesela
+promtplarada tekrar eden bir hata varsa onu günellemek olsu mesela", "queen editore tarafını
+backloga alalım kalsın şimdilik".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler
