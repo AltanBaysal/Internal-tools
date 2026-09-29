@@ -457,6 +457,26 @@ def test_every_skill_knows_a_frame_is_one_moment_and_a_4_second_video(skill):
     assert "4-second video" in said
 
 
+# --- what the scenes step leaves out (Madde 368) --------------------------------------------------
+#
+# 29 Sep, the user: when the outfit changes between two scenes, the flow writes the frames in between
+# -- the garment coming off -- and the weak model cannot draw them. A dress in one scene and another
+# in the next it draws fine. The rule belongs to the scenes step alone (the user: in the scenario is
+# enough), which is where it is read while the scenes are being written.
+
+
+def test_the_scenes_step_writes_no_frame_of_clothes_coming_off_unless_asked():
+    said = _flow()
+    start, end = said.index(STEPS[3]), said.index(STEPS[4])
+    step = said[start:end].lower()
+    assert "from one scene to the next" in step
+    assert "taken off" in step
+    assert "unless the user asks" in step
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "taken off" not in (said[:start] + said[end:]).lower()
+    assert "taken off" not in _edit().lower()
+
+
 def test_the_plan_no_longer_opens_with_a_line_of_context():
     # Madde 186 asked for that line and Madde 198 takes it back, with the question that fed it. The
     # claim is not dropped, it is turned around: with nobody asked what the work is for, a plan
