@@ -193,9 +193,3 @@ test("while an answer runs the arrow becomes a stop", () => {
   expect(button.textContent).toBe("⏹");
   expect(button.getAttribute("title")).toBe("Stop");
 });
-
-test("the project screen's button is the same arrow under another name", () => {
-  // Both mean "send what I wrote", so the mark is the same. What differs is the name.
-  render(<Composer action="Start" placeholder="Start a new chat in this project..." />);
-  expect(screen.getByRole("button", { name: "Start" }).textContent).toBe("↑");
-});

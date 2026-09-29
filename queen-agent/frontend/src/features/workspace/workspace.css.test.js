@@ -164,35 +164,10 @@ function grouped(first) {
   return CSS.slice(start, CSS.indexOf("}", start));
 }
 
-test("a narrow shell scrolls its regions, not the layout", () => {
-  // The project screen's two columns are what stack now. Madde 50 took the chat's rail out of this:
-  // it stays on the right at every width, so it is neither stacked nor given a ceiling.
-  const layout = rule(".app-shell--narrow .screen-layout");
-  expect(layout).toContain("flex-direction: column");
-  expect(layout).not.toContain("overflow-y: auto");
-  const panel = rule(".app-shell--narrow .panel");
-  // 44% of the area, never more than 250px and never less than 150px -- the design's three numbers.
-  expect(panel).toContain("max-height: min(250px, 44%)");
-  expect(panel).toContain("min-height: 150px");
-  expect(panel).toContain("overflow-y: auto");
-});
-
-test("a narrow shell puts the project's two columns one above the other", () => {
-  // Reading or not: at this width there is only ever one column to give.
-  expect(grouped(".app-shell--narrow .project-grid,")).toContain(
-    "grid-template-columns: minmax(0, 1fr)",
-  );
-});
-
 test("reading in a narrow shell takes the whole area rather than lengthening the page", () => {
-  // The column stays in place today and the panel is added underneath it, which is the one thing
-  // the contract forbids: the page itself scrolls.
+  // The column stays in place today and the reader is added beside it, which is the one thing the
+  // contract forbids: the page itself scrolls.
   expect(rule(".app-shell--narrow .chat-layout--reading .chat")).toContain("display: none");
-  expect(rule(".app-shell--narrow .screen-layout--reading .screen")).toContain("display: none");
-  // Only the project screen's panel needs its ceiling lifted; the rail never had one after Madde 50.
-  const reader = rule(".app-shell--narrow .screen-layout--reading .panel");
-  expect(reader).toContain("max-height: none");
-  expect(reader).toContain("flex: 1");
 });
 
 test("a tight shell gives up its side room in one move", () => {
@@ -206,10 +181,8 @@ test("a tight shell gives up its side room in one move", () => {
   });
 });
 
-test("a tight shell shrinks the project title and drops the time from a chat row", () => {
+test("a tight shell shrinks the screen's title", () => {
   expect(rule(".app-shell--tight .screen__title")).toContain("font-size: 27px");
-  // The title is what a narrow row is for; the time is what it can afford to lose.
-  expect(rule(".app-shell--tight .chat-row__when")).toContain("display: none");
 });
 
 // One parser, two scales. The bubble's is the design's own three numbers, and a page-level heading
@@ -332,18 +305,7 @@ test("the menu that was a row's alone is gone by that name", () => {
   expect(CSS).not.toContain(".row-menu");
 });
 
-test("the header wraps rather than squeezing its buttons", () => {
-  // A second button joined Rename, and a title has no business being cut for it.
-  expect(rule(".screen__title-row")).toContain("flex-wrap: wrap");
-});
-
-test("the header's Delete is outlined until it is hovered", () => {
-  expect(rule(".screen__delete")).toContain("border: 1px solid var(--destructive-line)");
-  expect(rule(".screen__delete")).toContain("color: var(--destructive)");
-  expect(rule(".screen__delete:hover")).toContain("background: var(--destructive)");
-});
-
-test("a chat row's delete is there before it is reached for", () => {
+test("a file row's delete is there before it is reached for", () => {
   // The design separates the two deliberately: the sidebar's menu button waits for the row, this
   // one stands in it.
   expect(rule(".row-x")).not.toContain("opacity: 0");
@@ -440,23 +402,10 @@ test("the document reads at the design's size and leading", () => {
   expect(body).not.toContain("white-space");
 });
 
-test("the first load has a shape, and it is the design's three", () => {
-  const screenSkeleton = rule(".skeleton--screen .skeleton__block:nth-child(1)");
-  expect(screenSkeleton).toContain("width: 280px");
-  expect(screenSkeleton).toContain("height: 38px");
-  expect(rule(".skeleton--screen .skeleton__block:nth-child(2)")).toContain("height: 104px");
-  const third = rule(".skeleton--screen .skeleton__block:nth-child(3)");
-  expect(third).toContain("width: 180px");
-  expect(third).toContain("height: 16px");
-});
-
-test("the blocks blink at the design's speed, one after another", () => {
+test("the blocks blink at the design's speed", () => {
   // One blink in the app, and the number is the design's rather than the one that was here.
   expect(rule(".skeleton__block")).toContain("animation: blink 1.4s infinite");
   expect(CSS).not.toContain("blink 1.6s");
-  // Staged only on this screen: the design says it here, and generalising it would be inventing.
-  expect(rule(".skeleton--screen .skeleton__block:nth-child(2)")).toContain("animation-delay");
-  expect(rule(".skeleton--screen .skeleton__block:nth-child(3)")).toContain("animation-delay");
 });
 
 // Madde 340: the design's spinner (items 173, 181) is the live stamp's ring at twice the size, on
@@ -494,12 +443,9 @@ test("the offline strip turns reddish and carries a dot", () => {
 test("a row is a box holding buttons, and the lit surface is the box", () => {
   // The × cannot sit inside a button, so it became a sibling -- and the hover has to survive that.
   expect(rule(".file-row:hover")).toContain("background: #f0ece5");
-  expect(rule(".chat-row:hover")).toContain("background: #f0ece5");
   // The room the row used to hold moves to the opener, so the clickable area does not shrink.
   expect(rule(".file-row")).not.toContain("padding");
   expect(rule(".file-row__open")).toContain("padding: 10px 8px");
-  expect(rule(".chat-row")).not.toContain("padding");
-  expect(rule(".chat-row__open")).toContain("padding: 13px 8px");
 });
 
 test("a list says what went wrong in one voice", () => {
@@ -539,8 +485,7 @@ test("the header and the footer stay while the document scrolls", () => {
 
 test("the room around the document belongs to the document", () => {
   // Once the body carries the design's 26/28, a container adding its own padding would sit under it.
-  // Neither surface holding a reader adds any.
-  expect(rule(".panel")).toContain("padding: 0");
+  // The rail holding the reader adds none.
   expect(rule(".rail--open")).toContain("padding: 0");
 });
 
@@ -632,12 +577,10 @@ test("a selected skill warms its button without borrowing the accent", () => {
   expect(on).not.toContain("var(--accent)");
 });
 
-test("the layout and the sidebar now step at the same widths", () => {
+test("the layout and the sidebar step at the same widths", () => {
   // They used to disagree: the sidebar stepped at 1000/780/640 and the layout stacked at 1100.
-  // Madde 33 put both on the shell's measured width, so the stacking step is the sidebar's first.
-  // Madde 50 then took the chat's rail out of the stacking altogether -- what is left stepping here
-  // is the project screen, and it steps where the sidebar does.
-  expect(rule(".app-shell--narrow .screen-layout")).not.toContain(".sidebar");
+  // Madde 33 put both on the shell's measured width; Madde 50 took the chat's rail out of the
+  // stacking, and Madde 353 took the project screen that was left stacking.
   expect(CSS).not.toContain("1100px");
 });
 
@@ -800,4 +743,66 @@ test("the strip carries no gap of its own", () => {
   // Inside the row now, so a margin of its own would sit on top of the column's gap and push the
   // line down away from the message it belongs to.
   expect(rule(".versions")).not.toContain("margin-top");
+});
+
+// --- All projects (Madde 353; the design's items 142, 167, kit.css's .all-projects__*) ------------
+
+test("the project screen and the empty screen left no rule behind", () => {
+  // They went with the screens that drew them, and so did the reader's ×. Comments are taken out
+  // first, so a sentence about a class is not read as a rule; collected rather than asked with
+  // not.toContain, so a failure prints the lines at fault and not the whole stylesheet.
+  const gone = [
+    ".screen-layout",
+    ".project-grid",
+    ".chat-list",
+    ".chat-row",
+    ".column__title",
+    ".screen__title-row",
+    ".screen__delete",
+    ".file-list__bar",
+    ".panel",
+    ".skeleton--screen",
+    ".reader__close",
+    ".empty__title",
+    ".empty__line",
+  ];
+  const selectors = CSS.replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => line && !/^\s/.test(line));
+  expect(selectors.filter((line) => gone.some((name) => line.includes(name)))).toEqual([]);
+});
+
+test("PINNED and RECENT are the design's label", () => {
+  // Not --muted, which falls under the 4.5:1 text needs (the design's DESIGN-STANDARD, Colour).
+  const label = rule(".all-projects__label");
+  expect(label).toContain("font-size: 11px");
+  expect(label).toContain("letter-spacing: 0.09em");
+  expect(label).toContain("text-transform: uppercase");
+  expect(label).toContain("color: #6b6259");
+});
+
+test("a project row is 48 tall between two hairlines", () => {
+  expect(rule(".all-projects__row")).toContain("min-height: 48px");
+  expect(rule(".all-projects__row")).toContain("border-bottom: 1px solid #e9e3da");
+  expect(rule(".all-projects__list")).toContain("border-top: 1px solid #e9e3da");
+});
+
+test("the time is the row's one fixed column", () => {
+  const when = rule(".all-projects__row-when");
+  expect(when).toContain("width: 96px");
+  expect(when).toContain("text-align: right");
+  expect(when).toContain("font-family: var(--font-mono)");
+});
+
+test("the head puts the title and + New project at its two ends", () => {
+  const head = rule(".all-projects__head");
+  expect(head).toContain("display: flex");
+  expect(head).toContain("justify-content: space-between");
+  expect(head).toContain("margin: 0 0 24px");
+});
+
+test("No projects yet. is the design's quiet line", () => {
+  const empty = rule(".all-projects__empty");
+  expect(empty).toContain("padding: 18px 12px");
+  expect(empty).toContain("color: #a79e93");
 });

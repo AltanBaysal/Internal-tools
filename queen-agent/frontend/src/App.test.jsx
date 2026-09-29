@@ -21,23 +21,72 @@ function stubProjects(projects) {
   return fetch;
 }
 
+const NOW = new Date().toISOString();
+const THESIS = { id: "p1", name: "Thesis", chats: 2, files: 0, pinned: false, lastActivity: NOW };
+const ok = (body, status = 200) => Promise.resolve({ ok: true, status, json: async () => body });
+
+// Madde 353: projects, each project's chats, a chat record for any id, and a POST that makes one
+// the server then lists first -- where it puts a project nobody has used since it was born.
+function serverWithProjects(projects, chatsOf = {}) {
+  const live = [...projects];
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path === "/api/projects" && options?.method === "POST") {
+      const born = {
+        id: "p9",
+        name: "New project 3",
+        chats: 0,
+        files: 0,
+        pinned: false,
+        lastActivity: NOW,
+      };
+      live.unshift(born);
+      return ok(born, 201);
+    }
+    if (path === "/api/projects") return ok([...live]);
+    const list = path.match(/^\/api\/projects\/(\w+)\/chats$/);
+    if (list) return ok(chatsOf[list[1]] ?? []);
+    const record = path.match(/\/chats\/(\w+)$/);
+    if (record) return ok({ id: record[1], title: record[1], messages: [] });
+    return ok([]);
+  });
+  vi.stubGlobal("fetch", fetch);
+  return fetch;
+}
+
 test("the shell renders", () => {
   stubProjects([]);
   render(<App />);
   expect(screen.getByTestId("app-shell")).toBeTruthy();
 });
 
-// Madde 338: one bar across the window's top, on every screen, above the sidebar and the screen.
-test("the bar stands above the sidebar and the screen while the first list loads", () => {
-  vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+// Madde 338: one bar across the window's top, on every screen. Madde 353: All projects has no
+// sidebar, and while its list is on the way the head stands with nothing where the list will be --
+// neither a skeleton nor a sentence claiming there are none.
+test("while the first list loads, All projects stands under the bar with nothing where the list will be", async () => {
+  let answer;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockReturnValue(
+      new Promise((resolve) => {
+        answer = () => resolve({ ok: true, status: 200, json: async () => [] });
+      }),
+    ),
+  );
   render(<App />);
-  expect(screen.getByTestId("skeleton")).toBeTruthy();
   const shell = screen.getByTestId("app-shell");
   expect(shell.children[0].className).toBe("bar");
   const body = shell.children[1];
   expect(body.className).toBe("app-shell__body");
-  expect(shell.querySelector(".sidebar").parentElement).toBe(body);
   expect(shell.querySelector(".main").parentElement).toBe(body);
+  expect(shell.querySelector(".sidebar")).toBeNull();
+  expect(screen.queryByTestId("skeleton")).toBeNull();
+  expect(screen.getByText("All projects", { selector: ".screen__title" })).toBeTruthy();
+  expect(screen.queryByText("No projects yet.")).toBeNull();
+
+  await act(async () => {
+    answer();
+  });
+  expect(await screen.findByText("No projects yet.")).toBeTruthy();
 });
 
 test("with no project at all, the bar holds the brand alone", async () => {
@@ -50,8 +99,8 @@ test("with no project at all, the bar holds the brand alone", async () => {
   expect(screen.queryByRole("button", { name: "Exit project" })).toBeNull();
 });
 
-// The chat is the second project's, so the opening landing on the first one is told apart from
-// going back to the project's own screen.
+// The chat is the second project's, so the bar is seen naming the project the user is in rather
+// than the first one on the list.
 function stubChatInSecondProject() {
   const chat = { id: "c1", title: "Draft", messages: [] };
   vi.stubGlobal(
@@ -76,35 +125,14 @@ test("in a chat, the bar carries the project's name and the way out of it", asyn
   expect(screen.getByRole("button", { name: "Exit project" })).toBeTruthy();
 });
 
-test("Exit project goes back to where the app opens", async () => {
-  // Today the opening is the fork at "/": the first project, or the empty screen with none.
+test("Exit project goes back to All projects", async () => {
+  // Madde 353: the opening is All projects now, not a fork that lands in the first project.
   stubChatInSecondProject();
   render(<App />);
   await screen.findByText("Newer", { selector: ".bar__project" });
   fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-});
-
-test("the first load is one skeleton and no screen at all", async () => {
-  let answer;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockReturnValue(
-      new Promise((resolve) => {
-        answer = () => resolve({ ok: true, status: 200, json: async () => [] });
-      }),
-    ),
-  );
-  render(<App />);
-  expect(screen.getByTestId("skeleton")).toBeTruthy();
-  // The navigation stays usable while the middle waits.
-  expect(screen.getByText("QueenAgent")).toBeTruthy();
-  expect(screen.queryByText(/No projects yet/)).toBeNull();
-
-  await act(async () => {
-    answer();
-  });
-  await waitFor(() => expect(screen.queryByTestId("skeleton")).toBeNull());
+  await screen.findByText("All projects", { selector: ".screen__title" });
+  expect(window.location.pathname).toBe("/");
 });
 
 test("an address is not called wrong before the list has arrived", async () => {
@@ -129,47 +157,15 @@ test("an address is not called wrong before the list has arrived", async () => {
   await waitFor(() => expect(screen.getByText("That project does not exist.")).toBeTruthy());
 });
 
-test("the fork asks the browser where we are, not the render it was built from", async () => {
-  // Madde 52, and the hazard behind finding 15. A React effect carries the values of the commit that
-  // scheduled it, so a list arriving in the same batch as a move can fire a fork that was decided
-  // for an address the user has already left. Here the address moves without React being told --
-  // which is exactly the stale commit, made deterministic.
-  //
-  // This was one of a pair. Its sibling moved through the app instead of behind its back, and its
-  // only way to do that before the list arrived was the Settings row -- gone with Madde 62, and
-  // nothing else at the fork navigates. Nothing is lost: an in-app move updates the address React
-  // holds, so the fork's own dependency turns null and the effect never runs at all. This test is
-  // the harder half, where the effect does run and has to decline.
-  window.history.pushState(null, "", "/");
-  let answer;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockReturnValue(
-      new Promise((resolve) => {
-        answer = () => resolve({ ok: true, status: 200, json: async () => [PROJECT, PROJECT_2] });
-      }),
-    ),
-  );
-  render(<App />);
-
-  window.history.pushState(null, "", "/p/p2");
-  await act(async () => {
-    answer();
-  });
-  expect(window.location.pathname).toBe("/p/p2");
-});
-
-test("/settings is an address like any other unknown one: the fork lands it on the project", async () => {
-  // Madde 62's trap. Deleting the route alone would leave the address parsing to the fork while the
-  // fork's own guard still asked for a literal "/" -- no redirect, no screen, a blank page. The two
-  // pieces are each correct on their own and open a hole together.
+test("/settings is an address like any other unknown one: it draws All projects", async () => {
+  // Madde 62's trap, one screen later. An unknown address parses to "/", and "/" is a screen now
+  // rather than a fork, so what it draws is the opening -- never a blank page.
   stubProjects([PROJECT]);
   window.history.pushState(null, "", "/settings");
   render(<App />);
 
-  // PROJECT is the one the fork lands on, and it is called Old.
-  await screen.findByText("Old", { selector: ".screen__title" });
-  expect(window.location.pathname).toBe("/p/p1");
+  await screen.findByText("Old", { selector: ".all-projects__row-name" });
+  expect(screen.getByText("All projects", { selector: ".screen__title" })).toBeTruthy();
 });
 
 test("the app never asks the server for settings", async () => {
@@ -179,7 +175,7 @@ test("the app never asks the server for settings", async () => {
   render(<App />);
 
   // Any drawn screen will do -- the claim is about a call made on mount.
-  await screen.findByText("Old", { selector: ".screen__title" });
+  await screen.findByText("Old", { selector: ".all-projects__row-name" });
   const asked = fetch.mock.calls.filter(([path]) => String(path).startsWith("/api/settings"));
   expect(asked).toEqual([]);
 });
@@ -205,68 +201,146 @@ test("the shell wears the step it was measured at", () => {
   expect(screen.getByTestId("app-shell").className).toContain("app-shell--compact");
 });
 
-test("the app opens on the first project's screen", async () => {
-  // "/" is a fork, not a screen: with a project to show, the app lands on it. Madde 65 sent the
-  // landing to the draft chat instead, because the project screen carried no picker -- Madde 77 put
-  // the pickers here and gave the landing back.
-  stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
-  render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  // The sidebar row reads the project list, so the name stands there whichever screen is open.
-  expect(screen.getByText("Thesis", { selector: ".sidebar__row-name" })).toBeTruthy();
-  // Named by what is drawn rather than by what is missing: the project screen carries the project's
-  // title, and the draft's own title is the thing that must not be here.
-  expect(screen.getByText("Thesis", { selector: ".screen__title" })).toBeTruthy();
-  expect(screen.queryByText("New chat", { selector: ".chat__title" })).toBeNull();
+// --- All projects, and the way into a project (Madde 353) ---------------------------------------
+
+test("the app opens on All projects, and stays there", async () => {
+  // "/" was a fork that landed in the first project. It is a screen now, and it has no sidebar:
+  // no project is open on it (the design's items 135, 167).
+  serverWithProjects([THESIS]);
+  const { container } = render(<App />);
+  await screen.findByText("Thesis", { selector: ".all-projects__row-name" });
+  expect(window.location.pathname).toBe("/");
+  expect(screen.getByText("All projects", { selector: ".screen__title" })).toBeTruthy();
+  expect(container.querySelector(".sidebar")).toBeNull();
 });
 
-test("a skill can be picked before anything is typed", async () => {
-  // The item's whole point, and the question Madde 65 answered in the wrong place. The landing has
-  // to carry the picker; only pressing it proves that it does.
-  stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
+test("with no projects, All projects says so and stays at /", async () => {
+  stubProjects([]);
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  expect(await screen.findByText("No projects yet.")).toBeTruthy();
+  expect(window.location.pathname).toBe("/");
+  // No dead control beside an empty list.
+  expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
+});
 
-  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
-  fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
+test("a row opens the project's latest chat", async () => {
+  // The server's list comes newest first, so its first row is the one to open (design 170).
+  serverWithProjects([THESIS], {
+    p1: [
+      { id: "c2", title: "Newest", lastActivity: NOW },
+      { id: "c1", title: "Older", lastActivity: NOW },
+    ],
+  });
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: /Thesis/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
+});
 
-  // No chat exists yet, so the choice is held for the one that will be born -- what the screen owes
-  // is that the button now says what was picked.
-  await waitFor(() =>
-    expect(screen.getByText("Edit prompts", { selector: ".picker__name" })).toBeTruthy(),
+test("a project with no chats opens on its draft", async () => {
+  serverWithProjects([THESIS]);
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: /Thesis/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
+});
+
+test("the way into a project is written into the history once", async () => {
+  // The press is a step and is pushed; /p/<id> has no screen of its own, so the chat it opens
+  // writes over it -- or the back button would land there and be thrown forward again.
+  serverWithProjects([THESIS], { p1: [{ id: "c2", title: "Newest", lastActivity: NOW }] });
+  const push = vi.spyOn(window.history, "pushState");
+  const replace = vi.spyOn(window.history, "replaceState");
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: /Thesis/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
+  expect(push.mock.calls.map(([, , to]) => to)).toEqual(["/p/p1"]);
+  expect(replace.mock.calls.map(([, , to]) => to)).toEqual(["/p/p1/c/c2"]);
+});
+
+test("a project's own address opens its latest chat", async () => {
+  serverWithProjects([THESIS], { p1: [{ id: "c1", title: "Only", lastActivity: NOW }] });
+  window.history.pushState(null, "", "/p/p1");
+  render(<App />);
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+});
+
+test("leaving before the project's chats arrive stays where the user went", async () => {
+  // The answer is about a place the user has left; it must not pull them back into it.
+  const waiting = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path) => {
+      if (path === "/api/projects/p1/chats") {
+        return new Promise((resolve) => waiting.push(resolve));
+      }
+      if (path === "/api/projects") return ok([THESIS]);
+      return ok([]);
+    }),
   );
+  window.history.pushState(null, "", "/p/p1");
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Exit project" }));
+  await screen.findByText("All projects", { selector: ".screen__title" });
+
+  await act(async () => {
+    waiting.forEach((resolve) =>
+      resolve({
+        ok: true,
+        status: 200,
+        json: async () => [{ id: "c1", title: "Late", lastActivity: NOW }],
+      }),
+    );
+  });
+  expect(window.location.pathname).toBe("/");
 });
 
-test("the skill picked on the project screen is what the chat is born with", async () => {
+test("+ New project makes a project and opens its draft, and All projects lists it where the server does", async () => {
+  // Created as today, with no name asked (the naming screen is Madde 361's).
+  const fetch = serverWithProjects([THESIS]);
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "+ New project" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p9/c/new"));
+  const posts = fetch.mock.calls.filter(
+    ([path, options]) => path === "/api/projects" && options?.method === "POST",
+  );
+  expect(posts).toHaveLength(1);
+
+  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
+  await screen.findByText("All projects", { selector: ".screen__title" });
+  const rows = [...document.querySelectorAll(".all-projects__row-name")].map((row) => row.textContent);
+  expect(rows).toEqual(["New project 3", "Thesis"]);
+});
+
+test("a chat that does not exist leads back to All projects", async () => {
+  // Its ← back went to the project screen, and that screen is gone (design 170).
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path) => {
+      if (path.endsWith("/chats/nope")) return Promise.resolve(NOT_FOUND);
+      if (path === "/api/projects") return ok([THESIS]);
+      return ok([]);
+    }),
+  );
+  window.history.pushState(null, "", "/p/p1/c/nope");
+  render(<App />);
+  await screen.findByText("That chat does not exist.");
+  fireEvent.click(screen.getByRole("button", { name: "← back" }));
+  await screen.findByText("All projects", { selector: ".screen__title" });
+  expect(window.location.pathname).toBe("/");
+});
+
+test("the skill picked in a draft is what the chat is born with", async () => {
   // The half that separates a label from a behaviour. Without it, a picker that changes its own
   // caption and nothing else reads exactly like a working one.
-  const born = { id: "c9", title: "Write it", messages: [] };
-  const fetch = vi.fn().mockImplementation((path, options) => {
-    if (String(path).endsWith("/messages") && options?.method === "POST") {
-      return Promise.resolve({ ok: true, status: 201, json: async () => born });
-    }
-    // The chat the app moves to once it exists. Answering with a list here would hand the screen
-    // something shaped like nothing it can draw, and the test would pass over a console full of
-    // crashes.
-    if (String(path).endsWith("/chats/c9")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => born });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
-  });
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
-    ok: true,
-    status: 200,
-    json: async () => [{ id: "p1", name: "Thesis", chats: 0, files: 0 }],
-  }).mockImplementation(fetch));
+  const fetch = serverWithProjects([THESIS]);
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
 
-  fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
-  fireEvent.change(screen.getByPlaceholderText("Start a new chat in this project..."), {
-    target: { value: "Write it" },
-  });
-  fireEvent.click(screen.getByRole("button", { name: "Start" }));
+  const box = screen.getByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "Write it" } });
+  fireEvent.keyDown(box, { key: "Enter" });
 
   await waitFor(() => {
     const started = fetch.mock.calls.find(
@@ -275,41 +349,6 @@ test("the skill picked on the project screen is what the chat is born with", asy
     expect(started).toBeTruthy();
     expect(JSON.parse(started[1].body).skill).toBe("edit-prompts");
   });
-});
-
-test("the draft chat is still reached from the sidebar", async () => {
-  // The item's cost, the other way round from Madde 65. Now that the project screen is the landing,
-  // "the landing moved back" and "the draft chat is gone" would be the same green without this.
-  stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
-  render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-
-  // The button wears a + before its words, so it is asked for by what it contains.
-  fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
-
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
-  expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
-});
-
-test("with no projects the fork draws the empty screen and stays at /", async () => {
-  stubProjects([]);
-  render(<App />);
-  await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
-  expect(window.location.pathname).toBe("/");
-  // No dead control beside an empty screen.
-  expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
-});
-
-test("the fork is not written into the history", async () => {
-  const push = vi.spyOn(window.history, "pushState");
-  const replace = vi.spyOn(window.history, "replaceState");
-  stubProjects([{ id: "p1", name: "Thesis", chats: 0, files: 0 }]);
-
-  render(<App />);
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  // Pushed, the back button would land on the fork and be thrown forward again.
-  expect(replace).toHaveBeenCalled();
-  expect(push).not.toHaveBeenCalled();
 });
 
 // --- deleting a project ------------------------------------------------------------------------
@@ -342,30 +381,26 @@ function serverWith(projects) {
 const openMenuFor = (name) =>
   fireEvent.click(screen.getByRole("button", { name: `More for ${name}` }));
 
-// Every test below opens at a project's own address rather than letting the fork place it. The fork
-// lands on the project screen again since Madde 77, so waiting for it would work -- and would only
-// be testing the landing a ninth time. Pushing the address says what these tests are about.
+// Every test below stands in a project's draft: the sidebar's menu is where a project is deleted
+// from until the row's own ⋯ on All projects (Madde 360), and the project screen's Delete went with
+// that screen (Madde 353).
 
-test("the sidebar menu and the header open the same question", async () => {
+test("the sidebar menu opens the question", async () => {
   serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
 
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  expect(screen.getByText('Delete "Thesis"?')).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   expect(screen.getByText('Delete "Thesis"?')).toBeTruthy();
 });
 
 test("the box counts what goes with the project", async () => {
   serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   expect(
@@ -375,9 +410,9 @@ test("the box counts what goes with the project", async () => {
 
 test("one of a thing is one, not one of them", async () => {
   serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
   openMenuFor("Notes");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   expect(screen.getByText(/The 1 chat and 0 files/)).toBeTruthy();
@@ -385,9 +420,9 @@ test("one of a thing is one, not one of them", async () => {
 
 test("cancelling asks the server nothing", async () => {
   const fetch = serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -395,47 +430,49 @@ test("cancelling asks the server nothing", async () => {
   expect(screen.queryByText('Delete "Thesis"?')).toBeNull();
 });
 
-test("deleting the project you are in moves to the first one left", async () => {
+test("deleting the project you are in goes back to All projects", async () => {
+  // Madde 353: the fork that picked "the first one left" is gone; the opening is All projects.
   serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p2"));
+  await waitFor(() => expect(window.location.pathname).toBe("/"));
+  expect(await screen.findByText("Notes", { selector: ".all-projects__row-name" })).toBeTruthy();
   expect(screen.queryByText("Thesis")).toBeNull();
 });
 
 test("deleting the last project leaves the empty screen", async () => {
   serverWith([TWO[0]]);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("No projects yet.")).toBeTruthy());
 });
 
 test("deleting another project leaves where you are alone", async () => {
   serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
   openMenuFor("Notes");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   await waitFor(() => expect(screen.queryByText("Notes")).toBeNull());
   // Nothing about the screen the user was on has any business changing.
-  expect(window.location.pathname).toBe("/p/p1");
+  expect(window.location.pathname).toBe("/p/p1/c/new");
 });
 
 test("a deleted project is not offered back", async () => {
   serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
   openMenuFor("Notes");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
@@ -446,31 +483,19 @@ test("a deleted project is not offered back", async () => {
 
 test("Escape closes the menu first, then the question", async () => {
   serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   const { container } = render(<App />);
-  await screen.findByText("Thesis", { selector: ".screen__title" });
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
 
   openMenuFor("Thesis");
   expect(container.querySelector(".menu")).toBeTruthy();
   fireEvent.keyDown(window, { key: "Escape" });
-  // Asked for by shape rather than by name: the project header carries a Rename of its own.
   expect(container.querySelector(".menu")).toBeNull();
 
   openMenuFor("Thesis");
   fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
   fireEvent.keyDown(window, { key: "Escape" });
   expect(screen.queryByText('Delete "Thesis"?')).toBeNull();
-});
-
-test("no screen is drawn while the list is still on its way", () => {
-  // An empty array cannot tell "none" from "not here yet", and guessing shows the wrong screen.
-  vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
-  render(<App />);
-  expect(screen.queryByText("No projects yet")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Rename" })).toBeNull();
-  // Madde 34 moved this line: the area used to sit empty, which said nothing about why. It now
-  // carries the skeleton, and still no screen.
-  expect(screen.getByTestId("skeleton")).toBeTruthy();
 });
 
 test("a list that fails to load says so instead of claiming there are none", async () => {
@@ -480,7 +505,7 @@ test("a list that fails to load says so instead of claiming there are none", asy
   );
   render(<App />);
   await waitFor(() => expect(screen.getByText(/HTTP 500/)).toBeTruthy());
-  expect(screen.queryByText("No projects yet")).toBeNull();
+  expect(screen.queryByText(/No projects yet/)).toBeNull();
   // And no way to send a message either -- there is no project for one to land in.
   expect(screen.queryByPlaceholderText(/Ask anything/)).toBeNull();
 });
@@ -492,7 +517,9 @@ test("a project address that matches nothing says so", async () => {
   await waitFor(() => expect(screen.getByText("That project does not exist.")).toBeTruthy());
 });
 
-test("a renamed project shows the new name in every place at once", async () => {
+// The project list for the list's own address, and nothing anywhere else: a draft asks for its
+// files and its chats too, and a project handed back as a file draws nonsense.
+function withProjectToRename() {
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (options?.method === "PATCH") {
       return Promise.resolve({
@@ -501,18 +528,23 @@ test("a renamed project shows the new name in every place at once", async () => 
         json: async () => ({ ...PROJECT, name: "New" }),
       });
     }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+    return ok(path === "/api/projects" ? [PROJECT] : []);
   });
   vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/new");
+  return fetch;
+}
+
+test("a renamed project shows the new name in every place at once", async () => {
+  withProjectToRename();
   vi.stubGlobal("prompt", vi.fn().mockReturnValue("New"));
-  window.history.pushState(null, "", "/p/p1");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: "Rename" })).toBeTruthy());
+  await screen.findByText("Old", { selector: ".sidebar__row-name" });
+  openMenuFor("Old");
   fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-  // The title, the sidebar row and the bar (Madde 338) read the same array, so they cannot
-  // disagree.
-  await waitFor(() => expect(screen.getAllByText("New").length).toBe(3));
+  // The sidebar row and the bar (Madde 338) read the same array, so they cannot disagree.
+  await waitFor(() => expect(screen.getAllByText("New").length).toBe(2));
 });
 
 test("nothing is asked of a workspace-wide chat address", async () => {
@@ -520,19 +552,15 @@ test("nothing is asked of a workspace-wide chat address", async () => {
   // chats -- so nothing reaches /api/chats at all, by any method.
   const fetch = stubProjects([]);
   render(<App />);
-  await waitFor(() => expect(screen.getByText("No projects yet")).toBeTruthy());
+  await waitFor(() => expect(screen.getByText("No projects yet.")).toBeTruthy());
   expect(fetch.mock.calls.every(([path]) => path !== "/api/chats")).toBe(true);
 });
 
 test("New chat opens an empty chat in the project it was pressed in", async () => {
-  const fetch = vi.fn().mockImplementation((path) => {
-    if (path === "/api/projects/p1/chats") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => [] });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+  const fetch = serverWithProjects([PROJECT], {
+    p1: [{ id: "c1", title: "Write the intro", lastActivity: NOW }],
   });
-  vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: /New chat/ })).toBeTruthy());
@@ -1115,10 +1143,10 @@ test("Refresh asks again with no turn to hang it on", async () => {
     if (String(path).endsWith("/files")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
     }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+    return ok(path === "/api/projects" ? [PROJECT] : []);
   });
   vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
   await waitFor(() => expect(screen.getByText(/No files yet/)).toBeTruthy());
@@ -1251,62 +1279,8 @@ test("a broken engine is reported and nothing asks again by itself", async () =>
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1);
 });
 
-// The app speaks one deletion language now: ask, then delete. The browser's box is gone from it.
-function withChats(chats) {
-  const live = [...chats];
-  const fetch = vi.fn().mockImplementation((path, options) => {
-    if (options?.method === "DELETE") {
-      live.length = 0;
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
-    }
-    if (path === "/api/projects/p1/chats") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => [...live] });
-    }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
-  });
-  vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1");
-  return fetch;
-}
-
-const CHAT_ROW = [{ id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() }];
-
-test("deleting a chat asks in the app's own box, not the browser's", async () => {
-  const fetch = withChats(CHAT_ROW);
-  vi.stubGlobal("confirm", vi.fn());
-  render(<App />);
-  // Asked for by its control: the title itself now stands twice, in the row and in the sidebar.
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Delete Write the intro" })).toBeTruthy(),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
-
-  expect(screen.getByText("Delete this chat?")).toBeTruthy();
-  expect(screen.getByText("Its files stay in the project.")).toBeTruthy();
-  expect(window.confirm).not.toHaveBeenCalled();
-  expect(fetch.mock.calls.every(([, options]) => options?.method !== "DELETE")).toBe(true);
-});
-
-test("cancelling a chat deletion sends nothing", async () => {
-  const fetch = withChats(CHAT_ROW);
-  render(<App />);
-  await waitFor(() =>
-    expect(screen.getByRole("button", { name: "Delete Write the intro" })).toBeTruthy(),
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  expect(fetch.mock.calls.every(([, options]) => options?.method !== "DELETE")).toBe(true);
-});
-
-test("a chat the user confirms is deleted and leaves the list", async () => {
-  withChats(CHAT_ROW);
-  render(<App />);
-  await waitFor(() => expect(screen.getAllByText("Write the intro").length).toBeGreaterThan(0));
-  fireEvent.click(screen.getByRole("button", { name: "Delete Write the intro" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete chat" }));
-  await waitFor(() => expect(screen.queryByText("Write the intro")).toBeNull());
-});
-
+// The app speaks one deletion language: ask, then delete. The browser's box is gone from it. A
+// chat is not among what it deletes since Madde 353: its one place was the project screen.
 function withFile() {
   const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
   let onDisk = [file];
@@ -1325,10 +1299,10 @@ function withFile() {
     if (path.endsWith("/files")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => onDisk });
     }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+    return ok(path === "/api/projects" ? [PROJECT] : []);
   });
   vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   return fetch;
 }
 
@@ -1347,8 +1321,8 @@ test("answering the question takes the file, and nothing is offered back", async
 });
 
 test("a file open in the panel cannot be asked to go, and closing it brings the row back", async () => {
-  // The delete lives on the row, and the row lives in the column the panel replaced. So reading a
-  // file is not a state a file can be deleted from -- on either screen.
+  // The delete lives on the row, and the row lives in the rail the reader took over. So reading a
+  // file is not a state a file can be deleted from.
   withFile();
   render(<App />);
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
@@ -1356,7 +1330,7 @@ test("a file open in the panel cannot be asked to go, and closing it brings the 
   await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
 
   expect(screen.queryByRole("button", { name: "Delete plan.md" })).toBeNull();
-  fireEvent.click(screen.getByRole("button", { name: "×" }));
+  fireEvent.click(screen.getByRole("button", { name: "←" }));
   await waitFor(() => expect(screen.getByRole("button", { name: "Delete plan.md" })).toBeTruthy());
 });
 
@@ -1381,10 +1355,10 @@ test("a file is not deleted until the question is answered", async () => {
     if (path.endsWith("/files")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
     }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+    return ok(path === "/api/projects" ? [PROJECT] : []);
   });
   vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
@@ -1450,8 +1424,10 @@ test("the sidebar folds away and comes back, and stays folded across an address"
   fireEvent.click(screen.getByRole("button", { name: "Hide the sidebar" }));
   await waitFor(() => expect(screen.queryByText("Projects")).toBeNull());
 
-  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+  // Folded, the column still carries New chat (Madde 351); All projects has no sidebar to fold, so
+  // the draft is the other address.
+  fireEvent.click(screen.getByRole("button", { name: "New chat" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
   expect(screen.queryByText("Projects")).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: "Show the sidebar" }));
@@ -1528,28 +1504,6 @@ test("dragging it past its minimum folds it instead of leaving a sliver", async 
   expect(screen.queryByRole("separator")).toBeNull();
 });
 
-test("opening a file unfolds the rail rather than hiding what was opened", async () => {
-  // A file can be opened from the project screen while the chat's rail is folded, and closing it
-  // must not drop the reader back into a folded rail.
-  withRail();
-  window.history.pushState(null, "", "/p/p1/c/c1");
-  render(<App />);
-  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
-  fold();
-  await waitFor(() => expect(screen.queryByText("plan.md")).toBeNull());
-
-  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  fireEvent.click(screen.getByText("plan.md"));
-  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
-
-  fireEvent.click(screen.getByRole("button", { name: "Write the intro" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-  fireEvent.click(screen.getByRole("button", { name: "←" }));
-  // Folded, this list would not be here.
-  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
-});
-
 test("opening a file empties the rail, and ← brings the list back", async () => {
   // Madde 63, end to end -- and the whole decision rests on the second half. Giving the rail over to
   // the document is only acceptable because the list is one press away, so the press is asked for
@@ -1621,17 +1575,16 @@ test("no row anywhere offers a rename", async () => {
     if (path === "/api/projects/p1/chats") {
       return Promise.resolve({ ok: true, status: 200, json: async () => chats });
     }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+    return ok(path === "/api/projects" ? [PROJECT] : []);
   });
   vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  await screen.findByText("Write the intro", { selector: ".sidebar__chat" });
   expect(screen.queryByRole("button", { name: "Rename plan.md" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Rename Write the intro" })).toBeNull();
-  // The project's own Rename is the one that stays.
-  expect(screen.getByRole("button", { name: "Rename" })).toBeTruthy();
 });
 
 test("⌘K is bound to nothing", async () => {
@@ -1657,10 +1610,10 @@ test("Escape closes the reading panel", async () => {
     if (path.endsWith("/files")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
     }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+    return ok(path === "/api/projects" ? [PROJECT] : []);
   });
   vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
   await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
@@ -1670,7 +1623,7 @@ test("Escape closes the reading panel", async () => {
   fireEvent.keyDown(window, { key: "Escape" });
   await waitFor(() => expect(screen.queryByText("body")).toBeNull());
   // Escape closes; it never steps backwards.
-  expect(window.location.pathname).toBe("/p/p1");
+  expect(window.location.pathname).toBe("/p/p1/c/new");
 });
 
 test("nothing asks the server to search", async () => {
@@ -1690,13 +1643,13 @@ function goOffline(offline) {
 
 test("offline, the strip shows and the composer stays open", async () => {
   goOffline(true);
-  // Inside a project, because that is now the only place a composer stands.
-  stubProjects([PROJECT]);
-  window.history.pushState(null, "", "/p/p1");
+  // Inside a project, because that is the only place a composer stands.
+  serverWithProjects([PROJECT]);
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
   await waitFor(() => expect(screen.getByTestId("offline")).toBeTruthy());
   // The composer is not taken away: what is offline is the engine, not the machine.
-  expect(screen.getByPlaceholderText(/Start a new chat/)).toBeTruthy();
+  expect(screen.getByPlaceholderText("Reply...")).toBeTruthy();
   goOffline(false);
   await waitFor(() => expect(screen.queryByTestId("offline")).toBeNull());
 });
@@ -1828,9 +1781,9 @@ test("a chat is born naming the model that will answer it", async () => {
   // The reversal of Madde 82's lock. The selection is the session's and the server holds none, so
   // the only way it can travel is on the message -- the road skill has taken since Madde 86.
   const fetch = withChat();
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  const box = await screen.findByPlaceholderText("Start a new chat in this project...");
+  const box = await screen.findByPlaceholderText("Reply...");
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -1953,10 +1906,10 @@ test("the first sentence goes through the one door with no chat named", async ()
     return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
   });
   vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1");
+  window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Start a new chat in this project...");
+  const box = await screen.findByPlaceholderText("Reply...");
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2501,7 +2454,7 @@ test("coming back to a streaming chat finds its transcript and its stream", asyn
   });
 });
 
-test("a skill picked in a chat does not ride into a chat born on the project screen", async () => {
+test("a skill picked in a chat does not ride into a chat born in the draft", async () => {
   // Madde 105 overturned Madde 86 here: the selection was the session's, so a skill picked in one
   // chat rode into every chat born after it. The selection is the chat's own now.
   const fetch = withChat();
@@ -2512,9 +2465,9 @@ test("a skill picked in a chat does not ride into a chat born on the project scr
   fireEvent.click(screen.getByText("Edit prompts"));
   await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
 
-  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
-  const box = screen.getByPlaceholderText("Start a new chat in this project...");
+  fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  const box = screen.getByPlaceholderText("Reply...");
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2891,13 +2844,12 @@ test("a draft says which model will answer it", async () => {
 });
 
 test("an empty prompt sends nothing", async () => {
-  const fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [PROJECT] });
-  vi.stubGlobal("fetch", fetch);
+  const fetch = withProjectToRename();
   vi.stubGlobal("prompt", vi.fn().mockReturnValue(""));
-  window.history.pushState(null, "", "/p/p1");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: "Rename" })).toBeTruthy());
+  await screen.findByText("Old", { selector: ".sidebar__row-name" });
+  openMenuFor("Old");
   fireEvent.click(screen.getByRole("button", { name: "Rename" }));
   expect(fetch.mock.calls.every(([, options]) => options?.method !== "PATCH")).toBe(true);
 });
