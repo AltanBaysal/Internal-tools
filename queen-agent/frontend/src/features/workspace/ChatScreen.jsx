@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 
 import Composer from "./Composer.jsx";
 import ContextGauge from "./ContextGauge.jsx";
@@ -19,6 +19,10 @@ import ToolCalls from "./ToolCalls.jsx";
 // A reader further from the bottom than this is reading, not watching, and nothing arriving at the
 // foot -- the answer, a card -- may pull them away from it. The design's own number.
 const STICK_WITHIN = 220;
+
+// The design's words for the trim (item 147). Where the line stands is the record's `trimmed` --
+// the server's count, never one the screen works out (FOUNDATION, Decision 4).
+const TRIMMED_LINE = "Messages above this line are no longer sent to the model";
 
 export default function ChatScreen({
   chat,
@@ -150,83 +154,92 @@ export default function ChatScreen({
             {chat ? (
               <>
                 {chat.messages.map((message, index) => (
-                  <div
-                    key={`${message.at}-${index}`}
-                    className={
-                      message.role === "user"
-                        ? "msg msg--user"
-                        : /* An answer the user cut short says so: half a sentence with no mark
-                             reads as a model that finished on one. */
-                          `msg msg--ai${message.stopped ? " msg--stopped" : ""}`
-                    }
-                  >
-                    {/* Only an answer has steps; a question is what was typed and nothing else. */}
-                    {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
-                    {/* What the user typed stays what they typed -- `**test**` keeps its asterisks.
-                        Correcting it happens here rather than in the composer (Madde 197): the
-                        sentence is on the message, so the field that changes it is too. Only a
-                        question can be gone back to -- an answer is a whole turn with its own
-                        calls, and stepping into the middle of one would mean nothing on disk. */}
-                    {message.role === "user" ? (
-                      editing?.index === index ? (
-                        <EditMessage
-                          text={editing.text}
-                          onConfirm={(text) => {
-                            setEditing(null);
-                            onSend?.(text, index);
-                          }}
-                          onCancel={() => setEditing(null)}
+                  <Fragment key={`${message.at}-${index}`}>
+                    {/* Before the first message still sent. Zero is a chat nobody trimmed, and a
+                        record from before Madde 345 carries no number, which equals no index. */}
+                    {index > 0 && index === chat.trimmed ? (
+                      <p className="trimmed">{TRIMMED_LINE}</p>
+                    ) : null}
+                    <div
+                      className={
+                        message.role === "user"
+                          ? "msg msg--user"
+                          : /* An answer the user cut short says so: half a sentence with no mark
+                               reads as a model that finished on one. */
+                            `msg msg--ai${message.stopped ? " msg--stopped" : ""}`
+                      }
+                    >
+                      {/* Only an answer has steps; a question is what was typed and nothing else. */}
+                      {message.role === "ai" ? <ToolCalls calls={message.calls} /> : null}
+                      {/* What the user typed stays what they typed -- `**test**` keeps its
+                          asterisks. Correcting it happens here rather than in the composer (Madde
+                          197): the sentence is on the message, so the field that changes it is
+                          too. Only a question can be gone back to -- an answer is a whole turn with
+                          its own calls, and stepping into the middle of one would mean nothing on
+                          disk. */}
+                      {message.role === "user" ? (
+                        editing?.index === index ? (
+                          <EditMessage
+                            text={editing.text}
+                            onConfirm={(text) => {
+                              setEditing(null);
+                              onSend?.(text, index);
+                            }}
+                            onCancel={() => setEditing(null)}
+                          />
+                        ) : (
+                          <div className="msg__bubble">{message.text}</div>
+                        )
+                      ) : /* Only when there is something to draw: an answer stopped before its
+                             first word would otherwise put the rule down the side of nothing. */
+                      message.text ? (
+                        <div className="msg__text">
+                          <Markdown text={message.text} />
+                        </div>
+                      ) : null}
+                      {/* Where the text stops and why. Above the cards and the count -- those are
+                          notes about the turn, this is the end of the sentence. Nobody but the
+                          user can stop an answer, so the word says what happened and invents no
+                          cause. */}
+                      {message.stopped ? <div className="msg__stopped">Stopped</div> : null}
+                      {/* One turn can produce more than one file, so the card is not a single
+                          slot. */}
+                      {message.files?.some((name) => onDisk.has(name)) ? (
+                        <div className="file-cards">
+                          {message.files
+                            .filter((name) => onDisk.has(name))
+                            .map((name) => (
+                              <FileCard
+                                key={name}
+                                name={name}
+                                selected={name === reading?.name}
+                                onOpen={reading?.open}
+                              />
+                            ))}
+                        </div>
+                      ) : null}
+                      {/* Closes the turn. Only an answer carries a count: spending is what an
+                          answer does, and a number under the question would read as its price.
+                          The server sends the user's own message a usage of zeros, so this would
+                          hold without the check -- but a rule that leans on someone else's zeros
+                          breaks the day they change. */}
+                      <Stamp at={message.at} usage={message.role === "ai" ? message.usage : null}>
+                        {/* The pencil is handed over only where there is something to correct: a
+                            question, and not one already open for correction -- a second door
+                            onto an open field is one whose meaning nobody can state. Named for the
+                            message rather than Edit alone, which the mode picker already wears. */}
+                        <MessageFoot
+                          standing={message.variants}
+                          onVersion={onVersion}
+                          onEdit={
+                            message.role === "user" && editing?.index !== index
+                              ? () => setEditing({ index, text: message.text })
+                              : null
+                          }
                         />
-                      ) : (
-                        <div className="msg__bubble">{message.text}</div>
-                      )
-                    ) : /* Only when there is something to draw: an answer stopped before its
-                           first word would otherwise put the rule down the side of nothing. */
-                    message.text ? (
-                      <div className="msg__text">
-                        <Markdown text={message.text} />
-                      </div>
-                    ) : null}
-                    {/* Where the text stops and why. Above the cards and the count -- those are
-                        notes about the turn, this is the end of the sentence. Nobody but the user
-                        can stop an answer, so the word says what happened and invents no cause. */}
-                    {message.stopped ? <div className="msg__stopped">Stopped</div> : null}
-                    {/* One turn can produce more than one file, so the card is not a single slot. */}
-                    {message.files?.some((name) => onDisk.has(name)) ? (
-                      <div className="file-cards">
-                        {message.files
-                          .filter((name) => onDisk.has(name))
-                          .map((name) => (
-                            <FileCard
-                              key={name}
-                              name={name}
-                              selected={name === reading?.name}
-                              onOpen={reading?.open}
-                            />
-                          ))}
-                      </div>
-                    ) : null}
-                    {/* Closes the turn. Only an answer carries a count: spending is what an answer
-                        does, and a number under the question would read as its price. The server
-                        sends the user's own message a usage of zeros, so this would hold without
-                        the check -- but a rule that leans on someone else's zeros breaks the day
-                        they change. */}
-                    <Stamp at={message.at} usage={message.role === "ai" ? message.usage : null}>
-                      {/* The pencil is handed over only where there is something to correct: a
-                          question, and not one already open for correction -- a second door onto
-                          an open field is one whose meaning nobody can state. Named for the
-                          message rather than Edit alone, which the mode picker already wears. */}
-                      <MessageFoot
-                        standing={message.variants}
-                        onVersion={onVersion}
-                        onEdit={
-                          message.role === "user" && editing?.index !== index
-                            ? () => setEditing({ index, text: message.text })
-                            : null
-                        }
-                      />
-                    </Stamp>
-                  </div>
+                      </Stamp>
+                    </div>
+                  </Fragment>
                 ))}
                 {streamingText ? (
                   <div className="msg msg--ai" data-testid="streaming">
