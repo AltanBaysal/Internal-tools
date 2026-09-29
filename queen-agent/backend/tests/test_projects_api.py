@@ -31,6 +31,11 @@ def _client(tmp_path):
     return app.test_client()
 
 
+def _create(client, name="Thesis"):
+    # Madde 361: a project is born with the name the naming screen asked for.
+    return client.post("/api/projects", json={"name": name})
+
+
 def test_empty_root_returns_an_empty_list(tmp_path):
     resp = _client(tmp_path).get("/api/projects")
     assert resp.status_code == 200
@@ -46,53 +51,59 @@ def test_a_stray_file_beside_the_projects_is_not_one(tmp_path):
 
 def test_created_project_appears_in_the_list(tmp_path):
     client = _client(tmp_path)
-    created = client.post("/api/projects")
+    created = _create(client, "Harbour")
     assert created.status_code == 201
     body = created.get_json()
-    # Madde 191, end to end: the name the sidebar shows is the one the server made.
-    assert body["name"] == "New project 1"
+    # One request, and the name the user typed: no project is ever left under a name nobody chose.
+    assert body["name"] == "Harbour"
     assert body["id"].startswith("p")
     assert client.get("/api/projects").get_json() == [body]
 
 
-def test_projects_opened_one_after_another_are_told_apart_by_name(tmp_path):
-    # The whole item. Three rows all reading New project is three rows nobody can pick between.
+def test_a_project_needs_a_name_to_be_born(tmp_path):
+    # The same words a rename to nothing gets: it is one rule about what a project's name may be.
     client = _client(tmp_path)
-    made = [client.post("/api/projects").get_json()["name"] for _ in range(3)]
-    assert made == ["New project 1", "New project 2", "New project 3"]
+    for asked in (
+        client.post("/api/projects"),
+        client.post("/api/projects", json={}),
+        client.post("/api/projects", json={"name": "  "}),
+    ):
+        assert asked.status_code == 400
+        assert asked.get_json() == {"error": "a project needs a name"}
+    assert client.get("/api/projects").get_json() == []
 
 
 def test_projects_survive_a_fresh_app(tmp_path):
-    _client(tmp_path).post("/api/projects")
+    _create(_client(tmp_path))
     assert len(_client(tmp_path).get("/api/projects").get_json()) == 1
 
 
 def test_project_payload_carries_zero_counts_before_anything_exists(tmp_path):
-    body = _client(tmp_path).post("/api/projects").get_json()
+    body = _create(_client(tmp_path)).get_json()
     assert body["chats"] == 0
     assert body["files"] == 0
 
 
 def test_two_projects_get_different_ids(tmp_path):
-    # The id is all that tells them apart now: two projects are told apart by name, not by colour.
+    # The id is all that tells them apart when two are given the same name.
     client = _client(tmp_path)
-    first = client.post("/api/projects").get_json()
-    second = client.post("/api/projects").get_json()
+    first = _create(client).get_json()
+    second = _create(client).get_json()
     assert first["id"] != second["id"]
 
 
 def test_patch_renames_a_project(tmp_path):
     client = _client(tmp_path)
-    created = client.post("/api/projects").get_json()
-    resp = client.patch(f"/api/projects/{created['id']}", json={"name": "Thesis"})
+    created = _create(client).get_json()
+    resp = client.patch(f"/api/projects/{created['id']}", json={"name": "Harbour"})
     assert resp.status_code == 200
-    assert resp.get_json()["name"] == "Thesis"
-    assert client.get("/api/projects").get_json()[0]["name"] == "Thesis"
+    assert resp.get_json()["name"] == "Harbour"
+    assert client.get("/api/projects").get_json()[0]["name"] == "Harbour"
 
 
 def test_patch_rejects_an_empty_name(tmp_path):
     client = _client(tmp_path)
-    created = client.post("/api/projects").get_json()
+    created = _create(client).get_json()
     assert client.patch(f"/api/projects/{created['id']}", json={"name": "  "}).status_code == 400
 
 
@@ -102,8 +113,8 @@ def test_patch_on_an_unknown_project_is_404(tmp_path):
 
 def test_patch_keeps_the_counts_in_the_answer(tmp_path):
     client = _client(tmp_path)
-    created = client.post("/api/projects").get_json()
-    body = client.patch(f"/api/projects/{created['id']}", json={"name": "Thesis"}).get_json()
+    created = _create(client).get_json()
+    body = client.patch(f"/api/projects/{created['id']}", json={"name": "Harbour"}).get_json()
     assert body["chats"] == 0
     assert body["files"] == 0
 
@@ -111,14 +122,14 @@ def test_patch_keeps_the_counts_in_the_answer(tmp_path):
 def test_a_description_in_the_body_is_simply_not_a_field(tmp_path):
     # PATCH sends what changed; a key the project has no room for is not an error, it is nothing.
     client = _client(tmp_path)
-    created = client.post("/api/projects").get_json()
+    created = _create(client).get_json()
     resp = client.patch(f"/api/projects/{created['id']}", json={"desc": "Notes."})
     assert resp.status_code == 200
     assert "desc" not in resp.get_json()
 
 
 def test_the_answer_carries_neither_a_description_nor_a_colour(tmp_path):
-    created = _client(tmp_path).post("/api/projects").get_json()
+    created = _create(_client(tmp_path)).get_json()
     # Madde 339 added the pin and the archive, and 346 the last use; neither a description nor a
     # colour came back with them.
     assert set(created) == {
@@ -128,7 +139,7 @@ def test_the_answer_carries_neither_a_description_nor_a_colour(tmp_path):
 
 def test_a_project_can_be_deleted(tmp_path):
     client = _client(tmp_path)
-    created = client.post("/api/projects").get_json()
+    created = _create(client).get_json()
     resp = client.delete(f"/api/projects/{created['id']}")
     assert resp.status_code == 200
     assert resp.get_json()["trashed"] == created["id"]

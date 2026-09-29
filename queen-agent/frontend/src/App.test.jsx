@@ -25,14 +25,15 @@ const THESIS = { id: "p1", name: "Thesis", chats: 2, files: 0, pinned: false, la
 const ok = (body, status = 200) => Promise.resolve({ ok: true, status, json: async () => body });
 
 // Madde 353: projects, each project's chats, a chat record for any id, and a POST that makes one
-// the server then lists first -- where it puts a project nobody has used since it was born.
+// the server then lists first -- where it puts a project nobody has used since it was born. Madde
+// 361: the project is born under the name the POST carries.
 function serverWithProjects(projects, chatsOf = {}) {
   const live = [...projects];
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path === "/api/projects" && options?.method === "POST") {
       const born = {
         id: "p9",
-        name: "New project 3",
+        name: JSON.parse(options.body).name,
         chats: 0,
         files: 0,
         pinned: false,
@@ -301,21 +302,149 @@ test("leaving before the project's chats arrive stays where the user went", asyn
   expect(window.location.pathname).toBe("/");
 });
 
-test("+ New project makes a project and opens its draft, and All projects lists it where the server does", async () => {
-  // Created as today, with no name asked (the naming screen is Madde 361's).
-  const fetch = serverWithProjects([THESIS]);
-  render(<App />);
-  fireEvent.click(await screen.findByRole("button", { name: "+ New project" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p9/c/new"));
-  const posts = fetch.mock.calls.filter(
+// --- the naming screen (Madde 361; the design's items 135, 153, 169, 195) ------------------------
+
+const posts = (fetch) =>
+  fetch.mock.calls.filter(
     ([path, options]) => path === "/api/projects" && options?.method === "POST",
   );
-  expect(posts).toHaveLength(1);
+const nameField = () => screen.findByPlaceholderText("Project name");
+const barExit = () => document.querySelector(".bar__exit");
 
+test("+ New project asks for the name first, and nothing is made yet", async () => {
+  const fetch = serverWithProjects([THESIS]);
+  const { container } = render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "+ New project" }));
+  expect(await screen.findByLabelText("Name your project")).toBe(await nameField());
+  expect(window.location.pathname).toBe("/new");
+  expect(posts(fetch)).toEqual([]);
+  // No project is open here, so no sidebar and nothing in the bar's middle; the right holds the
+  // way back.
+  expect(container.querySelector(".sidebar")).toBeNull();
+  expect(container.querySelector(".bar__project")).toBeNull();
+  expect(barExit().textContent).toBe("Cancel");
+});
+
+test("the name typed is the project's, and its draft opens in the naming screen's place", async () => {
+  const fetch = serverWithProjects([THESIS]);
+  const push = vi.spyOn(window.history, "pushState");
+  const replace = vi.spyOn(window.history, "replaceState");
+  // A method spied on already hands back the same spy, and an earlier test's calls with it.
+  push.mockClear();
+  replace.mockClear();
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "+ New project" }));
+  const field = await nameField();
+  fireEvent.change(field, { target: { value: "Harbour" } });
+  fireEvent.keyDown(field, { key: "Enter" });
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p9/c/new"));
+  // One request, carrying the name: no project is ever left under a name nobody chose.
+  expect(posts(fetch).map(([, options]) => JSON.parse(options.body))).toEqual([{ name: "Harbour" }]);
+  expect(await screen.findByText("Harbour", { selector: ".bar__project" })).toBeTruthy();
+  // The naming screen's work is done: the back button does not land on it to make a second one.
+  expect(push.mock.calls.map(([, , to]) => to)).toEqual(["/new"]);
+  expect(replace.mock.calls.map(([, , to]) => to)).toEqual(["/p/p9/c/new"]);
+
+  // Where it belongs is the server's order, read again.
   fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
   await screen.findByText("All projects", { selector: ".screen__title" });
   const rows = [...document.querySelectorAll(".all-projects__row-name")].map((row) => row.textContent);
-  expect(rows).toEqual(["New project 3", "Thesis"]);
+  expect(rows).toEqual(["Harbour", "Thesis"]);
+});
+
+test("a blank name makes nothing and stays", async () => {
+  const fetch = serverWithProjects([THESIS]);
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "+ New project" }));
+  const field = await nameField();
+  fireEvent.change(field, { target: { value: "   " } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+  expect(posts(fetch)).toEqual([]);
+  expect(window.location.pathname).toBe("/new");
+});
+
+test("Cancel goes back to All projects and makes nothing", async () => {
+  const fetch = serverWithProjects([THESIS]);
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "+ New project" }));
+  await nameField();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await screen.findByText("All projects", { selector: ".screen__title" });
+  expect(window.location.pathname).toBe("/");
+  expect(posts(fetch)).toEqual([]);
+});
+
+test("Escape does what Cancel does", async () => {
+  serverWithProjects([THESIS]);
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "+ New project" }));
+  await nameField();
+  fireEvent.keyDown(window, { key: "Escape" });
+  await screen.findByText("All projects", { selector: ".screen__title" });
+  expect(window.location.pathname).toBe("/");
+});
+
+test("the sidebar's + asks for the name too, and Cancel goes back to the chat it came from", async () => {
+  // The sidebar's + stands until Madde 362; while it does, it is one more road to the same screen.
+  const fetch = serverWithProjects([THESIS], { p1: [{ id: "c1", title: "Only", lastActivity: NOW }] });
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
+  fireEvent.click(screen.getByRole("button", { name: "New project" }));
+  await nameField();
+  expect(window.location.pathname).toBe("/new");
+  expect(posts(fetch)).toEqual([]);
+
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
+});
+
+test("reached by its address, the naming screen's Cancel goes to All projects", async () => {
+  // Typed by hand or reloaded, there is no screen it was reached from.
+  serverWithProjects([THESIS]);
+  window.history.pushState(null, "", "/new");
+  render(<App />);
+  await nameField();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await screen.findByText("All projects", { selector: ".screen__title" });
+  expect(window.location.pathname).toBe("/");
+});
+
+test("with no project yet, it asks for the first one and offers no way back", async () => {
+  // The design's 195: at the first launch there is nowhere to leave to, so the bar's right is empty.
+  stubProjects([]);
+  render(<App />);
+  await screen.findByText("No projects yet.");
+  fireEvent.click(screen.getByRole("button", { name: "+ New project" }));
+  expect(await screen.findByLabelText("Name your first project")).toBe(await nameField());
+  expect(barExit()).toBeNull();
+  fireEvent.keyDown(window, { key: "Escape" });
+  expect(window.location.pathname).toBe("/new");
+});
+
+test("a project the server will not make says what the server said", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path, options) => {
+      if (options?.method === "POST") {
+        return Promise.resolve({
+          ok: false,
+          status: 500,
+          text: async () => JSON.stringify({ error: "the store is unreachable" }),
+        });
+      }
+      return ok(path === "/api/projects" ? [THESIS] : []);
+    }),
+  );
+  window.history.pushState(null, "", "/new");
+  render(<App />);
+  const field = await nameField();
+  fireEvent.change(field, { target: { value: "Harbour" } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(await screen.findByText("the store is unreachable")).toBeTruthy();
+  expect(window.location.pathname).toBe("/new");
 });
 
 test("a chat that does not exist leads back to All projects", async () => {
