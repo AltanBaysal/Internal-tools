@@ -1325,7 +1325,7 @@ test("the sidebar folds away and comes back, and stays folded across an address"
   fireEvent.click(screen.getByRole("button", { name: "Hide the sidebar" }));
   await waitFor(() => expect(screen.queryByText("Projects")).toBeNull());
 
-  fireEvent.click(screen.getByRole("button", { name: "← Old" }));
+  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   expect(screen.queryByText("Projects")).toBeNull();
 
@@ -1375,7 +1375,7 @@ test("opening a file unfolds the rail rather than hiding what was opened", async
   fold();
   await waitFor(() => expect(screen.queryByText("plan.md")).toBeNull());
 
-  fireEvent.click(screen.getByRole("button", { name: "← Old" }));
+  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   fireEvent.click(screen.getByText("plan.md"));
   await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
@@ -2349,7 +2349,7 @@ test("a skill picked in a chat does not ride into a chat born on the project scr
   fireEvent.click(screen.getByText("Edit prompts"));
   await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
 
-  fireEvent.click(screen.getByRole("button", { name: "← Old" }));
+  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
   const box = screen.getByPlaceholderText("Start a new chat in this project...");
   fireEvent.change(box, { target: { value: "hello" } });

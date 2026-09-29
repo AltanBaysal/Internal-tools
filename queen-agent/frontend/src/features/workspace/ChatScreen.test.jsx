@@ -272,18 +272,19 @@ test("the rail's rows can be deleted from the chat", () => {
   expect(remove).toHaveBeenCalledWith("notes.md");
 });
 
-test("the breadcrumb names the project and the chat", () => {
-  render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByText(/Thesis research/)).toBeTruthy();
-  expect(screen.getByText("Write the intro", { selector: ".chat__title" })).toBeTruthy();
+test("the chat's header holds its name and nothing else", () => {
+  // Design items 152 and 168: the project's name lives in the bar alone, so the header is no longer
+  // a breadcrumb.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".chat__header").textContent).toBe("Write the intro");
 });
 
-test("the way back to the project stays", () => {
-  // The design asks for this one by name: a chat header is "← project name".
-  const onBack = vi.fn();
-  render(<ChatScreen project={PROJECT} chat={CHAT} onBack={onBack} />);
-  fireEvent.click(screen.getByRole("button", { name: /Thesis research/ }));
-  expect(onBack).toHaveBeenCalled();
+test("the header offers no way back, and the project's name is nowhere on the screen", () => {
+  // Leaving the project is the bar's Exit project; the sidebar already opens the project's other
+  // chats.
+  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} onBack={vi.fn()} />);
+  expect(container.querySelector(".chat__header button")).toBeNull();
+  expect(screen.queryByText(/Thesis research/)).toBeNull();
 });
 
 test("nothing is written under the composer", () => {
