@@ -74,6 +74,9 @@ export default function ChatScreen({
     setAskedAt(thinking ? (at) => at ?? new Date().toISOString() : null);
   }, [thinking]);
 
+  // The box, for the card's Try again: a refused reply is sent again by the box that holds it.
+  const box = useRef(null);
+
   const scroll = useRef(null);
   const toBottom = () => {
     const list = scroll.current;
@@ -277,7 +280,11 @@ export default function ChatScreen({
                   <span className="failure__detail">{words}</span>
                 </div>
                 {onRetry ? (
-                  <button type="button" className="failure__retry" onClick={onRetry}>
+                  <button
+                    type="button"
+                    className="failure__retry"
+                    onClick={() => onRetry(() => box.current.submit())}
+                  >
                     Try again
                   </button>
                 ) : null}
@@ -288,6 +295,7 @@ export default function ChatScreen({
 
         <div className="chat__composer">
           <Composer
+            ref={box}
             rows={2}
             placeholder="Reply..."
             action="Send"

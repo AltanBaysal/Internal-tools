@@ -12,8 +12,9 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   // was never sent and an answer that never came are asked for again differently, and only this
   // hook knows which road the message came down.
   const [refused, setRefused] = useState(null);
-  // What the refused send carried, so Try again sends it again as it was.
-  const refusedSend = useRef(null);
+  // Whether the refused send was a reply: its sentence went back to the box then, and the box is
+  // what sends it again -- one owner, so it cannot go twice (Madde 349).
+  const refusedReply = useRef(false);
   const [missing, setMissing] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [streamingText, setStreamingText] = useState("");
@@ -61,9 +62,12 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     // No chat at this address: the draft, or no chat screen at all. Dropped rather than kept -- a
     // held record is the chat that was left, the draft's first bubble lands on it, and the birth
     // then shows that transcript at the newborn's address (Madde 104).
+    // A refusal belongs to the chat it was said in: its Try again sends the box, which pressed
+    // here would write the sentence into this chat.
     if (!projectId || !chatId) {
       setChat(null);
       setError(null);
+      setRefused(null);
       setMissing(false);
       return undefined;
     }
@@ -77,6 +81,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     let cancelled = false;
     setChat(null);
     setError(null);
+    setRefused(null);
     setMissing(false);
     getJson(`/api/projects/${projectId}/chats/${chatId}`)
       .then((loaded) => {
@@ -241,7 +246,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
           );
         }
         if ((target ?? null) === (live.current ?? null)) setRefused(failure.message);
-        refusedSend.current = [text, skill, mode, model, from];
+        refusedReply.current = text !== null && from === null;
         // Thrown on rather than swallowed, but only when there was a sentence: the composer is
         // holding the only copy of it and has to know to keep it.
         if (text !== null) throw failure;
@@ -334,9 +339,9 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     stop,
     answer,
     version,
-    // Try again sends again what got no answer: the refused send as it was, or -- after a failed
-    // answer -- the same road with no sentence on it. A second refusal is on the card already and
-    // the sentence back in the box since the first, so there is nobody left to tell.
-    retry: () => (refused ? send(...refusedSend.current) : send(null)).catch(() => {}),
+    // Try again sends again what got no answer. A refused reply is the box's to send: its sentence
+    // went back there. Anything else -- a failed answer, a refused Try again, or a refused edit,
+    // whose sentence nothing holds any more -- asks with no sentence on it.
+    retry: (sendBox) => (refused && refusedReply.current ? sendBox() : send(null)),
   };
 }

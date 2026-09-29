@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { forwardRef, useImperativeHandle, useState } from "react";
 
 // The two marks the one button wears. Written here rather than inline: the running state picks
 // between them, and a reader should see both at once to know they are a pair.
@@ -14,16 +14,10 @@ const STOP = "⏹";
 // `running` says an answer is on its way, and it turns the one action button into a stop. There is
 // nothing to send while one is running, so the button that sends is the one free to stop -- and a
 // control with two states keeps both of them here, where the button already lives.
-export default function Composer({
-  rows,
-  placeholder,
-  action,
-  gauge,
-  foot,
-  running,
-  onStop,
-  onSubmit,
-}) {
+export default forwardRef(function Composer(
+  { rows, placeholder, action, gauge, foot, running, onStop, onSubmit },
+  ref,
+) {
   // Nothing fills this from outside. Madde 195 did, for the message being edited; Madde 197 moved
   // that correction into the message's own place, and the box went back to holding one thing.
   const [draft, setDraft] = useState("");
@@ -48,6 +42,10 @@ export default function Composer({
       setDraft((current) => current || text);
     }
   };
+
+  // Try again after a refused reply is this box sending (Madde 349): the sentence came back here,
+  // and with one owner it cannot be sent twice.
+  useImperativeHandle(ref, () => ({ submit }));
 
   const onKeyDown = (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -89,4 +87,4 @@ export default function Composer({
       </div>
     </div>
   );
-}
+});

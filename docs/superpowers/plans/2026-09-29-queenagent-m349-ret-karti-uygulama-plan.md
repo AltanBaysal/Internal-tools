@@ -5,9 +5,9 @@
 **Goal:** Ret de kahverengi kartı çizer, ve kartın Try again'i reddedilen gönderişi aynen yeniden
 gönderir.
 
-**Architecture:** `ChatScreen` `refused` ile `error`'u aynı kartla çizer. `useChat` reddedilen
-gönderişin argümanlarını bir ref'te tutar; `retry`, `refused` doluyken onları, değilse yazısız isteği
-gönderir. `.refused` CSS kuralı gider.
+**Architecture:** `ChatScreen` `refused` ile `error`'u aynı kartla çizer. `.refused` CSS kuralı
+gider. Task 1 reddedilen gönderişin argümanlarını hook'ta tutuyordu; Task 2 (ikinci geçiş) bunun
+yerine cümlenin tek sahibini kutu yapar: reddedilen bir cevabın Try again'i kutunun gönderişidir.
 
 **Tech Stack:** React 18, vitest, Testing Library.
 
@@ -124,6 +124,88 @@ Beklenen: dördü yeşil; queen-agent'ın ön ucu 697.
 git add queen-agent/frontend/src/features/workspace/useChat.js queen-agent/frontend/src/features/workspace/ChatScreen.jsx queen-agent/frontend/src/features/workspace/workspace.css docs/superpowers/specs/2026-09-29-queenagent-m349-ret-karti-uygulama-design.md docs/superpowers/plans/2026-09-29-queenagent-m349-ret-karti-uygulama-plan.md
 git commit -m @'
 feat: Madde 349 -- a refused message draws the failure card, and Try again sends it again
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+'@
+```
+
+---
+
+### Task 2: İkinci geçiş — Try again kutunun gönderişi, kart sohbetinde kalır; yeşil
+
+**Files:**
+- Modify: `queen-agent/frontend/src/features/workspace/Composer.jsx` — `forwardRef`,
+  `useImperativeHandle`
+- Modify: `queen-agent/frontend/src/features/workspace/ChatScreen.jsx` — kutunun ref'i, kartın
+  `onClick`'i
+- Modify: `queen-agent/frontend/src/features/workspace/useChat.js` — `refusedSend` yerine
+  `refusedReply`, `retry(sendBox)`, yükleme etkisindeki iki `setRefused(null)`
+
+**Interfaces:**
+- Consumes: ikinci kırmızı commit'in üç testi.
+- Produces: `Composer`'ın ref'i `{ submit() }`; `useChat(...).retry(sendBox)` — ret bir cevabınsa
+  `sendBox()`, değilse `send(null)`.
+
+- [ ] **Step 1: Composer kendi `submit`'ini versin**
+
+```js
+import { forwardRef, useImperativeHandle, useState } from "react";
+...
+export default forwardRef(function Composer(
+  { rows, placeholder, action, gauge, foot, running, onStop, onSubmit },
+  ref,
+) {
+  ...
+  // Try again after a refused reply is this box sending (Madde 349): the sentence came back here,
+  // and with one owner it cannot be sent twice.
+  useImperativeHandle(ref, () => ({ submit }));
+  ...
+});
+```
+
+- [ ] **Step 2: ChatScreen kartın Try again'ine kutuyu versin**
+
+```jsx
+  // The box, for the card's Try again: a refused reply is sent again by the box that holds it.
+  const box = useRef(null);
+  ...
+  <button type="button" className="failure__retry" onClick={() => onRetry(() => box.current.submit())}>
+  ...
+  <Composer ref={box} ... />
+```
+
+- [ ] **Step 3: useChat yalnız retin cevap olup olmadığını tutsun**
+
+```js
+  // Whether the refused send was a reply: its sentence went back to the box then, and the box is
+  // what sends it again -- one owner, so it cannot go twice (Madde 349).
+  const refusedReply = useRef(false);
+  ...
+        refusedReply.current = text !== null && from === null;
+  ...
+    // Try again sends again what got no answer. A refused reply is the box's to send: its sentence
+    // went back there. Anything else -- a failed answer, a refused Try again, or a refused edit,
+    // whose sentence nothing holds any more -- asks with no sentence on it.
+    retry: (sendBox) => (refused && refusedReply.current ? sendBox() : send(null)),
+```
+
+Yükleme etkisinin iki dalına `setRefused(null);` ve ilkinin üstüne:
+
+```js
+    // A refusal belongs to the chat it was said in: its Try again sends the box, which pressed
+    // here would write the sentence into this chat.
+```
+
+- [ ] **Step 4: Dört satırı paralel koş, yeşili gör**
+
+Beklenen: dördü yeşil; queen-agent'ın ön ucu 700.
+
+- [ ] **Step 5: Commit**
+
+```powershell
+git add queen-agent/frontend/src/features/workspace/Composer.jsx queen-agent/frontend/src/features/workspace/ChatScreen.jsx queen-agent/frontend/src/features/workspace/useChat.js docs/superpowers/specs/2026-09-29-queenagent-m349-ret-karti-uygulama-design.md docs/superpowers/plans/2026-09-29-queenagent-m349-ret-karti-uygulama-plan.md
+git commit -m @'
+feat: Madde 349 -- Try again after a refused reply is the box sending it, and a refusal stays in its chat
 
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 '@
