@@ -232,7 +232,6 @@ test("a rail still loading says neither, and turns a spinner where the rows will
   const spinner = screen.getByTestId("spinner");
   expect(spinner.parentElement.className).toBe("file-list__spinner");
   expect(container.querySelector(".file-list").contains(spinner)).toBe(true);
-  expect(screen.queryByTestId("skeleton")).toBeNull();
 });
 
 test("while the spinner turns, the heading and Refresh stand where they are", () => {
@@ -316,8 +315,7 @@ test("while reading, the Refresh is the document's, and there is one of it", () 
 });
 
 test("the rail's reader is come back from rather than closed", () => {
-  // The panel here is the rail widened, so it keeps the arrow. The project screen's panel is a
-  // surface of its own and closes with an ×.
+  // The panel here is the rail widened, so it keeps the arrow.
   render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
   expect(screen.getByRole("button", { name: "←" })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "×" })).toBeNull();

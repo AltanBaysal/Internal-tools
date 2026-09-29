@@ -69,31 +69,22 @@ function CopyButton({ text }) {
 
 // Three parts, and only the middle one moves: the name of what is being read and the line saying
 // where it came from are worth as much on page four as on page one.
-//
-// `back` is what the two callers differ by. The rail's panel is the rail widened, so it is come back
-// from; the project screen's panel is a surface standing beside the grid, so it closes. One
-// component either way -- splitting it would copy the header.
 function isDocument(name) {
   return /\.md$/i.test(name);
 }
 
-export default function FilePanel({ name, file, missing, error, back, onClose, onRefresh }) {
+export default function FilePanel({ name, file, missing, error, onClose, onRefresh }) {
   return (
     <div className="reader">
       {/* Madde 342: two rows. The framed buttons stand above, the name under them on a row of its
-          own, so it never gives up room to the buttons. The project screen's × stands where the
-          rail's ← does, at the bar's other edge from Refresh and Copy. */}
+          own, so it never gives up room to the buttons. */}
       <header className="reader__head">
         <div className="reader__bar">
-          {back ? (
-            <button type="button" className="back back--inline" onClick={onClose}>
-              ←
-            </button>
-          ) : (
-            <button type="button" className="reader__close" title="Close" onClick={onClose}>
-              ×
-            </button>
-          )}
+          {/* Come back from rather than closed: the reader is the rail widened, and the arrow is
+              the way back to the list it took over. */}
+          <button type="button" className="back back--inline" onClick={onClose}>
+            ←
+          </button>
           <div className="reader__tools">
             {/* Madde 192. The same action the list's button asks for -- it reads both -- so the
                 two are one button that follows whichever surface is on screen. No busy word and

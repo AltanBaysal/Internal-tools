@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import { deleteJson, getJson, patchJson, postJson } from "../../shared/api.js";
 
-// One array answers two questions -- what the sidebar lists, and which project the app opens on --
-// so the two can never disagree and a new project needs no second round trip.
+// One array answers every place a project is named -- All projects, the sidebar and the bar -- so
+// they can never disagree.
 export function useProjects() {
   const [projects, setProjects] = useState([]);
   const [error, setError] = useState(null);
@@ -26,15 +26,15 @@ export function useProjects() {
   const createProject = useCallback(async () => {
     try {
       const created = await postJson("/api/projects");
-      // Appended until the list is read again: where it belongs is the server's order
+      // Read again rather than put in by hand: where it belongs is the server's order
       // (list_projects.py), and a copy of that rule here would drift from it.
-      setProjects((current) => [...current, created]);
+      await reload();
       return created;
     } catch (failure) {
       setError(failure.message);
       return null;
     }
-  }, []);
+  }, [reload]);
 
   const editProject = useCallback(async (id, changes) => {
     try {

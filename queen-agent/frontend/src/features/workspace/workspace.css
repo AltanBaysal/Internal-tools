@@ -961,16 +961,6 @@
   flex: none;
 }
 
-/* The project screen's reader: the same panel, in a container of its own. */
-.panel {
-  width: 560px;
-  flex: none;
-  border-left: 1px solid var(--line);
-  /* The reader inside is the whole of it, and it scrolls its own body. */
-  padding: 0;
-  overflow: hidden;
-}
-
 /* A box holding buttons. The room belongs to the opener so the clickable area is the whole row, and
    the lit surface stays on the box so hovering the × keeps the row lit. */
 .file-row {
@@ -1426,47 +1416,6 @@
   background: #f0e7de;
 }
 
-/* --- waiting ------------------------------------------------------------ */
-
-.skeleton {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-}
-
-.skeleton__block {
-  display: block;
-  background: #ece7df;
-  border-radius: var(--radius-control);
-  height: 44px;
-  animation: blink 1.4s infinite;
-}
-
-/* The whole content area before the first answer: a bar, a block, a shorter bar. The design's
-   fourth part was a grid of cards, and the grid went in Madde 3. */
-.skeleton--screen {
-  padding: 48px 32px;
-  gap: 22px;
-}
-
-.skeleton--screen .skeleton__block:nth-child(1) {
-  width: 280px;
-  height: 38px;
-}
-
-/* Staged, so the area reads as one thing waking up rather than three blocks flashing together. */
-.skeleton--screen .skeleton__block:nth-child(2) {
-  height: 104px;
-  animation-delay: 0.14s;
-}
-
-.skeleton--screen .skeleton__block:nth-child(3) {
-  width: 180px;
-  height: 16px;
-  animation-delay: 0.28s;
-}
-
 .offline {
   flex: none;
   display: flex;
@@ -1550,20 +1499,6 @@
   white-space: nowrap;
 }
 
-/* The project screen's way out, where the rail's way back stands. Ink rather than accent. */
-.reader__close {
-  border: none;
-  background: transparent;
-  padding: 2px 4px;
-  font-size: 17px;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.reader__close:hover {
-  color: var(--ink);
-}
-
 /* The parser owns the line breaks now, so the rule that used to keep them is gone. */
 .reader__body {
   flex: 1;
@@ -1642,64 +1577,6 @@
   color: #a4735a;
 }
 
-/* The project screen and its panel side by side, the same shape the chat uses. */
-.screen-layout {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-}
-
-/* --- chat rows on the project screen ------------------------------------ */
-
-.chat-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.chat-row {
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid #e9e3da;
-  border-radius: var(--radius-control);
-}
-
-.chat-row__open {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 13px 8px;
-  border: none;
-  background: none;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.chat-row:hover {
-  background: #f0ece5;
-}
-
-.chat-row__title {
-  flex: 1;
-  min-width: 0;
-  font-size: 14.5px;
-  color: var(--ink);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chat-row__when {
-  font-size: 11.5px;
-  color: #a79e93;
-  font-family: var(--font-mono);
-  flex: none;
-}
-
 /* --- a scrolling screen with a centred column --------------------------- */
 
 .screen {
@@ -1731,34 +1608,6 @@
   color: var(--ink);
 }
 
-/* The gap the description used to hold open: the title now sits directly above the composer. */
-/* A second button joined Rename, and a title has no business being cut to make room: what does not
-   fit drops to the next line. */
-.screen__title-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px;
-  margin: 0 0 32px;
-}
-
-/* Outlined until it is hovered, and then it is the thing it does. */
-.screen__delete {
-  border: 1px solid var(--destructive-line);
-  border-radius: var(--radius-control);
-  padding: 6px 12px;
-  background: transparent;
-  color: var(--destructive);
-  font-family: inherit;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.screen__delete:hover {
-  background: var(--destructive);
-  color: #fffdfa;
-}
-
 .screen__title {
   font-family: var(--font-heading);
   font-weight: 400;
@@ -1770,29 +1619,6 @@
 .screen__missing {
   font-size: 15px;
   color: var(--muted);
-}
-
-.project-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 40px;
-  align-items: start;
-  margin-top: 36px;
-}
-
-/* The second column is not there to lay out: the panel is showing it. Without this the track would
-   still be reserved and the chats would sit in a narrower column for no reason. */
-.project-grid--reading {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.column__title {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin: 0 0 12px;
 }
 
 .file-list {
@@ -1810,16 +1636,6 @@
   font-size: 11px;
   color: #a4735a;
   overflow-wrap: anywhere;
-}
-
-/* Madde 192: the list and the open file come back fresh on their own when a turn ends, and Refresh is
-   the same action reached by hand -- for a file the user put in the Drive folder themselves, or a
-   look taken while a long turn is still running. The rail's stands on its heading's row (Madde 350);
-   this row is the project screen's, whose heading is not a control to stand beside. */
-.file-list__bar {
-  display: flex;
-  justify-content: flex-end;
-  padding: 0 2px 2px;
 }
 
 /* Wide enough for Could not copy, so the answer takes Copy's place and the head does not move. */
@@ -1868,9 +1684,10 @@
   padding: 40px 12px;
 }
 
-/* --- no projects -------------------------------------------------------- */
+/* --- All projects (Madde 353; the design's items 142, 167) -------------- */
 
-/* The whole area, centred: there is nothing else on this screen to share it with. */
+/* All projects when its list could not be read: the whole area, centred, with nothing else on it --
+   the list's frame over an unknown count would be a claim nobody made. */
 .empty {
   flex: 1;
   display: flex;
@@ -1882,24 +1699,7 @@
   animation: fadeIn 0.2s ease both;
 }
 
-.empty__title {
-  font-family: var(--font-heading);
-  font-weight: 400;
-  font-size: 34px;
-  margin: 0 0 12px;
-  letter-spacing: -0.01em;
-}
-
-.empty__line {
-  font-size: 14.5px;
-  line-height: 1.6;
-  color: var(--muted);
-  max-width: 420px;
-  margin: 0 0 28px;
-  text-wrap: pretty;
-}
-
-/* The one filled accent on the screen -- it is the only action there is. */
+/* + New project: the screen's primary action, so the one filled accent on it. */
 .empty__action {
   border: none;
   background: var(--accent);
@@ -1919,6 +1719,96 @@
   font-size: 13px;
   color: #8a5237;
   margin: 0;
+}
+
+.all-projects__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 0 0 24px;
+}
+
+.all-projects__section {
+  margin: 0 0 28px;
+}
+
+/* PINNED, RECENT: the design's own label, not --muted, which falls under the 4.5:1 text needs. */
+.all-projects__label {
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #6b6259;
+  margin: 4px 0 2px;
+  padding: 0 0 10px;
+}
+
+.all-projects__list {
+  border-top: 1px solid #e9e3da;
+}
+
+/* A box holding the opener, as the file row is: the ⋯ joins it at the end (Madde 360). */
+.all-projects__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 48px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e9e3da;
+}
+
+.all-projects__row:hover {
+  background: #f0ece5;
+}
+
+.all-projects__row-open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 6px 0;
+  font-family: inherit;
+  font-size: 14.5px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.all-projects__row-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.all-projects__row-meta {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #6b6259;
+  white-space: nowrap;
+}
+
+/* The time: the row's one fixed column, so the times line up down the list. */
+.all-projects__row-when {
+  width: 96px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #6b6259;
+  white-space: nowrap;
+}
+
+.all-projects__empty {
+  padding: 18px 12px;
+  margin: 0;
+  font-size: 13px;
+  color: #a79e93;
+  line-height: 1.6;
 }
 
 /* Inside the card band rather than above it: the box sits among project and file surfaces, so it
@@ -2150,51 +2040,17 @@
   padding: 16px 10px;
 }
 
-/* The project screen's reader goes under its list rather than floating over it: a floating panel
-   would need a control to open it, and the design has none. Nothing here may produce a horizontal
-   scrollbar. The chat's rail is not here -- Madde 50 keeps it on the right at every width and closes
-   it instead, which is what the user asked for. */
-.app-shell--narrow .screen-layout {
-  flex-direction: column;
-}
-
-/* Under the list, with a ceiling: unbounded it would push the column up and the layout would start
-   scrolling as a whole, which is the one thing the contract forbids. */
-.app-shell--narrow .panel {
-  width: auto;
-  flex: none;
-  max-height: min(250px, 44%);
-  min-height: 150px;
-  border-left: none;
-  border-top: 1px solid var(--line);
-  overflow-y: auto;
-}
-
+/* Nothing here may produce a horizontal scrollbar. The chat's rail is not here -- Madde 50 keeps it
+   on the right at every width and closes it instead, which is what the user asked for. */
 .app-shell--narrow .chat,
 .app-shell--narrow .screen {
   min-height: 0;
-}
-
-.app-shell--narrow .project-grid,
-.app-shell--narrow .project-grid--reading {
-  grid-template-columns: minmax(0, 1fr);
-  gap: 28px;
 }
 
 /* Reading takes the whole area rather than being added under the column. Left in place, the column
    and the reader would show the same list twice and the page itself would start to scroll. */
 .app-shell--narrow .chat-layout--reading .chat {
   display: none;
-}
-
-.app-shell--narrow .screen-layout--reading .screen {
-  display: none;
-}
-
-.app-shell--narrow .screen-layout--reading .panel {
-  flex: 1;
-  max-height: none;
-  min-height: 0;
 }
 
 /* Six surfaces share the same side room, so they give it up together: loosening one and not the
@@ -2211,9 +2067,4 @@
 
 .app-shell--tight .screen__title {
   font-size: 27px;
-}
-
-/* The title is what a narrow row is for; the time is what it can afford to lose. */
-.app-shell--tight .chat-row__when {
-  display: none;
 }

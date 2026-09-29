@@ -3,29 +3,25 @@ import "./features/workspace/workspace.css";
 
 import { useEffect, useState } from "react";
 
+import AllProjectsScreen from "./features/workspace/AllProjectsScreen.jsx";
 import Bar from "./features/workspace/Bar.jsx";
 import ChatScreen from "./features/workspace/ChatScreen.jsx";
 import ConfirmDialog from "./features/workspace/ConfirmDialog.jsx";
-import NoProjectsScreen from "./features/workspace/NoProjectsScreen.jsx";
 import OfflineStrip from "./features/workspace/OfflineStrip.jsx";
-import ProjectScreen from "./features/workspace/ProjectScreen.jsx";
+import OpenProject from "./features/workspace/OpenProject.jsx";
 import Sidebar from "./features/workspace/Sidebar.jsx";
-import Skeleton from "./features/workspace/Skeleton.jsx";
+import { countOf } from "./features/workspace/countOf.js";
 import { useChat } from "./features/workspace/useChat.js";
-import {
-  deleteChat,
-  useProjectChats,
-} from "./features/workspace/useChatLists.js";
+import { useProjectChats } from "./features/workspace/useChatLists.js";
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
 import { DEFAULT_MODE, EDIT } from "./features/workspace/modes.js";
 import { DEFAULT_MODEL } from "./features/workspace/models.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
-import { getJson } from "./shared/api.js";
 import { useRememberedMap } from "./shared/remembered.js";
 import { useOnline } from "./shared/useOnline.js";
-import { parsePath, useRoute } from "./shared/useRoute.js";
+import { useRoute } from "./shared/useRoute.js";
 import { useShellWidth } from "./shared/useShellWidth.js";
 
 // A draft has the shape of a chat so the screen needs no second mode: an empty conversation with a
@@ -65,9 +61,9 @@ export default function App() {
   // is picked in one chat never stands in another. Remembered for the reason Madde 100 gave: a
   // five-step flow that loses its skill on a reload sends the next turn with no instruction.
   const [chatSkills, rememberChatSkill] = useRememberedMap("chat-skills");
-  // What the next chat is born with. The draft's and the project screen's picker hold a chat that
-  // does not exist yet; the birth writes the value into the newborn's entry and lets it go, so the
-  // next draft starts with nothing.
+  // What the next chat is born with. The draft's picker holds a chat that does not exist yet; the
+  // birth writes the value into the newborn's entry and lets it go, so the next draft starts with
+  // nothing.
   const [draftSkill, setDraftSkill] = useState("");
   // The last mode picked, and what the next turn is sent in. Held for the session like the skill,
   // and unlike it never written anywhere: nothing on the server reads a mode back.
@@ -82,9 +78,7 @@ export default function App() {
   // the screen. Here rather than inside a picker, because App's one listener owns Escape and it
   // can only close what it can see.
   const [pickerOpen, setPickerOpen] = useState(null);
-  const { projectChats, reloadProjectChats, loadingChats, chatsError } = useProjectChats(
-    route.projectId,
-  );
+  const { projectChats, reloadProjectChats } = useProjectChats(route.projectId);
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
   const drafting = route.view === "chat" && route.chatId === "new";
@@ -98,8 +92,8 @@ export default function App() {
     route.projectId,
     reloadProjects,
   );
-  // One reader for both screens: the chat widens its rail into it, the project screen opens it as a
-  // panel. What is being read belongs to the project, so it survives moving between the two.
+  // The chat widens its rail into the reader. What is being read belongs to the project, so it
+  // survives moving between the project's chats.
   const reading = useFile(route.projectId);
   // Madde 192: everything about files that can have gone stale, in one action. Two of them, and
   // they stale differently -- a late list hides a name, a late panel shows the wrong text under the
@@ -108,12 +102,17 @@ export default function App() {
   // reloadProjects is not in here: what moves a project card's count is a file being born, and
   // onFileCreated below already answers that.
   const refresh = () => Promise.all([reloadFiles(), reading.reload()]);
-  // A file that has just been born changes two answers at once: the list itself, and the count on
-  // the project's card.
+  // A step, and pushed; OpenProject writes the chat it opens over it.
   const openProject = (id) => navigate(`/p/${id}`);
   const openChat = (projectId, chatId, options) =>
     navigate(`/p/${projectId}/c/${chatId}`, options);
   const openDraft = () => navigate(`/p/${route.projectId}/c/new`);
+  // Made with no name asked (the naming screen is Madde 361's), and opened where a new project has
+  // something to do: its draft.
+  const newProject = async () => {
+    const created = await createProject();
+    if (created) navigate(`/p/${created.id}/c/new`);
+  };
 
   const chat = useChat(
     route.projectId,
@@ -133,28 +132,6 @@ export default function App() {
     // A turn is the usual writer, so its end is the usual moment for both to be out of date.
     refresh,
   );
-
-  // "/" is a fork, not a screen. It is read once the list has arrived -- an empty array cannot tell
-  // "there is none" from "not here yet", and deciding early shows the wrong screen for a moment.
-  // The first answer has not come back yet, so which screen this is cannot be known. A failure ends
-  // it too: the empty screen is what carries the server's words.
-  const firstLoad = loading && !error;
-  const atFork = route.view === "root";
-  const landing = atFork && !loading && !error && projects.length > 0 ? projects[0].id : null;
-  useEffect(() => {
-    // The address the browser has now, not the one this render was built from. An effect carries the
-    // values of the commit that scheduled it, so a list arriving in the same batch as a move would
-    // have the fork deciding for someone who has already left -- and replacing where they went.
-    // Asked of the address rather than of the literal "/": every unrecognised path parses to the
-    // fork too, and one of them used to be a screen. Deleting that screen without widening this
-    // question would have left /settings redirecting nowhere and drawing nothing.
-    if (landing && parsePath(window.location.pathname).view === "root") {
-      // The project screen. It was sent to the draft chat for a while, because the pickers lived
-      // only on the chat composer and a skill could not be chosen until a message had been sent --
-      // which moved the landing instead of fixing the screen. The pickers are here now.
-      navigate(`/p/${landing}`, { replace: true });
-    }
-  }, [landing, navigate]);
 
   useEffect(() => {
     // One listener owns the keyboard. Two of them could not agree on an order: they hang off the
@@ -196,10 +173,7 @@ export default function App() {
     if (answer && answer.trim()) editProject(id, { name: answer });
   };
 
-  // The counts come from the list the app already holds. One of a thing is one of it, not one of
-  // them -- the design writes the sentence out that way.
-  const countOf = (many, word) => `${many} ${word}${many === 1 ? "" : "s"}`;
-
+  // The counts come from the list the app already holds.
   const askToDelete = (id) => {
     const doomed = projects.find((candidate) => candidate.id === id);
     if (!doomed) return;
@@ -219,11 +193,9 @@ export default function App() {
   const deleteProject = async (id) => {
     setConfirming(null);
     if (!(await removeProject(id))) return;
-    if (route.projectId !== id) return;
-    const left = projects.filter((candidate) => candidate.id !== id);
-    // "/" rather than a guess: the fork picks the first project, or the empty screen if none is
-    // left, and it is the only place that rule is written.
-    navigate(left.length ? `/p/${left[0].id}` : "/", { replace: true });
+    // Back where the app opens, which is where Exit project goes too. Replaced: the address left
+    // behind names a project that is gone.
+    if (route.projectId === id) navigate("/", { replace: true });
   };
 
   // One rule, one place: opening something must never be a way of hiding it. Madde 22 adds a second
@@ -233,11 +205,11 @@ export default function App() {
     reading.open(name);
   };
 
-  // Every deletion in the app comes through the same slot: ask, then do. A fourth one would know
+  // Every deletion in the app comes through the same slot: ask, then do. A third one would know
   // where to ask without being told.
   //
-  // The panel is never open when this is reached: the only way to ask is the row's ×, and the row
-  // stands in the column the panel replaces.
+  // The reader is never open when this is reached: the only way to ask is the row's ×, and the row
+  // stands in the rail the reader takes over.
   const askToDeleteFile = (name) => {
     setConfirming({
       title: `Delete "${name}"?`,
@@ -250,98 +222,63 @@ export default function App() {
     });
   };
 
-  const askToDeleteChat = (chatId) => {
-    setConfirming({
-      title: "Delete this chat?",
-      body: "Its files stay in the project.",
-      confirmLabel: "Delete chat",
-      onConfirm: async () => {
-        setConfirming(null);
-        await deleteChat(route.projectId, chatId);
-        await Promise.all([reloadProjectChats(), reloadProjects()]);
-      },
-    });
-  };
-
-  // The draft address is not a place to come back to, so the chat that replaces it does exactly
-  // that; starting one from the project screen is an ordinary step and is pushed.
-  // Opening one closes the other, by construction rather than by remembering to.
+  // Opening one picker closes the other, by construction rather than by remembering to.
   const togglePicker = (which) => setPickerOpen((open) => (open === which ? null : which));
 
   return (
     <div ref={shell} className={`app-shell ${steps}`.trim()} data-testid="app-shell">
-      {/* "/" is where the app opens: the fork there decides what that is, so leaving a project
-          asks it rather than repeating its rule. */}
+      {/* "/" is All projects, where the app opens. */}
       <Bar project={project} onExit={() => navigate("/")} />
       <div className="app-shell__body">
-        <Sidebar
-          projects={projects}
-          chats={projectChats}
-          activeProjectId={route.projectId}
-          activeChatId={route.chatId}
-          onNewChat={openDraft}
-          onNewProject={createProject}
-          onOpenProject={openProject}
-          onOpenChat={(chatId) => openChat(route.projectId, chatId)}
-          menuFor={menuFor}
-          onOpenMenu={setMenuFor}
-          onCloseMenu={() => setMenuFor(null)}
-          onRenameProject={askForName}
-          onDeleteProject={askToDelete}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((folded) => !folded)}
-        />
+        {/* Not on All projects: no project is open there (the design's items 135, 167). */}
+        {route.view === "root" ? null : (
+          <Sidebar
+            projects={projects}
+            chats={projectChats}
+            activeProjectId={route.projectId}
+            activeChatId={route.chatId}
+            onNewChat={openDraft}
+            onNewProject={createProject}
+            onOpenProject={openProject}
+            onOpenChat={(chatId) => openChat(route.projectId, chatId)}
+            menuFor={menuFor}
+            onOpenMenu={setMenuFor}
+            onCloseMenu={() => setMenuFor(null)}
+            onRenameProject={askForName}
+            onDeleteProject={askToDelete}
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((folded) => !folded)}
+          />
+        )}
         <main className="main">
           {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
           <OfflineStrip online={online} />
 
-          {/* Until the first answer, the whole content area is one skeleton and no screen is drawn.
-              Two wrongs close with it: the fork used to sit empty, and an address typed straight
-              into a project answered "does not exist" about a list nobody had answered yet. The
-              sidebar stays live so navigation is never locked. */}
-          {firstLoad ? <Skeleton variant="screen" rows={3} /> : null}
-
-          {/* The fork draws nothing while it is still deciding, and hands over to the empty screen
-              only once the server has said there is nothing to open. */}
-          {!firstLoad && atFork && !landing ? (
-            <NoProjectsScreen error={error} onNewProject={createProject} />
-          ) : null}
-
-          {!firstLoad && route.view === "project" ? (
-            <ProjectScreen
-              project={project}
-              chats={projectChats}
-              files={files}
-              loadingChats={loadingChats}
-              loadingFiles={loadingFiles}
-              chatsError={chatsError}
-              filesError={filesError}
-              reading={{ ...reading, open: openFile }}
-              deleting={{ ...deleting, remove: askToDeleteFile }}
-              onRefresh={refresh}
-              /* No chat here to write a choice to: the picker holds what the next chat will be
-                 born with -- the same value the draft's own picker holds. */
-              skill={draftSkill}
-              skillsOpen={pickerOpen === "skills"}
-              onToggleSkills={() => togglePicker("skills")}
-              onSkillChange={setDraftSkill}
-              mode={lastMode}
-              modeOpen={pickerOpen === "mode"}
-              onToggleMode={() => togglePicker("mode")}
-              onModeChange={setLastMode}
-              model={lastModel}
-              modelOpen={pickerOpen === "model"}
-              onToggleModel={() => togglePicker("model")}
-              onModelChange={setLastModel}
-              onRename={() => askForName(route.projectId)}
-              onDelete={() => askToDelete(route.projectId)}
-              onSend={(text) => chat.send(text, draftSkill, lastMode, lastModel)}
-              onOpenChat={(chatId) => openChat(route.projectId, chatId)}
-              onDeleteChat={askToDeleteChat}
+          {route.view === "root" ? (
+            <AllProjectsScreen
+              projects={projects}
+              loading={loading}
+              error={error}
+              onNewProject={newProject}
+              onOpenProject={openProject}
             />
           ) : null}
 
-          {!firstLoad && route.view === "chat" ? (
+          {/* Keyed, so a failure to read one project's chats does not stand over the next one's. */}
+          {route.view === "project" && project ? (
+            <OpenProject key={project.id} projectId={project.id} navigate={navigate} />
+          ) : null}
+          {/* The address bar is something a person can type into, so a wrong id has to be
+              survivable -- and "does not exist" is only said once the list has answered. */}
+          {route.view === "project" && !project && !loading ? (
+            <div className="screen">
+              <div className="screen__column">
+                <p className="screen__missing">That project does not exist.</p>
+              </div>
+            </div>
+          ) : null}
+
+          {route.view === "chat" ? (
             <ChatScreen
               chat={drafting ? DRAFT : chat.chat}
               /* Before the record comes, the chat is called what its sidebar row calls it. */
@@ -366,7 +303,7 @@ export default function App() {
               createdFiles={chat.createdFiles}
               streamingCalls={chat.streamingCalls}
               progress={chat.progress}
-              onBack={() => openProject(route.projectId)}
+              onBack={() => navigate("/")}
               /* The selection is the chat's own since Madde 105; the draft holds the birth value
                  instead. What governed a turn is still settled when the message is sent. */
               skill={skillInForce}

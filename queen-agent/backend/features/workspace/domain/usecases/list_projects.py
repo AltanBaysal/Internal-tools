@@ -1,6 +1,6 @@
 """List projects: the pinned first, in the order they were pinned, then the most recently used.
 
-The sidebar's order, and so the project the app opens on. The design's All projects (135, 167).
+The order All projects and the sidebar list them in -- the design's All projects (135, 167).
 """
 
 

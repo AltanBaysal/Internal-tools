@@ -1,4 +1,4 @@
-"""List chats newest first -- both the sidebar and the project screen show the latest on top."""
+"""List chats newest first -- the sidebar shows the latest on top, and a project opens on it."""
 
 
 def list_chats(chat_store, project_id):

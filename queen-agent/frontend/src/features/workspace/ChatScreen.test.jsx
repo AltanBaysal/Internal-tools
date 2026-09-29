@@ -264,7 +264,7 @@ test("a call seen while the answer is still running is drawn as it arrives", () 
 });
 
 test("the rail's rows can be deleted from the chat", () => {
-  // Same road as the project screen: the screen only hands the way to ask further along.
+  // The screen only hands the way to ask further along: the question itself is App's.
   const remove = vi.fn();
   const files = [{ name: "notes.md", ext: "md", modifiedAt: NOW }];
   render(<ChatScreen project={PROJECT} chat={CHAT} files={files} deleting={{ remove }} />);
@@ -488,7 +488,6 @@ test("where the messages will be, the spinner turns and nothing else", () => {
   expect(column.children).toHaveLength(1);
   expect(column.firstElementChild.className).toBe("chat__spinner");
   expect(column.firstElementChild.firstElementChild).toBe(screen.getByTestId("spinner"));
-  expect(screen.queryByTestId("skeleton")).toBeNull();
 });
 
 test("nothing in the box can be written or picked yet", () => {
@@ -981,9 +980,8 @@ test("while an answer runs the row ends in Stop, and nothing is added beside it"
 });
 
 test("the picker shows the skill it is handed, not the chat's", () => {
-  // Madde 86: the selection is the session's, and the session is App's. This screen is handed one,
-  // the way ProjectScreen has always been handed one. A skill sitting in an old record is history,
-  // not a selection.
+  // Madde 86: the selection is the session's, and the session is App's. This screen is handed one.
+  // A skill sitting in an old record is history, not a selection.
   // The two values are the record's and none: since Madde 94 the menu holds one name, so the
   // disagreement is shown the other way round -- a stored skill against a session that picked
   // nothing.

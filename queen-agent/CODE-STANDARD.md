@@ -33,7 +33,7 @@ The store follows the same rule, and it is why there is no file-index file:
 | `project.json` | what is this project called, and since when | on create, on rename |
 | `chats/<id>.json` | what was said in this conversation, and what it answers with | after each message, on a model or skill choice, and on a trim |
 | `files/<name>` | what did QueenAgent produce | when a file is created |
-| `trash/<name>` | what did the user just delete | on delete — a chat and a file alike |
+| `trash/<name>` | what did the user just delete | on a file's delete |
 | `pinned` | is this project pinned, and since when | on pin; removed on unpin |
 | `archived` | is this project archived | on archive; removed on unarchive |
 
@@ -104,8 +104,8 @@ prototype is a single monolithic `DCLogic` component with inline style strings a
 to the design's colours, type, measurements and behaviour.
 
 `shared/app.css` owns the colour variables, the radii, the focus ring and the two keyframes every
-surface shares: `fadeIn`, an opacity fade, and `blink`, which pulses the three dots and the loading
-skeleton. A component never writes its own focus outline. `features/workspace/workspace.css` holds
+surface shares: `fadeIn`, an opacity fade, and `blink`, which pulses the three dots. A component
+never writes its own focus outline. `features/workspace/workspace.css` holds
 `msg-spin`, the spinner's turn — on the live row, the loading file list and a chat that is opening —
 and the transitions: the sidebar and the rail fold by their width, and a message's edit pencil fades
 in. The accent `--accent` marks the primary action and nothing else.

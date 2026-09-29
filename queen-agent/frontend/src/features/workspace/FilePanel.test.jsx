@@ -94,22 +94,15 @@ test("the footer no longer measures the file", () => {
   expect(screen.getByTestId("file-meta").textContent).not.toContain("md ·");
 });
 
-// Two panels, two ways out, because they are two different things: the rail's is the rail widened,
-// so it is come back from; the project screen's is a surface standing beside the grid, so it closes.
-test("the rail's panel comes back", () => {
+// One panel and one way out since Madde 353. The project screen's panel was a surface beside its
+// grid and closed with an ×; that screen is gone, and the rail's panel is the rail widened, so it is
+// come back from.
+test("the panel is always come back from", () => {
   const onClose = vi.fn();
-  render(<FilePanel name="plan.md" file={FILE} back onClose={onClose} />);
+  render(<FilePanel name="plan.md" file={FILE} onClose={onClose} />);
   fireEvent.click(screen.getByRole("button", { name: "←" }));
   expect(onClose).toHaveBeenCalled();
   expect(screen.queryByRole("button", { name: "×" })).toBeNull();
-});
-
-test("the project screen's panel closes, and carries no back arrow", () => {
-  const onClose = vi.fn();
-  render(<FilePanel name="plan.md" file={FILE} onClose={onClose} />);
-  fireEvent.click(screen.getByRole("button", { name: "×" }));
-  expect(onClose).toHaveBeenCalled();
-  expect(screen.queryByRole("button", { name: "←" })).toBeNull();
 });
 
 // Escape is not this component's key: one listener owns the keyboard, so the order stays in one
@@ -224,12 +217,12 @@ test("a file that has not arrived has nothing to copy, and the button stays", ()
 // so it never gives up room to the buttons.
 
 test("the header carries no Download", () => {
-  render(<FilePanel name="plan.md" file={FILE} back />);
+  render(<FilePanel name="plan.md" file={FILE} />);
   expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
 });
 
 test("the bar holds the way back at one edge, and Refresh then Copy at the other", () => {
-  const { container } = render(<FilePanel name="plan.md" file={FILE} back />);
+  const { container } = render(<FilePanel name="plan.md" file={FILE} />);
   const bar = container.querySelector(".reader__head > .reader__bar");
   expect(bar.firstElementChild.textContent).toBe("←");
   const tools = [...bar.querySelectorAll(".reader__tools > button")].map((one) => one.textContent);
@@ -237,20 +230,15 @@ test("the bar holds the way back at one edge, and Refresh then Copy at the other
 });
 
 test("Refresh and Copy are framed buttons with words on them", () => {
-  render(<FilePanel name="plan.md" file={FILE} back />);
+  render(<FilePanel name="plan.md" file={FILE} />);
   expect(screen.getByRole("button", { name: "Refresh" }).classList.contains("ghost")).toBe(true);
   expect(screen.getByRole("button", { name: "Copy" }).classList.contains("ghost")).toBe(true);
 });
 
 test("the name stands under the bar, on a row of its own", () => {
-  const { container } = render(<FilePanel name="plan.md" file={FILE} back />);
+  const { container } = render(<FilePanel name="plan.md" file={FILE} />);
   const head = container.querySelector(".reader__head");
   expect(head.firstElementChild.className).toBe("reader__bar");
   expect(head.lastElementChild.className).toBe("reader__name");
   expect(head.lastElementChild.textContent).toBe("plan.md");
-});
-
-test("until the project screen goes, its × stands where the rail's ← does", () => {
-  const { container } = render(<FilePanel name="plan.md" file={FILE} onClose={vi.fn()} />);
-  expect(container.querySelector(".reader__bar").firstElementChild.textContent).toBe("×");
 });

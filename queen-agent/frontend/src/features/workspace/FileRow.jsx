@@ -1,8 +1,7 @@
 import { relativeTime } from "../../shared/time.js";
 
-// One row for both lists, and what it can do is decided by what it is given: the rail hands it no
-// way to delete, the project screen does. Which row is open is the caller's answer too -- neither
-// list owns the reader.
+// What a row can do is decided by what it is given: handed no way to delete, it carries no ×. Which
+// row is open is the caller's answer too -- the list does not own the reader.
 //
 // A box holding buttons rather than a clickable box: a row that only listens for a click has no tab
 // stop, no Enter and no focus ring, and opening a file without a mouse was impossible. The × is a

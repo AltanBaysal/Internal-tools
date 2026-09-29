@@ -19,8 +19,8 @@ import { DEFAULT_RAIL_WIDTH } from "./railWidth.js";
 // without closing this one. Madde 63 gave the document the whole rail instead: the list was taking
 // 200 of 560 pixels to offer something the back arrow already offers.
 //
-// Its rows open a file and, when the caller hands one over, offer a way to delete it -- the same
-// question the project screen asks.
+// Its rows open a file and, when the caller hands one over, offer a way to delete it -- through the
+// app's one confirmation.
 //
 // Madde 50 gave the rail a grip on its left edge, and Madde 356 (the design's items 158 and 177) gave
 // it to the open file too: the list and the document are one width. What travels back up is the
@@ -85,9 +85,8 @@ function Grip({ width, onResize, onDrag }) {
 
 // Madde 192 gave the list a Refresh; Madde 350 (the design's items 154 and 175) wrote it out, framed
 // like the reader's, and put it on the heading's row. Beside the heading rather than inside it: the
-// heading is the fold control, and a button cannot stand inside a button. Where it stands is the
-// caller's -- the project screen puts the same button in a row of its own.
-export function RefreshFiles({ onRefresh }) {
+// heading is the fold control, and a button cannot stand inside a button.
+function RefreshFiles({ onRefresh }) {
   return (
     <button type="button" className="ghost file-list__refresh" onClick={onRefresh}>
       Refresh
@@ -154,10 +153,7 @@ export default function FileRail({
         data-testid="file-rail"
       >
         {onResize ? <Grip width={width} onResize={onResize} onDrag={setDragging} /> : null}
-        {/* Come back from rather than closed: the rail is the document while this is open, and the
-            arrow is the way back to what it was. */}
         <FilePanel
-          back
           name={reading.name}
           file={reading.file}
           missing={reading.missing}
