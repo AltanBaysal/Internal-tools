@@ -386,21 +386,6 @@ test("Escape does what Cancel does", async () => {
   expect(window.location.pathname).toBe("/");
 });
 
-test("the sidebar's + asks for the name too, and Cancel goes back to the chat it came from", async () => {
-  // The sidebar's + stands until Madde 362; while it does, it is one more road to the same screen.
-  const fetch = serverWithProjects([THESIS], { p1: [{ id: "c1", title: "Only", lastActivity: NOW }] });
-  window.history.pushState(null, "", "/p/p1/c/c1");
-  render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-  fireEvent.click(screen.getByRole("button", { name: "New project" }));
-  await nameField();
-  expect(window.location.pathname).toBe("/new");
-  expect(posts(fetch)).toEqual([]);
-
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
-});
-
 test("reached by its address, the naming screen's Cancel goes to All projects", async () => {
   // Typed by hand or reloaded, there is no screen it was reached from.
   serverWithProjects([THESIS]);
@@ -698,7 +683,7 @@ test("inside a project no ⋯ stands anywhere", async () => {
   serverForRows(ROWS);
   window.history.pushState(null, "", "/p/p1/c/new");
   const { container } = render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
+  await screen.findByText("Thesis", { selector: ".bar__project" });
   expect(screen.queryByRole("button", { name: /^(More|Actions) for/ })).toBeNull();
   expect(container.querySelector(".sidebar__row-more")).toBeNull();
 });
@@ -723,8 +708,8 @@ test("a project address that matches nothing says so", async () => {
 });
 
 test("nothing is asked of a workspace-wide chat address", async () => {
-  // A chat is always started from inside a project, and Recent chats now lists that project's own
-  // chats -- so nothing reaches /api/chats at all, by any method.
+  // A chat is always started from inside a project, and the sidebar lists that project's own chats
+  // -- so nothing reaches /api/chats at all, by any method.
   const fetch = stubProjects([]);
   render(<App />);
   await waitFor(() => expect(screen.getByText("No projects yet.")).toBeTruthy());
@@ -745,6 +730,32 @@ test("New chat opens an empty chat in the project it was pressed in", async () =
   expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
   // There is no chat to read yet, so nothing is asked for one.
   expect(fetch.mock.calls.every(([path]) => !String(path).endsWith("/chats/new"))).toBe(true);
+});
+
+// Madde 362 (design 151, 152, 168): inside a project the sidebar is that project's own. Its name
+// stands once, in the bar, and the other projects are reached from All projects.
+test("inside a project the sidebar holds its chats and no other project", async () => {
+  const NOTES = { id: "p2", name: "Notes", chats: 0, files: 0, pinned: false, lastActivity: NOW };
+  serverWithProjects([THESIS, NOTES], {
+    p1: [
+      { id: "c1", title: "Write the intro", lastActivity: NOW },
+      { id: "c2", title: "Missing values", lastActivity: NOW },
+    ],
+  });
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await screen.findByText("Missing values", { selector: ".sidebar__chat" });
+  expect(screen.getByText("Write the intro", { selector: ".sidebar__chat" })).toBeTruthy();
+  expect(screen.queryByText("Notes")).toBeNull();
+  expect(screen.queryByText("Projects")).toBeNull();
+  expect(screen.queryByRole("button", { name: "New project" })).toBeNull();
+});
+
+test("a project with no chats yet says so in the sidebar", async () => {
+  serverWithProjects([THESIS]);
+  window.history.pushState(null, "", "/p/p1/c/new");
+  render(<App />);
+  expect(await screen.findByText("No chats yet.", { selector: ".sidebar__empty" })).toBeTruthy();
 });
 
 test("the first message in a draft creates the chat and takes its address", async () => {
@@ -1601,6 +1612,9 @@ function withRail() {
 }
 
 const fold = () => fireEvent.click(screen.getByRole("button", { name: /Project files/ }));
+// The open sidebar is told by its chat row: folded, the icon column has no rows. The chat's header
+// carries the same title, hence the selector.
+const sidebarOpen = () => screen.queryByText("Write the intro", { selector: ".sidebar__chat" });
 
 test("the rail stays folded when the chat changes under it", async () => {
   // The design asks for the state to last the session, so it cannot live in a component that is
@@ -1623,19 +1637,19 @@ test("the sidebar folds away and comes back, and stays folded across an address"
   withRail();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+  await waitFor(() => expect(sidebarOpen()).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: "Hide the sidebar" }));
-  await waitFor(() => expect(screen.queryByText("Projects")).toBeNull());
+  await waitFor(() => expect(sidebarOpen()).toBeNull());
 
   // Folded, the column still carries New chat (Madde 351); All projects has no sidebar to fold, so
   // the draft is the other address.
   fireEvent.click(screen.getByRole("button", { name: "New chat" }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
-  expect(screen.queryByText("Projects")).toBeNull();
+  expect(sidebarOpen()).toBeNull();
 
   fireEvent.click(screen.getByRole("button", { name: "Show the sidebar" }));
-  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+  await waitFor(() => expect(sidebarOpen()).toBeTruthy());
 });
 
 // Madde 351: Ctrl + . folds the sidebar and brings it back, as on claude.ai (design 174, 187) --
@@ -1644,14 +1658,14 @@ test("Ctrl + . folds the sidebar and brings it back", async () => {
   withRail();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+  await waitFor(() => expect(sidebarOpen()).toBeTruthy());
 
   fireEvent.keyDown(window, { key: ".", ctrlKey: true });
-  await waitFor(() => expect(screen.queryByText("Projects")).toBeNull());
+  await waitFor(() => expect(sidebarOpen()).toBeNull());
   expect(screen.getByRole("button", { name: "Show the sidebar" })).toBeTruthy();
 
   fireEvent.keyDown(window, { key: ".", ctrlKey: true });
-  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+  await waitFor(() => expect(sidebarOpen()).toBeTruthy());
 });
 
 test("Ctrl + . works while typing, and types nothing", async () => {
@@ -1659,11 +1673,12 @@ test("Ctrl + . works while typing, and types nothing", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   const box = await chatOpened();
+  await waitFor(() => expect(sidebarOpen()).toBeTruthy());
   fireEvent.change(box, { target: { value: "hello" } });
 
   // false: the default was prevented, so the browser has nothing of its own left to do with it.
   expect(fireEvent.keyDown(box, { key: ".", ctrlKey: true })).toBe(false);
-  await waitFor(() => expect(screen.queryByText("Projects")).toBeNull());
+  await waitFor(() => expect(sidebarOpen()).toBeNull());
   expect(box.value).toBe("hello");
 });
 
@@ -1672,8 +1687,9 @@ test("a full stop typed alone is only a full stop", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
   const box = await chatOpened();
+  await waitFor(() => expect(sidebarOpen()).toBeTruthy());
   expect(fireEvent.keyDown(box, { key: "." })).toBe(true);
-  expect(screen.getByText("Projects")).toBeTruthy();
+  expect(sidebarOpen()).toBeTruthy();
 });
 
 test("dragging the rail's edge widens it, and the width crosses chats", async () => {
