@@ -433,6 +433,25 @@ test("the blocks blink at the design's speed, one after another", () => {
   expect(rule(".skeleton--screen .skeleton__block:nth-child(3)")).toContain("animation-delay");
 });
 
+// Madde 340: the design's spinner (items 173, 181) is the live stamp's ring at twice the size, on
+// the turn that ring already has, so no animation is invented for it.
+test("the spinner is the live stamp's ring at 20px", () => {
+  const ring = rule(".spinner");
+  expect(ring).toContain("width: 20px");
+  expect(ring).toContain("height: 20px");
+  expect(ring).toContain("border: 1.5px solid var(--line)");
+  expect(ring).toContain("border-top-color: var(--accent)");
+  expect(ring).toContain("border-radius: 50%");
+  expect(ring).toContain("animation: msg-spin 0.8s linear infinite");
+});
+
+test("in the file list the spinner stands centred where the rows will be", () => {
+  const spot = rule(".file-list__spinner");
+  expect(spot).toContain("display: flex");
+  expect(spot).toContain("justify-content: center");
+  expect(spot).toContain("padding: 24px 12px");
+});
+
 test("the offline strip turns reddish and carries a dot", () => {
   const strip = rule(".offline");
   expect(strip).toContain("background: #f5e9e3");

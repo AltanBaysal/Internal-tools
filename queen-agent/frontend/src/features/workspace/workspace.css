@@ -1330,6 +1330,19 @@
   }
 }
 
+/* Madde 340: the design's spinner, the ring above at twice the size, standing alone where a loading
+   list will be while the heading and buttons around it stay drawn. A rule of its own rather than a
+   second selector on .msg__spinner, which belongs to the chat's live row. */
+.spinner {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: msg-spin 0.8s linear infinite;
+}
+
 .creating {
   align-self: flex-start;
   display: flex;
@@ -1777,6 +1790,14 @@
   color: #a79e93;
   line-height: 1.6;
   text-wrap: pretty;
+}
+
+/* Where the rows will be while the list loads (Madde 340): only this spot waits, the heading and
+   Refresh above it stay. */
+.file-list__spinner {
+  display: flex;
+  justify-content: center;
+  padding: 24px 12px;
 }
 
 /* --- no projects -------------------------------------------------------- */

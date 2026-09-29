@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
-import Skeleton from "./Skeleton.jsx";
 import FilePanel from "./FilePanel.jsx";
 import FileRow from "./FileRow.jsx";
+import Spinner from "./Spinner.jsx";
 import { DEFAULT_RAIL_WIDTH } from "./railWidth.js";
 
 // The rail sits beside the composer so the user can see what already exists while they are asking
@@ -99,7 +99,11 @@ function FileList({ files, loading, error, reading, deleting, onRefresh }) {
       <RefreshFiles onRefresh={onRefresh} />
       {/* The teaching line waits for the answer: until the list has arrived, "no files yet" is a
           guess and not a fact -- and if the answer never came, it is not even a guess. */}
-      {loading ? <Skeleton rows={3} /> : null}
+      {loading ? (
+        <div className="file-list__spinner">
+          <Spinner />
+        </div>
+      ) : null}
       {error ? <p className="list-error">{error}</p> : null}
       {/* A delete that failed has to be said where it was asked for, or the user walks away
           believing the file is gone. */}
