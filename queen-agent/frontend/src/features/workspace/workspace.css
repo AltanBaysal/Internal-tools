@@ -1442,10 +1442,6 @@
   animation: blink 1.4s infinite;
 }
 
-.skeleton--message .skeleton__block {
-  height: 68px;
-}
-
 /* The whole content area before the first answer: a bar, a block, a shorter bar. The design's
    fourth part was a grid of cards, and the grid went in Madde 3. */
 .skeleton--screen {
@@ -1863,6 +1859,14 @@
   padding: 24px 12px;
 }
 
+/* Where the messages will be while a chat is read (design item 194): the header, the shut box and
+   the rail stand around it. */
+.chat__spinner {
+  display: flex;
+  justify-content: center;
+  padding: 40px 12px;
+}
+
 /* --- no projects -------------------------------------------------------- */
 
 /* The whole area, centred: there is nothing else on this screen to share it with. */
@@ -2052,6 +2056,14 @@
 .picker__chevron {
   font-size: 11px;
   color: var(--muted);
+}
+
+/* Nothing can be written or picked until the chat's record has come (design item 194): faded the
+   way the other shut controls are. */
+.composer__input:disabled,
+.picker:disabled {
+  cursor: default;
+  opacity: 0.4;
 }
 
 /* The design's own width for this one; the sidebar's menu keeps its 176. */

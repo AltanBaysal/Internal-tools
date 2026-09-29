@@ -454,15 +454,68 @@ test("both messages are drawn", () => {
   expect(screen.getByText("Here it is.")).toBeTruthy();
 });
 
-test("a chat that does not exist says so instead of crashing", () => {
+test("a chat that does not exist says so, under the way back", () => {
+  // The design keeps ← back over the missing line (item 194 takes it only from a chat opening).
   render(<ChatScreen project={PROJECT} chat={null} missing />);
   expect(screen.getByText("That chat does not exist.")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "← back" })).toBeTruthy();
+  expect(screen.queryByTestId("spinner")).toBeNull();
+});
+
+// --- a chat while it opens (Madde 355) -----------------------------------------------------------
+//
+// Design item 194: until the record comes the chat's own frame stands -- its title, a shut box and
+// the rail -- and only where the messages will be does the spinner turn.
+
+const RAIL = [{ name: "outline.md", ext: "md", modifiedAt: NOW }];
+
+test("a chat still on its way stands in its own frame", () => {
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={null} loadingTitle="Write the intro" files={RAIL} />,
+  );
+  // The sidebar row's own name: the list was read before the record, and says the same.
+  expect(container.querySelector(".chat__header").textContent).toBe("Write the intro");
+  expect(screen.getByTestId("file-rail").textContent).toContain("outline.md");
+  expect(screen.getByPlaceholderText("Reply...")).toBeTruthy();
+});
+
+test("where the messages will be, the spinner turns and nothing else", () => {
+  // Not even a turn still running into this chat: opening draws no turn (design item 194).
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={null} thinking streamingText="Half" />,
+  );
+  const column = container.querySelector(".chat__column");
+  expect(column.children).toHaveLength(1);
+  expect(column.firstElementChild.className).toBe("chat__spinner");
+  expect(column.firstElementChild.firstElementChild).toBe(screen.getByTestId("spinner"));
   expect(screen.queryByTestId("skeleton")).toBeNull();
 });
 
-test("a chat still on its way draws blocks", () => {
-  render(<ChatScreen project={PROJECT} chat={null} />);
-  expect(screen.getByTestId("skeleton")).toBeTruthy();
+test("nothing in the box can be written or picked yet", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={null} />);
+  expect(screen.getByPlaceholderText("Reply...").disabled).toBe(true);
+  const pickers = [...container.querySelectorAll(".composer__foot .picker")];
+  expect(pickers.map((picker) => picker.disabled)).toEqual([true, true, true]);
+});
+
+test("no way back stands alone while it opens", () => {
+  render(<ChatScreen project={PROJECT} chat={null} onBack={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: "← back" })).toBeNull();
+});
+
+test("a chat whose row has not come either opens with a blank title", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={null} />);
+  expect(container.querySelector(".chat__title").textContent).toBe("");
+});
+
+test("a sentence left in one chat's box does not follow into the next", () => {
+  // The box is born afresh with each chat, as it was when opening took the box away: what was typed
+  // in one chat is never offered to another.
+  const { rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  fireEvent.change(screen.getByPlaceholderText("Reply..."), { target: { value: "for the first" } });
+  rerender(<ChatScreen project={PROJECT} chat={null} />);
+  rerender(<ChatScreen project={PROJECT} chat={{ ...CHAT, id: "c2", title: "Other" }} />);
+  expect(screen.getByPlaceholderText("Reply...").value).toBe("");
 });
 
 test("waiting for an answer draws three dots and no fake text", () => {

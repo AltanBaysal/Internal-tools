@@ -12,7 +12,7 @@ import { DEFAULT_MODEL, MODELS, modelName } from "./models.js";
 //
 // Whether the menu is open is not held here: Escape closes the pickers in a fixed order and one
 // closes the other, and neither is knowable from inside a single picker.
-export default function ModelPicker({ model, open, onToggle, onChange }) {
+export default function ModelPicker({ model, open, disabled, onToggle, onChange }) {
   const trigger = useRef(null);
   // The mark and the button say the same thing, which is the whole of this line. Nothing selected
   // reads as the default on the face of the button, so the default is marked; an id no row carries
@@ -23,7 +23,13 @@ export default function ModelPicker({ model, open, onToggle, onChange }) {
 
   return (
     <>
-      <button type="button" ref={trigger} className="picker" onClick={() => onToggle?.()}>
+      <button
+        type="button"
+        ref={trigger}
+        className="picker"
+        disabled={disabled}
+        onClick={() => onToggle?.()}
+      >
         <span className="picker__name">{modelName(model)}</span>
         <span className="picker__chevron">⌄</span>
       </button>
