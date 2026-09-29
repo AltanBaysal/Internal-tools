@@ -856,12 +856,21 @@
   min-height: 0;
 }
 
+/* Madde 350 (the design's item 175): the heading and Refresh on one row, Refresh at the right. The 12
+   above the list is the row's, so it holds whether the row carries Refresh or, folded, only the
+   heading. */
+.rail__bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
 /* While a document is being read there is nothing to fold, so the heading is a label again. */
 .rail__head--still {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
   padding: 6px 8px;
 }
 
@@ -872,13 +881,13 @@
   overflow: hidden;
 }
 
-/* The heading is the control: the header when the rail is open, the strip when it is folded. */
+/* The heading is the control: the header when the rail is open, the strip when it is folded. It
+   takes what Refresh leaves of the row. */
 .rail__head {
   display: flex;
   align-items: center;
   gap: 8px;
-  width: 100%;
-  margin-bottom: 12px;
+  flex: 1;
   border: none;
   border-radius: var(--radius-control);
   padding: 6px 8px;
@@ -1778,29 +1787,14 @@
   overflow-wrap: anywhere;
 }
 
-/* Madde 192: the list and the open file come back fresh on their own when a turn ends, and this is
+/* Madde 192: the list and the open file come back fresh on their own when a turn ends, and Refresh is
    the same action reached by hand -- for a file the user put in the Drive folder themselves, or a
-   look taken while a long turn is still running. Both screens draw the same row, so the shape is
-   written once. */
+   look taken while a long turn is still running. The rail's stands on its heading's row (Madde 350);
+   this row is the project screen's, whose heading is not a control to stand beside. */
 .file-list__bar {
   display: flex;
   justify-content: flex-end;
   padding: 0 2px 2px;
-}
-
-.file-list__refresh {
-  flex: none;
-  border: none;
-  background: transparent;
-  padding: 2px 5px;
-  font-size: 14px;
-  line-height: 1;
-  color: var(--muted);
-  cursor: pointer;
-}
-
-.file-list__refresh:hover {
-  color: var(--ink);
 }
 
 /* Wide enough for Could not copy, so the answer takes Copy's place and the head does not move. */
