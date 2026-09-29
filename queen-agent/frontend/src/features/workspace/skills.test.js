@@ -3,10 +3,20 @@ import { expect, test } from "vitest";
 import { SKILLS, skillName } from "./skills.js";
 
 // Madde 94 deleted five of the six and said more rows would come. Madde 101 is the first of them.
-test("the menu offers the flow and the editor, in that order", () => {
+test("the menu offers the flow, the editor and Improve, in that order", () => {
   // The flow comes first: it is the road for somebody with nothing yet, and since Madde 186 it
   // runs the whole way to the prompts. The second row is for somebody who has them already.
-  expect(SKILLS.map((skill) => skill.id)).toEqual(["start-a-scenario", "edit-prompts"]);
+  // Improve stands last, after Edit prompts (design, items 138 and 179): it is run on what the
+  // other two have made.
+  expect(SKILLS.map((skill) => skill.id)).toEqual(["start-a-scenario", "edit-prompts", "improve"]);
+});
+
+test("Improve's row carries the design's own words", () => {
+  const improve = SKILLS.find((skill) => skill.id === "improve");
+  expect(improve.name).toBe("Improve");
+  expect(improve.detail).toBe(
+    "Run four checks on a scenario's frames and prompts, and say yes after each one.",
+  );
 });
 
 test("the two rows tell each other apart", () => {

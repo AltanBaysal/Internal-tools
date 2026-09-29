@@ -91,6 +91,8 @@ MUST_BE_FULL = (
     "WRITE_FRAME_SYSTEM_PROMPT",
     "START_A_SCENARIO",
     "EDIT_PROMPTS",
+    "IMPROVE",
+    "THE_CHECKS",
 )
 """The texts this app writes, and every one of them says something.
 
