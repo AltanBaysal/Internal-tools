@@ -19,7 +19,7 @@ const STOP = "⏹";
 // chat yet for a sentence to go into. The send button needs no second rule -- with nothing typed it
 // is shut already.
 export default forwardRef(function Composer(
-  { rows, placeholder, action, gauge, foot, running, disabled, onStop, onSubmit },
+  { rows, placeholder, action, gauge, foot, running, disabled, onStop, onSubmit, hidden },
   ref,
 ) {
   // Nothing fills this from outside. Madde 195 did, for the message being edited; Madde 197 moved
@@ -59,7 +59,7 @@ export default forwardRef(function Composer(
   };
 
   return (
-    <div className="composer">
+    <div className="composer" hidden={hidden}>
       <textarea
         className="composer__input"
         rows={rows}

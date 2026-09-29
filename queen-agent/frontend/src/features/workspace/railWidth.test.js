@@ -9,8 +9,7 @@ test("a width between the two bounds is the width that was asked for", () => {
 });
 
 test("wider than the widest is held at the widest", () => {
-  // 560 is what the rail is drawn at while a document is open. The list may not outgrow the thing
-  // the room was made for.
+  // 560 is the widest the rail goes, list and open file alike: they are one width (Madde 356).
   expect(railWidthFor(900)).toBe(MAX_RAIL_WIDTH);
 });
 

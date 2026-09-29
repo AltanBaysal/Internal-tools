@@ -395,7 +395,7 @@ test("the card of the file being read is marked", () => {
   expect(block).toContain("border-color: #cfc3b2");
 });
 
-// Madde 63: reading empties the rail rather than splitting it. The document takes all 560.
+// Madde 63: reading empties the rail rather than splitting it.
 
 test("the rail has no list column while it is reading", () => {
   // Asked of the file rather than through rule(): that helper asserts the selector exists, so a
@@ -414,9 +414,10 @@ test("nothing in the reading rail is spaced apart from anything", () => {
   expect(rule(".rail--open")).not.toContain("gap");
 });
 
-test("while reading, the rail is the document at the design's widest", () => {
-  // The design gives 320 to 560. Reading asks for the top of that range, and nothing shares it.
-  expect(rule(".rail--open")).toContain("width: 560px");
+test("while reading, the rail has no width of its own", () => {
+  // Madde 356 (the design's item 158): the list and the open file are one width. The app writes it
+  // inline, and until anything is dragged .rail's 320 holds for both.
+  expect(rule(".rail--open")).not.toMatch(/[\s;{]width:/);
   // Still flex with one child: the reader claims the space with flex: 1 rather than a width.
   expect(rule(".rail--open")).toContain("display: flex");
 });
@@ -739,6 +740,12 @@ test("the grip is on the rail's left edge and says it can be pulled", () => {
   expect(grip).toContain("left: 0");
 });
 
+test("the grip stands above the reader", () => {
+  // Madde 356 (the design's item 177): the reader's fadeIn lifts it into the grip's paint layer, and
+  // as the later sibling it would cover the grip, so the pointer never reached the edge.
+  expect(rule(".rail__grip")).toContain("z-index: 1");
+});
+
 test("the gauge pushes the rest of the foot to the far end", () => {
   // Madde 92. Not `space-between` on the foot: Skills, the model's name and Send are three separate
   // items in that row, and spreading the row would put its whole width between them.
@@ -819,4 +826,24 @@ test("the strip carries no gap of its own", () => {
   // Inside the row now, so a margin of its own would sit on top of the column's gap and push the
   // line down away from the message it belongs to.
   expect(rule(".versions")).not.toContain("margin-top");
+});
+
+test("cached is the design's darker green and missed the destructive red", () => {
+  // Madde 354, design items 189 and 192: the app's only green, darkened to read on the canvas, and
+  // the red that marks a cost here rather than a destruction.
+  expect(rule(".msg__stamp-cached")).toContain("color: #536747");
+  expect(rule(".msg__stamp-missed")).toContain("color: var(--destructive)");
+});
+
+// Madde 352: the full chat's notice stands in the box's place in the box's own shape (design item
+// 140, kit.css's .full).
+test("the full chat's notice is shaped like the box it stands in for", () => {
+  const notice = rule(".full");
+  expect(notice).toContain("max-width: 720px");
+  expect(notice).toContain("border-radius: 14px");
+  expect(notice).toContain("padding: 14px 16px 10px");
+  expect(rule(".full__line")).toContain("font-size: 14px");
+  expect(rule(".full__detail")).toContain("font-size: 13px");
+  expect(rule(".full__detail")).toContain("color: #6b6259");
+  expect(rule(".full__actions")).toContain("justify-content: flex-end");
 });

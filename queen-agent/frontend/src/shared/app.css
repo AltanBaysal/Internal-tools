@@ -9,7 +9,9 @@
   --accent: #b5623c;
   --accent-hover: #9e5232;
   --accent-link-hover: #8f4a2c;
-  /* The one family that is allowed to be red: destructive actions and nothing else. */
+  /* The one family that is allowed to be red: destructive actions, and two words that report a
+     loss rather than cause one -- a copy that failed, and the tokens an answer sent that missed the
+     cache (Madde 354). */
   --destructive: #b23a2e;
   --destructive-hover: #973026;
   --destructive-line: #ebcfc9;

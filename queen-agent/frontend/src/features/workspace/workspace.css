@@ -837,7 +837,9 @@
 /* Pulled to set the width. It covers the rail's whole left edge: the rail scrolls its own content,
    so `bottom: 0` reaches the end of a long list and `min-height: 100%` covers the other case, where
    there is less list than there is rail. Six pixels is what the pointer needs; the line the user
-   sees is the rail's own border, which the grip sits on top of. */
+   sees is the rail's own border, which the grip sits on top of. Above the reader as well: the
+   reader's fadeIn (opacity) lifts it into the grip's paint layer, and as the later sibling it would
+   cover the grip, so the pointer never reached the edge (the design's item 177). */
 .rail__grip {
   position: absolute;
   top: 0;
@@ -845,6 +847,7 @@
   left: 0;
   min-height: 100%;
   width: 6px;
+  z-index: 1;
   cursor: col-resize;
 }
 
@@ -858,12 +861,12 @@
   transition: none;
 }
 
-/* Reading empties the rail rather than splitting it: the document is the only thing in here, and it
-   gets all 560 -- the widest the design allows. It used to share the room with the list, which cost
-   the document 200 pixels to offer what the back arrow offers anyway.
+/* Reading empties the rail rather than splitting it: the document is the only thing in here. It
+   used to share the room with the list, which cost the document 200 pixels to offer what the back
+   arrow offers anyway. No width of its own: the list and the document are one width (Madde 356), so
+   .rail's 320 holds until a drag and the app writes the rest inline.
    Still flex, with one child: the reader below claims the space with flex: 1. */
 .rail--open {
-  width: 560px;
   display: flex;
   overflow: hidden;
   /* The reader carries its own margins, so the rail adds none of its own. */
@@ -1346,6 +1349,18 @@
   font-family: var(--font-mono);
   font-size: 11.5px;
   color: var(--muted);
+}
+
+/* Madde 354, design items 189 and 192: what an answer sent, split under it. Cached is the app's
+   only green (#6f8a5f, the saved tick) darkened until it reads on the canvas: 5.7:1 there, where
+   the lighter one is 3.5:1. Missed is the destructive red, marking a cost here rather than a
+   destruction -- the design's own exception to red being for destruction alone. */
+.msg__stamp-cached {
+  color: #536747;
+}
+
+.msg__stamp-missed {
+  color: var(--destructive);
 }
 
 /* Madde 194: the same stamp, still counting, in the same row -- no columns and no left-and-right,
@@ -1913,6 +1928,42 @@
   border-radius: 14px;
   padding: 14px 16px 10px;
   box-shadow: 0 1px 2px rgba(60, 50, 40, 0.04);
+}
+
+/* The full chat's notice (Madde 352): in the box's place and in the box's shape, at the width the
+   box has in a chat. Not red -- nothing is destroyed, somebody is being asked. */
+.full {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 16px 10px;
+  box-shadow: 0 1px 2px rgba(60, 50, 40, 0.04);
+}
+
+.full__line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+/* Not --muted: a sentence to read, and --muted holds only 3.7:1 on the surface. */
+.full__detail {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #6b6259;
+}
+
+/* The gauge's own margin-right: auto holds it at the left of the two buttons. */
+.full__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+  padding-top: 6px;
 }
 
 /* No outline of its own, not even to take one away: the focus ring is app.css's to draw, and this
