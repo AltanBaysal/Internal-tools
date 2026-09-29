@@ -2,17 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getJson } from "../../shared/api.js";
 
-// Saving is the browser's own step: a blob, a link, a click. Nothing is kept afterwards, so the
-// object URL is handed back as soon as the click has been made.
-function save(name, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = name;
-  anchor.click();
-  URL.revokeObjectURL(url);
-}
-
 // Which file is open is a question about the project, not about the address bar: the design gives a
 // file no URL of its own.
 export function useFile(projectId) {
@@ -84,13 +73,6 @@ export function useFile(projectId) {
     }
   }, [path]);
 
-  const download = useCallback(async () => {
-    // Read again rather than saving what is on screen: the panel's copy may be a minute old, and
-    // what lands on disk should be what the project holds now.
-    const fresh = await getJson(path);
-    save(fresh.name, fresh.text);
-  }, [path]);
-
   // A caller can open a file that lives in another project, so where it lives travels with it.
   const open = useCallback(
     (fileName, inProject) => setOpened({ projectId: inProject ?? projectId, name: fileName }),
@@ -99,5 +81,5 @@ export function useFile(projectId) {
 
   const close = useCallback(() => setOpened(null), []);
 
-  return { name, file, missing, error, open, close, download, reload };
+  return { name, file, missing, error, open, close, reload };
 }

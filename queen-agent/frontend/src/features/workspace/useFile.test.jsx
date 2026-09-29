@@ -1,16 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 import { useFile } from "./useFile.js";
 
 const FILE = { name: "plan.md", ext: "md", size: 8, text: "the body", modifiedAt: "2026-08-09" };
-
-beforeEach(() => {
-  // jsdom has no object URLs, and the saving step is the browser's job rather than ours to test.
-  URL.createObjectURL = vi.fn().mockReturnValue("blob:x");
-  URL.revokeObjectURL = vi.fn();
-  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-});
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -26,9 +19,6 @@ function Host({ projectId = "p1" }) {
       </button>
       <button type="button" onClick={() => reading.open("plan.md", "p2")}>
         open elsewhere
-      </button>
-      <button type="button" onClick={() => reading.download()}>
-        save
       </button>
       <button type="button" onClick={() => reading.reload()}>
         refresh
@@ -104,19 +94,6 @@ test("a file opened in the same breath as going to its project survives the trip
 
   rerender(<Host projectId="p2" />);
   await waitFor(() => expect(screen.getByTestId("name").textContent).toBe("plan.md"));
-});
-
-test("saving reads the file again rather than keeping the copy on screen", async () => {
-  const fetch = stub({ ok: true, status: 200, json: async () => FILE });
-  render(<Host />);
-  fireEvent.click(screen.getByText("open"));
-  await waitFor(() => expect(screen.getByTestId("text").textContent).toBe("the body"));
-  const reads = fetch.mock.calls.length;
-
-  fireEvent.click(screen.getByText("save"));
-  // The panel may have been open for a while; what lands on disk is what the server holds now.
-  await waitFor(() => expect(fetch.mock.calls.length).toBe(reads + 1));
-  await waitFor(() => expect(URL.createObjectURL).toHaveBeenCalled());
 });
 
 // Madde 192. The panel used to read its file once and never again: the effect hangs off the path,
@@ -195,11 +172,13 @@ test("a file deleted while it was open is marked gone by the next refresh", asyn
   expect(screen.getByTestId("text").textContent).toBe("");
 });
 
-test("the saved file keeps the name it has in the project", async () => {
-  stub({ ok: true, status: 200, json: async () => FILE });
-  render(<Host />);
-  fireEvent.click(screen.getByText("open"));
-  await waitFor(() => expect(screen.getByTestId("text").textContent).toBe("the body"));
-  fireEvent.click(screen.getByText("save"));
-  await waitFor(() => expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:x"));
+// Madde 342 (tasarım 154): Download left the open file's header, and nothing else saved a file.
+test("the open file offers no download", () => {
+  let reading;
+  function Probe() {
+    reading = useFile("p1");
+    return null;
+  }
+  render(<Probe />);
+  expect(reading.download).toBeUndefined();
 });

@@ -544,6 +544,62 @@ test("the room around the document belongs to the document", () => {
   expect(rule(".rail--open")).toContain("padding: 0");
 });
 
+// Madde 342 (tasarım 176, 186; APP-BUGS 48). Every rule that selects one of the names, comments taken
+// out first so that a sentence about a class is not read as a selector.
+function rulesSelecting(names) {
+  const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  return [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+    .map(([, selectors, body]) => ({ selectors: selectors.split(",").map((one) => one.trim()), body }))
+    .filter(({ selectors }) => selectors.some((one) => names.some((name) => one.includes(name))));
+}
+
+test("the reader's head is the bar above the name, closed by a line", () => {
+  const head = rule(".reader__head");
+  expect(head).toContain("flex-direction: column");
+  expect(head).toContain("border-bottom: 1px solid var(--line)");
+});
+
+test("the way back and the two tools stand at the bar's two edges", () => {
+  const bar = rule(".reader__bar");
+  expect(bar).toContain("justify-content: space-between");
+  expect(bar).toContain("align-items: center");
+});
+
+test("a way back inside a row outweighs the way back's own margin", () => {
+  // APP-BUGS 48: one class lost to .back's 18 by source order, and the arrow stood 9 above the
+  // middle of its row. Two classes win wherever the rule is written.
+  expect(rule(".back.back--inline")).toContain("margin-bottom: 0");
+  expect(CSS).not.toContain("\n.back--inline {");
+});
+
+test("the reader's way back is framed like Refresh and Copy", () => {
+  const back = rule(".reader__bar > .back");
+  expect(back).toContain("border: 1px solid var(--line)");
+  expect(back).toContain("background: var(--surface)");
+  expect(back).toContain("border-radius: var(--radius-control)");
+  expect(back).toContain("padding: 5px 11px");
+});
+
+test("the three buttons in the bar are one height", () => {
+  expect(grouped(".reader__bar > button,")).toContain("line-height: 20px");
+});
+
+test("Copy is wide enough for Could not copy, and Download is gone", () => {
+  expect(rule(".reader__copy")).toContain("min-width: 116px");
+  expect(CSS).not.toContain(".reader__download");
+});
+
+test("no rule takes the ghost's frame off Refresh or Copy", () => {
+  const theirs = rulesSelecting([".reader__refresh", ".reader__copy"]);
+  expect(theirs.length).toBeGreaterThan(0);
+  for (const { selectors, body } of theirs) {
+    expect(body).not.toContain("border: none");
+    expect(body).not.toContain("background: transparent");
+    expect(selectors).not.toContain(".reader__refresh:hover");
+    expect(selectors).not.toContain(".reader__copy:hover");
+  }
+});
+
 test("a selected skill warms its button without borrowing the accent", () => {
   // One accent only: it marks the primary action, and a selection is a state rather than an action.
   const on = rule(".picker--on");

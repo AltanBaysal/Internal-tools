@@ -376,7 +376,9 @@
   border-bottom: 1px solid #e9e3da;
 }
 
-.back--inline {
+/* Two classes, so it wins over .back's 18 wherever it is written: with one, source order let .back
+   win, and the arrow stood 9 above the middle of its row (APP-BUGS 48). */
+.back.back--inline {
   margin-bottom: 0;
 }
 
@@ -1464,16 +1466,48 @@
   animation: fadeIn 0.2s ease both;
 }
 
+/* Two rows: the framed buttons above, the name under them on a row of its own, so the name never
+   gives up room to the buttons. */
 .reader__head {
   flex: none;
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 10px;
   padding: 18px 28px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* The way back at one edge, Refresh and Copy at the other. */
+.reader__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.reader__tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Framed like Refresh and Copy beside it; colour, face and hover stay .back's. Only here: the chat
+   header's way back carries back--inline too, and its look is not this header's to change. */
+.reader__bar > .back {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  padding: 5px 11px;
+}
+
+/* One line height for all three, so the arrow's 12px and the words' 12.5px make one height. */
+.reader__bar > button,
+.reader__tools > button {
+  flex: none;
+  line-height: 20px;
 }
 
 .reader__name {
-  flex: 1;
   min-width: 0;
   font-size: 14px;
   color: var(--ink);
@@ -1482,24 +1516,12 @@
   white-space: nowrap;
 }
 
-/* Fixed width so "preparing…" can replace the label without moving the button. */
-.reader__download {
-  flex: none;
-  min-width: 116px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-}
-
-/* The project screen's way out. Ink rather than accent, and the last thing in the row. */
+/* The project screen's way out, where the rail's way back stands. Ink rather than accent. */
 .reader__close {
-  flex: none;
   border: none;
   background: transparent;
   padding: 2px 4px;
   font-size: 17px;
-  line-height: 1;
   color: var(--muted);
   cursor: pointer;
 }
@@ -1766,9 +1788,7 @@
   padding: 0 2px 2px;
 }
 
-.file-list__refresh,
-.reader__refresh,
-.reader__copy {
+.file-list__refresh {
   flex: none;
   border: none;
   background: transparent;
@@ -1779,15 +1799,18 @@
   cursor: pointer;
 }
 
-.file-list__refresh:hover,
-.reader__refresh:hover,
-.reader__copy:hover {
+.file-list__refresh:hover {
   color: var(--ink);
 }
 
-/* Madde 193: the answer is the icon's own colour, so nothing on the panel moves to make room for
-   it. Dimmed while there is nothing to copy rather than taken away -- a header that gains and loses
-   an icon as the file loads is a header that twitches. */
+/* Wide enough for Could not copy, so the answer takes Copy's place and the head does not move. */
+.reader__copy {
+  min-width: 116px;
+}
+
+/* Madde 193: the answer is the button's own word and colour, so nothing on the panel moves to make
+   room for it. Dimmed while there is nothing to copy rather than taken away -- a header that gains
+   and loses a button as the file loads is a header that twitches. */
 .reader__copy:disabled {
   opacity: 0.35;
   cursor: default;
