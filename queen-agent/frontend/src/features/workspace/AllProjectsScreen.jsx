@@ -1,7 +1,6 @@
 import { useState } from "react";
 
-import { relativeTime } from "../../shared/time.js";
-import { countOf } from "./countOf.js";
+import ProjectRow from "./ProjectRow.jsx";
 
 // The screen the app opens on (the design's items 135, 142, 167), and the one Exit project comes
 // back to. No sidebar stands beside it: no project is open here. The order is the server's
@@ -11,42 +10,25 @@ import { countOf } from "./countOf.js";
 // The search is this screen's own state: what is shown while typing is the UI's (FOUNDATION,
 // Decision 4), so it reaches neither the server nor the address.
 //
-// The row's ⋯ and the Archived tab are items of their own (360, 363), and so are the spinner and
-// the sentence a failed list gets (364).
+// The Archived tab is an item of its own (363), and so are the spinner and the sentence a failed
+// list gets (364).
 
 // Case and accents do not count, as in the design's data.js: "cafe" finds "Café".
 const fold = (text) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
-function Section({ label, projects, onOpenProject }) {
+function Section({ label, projects, row }) {
   // A heading over nothing would be a promise of rows that are not there.
   if (!projects.length) return null;
   return (
     <div className="all-projects__section">
       {/* Written as the design writes it; the stylesheet sets it in capitals. */}
       <div className="all-projects__label">{label}</div>
-      <div className="all-projects__list">
-        {projects.map((project) => (
-          <div key={project.id} className="all-projects__row">
-            <button
-              type="button"
-              className="all-projects__row-open"
-              title={project.name}
-              onClick={() => onOpenProject?.(project.id)}
-            >
-              <span className="all-projects__row-name">{project.name}</span>
-              <span className="all-projects__row-meta">
-                {`${countOf(project.chats ?? 0, "chat")} · ${countOf(project.files ?? 0, "file")}`}
-              </span>
-              <span className="all-projects__row-when">{relativeTime(project.lastActivity)}</span>
-            </button>
-          </div>
-        ))}
-      </div>
+      <div className="all-projects__list">{projects.map(row)}</div>
     </div>
   );
 }
 
-function ProjectList({ projects, query, onOpenProject }) {
+function ProjectList({ projects, query, row }) {
   // Asked first: with nothing to search, "no match" would be the wrong news.
   if (!projects.length) return <p className="all-projects__empty">No projects yet.</p>;
   const asked = query.trim();
@@ -54,16 +36,8 @@ function ProjectList({ projects, query, onOpenProject }) {
   if (!found.length) return <p className="all-projects__empty">{`No projects match "${asked}".`}</p>;
   return (
     <>
-      <Section
-        label="Pinned"
-        projects={found.filter((project) => project.pinned)}
-        onOpenProject={onOpenProject}
-      />
-      <Section
-        label="Recent"
-        projects={found.filter((project) => !project.pinned)}
-        onOpenProject={onOpenProject}
-      />
+      <Section label="Pinned" projects={found.filter((project) => project.pinned)} row={row} />
+      <Section label="Recent" projects={found.filter((project) => !project.pinned)} row={row} />
     </>
   );
 }
@@ -72,10 +46,30 @@ export default function AllProjectsScreen({
   projects = [],
   loading,
   error,
+  menuFor,
   onNewProject,
   onOpenProject,
+  onOpenMenu,
+  onCloseMenu,
+  onRenameProject,
+  onPinProject,
+  onDeleteProject,
 }) {
   const [query, setQuery] = useState("");
+  // Built once here rather than handed down as seven props through the list and its sections.
+  const row = (project) => (
+    <ProjectRow
+      key={project.id}
+      project={project}
+      menuOpen={menuFor === project.id}
+      onOpen={onOpenProject}
+      onOpenMenu={onOpenMenu}
+      onCloseMenu={onCloseMenu}
+      onRename={onRenameProject}
+      onPin={onPinProject}
+      onDelete={onDeleteProject}
+    />
+  );
 
   if (error) {
     // A failed list means the count is unknown, not zero: offering the list's frame over it would be
@@ -111,7 +105,7 @@ export default function AllProjectsScreen({
         </div>
         {/* Until the list has come, "no projects yet" is a guess and not a fact. */}
         {loading ? null : (
-          <ProjectList projects={projects} query={query} onOpenProject={onOpenProject} />
+          <ProjectList projects={projects} query={query} row={row} />
         )}
       </div>
     </div>

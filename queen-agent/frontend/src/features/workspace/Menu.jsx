@@ -1,12 +1,11 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useLayoutEffect, useRef, useState } from "react";
 
 import { placeMenu } from "../../shared/menuPlacement.js";
 
-// The one popup box in the app: the sidebar row's ⋯ menu today, the model and Skills menus from
-// Madde 26 and 27. What is shared is where it goes, how tall it may get and how it is dismissed;
+// The one popup box in the app: an All projects row's ⋯ menu, and the model and Skills menus. What is shared is where it goes, how tall it may get and how it is dismissed;
 // the width belongs to each caller, so this box does not set one.
 //
-// It is fixed rather than absolute because the sidebar scrolls, and an absolute menu would be
+// It is fixed rather than absolute because All projects scrolls, and an absolute menu would be
 // clipped by the very list it belongs to. The placement is therefore measured against the window,
 // which is only knowable after the box exists -- hence the layout effect.
 //
@@ -47,20 +46,23 @@ export default function Menu({ items, header, anchor, onClose }) {
         {/* Drawn only when there is one: an empty label is a line of nothing. */}
         {header ? <span className="menu__header">{header}</span> : null}
         {items.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            className={itemClass(item)}
-            title={item.danger ? item.label : undefined}
-            onClick={() => {
-              item.onChoose?.();
-              onClose?.();
-            }}
-          >
-            <span className="menu__item-name">{item.label}</span>
-            {item.checked ? <span className="menu__item-mark">✓</span> : null}
-            {item.detail ? <span className="menu__item-detail">{item.detail}</span> : null}
-          </button>
+          <Fragment key={item.label}>
+            {/* A line sets an item apart from the ones above it -- the design's, over Delete. */}
+            {item.divided ? <hr className="menu__divider" /> : null}
+            <button
+              type="button"
+              className={itemClass(item)}
+              title={item.danger ? item.label : undefined}
+              onClick={() => {
+                item.onChoose?.();
+                onClose?.();
+              }}
+            >
+              <span className="menu__item-name">{item.label}</span>
+              {item.checked ? <span className="menu__item-mark">✓</span> : null}
+              {item.detail ? <span className="menu__item-detail">{item.detail}</span> : null}
+            </button>
+          </Fragment>
         ))}
       </div>
     </>
