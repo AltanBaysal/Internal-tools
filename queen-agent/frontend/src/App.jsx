@@ -335,7 +335,6 @@ export default function App() {
 
           {!firstLoad && route.view === "chat" ? (
             <ChatScreen
-              project={project}
               chat={drafting ? DRAFT : chat.chat}
               files={files}
               loadingFiles={loadingFiles}

@@ -20,7 +20,6 @@ import ToolCalls from "./ToolCalls.jsx";
 const STICK_WITHIN = 220;
 
 export default function ChatScreen({
-  project,
   chat,
   files = [],
   loadingFiles,
@@ -117,11 +116,9 @@ export default function ChatScreen({
        sibling to find that out. The screen knows already, so it says so. */
     <div className={reading?.name ? "chat-layout chat-layout--reading" : "chat-layout"}>
       <div className="chat">
+        {/* The chat's name alone: the project's name and the way out of it are the bar's (the
+            design's items 152 and 168). */}
         <header className="chat__header">
-          <button type="button" className="back back--inline" onClick={onBack}>
-            ← {project ? project.name : "back"}
-          </button>
-          <span className="chat__slash">/</span>
           <span className="chat__title">{chat.title}</span>
         </header>
 

@@ -382,10 +382,6 @@
   margin-bottom: 0;
 }
 
-.chat__slash {
-  color: #cfc7bc;
-}
-
 .chat__title {
   font-size: 13.5px;
   color: #4a443d;
@@ -1491,8 +1487,7 @@
   gap: 8px;
 }
 
-/* Framed like Refresh and Copy beside it; colour, face and hover stay .back's. Only here: the chat
-   header's way back carries back--inline too, and its look is not this header's to change. */
+/* Framed like Refresh and Copy beside it; colour, face and hover stay .back's. */
 .reader__bar > .back {
   border: 1px solid var(--line);
   background: var(--surface);
