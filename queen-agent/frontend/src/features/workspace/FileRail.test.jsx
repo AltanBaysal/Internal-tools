@@ -245,6 +245,11 @@ test("the rail's reader is come back from rather than closed", () => {
   expect(screen.queryByRole("button", { name: "×" })).toBeNull();
 });
 
+test("while reading, the rail offers no Download", () => {
+  render(<FileRail files={FILES} reading={{ name: "outline.md", file: OPEN_FILE }} />);
+  expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
+});
+
 // Madde 63: what is being read gets the whole rail. The list is one press of ← away, and 200 of the
 // rail's 560 pixels were going to something already reachable.
 

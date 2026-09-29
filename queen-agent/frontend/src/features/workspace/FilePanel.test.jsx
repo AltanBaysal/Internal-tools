@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import FilePanel from "./FilePanel.jsx";
@@ -120,38 +120,6 @@ test("a file that is gone says so instead of showing an empty page", () => {
   expect(screen.getByText("That file is gone.")).toBeTruthy();
 });
 
-test("Download asks for the file", () => {
-  const onDownload = vi.fn().mockResolvedValue();
-  render(<FilePanel name="plan.md" file={FILE} onDownload={onDownload} />);
-  fireEvent.click(screen.getByRole("button", { name: "Download" }));
-  expect(onDownload).toHaveBeenCalled();
-});
-
-test("preparing is said in words, not spun", async () => {
-  // Motion is a fade and the rail's width; a spinner is neither. The word and the disabled button
-  // already say the same thing.
-  const onDownload = vi.fn().mockReturnValue(new Promise(() => {}));
-  const { container } = render(<FilePanel name="plan.md" file={FILE} onDownload={onDownload} />);
-  fireEvent.click(screen.getByRole("button", { name: "Download" }));
-  await waitFor(() => expect(screen.getByRole("button", { name: /preparing/ })).toBeTruthy());
-  expect(container.querySelector(".spinner")).toBeNull();
-});
-
-test("while it downloads the button says preparing and comes back after", async () => {
-  let finish;
-  const onDownload = vi.fn().mockReturnValue(
-    new Promise((resolve) => {
-      finish = resolve;
-    }),
-  );
-  render(<FilePanel name="plan.md" file={FILE} onDownload={onDownload} />);
-  fireEvent.click(screen.getByRole("button", { name: "Download" }));
-
-  await waitFor(() => expect(screen.getByRole("button", { name: /preparing/ })).toBeTruthy());
-  finish();
-  await waitFor(() => expect(screen.getByRole("button", { name: "Download" })).toBeTruthy());
-});
-
 // Madde 192: the same button the list carries, because it does the same thing -- one action reads
 // the list and the open file both, so the user never has to pick which staleness they are fixing.
 test("the header carries a Refresh, and it asks for the file again", () => {
@@ -162,8 +130,7 @@ test("the header carries a Refresh, and it asks for the file again", () => {
 });
 
 test("Refresh says nothing while it runs", () => {
-  // Download says "preparing…" because what it makes lands outside the screen. This one changes
-  // the page in place, and the changed page is the answer.
+  // It changes the page in place, and the changed page is the answer.
   const onRefresh = vi.fn().mockReturnValue(new Promise(() => {}));
   const { container } = render(<FilePanel name="plan.md" file={FILE} onRefresh={onRefresh} />);
   fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
@@ -173,8 +140,7 @@ test("Refresh says nothing while it runs", () => {
 
 // Madde 193. build_prompts writes to a file and does not print into the chat (Madde 130, and that
 // rule stays), so the only way to get a prompt out was to select it by hand, line by line, inside a
-// scrolling box. Download is the disk's answer to a different question: what the user does next is
-// paste into ComfyUI.
+// scrolling box. What the user does next is paste into ComfyUI.
 test("Copy puts the whole file on the clipboard", () => {
   const writeText = stubClipboard(Promise.resolve());
   render(<FilePanel name="plan.md" file={FILE} />);
@@ -195,7 +161,7 @@ test("what is copied is the file, not what the panel drew from it", () => {
   expect(writeText).toHaveBeenCalledWith("# Title\n\nsome **bold** text");
 });
 
-test("the icon says it landed", async () => {
+test("the button says it landed", async () => {
   stubClipboard(Promise.resolve());
   render(<FilePanel name="plan.md" file={FILE} />);
   fireEvent.click(screen.getByRole("button", { name: "Copy" }));
@@ -211,28 +177,80 @@ test("and says when it did not", async () => {
   expect(await screen.findByRole("button", { name: "Could not copy" })).toBeTruthy();
 });
 
-test("the answer is the icon's own name and adds no line to the panel", async () => {
-  // A word appearing beside the heading would push the body under it down, which is a page moving
-  // under the reader while they are reading it.
+// Madde 342 (tasarım 154): the answer is the button's own word, written where Copy was. A word
+// appearing beside the heading would push the body under it down, which is a page moving under the
+// reader while they are reading it.
+test("the answer is the button's own word and adds no line to the panel", async () => {
   stubClipboard(Promise.resolve());
   render(<FilePanel name="plan.md" file={FILE} />);
   fireEvent.click(screen.getByRole("button", { name: "Copy" }));
-  await screen.findByRole("button", { name: "Copied" });
-  expect(screen.queryByText("Copied")).toBeNull();
+  const said = await screen.findByRole("button", { name: "Copied" });
+  expect(said.textContent).toBe("Copied");
+  expect(screen.getAllByText("Copied").length).toBe(1);
 });
 
-test("a file that has not arrived has nothing to copy, and the icon stays", () => {
-  // Dimmed rather than gone: an icon that came and went as the file loaded would make the header
+test("a copy that did not land says so in the same place", async () => {
+  stubClipboard(Promise.reject(new Error("denied")));
+  render(<FilePanel name="plan.md" file={FILE} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  const said = await screen.findByRole("button", { name: "Could not copy" });
+  expect(said.textContent).toBe("Could not copy");
+});
+
+test("after a moment the button is Copy again", async () => {
+  vi.useFakeTimers();
+  try {
+    stubClipboard(Promise.resolve());
+    render(<FilePanel name="plan.md" file={FILE} />);
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(screen.getByRole("button", { name: "Copied" }).textContent).toBe("Copied");
+    await act(() => vi.advanceTimersByTimeAsync(2500));
+    expect(screen.getByRole("button", { name: "Copy" }).textContent).toBe("Copy");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test("a file that has not arrived has nothing to copy, and the button stays", () => {
+  // Dimmed rather than gone: a button that came and went as the file loaded would make the header
   // twitch. A button that copies nothing and says it did is the other half of the same lie.
   render(<FilePanel name="plan.md" file={null} />);
   expect(screen.getByRole("button", { name: "Copy" }).disabled).toBe(true);
 });
 
-test("a download that fails repeats the server's words", async () => {
-  const onDownload = vi.fn().mockRejectedValue(new Error("GET failed with 500"));
-  render(<FilePanel name="plan.md" file={FILE} onDownload={onDownload} />);
-  fireEvent.click(screen.getByRole("button", { name: "Download" }));
-  // No guessed cause, and the button goes back to being a button.
-  await waitFor(() => expect(screen.getByText("GET failed with 500")).toBeTruthy());
-  expect(screen.getByRole("button", { name: "Download" })).toBeTruthy();
+// Madde 342 (tasarım 154, 176, 186): the head is two rows. The framed buttons stand above, the way
+// back at one edge and Refresh and Copy at the other; the name stands under them on a row of its own,
+// so it never gives up room to the buttons.
+
+test("the header carries no Download", () => {
+  render(<FilePanel name="plan.md" file={FILE} back />);
+  expect(screen.queryByRole("button", { name: "Download" })).toBeNull();
+});
+
+test("the bar holds the way back at one edge, and Refresh then Copy at the other", () => {
+  const { container } = render(<FilePanel name="plan.md" file={FILE} back />);
+  const bar = container.querySelector(".reader__head > .reader__bar");
+  expect(bar.firstElementChild.textContent).toBe("←");
+  const tools = [...bar.querySelectorAll(".reader__tools > button")].map((one) => one.textContent);
+  expect(tools).toEqual(["Refresh", "Copy"]);
+});
+
+test("Refresh and Copy are framed buttons with words on them", () => {
+  render(<FilePanel name="plan.md" file={FILE} back />);
+  expect(screen.getByRole("button", { name: "Refresh" }).classList.contains("ghost")).toBe(true);
+  expect(screen.getByRole("button", { name: "Copy" }).classList.contains("ghost")).toBe(true);
+});
+
+test("the name stands under the bar, on a row of its own", () => {
+  const { container } = render(<FilePanel name="plan.md" file={FILE} back />);
+  const head = container.querySelector(".reader__head");
+  expect(head.firstElementChild.className).toBe("reader__bar");
+  expect(head.lastElementChild.className).toBe("reader__name");
+  expect(head.lastElementChild.textContent).toBe("plan.md");
+});
+
+test("until the project screen goes, its × stands where the rail's ← does", () => {
+  const { container } = render(<FilePanel name="plan.md" file={FILE} onClose={vi.fn()} />);
+  expect(container.querySelector(".reader__bar").firstElementChild.textContent).toBe("×");
 });
