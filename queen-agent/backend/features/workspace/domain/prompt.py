@@ -242,6 +242,8 @@ START_A_SCENARIO = (
     "Step 4 -- the scenes\n"
     "- Ask how many scenes and which moments matter.\n"
     "- Write them with add_scene: one sentence each, in the language the user is writing in.\n"
+    "- If the user wants someone to speak in a frame, write their words, in quotation marks, "
+    "into that frame's scene sentence: the video's prompt is written from it.\n"
     "- What someone wears can change from one scene to the next. The moment clothes are taken "
     "off or changed is not written as a scene unless the user asks for it: the model cannot "
     "draw it.\n"
@@ -329,6 +331,8 @@ WRITE_FRAME_SYSTEM_PROMPT = (
     "is already bare, so you never have to say it.\n"
     "- Use what you are shown only to make your line fit it. If somebody wears a long coat, do "
     "not write that they take it off.\n"
+    "- If somebody speaks in the scene, leave their words out of your line. The model cannot "
+    "draw speech, and quoted words come back drawn as text in the picture.\n"
     "\n" + SDXL_PROMPT_RULES
 )
 """What the prompt writer is told about its job (Madde 176), with the rules above appended.

@@ -477,6 +477,41 @@ def test_the_scenes_step_writes_no_frame_of_clothes_coming_off_unless_asked():
     assert "taken off" not in _edit().lower()
 
 
+# --- speech rides in the scene sentence (Madde 369) -----------------------------------------------
+#
+# 29 Sep, the user: speech wanted in a frame has to be written inside the scenario, so queen-editor's
+# model, which reads each frame's scene sentence beside its photo (Queen Editor v8-3b), can put it into
+# the video prompt. Only speech. The scenes step is where it is read while the sentence is written.
+#
+# The same sentence has a second reader: the frame writer turns it into the photo prompt's action line.
+# The weak image model cannot draw speech, and quoted words come back drawn as text -- so that reader is
+# told to leave the words out, or the first half of this madde would break every frame it touches.
+
+
+def test_the_scenes_step_writes_wanted_speech_into_the_frames_scene_sentence():
+    said = _flow()
+    start, end = said.index(STEPS[3]), said.index(STEPS[4])
+    step = said[start:end].lower()
+    assert "speak" in step
+    assert "that frame's scene sentence" in step
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "speak" not in (said[:start] + said[end:]).lower()
+    assert "speak" not in _edit().lower()
+
+
+def test_the_frame_writer_leaves_spoken_words_out_of_the_action_line():
+    from backend.features.workspace.domain.prompt import (
+        SDXL_PROMPT_RULES,
+        WRITE_FRAME_SYSTEM_PROMPT,
+    )
+
+    said = WRITE_FRAME_SYSTEM_PROMPT.lower()
+    assert "speaks" in said
+    assert "leave their words out" in said
+    # Not in the rules the six map tools carry too: none of them writes an action.
+    assert "speak" not in SDXL_PROMPT_RULES.lower()
+
+
 def test_the_plan_no_longer_opens_with_a_line_of_context():
     # Madde 186 asked for that line and Madde 198 takes it back, with the question that fed it. The
     # claim is not dropped, it is turned around: with nobody asked what the work is for, a plan
