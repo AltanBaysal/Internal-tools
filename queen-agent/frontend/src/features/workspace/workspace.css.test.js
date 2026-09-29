@@ -238,15 +238,6 @@ test("a wide table or a long code line scrolls inside itself", () => {
   expect(rule(".md__table-scroll")).toContain("overflow-x: auto");
 });
 
-test("the caret is the design's block and borrows the dots' blink", () => {
-  const caret = rule(".caret");
-  expect(caret).toContain("width: 7px");
-  expect(caret).toContain("height: 15px");
-  expect(caret).toContain("animation: blink");
-  // The accent marks the primary action and nothing else; a text cursor is ink.
-  expect(caret).not.toContain("var(--accent)");
-});
-
 test("the waiting block breathes wider than an ordinary message", () => {
   // The design measures this one: 10px between the label and the dots, where a message uses 6.
   expect(rule(".msg--waiting")).toContain("gap: 10px");

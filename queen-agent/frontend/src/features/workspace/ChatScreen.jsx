@@ -492,7 +492,7 @@ export default function ChatScreen({
                 <div className="msg__text">
                   {/* Formatted from the first frame: raw first and formatted afterwards would read
                       as a flicker rather than a stream. */}
-                  <Markdown text={streamingText} caret />
+                  <Markdown text={streamingText} />
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
                 {/* Until Madde 194 an answer still running carried only its time. Now it carries

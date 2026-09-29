@@ -660,12 +660,13 @@ test("text that is still arriving is drawn as Markdown too", () => {
   expect(container.querySelector("[data-testid=streaming] h1").textContent).toBe("Title");
 });
 
-test("only the text still arriving carries a caret", () => {
+test("text still arriving ends with the text and nothing after it", () => {
+  // Design item 156: the live stamp's word already says the answer is running, so no square blinks
+  // at the end of the words.
   const { container } = render(
     <ChatScreen project={PROJECT} chat={CHAT} thinking streamingText="Here it" />,
   );
-  expect(container.querySelector("[data-testid=streaming] .caret")).toBeTruthy();
-  expect(container.querySelector(".msg--ai:not([data-testid=streaming]) .caret")).toBeNull();
+  expect(container.querySelector("[data-testid=streaming] .md").innerHTML).toBe("<p>Here it</p>");
 });
 
 // jsdom lays nothing out, so the sizes are declared and what is under test is the decision: does
