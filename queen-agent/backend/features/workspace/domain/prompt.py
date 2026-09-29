@@ -196,6 +196,16 @@ THE_CHECKS = (
     "- Then write_missing_actions writes the emptied and the new frames, so each gets its own "
     "action.\n"
     "\n"
+    "Check 2 -- visible parts\n"
+    "- Read the camera angle in each frame's action. A frame fails when its prompt names a part of "
+    "somebody that the angle hides, such as a face seen from behind: the model draws it anyway, "
+    "or gives it to somebody else.\n"
+    "- Write a second entry of only what shows, with add_character or add_outfit, named for it: "
+    "man body no face, dress from behind. Use it if it is already there.\n"
+    "- Give update_frame the frame's cast with those entries in place of the whole ones, and "
+    "without anybody the angle does not show. The whole entries stay as they are: other frames "
+    "show them whole.\n"
+    "\n"
     "When the checks are done, close by naming the file and saying it is ready. Do not print the "
     "prompts back, offer nothing, and ask nothing: this is the last word."
 )
@@ -204,13 +214,17 @@ THE_CHECKS = (
 Start a scenario ends with them and Improve runs them alone. A skill cannot call another, so both
 texts carry this part -- as one constant, because the same rule written twice is how one copy drifts.
 No heading of its own: each skill puts its own step heading in front, since the step's number differs.
-The next checks (371 to 373) go in after Check 1, in front of the closing, which belongs to whatever
+The next checks (372 and 373) go in after Check 2, in front of the closing, which belongs to whatever
 check comes last.
 
 A changed frame's action is emptied rather than rewritten here, so the model kept for writing actions
 writes it again (Madde 176); the video's prompt is queen-editor's (v9-7), so only the photo prompt is
 refreshed. Where the checks stand goes into the plan when a check starts, not when a turn ends: the
 last round runs no tool (Madde 137), and a frame a check has fixed looks like one it never read.
+
+Check 2 leaves a hidden part out through an entry of its own (Madde 371). A frame names whole
+entries and build_prompts puts each in whole, so nothing else can say "only this much of them
+here". The angle is the action's and stays: what the check corrects is what the frame names.
 """
 
 EDIT_PROMPTS = (
