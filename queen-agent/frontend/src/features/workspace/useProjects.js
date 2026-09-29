@@ -26,7 +26,8 @@ export function useProjects() {
   const createProject = useCallback(async () => {
     try {
       const created = await postJson("/api/projects");
-      // Appended, not prepended: the server lists projects oldest first.
+      // Appended until the list is read again: where it belongs is the server's order
+      // (list_projects.py), and a copy of that rule here would drift from it.
       setProjects((current) => [...current, created]);
       return created;
     } catch (failure) {

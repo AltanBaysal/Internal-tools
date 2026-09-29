@@ -38,8 +38,9 @@ The store follows the same rule, and it is why there is no file-index file:
 | `archived` | is this project archived | on archive; removed on unarchive |
 
 **No file repeats another's answer.** The file list is the directory listing itself: the name is the
-filename, "2h ago" is its mtime, the order is mtime descending. The count on a sidebar project row is
-a directory count. Before adding a field, ask which question it answers — a field that answers a new
+filename, "2h ago" is its mtime, the order is mtime descending. A project's "2h ago" is its newest
+chat file's mtime, or its createdAt while it has none. The count on a sidebar project row is a
+directory count. Before adding a field, ask which question it answers — a field that answers a new
 question wants an artifact of its own, and a field that restates an answer already on disk wants
 deleting.
 

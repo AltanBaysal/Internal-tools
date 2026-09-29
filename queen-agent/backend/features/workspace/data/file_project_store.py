@@ -1,5 +1,6 @@
 """FileProjectStore -- the only place that knows how a project is laid out on disk."""
 import json
+from datetime import datetime, timezone
 
 from backend.features.workspace.domain.naming import unique_name
 from backend.features.workspace.domain.project import Project
@@ -61,18 +62,32 @@ class FileProjectStore:
             if not self._store.exists(path):
                 continue  # anything else living under the root is not ours to read
             raw = json.loads(self._store.read_text(path))
+            chats = self._store.list_dir(f"{entry}/{CHATS_DIR}")
+            pin = f"{entry}/{PINNED_FILE}"
             projects.append(
                 Project(
                     id=entry,
                     name=raw["name"],
                     created_at=raw["createdAt"],
-                    chat_count=len(self._store.list_dir(f"{entry}/{CHATS_DIR}")),
+                    chat_count=len(chats),
                     file_count=len(self._store.list_dir(f"{entry}/{FILES_DIR}")),
-                    pinned=self._store.exists(f"{entry}/{PINNED_FILE}"),
+                    # A chat file is written whenever anybody talks in it, so the newest one says
+                    # when the project was last used (Madde 346).
+                    last_chat_at=max(
+                        (self._stamp(f"{entry}/{CHATS_DIR}/{name}") for name in chats), default=""
+                    ),
+                    pinned_at=self._stamp(pin) if self._store.exists(pin) else "",
                     archived=self._store.exists(f"{entry}/{ARCHIVED_FILE}"),
                 )
             )
         return projects
+
+    def _stamp(self, path):
+        # The shape the routes stamp createdAt with -- UTC, to the millisecond -- so the two compare
+        # as text, which is how the list is ordered.
+        return datetime.fromtimestamp(self._store.mtime(path), timezone.utc).isoformat(
+            timespec="milliseconds"
+        )
 
     def _write(self, project):
         # The id is the directory name and the counts come from the directories, so neither is
