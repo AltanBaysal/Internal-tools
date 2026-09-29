@@ -253,7 +253,7 @@ test("the model is pressed here too, and the choice is passed up", () => {
   render(
     <ProjectScreen
       project={PROJECT}
-      model="deepseek-v4-flash"
+      model="deepseek-flash"
       modelOpen
       onModelChange={onModelChange}
     />,
@@ -261,8 +261,8 @@ test("the model is pressed here too, and the choice is passed up", () => {
   // By its class rather than its role: with the menu standing open the same name is on the trigger
   // and on the row it chose, and a bare role query cannot say which one is meant.
   expect(screen.getByText("Queen Flash", { selector: ".picker__name" })).toBeTruthy();
-  fireEvent.click(screen.getByText("Queen Pro", { selector: ".menu__item-name" }));
-  expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-pro");
+  fireEvent.click(screen.getByText("Queen Flash", { selector: ".menu__item-name" }));
+  expect(onModelChange).toHaveBeenCalledWith("deepseek-flash");
 });
 
 test("whether the picker is open is told to the screen rather than decided by it", () => {

@@ -21,8 +21,8 @@ ROOT = os.environ.get("QUEENAGENT_ROOT", os.path.join(os.path.expanduser("~"), "
 # answer fails.
 XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
 # The second provider's key, since Madde 146, and it travels the same road. The notebook demands
-# both: the composer draws three rows, so a run opened on one key would promise two models it
-# cannot answer with.
+# both: each spends a row of the table below, and a run opened on one key would have a model wired
+# that it cannot answer with.
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 
 # What each model id means to the transport, and nothing else. The list a person reads -- names and
@@ -42,16 +42,20 @@ MODELS = {
     "grok-4.3": {"base_url": "https://api.x.ai/v1", "key": "XAI_API_KEY"},
     # No /v1: this is DeepSeek's own documented base, and the client appends /chat/completions to
     # whatever it is handed.
-    "deepseek-v4-flash": {"base_url": "https://api.deepseek.com", "key": "DEEPSEEK_API_KEY"},
-    "deepseek-v4-pro": {"base_url": "https://api.deepseek.com", "key": "DEEPSEEK_API_KEY"},
+    #
+    # One name of DeepSeek's since Madde 336, the one the model has today. DeepSeek's notice of 10
+    # September closed deepseek-v4-pro -- its requests go to Flash, billed as Flash, with no error --
+    # and left deepseek-v4-flash an alias. Messages on disk still name both; neither is a row here,
+    # so both are answered by the default.
+    "deepseek-flash": {"base_url": "https://api.deepseek.com", "key": "DEEPSEEK_API_KEY"},
 }
 
 # What answers when a turn named nothing -- which is every message written before Madde 146.
 #
-# The cheaper of the two the composer offers since Madde 177, and the same id models.js defaults to:
-# one of them answers what an empty button says and this one answers where the request goes, and the
-# two parting would show a name on the screen that nothing on the wire matched.
-DEFAULT_MODEL = "deepseek-v4-flash"
+# The one model the composer offers since Madde 336, and the same id models.js defaults to: one of
+# them answers what an empty button says and this one answers where the request goes, and the two
+# parting would show a name on the screen that nothing on the wire matched.
+DEFAULT_MODEL = "deepseek-flash"
 
 # Who writes a frame's action when a tool asks for one (Madde 175). A role rather than a choice, by
 # the user's decision of 5 September: what the composer offers is which model runs the conversation,
@@ -64,7 +68,7 @@ DEFAULT_MODEL = "deepseek-v4-flash"
 # and a second provider for one line was buying nothing. It is the same id DEFAULT_MODEL carries,
 # and the two are still separate decisions: one says what an empty button means, this one says who
 # writes an action, and either can move without the other.
-PROMPT_MODEL = "deepseek-v4-flash"
+PROMPT_MODEL = "deepseek-flash"
 
 
 def engine_for(model_id):

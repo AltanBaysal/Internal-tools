@@ -47,15 +47,15 @@ def test_the_deepseek_key_comes_from_the_environment(monkeypatch):
         _reloaded()
 
 
-def test_the_default_model_is_the_cheaper_queen():
+def test_the_default_model_is_deepseek_flash():
     # Pinned like MAX_ROUNDS: this is a decision, and changing it without noticing changes what the
     # user pays and what fits. It is also what an old record resolves to -- every message written
     # before Madde 146 names no model at all.
     #
-    # Madde 177 moved it off Grok. What the composer offers is two models now, and this has to be
-    # the same id models.js defaults to, or the button would say one thing while the request went
-    # somewhere else.
-    assert config.DEFAULT_MODEL == "deepseek-v4-flash"
+    # Madde 336: the one model the composer offers, under the name DeepSeek gives it today. This has
+    # to be the same id models.js defaults to, or the button would say one thing while the request
+    # went somewhere else.
+    assert config.DEFAULT_MODEL == "deepseek-flash"
 
 
 def test_the_grok_row_is_kept_as_the_way_back():
@@ -64,6 +64,13 @@ def test_the_grok_row_is_kept_as_the_way_back():
     # the notebook's three secrets along with it, and the way back is one constant either way. If the
     # lines DeepSeek writes come out worse, the road is still here.
     assert "grok-4.3" in config.MODELS
+
+
+def test_deepseek_is_wired_under_the_one_name_it_has_today():
+    # Madde 336. DeepSeek closed deepseek-v4-pro on 14 September and answers it with Flash, and
+    # deepseek-v4-flash is only an alias now -- so the table holds the name the model has today and
+    # nothing else of DeepSeek's. Grok stays, knowingly (above).
+    assert set(config.MODELS) == {"grok-4.3", "deepseek-flash"}
 
 
 def test_the_writer_grok_4_3_replaced_is_gone_from_the_table():
@@ -76,20 +83,18 @@ def test_the_writer_grok_4_3_replaced_is_gone_from_the_table():
     assert "grok-build-0.1" not in config.MODELS
 
 
-def test_the_three_models_resolve_to_their_provider():
+def test_the_two_models_resolve_to_their_provider():
     assert config.MODELS["grok-4.3"]["base_url"] == "https://api.x.ai/v1"
     # No /v1 on this one: it is DeepSeek's documented base, and the client appends
     # /chat/completions to whatever it is given.
-    assert config.MODELS["deepseek-v4-flash"]["base_url"] == "https://api.deepseek.com"
-    assert config.MODELS["deepseek-v4-pro"]["base_url"] == "https://api.deepseek.com"
+    assert config.MODELS["deepseek-flash"]["base_url"] == "https://api.deepseek.com"
 
 
 def test_each_model_names_the_key_it_spends():
     # Two providers, two keys. Which one a model costs is the model's own business rather than
     # something the composition root is told twice.
     assert config.MODELS["grok-4.3"]["key"] == "XAI_API_KEY"
-    assert config.MODELS["deepseek-v4-flash"]["key"] == "DEEPSEEK_API_KEY"
-    assert config.MODELS["deepseek-v4-pro"]["key"] == "DEEPSEEK_API_KEY"
+    assert config.MODELS["deepseek-flash"]["key"] == "DEEPSEEK_API_KEY"
 
 
 def test_the_prompt_writer_is_a_role_rather_than_a_choice():
@@ -97,7 +102,7 @@ def test_the_prompt_writer_is_a_role_rather_than_a_choice():
     # business, not the user's -- what they choose is which model runs the conversation. Madde 202
     # made it the same id the composer defaults to, and the role is unchanged by that: this line
     # decides who writes an action, and no picker on the screen reaches it.
-    assert config.PROMPT_MODEL == "deepseek-v4-flash"
+    assert config.PROMPT_MODEL == "deepseek-flash"
 
 
 def test_the_prompt_writer_is_one_of_the_models_that_are_wired():
@@ -107,8 +112,8 @@ def test_the_prompt_writer_is_one_of_the_models_that_are_wired():
 
 
 def test_a_known_model_resolves_to_its_own_wiring():
-    model, base_url, _ = config.engine_for("deepseek-v4-flash")
-    assert (model, base_url) == ("deepseek-v4-flash", "https://api.deepseek.com")
+    model, base_url, _ = config.engine_for("deepseek-flash")
+    assert (model, base_url) == ("deepseek-flash", "https://api.deepseek.com")
 
 
 def test_an_unknown_or_absent_model_falls_back_to_the_default():
@@ -117,5 +122,12 @@ def test_an_unknown_or_absent_model_falls_back_to_the_default():
     # stop a chat from being answered.
     # The example is a name that can never be a model. It used to be grok-4.3, which Madde 183 made
     # a real row -- and a test whose example turns real goes green for the wrong reason.
-    assert config.engine_for("")[0] == "deepseek-v4-flash"
-    assert config.engine_for("a-model-nobody-wired")[0] == "deepseek-v4-flash"
+    assert config.engine_for("")[0] == "deepseek-flash"
+    assert config.engine_for("a-model-nobody-wired")[0] == "deepseek-flash"
+
+
+def test_a_chat_that_named_an_old_deepseek_id_is_answered_by_flash():
+    # Messages on disk name deepseek-v4-flash or deepseek-v4-pro, and those chats must still be
+    # answered: both ids are gone from the table, so the unknown-id rule takes them to the default.
+    assert config.engine_for("deepseek-v4-flash")[0] == "deepseek-flash"
+    assert config.engine_for("deepseek-v4-pro")[0] == "deepseek-flash"

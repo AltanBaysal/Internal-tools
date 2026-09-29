@@ -735,8 +735,8 @@ test("the composer offers the choice of model", () => {
 test("the model picker shows what it is handed, not the chat's", () => {
   // The selection is the session's and this screen is handed one, exactly as it is handed a skill.
   // A model sitting in an old record is history, not a selection.
-  render(<ChatScreen project={PROJECT} chat={CHAT} model="deepseek-v4-pro" />);
-  expect(screen.getByRole("button", { name: /Queen Pro/ })).toBeTruthy();
+  render(<ChatScreen project={PROJECT} chat={CHAT} model="grok-4.3" />);
+  expect(screen.getByRole("button", { name: /grok-4.3/ })).toBeTruthy();
 });
 
 test("picking a model is passed up rather than kept here", () => {
@@ -745,13 +745,13 @@ test("picking a model is passed up rather than kept here", () => {
     <ChatScreen
       project={PROJECT}
       chat={CHAT}
-      model="deepseek-v4-pro"
+      model="grok-4.3"
       modelOpen
       onModelChange={onModelChange}
     />,
   );
   fireEvent.click(screen.getByText("Queen Flash"));
-  expect(onModelChange).toHaveBeenCalledWith("deepseek-v4-flash");
+  expect(onModelChange).toHaveBeenCalledWith("deepseek-flash");
 });
 
 test("whether the model menu is open is told to the screen rather than decided by it", () => {
