@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/18
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/19
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
 [BACKLOG.md](../../../queen-agent/BACKLOG.md)'den geliyor, backlog'un dört maddesi de v9-2'ye katıldı;
@@ -8,7 +8,7 @@ hepsini kullanıcı 28 Eylül'de getirdi. v9-6 kullanıcının 28 Eylül'deki s�
 sürüm maddesiydi, hizalanırken v9-2'ye katıldı *(kullanıcı, 28 Eylül)*, ve numarası kaymadı. v9-7
 de kullanıcının 28 Eylül'deki sözlerinden doğdu; yazdığı listeyi queen-editor'ün
 [v8-3](2026-09-25-queen-editor-v8-roadmap.md)'ü okur. v9-8 ve v9-9 da 28 Eylül'deki sözlerinden
-doğdu.
+doğdu. v9-10 kullanıcının 29 Eylül'deki sözlerinden doğdu.
 
 **Bu numarayla yazılan ilk belge koşulmadan kapandı** *(`81cf9d53`)*: maddeleri backlog'a döndü.
 Playwright 28 Eylül'de v9-3 olarak geri geldi; ötekiler aynı gün backlog'dan da çıkarıldı
@@ -29,7 +29,8 @@ kararlar tablonun altında, maddenin kendi başlığında duruyor.
 - **Sonra tasarımdan bağımsız işler:** v9-4a, v9-1a, v9-1b.
 - **v9-2, ekrana dokunan parçalardan önce:** v9-1c ve v9-4b yeni ekranın üstüne kurulur; eski ekrana
   kurulup sonra taşınmaz.
-- **v9-6 en sonda** *(kullanıcı — "listenin en sonuna al bunu")*.
+- **v9-6 sona doğru** *(kullanıcı — "listenin en sonuna al bunu")*, **v9-10 en sonda** *(kullanıcı, 29
+  Eylül — "bunu en son al beraber yaoarız")*.
 
 **v9-2 tasarım gelince, koşudan önce bölünür:** tasarım bugünkü ekranla karşılaştırılır, ve her fark
 bir parça olur. Tasarımcının listesindeki (5), (7) ve (8) kendi parçalarında yapılır — v9-1c, v9-4b,
@@ -39,7 +40,8 @@ v9-8b.
 main'e v8'den önce alınmaz.
 
 **Kullanıcıdan gerekenler, koşudan önce:** tasarımcının yeni tasarımı *(v9-2)*; v9-3a'nın ayarı
-yazılınca Claude Code'un yeniden açılması.
+yazılınca Claude Code'un yeniden açılması. **Koşu sırasında:** v9-10'a gelince koşu durur, ve madde
+kullanıcıyla birlikte yapılır.
 
 ---
 
@@ -63,6 +65,7 @@ yazılınca Claude Code'un yeniden açılması.
 | v9-1c | `ALIGNED` **Dolan sohbette *burada devam et*.** Yalnız sohbet dolunca, yeni sohbet açmanın yanında; seçilince v9-1b'nin kırpması yapılır. Görünüşü tasarımdan — listede (5). *Kararları: v9-1.* | Mesajları 50.000'e ulaşan sohbette yeni sohbet açmanın yanında *burada devam et* var; seçilince en eski mesajlar modele gitmiyor ama ekranda duruyor, ve sohbet yeniden tur alıyor. |
 | v9-4b | `ALIGNED` **Model seçici kalkar**, ve modelin adı yalnız bir yazı olarak görünür. Görünüşü tasarımdan — listede (7). *Kararları: v9-4.* | Ekranda model seçici yok; modelin adı *Queen Flash* olarak yazıyor. |
 | v9-6 | `ALIGNED` **Suffix system prompt'u güçlendirilecek.** *(Kullanıcı, 28 Eylül — "suffix system promptunu" güçlendirmek.)* **Kullanıcı kendisi yazar, ve madde en sonda durur** *(kullanıcı, 28 Eylül — "abi unu ben ypaıcam listenin en sonuna al bunu")*: koşu buraya geldiğinde spec, test ya da kod yazmaz; suffix'i kullanıcı değiştirir. | Kullanıcı yeni suffix'i yazdı. |
+| v9-10 | `ALIGNED` **Token kullanımı optimize edilir:** gönderilen token azalır, ve daha büyük kısmı önbellekten gelir; aynı iş daha az paraya, kalite düşmeden. **En sonda, kullanıcıyla birlikte:** koşu buraya gelince durur ve kullanıcıyı bekler. *Kararları ve bugünkü bulgular: v9-10.* | Kullanıcıyla birlikte seçilen iş, öncekinden daha az token harcıyor, ve harcadığının daha büyük kısmı önbellekten geliyor. |
 
 ---
 
@@ -94,3 +97,16 @@ parçanın spec'i kendi maddesini buradan okur.
 ### v9-2 — Tasarım *(v9-2; tasarım gelince bölünür)*
 
 `ALIGNED` **QueenAgent'ın tasarımı güncellenecek, özellikle projelenme düzeltilecek.** *(Kullanıcı, 25 Eylül — "queen agent tasarımı güncellenecek, özellikle projelenme düzeltilecek".)* **Tasarımı tasarımcı yapar, ve tasarım koşu başlamadan gelir** *(kullanıcı, 28 Eylül — "tasarımı sen yapmıcan desingera vericez", "tasarım koşu başlamdan gelecek sıkıntı yok")*. **Tasarımcıya buradan prompt gitmez, ihtiyaçlar gider** *(kullanıcı — "sen prompt verme ihtiacları belirt sadece")*. **Tasarıma dokunan her madde bu listeye girer**, liste koşudan önce tasarımcıya gider, ve koşu gelen yeni tasarımı kullanır *(kullanıcı — "tasarıma dokunan her şey gidicek roadmapten önce atıcaz isteklerimiz yeni tasarım gelicek alıcaz kullanıcaz")*. (2), (3), (4) ve (6) backlog'dan geldi *(kullanıcı kararı, 28 Eylül)*. **(1) Projelenme düzeltilecek** *(kullanıcı, 25 Eylül)*. **(2) Proje yönetimi geliştirilecek** *(kullanıcı, 18 Eylül)*: bugün bir proje için yalnız iki eylem var — yeniden adlandırmak ve silmek — ve ikisi de hem kenar çubuğunun menüsünde hem proje ekranında duruyor. **(3) Yeni proje ve yeni sohbet açmak karmaşık** *(kullanıcı, 11 Eylül — v8'in test geçişi)*: bugün üç ayrı yer var — kenar çubuğunda *Projects*'in yanındaki `+`, bir proje seçiliyken üstteki *New chat*, ve hiç proje yokken açılan ayrı ekran. **(4) Kalem ile saat alt alta duruyor** *(kullanıcı, 11 Eylül — v8'in test geçişi; 28 Eylül — "yan yanda durmaktansa alt alta duruyor bunu tasarım düzelticek diyleim")*: bir mesajın altında sürüm şeridi `‹ 1/2 ›` ile kalem `✎` bir satırda, saat ile jeton sayısı ayrı bir satırda. **(5) Dolan sohbette *burada devam et*** *(v9-1c)*: sohbet 50.000'e dolunca yeni sohbet açmanın yanında bir de *burada devam et* seçeneği; seçilince en eski mesajlar modele gitmez ama ekranda kalır. **(6) Sürüm adın yanında** *(kullanıcı, 11 Eylül — v8'in test geçişi; v9-5 olarak yazıldı, 28 Eylül'de buraya katıldı)*: Madde 209 sürümü adın altına, soluk ve küçük koydu, ve bir dipnot gibi okunmuyor. Kullanıcının kararı: adın yanında, adla aynı boyda ve kalın. **Ayrıntısı tasarımcıya bırakılır**, ve gelen tasarım uygulanır *(kullanıcı — "burda tasarımcıya bırak ordan gelen tasarımı uygula")*. [v8'in test listesindeki](../../2026-09-10-queenagent-v8-test-listesi.md) *"adın altında"* satırı bu kararla reddedildi. **(7) Model seçici kalkar** *(v9-4b)*: tek model kalıyor, *Queen Flash*; adı yalnız bir yazı olarak görünür. **(8) Skill seçicide Improve** *(v9-8b)*: seçiciye yeni bir satır gelir. **Kullanıcıdan gereken:** tasarımcının yeni tasarımı, koşu başlamadan.
+
+### v9-10 — Token kullanımı *(v9-10)*
+
+`ALIGNED` **QueenAgent'ta token kullanımı optimize edilecek.** *(Kullanıcı, 29 Eylül — "queen agentta token kullanımını optimize et".)* **Hedef maliyet** *(kullanıcı, 29 Eylül — "abi dopru ve token chacede odaklanalım maliyete odaklanıyorum çünkü bir istek atıyorum 500k token harcıyor claudde subagetn açıyorum 15 dk çalışıyor 500k harcıyor bu büyük bir fark")*: aynı iş daha az paraya mal olur, ve cevapların kalitesi düşmez. **İki yandan:** gönderilen token azalır, ve daha büyük kısmı önbellekten gelir *(kullanıcı — "abi yani token kullanımıda optimöize edelim cache ile claude code nasıl 500k ile 30 dk çalışıyor biz tek istekte harcıyoruz mantıklı değil")*. **En sonda, kullanıcıyla birlikte yapılır** *(kullanıcı — "bunu en son al beraber yaoarız")*: koşu buraya gelince durur ve kullanıcıyı bekler. Nasıl yapılacağı, neyle ölçüleceği, ekrandaki token sayıları ve backlog'daki "read_file geliştirilecek" o zaman birlikte konuşulur.
+
+**Bugün** *(29 Eylül'de koddan ve servislerin belgelerinden okundu; oranlar ölçülmedi — tek yerel sohbette token kaydı yok, gerçek sohbetler Colab'da)*:
+
+- **Ekrandaki sayılar maliyeti göstermiyor.** DeepSeek'in `prompt_tokens`'ı önbellekten gelen ve gelmeyen kısmın toplamı *([belge](https://api-docs.deepseek.com/api/create-chat-completion))*; istemci onu `sent`, önbellekten geleni `cached` diye okuyor. Çalışırken görünen sayı `sent + cached + answered`, yani önbellekten gelen iki kez sayılıyor *([stream_answer.py](../../../queen-agent/backend/features/workspace/domain/usecases/stream_answer.py), `_volume`)*. Bitince görünen `sent + answered`, yani önbellekten gelen tam fiyat ödenmiş gibi *([ChatScreen.jsx](../../../queen-agent/frontend/src/features/workspace/ChatScreen.jsx), `Stamp`)*.
+- **Önbellekten gelen 50 kat ucuz.** Flash'ta 1M token, yoğun olmayan / yoğun saatte: önbellekten gelen $0.003 / $0.006, gelmeyen $0.15 / $0.30, cevap $0.6 / $1.2 *([fiyatlar](https://api-docs.deepseek.com/quick_start/pricing))*. 500k'nın hepsi önbelleği kaçırsa bile en çok $0.075 / $0.15.
+- **Açılan dosyalar ve talimat her istekte önbellek dışında kalıyor olmalı.** DeepSeek yalnız baştan birebir aynı kısmı önbellekten verir; önbellek noktaları isteğin sonu, cevabın sonu, istekler arasındaki ortak baş, ve uzun metinde sabit aralıklar — ve garanti yok *([belge](https://api-docs.deepseek.com/guides/kv_cache))*. Bizim istek sırası: sistem talimatı, sohbet, turun yeni adımları, dosya adları, açılan dosyalar, skill talimatı *([stream_answer.py](../../../queen-agent/backend/features/workspace/domain/usecases/stream_answer.py), `_asked`)*. Sonraki istekte yeni adımlar dosya adlarının önüne girer, ve önceki isteğin kuyruğu yenisinin başı olmaz. xAI da aynısını söylüyor: "only append new messages at the end" *([belge](https://docs.x.ai/developers/advanced-api-usage/prompt-caching/multi-turn))*.
+- **Bir tur en çok 16 istek**, ve her biri her şeyi yeniden gönderir; `write_missing_actions` ayrıca ikinci bir modele istek atar.
+- **Düşünme modu belirsiz.** Belgeye göre Flash'ta düşünme varsayılan olarak açık, ve araçlı isteklerde `reasoning_content` sonraki isteklerde geri gönderilmezse API 400 döner *([belge](https://api-docs.deepseek.com/guides/thinking_mode))*. Kod onu hiç ele almıyor, ve QueenAgent hata vermeden çalışıyor: kullanılan eski ad `deepseek-v4-flash` farklı davranıyor olabilir. Ölçülecek.
+- **Claude Code karşılaştırması:** gösterdiği sayının neyi saydığı bulunamadı. Bu araçlarda tokenların büyük kısmı önbellek okuması, ve Anthropic onu normal fiyatın 0.1'iyle faturalar *([DEV](https://dev.to/flipslidersand/i-thought-i-used-1-billion-tokens-in-claude-code-last-week-turns-out-97-was-cache-1m2i))*.
