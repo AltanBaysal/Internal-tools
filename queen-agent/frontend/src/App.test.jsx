@@ -1617,7 +1617,7 @@ test("a chat is born naming the model that will answer it", async () => {
       ([path, options]) => options?.method === "POST" && String(path).endsWith("/messages"),
     );
     expect(born).toBeTruthy();
-    expect(JSON.parse(born[1].body).model).toBe("deepseek-v4-flash");
+    expect(JSON.parse(born[1].body).model).toBe("deepseek-flash");
   });
 });
 
@@ -1629,9 +1629,20 @@ test("picking a model asks the server for nothing", async () => {
   await waitFor(() => expect(screen.getByRole("button", { name: /Queen Flash/ })).toBeTruthy());
   const before = fetch.mock.calls.length;
   fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
-  fireEvent.click(screen.getByText("Queen Pro"));
-  await waitFor(() => expect(screen.getByRole("button", { name: /Queen Pro/ })).toBeTruthy());
+  fireEvent.click(screen.getByText("Queen Flash", { selector: ".menu__item-name" }));
   expect(fetch.mock.calls.length).toBe(before);
+});
+
+test("Queen Pro is on offer nowhere", async () => {
+  // Madde 336: DeepSeek closed deepseek-v4-pro on 14 September and answers it with Flash, so a Pro
+  // row would name one model and be answered by another.
+  withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByRole("button", { name: /Queen Flash/ })).toBeTruthy());
+  fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
+  expect(screen.getByText("MODELS")).toBeTruthy();
+  expect(screen.queryByText("Queen Pro")).toBeNull();
 });
 
 test("the model menu takes the one picker slot, and Escape closes it", async () => {
