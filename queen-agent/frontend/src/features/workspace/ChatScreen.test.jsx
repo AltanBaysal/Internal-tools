@@ -300,7 +300,7 @@ test("a user message is stamped with the time and nothing else", () => {
   // The design draws the person's own name there but never says where it comes from, and there is
   // no such setting. Who wrote it is already clear from the bubble sitting on the right.
   render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByText("11:04").className).toBe("msg__stamp");
+  expect(screen.getByText("11:04").parentElement.className).toBe("msg__stamp");
   expect(screen.queryByText(/You/)).toBeNull();
 });
 
@@ -308,7 +308,7 @@ test("an answer is stamped with the time and nothing else either", () => {
   // The name used to sit above every answer and it said nothing new: the sidebar carries it, and an
   // answer sitting on the left already says whose turn this was.
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(screen.getByText("11:05").className).toBe("msg__stamp");
+  expect(screen.getByText("11:05").parentElement.className).toBe("msg__stamp");
   // Asked of the conversation rather than of the screen: the rail's empty state names QueenAgent
   // too, and that sentence is not the repetition this is about.
   expect(container.querySelector(".chat__column").textContent).not.toContain("QueenAgent");
@@ -350,16 +350,23 @@ test("the running turn says where it is, on one line, where the stamp sits", () 
 });
 
 test("the strip carries a word that says nothing about the work", () => {
-  render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
-  // A gerund and an ellipsis. Deriving it from the tool name was asked against: the two pieces
-  // beside it already carry every fact there is. The whole line is pinned here -- one row, in this
-  // order, with nothing dividing it into columns.
-  //
-  // The two facts lead and the moving part trails (user, 7 September). The spinner's job is to
-  // move, and where it sits does not change whether it does.
-  expect(screen.getByTestId("live-strip").textContent).toMatch(
-    /^round 4\/16 · 12\.3k tokens · [A-Z][a-z]+ing…$/,
-  );
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
+  try {
+    render(<ChatScreen project={PROJECT} chat={CHAT} thinking progress={RUNNING_AT} />);
+    // A gerund and an ellipsis. Deriving it from the tool name was asked against: the two pieces
+    // beside it already carry every fact there is. The whole line is pinned here -- one row, in
+    // this order, with nothing dividing it into columns.
+    //
+    // The two facts lead and the moving part trails (user, 7 September). The spinner's job is to
+    // move, and where it sits does not change whether it does. Madde 348: the time the wait began
+    // stands before them, where the record's time will stand.
+    expect(screen.getByTestId("live-strip").textContent).toMatch(
+      /^14:32 · round 4\/16 · 12\.3k tokens · [A-Z][a-z]+ing…$/,
+    );
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("the spinner sits behind the numbers, in front of the word", () => {
@@ -420,6 +427,25 @@ test("the strip rides with the answer once the words start arriving", () => {
     />,
   );
   expect(screen.getByTestId("streaming").textContent).toContain("round 4/16");
+});
+
+test("the strip keeps its time once the words start arriving", () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
+  try {
+    render(
+      <ChatScreen
+        project={PROJECT}
+        chat={CHAT}
+        thinking
+        streamingText="Here it"
+        progress={RUNNING_AT}
+      />,
+    );
+    expect(screen.getByTestId("live-strip").textContent).toMatch(/^14:32 · round 4\/16/);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("both messages are drawn", () => {
@@ -512,7 +538,7 @@ test("the waiting stamp carries the time the wait began", () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date(2026, 7, 9, 14, 32));
   render(<ChatScreen project={PROJECT} chat={CHAT} thinking />);
-  expect(screen.getByText("14:32").className).toBe("msg__stamp");
+  expect(screen.getByText("14:32").parentElement.className).toBe("msg__stamp");
   vi.useRealTimers();
 });
 
@@ -858,19 +884,19 @@ test("an answer says what it spent, beside when it was said", () => {
   );
   // Asked for by its text rather than by its class: a missing element then names what was looked
   // for, instead of failing later on a null nobody can read.
-  expect(screen.getByText("11:05 · 13.2k tokens").className).toBe("msg__stamp");
+  expect(screen.getByText("11:05 · 13.2k tokens").parentElement.className).toBe("msg__stamp");
 });
 
 test("a small answer is not dressed up as a big one", () => {
   render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />);
-  expect(screen.getByText("11:05 · 342 tokens").className).toBe("msg__stamp");
+  expect(screen.getByText("11:05 · 342 tokens").parentElement.className).toBe("msg__stamp");
 });
 
 test("an answer nobody measured still says when it was said", () => {
   // Zero is what an answer from before this existed reads back as, and a count under it would claim
   // a measurement nobody took. The time is not a measurement -- it was said at a time either way.
   render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 0, cached: 0, answered: 0 })} />);
-  expect(screen.getByText("11:05").className).toBe("msg__stamp");
+  expect(screen.getByText("11:05").parentElement.className).toBe("msg__stamp");
   expect(screen.queryByText(/tokens/)).toBeNull();
 });
 
@@ -879,7 +905,7 @@ test("the user's own message never carries a count", () => {
   const { container } = render(
     <ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />,
   );
-  expect(screen.getByText("11:04").className).toBe("msg__stamp");
+  expect(screen.getByText("11:04").parentElement.className).toBe("msg__stamp");
   expect(container.querySelector(".msg--user").textContent).not.toContain("tokens");
 });
 
@@ -1025,45 +1051,43 @@ test("at the end of the row there is nothing further to step to", () => {
   expect(screen.getByRole("button", { name: "Next version" }).disabled).toBe(true);
 });
 
-// --- the strip and the pencil on one line (Madde 199) --------------------------------------------
+// --- the notes under a message, on one row (Madde 199, Madde 348) -------------------------------
+//
+// Madde 199 put the arrows and the pencil on a line of their own, and the time stayed on the line
+// under it: two rows of notes under one sentence (user, 11 and 28 September). Design item 139 puts
+// them all on the stamp's row, the time first.
 
-test("the strip and the pencil stand on the same line", () => {
-  // Both are notes under the bubble, and .msg is a column -- so put separately there, each took a
-  // line of its own and the two never stood beside each other.
-  const { container } = render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
-  const foot = container.querySelector(".msg__foot");
-  expect(foot.querySelector(".versions")).toBeTruthy();
-  expect(foot.querySelector(".msg__edit")).toBeTruthy();
-});
+const rowOf = (container, who) => container.querySelector(`.msg--${who} .msg__stamp`);
+const partsOf = (row) => [...row.children].map((part) => part.className);
 
-test("the strip comes first and the pencil after it", () => {
-  // Where the sentence stands, then the way to change it. The other order would move the pencil
+test("under an edited question the time, the arrows and the pencil stand on one row", () => {
+  // Where the sentence stands, then the way to change it: the other order would move the pencil
   // according to whether a strip is there at all, and one button would sit in two places.
   const { container } = render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
-  expect(container.querySelector(".msg__foot").firstElementChild.className).toBe("versions");
+  const row = rowOf(container, "user");
+  expect(partsOf(row)).toEqual(["", "versions", "msg__edit"]);
+  expect(row.firstElementChild.textContent).toBe("11:04");
+  expect(container.querySelector(".msg__foot")).toBeNull();
 });
 
-test("a message with nothing beside it keeps its pencil", () => {
+test("a question with nothing beside it keeps its pencil after the time", () => {
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  const foot = container.querySelector(".msg__foot");
-  expect(foot.querySelector(".msg__edit")).toBeTruthy();
-  expect(foot.querySelector(".versions")).toBeNull();
+  expect(partsOf(rowOf(container, "user"))).toEqual(["", "msg__edit"]);
 });
 
-test("an answer carries no line under it at all", () => {
-  // There is neither a pencil nor a strip there, and an empty row would do nothing but widen the
-  // column's own gap.
-  const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
-  expect(container.querySelector(".msg--ai .msg__foot")).toBeNull();
+test("an answer's row holds its words and nothing else", () => {
+  // Neither a pencil nor arrows: an answer is a whole turn, and there is nothing to go back into.
+  const { container } = render(<ChatScreen project={PROJECT} chat={BRANCHED} />);
+  const row = rowOf(container, "ai");
+  expect(partsOf(row)).toEqual([""]);
+  expect(row.textContent).toBe("11:05");
 });
 
-test("while a message is being corrected the line is the strip alone", () => {
+test("while a message is being corrected the row is the time and the strip", () => {
   // Madde 197's rule stands: the pencil withdraws. The strip does not -- which version is being
   // corrected has to stay readable while it is corrected.
   const { container } = _editing(BRANCHED);
-  const foot = container.querySelector(".msg__foot");
-  expect(foot.querySelector(".versions")).toBeTruthy();
-  expect(foot.querySelector(".msg__edit")).toBeNull();
+  expect(partsOf(rowOf(container, "user"))).toEqual(["", "versions"]);
 });
 
 test("the foot puts the mode before the skill", () => {

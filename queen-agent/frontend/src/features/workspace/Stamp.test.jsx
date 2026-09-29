@@ -28,3 +28,31 @@ test("the live strip says the round and the tokens", () => {
   render(<LiveStrip round={2} of={16} tokens={1234} />);
   expect(screen.getByText("round 2/16 · 1.2k tokens", { exact: false })).toBeTruthy();
 });
+
+// Madde 348: every note under a message on the stamp's one row, the time first (design item 139).
+
+test("what is handed to the stamp stands after its words, on its row", () => {
+  // A question's arrows and pencil ride on the row its time is on.
+  const { container } = render(
+    <Stamp at={AT}>
+      <button type="button">✎</button>
+    </Stamp>,
+  );
+  const row = container.querySelector(".msg__stamp");
+  expect([...row.children].map((part) => part.tagName)).toEqual(["SPAN", "BUTTON"]);
+  expect(row.firstElementChild.textContent).toBe(clockTime(AT));
+});
+
+test("the live strip starts with the time the wait began", () => {
+  render(<LiveStrip at={AT} round={2} of={16} tokens={1234} />);
+  expect(screen.getByTestId("live-strip").firstElementChild.textContent).toBe(
+    `${clockTime(AT)} · round 2/16 · 1.2k tokens · `,
+  );
+});
+
+test("before the wait is stamped the strip starts with the round", () => {
+  render(<LiveStrip round={2} of={16} tokens={1234} />);
+  expect(screen.getByTestId("live-strip").firstElementChild.textContent).toBe(
+    "round 2/16 · 1.2k tokens · ",
+  );
+});

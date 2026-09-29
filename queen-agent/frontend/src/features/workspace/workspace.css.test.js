@@ -724,15 +724,18 @@ test("an arrow with nothing to step to does not offer to be pressed", () => {
   expect(rule(".versions__step:disabled")).toContain("opacity: 0.3");
 });
 
-// --- the strip and the pencil on one line (Madde 199) --------------------------------------------
+// --- the notes under a message on one row (Madde 199, Madde 348) --------------------------------
 
-test("the notes under a bubble share one row", () => {
-  // .msg is a column, so two children of it are two lines. The row is what puts them beside each
-  // other -- and it holds only the notes: the bubble stays a child of the column, which is what
-  // Madde 197 fixed.
-  const foot = rule(".msg__foot");
-  expect(foot).toContain("display: flex");
-  expect(foot).toContain("align-items: center");
+test("the notes under a message share the stamp's one row", () => {
+  // .msg is a column, so two children of it are two lines. Madde 199's row put the arrows and the
+  // pencil beside each other and left the time a line below them; design item 139 puts all three
+  // on the stamp's row, 6 apart. The bubble stays a child of the column, which is what Madde 197
+  // fixed.
+  const stamp = rule(".msg__stamp");
+  expect(stamp).toContain("display: flex");
+  expect(stamp).toContain("align-items: center");
+  expect(stamp).toContain("gap: 6px");
+  expect(CSS).not.toContain(".msg__foot");
 });
 
 test("the strip carries no gap of its own", () => {
