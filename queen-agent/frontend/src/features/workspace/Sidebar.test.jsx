@@ -9,7 +9,7 @@ const PROJECTS = [
   { id: "p2", name: "Product notes", chats: 2, files: 2 },
 ];
 
-test("with no project selected only the wordmark and the projects remain", () => {
+test("with no project selected only the projects remain", () => {
   // Chats belong to a project, so with none selected neither control has anywhere to point.
   render(<Sidebar projects={PROJECTS} activeProjectId={null} />);
   expect(screen.getByText("Projects")).toBeTruthy();
@@ -49,14 +49,6 @@ test("folded, nothing is left but the way back", () => {
   expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });
 
-test("folded, the version folds with the name", () => {
-  // It opens no room of its own: folded, the sidebar is the button that brings it back and nothing
-  // else. True today because the collapsed branch returns early -- and written down so that moving
-  // the brand block into that branch cannot quietly bring the version along.
-  render(<Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={vi.fn()} />);
-  expect(screen.queryByText(VERSION)).toBeNull();
-});
-
 test("folded, the same button is what brings it back", () => {
   const onToggle = vi.fn();
   render(<Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={onToggle} />);
@@ -69,19 +61,21 @@ test("folded, it says so where the stylesheet can hear it", () => {
   expect(container.querySelector(".sidebar").className).toContain("sidebar--collapsed");
 });
 
-test("there is no logo mark beside the wordmark", () => {
+// Madde 338: the brand moved into the bar above the sidebar; the fold stays here until v9-2w.
+test("the sidebar carries no brand", () => {
   const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
-  expect(screen.getByText("QueenAgent")).toBeTruthy();
-  expect(container.querySelector(".sidebar__mark")).toBeNull();
+  expect(screen.queryByText("QueenAgent")).toBeNull();
+  expect(screen.queryByText(VERSION)).toBeNull();
+  expect(container.querySelector(".sidebar__brand")).toBeNull();
 });
 
-test("the sidebar says which run this is", () => {
-  // We jump from run to run -- V6, V7, V8 -- and nothing on screen said which one was running.
-  // Asked of the constant rather than of "V8": the value moves when a run opens, and this claim is
-  // that it reaches the screen, not what it says.
-  const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
-  expect(screen.getByText(VERSION)).toBeTruthy();
-  expect(container.querySelector(".sidebar__brand").textContent).toContain(VERSION);
+test("the fold still leads the sidebar", () => {
+  const { container } = render(
+    <Sidebar projects={PROJECTS} activeProjectId="p1" onToggle={vi.fn()} />,
+  );
+  expect(container.querySelector(".sidebar").firstElementChild.getAttribute("aria-label")).toBe(
+    "Hide the sidebar",
+  );
 });
 
 test("every project dot is the same tone", () => {

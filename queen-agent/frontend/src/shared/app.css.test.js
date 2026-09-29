@@ -91,6 +91,16 @@ test("the shell is the height of the visible window and no less", () => {
   expect(rule).not.toContain("min-height");
 });
 
+// Madde 338: the bar stands on top, and the sidebar and main share what is left of the window.
+test("the shell stacks the bar over a body that takes the rest", () => {
+  expect(rule(APP, ".app-shell")).toContain("flex-direction: column");
+  const body = rule(APP, ".app-shell__body");
+  expect(body).toContain("display: flex");
+  expect(body).toContain("flex: 1");
+  // Without it the body grows with its content and the page scrolls, which the shell forbids.
+  expect(body).toContain("min-height: 0");
+});
+
 // The focus ring has one home. A component that writes its own -- or writes it away -- leaves a
 // stop on the tab route with nothing to see.
 test("the ring is defined once and only here", () => {

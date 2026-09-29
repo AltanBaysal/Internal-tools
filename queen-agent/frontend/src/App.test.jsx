@@ -27,6 +27,64 @@ test("the shell renders", () => {
   expect(screen.getByTestId("app-shell")).toBeTruthy();
 });
 
+// Madde 338: one bar across the window's top, on every screen, above the sidebar and the screen.
+test("the bar stands above the sidebar and the screen while the first list loads", () => {
+  vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+  render(<App />);
+  expect(screen.getByTestId("skeleton")).toBeTruthy();
+  const shell = screen.getByTestId("app-shell");
+  expect(shell.children[0].className).toBe("bar");
+  const body = shell.children[1];
+  expect(body.className).toBe("app-shell__body");
+  expect(shell.querySelector(".sidebar").parentElement).toBe(body);
+  expect(shell.querySelector(".main").parentElement).toBe(body);
+});
+
+test("with no project at all, the bar holds the brand alone", async () => {
+  stubProjects([]);
+  render(<App />);
+  await screen.findByText(/No projects yet/);
+  const bar = screen.getByTestId("app-shell").querySelector(".bar");
+  expect(bar.textContent).toContain("QueenAgent");
+  expect(bar.querySelector(".bar__project")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Exit project" })).toBeNull();
+});
+
+// The chat is the second project's, so the opening landing on the first one is told apart from
+// going back to the project's own screen.
+function stubChatInSecondProject() {
+  const chat = { id: "c1", title: "Draft", messages: [] };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path) => {
+      if (path.endsWith("/chats/c1")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+      }
+      if (path.endsWith("/chats") || path.endsWith("/files")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT, PROJECT_2] });
+    }),
+  );
+  window.history.pushState(null, "", "/p/p2/c/c1");
+}
+
+test("in a chat, the bar carries the project's name and the way out of it", async () => {
+  stubChatInSecondProject();
+  render(<App />);
+  expect(await screen.findByText("Newer", { selector: ".bar__project" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Exit project" })).toBeTruthy();
+});
+
+test("Exit project goes back to where the app opens", async () => {
+  // Today the opening is the fork at "/": the first project, or the empty screen with none.
+  stubChatInSecondProject();
+  render(<App />);
+  await screen.findByText("Newer", { selector: ".bar__project" });
+  fireEvent.click(screen.getByRole("button", { name: "Exit project" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1"));
+});
+
 test("the first load is one skeleton and no screen at all", async () => {
   let answer;
   vi.stubGlobal(
