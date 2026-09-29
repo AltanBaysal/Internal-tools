@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 27/48
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 32/48
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -149,12 +149,12 @@ kaldırır —; v9-2p, v9-2q ve v9-2r v9-2n'nin üstüne kurulur.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 357 · v9-1d | `ALIGNED` **Kırpılmış sohbette çizgi.** `Continue here`'den sonra, modele hâlâ giden ilk mesajın üstünde bir çizgi: `Messages above this line are no longer sent to the model`. Eski mesajlar okunurken çizgi sohbetin alt kenarında bekler. Listede (5). *Kararları: v9-1; tasarım: 147, 182.* | Kırpılmış sohbette modele gitmeyen mesajlarla gidenlerin arasında çizgi; yukarı kaydırınca çizgi alt kenarda duruyor. |
-| 358 · v9-4b | `ALIGNED` **Model seçici kalkar, ve model hiçbir yerde görünmez** *(29 Eylül'de değişti)*. **Mimari:** FOUNDATION'ın 6. kararı aynı parçada güncellenir: modellerin adlarını ve fiyatlarını `models.js`'ten okuyan kimse kalmıyor. Listede (7). *Kararları: v9-4; tasarım: 136, 157.* | Yazma kutusunda model seçici de modelin adı da yok. |
-| 359 · v9-2p | `ALIGNED` **Projelerde arama.** All projects'te `Search projects` projelerin adında arar; ekran açılınca odak onda. Eşleşme yoksa `No projects match "…".` *Kararları: v9-2; tasarım: 135, 142, 167.* | Arama kutusuna yazınca liste daralıyor; eşleşme yoksa `No projects match "…".` yazıyor. |
-| 360 · v9-2q | `ALIGNED` **Satırın `⋯` menüsü: Rename, Pin, Delete.** Her satırın `⋯`'sinde `Rename` — ad tarayıcının kutusunda değil, satırın yerinde düzenlenir —, `Pin` ya da `Unpin`, ve `Delete` — bugünkü onay penceresi, sohbet ve dosya sayısıyla. Projenin içinde hiç `⋯` yok. `Archive` v9-2t'de. *Kararları: v9-2; tasarım: 135, 161, 167.* | Satırın `⋯`'sinden proje yerinde yeniden adlandırılıyor, sabitlenip bırakılıyor, ve onayla siliniyor. |
+| 357 · v9-1d | ✅ **Kırpılmış sohbette çizgi.** `Continue here`'den sonra, modele hâlâ giden ilk mesajın üstünde bir çizgi: `Messages above this line are no longer sent to the model`. Eski mesajlar okunurken çizgi sohbetin alt kenarında bekler. Listede (5). *Kararları: v9-1; tasarım: 147, 182.* | Kırpılmış sohbette modele gitmeyen mesajlarla gidenlerin arasında çizgi; yukarı kaydırınca çizgi alt kenarda duruyor. |
+| 358 · v9-4b | ✅ **Model seçici kalkar, ve model hiçbir yerde görünmez** *(29 Eylül'de değişti)*. **Mimari:** FOUNDATION'ın 6. kararı aynı parçada güncellenir: modellerin adlarını ve fiyatlarını `models.js`'ten okuyan kimse kalmıyor. Listede (7). *Kararları: v9-4; tasarım: 136, 157.* | Yazma kutusunda model seçici de modelin adı da yok. |
+| 359 · v9-2p | ✅ **Projelerde arama.** All projects'te `Search projects` projelerin adında arar; ekran açılınca odak onda. Eşleşme yoksa `No projects match "…".` *Kararları: v9-2; tasarım: 135, 142, 167.* | Arama kutusuna yazınca liste daralıyor; eşleşme yoksa `No projects match "…".` yazıyor. |
+| 360 · v9-2q | ✅ **Satırın `⋯` menüsü: Rename, Pin, Delete.** Her satırın `⋯`'sinde `Rename` — ad tarayıcının kutusunda değil, satırın yerinde düzenlenir —, `Pin` ya da `Unpin`, ve `Delete` — bugünkü onay penceresi, sohbet ve dosya sayısıyla. Projenin içinde hiç `⋯` yok. `Archive` v9-2t'de. *Kararları: v9-2; tasarım: 135, 161, 167.* | Satırın `⋯`'sinden proje yerinde yeniden adlandırılıyor, sabitlenip bırakılıyor, ve onayla siliniyor. |
 | 381 | `UNALIGNED` **Panelin kenarını çekmek yazı seçmez.** Yan panelin sol kenarı çekilince — liste de açık dosya da — fare sürüklendiği yerdeki bütün yazıyı mavi seçiyor: mesajlar, kart, yazma kutusu. Madde 50'den beri böyle; 356 aynı kenarı açık dosyaya da verdi. *(356 tarayıcıda denenirken bulundu, 29 Eylül.)* | Panelin kenarı çekilirken sayfada hiçbir yazı seçilmiyor. |
-| 361 · v9-2r | `ALIGNED` **Ad sorma ekranı.** Her `+ New project`'te ekranın ortasında ad sorulur: başlık `Name your project`, hiç proje yokken `Name your first project`. Enter ya da düğme projeyi yazılan adla açar ve boş sohbetine götürür; boş ad bir şey yapmaz. Bir proje varken üst çubuğun sağında `Cancel` durur, Esc de aynısını yapar: ikisi geldiği yere döner. Listede (3). *Kararları: v9-2; tasarım: 135, 153, 169, 195.* | `+ New project` ad soruyor; proje yazılan adla açılıyor ve boş sohbeti geliyor; `Cancel` ve Esc All projects'e dönüyor. |
+| 361 · v9-2r | ✅ **Ad sorma ekranı.** Her `+ New project`'te ekranın ortasında ad sorulur: başlık `Name your project`, hiç proje yokken `Name your first project`. Enter ya da düğme projeyi yazılan adla açar ve boş sohbetine götürür; boş ad bir şey yapmaz. Bir proje varken üst çubuğun sağında `Cancel` durur, Esc de aynısını yapar: ikisi geldiği yere döner. Listede (3). *Kararları: v9-2; tasarım: 135, 153, 169, 195.* | `+ New project` ad soruyor; proje yazılan adla açılıyor ve boş sohbeti geliyor; `Cancel` ve Esc All projects'e dönüyor. |
 
 ### Dalga 5 — dalga 4 birleşince
 
