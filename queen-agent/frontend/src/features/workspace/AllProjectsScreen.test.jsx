@@ -96,10 +96,80 @@ test("a list that could not be read says what the server said, and nothing else"
   expect(screen.queryByText("All projects")).toBeNull();
 });
 
-test("the screen carries no search yet", () => {
-  // The search is Madde 359's.
-  render(<AllProjectsScreen projects={[PINNED]} />);
-  expect(screen.queryByPlaceholderText("Search projects")).toBeNull();
+// --- Madde 359: the search (the design's items 135, 142, 167) ------------------------------------
+
+const search = () => screen.getByRole("textbox", { name: "Search projects" });
+const type = (text) => fireEvent.change(search(), { target: { value: text } });
+
+test("the search stands under the head, named Search projects", () => {
+  render(<AllProjectsScreen projects={[PINNED, RECENT]} />);
+  const box = search();
+  expect(box.getAttribute("placeholder")).toBe("Search projects");
+  expect(box.classList.contains("all-projects__search")).toBe(true);
+  // The tabs join this row with Madde 363.
+  const tools = box.closest(".all-projects__tools");
+  expect(tools.previousElementSibling.classList.contains("all-projects__head")).toBe(true);
+});
+
+test("the search has the focus when the screen opens", () => {
+  render(<AllProjectsScreen projects={[PINNED, RECENT]} />);
+  expect(document.activeElement).toBe(search());
+});
+
+test("while the list loads the search already stands, and has the focus", () => {
+  // Given when the screen opens, not when the list comes: by then the user may be elsewhere.
+  render(<AllProjectsScreen projects={[]} loading />);
+  expect(document.activeElement).toBe(search());
+});
+
+test("typing narrows the list by name, and a section left empty goes", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER]} />);
+  type("night");
+  expect(names(container)).toEqual(["Night market"]);
+  expect(labels(container)).toEqual(["Recent"]);
+});
+
+test("the search ignores case, accents and the spaces around it", () => {
+  const CAFE = { ...OLDER, id: "p4", name: "Café noir" };
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER, CAFE]} />);
+  type("HARBOUR");
+  expect(names(container)).toEqual(["Harbour at dusk"]);
+  type("cafe");
+  expect(names(container)).toEqual(["Café noir"]);
+  type("  pier  ");
+  expect(names(container)).toEqual(["Old pier"]);
+});
+
+test("only the name is searched", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER]} />);
+  type("chats");
+  expect(names(container)).toEqual([]);
+  type("2h");
+  expect(names(container)).toEqual([]);
+});
+
+test("with no match the screen says so, with what was typed", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT]} />);
+  type("  zzz ");
+  expect(screen.getByText('No projects match "zzz".', { selector: ".all-projects__empty" })).toBeTruthy();
+  expect(container.querySelector(".all-projects__row")).toBeNull();
+  expect(screen.queryByText("No projects yet.")).toBeNull();
+});
+
+test("emptying the box brings the whole list back", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT, OLDER]} />);
+  type("zzz");
+  type("");
+  expect(labels(container)).toEqual(["Pinned", "Recent"]);
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+});
+
+test("with no projects at all a search still says there are none", () => {
+  // Not a match that failed: there is nothing to match.
+  render(<AllProjectsScreen projects={[]} />);
+  type("zzz");
+  expect(screen.getByText("No projects yet.")).toBeTruthy();
+  expect(screen.queryByText(/No projects match/)).toBeNull();
 });
 
 // Madde 360: the menu's open state is App's, whose one listener owns Escape.

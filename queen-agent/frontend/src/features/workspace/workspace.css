@@ -1730,6 +1730,26 @@
   margin: 0 0 24px;
 }
 
+/* The search's row; the Archived tab joins it on the right (Madde 363). */
+.all-projects__tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 28px;
+}
+
+.all-projects__search {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 8px 12px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
 .all-projects__section {
   margin: 0 0 28px;
 }
@@ -1855,6 +1875,34 @@
   gap: 8px;
   justify-content: flex-end;
   padding-top: 6px;
+}
+
+/* The trim's line (Madde 357, the design's items 147 and 182): before the first message still sent
+   to the model, its words between two rules, and it wraps rather than pushing the page sideways.
+   It holds at the chat's lower edge while the messages above it are read, on the page's ground so
+   the words scrolling under it do not show through. #6b6259 rather than --muted: a sentence to
+   read, and --muted holds 3.43:1 on the page. */
+.trimmed {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 0;
+  background: var(--canvas);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: #6b6259;
+  text-align: center;
+}
+
+.trimmed::before,
+.trimmed::after {
+  content: "";
+  flex: 1 1 16px;
+  border-top: 1px solid var(--line);
 }
 
 /* No outline of its own, not even to take one away: the focus ring is app.css's to draw, and this
