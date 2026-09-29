@@ -326,6 +326,7 @@ def _project_json(project):
         "files": project.file_count,
         "pinned": project.pinned,
         "archived": project.archived,
+        "lastActivity": project.last_activity,
     }
 
 

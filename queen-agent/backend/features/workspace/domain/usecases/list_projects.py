@@ -1,7 +1,19 @@
-"""List projects oldest first -- the sidebar's order, and so the first one the app opens on."""
+"""List projects: the pinned first, in the order they were pinned, then the most recently used.
+
+The sidebar's order, and so the project the app opens on. The design's All projects (135, 167).
+"""
 
 
 def list_projects(store):
-    # The id is opaque, so it says nothing about age; createdAt is the only thing that does. The id
-    # is the tie-break so two projects created in the same second still come back in a fixed order.
-    return sorted(store.list_all(), key=lambda project: (project.created_at, project.id))
+    projects = store.list_all()
+    # The id breaks ties so the order never wobbles.
+    pinned = sorted(
+        (project for project in projects if project.pinned),
+        key=lambda project: (project.pinned_at, project.id),
+    )
+    recent = sorted(
+        (project for project in projects if not project.pinned),
+        key=lambda project: (project.last_activity, project.id),
+        reverse=True,
+    )
+    return pinned + recent
