@@ -801,3 +801,10 @@ test("the strip carries no gap of its own", () => {
   // line down away from the message it belongs to.
   expect(rule(".versions")).not.toContain("margin-top");
 });
+
+test("cached is the design's darker green and missed the destructive red", () => {
+  // Madde 354, design items 189 and 192: the app's only green, darkened to read on the canvas, and
+  // the red that marks a cost here rather than a destruction.
+  expect(rule(".msg__stamp-cached")).toContain("color: #536747");
+  expect(rule(".msg__stamp-missed")).toContain("color: var(--destructive)");
+});

@@ -873,30 +873,30 @@ test("picking a skill is passed up rather than kept here", () => {
   expect(onSkillChange).toHaveBeenCalledWith("edit-prompts");
 });
 
-// --- what the answer spent (Madde 68) ------------------------------------------------------------
+// --- what the answer spent (Madde 68, Madde 354) -------------------------------------------------
 //
-// The number is 68's; where it is drawn is 83's. It rides in the stamp under the answer now, after
-// the time and one separator, rather than on a line of its own.
+// The number is 68's; where it is drawn is 83's and 348's. Madde 354 (design items 189, 192) split
+// it: what came from the cache and what missed it, and nothing for what the model wrote.
 
 const withUsage = (usage) => ({
   ...CHAT,
   messages: [CHAT.messages[0], { ...CHAT.messages[1], usage }],
 });
+const answerWords = (container) =>
+  container.querySelector(".msg--ai .msg__stamp").firstElementChild.textContent;
 
-test("an answer says what it spent, beside when it was said", () => {
-  // One number rather than the breakdown: the owner asked for a plain total under each answer, and
-  // what it is made of stays on disk for the context work rather than being drawn here.
-  render(
+test("an answer says what came from the cache and what missed it, beside when it was said", () => {
+  const { container } = render(
     <ChatScreen project={PROJECT} chat={withUsage({ sent: 12400, cached: 9100, answered: 842 })} />,
   );
-  // Asked for by its text rather than by its class: a missing element then names what was looked
-  // for, instead of failing later on a null nobody can read.
-  expect(screen.getByText("11:05 · 13.2k tokens").parentElement.className).toBe("msg__stamp");
+  expect(answerWords(container)).toBe("11:05 · 9.1k cached · 3.3k missed");
 });
 
 test("a small answer is not dressed up as a big one", () => {
-  render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />);
-  expect(screen.getByText("11:05 · 342 tokens").parentElement.className).toBe("msg__stamp");
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />,
+  );
+  expect(answerWords(container)).toBe("11:05 · 0 cached · 300 missed");
 });
 
 test("an answer nobody measured still says when it was said", () => {
@@ -904,7 +904,7 @@ test("an answer nobody measured still says when it was said", () => {
   // a measurement nobody took. The time is not a measurement -- it was said at a time either way.
   render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 0, cached: 0, answered: 0 })} />);
   expect(screen.getByText("11:05").parentElement.className).toBe("msg__stamp");
-  expect(screen.queryByText(/tokens/)).toBeNull();
+  expect(screen.queryByText(/cached|missed/)).toBeNull();
 });
 
 test("the user's own message never carries a count", () => {
@@ -913,7 +913,9 @@ test("the user's own message never carries a count", () => {
     <ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />,
   );
   expect(screen.getByText("11:04").parentElement.className).toBe("msg__stamp");
-  expect(container.querySelector(".msg--user").textContent).not.toContain("tokens");
+  const question = container.querySelector(".msg--user").textContent;
+  expect(question).not.toContain("cached");
+  expect(question).not.toContain("missed");
 });
 
 // --- the context gauge (Madde 92) ----------------------------------------------------------------

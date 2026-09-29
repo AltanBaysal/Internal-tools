@@ -1186,10 +1186,11 @@ test("when the turn ends the strip is gone and the stamp is in its place", async
 
   release();
   await waitFor(() => expect(screen.queryByTestId("live-strip")).toBeNull());
-  // The bill rather than the volume, and that difference is on purpose: the strip answers how big
-  // the turn got, the stamp answers what it cost. 9000 sent and 100 answered; the 3000 cached
-  // travelled but is not charged for.
-  expect(screen.getByText(/9\.1k tokens/)).toBeTruthy();
+  // What it cost rather than how big it got, and that difference is on purpose: the strip answers
+  // how big the turn got, the stamp what came from the cache and what missed it (Madde 354). 9000
+  // sent, 3000 of it cached; the 100 the model wrote is not shown.
+  expect(screen.getByText("3.0k cached")).toBeTruthy();
+  expect(screen.getByText("6.0k missed")).toBeTruthy();
 });
 
 test("a fault inside the stream shows the card and Try again asks through the one door", async () => {
