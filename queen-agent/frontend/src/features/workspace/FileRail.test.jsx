@@ -88,18 +88,46 @@ test("a folded rail has no grip", () => {
   expect(screen.queryByRole("separator")).toBeNull();
 });
 
-test("a rail showing a document has no grip", () => {
-  // While a file is open the width belongs to the document. The dragged width comes back when the
-  // reader closes.
-  render(
-    <FileRail
-      files={FILES}
-      width={320}
-      onResize={vi.fn()}
-      reading={{ name: "outline.md", file: { text: "body" } }}
-    />,
-  );
-  expect(screen.queryByRole("separator")).toBeNull();
+// Madde 356 (the design's items 158 and 177): the list and the open file are one width. A file opens
+// at the width the list was left at, its own edge is pulled the same way, and the width it is pulled
+// to is the list's once it closes.
+const READING = {
+  name: "outline.md",
+  file: { name: "outline.md", text: "body", modifiedAt: NOW_ISO },
+};
+
+test("while reading, the rail is drawn at the width it is handed", () => {
+  render(<FileRail files={FILES} width={420} reading={READING} />);
+  expect(screen.getByTestId("file-rail").style.width).toBe("420px");
+});
+
+test("while reading, the held width stands even if the list is folded", () => {
+  // Pulled under 220 while reading, the rail folds -- but the fold only shows once the file closes.
+  render(<FileRail files={FILES} collapsed width={420} reading={READING} />);
+  expect(screen.getByTestId("file-rail").style.width).toBe("420px");
+});
+
+test("a rail showing a document carries the grip too", () => {
+  render(<FileRail files={FILES} width={320} onResize={vi.fn()} reading={READING} />);
+  expect(screen.getByRole("separator")).toBeTruthy();
+});
+
+test("pulling the reader's grip leftwards asks for a wider rail, as the list's does", () => {
+  const onResize = vi.fn();
+  render(<FileRail files={FILES} width={320} onResize={onResize} reading={READING} />);
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 500 });
+  fireEvent.mouseMove(window, { clientX: 420 });
+  expect(onResize).toHaveBeenCalledWith(400);
+});
+
+test("while the reader's edge is being pulled the rail says so", () => {
+  // The design's own rule: a rail following the pointer arrives with it, so the easing is off.
+  render(<FileRail files={FILES} width={320} onResize={vi.fn()} reading={READING} />);
+  const rail = screen.getByTestId("file-rail");
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 500 });
+  expect(rail.className).toBe("rail rail--open rail--dragging");
+  fireEvent.mouseUp(window);
+  expect(rail.className).toBe("rail rail--open");
 });
 
 test("a rail folded because the window is narrow has a label, not a control", () => {

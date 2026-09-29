@@ -9,8 +9,7 @@ export const DEFAULT_RAIL_WIDTH = 320;
 // name and its "project file · 2h ago" line still have to fit on that.
 export const MIN_RAIL_WIDTH = 220;
 
-// The width the rail is drawn at while a document is open. The list may not outgrow the thing the
-// room was made for.
+// The widest the rail goes, the list and the open file alike: they are one width (Madde 356).
 export const MAX_RAIL_WIDTH = 560;
 
 // At this shell width the sidebar is 226 (its narrow step) and the rail's own minimum is 220, which
