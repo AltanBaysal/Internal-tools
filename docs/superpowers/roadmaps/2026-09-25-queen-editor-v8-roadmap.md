@@ -1,6 +1,6 @@
 # Queen Editor — Yol Haritası v8
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queen-editor-v8` · **Durum:** 0/3
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queen-editor-v8` · **Durum:** 0/6
 **Öncesi:** [v7](2026-09-21-queen-editor-v7-roadmap.md) — 41/41 kapandı ve `c061908b` ile main'e
 birleşti.
 **Kaynak:** v8-1 ve v8-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v8-3 28 Eylül'de
@@ -8,15 +8,44 @@ birleşti.
 çıkardığı listeyi okur. Backlog'daki "Üretim süreleri kaydedilip gösterilecek" 28 Eylül'de v8-2'ye
 katıldı.
 
+**Maddeler parçalara bölündü, ve koşulacak sıra aşağıdaki tablonun sırası** *(kullanıcı, 28 Eylül —
+"sıra böyle olsun")*. Her parça tek başına yapılıp test ediliyor; hizalamada konuşulan kararlar
+tablonun altında, maddenin kendi başlığında duruyor. v8-1 küçük olduğu için bölünmedi.
+
+- **v8-3a ve v8-3b en başta:** QueenAgent'ın v9-7'si onları bekliyor — v9-7'nin çıkardığı listeyi
+  bugünkü kutu okuyamaz.
+- **Sonra tasarımdan bağımsız işler:** v8-1, v8-2a.
+- **Tasarımı bekleyen iki parça en sonda:** v8-2b, v8-3c.
+
 **Tasarıma dokunan her madde tasarımcının listesine girer**, liste koşudan önce tasarımcıya gider,
 ve koşu gelen yeni tasarımı kullanır *(kullanıcı kararı, 28 Eylül — QueenAgent v9'daki kural
-queen-editor için de)*. **Liste:** (1) karenin senaryosu kartta — v8-3; (2) her katmanın üretim
-süresi kartta — v8-2. **Kullanıcıdan gereken:** tasarımcının yeni tasarımı, koşu başlamadan.
+queen-editor için de)*. **Liste:** (1) karenin senaryosu kartta — v8-3c; (2) her katmanın üretim
+süresi kartta — v8-2b. Tasarımcıya giden belge:
+[tasarım ihtiyaçları](../plans/2026-09-28-queen-editor-v8-tasarim-ihtiyaclari.md).
+**Kullanıcıdan gereken:** tasarımcının yeni tasarımı, koşu başlamadan.
 
 ---
 
 | # | İş | Bitti sayılır |
 |---|---|---|
+| v8-3a | `ALIGNED` **Kutu QueenAgent'ın yeni listesini okur.** Her kare üç alanlı bir kayıt — `scene`, `photo`, `video`; kartlar açılır, ve karenin senaryosu ve H3 prompt'u kartla birlikte kalır. Eski düz liste bugünkü gibi açılır. Negatif listeyle gelmez: paneldeki negatif alanı bugünkü gibi kalır. *Kararları: v8-3.* | QueenAgent'ın yeni listesi kutuya yapıştırılınca kartlar açılıyor, "Format hatası" çıkmıyor. Eski düz liste bugünkü gibi açılıyor. |
+| v8-3b | `ALIGNED` **H3 oturumunda video listedeki H3 prompt'uyla üretilir.** H3 prompt'u kartın video katmanına girer, ve yalnız H3'te kullanılır. H3 prompt'u gelmeyen kartın, ve oturum WAN ile açıldıysa her kartın video prompt'unu bugünkü gibi grok yazar. Loop olmayan karenin prompt'u bugünkü yoldan, karenin ekranındaki prompt kutusundan elle düzeltilir. *Kararları: v8-3.* | H3 oturumunda her kartın videosu listedeki H3 prompt'uyla üretiliyor. H3 prompt'u olmayan kartın ve WAN oturumunun video prompt'unu grok yazıyor. |
 | v8-1 | `ALIGNED` **Ses motorunun kurulum hücresi geri bildirim verecek.** *(Kullanıcı, 25 Eylül — MMAudio kütüphanesini kuran hücre için: "burda takıldı, output'ta bir şey de yok", "bu kadar kötü olmasın, feedback versin", "bir sonraki turda çözelim".)* **Bugün** hücre MMAudio'yu klonlayıp `pip install` ile kuruyor, ikisi de `run` ile *([colab/console.py](../../../queen-editor/colab/console.py))*: `run` komutun çıktısını iş bitene kadar tutuyor, `pip`'e `-q` verilmiş, ve kurulum 30 dakikaya kadar hiçbir şey yazmadan sürebiliyor. **Olacak:** her aşama başlarken bir satır yazar — *"MMAudio kuruluyor…"* gibi — ve komutun kendi çıktısı canlı akar *(kullanıcı kararı, 28 Eylül)*: takılırsa neyin üstünde takıldığı görünür. **`run`'ın kendisi düzelir** *(kullanıcı kararı, 28 Eylül)*: onu kullanan her hücre aynı anda düzelir. | Ses motoru hücresi çalışırken her aşamanın başladığı yazıyor, ve `pip`'in çıktısı kurulum sürerken akıyor. `run` kullanan öteki hücreler de komutun çıktısını canlı gösteriyor. |
-| v8-2 | `ALIGNED` **Bir üretimin ne kadar sürdüğü gösterilecek.** *(Kullanıcı, 25 Eylül — "bir üretimin ne kadar sürdüğünü gösterecek miyiz? var mı öyle bir şey, yoksa ekleyelim roadmap'e". Backlog'daki aynı madde buraya katıldı — kullanıcı, 24 Eylül: "her fotoğraf video ses ne kadar sürede üretildi kayıt edilim ve gösterleim".)* **Bugün** hiçbir katmanın üretim süresi kaydedilmiyor; süre tutulan tek yer export. **Olacak:** fotoğrafın, videonun ve sesin her birinin üretim süresi kaydedilir ve kartta gösterilir. **Yalnız üretimin kendisi**, modelin o katmanda çalıştığı süre — sırada bekleme sayılmaz *(kullanıcı kararı, 28 Eylül)*. **Nerede ve nasıl görüneceği tasarımcıdan gelir** — yukarıdaki listede (2). **Eski kareler süresiz kalır** *(kullanıcı — "eski kareler gösterilmesin sıkıntı yok")*. | Bundan sonra üretilen her fotoğrafın, videonun ve sesin kartında kendi üretim süresi, tasarımın gösterdiği yerde görünüyor; sırada beklenen süre içinde değil. Eski karelerde süre görünmüyor. |
-| v8-3 | `ALIGNED` **Kutu QueenAgent'ın yeni listesini okur: H3 prompt'u video katmanına, senaryo karta.** *(Kullanıcı, 28 Eylül — "queen editorun roadmpını güncelemen lazım değil mi bu çıtkıy kabul etmesi için", "kabulu queen editore yazalım çünkü çok detalı bir günceleme". QueenAgent v9'un v9-7'sinden ayrıldı.)* **v9-7'de kullanıcıyla konuşulanlar:** listede her kare üç alanlı bir kayıt — `scene`, `photo`, `video`; H3 prompt'u kartın video katmanına girer; senaryo kartta görünür, ve yeri ile görünüşü queen-editor'ün tasarımcısından gelir — yukarıdaki listede (1); H3 prompt'u gelmeyen kartın prompt'unu bugünkü gibi grok yazar; eski düz liste bugünkü gibi açılır. **Negatif listeyle gelmez** *(kullanıcı, 28 Eylül — "abi negatif ayrı dursun queen agentta user manuel kopyala yapıştır yapsın")*: kullanıcı senaryonun negatif listesini QueenAgent'tan kopyalayıp paneldeki negatif alanına yapıştırır, ve o alan bugünkü gibi kalır. **H3 prompt'u yalnız H3'te kullanılır** *(kullanıcı — "bu mantıklı")*: oturum WAN ile açıldıysa video prompt'unu bugünkü gibi grok yazar. **Loop olmayan karenin prompt'u elle düzeltilir**, bugünkü yoldan: karenin ekranında açık katmanın prompt kutusu yazılabiliyor. **v9-7'den önce biter:** bugünkü kutu yalnız string listesi okuyor *([prompt_list.py](../../../queen-editor/backend/features/photo_generation/domain/prompt_list.py))*, ve yeni listeye "Format hatası" der. | QueenAgent'ın yeni listesi kutuya yapıştırılınca kartlar açılıyor. H3 oturumunda her kartın videosu listedeki H3 prompt'uyla üretiliyor, ve kartta o karenin senaryosu tasarımın gösterdiği yerde görünüyor. H3 prompt'u olmayan kartın ve WAN oturumunun video prompt'unu grok yazıyor. Eski düz liste bugünkü gibi açılıyor. |
+| v8-2a | `ALIGNED` **Her katmanın üretim süresi kaydedilir:** fotoğrafın, videonun ve sesin her biri. Yalnız üretimin kendisi sayılır, sırada bekleme sayılmaz. Eski kareler süresiz kalır. *Kararları: v8-2.* | Bundan sonra üretilen her fotoğrafın, videonun ve sesin üretim süresi karenin kaydında duruyor, ve sırada beklenen süre içinde değil. |
+| v8-2b | `ALIGNED` **Süre kartta görünür**, tasarımın gösterdiği yerde — listede (2). Canlı: katman üretilirken geçen süre ilerler, bitince katmanın süresi kalır. Eski karelerde süre görünmez. *Kararları: v8-2.* | Üretilen katmanın süresi üretim sürerken kartta canlı ilerliyor, ve bitince kartta o katmanın üretim süresi kalıyor — ikisi de tasarımın gösterdiği yerde. Eski karelerde süre görünmüyor. |
+| v8-3c | `ALIGNED` **Karenin senaryosu kartta görünür**, tasarımın gösterdiği yerde — listede (1): kullanıcı prompt'ların fotoğrafla eşleşip eşleşmediğini kolayca görsün diye. Yalnız okunur. *Kararları: v8-3.* | Yeni listeden açılan her kartta o karenin senaryosu, tasarımın gösterdiği yerde görünüyor, ve değiştirilemiyor. |
+
+---
+
+## Maddelerin kararları
+
+Hizalamada kullanıcıyla konuşulanlar, maddenin bölünmeden önceki hâliyle. Parçalar yukarıda; bir
+parçanın spec'i kendi maddesini buradan okur.
+
+### v8-2 — Üretim süresi *(v8-2a, v8-2b)*
+
+`ALIGNED` **Bir üretimin ne kadar sürdüğü gösterilecek.** *(Kullanıcı, 25 Eylül — "bir üretimin ne kadar sürdüğünü gösterecek miyiz? var mı öyle bir şey, yoksa ekleyelim roadmap'e". Backlog'daki aynı madde buraya katıldı — kullanıcı, 24 Eylül: "her fotoğraf video ses ne kadar sürede üretildi kayıt edilim ve gösterleim".)* **Bugün** hiçbir katmanın üretim süresi kaydedilmiyor; süre tutulan tek yer export. **Olacak:** fotoğrafın, videonun ve sesin her birinin üretim süresi kaydedilir ve kartta gösterilir. **Yalnız üretimin kendisi**, modelin o katmanda çalıştığı süre — sırada bekleme sayılmaz *(kullanıcı kararı, 28 Eylül)*. **Nerede ve nasıl görüneceği tasarımcıdan gelir** — yukarıdaki listede (2). **Eski kareler süresiz kalır** *(kullanıcı — "eski kareler gösterilmesin sıkıntı yok")*. **Süre canlı görünür** *(kullanıcı, 28 Eylül — tasarımcının açık noktası sorulunca: "canlı")*: katman üretilirken geçen süre ilerler, ve bitince katmanın süresi kalır.
+
+### v8-3 — QueenAgent'ın yeni listesi *(v8-3a, v8-3b, v8-3c)*
+
+`ALIGNED` **Kutu QueenAgent'ın yeni listesini okur: H3 prompt'u video katmanına, senaryo karta.** *(Kullanıcı, 28 Eylül — "queen editorun roadmpını güncelemen lazım değil mi bu çıtkıy kabul etmesi için", "kabulu queen editore yazalım çünkü çok detalı bir günceleme". QueenAgent v9'un v9-7'sinden ayrıldı.)* **v9-7'de kullanıcıyla konuşulanlar:** listede her kare üç alanlı bir kayıt — `scene`, `photo`, `video`; H3 prompt'u kartın video katmanına girer; senaryo kartta görünür, ve yeri ile görünüşü queen-editor'ün tasarımcısından gelir — yukarıdaki listede (1); H3 prompt'u gelmeyen kartın prompt'unu bugünkü gibi grok yazar; eski düz liste bugünkü gibi açılır. **Negatif listeyle gelmez** *(kullanıcı, 28 Eylül — "abi negatif ayrı dursun queen agentta user manuel kopyala yapıştır yapsın")*: kullanıcı senaryonun negatif listesini QueenAgent'tan kopyalayıp paneldeki negatif alanına yapıştırır, ve o alan bugünkü gibi kalır. **H3 prompt'u yalnız H3'te kullanılır** *(kullanıcı — "bu mantıklı")*: oturum WAN ile açıldıysa video prompt'unu bugünkü gibi grok yazar. **Senaryo yalnız okunur** *(kullanıcı, 28 Eylül — tasarımcının açık noktası sorulunca: "okuyacak değiştirmşcek")*: kullanıcı onu Queen Editor'de değiştirmez. **Loop olmayan karenin prompt'u elle düzeltilir**, bugünkü yoldan: karenin ekranında açık katmanın prompt kutusu yazılabiliyor. **v9-7'den önce biter:** bugünkü kutu yalnız string listesi okuyor *([prompt_list.py](../../../queen-editor/backend/features/photo_generation/domain/prompt_list.py))*, ve yeni listeye "Format hatası" der.
