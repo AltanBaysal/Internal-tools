@@ -32,6 +32,15 @@ is defined in [.mcp.json](.mcp.json), so Claude Code offers the server on its fi
 repo and asks once to approve it. The version is pinned and raised by hand; why each flag is there
 is in [test_playwright_mcp.py](queen-agent/backend/tests/test_playwright_mcp.py), which holds them.
 
+- **It opens only the tools running on this machine, never an address on the internet.** The flag
+  listing what it may reach is no security boundary — the package says so, and it misses redirects
+  — so the rule is this line, not the list. An address the list does not hold is the user's call.
+- **Never use `browser_run_code_unsafe`**: it runs outside the browser, and
+  [.claude/settings.json](.claude/settings.json) denies it. For code inside the page, use
+  `browser_evaluate`.
+- **Give a screenshot no file name.** Unnamed output lands in `.playwright-mcp/`, which git
+  ignores; a named one lands in the repo's root.
+
 ## Writing a roadmap
 
 **Four rules hold whenever a roadmap is written or added to:**

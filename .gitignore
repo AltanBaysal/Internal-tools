@@ -17,3 +17,6 @@ node_modules/
 
 # Claude Design handoff bundle (reference only, not source)
 .design-handoff/
+
+# What Playwright MCP writes as it looks: snapshots, console logs, screenshots.
+.playwright-mcp/
