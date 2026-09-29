@@ -617,8 +617,11 @@ CLOSING = "When the checks are done"
 
 
 def _second_check():
+    # Ends at the blank line that closes its own block, so a check written after it (372) is not
+    # read as part of this one.
     checks = _checks()
-    return checks[checks.index(SECOND_CHECK) : checks.index(CLOSING)]
+    start = checks.index(SECOND_CHECK)
+    return checks[start : checks.index("\n\n", start)]
 
 
 def test_the_second_check_comes_after_the_first_and_before_the_closing():
@@ -644,6 +647,53 @@ def test_a_part_the_angle_hides_goes_through_an_entry_of_its_own():
     # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
     assert "update_character" not in said
     assert "update_outfit" not in said
+
+
+# --- the third check: can the model draw it (Madde 372) -------------------------------------------
+#
+# 29 Sep, the user: the image model is very weak -- could it draw the prompt you wrote? The check
+# reads the prompts in their final form, after the first two, and simplifies what cannot be drawn.
+# A photo prompt is put together by build_prompts from a frame's action and the entries it names, so
+# a part is simplified where it comes from: the action through update_frame, an entry through its own
+# update_ tool. THE_IMAGE_MODEL already says the model is weak; the check does not say it again.
+
+THIRD_CHECK = "Check 3 -- can it be drawn"
+
+
+def _third_check():
+    checks = _checks()
+    start = checks.index(THIRD_CHECK)
+    return checks[start : checks.index("\n\n", start)]
+
+
+def test_the_third_check_comes_after_the_second_and_before_the_closing():
+    checks = _checks()
+    assert THIRD_CHECK in checks
+    assert checks.index(SECOND_CHECK) < checks.index(THIRD_CHECK) < checks.index(CLOSING)
+
+
+def test_the_third_check_reads_the_prompts_in_their_final_form():
+    said = _third_check()
+    assert "build_prompts" in said
+    assert "final" in said
+    assert "photo prompt" in said
+
+
+def test_the_third_check_simplifies_the_part_where_it_comes_from():
+    said = _third_check()
+    assert "simplif" in said.lower()
+    for tool in ("update_frame", "update_character", "update_outfit", "update_location"):
+        assert tool in said, tool
+
+
+def test_the_third_check_does_not_tell_the_model_is_weak_again():
+    from backend.features.workspace.domain.prompt import THE_IMAGE_MODEL
+
+    said = _third_check()
+    # Asked after the block is found, so the absence cannot pass on a text nobody wrote.
+    assert said.startswith(THIRD_CHECK)
+    assert "weak" not in said.lower()
+    assert THE_IMAGE_MODEL not in _checks()
 
 
 def test_the_plan_no_longer_opens_with_a_line_of_context():
