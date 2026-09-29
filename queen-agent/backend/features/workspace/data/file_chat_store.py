@@ -91,8 +91,6 @@ def _message_json(message):
             "sent": message.usage.sent,
             "cached": message.usage.cached,
             "answered": message.usage.answered,
-            # The ceiling reads this one, and it cannot be worked back out of the total (Madde 133).
-            "context": message.usage.context,
         }
     return stored
 
@@ -121,15 +119,12 @@ def _call_json(call):
 
 def _as_usage(raw):
     # Field by field rather than **raw: a chat on disk can be edited by hand, and a key this app
-    # does not know would turn a stray edit into a crash instead of something ignored.
+    # does not know would turn a stray edit into a crash instead of something ignored. The chats
+    # answered between Madde 133 and 337 carry one such key, `context`, and it drops the next time
+    # the chat is written.
     if not raw:
         return Usage()
-    # A chat written before Madde 133 has three keys and not the fourth, and reads back as zero
-    # there -- unmeasured, which is what keeps it open rather than closing it on a number nobody
-    # ever recorded. No migration: the field fills itself on the chat's next turn.
-    return Usage(
-        raw.get("sent", 0), raw.get("cached", 0), raw.get("answered", 0), raw.get("context", 0)
-    )
+    return Usage(raw.get("sent", 0), raw.get("cached", 0), raw.get("answered", 0))
 
 
 def _as_message(message):

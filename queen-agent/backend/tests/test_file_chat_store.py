@@ -239,9 +239,9 @@ def test_what_an_answer_spent_survives_a_round_trip(tmp_path):
     assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == chat
 
 
-def test_the_size_the_last_round_carried_survives_a_round_trip(tmp_path):
-    # Madde 133. The ceiling reads this number rather than the total, and it cannot be worked back
-    # out of one -- a reload that dropped it would hand a full chat another turn.
+def test_what_an_answer_spent_is_written_as_three_numbers(tmp_path):
+    # Madde 337: the ceiling reads the messages now, and nothing reads the last round's size.
+    raw = Store(str(tmp_path))
     chat = replace(
         _chat(),
         messages=(
@@ -249,28 +249,26 @@ def test_the_size_the_last_round_carried_survives_a_round_trip(tmp_path):
                 role="ai",
                 at="2026-08-09T11:05:00+00:00",
                 text="Here it is.",
-                usage=Usage(sent=48800, cached=31000, answered=1200, context=11400),
+                usage=Usage(sent=12400, cached=9100, answered=842),
             ),
         ),
     )
-    FileChatStore(Store(str(tmp_path))).add("p1", chat)
-    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == chat
+    FileChatStore(raw).add("p1", chat)
+    stored = json.loads(raw.read_text("p1/chats/c1.json"))["messages"][0]["usage"]
+    assert stored == {"sent": 12400, "cached": 9100, "answered": 842}
 
 
-def test_a_stored_usage_from_before_the_field_reads_zero(tmp_path):
-    # A guard. Every chat on disk carries the three numbers and not the fourth, no migration is
-    # written, and zero has meant unmeasured since Madde 76 -- which is what keeps those chats open
-    # rather than closing them on a number nobody recorded.
+def test_a_chat_written_with_the_last_rounds_size_still_reads(tmp_path):
+    # Every chat answered between Madde 133 and 337 carries the key. No migration: it is ignored,
+    # and it drops the next time the chat is written.
     raw = Store(str(tmp_path))
     raw.write_text(
         "p1/chats/old.json",
         '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "messages": ['
         '{"role": "ai", "at": "2026-08-09T11:05:00+00:00", "text": "hi",'
-        ' "usage": {"sent": 12400, "cached": 9100, "answered": 842}}]}',
+        ' "usage": {"sent": 12400, "cached": 9100, "answered": 842, "context": 11400}}]}',
     )
-    stored = FileChatStore(raw).get("p1", "old").messages[0].usage
-    assert stored.sent == 12400
-    assert stored.context == 0
+    assert FileChatStore(raw).get("p1", "old").messages[0].usage == Usage(12400, 9100, 842)
 
 
 def test_an_answer_nobody_measured_writes_no_field(tmp_path):

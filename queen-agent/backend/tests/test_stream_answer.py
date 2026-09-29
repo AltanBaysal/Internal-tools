@@ -1076,9 +1076,8 @@ def _kept(chats):
 
 
 def test_the_answer_remembers_what_it_spent(tmp_path):
-    # One round, so what it spent and what it left behind are the same number (Madde 133).
     chats, _, _, _ = _run(tmp_path, [[{"text": "Hello"}, spent(1200, 900, 42)]])
-    assert _kept(chats).usage == Usage(1200, 900, 42, 1200)
+    assert _kept(chats).usage == Usage(1200, 900, 42)
 
 
 def test_what_two_rounds_spent_is_added_up(tmp_path):
@@ -1089,22 +1088,7 @@ def test_what_two_rounds_spent_is_added_up(tmp_path):
         [{"text": "done"}, spent(1500, 1200, 20)],
     ]
     chats, _, _, _ = _run(tmp_path, rounds)
-    assert _kept(chats).usage == Usage(2500, 1800, 30, 1500)
-
-
-def test_the_turn_remembers_what_its_last_round_carried(tmp_path):
-    # Madde 133. The three totals answer what this answer cost; the fourth answers how big the
-    # conversation got, and only the fourth can tell a chat when to stop. Six rounds of eight
-    # thousand is not a request of forty-eight -- the eighth trial closed a chat on that mistake.
-    rounds = [
-        [{"tool_calls": [a_call()]}, spent(8000, 0, 10)],
-        [{"tool_calls": [call("read_file", name="plan.md")]}, spent(9000, 7000, 10)],
-        [{"text": "done"}, spent(10_000, 8000, 20)],
-    ]
-    chats, _, _, _ = _run(tmp_path, rounds)
-    kept = _kept(chats).usage
-    assert kept.sent == 27_000
-    assert kept.context == 10_000
+    assert _kept(chats).usage == Usage(2500, 1800, 30)
 
 
 def _with_a_frame(files):
@@ -1138,25 +1122,6 @@ def test_a_tools_own_request_is_added_to_what_the_turn_spent(tmp_path):
     kept = _kept(chats).usage
     assert kept.sent == 2800          # 1000 + 1500 rounds, and 300 the tool asked for
     assert kept.answered == 90        # 10 + 20 + 60
-
-
-def test_a_tools_request_does_not_change_how_big_the_conversation_got(tmp_path):
-    # Madde 133's number, and the one thing here that is not a bill. It answers how big the last
-    # request was -- which is when a chat has to stop -- and the tool's question is not the
-    # conversation at all. Added in, it would report a chat as fuller than it is.
-    chats, files = _seeded(tmp_path)
-    _with_a_frame(files)
-    rounds = [
-        [{"tool_calls": [call("write_missing_actions", file="scene.json")]},
-         spent(1000, 0, 10)],
-        [{"text": "done"}, spent(1500, 0, 20)],
-    ]
-    engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    # The work first: the tool's bill has to have landed somewhere, or this passes on a turn where
-    # nothing was added to anything.
-    assert _kept(chats).usage.sent == 2800
-    assert _kept(chats).usage.context == 1500
 
 
 def test_the_turn_hands_its_engine_to_the_tool_that_needs_one(tmp_path):
@@ -1247,9 +1212,7 @@ def test_counts_repeated_inside_one_round_are_not_added_twice(tmp_path):
     # of chunks that happened to arrive.
     rounds = [[spent(1200, 900, 1), {"text": "Hi"}, spent(1200, 900, 2)]]
     chats, _, _, _ = _run(tmp_path, rounds)
-    # And the fourth number is the same reading, not the sum of the two frames: one round asked
-    # once, however many times the service restated it.
-    assert _kept(chats).usage == Usage(1200, 900, 2, 1200)
+    assert _kept(chats).usage == Usage(1200, 900, 2)
 
 
 def test_an_answer_nobody_measured_spent_nothing(tmp_path):
@@ -1267,9 +1230,7 @@ def test_a_stopped_answer_still_says_what_it_spent(tmp_path):
     rounds = [[spent(1200, 900, 5), {"text": "Half a "}, CUT]]
     chats, _, _, _ = _run(tmp_path, rounds, stops=Cut())
     assert _kept(chats).text == "Half a"
-    # The size that reached the record is real too: the request went out at that size whether or
-    # not the answer to it was allowed to finish.
-    assert _kept(chats).usage == Usage(1200, 900, 5, 1200)
+    assert _kept(chats).usage == Usage(1200, 900, 5)
 
 
 def test_an_answer_stopped_before_the_counts_arrive_spent_nothing_it_knows_of(tmp_path):
