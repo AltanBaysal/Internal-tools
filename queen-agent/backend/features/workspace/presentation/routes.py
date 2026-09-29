@@ -8,6 +8,7 @@ from flask import Blueprint, Response, jsonify, request
 
 from backend.features.workspace.domain.errors import (
     ChatNotFound,
+    ChatNotFull,
     EmptyMessage,
     EngineFailed,
     FileNotFound,
@@ -21,6 +22,7 @@ from backend.features.workspace.domain.chat import (
     chat_size,
     is_full,
     is_owed_an_answer,
+    sent_from,
     variants_of,
 )
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting
@@ -36,6 +38,7 @@ from backend.features.workspace.domain.usecases.list_files import list_files
 from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.domain.usecases.read_file import read_file
 from backend.features.workspace.domain.usecases.stream_answer import Progress, stream_answer
+from backend.features.workspace.domain.usecases.trim_chat import trim_chat
 
 
 def make_workspace_bp(project_store, chat_store, file_store, engine, stops, permissions):
@@ -78,9 +81,10 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
         return jsonify({"trashed": trashed})
 
     # There is no PATCH here. What a chat has said never changes: the skill is the session's and
-    # rides on each message, and a chat is never renamed (Madde 86). One thing about it does move
-    # since Madde 195 -- which version is open -- and that has a door of its own below, next to the
-    # other two that act on a chat rather than describe it.
+    # rides on each message, and a chat is never renamed (Madde 86). Two things about it do move --
+    # which version is open (Madde 195) and where the model starts reading it (Madde 345) -- and
+    # each has a door of its own below, next to the other two that act on a chat rather than
+    # describe it.
     @workspace_bp.get("/api/projects/<project_id>/chats")
     def get_chats(project_id):
         return jsonify([_chat_summary(chat) for chat in list_chats(chat_store, project_id)])
@@ -182,6 +186,18 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
         chat_store.replace(project_id, replace(chat, active=wanted))
         # The transcript is not sent back: the browser reads the chat the same way it does after a
         # turn, and a second shape for one record is a second thing to keep true.
+        return jsonify({})
+
+    @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/trim")
+    def post_trim(project_id, chat_id):
+        # Continue here (Madde 345). Answered like the version door, for the same reason: the
+        # browser reads the chat again, and its `trimmed` says where the part no longer sent ends.
+        try:
+            trim_chat(chat_store, project_id, chat_id)
+        except ChatNotFound:
+            return jsonify({"error": "chat not found"}), 404
+        except ChatNotFull:
+            return jsonify({"error": "this chat is not full"}), 400
         return jsonify({})
 
     @workspace_bp.post("/api/projects/<project_id>/chats/<chat_id>/stop")
@@ -349,6 +365,9 @@ def _chat_json(chat):
         # say the same thing. The gauge is handed the number the ceiling actually stops on -- a
         # gauge measuring something else cannot warn about the wall it is not watching.
         "context": {"sent": chat_size(chat), "ceiling": CONTEXT_CEILING},
+        # How many messages at the start of the open line no longer go to the model (Madde 345).
+        # Always present, 0 when nothing was trimmed, for the same reason `calls` is below.
+        "trimmed": sent_from(chat),
         # The open line since Madde 195, and the key stays `messages`: what the browser is handed is
         # the conversation as it stands, which is what it always was.
         "messages": [
