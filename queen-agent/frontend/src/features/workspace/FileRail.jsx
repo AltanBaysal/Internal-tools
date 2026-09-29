@@ -80,23 +80,21 @@ function Grip({ width, onResize, onDrag }) {
   );
 }
 
-// Madde 192: the button sits inside the list rather than in the heading, and both facts have the
-// same cause. The heading is the fold control, and a button cannot stand inside a button; and
-// folded there is no list for it to be about, so it goes away with the rows it belongs to.
+// Madde 192 gave the list a Refresh; Madde 350 (the design's items 154 and 175) wrote it out, framed
+// like the reader's, and put it on the heading's row. Beside the heading rather than inside it: the
+// heading is the fold control, and a button cannot stand inside a button. Where it stands is the
+// caller's -- the project screen puts the same button in a row of its own.
 export function RefreshFiles({ onRefresh }) {
   return (
-    <div className="file-list__bar">
-      <button type="button" className="file-list__refresh" aria-label="Refresh" onClick={onRefresh}>
-        ↻
-      </button>
-    </div>
+    <button type="button" className="ghost file-list__refresh" onClick={onRefresh}>
+      Refresh
+    </button>
   );
 }
 
-function FileList({ files, loading, error, reading, deleting, onRefresh }) {
+function FileList({ files, loading, error, reading, deleting }) {
   return (
     <div className="file-list">
-      <RefreshFiles onRefresh={onRefresh} />
       {/* The teaching line waits for the answer: until the list has arrived, "no files yet" is a
           guess and not a fact -- and if the answer never came, it is not even a guess. */}
       {loading ? (
@@ -169,21 +167,26 @@ export default function FileRail({
       style={style}
       data-testid="file-rail"
     >
-      {/* Folded because the shell has no room for both, the strip has nowhere to open into, so its
-          heading is a label -- the same sentence the rail says while it is showing a document. A
-          button that opened nothing would be a lie. */}
-      {foldedByWidth ? (
-        <div className="rail__head rail__head--still">
-          <span className="rail__label">Project files</span>
-          <span className="rail__count">{files.length}</span>
-        </div>
-      ) : (
-        <button type="button" className="rail__head" aria-expanded={!collapsed} onClick={onToggle}>
-          <span className="rail__label">Project files</span>
-          <span className="rail__count">{files.length}</span>
-          <span className="rail__chevron">{collapsed ? "‹" : "›"}</span>
-        </button>
-      )}
+      {/* Folded, there is no list on screen for Refresh to be about, so the row is the heading
+          alone -- and the click that opens the rail brings it back. */}
+      <div className="rail__bar">
+        {/* Folded because the shell has no room for both, the strip has nowhere to open into, so
+            its heading is a label -- the same sentence the rail says while it is showing a
+            document. A button that opened nothing would be a lie. */}
+        {foldedByWidth ? (
+          <div className="rail__head rail__head--still">
+            <span className="rail__label">Project files</span>
+            <span className="rail__count">{files.length}</span>
+          </div>
+        ) : (
+          <button type="button" className="rail__head" aria-expanded={!collapsed} onClick={onToggle}>
+            <span className="rail__label">Project files</span>
+            <span className="rail__count">{files.length}</span>
+            <span className="rail__chevron">{collapsed ? "‹" : "›"}</span>
+          </button>
+        )}
+        {collapsed ? null : <RefreshFiles onRefresh={onRefresh} />}
+      </div>
       {/* Not merely hidden: folded, there is no list, and the strip is what stands in its place. */}
       {collapsed ? null : (
         <>
@@ -194,7 +197,6 @@ export default function FileRail({
             error={error}
             reading={reading}
             deleting={deleting}
-            onRefresh={onRefresh}
           />
         </>
       )}

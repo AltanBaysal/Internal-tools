@@ -143,9 +143,11 @@ export default function ProjectScreen({
                 {/* No offer to bring anything back, but a refusal is still worth a line. */}
                 {deleting?.error ? <p className="list-error">{deleting.error}</p> : null}
                 <div className="file-list">
-                  {/* The rail's own button, in the rail's own place: one shape for one action, and
-                      one stylesheet rule for both screens (Madde 192). */}
-                  <RefreshFiles onRefresh={onRefresh} />
+                  {/* The rail's own button (Madde 192, 350), in a row at the top of the box: this
+                      screen's heading is not a control for it to stand beside. */}
+                  <div className="file-list__bar">
+                    <RefreshFiles onRefresh={onRefresh} />
+                  </div>
                   {/* The teaching line waits for the answer: until the list has arrived, "no files
                       yet" is a guess and not a fact -- and if no answer came, not even that. */}
                   {loadingFiles ? <Skeleton rows={3} /> : null}

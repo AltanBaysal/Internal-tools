@@ -147,6 +147,16 @@ test("with the panel open the Refresh travels into it", () => {
   expect(onRefresh).toHaveBeenCalled();
 });
 
+test("the file column's Refresh is written and framed, as the rail's is", () => {
+  // Madde 350: the two screens share one button, and this screen goes in v9-2n, so it follows the
+  // rail rather than keeping a ↻ of its own.
+  const files = [{ name: "outline.md", ext: "md", modifiedAt: new Date().toISOString() }];
+  render(<ProjectScreen project={PROJECT} files={files} onRefresh={vi.fn()} />);
+  const refresh = screen.getByRole("button", { name: "Refresh" });
+  expect(refresh.textContent).toBe("Refresh");
+  expect(refresh.classList.contains("ghost")).toBe(true);
+});
+
 // The panel is showing the files column's subject, so leaving the column standing would put the
 // same list on the screen twice. The chat rail keeps its list for the opposite reason: there the
 // reader is the rail widened, and the list is its neighbour rather than its copy.

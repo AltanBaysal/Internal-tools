@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import FileRail from "./FileRail.jsx";
@@ -235,6 +235,38 @@ test("folded, there is no Refresh either", () => {
   // the click that opens the rail brings it along.
   render(<FileRail files={FILES} collapsed onRefresh={vi.fn()} />);
   expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
+});
+
+// Madde 350 (the design's items 154 and 175): Refresh is a written, framed button, like the reader's,
+// and it stands on the heading's row to the right of PROJECT FILES 5 ›. The list's box starts with
+// what it holds.
+test("Refresh stands on the heading's row, to the right of the heading", () => {
+  render(<FileRail files={FILES} onRefresh={vi.fn()} />);
+  const head = screen.getByRole("button", { name: /Project files/ });
+  const refresh = screen.getByRole("button", { name: "Refresh" });
+  expect(refresh.parentElement.className).toBe("rail__bar");
+  expect(head.nextElementSibling).toBe(refresh);
+});
+
+test("Refresh is a word in a frame, as the reader's is", () => {
+  render(<FileRail files={FILES} onRefresh={vi.fn()} />);
+  const refresh = screen.getByRole("button", { name: "Refresh" });
+  expect(refresh.textContent).toBe("Refresh");
+  expect(refresh.classList.contains("ghost")).toBe(true);
+});
+
+test("the list's box starts with the first file", () => {
+  const { container } = render(<FileRail files={FILES} onRefresh={vi.fn()} />);
+  const box = container.querySelector(".file-list");
+  expect(box.firstElementChild.textContent).toContain("outline.md");
+  expect(within(box).queryByRole("button", { name: "Refresh" })).toBeNull();
+});
+
+test("while the list loads, the box starts with the spinner", () => {
+  const { container } = render(<FileRail files={[]} loading onRefresh={vi.fn()} />);
+  expect(container.querySelector(".file-list").firstElementChild.className).toBe(
+    "file-list__spinner",
+  );
 });
 
 const OPEN_FILE = { name: "outline.md", ext: "md", size: 12, text: "read me", modifiedAt: NOW_ISO };
