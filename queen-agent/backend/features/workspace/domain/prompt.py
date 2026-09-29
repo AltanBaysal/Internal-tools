@@ -607,7 +607,8 @@ WRITE_MISSING_ACTIONS = (
 )
 
 BUILD_PROMPTS = (
-    "Build the prompt list from a structure file.\n"
+    "Build the prompt list from a structure file: for each frame, its scene sentence and its "
+    "prompt.\n"
     "- The code assembles every frame in a fixed order, so a character reads the same in all of "
     "them.\n"
     "- This tool writes a Python file named after the structure, replacing what it wrote last "

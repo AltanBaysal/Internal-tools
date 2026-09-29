@@ -1,3 +1,4 @@
+import ast
 import json
 import threading
 
@@ -819,6 +820,13 @@ def test_the_build_tool_tells_the_model_it_assembles_frames():
     assert "frame" in said and "shot" not in said
 
 
+def test_the_build_tool_says_each_frame_goes_out_with_its_scene():
+    # Madde 366. The scene sentence no longer stays behind as a brief: it leaves in the list beside
+    # its prompt, and the tool's own description is where the model learns what the list holds.
+    built = next(spec for spec in TOOL_SPECS if spec["function"]["name"] == "build_prompts")
+    assert "scene" in built["function"]["description"].lower()
+
+
 # --- the schema tool is gone, and the rules ride with the parameters (Madde 172) ------------------
 #
 # It taught the model the file's shape: the JSON example, which field goes where, how a map is
@@ -1278,6 +1286,19 @@ def test_building_writes_a_file_named_after_the_source(tmp_path):
     assert "intro-frames.py" in said and "2" in said
     assert "PROMPTS" in files.read("p1", "intro-frames.py")
     assert "long teal hair" in files.read("p1", "intro-frames.py")
+
+
+def test_the_built_file_holds_each_frames_scene_beside_its_photo(tmp_path):
+    # Madde 366, through the tool: the file on disk, read the way queen-editor's box reads it --
+    # literals only -- holds every frame's own sentence beside its own prompt.
+    structure = json.loads(STRUCTURE)
+    structure["frames"][0]["scene"] = "Aylin uyanıyor."
+    structure["frames"][1]["scene"] = "Aylin pencereye bakıyor."
+    files = _with(tmp_path, "frames.json", json.dumps(structure))
+    _call(files, "build_prompts", name="frames.json")
+    records = ast.literal_eval(ast.parse(files.read("p1", "frames.py")).body[0].value)
+    assert [record["scene"] for record in records] == ["Aylin uyanıyor.", "Aylin pencereye bakıyor."]
+    assert "long teal hair" in records[0]["photo"] and "one" in records[0]["photo"]
 
 
 def test_building_reports_a_born_file(tmp_path):

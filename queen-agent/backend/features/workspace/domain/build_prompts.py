@@ -1,6 +1,6 @@
 """Turning a scenario's structure into the prompt list.
 
-Pure: it is handed the parsed structure and hands back strings, so it is the one part of the chain
+Pure: it is handed the parsed structure and hands back the list, so it is the one part of the chain
 that cannot be talked out of the rules. Assembly is exactly what a model must not do by hand -- a
 character copied into forty frames drifts, a character resolved by code cannot.
 """
@@ -26,7 +26,7 @@ BREAK = " BREAK "
 
 
 def build_prompts(structure):
-    """Every frame as one prompt, or a sentence saying why none of them can be built."""
+    """Every frame as its scene and its photo prompt, or a sentence saying why none can be built."""
     if not isinstance(structure, dict):
         raise BadStructure(
             "A structure file is a JSON object with characters, locations and frames."
@@ -81,7 +81,15 @@ def build_prompts(structure):
         # would open a chunk with nothing in it -- which is what a frame with nothing happening
         # anywhere would leave behind.
         blocks = [opening] + behind + [closing]
-        built.append(BREAK.join(tags for tags in map(_tags, blocks) if tags))
+        # The scene rides beside the prompt as it was written (Madde 366): queen-editor writes the
+        # video prompt, and the model doing it is shown what the frame was meant to be. A frame
+        # without one still builds -- a missing sentence is no reason to lose the list.
+        built.append(
+            {
+                "scene": frame.get("scene", ""),
+                "photo": BREAK.join(tags for tags in map(_tags, blocks) if tags),
+            }
+        )
 
     # Every miss at once and nothing written: one pass fixes them all, and a dirty structure never
     # produces a list.
@@ -90,10 +98,15 @@ def build_prompts(structure):
     return built
 
 
-def render_module(prompts):
-    """The file the user copies out of: triple quotes, trailing comma, one name to import."""
+def render_module(records):
+    """The file the user copies out of: a record per frame, each value in triple quotes."""
     lines = ["PROMPTS = ["]
-    lines.extend(f'    """{_quoted(text)}""",' for text in prompts)
+    for record in records:
+        lines.append("    {")
+        lines.extend(
+            f'        "{field}": """{_quoted(record[field])}""",' for field in ("scene", "photo")
+        )
+        lines.append("    },")
     lines.append("]")
     return "\n".join(lines) + "\n"
 
