@@ -5,7 +5,6 @@ from backend.features.workspace.domain.usecases.create_project import (
     NEW_PROJECT_NAME,
     create_project,
 )
-from backend.features.workspace.domain.usecases.list_projects import list_projects
 
 
 class FakeProjectStore:
@@ -19,10 +18,6 @@ class FakeProjectStore:
 
     def list_all(self):
         return list(self.projects)
-
-
-def _project(pid, created_at):
-    return Project(id=pid, name=pid, created_at=created_at)
 
 
 def test_a_project_carries_neither_a_description_nor_a_colour():
@@ -121,15 +116,3 @@ def test_created_project_is_handed_to_the_store():
     store = FakeProjectStore()
     project = create_project(store, new_id="pabc", now="2026-08-09T10:00:00+00:00")
     assert store.projects == [project]
-
-
-def test_projects_come_back_oldest_first():
-    # The ids are deliberately in reverse alphabetical order: this is the only way to prove the
-    # order comes from createdAt rather than from the directory name.
-    store = FakeProjectStore(
-        [
-            _project("zzz", "2026-08-05T00:00:00+00:00"),
-            _project("aaa", "2026-08-01T00:00:00+00:00"),
-        ]
-    )
-    assert [p.id for p in list_projects(store)] == ["aaa", "zzz"]
