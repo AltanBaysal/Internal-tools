@@ -137,6 +137,14 @@ npm run build --prefix queen-editor/frontend
 Then the item's mark is changed from `UNALIGNED` to `ALIGNED`. Whether aligning happens as each item
 is written, or after the whole document is written, is the user's call.
 
+## Reading a design
+
+The designer works in the `queen-design` repo, cloned next to this one at `D:\Github\queen-design`
+(`AltanBaysal/queen-design`), one folder per tool under `projects/`. `main` is the design the tools
+already build. A new round arrives on its own branch, which changes every round and differs per tool
+— **the user names it each time**; never assume last round's. **Fetch, then diff that branch against
+`main`**: every difference is a piece of the roadmap, split and ordered like any other item.
+
 ## Gotchas
 
 - **Commit messages carry no double quotes** — double quotes break the PowerShell here-string, and
