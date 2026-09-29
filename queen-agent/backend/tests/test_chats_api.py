@@ -680,13 +680,16 @@ def test_a_selected_skill_reaches_the_engine_as_an_instruction(tmp_path):
     }
 
 
-# --- the ceiling on a chat's context (Madde 92) --------------------------------------------------
+# --- the ceiling on a chat's context (Madde 92; the messages alone since Madde 337) -------------
+
+# 170,000 characters: 51,000 tokens by the chat's measure, past the ceiling.
+LONG = "a" * 170_000
 
 
-def _spending(tmp_path, sent):
-    """A client whose one answer reports having sent this many tokens."""
+def _answering(tmp_path, answer, sent=0):
+    """A client whose one answer says this, and reports having sent this many tokens."""
     engine = ScriptedEngine(
-        [[{"text": "Done."}, {"usage": {"sent": sent, "cached": 0, "answered": 5}}]]
+        [[{"text": answer}, {"usage": {"sent": sent, "cached": 0, "answered": 5}}]]
     )
     return _client(tmp_path, engine)
 
@@ -694,7 +697,7 @@ def _spending(tmp_path, sent):
 def test_a_full_chat_refuses_a_new_sentence(tmp_path):
     # The ceiling stops the turn before anything is written: a refused sentence that reached the
     # disk would leave the chat waiting for an answer nobody can give it.
-    client = _spending(tmp_path, 60_000)
+    client = _answering(tmp_path, LONG)
     pid, cid = _started(client)
     before = len(_record(client, pid, cid)["messages"])
     refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"})
@@ -707,21 +710,34 @@ def test_a_full_chat_refuses_a_second_attempt_too(tmp_path):
     # Trying again is sending the same oversized request a second time. The reason has to be the
     # ceiling rather than whatever else the door might have said first -- otherwise the screen
     # tells the user something true and useless.
-    client = _spending(tmp_path, 60_000)
+    client = _answering(tmp_path, LONG)
     pid, cid = _started(client)
     refused = client.post(f"/api/projects/{pid}/messages", json={"chat": cid})
     assert refused.status_code == 400
     assert "ceiling" in refused.get_json()["error"]
 
 
+def test_a_turn_that_spent_a_lot_but_said_little_does_not_fill_the_chat(tmp_path):
+    # Madde 337. Sixty thousand is what the old ceiling read: the whole last request, with its
+    # instructions, its tool steps and its opened files. None of that is the conversation.
+    client = _answering(tmp_path, "Done.", sent=60_000)
+    pid, cid = _started(client)
+    kept = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"})
+    assert kept.status_code == 200
+    kept.get_data()
+    said = [message["text"] for message in _record(client, pid, cid)["messages"]]
+    assert said[:3] == ["hello", "Done.", "and more"]
+
+
 def test_the_record_says_how_much_of_the_ceiling_it_has_used(tmp_path):
     # Both numbers, because the gauge draws a share and a share needs its denominator. A second
-    # copy of the ceiling living in the browser is the thing that would go stale.
+    # copy of the ceiling living in the browser is the thing that would go stale. "hello" and 995
+    # characters of answer are a thousand characters: 300 tokens.
     from backend.features.workspace.domain.chat import CONTEXT_CEILING
 
-    client = _spending(tmp_path, 41_000)
+    client = _answering(tmp_path, "a" * 995, sent=41_000)
     pid, cid = _started(client)
-    assert _record(client, pid, cid)["context"] == {"sent": 41_000, "ceiling": CONTEXT_CEILING}
+    assert _record(client, pid, cid)["context"] == {"sent": 300, "ceiling": CONTEXT_CEILING}
 
 
 # --- the mode a turn was sent in (Madde 91) ------------------------------------------------------

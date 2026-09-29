@@ -1,6 +1,6 @@
 from dataclasses import fields, replace
 
-from backend.features.workspace.domain.chat import Chat, Message, Usage
+from backend.features.workspace.domain.chat import Chat, Message, ToolCall, Usage
 
 
 def test_a_chat_carries_no_model():
@@ -55,88 +55,54 @@ def test_a_chat_is_owed_an_answer_when_the_last_word_is_the_users():
     assert not is_owed_an_answer(Chat(id="c1", title="hi", created_at=at))
 
 
-# --- the ceiling on a chat's context (Madde 92) --------------------------------------------------
+# --- the ceiling on a chat's context (Madde 92; the messages alone since Madde 337) -------------
 
 AT = "2026-08-09T11:04:00.000+00:00"
 
 
-def _answered(sent, context=None):
-    """A chat whose one answer spent this much, and left the conversation this big.
-
-    Two numbers since Madde 133: what the turn spent across all its rounds, and what its last round
-    carried. They are equal only when the turn took a single round, which is why they default that
-    way -- a caller who does not care about the difference is describing a one-round turn.
-    """
+def _answered(question, answer, **rest):
+    """A chat of one question and its answer; the answer carries whatever else it is given."""
     return Chat(
         id="c1",
         title="hi",
         created_at=AT,
         messages=(
-            Message(role="user", at=AT, text="hi"),
-            Message(
-                role="ai",
-                at=AT,
-                text="Done.",
-                usage=Usage(sent, 0, 5, sent if context is None else context),
-            ),
+            Message(role="user", at=AT, text=question),
+            Message(role="ai", at=AT, text=answer, **rest),
         ),
     )
 
 
-def test_the_ceiling_is_read_off_the_last_answer():
-    # A turn's size is only known once the answer comes back, so the ceiling reads the previous one
-    # -- one turn stale on purpose. Which means the record does not always end with the answer it
-    # has to read: a question whose answer never came can be sitting on the end, and a question has
-    # no number of its own.
-    from backend.features.workspace.domain.chat import last_context
+def test_a_chats_size_is_the_text_of_its_messages():
+    # Madde 337. What a chat sends the model of itself is each message's text and nothing else, so
+    # that is what fills it. An estimate rather than a count, by DeepSeek's own rough measure: an
+    # English character is about 0.3 of a token.
+    from backend.features.workspace.domain.chat import chat_size
 
-    chat = _answered(41_000)
-    asked_again = replace(
-        chat, messages=chat.messages + (Message(role="user", at=AT, text="more"),)
+    assert chat_size(_answered("a" * 600, "a" * 400)) == 300
+
+
+def test_an_empty_chat_has_no_size():
+    from backend.features.workspace.domain.chat import chat_size
+
+    assert chat_size(Chat(id="c1", title="hi", created_at=AT)) == 0
+
+
+def test_what_a_turn_spent_and_did_is_not_the_chats_size():
+    # Madde 337, the row's own words: a turn that calls many tools or opens a big file does not grow
+    # the gauge. The steps, the files and the bill ride on the message but never reach the model as
+    # the chat -- and the opened-files box is not a message at all.
+    from backend.features.workspace.domain.chat import chat_size, is_full
+
+    busy = _answered(
+        "a" * 600,
+        "a" * 400,
+        usage=Usage(120_000, 0, 5),
+        calls=tuple(ToolCall("read_file", "scene.json", "900 lines") for _ in range(16)),
+        files=("scene.json",),
     )
-    assert last_context(chat) == 41_000
-    assert last_context(asked_again) == 41_000
-
-
-def test_a_chat_with_no_answer_yet_has_sent_nothing():
-    # Zero is what unknown looks like here, and Madde 76 settled that already: an answer from
-    # before the counting existed reads back as zero too, and nothing is drawn for either.
-    from backend.features.workspace.domain.chat import last_context
-
-    assert last_context(Chat(id="c1", title="hi", created_at=AT)) == 0
-    asked = Chat(
-        id="c1", title="hi", created_at=AT, messages=(Message(role="user", at=AT, text="hi"),)
-    )
-    assert last_context(asked) == 0
-
-
-def test_the_ceiling_ignores_what_the_rounds_added_up_to():
-    # Madde 133, and the whole of it. A turn of six rounds spends six requests' worth, and the
-    # eighth trial closed a chat at 51.4k whose conversation was nowhere near it. What fills a
-    # chat is how big the request got, not how many of them it took.
-    from backend.features.workspace.domain.chat import is_full, last_context
-
-    six_rounds = _answered(120_000, context=12_000)
-    assert last_context(six_rounds) == 12_000
-    assert not is_full(six_rounds)
-
-
-def test_an_answer_from_before_the_field_never_fills_the_chat():
-    # No migration is written, so every chat on disk today reads zero here. Zero has meant
-    # unmeasured since Madde 76, and an unmeasured chat is not a full one -- the permissive side
-    # is the right side, since the cost of being wrong is closing a chat that had room.
-    from backend.features.workspace.domain.chat import is_full
-
-    older = Chat(
-        id="c1",
-        title="hi",
-        created_at=AT,
-        messages=(
-            Message(role="user", at=AT, text="hi"),
-            Message(role="ai", at=AT, text="Done.", usage=Usage(90_000, 0, 5)),
-        ),
-    )
-    assert not is_full(older)
+    assert chat_size(busy) == 300
+    assert not is_full(busy)
 
 
 def test_the_ceiling_is_fifty_thousand():
@@ -148,18 +114,28 @@ def test_the_ceiling_is_fifty_thousand():
     assert CONTEXT_CEILING == 50_000
 
 
-def test_a_chat_is_full_at_the_ceiling_and_not_before():
-    from backend.features.workspace.domain.chat import CONTEXT_CEILING, is_full
+def test_a_chat_is_full_when_its_messages_reach_the_ceiling_and_not_before():
+    from backend.features.workspace.domain.chat import CONTEXT_CEILING, chat_size, is_full
 
-    assert not is_full(_answered(CONTEXT_CEILING - 1))
-    assert is_full(_answered(CONTEXT_CEILING))
+    reached = _answered("", "a" * 166_667)
+    below = _answered("", "a" * 166_666)
+    assert chat_size(reached) == CONTEXT_CEILING
+    assert is_full(reached)
+    assert not is_full(below)
+
+
+def test_a_usage_carries_no_context():
+    # Madde 337 took the ceiling off the engine's numbers, and the ceiling was the only reader of the
+    # last round's size. A field written every turn and read by nothing is a question every later
+    # reader has to answer for themselves.
+    assert "context" not in [field.name for field in fields(Usage)]
 
 
 # --- versions: the lines one chat can hold (Madde 195) -------------------------------------------
 
 
-def _said(role, text, context=0):
-    return Message(role=role, at=AT, text=text, usage=Usage(context, 0, 5, context))
+def _said(role, text):
+    return Message(role=role, at=AT, text=text)
 
 
 def _trunk(*texts):
@@ -250,17 +226,16 @@ def test_the_ceiling_is_measured_on_the_open_line():
     # A turn that only exists on a line nobody is on is not sent any more, and what is not sent
     # cannot fill the chat. Measuring it would close a conversation over work it has walked away
     # from.
-    from backend.features.workspace.domain.chat import is_full, last_context
+    from backend.features.workspace.domain.chat import is_full
 
     chat = Chat(
         id="c1",
         title="hi",
         created_at=AT,
-        messages=(_said("user", "hi"), _said("ai", "Done.", context=60_000)),
+        messages=(_said("user", "hi"), _said("ai", "a" * 200_000)),
         versions=(_version("l2", "", 1),),
         active="l2",
     )
-    assert last_context(chat) == 0
     assert not is_full(chat)
     assert is_full(replace(chat, active=""))
 
