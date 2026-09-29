@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -105,6 +106,19 @@ def test_the_prompt_module_holds_the_texts_the_others_gave_up():
 
     for name in MUST_BE_FULL:
         assert getattr(prompt, name, "").strip(), name
+
+
+def test_no_text_the_model_is_told_asks_for_a_pov_entry():
+    # Madde 367 (user, 28 Sep): the pov_ entry goes. It was a naming rule rather than a field (Madde
+    # 182), so no code ever knew it -- only texts told the model to write one, and every text is
+    # here. The tool schemas are swept whole as well, for their parameter names.
+    from backend.features.workspace.domain import prompt
+    from backend.features.workspace.domain.tools import TOOL_SPECS
+
+    texts = _texts_named_by(prompt) | {json.dumps(TOOL_SPECS)}
+    assert len(texts) > 10
+    for said in texts:
+        assert "pov" not in said.lower(), said[:80]
 
 
 def test_the_answer_follows_the_language_it_was_asked_in():

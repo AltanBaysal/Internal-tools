@@ -87,11 +87,7 @@ def test_no_instruction_names_a_tool_that_is_gone():
     # to be caught by this test existing, not by somebody remembering to add its name.
     from backend.features.workspace.domain.tools import TOOL_SPECS
 
-    # pov_ is not a tool, it is the prefix Madde 182 names a half-seen character by, and it is
-    # written as the bare prefix rather than pov_kyle so that what is exempt here is a naming rule
-    # and not somebody's name. The reason above survives it: a tool deleted later still has nowhere
-    # to hide, because this exemption is one word and it is not a tool's.
-    known = {spec["function"]["name"] for spec in TOOL_SPECS} | {"pov_"}
+    known = {spec["function"]["name"] for spec in TOOL_SPECS}
     for skill, said in INSTRUCTIONS.items():
         named = {word.strip(".,;:") for word in said.split() if "_" in word}
         assert named <= known, (skill, named - known)
@@ -163,47 +159,6 @@ def test_the_editor_is_about_what_already_exists():
 def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
     # The prompt file is derived: patched by hand it stops matching the structure it came from.
     assert "rebuilt rather than patched" in _edit()
-
-
-# --- somebody the camera is standing in (Madde 182) -----------------------------------------------
-#
-# Being in a frame's cast is all or nothing, and the builder writes the whole of an entry. In a POV
-# frame none of that person is in shot, and an SDXL-family model with no body to hang those tags on
-# hangs them on the one that is there -- the woman comes back with the man's hair, and a picture
-# holding one person is asked for 1girl and 1boy at once.
-#
-# The user's decision of 5 Sep is a rule rather than a field: a second character, pov_ and their
-# name, short and countless and wearing nothing, opened when the character is opened rather than
-# when a POV frame turns up. Nothing in the code moves -- add_character already takes that name and
-# a cast already names whoever it likes.
-
-
-def test_the_flow_opens_a_pov_entry_beside_each_character():
-    # Opened with the character, not when a frame needs one: needing one happens in the middle of a
-    # correction turn, which is the worst moment to send the model back to the maps.
-    said = _flow()
-    assert "pov_" in said
-    assert said.index("pov_") > said.index(STEPS[1])
-
-
-def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
-    # Both are the leak. A count makes the picture claim a person it does not show, and an outfit
-    # dresses the frame with clothes nobody in it is wearing.
-    #
-    # Read off the field rather than off the flow: correction 34 moved both rules to the tool that
-    # writes an entry, and correction 12 took the copy out of the flow -- a flow says when a thing
-    # is written, and the rule for what goes in it belongs beside the parameter.
-    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
-
-    said = ADD_CHARACTER_TAGS.lower()
-    assert "no count" in said
-    assert "those are outfits" in said
-
-
-def test_a_pov_frame_names_the_pov_entry_in_its_cast():
-    # The other half, and it lives here because "make this one POV" arrives during a correction --
-    # this skill's turn, not the flow's.
-    assert "pov_" in _edit()
 
 
 def test_no_instruction_carries_the_prompt_rules():
@@ -481,6 +436,27 @@ def test_every_skill_says_what_the_prompts_are_for(skill):
     assert "SDXL" in instruction_for(skill)
 
 
+# --- the image model at the far end (Madde 367) ---------------------------------------------------
+#
+# 28 Sep, the user: the model does not know its prompts go to a weak SDXL model, so it writes things
+# too complex for it to draw -- and fixes them the moment it is told. Parametrised by ALL_SKILLS,
+# which a test above holds equal to INSTRUCTIONS, so the next skill cannot arrive without this.
+
+
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_every_skill_knows_the_image_model_is_weak(skill):
+    assert "weak" in instruction_for(skill).lower()
+
+
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_every_skill_knows_a_frame_is_one_moment_and_a_4_second_video(skill):
+    # The user again: every video is four seconds. A frame is one picture, and the picture is where
+    # the video starts, so a scene holding two moments can be neither.
+    said = instruction_for(skill)
+    assert "one moment" in said
+    assert "4-second video" in said
+
+
 def test_the_plan_no_longer_opens_with_a_line_of_context():
     # Madde 186 asked for that line and Madde 198 takes it back, with the question that fed it. The
     # claim is not dropped, it is turned around: with nobody asked what the work is for, a plan
@@ -589,5 +565,12 @@ def test_the_texts_stay_short_enough_to_be_read():
     # Correction 20 gives sixty of them back, on the record: the step format the flow uses costs
     # lines, and what it buys is a text a weak model can follow. A cap that moves in a written
     # decision is not a cap that quietly took the old work back.
-    assert len(_flow().split()) <= 450
-    assert len(_edit().split()) <= 260
+    #
+    # Madde 367 raises both, on the user's decision of 28 September. Madde 123 set them for the
+    # model of that day, which stopped reading the middle of a long text; the texts are read by a
+    # stronger model now. The new numbers leave room for what comes next: the four checks (370 to
+    # 373) are written once and the flow ends with them, Edit prompts ends with them too (374), and
+    # 368 and 369 each add a sentence to the scenes step -- so both texts can roughly double. The
+    # cap still guards: a text at its cap takes a sentence only by deleting one.
+    assert len(_flow().split()) <= 1000
+    assert len(_edit().split()) <= 700

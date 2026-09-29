@@ -1045,7 +1045,7 @@ def test_the_rules_carry_nothing_that_belongs_to_one_field():
     # after its copy went down to a field is the same rule in two places, which is the shape every
     # drift in this app has had.
     said = _rules().lower()
-    for moved in ("solo", "pov_", "outfit", "location"):
+    for moved in ("solo", "outfit", "location"):
         assert moved not in said, moved
 
 
@@ -2410,15 +2410,12 @@ def test_the_clothes_rule_madde_176_wrote_is_still_there():
     assert "clothes" in said
 
 
-def test_an_entry_for_somebody_half_in_shot_carries_no_count():
-    # Madde 182. The count is the sharpest way the leak shows: a POV frame holds one person and the
-    # prompt asks for two, because every character entry carries its own count and both of them are
-    # in the cast. The exception is written where the count rule is -- since correction 34 that is
-    # the character's own field -- or it is a replacement rather than an exception.
-    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+def test_the_frame_writer_knows_the_image_model_is_weak():
+    # Madde 367. Not a skill, but the text that writes the action line of every photo prompt -- which
+    # is where a frame grows more complex than the model at the far end can draw.
+    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
 
-    assert "carries no count" in ADD_CHARACTER_TAGS.lower()
-    assert "pov_" in ADD_CHARACTER_TAGS
+    assert "weak" in WRITE_FRAME_SYSTEM_PROMPT.lower()
 
 
 def test_the_map_tools_never_carry_the_words_this_madde_adds():
