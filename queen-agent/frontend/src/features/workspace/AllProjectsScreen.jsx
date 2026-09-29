@@ -1,17 +1,16 @@
 import { useState } from "react";
 
-import ProjectRow from "./ProjectRow.jsx";
+import ProjectRow, { UndoRow } from "./ProjectRow.jsx";
 
 // The screen the app opens on (the design's items 135, 142, 167), and the one Exit project comes
 // back to. No sidebar stands beside it: no project is open here. The order is the server's
-// (list_projects.py) -- pinned first, then the most recently used -- and this screen only splits it
-// where the pins end.
+// (list_projects.py) -- pinned first, then the most recently used -- and this screen only splits it:
+// where the pins end, and between the Projects tab and the Archived one (the design's 190, 191).
 //
-// The search is this screen's own state: what is shown while typing is the UI's (FOUNDATION,
-// Decision 4), so it reaches neither the server nor the address.
+// The search and the tab are this screen's own state: what is shown while typing is the UI's
+// (FOUNDATION, Decision 4), so they reach neither the server nor the address.
 //
-// The Archived tab is an item of its own (363), and so are the spinner and the sentence a failed
-// list gets (364).
+// The spinner and the sentence a failed list gets are an item of their own (364).
 
 // Case and accents do not count, as in the design's data.js: "cafe" finds "Café".
 const fold = (text) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -28,12 +27,19 @@ function Section({ label, projects, row }) {
   );
 }
 
-function ProjectList({ projects, query, row }) {
-  // Asked first: with nothing to search, "no match" would be the wrong news.
-  if (!projects.length) return <p className="all-projects__empty">No projects yet.</p>;
+function ProjectList({ any, shown, archivedTab, query, row }) {
+  // Asked first: with nothing to search, "no match" would be the wrong news -- and on either tab.
+  if (!any) return <p className="all-projects__empty">No projects yet.</p>;
   const asked = query.trim();
-  const found = projects.filter((project) => fold(project.name).includes(fold(asked)));
-  if (!found.length) return <p className="all-projects__empty">{`No projects match "${asked}".`}</p>;
+  const found = shown.filter((project) => fold(project.name).includes(fold(asked)));
+  if (!found.length) {
+    let none = archivedTab ? "No archived projects." : "Every project is archived.";
+    if (asked) none = `No projects match "${asked}".`;
+    return <p className="all-projects__empty">{none}</p>;
+  }
+  // The archive is one list with no heading, as the design draws it: pinning sorts the projects in
+  // use, and nothing archived is in use.
+  if (archivedTab) return <div className="all-projects__list">{found.map(row)}</div>;
   return (
     <>
       <Section label="Pinned" projects={found.filter((project) => project.pinned)} row={row} />
@@ -53,23 +59,61 @@ export default function AllProjectsScreen({
   onCloseMenu,
   onRenameProject,
   onPinProject,
+  onArchiveProject,
   onDeleteProject,
 }) {
   const [query, setQuery] = useState("");
-  // Built once here rather than handed down as seven props through the list and its sections.
-  const row = (project) => (
-    <ProjectRow
-      key={project.id}
-      project={project}
-      menuOpen={menuFor === project.id}
-      onOpen={onOpenProject}
-      onOpenMenu={onOpenMenu}
-      onCloseMenu={onCloseMenu}
-      onRename={onRenameProject}
-      onPin={onPinProject}
-      onDelete={onDeleteProject}
-    />
-  );
+  const [tab, setTab] = useState("projects");
+  // The project Archive has just taken, while its Undo is on offer. It keeps its place on the list:
+  // the server moves no row for an archive, so where it stood is where the list still has it.
+  const [undoing, setUndoing] = useState(null);
+
+  const archived = projects.filter((project) => project.archived);
+  const open = projects.filter((project) => !project.archived);
+  const shown =
+    tab === "archived"
+      ? archived
+      : projects.filter((project) => !project.archived || project.id === undoing);
+
+  // The offer lasts until the next thing is done, as the design's settleUndoing reads it: every
+  // action on a row starts from its ⋯, and so does another Archive.
+  const openMenu = (id) => {
+    setUndoing(null);
+    onOpenMenu?.(id);
+  };
+  const archive = (id, toArchive) => {
+    if (toArchive) setUndoing(id);
+    onArchiveProject?.(id, toArchive);
+  };
+  const undo = async (id) => {
+    // Held until the list has come back: let go sooner, the project would vanish for a moment.
+    await onArchiveProject?.(id, false);
+    // Unless another project's offer began meanwhile.
+    setUndoing((current) => (current === id ? null : current));
+  };
+  const switchTab = (next) => {
+    setUndoing(null);
+    setTab(next);
+  };
+
+  // Built once here rather than handed down as eight props through the list and its sections.
+  const row = (project) =>
+    project.id === undoing ? (
+      <UndoRow key={project.id} name={project.name} onUndo={() => undo(project.id)} />
+    ) : (
+      <ProjectRow
+        key={project.id}
+        project={project}
+        menuOpen={menuFor === project.id}
+        onOpen={onOpenProject}
+        onOpenMenu={openMenu}
+        onCloseMenu={onCloseMenu}
+        onRename={onRenameProject}
+        onPin={onPinProject}
+        onArchive={archive}
+        onDelete={onDeleteProject}
+      />
+    );
 
   if (error) {
     // A failed list means the count is unknown, not zero: offering the list's frame over it would be
@@ -80,6 +124,11 @@ export default function AllProjectsScreen({
       </div>
     );
   }
+
+  const tabs = [
+    ["projects", "Projects", open.length],
+    ["archived", "Archived", archived.length],
+  ];
 
   return (
     <div className="screen">
@@ -102,10 +151,29 @@ export default function AllProjectsScreen({
             onChange={(event) => setQuery(event.target.value)}
             autoFocus
           />
+          <div className="all-projects__tabs">
+            {tabs.map(([name, label, count]) => (
+              <button
+                key={name}
+                type="button"
+                className={`all-projects__tab${tab === name ? " is-on" : ""}`}
+                onClick={() => switchTab(name)}
+              >
+                {/* Until the list has come, a count would be a guess and not a fact. */}
+                {label} <span className="all-projects__count">{loading ? "" : count}</span>
+              </button>
+            ))}
+          </div>
         </div>
         {/* Until the list has come, "no projects yet" is a guess and not a fact. */}
         {loading ? null : (
-          <ProjectList projects={projects} query={query} row={row} />
+          <ProjectList
+            any={projects.length > 0}
+            shown={shown}
+            archivedTab={tab === "archived"}
+            query={query}
+            row={row}
+          />
         )}
       </div>
     </div>

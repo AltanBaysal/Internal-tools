@@ -693,6 +693,107 @@ test("Unpin puts the project back where the server lists it", async () => {
   ]);
 });
 
+// --- the archive (Madde 363; the design's items 135, 161, 190, 191) -----------------------------
+// serverForRows keeps the mark as it keeps any other: the archive moves no row in the server's
+// order and leaves the pin alone (Madde 339).
+
+const tab = (name) => screen.getByRole("button", { name: new RegExp(`^${name}\\b`) });
+const rowsOf = (section) =>
+  [...section.querySelectorAll(".all-projects__row")].map((row) => row.textContent);
+const PIER = { id: "p3", name: "Old pier", chats: 0, files: 0, pinned: true, lastActivity: hoursAgo(30) };
+
+test("Archive asks nothing and leaves Undo where the project stood", async () => {
+  const fetch = serverForRows(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  expect(container.querySelector(".dialog")).toBeNull();
+  await screen.findByRole("button", { name: "Archived 1" });
+  expect(screen.getByRole("button", { name: "Projects 1" })).toBeTruthy();
+  const recent = container.querySelector(".all-projects__section");
+  expect(rowsOf(recent)).toEqual([expect.stringContaining("Thesis"), "Notes archived · Undo"]);
+  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
+    ["/api/projects/p2", { archived: true }],
+  ]);
+});
+
+test("Undo puts the project back where it was", async () => {
+  const fetch = serverForRows(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  await screen.findByRole("button", { name: "Archived 1" });
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await screen.findByRole("button", { name: "Archived 0" });
+  await waitFor(() => expect(screen.queryByRole("button", { name: "Undo" })).toBeNull());
+  expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
+  expect(screen.getByRole("button", { name: "Projects 2" })).toBeTruthy();
+  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
+    ["/api/projects/p2", { archived: true }],
+    ["/api/projects/p2", { archived: false }],
+  ]);
+});
+
+test("a pinned project archived and brought back is pinned still", async () => {
+  serverForRows([PIER, ...ROWS]);
+  const { container } = render(<App />);
+  await onAllProjects();
+  actionsFor("Old pier");
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  await screen.findByRole("button", { name: "Archived 1" });
+  const pinned = container.querySelector(".all-projects__section");
+  expect(rowsOf(pinned)).toEqual(["Old pier archived · Undo"]);
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  await waitFor(() =>
+    expect(sections(container)).toEqual({ Pinned: ["Old pier"], Recent: ["Thesis", "Notes"] }),
+  );
+});
+
+test("an archived project stands only under Archived, and Unarchive brings it back", async () => {
+  const fetch = serverForRows([ROWS[0], { ...ROWS[1], archived: true }]);
+  const { container } = render(<App />);
+  await onAllProjects();
+  expect(sections(container)).toEqual({ Recent: ["Thesis"] });
+  fireEvent.click(tab("Archived"));
+  expect(screen.getByText("Notes", { selector: ".all-projects__row-name" })).toBeTruthy();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+  expect(await screen.findByText("No archived projects.")).toBeTruthy();
+  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
+    ["/api/projects/p2", { archived: false }],
+  ]);
+  fireEvent.click(tab("Projects"));
+  expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
+});
+
+test("an archived project's Delete asks the same question", async () => {
+  const fetch = serverForRows([ROWS[0], { ...ROWS[1], archived: true }]);
+  render(<App />);
+  await onAllProjects();
+  fireEvent.click(tab("Archived"));
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(screen.getByText('Delete "Notes"?')).toBeTruthy();
+  expect(screen.getByText(/The 1 chat and 0 files/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(await screen.findByText("No archived projects.")).toBeTruthy();
+  const deletes = fetch.mock.calls.filter(([, options]) => options?.method === "DELETE");
+  expect(deletes.map(([path]) => path)).toEqual(["/api/projects/p2"]);
+});
+
+test("with every project archived, the naming screen still counts them", async () => {
+  // Madde 361 asks for the first project only when there is none at all: archived ones are still
+  // projects, and All projects is still there to go back to.
+  serverForRows(ROWS.map((project) => ({ ...project, archived: true })));
+  render(<App />);
+  expect(await screen.findByText("Every project is archived.")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "+ New project" }));
+  expect(await screen.findByLabelText("Name your project")).toBe(await nameField());
+  expect(barExit().textContent).toBe("Cancel");
+});
+
 test("inside a project no ⋯ stands anywhere", async () => {
   // The design's 161: everything done to a project is done from outside it.
   serverForRows(ROWS);

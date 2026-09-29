@@ -270,6 +270,7 @@ export default function App() {
               onCloseMenu={() => setMenuFor(null)}
               onRenameProject={(id, name) => editProject(id, { name })}
               onPinProject={(id, pinned) => editProject(id, { pinned })}
+              onArchiveProject={(id, archived) => editProject(id, { archived })}
               onDeleteProject={askToDelete}
             />
           ) : null}

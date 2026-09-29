@@ -3,8 +3,9 @@ import { expect, test, vi } from "vitest";
 
 import ProjectRow from "./ProjectRow.jsx";
 
-// Madde 360: an All projects row and its ⋯ (the design's items 135, 161, 167). Rename, Pin and
-// Delete live here and nowhere inside a project; Archive is Madde 363's.
+// Madde 360: an All projects row and its ⋯ (the design's items 135, 161, 167). Rename, Pin, Archive
+// and Delete live here and nowhere inside a project. Madde 363 (the design's 190, 191): an archived
+// row opens nothing, and its ⋯ brings the project back.
 
 const PROJECT = {
   id: "p2",
@@ -15,6 +16,7 @@ const PROJECT = {
   lastActivity: new Date().toISOString(),
 };
 const PINNED = { ...PROJECT, pinned: true };
+const SHELVED = { ...PROJECT, archived: true };
 
 const itemNames = (container) =>
   [...container.querySelectorAll(".menu__item")].map((item) => item.textContent);
@@ -38,20 +40,67 @@ test("the row carries a ⋯ that asks for its menu and opens nothing", () => {
   expect(onOpen).not.toHaveBeenCalled();
 });
 
-test("the menu holds Rename, Pin and, under a line, a red Delete", () => {
+test("the menu holds Rename, Pin, Archive and, under a line, a red Delete", () => {
   const { container } = render(<ProjectRow project={PROJECT} menuOpen />);
-  expect(itemNames(container)).toEqual(["Rename", "Pin", "Delete"]);
+  expect(itemNames(container)).toEqual(["Rename", "Pin", "Archive", "Delete"]);
   const items = container.querySelectorAll(".menu__item");
-  expect(items[2].className).toContain("menu__item--danger");
-  // The design's own line: what cannot be undone stands apart from what can.
-  expect(items[2].previousElementSibling.className).toBe("menu__divider");
+  expect(items[3].className).toContain("menu__item--danger");
+  // The design's own line: what cannot be undone stands apart from what can -- and Archive can.
+  expect(items[3].previousElementSibling.className).toBe("menu__divider");
   expect(container.querySelectorAll(".menu__divider").length).toBe(1);
-  expect(screen.queryByRole("button", { name: "Archive" })).toBeNull();
 });
 
 test("a pinned project offers Unpin instead", () => {
   const { container } = render(<ProjectRow project={PINNED} menuOpen />);
-  expect(itemNames(container)).toEqual(["Rename", "Unpin", "Delete"]);
+  expect(itemNames(container)).toEqual(["Rename", "Unpin", "Archive", "Delete"]);
+});
+
+test("Archive asks for the project to be archived", () => {
+  const onArchive = vi.fn();
+  render(<ProjectRow project={PROJECT} menuOpen onArchive={onArchive} />);
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  expect(onArchive).toHaveBeenCalledWith("p2", true);
+});
+
+test("an archived row is not a way into its project", () => {
+  // The design's kit.css: the same three columns, but an archived project does not open.
+  const onOpen = vi.fn();
+  const { container } = render(<ProjectRow project={SHELVED} onOpen={onOpen} />);
+  expect(container.querySelector(".all-projects__row-open")).toBeNull();
+  const text = container.querySelector(".all-projects__row-text");
+  expect(text.tagName).not.toBe("BUTTON");
+  expect(text.querySelector(".all-projects__row-name").textContent).toBe("Night market");
+  expect(text.querySelector(".all-projects__row-meta").textContent).toBe("1 chat · 1 file");
+  expect(text.querySelector(".all-projects__row-when")).toBeTruthy();
+  fireEvent.click(text);
+  expect(onOpen).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Actions for Night market" })).toBeTruthy();
+});
+
+test("an archived row's menu holds Rename, Unarchive and, under a line, a red Delete", () => {
+  const { container } = render(<ProjectRow project={SHELVED} menuOpen />);
+  expect(itemNames(container)).toEqual(["Rename", "Unarchive", "Delete"]);
+  const items = container.querySelectorAll(".menu__item");
+  expect(items[2].className).toContain("menu__item--danger");
+  expect(items[2].previousElementSibling.className).toBe("menu__divider");
+  expect(container.querySelectorAll(".menu__divider").length).toBe(1);
+});
+
+test("Unarchive asks for the project to come back", () => {
+  const onArchive = vi.fn();
+  render(<ProjectRow project={SHELVED} menuOpen onArchive={onArchive} />);
+  fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+  expect(onArchive).toHaveBeenCalledWith("p2", false);
+});
+
+test("an archived row is renamed in its own place too", () => {
+  const onRename = vi.fn();
+  render(<ProjectRow project={SHELVED} menuOpen onCloseMenu={() => {}} onRename={onRename} />);
+  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+  const field = screen.getByRole("textbox", { name: "Project name" });
+  fireEvent.change(field, { target: { value: "Harbour" } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(onRename).toHaveBeenCalledWith("p2", "Harbour");
 });
 
 test("Pin asks for the mark", () => {

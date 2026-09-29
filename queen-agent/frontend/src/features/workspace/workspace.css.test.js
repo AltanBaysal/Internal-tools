@@ -920,6 +920,28 @@ test("the search box is the design's field", () => {
   expect(box).toContain("font-size: 13.5px");
 });
 
+// Madde 363 (the design's items 190, 191, kit.css's .all-projects__tab and on).
+test("the tabs are the design's quiet buttons, the open one lit", () => {
+  const tab = rule(".all-projects__tab");
+  expect(tab).toContain("padding: 7px 12px");
+  expect(tab).toContain("font-size: 13px");
+  expect(rule(".all-projects__tab.is-on")).toContain("background: #e5dfd5");
+  const count = rule(".all-projects__count");
+  expect(count).toContain("font-family: var(--font-mono)");
+  expect(count).toContain("font-size: 11px");
+});
+
+test("an archived row's text takes the opener's room", () => {
+  const text = rule(".all-projects__row-text");
+  expect(text).toContain("flex: 1");
+  expect(text).toContain("min-width: 0");
+});
+
+test("the Undo row is a quiet line whose one action is Undo", () => {
+  expect(rule(".all-projects__undo")).toContain("color: #6b6259");
+  expect(rule(".all-projects__undo button")).toContain("color: var(--accent)");
+});
+
 // Madde 357 (the design's items 147 and 182, kit.css's .trimmed). jsdom lays nothing out, so the
 // hold at the chat's lower edge is locked here as the rule that makes it; the browser shows it.
 test("the trim's line holds at the chat's lower edge on the page's own ground", () => {
