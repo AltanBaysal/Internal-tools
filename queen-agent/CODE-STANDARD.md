@@ -103,10 +103,12 @@ prototype is a single monolithic `DCLogic` component with inline style strings a
 `style-hover` — there is no component file to copy. So we write the React ourselves and stay faithful
 to the design's colours, type, measurements and behaviour.
 
-`shared/app.css` owns the colour variables, the radii, the focus ring and the two keyframes — a
-140–220ms `fadeIn` and the three dots' `blink`. A component never writes its own focus outline and
-never invents a third animation. The only motion that is not a fade is the rail's width. The accent
-`--accent` marks the primary action and nothing else.
+`shared/app.css` owns the colour variables, the radii, the focus ring and the two keyframes every
+surface shares: `fadeIn`, an opacity fade, and `blink`, which pulses the three dots and the loading
+skeleton. A component never writes its own focus outline. `features/workspace/workspace.css` holds
+`msg-spin`, the spinner's turn — on the live row, the loading file list and a chat that is opening —
+and the transitions: the sidebar and the rail fold by their width, and a message's edit pencil fades
+in. The accent `--accent` marks the primary action and nothing else.
 
 ## Language
 
