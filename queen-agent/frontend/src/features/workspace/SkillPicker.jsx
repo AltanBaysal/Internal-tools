@@ -3,9 +3,9 @@ import { useRef } from "react";
 import Menu from "./Menu.jsx";
 import { SKILLS, skillName } from "./skills.js";
 
-// Which skill governs this chat's turns, in the composer's foot to the left of the model.
+// Which skill governs this chat's turns, in the composer's foot to the right of the mode.
 //
-// Two differences from the model picker, both from what the two things are. A skill may be absent
+// Two differences from the mode picker, both from what the two things are. A skill may be absent
 // and that is the ordinary state, so pressing the selected row **clears** it. And a selected skill
 // is worth seeing at a glance, so the button takes a warm tone -- not the accent, which marks the
 // primary action and nothing else.

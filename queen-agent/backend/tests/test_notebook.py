@@ -164,8 +164,8 @@ def test_the_deepseek_key_comes_from_secrets():
 def test_a_missing_deepseek_key_says_what_to_do():
     """Both keys are required rather than one of them (kullanıcı kararı, 2 Eylül).
 
-    The composer draws three rows, so a run opened on a single key promises two models it cannot
-    answer with -- offering three is what obliges all three to work.
+    Every turn and every action line goes to DeepSeek (config.DEFAULT_MODEL and PROMPT_MODEL), so a
+    run opened without this key answers nothing.
     """
     said = _cell("assert DEEPSEEK_API_KEY")
     assert said, "DeepSeek anahtarı yokken defter sessizce devam ediyor"

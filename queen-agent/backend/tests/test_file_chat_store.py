@@ -58,8 +58,8 @@ def test_a_message_with_no_skill_writes_no_field(tmp_path):
 
 
 def test_the_model_a_message_was_sent_with_survives_the_disk(tmp_path):
-    # Madde 146. The road skill takes, because it is the same kind of thing: what governed a turn,
-    # written on the turn.
+    # Written by Madde 146 to 357, and kept since 358 as a record: a chat written again after a new
+    # message must not strip its older turns of the model that answered them.
     written = replace(
         _chat(),
         messages=(
@@ -74,8 +74,7 @@ def test_the_model_a_message_was_sent_with_survives_the_disk(tmp_path):
 
 
 def test_a_message_with_no_model_writes_no_field(tmp_path):
-    # Every message written before Madde 146 has none, and one written after it without a choice
-    # should be no different on disk.
+    # Every message written before Madde 146 has none, and so does every one since Madde 358.
     raw = Store(str(tmp_path))
     FileChatStore(raw).add("p1", _chat())
     assert "model" not in raw.read_text("p1/chats/c1.json")

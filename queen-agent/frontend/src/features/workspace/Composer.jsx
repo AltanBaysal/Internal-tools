@@ -8,7 +8,7 @@ const STOP = "⏹";
 // The draft lives here rather than in App: it is the box's momentary state, not something a screen
 // keeps. Only the finished text leaves, through onSubmit.
 // The foot has two ends since Madde 92, and the box holds the room for both without knowing what
-// goes in either. `foot` is the right one -- karar 1 settled that order, Skills · model · send.
+// goes in either. `foot` is the right one -- Mode · Skills · Send.
 // `gauge` is the left one, and it is empty wherever there is nothing to measure.
 //
 // `running` says an answer is on its way, and it turns the one action button into a stop. There is

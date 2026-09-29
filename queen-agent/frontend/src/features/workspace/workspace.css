@@ -1989,8 +1989,8 @@
 }
 
 /* The foot's other end since Madde 92. Not `justify-content: space-between` on the foot itself:
-   Skills, the model's name and Send are three separate items in that row, and spreading the row
-   would put its whole width between them. The circle and its words stand 6 apart, the stamp's gap. */
+   the pickers and Send are separate items in that row, and spreading the row would put its whole
+   width between them. The circle and its words stand 6 apart, the stamp's gap. */
 .composer__gauge {
   display: inline-flex;
   align-items: center;
@@ -2019,16 +2019,8 @@
   white-space: nowrap;
 }
 
-/* The model's name, sitting where its picker used to. Not a control since Madde 82: it reads like
-   the button beside it and does nothing, so it takes the picker's spacing without its hover. */
-.model-label {
-  padding: 6px 9px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-/* The Skills button. Quiet until it is pointed at: it says which skill is governing, and saying it
-   is most of its job. It was the model's button too until Madde 82. */
+/* The foot's pickers, Mode and Skills. Quiet until pointed at: each says what is governing, and
+   saying it is most of its job. */
 .picker {
   display: inline-flex;
   align-items: center;

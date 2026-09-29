@@ -25,15 +25,15 @@ XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
 # that it cannot answer with.
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 
-# What each model id means to the transport, and nothing else. The list a person reads -- names and
-# prices -- is the frontend's (models.js), exactly as the skills' list is: what this side knows is
-# what an id resolves to, never which one is selected.
+# Which models exist, and what each id means to the transport. Nothing on the screen names one
+# since Madde 358, so no name or price a person would read is kept anywhere.
 #
 # The key's NAME sits here rather than its value, so this stays a mapping and carries no secret.
 # engine_for is the one place that reads the environment.
 #
-# Madde 82 named one model here and Madde 146 made it three. That madde tore the picking machinery
-# out because a single model left it idle; two more ended the premise rather than overturned it.
+# Madde 82 named one model here, Madde 146 made it three and put a picker in the composer, and
+# Madde 336 left DeepSeek one name. Madde 358 took the picker out: the two constants below say which
+# row answers what.
 MODELS = {
     # Nothing points here since Madde 202 moved the writing to DeepSeek, and by Madde 183's own rule
     # -- a row nobody will use is dead configuration -- this one would go. Kept knowingly: deleting
@@ -45,43 +45,36 @@ MODELS = {
     #
     # One name of DeepSeek's since Madde 336, the one the model has today. DeepSeek's notice of 10
     # September closed deepseek-v4-pro -- its requests go to Flash, billed as Flash, with no error --
-    # and left deepseek-v4-flash an alias. Messages on disk still name both; neither is a row here,
-    # so both are answered by the default.
+    # and left deepseek-v4-flash an alias. Messages on disk still name both, as a record; nothing is
+    # steered by it.
     "deepseek-flash": {"base_url": "https://api.deepseek.com", "key": "DEEPSEEK_API_KEY"},
 }
 
-# What answers when a turn named nothing -- which is every message written before Madde 146.
-#
-# The one model the composer offers since Madde 336, and the same id models.js defaults to: one of
-# them answers what an empty button says and this one answers where the request goes, and the two
-# parting would show a name on the screen that nothing on the wire matched.
+# What answers every turn. The one place that says so since Madde 358: the screen names no model and
+# the browser sends none, so this line is the whole of the choice.
 DEFAULT_MODEL = "deepseek-flash"
 
-# Who writes a frame's action when a tool asks for one (Madde 175). A role rather than a choice, by
-# the user's decision of 5 September: what the composer offers is which model runs the conversation,
-# and no picker on the screen reaches this line. It is here because it is a wiring fact -- the same
-# kind of fact as an address or a key -- and because the model it names is chosen for what it will
-# write rather than for how it reasons.
+# Who writes a frame's action when a tool asks for one (Madde 175). A role of its own, by the user's
+# decision of 5 September. It is here because it is a wiring fact -- the same kind of fact as an
+# address or a key -- and because the model it names is chosen for what it will write rather than
+# for how it reasons.
 #
 # DeepSeek since Madde 202 (the user's decision, 8 September). The role was built on 175's finding
 # that the model running the conversation would not write that kind of sentence; it writes it now,
 # and a second provider for one line was buying nothing. It is the same id DEFAULT_MODEL carries,
-# and the two are still separate decisions: one says what an empty button means, this one says who
+# and the two are still separate decisions: one says what runs the conversation, this one says who
 # writes an action, and either can move without the other.
 PROMPT_MODEL = "deepseek-flash"
 
 
 def engine_for(model_id):
-    """Which model, over which address, spending which key.
+    """Which model, over which address, spending which key -- for a row of the table above.
 
-    An id nobody knows falls back to the default rather than raising, and so does an empty one:
-    a record can name a model that has since been dropped, and every message on disk from before
-    this field names none at all. Neither may stop a chat from being answered -- the rule
-    skills.instruction_for keeps for the same reason.
+    No fallback: the only caller is main.py walking the table itself, so an id outside it is a
+    wiring mistake, and it stops the app at startup rather than being answered by another model.
     """
-    chosen = model_id if model_id in MODELS else DEFAULT_MODEL
-    wiring = MODELS[chosen]
+    wiring = MODELS[model_id]
     # The module's own constant, looked up by the name the row carries -- not a second read of the
     # environment. There is one road for a key and it is the assignment above; a row that fetched
     # its own would be a second one, and the two would part the day either moved.
-    return chosen, wiring["base_url"], globals()[wiring["key"]]
+    return model_id, wiring["base_url"], globals()[wiring["key"]]

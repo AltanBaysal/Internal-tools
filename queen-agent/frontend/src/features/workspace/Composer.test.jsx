@@ -94,12 +94,12 @@ test("with no handler attached Enter does nothing and nothing breaks", () => {
   expect(box.value).toBe("hello");
 });
 
-// karar 1 settled the foot's order: Skills · model · Send. The box does not know what goes in
-// there, only that it comes before Send.
+// The foot's order is Mode · Skills · Send. The box does not know what goes in there, only that it
+// comes before Send.
 test("the foot has room to the left of Send", () => {
-  const { container } = render(<Composer action="Send" foot={<button type="button">Grok 4.5</button>} />);
+  const { container } = render(<Composer action="Send" foot={<button type="button">Skills</button>} />);
   const buttons = [...container.querySelectorAll(".composer__foot button")];
-  expect(buttons.map((button) => button.textContent)).toEqual(["Grok 4.5", "↑"]);
+  expect(buttons.map((button) => button.textContent)).toEqual(["Skills", "↑"]);
   // Madde 80 took the word off the button, so the order alone no longer says which one it is.
   expect(buttons[1].getAttribute("aria-label")).toBe("Send");
 });
@@ -109,9 +109,9 @@ test("with nothing to put there the foot is Send alone", () => {
   expect(container.querySelectorAll(".composer__foot button").length).toBe(1);
 });
 
-// Madde 92: the foot grows a second end. Skills, the model's name and Send have been on the right
-// since karar 1; the gauge goes to the other one, because it is read rather than pressed and
-// standing among the three would make it look like a fourth thing to press.
+// Madde 92: the foot grows a second end. The pickers and Send are on the right; the gauge goes to
+// the other one, because it is read rather than pressed and standing among them would make it look
+// like one more thing to press.
 test("the gauge stands at the far end of the foot from Send", () => {
   const { container } = render(
     <Composer

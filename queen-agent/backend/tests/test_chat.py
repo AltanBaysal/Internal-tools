@@ -23,15 +23,14 @@ def test_a_message_still_carries_the_skill_it_was_sent_with():
 
 
 def test_a_message_carries_the_model_it_was_sent_with():
-    # Madde 146, and the field sits beside skill for the very same reason: changing the selection
-    # later must not make an older turn look as though the new model answered it. The chat's own
-    # root stays clear of it -- test_a_chat_carries_no_model above is the other half of this pair.
+    # Madde 146 to 357 wrote it onto every message sent with a choice. Nothing writes it since Madde
+    # 358 and nothing is steered by it, but the field stays so those records keep saying which model
+    # answered them. The chat's own root stays clear of it -- test_a_chat_carries_no_model above.
     assert "model" in [field.name for field in fields(Message)]
 
 
-def test_a_message_written_before_the_field_carries_the_empty_model():
-    # Every message on disk today. Answering one has to go on working, and it does by resolving to
-    # the default -- the rule config.engine_for keeps.
+def test_a_message_written_without_a_model_carries_the_empty_one():
+    # Every message before Madde 146 and after 358.
     assert Message(role="user", at="2026-09-02T10:00:00+00:00", text="hi").model == ""
 
 

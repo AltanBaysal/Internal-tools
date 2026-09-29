@@ -87,10 +87,14 @@ tools are the product; the vendor behind them should be replaceable without touc
 That promise was tested and held (Madde 146, 2 September): a second provider arrived and the loop
 and the tools did not change — what changed was a table of ids, one map of transports, and two
 places where the two services genuinely differ (how a cache hit is reported, and a header that is
-one vendor's own). Consequence: a model id is an input to a turn, never a constant. Which models
-exist and what they cost is `config.py`'s table and `models.js`'s list — the meaning on one side,
-the names and prices a person reads on the other. Which one is selected is held nowhere: it rides
-on each message and is written onto it, so an older turn keeps the model that answered it.
+one vendor's own). Consequence: which models exist is `config.py`'s table, and which one answers is
+`config.py`'s too — `DEFAULT_MODEL` for every turn, `PROMPT_MODEL` for the one question a tool asks.
+Nothing on the screen names a model and the browser sends none (Madde 358, the owner's decision of
+28 September: one model is left, and it is not to be seen), so no name and no price is kept for a
+person to read. Madde 146 had made the model an input to each turn, picked in the composer and
+written onto the message; the messages written then still carry it as a record of what answered
+them, and nothing is steered by it. A choice put back on the screen makes it an input to the turn
+again — never a copy of `config.py`'s ids kept in the browser.
 
 **7. No dependency on `collab-toolbox/` or `queen-editor/`.**
 No imported module, no shared file, no shared store. What QueenAgent inherits from queen-editor is

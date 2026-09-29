@@ -31,7 +31,7 @@ test("choosing one hands the id over", () => {
 });
 
 test("pressing the selected one clears it", () => {
-  // The difference from the model picker: a chat may have no skill at all, and this is how it gets
+  // The difference from the mode picker: a chat may have no skill at all, and this is how it gets
   // back there.
   const onChange = vi.fn();
   render(<SkillPicker skill="edit-prompts" open onChange={onChange} />);

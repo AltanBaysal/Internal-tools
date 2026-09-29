@@ -679,9 +679,14 @@ test("the grip stands above the reader", () => {
   expect(rule(".rail__grip")).toContain("z-index: 1");
 });
 
+test("nothing in the stylesheet draws a model's name", () => {
+  // Madde 358: no model is shown anywhere, and this rule has drawn nothing since Madde 82.
+  expect(CSS).not.toContain(".model-label");
+});
+
 test("the gauge pushes the rest of the foot to the far end", () => {
-  // Madde 92. Not `space-between` on the foot: Skills, the model's name and Send are three separate
-  // items in that row, and spreading the row would put its whole width between them.
+  // Madde 92. Not `space-between` on the foot: the pickers and Send are separate items in that
+  // row, and spreading the row would put its whole width between them.
   expect(rule(".composer__gauge")).toContain("margin-right: auto");
 });
 

@@ -17,7 +17,6 @@ import { useProjectChats } from "./features/workspace/useChatLists.js";
 import { useFile } from "./features/workspace/useFile.js";
 import { useFiles } from "./features/workspace/useFiles.js";
 import { DEFAULT_MODE, EDIT } from "./features/workspace/modes.js";
-import { DEFAULT_MODEL } from "./features/workspace/models.js";
 import { useProjects } from "./features/workspace/useProjects.js";
 import { DEFAULT_RAIL_WIDTH, railFitsIn, railWidthFor } from "./features/workspace/railWidth.js";
 import { useRememberedMap } from "./shared/remembered.js";
@@ -69,15 +68,10 @@ export default function App() {
   // The last mode picked, and what the next turn is sent in. Held for the session like the skill,
   // and unlike it never written anywhere: nothing on the server reads a mode back.
   const [lastMode, setLastMode] = useState(DEFAULT_MODE);
-  // The last model picked, and what the next turn is answered by. Held for the session like the
-  // mode rather than per chat like the skill: comparing two models is what this is for, and that is
-  // done by picking one and working, not by a chat remembering an old choice. The server holds none
-  // of it -- the value rides on each message and is written onto it (Madde 146).
-  const [lastModel, setLastModel] = useState(DEFAULT_MODEL);
-  // Which picker is open, if any: null, "skills", "mode" or "model". One value rather than a
-  // boolean each, because booleans can all be true and then menus stand over the same corner of
-  // the screen. Here rather than inside a picker, because App's one listener owns Escape and it
-  // can only close what it can see.
+  // Which picker is open, if any: null, "skills" or "mode". One value rather than a boolean each,
+  // because booleans can both be true and then menus stand over the same corner of the screen. Here
+  // rather than inside a picker, because App's one listener owns Escape and it can only close what
+  // it can see.
   const [pickerOpen, setPickerOpen] = useState(null);
   const { projectChats, reloadProjectChats } = useProjectChats(route.projectId);
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
@@ -162,8 +156,8 @@ export default function App() {
       if (menuFor) setMenuFor(null);
       else if (confirming) setConfirming(null);
       // The design's order, fark 67: project menu → confirm box → the open picker → open panel.
-      // It named two pickers, Madde 82 took one out and Madde 91 put another back; only one of
-      // them can be open at a time, so they take one place in the order between them.
+      // It named Skills and the model; the mode is a picker since Madde 91 and the model is not one
+      // since Madde 358. Only one can be open at a time, so they take one place in the order.
       else if (pickerOpen) setPickerOpen(null);
       else if (reading.name) reading.close();
       // The naming screen's Escape is its Cancel, and like Cancel it is there only while a project
@@ -338,13 +332,9 @@ export default function App() {
               modeOpen={pickerOpen === "mode"}
               onToggleMode={() => togglePicker("mode")}
               onModeChange={setLastMode}
-              model={lastModel}
-              modelOpen={pickerOpen === "model"}
-              onToggleModel={() => togglePicker("model")}
-              onModelChange={setLastModel}
               /* The second argument is where an edit starts from, and it is the screen's: which
                  message is being replaced is a state of the transcript, not of the session. */
-              onSend={(text, from) => chat.send(text, skillInForce, lastMode, lastModel, from)}
+              onSend={(text, from) => chat.send(text, skillInForce, lastMode, from)}
               onVersion={chat.version}
               /* A full chat's two ways on: the notice's New chat is the sidebar's own. */
               onNewChat={openDraft}
