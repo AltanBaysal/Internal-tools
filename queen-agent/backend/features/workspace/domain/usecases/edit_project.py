@@ -5,20 +5,23 @@ from backend.features.workspace.domain.errors import InvalidProjectName, Project
 from backend.features.workspace.domain.project import Project
 
 
-def edit_project(store, project_id, name=None) -> Project:
+def edit_project(store, project_id, name=None, pinned=None, archived=None) -> Project:
     current = store.get(project_id)
     if current is None:
         raise ProjectNotFound(project_id)
 
-    changes = {}
     if name is not None:
         trimmed = name.strip()
         # The browser cancels on an empty prompt, but that is a convenience; the rule lives here.
         if not trimmed:
             raise InvalidProjectName(name)
-        changes["name"] = trimmed
-
-    # created_at is never in `changes`: it is the project's history, not something a rename rewrites.
-    edited = replace(current, **changes)
-    store.replace(edited)
-    return edited
+        # created_at stays: it is the project's history, not something a rename rewrites.
+        store.replace(replace(current, name=trimmed))
+    # project.json is written on create and on rename, and a pin is neither: each of these is a
+    # file of its own, written only when it is what was asked for (CODE-STANDARD).
+    if pinned is not None:
+        store.set_pinned(project_id, pinned)
+    if archived is not None:
+        store.set_archived(project_id, archived)
+    # Read back rather than assembled here: the counts and the two marks are the disk's answer.
+    return store.get(project_id)

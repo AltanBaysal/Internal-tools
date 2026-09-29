@@ -1,4 +1,4 @@
-"""FileProjectStore -- the only place that knows the project.json schema."""
+"""FileProjectStore -- the only place that knows how a project is laid out on disk."""
 import json
 
 from backend.features.workspace.domain.naming import unique_name
@@ -11,6 +11,10 @@ FILES_DIR = "files"
 # with a project: an id is "p" plus twelve hex characters, and list_all already skips a directory
 # with no project.json in it.
 TRASH_DIR = "trash"
+# Empty, and there or not there: each answers a question project.json does not (CODE-STANDARD). The
+# pin's mtime is when the project was pinned, which is why pinning twice leaves the file alone.
+PINNED_FILE = "pinned"
+ARCHIVED_FILE = "archived"
 
 
 class ProjectIdTaken(Exception):
@@ -44,6 +48,12 @@ class FileProjectStore:
         self._store.move(project_id, f"{TRASH_DIR}/{trashed}")
         return trashed
 
+    def set_pinned(self, project_id, pinned):
+        self._mark(project_id, PINNED_FILE, pinned)
+
+    def set_archived(self, project_id, archived):
+        self._mark(project_id, ARCHIVED_FILE, archived)
+
     def list_all(self):
         projects = []
         for entry in self._store.list_dir(""):
@@ -58,6 +68,8 @@ class FileProjectStore:
                     created_at=raw["createdAt"],
                     chat_count=len(self._store.list_dir(f"{entry}/{CHATS_DIR}")),
                     file_count=len(self._store.list_dir(f"{entry}/{FILES_DIR}")),
+                    pinned=self._store.exists(f"{entry}/{PINNED_FILE}"),
+                    archived=self._store.exists(f"{entry}/{ARCHIVED_FILE}"),
                 )
             )
         return projects
@@ -76,3 +88,12 @@ class FileProjectStore:
                 indent=2,
             ),
         )
+
+    def _mark(self, project_id, name, on):
+        path = f"{project_id}/{name}"
+        if self._store.exists(path) == on:
+            return
+        if on:
+            self._store.write_text(path, "")
+        else:
+            self._store.remove(path)

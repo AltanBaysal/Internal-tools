@@ -34,11 +34,14 @@ The store follows the same rule, and it is why there is no file-index file:
 | `chats/<id>.json` | what was said in this conversation, and what it answers with | after each message, and on a model or skill choice |
 | `files/<name>` | what did QueenAgent produce | when a file is created |
 | `trash/<name>` | what did the user just delete | on delete — a chat and a file alike |
+| `pinned` | is this project pinned, and since when | on pin; removed on unpin |
+| `archived` | is this project archived | on archive; removed on unarchive |
 
 **No file repeats another's answer.** The file list is the directory listing itself: the name is the
 filename, "2h ago" is its mtime, the order is mtime descending. The count on a sidebar project row is
-a directory count. Before adding a field, ask which question it answers — a field that answers a fifth
-question wants a fifth artifact, and a field that restates an answer already on disk wants deleting.
+a directory count. Before adding a field, ask which question it answers — a field that answers a new
+question wants an artifact of its own, and a field that restates an answer already on disk wants
+deleting.
 
 ## Services (`backend/services/`)
 
