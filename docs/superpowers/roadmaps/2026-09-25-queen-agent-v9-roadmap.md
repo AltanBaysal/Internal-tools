@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 35/48
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 36/48
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -173,7 +173,7 @@ v9-2v v9-2s ile v9-2w'nin üstüne kurulur: arama, sohbet listesinin üstüne ve
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 365 · v9-2v | `ALIGNED` **Search chats.** `+ New chat`'in altında `Search chats` açık projenin sohbetlerinde arar: yazınca liste daralır, Enter ilk eşleşmeyi açıp odağı yazma kutusuna verir, Esc kutuyu boşaltır. Eşleşme yoksa `No chats match "…".` Katlanınca ikon sütununda bir arama ikonu: kenar çubuğunu açıp arama kutusuna odaklanır. *Kararları: v9-2; tasarım: 151, 168, 174.* | Arama yazınca sohbet listesi daralıyor; Enter ilk eşleşen sohbeti açıyor; katlanmış sütundaki arama ikonu kutuya götürüyor. |
+| 365 · v9-2v | ✅ **Search chats.** `+ New chat`'in altında `Search chats` açık projenin sohbetlerinde arar: yazınca liste daralır, Enter ilk eşleşmeyi açıp odağı yazma kutusuna verir, Esc kutuyu boşaltır. Eşleşme yoksa `No chats match "…".` Katlanınca ikon sütununda bir arama ikonu: kenar çubuğunu açıp arama kutusuna odaklanır. *Kararları: v9-2; tasarım: 151, 168, 174.* | Arama yazınca sohbet listesi daralıyor; Enter ilk eşleşen sohbeti açıyor; katlanmış sütundaki arama ikonu kutuya götürüyor. |
 
 ### Prompt'lar — dalgalardan sonra, tek tek, bu sırayla
 
