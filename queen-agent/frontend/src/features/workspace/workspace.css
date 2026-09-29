@@ -1748,7 +1748,7 @@
   margin: 0 0 24px;
 }
 
-/* The search's row; the Archived tab joins it on the right (Madde 363). */
+/* The search's row, the two tabs on its right. */
 .all-projects__tools {
   display: flex;
   align-items: center;
@@ -1766,6 +1766,41 @@
   font-family: inherit;
   font-size: 13.5px;
   color: var(--ink);
+}
+
+.all-projects__tabs {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.all-projects__tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  border-radius: var(--radius-control);
+  padding: 7px 12px;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: #6b6259;
+  cursor: pointer;
+}
+
+.all-projects__tab:hover {
+  background: #f2ede5;
+}
+
+.all-projects__tab.is-on {
+  background: #e5dfd5;
+  color: var(--ink);
+}
+
+.all-projects__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #96795f;
 }
 
 .all-projects__section {
@@ -1815,6 +1850,17 @@
   font-size: 14.5px;
   color: var(--ink);
   cursor: pointer;
+}
+
+/* An archived row: the opener's three columns, but not a button, since an archived project does
+   not open. */
+.all-projects__row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-size: 14.5px;
 }
 
 .all-projects__row-name {
@@ -1883,6 +1929,28 @@
   font-family: inherit;
   font-size: 13px;
   color: var(--ink);
+}
+
+/* The row Archive leaves in the project's place: a quiet line whose one action is Undo. */
+.all-projects__undo {
+  font-size: 13.5px;
+  color: #6b6259;
+}
+
+.all-projects__undo button {
+  border: none;
+  background: none;
+  padding: 4px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.all-projects__undo button:hover {
+  color: var(--accent-link-hover);
 }
 
 .all-projects__empty {

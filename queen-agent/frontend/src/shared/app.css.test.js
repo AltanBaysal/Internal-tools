@@ -46,10 +46,10 @@ test("filled accent surfaces take the filled hover", () => {
 });
 
 test("accent-coloured text takes the text hover", () => {
-  // The undo link used to be the other half of this: karar 16 took it, and with it the only
-  // accent-coloured word outside app.css.
+  // Madde 363 brought an Undo back -- the one Archive leaves in a project's place -- and with it
+  // the only accent-coloured word outside app.css.
   expect(rule(APP, "a:hover")).toContain("var(--accent-link-hover)");
-  expect(WORKSPACE).not.toContain("--accent-link-hover");
+  expect(rule(WORKSPACE, ".all-projects__undo button:hover")).toContain("var(--accent-link-hover)");
 });
 
 // app.css holds the two animations every surface shares: the fade and the three dots' blink. What

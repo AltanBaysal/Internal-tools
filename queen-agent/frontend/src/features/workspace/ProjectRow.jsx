@@ -8,6 +8,38 @@ import { countOf } from "./countOf.js";
 // the ⋯ that holds everything done to it -- done from here and never from inside the project.
 // Whether the menu is open is App's, whose one listener owns Escape; whether the name is being
 // edited is the row's own, since nothing else closes it.
+//
+// An archived row (the design's 190, 191) shows the same columns but opens nothing: its ⋯ is the
+// way back.
+
+function Columns({ project }) {
+  return (
+    <>
+      <span className="all-projects__row-name">{project.name}</span>
+      <span className="all-projects__row-meta">
+        {`${countOf(project.chats ?? 0, "chat")} · ${countOf(project.files ?? 0, "file")}`}
+      </span>
+      <span className="all-projects__row-when">{relativeTime(project.lastActivity)}</span>
+    </>
+  );
+}
+
+// What Archive leaves in the project's place, so taking it back is one press where the project
+// was (the design's 135: an archive is undone, never confirmed).
+export function UndoRow({ name, onUndo }) {
+  return (
+    <div className="all-projects__row all-projects__undo">
+      <span>
+        <strong>{name}</strong> archived
+      </span>
+      {" · "}
+      {/* The row the user just acted on keeps the keyboard, on its one action. */}
+      <button type="button" autoFocus onClick={onUndo}>
+        Undo
+      </button>
+    </div>
+  );
+}
 
 // The name corrected in the row's own place rather than in the browser's box (the design's 170).
 // The draft is the field's, as a message edit's is (EditMessage): only the finished name leaves.
@@ -50,36 +82,64 @@ export default function ProjectRow({
   onCloseMenu,
   onRename,
   onPin,
+  onArchive,
   onDelete,
 }) {
   const more = useRef(null);
   const [renaming, setRenaming] = useState(false);
 
+  const rename = { label: "Rename", onChoose: () => setRenaming(true) };
+  const remove = {
+    label: "Delete",
+    danger: true,
+    divided: true,
+    onChoose: () => onDelete?.(project.id),
+  };
+  const items = project.archived
+    ? [rename, { label: "Unarchive", onChoose: () => onArchive?.(project.id, false) }, remove]
+    : [
+        rename,
+        project.pinned
+          ? { label: "Unpin", onChoose: () => onPin?.(project.id, false) }
+          : { label: "Pin", onChoose: () => onPin?.(project.id, true) },
+        { label: "Archive", onChoose: () => onArchive?.(project.id, true) },
+        remove,
+      ];
+
+  let body;
+  if (renaming) {
+    body = (
+      <RenameField
+        name={project.name}
+        onDone={(name) => {
+          setRenaming(false);
+          // An empty name, or one given up on, asks the server nothing.
+          if (name) onRename?.(project.id, name);
+        }}
+      />
+    );
+  } else if (project.archived) {
+    body = (
+      <div className="all-projects__row-text">
+        <Columns project={project} />
+      </div>
+    );
+  } else {
+    body = (
+      <button
+        type="button"
+        className="all-projects__row-open"
+        title={project.name}
+        onClick={() => onOpen?.(project.id)}
+      >
+        <Columns project={project} />
+      </button>
+    );
+  }
+
   return (
     <div className="all-projects__row">
-      {renaming ? (
-        <RenameField
-          name={project.name}
-          onDone={(name) => {
-            setRenaming(false);
-            // An empty name, or one given up on, asks the server nothing.
-            if (name) onRename?.(project.id, name);
-          }}
-        />
-      ) : (
-        <button
-          type="button"
-          className="all-projects__row-open"
-          title={project.name}
-          onClick={() => onOpen?.(project.id)}
-        >
-          <span className="all-projects__row-name">{project.name}</span>
-          <span className="all-projects__row-meta">
-            {`${countOf(project.chats ?? 0, "chat")} · ${countOf(project.files ?? 0, "file")}`}
-          </span>
-          <span className="all-projects__row-when">{relativeTime(project.lastActivity)}</span>
-        </button>
-      )}
+      {body}
       <button
         ref={more}
         type="button"
@@ -90,22 +150,7 @@ export default function ProjectRow({
         ⋯
       </button>
       {menuOpen ? (
-        <Menu
-          anchor={more.current}
-          onClose={onCloseMenu}
-          items={[
-            { label: "Rename", onChoose: () => setRenaming(true) },
-            project.pinned
-              ? { label: "Unpin", onChoose: () => onPin?.(project.id, false) }
-              : { label: "Pin", onChoose: () => onPin?.(project.id, true) },
-            {
-              label: "Delete",
-              danger: true,
-              divided: true,
-              onChoose: () => onDelete?.(project.id),
-            },
-          ]}
-        />
+        <Menu anchor={more.current} onClose={onCloseMenu} items={items} />
       ) : null}
     </div>
   );
