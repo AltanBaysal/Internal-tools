@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/42
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/43
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
 [BACKLOG.md](../../../queen-agent/BACKLOG.md)'den geliyor, backlog'un dört maddesi de v9-2'ye katıldı;
@@ -11,7 +11,7 @@ de kullanıcının 28 Eylül'deki sözlerinden doğdu; yazdığı listeyi queen-
 doğdu. v9-10 ve v9-11 kullanıcının 29 Eylül'deki sözlerinden doğdu. **v9-7b 29 Eylül'de kalktı:** H3 prompt'unu
 artık queen-editor yazıyor *(v9-7'nin kararları)*, ve numarası kaymadı. **v9-2 29 Eylül'de v9-2a – v9-2w
 olarak bölündü**, tasarımcının `queen-agent-v3` dalından; v9-1d aynı gün oradan doğdu *(v9-2'nin
-kararları)*.
+kararları)*. v9-12 aynı gün Claude'un önerisinden doğdu, ve kullanıcı kabul etti.
 
 **Bu numarayla yazılan ilk belge koşulmadan kapandı** *(`81cf9d53`)*: maddeleri backlog'a döndü.
 Playwright 28 Eylül'de v9-3 olarak geri geldi; ötekiler aynı gün backlog'dan da çıkarıldı
@@ -32,7 +32,7 @@ aynı yere dokunmaz — aynı dosyanın ayrı yerlerine dokunabilirler, ve birle
 
 - **v9-3 en başta, tek tek** *(kullanıcı — "en başa al şimdi")*: sonraki parçalar tarayıcıda kontrol
   edilir.
-- **Dalga 1 – 6:** tasarımın parçaları, ve sunucunun onlara gereken işleri.
+- **Dalga 1 – 6:** tasarımın parçaları, sunucunun onlara gereken işleri, ve v9-12.
 - **Prompt'a dokunan parçalar dalgalardan sonra, tek tek** *(kullanıcı, 29 Eylül — "bu prompt relate
   değişsikleri en sona al abi ben görmek istiyorum çünkü değişikleri")*: v9-7a, v9-8a, v9-9, v9-11,
   v9-8b – v9-8f. Hepsi modele giden aynı metne yazıyor, o yüzden aynı anda koşamaz. v9-9 ve v9-11
@@ -55,8 +55,16 @@ aynı yere dokunmaz — aynı dosyanın ayrı yerlerine dokunabilirler, ve birle
   commit'ler. **Playwright subagent'ta değil** *(kullanıcı — "yine agent baksın olabidliğince
   playwrightı sanırım agentlar kullanırsa sıkınt oluyor ama diğer şeyler için düşün")*: tarayıcı tek,
   orada Claude bakar.
-- **Claude en son bakar:** yanlışsa aynı subagent'a geri yazar; doğruysa birleştirir ve parçayı
-  işaretler. Claude'un çözemediği kullanıcıya gelir.
+- **Claude en son bakar, ve yalnız çalışıyor mu diye değil:** kod FOUNDATION.md'ye ve
+  CODE-STANDARD.md'ye uyuyor mu, ve sürdürülebilir mi *(kullanıcı — "bir ana agent olarak senin işin
+  sadece yazılan kod çalışıyorm u bakmak değil aynı zamanda architetural 2 tane dokumanımız var onlar
+  uygun yazılmış mı diye kontrol etmek ve bu kod usürdürüelbilir mi diye sormayıda içeriyor")*.
+  Yanlışsa aynı subagent'a geri yazar; doğruysa birleştirir ve parçayı işaretler. Claude'un
+  çözemediği kullanıcıya gelir.
+- **v9-3 Claude'un, subagent'sız:** v9-3a'nın ayarı yazılınca kullanıcı Claude Code'u yeniden açar, ve
+  subagent'lar ondan sonra başlar *(kullanıcı, 29 Eylül — "ilk taskı subagetn olmadan sen yap sonra
+  baştan açıp kapatayım sonra subagetna geçeriz olur mu")*. v9-3b de Claude'un, çünkü tarayıcı
+  Claude'da.
 
 **Queen Editor'ün v8-3'ü önce biter:** v9-7a'nın çıkardığı listeyi bugünkü kutu okuyamaz, o yüzden v9
 main'e v8'den önce alınmaz.
@@ -81,69 +89,73 @@ Hepsi bugünkü kodun üstüne kurulur.
 |---|---|---|
 | v9-4a | `ALIGNED` **Yalnız Queen Flash kalır**, DeepSeek'in bugünkü adıyla — `deepseek-flash`; Pro kalkar. *Kararları: v9-4.* | Cevaplar `deepseek-flash`'tan geliyor; *Queen Pro* hiçbir yerde seçilemiyor. |
 | v9-1a | `ALIGNED` **Tavan ve gösterge yalnız sohbetin mesajlarını ölçer**, ve tavan 50.000 kalır. Açılan dosyalar kutusu da sayılmaz. *Kararları: v9-1.* | Gösterge yalnız sohbetin mesajlarını çiziyor: çok araç çağıran bir tur ya da büyük bir dosya açmak onu büyütmüyor. Sohbet, mesajları 50.000'e ulaşınca yeni tur almıyor. |
-| v9-2a | `ALIGNED` **Üst çubuk.** Pencerenin üstünde, her ekranda aynı yerde ve aynı boyda bir çubuk. Solda `QueenAgent` ve sürümü tek satırda: sürüm adla aynı boyda ve aynı kalınlıkta, kalın değil. Bir proje açıkken ortada yalnız projenin adı. Sağda ekrandan çıkış düğmesi: sohbette `Exit project`, uygulamanın açılışına döner. Kenar çubuğundaki marka kalkar. Listede (6). *Kararları: v9-2; tasarım: 150, 159, 161, 166.* | Her ekranın üstünde çubuk: solda `QueenAgent` ile sürümü aynı boyda ve kalınlıkta, sohbette ortada projenin adı, sağda `Exit project`; basınca açılışa dönülüyor. Kenar çubuğunda marka yok. |
-| v9-2b | `ALIGNED` **Proje sabitlenir ve arşivlenir — sunucu.** Bir proje sabitlenip bırakılabilir, arşive alınıp geri getirilebilir; proje listesi her projenin sabitli ve arşivde olup olmadığını söyler. Ekrana dokunmaz: menüsü v9-2q'da, arşivi v9-2t'de. *Kararları: v9-2; tasarım: 135, 167.* | Sunucu bir projeyi sabitliyor, bırakıyor, arşive alıyor ve geri getiriyor; liste ikisini de söylüyor, ve uygulama yeniden açılınca kalıyor. |
-| v9-2c | `ALIGNED` **Yüklenirken spinner.** Parlayan iskelet kalkar, yerine küçük bir dönen halka gelir. Başlık ve düğmeler yerinde durur, yalnız yüklenen kısmın yerinde spinner döner. Bu parça dosya listesi ve sohbetin mesajları; All projects ve ad sorma ekranı v9-2u'da. *Kararları: v9-2; tasarım: 173, 181.* | Dosya listesi yüklenirken ve sohbetin mesajları gelirken spinner dönüyor; hiçbir yerde parlayan iskelet yok. |
-| v9-2d | `ALIGNED` **Sohbet başlığında yalnız sohbetin adı.** `← proje /` kalkar; projenin adı üst çubukta *(v9-2a)*. *Kararları: v9-2; tasarım: 152, 168.* | Sohbet açıkken başlıkta yalnız sohbetin adı var; `←` ve projenin adı yok. |
-| v9-2e | `ALIGNED` **Mesajın altındaki notlar tek satırda.** Kullanıcının mesajının altında saat, sürüm okları ve ✎ aynı satırda, saat önde. Süren cevabın satırı da saatle başlar. Listede (4). *Kararları: v9-2; tasarım: 139.* | Düzenlenmiş bir sorunun altında saat, `‹ 1/2 ›` ve ✎ tek satırda; süren cevabın satırı saatle başlıyor. |
-| v9-2f | `ALIGNED` **Sunucunun reddi de hata kartı.** Sunucu bir mesajı reddedince kırmızı satır yerine, cevap gelmeyince çıkan kahverengi kart çıkar: `Couldn't get a response.`, altında sunucunun kendi yazısı, ve `Try again`. *Kararları: v9-2; tasarım: 193.* | Reddedilen mesajda kahverengi kart, sunucunun yazısı ve `Try again` var; kırmızı ret satırı yok. |
+| v9-2a | `ALIGNED` **Üst çubuk.** Pencerenin üstünde, her ekranda aynı yerde ve aynı boyda bir çubuk. Solda `QueenAgent` ve sürümü tek satırda: sürüm adla aynı boyda ve aynı kalınlıkta, kalın değil. Bir proje açıkken ortada yalnız projenin adı. Sağda ekrandan çıkış düğmesi: sohbette `Exit project`, uygulamanın açılışına döner. Kenar çubuğundaki marka kalkar; katlama düğmesi v9-2w'ye kadar kenar çubuğunun başında kalır. Listede (6). *Kararları: v9-2; tasarım: 150, 159, 161, 166.* | Her ekranın üstünde çubuk: solda `QueenAgent` ile sürümü aynı boyda ve kalınlıkta, sohbette ortada projenin adı, sağda `Exit project`; basınca açılışa dönülüyor. Kenar çubuğunda marka yok. |
+| v9-2b | `ALIGNED` **Proje sabitlenir ve arşivlenir — sunucu.** Bir proje sabitlenip bırakılabilir, arşive alınıp geri getirilebilir; proje listesi her projenin sabitli ve arşivde olup olmadığını söyler. Ekrana dokunmaz: menüsü v9-2q'da, arşivi v9-2t'de. **Mimari:** CODE-STANDARD'a göre `project.json` yalnız projenin adını ve ne zamandan beri olduğunu cevaplar; sabitlemek ve arşivlemek başka bir soru, ve başka bir anda yazılır. Spec bunu o kurala göre çözer, ve yeni bir dosya gelirse CODE-STANDARD'ın tablosu aynı parçada güncellenir. *Kararları: v9-2; tasarım: 135, 167.* | Sunucu bir projeyi sabitliyor, bırakıyor, arşive alıyor ve geri getiriyor; liste ikisini de söylüyor, ve uygulama yeniden açılınca kalıyor. |
+| v9-2c | `ALIGNED` **Yüklenirken spinner, önce dosya listesinde.** Parlayan iskeletin yerine küçük bir dönen halka gelir. Başlık ve düğmeler yerinde durur, yalnız yüklenen kısmın yerinde spinner döner. Bu parça spinner'ı kurar ve dosya listesine koyar; sohbetin açılışı v9-2l'de, All projects ve ad sorma ekranı v9-2u'da. *Kararları: v9-2; tasarım: 173, 181.* | Dosya listesi yüklenirken spinner dönüyor; listede parlayan iskelet yok. |
 | v9-2g | `ALIGNED` **Yanıp sönen kare kalkar.** Cevap gelirken yazının sonunda kare çizilmez; süren satırdaki `Pondering…` gibi kelimeler yeter. *Kararları: v9-2; tasarım: 156.* | Cevap gelirken yazının sonunda kare yok. |
 | v9-2h | `ALIGNED` **Açık dosyanın başlığı.** Üst satırda solda çerçeveli bir `←`, sağda yazılı `Refresh` ve `Copy`; üçü aynı boyda. Dosyanın adı altında kendi satırında, kesilmeden, ve içerikten bir çizgiyle ayrı. Download kalkar. `Copy` basınca `Copied` ya da `Could not copy` der, sonra geri döner. `←` satırın ortasında durur *(tasarımın APP-BUGS.md'si, 48)*. *Kararları: v9-2; tasarım: 154, 155, 176, 186.* | Açık dosyada üst satırda `←` solda, `Refresh` ve `Copy` sağda, aynı boyda; ad altında tam; Download yok. |
 | v9-2i | `ALIGNED` **Çemberin sözü, ve dolmanın önceden duyurusu.** Çemberin ipucu `This chat is N% full`. Sohbet dörtte beşe, 40.000'e gelince çemberin yanında `N% full` yazar. Ölçü v9-1a'nın: yalnız mesajlar. Listede (5). *Kararları: v9-1 ve v9-2; tasarım: 146, 182.* | Çemberin üstüne gelince `This chat is N% full`; %80'i geçmiş sohbette çemberin yanında `N% full` yazıyor. |
+| v9-12 | `ALIGNED` **ChatScreen.jsx bölünür.** Mesajı çizen bileşenler kendi dosyalarına taşınır; ekran ve davranış değişmez. *(Claude önerdi, 29 Eylül — FOUNDATION'ın 4. ilkesi: "A file too big to hold comfortably in context is doing too much — split it"; v9'un dokuz parçası bu dosyaya dokunuyor. Kullanıcı — "Evet, v9-12 olarak eklensin".)* | Ekran önceki gibi, ve testler yeşil; ChatScreen.jsx'te ekranın kendisi kalıyor, mesajın parçaları kendi dosyalarında. |
 
 ### Dalga 2 — dalga 1 birleşince
 
-v9-1b v9-1a'nın, v9-4b v9-4a'nın, v9-2j v9-2b'nin, v9-2k v9-2e'nin, v9-2l v9-2c ile v9-2d'nin, v9-2m
-v9-2c'nin üstüne kurulur.
+v9-1b v9-1a'nın; v9-2j v9-2b'nin; v9-2d, v9-2e ve v9-2f v9-12'nin; v9-2m v9-2c'nin; v9-2w v9-2a'nın
+üstüne kurulur.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
 | v9-1b | `ALIGNED` **Sohbet baştan kırpılabilir.** En eski mesajlar, sohbet 10.000'e inene kadar modele gitmez ama ekranda kalır; özet yok. Kırpmadan sonra çember, modele hâlâ gideni okur *(29 Eylül)*. *Kararları: v9-1.* | Kırpılmış bir sohbette modele yalnız son 10.000 gidiyor, bütün mesajlar ekranda duruyor, ve sohbet yeniden tur alıyor. Sohbetin ölçüsü yalnız modele gidenleri sayıyor. |
-| v9-4b | `ALIGNED` **Model seçici kalkar, ve model hiçbir yerde görünmez** *(29 Eylül'de değişti)*. Listede (7). *Kararları: v9-4; tasarım: 136, 157.* | Yazma kutusunda model seçici de modelin adı da yok. |
-| v9-2j | `ALIGNED` **Projenin son kullanıldığı an — sunucu.** Proje listesi her projenin en son ne zaman kullanıldığını söyler. All projects son kullanılanları buna göre dizer, ve satırda `2h ago` gibi yazar *(v9-2n)*. *Kararları: v9-2; tasarım: 135, 167.* | Sunucunun proje listesi her projenin son kullanıldığı anı veriyor; bir projede sohbet edilince o an yenileniyor. |
-| v9-2k | `ALIGNED` **Cevabın altında cached ve missed.** Biten cevabın altında saat, önbellekten gelen token'lar yeşil `cached`, gelmeyenler kırmızı `missed`: `09:38 · 49.2k cached · 12.1k missed`. Modelin yazdığı token'lar gösterilmez. Sayısı olmayan eski cevapta yalnız saat kalır; süren cevapta tek sayı kalır. *Kararları: v9-2; tasarım: 189, 192.* | Biten cevabın altında yeşil `cached` ve kırmızı `missed` var, `out` yok; eski cevapta yalnız saat. |
-| v9-2l | `ALIGNED` **Sohbet açılırken açılmış gibi görünür.** Bir sohbet yüklenirken başlığı kenar çubuğundaki adıyla, yazma kutusu kapalı ve dosya paneli yerinde durur; yalnız mesajların yerinde spinner döner. Tek başına duran `← back` kalkar. *Kararları: v9-2; tasarım: 194.* | Yüklenen sohbette başlık, kapalı yazma kutusu ve dosya paneli görünüyor, mesajların yerinde spinner dönüyor; `← back` yok. |
+| v9-2j | `ALIGNED` **Projenin son kullanıldığı an, ve listenin sırası — sunucu.** Proje listesi her projenin en son ne zaman kullanıldığını söyler, ve önce sabitlenenler, sonra son kullanılanlar sırasıyla gelir. All projects satırda `2h ago` gibi yazar *(v9-2n)*. **Mimari:** an saklanmaz, sohbetlerden okunur — CODE-STANDARD'a göre hiçbir dosya ötekinin cevabını tekrarlamaz; sıra bir kural, o yüzden sunucunun *(FOUNDATION, Karar 4)*. *Kararları: v9-2; tasarım: 135, 167.* | Sunucunun proje listesi her projenin son kullanıldığı anı veriyor, sabitlenenler önde, sonra en son kullanılan; bir projede sohbet edilince o an yenileniyor. |
+| v9-2d | `ALIGNED` **Sohbet başlığında yalnız sohbetin adı.** `← proje /` kalkar; projenin adı üst çubukta *(v9-2a)*. *Kararları: v9-2; tasarım: 152, 168.* | Sohbet açıkken başlıkta yalnız sohbetin adı var; `←` ve projenin adı yok. |
+| v9-2e | `ALIGNED` **Mesajın altındaki notlar tek satırda.** Kullanıcının mesajının altında saat, sürüm okları ve ✎ aynı satırda, saat önde. Süren cevabın satırı da saatle başlar. Listede (4). *Kararları: v9-2; tasarım: 139.* | Düzenlenmiş bir sorunun altında saat, `‹ 1/2 ›` ve ✎ tek satırda; süren cevabın satırı saatle başlıyor. |
+| v9-2f | `ALIGNED` **Sunucunun reddi de hata kartı.** Sunucu bir mesajı reddedince kırmızı satır yerine, cevap gelmeyince çıkan kahverengi kart çıkar: `Couldn't get a response.`, altında sunucunun kendi yazısı, ve `Try again`. *Kararları: v9-2; tasarım: 193.* | Reddedilen mesajda kahverengi kart, sunucunun yazısı ve `Try again` var; kırmızı ret satırı yok. |
 | v9-2m | `ALIGNED` **Dosya listesinde yazılı Refresh, başlığın satırında.** `↻` yazılı `Refresh` olur, listenin kutusundan çıkıp `PROJECT FILES 5 ›` başlığının sağına geçer; kutu ilk dosyayla başlar. Panel katlanınca `Refresh` görünmez. *Kararları: v9-2; tasarım: 154, 175.* | Yan panelin başlık satırında solda `PROJECT FILES 5 ›`, sağda `Refresh`; kutunun ilk satırı ilk dosya. |
+| v9-2w | `ALIGNED` **Kenar çubuğunu katlama.** Katlama düğmesi bir panel ikonu olur, ve kenar çubuğunun en altında, sağda durur. Katlanınca kenar çubuğu dar bir ikon sütununa iner: `+` yeni sohbet, ve en altta aynı panel ikonu; arama ikonu v9-2v'de gelir. `Ctrl + .` her yerde açıp kapar. *Kararları: v9-2; tasarım: 174, 187.* | Panel ikonu kenar çubuğunun sağ altında; basınca ya da `Ctrl + .` ile ikon sütunu kalıyor, yeniden basınca açılıyor. |
 
 ### Dalga 3 — dalga 2 birleşince
 
-v9-1c v9-1b'nin; v9-2n v9-2a, v9-2b, v9-2j ve v9-4b'nin; v9-2o v9-2m'nin üstüne kurulur.
+v9-1c v9-1b'nin; v9-2n v9-2a, v9-2b ve v9-2j'nin; v9-2k v9-2e'nin; v9-2l v9-2c ile v9-2d'nin; v9-2o
+v9-2m'nin üstüne kurulur.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| v9-1c | `ALIGNED` **Dolan sohbette *burada devam et*.** Sohbet dolar dolmaz, mesaj reddedilmeden, yazma kutusunun yerinde bir bildirim: `This chat is full.`, dolu çember, `New chat` ve `Continue here`. `Continue here` onay istemez ve geri alınmaz: v9-1b'nin kırpmasını yapar, ve sohbet yeniden mesaj alır. Kırpılmış sohbet yeniden dolunca bildirim yine çıkar *(29 Eylül)*. Listede (5). *Kararları: v9-1; tasarım: 140, 182.* | Dolu sohbette yazma kutusunun yerinde bildirim ve iki düğme; `New chat` yeni sohbet açıyor; `Continue here`'den sonra en eski mesajlar modele gitmiyor ama ekranda duruyor, ve sohbet yeniden mesaj alıyor. |
-| v9-2n | `ALIGNED` **All projects ekranı.** Uygulama bu ekranla açılır, ve ekranda kenar çubuğu yok. Başlık `All projects` ve `+ New project`; altında önce sabitlenenler (`PINNED`), sonra son kullanılanlar (`RECENT`). Her satırda projenin adı, `N chats · N files` ve son kullanıldığı an. Satıra basınca projenin son sohbeti açılır, sohbeti yoksa boş sohbeti. Proje yoksa ekran `No projects yet.` der. Proje ekranı ve "No projects yet" ekranı kalkar; **sohbet silme de kalkar**, tek yeri proje ekranıydı *(29 Eylül)*. `+ New project` bugünkü gibi proje açar; ad sorma ekranı v9-2r'de. Listede (1)–(3). *Kararları: v9-2; tasarım: 135, 142, 165, 167, 170.* | Uygulama All projects ile açılıyor; sabitlenenler üstte, sonra son kullanılanlar; satıra basınca projenin son sohbeti açılıyor. Proje ekranı yok, ve `Exit project` buraya dönüyor. |
+| v9-1c | `ALIGNED` **Dolan sohbette *burada devam et*.** Sohbet dolar dolmaz, mesaj reddedilmeden, yazma kutusunun yerinde bir bildirim: `This chat is full.`, dolu çember, `New chat` ve `Continue here`. `Continue here` onay istemez ve geri alınmaz: v9-1b'nin kırpmasını yapar, ve sohbet yeniden mesaj alır. Kırpılmış sohbet yeniden dolunca bildirim yine çıkar *(29 Eylül)*. **Mimari:** sohbetin dolu olduğunu sunucu söyler, ekran hesaplamaz *(FOUNDATION, Karar 4)*. Listede (5). *Kararları: v9-1; tasarım: 140, 182.* | Dolu sohbette yazma kutusunun yerinde bildirim ve iki düğme; `New chat` yeni sohbet açıyor; `Continue here`'den sonra en eski mesajlar modele gitmiyor ama ekranda duruyor, ve sohbet yeniden mesaj alıyor. |
+| v9-2n | `ALIGNED` **All projects ekranı.** Uygulama bu ekranla açılır, ve ekranda kenar çubuğu yok. Başlık `All projects` ve `+ New project`; altında önce sabitlenenler (`PINNED`), sonra son kullanılanlar (`RECENT`). Her satırda projenin adı, `N chats · N files` ve son kullanıldığı an. Satıra basınca projenin son sohbeti açılır, sohbeti yoksa boş sohbeti. Proje yoksa ekran `No projects yet.` der. Proje ekranı, "No projects yet" ekranı ve parlayan iskeletin son iki yeri kalkar. **Sohbet silme de kalkar**, tek yeri proje ekranıydı *(29 Eylül)*: sunucudaki silme ölü kod olur ve o da kalkar, ve CODE-STANDARD'daki çöp satırı düzelir. `+ New project` bugünkü gibi proje açar; ad sorma ekranı v9-2r'de. Listede (1)–(3). *Kararları: v9-2; tasarım: 135, 142, 165, 167, 170.* | Uygulama All projects ile açılıyor; sabitlenenler üstte, sonra son kullanılanlar; satıra basınca projenin son sohbeti açılıyor. Proje ekranı yok, ve `Exit project` buraya dönüyor. |
+| v9-2k | `ALIGNED` **Cevabın altında cached ve missed.** Biten cevabın altında saat, önbellekten gelen token'lar yeşil `cached`, gelmeyenler kırmızı `missed`: `09:38 · 49.2k cached · 12.1k missed`. Modelin yazdığı token'lar gösterilmez. Sayısı olmayan eski cevapta yalnız saat kalır; süren cevapta tek sayı kalır. *(Backlog'dan — kullanıcı, 29 Eylül: "abi token gösteriyoruz ya her chatin altında 2 tane gösterlim bir yeşil bir kırmızı yeşil chached kırmızı missed cahced".)* *Kararları: v9-2; tasarım: 189, 192.* | Biten cevabın altında yeşil `cached` ve kırmızı `missed` var, `out` yok; eski cevapta yalnız saat. |
+| v9-2l | `ALIGNED` **Sohbet açılırken açılmış gibi görünür.** Bir sohbet yüklenirken başlığı kenar çubuğundaki adıyla, yazma kutusu kapalı ve dosya paneli yerinde durur; mesajların yerinde, parlayan iskelet yerine v9-2c'nin spinner'ı döner. Tek başına duran `← back` kalkar. *Kararları: v9-2; tasarım: 194.* | Yüklenen sohbette başlık, kapalı yazma kutusu ve dosya paneli görünüyor, mesajların yerinde spinner dönüyor; `← back` yok. |
 | v9-2o | `ALIGNED` **Açık dosya da çekilerek genişler.** Dosya açıkken de yan panelin sol kenarı çekilerek genişletilip daraltılır. Liste ile açık dosya tek genişlik: listeyi çektiğin kadar dosya açılır, dosyayı çektiğin kadar liste kalır. *Kararları: v9-2; tasarım: 158, 177.* | Dosya açıkken panelin kenarı çekilince genişliyor ya da daralıyor; dosya kapanınca liste o genişlikte, ve sonraki dosya o genişlikte açılıyor. |
 
 ### Dalga 4 — dalga 3 birleşince
 
-v9-1d v9-1c'nin; v9-2p, v9-2q, v9-2r ve v9-2s v9-2n'nin üstüne kurulur.
+v9-1d v9-1c'nin; v9-4b v9-4a ile v9-2n'nin — proje ekranındaki seçiciyi v9-2n ekranla birlikte
+kaldırır —; v9-2p, v9-2q ve v9-2r v9-2n'nin üstüne kurulur.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
 | v9-1d | `ALIGNED` **Kırpılmış sohbette çizgi.** `Continue here`'den sonra, modele hâlâ giden ilk mesajın üstünde bir çizgi: `Messages above this line are no longer sent to the model`. Eski mesajlar okunurken çizgi sohbetin alt kenarında bekler. Listede (5). *Kararları: v9-1; tasarım: 147, 182.* | Kırpılmış sohbette modele gitmeyen mesajlarla gidenlerin arasında çizgi; yukarı kaydırınca çizgi alt kenarda duruyor. |
+| v9-4b | `ALIGNED` **Model seçici kalkar, ve model hiçbir yerde görünmez** *(29 Eylül'de değişti)*. **Mimari:** FOUNDATION'ın 6. kararı aynı parçada güncellenir: modellerin adlarını ve fiyatlarını `models.js`'ten okuyan kimse kalmıyor. Listede (7). *Kararları: v9-4; tasarım: 136, 157.* | Yazma kutusunda model seçici de modelin adı da yok. |
 | v9-2p | `ALIGNED` **Projelerde arama.** All projects'te `Search projects` projelerin adında arar; ekran açılınca odak onda. Eşleşme yoksa `No projects match "…".` *Kararları: v9-2; tasarım: 135, 142, 167.* | Arama kutusuna yazınca liste daralıyor; eşleşme yoksa `No projects match "…".` yazıyor. |
 | v9-2q | `ALIGNED` **Satırın `⋯` menüsü: Rename, Pin, Delete.** Her satırın `⋯`'sinde `Rename` — ad tarayıcının kutusunda değil, satırın yerinde düzenlenir —, `Pin` ya da `Unpin`, ve `Delete` — bugünkü onay penceresi, sohbet ve dosya sayısıyla. Projenin içinde hiç `⋯` yok. `Archive` v9-2t'de. *Kararları: v9-2; tasarım: 135, 161, 167.* | Satırın `⋯`'sinden proje yerinde yeniden adlandırılıyor, sabitlenip bırakılıyor, ve onayla siliniyor. |
 | v9-2r | `ALIGNED` **Ad sorma ekranı.** Her `+ New project`'te ekranın ortasında ad sorulur: başlık `Name your project`, hiç proje yokken `Name your first project`. Enter ya da düğme projeyi yazılan adla açar ve boş sohbetine götürür; boş ad bir şey yapmaz. Bir proje varken üst çubuğun sağında `Cancel` durur, Esc de aynısını yapar: ikisi geldiği yere döner. Listede (3). *Kararları: v9-2; tasarım: 135, 153, 169, 195.* | `+ New project` ad soruyor; proje yazılan adla açılıyor ve boş sohbeti geliyor; `Cancel` ve Esc All projects'e dönüyor. |
-| v9-2s | `ALIGNED` **Kenar çubuğunda yalnız New chat ve sohbetler.** Proje açıkken kenar çubuğu dolu, belirgin bir `+ New chat`'le başlar; altında projenin bütün sohbetleri, sohbet yoksa `No chats yet.` Projeler listesi, `Recent chats` ve projelerin yanındaki `+` kalkar. *Kararları: v9-2; tasarım: 151, 152, 168.* | Kenar çubuğunda ilk göze çarpan `+ New chat`, altında projenin sohbetleri; projeler listesi yok. |
 
 ### Dalga 5 — dalga 4 birleşince
 
-v9-2t v9-2p ile v9-2q'nun, v9-2u v9-2r'nin, v9-2v v9-2s'nin üstüne kurulur.
+v9-2s v9-2q'nun üstüne kurulur: ikisi de projenin menüsünü taşıyan yere dokunuyor, ve aynı anda koşarlarsa
+biri ötekinin kullandığını silebilir. v9-2t v9-2p ile v9-2q'nun, v9-2u v9-2r'nin üstüne kurulur.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
+| v9-2s | `ALIGNED` **Kenar çubuğunda yalnız New chat ve sohbetler.** Proje açıkken kenar çubuğu dolu, belirgin bir `+ New chat`'le başlar; altında projenin bütün sohbetleri, sohbet yoksa `No chats yet.` Projeler listesi, `Recent chats` ve projelerin yanındaki `+` kalkar. *Kararları: v9-2; tasarım: 151, 152, 168.* | Kenar çubuğunda ilk göze çarpan `+ New chat`, altında projenin sohbetleri; projeler listesi yok. |
 | v9-2t | `ALIGNED` **Arşiv.** Satırın `⋯`'sinde `Archive`: proje onaysız arşive gider, yerinde `<ad> archived · Undo` satırı kalır, ve `Undo` onu eski yerine koyar. `Archived` sekmesi sayısıyla: arşivdeki projeler, her birinin `⋯`'sinde `Rename`, `Unarchive` ve `Delete`. Arşiv boşken `No archived projects.`; hepsi arşivdeyse `Every project is archived.` *Kararları: v9-2; tasarım: 135, 161, 190, 191.* | `Archive` projeyi arşive alıyor ve yerinde `Undo` bırakıyor; Archived sekmesinde `Unarchive` projeyi geri getiriyor. |
 | v9-2u | `ALIGNED` **All projects ve ad sorma ekranı yüklenirken ve yüklenemeyince.** Yüklenirken başlık, `+ New project`, arama ve sekmeler yerinde, listenin yerinde spinner; ad sorma ekranında ortada aynı spinner. Proje listesi okunamayınca iki ekranda da tek cümle, `Couldn't load projects.`, `Try again` ve `Copy`; `Copy` gelen hatayı olduğu gibi panoya koyar. *Kararları: v9-2; tasarım: 172, 173.* | Liste gelene kadar spinner dönüyor; sunucu hata verince cümle çıkıyor, `Try again` yeniden deniyor, `Copy` hatanın tam metnini kopyalıyor. |
-| v9-2v | `ALIGNED` **Search chats.** `+ New chat`'in altında `Search chats` açık projenin sohbetlerinde arar: yazınca liste daralır, Enter ilk eşleşmeyi açıp odağı yazma kutusuna verir, Esc kutuyu boşaltır. Eşleşme yoksa `No chats match "…".` *Kararları: v9-2; tasarım: 151, 168.* | Arama yazınca sohbet listesi daralıyor; Enter ilk eşleşen sohbeti açıyor. |
 
 ### Dalga 6 — dalga 5 birleşince
 
-v9-2w v9-2v'nin üstüne kurulur: katlanınca arama ikonu arama kutusunu açar.
+v9-2v v9-2s ile v9-2w'nin üstüne kurulur: arama, sohbet listesinin üstüne ve katlanmış sütuna gelir.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| v9-2w | `ALIGNED` **Kenar çubuğunu katlama.** Katlama düğmesi bir panel ikonu olur, ve kenar çubuğunun en altında, sağda durur. Katlanınca kenar çubuğu dar bir ikon sütununa iner: `+` yeni sohbet, arama, ve en altta aynı panel ikonu. Arama ikonu kenar çubuğunu açıp arama kutusuna odaklanır. `Ctrl + .` her yerde açıp kapar. *Kararları: v9-2; tasarım: 174, 187.* | Panel ikonu kenar çubuğunun sağ altında; basınca ya da `Ctrl + .` ile ikon sütunu kalıyor, yeniden basınca açılıyor. |
+| v9-2v | `ALIGNED` **Search chats.** `+ New chat`'in altında `Search chats` açık projenin sohbetlerinde arar: yazınca liste daralır, Enter ilk eşleşmeyi açıp odağı yazma kutusuna verir, Esc kutuyu boşaltır. Eşleşme yoksa `No chats match "…".` Katlanınca ikon sütununda bir arama ikonu: kenar çubuğunu açıp arama kutusuna odaklanır. *Kararları: v9-2; tasarım: 151, 168, 174.* | Arama yazınca sohbet listesi daralıyor; Enter ilk eşleşen sohbeti açıyor; katlanmış sütundaki arama ikonu kutuya götürüyor. |
 
 ### Prompt'lar — dalgalardan sonra, tek tek, bu sırayla
 

@@ -17,11 +17,6 @@ okusun", "read file geliştirilecek diyelim"; 29 Eylül — "bir de sürekli jso
 ai için zor olabilir belki readi geliştirirsek sadeece alakalı maddeler okur ve analiz eder".)*
 **Ayrıntılar kullanıcıyla konuşulacak.**
 
-## Her mesajın altında önbellekten gelen ve gelmeyen token ayrı gösterilecek
-
-*(Kullanıcı, 29 Eylül — "abi token gösteriyoruz ya her chatin altında 2 tane gösterlim bir yeşil bir
-kırmızı yeşil chached kırmızı missed cahced".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
 ## SDXL prompting belgesi yazılacak
 
 *(Kullanıcı, 29 Eylül — "şuan sdxle özel instructıonlar çok dağılmış durumda farktettiysen toolara vs
