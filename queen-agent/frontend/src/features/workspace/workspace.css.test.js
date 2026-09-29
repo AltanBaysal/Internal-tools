@@ -357,7 +357,7 @@ test("the card of the file being read is marked", () => {
   expect(block).toContain("border-color: #cfc3b2");
 });
 
-// Madde 63: reading empties the rail rather than splitting it. The document takes all 560.
+// Madde 63: reading empties the rail rather than splitting it.
 
 test("the rail has no list column while it is reading", () => {
   // Asked of the file rather than through rule(): that helper asserts the selector exists, so a
@@ -376,9 +376,10 @@ test("nothing in the reading rail is spaced apart from anything", () => {
   expect(rule(".rail--open")).not.toContain("gap");
 });
 
-test("while reading, the rail is the document at the design's widest", () => {
-  // The design gives 320 to 560. Reading asks for the top of that range, and nothing shares it.
-  expect(rule(".rail--open")).toContain("width: 560px");
+test("while reading, the rail has no width of its own", () => {
+  // Madde 356 (the design's item 158): the list and the open file are one width. The app writes it
+  // inline, and until anything is dragged .rail's 320 holds for both.
+  expect(rule(".rail--open")).not.toMatch(/[\s;{]width:/);
   // Still flex with one child: the reader claims the space with flex: 1 rather than a width.
   expect(rule(".rail--open")).toContain("display: flex");
 });
@@ -402,12 +403,6 @@ test("the document reads at the design's size and leading", () => {
   expect(body).not.toContain("white-space");
 });
 
-test("the blocks blink at the design's speed", () => {
-  // One blink in the app, and the number is the design's rather than the one that was here.
-  expect(rule(".skeleton__block")).toContain("animation: blink 1.4s infinite");
-  expect(CSS).not.toContain("blink 1.6s");
-});
-
 // Madde 340: the design's spinner (items 173, 181) is the live stamp's ring at twice the size, on
 // the turn that ring already has, so no animation is invented for it.
 test("the spinner is the live stamp's ring at 20px", () => {
@@ -425,6 +420,21 @@ test("in the file list the spinner stands centred where the rows will be", () =>
   expect(spot).toContain("display: flex");
   expect(spot).toContain("justify-content: center");
   expect(spot).toContain("padding: 24px 12px");
+});
+
+// Madde 355, design item 194: a chat opening turns the same ring where its messages will be.
+test("in a chat that is opening the spinner stands centred where the messages will be", () => {
+  const spot = rule(".chat__spinner");
+  expect(spot).toContain("display: flex");
+  expect(spot).toContain("justify-content: center");
+  expect(spot).toContain("padding: 40px 12px");
+});
+
+test("the box and its pickers, shut while the chat opens, fade like every shut control", () => {
+  expect(CSS).toMatch(/\n\.composer__input:disabled,\r?\n\.picker:disabled \{/);
+  const shut = rule(".picker:disabled");
+  expect(shut).toContain("cursor: default");
+  expect(shut).toContain("opacity: 0.4");
 });
 
 test("the offline strip turns reddish and carries a dot", () => {
@@ -663,6 +673,12 @@ test("the grip is on the rail's left edge and says it can be pulled", () => {
   expect(grip).toContain("left: 0");
 });
 
+test("the grip stands above the reader", () => {
+  // Madde 356 (the design's item 177): the reader's fadeIn lifts it into the grip's paint layer, and
+  // as the later sibling it would cover the grip, so the pointer never reached the edge.
+  expect(rule(".rail__grip")).toContain("z-index: 1");
+});
+
 test("the gauge pushes the rest of the foot to the far end", () => {
   // Madde 92. Not `space-between` on the foot: Skills, the model's name and Send are three separate
   // items in that row, and spreading the row would put its whole width between them.
@@ -745,12 +761,33 @@ test("the strip carries no gap of its own", () => {
   expect(rule(".versions")).not.toContain("margin-top");
 });
 
+test("cached is the design's darker green and missed the destructive red", () => {
+  // Madde 354, design items 189 and 192: the app's only green, darkened to read on the canvas, and
+  // the red that marks a cost here rather than a destruction.
+  expect(rule(".msg__stamp-cached")).toContain("color: #536747");
+  expect(rule(".msg__stamp-missed")).toContain("color: var(--destructive)");
+});
+
+// Madde 352: the full chat's notice stands in the box's place in the box's own shape (design item
+// 140, kit.css's .full).
+test("the full chat's notice is shaped like the box it stands in for", () => {
+  const notice = rule(".full");
+  expect(notice).toContain("max-width: 720px");
+  expect(notice).toContain("border-radius: 14px");
+  expect(notice).toContain("padding: 14px 16px 10px");
+  expect(rule(".full__line")).toContain("font-size: 14px");
+  expect(rule(".full__detail")).toContain("font-size: 13px");
+  expect(rule(".full__detail")).toContain("color: #6b6259");
+  expect(rule(".full__actions")).toContain("justify-content: flex-end");
+});
+
 // --- All projects (Madde 353; the design's items 142, 167, kit.css's .all-projects__*) ------------
 
-test("the project screen and the empty screen left no rule behind", () => {
-  // They went with the screens that drew them, and so did the reader's ×. Comments are taken out
-  // first, so a sentence about a class is not read as a rule; collected rather than asked with
-  // not.toContain, so a failure prints the lines at fault and not the whole stylesheet.
+test("the project screen, the empty screen and the skeleton left no rule behind", () => {
+  // They went with the screens that drew them, and so did the reader's ×; the skeleton's last place
+  // went with Madde 355. Comments are taken out first, so a sentence about a class is not read as a
+  // rule; collected rather than asked with not.toContain, so a failure prints the lines at fault and
+  // not the whole stylesheet.
   const gone = [
     ".screen-layout",
     ".project-grid",
@@ -761,7 +798,7 @@ test("the project screen and the empty screen left no rule behind", () => {
     ".screen__delete",
     ".file-list__bar",
     ".panel",
-    ".skeleton--screen",
+    ".skeleton",
     ".reader__close",
     ".empty__title",
     ".empty__line",

@@ -14,8 +14,12 @@ const STOP = "⏹";
 // `running` says an answer is on its way, and it turns the one action button into a stop. There is
 // nothing to send while one is running, so the button that sends is the one free to stop -- and a
 // control with two states keeps both of them here, where the button already lives.
+//
+// `disabled` shuts the field while a chat's record is still being read (Madde 355): there is no
+// chat yet for a sentence to go into. The send button needs no second rule -- with nothing typed it
+// is shut already.
 export default forwardRef(function Composer(
-  { rows, placeholder, action, gauge, foot, running, onStop, onSubmit },
+  { rows, placeholder, action, gauge, foot, running, disabled, onStop, onSubmit, hidden },
   ref,
 ) {
   // Nothing fills this from outside. Madde 195 did, for the message being edited; Madde 197 moved
@@ -55,12 +59,13 @@ export default forwardRef(function Composer(
   };
 
   return (
-    <div className="composer">
+    <div className="composer" hidden={hidden}>
       <textarea
         className="composer__input"
         rows={rows}
         placeholder={placeholder}
         value={draft}
+        disabled={disabled}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={onKeyDown}
       />

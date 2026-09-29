@@ -297,6 +297,19 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     [projectId, chatId],
   );
 
+  // Continue here (Madde 352): the server trims, and the record is read back the way a version is.
+  // A refusal met while the chat was full said it was full, which stops being true here; an answer
+  // that never came is still owed, so its card and its Try again stay.
+  const trim = useCallback(async () => {
+    try {
+      await postJson(`/api/projects/${projectId}/chats/${chatId}/trim`);
+      setChat(await getJson(`/api/projects/${projectId}/chats/${chatId}`));
+      setRefused(null);
+    } catch (failure) {
+      setError(failure.message);
+    }
+  }, [projectId, chatId]);
+
   const stop = useCallback(async () => {
     // The server's answer carries nothing; what matters is that the running turn's connection is
     // cut. A refusal is not worth a message -- the stream ends either way.
@@ -339,6 +352,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
     stop,
     answer,
     version,
+    trim,
     // Try again sends again what got no answer. A refused reply is the box's to send: its sentence
     // went back there. Anything else -- a failed answer, a refused Try again, or a refused edit,
     // whose sentence nothing holds any more -- asks with no sentence on it.

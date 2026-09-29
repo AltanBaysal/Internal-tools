@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import App from "./App.jsx";
@@ -11,8 +11,7 @@ afterEach(() => {
 });
 
 const PROJECT = { id: "p1", name: "Old", chats: 0, files: 0 };
-// The fork lands on the first project, so a test about where the fork did NOT send the user needs
-// a second one -- going to the first would read the same either way.
+// A second project, so a test can tell the project the user is in from the first one on the list.
 const PROJECT_2 = { id: "p2", name: "Newer", chats: 0, files: 0 };
 
 function stubProjects(projects) {
@@ -53,6 +52,15 @@ function serverWithProjects(projects, chatsOf = {}) {
   return fetch;
 }
 
+// Madde 355: a chat's frame stands from the moment it opens, its box and pickers shut until the
+// record is read. What a test types or picks in a chat waits for the box to open.
+const chatOpened = () =>
+  waitFor(() => {
+    const box = screen.getByPlaceholderText("Reply...");
+    expect(box.disabled).toBe(false);
+    return box;
+  });
+
 test("the shell renders", () => {
   stubProjects([]);
   render(<App />);
@@ -61,7 +69,7 @@ test("the shell renders", () => {
 
 // Madde 338: one bar across the window's top, on every screen. Madde 353: All projects has no
 // sidebar, and while its list is on the way the head stands with nothing where the list will be --
-// neither a skeleton nor a sentence claiming there are none.
+// no sentence claiming there are none.
 test("while the first list loads, All projects stands under the bar with nothing where the list will be", async () => {
   let answer;
   vi.stubGlobal(
@@ -79,7 +87,6 @@ test("while the first list loads, All projects stands under the bar with nothing
   expect(body.className).toBe("app-shell__body");
   expect(shell.querySelector(".main").parentElement).toBe(body);
   expect(shell.querySelector(".sidebar")).toBeNull();
-  expect(screen.queryByTestId("skeleton")).toBeNull();
   expect(screen.getByText("All projects", { selector: ".screen__title" })).toBeTruthy();
   expect(screen.queryByText("No projects yet.")).toBeNull();
 
@@ -597,7 +604,7 @@ test("the first message in a draft creates the chat and takes its address", asyn
   const push = vi.spyOn(window.history, "pushState");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByPlaceholderText("Reply...")).toBeTruthy());
+  await chatOpened();
   fireEvent.change(screen.getByPlaceholderText("Reply..."), {
     target: { value: "Write the intro" },
   });
@@ -606,6 +613,34 @@ test("the first message in a draft creates the chat and takes its address", asyn
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
   // The draft address is not a place to go back to: it no longer exists.
   expect(push).not.toHaveBeenCalled();
+});
+
+// Madde 355, design item 194: a chat opening looks opened -- the sidebar row's name over it, the
+// rail beside it, the box shut -- and only where its messages will be does anything wait.
+test("a chat whose record has not come yet stands in its own frame", async () => {
+  const row = { id: "c1", title: "Write the intro", lastActivity: new Date().toISOString() };
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path) => {
+      if (path.endsWith("/chats/c1")) return new Promise(() => {});
+      if (path.endsWith("/chats")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => [row] });
+      }
+      if (path.endsWith("/files")) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
+    }),
+  );
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  expect(await screen.findByText("Write the intro", { selector: ".chat__title" })).toBeTruthy();
+  await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("plan.md"));
+  expect(document.querySelector(".chat__spinner [data-testid=spinner]")).toBeTruthy();
+  expect(screen.getByPlaceholderText("Reply...").disabled).toBe(true);
+  expect(screen.queryByRole("button", { name: "← back" })).toBeNull();
 });
 
 test("a newborn chat is named by the trimmed first message, not the whole of it", async () => {
@@ -628,7 +663,7 @@ test("a newborn chat is named by the trimmed first message, not the whole of it"
   window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByPlaceholderText("Reply...")).toBeTruthy());
+  await chatOpened();
   fireEvent.change(screen.getByPlaceholderText("Reply..."), { target: { value: first } });
   fireEvent.keyDown(screen.getByPlaceholderText("Reply..."), { key: "Enter" });
 
@@ -658,7 +693,7 @@ test("the user bubble shows before the server answers, and a refusal hands the w
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByPlaceholderText("Reply...")).toBeTruthy());
+  await chatOpened();
   fireEvent.change(screen.getByPlaceholderText("Reply..."), { target: { value: "hello" } });
   fireEvent.keyDown(screen.getByPlaceholderText("Reply..."), { key: "Enter" });
 
@@ -738,7 +773,7 @@ const messagePosts = (fetch) =>
 test("Try again after a refusal sends the refused message again", async () => {
   const fetch = stubRefusingChat(() => NOT_FOUND);
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await screen.findByText("chat not found");
@@ -757,7 +792,7 @@ test("a refusal is not carried into a later send's Try again", async () => {
     post === 1 ? NOT_FOUND : sseResponse('event: error\ndata: {"error":"401 bad key"}\n\n'),
   );
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await screen.findByText("chat not found");
@@ -780,7 +815,7 @@ test("a sentence sent again by Try again does not stay in the box", async () => 
     post === 1 ? NOT_FOUND : sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
   );
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await screen.findByText("chat not found");
@@ -796,7 +831,7 @@ test("a sentence sent again by Try again does not stay in the box", async () => 
 async function refuseInFirstChat() {
   stubRefusingChat(() => NOT_FOUND);
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await screen.findByText("chat not found");
@@ -923,7 +958,7 @@ test("a call arrives in the stream and is still there once the record lands", as
 
   render(<App />);
   // Madde 88: the answer comes of sending, not of arriving.
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByText("Done.")).toBeTruthy());
@@ -969,7 +1004,7 @@ test("sending a sentence streams the answer and keeps the server's record", asyn
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -999,7 +1034,7 @@ test("a call frame takes the dashed card down", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "fix the plan" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -1050,7 +1085,7 @@ test("a file born mid-answer reaches the rail without a reload", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "write the outline" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByTestId("file-rail").textContent).toContain("outline.md"));
@@ -1082,7 +1117,7 @@ test("a turn ending brings the file list up to date, whatever wrote the file", a
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   // Asked before the turn: without this the assertion below would pass on a rail that was never
   // stale in the first place.
   await waitFor(() =>
@@ -1129,7 +1164,7 @@ test("a turn ending reads the file that is open again", async () => {
   fireEvent.click(await screen.findByText("plan.md"));
   await waitFor(() => expect(screen.getByText("the first draft")).toBeTruthy());
 
-  const box = screen.getByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "rewrite it" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByText("the second draft")).toBeTruthy());
@@ -1195,7 +1230,7 @@ function _turnThatReports() {
 test("a running turn counts its rounds and its tokens on screen", async () => {
   _turnThatReports();
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -1207,17 +1242,18 @@ test("a running turn counts its rounds and its tokens on screen", async () => {
 test("when the turn ends the strip is gone and the stamp is in its place", async () => {
   const release = _turnThatReports();
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await screen.findByTestId("live-strip");
 
   release();
   await waitFor(() => expect(screen.queryByTestId("live-strip")).toBeNull());
-  // The bill rather than the volume, and that difference is on purpose: the strip answers how big
-  // the turn got, the stamp answers what it cost. 9000 sent and 100 answered; the 3000 cached
-  // travelled but is not charged for.
-  expect(screen.getByText(/9\.1k tokens/)).toBeTruthy();
+  // What it cost rather than how big it got, and that difference is on purpose: the strip answers
+  // how big the turn got, the stamp what came from the cache and what missed it (Madde 354). 9000
+  // sent, 3000 of it cached; the 100 the model wrote is not shown.
+  expect(screen.getByText("3.0k cached")).toBeTruthy();
+  expect(screen.getByText("6.0k missed")).toBeTruthy();
 });
 
 test("a fault inside the stream shows the card and Try again asks through the one door", async () => {
@@ -1241,7 +1277,7 @@ test("a fault inside the stream shows the card and Try again asks through the on
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByText("401 bad key")).toBeTruthy());
@@ -1270,7 +1306,7 @@ test("a broken engine is reported and nothing asks again by itself", async () =>
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -1454,7 +1490,7 @@ test("Ctrl + . works while typing, and types nothing", async () => {
   withRail();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
 
   // false: the default was prevented, so the browser has nothing of its own left to do with it.
@@ -1467,7 +1503,7 @@ test("a full stop typed alone is only a full stop", async () => {
   withRail();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   expect(fireEvent.keyDown(box, { key: "." })).toBe(true);
   expect(screen.getByText("Projects")).toBeTruthy();
 });
@@ -1502,6 +1538,62 @@ test("dragging it past its minimum folds it instead of leaving a sliver", async 
   expect(screen.getByTestId("file-rail").className).toContain("rail--collapsed");
   // Folded, it is the strip again -- and the strip has no edge to pull.
   expect(screen.queryByRole("separator")).toBeNull();
+});
+
+// Madde 356 (the design's items 158 and 177): the list and the open file are one width, held in App.
+test("a file opens at the width the list was dragged to", async () => {
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 600 });
+  fireEvent.mouseMove(window, { clientX: 520 });
+  fireEvent.mouseUp(window);
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+  const rail = screen.getByTestId("file-rail");
+  expect(rail.className).toContain("rail--open");
+  expect(rail.style.width).toBe("400px");
+});
+
+test("the open file's edge is pulled too, and the list keeps that width once it closes", async () => {
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 600 });
+  fireEvent.mouseMove(window, { clientX: 520 });
+  fireEvent.mouseUp(window);
+  await waitFor(() => expect(screen.getByTestId("file-rail").style.width).toBe("400px"));
+
+  fireEvent.click(screen.getByRole("button", { name: "←" }));
+  await waitFor(() => expect(screen.getByText("Project files")).toBeTruthy());
+  expect(screen.getByTestId("file-rail").style.width).toBe("400px");
+});
+
+test("pulled past its minimum while reading, the file stays and the fold shows once it closes", async () => {
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+
+  // 320 - 200 is under the 220 the rail needs: the rail folds, but what is being read stays.
+  fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 400 });
+  fireEvent.mouseMove(window, { clientX: 600 });
+  fireEvent.mouseUp(window);
+  expect(screen.getByText("body")).toBeTruthy();
+  expect(screen.getByTestId("file-rail").style.width).toBe("320px");
+
+  fireEvent.click(screen.getByRole("button", { name: "←" }));
+  await waitFor(() =>
+    expect(screen.getByTestId("file-rail").className).toContain("rail--collapsed"),
+  );
 });
 
 test("opening a file empties the rail, and ← brings the list back", async () => {
@@ -1801,7 +1893,7 @@ test("picking a model asks the server for nothing", async () => {
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Queen Flash/ })).toBeTruthy());
+  await chatOpened();
   const before = fetch.mock.calls.length;
   fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
   fireEvent.click(screen.getByText("Queen Flash", { selector: ".menu__item-name" }));
@@ -1814,7 +1906,7 @@ test("Queen Pro is on offer nowhere", async () => {
   withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Queen Flash/ })).toBeTruthy());
+  await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
   expect(screen.getByText("MODELS")).toBeTruthy();
   expect(screen.queryByText("Queen Pro")).toBeNull();
@@ -1826,7 +1918,7 @@ test("the model menu takes the one picker slot, and Escape closes it", async () 
   withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Queen Flash/ })).toBeTruthy());
+  await chatOpened();
 
   fireEvent.click(screen.getByText("Skills", { selector: ".picker__name" }));
   expect(screen.getByText("SKILLS")).toBeTruthy();
@@ -1845,7 +1937,7 @@ test("picking a skill asks the server for nothing", async () => {
   const fetch = withStoredSkill("");
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts"));
@@ -1860,7 +1952,7 @@ test("a chat that stored a skill does not put it in the picker", async () => {
   withStoredSkill();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
   expect(screen.queryByRole("button", { name: /Edit prompts/ })).toBeNull();
 });
 
@@ -1870,7 +1962,7 @@ test("what the picker shows is what the message carries", async () => {
   const fetch = withStoredSkill();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "more" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -1928,7 +2020,7 @@ test("a reply goes through the same door and names its chat", async () => {
   const fetch = withStoredSkill("");
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "more" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -1979,7 +2071,7 @@ test("the draft streams its first answer and moves to the new address", async ()
   window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2031,7 +2123,7 @@ test("when the turn ends the record is read, and what it says is what is drawn",
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2069,7 +2161,7 @@ test("a chat that was just born is read by the id the first frame gave", async (
   window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2100,7 +2192,7 @@ test("a turn that ended in a fault is read back too", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2138,7 +2230,7 @@ test("a record that cannot be read back says so in the read's own words", async 
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2175,11 +2267,11 @@ test("the skill picked in a draft survives landing in the chat it created", asyn
   window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
 
-  const box = screen.getByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "Write it" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2237,7 +2329,7 @@ test("a draft's first answer never wears the old chat's transcript", async () =>
   await waitFor(() => expect(screen.getByText("The old answer.")).toBeTruthy());
 
   fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2292,7 +2384,7 @@ test("an answer streaming in one chat does not show in another", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByText("Halfway there")).toBeTruthy());
@@ -2366,7 +2458,7 @@ test("a turn that ends in a left chat does not repaint the one the user is stand
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByText("running")).toBeTruthy());
@@ -2434,7 +2526,7 @@ test("coming back to a streaming chat finds its transcript and its stream", asyn
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "go" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(screen.getByText("Live tail")).toBeTruthy());
@@ -2460,7 +2552,7 @@ test("a skill picked in a chat does not ride into a chat born in the draft", asy
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts"));
   await waitFor(() => expect(screen.getByRole("button", { name: /Edit prompts/ })).toBeTruthy());
@@ -2512,7 +2604,7 @@ test("a skill picked in one chat stays that chat's own", async () => {
   window.history.pushState(null, "", "/p/p1/c/c1");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   await waitFor(() =>
@@ -2554,11 +2646,11 @@ test("a second draft does not wear the first one's skill", async () => {
   window.history.pushState(null, "", "/p/p1/c/new");
 
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
 
-  const box = screen.getByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "Write it" } });
   fireEvent.keyDown(box, { key: "Enter" });
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c1"));
@@ -2575,7 +2667,7 @@ test("picking a skill closes the menu", async () => {
   withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
@@ -2587,7 +2679,7 @@ test("in a draft, picking a skill closes the menu too", async () => {
   withChat();
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
@@ -2600,7 +2692,7 @@ test("Escape closes the picker", async () => {
   withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   expect(screen.getByText("SKILLS")).toBeTruthy();
@@ -2614,13 +2706,11 @@ test("the mode in force is what the message is sent with", async () => {
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() =>
-    expect(screen.getByText("Edit", { selector: ".picker__name" })).toBeTruthy(),
-  );
+  await chatOpened();
 
   fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
   fireEvent.click(screen.getByText("Ask", { selector: ".menu__item-name" }));
-  const box = screen.getByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "hello" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2639,7 +2729,7 @@ test("opening one picker closes the other", async () => {
   withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
 
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   expect(screen.getByText("SKILLS")).toBeTruthy();
@@ -2678,7 +2768,7 @@ function paused(onAnswer) {
 
 async function asked() {
   render(<App />);
-  const box = await screen.findByPlaceholderText("Reply...");
+  const box = await chatOpened();
   /* Sent in ask mode, which is the mode the question exists for -- and it is also what makes the
      picker's move afterwards something to see: the app starts in edit, where nothing is asked. */
   fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
@@ -2767,14 +2857,12 @@ async function reborn() {
      state is gone and only what was written down survives. */
   cleanup();
   render(<App />);
-  return waitFor(() =>
-    expect(screen.getByRole("button", { name: /Skills|Edit prompts/ })).toBeTruthy(),
-  );
+  return chatOpened();
 }
 
 async function picked() {
   render(<App />);
-  await waitFor(() => expect(screen.getByRole("button", { name: /Skills/ })).toBeTruthy());
+  await chatOpened();
   fireEvent.click(screen.getByRole("button", { name: /Skills/ }));
   fireEvent.click(screen.getByText("Edit prompts", { selector: ".menu__item-name" }));
   return waitFor(() =>
@@ -2800,7 +2888,7 @@ test("the message sent after a reload carries the remembered skill", async () =>
 
   const fetch = withChat();
   await reborn();
-  const box = screen.getByPlaceholderText("Reply...");
+  const box = await chatOpened();
   fireEvent.change(box, { target: { value: "carry on" } });
   fireEvent.keyDown(box, { key: "Enter" });
 
@@ -2824,9 +2912,7 @@ test("Escape closes the mode picker too", async () => {
   withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() =>
-    expect(screen.getByText("Edit", { selector: ".picker__name" })).toBeTruthy(),
-  );
+  await chatOpened();
 
   fireEvent.click(screen.getByText("Edit", { selector: ".picker__name" }));
   expect(screen.getByText("MODE")).toBeTruthy();
@@ -2923,4 +3009,122 @@ test("a message is edited, the chat carries on from there, and the arrow goes ba
   fireEvent.click(screen.getByRole("button", { name: "Previous version" }));
   await waitFor(() => expect(screen.getByText("Here it is.")).toBeTruthy());
   expect(screen.queryByText("Shorter.")).toBeNull();
+});
+
+// --- the full chat's notice (Madde 352) ----------------------------------------------------------
+
+const turn = (answer) => [
+  { role: "user", at: new Date().toISOString(), text: "go on" },
+  { role: "ai", at: new Date().toISOString(), text: answer },
+];
+
+// A chat the server calls full until the trim door is knocked on; `trim` is what the door answers.
+function stubFullChat(trim = { ok: true, status: 200, json: async () => ({}) }) {
+  let record = {
+    id: "c1",
+    title: "Long",
+    full: true,
+    trimmed: 0,
+    context: { sent: 50000, ceiling: 50000 },
+    messages: [...turn("First answer."), ...turn("Last answer.")],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/trim") && options?.method === "POST") {
+      if (trim.ok) {
+        record = { ...record, full: false, trimmed: 2, context: { sent: 9000, ceiling: 50000 } };
+      }
+      return Promise.resolve(trim);
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => record });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  return fetch;
+}
+
+test("the notice's New chat opens the project's draft", async () => {
+  stubFullChat();
+  render(<App />);
+  await screen.findByText("This chat is full.");
+  fireEvent.click(within(document.querySelector(".full")).getByRole("button", { name: "New chat" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+});
+
+test("Continue here trims the chat, and it takes messages again with every message still drawn", async () => {
+  const fetch = stubFullChat();
+  render(<App />);
+  await screen.findByText("This chat is full.");
+  expect(screen.queryByRole("textbox")).toBeNull();
+
+  // Asked nothing first and undone by nothing after (the owner's call, 29 September).
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  await waitFor(() => expect(screen.queryByText("This chat is full.")).toBeNull());
+  const posts = fetch.mock.calls.filter(([, options]) => options?.method === "POST");
+  expect(posts.map(([path]) => path)).toEqual(["/api/projects/p1/chats/c1/trim"]);
+  expect(screen.getByRole("textbox")).toBeTruthy();
+  expect(screen.getByText("First answer.")).toBeTruthy();
+  expect(screen.getByText("Last answer.")).toBeTruthy();
+});
+
+test("a refusal met while the chat was full goes with Continue here", async () => {
+  // The question filled the chat and its answer never came; Try again then met the ceiling. What
+  // the refusal said stops being true the moment the chat is trimmed.
+  let record = { id: "c1", title: "Long", full: false, trimmed: 0, messages: turn("Last answer.") };
+  let posts = 0;
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      posts += 1;
+      if (posts === 1) {
+        const asked = { role: "user", at: new Date().toISOString(), text: "and more" };
+        record = { ...record, full: true, messages: [...record.messages, asked] };
+        return Promise.resolve(
+          sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: error\ndata: {"error":"502 upstream"}\n\n'),
+        );
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ error: "this chat has reached its context ceiling" }),
+      });
+    }
+    if (path.endsWith("/trim") && options?.method === "POST") {
+      record = { ...record, full: false, trimmed: 2 };
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => record });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  const box = await chatOpened();
+  fireEvent.change(box, { target: { value: "and more" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByText("502 upstream");
+  await screen.findByText("This chat is full.");
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByText("this chat has reached its context ceiling");
+
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  await waitFor(() => expect(screen.queryByText("This chat is full.")).toBeNull());
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+});
+
+test("a trim the server refuses says so in the server's own words", async () => {
+  stubFullChat({
+    ok: false,
+    status: 400,
+    text: async () => JSON.stringify({ error: "this chat is not full" }),
+  });
+  render(<App />);
+  await screen.findByText("This chat is full.");
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  expect(await screen.findByText("this chat is not full")).toBeTruthy();
 });

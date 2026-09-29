@@ -22,22 +22,25 @@ import { DEFAULT_RAIL_WIDTH } from "./railWidth.js";
 // Its rows open a file and, when the caller hands one over, offer a way to delete it -- through the
 // app's one confirmation.
 //
-// Madde 50 gave the open list a grip on its left edge. What travels back up is the width that was
-// asked for, not a decision: whether that is a width at all, or is narrow enough to mean closing,
-// belongs with the folded state, which is App's (railWidth.js).
+// Madde 50 gave the rail a grip on its left edge, and Madde 356 (the design's items 158 and 177) gave
+// it to the open file too: the list and the document are one width. What travels back up is the
+// width that was asked for, not a decision: whether that is a width at all, or is narrow enough to
+// mean closing, belongs with the folded state, which is App's (railWidth.js).
 
 function railClass(reading, collapsed, dragging) {
-  if (reading?.name) return "rail rail--open";
+  // Said out loud because the stylesheet has to hear it: the width easing is for folding and opening,
+  // and a rail following the pointer has to arrive with it -- the list's and the document's alike.
+  const drag = dragging ? " rail--dragging" : "";
+  if (reading?.name) return `rail rail--open${drag}`;
   if (collapsed) return "rail rail--collapsed";
-  // Said out loud because the stylesheet has to hear it: the width easing is for folding, and a rail
-  // following the pointer has to arrive with it.
-  return dragging ? "rail rail--dragging" : "rail";
+  return `rail${drag}`;
 }
 
-// The rail's own width is only its own while it is a list. Folded it is the design's strip, and
-// while a document is open the width belongs to the document -- the dragged one comes back after.
+// The list and the open file are one width (Madde 356), so the held width is written for either.
+// Folded, the design's strip stands instead -- but only once nothing is being read: a document pulled
+// under the minimum stays at its width, and the fold shows when it closes.
 function railStyle(reading, collapsed, width) {
-  if (reading?.name || collapsed || !width) return undefined;
+  if (!width || (collapsed && !reading?.name)) return undefined;
   return { width: `${width}px` };
 }
 
@@ -144,7 +147,12 @@ export default function FileRail({
 
   if (reading?.name) {
     return (
-      <aside className={railClass(reading, collapsed)} style={style} data-testid="file-rail">
+      <aside
+        className={railClass(reading, collapsed, dragging)}
+        style={style}
+        data-testid="file-rail"
+      >
+        {onResize ? <Grip width={width} onResize={onResize} onDrag={setDragging} /> : null}
         <FilePanel
           name={reading.name}
           file={reading.file}

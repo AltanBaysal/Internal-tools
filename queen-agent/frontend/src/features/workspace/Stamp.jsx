@@ -9,26 +9,38 @@ function shorten(count) {
 }
 
 // The notes that close a message, on one row: when it was said, and -- for an answer that was
-// measured -- what it cost; then whatever the message hands over, which under a question is its
+// measured -- what it sent; then whatever the message hands over, which under a question is its
 // versions and its pencil (Madde 348, design item 139). Under the message rather than over it,
 // because a note about a thing is read after it. One row rather than two, and no name in it: the
 // sidebar carries the name, and which side a message sits on says who wrote it.
 //
-// One number out of the three the record keeps. The other two say what the cache saved, and that is
-// a question about how requests are built rather than something a reader of the chat is asking. The
-// count drops at zero -- an answer from before this existed reads back as zero, and a number there
-// would claim a measurement nobody took. The time never drops: it was said at a time either way.
+// What it sent, in two parts (Madde 354, design items 189 and 192): what the service already had
+// and what it did not. A cached token costs about a fiftieth of one that missed, so the one total
+// this used to draw priced the two alike and said nothing about the bill. Missed is the rest of
+// `sent`, because `cached` is a part of it rather than an addition to it. What the model wrote is
+// not drawn: the owner asked for the two and nothing else. The counts drop when nothing was sent --
+// an answer from before this existed reads back as zero, and a number there would claim a
+// measurement nobody took. The time never drops: it was said at a time either way.
 export default function Stamp({ at, usage, children }) {
   // The wait is stamped by an effect, so the first draw of a pending box has no time yet. Nothing
   // rather than an empty line.
   if (!at) return null;
-  const spent = (usage?.sent ?? 0) + (usage?.answered ?? 0);
-  const when = clockTime(at);
   return (
     <div className="msg__stamp">
       {/* An element of their own, so the row's gap parts the words from the arrows and the pencil,
           and never a word from a glyph. */}
-      <span>{spent ? `${when} · ${shorten(spent)} tokens` : when}</span>
+      <span>
+        {clockTime(at)}
+        {usage?.sent ? (
+          <>
+            {" · "}
+            {/* A word beside each colour, so the two are told apart without it. */}
+            <span className="msg__stamp-cached">{`${shorten(usage.cached)} cached`}</span>
+            {" · "}
+            <span className="msg__stamp-missed">{`${shorten(usage.sent - usage.cached)} missed`}</span>
+          </>
+        ) : null}
+      </span>
       {children}
     </div>
   );

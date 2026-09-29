@@ -12,7 +12,7 @@ import { SKILLS, skillName } from "./skills.js";
 //
 // Whether the menu is open is not held here: Escape closes the two pickers in a fixed order and one
 // closes the other, and neither is knowable from inside a single picker.
-export default function SkillPicker({ skill, open, onToggle, onChange }) {
+export default function SkillPicker({ skill, open, disabled, onToggle, onChange }) {
   const trigger = useRef(null);
 
   return (
@@ -21,6 +21,7 @@ export default function SkillPicker({ skill, open, onToggle, onChange }) {
         type="button"
         ref={trigger}
         className={skill ? "picker picker--on" : "picker"}
+        disabled={disabled}
         onClick={() => onToggle?.()}
       >
         <span className="picker__name">{skillName(skill)}</span>

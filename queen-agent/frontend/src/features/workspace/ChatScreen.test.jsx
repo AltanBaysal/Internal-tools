@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import ChatScreen from "./ChatScreen.jsx";
@@ -264,7 +264,7 @@ test("a call seen while the answer is still running is drawn as it arrives", () 
 });
 
 test("the rail's rows can be deleted from the chat", () => {
-  // Same road as the project screen: the screen only hands the way to ask further along.
+  // The screen only hands the way to ask further along: the question itself is App's.
   const remove = vi.fn();
   const files = [{ name: "notes.md", ext: "md", modifiedAt: NOW }];
   render(<ChatScreen project={PROJECT} chat={CHAT} files={files} deleting={{ remove }} />);
@@ -454,15 +454,67 @@ test("both messages are drawn", () => {
   expect(screen.getByText("Here it is.")).toBeTruthy();
 });
 
-test("a chat that does not exist says so instead of crashing", () => {
+test("a chat that does not exist says so, under the way back", () => {
+  // The design keeps ← back over the missing line (item 194 takes it only from a chat opening).
   render(<ChatScreen project={PROJECT} chat={null} missing />);
   expect(screen.getByText("That chat does not exist.")).toBeTruthy();
-  expect(screen.queryByTestId("skeleton")).toBeNull();
+  expect(screen.getByRole("button", { name: "← back" })).toBeTruthy();
+  expect(screen.queryByTestId("spinner")).toBeNull();
 });
 
-test("a chat still on its way draws blocks", () => {
-  render(<ChatScreen project={PROJECT} chat={null} />);
-  expect(screen.getByTestId("skeleton")).toBeTruthy();
+// --- a chat while it opens (Madde 355) -----------------------------------------------------------
+//
+// Design item 194: until the record comes the chat's own frame stands -- its title, a shut box and
+// the rail -- and only where the messages will be does the spinner turn.
+
+const RAIL = [{ name: "outline.md", ext: "md", modifiedAt: NOW }];
+
+test("a chat still on its way stands in its own frame", () => {
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={null} loadingTitle="Write the intro" files={RAIL} />,
+  );
+  // The sidebar row's own name: the list was read before the record, and says the same.
+  expect(container.querySelector(".chat__header").textContent).toBe("Write the intro");
+  expect(screen.getByTestId("file-rail").textContent).toContain("outline.md");
+  expect(screen.getByPlaceholderText("Reply...")).toBeTruthy();
+});
+
+test("where the messages will be, the spinner turns and nothing else", () => {
+  // Not even a turn still running into this chat: opening draws no turn (design item 194).
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={null} thinking streamingText="Half" />,
+  );
+  const column = container.querySelector(".chat__column");
+  expect(column.children).toHaveLength(1);
+  expect(column.firstElementChild.className).toBe("chat__spinner");
+  expect(column.firstElementChild.firstElementChild).toBe(screen.getByTestId("spinner"));
+});
+
+test("nothing in the box can be written or picked yet", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={null} />);
+  expect(screen.getByPlaceholderText("Reply...").disabled).toBe(true);
+  const pickers = [...container.querySelectorAll(".composer__foot .picker")];
+  expect(pickers.map((picker) => picker.disabled)).toEqual([true, true, true]);
+});
+
+test("no way back stands alone while it opens", () => {
+  render(<ChatScreen project={PROJECT} chat={null} onBack={vi.fn()} />);
+  expect(screen.queryByRole("button", { name: "← back" })).toBeNull();
+});
+
+test("a chat whose row has not come either opens with a blank title", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={null} />);
+  expect(container.querySelector(".chat__title").textContent).toBe("");
+});
+
+test("a sentence left in one chat's box does not follow into the next", () => {
+  // The box is born afresh with each chat, as it was when opening took the box away: what was typed
+  // in one chat is never offered to another.
+  const { rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  fireEvent.change(screen.getByPlaceholderText("Reply..."), { target: { value: "for the first" } });
+  rerender(<ChatScreen project={PROJECT} chat={null} />);
+  rerender(<ChatScreen project={PROJECT} chat={{ ...CHAT, id: "c2", title: "Other" }} />);
+  expect(screen.getByPlaceholderText("Reply...").value).toBe("");
 });
 
 test("waiting for an answer draws three dots and no fake text", () => {
@@ -846,9 +898,8 @@ test("while an answer runs the row ends in Stop, and nothing is added beside it"
 });
 
 test("the picker shows the skill it is handed, not the chat's", () => {
-  // Madde 86: the selection is the session's, and the session is App's. This screen is handed one,
-  // the way ProjectScreen has always been handed one. A skill sitting in an old record is history,
-  // not a selection.
+  // Madde 86: the selection is the session's, and the session is App's. This screen is handed one.
+  // A skill sitting in an old record is history, not a selection.
   // The two values are the record's and none: since Madde 94 the menu holds one name, so the
   // disagreement is shown the other way round -- a stored skill against a session that picked
   // nothing.
@@ -873,30 +924,30 @@ test("picking a skill is passed up rather than kept here", () => {
   expect(onSkillChange).toHaveBeenCalledWith("edit-prompts");
 });
 
-// --- what the answer spent (Madde 68) ------------------------------------------------------------
+// --- what the answer spent (Madde 68, Madde 354) -------------------------------------------------
 //
-// The number is 68's; where it is drawn is 83's. It rides in the stamp under the answer now, after
-// the time and one separator, rather than on a line of its own.
+// The number is 68's; where it is drawn is 83's and 348's. Madde 354 (design items 189, 192) split
+// it: what came from the cache and what missed it, and nothing for what the model wrote.
 
 const withUsage = (usage) => ({
   ...CHAT,
   messages: [CHAT.messages[0], { ...CHAT.messages[1], usage }],
 });
+const answerWords = (container) =>
+  container.querySelector(".msg--ai .msg__stamp").firstElementChild.textContent;
 
-test("an answer says what it spent, beside when it was said", () => {
-  // One number rather than the breakdown: the owner asked for a plain total under each answer, and
-  // what it is made of stays on disk for the context work rather than being drawn here.
-  render(
+test("an answer says what came from the cache and what missed it, beside when it was said", () => {
+  const { container } = render(
     <ChatScreen project={PROJECT} chat={withUsage({ sent: 12400, cached: 9100, answered: 842 })} />,
   );
-  // Asked for by its text rather than by its class: a missing element then names what was looked
-  // for, instead of failing later on a null nobody can read.
-  expect(screen.getByText("11:05 · 13.2k tokens").parentElement.className).toBe("msg__stamp");
+  expect(answerWords(container)).toBe("11:05 · 9.1k cached · 3.3k missed");
 });
 
 test("a small answer is not dressed up as a big one", () => {
-  render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />);
-  expect(screen.getByText("11:05 · 342 tokens").parentElement.className).toBe("msg__stamp");
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />,
+  );
+  expect(answerWords(container)).toBe("11:05 · 0 cached · 300 missed");
 });
 
 test("an answer nobody measured still says when it was said", () => {
@@ -904,7 +955,7 @@ test("an answer nobody measured still says when it was said", () => {
   // a measurement nobody took. The time is not a measurement -- it was said at a time either way.
   render(<ChatScreen project={PROJECT} chat={withUsage({ sent: 0, cached: 0, answered: 0 })} />);
   expect(screen.getByText("11:05").parentElement.className).toBe("msg__stamp");
-  expect(screen.queryByText(/tokens/)).toBeNull();
+  expect(screen.queryByText(/cached|missed/)).toBeNull();
 });
 
 test("the user's own message never carries a count", () => {
@@ -913,7 +964,9 @@ test("the user's own message never carries a count", () => {
     <ChatScreen project={PROJECT} chat={withUsage({ sent: 300, cached: 0, answered: 42 })} />,
   );
   expect(screen.getByText("11:04").parentElement.className).toBe("msg__stamp");
-  expect(container.querySelector(".msg--user").textContent).not.toContain("tokens");
+  const question = container.querySelector(".msg--user").textContent;
+  expect(question).not.toContain("cached");
+  expect(question).not.toContain("missed");
 });
 
 // --- the context gauge (Madde 92) ----------------------------------------------------------------
@@ -1105,4 +1158,63 @@ test("the foot puts the mode before the skill", () => {
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} mode="plan" />);
   const names = [...container.querySelectorAll(".composer__foot .picker__name")];
   expect(names.map((name) => name.textContent)).toEqual(["Plan", "Skills", "Queen Flash"]);
+});
+
+// --- the full chat's notice (Madde 352) ----------------------------------------------------------
+
+const FULL = { ...CHAT, full: true, context: { sent: 50000, ceiling: 50000 } };
+
+test("a full chat stands a notice where the box was", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={FULL} />);
+  const notice = container.querySelector(".chat__composer .full");
+  expect(notice.querySelector(".full__line").textContent).toBe("This chat is full.");
+  expect(notice.querySelector(".full__detail").textContent).toBe(
+    "Continue here sends only the latest messages to the model; the older ones stay on screen.",
+  );
+  // Nothing sends from a full chat: there is no box to type in and no button to press.
+  expect(screen.queryByRole("textbox")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+});
+
+test("the notice's gauge stands at the left of its two buttons", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={FULL} />);
+  const actions = container.querySelector(".full__actions");
+  expect(actions.children).toHaveLength(3);
+  const [gauge, fresh, carryOn] = actions.children;
+  expect(gauge.className).toBe("composer__gauge");
+  expect(within(gauge).getByRole("img").getAttribute("aria-label")).toBe("This chat is full");
+  expect(fresh.textContent).toBe("New chat");
+  expect(carryOn.textContent).toBe("Continue here");
+  // Neither is the primary action: nothing is destroyed, somebody is being asked.
+  expect(fresh.classList.contains("ghost")).toBe(true);
+  expect(carryOn.classList.contains("ghost")).toBe(true);
+});
+
+test("the notice's buttons ask for a new chat and for this one to carry on", () => {
+  const onNewChat = vi.fn();
+  const onContinue = vi.fn();
+  render(
+    <ChatScreen project={PROJECT} chat={FULL} onNewChat={onNewChat} onContinue={onContinue} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "New chat" }));
+  expect(onNewChat).toHaveBeenCalled();
+  expect(onContinue).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  expect(onContinue).toHaveBeenCalled();
+});
+
+test("a chat that is not full keeps its box and draws no notice", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={{ ...CHAT, full: false }} />);
+  expect(container.querySelector(".full")).toBeNull();
+  expect(screen.getByRole("textbox")).toBeTruthy();
+});
+
+test("a sentence typed as the chat fills is still in the box once it carries on", () => {
+  // FOUNDATION's first principle: a reply typed while the last answer ran does not go with the box.
+  const { rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "and then?" } });
+  rerender(<ChatScreen project={PROJECT} chat={FULL} />);
+  expect(screen.queryByRole("textbox")).toBeNull();
+  rerender(<ChatScreen project={PROJECT} chat={{ ...CHAT, full: false }} />);
+  expect(screen.getByRole("textbox").value).toBe("and then?");
 });

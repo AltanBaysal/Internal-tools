@@ -14,9 +14,34 @@ test("without a time there is no stamp", () => {
   expect(container.firstChild).toBeNull();
 });
 
-test("an answer's stamp says when and what it spent", () => {
-  render(<Stamp at={AT} usage={{ sent: 1000, answered: 200 }} />);
-  expect(screen.getByText(`${clockTime(AT)} · 1.2k tokens`)).toBeTruthy();
+// Madde 354 (design items 189, 192): under a finished answer what it sent, split into the part the
+// service already had and the part it did not. What the model wrote is not shown.
+const SPLIT = { sent: 61240, cached: 49152, answered: 684 };
+const wordsOf = (container) => container.querySelector(".msg__stamp").firstElementChild;
+
+test("a finished answer's stamp says what came from the cache and what missed it", () => {
+  const { container } = render(<Stamp at={AT} usage={SPLIT} />);
+  expect(wordsOf(container).textContent).toBe(`${clockTime(AT)} · 49.2k cached · 12.1k missed`);
+});
+
+test("cached and missed each wear a class of their own, inside the words", () => {
+  // The class is what the stylesheet colours them by: green for cached, red for missed.
+  const { container } = render(<Stamp at={AT} usage={SPLIT} />);
+  const words = wordsOf(container);
+  expect(words.querySelector(".msg__stamp-cached")?.textContent).toBe("49.2k cached");
+  expect(words.querySelector(".msg__stamp-missed")?.textContent).toBe("12.1k missed");
+});
+
+test("what the model wrote is not on the row", () => {
+  const { container } = render(<Stamp at={AT} usage={SPLIT} />);
+  const row = container.querySelector(".msg__stamp").textContent;
+  expect(row).not.toContain("684");
+  expect(row).not.toContain("tokens");
+});
+
+test("an answer the cache served whole still says what it missed", () => {
+  const { container } = render(<Stamp at={AT} usage={{ sent: 3072, cached: 3072, answered: 58 }} />);
+  expect(wordsOf(container).textContent).toBe(`${clockTime(AT)} · 3.1k cached · 0 missed`);
 });
 
 test("nothing spent leaves the time alone", () => {

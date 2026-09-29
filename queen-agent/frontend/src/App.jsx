@@ -281,6 +281,8 @@ export default function App() {
           {route.view === "chat" ? (
             <ChatScreen
               chat={drafting ? DRAFT : chat.chat}
+              /* Before the record comes, the chat is called what its sidebar row calls it. */
+              loadingTitle={projectChats.find((row) => row.id === route.chatId)?.title}
               files={files}
               loadingFiles={loadingFiles}
               filesError={filesError}
@@ -319,6 +321,9 @@ export default function App() {
                  message is being replaced is a state of the transcript, not of the session. */
               onSend={(text, from) => chat.send(text, skillInForce, lastMode, lastModel, from)}
               onVersion={chat.version}
+              /* A full chat's two ways on: the notice's New chat is the sidebar's own. */
+              onNewChat={openDraft}
+              onContinue={chat.trim}
               onSkillChange={changeSkill}
               onStop={chat.stop}
               /* The question is the hook's; the mode is the session's, and the session is here.
