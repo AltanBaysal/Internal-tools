@@ -576,6 +576,18 @@ test("the gauge pushes the rest of the foot to the far end", () => {
   expect(rule(".composer__gauge")).toContain("margin-right: auto");
 });
 
+test("the gauge's words are the notes' mono in the pickers' ink", () => {
+  // Madde 343, design items 146 and 182. Not --muted: that is 3.7:1 on the composer's box.
+  const words = rule(".context-gauge__words");
+  expect(words).toContain("font-family: var(--font-mono)");
+  expect(words).toContain("font-size: 11.5px");
+  expect(words).toContain("color: #6b6259");
+});
+
+test("the words stand 6 from the circle, the stamp's gap", () => {
+  expect(rule(".composer__gauge")).toContain("gap: 6px");
+});
+
 // --- editing a message, and the versions it leaves behind (Madde 195) ----------------------------
 
 test("nothing wraps the bubble in a row of its own", () => {
