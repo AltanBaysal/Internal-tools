@@ -29,7 +29,6 @@ from backend.features.workspace.domain.permission import PermissionWanted, Waiti
 from backend.features.workspace.domain.tools import FileStarted, FileWritten
 from backend.features.workspace.domain.usecases.append_message import append_message
 from backend.features.workspace.domain.usecases.create_project import create_project
-from backend.features.workspace.domain.usecases.delete_chat import delete_chat
 from backend.features.workspace.domain.usecases.delete_file import delete_file
 from backend.features.workspace.domain.usecases.delete_project import delete_project
 from backend.features.workspace.domain.usecases.edit_project import edit_project
@@ -259,14 +258,6 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
         # Nobody reads this name any more, but it is the one sentence that says what happened on
         # disk, and deleting a project answers the same way.
         return jsonify({"trashed": trashed})
-
-    @workspace_bp.delete("/api/projects/<project_id>/chats/<chat_id>")
-    def delete_project_chat(project_id, chat_id):
-        try:
-            delete_chat(chat_store, project_id, chat_id)
-        except ChatNotFound:
-            return jsonify({"error": "chat not found"}), 404
-        return jsonify({})
 
     return workspace_bp
 
