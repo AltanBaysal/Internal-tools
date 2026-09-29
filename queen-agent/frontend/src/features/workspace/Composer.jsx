@@ -15,7 +15,7 @@ const STOP = "⏹";
 // nothing to send while one is running, so the button that sends is the one free to stop -- and a
 // control with two states keeps both of them here, where the button already lives.
 export default forwardRef(function Composer(
-  { rows, placeholder, action, gauge, foot, running, onStop, onSubmit },
+  { rows, placeholder, action, gauge, foot, running, onStop, onSubmit, hidden },
   ref,
 ) {
   // Nothing fills this from outside. Madde 195 did, for the message being edited; Madde 197 moved
@@ -55,7 +55,7 @@ export default forwardRef(function Composer(
   };
 
   return (
-    <div className="composer">
+    <div className="composer" hidden={hidden}>
       <textarea
         className="composer__input"
         rows={rows}

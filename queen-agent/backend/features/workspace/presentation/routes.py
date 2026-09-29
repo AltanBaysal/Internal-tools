@@ -369,6 +369,9 @@ def _chat_json(chat):
         # How many messages at the start of the open line no longer go to the model (Madde 345).
         # Always present, 0 when nothing was trimmed, for the same reason `calls` is below.
         "trimmed": sent_from(chat),
+        # Whether the chat takes another turn (Madde 352). The screen stands its notice on this
+        # alone rather than counting against the ceiling itself -- the rule has one home.
+        "full": is_full(chat),
         # The open line since Madde 195, and the key stays `messages`: what the browser is handed is
         # the conversation as it stands, which is what it always was.
         "messages": [

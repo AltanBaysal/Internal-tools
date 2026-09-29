@@ -5,6 +5,7 @@ import ContextGauge from "./ContextGauge.jsx";
 import EditMessage from "./EditMessage.jsx";
 import FileCard, { CreatingFile } from "./FileCard.jsx";
 import FileRail from "./FileRail.jsx";
+import FullNotice from "./FullNotice.jsx";
 import Markdown from "./Markdown.jsx";
 import MessageFoot from "./MessageFoot.jsx";
 import ModelPicker from "./ModelPicker.jsx";
@@ -61,6 +62,8 @@ export default function ChatScreen({
   onStop,
   onRetry,
   onVersion,
+  onNewChat,
+  onContinue,
 }) {
   // Which message is being edited, and the token that puts its sentence in the box (Madde 195).
   // Held here rather than in App: it is a state of this screen, and it ends the moment the sentence
@@ -113,6 +116,11 @@ export default function ChatScreen({
   // was said. The card claims something else, that the file exists and is called this, so it is
   // drawn from the crossing of the two: once the file is deleted it simply stops having a card.
   const onDisk = new Set(files.map((file) => file.name));
+
+  /* Read off the record like everything else on this screen: the same number the stamp under the
+     last answer shows, and nothing counts it a second time. A record written before Madde 92
+     carries none, and then there is no circle. The box and a full chat's notice both carry it. */
+  const gauge = <ContextGauge sent={chat.context?.sent} ceiling={chat.context?.ceiling} />;
 
   return (
     /* A narrow shell hides the conversation while a file is open, and CSS cannot look at a later
@@ -292,15 +300,19 @@ export default function ChatScreen({
         </div>
 
         <div className="chat__composer">
+          {chat.full ? (
+            <FullNotice gauge={gauge} onNewChat={onNewChat} onContinue={onContinue} />
+          ) : null}
           <Composer
             ref={box}
+            /* Hidden rather than taken away while the notice stands: a reply typed as the last
+               answer filled the chat is the user's work, and Continue here hands the box back with
+               it. Standing, the box also keeps a refused reply's Try again able to send it. */
+            hidden={chat.full}
             rows={2}
             placeholder="Reply..."
             action="Send"
-            /* Read off the record like everything else on this screen: the same number the stamp
-               under the last answer shows, and nothing counts it a second time. A record written
-               before Madde 92 carries none, and then there is no circle. */
-            gauge={<ContextGauge sent={chat.context?.sent} ceiling={chat.context?.ceiling} />}
+            gauge={gauge}
             /* karar 1's order, with Madde 91's mode in front of it: Mode · Skills · model · Send.
                What the model may do at all comes before which job it is doing. The model is a
                control again since Madde 146 -- three of them, so there is something to pick. All
