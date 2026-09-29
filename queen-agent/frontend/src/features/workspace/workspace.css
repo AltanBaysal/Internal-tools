@@ -837,7 +837,9 @@
 /* Pulled to set the width. It covers the rail's whole left edge: the rail scrolls its own content,
    so `bottom: 0` reaches the end of a long list and `min-height: 100%` covers the other case, where
    there is less list than there is rail. Six pixels is what the pointer needs; the line the user
-   sees is the rail's own border, which the grip sits on top of. */
+   sees is the rail's own border, which the grip sits on top of. Above the reader as well: the
+   reader's fadeIn (opacity) lifts it into the grip's paint layer, and as the later sibling it would
+   cover the grip, so the pointer never reached the edge (the design's item 177). */
 .rail__grip {
   position: absolute;
   top: 0;
@@ -845,6 +847,7 @@
   left: 0;
   min-height: 100%;
   width: 6px;
+  z-index: 1;
   cursor: col-resize;
 }
 
@@ -858,12 +861,12 @@
   transition: none;
 }
 
-/* Reading empties the rail rather than splitting it: the document is the only thing in here, and it
-   gets all 560 -- the widest the design allows. It used to share the room with the list, which cost
-   the document 200 pixels to offer what the back arrow offers anyway.
+/* Reading empties the rail rather than splitting it: the document is the only thing in here. It
+   used to share the room with the list, which cost the document 200 pixels to offer what the back
+   arrow offers anyway. No width of its own: the list and the document are one width (Madde 356), so
+   .rail's 320 holds until a drag and the app writes the rest inline.
    Still flex, with one child: the reader below claims the space with flex: 1. */
 .rail--open {
-  width: 560px;
   display: flex;
   overflow: hidden;
   /* The reader carries its own margins, so the rail adds none of its own. */
