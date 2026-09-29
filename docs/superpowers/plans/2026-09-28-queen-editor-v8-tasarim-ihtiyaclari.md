@@ -133,7 +133,7 @@ bir modele geçebilmeli.
 
 - Galerideki kutucuğun bugünkü etiketleri okunur kalır: sıra numarası, durum ve sahip olunan
   katmanlar.
-- Karenin sayfasındaki prompt kutuları yazılabilir kalır. Kullanıcı loop olmayan bir karenin video
-  prompt'unu oradan elle düzeltiyor.
+- Karenin sayfasındaki prompt kutuları yazılabilir kalır. Kullanıcı bir karenin prompt'unu oradan
+  elle düzeltebiliyor.
 - Paneldeki *"Negatif prompt"* alanı bugünkü gibi kalır. Senaryonun negatif listesi QueenAgent'tan
   kopyalanıp buraya yapıştırılıyor.
