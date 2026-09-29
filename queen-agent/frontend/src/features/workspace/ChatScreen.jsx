@@ -261,12 +261,11 @@ export default function ChatScreen({
               />
             ) : null}
 
-            {/* A message that was never sent has no answer to try again for -- it has a sentence to
-                write again, and that sentence is already back in the composer. */}
-            {refused ? <p className="refused">{refused}</p> : null}
-
-            {error ? (
-              <div className="failure">
+            {/* A message the server refused and an answer that never came are one card (design
+                item 193): either way no answer came, and Try again asks for one again -- what it
+                sends is the hook's to know. */}
+            {[refused, error].filter(Boolean).map((words, index) => (
+              <div key={index} className="failure">
                 <div className="failure__body">
                   {/* The design also said "The connection dropped." That is a guessed cause -- a bad
                       key and a wrong model name raise this same card -- so the card states what
@@ -275,7 +274,7 @@ export default function ChatScreen({
                   {/* The server's own words and nothing beside them. There used to be a way out
                       offered here -- a screen for typing a missing key -- and with the key coming
                       from the environment there is no longer anywhere for it to lead. */}
-                  <span className="failure__detail">{error}</span>
+                  <span className="failure__detail">{words}</span>
                 </div>
                 {onRetry ? (
                   <button type="button" className="failure__retry" onClick={onRetry}>
@@ -283,7 +282,7 @@ export default function ChatScreen({
                   </button>
                 ) : null}
               </div>
-            ) : null}
+            ))}
           </div>
         </div>
 
