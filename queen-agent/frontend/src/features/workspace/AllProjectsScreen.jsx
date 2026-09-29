@@ -1,6 +1,8 @@
 import { useState } from "react";
 
 import ProjectRow, { UndoRow } from "./ProjectRow.jsx";
+import ProjectsFailure from "./ProjectsFailure.jsx";
+import Spinner from "./Spinner.jsx";
 
 // The screen the app opens on (the design's items 135, 142, 167), and the one Exit project comes
 // back to. No sidebar stands beside it: no project is open here. The order is the server's
@@ -9,8 +11,6 @@ import ProjectRow, { UndoRow } from "./ProjectRow.jsx";
 //
 // The search and the tab are this screen's own state: what is shown while typing is the UI's
 // (FOUNDATION, Decision 4), so they reach neither the server nor the address.
-//
-// The spinner and the sentence a failed list gets are an item of their own (364).
 
 // Case and accents do not count, as in the design's data.js: "cafe" finds "Café".
 const fold = (text) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -52,6 +52,8 @@ export default function AllProjectsScreen({
   projects = [],
   loading,
   error,
+  writeError,
+  onRetry,
   menuFor,
   onNewProject,
   onOpenProject,
@@ -115,15 +117,8 @@ export default function AllProjectsScreen({
       />
     );
 
-  if (error) {
-    // A failed list means the count is unknown, not zero: offering the list's frame over it would be
-    // telling the user something the server never said.
-    return (
-      <div className="empty">
-        <p className="empty__error">{error}</p>
-      </div>
-    );
-  }
+  // A wait comes first: Try again shows the frame and its ring again (the design's 173).
+  if (error && !loading) return <ProjectsFailure error={error} onRetry={onRetry} />;
 
   const tabs = [
     ["projects", "Projects", open.length],
@@ -165,8 +160,16 @@ export default function AllProjectsScreen({
             ))}
           </div>
         </div>
-        {/* Until the list has come, "no projects yet" is a guess and not a fact. */}
-        {loading ? null : (
+        {/* A write that did not land leaves the list known, so its words stand over the list in
+            the line every list uses; the next write takes them away. */}
+        {writeError ? <p className="list-error">{writeError}</p> : null}
+        {/* Until the list has come, "no projects yet" is a guess and not a fact: the ring turns in
+            its place while everything above it stands (the design's 173). */}
+        {loading ? (
+          <div className="all-projects__spinner">
+            <Spinner />
+          </div>
+        ) : (
           <ProjectList
             any={projects.length > 0}
             shown={shown}

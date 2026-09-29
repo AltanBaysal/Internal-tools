@@ -988,3 +988,32 @@ test("the trim's line reads as a note between two rules", () => {
   expect(line).toContain("color: #6b6259");
   expect(grouped(".trimmed::before,")).toContain("border-top: 1px solid var(--line)");
 });
+
+// --- Madde 364: the wait and the list that did not come (the design's 172, 173, kit.css) ----------
+
+test("on All projects the spinner stands centred where the list will be", () => {
+  const spot = rule(".all-projects__spinner");
+  expect(spot).toContain("display: flex");
+  expect(spot).toContain("justify-content: center");
+  expect(spot).toContain("padding: 40px 12px");
+});
+
+test("Try again and Copy stand side by side under the sentence", () => {
+  const actions = rule(".empty__actions");
+  expect(actions).toContain("display: flex");
+  expect(actions).toContain("gap: 10px");
+  expect(actions).toContain("margin-top: 16px");
+});
+
+test("the failure's Copy answers in Copy's own colours", () => {
+  expect(rule('.empty__copy[data-said="yes"]')).toContain("color: var(--accent)");
+  expect(rule('.empty__copy[data-said="no"]')).toContain("color: var(--destructive)");
+});
+
+test("a refused project's words are the server's, in the failure's own voice", () => {
+  const said = rule(".empty__refused");
+  expect(said).toContain("font-family: var(--font-mono)");
+  expect(said).toContain("font-size: 11.5px");
+  expect(said).toContain("color: #a4735a");
+  expect(said).toContain("overflow-wrap: anywhere");
+});

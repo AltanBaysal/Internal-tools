@@ -81,18 +81,49 @@ test("a second press while the first is on its way makes no second project", () 
   expect(onCreate).toHaveBeenCalledTimes(1);
 });
 
-test("while the list loads, nothing is asked yet", () => {
-  // Whether this is the first project is not known until the list comes; the spinner is Madde 364's.
-  render(<NameProjectScreen loading onCreate={vi.fn()} />);
+// Madde 364 (the design's 172, 173).
+test("while the list loads, the spinner stands alone and nothing is asked yet", () => {
+  // Whether this is the first project is not known until the list comes, so there is no frame to
+  // keep: only empty's own centring, and the ring in it.
+  const { container } = render(<NameProjectScreen loading onCreate={vi.fn()} />);
+  const empty = container.querySelector(".empty");
+  expect(empty.children.length).toBe(1);
+  expect(empty.firstElementChild.dataset.testid).toBe("spinner");
   expect(screen.queryByPlaceholderText("Project name")).toBeNull();
   expect(screen.queryByText(/Name your/)).toBeNull();
 });
 
-test("a failure says what the server said, and nothing else", () => {
-  const { container } = render(
-    <NameProjectScreen error="a project needs a name" onCreate={vi.fn()} />,
-  );
-  expect(screen.getByText("a project needs a name").className).toBe("empty__error");
-  expect(container.querySelector(".empty")).toBeTruthy();
+// What failure.js makes of a Flask 500 page: the code and the body, as they came.
+const RAW = "HTTP 500: <!doctype html>\n<title>500 Internal Server Error</title>";
+
+test("a list that could not be read says so, with Try again and Copy, and asks nothing", () => {
+  // All projects' own failure: one plain sentence, the raw words left to Copy.
+  const onRetry = vi.fn();
+  render(<NameProjectScreen error={RAW} onRetry={onRetry} onCreate={vi.fn()} />);
+  expect(screen.getByText("Couldn't load projects.").className).toBe("empty__error");
+  expect(screen.queryByText(/HTTP 500/)).toBeNull();
   expect(screen.queryByPlaceholderText("Project name")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(onRetry).toHaveBeenCalled();
+});
+
+test("its Copy puts the error on the clipboard exactly as it came", () => {
+  // jsdom ships no clipboard, so the test supplies one and watches what it is handed.
+  const writeText = vi.fn(() => Promise.resolve());
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  render(<NameProjectScreen error={RAW} onCreate={vi.fn()} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(writeText).toHaveBeenCalledWith(RAW);
+});
+
+test("a project the server will not make keeps the name typed, and says what the server said", async () => {
+  // The name is the user's work: a refusal is said under it, never in its place.
+  const onCreate = vi.fn().mockRejectedValue(new Error("a project needs a name"));
+  render(<NameProjectScreen onCreate={onCreate} />);
+  type("Harbour");
+  fireEvent.keyDown(field(), { key: "Enter" });
+  const said = await screen.findByText("a project needs a name");
+  expect(said.className).toBe("empty__refused");
+  expect(said.previousElementSibling.className).toBe("empty__row");
+  expect(field().value).toBe("Harbour");
 });

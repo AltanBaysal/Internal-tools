@@ -430,6 +430,8 @@ test("a project the server will not make says what the server said", async () =>
   fireEvent.keyDown(field, { key: "Enter" });
   expect(await screen.findByText("the store is unreachable")).toBeTruthy();
   expect(window.location.pathname).toBe("/new");
+  // Madde 364: the refusal is said under the name, which is still there to send again.
+  expect((await nameField()).value).toBe("Harbour");
 });
 
 test("a chat that does not exist leads back to All projects", async () => {
@@ -779,6 +781,119 @@ test("with every project archived, the naming screen still counts them", async (
   expect(barExit().textContent).toBe("Cancel");
 });
 
+// --- Madde 364: the list that did not come, and a write the server refused ------------------------
+
+const FAILED = { ok: false, status: 500, text: async () => "" };
+
+// The first read of the list fails; the next one waits until the test answers it.
+function listFailingOnce(projects) {
+  let reads = 0;
+  let answer;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((path) => {
+      if (path !== "/api/projects") return ok([]);
+      reads += 1;
+      if (reads === 1) return Promise.resolve(FAILED);
+      return new Promise((resolve) => {
+        answer = () => resolve({ ok: true, status: 200, json: async () => projects });
+      });
+    }),
+  );
+  return () => answer();
+}
+
+test("Try again reads the list again, with the spinner while it waits", async () => {
+  const answer = listFailingOnce([THESIS]);
+  render(<App />);
+  fireEvent.click(await screen.findByRole("button", { name: "Try again" }));
+  // The design's 173: Try again shows the wait too, the frame standing around it.
+  expect(await screen.findByText("All projects", { selector: ".screen__title" })).toBeTruthy();
+  expect(document.querySelector(".all-projects__spinner [data-testid=spinner]")).toBeTruthy();
+  await act(async () => {
+    answer();
+  });
+  expect(await screen.findByText("Thesis", { selector: ".all-projects__row-name" })).toBeTruthy();
+  expect(screen.queryByText("Couldn't load projects.")).toBeNull();
+});
+
+test("on the naming screen a list that did not come offers Try again, and no way back", async () => {
+  // With the list unknown there is no project known to go back to, as in the design's failed.
+  const answer = listFailingOnce([THESIS]);
+  window.history.pushState(null, "", "/new");
+  render(<App />);
+  expect(await screen.findByText("Couldn't load projects.")).toBeTruthy();
+  expect(barExit()).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await act(async () => {
+    answer();
+  });
+  expect(await screen.findByLabelText("Name your project")).toBe(await nameField());
+});
+
+// serverForRows, with its first rename, pin or delete refused in the server's own words.
+function refusingFirstWrite(projects) {
+  const fetch = serverForRows(projects);
+  const keep = fetch.getMockImplementation();
+  let refused = false;
+  fetch.mockImplementation((path, options) => {
+    if (!refused && ["PATCH", "DELETE"].includes(options?.method)) {
+      refused = true;
+      return Promise.resolve({
+        ok: false,
+        status: 500,
+        text: async () => JSON.stringify({ error: "the store is unreachable" }),
+      });
+    }
+    return keep(path, options);
+  });
+  return fetch;
+}
+
+const renameTo = (from, to) => {
+  actionsFor(from);
+  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+  const field = screen.getByRole("textbox", { name: "Project name" });
+  fireEvent.change(field, { target: { value: to } });
+  fireEvent.keyDown(field, { key: "Enter" });
+};
+
+test("a rename the server refuses leaves All projects standing, with the server's words", async () => {
+  // The list was read and is still known: a write that did not land is not a list that did not come.
+  refusingFirstWrite(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  renameTo("Thesis", "Dissertation");
+  expect((await screen.findByText("the store is unreachable")).className).toBe("list-error");
+  expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
+  expect(screen.queryByText("Couldn't load projects.")).toBeNull();
+});
+
+test("a delete the server refuses leaves the project where it was", async () => {
+  refusingFirstWrite(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect((await screen.findByText("the store is unreachable")).className).toBe("list-error");
+  expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
+});
+
+test("the next write that lands takes the refusal's line away", async () => {
+  refusingFirstWrite(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  renameTo("Thesis", "Dissertation");
+  await screen.findByText("the store is unreachable");
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Pin" }));
+  await waitFor(() =>
+    expect(sections(container)).toEqual({ Pinned: ["Notes"], Recent: ["Thesis"] }),
+  );
+  expect(screen.queryByText("the store is unreachable")).toBeNull();
+});
+
 test("inside a project no ⋯ stands anywhere", async () => {
   // The design's 161: everything done to a project is done from outside it.
   serverForRows(ROWS);
@@ -795,7 +910,9 @@ test("a list that fails to load says so instead of claiming there are none", asy
     vi.fn().mockResolvedValue({ ok: false, status: 500, text: async () => "" }),
   );
   render(<App />);
-  await waitFor(() => expect(screen.getByText(/HTTP 500/)).toBeTruthy());
+  expect(await screen.findByText("Couldn't load projects.")).toBeTruthy();
+  // The raw words are Copy's, not the screen's (the design's 172).
+  expect(screen.queryByText(/HTTP 500/)).toBeNull();
   expect(screen.queryByText(/No projects yet/)).toBeNull();
   // And no way to send a message either -- there is no project for one to land in.
   expect(screen.queryByPlaceholderText(/Ask anything/)).toBeNull();
