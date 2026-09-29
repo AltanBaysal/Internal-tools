@@ -196,10 +196,28 @@ test("a rail that could not read the list says so instead of teaching", () => {
   expect(screen.queryByText(/No files yet/)).toBeNull();
 });
 
-test("a rail still loading says neither", () => {
-  render(<FileRail files={[]} loading />);
+// Madde 340: while the list loads, a small turning ring stands where the rows will be, instead of
+// the shimmering blocks (the design's items 173 and 181).
+test("a rail still loading says neither, and turns a spinner where the rows will be", () => {
+  const { container } = render(<FileRail files={[]} loading />);
   expect(screen.queryByText(/No files yet/)).toBeNull();
-  expect(screen.getByTestId("skeleton")).toBeTruthy();
+  const spinner = screen.getByTestId("spinner");
+  expect(spinner.parentElement.className).toBe("file-list__spinner");
+  expect(container.querySelector(".file-list").contains(spinner)).toBe(true);
+  expect(screen.queryByTestId("skeleton")).toBeNull();
+});
+
+test("while the spinner turns, the heading and Refresh stand where they are", () => {
+  render(<FileRail files={[]} loading onRefresh={vi.fn()} />);
+  expect(screen.getByTestId("spinner")).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Project files/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Refresh" })).toBeTruthy();
+});
+
+test("once the list has come, the spinner is gone and the rows are there", () => {
+  render(<FileRail files={FILES} />);
+  expect(screen.getByText("outline.md")).toBeTruthy();
+  expect(screen.queryByTestId("spinner")).toBeNull();
 });
 
 // Madde 192. A turn's end brings the list up to date by itself, but a turn is not the only thing
