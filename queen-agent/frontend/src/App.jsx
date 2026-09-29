@@ -33,8 +33,17 @@ export default function App() {
   const online = useOnline();
   // Which layout step holds is the shell's own width, measured -- not the window's.
   const { shell, width: shellWidth, steps } = useShellWidth();
-  const { projects, error, loading, createProject, editProject, removeProject, reloadProjects } =
-    useProjects();
+  const {
+    projects,
+    error,
+    writeError,
+    loading,
+    createProject,
+    editProject,
+    removeProject,
+    reloadProjects,
+    retryProjects,
+  } = useProjects();
   // Both live here rather than inside the screens that open them, because App's one listener owns
   // Escape and it can only close what it can see.
   const [menuFor, setMenuFor] = useState(null);
@@ -114,10 +123,11 @@ export default function App() {
   // Both ways off the naming screen write over it, so the back button never lands there to make a
   // second project.
   const leaveNaming = () => navigate(namingFrom, { replace: true });
-  // Opened where a new project has something to do: its draft.
+  // Opened where a new project has something to do: its draft. A refusal is not caught here: it
+  // reaches the naming screen, which says it under the name typed (Madde 364).
   const createNamed = async (name) => {
     const created = await createProject(name);
-    if (created) navigate(`/p/${created.id}/c/new`, { replace: true });
+    navigate(`/p/${created.id}/c/new`, { replace: true });
   };
 
   const chat = useChat(
@@ -263,6 +273,8 @@ export default function App() {
               projects={projects}
               loading={loading}
               error={error}
+              writeError={writeError}
+              onRetry={retryProjects}
               onNewProject={askForNewProject}
               onOpenProject={openProject}
               menuFor={menuFor}
@@ -279,6 +291,7 @@ export default function App() {
               first={!projects.length}
               loading={loading}
               error={error}
+              onRetry={retryProjects}
               onCreate={createNamed}
             />
           ) : null}

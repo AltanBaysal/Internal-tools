@@ -1603,7 +1603,8 @@
 }
 
 /* One line for anything that went wrong in a list, in the server's own words: a list that could not
-   be read, and a delete that was refused. What is left of the strip -- no offer, just the sentence. */
+   be read, and a write that was refused -- a file's delete, a project's rename, pin or delete. What
+   is left of the strip -- no offer, just the sentence. */
 .list-error {
   margin: 0 0 8px;
   font-family: var(--font-mono);
@@ -1658,10 +1659,19 @@
   padding: 40px 12px;
 }
 
+/* Where All projects' list will be while it is read (Madde 364, design item 173): the head, + New
+   project and the search stand above it. */
+.all-projects__spinner {
+  display: flex;
+  justify-content: center;
+  padding: 40px 12px;
+}
+
 /* --- All projects (Madde 353; the design's items 142, 167) -------------- */
 
-/* All projects when its list could not be read: the whole area, centred, with nothing else on it --
-   the list's frame over an unknown count would be a claim nobody made. */
+/* The rest of main, centred both ways: the naming screen's box and its wait, and -- on both screens --
+   a project list that could not be read, with nothing else on it: the list's frame over an unknown
+   count would be a claim nobody made. */
 .empty {
   flex: 1;
   display: flex;
@@ -1689,10 +1699,38 @@
   background: var(--accent-hover);
 }
 
+/* One plain sentence (Madde 364, design item 172), not the raw words that came back -- those go to
+   the clipboard, through .empty__copy below. */
 .empty__error {
   font-size: 13px;
   color: #8a5237;
   margin: 0;
+}
+
+/* The failure's two actions: Try again, brown as every failure's is, and Copy. */
+.empty__actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+/* Copy answers in its own word and colour, as the reader's does. */
+.empty__copy[data-said="yes"] {
+  color: var(--accent);
+}
+
+.empty__copy[data-said="no"] {
+  color: var(--destructive);
+}
+
+/* A project the server would not make: its words under the field that still holds the name, in the
+   voice the chat's failure card gives the server's words. */
+.empty__refused {
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #a4735a;
+  overflow-wrap: anywhere;
 }
 
 /* The naming screen (Madde 361; the design's 169, kit.css): a left-aligned box inside empty's
