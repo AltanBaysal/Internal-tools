@@ -107,6 +107,16 @@ def _markdown():
     return under_docs + beside_tools + [CLAUDE]
 
 
+def _local_links(text):
+    """A text's links to .md files, without their #anchor -- the ones a move of folders can break.
+
+    A web address is left out: it can end in .md too (v9's MiniMax guides do), but it is no file on
+    disk, and looking for it there kept the suite red over a link nothing here could fix (Madde 377).
+    """
+    return {link for link in re.findall(r"\(([^()\s#]+\.md)(?:#[^()\s]*)?\)", text)
+            if "://" not in link}
+
+
 def test_one_version_has_one_roadmap():
     """Two files calling themselves v5 is the state this item exists to end.
 
@@ -225,7 +235,7 @@ def test_a_roadmap_can_still_reach_everything_it_links_to():
     """
     dangling = {}
     for path in glob.glob(os.path.join(ROADMAPS, "*.md")):
-        for link in set(re.findall(r"\(([^()\s#]+\.md)(?:#[^()\s]*)?\)", _read(path))):
+        for link in _local_links(_read(path)):
             if not os.path.exists(os.path.normpath(os.path.join(ROADMAPS, link))):
                 dangling.setdefault(os.path.basename(path), set()).add(link)
 
