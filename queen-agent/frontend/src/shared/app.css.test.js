@@ -52,34 +52,49 @@ test("accent-coloured text takes the text hover", () => {
   expect(WORKSPACE).not.toContain("--accent-link-hover");
 });
 
-// Motion is a fade of 140-220ms and the rail's width, and nothing else. A name that describes a
-// movement is part of the drift, so only one animation name survives and it says what it does.
-test("there is one fade and one blink, and nothing else", () => {
+// app.css holds the two animations every surface shares: the fade and the three dots' blink. What
+// arrives fades in; nothing that has been laid out rises or slides into place.
+test("app.css holds the fade and the blink", () => {
   expect(APP).toContain("@keyframes fadeIn");
   expect(APP).toContain("@keyframes blink");
   expect(APP).not.toContain("@keyframes riseIn");
   expect(APP).not.toContain("@keyframes slideIn");
-  expect(APP).not.toContain("@keyframes spin");
 });
 
-test("no keyframe moves anything", () => {
+test("app.css's keyframes change opacity and move nothing", () => {
   // Not sideways, not upwards: an element that has been laid out stays where it was put.
   const frames = APP.slice(APP.indexOf("@keyframes"));
   expect(frames).not.toContain("transform");
 });
 
-test("every animation stays inside the band", () => {
-  const durations = [...WORKSPACE.matchAll(/animation: (\w+) ([\d.]+)s/g)];
+test("every fade stays inside the band", () => {
+  const durations = [...WORKSPACE.matchAll(/animation: ([\w-]+) ([\d.]+)s/g)];
   expect(durations.length).toBeGreaterThan(0);
   for (const [, name, seconds] of durations) {
-    if (name === "blink") continue; // the design's own three dots, and they never settle
+    // The three dots and the spinner never settle, so they have no band to stay inside.
+    if (name === "blink" || name === "msg-spin") continue;
     expect(Number(seconds)).toBeLessThanOrEqual(0.22);
   }
-  expect(WORKSPACE).not.toContain("animation: spin");
 });
 
-test("the rail's width transition is the one motion that is not a fade", () => {
+test("the rail folds by its width", () => {
   expect(WORKSPACE).toContain("transition: width 220ms ease");
+});
+
+// Madde 379: the standard's paragraph on motion says what moves today and forbids nothing. Read
+// from the file, so an animation added without a word there fails here instead of leaving the
+// paragraph untrue -- the animation itself is never refused.
+const STANDARD = read("../CODE-STANDARD.md");
+
+test("the standard names every keyframe the frontend defines", () => {
+  const names = [...`${APP}${WORKSPACE}`.matchAll(/@keyframes ([\w-]+)/g)].map(([, name]) => name);
+  expect(names.length).toBeGreaterThan(0);
+  for (const name of names) expect(STANDARD).toContain(`\`${name}\``);
+});
+
+test("the standard forbids no animation, and calls no motion the only one", () => {
+  expect(STANDARD).not.toContain("never invents");
+  expect(STANDARD).not.toContain("The only motion");
 });
 
 // The page itself never scrolls -- only inner regions do. The shell is what holds that line.

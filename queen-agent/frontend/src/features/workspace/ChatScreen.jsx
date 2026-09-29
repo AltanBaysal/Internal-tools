@@ -16,8 +16,8 @@ import Spinner from "./Spinner.jsx";
 import Stamp, { LiveStrip } from "./Stamp.jsx";
 import ToolCalls from "./ToolCalls.jsx";
 
-// A reader further from the bottom than this is reading, not watching, and the answer must not pull
-// them away from it. The design's own number.
+// A reader further from the bottom than this is reading, not watching, and nothing arriving at the
+// foot -- the answer, a card -- may pull them away from it. The design's own number.
 const STICK_WITHIN = 220;
 
 export default function ChatScreen({
@@ -86,15 +86,24 @@ export default function ChatScreen({
     if (list) list.scrollTop = list.scrollHeight;
   };
 
+  // Whether the reader was at the foot when they last scrolled. Taken then rather than once the foot
+  // has grown: a card taller than STICK_WITHIN -- a permission card printing a whole file -- would
+  // otherwise make a reader at the foot look like one who had scrolled away.
+  const following = useRef(true);
+  const onScroll = () => {
+    const list = scroll.current;
+    following.current = list.scrollHeight - list.scrollTop - list.clientHeight <= STICK_WITHIN;
+  };
+
   // A message the user just sent is theirs to see, so the list always jumps.
   useEffect(toBottom, [chat?.messages.length]);
 
-  // An answer is different: it follows the reader rather than the other way round.
+  // Whatever else lands at the foot -- the answer as it arrives, and the cards under it (Madde 380)
+  // -- follows the reader rather than the other way round. The files' count rather than the list:
+  // an absent list is a fresh [] on every render.
   useEffect(() => {
-    const list = scroll.current;
-    if (!list) return;
-    if (list.scrollHeight - list.scrollTop - list.clientHeight <= STICK_WITHIN) toBottom();
-  }, [streamingText]);
+    if (following.current) toBottom();
+  }, [streamingText, createdFiles.length, permission, refused, error]);
 
   // A chat the server says is not there: the way back, over the line saying so. A chat still being
   // read draws its own frame below instead (design item 194).
@@ -134,7 +143,7 @@ export default function ChatScreen({
           <span className="chat__title">{chat ? chat.title : loadingTitle}</span>
         </header>
 
-        <div className="chat__scroll" ref={scroll}>
+        <div className="chat__scroll" ref={scroll} onScroll={onScroll}>
           <div className="chat__column">
             {/* While the record is read only the spinner stands here -- not even a turn still
                 running into this chat: there is no transcript yet to draw it on. */}

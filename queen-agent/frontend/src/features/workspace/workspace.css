@@ -819,7 +819,7 @@
 /* --- files: rows, cards and the rail ------------------------------------ */
 
 /* Always open rather than a toggle: what already exists stays in view while the user asks for
-   more. Width is the one thing the design lets move. */
+   more. */
 .rail {
   width: 320px;
   flex: none;
@@ -890,7 +890,8 @@
   margin-bottom: 12px;
 }
 
-/* While a document is being read there is nothing to fold, so the heading is a label again. */
+/* Folded because the shell has no room for both (FileRail's `foldedByWidth`): the strip has nowhere
+   to open into, so the heading is a label rather than a button. */
 .rail__head--still {
   display: flex;
   align-items: center;
