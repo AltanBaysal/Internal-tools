@@ -1,10 +1,11 @@
 import { VERSION } from "../../shared/version.js";
 
 // Across the window's top, on every screen (the design's items 150, 159, 161, 166): the name and
-// the run number on the left, the open project's name in the middle, and the way out of it on the
-// right. With no project open the middle and the right draw nothing; the stylesheet's grid keeps
-// the bar where it was.
-export default function Bar({ project, onExit }) {
+// the run number on the left, the open project's name in the middle, and on the right the screen's
+// own way out -- Exit project in a project, Cancel on the naming screen (the design's 195). With
+// nothing to show the middle and the right draw nothing; the stylesheet's grid keeps the bar where
+// it was.
+export default function Bar({ project, exit = project ? "Exit project" : null, onExit }) {
   return (
     <header className="bar">
       {/* Two spans with a space between, so the pair is read out as two words; the version is not
@@ -14,14 +15,14 @@ export default function Bar({ project, onExit }) {
         <span className="bar__version">{VERSION}</span>
       </span>
       {project ? (
-        <>
-          <span className="bar__project" title={project.name}>
-            {project.name}
-          </span>
-          <button type="button" className="ghost bar__exit" onClick={onExit}>
-            Exit project
-          </button>
-        </>
+        <span className="bar__project" title={project.name}>
+          {project.name}
+        </span>
+      ) : null}
+      {exit ? (
+        <button type="button" className="ghost bar__exit" onClick={onExit}>
+          {exit}
+        </button>
       ) : null}
     </header>
   );

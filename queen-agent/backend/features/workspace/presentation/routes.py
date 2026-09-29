@@ -49,8 +49,13 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
 
     @workspace_bp.post("/api/projects")
     def post_project():
-        # Creating takes no input: the design never asks for a name up front.
-        project = create_project(project_store, new_id=_new_id("p"), now=_now())
+        payload = request.get_json(silent=True) or {}
+        try:
+            project = create_project(
+                project_store, new_id=_new_id("p"), name=payload.get("name"), now=_now()
+            )
+        except InvalidProjectName:
+            return jsonify({"error": "a project needs a name"}), 400
         return jsonify(_project_json(project)), 201
 
     @workspace_bp.patch("/api/projects/<project_id>")

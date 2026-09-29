@@ -7,6 +7,7 @@ import AllProjectsScreen from "./features/workspace/AllProjectsScreen.jsx";
 import Bar from "./features/workspace/Bar.jsx";
 import ChatScreen from "./features/workspace/ChatScreen.jsx";
 import ConfirmDialog from "./features/workspace/ConfirmDialog.jsx";
+import NameProjectScreen from "./features/workspace/NameProjectScreen.jsx";
 import OfflineStrip from "./features/workspace/OfflineStrip.jsx";
 import OpenProject from "./features/workspace/OpenProject.jsx";
 import Sidebar from "./features/workspace/Sidebar.jsx";
@@ -107,11 +108,22 @@ export default function App() {
   const openChat = (projectId, chatId, options) =>
     navigate(`/p/${projectId}/c/${chatId}`, options);
   const openDraft = () => navigate(`/p/${route.projectId}/c/new`);
-  // Made with no name asked (the naming screen is Madde 361's), and opened where a new project has
-  // something to do: its draft.
-  const newProject = async () => {
-    const created = await createProject();
-    if (created) navigate(`/p/${created.id}/c/new`);
+  // Where the naming screen was reached from, so Cancel and Escape go back there (Madde 361). Held
+  // here because the address is the only other memory, and /new says nothing about it; reached by
+  // its address or reloaded, there is no screen it came from, and All projects is where it opens.
+  const [namingFrom, setNamingFrom] = useState("/");
+  // Every + New project comes here: a project is born under a name the user chose.
+  const askForNewProject = () => {
+    setNamingFrom(window.location.pathname);
+    navigate("/new");
+  };
+  // Both ways off the naming screen write over it, so the back button never lands there to make a
+  // second project.
+  const leaveNaming = () => navigate(namingFrom, { replace: true });
+  // Opened where a new project has something to do: its draft.
+  const createNamed = async (name) => {
+    const created = await createProject(name);
+    if (created) navigate(`/p/${created.id}/c/new`, { replace: true });
   };
 
   const chat = useChat(
@@ -154,10 +166,23 @@ export default function App() {
       // them can be open at a time, so they take one place in the order between them.
       else if (pickerOpen) setPickerOpen(null);
       else if (reading.name) reading.close();
+      // The naming screen's Escape is its Cancel, and like Cancel it is there only while a project
+      // exists to go back to (the design's 195).
+      else if (route.view === "new" && projects.length) navigate(namingFrom, { replace: true });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [menuFor, confirming, pickerOpen, reading.name, reading.close]);
+  }, [
+    menuFor,
+    confirming,
+    pickerOpen,
+    reading.name,
+    reading.close,
+    route.view,
+    projects.length,
+    namingFrom,
+    navigate,
+  ]);
 
   // The screen reads its project out of the list the app already holds; asking the server a second
   // time would be asking for an answer we have.
@@ -228,17 +253,22 @@ export default function App() {
   return (
     <div ref={shell} className={`app-shell ${steps}`.trim()} data-testid="app-shell">
       {/* "/" is All projects, where the app opens. */}
-      <Bar project={project} onExit={() => navigate("/")} />
+      {route.view === "new" ? (
+        <Bar exit={projects.length ? "Cancel" : null} onExit={leaveNaming} />
+      ) : (
+        <Bar project={project} onExit={() => navigate("/")} />
+      )}
       <div className="app-shell__body">
-        {/* Not on All projects: no project is open there (the design's items 135, 167). */}
-        {route.view === "root" ? null : (
+        {/* Not on All projects or the naming screen: no project is open on either (the design's
+            items 135, 167, 169). */}
+        {route.view === "root" || route.view === "new" ? null : (
           <Sidebar
             projects={projects}
             chats={projectChats}
             activeProjectId={route.projectId}
             activeChatId={route.chatId}
             onNewChat={openDraft}
-            onNewProject={createProject}
+            onNewProject={askForNewProject}
             onOpenProject={openProject}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             menuFor={menuFor}
@@ -259,8 +289,17 @@ export default function App() {
               projects={projects}
               loading={loading}
               error={error}
-              onNewProject={newProject}
+              onNewProject={askForNewProject}
               onOpenProject={openProject}
+            />
+          ) : null}
+
+          {route.view === "new" ? (
+            <NameProjectScreen
+              first={!projects.length}
+              loading={loading}
+              error={error}
+              onCreate={createNamed}
             />
           ) : null}
 
