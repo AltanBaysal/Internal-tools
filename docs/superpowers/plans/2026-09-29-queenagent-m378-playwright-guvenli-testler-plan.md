@@ -1,3 +1,42 @@
+# Madde 378 — Playwright MCP güvenli kullanılır · test turunun planı
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Tarayıcının yalnız bu makineye ve fontlara gittiğini, tarayıcı dışında kod çalıştırmadığını
+ve yazdıklarının git'e girmediğini tutan dört iddia, kırmızı.
+
+**Architecture:** `queen-agent/backend/tests/test_playwright_mcp.py`'ye dört test. Dosya depo kökünü
+bir kez hesaplar, ve oradan üç dosyayı okur: `.mcp.json`, `.claude/settings.json`, `.gitignore`.
+
+**Tech Stack:** pytest.
+
+**Spec:** [test turunun spec'i](../specs/2026-09-29-queenagent-m378-playwright-guvenli-testler-design.md)
+
+## Global Constraints
+
+- Testler yalnız CLAUDE.md'deki dört satırla koşar, yazıldığı gibi, paralel.
+- Kod, yorum ve test adı İngilizce; hata cümlesi Türkçe (dosyanın öteki testleri gibi).
+- Bu turda `.mcp.json`, `.claude/settings.json`, `.gitignore` ve CLAUDE.md değişmez.
+- Commit mesajında çift tırnak yok; amend yok.
+
+---
+
+### Task 1: Dört iddia, kırmızı
+
+**Files:**
+- Modify: `queen-agent/backend/tests/test_playwright_mcp.py` — açıklama, yol sabitleri, ve sona dört test
+
+**Interfaces:**
+- Consumes: dosyanın bugünkü `_args()`'ı.
+- Produces: uygulama turunun karşılayacağı üç şey — `.mcp.json`'da `"--allowed-origins"` ve hemen
+  ardından `;` ile ayrılmış adresler; `.claude/settings.json`'da `permissions.deny` listesi;
+  `.gitignore`'da `.playwright-mcp/` satırı.
+
+- [ ] **Step 1: Açıklamayı ve yol sabitlerini değiştir**
+
+Dosyanın başı şu hâle gelir:
+
+```python
 """Playwright MCP is Claude's own browser, and the repo's root says how it starts (Madde 334) and what
 it may reach (Madde 378).
 
@@ -27,58 +66,21 @@ THIS_MACHINE = re.compile(r"^http://127\.0\.0\.1(:(\d+|\*))?$")
 # Both tools' index.html load their fonts from these two; without them every screenshot is drawn in
 # a fallback font the user never sees.
 FONTS = {"https://fonts.googleapis.com", "https://fonts.gstatic.com"}
+```
 
+- [ ] **Step 2: `_args()`'ın altına listeyi okuyan yardımcıyı ekle**
 
-def _servers():
-    with open(MCP, encoding="utf-8") as handle:
-        return json.load(handle)["mcpServers"]
-
-
-def _args():
-    return _servers()["playwright"]["args"]
-
-
+```python
 def _allowed_origins():
     args = _args()
     if "--allowed-origins" not in args:
         return []
     return args[args.index("--allowed-origins") + 1].split(";")
+```
 
+- [ ] **Step 3: Dosyanın sonuna dört testi ekle**
 
-def test_the_repo_root_defines_a_playwright_server():
-    assert "playwright" in _servers(), "depo kökündeki .mcp.json bir playwright sunucusu tanımlamıyor"
-
-
-def test_it_starts_through_npx():
-    assert _servers()["playwright"]["command"] == "npx", "playwright sunucusu npx ile açılmıyor"
-
-
-def test_the_package_version_is_pinned():
-    # @latest, or no version at all, runs whatever npm holds at that moment -- and whatever the
-    # package has become, the day it is taken over.
-    packages = [arg for arg in _args() if arg.startswith("@playwright/mcp")]
-    assert len(packages) == 1 and PINNED.match(packages[0]), (
-        "@playwright/mcp sabit bir X.Y.Z sürümüyle bekleniyordu, @latest ya da sürümsüz değil"
-    )
-
-
-def test_the_browser_profile_stays_in_memory():
-    assert "--isolated" in _args(), "--isolated yok -- tarayıcının profili diske yazılır"
-
-
-def test_the_browser_opens_no_window():
-    assert "--headless" in _args(), "--headless yok -- tarayıcı bir pencere açar"
-
-
-def test_it_reaches_neither_the_open_browser_nor_the_whole_disk():
-    # --cdp-endpoint would attach to the browser already open, with every session signed into it;
-    # --allow-unrestricted-file-access would hand the browser every file on the machine.
-    flags = {arg.split("=")[0] for arg in _args()}
-    assert not flags & {"--cdp-endpoint", "--allow-unrestricted-file-access"}, (
-        "--cdp-endpoint ya da --allow-unrestricted-file-access verilmiş"
-    )
-
-
+```python
 def test_the_browser_requests_nothing_but_this_machine_and_the_fonts():
     # The package itself says the list is no security boundary and misses redirects. It stops a
     # request made by mistake; the rule it cannot hold -- no internet address is opened -- is in
@@ -113,3 +115,28 @@ def test_what_the_browser_writes_stays_out_of_git():
     assert ".playwright-mcp/" in ignored, (
         ".gitignore .playwright-mcp/'yi dışarıda tutmuyor -- ekran görüntüleri git'e girer"
     )
+```
+
+- [ ] **Step 4: Dört satırı paralel koş, kırmızıyı gör**
+
+```bash
+python -m pytest queen-agent -q
+npm test --prefix queen-agent/frontend
+python -m pytest queen-editor -q
+npm test --prefix queen-editor/frontend
+```
+
+Beklenen: `python -m pytest queen-agent -q` dört kırmızı — ikisi `--allowed-origins yok`, biri
+`FileNotFoundError` (`.claude/settings.json` yok), biri `.playwright-mcp/` iddiası; 334'ün altı testi
+yeşil kalır. `python -m pytest queen-editor -q` 377'nin bilinen iki kırmızısı. Ön uçların ikisi yeşil.
+
+- [ ] **Step 5: Kırmızıyı commit'le**
+
+```powershell
+git add queen-agent/backend/tests/test_playwright_mcp.py docs/superpowers/specs/2026-09-29-queenagent-m378-playwright-guvenli-testler-design.md docs/superpowers/plans/2026-09-29-queenagent-m378-playwright-guvenli-testler-plan.md
+git commit -m @'
+test(queen-agent): Madde 378 red -- the browser reaches only this machine and its fonts, runs no code outside itself, writes nothing git sees
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+'@
+```
