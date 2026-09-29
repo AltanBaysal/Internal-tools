@@ -27,6 +27,11 @@ npm run build --prefix queen-agent/frontend
 npm run build --prefix queen-editor/frontend
 ```
 
+**Playwright MCP is Claude's own browser**, for looking at a running tool the way the user does. It
+is defined in [.mcp.json](.mcp.json), so Claude Code offers the server on its first start in this
+repo and asks once to approve it. The version is pinned and raised by hand; why each flag is there
+is in [test_playwright_mcp.py](queen-agent/backend/tests/test_playwright_mcp.py), which holds them.
+
 ## Writing a roadmap
 
 **Four rules hold whenever a roadmap is written or added to:**
