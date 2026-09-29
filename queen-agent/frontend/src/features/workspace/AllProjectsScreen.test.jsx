@@ -88,14 +88,6 @@ test("while the list loads, the head stands and nothing claims the list is empty
   expect(container.querySelector(".all-projects__row")).toBeNull();
 });
 
-test("a list that could not be read says what the server said, and nothing else", () => {
-  // A failed list means the count is unknown, not zero.
-  render(<AllProjectsScreen projects={[]} error="the store is unreachable" />);
-  expect(screen.getByText("the store is unreachable")).toBeTruthy();
-  expect(screen.queryByText("No projects yet.")).toBeNull();
-  expect(screen.queryByText("All projects")).toBeNull();
-});
-
 // --- Madde 359: the search (the design's items 135, 142, 167) ------------------------------------
 
 const search = () => screen.getByRole("textbox", { name: "Search projects" });
@@ -180,4 +172,86 @@ test("every row carries its ⋯, and only the row whose menu is open has one", (
   const menus = container.querySelectorAll(".menu");
   expect(menus.length).toBe(1);
   expect(menus[0].closest(".all-projects__row").textContent).toContain("Night market");
+});
+
+// --- Madde 364: while the list loads, and when it cannot be read (the design's 172, 173) ---------
+
+// jsdom ships no clipboard, so the test supplies one and watches what it is handed.
+function stubClipboard(answer) {
+  const writeText = vi.fn(() => answer);
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  return writeText;
+}
+
+// What failure.js makes of a Flask 500 page: the code and the body, as they came.
+const RAW = "HTTP 500: <!doctype html>\n<title>500 Internal Server Error</title>";
+
+test("while the list loads a spinner turns where the list will be", () => {
+  // The head, + New project and the search stand as they will once the list is real; only the
+  // list's own place waits (the design's 173).
+  const { container } = render(<AllProjectsScreen projects={[]} loading />);
+  const spot = container.querySelector(".all-projects__tools").nextElementSibling;
+  expect(spot.className).toBe("all-projects__spinner");
+  expect(spot.querySelector("[data-testid=spinner]")).toBeTruthy();
+});
+
+test("a list that could not be read says so in one sentence, and nothing else stands", () => {
+  // A failed list means the count is unknown, not zero. The raw words are Copy's, not the
+  // screen's: one plain sentence (the design's 172).
+  const { container } = render(<AllProjectsScreen projects={[]} error={RAW} />);
+  expect(container.querySelector(".empty > .empty__error").textContent).toBe(
+    "Couldn't load projects.",
+  );
+  expect(screen.queryByText(/HTTP 500/)).toBeNull();
+  expect(screen.queryByText("All projects")).toBeNull();
+  expect(screen.queryByRole("textbox", { name: "Search projects" })).toBeNull();
+  expect(screen.queryByText("No projects yet.")).toBeNull();
+});
+
+test("under the sentence stand Try again and Copy, and Try again asks for the list again", () => {
+  const onRetry = vi.fn();
+  const { container } = render(<AllProjectsScreen projects={[]} error={RAW} onRetry={onRetry} />);
+  const buttons = [...container.querySelectorAll(".empty > .empty__actions > button")];
+  expect(buttons.map((one) => one.textContent)).toEqual(["Try again", "Copy"]);
+  // Brown as every failure's Try again is; Copy is the framed button the file's header carries.
+  expect(buttons[0].className).toBe("failure__retry");
+  expect(buttons[1].className).toBe("ghost empty__copy");
+  fireEvent.click(buttons[0]);
+  expect(onRetry).toHaveBeenCalled();
+});
+
+test("Copy puts the error on the clipboard exactly as it came, and says it landed", async () => {
+  // Pasted elsewhere, it still shows the real error.
+  const writeText = stubClipboard(Promise.resolve());
+  render(<AllProjectsScreen projects={[]} error={RAW} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(writeText).toHaveBeenCalledWith(RAW);
+  expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
+});
+
+test("a copy that did not land says so in Copy's place", async () => {
+  stubClipboard(Promise.reject(new Error("denied")));
+  render(<AllProjectsScreen projects={[]} error={RAW} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(await screen.findByRole("button", { name: "Could not copy" })).toBeTruthy();
+});
+
+test("while Try again reads the list, the frame and its spinner stand again", () => {
+  // The wait is a wait whatever came before it (the design's 173: Try again shows it too).
+  const { container } = render(<AllProjectsScreen projects={[]} loading error={RAW} />);
+  expect(screen.getByText("All projects", { selector: ".screen__title" })).toBeTruthy();
+  expect(container.querySelector(".all-projects__spinner")).toBeTruthy();
+  expect(screen.queryByText("Couldn't load projects.")).toBeNull();
+});
+
+test("a write the server refused leaves the list standing, with the server's words over it", () => {
+  // A rename that did not land says nothing about the list, which is still known.
+  const { container } = render(
+    <AllProjectsScreen projects={[PINNED, RECENT]} writeError="the store is unreachable" />,
+  );
+  const line = screen.getByText("the store is unreachable");
+  expect(line.className).toBe("list-error");
+  expect(line.previousElementSibling.className).toBe("all-projects__tools");
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market"]);
+  expect(screen.queryByText("Couldn't load projects.")).toBeNull();
 });
