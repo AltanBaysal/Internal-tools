@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import AllProjectsScreen from "./AllProjectsScreen.jsx";
@@ -106,7 +106,7 @@ test("the search stands under the head, named Search projects", () => {
   const box = search();
   expect(box.getAttribute("placeholder")).toBe("Search projects");
   expect(box.classList.contains("all-projects__search")).toBe(true);
-  // The tabs join this row with Madde 363.
+  // The tabs stand in this row too (Madde 363).
   const tools = box.closest(".all-projects__tools");
   expect(tools.previousElementSibling.classList.contains("all-projects__head")).toBe(true);
 });
@@ -180,4 +180,203 @@ test("every row carries its ⋯, and only the row whose menu is open has one", (
   const menus = container.querySelectorAll(".menu");
   expect(menus.length).toBe(1);
   expect(menus[0].closest(".all-projects__row").textContent).toContain("Night market");
+});
+
+// --- Madde 363: the archive (the design's items 135, 161, 190, 191) ------------------------------
+
+// Where the server lists it: its pin is its own, and it is not pinned, so it stands by its last use.
+const SHELVED = {
+  id: "p5",
+  name: "Shelved reel",
+  chats: 2,
+  files: 4,
+  pinned: false,
+  archived: true,
+  lastActivity: ago(3),
+};
+const tab = (name) => screen.getByRole("button", { name: new RegExp(`^${name}\\b`) });
+const counts = (container) =>
+  [...container.querySelectorAll(".all-projects__count")].map((count) => count.textContent);
+const undoRow = (container) => container.querySelector(".all-projects__undo");
+
+test("the tabs stand beside the search, each with its count", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, SHELVED, RECENT, OLDER]} />);
+  const tabs = container.querySelector(".all-projects__tabs");
+  expect(tabs.parentElement.classList.contains("all-projects__tools")).toBe(true);
+  expect(tabs.previousElementSibling).toBe(search());
+  expect(screen.getByRole("button", { name: "Projects 3" }).className).toContain("all-projects__tab");
+  expect(screen.getByRole("button", { name: "Archived 1" }).className).toContain("all-projects__tab");
+  expect(counts(container)).toEqual(["3", "1"]);
+  // The screen opens on the projects the user is working on.
+  expect(tab("Projects").classList.contains("is-on")).toBe(true);
+  expect(tab("Archived").classList.contains("is-on")).toBe(false);
+});
+
+test("Projects leaves the archived out", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, SHELVED, RECENT, OLDER]} />);
+  expect(labels(container)).toEqual(["Pinned", "Recent"]);
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+});
+
+test("Archived lists only the archived, in one list with no heading, and none of them opens", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, SHELVED, RECENT, OLDER]} />);
+  fireEvent.click(tab("Archived"));
+  expect(names(container)).toEqual(["Shelved reel"]);
+  expect(labels(container)).toEqual([]);
+  expect(container.querySelectorAll(".all-projects__list").length).toBe(1);
+  expect(container.querySelectorAll(".all-projects__row-text").length).toBe(1);
+  expect(container.querySelector(".all-projects__row-open")).toBeNull();
+  expect(tab("Archived").classList.contains("is-on")).toBe(true);
+  expect(tab("Projects").classList.contains("is-on")).toBe(false);
+
+  fireEvent.click(tab("Projects"));
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+});
+
+test("with nothing archived, Archived says so", () => {
+  render(<AllProjectsScreen projects={[PINNED, RECENT]} />);
+  fireEvent.click(tab("Archived"));
+  expect(screen.getByText("No archived projects.", { selector: ".all-projects__empty" })).toBeTruthy();
+});
+
+test("with every project archived, Projects says so and Archived holds them all", () => {
+  const { container } = render(
+    <AllProjectsScreen
+      projects={[
+        { ...RECENT, archived: true },
+        { ...OLDER, archived: true },
+      ]}
+    />,
+  );
+  expect(screen.getByText("Every project is archived.", { selector: ".all-projects__empty" })).toBeTruthy();
+  expect(counts(container)).toEqual(["0", "2"]);
+  fireEvent.click(tab("Archived"));
+  expect(names(container)).toEqual(["Night market", "Old pier"]);
+});
+
+test("with no projects at all, both tabs say there are none", () => {
+  const { container } = render(<AllProjectsScreen projects={[]} />);
+  expect(counts(container)).toEqual(["0", "0"]);
+  expect(screen.getByText("No projects yet.")).toBeTruthy();
+  fireEvent.click(tab("Archived"));
+  expect(screen.getByText("No projects yet.")).toBeTruthy();
+  expect(screen.queryByText("No archived projects.")).toBeNull();
+});
+
+test("the search narrows the open tab, and stays when the tab changes", () => {
+  const { container } = render(
+    <AllProjectsScreen projects={[PINNED, SHELVED, RECENT, { ...OLDER, archived: true }]} />,
+  );
+  fireEvent.click(tab("Archived"));
+  type("shelved");
+  expect(names(container)).toEqual(["Shelved reel"]);
+  type("zzz");
+  expect(screen.getByText('No projects match "zzz".', { selector: ".all-projects__empty" })).toBeTruthy();
+  expect(screen.queryByText("No archived projects.")).toBeNull();
+  fireEvent.click(tab("Projects"));
+  expect(search().value).toBe("zzz");
+});
+
+test("while the list loads the tabs stand, and count nothing yet", () => {
+  // A list that has not come has an unknown count, not a count of none.
+  const { container } = render(<AllProjectsScreen projects={[]} loading />);
+  expect(tab("Projects")).toBeTruthy();
+  expect(tab("Archived")).toBeTruthy();
+  expect(counts(container)).toEqual(["", ""]);
+});
+
+// The menu is open on the row, as App opens it; Archive then asks App for the change.
+function archiving(projects, id, extra = {}) {
+  const props = { onCloseMenu: () => {}, onArchiveProject: vi.fn(), ...extra };
+  const view = render(<AllProjectsScreen projects={projects} menuFor={id} {...props} />);
+  fireEvent.click(screen.getByRole("button", { name: "Archive" }));
+  // Once chosen, App closes the menu; the list the server sends back comes as new props.
+  const answer = (next) => view.rerender(<AllProjectsScreen projects={next} {...props} />);
+  answer(projects);
+  return { ...view, props, answer };
+}
+
+test("Archive asks nothing, and leaves Undo in the project's place", () => {
+  const { container, props } = archiving([PINNED, RECENT, OLDER], "p2");
+  expect(props.onArchiveProject).toHaveBeenCalledWith("p2", true);
+  // No question: the archive is undone, not confirmed (the design's 135).
+  expect(container.querySelector(".dialog")).toBeNull();
+  const [, recent] = container.querySelectorAll(".all-projects__section");
+  const rows = recent.querySelectorAll(".all-projects__row");
+  expect(rows[0].classList.contains("all-projects__undo")).toBe(true);
+  expect(rows[0].textContent).toBe("Night market archived · Undo");
+  expect(rows[0].querySelector("strong").textContent).toBe("Night market");
+  expect(rows[1].textContent).toContain("Old pier");
+  // The row the user just acted on keeps the keyboard, on its one action.
+  expect(document.activeElement).toBe(screen.getByRole("button", { name: "Undo" }));
+});
+
+test("once the server says it is archived, Undo still holds its place and the counts move", () => {
+  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2");
+  answer([PINNED, { ...RECENT, archived: true }, OLDER]);
+  const [, recent] = container.querySelectorAll(".all-projects__section");
+  expect(recent.querySelector(".all-projects__row").textContent).toBe("Night market archived · Undo");
+  expect(counts(container)).toEqual(["2", "1"]);
+});
+
+test("a pinned project's Undo stands under Pinned", () => {
+  // The server keeps the pin through the archive (Madde 339), so it lists the project there still.
+  const { container, answer } = archiving([PINNED, RECENT], "p1");
+  answer([{ ...PINNED, archived: true }, RECENT]);
+  const [pinned] = container.querySelectorAll(".all-projects__section");
+  expect(pinned.querySelector(".all-projects__label").textContent).toBe("Pinned");
+  expect(pinned.querySelector(".all-projects__row").textContent).toBe("Harbour at dusk archived · Undo");
+});
+
+test("Undo brings it back, and its line holds until the list does", async () => {
+  let settle;
+  const onArchiveProject = vi.fn((id, archived) =>
+    archived ? undefined : new Promise((resolve) => (settle = resolve)),
+  );
+  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2", { onArchiveProject });
+  answer([PINNED, { ...RECENT, archived: true }, OLDER]);
+  fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+  expect(onArchiveProject).toHaveBeenLastCalledWith("p2", false);
+  // Let go before the list comes back, the project would vanish for a moment and then return.
+  expect(undoRow(container)).toBeTruthy();
+
+  answer([PINNED, RECENT, OLDER]);
+  await act(async () => settle());
+  expect(undoRow(container)).toBeNull();
+  expect(names(container)).toEqual(["Harbour at dusk", "Night market", "Old pier"]);
+});
+
+test("opening another row's menu settles the offer", () => {
+  const onOpenMenu = vi.fn();
+  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2", { onOpenMenu });
+  answer([PINNED, { ...RECENT, archived: true }, OLDER]);
+  fireEvent.click(screen.getByRole("button", { name: "Actions for Old pier" }));
+  expect(onOpenMenu).toHaveBeenCalledWith("p3");
+  expect(undoRow(container)).toBeNull();
+  expect(names(container)).toEqual(["Harbour at dusk", "Old pier"]);
+});
+
+test("changing the tab settles the offer", () => {
+  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2");
+  answer([PINNED, { ...RECENT, archived: true }, OLDER]);
+  fireEvent.click(tab("Archived"));
+  fireEvent.click(tab("Projects"));
+  expect(undoRow(container)).toBeNull();
+  expect(names(container)).toEqual(["Harbour at dusk", "Old pier"]);
+});
+
+test("Unarchive asks for the project back, and leaves no Undo", () => {
+  const onArchiveProject = vi.fn();
+  const { container } = render(
+    <AllProjectsScreen
+      projects={[PINNED, SHELVED]}
+      menuFor="p5"
+      onCloseMenu={() => {}}
+      onArchiveProject={onArchiveProject}
+    />,
+  );
+  fireEvent.click(tab("Archived"));
+  fireEvent.click(screen.getByRole("button", { name: "Unarchive" }));
+  expect(onArchiveProject).toHaveBeenCalledWith("p5", false);
+  expect(undoRow(container)).toBeNull();
 });
