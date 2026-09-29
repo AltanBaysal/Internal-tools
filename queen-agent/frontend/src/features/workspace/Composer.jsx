@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState } from "react";
 
 // The two marks the one button wears. Written here rather than inline: the running state picks
 // between them, and a reader should see both at once to know they are a pair.
@@ -25,6 +25,7 @@ export default forwardRef(function Composer(
   // Nothing fills this from outside. Madde 195 did, for the message being edited; Madde 197 moved
   // that correction into the message's own place, and the box went back to holding one thing.
   const [draft, setDraft] = useState("");
+  const field = useRef(null);
   const ready = draft.trim().length > 0;
   // An empty draft is what blocks sending; blocking a stop with it would kill the control in the
   // very case it exists for. The accent follows: while an answer runs, stopping is the only action
@@ -48,8 +49,12 @@ export default forwardRef(function Composer(
   };
 
   // Try again after a refused reply is this box sending (Madde 349): the sentence came back here,
-  // and with one owner it cannot be sent twice.
-  useImperativeHandle(ref, () => ({ submit }));
+  // and with one owner it cannot be sent twice. Search chats' Enter lands here too (Madde 365): the
+  // chat it opens is taken up where it is answered. A press never scrolls the page (design 155).
+  useImperativeHandle(ref, () => ({
+    submit,
+    focus: () => field.current.focus({ preventScroll: true }),
+  }));
 
   const onKeyDown = (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -61,6 +66,7 @@ export default forwardRef(function Composer(
   return (
     <div className="composer" hidden={hidden}>
       <textarea
+        ref={field}
         className="composer__input"
         rows={rows}
         placeholder={placeholder}

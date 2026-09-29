@@ -2098,6 +2098,10 @@ test("the card in the transcript opens the file, unfolding the rail on the way",
     if (path.endsWith("/chats/c1")) {
       return Promise.resolve({ ok: true, status: 200, json: async () => chat });
     }
+    // The sidebar's list is chats, each with a title Search chats reads (Madde 365).
+    if (path.endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [chat] });
+    }
     return Promise.resolve({ ok: true, status: 200, json: async () => [PROJECT] });
   });
   vi.stubGlobal("fetch", fetch);
@@ -3460,14 +3464,16 @@ test("Continue here trims the chat, and it takes messages again with every messa
   const fetch = stubFullChat();
   render(<App />);
   await screen.findByText("This chat is full.");
-  expect(screen.queryByRole("textbox")).toBeNull();
+  // The chat's own box: the sidebar's Search chats is a textbox too (Madde 365).
+  const chatScreen = () => within(document.querySelector(".chat"));
+  expect(chatScreen().queryByRole("textbox")).toBeNull();
 
   // Asked nothing first and undone by nothing after (the owner's call, 29 September).
   fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
   await waitFor(() => expect(screen.queryByText("This chat is full.")).toBeNull());
   const posts = fetch.mock.calls.filter(([, options]) => options?.method === "POST");
   expect(posts.map(([path]) => path)).toEqual(["/api/projects/p1/chats/c1/trim"]);
-  expect(screen.getByRole("textbox")).toBeTruthy();
+  expect(chatScreen().getByRole("textbox")).toBeTruthy();
   expect(screen.getByText("First answer.")).toBeTruthy();
   expect(screen.getByText("Last answer.")).toBeTruthy();
 });

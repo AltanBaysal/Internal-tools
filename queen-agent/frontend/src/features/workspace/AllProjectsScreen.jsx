@@ -3,6 +3,7 @@ import { useState } from "react";
 import ProjectRow, { UndoRow } from "./ProjectRow.jsx";
 import ProjectsFailure from "./ProjectsFailure.jsx";
 import Spinner from "./Spinner.jsx";
+import { matches } from "./matches.js";
 
 // The screen the app opens on (the design's items 135, 142, 167), and the one Exit project comes
 // back to. No sidebar stands beside it: no project is open here. The order is the server's
@@ -11,9 +12,6 @@ import Spinner from "./Spinner.jsx";
 //
 // The search and the tab are this screen's own state: what is shown while typing is the UI's
 // (FOUNDATION, Decision 4), so they reach neither the server nor the address.
-
-// Case and accents do not count, as in the design's data.js: "cafe" finds "Café".
-const fold = (text) => text.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 function Section({ label, projects, row }) {
   // A heading over nothing would be a promise of rows that are not there.
@@ -31,7 +29,7 @@ function ProjectList({ any, shown, archivedTab, query, row }) {
   // Asked first: with nothing to search, "no match" would be the wrong news -- and on either tab.
   if (!any) return <p className="all-projects__empty">No projects yet.</p>;
   const asked = query.trim();
-  const found = shown.filter((project) => fold(project.name).includes(fold(asked)));
+  const found = shown.filter((project) => matches(project.name, query));
   if (!found.length) {
     let none = archivedTab ? "No archived projects." : "Every project is archived.";
     if (asked) none = `No projects match "${asked}".`;
