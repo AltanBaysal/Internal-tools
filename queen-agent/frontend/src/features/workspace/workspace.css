@@ -1348,6 +1348,18 @@
   color: var(--muted);
 }
 
+/* Madde 354, design items 189 and 192: what an answer sent, split under it. Cached is the app's
+   only green (#6f8a5f, the saved tick) darkened until it reads on the canvas: 5.7:1 there, where
+   the lighter one is 3.5:1. Missed is the destructive red, marking a cost here rather than a
+   destruction -- the design's own exception to red being for destruction alone. */
+.msg__stamp-cached {
+  color: #536747;
+}
+
+.msg__stamp-missed {
+  color: var(--destructive);
+}
+
 /* Madde 194: the same stamp, still counting, in the same row -- no columns and no left-and-right,
    so that when the turn ends and the record's stamp takes this place nothing on the page moves. The
    design's 7 rather than 6 between its parts. */
