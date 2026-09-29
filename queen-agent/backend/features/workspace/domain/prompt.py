@@ -206,6 +206,14 @@ THE_CHECKS = (
     "without anybody the angle does not show. The whole entries stay as they are: other frames "
     "show them whole.\n"
     "\n"
+    "Check 3 -- can it be drawn\n"
+    "- Read each photo prompt in the file build_prompts wrote, in its final form. A frame fails "
+    "when it asks for more than the model can draw: a hard pose, too many things, or what no "
+    "picture shows.\n"
+    "- Simplify that part where it comes from, and keep the moment: the action with update_frame, "
+    "an entry with update_character, update_outfit or update_location, which reaches every frame "
+    "naming it.\n"
+    "\n"
     "When the checks are done, close by naming the file and saying it is ready. Do not print the "
     "prompts back, offer nothing, and ask nothing: this is the last word."
 )
@@ -214,8 +222,8 @@ THE_CHECKS = (
 Start a scenario ends with them and Improve runs them alone. A skill cannot call another, so both
 texts carry this part -- as one constant, because the same rule written twice is how one copy drifts.
 No heading of its own: each skill puts its own step heading in front, since the step's number differs.
-The next checks (372 and 373) go in after Check 2, in front of the closing, which belongs to whatever
-check comes last.
+The next check (373) goes in after Check 3, in front of the closing, which belongs to whatever check
+comes last.
 
 A changed frame's action is emptied rather than rewritten here, so the model kept for writing actions
 writes it again (Madde 176); the video's prompt is queen-editor's (v9-7), so only the photo prompt is
@@ -225,6 +233,12 @@ last round runs no tool (Madde 137), and a frame a check has fixed looks like on
 Check 2 leaves a hidden part out through an entry of its own (Madde 371). A frame names whole
 entries and build_prompts puts each in whole, so nothing else can say "only this much of them
 here". The angle is the action's and stays: what the check corrects is what the frame names.
+
+Check 3 reads the built file rather than the structure (Madde 372): what the image model is handed
+is the parts joined, and too much often shows only in the sum. The file is rebuilt rather than
+patched, so a part is simplified where it comes from. The action is rewritten by the agent, which
+has read the line; emptied, it would go back to a model that has not. An entry is changed whole,
+since what cannot be drawn in one frame cannot be drawn in any.
 """
 
 EDIT_PROMPTS = (
