@@ -7,19 +7,23 @@ import Menu from "./Menu.jsx";
 const MOST_CHATS = 8;
 
 // One button, never a drag: claude.ai's behaviour rather than the rail's, and the user asked for it
-// by that name. Folded, the sidebar is not hidden -- a strip stands where it was, carrying the one
-// thing that brings it back. Nothing else survives the fold: every row here is a name or a title,
-// and inventing icons for them is a different decision from this one.
+// by that name. It stands in the sidebar's own last row, open and folded alike, so a press never
+// moves out from under the pointer (design 187, Claude Code's place for it). Folded, the sidebar is
+// not hidden: an icon column stands where it was, + for New chat above and this fold at its foot
+// (design 174); the rows are names and titles, and have no icon forms to fold into.
 function Fold({ collapsed, onToggle }) {
   return (
-    <button
-      type="button"
-      className="sidebar__fold"
-      aria-label={collapsed ? "Show the sidebar" : "Hide the sidebar"}
-      onClick={onToggle}
-    >
-      {collapsed ? "›" : "‹"}
-    </button>
+    <div className="sidebar__foot">
+      <button
+        type="button"
+        className="sidebar__fold"
+        aria-label={collapsed ? "Show the sidebar" : "Hide the sidebar"}
+        onClick={onToggle}
+      >
+        {/* Drawn in CSS, as .dot is: the app carries no icon files. */}
+        <span className="sidebar__panel-icon" />
+      </button>
+    </div>
   );
 }
 
@@ -46,6 +50,16 @@ export default function Sidebar({
   if (collapsed) {
     return (
       <aside className="sidebar sidebar--collapsed">
+        {activeProjectId ? (
+          <button
+            type="button"
+            className="sidebar__new-chat sidebar__new-chat--icon"
+            aria-label="New chat"
+            onClick={onNewChat}
+          >
+            <span className="sidebar__plus">+</span>
+          </button>
+        ) : null}
         <Fold collapsed onToggle={onToggle} />
       </aside>
     );
@@ -53,8 +67,6 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar">
-      <Fold onToggle={onToggle} />
-
       {activeProjectId ? (
         <button type="button" className="sidebar__new-chat" onClick={onNewChat}>
           <span className="sidebar__plus">+</span>
@@ -151,6 +163,7 @@ export default function Sidebar({
         </div>
       ) : null}
 
+      <Fold onToggle={onToggle} />
     </aside>
   );
 }
