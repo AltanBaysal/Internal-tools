@@ -492,7 +492,7 @@ test("a project address that matches nothing says so", async () => {
   await waitFor(() => expect(screen.getByText("That project does not exist.")).toBeTruthy());
 });
 
-test("a renamed project shows the new name in both places at once", async () => {
+test("a renamed project shows the new name in every place at once", async () => {
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (options?.method === "PATCH") {
       return Promise.resolve({
@@ -510,8 +510,9 @@ test("a renamed project shows the new name in both places at once", async () => 
   render(<App />);
   await waitFor(() => expect(screen.getByRole("button", { name: "Rename" })).toBeTruthy());
   fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-  // The title and the sidebar row read the same array, so they cannot disagree.
-  await waitFor(() => expect(screen.getAllByText("New").length).toBe(2));
+  // The title, the sidebar row and the bar (Madde 338) read the same array, so they cannot
+  // disagree.
+  await waitFor(() => expect(screen.getAllByText("New").length).toBe(3));
 });
 
 test("nothing is asked of a workspace-wide chat address", async () => {

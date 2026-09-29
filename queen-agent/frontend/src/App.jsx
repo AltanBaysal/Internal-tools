@@ -3,6 +3,7 @@ import "./features/workspace/workspace.css";
 
 import { useEffect, useState } from "react";
 
+import Bar from "./features/workspace/Bar.jsx";
 import ChatScreen from "./features/workspace/ChatScreen.jsx";
 import ConfirmDialog from "./features/workspace/ConfirmDialog.jsx";
 import NoProjectsScreen from "./features/workspace/NoProjectsScreen.jsx";
@@ -261,131 +262,136 @@ export default function App() {
 
   return (
     <div ref={shell} className={`app-shell ${steps}`.trim()} data-testid="app-shell">
-      <Sidebar
-        projects={projects}
-        chats={projectChats}
-        activeProjectId={route.projectId}
-        activeChatId={route.chatId}
-        onNewChat={openDraft}
-        onNewProject={createProject}
-        onOpenProject={openProject}
-        onOpenChat={(chatId) => openChat(route.projectId, chatId)}
-        menuFor={menuFor}
-        onOpenMenu={setMenuFor}
-        onCloseMenu={() => setMenuFor(null)}
-        onRenameProject={askForName}
-        onDeleteProject={askToDelete}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed((folded) => !folded)}
-      />
-      <main className="main">
-        {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
-        <OfflineStrip online={online} />
+      {/* "/" is where the app opens: the fork there decides what that is, so leaving a project
+          asks it rather than repeating its rule. */}
+      <Bar project={project} onExit={() => navigate("/")} />
+      <div className="app-shell__body">
+        <Sidebar
+          projects={projects}
+          chats={projectChats}
+          activeProjectId={route.projectId}
+          activeChatId={route.chatId}
+          onNewChat={openDraft}
+          onNewProject={createProject}
+          onOpenProject={openProject}
+          onOpenChat={(chatId) => openChat(route.projectId, chatId)}
+          menuFor={menuFor}
+          onOpenMenu={setMenuFor}
+          onCloseMenu={() => setMenuFor(null)}
+          onRenameProject={askForName}
+          onDeleteProject={askToDelete}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((folded) => !folded)}
+        />
+        <main className="main">
+          {/* Above the content and not over it: the sidebar keeps working and so does the composer. */}
+          <OfflineStrip online={online} />
 
-        {/* Until the first answer, the whole content area is one skeleton and no screen is drawn.
-            Two wrongs close with it: the fork used to sit empty, and an address typed straight into
-            a project answered "does not exist" about a list nobody had answered yet. The sidebar
-            stays live so navigation is never locked. */}
-        {firstLoad ? <Skeleton variant="screen" rows={3} /> : null}
+          {/* Until the first answer, the whole content area is one skeleton and no screen is drawn.
+              Two wrongs close with it: the fork used to sit empty, and an address typed straight
+              into a project answered "does not exist" about a list nobody had answered yet. The
+              sidebar stays live so navigation is never locked. */}
+          {firstLoad ? <Skeleton variant="screen" rows={3} /> : null}
 
-        {/* The fork draws nothing while it is still deciding, and hands over to the empty screen
-            only once the server has said there is nothing to open. */}
-        {!firstLoad && atFork && !landing ? (
-          <NoProjectsScreen error={error} onNewProject={createProject} />
-        ) : null}
+          {/* The fork draws nothing while it is still deciding, and hands over to the empty screen
+              only once the server has said there is nothing to open. */}
+          {!firstLoad && atFork && !landing ? (
+            <NoProjectsScreen error={error} onNewProject={createProject} />
+          ) : null}
 
-        {!firstLoad && route.view === "project" ? (
-          <ProjectScreen
-            project={project}
-            chats={projectChats}
-            files={files}
-            loadingChats={loadingChats}
-            loadingFiles={loadingFiles}
-            chatsError={chatsError}
-            filesError={filesError}
-            reading={{ ...reading, open: openFile }}
-            deleting={{ ...deleting, remove: askToDeleteFile }}
-            onRefresh={refresh}
-            /* No chat here to write a choice to: the picker holds what the next chat will be born
-               with -- the same value the draft's own picker holds. */
-            skill={draftSkill}
-            skillsOpen={pickerOpen === "skills"}
-            onToggleSkills={() => togglePicker("skills")}
-            onSkillChange={setDraftSkill}
-            mode={lastMode}
-            modeOpen={pickerOpen === "mode"}
-            onToggleMode={() => togglePicker("mode")}
-            onModeChange={setLastMode}
-            model={lastModel}
-            modelOpen={pickerOpen === "model"}
-            onToggleModel={() => togglePicker("model")}
-            onModelChange={setLastModel}
-            onRename={() => askForName(route.projectId)}
-            onDelete={() => askToDelete(route.projectId)}
-            onSend={(text) => chat.send(text, draftSkill, lastMode, lastModel)}
-            onOpenChat={(chatId) => openChat(route.projectId, chatId)}
-            onDeleteChat={askToDeleteChat}
-          />
-        ) : null}
+          {!firstLoad && route.view === "project" ? (
+            <ProjectScreen
+              project={project}
+              chats={projectChats}
+              files={files}
+              loadingChats={loadingChats}
+              loadingFiles={loadingFiles}
+              chatsError={chatsError}
+              filesError={filesError}
+              reading={{ ...reading, open: openFile }}
+              deleting={{ ...deleting, remove: askToDeleteFile }}
+              onRefresh={refresh}
+              /* No chat here to write a choice to: the picker holds what the next chat will be
+                 born with -- the same value the draft's own picker holds. */
+              skill={draftSkill}
+              skillsOpen={pickerOpen === "skills"}
+              onToggleSkills={() => togglePicker("skills")}
+              onSkillChange={setDraftSkill}
+              mode={lastMode}
+              modeOpen={pickerOpen === "mode"}
+              onToggleMode={() => togglePicker("mode")}
+              onModeChange={setLastMode}
+              model={lastModel}
+              modelOpen={pickerOpen === "model"}
+              onToggleModel={() => togglePicker("model")}
+              onModelChange={setLastModel}
+              onRename={() => askForName(route.projectId)}
+              onDelete={() => askToDelete(route.projectId)}
+              onSend={(text) => chat.send(text, draftSkill, lastMode, lastModel)}
+              onOpenChat={(chatId) => openChat(route.projectId, chatId)}
+              onDeleteChat={askToDeleteChat}
+            />
+          ) : null}
 
-        {!firstLoad && route.view === "chat" ? (
-          <ChatScreen
-            project={project}
-            chat={drafting ? DRAFT : chat.chat}
-            files={files}
-            loadingFiles={loadingFiles}
-            filesError={filesError}
-            reading={{ ...reading, open: openFile }}
-            deleting={{ ...deleting, remove: askToDeleteFile }}
-            onRefresh={refresh}
-            railCollapsed={railCollapsed || railFoldedByWidth}
-            railFoldedByWidth={railFoldedByWidth}
-            railWidth={railWidth}
-            onResizeRail={resizeRail}
-            onToggleRail={() => setRailCollapsed((folded) => !folded)}
-            error={chat.error}
-            refused={chat.refused}
-            missing={chat.missing}
-            thinking={chat.thinking}
-            streamingText={chat.streamingText}
-            creatingFile={chat.creatingFile}
-            createdFiles={chat.createdFiles}
-            streamingCalls={chat.streamingCalls}
-            progress={chat.progress}
-            onBack={() => openProject(route.projectId)}
-            /* The selection is the chat's own since Madde 105; the draft holds the birth value
-               instead. What governed a turn is still settled when the message is sent. */
-            skill={skillInForce}
-            skillsOpen={pickerOpen === "skills"}
-            onToggleSkills={() => togglePicker("skills")}
-            mode={lastMode}
-            modeOpen={pickerOpen === "mode"}
-            onToggleMode={() => togglePicker("mode")}
-            onModeChange={setLastMode}
-            model={lastModel}
-            modelOpen={pickerOpen === "model"}
-            onToggleModel={() => togglePicker("model")}
-            onModelChange={setLastModel}
-            /* The second argument is where an edit starts from, and it is the screen's: which
-               message is being replaced is a state of the transcript, not of the session. */
-            onSend={(text, from) => chat.send(text, skillInForce, lastMode, lastModel, from)}
-            onVersion={chat.version}
-            onSkillChange={changeSkill}
-            onStop={chat.stop}
-            /* The question is the hook's; the mode is the session's, and the session is here. One
-               button moves both, and useChat never learns there is such a thing as a mode. */
-            permission={chat.permission}
-            onAllow={() => {
-              chat.answer(true, "");
-              /* The answer settles this one call; the picker settles the next turn. Left on ask,
-                 the very next message would raise the same question again. */
-              setLastMode(EDIT);
-            }}
-            onDeny={(reason) => chat.answer(false, reason)}
-            onRetry={chat.retry}
-          />
-        ) : null}
-      </main>
+          {!firstLoad && route.view === "chat" ? (
+            <ChatScreen
+              project={project}
+              chat={drafting ? DRAFT : chat.chat}
+              files={files}
+              loadingFiles={loadingFiles}
+              filesError={filesError}
+              reading={{ ...reading, open: openFile }}
+              deleting={{ ...deleting, remove: askToDeleteFile }}
+              onRefresh={refresh}
+              railCollapsed={railCollapsed || railFoldedByWidth}
+              railFoldedByWidth={railFoldedByWidth}
+              railWidth={railWidth}
+              onResizeRail={resizeRail}
+              onToggleRail={() => setRailCollapsed((folded) => !folded)}
+              error={chat.error}
+              refused={chat.refused}
+              missing={chat.missing}
+              thinking={chat.thinking}
+              streamingText={chat.streamingText}
+              creatingFile={chat.creatingFile}
+              createdFiles={chat.createdFiles}
+              streamingCalls={chat.streamingCalls}
+              progress={chat.progress}
+              onBack={() => openProject(route.projectId)}
+              /* The selection is the chat's own since Madde 105; the draft holds the birth value
+                 instead. What governed a turn is still settled when the message is sent. */
+              skill={skillInForce}
+              skillsOpen={pickerOpen === "skills"}
+              onToggleSkills={() => togglePicker("skills")}
+              mode={lastMode}
+              modeOpen={pickerOpen === "mode"}
+              onToggleMode={() => togglePicker("mode")}
+              onModeChange={setLastMode}
+              model={lastModel}
+              modelOpen={pickerOpen === "model"}
+              onToggleModel={() => togglePicker("model")}
+              onModelChange={setLastModel}
+              /* The second argument is where an edit starts from, and it is the screen's: which
+                 message is being replaced is a state of the transcript, not of the session. */
+              onSend={(text, from) => chat.send(text, skillInForce, lastMode, lastModel, from)}
+              onVersion={chat.version}
+              onSkillChange={changeSkill}
+              onStop={chat.stop}
+              /* The question is the hook's; the mode is the session's, and the session is here.
+                 One button moves both, and useChat never learns there is such a thing as a mode. */
+              permission={chat.permission}
+              onAllow={() => {
+                chat.answer(true, "");
+                /* The answer settles this one call; the picker settles the next turn. Left on
+                   ask, the very next message would raise the same question again. */
+                setLastMode(EDIT);
+              }}
+              onDeny={(reason) => chat.answer(false, reason)}
+              onRetry={chat.retry}
+            />
+          ) : null}
+        </main>
+      </div>
 
       {/* Outside main so the darkened screen covers the sidebar too. */}
       {confirming ? (

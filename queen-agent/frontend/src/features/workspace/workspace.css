@@ -7,6 +7,53 @@
   position: relative;
 }
 
+/* --- bar ---------------------------------------------------------------- */
+
+/* Across the window's top, on every screen: three columns, the middle always at the window's
+   centre whatever the sides hold. One height, so a project opening or closing never moves it. */
+.bar {
+  height: 56px;
+  flex: none;
+  display: grid;
+  align-items: center;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+  padding: 0 12px;
+  background: var(--sidebar);
+  border-bottom: 1px solid var(--line);
+}
+
+/* The name and the version on one line, in the heading face; the ink is the page's own. */
+.bar__name {
+  font-family: var(--font-heading);
+  font-size: 21px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+/* The name's own size and ink, and its weight too: the user asked for it not to be bold. */
+.bar__version {
+  font-weight: 400;
+}
+
+.bar__project {
+  justify-self: center;
+  min-width: 0;
+  max-width: 640px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 500 18px var(--font-heading);
+  color: var(--ink);
+}
+
+/* With no project open the middle draws nothing, and without this the button would slide into the
+   middle column. */
+.bar__exit {
+  grid-column: 3;
+  justify-self: end;
+}
+
 /* --- sidebar ------------------------------------------------------------ */
 
 .sidebar {
@@ -31,14 +78,7 @@
   overflow: hidden;
 }
 
-.sidebar__brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 2px 6px;
-}
-
-/* Beside the wordmark while the sidebar is open, and the whole of it once folded. */
+/* At the sidebar's head, pushed to its right edge while open, and the whole of it once folded. */
 .sidebar__fold {
   margin-left: auto;
   border: none;
@@ -57,32 +97,10 @@
   background: #e5dfd5;
 }
 
-/* Nothing to sit beside, so the margin that pushed it right has nothing to push against. */
+/* Folded, the strip centres it, and the margin that pushed it right would pull it off centre. */
 .sidebar--collapsed .sidebar__fold {
   margin-left: 0;
 }
-
-.sidebar__wordmark {
-  font-family: var(--font-heading);
-  font-size: 21px;
-  letter-spacing: 0.2px;
-}
-
-/* The name and the run number, stacked: the brand row above is a row, and the fold button ends it. */
-.sidebar__name {
-  display: flex;
-  flex-direction: column;
-}
-
-/* The wordmark's footnote rather than a second name: the repo's note voice, and small enough that
-   the eye reads it after the name. Letter-spaced because two characters set solid under a 21px
-   name read as a smudge. */
-.sidebar__version {
-  color: var(--muted);
-  font-size: 11px;
-  letter-spacing: 1.2px;
-}
-
 
 /* The only filled accent in the app: this is the primary action. */
 .sidebar__new-chat {

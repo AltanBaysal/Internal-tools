@@ -98,8 +98,18 @@ a:hover {
    would be the one thing that could make the page itself scroll. Only inner regions scroll. */
 .app-shell {
   display: flex;
+  flex-direction: column;
   height: 100dvh;
   width: 100%;
   overflow: hidden;
   background: var(--canvas);
+}
+
+/* The sidebar and main, side by side under the bar. Without min-height: 0 it would grow with its
+   content and push the page into scrolling. */
+.app-shell__body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
 }
