@@ -302,10 +302,6 @@ def stream_answer(
                     spent.sent + round_spent["sent"],
                     spent.cached + round_spent["cached"],
                     spent.answered + round_spent["answered"],
-                    # Replaced rather than added (Madde 133). The three above are a bill and add up;
-                    # this one is a measurement of one request, and each round's is bigger than the
-                    # last because the conversation grew. The final reading is where it ended.
-                    round_spent["sent"],
                 )
                 yield Progress(index + 1, MAX_ROUNDS, _volume(spent))
 
@@ -361,14 +357,11 @@ def stream_answer(
                 )
                 if result.spent:
                     # A second request, paid for inside this turn, and the stamp is the only place
-                    # anybody would look for it. `context` is left alone on purpose: that number
-                    # answers how big the conversation got -- which is what says when a chat has to
-                    # stop -- and this request is not the conversation.
+                    # anybody would look for it.
                     spent = Usage(
                         spent.sent + result.spent.get("sent", 0),
                         spent.cached + result.spent.get("cached", 0),
                         spent.answered + result.spent.get("answered", 0),
-                        spent.context,
                     )
                     # The third place the count moves, and the reason it cannot move only between
                     # rounds: write_missing_actions pays for eight of these without the round ever

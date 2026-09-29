@@ -42,11 +42,6 @@ class Usage:
     # never be larger than `sent`, and the difference is what was paid for again.
     cached: int = 0
     answered: int = 0
-    # What the turn's *last* round sent, which is where the conversation stood when it ended. The
-    # three above answer what this answer cost; this one answers how big the request had grown, and
-    # only it can tell a chat when to stop -- a turn of six rounds spends six requests' worth, and
-    # that sum is not the size of any of them (Madde 133).
-    context: int = 0
 
 
 @dataclass(frozen=True)
@@ -198,7 +193,7 @@ def is_owed_an_answer(chat):
 
 
 CONTEXT_CEILING = 50_000
-"""How much one chat may send before it stops taking new turns.
+"""How big one chat's messages may grow before it stops taking new turns.
 
 Not a capacity limit -- the window is 256k, so this is a fifth of it. It is a quality one: models
 get worse as the input grows and what sits in the middle of a long request goes unread, so fitting
@@ -206,28 +201,22 @@ is not the same as being read. Above 200k the input also costs twice as much.
 """
 
 
-def last_context(chat):
-    """How big the conversation had grown when the last answer finished, or 0 if none has.
+def chat_size(chat):
+    """How big the conversation is, in tokens: the text of its messages and nothing else (Madde 337).
 
-    The last round's size rather than the turn's total. Those were the same reader until Madde 133,
-    and the trial that separated them closed a chat at 51.4k whose request had never passed 12k --
-    six rounds of ten thousand is not a request of sixty. What the turn cost is still on the
-    message, and the card still draws it; this is the other question.
+    That is all a chat sends the model of itself. A message's steps, files and bill stay on disk;
+    the system prompt, the tool descriptions, the skill's instruction and the opened-files box come
+    back the same in a new chat, so closing this one over them would win nothing.
 
-    A turn's size is only known once its answer comes back, so this is one turn stale on purpose --
-    a request is stopped by the size of the one before it. Walked from the end rather than read off
-    the last message: a question whose answer never came can be sitting there, and a question has
-    no number of its own.
-
-    The open line since Madde 195: a turn the user walked away from is not sent any more, and what
-    is not sent cannot fill the chat.
+    The open line, because a line nobody is standing on is not sent (Madde 195). An estimate rather
+    than a count: the app ships no tokenizer -- Flask is its one dependency -- and DeepSeek's own
+    rough measure is that an English character is about 0.3 of a token. Whole numbers, so the
+    ceiling's edge is not moved a character by rounding.
     """
-    for message in reversed(active_messages(chat)):
-        if message.role == "ai":
-            return message.usage.context
-    return 0
+    characters = sum(len(message.text) for message in active_messages(chat))
+    return characters * 3 // 10
 
 
 def is_full(chat):
     """Whether this chat has reached the ceiling and may not take another turn."""
-    return last_context(chat) >= CONTEXT_CEILING
+    return chat_size(chat) >= CONTEXT_CEILING

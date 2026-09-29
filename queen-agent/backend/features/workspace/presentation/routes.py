@@ -18,9 +18,9 @@ from backend.features.workspace.domain.chat import (
     CONTEXT_CEILING,
     ToolCall,
     active_messages,
+    chat_size,
     is_full,
     is_owed_an_answer,
-    last_context,
     variants_of,
 )
 from backend.features.workspace.domain.permission import PermissionWanted, Waiting
@@ -337,11 +337,11 @@ def _chat_json(chat):
         # The ceiling travels with the number: the gauge draws a share, and a share needs its
         # denominator. A second copy of the ceiling living in the browser is what would go stale.
         #
-        # The key stays `sent` while the number behind it became the last round's (Madde 133):
-        # read as the context's sent it is still true, and renaming it would rebuild the frontend
-        # to say the same thing. The gauge is handed the number the ceiling actually stops on --
-        # a gauge measuring something else cannot warn about the wall it is not watching.
-        "context": {"sent": last_context(chat), "ceiling": CONTEXT_CEILING},
+        # The key stays `sent` while the number behind it became the chat's messages (Madde 337):
+        # it is still what the chat sends of itself, and renaming it would rebuild the frontend to
+        # say the same thing. The gauge is handed the number the ceiling actually stops on -- a
+        # gauge measuring something else cannot warn about the wall it is not watching.
+        "context": {"sent": chat_size(chat), "ceiling": CONTEXT_CEILING},
         # The open line since Madde 195, and the key stays `messages`: what the browser is handed is
         # the conversation as it stands, which is what it always was.
         "messages": [
