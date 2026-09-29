@@ -74,8 +74,8 @@ a:hover {
   background-clip: content-box;
 }
 
-/* Shared by every surface: an opacity fade, and the pulse of the three dots and the loading
-   skeleton. Neither moves anything -- an element that has been laid out stays where it was put. */
+/* Shared by every surface: an opacity fade, and the pulse of the three dots. Neither moves
+   anything -- an element that has been laid out stays where it was put. */
 @keyframes fadeIn {
   from {
     opacity: 0;
