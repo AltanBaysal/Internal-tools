@@ -70,7 +70,7 @@
 }
 
 /* Folded to an icon column rather than hidden: + for New chat, and the fold at its foot. Every other
-   row here is a name or a title, and has no icon form. 52 wide above a 1000 shell only: the steps
+   row here is a chat's title, and has no icon form. 52 wide above a 1000 shell only: the steps
    below it name two classes, so they outweigh this one and keep their own width. */
 .sidebar--collapsed {
   width: 52px;
@@ -162,16 +162,7 @@
   flex: none;
 }
 
-/* Projects take at most 40% and scroll inside themselves; Recent chats fills the rest. */
-.sidebar__projects {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: none;
-  max-height: 40%;
-  overflow-y: auto;
-}
-
+/* The chats fill what New chat leaves, and scroll inside themselves: every chat is listed. */
 .sidebar__chats {
   display: flex;
   flex-direction: column;
@@ -181,60 +172,6 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-}
-
-.sidebar__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 12px 8px;
-}
-
-.sidebar__label {
-  font-size: 11px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--muted);
-  padding: 2px 12px 6px;
-}
-
-.sidebar__head .sidebar__label {
-  padding: 0;
-}
-
-.sidebar__add {
-  border: none;
-  background: none;
-  color: var(--muted);
-  font-size: 15px;
-  cursor: pointer;
-  padding: 0 2px;
-  line-height: 1;
-}
-
-.sidebar__add:hover {
-  color: var(--ink);
-}
-
-.sidebar__row-open {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  padding: 8px 12px;
-  border: none;
-  border-radius: var(--radius-control);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13.5px;
-  text-align: left;
-  color: #3a342e;
-  background: transparent;
-}
-
-.sidebar__row-open:hover,
-.sidebar__row--active {
-  background: #e5dfd5;
 }
 
 /* Nothing here but the box: the placement puts it where it goes and caps its height, and the width
@@ -316,24 +253,6 @@
   border-top: 1px solid var(--line);
 }
 
-.sidebar__row-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar__row-badge {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: #96795f;
-}
-
-.sidebar__row-badge--none {
-  opacity: 0;
-}
-
 .sidebar__chat {
   display: flex;
   width: 100%;
@@ -355,6 +274,15 @@
 .sidebar__chat:hover,
 .sidebar__chat--active {
   background: #e5dfd5;
+}
+
+/* No chats yet (design 168), in .file-list__empty's kind, sized for the sidebar. */
+.sidebar__empty {
+  padding: 10px 12px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 /* --- chat screen -------------------------------------------------------- */
@@ -2108,17 +2036,6 @@
 
 .ghost:hover {
   border-color: #c9bfb2;
-}
-
-/* A marker, not an action: one tone for every project, and the muted one so the eye reaches the
-   name first. */
-.dot {
-  display: block;
-  flex: none;
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  background: var(--muted);
 }
 
 /* --- the three steps ----------------------------------------------------- */

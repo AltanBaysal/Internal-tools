@@ -1,12 +1,12 @@
-// A chat lives inside a project, so the two chat sections follow the selected one: with none
-// selected they are absent rather than empty or disabled.
-const MOST_CHATS = 8;
+// Inside a project the sidebar is the project's own (design 151, 152, 168): a filled + New chat
+// first, then every chat it holds. Projects are listed on All projects, and the open one's name
+// stands in the bar, so none is listed here. App draws the sidebar only with a project open.
 
 // One button, never a drag: claude.ai's behaviour rather than the rail's, and the user asked for it
 // by that name. It stands in the sidebar's own last row, open and folded alike, so a press never
 // moves out from under the pointer (design 187, Claude Code's place for it). Folded, the sidebar is
 // not hidden: an icon column stands where it was, + for New chat above and this fold at its foot
-// (design 174); the rows are names and titles, and have no icon forms to fold into.
+// (design 174); the rows are titles, and have no icon forms to fold into.
 function Fold({ collapsed, onToggle }) {
   return (
     <div className="sidebar__foot">
@@ -16,7 +16,7 @@ function Fold({ collapsed, onToggle }) {
         aria-label={collapsed ? "Show the sidebar" : "Hide the sidebar"}
         onClick={onToggle}
       >
-        {/* Drawn in CSS, as .dot is: the app carries no icon files. */}
+        {/* Drawn in CSS: the app carries no icon files. */}
         <span className="sidebar__panel-icon" />
       </button>
     </div>
@@ -24,13 +24,9 @@ function Fold({ collapsed, onToggle }) {
 }
 
 export default function Sidebar({
-  projects,
   chats = [],
-  activeProjectId,
   activeChatId,
   onNewChat,
-  onNewProject,
-  onOpenProject,
   onOpenChat,
   collapsed,
   onToggle,
@@ -38,16 +34,14 @@ export default function Sidebar({
   if (collapsed) {
     return (
       <aside className="sidebar sidebar--collapsed">
-        {activeProjectId ? (
-          <button
-            type="button"
-            className="sidebar__new-chat sidebar__new-chat--icon"
-            aria-label="New chat"
-            onClick={onNewChat}
-          >
-            <span className="sidebar__plus">+</span>
-          </button>
-        ) : null}
+        <button
+          type="button"
+          className="sidebar__new-chat sidebar__new-chat--icon"
+          aria-label="New chat"
+          onClick={onNewChat}
+        >
+          <span className="sidebar__plus">+</span>
+        </button>
         <Fold collapsed onToggle={onToggle} />
       </aside>
     );
@@ -55,57 +49,14 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar">
-      {activeProjectId ? (
-        <button type="button" className="sidebar__new-chat" onClick={onNewChat}>
-          <span className="sidebar__plus">+</span>
-          New chat
-        </button>
-      ) : null}
+      <button type="button" className="sidebar__new-chat" onClick={onNewChat}>
+        <span className="sidebar__plus">+</span>
+        New chat
+      </button>
 
-      <div className="sidebar__projects">
-        <div className="sidebar__head">
-          <span className="sidebar__label">Projects</span>
-          <button
-            type="button"
-            className="sidebar__add"
-            onClick={onNewProject}
-            aria-label="New project"
-          >
-            +
-          </button>
-        </div>
-        {/* A row only opens its project: what is done to a project is done from its All projects
-            row, never from inside it (Madde 360, the design's 161). */}
-        {projects.map((project) => (
-          <button
-            key={project.id}
-            type="button"
-            className={
-              project.id === activeProjectId
-                ? "sidebar__row-open sidebar__row--active"
-                : "sidebar__row-open"
-            }
-            onClick={() => onOpenProject(project.id)}
-          >
-            <span className="dot" />
-            <span className="sidebar__row-name">{project.name}</span>
-            {/* A zero is drawn and made transparent rather than left out: the first file to land
-                must not push the name sideways. */}
-            <span
-              className={
-                project.files ? "sidebar__row-badge" : "sidebar__row-badge sidebar__row-badge--none"
-              }
-            >
-              {project.files ?? 0}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {activeProjectId ? (
-        <div className="sidebar__chats">
-          <span className="sidebar__label">Recent chats</span>
-          {chats.slice(0, MOST_CHATS).map((chat) => (
+      <div className="sidebar__chats">
+        {chats.length ? (
+          chats.map((chat) => (
             <button
               key={chat.id}
               type="button"
@@ -117,9 +68,11 @@ export default function Sidebar({
             >
               {chat.title}
             </button>
-          ))}
-        </div>
-      ) : null}
+          ))
+        ) : (
+          <p className="sidebar__empty">No chats yet.</p>
+        )}
+      </div>
 
       <Fold onToggle={onToggle} />
     </aside>

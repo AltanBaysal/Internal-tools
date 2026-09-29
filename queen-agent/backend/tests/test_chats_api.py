@@ -331,7 +331,7 @@ def test_an_unknown_chat_is_404(tmp_path):
 
 
 def test_there_is_no_workspace_wide_chat_address(tmp_path):
-    # A chat needs a project to live in, and Recent chats now lists that project's own chats, so
+    # A chat needs a project to live in, and the sidebar lists that project's own chats, so
     # the workspace has no rule for this path at all. The status is 405 rather than 404 because the
     # SPA fallback still claims every GET; the rule table is what actually says it is gone.
     client = _client(tmp_path)

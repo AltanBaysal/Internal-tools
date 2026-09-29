@@ -1,8 +1,7 @@
 import { getJson } from "../../shared/api.js";
 import { useList } from "../../shared/useList.js";
 
-// What this project holds, for the sidebar. It draws the first eight of it, which is a matter of how
-// much room a column has, not of a second answer worth fetching.
+// What this project holds, for the sidebar, which lists all of it (Madde 362).
 export function useProjectChats(projectId) {
   const { items, reload } = useList(`/api/projects/${projectId}/chats`, Boolean(projectId));
   return { projectChats: projectId ? items : [], reloadProjectChats: reload };
