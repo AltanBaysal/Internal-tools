@@ -163,15 +163,26 @@ it rather than in the function that appends it."""
 # said about how to work now sits in SYSTEM_PROMPT, where it holds whatever is selected. The picker
 # still has an empty state -- having no skill selected is ordinary.
 #
-# Since Madde 123 each opens as a persona and a word cap in the tests keeps it short: five runs of
-# patches had doubled the texts, and a weak model stops reading the middle. From here a sentence
-# enters only by deleting one.
+# Since Madde 123 each opens as a persona, and a word cap in test_skills.py keeps it short; Madde
+# 367 raised the cap, and the test says why. From here a sentence enters only by deleting one.
+
+THE_IMAGE_MODEL = (
+    "The prompts go to a weak text-to-image model of the SDXL family. It cannot draw anything "
+    "complex, so ask it only for what is simple to draw. Each frame is one moment, drawn as one "
+    "still picture, and that picture becomes a 4-second video."
+)
+"""What every skill knows about the model at the far end (Madde 367).
+
+Written once and carried by each skill text right after its opening, because it is one fact and two
+copies of it is how one of them goes stale. Not in SYSTEM_PROMPT: that text names no task.
+"""
 
 EDIT_PROMPTS = (
     "You are an expert SDXL prompt writer. The prompts you work on are already written: one per "
     "frame. The user wants something in them changed. The code builds every prompt from the "
     "structure file -- its characters, outfits, locations and frames -- so make your change "
     "there.\n"
+    "\n" + THE_IMAGE_MODEL + "\n"
     "\n"
     "Step 1 -- what the request is about\n"
     "- Read the scenario file the request names. If more than one could be it, ask which.\n"
@@ -187,8 +198,6 @@ EDIT_PROMPTS = (
     "naming it.\n"
     "- Who is in a frame, what they wear, or where it happens: update_frame, once for each frame "
     "the request reaches.\n"
-    "- A frame seen through somebody's own eyes names their pov_ entry instead of them, because "
-    "their whole entry would be drawn onto whoever the picture holds.\n"
     "\n"
     "Step 3 -- the answer\n"
     "- Call build_prompts again: the prompt file is rebuilt rather than patched.\n"
@@ -197,9 +206,10 @@ EDIT_PROMPTS = (
 )
 
 START_A_SCENARIO = (
-    "You are an expert scenario writer, and everything here serves one end: prompts for an "
-    "SDXL-family image model, one frozen frame at a time. You lay the ground and then build the "
-    "prompts, in one flow, walking the user through five steps in order, by asking.\n"
+    "You are an expert scenario writer, and everything here serves one end: image prompts, one "
+    "per frame. You lay the ground and then build the prompts, in one flow, walking the user "
+    "through five steps in order, by asking.\n"
+    "\n" + THE_IMAGE_MODEL + "\n"
     "\n"
     "How a step runs:\n"
     "- Ask, write it into the file, show what you wrote, and wait for their yes. A step ends "
@@ -225,8 +235,6 @@ START_A_SCENARIO = (
     "did not, in English for what they are.\n"
     "- Write each outfit as one entry with add_outfit the moment it is described: everything "
     "worn in that look, together.\n"
-    "- Give each character a pov_ entry as well, again with add_character: what a frame through "
-    "their own eyes holds of them.\n"
     "\n"
     "Step 3 -- the places\n"
     "- Ask where this scenario happens, and write each place in with add_location.\n"
@@ -267,9 +275,9 @@ START_A_SCENARIO = (
 # Carried together they would ride on six tools that never write an action.
 #
 # Correction 34 split Queen's half once more, by reader. What is left here is what all six tools
-# share; a rule that ruled on one field -- the count, solo, a pov_ entry, naming an outfit, nobody
-# in a location -- went down to that field's own description, where it is read while the value is
-# being written rather than six times over by five tools it says nothing to.
+# share; a rule that ruled on one field -- the count, solo, naming an outfit, nobody in a
+# location -- went down to that field's own description, where it is read while the value is being
+# written rather than six times over by five tools it says nothing to.
 #
 # Not in SYSTEM_PROMPT, where every chat would carry it including the ones writing no tags -- Madde
 # 94 pruned the skill texts for exactly that. Its cost is paid all the same, because a tool's
@@ -294,9 +302,9 @@ SDXL_PROMPT_RULES = (
 )
 
 WRITE_FRAME_SYSTEM_PROMPT = (
-    "You write the action line for one frozen frame. An SDXL-family image model draws it. You "
-    "are given three things: the scene in one sentence, who is in the frame, and where it "
-    "happens.\n"
+    "You write the action line for one frozen frame. A weak SDXL-family image model draws it, "
+    "and it cannot draw anything complex. You are given three things: the scene in one "
+    "sentence, who is in the frame, and where it happens.\n"
     "\n"
     "- Output the action line and nothing else. Your whole answer is written into the frame "
     "exactly as you send it, so a preamble, a quotation mark, or a comment about having written "
@@ -433,8 +441,7 @@ ADD_CHARACTER_TAGS = (
     "Write the character as tags: how many people this entry draws, their age, body, hair and "
     "face. The count goes here and nowhere else, because this is the one place a count sits next "
     "to the person it counts. Do not write solo: the same character stands alone in one frame "
-    "and next to somebody in the next, so an entry claiming solo is wrong in half of them. A "
-    "pov_ entry shows only hands and arms and no face, so it carries no count at all. Do not "
+    "and next to somebody in the next, so an entry claiming solo is wrong in half of them. Do not "
     "write clothes here -- those are outfits."
 )
 
