@@ -26,8 +26,9 @@ kırmızı yeşil chached kırmızı missed cahced".)* **Ayrıntılar kullanıc�
 
 *(Kullanıcı, 29 Eylül — "şuan sdxle özel instructıonlar çok dağılmış durumda farktettiysen toolara vs
 bence sdxl prompting diye güzel bir dokuman yazalım ai onu okusu sdxl skill de olur karmaşıklı
-azaltalım ztenc cahced yaparsak bunu o kadar malşyetide olmaz".)* **Ayrıntılar kullanıcıyla
-konuşulacak.**
+azaltalım ztenc cahced yaparsak bunu o kadar malşyetide olmaz"; 29 Eylül — "sdxl yeteneklere kesinlik
+ayna ekleme kısmınıda koyalım bunda yazar msıının bu taska çünkü aynayı çok kötü ekliyor kalite
+düşünyor user özellike sorarsa eklensin".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ## Start a scenario spicy skill'i açılacak
 
