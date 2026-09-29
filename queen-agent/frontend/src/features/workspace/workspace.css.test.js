@@ -478,6 +478,25 @@ test("in the file list the spinner stands centred where the rows will be", () =>
   expect(spot).toContain("padding: 24px 12px");
 });
 
+// Madde 355, design item 194: a chat opening turns the same ring where its messages will be.
+test("in a chat that is opening the spinner stands centred where the messages will be", () => {
+  const spot = rule(".chat__spinner");
+  expect(spot).toContain("display: flex");
+  expect(spot).toContain("justify-content: center");
+  expect(spot).toContain("padding: 40px 12px");
+});
+
+test("the box and its pickers, shut while the chat opens, fade like every shut control", () => {
+  expect(CSS).toMatch(/\n\.composer__input:disabled,\r?\n\.picker:disabled \{/);
+  const shut = rule(".picker:disabled");
+  expect(shut).toContain("cursor: default");
+  expect(shut).toContain("opacity: 0.4");
+});
+
+test("the message skeleton is gone with its one place", () => {
+  expect(CSS).not.toContain(".skeleton--message");
+});
+
 test("the offline strip turns reddish and carries a dot", () => {
   const strip = rule(".offline");
   expect(strip).toContain("background: #f5e9e3");
