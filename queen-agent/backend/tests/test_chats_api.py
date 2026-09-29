@@ -740,6 +740,73 @@ def test_the_record_says_how_much_of_the_ceiling_it_has_used(tmp_path):
     assert _record(client, pid, cid)["context"] == {"sent": 300, "ceiling": CONTEXT_CEILING}
 
 
+# --- trimming a full chat from the start (Madde 345) ---------------------------------------------
+
+# 20,000 characters: 6,000 tokens. Nine such answers fill a chat; eight do not.
+PAGE = "a" * 20_000
+
+
+def _filled(tmp_path):
+    """A client and a chat of nine turns that has just filled, with one more answer left to give."""
+    engine = ScriptedEngine([[{"text": PAGE}]] * 9 + [[{"text": "Done."}]])
+    client = _client(tmp_path, engine)
+    pid, cid = _started(client)
+    for _ in range(8):
+        client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "go on"}).get_data()
+    return client, pid, cid
+
+
+def test_a_full_chat_is_trimmed_from_the_start_and_keeps_every_message(tmp_path):
+    # "hello" and "go on" are five characters, so each turn is 20,005: nine are 54,013 and full. One
+    # turn is 6,001 and two are 12,003, so the cut stands before the ninth question -- message 16 --
+    # and the ring reads the one turn still sent.
+    client, pid, cid = _filled(tmp_path)
+    trimmed = client.post(f"/api/projects/{pid}/chats/{cid}/trim")
+    assert trimmed.status_code == 200
+    assert trimmed.get_json() == {}
+    record = _record(client, pid, cid)
+    assert record["trimmed"] == 16
+    assert len(record["messages"]) == 18
+    assert record["context"]["sent"] == 6001
+
+
+def test_a_trimmed_chat_takes_turns_again(tmp_path):
+    client, pid, cid = _filled(tmp_path)
+    client.post(f"/api/projects/{pid}/chats/{cid}/trim")
+    kept = client.post(f"/api/projects/{pid}/messages", json={"chat": cid, "text": "and more"})
+    assert kept.status_code == 200
+    kept.get_data()
+    said = [message["text"] for message in _record(client, pid, cid)["messages"]]
+    assert said[-2:] == ["and more", "Done."]
+
+
+def test_a_chat_that_is_not_full_is_not_trimmed(tmp_path):
+    # Continue here is offered only on a full chat (the owner's decision, 28 September), and the rule
+    # lives here rather than in the button.
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    refused = client.post(f"/api/projects/{pid}/chats/{cid}/trim")
+    assert refused.status_code == 400
+    assert refused.get_json() == {"error": "this chat is not full"}
+    assert _record(client, pid, cid)["trimmed"] == 0
+
+
+def test_trimming_a_chat_that_is_not_there_is_a_404(tmp_path):
+    client = _client(tmp_path)
+    pid = _project(client)
+    refused = client.post(f"/api/projects/{pid}/chats/nope/trim")
+    assert refused.status_code == 404
+    assert refused.get_json() == {"error": "chat not found"}
+
+
+def test_a_chat_nobody_trimmed_says_so(tmp_path):
+    # Always present, like the messages' calls: the line on screen (v9-1d) reads it, and a field
+    # that comes and goes makes every reader check for it first.
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    assert _record(client, pid, cid)["trimmed"] == 0
+
+
 # --- the mode a turn was sent in (Madde 91) ------------------------------------------------------
 
 

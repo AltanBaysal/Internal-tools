@@ -287,3 +287,106 @@ def test_the_same_message_edited_twice_has_three_options():
     assert [(v["index"], v["of"], v["versions"]) for v in variants_of(chat)] == [
         (2, 3, ["", "l2", "l3"])
     ]
+
+
+# --- the trim: the oldest turns stop going to the model (Madde 345) -----------------------------
+
+
+def _marked(chat, count):
+    """The chat with its first line's last message carrying a trim of this many messages."""
+    last = replace(chat.messages[-1], trimmed=count)
+    return replace(chat, messages=chat.messages[:-1] + (last,))
+
+
+def _turns(*pairs):
+    """A chat whose first line is these (question, answer) turns, in order."""
+    return _trunk(*[text for pair in pairs for text in pair])
+
+
+def test_a_chat_nobody_trimmed_sends_its_whole_open_line():
+    from backend.features.workspace.domain.chat import active_messages, sent_from, sent_messages
+
+    chat = _trunk("hi", "Done.", "again", "Done twice.")
+    assert sent_from(chat) == 0
+    assert sent_messages(chat) == active_messages(chat)
+
+
+def test_a_trimmed_line_sends_and_measures_only_what_follows_the_cut():
+    # Madde 345, the row's own words: the oldest messages stop going to the model, and the ring
+    # reads what is still sent. They stay in the record -- only what is sent moves.
+    from backend.features.workspace.domain.chat import (
+        active_messages,
+        chat_size,
+        sent_from,
+        sent_messages,
+    )
+
+    chat = _marked(_trunk("a" * 600, "a" * 400, "b" * 60, "b" * 40), 2)
+    assert sent_from(chat) == 2
+    assert [m.text for m in sent_messages(chat)] == ["b" * 60, "b" * 40]
+    assert len(active_messages(chat)) == 4
+    assert chat_size(chat) == 30
+
+
+def test_the_newest_trim_on_the_line_is_the_one_that_holds():
+    # A trimmed chat fills again and is trimmed again; the second cut is further on, and it is the
+    # one the line reads from.
+    from backend.features.workspace.domain.chat import sent_from
+
+    first = _marked(_trunk("hi", "Done.", "again", "Done twice."), 2)
+    grown = replace(first, messages=first.messages + (_said("user", "more"), _said("ai", "More.")))
+    assert sent_from(_marked(grown, 4)) == 4
+
+
+def test_a_version_split_before_the_trim_is_not_trimmed_and_one_after_it_is():
+    # The mark sits on the message that was last when the chat was trimmed -- the answer that filled
+    # it. A version cut before that answer never filled, so nothing on it is trimmed; one opened
+    # after it carries the mark in front of it and stays trimmed (the design's BEHAVIOUR.md).
+    from backend.features.workspace.domain.chat import sent_from
+
+    chat = _marked(_trunk("hi", "Done.", "again", "Done twice."), 2)
+    before = replace(chat, versions=(_version("l2", "", 2, "again, shorter"),), active="l2")
+    after = replace(chat, versions=(_version("l2", "", 4, "and more"),), active="l2")
+    assert sent_from(before) == 0
+    assert sent_from(after) == 2
+
+
+def test_a_trimmed_chat_that_grows_back_to_the_ceiling_is_full_again():
+    # 29 September: a trimmed chat that fills again shows the notice again. The measure counts from
+    # the cut, so what is past it is what fills the chat.
+    from backend.features.workspace.domain.chat import is_full
+
+    trimmed = _marked(_trunk("a" * 200_000, "Done.", "hi", "Done."), 2)
+    assert not is_full(trimmed)
+    grown = replace(
+        trimmed,
+        messages=trimmed.messages + (_said("user", "go on"), _said("ai", "a" * 166_667)),
+    )
+    assert is_full(grown)
+
+
+def test_a_trim_keeps_ten_thousand():
+    # The owner's number, 28 September: "10k contexte kadar".
+    from backend.features.workspace.domain.chat import TRIM_KEEPS
+
+    assert TRIM_KEEPS == 10_000
+
+
+def test_a_trim_drops_whole_turns_from_the_start_until_ten_thousand_is_left():
+    # Seventeen turns of 3,000 each: 51,000, full. Three of them are 9,000 and four are 12,000, so
+    # the cut stands before the fifteenth question -- message 28.
+    from backend.features.workspace.domain.chat import chat_size, trim_point
+
+    chat = _turns(*[("a" * 1000, "a" * 9000)] * 17)
+    assert trim_point(chat) == 28
+    assert chat_size(_marked(chat, 28)) == 9000
+
+
+def test_a_trim_never_cuts_between_a_question_and_its_answer():
+    # The last turn weighs 10,800 -- more than a trim keeps -- and its answer alone would fit. The
+    # cut still stands before the question: the model is never handed an answer to nothing, and the
+    # last turn stays whatever it weighs.
+    from backend.features.workspace.domain.chat import trim_point
+
+    chat = _turns(("a" * 100, "a" * 100), ("a" * 30_000, "a" * 6_000))
+    assert trim_point(chat) == 2
