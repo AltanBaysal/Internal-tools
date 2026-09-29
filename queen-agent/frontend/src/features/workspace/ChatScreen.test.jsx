@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
@@ -24,6 +27,24 @@ test("the layout says when something is being read", () => {
 test("with nothing open the layout says nothing", () => {
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
   expect(container.querySelector(".chat-layout--reading")).toBeNull();
+});
+
+// Madde 344: the screen is the screen, and what draws one message lives in files of its own. A lock
+// rather than a behaviour -- every test below still draws the screen and looks at what it does.
+// Read off disk, like workspace.css.test.js: vitest hands back neither import.meta.url nor `?raw`.
+test("the message's parts are drawn from their own files", () => {
+  const source = readFileSync(resolve(process.cwd(), "src/features/workspace/ChatScreen.jsx"), "utf8");
+  const parts = [
+    "ToolCalls",
+    "Stamp",
+    "LiveStrip",
+    "EditMessage",
+    "Versions",
+    "MessageFoot",
+    "CreatingFile",
+    "FileCard",
+  ];
+  expect(parts.filter((part) => source.includes(`function ${part}(`))).toEqual([]);
 });
 
 // --- the calls a turn made (Madde 66) ------------------------------------------------------------
