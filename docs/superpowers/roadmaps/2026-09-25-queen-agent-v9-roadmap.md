@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 2/45
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 3/45
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -90,7 +90,7 @@ koşu durur, ve madde kullanıcıyla birlikte yapılır.
 |---|---|---|
 | 334 · v9-3a | ✅ **Playwright MCP bu depoda ayarlanır.** queen-design'daki gibi: ayar depoda durur, sürüm sabittir, tarayıcı arka planda açılır; cihazda nasıl kurulu olduğu koşuda bulunur. **Kullanıcıdan gereken:** ayar yazılınca Claude Code'un yeniden açılması. *Kararları: v9-3.* | Claude Code yeniden açılınca bu depoda Playwright araçları görünüyor, ve Claude bir sayfayı açıp ekran görüntüsünü alabiliyor. |
 | 378 | ✅ **Playwright MCP güvenli kullanılır.** Tarayıcı normal internete karışmaz: yalnız bu bilgisayarda çalışan araçları ve onların fontlarını — Google Fonts — açar. Kodu tarayıcının dışında, bilgisayarda çalıştıran araç yasak, ve Playwright'ın yazdıkları git'e girmez. Kurallar CLAUDE.md'de. queen-design'daki kurallardan öğrenilir. *(Kullanıcı, 29 Eylül — "mcp yi günveli bir şekilde kullanmamız lazım  bu nednele queen desingdan öğren bunu normal internete karışmaması lazı mynai bir araştır ona göre claude mdyi de güncelle"; fontlar olmadan ekranlar yedek fontla çıkacağı için Google Fonts'a — "izin verilsin".)* **Claude'un, subagent'sız:** tarayıcı Claude'da. **Kullanıcıdan gereken:** ayar yazılınca Claude Code'un yeniden açılması. | Claude Code yeniden açılınca tarayıcı bir internet adresini açamıyor, ama yerel QueenAgent'ı fontlarıyla açıyor; `browser_run_code_unsafe` çağrılamıyor; `git status` Playwright'ın dosyalarını göstermiyor. |
-| 335 · v9-3b | `ALIGNED` **QueenAgent Playwright ile kontrol edilir.** Claude bu bilgisayarda yerel çalışan QueenAgent'ı açar ve kullanıcının yerine kullanır; gerçek AI çağrısı yapılabilir. Önünde bir engel çıkmazsa düzenleme yapılmadan kapanır. *Kararları: v9-3.* | Claude yerel QueenAgent'ı Playwright ile açıp bir skill'i baştan sona çalıştırabiliyor ve sonucu ekranda görüyor. |
+| 335 · v9-3b | ✅ **QueenAgent Playwright ile kontrol edilir.** Claude bu bilgisayarda yerel çalışan QueenAgent'ı açar ve kullanıcının yerine kullanır; gerçek AI çağrısı yapılabilir. Önünde bir engel çıkmazsa düzenleme yapılmadan kapanır. *Kararları: v9-3.* **29 Eylül'de sahte anahtarla koştu** *(kullanıcı — "abi dummy apı key kullan lütfen apı keye ihtiyacın yok")*: proje açıldı, *Start a scenario* seçildi, mesaj gitti, ve DeepSeek'in 401'i ekranda hata kartı olarak göründü. Düzenleme gerekmedi. | Claude yerel QueenAgent'ı Playwright ile açıp bir skill'i baştan sona çalıştırabiliyor ve sonucu ekranda görüyor. |
 
 ### Dalga 1 — v9-3'ten sonra, aynı anda
 
