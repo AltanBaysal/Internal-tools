@@ -337,3 +337,31 @@ def test_a_chat_written_before_this_reads_as_one_line(tmp_path):
     old = FileChatStore(raw).get("p1", "old")
     assert old.versions == ()
     assert old.active == ""
+
+
+# --- the trim (Madde 345) ------------------------------------------------------------------------
+
+
+def _trimmed(count):
+    return replace(
+        _chat(),
+        messages=(
+            Message(role="ai", at="2026-08-09T11:05:00+00:00", text="Here it is.", trimmed=count),
+        ),
+    )
+
+
+def test_a_trim_survives_a_round_trip(tmp_path):
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _trimmed(4))
+    assert FileChatStore(Store(str(tmp_path))).get("p1", "c1") == _trimmed(4)
+    assert json.loads(raw.read_text("p1/chats/c1.json"))["messages"][0]["trimmed"] == 4
+
+
+def test_a_message_that_trimmed_nothing_writes_no_field_and_reads_zero(tmp_path):
+    # The rule every other field on the record keeps, and no migration: every chat on disk today
+    # reads as untrimmed.
+    raw = Store(str(tmp_path))
+    FileChatStore(raw).add("p1", _chat())
+    assert "trimmed" not in raw.read_text("p1/chats/c1.json")
+    assert FileChatStore(raw).get("p1", "c1").messages[0].trimmed == 0

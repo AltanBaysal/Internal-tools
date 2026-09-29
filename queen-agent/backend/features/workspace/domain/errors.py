@@ -17,6 +17,10 @@ class ChatNotFound(Exception):
     """No chat carries this id inside that project."""
 
 
+class ChatNotFull(Exception):
+    """Only a full chat is trimmed."""
+
+
 class EngineFailed(Exception):
     """The engine could not answer. Carries the engine's own words."""
 

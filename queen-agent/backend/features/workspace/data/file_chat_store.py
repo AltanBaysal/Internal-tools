@@ -92,6 +92,9 @@ def _message_json(message):
             "cached": message.usage.cached,
             "answered": message.usage.answered,
         }
+    # Only the message a trim was written on carries one.
+    if message.trimmed:
+        stored["trimmed"] = message.trimmed
     return stored
 
 
@@ -142,6 +145,7 @@ def _as_message(message):
         ),
         stopped=message.get("stopped", False),
         usage=_as_usage(message.get("usage")),
+        trimmed=message.get("trimmed", 0),
     )
 
 

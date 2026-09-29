@@ -72,6 +72,11 @@ class Message:
     # answers is which turn was expensive -- and a chat's total can be added up from these, while a
     # total cannot be taken apart.
     usage: Usage = Usage()
+    # How many messages at the start of its line stopped going to the model when the chat was
+    # trimmed with this one last (Madde 345). On the message rather than the chat, because a chat
+    # holds several lines: a version opened after this message carries it in front of it and stays
+    # trimmed, and one cut before it never filled and carries nothing. Zero is untrimmed.
+    trimmed: int = 0
 
 
 @dataclass(frozen=True)
@@ -208,15 +213,57 @@ def chat_size(chat):
     the system prompt, the tool descriptions, the skill's instruction and the opened-files box come
     back the same in a new chat, so closing this one over them would win nothing.
 
-    The open line, because a line nobody is standing on is not sent (Madde 195). An estimate rather
-    than a count: the app ships no tokenizer -- Flask is its one dependency -- and DeepSeek's own
-    rough measure is that an English character is about 0.3 of a token. Whole numbers, so the
-    ceiling's edge is not moved a character by rounding.
+    The open line, because a line nobody is standing on is not sent (Madde 195), and from its trim
+    on, because a trimmed chat's oldest turns are not sent either (Madde 345).
     """
-    characters = sum(len(message.text) for message in active_messages(chat))
+    return _size(sent_messages(chat))
+
+
+def _size(messages):
+    """An estimate rather than a count: the app ships no tokenizer -- Flask is its one dependency --
+    and DeepSeek's own rough measure is that an English character is about 0.3 of a token. Whole
+    numbers, so the ceiling's edge is not moved a character by rounding."""
+    characters = sum(len(message.text) for message in messages)
     return characters * 3 // 10
 
 
 def is_full(chat):
     """Whether this chat has reached the ceiling and may not take another turn."""
     return chat_size(chat) >= CONTEXT_CEILING
+
+
+TRIM_KEEPS = 10_000
+"""The most a trim leaves the model of a full chat -- the owner's number (Madde 345)."""
+
+
+def sent_from(chat):
+    """Where the model starts reading the open line: its newest trim, or 0 (Madde 345)."""
+    for message in reversed(active_messages(chat)):
+        if message.trimmed:
+            return message.trimmed
+    return 0
+
+
+def sent_messages(chat):
+    """What the chat sends the model of itself: the open line from its trim on.
+
+    The messages before the trim stay in the record and on screen; they only stop being sent.
+    """
+    return active_messages(chat)[sent_from(chat) :]
+
+
+def trim_point(chat):
+    """Where a trim cuts the open line: before the first question after which TRIM_KEEPS at most
+    is left.
+
+    Only before a question, so whole turns drop and the model is never handed an answer to nothing.
+    When no cut leaves that little, the cut is the last question, and its turn stays whatever it
+    weighs. An earlier trim needs no looking at: in a full chat everything from it on weighs at
+    least the ceiling, so no cut at or before it can qualify.
+    """
+    said = active_messages(chat)
+    questions = [index for index in range(1, len(said)) if said[index].role == "user"]
+    for index in questions:
+        if _size(said[index:]) <= TRIM_KEEPS:
+            return index
+    return questions[-1] if questions else 0

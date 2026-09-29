@@ -1472,3 +1472,23 @@ def test_the_skill_and_the_model_come_from_the_open_lines_newest_question(tmp_pa
     assert engine.models[0] == "deepseek-v4-pro"
     said = [message["content"] for message in engine.seen[0]]
     assert instruction_for("edit-prompts") in said
+
+
+# --- a trimmed chat (Madde 345) ------------------------------------------------------------------
+
+
+def test_a_trimmed_chat_sends_only_what_follows_the_cut(tmp_path):
+    # The row's own words: in a trimmed chat only the newest part goes to the model, while every
+    # message stays in the record.
+    chats, files = _seeded(tmp_path)
+    append_message(chats, "p1", "c1", "Done.", NOW, role="ai")
+    append_message(chats, "p1", "c1", "again", NOW)
+    chat = chats.get("p1", "c1")
+    marked = replace(chat.messages[-1], trimmed=2)
+    chats.replace("p1", replace(chat, messages=chat.messages[:-1] + (marked,)))
+    engine = ScriptedEngine([[{"text": "Done again."}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
+    assert [
+        message["content"] for message in engine.seen[0] if message["role"] in ("user", "ai")
+    ] == ["again"]
+    assert len(chats.get("p1", "c1").messages) == 4

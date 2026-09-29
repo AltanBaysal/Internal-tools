@@ -5,7 +5,7 @@ simpler than carrying a separate "this one is the last" flag.
 """
 from dataclasses import dataclass
 
-from backend.features.workspace.domain.chat import ToolCall, Usage, active_messages
+from backend.features.workspace.domain.chat import ToolCall, Usage, active_messages, sent_messages
 from backend.features.workspace.domain.context_box import BOX_LIMIT, files_opened
 from backend.features.workspace.domain.errors import ChatNotFound, EngineFailed
 from backend.features.workspace.domain.modes import EDIT, ends_the_turn, needs_permission
@@ -64,9 +64,10 @@ def _conversation(chat):
     request, and `_asked` is what puts it there.
 
     The open line since Madde 195: a version is answered with the conversation the user is standing
-    in, not the one they took back.
+    in, not the one they took back. From its trim on since Madde 345: a trimmed chat's oldest turns
+    stay on screen and are not sent.
     """
-    return [{"role": message.role, "content": message.text} for message in active_messages(chat)]
+    return [{"role": message.role, "content": message.text} for message in sent_messages(chat)]
 
 
 def _current_skill(chat):
