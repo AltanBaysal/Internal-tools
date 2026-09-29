@@ -56,7 +56,7 @@ is not the same as being read. Above 200k the input also costs twice as much.
 
 
 def chat_size(chat):
-    """How big the conversation is, in tokens: the text of its messages and nothing else (Madde 337).
+    """How big the conversation is, in tokens: its messages' text and nothing else (Madde 337).
 
     That is all a chat sends the model of itself. A message's steps, files and bill stay on disk;
     the system prompt, the tool descriptions, the skill's instruction and the opened-files box come
