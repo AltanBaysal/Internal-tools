@@ -19,19 +19,25 @@ Akışın içinden gelen hata (`error`, ör. sağlayıcının 401'i) kahverengi 
 1. **Ret de kahverengi kart.** `refused` gelince ekranda `Couldn't get a response.`, altında
    sunucunun kendi yazısı (kartın `failure__detail`'inde, geldiği gibi) ve `Try again` var;
    `.refused` satırı yok.
-2. **Try again reddedileni yeniden gönderir.** Karar (teknik, benim): reddedilen istek aynen
-   yeniden gider — bir mesaj reddedildiyse aynı cümle, aynı skill, mode ve model, bir düzeltmeyse
-   aynı `from` ile; reddedilen bir Try again'se yine yazısız istek. Neden: kart *"cevap alınamadı"*
-   diyor, ve reddedilen bir mesajda cevabı alınacak şey o mesaj. Tasarımdaki gibi yazısız istek
-   (`send(null)`) göndermek, diskte bekleyen soru yokken sunucudan *"this chat has already been
+2. **Try again, reddedilen cevabı yeniden gönderir — kutunun gönderişiyle.** Kart *"cevap
+   alınamadı"* diyor, ve reddedilen bir mesajda cevabı alınacak şey o mesaj. Tasarımdaki gibi yazısız
+   istek (`send(null)`) göndermek, diskte bekleyen soru yokken sunucudan *"this chat has already been
    answered"* ya da taslakta *"there is nothing here to answer"* döndürür — bağlantı kopup gelince
-   bile mesaj gitmez. Yeniden reddedilirse kart sunucunun yeni yazısıyla kalır.
+   bile mesaj gitmez. **Cümlenin tek sahibi kutu** *(koordinatör, 29 Eylül — ilk geçişte hem kutu hem
+   Try again cümleyi tutuyordu, ve kabul edilen bir Try again'den sonra cümle kutuda kalıp ikinci kez
+   gönderilebiliyordu)*: ret cümleyi kutuya geri verir (FOUNDATION'ın birinci ilkesi — kalıcı bir
+   retten sonra kullanıcı onu kutudan alıp yeni sohbete taşır), ve Try again kutunun Send'iyle aynı
+   iştir: kutudaki cümle gider, kutu boşalır; yeniden reddedilirse cümle kutuya döner ve kart
+   sunucunun yeni yazısıyla kalır.
 3. **Ret, sonraki gönderişe taşınmaz.** Reddedilen mesajdan sonra başka bir mesaj gönderilir ve onun
    cevabı akışta hata verirse, Try again artık yazısız isteği gönderir — eski ret cümlesini değil.
-4. **Cümle yine kutuya döner** (FOUNDATION'ın birinci ilkesi): mevcut test kalır. Kalıcı bir ret
-   (dolu sohbet) karşısında kullanıcı cümlesini kutudan alıp yeni sohbete taşıyabilir. Bilinen bir
-   sonuç: Try again kabul edilirse cümle kutuda da durur; kullanıcı onu siler. Kutuyu dışarıdan
-   boşaltmak Composer'ın taslağına ikinci bir sahip ekler — bu madde bunu yapmaz.
+4. **Kabul edilen Try again'den sonra kutu boş.** Cümle bir kez gider, ve geride kalmaz.
+5. **Ret kartı söylendiği sohbette kalır.** Başka bir sohbete ya da taslağa geçince kart gider:
+   Try again'i kutuyu gönderir, ve orada basılsa cümleyi o sohbete yazardı. Tasarımın da kararı
+   (`APP-BUGS.md` 3 — *"another chat or the draft takes it away"*). İlk geçişin uygulaması bunu
+   testsiz yazmıştı *(koordinatör, 29 Eylül: kod taahhüt edilmiş testlerin anlattığıdır)*; o iki satır
+   bu turun kırmızı commit'inde çıkarılır ki testin kırmızısı görülsün, ve uygulama turunda geri
+   gelir.
 
 ## Testler ne tutar, ne tutmaz
 
@@ -51,6 +57,19 @@ server's words"* — `refused` ile kart, sunucunun cümlesi `failure__detail`'de
 - Yeni: *"a refusal is not carried into a later send's Try again"* — ret, sonra kabul edilen ama
   akışta hata veren bir mesaj, sonra Try again: üçüncü POST'un gövdesi `{ chat: "c1" }`.
 
+**İkinci geçiş (koordinatörün iki notu), `App.test.jsx`:**
+
+- `stubRefusingChat` iki sohbet taşır (`Hi` ve `Other`) ve kenar çubuğunun satırlarını verir.
+- Yeni: *"a sentence sent again by Try again does not stay in the box"* — ret, kutuda `hello`;
+  Try again kabul edilir: ikinci POST `hello`'yu taşır, kart gider, kutu boş.
+- Yeni: *"a refusal's card stays in the chat it was said in"* — ret, sonra kenar çubuğundan `Other`:
+  kart yok.
+- Yeni: *"a refusal's card does not follow the user into the draft"* — ret, sonra `New chat`: kart
+  yok.
+- Reddedilen bir düzeltmenin (edit) Try again'i için test yok: düzeltmenin cümlesi retten sonra
+  hiçbir yerde durmuyor (`APP-BUGS.md` 7, bu maddenin değil), ve Try again orada da yazısız sorar —
+  ilk geçişten önceki davranış.
+
 **Tutmaz:** `workspace.css`'teki `.refused` kuralının yokluğu — m341'deki gibi, yokluğu kilitlemek
 ölçü değil iz olur; ekranda `.refused` olmadığını ChatScreen'in ve App'in testleri tutuyor.
 Proje ekranından gönderilen mesajın reddi — bugün de orada çizilmiyor, bu madde ona dokunmuyor.
@@ -67,5 +86,9 @@ testi ve App'in üç testi (ikisi yeni, biri güncellendi) — bugün ret kırm�
 Üçüncü yeni test (*"a refusal is not carried…"*) bugün de geçebilir: ret satırı Try again sunmadığı
 için akış hatasının kartındaki Try again yazısız gider; bu test uygulamanın getireceği hatırlamayı
 kilitler. Öteki süitler yeşil. Kırmızı hâliyle commit edilir.
+
+İkinci geçişte: ön uç 700 test, üç kırmızı — üç yeni test. Kutu testi kırmızı, çünkü ilk geçişin
+Try again'i cümleyi hook'tan yeniden gönderiyor ve kutu dolu kalıyor; sohbet ve taslak testleri
+kırmızı, çünkü `useChat`'in yükleme etkisindeki iki `setRefused(null)` bu commit'te çıkarılıyor.
 
 Adım adım dökümü [test turunun planında](../plans/2026-09-29-queenagent-m349-ret-karti-testler-plan.md).

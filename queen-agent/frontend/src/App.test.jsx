@@ -669,15 +669,25 @@ function sseResponse(text) {
 // Madde 349: the card says no answer came, and what it came for is the refused sentence -- a
 // request with no text would ask the server to answer a question that was never written.
 function stubRefusingChat(answers) {
-  const chat = { id: "c1", title: "Hi", messages: [] };
+  const records = {
+    c1: { id: "c1", title: "Hi", messages: [] },
+    c2: { id: "c2", title: "Other", messages: [] },
+  };
+  const rows = Object.values(records).map(({ id, title }) => ({
+    id,
+    title,
+    lastActivity: new Date().toISOString(),
+  }));
   let posts = 0;
   const fetch = vi.fn().mockImplementation((path, options) => {
     if (path.endsWith("/messages") && options?.method === "POST") {
       posts += 1;
       return Promise.resolve(answers(posts));
     }
-    if (path.endsWith("/chats/c1")) {
-      return Promise.resolve({ ok: true, status: 200, json: async () => chat });
+    const record = records[path.match(/\/chats\/(\w+)$/)?.[1]];
+    if (record) return Promise.resolve({ ok: true, status: 200, json: async () => record });
+    if (path.endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => rows });
     }
     return Promise.resolve({ ok: true, status: 200, json: async () => [] });
   });
@@ -733,6 +743,51 @@ test("a refusal is not carried into a later send's Try again", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Try again" }));
   await waitFor(() => expect(messagePosts(fetch)).toHaveLength(3));
   expect(messagePosts(fetch)[2]).toEqual({ chat: "c1" });
+});
+
+// The box is the refused sentence's one owner, so Try again is the box sending it -- left behind
+// there as well, it would be sent a second time.
+test("a sentence sent again by Try again does not stay in the box", async () => {
+  const fetch = stubRefusingChat((post) =>
+    post === 1 ? NOT_FOUND : sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
+  );
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByText("chat not found");
+  expect(box.value).toBe("hello");
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
+  expect(messagePosts(fetch)[1].text).toBe("hello");
+  await waitFor(() => expect(screen.queryByText("Couldn't get a response.")).toBeNull());
+  expect(box.value).toBe("");
+});
+
+async function refuseInFirstChat() {
+  stubRefusingChat(() => NOT_FOUND);
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByText("chat not found");
+}
+
+// Design APP-BUGS 3: the card's Try again sends the box, so pressed in another chat it would write
+// the refused sentence there.
+test("a refusal's card stays in the chat it was said in", async () => {
+  await refuseInFirstChat();
+  fireEvent.click(await screen.findByText("Other", { selector: ".sidebar__chat" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+});
+
+test("a refusal's card does not follow the user into the draft", async () => {
+  await refuseInFirstChat();
+  fireEvent.click(document.querySelector(".sidebar__new-chat"));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
 });
 
 // A stream that hands over its first frames, then waits to be released before the rest. The one-shot

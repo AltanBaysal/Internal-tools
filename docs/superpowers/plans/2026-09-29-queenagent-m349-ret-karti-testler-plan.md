@@ -160,3 +160,117 @@ test(queen-agent): Madde 349 red -- a refused message draws the failure card, an
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 '@
 ```
+
+---
+
+### Task 2: İkinci geçiş — kutu tek sahip, kart sohbetinde kalır; kırmızı
+
+**Files:**
+- Modify: `queen-agent/frontend/src/App.test.jsx` — `stubRefusingChat` ve arkasına üç test
+- Modify: `queen-agent/frontend/src/features/workspace/useChat.js` — yükleme etkisindeki iki
+  `setRefused(null)` ve yorumu çıkar (uygulama turunda geri gelir; testsiz yazılmışlardı)
+
+**Interfaces:**
+- Consumes: Task 1'in `stubRefusingChat`, `NOT_FOUND`, `messagePosts`, `sseResponse`.
+- Produces: uygulama turunun karşılayacağı şey — kabul edilen Try again'den sonra kutu boş; ret
+  kartı başka sohbette ve taslakta yok.
+
+- [ ] **Step 1: `stubRefusingChat` iki sohbet taşısın**
+
+```js
+function stubRefusingChat(answers) {
+  const records = {
+    c1: { id: "c1", title: "Hi", messages: [] },
+    c2: { id: "c2", title: "Other", messages: [] },
+  };
+  const rows = Object.values(records).map(({ id, title }) => ({
+    id,
+    title,
+    lastActivity: new Date().toISOString(),
+  }));
+  let posts = 0;
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      posts += 1;
+      return Promise.resolve(answers(posts));
+    }
+    const record = records[path.match(/\/chats\/(\w+)$/)?.[1]];
+    if (record) return Promise.resolve({ ok: true, status: 200, json: async () => record });
+    if (path.endsWith("/chats")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => rows });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  return fetch;
+}
+```
+
+- [ ] **Step 2: Üç test, *"a refusal is not carried…"*'nın arkasına**
+
+```js
+// The box is the refused sentence's one owner, so Try again is the box sending it -- left behind
+// there as well, it would be sent a second time.
+test("a sentence sent again by Try again does not stay in the box", async () => {
+  const fetch = stubRefusingChat((post) =>
+    post === 1 ? NOT_FOUND : sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: done\ndata: {}\n\n'),
+  );
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByText("chat not found");
+  expect(box.value).toBe("hello");
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await waitFor(() => expect(messagePosts(fetch)).toHaveLength(2));
+  expect(messagePosts(fetch)[1].text).toBe("hello");
+  await waitFor(() => expect(screen.queryByText("Couldn't get a response.")).toBeNull());
+  expect(box.value).toBe("");
+});
+
+async function refuseInFirstChat() {
+  stubRefusingChat(() => NOT_FOUND);
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByText("chat not found");
+}
+
+// Design APP-BUGS 3: the card's Try again sends the box, so pressed in another chat it would write
+// the refused sentence there.
+test("a refusal's card stays in the chat it was said in", async () => {
+  await refuseInFirstChat();
+  fireEvent.click(await screen.findByText("Other", { selector: ".sidebar__chat" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+});
+
+test("a refusal's card does not follow the user into the draft", async () => {
+  await refuseInFirstChat();
+  fireEvent.click(document.querySelector(".sidebar__new-chat"));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+});
+```
+
+- [ ] **Step 3: `useChat`'in yükleme etkisinden testsiz iki satırı çıkar**
+
+`// A refusal belongs to the chat it was said in…` yorumu ve iki `setRefused(null);`.
+
+- [ ] **Step 4: Dört satırı paralel koş, kırmızıyı gör**
+
+Beklenen: queen-agent'ın ön ucu 700 test, üç kırmızı — üç yeni test. Öteki süitler yeşil.
+
+- [ ] **Step 5: Kırmızıyı commit'le**
+
+```powershell
+git add queen-agent/frontend/src/App.test.jsx queen-agent/frontend/src/features/workspace/useChat.js docs/superpowers/specs/2026-09-29-queenagent-m349-ret-karti-testler-design.md docs/superpowers/plans/2026-09-29-queenagent-m349-ret-karti-testler-plan.md
+git commit -m @'
+test(queen-agent): Madde 349 red -- a sentence Try again sends does not stay in the box, and a refusal stays in its chat
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+'@
+```
