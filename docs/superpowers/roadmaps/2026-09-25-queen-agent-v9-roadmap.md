@@ -1,13 +1,14 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/17
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/18
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
 [BACKLOG.md](../../../queen-agent/BACKLOG.md)'den geliyor, backlog'un dört maddesi de v9-2'ye katıldı;
 hepsini kullanıcı 28 Eylül'de getirdi. v9-6 kullanıcının 28 Eylül'deki sözlerinden doğdu. **v9-5 boş:**
 sürüm maddesiydi, hizalanırken v9-2'ye katıldı *(kullanıcı, 28 Eylül)*, ve numarası kaymadı. v9-7
 de kullanıcının 28 Eylül'deki sözlerinden doğdu; yazdığı listeyi queen-editor'ün
-[v8-3](2026-09-25-queen-editor-v8-roadmap.md)'ü okur. v9-8 de 28 Eylül'deki sözlerinden doğdu.
+[v8-3](2026-09-25-queen-editor-v8-roadmap.md)'ü okur. v9-8 ve v9-9 da 28 Eylül'deki sözlerinden
+doğdu.
 
 **Bu numarayla yazılan ilk belge koşulmadan kapandı** *(`81cf9d53`)*: maddeleri backlog'a döndü.
 Playwright 28 Eylül'de v9-3 olarak geri geldi; ötekiler aynı gün backlog'dan da çıkarıldı
@@ -23,6 +24,8 @@ kararlar tablonun altında, maddenin kendi başlığında duruyor.
 - **v9-3 en başta** *(kullanıcı — "en başa al şimdi")*: sonraki parçalar tarayıcıda kontrol edilir.
 - **v9-7 ve v9-8 ardından**, bu haftanın asıl işi. v9-8'in kontrolleri v9-7'nin H3 prompt'una
   dayanıyor: bir kontrol bir kareyi değiştirince o karenin H3 prompt'unu da yeniliyor.
+- **v9-9, v9-8a'nın hemen arkasında:** Start a scenario'nun aynı metnine dokunuyor, ve metnin kelime
+  tavanı v9-8a'da yükseliyor.
 - **Sonra tasarımdan bağımsız işler:** v9-4a, v9-1a, v9-1b.
 - **v9-2, ekrana dokunan parçalardan önce:** v9-1c ve v9-4b yeni ekranın üstüne kurulur; eski ekrana
   kurulup sonra taşınmaz.
@@ -47,6 +50,7 @@ yazılınca Claude Code'un yeniden açılması.
 | v9-7a | `ALIGNED` **Liste yeni biçimde çıkar.** Her kare bir string yerine bir kayıt: `scene`, `photo`, `video`; H3 prompt'u üç tırnak içinde, okunduğu gibi. H3 prompt'u henüz yazılmamış karenin `video`'su boş kalır. *Kararları: v9-7.* | QueenAgent'ın çıkardığı listede her kare, kendi senaryosunu ve fotoğraf prompt'unu taşıyan bir kayıt. |
 | v9-7b | `ALIGNED` **QueenAgent her karenin H3 prompt'unu yazar**, ve Start a scenario prompt'lardan sonra bu adımı yapar: loop için, 4 saniyelik, karenin fotoğraf prompt'u ve sahne cümlesinden, MiniMax'ın I2V rehberine göre. *Kararları: v9-7.* | Start a scenario bitince listede her karenin loop için yazılmış H3 prompt'u duruyor. |
 | v9-8a | `ALIGNED` **Bütün skill'ler zayıf modeli bilir, ve `pov_` kalkar.** Prompt'lar zayıf bir text-to-image modeline gider; her sahne tek bir anın tek karesi ve 4 saniyelik bir video. Skill metinlerinin kelime tavanı yazılı bir kararla yükselir. *Kararları: v9-8.* | Her skill'in metni zayıf modeli, tek anı ve 4 saniyeyi söylüyor; hiçbir skill ya da araç `pov_` girdisi yazdırmıyor. |
+| v9-9 | `ALIGNED` **Elbise çıkarma sahnesi senaryoya, aksi söylenmedikçe eklenmez.** *(Kullanıcı, 28 Eylül — "queen agent promtplarımn bir madde daha elbise çıkarma sahnesei senaryoya aksi söylenmediği sürece eklenmez".)* **Neden** *(kullanıcı, 29 Eylül — "abi bazen queen agent elbisesin değiştiği sahnelerde elbisesni çıktıüı framler yazmaya çalışıyor", "çıkaraıldığı ara sahneleri çizemiyor mesla bi sahnede var sonkirnde farklı bir elbise var yapar ama değiştiröe karaleri yaoamıtor")*: kıyafet sahneden sahneye değişebilir — bir sahnede bir elbise, sonrakinde başka bir elbise, ve model bunu çizer. Yazılmayan, aradaki kareler: elbisenin çıkarıldığı ya da değiştirildiği an. Zayıf model onları çizemiyor. **Yalnız Start a scenario'nun sahneleri yazdığı adımda** *(kullanıcı, 29 Eylül — "senrayoda olsa yeter sahnleri yzan madede satart senearyoda senaryoların yazıldığı madde")*: o adım, kullanıcı istemedikçe elbisenin çıkarıldığı ya da değiştirildiği anı sahne olarak yazmaz. Kullanıcı açıkça isterse o sahne yazılır. | Start a scenario, kullanıcı istemedikçe elbisenin çıkarıldığı ya da değiştirildiği anı sahne olarak yazmıyor; kıyafet bir sahneden ötekine değişebiliyor. Kullanıcı isterse o sahne yazılıyor. |
 | v9-8b | `ALIGNED` **Improve skill'i açılır, ilk kontrolüyle: tek an mı.** Kontroller tek yerde yazılır, ve Start a scenario onları son adımı olarak içerir; seçicide yeni bir satır. Birden fazla anı anlatan kare tek ana iner ya da bölünür. Kontrol adımı sonunda ne değiştirdiğini gösterir ve onay bekler; değiştirdiği karenin fotoğraf ve H3 prompt'unu yeniler, ve böldüğü kare kendi aksiyonunu, fotoğraf ve H3 prompt'unu alır. *Kararları: v9-8.* | Improve seçicide duruyor; seçilince birden fazla anı anlatan kareyi tek ana indiriyor ya da bölüyor, ne değiştiğini gösterip onay bekliyor, ve değişen karenin fotoğraf ve H3 prompt'u yenileniyor. Start a scenario da bu kontrolle bitiyor. |
 | v9-8c | `ALIGNED` **Kontrol: yalnız görünen parçalar.** Kamera açısından hangi karakterin hangi parçaları görünüyorsa prompt'a yalnız onlar girer; gerekirse görünürlük girdisi eklenir *(`man body no face`, kıyafetin `from behind` hâli gibi)*. *Kararları: v9-8.* | Improve'da ve Start a scenario'nun sonunda, açıdan görünmeyen özellikler prompt'tan çıkıyor. |
 | v9-8d | `ALIGNED` **Kontrol: zayıf model bunu çizebilir mi.** Son hâldeki prompt'a bakar, ve çizilemeyecek olanı sadeleştirir. *Kararları: v9-8.* | Improve'da ve Start a scenario'nun sonunda, zayıf modelin çizemeyeceği prompt sadeleşiyor. |
