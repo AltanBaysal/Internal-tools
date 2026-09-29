@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 32/48
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 35/48
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -163,9 +163,9 @@ biri ötekinin kullandığını silebilir. v9-2t v9-2p ile v9-2q'nun, v9-2u v9-2
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 362 · v9-2s | `ALIGNED` **Kenar çubuğunda yalnız New chat ve sohbetler.** Proje açıkken kenar çubuğu dolu, belirgin bir `+ New chat`'le başlar; altında projenin bütün sohbetleri, sohbet yoksa `No chats yet.` Projeler listesi, `Recent chats` ve projelerin yanındaki `+` kalkar. *Kararları: v9-2; tasarım: 151, 152, 168.* | Kenar çubuğunda ilk göze çarpan `+ New chat`, altında projenin sohbetleri; projeler listesi yok. |
-| 363 · v9-2t | `ALIGNED` **Arşiv.** Satırın `⋯`'sinde `Archive`: proje onaysız arşive gider, yerinde `<ad> archived · Undo` satırı kalır, ve `Undo` onu eski yerine koyar. `Archived` sekmesi sayısıyla: arşivdeki projeler, her birinin `⋯`'sinde `Rename`, `Unarchive` ve `Delete`. Arşiv boşken `No archived projects.`; hepsi arşivdeyse `Every project is archived.` *Kararları: v9-2; tasarım: 135, 161, 190, 191.* | `Archive` projeyi arşive alıyor ve yerinde `Undo` bırakıyor; Archived sekmesinde `Unarchive` projeyi geri getiriyor. |
-| 364 · v9-2u | `ALIGNED` **All projects ve ad sorma ekranı yüklenirken ve yüklenemeyince.** Yüklenirken başlık, `+ New project`, arama ve sekmeler yerinde, listenin yerinde spinner; ad sorma ekranında ortada aynı spinner. Proje listesi okunamayınca iki ekranda da tek cümle, `Couldn't load projects.`, `Try again` ve `Copy`; `Copy` gelen hatayı olduğu gibi panoya koyar. *Kararları: v9-2; tasarım: 172, 173.* | Liste gelene kadar spinner dönüyor; sunucu hata verince cümle çıkıyor, `Try again` yeniden deniyor, `Copy` hatanın tam metnini kopyalıyor. |
+| 362 · v9-2s | ✅ **Kenar çubuğunda yalnız New chat ve sohbetler.** Proje açıkken kenar çubuğu dolu, belirgin bir `+ New chat`'le başlar; altında projenin bütün sohbetleri, sohbet yoksa `No chats yet.` Projeler listesi, `Recent chats` ve projelerin yanındaki `+` kalkar. *Kararları: v9-2; tasarım: 151, 152, 168.* | Kenar çubuğunda ilk göze çarpan `+ New chat`, altında projenin sohbetleri; projeler listesi yok. |
+| 363 · v9-2t | ✅ **Arşiv.** Satırın `⋯`'sinde `Archive`: proje onaysız arşive gider, yerinde `<ad> archived · Undo` satırı kalır, ve `Undo` onu eski yerine koyar. `Archived` sekmesi sayısıyla: arşivdeki projeler, her birinin `⋯`'sinde `Rename`, `Unarchive` ve `Delete`. Arşiv boşken `No archived projects.`; hepsi arşivdeyse `Every project is archived.` *Kararları: v9-2; tasarım: 135, 161, 190, 191.* | `Archive` projeyi arşive alıyor ve yerinde `Undo` bırakıyor; Archived sekmesinde `Unarchive` projeyi geri getiriyor. |
+| 364 · v9-2u | ✅ **All projects ve ad sorma ekranı yüklenirken ve yüklenemeyince.** Yüklenirken başlık, `+ New project`, arama ve sekmeler yerinde, listenin yerinde spinner; ad sorma ekranında ortada aynı spinner. Proje listesi okunamayınca iki ekranda da tek cümle, `Couldn't load projects.`, `Try again` ve `Copy`; `Copy` gelen hatayı olduğu gibi panoya koyar. *Kararları: v9-2; tasarım: 172, 173.* | Liste gelene kadar spinner dönüyor; sunucu hata verince cümle çıkıyor, `Try again` yeniden deniyor, `Copy` hatanın tam metnini kopyalıyor. |
 
 ### Dalga 6 — dalga 5 birleşince
 
