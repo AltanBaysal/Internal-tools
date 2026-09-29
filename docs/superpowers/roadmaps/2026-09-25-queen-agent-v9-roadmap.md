@@ -237,8 +237,8 @@ hâli.
 **29 Eylül'de bölündü** *(kullanıcı — "Desingner işini nitirdi queen agenta başlayabiliriz şimdi
 roadmapı güncelelyelim desinge bakara"; dal: "tasarım içinde queen-agent-v3 bu branch ile mainin
 farkına bak lütfen")*. Tasarım queen-design'ın `queen-agent-v3` dalında, ve `main`'le farkı okundu.
-Tasarımcının [v3 roadmap'i](../../../../queen-design/docs/superpowers/roadmaps/2026-09-28-queen-agent-v3-roadmap.md)
-63 madde; parçalardaki *tasarım: N* o belgenin maddesi, ve her biri orada kullanıcıyla hizalandı.
+Tasarımcının v3 roadmap'i — queen-design'da
+`docs/superpowers/roadmaps/2026-09-28-queen-agent-v3-roadmap.md`, yalnız o dalda — 63 madde; parçalardaki *tasarım: N* o belgenin maddesi, ve her biri orada kullanıcıyla hizalandı.
 **Bir parçanın spec'i tasarımdan okur:** [`projects/queen-agent/`](../../../../queen-design/projects/queen-agent/)'in
 sayfaları, `BEHAVIOUR.md` — sayfanın uygulamadan nerede bilerek ayrıldığı —, `DESIGN-STANDARD.md` —
 ölçüler, renkler, sınıf adları — ve `APP-BUGS.md`. Tasarım QueenAgent'ın `dcf0a61c`'sine göre çizildi,
