@@ -28,7 +28,7 @@ kırmızı yeşil chached kırmızı missed cahced".)* **Ayrıntılar kullanıc�
 bence sdxl prompting diye güzel bir dokuman yazalım ai onu okusu sdxl skill de olur karmaşıklı
 azaltalım ztenc cahced yaparsak bunu o kadar malşyetide olmaz"; 29 Eylül — "sdxl yeteneklere kesinlik
 ayna ekleme kısmınıda koyalım bunda yazar msıının bu taska çünkü aynayı çok kötü ekliyor kalite
-düşünyor user özellike sorarsa eklensin".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+düşünyor user özellike sorarsa eklensin", "ayna eklenmemesi olucak".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ## Start a scenario spicy skill'i açılacak
 
