@@ -1775,7 +1775,7 @@ test("offline nothing is sent, and coming back online sends nothing either", asy
   expect(fetch.mock.calls.some(([, options]) => options?.method === "POST")).toBe(false);
 });
 
-// --- one model, and nothing asks about it (Madde 82) ---------------------------------------------
+// --- one model, and the server names it (Madde 358) ----------------------------------------------
 
 // Named for what it sets up rather than for the model it used to carry: a project with one chat in
 // it, answering whatever the server is wired to.
@@ -1859,19 +1859,26 @@ function withStoredSkill(stored = "edit-prompts") {
 }
 
 test("the app never asks which model to use", async () => {
-  // Still true after Madde 146, for a new reason. There were three models and no endpoint because
-  // the list the user sees lives in models.js, exactly as the skills' does: what the backend knows
-  // is what an id means, never which one is selected.
+  // One model, and it is the server's to name (Madde 358): there is nothing to ask about.
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
-  await waitFor(() => expect(screen.getByText("Queen Flash")).toBeTruthy());
+  await chatOpened();
   expect(fetch.mock.calls.filter(([path]) => String(path) === "/api/model")).toHaveLength(0);
 });
 
-test("a chat is born naming the model that will answer it", async () => {
-  // The reversal of Madde 82's lock. The selection is the session's and the server holds none, so
-  // the only way it can travel is on the message -- the road skill has taken since Madde 86.
+test("no model is named on the chat screen", async () => {
+  // Madde 358, the user's words: no model is to be seen. Not as a picker, and not as a label.
+  withChat();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await chatOpened();
+  expect(screen.queryByText(/Queen Flash/)).toBeNull();
+  expect(screen.queryByText("MODELS")).toBeNull();
+});
+
+test("a chat is born naming no model", async () => {
+  // Which model answers is the server's rule (FOUNDATION, Decision 4), so the message carries none.
   const fetch = withChat();
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
@@ -1884,50 +1891,8 @@ test("a chat is born naming the model that will answer it", async () => {
       ([path, options]) => options?.method === "POST" && String(path).endsWith("/messages"),
     );
     expect(born).toBeTruthy();
-    expect(JSON.parse(born[1].body).model).toBe("deepseek-flash");
+    expect("model" in JSON.parse(born[1].body)).toBe(false);
   });
-});
-
-test("picking a model asks the server for nothing", async () => {
-  // The skill's rule, and the same reason: there is no field to write, so there is no request.
-  const fetch = withChat();
-  window.history.pushState(null, "", "/p/p1/c/c1");
-  render(<App />);
-  await chatOpened();
-  const before = fetch.mock.calls.length;
-  fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
-  fireEvent.click(screen.getByText("Queen Flash", { selector: ".menu__item-name" }));
-  expect(fetch.mock.calls.length).toBe(before);
-});
-
-test("Queen Pro is on offer nowhere", async () => {
-  // Madde 336: DeepSeek closed deepseek-v4-pro on 14 September and answers it with Flash, so a Pro
-  // row would name one model and be answered by another.
-  withChat();
-  window.history.pushState(null, "", "/p/p1/c/c1");
-  render(<App />);
-  await chatOpened();
-  fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
-  expect(screen.getByText("MODELS")).toBeTruthy();
-  expect(screen.queryByText("Queen Pro")).toBeNull();
-});
-
-test("the model menu takes the one picker slot, and Escape closes it", async () => {
-  // Only one picker may stand open: two menus would sit over the same corner of the screen. The
-  // third one joins the pair rather than getting a flag of its own.
-  withChat();
-  window.history.pushState(null, "", "/p/p1/c/c1");
-  render(<App />);
-  await chatOpened();
-
-  fireEvent.click(screen.getByText("Skills", { selector: ".picker__name" }));
-  expect(screen.getByText("SKILLS")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: /Queen Flash/ }));
-  expect(screen.queryByText("SKILLS")).toBeNull();
-  expect(screen.getByText("MODELS")).toBeTruthy();
-
-  fireEvent.keyDown(window, { key: "Escape" });
-  expect(screen.queryByText("MODELS")).toBeNull();
 });
 
 // --- which skill is selected ---------------------------------------------------------------------
@@ -2688,7 +2653,7 @@ test("in a draft, picking a skill closes the menu too", async () => {
 
 test("Escape closes the picker", async () => {
   // fark 67 put five things in order: project menu -> confirm box -> Skills -> model -> open panel.
-  // Madde 82 took the model out and the order is four; the ones around it did not move.
+  // The model has no picker (Madde 358), and the pickers left share one place in the order.
   withChat();
   window.history.pushState(null, "", "/p/p1/c/c1");
   render(<App />);
@@ -2918,15 +2883,6 @@ test("Escape closes the mode picker too", async () => {
   expect(screen.getByText("MODE")).toBeTruthy();
   fireEvent.keyDown(window, { key: "Escape" });
   expect(screen.queryByText("MODE")).toBeNull();
-});
-
-test("a draft says which model will answer it", async () => {
-  // Nothing has been sent yet, so what the button shows is the session's own choice -- the chat it
-  // is about to become will be born with exactly that.
-  withChat();
-  window.history.pushState(null, "", "/p/p1/c/new");
-  render(<App />);
-  await waitFor(() => expect(screen.getByText("Queen Flash")).toBeTruthy());
 });
 
 test("an empty prompt sends nothing", async () => {

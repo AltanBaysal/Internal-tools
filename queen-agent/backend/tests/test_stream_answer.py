@@ -198,20 +198,16 @@ class ScriptedEngine:
         self.tools = []
         # Which conversation each round said it belonged to (Madde 124).
         self.conversation_ids = []
-        # Which model each round named (Madde 146). A list rather than one value: every round of a
-        # turn must name the same one, and only the list can show that it did.
-        self.models = []
 
     def write_once(self, system, user):
         """The other road (Madde 175), which one tool walks: one question, one answer, one bill."""
         self.written.append((system, user))
         return {"text": "she turns her head, close-up", "spent": self.tool_spends}
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         self.seen.append(list(messages))
         self.tools.append([spec["function"]["name"] for spec in tools or []])
         self.conversation_ids.append(conversation_id)
-        self.models.append(model)
         if on_open:
             on_open(self._cut)
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
@@ -705,47 +701,6 @@ def _said_with(tmp_path, *turns):
     return chats, engine.seen[0]
 
 
-# --- which model answers the turn (Madde 146) ----------------------------------------------------
-#
-# The reversal of Madde 82: there are three again, so which one speaks is an input rather than a
-# line in config.py. Read the way the skill is -- off the newest user message, because a record does
-# not always end with the question that is waiting for an answer.
-
-
-def _answered_by(tmp_path, *turns):
-    """Run one answer over a chat whose messages were sent with the given models."""
-    chats, files = _seeded(tmp_path)
-    for number, (text, model) in enumerate(turns):
-        append_message(chats, "p1", "c1", text, f"2026-08-09T12:0{number}:00.000+00:00", model=model)
-    engine = ScriptedEngine([[{"text": "ok"}]])
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
-    return engine
-
-
-def test_the_turn_is_answered_by_the_model_its_question_named(tmp_path):
-    engine = _answered_by(tmp_path, ("write me the prompts", "deepseek-v4-pro"))
-    assert engine.models == ["deepseek-v4-pro"]
-
-
-def test_only_the_current_model_is_used_whatever_came_before(tmp_path):
-    # However many times the selection changed, the turn is answered by this turn's -- the rule the
-    # skill keeps, and the reason the field is on the message rather than the chat.
-    engine = _answered_by(
-        tmp_path,
-        ("one", "grok-build-0.1"),
-        ("and again", "deepseek-v4-flash"),
-        ("now this", "deepseek-v4-pro"),
-    )
-    assert engine.models == ["deepseek-v4-pro"]
-
-
-def test_a_turn_whose_question_named_no_model_asks_for_none(tmp_path):
-    # Every message on disk before Madde 146. Nothing here guesses on the record's behalf: the
-    # empty string travels and config.engine_for is the one place that turns it into the default.
-    engine = _answered_by(tmp_path, ("hello", ""))
-    assert engine.models == [""]
-
-
 def _instructions(conversation):
     """The skill instructions a request carries -- never the file names.
 
@@ -924,8 +879,8 @@ def test_an_unknown_chat_is_reported_before_anything_streams(tmp_path):
 
 
 def test_the_engine_is_asked_without_a_model(tmp_path):
-    # Madde 82: which model answers belongs to the wiring, not to the chat. ScriptedEngine.stream
-    # refuses one, so a use case that passed a model would die here.
+    # Madde 358, as Madde 82 had it: one model, so which one answers belongs to the wiring, not to
+    # the chat. ScriptedEngine.stream refuses one, so a use case that passed a model would die here.
     chats, files = _seeded(tmp_path)
     engine = ScriptedEngine([[{"text": "hi"}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
@@ -1461,15 +1416,14 @@ def test_the_request_carries_the_open_line_and_not_the_one_left_behind(tmp_path)
     ] == ["hi again"]
 
 
-def test_the_skill_and_the_model_come_from_the_open_lines_newest_question(tmp_path):
-    # Both are read by walking back from the end, and the end has to be the end of the open line --
+def test_the_skill_comes_from_the_open_lines_newest_question(tmp_path):
+    # Read by walking back from the end, and the end has to be the end of the open line --
     # otherwise a version runs under the skill of a turn nobody is looking at.
     from backend.features.workspace.domain.skills import instruction_for
 
-    chats, files = _branched(tmp_path, skill="edit-prompts", model="deepseek-v4-pro")
+    chats, files = _branched(tmp_path, skill="edit-prompts")
     engine = ScriptedEngine([[{"text": "Done again."}]])
     list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    assert engine.models[0] == "deepseek-v4-pro"
     said = [message["content"] for message in engine.seen[0]]
     assert instruction_for("edit-prompts") in said
 

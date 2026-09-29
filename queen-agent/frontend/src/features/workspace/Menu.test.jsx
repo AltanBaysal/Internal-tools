@@ -65,12 +65,12 @@ test("the menu does not take the keyboard for itself", () => {
   onWindow.mockRestore();
 });
 
-// Three callers, one box. The sidebar's menu is a bare list; the model's carries a label over it,
+// Several callers, one box. The sidebar's menu is a bare list; a picker's carries a label over it,
 // a line under each name and a mark on the one in use. Extended rather than copied -- that was the
 // whole of Madde 25.
 test("a menu can be given a label to stand under", () => {
-  render(<Menu items={ITEMS} header="MODEL" />);
-  expect(screen.getByText("MODEL")).toBeTruthy();
+  render(<Menu items={ITEMS} header="SKILLS" />);
+  expect(screen.getByText("SKILLS")).toBeTruthy();
 });
 
 test("without one it draws no empty label", () => {

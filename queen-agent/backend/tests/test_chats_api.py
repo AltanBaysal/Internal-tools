@@ -7,6 +7,7 @@ from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.data.memory_permissions import MemoryPermissions
 from backend.features.workspace.data.memory_stops import MemoryStops
+from backend.features.workspace.domain.chat import Chat, Message
 from backend.features.workspace.domain.skills import instruction_for
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
@@ -20,20 +21,18 @@ class FakeEngine:
         self.answer = answer
         self.blow_up = blow_up
         self.seen = None
-        # Which model the turn named. Since Madde 146 that is an input again, and this is where a
-        # route that dropped it on the floor gets caught.
-        self.model = None
 
     def complete(self, messages, tools=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         return {"role": "assistant", "content": self.answer}
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
+    # No model (Madde 358): the engine answers with the one config.py names, so a route that still
+    # handed one down would die here.
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         self.seen = [dict(message) for message in messages]
-        self.model = model
         yield {"text": self.answer}
 
 
@@ -50,7 +49,7 @@ class ScriptedEngine:
         # Which tools each round was offered. Since Madde 91 that is what a mode turns into.
         self.tools = []
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         self.tools.append([spec["function"]["name"] for spec in tools or []])
         pieces = self.rounds.pop(0) if self.rounds else []
         for piece in pieces:
@@ -548,7 +547,7 @@ def test_a_new_chat_shows_up_in_the_project_count(tmp_path):
     assert client.get("/api/projects").get_json()[0]["chats"] == 1
 
 
-# --- one model, and nothing on a chat says which (Madde 82) --------------------------------------
+# --- one model, and the server names it (Madde 82, Madde 358) ------------------------------------
 
 
 def test_the_model_endpoint_is_gone(tmp_path):
@@ -577,40 +576,38 @@ def test_a_chat_cannot_be_patched(tmp_path):
     assert client.get(f"/api/projects/{pid}/chats/{cid}").get_json()["title"] == "hello"
 
 
-def test_the_engine_is_asked_with_the_model_the_turn_named(tmp_path):
-    # The reversal of Madde 82's lock, and the whole road in one test: the composer's choice rides
-    # in on the message, is written onto it, and is read back off it when the turn is answered.
-    engine = FakeEngine()
-    client = _client(tmp_path, engine=engine)
-    pid = _project(client)
-    client.post(
-        f"/api/projects/{pid}/messages", json={"text": "hello", "model": "deepseek-v4-flash"}
-    ).get_data()
-    assert engine.model == "deepseek-v4-flash"
-
-
-def test_a_turn_that_named_no_model_asks_for_none(tmp_path):
-    # Every client that predates this field. The empty string travels and config.engine_for turns
-    # it into the default -- nothing here guesses on its behalf.
-    engine = FakeEngine()
-    client = _client(tmp_path, engine=engine)
-    pid, cid, _body = _first_turn(client)
-    assert engine.model == ""
-
-
-def test_a_chat_carries_no_model_but_its_messages_do(tmp_path):
-    # The wire half of the pair the store keeps. Madde 82 took `model` off the chat and it stays
-    # off; Madde 146 put one on the message, and the two share nothing but a name.
+def test_a_model_sent_with_a_message_is_not_kept(tmp_path):
+    # Madde 358. The server names the model every turn goes to, so a field a browser still sends is
+    # read by nothing and written nowhere.
     client = _client(tmp_path)
     pid = _project(client)
     cid = _named(
         client.post(
-            f"/api/projects/{pid}/messages", json={"text": "hello", "model": "deepseek-v4-pro"}
+            f"/api/projects/{pid}/messages", json={"text": "hello", "model": "grok-4.3"}
         ).get_data(as_text=True)
     )
-    born = _record(client, pid, cid)
-    assert "model" not in born
-    assert born["messages"][0]["model"] == "deepseek-v4-pro"
+    assert "model" not in _record(client, pid, cid)["messages"][0]
+
+
+def test_a_message_on_the_wire_names_no_model_even_when_its_record_does(tmp_path):
+    # Madde 146 to 357 wrote the model onto the message. The record keeps it; the screen shows no
+    # model, so nothing sends it there.
+    client = _client(tmp_path)
+    pid = _project(client)
+    FileChatStore(Store(str(tmp_path))).add(
+        pid,
+        Chat(
+            id="c1",
+            title="Old",
+            created_at="2026-09-02T10:00:00+00:00",
+            messages=(
+                Message(
+                    role="user", at="2026-09-02T10:00:00+00:00", text="hi", model="deepseek-v4-pro"
+                ),
+            ),
+        ),
+    )
+    assert "model" not in _record(client, pid, "c1")["messages"][0]
 
 
 def test_a_chat_carries_no_skill(tmp_path):

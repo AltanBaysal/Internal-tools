@@ -1,5 +1,7 @@
 import importlib
 
+import pytest
+
 from backend import config
 
 
@@ -49,12 +51,10 @@ def test_the_deepseek_key_comes_from_the_environment(monkeypatch):
 
 def test_the_default_model_is_deepseek_flash():
     # Pinned like MAX_ROUNDS: this is a decision, and changing it without noticing changes what the
-    # user pays and what fits. It is also what an old record resolves to -- every message written
-    # before Madde 146 names no model at all.
+    # user pays and what fits.
     #
-    # Madde 336: the one model the composer offers, under the name DeepSeek gives it today. This has
-    # to be the same id models.js defaults to, or the button would say one thing while the request
-    # went somewhere else.
+    # Madde 336 kept the one model under the name DeepSeek gives it today, and since Madde 358 this
+    # line alone says which model answers every turn: the screen names none and the browser sends none.
     assert config.DEFAULT_MODEL == "deepseek-flash"
 
 
@@ -98,10 +98,9 @@ def test_each_model_names_the_key_it_spends():
 
 
 def test_the_prompt_writer_is_a_role_rather_than_a_choice():
-    # Madde 175, and the user's decision of 5 Sep: which model writes a frame's action is the app's
-    # business, not the user's -- what they choose is which model runs the conversation. Madde 202
-    # made it the same id the composer defaults to, and the role is unchanged by that: this line
-    # decides who writes an action, and no picker on the screen reaches it.
+    # Madde 175, and the user's decision of 5 Sep: which model writes a frame's action is a role of
+    # its own. Madde 202 made it the same id DEFAULT_MODEL carries, and the role is unchanged by that:
+    # this line decides who writes an action, and either line can move without the other.
     assert config.PROMPT_MODEL == "deepseek-flash"
 
 
@@ -116,14 +115,13 @@ def test_a_known_model_resolves_to_its_own_wiring():
     assert (model, base_url) == ("deepseek-flash", "https://api.deepseek.com")
 
 
-def test_an_unknown_or_absent_model_falls_back_to_the_default():
-    # skills.py's instruction_for rule, and the same reason: a record can name something that has
-    # since been renamed, and a message written before this field names nothing at all. Neither may
-    # stop a chat from being answered.
-    # The example is a name that can never be a model. It used to be grok-4.3, which Madde 183 made
-    # a real row -- and a test whose example turns real goes green for the wrong reason.
-    assert config.engine_for("")[0] == "deepseek-flash"
-    assert config.engine_for("a-model-nobody-wired")[0] == "deepseek-flash"
+def test_an_id_the_table_does_not_hold_is_a_wiring_fault():
+    # Madde 358. The fallback to the default was there for a record naming a model since dropped;
+    # no record steers a turn any more, and the only caller is main.py walking the table itself. An
+    # id outside it is a mistake in the wiring, and it should stop the app at startup rather than be
+    # quietly answered by another model.
+    with pytest.raises(KeyError):
+        config.engine_for("a-model-nobody-wired")
 
 
 def test_a_chat_that_named_an_old_deepseek_id_is_answered_by_flash():

@@ -147,7 +147,7 @@ def test_pinned_lead_in_the_order_they_were_pinned_then_the_most_recently_used()
 
 
 class FakeEngine:
-    def stream(self, messages, tools=None, on_open=None, conversation_id="", model=""):
+    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
         yield {"text": "Done."}
 
 

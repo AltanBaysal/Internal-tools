@@ -1,3 +1,5 @@
+import inspect
+
 from backend.features.workspace.data.xai_engine import XaiEngine
 from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
 
@@ -11,8 +13,7 @@ def _engine(client, prompt_writer=DEFAULT, **others):
     """One engine over a named set of clients, since Madde 146.
 
     Written here rather than in every test: what most of these ask about is the translation of
-    roles, and that is the same whichever transport speaks. Only the ones at the foot of the file
-    care which transport did it.
+    roles, and that is the same whichever transport speaks.
 
     The third name is Madde 175's: which of them writes a prompt when a tool asks for one. It
     defaults to the same client here so the tests that do not care about it can stay quiet.
@@ -73,8 +74,8 @@ def test_the_fixed_part_leads_and_the_last_word_stays_last():
 
 
 def test_write_once_goes_to_the_prompt_writer_rather_than_the_turns_model():
-    # The whole point of the third name. The turn's model is the user's choice; who writes a prompt
-    # is a role in config.py, and the user does not pick it (their decision, 5 Sep).
+    # The whole point of the third name. The turn's model is the default; who writes a prompt is a
+    # role of its own in config.py (the user's decision, 5 Sep), and either can move alone.
     agent, writer = FakeClient(), FakeClient()
     engine = XaiEngine(
         {"deepseek-v4-flash": agent, "grok-4.3": writer},
@@ -127,14 +128,19 @@ def test_the_conversation_id_travels_down_to_the_client():
     assert client.conversation_id == "c7"
 
 
-def test_the_turn_is_spoken_by_the_model_it_names():
-    # The reversal of Madde 82's lock. Which model answers is no longer one line in config.py: it
-    # arrives with the turn, so the engine is the place that has to pick a transport for it.
+def test_the_turn_names_no_model():
+    # Madde 358. One model, and config.py names it: the engine is not told which one to speak with.
+    assert "model" not in inspect.signature(XaiEngine.stream).parameters
+
+
+def test_every_turn_is_spoken_by_the_default():
+    # The map still holds more than one transport -- the prompt writer is one of them -- and a turn
+    # goes to the one the engine was built with as its default.
     grok, flash = FakeClient(), FakeClient()
     engine = _engine(grok, **{"deepseek-v4-flash": flash})
-    list(engine.stream(CONVERSATION, model="deepseek-v4-flash"))
-    assert flash.seen is not None
-    assert grok.seen is None
+    list(engine.stream(CONVERSATION))
+    assert grok.seen is not None
+    assert flash.seen is None
 
 
 # --- the second part of the system prompt (Madde 196) --------------------------------------------
@@ -188,16 +194,3 @@ def test_the_frame_writer_is_handed_the_text_it_was_given(monkeypatch):
     client = FakeClient()
     _engine(client).write_once("Write one action line.", "aylin, in the kitchen")
     assert client.seen[0] == {"role": "system", "content": "Write one action line."}
-
-
-def test_an_unknown_or_absent_model_is_spoken_by_the_default():
-    # The same rule config.engine_for keeps, held here as well because this is the layer a record
-    # written before Madde 146 actually reaches: its messages name no model at all.
-    grok, flash = FakeClient(), FakeClient()
-    engine = _engine(grok, **{"deepseek-v4-flash": flash})
-    # A name that can never be wired. It used to be grok-4.3, which Madde 183 turned into the
-    # default above -- and an unknown example that becomes known tests nothing at all.
-    list(engine.stream(CONVERSATION, model="a-model-nobody-wired"))
-    list(engine.stream(CONVERSATION))
-    assert flash.seen is None
-    assert grok.seen is not None
