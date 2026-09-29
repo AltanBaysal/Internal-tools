@@ -153,7 +153,6 @@ export default function FileRail({
           missing={reading.missing}
           error={reading.error}
           onClose={reading.close}
-          onDownload={reading.download}
           onRefresh={onRefresh}
         />
       </aside>

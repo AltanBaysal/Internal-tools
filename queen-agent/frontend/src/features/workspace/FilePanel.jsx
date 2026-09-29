@@ -14,7 +14,7 @@ const SAID_MS = 2500;
 // buttons copy the wrong text.
 //
 // Its own component because it has its own state -- what it last said, and the timer that takes
-// that back. Download's waiting is a different waiting and shares nothing with it.
+// that back.
 //
 // The precedent is queen-editor's RawOutput and PhotoDetail; the two tools share no code, so what
 // travels is the reasoning.
@@ -28,8 +28,9 @@ function CopyButton({ text }) {
     clearTimeout(fade.current);
     // Written straight from the press rather than a microtask after it: the clipboard is granted to
     // a user gesture, and a browser may refuse a write that arrives even a tick late. This is why
-    // the panel's own copy is what goes -- Download can read again, and this cannot. Madde 192 is
-    // what makes that safe: what is on screen is fresh at a turn's end and at a press of Refresh.
+    // the panel's own copy is what goes: reading the file again first would lose the gesture.
+    // Madde 192 is what makes that safe: what is on screen is fresh at a turn's end and at a press
+    // of Refresh.
     //
     // The try is for the other half: with no clipboard object at all the call throws where it
     // stands, while a refused permission rejects instead, and the user needs the same answer either
@@ -49,21 +50,19 @@ function CopyButton({ text }) {
   };
 
   return (
-    // The answer is the icon's own name and colour: a word appearing beside the heading would push
-    // the body under it down, which is the page moving while it is being read. Dimmed rather than
-    // gone while there is nothing to copy -- an icon that came and went as the file loaded would
-    // make the header twitch, and a button that copies nothing and says it did is the other half
-    // of the same lie.
+    // The answer is the button's own word and colour, written where Copy was: a word appearing
+    // beside the heading would push the body under it down, which is the page moving while it is
+    // being read. Dimmed rather than gone while there is nothing to copy -- a button that came and
+    // went as the file loaded would make the header twitch, and a button that copies nothing and
+    // says it did is the other half of the same lie.
     <button
       type="button"
-      className="reader__copy"
+      className="ghost reader__copy"
       disabled={!text}
-      aria-label={said ?? "Copy"}
-      title={said ?? "Copy"}
       data-said={said === "Copied" ? "yes" : said ? "no" : undefined}
       onClick={copy}
     >
-      ⧉
+      {said ?? "Copy"}
     </button>
   );
 }
@@ -73,79 +72,44 @@ function CopyButton({ text }) {
 //
 // `back` is what the two callers differ by. The rail's panel is the rail widened, so it is come back
 // from; the project screen's panel is a surface standing beside the grid, so it closes. One
-// component either way -- splitting it would copy the header, the Download and its waiting state.
+// component either way -- splitting it would copy the header.
 function isDocument(name) {
   return /\.md$/i.test(name);
 }
 
-export default function FilePanel({
-  name,
-  file,
-  missing,
-  error,
-  back,
-  onClose,
-  onDownload,
-  onRefresh,
-}) {
-  const [preparing, setPreparing] = useState(false);
-  const [failed, setFailed] = useState(null);
-
-  const download = async () => {
-    setPreparing(true);
-    setFailed(null);
-    try {
-      await onDownload?.();
-    } catch (failure) {
-      setFailed(failure.message);
-    } finally {
-      setPreparing(false);
-    }
-  };
-
+export default function FilePanel({ name, file, missing, error, back, onClose, onRefresh }) {
   return (
     <div className="reader">
+      {/* Madde 342: two rows. The framed buttons stand above, the name under them on a row of its
+          own, so it never gives up room to the buttons. The project screen's × stands where the
+          rail's ← does, at the bar's other edge from Refresh and Copy. */}
       <header className="reader__head">
-        {back ? (
-          <button type="button" className="back back--inline" onClick={onClose}>
-            ←
-          </button>
-        ) : null}
+        <div className="reader__bar">
+          {back ? (
+            <button type="button" className="back back--inline" onClick={onClose}>
+              ←
+            </button>
+          ) : (
+            <button type="button" className="reader__close" title="Close" onClick={onClose}>
+              ×
+            </button>
+          )}
+          <div className="reader__tools">
+            {/* Madde 192. The same action the list's button asks for -- it reads both -- so the
+                two are one button that follows whichever surface is on screen. No busy word and
+                nothing spinning: this changes the page in place, and the changed page is the
+                answer. */}
+            <button type="button" className="ghost reader__refresh" onClick={onRefresh}>
+              Refresh
+            </button>
+            <CopyButton text={file?.text ?? ""} />
+          </div>
+        </div>
         <span className="reader__name">{file ? file.name : name}</span>
-        {/* Madde 192. The same action the list's button asks for -- it reads both -- so the two are
-            one button that follows whichever surface is on screen. No busy word and nothing
-            spinning: Download says "preparing…" because what it makes lands outside the screen,
-            and this changes the page in place. The changed page is the answer. */}
-        <button
-          type="button"
-          className="reader__refresh"
-          title="Refresh"
-          aria-label="Refresh"
-          onClick={onRefresh}
-        >
-          ↻
-        </button>
-        {/* Refresh, copy, download: the same file, lightest first. */}
-        <CopyButton text={file?.text ?? ""} />
-        {/* The width is fixed so the label can change inside it without moving the button. */}
-        <button
-          type="button"
-          className="ghost reader__download"
-          onClick={download}
-          disabled={preparing}
-        >
-          {preparing ? "preparing…" : "Download"}
-        </button>
-        {back ? null : (
-          <button type="button" className="reader__close" title="Close" onClick={onClose}>
-            ×
-          </button>
-        )}
       </header>
 
       {missing ? <p className="reader__note">That file is gone.</p> : null}
       {error ? <p className="reader__error">{error}</p> : null}
-      {failed ? <p className="reader__error">{failed}</p> : null}
 
       {/* A document is parsed -- the same parser the answers use, at the container's own scale.
           Anything else is read as it was written: Markdown eats a JSON file's indentation and turns

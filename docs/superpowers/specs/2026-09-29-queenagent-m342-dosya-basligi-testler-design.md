@@ -27,7 +27,7 @@ Olacak, tasarımdaki gibi:
   2,5 saniye sonra yine `Copy`. Başka satır eklenmez.
 - **`←` satırın ortasında:** kural `.back.back--inline` olur, iki sınıfla `.back`'i yener.
 
-**Proje ekranının paneli** (`back` verilmeyen `FilePanel`) v9-2n'de ekranla birlikte kalkıyor;
+**Proje ekranının paneli** (`back` verilmeyen `FilePanel`) 353'te (v9-2n) ekranla birlikte kalkıyor;
 tasarımda onun `×`'i yok. O güne kadar `×` çubukta `←`'nün yerinde durur: aynı satır, aynı iki uç,
 ek kural yok. Test yalnız `×`'in çubukta olduğunu tutar.
 
