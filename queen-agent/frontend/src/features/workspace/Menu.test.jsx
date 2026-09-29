@@ -93,6 +93,21 @@ test("the one in use is the marked one", () => {
   expect(items[1].textContent).not.toContain("✓");
 });
 
+// Madde 360: the All projects row's menu sets Delete apart under a line, as the design draws it.
+test("an item can stand apart under a line", () => {
+  const { container } = render(
+    <Menu items={[{ label: "Rename" }, { label: "Delete", danger: true, divided: true }]} />,
+  );
+  const lines = container.querySelectorAll(".menu__divider");
+  expect(lines.length).toBe(1);
+  expect(lines[0].nextElementSibling.textContent).toBe("Delete");
+});
+
+test("a menu with no item set apart draws no line", () => {
+  const { container } = render(<Menu items={ITEMS} />);
+  expect(container.querySelector(".menu__divider")).toBeNull();
+});
+
 test("given the button it hangs off, it takes a place on the screen", () => {
   // jsdom measures everything as zero, so what is asserted is that the placement was applied at
   // all; the arithmetic is proved in menuPlacement.test.js.

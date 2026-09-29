@@ -69,7 +69,8 @@ test("a row says how many chats and files, and when it was last used", () => {
 test("pressing a row opens that project", () => {
   const onOpenProject = vi.fn();
   render(<AllProjectsScreen projects={[PINNED, RECENT]} onOpenProject={onOpenProject} />);
-  fireEvent.click(screen.getByRole("button", { name: /Night market/ }));
+  // From the start of the name: the row's ⋯ is named after the project too (Madde 360).
+  fireEvent.click(screen.getByRole("button", { name: /^Night market/ }));
   expect(onOpenProject).toHaveBeenCalledWith("p2");
 });
 
@@ -95,9 +96,18 @@ test("a list that could not be read says what the server said, and nothing else"
   expect(screen.queryByText("All projects")).toBeNull();
 });
 
-test("no row carries a menu and the screen carries no search yet", () => {
-  // The row's ⋯ is Madde 360's, the search Madde 359's.
-  const { container } = render(<AllProjectsScreen projects={[PINNED]} />);
-  expect(container.querySelector(".all-projects__row-more")).toBeNull();
+test("the screen carries no search yet", () => {
+  // The search is Madde 359's.
+  render(<AllProjectsScreen projects={[PINNED]} />);
   expect(screen.queryByPlaceholderText("Search projects")).toBeNull();
+});
+
+// Madde 360: the menu's open state is App's, whose one listener owns Escape.
+test("every row carries its ⋯, and only the row whose menu is open has one", () => {
+  const { container } = render(<AllProjectsScreen projects={[PINNED, RECENT]} menuFor="p2" />);
+  expect(screen.getByRole("button", { name: "Actions for Harbour at dusk" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Actions for Night market" })).toBeTruthy();
+  const menus = container.querySelectorAll(".menu");
+  expect(menus.length).toBe(1);
+  expect(menus[0].closest(".all-projects__row").textContent).toContain("Night market");
 });
