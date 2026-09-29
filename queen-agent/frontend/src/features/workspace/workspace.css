@@ -69,8 +69,9 @@
   transition: width 220ms ease;
 }
 
-/* Folded to a strip rather than hidden: what stands here is the button that brings it back, and
-   nothing else -- every row in this sidebar is a name or a title. */
+/* Folded to an icon column rather than hidden: + for New chat, and the fold at its foot. Every other
+   row here is a name or a title, and has no icon form. 52 wide above a 1000 shell only: the steps
+   below it name two classes, so they outweigh this one and keep their own width. */
 .sidebar--collapsed {
   width: 52px;
   padding: 18px 0;
@@ -78,18 +79,26 @@
   overflow: hidden;
 }
 
-/* At the sidebar's head, pushed to its right edge while open, and the whole of it once folded. */
+/* The fold's own row, the sidebar's last (design 187): right of the chat list while open, and pushed
+   to the bottom by margin-top: auto whatever stands above it. Folded, the column's align-items:
+   center narrows the row to its one button and centres it under the +. */
+.sidebar__foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: auto;
+}
+
+/* A 30 square holding the panel icon: the same square the folded + is. */
 .sidebar__fold {
-  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
   border: none;
   border-radius: var(--radius-control);
-  padding: 2px 8px;
   background: transparent;
-  /* The same reading as the rail's chevron, for the same reason: folded, this is the only way back. */
-  color: var(--ink);
-  font-family: inherit;
-  font-size: 20px;
-  line-height: 1;
   cursor: pointer;
 }
 
@@ -97,9 +106,24 @@
   background: #e5dfd5;
 }
 
-/* Folded, the strip centres it, and the margin that pushed it right would pull it off centre. */
-.sidebar--collapsed .sidebar__fold {
-  margin-left: 0;
+/* A panel: a square with a line near its left edge, the design's own mark (174, 187). */
+.sidebar__panel-icon {
+  position: relative;
+  display: block;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+}
+
+.sidebar__panel-icon::after {
+  content: "";
+  position: absolute;
+  top: -1.5px;
+  bottom: -1.5px;
+  left: 6px;
+  border-left: 1.5px solid var(--ink);
 }
 
 /* The only filled accent in the app: this is the primary action. */
@@ -127,6 +151,15 @@
   font-size: 16px;
   line-height: 1;
   margin-top: -2px;
+}
+
+/* Folded, New chat is this square alone (design 174): the same filled button, its word gone. */
+.sidebar__new-chat--icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  justify-content: center;
+  flex: none;
 }
 
 /* Projects take at most 40% and scroll inside themselves; Recent chats fills the rest. */

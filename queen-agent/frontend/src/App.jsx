@@ -160,6 +160,14 @@ export default function App() {
     // One listener owns the keyboard. Two of them could not agree on an order: they hang off the
     // same window event, and stopping propagation does not stop a sibling.
     const onKey = (event) => {
+      // Ctrl + . folds the sidebar and brings it back from anywhere, the composer included (Madde
+      // 351, claude.ai's key). Held with Ctrl a key types nothing into a field, and taking the
+      // default leaves the browser nothing else to do with it.
+      if (event.ctrlKey && event.key === ".") {
+        event.preventDefault();
+        setSidebarCollapsed((folded) => !folded);
+        return;
+      }
       if (event.key !== "Escape") return;
       // Escape closes what is open, innermost first, and never steps backwards.
       if (menuFor) setMenuFor(null);
