@@ -232,6 +232,17 @@ def test_a_roadmap_can_still_reach_everything_it_links_to():
     assert not dangling, f"Yol haritasından çıkan kırık bağlantı: {dangling}"
 
 
+def test_a_web_address_is_not_a_file_a_roadmap_has_to_reach():
+    """A roadmap cites a guide on the web by its address, and that address can end in .md too -- v9's
+    MiniMax guides do. No move of folders can break it, and looking for it on disk kept the suite red
+    over a link nothing here could fix (Madde 377)."""
+    written = "[guide](https://example.org/docs/GUIDE.md) and [plan](../plans/x-plan.md#adim-2)"
+
+    assert _local_links(written) == {"../plans/x-plan.md"}, (
+        "internet adresi diskte aranacak bir dosya sayıldı"
+    )
+
+
 def test_every_roadmap_name_says_a_date_a_tool_and_a_version():
     """The record is the name, so the name has a shape rather than a habit.
 
