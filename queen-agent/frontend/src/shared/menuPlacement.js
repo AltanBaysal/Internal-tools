@@ -5,8 +5,8 @@
 const GAP = 6;
 // The closest a menu comes to the edge of the window.
 const EDGE = 8;
-// Ours, not the design's: karar 11 asks for a ceiling without naming one. 320 holds the model
-// menu's four described rows and puts a taller menu into its own scroll.
+// Ours, not the design's: karar 11 asks for a ceiling without naming one. 320 holds four described
+// rows and puts a taller menu into its own scroll.
 const TALLEST = 320;
 
 function clamp(value, low, high) {

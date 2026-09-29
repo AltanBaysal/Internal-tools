@@ -65,8 +65,8 @@ def _message_json(message):
         stored["files"] = list(message.files)
     if message.skill:
         stored["skill"] = message.skill
-    # The same rule, so a record written without a choice looks exactly as it did before Madde 146
-    # and no migration is owed.
+    # The same rule. Only messages Madde 146 to 357 wrote carry one, and they keep it when the chat
+    # is written again; every other message looks exactly as it did, and no migration is owed.
     if message.model:
         stored["model"] = message.model
     if message.calls:

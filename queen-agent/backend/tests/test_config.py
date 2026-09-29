@@ -122,10 +122,3 @@ def test_an_id_the_table_does_not_hold_is_a_wiring_fault():
     # quietly answered by another model.
     with pytest.raises(KeyError):
         config.engine_for("a-model-nobody-wired")
-
-
-def test_a_chat_that_named_an_old_deepseek_id_is_answered_by_flash():
-    # Messages on disk name deepseek-v4-flash or deepseek-v4-pro, and those chats must still be
-    # answered: both ids are gone from the table, so the unknown-id rule takes them to the default.
-    assert config.engine_for("deepseek-v4-flash")[0] == "deepseek-flash"
-    assert config.engine_for("deepseek-v4-pro")[0] == "deepseek-flash"

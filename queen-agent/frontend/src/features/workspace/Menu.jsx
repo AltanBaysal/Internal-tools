@@ -2,8 +2,8 @@ import { useLayoutEffect, useRef, useState } from "react";
 
 import { placeMenu } from "../../shared/menuPlacement.js";
 
-// The one popup box in the app: the sidebar row's ⋯ menu today, the model and Skills menus from
-// Madde 26 and 27. What is shared is where it goes, how tall it may get and how it is dismissed;
+// The one popup box in the app: the sidebar row's ⋯ menu, and the composer's Mode and Skills
+// menus. What is shared is where it goes, how tall it may get and how it is dismissed;
 // the width belongs to each caller, so this box does not set one.
 //
 // It is fixed rather than absolute because the sidebar scrolls, and an absolute menu would be

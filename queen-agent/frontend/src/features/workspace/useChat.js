@@ -105,7 +105,7 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
   // is settled when the turn is sent. The mode travels the same way and is kept nowhere -- what it
   // decides is which tools the request carries, and that is decided the moment it is sent.
   const send = useCallback(
-    async (text = null, skill = "", mode = "", model = "", from = null) => {
+    async (text = null, skill = "", mode = "", from = null) => {
       const at = new Date().toISOString();
       const token = {};
       owner.current = token;
@@ -158,7 +158,6 @@ export function useChat(projectId, chatId, onFileCreated, onChatBorn, onTurnEnd)
               text,
               skill,
               mode,
-              model,
               ...(from === null ? {} : { from }),
             };
       try {

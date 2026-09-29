@@ -887,6 +887,17 @@ def test_the_engine_is_asked_without_a_model(tmp_path):
     assert len(engine.seen) == 1
 
 
+def test_a_question_that_names_a_model_since_dropped_is_still_answered(tmp_path):
+    # Messages on disk name deepseek-v4-pro or deepseek-v4-flash, and neither is a row of config.py
+    # any more. The name is a record and steers nothing, so the chat is answered all the same.
+    chats, files = _seeded(tmp_path)
+    old = chats.get("p1", "c1")
+    chats.replace("p1", replace(old, messages=(replace(old.messages[0], model="deepseek-v4-pro"),)))
+    engine = ScriptedEngine([[{"text": "Done."}]])
+    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED))
+    assert [m.text for m in chats.get("p1", "c1").messages] == ["hi", "Done."]
+
+
 # --- the calls a turn made, seen and kept (Madde 66) ---------------------------------------------
 
 
