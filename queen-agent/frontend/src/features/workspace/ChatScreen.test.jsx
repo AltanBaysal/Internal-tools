@@ -1300,3 +1300,38 @@ test("a sentence typed as the chat fills is still in the box once it carries on"
   rerender(<ChatScreen project={PROJECT} chat={{ ...CHAT, full: false }} />);
   expect(screen.getByRole("textbox").value).toBe("and then?");
 });
+
+// --- the trim's line (Madde 357) -----------------------------------------------------------------
+
+const TRIMMED = {
+  ...CHAT,
+  trimmed: 2,
+  messages: [
+    ...CHAT.messages,
+    { role: "user", at: new Date(2026, 7, 9, 11, 6).toISOString(), text: "Shorter" },
+    { role: "ai", at: new Date(2026, 7, 9, 11, 7).toISOString(), text: "Shorter it is." },
+  ],
+};
+
+test("a trimmed chat draws the line before the first message still sent", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={TRIMMED} />);
+  const lines = container.querySelectorAll(".trimmed");
+  expect(lines).toHaveLength(1);
+  const [line] = lines;
+  expect(line.tagName).toBe("P");
+  expect(line.parentElement.className).toBe("chat__column");
+  expect(line.textContent).toBe("Messages above this line are no longer sent to the model");
+  // The record's number is where the model starts reading: the first turn above, the second below.
+  expect(line.previousElementSibling.textContent).toContain("Here it is.");
+  expect(line.nextElementSibling.querySelector(".msg__bubble").textContent).toBe("Shorter");
+});
+
+test("a chat nobody trimmed draws no line", () => {
+  const { container, rerender } = render(
+    <ChatScreen project={PROJECT} chat={{ ...TRIMMED, trimmed: 0 }} />,
+  );
+  expect(container.querySelector(".trimmed")).toBeNull();
+  // A record from before Madde 345 carries no number at all.
+  rerender(<ChatScreen project={PROJECT} chat={CHAT} />);
+  expect(container.querySelector(".trimmed")).toBeNull();
+});
