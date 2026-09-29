@@ -13,12 +13,18 @@ import { MODES, modeName } from "./modes.js";
 //
 // Whether the menu is open is not held here: one value in App owns which of the two pickers is
 // open, and Escape closes whichever that is.
-export default function ModePicker({ mode, open, onToggle, onChange }) {
+export default function ModePicker({ mode, open, disabled, onToggle, onChange }) {
   const trigger = useRef(null);
 
   return (
     <>
-      <button type="button" ref={trigger} className="picker" onClick={() => onToggle?.()}>
+      <button
+        type="button"
+        ref={trigger}
+        className="picker"
+        disabled={disabled}
+        onClick={() => onToggle?.()}
+      >
         <span className="picker__name">{modeName(mode)}</span>
         <span className="picker__chevron">⌄</span>
       </button>

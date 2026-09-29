@@ -344,6 +344,8 @@ export default function App() {
           {!firstLoad && route.view === "chat" ? (
             <ChatScreen
               chat={drafting ? DRAFT : chat.chat}
+              /* Before the record comes, the chat is called what its sidebar row calls it. */
+              loadingTitle={projectChats.find((row) => row.id === route.chatId)?.title}
               files={files}
               loadingFiles={loadingFiles}
               filesError={filesError}
