@@ -82,6 +82,10 @@ export default function App() {
   // rather than inside a picker, because App's one listener owns Escape and it can only close what
   // it can see.
   const [pickerOpen, setPickerOpen] = useState(null);
+  // The chat Search chats' Enter opened, until its reply box has the focus (Madde 365). Matched
+  // against the record on screen rather than the address: for a render after the address moves the
+  // old chat's record is still there, and its box would take the focus only to lose it.
+  const [replyFor, setReplyFor] = useState(null);
   const { projectChats, reloadProjectChats } = useProjectChats(route.projectId);
   // A chat is born with its first message, so "New chat" has nothing to create yet. The draft has
   // an address all the same -- a reload must not throw the user out of what they were typing.
@@ -248,7 +252,11 @@ export default function App() {
             chats={projectChats}
             activeChatId={route.chatId}
             onNewChat={openDraft}
-            onOpenChat={(chatId) => openChat(route.projectId, chatId)}
+            onOpenChat={(chatId, how) => {
+              // A click asks for nothing, and takes back an ask a chat that never opened left.
+              setReplyFor(how?.focusReply ? chatId : null);
+              openChat(route.projectId, chatId);
+            }}
             collapsed={sidebarCollapsed}
             onToggle={() => setSidebarCollapsed((folded) => !folded)}
           />
@@ -355,6 +363,8 @@ export default function App() {
               }}
               onDeny={(reason) => chat.answer(false, reason)}
               onRetry={chat.retry}
+              focusReply={replyFor !== null && chat.chat?.id === replyFor}
+              onReplyFocused={() => setReplyFor(null)}
             />
           ) : null}
         </main>

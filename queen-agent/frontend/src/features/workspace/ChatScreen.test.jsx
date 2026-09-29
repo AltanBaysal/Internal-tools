@@ -1300,3 +1300,23 @@ test("a chat nobody trimmed draws no line", () => {
   rerender(<ChatScreen project={PROJECT} chat={CHAT} />);
   expect(container.querySelector(".trimmed")).toBeNull();
 });
+
+// --- the reply box's focus (Madde 365) -----------------------------------------------------------
+
+// Search chats' Enter opens a chat and hands its reply box the focus (design 151). The box is shut
+// and born again while the record is read (Madde 355), so App asks once the record is here, and the
+// screen says it has done it so the ask is not repeated.
+
+test("asked to, the screen hands the focus to the reply box and says it has", () => {
+  const done = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={CHAT} focusReply onReplyFocused={done} />);
+  expect(document.activeElement).toBe(screen.getByPlaceholderText("Reply..."));
+  expect(done).toHaveBeenCalledTimes(1);
+});
+
+test("unasked, the reply box is left alone", () => {
+  const done = vi.fn();
+  render(<ChatScreen project={PROJECT} chat={CHAT} onReplyFocused={done} />);
+  expect(document.activeElement).not.toBe(screen.getByPlaceholderText("Reply..."));
+  expect(done).not.toHaveBeenCalled();
+});

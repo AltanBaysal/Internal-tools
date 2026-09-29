@@ -69,8 +69,8 @@
   transition: width 220ms ease;
 }
 
-/* Folded to an icon column rather than hidden: + for New chat, and the fold at its foot. Every other
-   row here is a chat's title, and has no icon form. 52 wide above a 1000 shell only: the steps
+/* Folded to an icon column rather than hidden: + for New chat, the search, and the fold at its foot.
+   Every other row here is a chat's title, and has no icon form. 52 wide above a 1000 shell only: the steps
    below it name two classes, so they outweigh this one and keep their own width. */
 .sidebar--collapsed {
   width: 52px;
@@ -88,7 +88,9 @@
   margin-top: auto;
 }
 
-/* A 30 square holding the panel icon: the same square the folded + is. */
+/* A 30 square holding the panel icon, or folded the magnifier (design 174): the same square the
+   folded + is, and one rule for the two since the design draws them as a pair in its lane. */
+.sidebar__search-toggle,
 .sidebar__fold {
   display: flex;
   align-items: center;
@@ -102,8 +104,31 @@
   cursor: pointer;
 }
 
+.sidebar__search-toggle:hover,
 .sidebar__fold:hover {
   background: #e5dfd5;
+}
+
+/* A magnifier, drawn the way the panel icon is: a ring, and a short rotated line for its handle. */
+.sidebar__search-icon {
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+}
+
+.sidebar__search-icon::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  bottom: -1px;
+  width: 5px;
+  height: 0;
+  border-top: 1.5px solid var(--ink);
+  transform: rotate(45deg);
 }
 
 /* A panel: a square with a line near its left edge, the design's own mark (174, 187). */
@@ -162,7 +187,20 @@
   flex: none;
 }
 
-/* The chats fill what New chat leaves, and scroll inside themselves: every chat is listed. */
+/* Search chats (design 168): the app's plain box, in .permission__reason's kind. No ::placeholder
+   rule, as there: the placeholder's colour is the browser's. */
+.sidebar__search {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+/* The chats fill what New chat and the search leave, and scroll inside themselves: every chat is listed. */
 .sidebar__chats {
   display: flex;
   flex-direction: column;

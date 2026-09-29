@@ -681,6 +681,36 @@ test("folded, New chat is a square holding only its plus", () => {
   expect(plus).toContain("justify-content: center");
 });
 
+// Madde 365 (design 168, 174): Search chats, and its icon in the folded column.
+test("the chats search is the app's plain box", () => {
+  const box = rule(".sidebar__search");
+  expect(box).toContain("width: 100%");
+  expect(box).toContain("border: 1px solid var(--line)");
+  expect(box).toContain("background: var(--surface)");
+  expect(box).toContain("border-radius: var(--radius-control)");
+  expect(box).toContain("padding: 8px 10px");
+  expect(box).toContain("font-size: 13px");
+  expect(box).toContain("color: var(--ink)");
+});
+
+test("folded, the search is the fold's own square and hover", () => {
+  // One rule rather than two copies of it: the design draws them as a pair in the same lane. The
+  // checkout may end its lines either way.
+  expect(CSS).toMatch(/\n\.sidebar__search-toggle,\r?\n\.sidebar__fold \{/);
+  expect(CSS).toMatch(/\n\.sidebar__search-toggle:hover,\r?\n\.sidebar__fold:hover \{/);
+});
+
+test("the magnifier is a ring with a short handle", () => {
+  const ring = rule(".sidebar__search-icon");
+  expect(ring).toContain("width: 12px");
+  expect(ring).toContain("height: 12px");
+  expect(ring).toContain("border: 1.5px solid var(--ink)");
+  expect(ring).toContain("border-radius: 50%");
+  const handle = rule(".sidebar__search-icon::after");
+  expect(handle).toContain("width: 5px");
+  expect(handle).toContain("rotate(45deg)");
+});
+
 test("the easing is for folding, and a drag turns it off", () => {
   // 220ms is right for a rail folding itself away and wrong for one following the pointer.
   expect(rule(".rail")).toContain("transition: width 220ms");

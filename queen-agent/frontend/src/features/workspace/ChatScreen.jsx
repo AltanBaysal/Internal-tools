@@ -64,6 +64,8 @@ export default function ChatScreen({
   onVersion,
   onNewChat,
   onContinue,
+  focusReply,
+  onReplyFocused,
 }) {
   // Which message is being edited, and the token that puts its sentence in the box (Madde 195).
   // Held here rather than in App: it is a state of this screen, and it ends the moment the sentence
@@ -78,6 +80,15 @@ export default function ChatScreen({
 
   // The box, for the card's Try again: a refused reply is sent again by the box that holds it.
   const box = useRef(null);
+
+  // Search chats' Enter hands the chat it opens the focus (Madde 365). App asks only once this
+  // chat's record is on screen -- the box is shut and born again while it is read -- and hearing it
+  // done lets the ask go, so the next render does not take the focus back.
+  useEffect(() => {
+    if (!focusReply) return;
+    box.current.focus();
+    onReplyFocused();
+  }, [focusReply]);
 
   const scroll = useRef(null);
   const toBottom = () => {
