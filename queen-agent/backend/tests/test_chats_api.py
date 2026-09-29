@@ -807,6 +807,29 @@ def test_a_chat_nobody_trimmed_says_so(tmp_path):
     assert _record(client, pid, cid)["trimmed"] == 0
 
 
+# --- whether the chat is full, said by the server (Madde 352) ------------------------------------
+
+
+def test_a_chat_below_the_ceiling_says_it_is_not_full(tmp_path):
+    # The notice stands on this field alone: the screen counts nothing (FOUNDATION, Decision 4).
+    client = _client(tmp_path)
+    pid, cid = _started(client)
+    assert _record(client, pid, cid)["full"] is False
+
+
+def test_a_full_chat_says_so_before_anything_is_refused(tmp_path):
+    client = _answering(tmp_path, LONG)
+    pid, cid = _started(client)
+    assert _record(client, pid, cid)["full"] is True
+
+
+def test_a_trimmed_chat_is_not_full_any_more(tmp_path):
+    client, pid, cid = _filled(tmp_path)
+    assert _record(client, pid, cid)["full"] is True
+    client.post(f"/api/projects/{pid}/chats/{cid}/trim")
+    assert _record(client, pid, cid)["full"] is False
+
+
 # --- the mode a turn was sent in (Madde 91) ------------------------------------------------------
 
 

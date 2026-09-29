@@ -801,3 +801,16 @@ test("the strip carries no gap of its own", () => {
   // line down away from the message it belongs to.
   expect(rule(".versions")).not.toContain("margin-top");
 });
+
+// Madde 352: the full chat's notice stands in the box's place in the box's own shape (design item
+// 140, kit.css's .full).
+test("the full chat's notice is shaped like the box it stands in for", () => {
+  const notice = rule(".full");
+  expect(notice).toContain("max-width: 720px");
+  expect(notice).toContain("border-radius: 14px");
+  expect(notice).toContain("padding: 14px 16px 10px");
+  expect(rule(".full__line")).toContain("font-size: 14px");
+  expect(rule(".full__detail")).toContain("font-size: 13px");
+  expect(rule(".full__detail")).toContain("color: #6b6259");
+  expect(rule(".full__actions")).toContain("justify-content: flex-end");
+});

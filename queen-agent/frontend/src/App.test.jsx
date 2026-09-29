@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 
 import App from "./App.jsx";
@@ -2971,4 +2971,122 @@ test("a message is edited, the chat carries on from there, and the arrow goes ba
   fireEvent.click(screen.getByRole("button", { name: "Previous version" }));
   await waitFor(() => expect(screen.getByText("Here it is.")).toBeTruthy());
   expect(screen.queryByText("Shorter.")).toBeNull();
+});
+
+// --- the full chat's notice (Madde 352) ----------------------------------------------------------
+
+const turn = (answer) => [
+  { role: "user", at: new Date().toISOString(), text: "go on" },
+  { role: "ai", at: new Date().toISOString(), text: answer },
+];
+
+// A chat the server calls full until the trim door is knocked on; `trim` is what the door answers.
+function stubFullChat(trim = { ok: true, status: 200, json: async () => ({}) }) {
+  let record = {
+    id: "c1",
+    title: "Long",
+    full: true,
+    trimmed: 0,
+    context: { sent: 50000, ceiling: 50000 },
+    messages: [...turn("First answer."), ...turn("Last answer.")],
+  };
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/trim") && options?.method === "POST") {
+      if (trim.ok) {
+        record = { ...record, full: false, trimmed: 2, context: { sent: 9000, ceiling: 50000 } };
+      }
+      return Promise.resolve(trim);
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => record });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  return fetch;
+}
+
+test("the notice's New chat opens the project's draft", async () => {
+  stubFullChat();
+  render(<App />);
+  await screen.findByText("This chat is full.");
+  fireEvent.click(within(document.querySelector(".full")).getByRole("button", { name: "New chat" }));
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
+});
+
+test("Continue here trims the chat, and it takes messages again with every message still drawn", async () => {
+  const fetch = stubFullChat();
+  render(<App />);
+  await screen.findByText("This chat is full.");
+  expect(screen.queryByRole("textbox")).toBeNull();
+
+  // Asked nothing first and undone by nothing after (the owner's call, 29 September).
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  await waitFor(() => expect(screen.queryByText("This chat is full.")).toBeNull());
+  const posts = fetch.mock.calls.filter(([, options]) => options?.method === "POST");
+  expect(posts.map(([path]) => path)).toEqual(["/api/projects/p1/chats/c1/trim"]);
+  expect(screen.getByRole("textbox")).toBeTruthy();
+  expect(screen.getByText("First answer.")).toBeTruthy();
+  expect(screen.getByText("Last answer.")).toBeTruthy();
+});
+
+test("a refusal met while the chat was full goes with Continue here", async () => {
+  // The question filled the chat and its answer never came; Try again then met the ceiling. What
+  // the refusal said stops being true the moment the chat is trimmed.
+  let record = { id: "c1", title: "Long", full: false, trimmed: 0, messages: turn("Last answer.") };
+  let posts = 0;
+  const fetch = vi.fn().mockImplementation((path, options) => {
+    if (path.endsWith("/messages") && options?.method === "POST") {
+      posts += 1;
+      if (posts === 1) {
+        const asked = { role: "user", at: new Date().toISOString(), text: "and more" };
+        record = { ...record, full: true, messages: [...record.messages, asked] };
+        return Promise.resolve(
+          sseResponse('event: chat\ndata: {"chat":"c1"}\n\nevent: error\ndata: {"error":"502 upstream"}\n\n'),
+        );
+      }
+      return Promise.resolve({
+        ok: false,
+        status: 400,
+        text: async () => JSON.stringify({ error: "this chat has reached its context ceiling" }),
+      });
+    }
+    if (path.endsWith("/trim") && options?.method === "POST") {
+      record = { ...record, full: false, trimmed: 2 };
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+    }
+    if (path.endsWith("/chats/c1")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => record });
+    }
+    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/c1");
+
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "and more" } });
+  fireEvent.keyDown(box, { key: "Enter" });
+  await screen.findByText("502 upstream");
+  await screen.findByText("This chat is full.");
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  await screen.findByText("this chat has reached its context ceiling");
+
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  await waitFor(() => expect(screen.queryByText("This chat is full.")).toBeNull());
+  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
+});
+
+test("a trim the server refuses says so in the server's own words", async () => {
+  stubFullChat({
+    ok: false,
+    status: 400,
+    text: async () => JSON.stringify({ error: "this chat is not full" }),
+  });
+  render(<App />);
+  await screen.findByText("This chat is full.");
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  expect(await screen.findByText("this chat is not full")).toBeTruthy();
 });

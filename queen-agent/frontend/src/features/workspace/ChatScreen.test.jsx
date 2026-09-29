@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import ChatScreen from "./ChatScreen.jsx";
@@ -1105,4 +1105,63 @@ test("the foot puts the mode before the skill", () => {
   const { container } = render(<ChatScreen project={PROJECT} chat={CHAT} mode="plan" />);
   const names = [...container.querySelectorAll(".composer__foot .picker__name")];
   expect(names.map((name) => name.textContent)).toEqual(["Plan", "Skills", "Queen Flash"]);
+});
+
+// --- the full chat's notice (Madde 352) ----------------------------------------------------------
+
+const FULL = { ...CHAT, full: true, context: { sent: 50000, ceiling: 50000 } };
+
+test("a full chat stands a notice where the box was", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={FULL} />);
+  const notice = container.querySelector(".chat__composer .full");
+  expect(notice.querySelector(".full__line").textContent).toBe("This chat is full.");
+  expect(notice.querySelector(".full__detail").textContent).toBe(
+    "Continue here sends only the latest messages to the model; the older ones stay on screen.",
+  );
+  // Nothing sends from a full chat: there is no box to type in and no button to press.
+  expect(screen.queryByRole("textbox")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+});
+
+test("the notice's gauge stands at the left of its two buttons", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={FULL} />);
+  const actions = container.querySelector(".full__actions");
+  expect(actions.children).toHaveLength(3);
+  const [gauge, fresh, carryOn] = actions.children;
+  expect(gauge.className).toBe("composer__gauge");
+  expect(within(gauge).getByRole("img").getAttribute("aria-label")).toBe("This chat is full");
+  expect(fresh.textContent).toBe("New chat");
+  expect(carryOn.textContent).toBe("Continue here");
+  // Neither is the primary action: nothing is destroyed, somebody is being asked.
+  expect(fresh.classList.contains("ghost")).toBe(true);
+  expect(carryOn.classList.contains("ghost")).toBe(true);
+});
+
+test("the notice's buttons ask for a new chat and for this one to carry on", () => {
+  const onNewChat = vi.fn();
+  const onContinue = vi.fn();
+  render(
+    <ChatScreen project={PROJECT} chat={FULL} onNewChat={onNewChat} onContinue={onContinue} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "New chat" }));
+  expect(onNewChat).toHaveBeenCalled();
+  expect(onContinue).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  expect(onContinue).toHaveBeenCalled();
+});
+
+test("a chat that is not full keeps its box and draws no notice", () => {
+  const { container } = render(<ChatScreen project={PROJECT} chat={{ ...CHAT, full: false }} />);
+  expect(container.querySelector(".full")).toBeNull();
+  expect(screen.getByRole("textbox")).toBeTruthy();
+});
+
+test("a sentence typed as the chat fills is still in the box once it carries on", () => {
+  // FOUNDATION's first principle: a reply typed while the last answer ran does not go with the box.
+  const { rerender } = render(<ChatScreen project={PROJECT} chat={CHAT} />);
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "and then?" } });
+  rerender(<ChatScreen project={PROJECT} chat={FULL} />);
+  expect(screen.queryByRole("textbox")).toBeNull();
+  rerender(<ChatScreen project={PROJECT} chat={{ ...CHAT, full: false }} />);
+  expect(screen.getByRole("textbox").value).toBe("and then?");
 });
