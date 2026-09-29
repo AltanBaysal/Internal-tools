@@ -1721,6 +1721,50 @@
   margin: 0;
 }
 
+/* The naming screen (Madde 361; the design's 169, kit.css): a left-aligned box inside empty's
+   centred column, the title and line above the field and Create project side by side. Cancel
+   stands in the bar, not under them (195). The title and line stand nowhere but in this box, so
+   the box's spacing is written on them directly. */
+.empty__box {
+  width: 420px;
+  max-width: 100%;
+  text-align: left;
+}
+
+.empty__title {
+  display: block;
+  font-family: var(--font-heading);
+  font-weight: 400;
+  font-size: 34px;
+  margin: 0 0 8px;
+  letter-spacing: -0.01em;
+}
+
+.empty__line {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0 0 22px;
+  text-wrap: pretty;
+}
+
+.empty__row {
+  display: flex;
+  gap: 10px;
+}
+
+.empty__field {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+
 .all-projects__head {
   display: flex;
   align-items: center;

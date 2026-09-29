@@ -81,7 +81,7 @@ def _client(tmp_path, engine=None):
 
 
 def _project(client):
-    return client.post("/api/projects").get_json()["id"]
+    return client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
 
 
 def _frames(body):

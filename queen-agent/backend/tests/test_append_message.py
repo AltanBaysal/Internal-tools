@@ -24,7 +24,7 @@ def _made(projects, chats, project_id, chat_id, text, now):
 
 def _chat(projects, chats, project_id, chat_id, text, now):
     # A chat always lives in a project, so the project is made first.
-    create_project(projects, new_id=project_id, now=now)
+    create_project(projects, new_id=project_id, name="Thesis", now=now)
     return _made(projects, chats, project_id, chat_id, text, now)
 
 
@@ -38,7 +38,7 @@ def test_with_no_chat_named_the_rule_creates_one(tmp_path):
     # Madde 87: start_chat's job moved here. A message with no chat to land in makes the chat, and
     # the id it is given is the id it gets -- minting one is the route's job, not this rule's.
     projects, chats = _stores(tmp_path)
-    create_project(projects, new_id="p1", now="2026-08-09T11:04:00.000+00:00")
+    create_project(projects, new_id="p1", name="Thesis", now="2026-08-09T11:04:00.000+00:00")
     chat = append_message(
         chats,
         "p1",
@@ -60,7 +60,7 @@ def test_with_no_chat_named_the_rule_creates_one(tmp_path):
 
 def test_with_no_chat_named_an_empty_message_is_still_refused(tmp_path):
     projects, chats = _stores(tmp_path)
-    create_project(projects, new_id="p1", now="2026-08-09T11:04:00.000+00:00")
+    create_project(projects, new_id="p1", name="Thesis", now="2026-08-09T11:04:00.000+00:00")
     with pytest.raises(EmptyMessage):
         append_message(
             chats,
@@ -132,7 +132,7 @@ def test_an_unknown_chat_is_reported(tmp_path):
 
 def test_a_later_message_lifts_its_chat_to_the_top(tmp_path):
     projects, chats = _stores(tmp_path)
-    create_project(projects, new_id="p1", now="2026-08-09T10:00:00.000+00:00")
+    create_project(projects, new_id="p1", name="Thesis", now="2026-08-09T10:00:00.000+00:00")
     _made(projects, chats, "p1", "c1", "older", "2026-08-09T10:00:00.000+00:00")
     _made(projects, chats, "p1", "c2", "newer", "2026-08-09T12:00:00.000+00:00")
     append_message(chats, "p1", "c1", "still here", "2026-08-09T13:00:00.000+00:00")

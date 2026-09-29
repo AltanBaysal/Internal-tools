@@ -183,7 +183,7 @@ def _client(tmp_path):
 
 def test_patch_pins_and_unpins(tmp_path):
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     pinned = client.patch(f"/api/projects/{pid}", json={"pinned": True}).get_json()
     assert pinned["pinned"] is True, "PATCH projeyi sabitlemedi"
     unpinned = client.patch(f"/api/projects/{pid}", json={"pinned": False}).get_json()
@@ -193,7 +193,7 @@ def test_patch_pins_and_unpins(tmp_path):
 def test_patch_archives_and_the_archived_project_stays_listed(tmp_path):
     # The row says it is archived; which tab shows it is the screen's to decide (v9-2t).
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     archived = client.patch(f"/api/projects/{pid}", json={"archived": True}).get_json()
     assert archived["archived"] is True, "PATCH projeyi arşive almadı"
     assert client.get("/api/projects").get_json() == [archived], (
@@ -205,8 +205,8 @@ def test_patch_archives_and_the_archived_project_stays_listed(tmp_path):
 
 def test_the_list_says_both_and_a_fresh_app_says_the_same(tmp_path):
     client = _client(tmp_path)
-    first = client.post("/api/projects").get_json()["id"]
-    second = client.post("/api/projects").get_json()["id"]
+    first = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
+    second = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     client.patch(f"/api/projects/{first}", json={"pinned": True})
     client.patch(f"/api/projects/{second}", json={"archived": True})
     rows = {

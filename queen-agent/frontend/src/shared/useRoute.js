@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 
 // The address bar is the source of truth for which screen is open, so a reload does not lose the
-// user's place. Three shapes are all we have, so this stays a hook rather than a routing
+// user's place. Four shapes are all we have, so this stays a hook rather than a routing
 // dependency.
 export function parsePath(pathname) {
   const parts = pathname.split("/").filter(Boolean);
+  // The naming screen every + New project goes through first (Madde 361).
+  if (parts.length === 1 && parts[0] === "new") {
+    return { view: "new", projectId: null, chatId: null };
+  }
   if (parts[0] === "p" && parts[1]) {
     if (parts[2] === "c" && parts[3]) {
       return { view: "chat", projectId: parts[1], chatId: parts[3] };

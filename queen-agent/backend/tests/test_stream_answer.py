@@ -232,7 +232,7 @@ def _seeded(tmp_path):
     store = Store(str(tmp_path))
     projects, chats, files = FileProjectStore(store), FileChatStore(store), FileFileStore(store)
     now = "2026-08-09T11:04:00.000+00:00"
-    create_project(projects, new_id="p1", now=now)
+    create_project(projects, new_id="p1", name="Thesis", now=now)
     # Naming no chat is what asks for one, since Madde 87.
     append_message(chats, "p1", "", "hi", now, project_store=projects, new_id="c1")
     return chats, files

@@ -23,9 +23,9 @@ export function useProjects() {
     reload();
   }, [reload]);
 
-  const createProject = useCallback(async () => {
+  const createProject = useCallback(async (name) => {
     try {
-      const created = await postJson("/api/projects");
+      const created = await postJson("/api/projects", { name });
       // Read again rather than put in by hand: where it belongs is the server's order
       // (list_projects.py), and a copy of that rule here would drift from it.
       await reload();

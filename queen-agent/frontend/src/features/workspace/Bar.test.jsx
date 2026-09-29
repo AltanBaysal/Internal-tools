@@ -29,6 +29,18 @@ test("with a project open, its name stands in the middle and the way out on the 
   expect(screen.getByRole("button", { name: "Exit project" }).className).toBe("ghost bar__exit");
 });
 
+// Madde 361 (the design's 195): the bar's right is each screen's own way out, and on the naming
+// screen that is Cancel, in Exit project's place and look -- with no project open in the middle.
+test("on the naming screen the right holds Cancel, in Exit project's place and look", () => {
+  const onExit = vi.fn();
+  const { container } = render(<Bar project={null} exit="Cancel" onExit={onExit} />);
+  expect(container.querySelector(".bar__project")).toBeNull();
+  const cancel = screen.getByRole("button", { name: "Cancel" });
+  expect(cancel.className).toBe("ghost bar__exit");
+  fireEvent.click(cancel);
+  expect(onExit).toHaveBeenCalled();
+});
+
 test("Exit project asks to leave rather than deciding where to", () => {
   const onExit = vi.fn();
   render(<Bar project={PROJECT} onExit={onExit} />);

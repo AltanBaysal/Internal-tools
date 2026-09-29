@@ -70,7 +70,7 @@ def test_the_listing_carries_the_chip_and_a_time(tmp_path):
 
 def test_the_endpoint_answers_an_empty_project_without_blowing_up(tmp_path):
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     resp = client.get(f"/api/projects/{pid}/files")
     assert resp.status_code == 200
     assert resp.get_json() == []
@@ -78,7 +78,7 @@ def test_the_endpoint_answers_an_empty_project_without_blowing_up(tmp_path):
 
 def test_the_endpoint_lists_what_the_model_wrote(tmp_path):
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     _files(tmp_path).write(pid, "plan.md", "body")
     listed = client.get(f"/api/projects/{pid}/files").get_json()
     assert listed[0]["name"] == "plan.md"
@@ -88,7 +88,7 @@ def test_the_endpoint_lists_what_the_model_wrote(tmp_path):
 
 def test_one_file_comes_back_whole(tmp_path):
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     _files(tmp_path).write(pid, "plan.md", "the body")
     body = client.get(f"/api/projects/{pid}/files/plan.md").get_json()
     assert body["name"] == "plan.md"
@@ -100,7 +100,7 @@ def test_one_file_comes_back_whole(tmp_path):
 
 def test_reading_a_file_that_is_gone_is_a_404(tmp_path):
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     resp = client.get(f"/api/projects/{pid}/files/ghost.md")
     assert resp.status_code == 404
     assert "not found" in resp.get_json()["error"]
@@ -116,7 +116,7 @@ def test_search_is_gone(tmp_path):
 def test_a_file_cannot_be_renamed(tmp_path):
     # Renaming lives on the project alone. 405 rather than 404: GET and DELETE still answer there.
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     _files(tmp_path).write(pid, "plan.md", "body")
     resp = client.patch(f"/api/projects/{pid}/files/plan.md", json={"name": "outline.md"})
     assert resp.status_code == 405
@@ -135,7 +135,7 @@ def test_the_store_offers_no_rename(tmp_path):
 
 def test_deleting_over_http_answers_with_the_trash_name(tmp_path):
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     _files(tmp_path).write(pid, "plan.md", "body")
     resp = client.delete(f"/api/projects/{pid}/files/plan.md")
     assert resp.status_code == 200
@@ -145,7 +145,7 @@ def test_deleting_over_http_answers_with_the_trash_name(tmp_path):
 
 def test_deleting_a_file_that_is_gone_is_a_404(tmp_path):
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     assert client.delete(f"/api/projects/{pid}/files/ghost.md").status_code == 404
 
 
@@ -161,7 +161,7 @@ def test_deleting_still_says_where_the_file_went(tmp_path):
     # Nobody reads the name any more, but it is the one sentence that says what happened on disk,
     # and deleting a project answers the same way.
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     _files(tmp_path).write(pid, "plan.md", "body")
     assert client.delete(f"/api/projects/{pid}/files/plan.md").get_json()["trashed"] == "plan.md"
 
@@ -169,7 +169,7 @@ def test_deleting_still_says_where_the_file_went(tmp_path):
 def test_the_list_and_one_file_are_different_addresses(tmp_path):
     # Same prefix, two routes: the list must not swallow a name.
     client = _client(tmp_path)
-    pid = client.post("/api/projects").get_json()["id"]
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
     _files(tmp_path).write(pid, "plan.md", "x")
     assert isinstance(client.get(f"/api/projects/{pid}/files").get_json(), list)
     assert isinstance(client.get(f"/api/projects/{pid}/files/plan.md").get_json(), dict)

@@ -13,7 +13,7 @@ from backend.services.store.store import Store
 def _project_with_contents(tmp_path, project_id="p1"):
     store = Store(str(tmp_path))
     projects = FileProjectStore(store)
-    create_project(projects, new_id=project_id, now="2026-08-09T10:00:00+00:00")
+    create_project(projects, new_id=project_id, name="Thesis", now="2026-08-09T10:00:00+00:00")
     # Naming no chat is what asks for one, since Madde 87.
     append_message(
         FileChatStore(store),
@@ -55,7 +55,7 @@ def test_the_trash_is_not_a_project(tmp_path):
 def test_the_same_id_deleted_twice_does_not_lose_the_first(tmp_path):
     projects, store = _project_with_contents(tmp_path)
     delete_project(projects, "p1")
-    create_project(projects, new_id="p1", now="2026-08-10T10:00:00+00:00")
+    create_project(projects, new_id="p1", name="Thesis", now="2026-08-10T10:00:00+00:00")
     assert delete_project(projects, "p1") == "p1-2"
     assert sorted(store.list_dir("trash")) == ["p1", "p1-2"]
 

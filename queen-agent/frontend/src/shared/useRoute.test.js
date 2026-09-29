@@ -50,6 +50,11 @@ test("a draft chat has an address of its own", () => {
   expect(parsePath("/p/p1/c/new")).toEqual({ view: "chat", projectId: "p1", chatId: "new" });
 });
 
+test("the naming screen has an address of its own", () => {
+  // Madde 361: every + New project goes here first. No project is open on it, so it carries no ids.
+  expect(parsePath("/new")).toEqual({ view: "new", projectId: null, chatId: null });
+});
+
 test("/settings is no longer a place", () => {
   // Madde 62: the screen is gone, so the address joins everything else unrecognised and falls
   // through to the fork -- which picks a project rather than drawing nothing.

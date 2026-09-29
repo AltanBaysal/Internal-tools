@@ -800,13 +800,45 @@ test("the project screen, the empty screen and the skeleton left no rule behind"
     ".panel",
     ".skeleton",
     ".reader__close",
-    ".empty__title",
-    ".empty__line",
   ];
   const selectors = CSS.replace(/\/\*[\s\S]*?\*\//g, "")
     .split("\n")
     .filter((line) => line && !/^\s/.test(line));
   expect(selectors.filter((line) => gone.some((name) => line.includes(name)))).toEqual([]);
+});
+
+// --- the naming screen (Madde 361; the design's items 169, 195, kit.css's .empty__box and on) ----
+
+test("the naming screen is a left-aligned box 420 wide", () => {
+  expect(rule(".empty__box")).toContain("width: 420px");
+  expect(rule(".empty__box")).toContain("text-align: left");
+});
+
+test("its title is the heading face at 34, not bold", () => {
+  const title = rule(".empty__title");
+  expect(title).toContain("font-family: var(--font-heading)");
+  expect(title).toContain("font-size: 34px");
+  expect(title).toContain("font-weight: 400");
+  expect(title).toContain("margin: 0 0 8px");
+});
+
+test("its line is quiet, and stands off the field", () => {
+  const line = rule(".empty__line");
+  expect(line).toContain("font-size: 14.5px");
+  expect(line).toContain("color: var(--muted)");
+  expect(line).toContain("margin: 0 0 22px");
+});
+
+test("the field and Create project stand side by side", () => {
+  expect(rule(".empty__row")).toContain("display: flex");
+  expect(rule(".empty__row")).toContain("gap: 10px");
+  const field = rule(".empty__field");
+  expect(field).toContain("flex: 1");
+  expect(field).toContain("border: 1px solid var(--line)");
+  expect(field).toContain("background: var(--surface)");
+  expect(field).toContain("border-radius: var(--radius-control)");
+  expect(field).toContain("padding: 10px 12px");
+  expect(field).toContain("font-size: 14.5px");
 });
 
 test("PINNED and RECENT are the design's label", () => {

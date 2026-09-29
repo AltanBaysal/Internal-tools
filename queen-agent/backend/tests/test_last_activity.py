@@ -183,7 +183,7 @@ def _order(client):
 
 def test_the_list_says_when_each_project_was_last_used(tmp_path):
     client = _client(tmp_path)
-    created = client.post("/api/projects").get_json()
+    created = client.post("/api/projects", json={"name": "Thesis"}).get_json()
     assert created["lastActivity"] == created["createdAt"], (
         "Yeni projenin son kullanımı doğduğu an değil"
     )
