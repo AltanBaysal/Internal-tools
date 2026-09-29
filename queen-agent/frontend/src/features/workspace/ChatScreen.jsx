@@ -165,19 +165,6 @@ export default function ChatScreen({
                     <Markdown text={message.text} />
                   </div>
                 ) : null}
-                {/* The pencil is handed over only where there is something to correct: a question,
-                    and not one already open for correction -- a second door onto an open field is
-                    one whose meaning nobody can state. Named for the message rather than Edit
-                    alone, which the mode picker already wears. */}
-                <MessageFoot
-                  standing={message.variants}
-                  onVersion={onVersion}
-                  onEdit={
-                    message.role === "user" && editing?.index !== index
-                      ? () => setEditing({ index, text: message.text })
-                      : null
-                  }
-                />
                 {/* Where the text stops and why. Above the cards and the count -- those are notes
                     about the turn, this is the end of the sentence. Nobody but the user can stop
                     an answer, so the word says what happened and invents no cause for it. */}
@@ -201,7 +188,21 @@ export default function ChatScreen({
                     does, and a number under the question would read as its price. The server sends
                     the user's own message a usage of zeros, so this would hold without the check --
                     but a rule that leans on someone else's zeros breaks the day they change. */}
-                <Stamp at={message.at} usage={message.role === "ai" ? message.usage : null} />
+                <Stamp at={message.at} usage={message.role === "ai" ? message.usage : null}>
+                  {/* The pencil is handed over only where there is something to correct: a
+                      question, and not one already open for correction -- a second door onto an
+                      open field is one whose meaning nobody can state. Named for the message rather
+                      than Edit alone, which the mode picker already wears. */}
+                  <MessageFoot
+                    standing={message.variants}
+                    onVersion={onVersion}
+                    onEdit={
+                      message.role === "user" && editing?.index !== index
+                        ? () => setEditing({ index, text: message.text })
+                        : null
+                    }
+                  />
+                </Stamp>
               </div>
             ))}
             {streamingText ? (
@@ -214,9 +215,9 @@ export default function ChatScreen({
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
                 {/* Until Madde 194 an answer still running carried only its time. Now it carries
-                    where the turn is, and falls back to the time until the first frame says so --
-                    round 0/16 would claim a measurement nobody took. */}
-                {progress ? <LiveStrip {...progress} /> : <Stamp at={askedAt} />}
+                    where the turn is after the time, and is the time alone until the first frame
+                    says so -- round 0/16 would claim a measurement nobody took. */}
+                {progress ? <LiveStrip at={askedAt} {...progress} /> : <Stamp at={askedAt} />}
               </div>
             ) : null}
 
@@ -231,7 +232,7 @@ export default function ChatScreen({
                   <span className="dots__dot" />
                 </div>
                 {creatingFile ? <CreatingFile /> : null}
-                {progress ? <LiveStrip {...progress} /> : <Stamp at={askedAt} />}
+                {progress ? <LiveStrip at={askedAt} {...progress} /> : <Stamp at={askedAt} />}
               </div>
             ) : null}
 
