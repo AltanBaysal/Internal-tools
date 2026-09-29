@@ -390,8 +390,8 @@ def _chat_json(chat):
                     for call in message.calls
                 ],
                 "stopped": message.stopped,
-                # The breakdown travels even though the screen draws one number out of it: what the
-                # cache actually saved is the question the context work will be answering.
+                # The breakdown travels whole: the screen draws `sent` and `cached` under an
+                # answer, and `answered` stays for the context work to read.
                 "usage": {
                     "sent": message.usage.sent,
                     "cached": message.usage.cached,
