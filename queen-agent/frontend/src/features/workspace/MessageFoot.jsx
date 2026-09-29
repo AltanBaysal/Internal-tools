@@ -33,20 +33,17 @@ function Versions({ standing, onVersion }) {
   );
 }
 
-// The line under a bubble (Madde 199): which version is showing, and the way to correct the
-// sentence. .msg is a column, so the strip and the pencil put separately there each took a line of
-// their own; here they stand beside each other, the note first and the way to change it after it.
+// What a question adds to its stamp's row, after the time (Madde 199, Madde 348): which version is
+// showing, then the way to correct the sentence -- the note first and the way to change it after
+// it, so the pencil stays last whether a strip is there or not. No row of its own: a row here and
+// the time's under it were two lines of notes under one sentence.
 //
 // The pencil is there when the caller hands one over. Whether this message can be edited at all,
 // and whether it is being edited right now, are already decided where the message is drawn -- and
 // a second place deciding the same thing is how the two answers drift apart.
-//
-// Nothing to hold is no row: the strip draws nothing where a message stands alone, and an empty
-// div would only widen the column's gap under every answer in the chat.
 export default function MessageFoot({ standing, onVersion, onEdit }) {
-  if (!onEdit && !(standing?.of > 1)) return null;
   return (
-    <div className="msg__foot">
+    <>
       <Versions standing={standing} onVersion={onVersion} />
       {onEdit ? (
         <button
@@ -59,6 +56,6 @@ export default function MessageFoot({ standing, onVersion, onEdit }) {
           ✎
         </button>
       ) : null}
-    </div>
+    </>
   );
 }

@@ -27,3 +27,9 @@ test("the arrows hand over the version beside this one", () => {
   fireEvent.click(screen.getByRole("button", { name: "Next version" }));
   expect(onVersion).toHaveBeenCalledWith("l2");
 });
+
+test("it draws no row of its own: its parts stand in the stamp's", () => {
+  // Madde 348: the time, the arrows and the pencil share one row, and the row is the stamp's.
+  const { container } = render(<MessageFoot standing={BESIDE} onEdit={vi.fn()} />);
+  expect([...container.children].map((part) => part.className)).toEqual(["versions", "msg__edit"]);
+});

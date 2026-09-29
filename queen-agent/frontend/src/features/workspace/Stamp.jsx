@@ -8,22 +8,30 @@ function shorten(count) {
   return count < 1000 ? String(count) : `${(count / 1000).toFixed(1)}k`;
 }
 
-// The note that closes a message: when it was said, and -- for an answer that was measured -- what
-// it cost. Under the message rather than over it, because a note about a thing is read after it.
-// One line rather than two at the two ends, and no name in it: the sidebar carries the name, and
-// which side a message sits on says who wrote it.
+// The notes that close a message, on one row: when it was said, and -- for an answer that was
+// measured -- what it cost; then whatever the message hands over, which under a question is its
+// versions and its pencil (Madde 348, design item 139). Under the message rather than over it,
+// because a note about a thing is read after it. One row rather than two, and no name in it: the
+// sidebar carries the name, and which side a message sits on says who wrote it.
 //
 // One number out of the three the record keeps. The other two say what the cache saved, and that is
 // a question about how requests are built rather than something a reader of the chat is asking. The
 // count drops at zero -- an answer from before this existed reads back as zero, and a number there
 // would claim a measurement nobody took. The time never drops: it was said at a time either way.
-export default function Stamp({ at, usage }) {
+export default function Stamp({ at, usage, children }) {
   // The wait is stamped by an effect, so the first draw of a pending box has no time yet. Nothing
   // rather than an empty line.
   if (!at) return null;
   const spent = (usage?.sent ?? 0) + (usage?.answered ?? 0);
   const when = clockTime(at);
-  return <div className="msg__stamp">{spent ? `${when} · ${shorten(spent)} tokens` : when}</div>;
+  return (
+    <div className="msg__stamp">
+      {/* An element of their own, so the row's gap parts the words from the arrows and the pencil,
+          and never a word from a glyph. */}
+      <span>{spent ? `${when} · ${shorten(spent)} tokens` : when}</span>
+      {children}
+    </div>
+  );
 }
 
 // Madde 194. What a turn says about itself while it is still running, in the stamp's own place and
@@ -54,20 +62,23 @@ const WORDS = [
 
 const WORD_MS = 3000;
 
-export function LiveStrip({ round, of, tokens }) {
+export function LiveStrip({ at, round, of, tokens }) {
   // Somewhere in the list rather than the top of it: the same first word on every turn reads like a
   // fixed label, which is the one thing this is not.
   const [word, setWord] = useState(() => Math.floor(Math.random() * WORDS.length));
   useEffect(() => {
-    const tick = setInterval(() => setWord((at) => (at + 1) % WORDS.length), WORD_MS);
+    const tick = setInterval(() => setWord((next) => (next + 1) % WORDS.length), WORD_MS);
     return () => clearInterval(tick);
   }, []);
+  // The time the wait was stamped leads, where the record's time will stand (Madde 348). The first
+  // draw of a pending box has none yet, and then the row starts with the round.
+  const when = at ? `${clockTime(at)} · ` : "";
   return (
     <div className="msg__stamp msg__stamp--live" data-testid="live-strip">
       {/* The two facts lead and the moving part trails (user, 7 September). The trailing space is
           the sentence's, not the layout's: a flex item's own end-space is collapsed away and the
           gap draws the distance, so what is read here and what is seen there are one line. */}
-      <span>{`round ${round}/${of} · ${shorten(tokens)} tokens · `}</span>
+      <span>{`${when}round ${round}/${of} · ${shorten(tokens)} tokens · `}</span>
       {/* The one thing that must never stall, so the stylesheet turns it and not JavaScript: a busy
           React has its intervals waiting too, and that is exactly the moment the screen has to look
           alive. The number can sit still for thirty seconds; this cannot. */}
