@@ -20,10 +20,11 @@ test("the sidebar leads with a filled + New chat", () => {
   expect(first.textContent).toBe("+New chat");
 });
 
-test("under New chat stand the chats and then the fold, and nothing else", () => {
+test("under New chat stand the search, the chats and the fold, and nothing else", () => {
+  // Madde 365 (design 151, 168): Search chats between New chat and the chats it searches.
   const { container } = render(<Sidebar chats={CHATS} onToggle={vi.fn()} />);
   const rows = [...container.querySelector(".sidebar").children].map((child) => child.className);
-  expect(rows).toEqual(["sidebar__new-chat", "sidebar__chats", "sidebar__foot"]);
+  expect(rows).toEqual(["sidebar__new-chat", "sidebar__search", "sidebar__chats", "sidebar__foot"]);
 });
 
 test("there is no list of projects, no Recent chats and no + for a new project", () => {
@@ -67,7 +68,8 @@ test("with chats, nothing says there are none", () => {
 });
 
 test("clicking a chat asks to open it", () => {
-  // They all live in the project on screen, so the row does not have to carry one.
+  // They all live in the project on screen, so the row does not have to carry one. And only the
+  // id: the reply box is handed the focus by Search chats' Enter alone (Madde 365).
   const onOpenChat = vi.fn();
   render(<Sidebar chats={CHATS} onOpenChat={onOpenChat} />);
   fireEvent.click(screen.getByText("Write the intro"));
@@ -79,13 +81,6 @@ test("New chat asks rather than creating anything itself", () => {
   render(<Sidebar chats={CHATS} onNewChat={onNewChat} />);
   fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
   expect(onNewChat).toHaveBeenCalled();
-});
-
-test("the sidebar carries no search control", () => {
-  // Search chats arrives with Madde 365.
-  render(<Sidebar chats={CHATS} />);
-  expect(screen.queryByText("Search")).toBeNull();
-  expect(screen.queryByText("⌘K")).toBeNull();
 });
 
 // Madde 62: the key comes from the environment now. There is no settings screen, so there is
@@ -120,12 +115,14 @@ test("the button asks to fold rather than folding by itself", () => {
   expect(onToggle).toHaveBeenCalled();
 });
 
-test("folded, the chats are gone and the column holds + and the fold alone", () => {
+test("folded, the chats are gone and the column holds +, the search and the fold", () => {
+  // Madde 365 (design 174): the search icon stands under the +.
   const { container } = render(<Sidebar chats={CHATS} collapsed onToggle={vi.fn()} />);
   expect(screen.queryByText("Write the intro")).toBeNull();
   const buttons = [...container.querySelectorAll(".sidebar button")];
   expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual([
     "New chat",
+    "Search chats",
     "Show the sidebar",
   ]);
 });
@@ -177,4 +174,114 @@ test("folded, New chat stays as a + of its own", () => {
   expect(plus.textContent).toBe("+");
   fireEvent.click(plus);
   expect(onNewChat).toHaveBeenCalled();
+});
+
+// --- Search chats (Madde 365; design 151, 168, 174) ------------------------------------------------
+
+const search = () => screen.getByRole("textbox", { name: "Search chats" });
+const type = (value) => fireEvent.change(search(), { target: { value } });
+const press = (key) => fireEvent.keyDown(search(), { key });
+const rows = (container) =>
+  [...container.querySelectorAll(".sidebar__chat")].map((row) => row.textContent);
+
+test("the search is a box named Search chats, and the project does not open onto it", () => {
+  // The design gives it no focus on arrival; the browser's own suggestions would cover the list.
+  render(<Sidebar chats={CHATS} />);
+  expect(search().getAttribute("placeholder")).toBe("Search chats");
+  expect(search().getAttribute("autocomplete")).toBe("off");
+  expect(document.activeElement).not.toBe(search());
+});
+
+test("typing narrows the chats by title, whatever the case and the accents", () => {
+  const { container } = render(
+    <Sidebar chats={[...CHATS, { id: "c3", title: "Café notes" }]} />,
+  );
+  type("missing");
+  expect(rows(container)).toEqual(["Missing values"]);
+  type("CAFE");
+  expect(rows(container)).toEqual(["Café notes"]);
+});
+
+test("with no match the list says so, with what was typed", () => {
+  const { container } = render(<Sidebar chats={CHATS} />);
+  type("  zebra ");
+  const none = screen.getByText('No chats match "zebra".');
+  expect(none.className).toBe("sidebar__empty");
+  expect(none.closest(".sidebar__chats")).toBeTruthy();
+  expect(rows(container)).toEqual([]);
+  expect(screen.queryByText("No chats yet.")).toBeNull();
+});
+
+test("a project with no chats says no match once something is typed", () => {
+  // The design's sidebar asks about the query first.
+  render(<Sidebar chats={[]} />);
+  type("x");
+  expect(screen.getByText('No chats match "x".')).toBeTruthy();
+});
+
+test("Enter asks to open the first match and to hand it the reply box", () => {
+  const onOpenChat = vi.fn();
+  render(<Sidebar chats={CHATS} onOpenChat={onOpenChat} />);
+  type("missing");
+  press("Enter");
+  expect(onOpenChat).toHaveBeenCalledWith("c2", { focusReply: true });
+});
+
+test("Enter in an empty box opens the first chat", () => {
+  // An empty query is every chat, and the server lists the most recent first.
+  const onOpenChat = vi.fn();
+  render(<Sidebar chats={CHATS} onOpenChat={onOpenChat} />);
+  press("Enter");
+  expect(onOpenChat).toHaveBeenCalledWith("c1", { focusReply: true });
+});
+
+test("Enter with no match asks for nothing", () => {
+  const onOpenChat = vi.fn();
+  render(<Sidebar chats={CHATS} onOpenChat={onOpenChat} />);
+  type("zebra");
+  press("Enter");
+  expect(onOpenChat).not.toHaveBeenCalled();
+});
+
+test("Escape empties the box and brings every chat back", () => {
+  const { container } = render(<Sidebar chats={CHATS} />);
+  type("missing");
+  press("Escape");
+  expect(search().value).toBe("");
+  expect(rows(container)).toEqual(["Write the intro", "Missing values"]);
+});
+
+test("folded, the search is a drawn magnifier with no text", () => {
+  render(<Sidebar chats={CHATS} collapsed onToggle={vi.fn()} />);
+  const toggle = screen.getByRole("button", { name: "Search chats" });
+  expect(toggle.className).toBe("sidebar__search-toggle");
+  expect(toggle.querySelector(".sidebar__search-icon")).toBeTruthy();
+  expect(toggle.textContent).toBe("");
+});
+
+test("folded, the search asks to unfold and then holds the focus", () => {
+  // Whether the sidebar is folded is App's; where the focus lands once it opens is the sidebar's.
+  const onToggle = vi.fn();
+  const { rerender } = render(<Sidebar chats={CHATS} collapsed onToggle={onToggle} />);
+  fireEvent.click(screen.getByRole("button", { name: "Search chats" }));
+  expect(onToggle).toHaveBeenCalled();
+  rerender(<Sidebar chats={CHATS} onToggle={onToggle} />);
+  expect(document.activeElement).toBe(search());
+});
+
+test("unfolded by the fold, the search does not take the focus", () => {
+  const onToggle = vi.fn();
+  const { rerender } = render(<Sidebar chats={CHATS} collapsed onToggle={onToggle} />);
+  fireEvent.click(screen.getByRole("button", { name: "Show the sidebar" }));
+  rerender(<Sidebar chats={CHATS} onToggle={onToggle} />);
+  expect(document.activeElement).not.toBe(search());
+});
+
+test("folding and unfolding keeps what was typed", () => {
+  const { container, rerender } = render(<Sidebar chats={CHATS} onToggle={vi.fn()} />);
+  type("missing");
+  rerender(<Sidebar chats={CHATS} collapsed onToggle={vi.fn()} />);
+  rerender(<Sidebar chats={CHATS} onToggle={vi.fn()} />);
+  expect(search().value).toBe("missing");
+  expect(rows(container)).toEqual(["Missing values"]);
 });

@@ -969,6 +969,47 @@ test("inside a project the sidebar holds its chats and no other project", async 
   expect(screen.queryByRole("button", { name: "New project" })).toBeNull();
 });
 
+// Madde 365 (design 151, 168): Search chats narrows the sidebar, and Enter opens the first match
+// with its reply box in focus -- given once the record is read, since the box is shut until then.
+const TWO_CHATS = [
+  { id: "c1", title: "Write the intro", lastActivity: NOW },
+  { id: "c2", title: "Missing values", lastActivity: NOW },
+];
+const chatSearch = () => screen.getByRole("textbox", { name: "Search chats" });
+const sidebarRows = () =>
+  [...document.querySelectorAll(".sidebar__chat")].map((row) => row.textContent);
+
+test("Enter in Search chats opens the first match with its reply box in focus", async () => {
+  serverWithProjects([THESIS], { p1: TWO_CHATS });
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await chatOpened();
+  await screen.findByText("Missing values", { selector: ".sidebar__chat" });
+
+  fireEvent.change(chatSearch(), { target: { value: "missing" } });
+  expect(sidebarRows()).toEqual(["Missing values"]);
+  fireEvent.keyDown(chatSearch(), { key: "Enter" });
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
+  await waitFor(() => {
+    const box = screen.getByPlaceholderText("Reply...");
+    expect(box.disabled).toBe(false);
+    expect(document.activeElement).toBe(box);
+  });
+});
+
+test("a chat opened by a click leaves the focus where it was", async () => {
+  serverWithProjects([THESIS], { p1: TWO_CHATS });
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await chatOpened();
+  fireEvent.click(await screen.findByText("Missing values", { selector: ".sidebar__chat" }));
+
+  await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
+  const box = await chatOpened();
+  expect(document.activeElement).not.toBe(box);
+});
+
 test("a project with no chats yet says so in the sidebar", async () => {
   serverWithProjects([THESIS]);
   window.history.pushState(null, "", "/p/p1/c/new");
@@ -1898,6 +1939,21 @@ test("Ctrl + . works while typing, and types nothing", async () => {
   expect(fireEvent.keyDown(box, { key: ".", ctrlKey: true })).toBe(false);
   await waitFor(() => expect(sidebarOpen()).toBeNull());
   expect(box.value).toBe("hello");
+});
+
+// Madde 365 (design 174): folded, the column's search icon is the way into Search chats.
+test("folded, the search icon unfolds the sidebar into its search box", async () => {
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(sidebarOpen()).toBeTruthy());
+
+  fireEvent.click(screen.getByRole("button", { name: "Hide the sidebar" }));
+  await waitFor(() => expect(sidebarOpen()).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: "Search chats" }));
+
+  await waitFor(() => expect(sidebarOpen()).toBeTruthy());
+  expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "Search chats" }));
 });
 
 test("a full stop typed alone is only a full stop", async () => {
