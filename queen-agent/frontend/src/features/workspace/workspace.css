@@ -216,14 +216,6 @@
   color: var(--ink);
 }
 
-/* The row is a box holding two buttons -- a menu button cannot live inside another button -- so the
-   look that used to belong to the row now belongs to the one that opens the project. */
-.sidebar__row {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
 .sidebar__row-open {
   display: flex;
   align-items: center;
@@ -245,30 +237,9 @@
   background: #e5dfd5;
 }
 
-/* It waits for the row rather than standing there: the list is read far more often than it is
-   rearranged. Focus brings it back for anyone arriving by keyboard. */
-.sidebar__row-more {
-  position: absolute;
-  right: 6px;
-  border: none;
-  border-radius: 6px;
-  padding: 2px 6px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  opacity: 0;
-}
-
-.sidebar__row:hover .sidebar__row-more,
-.sidebar__row-more:focus-visible {
-  opacity: 1;
-}
-
 /* Nothing here but the box: the placement puts it where it goes and caps its height, and the width
-   belongs to whoever opens it. Fixed rather than absolute -- inside the sidebar's scrolling area an
-   absolute menu is clipped by the list it belongs to. */
+   belongs to whoever opens it. Fixed rather than absolute -- inside a scrolling area an absolute
+   menu is clipped by the list it belongs to. */
 .menu {
   position: fixed;
   z-index: 15;
@@ -280,10 +251,6 @@
   box-shadow: 0 8px 24px rgba(34, 32, 29, 0.12);
 }
 
-.sidebar__row .menu {
-  width: 176px;
-}
-
 /* Invisible, and over everything but the menu: the click that dismisses the menu is spent doing
    that and does not reach what it landed on. */
 .menu__catcher {
@@ -292,7 +259,7 @@
   z-index: 14;
 }
 
-/* The label a menu stands under. The sidebar's has none; the Skills one says SKILLS. */
+/* The label a menu stands under. A project row's has none; the Skills one says SKILLS. */
 .menu__header {
   display: block;
   padding: 6px 10px 4px;
@@ -340,6 +307,13 @@
 
 .menu__item--danger:hover {
   background: var(--destructive-soft);
+}
+
+/* Its side margin is the items' own 10, so the line starts and ends with their words. */
+.menu__divider {
+  margin: 5px 10px;
+  border: none;
+  border-top: 1px solid var(--line);
 }
 
 .sidebar__row-name {
@@ -1812,7 +1786,8 @@
   border-top: 1px solid #e9e3da;
 }
 
-/* A box holding the opener, as the file row is: the ⋯ joins it at the end (Madde 360). */
+/* A box holding the opener -- or the field its name becomes -- and the ⋯ at its end, as the file row
+   is: a menu button cannot live inside another button. */
 .all-projects__row {
   display: flex;
   align-items: center;
@@ -1865,6 +1840,49 @@
   font-size: 11.5px;
   color: #6b6259;
   white-space: nowrap;
+}
+
+/* It waits for the row rather than standing there: the list is read far more often than it is
+   rearranged. Focus brings it back for anyone arriving by keyboard. */
+.all-projects__row-more {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-right: 4px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.all-projects__row:hover .all-projects__row-more,
+.all-projects__row-more:focus-visible {
+  opacity: 1;
+}
+
+.all-projects__row-more:hover {
+  color: var(--ink);
+  background: #e5dfd5;
+}
+
+.all-projects__row .menu {
+  width: 176px;
+}
+
+/* The row's name replaced by its own field; the row keeps its height and gap. */
+.all-projects__rename {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 6px 8px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--ink);
 }
 
 .all-projects__empty {

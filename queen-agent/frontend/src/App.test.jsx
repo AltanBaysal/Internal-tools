@@ -240,14 +240,14 @@ test("a row opens the project's latest chat", async () => {
     ],
   });
   render(<App />);
-  fireEvent.click(await screen.findByRole("button", { name: /Thesis/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Thesis/ }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
 });
 
 test("a project with no chats opens on its draft", async () => {
   serverWithProjects([THESIS]);
   render(<App />);
-  fireEvent.click(await screen.findByRole("button", { name: /Thesis/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Thesis/ }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/new"));
   expect(screen.getByText("New chat", { selector: ".chat__title" })).toBeTruthy();
 });
@@ -259,7 +259,7 @@ test("the way into a project is written into the history once", async () => {
   const push = vi.spyOn(window.history, "pushState");
   const replace = vi.spyOn(window.history, "replaceState");
   render(<App />);
-  fireEvent.click(await screen.findByRole("button", { name: /Thesis/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /^Thesis/ }));
   await waitFor(() => expect(window.location.pathname).toBe("/p/p1/c/c2"));
   expect(push.mock.calls.map(([, , to]) => to)).toEqual(["/p/p1"]);
   expect(replace.mock.calls.map(([, , to]) => to)).toEqual(["/p/p1/c/c2"]);
@@ -487,151 +487,220 @@ test("the skill picked in a draft is what the chat is born with", async () => {
   });
 });
 
-// --- deleting a project ------------------------------------------------------------------------
+// --- the row's ⋯ on All projects (Madde 360) -----------------------------------------------------
 
-const TWO = [
-  { id: "p1", name: "Thesis", chats: 3, files: 2 },
-  { id: "p2", name: "Notes", chats: 1, files: 0 },
+const ROW_HOUR = 3600_000;
+const hoursAgo = (hours) => new Date(Date.now() - hours * ROW_HOUR).toISOString();
+const ROWS = [
+  { id: "p1", name: "Thesis", chats: 3, files: 2, pinned: false, lastActivity: hoursAgo(1) },
+  { id: "p2", name: "Notes", chats: 1, files: 0, pinned: false, lastActivity: hoursAgo(5) },
 ];
 
-// The list answers the GET, and the DELETE takes a project out of it, so what the screen shows after
-// a delete is the server's answer rather than a guess made here.
-function serverWith(projects) {
-  const live = [...projects];
+// A server that keeps its own order -- the pinned first, in the order they were pinned, then the
+// most recently used (list_projects.py) -- so where a row stands after a pin or an unpin is the
+// server's answer rather than a guess made on the screen. A DELETE takes the project out of it.
+function serverForRows(projects) {
+  let live = projects.map((project) => ({ pinnedAt: 0, ...project }));
+  let pins = 0;
+  const listed = () => [
+    ...live.filter((project) => project.pinned).sort((a, b) => a.pinnedAt - b.pinnedAt),
+    ...live
+      .filter((project) => !project.pinned)
+      .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity)),
+  ];
   const fetch = vi.fn().mockImplementation((path, options) => {
-    if (path.startsWith("/api/projects/") && options?.method === "DELETE") {
-      const id = path.slice("/api/projects/".length);
-      const at = live.findIndex((project) => project.id === id);
-      live.splice(at, 1);
-      return Promise.resolve({ ok: true, status: 200, json: async () => ({ trashed: id }) });
+    const one = path.match(/^\/api\/projects\/(\w+)$/);
+    if (one && options?.method === "DELETE") {
+      live = live.filter((project) => project.id !== one[1]);
+      return ok({ trashed: one[1] });
     }
-    if (path === "/api/projects") {
-      return Promise.resolve({ ok: true, status: 200, json: async () => [...live] });
+    if (one && options?.method === "PATCH") {
+      const changes = JSON.parse(options.body);
+      live = live.map((project) =>
+        project.id === one[1]
+          ? { ...project, ...changes, pinnedAt: changes.pinned ? ++pins : project.pinnedAt }
+          : project,
+      );
+      return ok(live.find((project) => project.id === one[1]));
     }
-    return Promise.resolve({ ok: true, status: 200, json: async () => [] });
+    if (path === "/api/projects") return ok(listed());
+    return ok([]);
   });
   vi.stubGlobal("fetch", fetch);
   return fetch;
 }
 
-const openMenuFor = (name) =>
-  fireEvent.click(screen.getByRole("button", { name: `More for ${name}` }));
+const actionsFor = (name) =>
+  fireEvent.click(screen.getByRole("button", { name: `Actions for ${name}` }));
+const onAllProjects = () => screen.findByText("Thesis", { selector: ".all-projects__row-name" });
+const sections = (container) =>
+  Object.fromEntries(
+    [...container.querySelectorAll(".all-projects__section")].map((section) => [
+      section.querySelector(".all-projects__label").textContent,
+      [...section.querySelectorAll(".all-projects__row-name")].map((name) => name.textContent),
+    ]),
+  );
+const patches = (fetch) => fetch.mock.calls.filter(([, options]) => options?.method === "PATCH");
 
-// Every test below stands in a project's draft: the sidebar's menu is where a project is deleted
-// from until the row's own ⋯ on All projects (Madde 360), and the project screen's Delete went with
-// that screen (Madde 353).
-
-test("the sidebar menu opens the question", async () => {
-  serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1/c/new");
+test("a row's Delete asks first", async () => {
+  serverForRows(ROWS);
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-
-  openMenuFor("Thesis");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await onAllProjects();
+  actionsFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   expect(screen.getByText('Delete "Thesis"?')).toBeTruthy();
 });
 
-test("the box counts what goes with the project", async () => {
-  serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1/c/new");
+test("the question counts what goes with the project, one of a thing being one", async () => {
+  serverForRows(ROWS);
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-  openMenuFor("Thesis");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await onAllProjects();
+  actionsFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   expect(
     screen.getByText("The 3 chats and 2 files in this project are deleted with it. This can't be undone."),
   ).toBeTruthy();
-});
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
 
-test("one of a thing is one, not one of them", async () => {
-  serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1/c/new");
-  render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-  openMenuFor("Notes");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   expect(screen.getByText(/The 1 chat and 0 files/)).toBeTruthy();
 });
 
 test("cancelling asks the server nothing", async () => {
-  const fetch = serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1/c/new");
+  const fetch = serverForRows(ROWS);
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-  openMenuFor("Thesis");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await onAllProjects();
+  actionsFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
   expect(fetch.mock.calls.filter(([, options]) => options?.method === "DELETE")).toEqual([]);
   expect(screen.queryByText('Delete "Thesis"?')).toBeNull();
 });
 
-test("deleting the project you are in goes back to All projects", async () => {
-  // Madde 353: the fork that picked "the first one left" is gone; the opening is All projects.
-  serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1/c/new");
+test("confirming deletes the project, and All projects stays where it is", async () => {
+  const fetch = serverForRows(ROWS);
   render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-  openMenuFor("Thesis");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/"));
-  expect(await screen.findByText("Notes", { selector: ".all-projects__row-name" })).toBeTruthy();
-  expect(screen.queryByText("Thesis")).toBeNull();
-});
-
-test("deleting the last project leaves the empty screen", async () => {
-  serverWith([TWO[0]]);
-  window.history.pushState(null, "", "/p/p1/c/new");
-  render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-  openMenuFor("Thesis");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  await waitFor(() => expect(screen.getByText("No projects yet.")).toBeTruthy());
-});
-
-test("deleting another project leaves where you are alone", async () => {
-  serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1/c/new");
-  render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-  openMenuFor("Notes");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  await onAllProjects();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  // The menu closed on the choice, so the one Delete left is the question's own.
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   await waitFor(() => expect(screen.queryByText("Notes")).toBeNull());
-  // Nothing about the screen the user was on has any business changing.
-  expect(window.location.pathname).toBe("/p/p1/c/new");
-});
-
-test("a deleted project is not offered back", async () => {
-  serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1/c/new");
-  render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
-  openMenuFor("Notes");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
-  await waitFor(() => expect(screen.queryByText("Notes")).toBeNull());
+  const deletes = fetch.mock.calls.filter(([, options]) => options?.method === "DELETE");
+  expect(deletes.map(([path]) => path)).toEqual(["/api/projects/p2"]);
+  expect(screen.getByText("Thesis", { selector: ".all-projects__row-name" })).toBeTruthy();
+  expect(window.location.pathname).toBe("/");
   // Undo is gone by karar 16: the question was the protection, and the disk keeps the directory.
   expect(screen.queryByText("Undo")).toBeNull();
 });
 
-test("Escape closes the menu first, then the question", async () => {
-  serverWith(TWO);
-  window.history.pushState(null, "", "/p/p1/c/new");
-  const { container } = render(<App />);
-  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
+test("deleting the last project leaves No projects yet.", async () => {
+  serverForRows([ROWS[0]]);
+  render(<App />);
+  await onAllProjects();
+  actionsFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+  expect(await screen.findByText("No projects yet.")).toBeTruthy();
+});
 
-  openMenuFor("Thesis");
+test("Escape closes the menu first, then the question", async () => {
+  serverForRows(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+
+  actionsFor("Thesis");
   expect(container.querySelector(".menu")).toBeTruthy();
   fireEvent.keyDown(window, { key: "Escape" });
   expect(container.querySelector(".menu")).toBeNull();
 
-  openMenuFor("Thesis");
-  fireEvent.click(screen.getByRole("button", { name: "Delete project" }));
+  actionsFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Delete" }));
   fireEvent.keyDown(window, { key: "Escape" });
   expect(screen.queryByText('Delete "Thesis"?')).toBeNull();
+});
+
+test("Rename renames in the row's own place, never through the browser's box", async () => {
+  const fetch = serverForRows(ROWS);
+  const prompt = vi.fn();
+  vi.stubGlobal("prompt", prompt);
+  render(<App />);
+  await onAllProjects();
+  actionsFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+  const field = screen.getByRole("textbox", { name: "Project name" });
+  fireEvent.change(field, { target: { value: "Dissertation" } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(
+    await screen.findByText("Dissertation", { selector: ".all-projects__row-name" }),
+  ).toBeTruthy();
+  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
+    ["/api/projects/p1", { name: "Dissertation" }],
+  ]);
+  expect(prompt).not.toHaveBeenCalled();
+});
+
+test("an empty name sends nothing", async () => {
+  const fetch = serverForRows(ROWS);
+  render(<App />);
+  await onAllProjects();
+  actionsFor("Thesis");
+  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+  const field = screen.getByRole("textbox", { name: "Project name" });
+  fireEvent.change(field, { target: { value: "  " } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(patches(fetch)).toEqual([]);
+  expect(screen.getByText("Thesis", { selector: ".all-projects__row-name" })).toBeTruthy();
+});
+
+test("Pin puts the project under Pinned", async () => {
+  const fetch = serverForRows(ROWS);
+  const { container } = render(<App />);
+  await onAllProjects();
+  actionsFor("Notes");
+  fireEvent.click(screen.getByRole("button", { name: "Pin" }));
+  await waitFor(() =>
+    expect(sections(container)).toEqual({ Pinned: ["Notes"], Recent: ["Thesis"] }),
+  );
+  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
+    ["/api/projects/p2", { pinned: true }],
+  ]);
+});
+
+test("Unpin puts the project back where the server lists it", async () => {
+  // Used longest ago, so the server lists it last among the recent -- not first, where the pinned
+  // block it left happened to stand.
+  const PIER = {
+    id: "p3",
+    name: "Old pier",
+    chats: 0,
+    files: 0,
+    pinned: true,
+    lastActivity: hoursAgo(30),
+  };
+  const fetch = serverForRows([PIER, ...ROWS]);
+  const { container } = render(<App />);
+  await onAllProjects();
+  expect(sections(container)).toEqual({ Pinned: ["Old pier"], Recent: ["Thesis", "Notes"] });
+  actionsFor("Old pier");
+  fireEvent.click(screen.getByRole("button", { name: "Unpin" }));
+  await waitFor(() =>
+    expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes", "Old pier"] }),
+  );
+  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
+    ["/api/projects/p3", { pinned: false }],
+  ]);
+});
+
+test("inside a project no ⋯ stands anywhere", async () => {
+  // The design's 161: everything done to a project is done from outside it.
+  serverForRows(ROWS);
+  window.history.pushState(null, "", "/p/p1/c/new");
+  const { container } = render(<App />);
+  await screen.findByText("Thesis", { selector: ".sidebar__row-name" });
+  expect(screen.queryByRole("button", { name: /^(More|Actions) for/ })).toBeNull();
+  expect(container.querySelector(".sidebar__row-more")).toBeNull();
 });
 
 test("a list that fails to load says so instead of claiming there are none", async () => {
@@ -651,36 +720,6 @@ test("a project address that matches nothing says so", async () => {
   window.history.pushState(null, "", "/p/pabc");
   render(<App />);
   await waitFor(() => expect(screen.getByText("That project does not exist.")).toBeTruthy());
-});
-
-// The project list for the list's own address, and nothing anywhere else: a draft asks for its
-// files and its chats too, and a project handed back as a file draws nonsense.
-function withProjectToRename() {
-  const fetch = vi.fn().mockImplementation((path, options) => {
-    if (options?.method === "PATCH") {
-      return Promise.resolve({
-        ok: true,
-        status: 200,
-        json: async () => ({ ...PROJECT, name: "New" }),
-      });
-    }
-    return ok(path === "/api/projects" ? [PROJECT] : []);
-  });
-  vi.stubGlobal("fetch", fetch);
-  window.history.pushState(null, "", "/p/p1/c/new");
-  return fetch;
-}
-
-test("a renamed project shows the new name in every place at once", async () => {
-  withProjectToRename();
-  vi.stubGlobal("prompt", vi.fn().mockReturnValue("New"));
-
-  render(<App />);
-  await screen.findByText("Old", { selector: ".sidebar__row-name" });
-  openMenuFor("Old");
-  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-  // The sidebar row and the bar (Madde 338) read the same array, so they cannot disagree.
-  await waitFor(() => expect(screen.getAllByText("New").length).toBe(2));
 });
 
 test("nothing is asked of a workspace-wide chat address", async () => {
@@ -3056,17 +3095,6 @@ test("a draft says which model will answer it", async () => {
   window.history.pushState(null, "", "/p/p1/c/new");
   render(<App />);
   await waitFor(() => expect(screen.getByText("Queen Flash")).toBeTruthy());
-});
-
-test("an empty prompt sends nothing", async () => {
-  const fetch = withProjectToRename();
-  vi.stubGlobal("prompt", vi.fn().mockReturnValue(""));
-
-  render(<App />);
-  await screen.findByText("Old", { selector: ".sidebar__row-name" });
-  openMenuFor("Old");
-  fireEvent.click(screen.getByRole("button", { name: "Rename" }));
-  expect(fetch.mock.calls.every(([, options]) => options?.method !== "PATCH")).toBe(true);
 });
 
 // --- editing a message and stepping between the versions (Madde 195) -----------------------------

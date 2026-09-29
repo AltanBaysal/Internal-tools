@@ -36,16 +36,21 @@ export function useProjects() {
     }
   }, [reload]);
 
-  const editProject = useCallback(async (id, changes) => {
-    try {
-      const edited = await patchJson(`/api/projects/${id}`, changes);
-      setProjects((current) => current.map((p) => (p.id === id ? edited : p)));
-      return edited;
-    } catch (failure) {
-      setError(failure.message);
-      return null;
-    }
-  }, []);
+  const editProject = useCallback(
+    async (id, changes) => {
+      try {
+        const edited = await patchJson(`/api/projects/${id}`, changes);
+        // Read again for the reason a new project is: a pin or an unpin moves the row, and where
+        // to is the server's order.
+        await reload();
+        return edited;
+      } catch (failure) {
+        setError(failure.message);
+        return null;
+      }
+    },
+    [reload],
+  );
 
   const removeProject = useCallback(async (id) => {
     try {

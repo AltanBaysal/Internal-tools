@@ -249,8 +249,8 @@ test("the menu escapes the sidebar's scroll and scrolls inside itself", () => {
   expect(menu).not.toContain("width");
 });
 
-test("the sidebar's menu is the design's own width", () => {
-  expect(rule(".sidebar__row .menu")).toContain("width: 176px");
+test("the row's menu is the design's own width", () => {
+  expect(rule(".all-projects__row .menu")).toContain("width: 176px");
 });
 
 // Madde 338: the design's bar (queen-design v3, items 150, 159, 161, 166).
@@ -868,6 +868,29 @@ test("the head puts the title and + New project at its two ends", () => {
   expect(head).toContain("display: flex");
   expect(head).toContain("justify-content: space-between");
   expect(head).toContain("margin: 0 0 24px");
+});
+
+// Madde 360: the row's ⋯, the field a name becomes, and the line over Delete (the design's kit.css).
+test("the row's ⋯ is a small square that waits for the row", () => {
+  const more = rule(".all-projects__row-more");
+  expect(more).toContain("width: 26px");
+  expect(more).toContain("height: 26px");
+  expect(more).toContain("opacity: 0");
+  expect(CSS).toContain(".all-projects__row:hover .all-projects__row-more");
+});
+
+test("the rename field fills the row", () => {
+  const field = rule(".all-projects__rename");
+  expect(field).toContain("flex: 1");
+  expect(field).toContain("min-width: 0");
+  expect(field).toContain("border: 1px solid var(--line)");
+  expect(field).toContain("font-size: 13px");
+});
+
+test("a menu's line starts and ends with its words", () => {
+  const line = rule(".menu__divider");
+  expect(line).toContain("border-top: 1px solid var(--line)");
+  expect(line).toContain("margin: 5px 10px");
 });
 
 test("No projects yet. is the design's quiet line", () => {

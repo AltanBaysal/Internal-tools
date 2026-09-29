@@ -36,8 +36,8 @@ export default function App() {
   const { shell, width: shellWidth, steps } = useShellWidth();
   const { projects, error, loading, createProject, editProject, removeProject, reloadProjects } =
     useProjects();
-  // Both live here rather than inside the sidebar, because App's one listener owns Escape and it
-  // can only close what it can see.
+  // Both live here rather than inside the screens that open them, because App's one listener owns
+  // Escape and it can only close what it can see.
   const [menuFor, setMenuFor] = useState(null);
   const [confirming, setConfirming] = useState(null);
   // The rail's folded state lasts the session and crosses chats and projects, so it cannot live in
@@ -188,17 +188,8 @@ export default function App() {
   // time would be asking for an answer we have.
   const project = projects.find((candidate) => candidate.id === route.projectId) ?? null;
 
-  // The id is asked for rather than assumed: the sidebar menu can rename a project the user is not
-  // standing in.
-  const askForName = (id) => {
-    const named = projects.find((candidate) => candidate.id === id);
-    const answer = window.prompt("Project name", named?.name);
-    // An empty answer cancels -- the design's rule. The server refuses an empty name anyway, so
-    // this is a convenience rather than the guarantee.
-    if (answer && answer.trim()) editProject(id, { name: answer });
-  };
-
-  // The counts come from the list the app already holds.
+  // The counts come from the list the app already holds. A project is deleted only from its All
+  // projects row (Madde 360), where none is open, so there is no screen to leave afterwards.
   const askToDelete = (id) => {
     const doomed = projects.find((candidate) => candidate.id === id);
     if (!doomed) return;
@@ -208,19 +199,13 @@ export default function App() {
         doomed.files ?? 0,
         "file",
       )} in this project are deleted with it. This can't be undone.`,
-      confirmLabel: "Delete project",
-      onConfirm: () => deleteProject(id),
+      // The design's All projects answers its own row's Delete in the same word.
+      confirmLabel: "Delete",
+      onConfirm: () => {
+        setConfirming(null);
+        removeProject(id);
+      },
     });
-  };
-
-  // Where to go afterwards is a question only about the project being left: another project's
-  // deletion has no business moving the screen the user is on.
-  const deleteProject = async (id) => {
-    setConfirming(null);
-    if (!(await removeProject(id))) return;
-    // Back where the app opens, which is where Exit project goes too. Replaced: the address left
-    // behind names a project that is gone.
-    if (route.projectId === id) navigate("/", { replace: true });
   };
 
   // One rule, one place: opening something must never be a way of hiding it. Madde 22 adds a second
@@ -271,11 +256,6 @@ export default function App() {
             onNewProject={askForNewProject}
             onOpenProject={openProject}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
-            menuFor={menuFor}
-            onOpenMenu={setMenuFor}
-            onCloseMenu={() => setMenuFor(null)}
-            onRenameProject={askForName}
-            onDeleteProject={askToDelete}
             collapsed={sidebarCollapsed}
             onToggle={() => setSidebarCollapsed((folded) => !folded)}
           />
@@ -291,6 +271,12 @@ export default function App() {
               error={error}
               onNewProject={askForNewProject}
               onOpenProject={openProject}
+              menuFor={menuFor}
+              onOpenMenu={setMenuFor}
+              onCloseMenu={() => setMenuFor(null)}
+              onRenameProject={(id, name) => editProject(id, { name })}
+              onPinProject={(id, pinned) => editProject(id, { pinned })}
+              onDeleteProject={askToDelete}
             />
           ) : null}
 
