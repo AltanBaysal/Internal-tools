@@ -171,6 +171,36 @@ Start a scenario ends with the same checks.
 
 ---
 
+## 9. Cached and missed tokens under an answer
+
+**Today**
+- Under an answer, one line gives the time and one token count (e.g. `14:32 · 3.4k tokens`).
+- Every request re-sends the whole conversation. The service reports, for each one, how many of the
+  tokens sent it already had in its cache and how many it did not. The cached ones cost about fifty
+  times less than the missed ones, so one number says little about what an answer really cost.
+- Today's count adds cached and missed together as if they cost the same.
+- This one is not scheduled for a build yet. It is here so the design round covers it together with
+  the notes under a message (4).
+
+**Need.** The owner's words: "show two under every chat, one green and one red: green cached, red
+missed cached."
+
+**Fixed by the owner**
+- Two numbers under an answer instead of one: the cached tokens and the missed ones.
+- The cached number is green, the missed number is red.
+
+**Left to the designer**
+- How the two numbers sit next to the time, and how they are told apart beyond their colour.
+- Whether the tokens the model wrote back are shown as well, and how. Today they are inside the one
+  count; neither green nor red covers them.
+
+**States that must be designed**
+- **An answer that came mostly from the cache:** a large green number, a small red one.
+- **An answer that came mostly from outside it:** the other way round.
+- **An old answer with no count at all:** today it shows the time alone.
+
+---
+
 ## What must keep working
 
 - Trimmed messages stay on screen and readable. They only stop going to the model, and no summary replaces them.
@@ -189,3 +219,6 @@ Start a scenario ends with the same checks.
   - whether "continue here" is offered again when a trimmed chat fills up
   - whether choosing it asks first, and whether it can be undone
 - **Improve (8):** its one-line description in the picker; the two existing rows have one.
+- **Cached and missed tokens (9):** whether the line shown while an answer is still running
+  (`round 2/16 · 3.4k tokens ·`) splits into green and red too, or keeps one number until the answer
+  ends.

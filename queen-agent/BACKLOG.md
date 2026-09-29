@@ -13,4 +13,23 @@ oluruz hem".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 ## read_file geliştirilecek
 
 *(Kullanıcı, 28 Eylül — "büyük dosyalarının hepsinide okumak zorunda kalmasın gerekli kısımlarını
-okusun", "read file geliştirilecek diyelim".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+okusun", "read file geliştirilecek diyelim"; 29 Eylül — "bir de sürekli jsonu baştan okuyuo güncellemek
+ai için zor olabilir belki readi geliştirirsek sadeece alakalı maddeler okur ve analiz eder".)*
+**Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Her mesajın altında önbellekten gelen ve gelmeyen token ayrı gösterilecek
+
+*(Kullanıcı, 29 Eylül — "abi token gösteriyoruz ya her chatin altında 2 tane gösterlim bir yeşil bir
+kırmızı yeşil chached kırmızı missed cahced".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## SDXL prompting belgesi yazılacak
+
+*(Kullanıcı, 29 Eylül — "şuan sdxle özel instructıonlar çok dağılmış durumda farktettiysen toolara vs
+bence sdxl prompting diye güzel bir dokuman yazalım ai onu okusu sdxl skill de olur karmaşıklı
+azaltalım ztenc cahced yaparsak bunu o kadar malşyetide olmaz".)* **Ayrıntılar kullanıcıyla
+konuşulacak.**
+
+## Start a scenario spicy skill'i açılacak
+
+*(Kullanıcı, 29 Eylül — "bir de start senrayo spicy diye bir ksill açıcaz ama şimdi değil ozaman
+konuşurz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
