@@ -1,6 +1,5 @@
 import { useRef } from "react";
 
-import { VERSION } from "../../shared/version.js";
 import Menu from "./Menu.jsx";
 
 // A chat lives inside a project, so the two chat sections follow the selected one: with none
@@ -54,15 +53,7 @@ export default function Sidebar({
 
   return (
     <aside className="sidebar">
-      <div className="sidebar__brand">
-        {/* The name and the run number are one block so the version sits under the wordmark rather
-            than beside it: the brand row itself is a row, and the fold button lives at its end. */}
-        <div className="sidebar__name">
-          <span className="sidebar__wordmark">QueenAgent</span>
-          <span className="sidebar__version">{VERSION}</span>
-        </div>
-        <Fold onToggle={onToggle} />
-      </div>
+      <Fold onToggle={onToggle} />
 
       {activeProjectId ? (
         <button type="button" className="sidebar__new-chat" onClick={onNewChat}>

@@ -280,15 +280,41 @@ test("the sidebar's menu is the design's own width", () => {
   expect(rule(".sidebar__row .menu")).toContain("width: 176px");
 });
 
-test("the version sits under the name and reads as a note", () => {
-  // Madde 209 puts it under the wordmark, and the brand block is a row -- so the name and the
-  // version need a column of their own, or the version lands beside the name instead.
-  expect(rule(".sidebar__name")).toContain("flex-direction: column");
-  // The repo's note voice, the same variable the stamp and a call's head use: it is the wordmark's
-  // footnote, not a second name.
-  const version = rule(".sidebar__version");
-  expect(version).toContain("color: var(--muted)");
-  expect(version).toContain("font-size: 11px");
+// Madde 338: the design's bar (queen-design v3, items 150, 159, 161, 166).
+test("the bar is one height on every screen, its middle at the window's centre", () => {
+  const bar = rule(".bar");
+  expect(bar).toContain("height: 56px");
+  expect(bar).toContain("flex: none");
+  expect(bar).toContain("grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr)");
+});
+
+test("the version is the name's own size and weight, never bold", () => {
+  const name = rule(".bar__name");
+  expect(name).toContain("font-family: var(--font-heading)");
+  expect(name).toContain("font-size: 21px");
+  expect(name).toContain("white-space: nowrap");
+  // Nothing of its own but the weight, written out: the size and the ink are the name's.
+  const version = rule(".bar__version");
+  expect(version).toContain("font-weight: 400");
+  expect(version).not.toContain("font-size");
+  expect(version).not.toContain("color");
+});
+
+test("the project's name is cut on one line, and the way out keeps the right", () => {
+  const project = rule(".bar__project");
+  expect(project).toContain("max-width: 640px");
+  expect(project).toContain("white-space: nowrap");
+  expect(project).toContain("text-overflow: ellipsis");
+  // With no project the middle draws nothing, and the button would slide into its column.
+  const exit = rule(".bar__exit");
+  expect(exit).toContain("grid-column: 3");
+  expect(exit).toContain("justify-self: end");
+});
+
+test("the sidebar's brand is gone by every name", () => {
+  for (const name of ["sidebar__brand", "sidebar__name", "sidebar__wordmark", "sidebar__version"]) {
+    expect(CSS).not.toContain(`.${name}`);
+  }
 });
 
 test("the catcher covers the screen and shows nothing", () => {
