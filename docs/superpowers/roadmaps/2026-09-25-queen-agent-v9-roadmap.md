@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 0/44
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 1/45
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -71,13 +71,16 @@ aynı yere dokunmaz — aynı dosyanın ayrı yerlerine dokunabilirler, ve birle
 numara Queen Editor v7'nin 333'üydü. Belge yazılırken maddeler `v9-N` diye kendi numaralarını
 taşıyordu, ve metin parçaları hâlâ o adlarla anıyor; o yüzden tabloda ikisi yan yana duruyor.
 **377 koşu sırasında çıktı**, aynı gün: 334'ün testleri koşarken queen-editor'ün süitinde koşudan önceki
-bir kırmızı bulundu, ve kullanıcı onu subagent'lara verdi: Dalga 1'de koşar.
+bir kırmızı bulundu, ve kullanıcı onu subagent'lara verdi: Dalga 1'de koşar. **378 de aynı gün çıktı:**
+334'ün tarayıcısı ilk açıldığında kullanıcı onun güvenli kullanılmasını istedi; Dalga 0'da 335'ten önce,
+Claude yapar.
 
 **Queen Editor'ün v8-3'ü önce biter:** v9-7a'nın çıkardığı listeyi bugünkü kutu okuyamaz, o yüzden v9
 main'e v8'den önce alınmaz.
 
 **Kullanıcıdan gerekenler, koşudan önce:** v9-3a'nın ayarı yazılınca Claude Code'un yeniden açılması.
-**Koşu sırasında:** v9-10'a gelince koşu durur, ve madde kullanıcıyla birlikte yapılır.
+**Koşu sırasında:** 378'in ayarı yazılınca Claude Code'un bir kez daha yeniden açılması; v9-10'a gelince
+koşu durur, ve madde kullanıcıyla birlikte yapılır.
 
 ---
 
@@ -85,7 +88,8 @@ main'e v8'den önce alınmaz.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 334 · v9-3a | `ALIGNED` **Playwright MCP bu depoda ayarlanır.** queen-design'daki gibi: ayar depoda durur, sürüm sabittir, tarayıcı arka planda açılır; cihazda nasıl kurulu olduğu koşuda bulunur. **Kullanıcıdan gereken:** ayar yazılınca Claude Code'un yeniden açılması. *Kararları: v9-3.* | Claude Code yeniden açılınca bu depoda Playwright araçları görünüyor, ve Claude bir sayfayı açıp ekran görüntüsünü alabiliyor. |
+| 334 · v9-3a | ✅ **Playwright MCP bu depoda ayarlanır.** queen-design'daki gibi: ayar depoda durur, sürüm sabittir, tarayıcı arka planda açılır; cihazda nasıl kurulu olduğu koşuda bulunur. **Kullanıcıdan gereken:** ayar yazılınca Claude Code'un yeniden açılması. *Kararları: v9-3.* | Claude Code yeniden açılınca bu depoda Playwright araçları görünüyor, ve Claude bir sayfayı açıp ekran görüntüsünü alabiliyor. |
+| 378 | `ALIGNED` **Playwright MCP güvenli kullanılır.** Tarayıcı normal internete karışmaz: yalnız bu bilgisayarda çalışan araçları ve onların fontlarını — Google Fonts — açar. Kodu tarayıcının dışında, bilgisayarda çalıştıran araç yasak, ve Playwright'ın yazdıkları git'e girmez. Kurallar CLAUDE.md'de. queen-design'daki kurallardan öğrenilir. *(Kullanıcı, 29 Eylül — "mcp yi günveli bir şekilde kullanmamız lazım  bu nednele queen desingdan öğren bunu normal internete karışmaması lazı mynai bir araştır ona göre claude mdyi de güncelle"; fontlar olmadan ekranlar yedek fontla çıkacağı için Google Fonts'a — "izin verilsin".)* **Claude'un, subagent'sız:** tarayıcı Claude'da. **Kullanıcıdan gereken:** ayar yazılınca Claude Code'un yeniden açılması. | Claude Code yeniden açılınca tarayıcı bir internet adresini açamıyor, ama yerel QueenAgent'ı fontlarıyla açıyor; `browser_run_code_unsafe` çağrılamıyor; `git status` Playwright'ın dosyalarını göstermiyor. |
 | 335 · v9-3b | `ALIGNED` **QueenAgent Playwright ile kontrol edilir.** Claude bu bilgisayarda yerel çalışan QueenAgent'ı açar ve kullanıcının yerine kullanır; gerçek AI çağrısı yapılabilir. Önünde bir engel çıkmazsa düzenleme yapılmadan kapanır. *Kararları: v9-3.* | Claude yerel QueenAgent'ı Playwright ile açıp bir skill'i baştan sona çalıştırabiliyor ve sonucu ekranda görüyor. |
 
 ### Dalga 1 — v9-3'ten sonra, aynı anda
