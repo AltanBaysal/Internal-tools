@@ -843,3 +843,23 @@ test("No projects yet. is the design's quiet line", () => {
   expect(empty).toContain("padding: 18px 12px");
   expect(empty).toContain("color: #a79e93");
 });
+
+// Madde 357 (the design's items 147 and 182, kit.css's .trimmed). jsdom lays nothing out, so the
+// hold at the chat's lower edge is locked here as the rule that makes it; the browser shows it.
+test("the trim's line holds at the chat's lower edge on the page's own ground", () => {
+  const line = rule(".trimmed");
+  expect(line).toContain("position: sticky");
+  expect(line).toContain("bottom: 0");
+  // Without a ground of its own the words scrolling under it would show through.
+  expect(line).toContain("background: var(--canvas)");
+  expect(line).toContain("display: flex");
+  expect(line).toContain("padding: 8px 0");
+});
+
+test("the trim's line reads as a note between two rules", () => {
+  const line = rule(".trimmed");
+  expect(line).toContain("font-family: var(--font-mono)");
+  expect(line).toContain("font-size: 11.5px");
+  expect(line).toContain("color: #6b6259");
+  expect(grouped(".trimmed::before,")).toContain("border-top: 1px solid var(--line)");
+});

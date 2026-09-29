@@ -3128,3 +3128,18 @@ test("a trim the server refuses says so in the server's own words", async () => 
   fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
   expect(await screen.findByText("this chat is not full")).toBeTruthy();
 });
+
+// --- the trim's line (Madde 357) -----------------------------------------------------------------
+
+test("after Continue here a line parts the messages no longer sent from the rest", async () => {
+  stubFullChat();
+  const { container } = render(<App />);
+  await screen.findByText("This chat is full.");
+  expect(container.querySelector(".trimmed")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Continue here" }));
+  const line = await screen.findByText("Messages above this line are no longer sent to the model");
+  // The trimmed record says 2: the first turn stays on screen above the line, the last below it.
+  expect(line.previousElementSibling.textContent).toContain("First answer.");
+  expect(line.nextElementSibling.querySelector(".msg__bubble").textContent).toBe("go on");
+});
