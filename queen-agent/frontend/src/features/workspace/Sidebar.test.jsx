@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import { VERSION } from "../../shared/version.js";
@@ -24,9 +24,9 @@ test("there is no Settings row", () => {
   expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
 });
 
-// Madde 51: one button, never a drag -- claude.ai's behaviour rather than the rail's. Folded, the
-// sidebar is a strip carrying the one thing that brings it back; its rows are names and titles, and
-// there are no icon forms of those to fall back on.
+// Madde 51: one button, never a drag -- claude.ai's behaviour rather than the rail's. Madde 351
+// (design 174, 187): the button is a panel icon in the sidebar's own last row, and folded the
+// sidebar is an icon column -- + for New chat, and the same icon at its foot.
 
 test("the sidebar carries one button that puts it away", () => {
   render(<Sidebar projects={PROJECTS} activeProjectId="p1" onToggle={vi.fn()} />);
@@ -41,12 +41,11 @@ test("the button asks to fold rather than folding by itself", () => {
   expect(onToggle).toHaveBeenCalled();
 });
 
-test("folded, nothing is left but the way back", () => {
+test("folded, the projects and chats are gone", () => {
   render(<Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={vi.fn()} />);
   expect(screen.queryByText("Projects")).toBeNull();
   expect(screen.queryByText("Thesis research")).toBeNull();
   expect(screen.queryByText("Recent chats")).toBeNull();
-  expect(screen.queryByRole("button", { name: /New chat/ })).toBeNull();
 });
 
 test("folded, the same button is what brings it back", () => {
@@ -61,7 +60,7 @@ test("folded, it says so where the stylesheet can hear it", () => {
   expect(container.querySelector(".sidebar").className).toContain("sidebar--collapsed");
 });
 
-// Madde 338: the brand moved into the bar above the sidebar; the fold stays here until v9-2w.
+// Madde 338: the brand moved into the bar above the sidebar.
 test("the sidebar carries no brand", () => {
   const { container } = render(<Sidebar projects={PROJECTS} activeProjectId="p1" />);
   expect(screen.queryByText("QueenAgent")).toBeNull();
@@ -69,13 +68,64 @@ test("the sidebar carries no brand", () => {
   expect(container.querySelector(".sidebar__brand")).toBeNull();
 });
 
-test("the fold still leads the sidebar", () => {
+// Madde 351: Claude Code's place for it -- the sidebar's bottom right, and there in both states, so
+// a press never moves out from under the pointer.
+test("the fold is the sidebar's last row", () => {
   const { container } = render(
     <Sidebar projects={PROJECTS} activeProjectId="p1" onToggle={vi.fn()} />,
   );
-  expect(container.querySelector(".sidebar").firstElementChild.getAttribute("aria-label")).toBe(
-    "Hide the sidebar",
+  const foot = container.querySelector(".sidebar").lastElementChild;
+  expect(foot.className).toBe("sidebar__foot");
+  expect(within(foot).getByRole("button", { name: "Hide the sidebar" })).toBeTruthy();
+});
+
+test("folded, the fold is still the last row", () => {
+  const { container } = render(
+    <Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={vi.fn()} />,
   );
+  const foot = container.querySelector(".sidebar").lastElementChild;
+  expect(foot.className).toBe("sidebar__foot");
+  expect(within(foot).getByRole("button", { name: "Show the sidebar" })).toBeTruthy();
+});
+
+test("the fold is a panel icon rather than an arrow, open or folded", () => {
+  const { rerender } = render(
+    <Sidebar projects={PROJECTS} activeProjectId="p1" onToggle={vi.fn()} />,
+  );
+  const open = screen.getByRole("button", { name: "Hide the sidebar" });
+  expect(open.querySelector(".sidebar__panel-icon")).toBeTruthy();
+  expect(open.textContent).toBe("");
+  rerender(<Sidebar projects={PROJECTS} activeProjectId="p1" collapsed onToggle={vi.fn()} />);
+  const folded = screen.getByRole("button", { name: "Show the sidebar" });
+  expect(folded.querySelector(".sidebar__panel-icon")).toBeTruthy();
+  expect(folded.textContent).toBe("");
+});
+
+test("folded, New chat stays as a + of its own", () => {
+  const onNewChat = vi.fn();
+  render(
+    <Sidebar
+      projects={PROJECTS}
+      activeProjectId="p1"
+      collapsed
+      onToggle={vi.fn()}
+      onNewChat={onNewChat}
+    />,
+  );
+  const plus = screen.getByRole("button", { name: "New chat" });
+  expect(plus.className).toContain("sidebar__new-chat--icon");
+  expect(plus.textContent).toBe("+");
+  fireEvent.click(plus);
+  expect(onNewChat).toHaveBeenCalled();
+});
+
+test("folded with no project open, the fold stands alone", () => {
+  // Open, New chat is there only with a project; folded, its + follows the same rule.
+  const { container } = render(
+    <Sidebar projects={PROJECTS} activeProjectId={null} collapsed onToggle={vi.fn()} />,
+  );
+  expect(screen.queryByRole("button", { name: "New chat" })).toBeNull();
+  expect(container.querySelectorAll(".sidebar button").length).toBe(1);
 });
 
 test("every project dot is the same tone", () => {

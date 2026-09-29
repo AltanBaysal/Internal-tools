@@ -641,19 +641,52 @@ test("a folded sidebar is a strip, and it gets there by its own transition", () 
   expect(folded).toContain("overflow: hidden");
 });
 
+// Madde 351 (design 174, 187): the fold is a panel icon in the sidebar's own last row.
+test("the fold's row keeps to the sidebar's bottom right", () => {
+  const foot = rule(".sidebar__foot");
+  expect(foot).toContain("display: flex");
+  expect(foot).toContain("justify-content: flex-end");
+  expect(foot).toContain("margin-top: auto");
+});
+
+test("the fold is a square button with no glyph of its own", () => {
+  const fold = rule(".sidebar__fold");
+  expect(fold).toContain("width: 30px");
+  expect(fold).toContain("height: 30px");
+  expect(fold).toContain("background: transparent");
+  expect(fold).not.toContain("font-size");
+});
+
+test("the panel icon is a square with a line near its left edge", () => {
+  const icon = rule(".sidebar__panel-icon");
+  expect(icon).toContain("width: 16px");
+  expect(icon).toContain("height: 16px");
+  expect(icon).toContain("border: 1.5px solid var(--ink)");
+  expect(icon).toContain("border-radius: 3px");
+  const line = rule(".sidebar__panel-icon::after");
+  expect(line).toContain("left: 6px");
+  expect(line).toContain("border-left: 1.5px solid var(--ink)");
+});
+
+test("folded, New chat is a square holding only its plus", () => {
+  const plus = rule(".sidebar__new-chat--icon");
+  expect(plus).toContain("width: 30px");
+  expect(plus).toContain("height: 30px");
+  expect(plus).toContain("padding: 0");
+  expect(plus).toContain("justify-content: center");
+});
+
 test("the easing is for folding, and a drag turns it off", () => {
   // 220ms is right for a rail folding itself away and wrong for one following the pointer.
   expect(rule(".rail")).toContain("transition: width 220ms");
   expect(rule(".rail--dragging")).toContain("transition: none");
 });
 
-test("both folding controls are big enough and dark enough to find", () => {
-  // One rule for the two sides: they do the same job and were both too faint to see -- 13px and
-  // 15px of muted grey on a surface nearly the same colour.
-  for (const control of [".rail__chevron", ".sidebar__fold"]) {
-    expect(rule(control)).toContain("font-size: 20px");
-    expect(rule(control)).toContain("color: var(--ink)");
-  }
+test("the rail's folding control is big enough and dark enough to find", () => {
+  // It was too faint to see -- 15px of muted grey on a surface nearly the same colour. The
+  // sidebar's fold was the other half of this rule until Madde 351 made it an icon.
+  expect(rule(".rail__chevron")).toContain("font-size: 20px");
+  expect(rule(".rail__chevron")).toContain("color: var(--ink)");
 });
 
 test("the grip is on the rail's left edge and says it can be pulled", () => {

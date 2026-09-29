@@ -1333,6 +1333,44 @@ test("the sidebar folds away and comes back, and stays folded across an address"
   await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
 });
 
+// Madde 351: Ctrl + . folds the sidebar and brings it back, as on claude.ai (design 174, 187) --
+// wherever the focus stands, the composer included.
+test("Ctrl + . folds the sidebar and brings it back", async () => {
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+
+  fireEvent.keyDown(window, { key: ".", ctrlKey: true });
+  await waitFor(() => expect(screen.queryByText("Projects")).toBeNull());
+  expect(screen.getByRole("button", { name: "Show the sidebar" })).toBeTruthy();
+
+  fireEvent.keyDown(window, { key: ".", ctrlKey: true });
+  await waitFor(() => expect(screen.getByText("Projects")).toBeTruthy());
+});
+
+test("Ctrl + . works while typing, and types nothing", async () => {
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  fireEvent.change(box, { target: { value: "hello" } });
+
+  // false: the default was prevented, so the browser has nothing of its own left to do with it.
+  expect(fireEvent.keyDown(box, { key: ".", ctrlKey: true })).toBe(false);
+  await waitFor(() => expect(screen.queryByText("Projects")).toBeNull());
+  expect(box.value).toBe("hello");
+});
+
+test("a full stop typed alone is only a full stop", async () => {
+  withRail();
+  window.history.pushState(null, "", "/p/p1/c/c1");
+  render(<App />);
+  const box = await screen.findByPlaceholderText("Reply...");
+  expect(fireEvent.keyDown(box, { key: "." })).toBe(true);
+  expect(screen.getByText("Projects")).toBeTruthy();
+});
+
 test("dragging the rail's edge widens it, and the width crosses chats", async () => {
   // Madde 50: the width lasts the session for the same reason the folded state does.
   withRail();
