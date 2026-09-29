@@ -60,8 +60,6 @@ function rule(selector) {
 
 test("every control rounds by the same variable", () => {
   expect(rule(".sidebar__new-chat")).toContain("border-radius: var(--radius-control)");
-  // The row became a box holding two buttons, so the rounding belongs to the one that is a control.
-  expect(rule(".sidebar__row-open")).toContain("border-radius: var(--radius-control)");
   expect(rule(".composer__send")).toContain("border-radius: var(--radius-control)");
   expect(CSS).not.toContain("border-radius: 9px");
 });
@@ -644,6 +642,35 @@ test("the panel icon is a square with a line near its left edge", () => {
   const line = rule(".sidebar__panel-icon::after");
   expect(line).toContain("left: 6px");
   expect(line).toContain("border-left: 1.5px solid var(--ink)");
+});
+
+// Madde 362 (design 151, 168): inside a project the sidebar is New chat and the project's chats.
+test("the sidebar's project list is gone by every name", () => {
+  for (const name of [
+    "sidebar__projects",
+    "sidebar__head",
+    "sidebar__label",
+    "sidebar__add",
+    "sidebar__row-open",
+    "sidebar__row--active",
+    "sidebar__row-name",
+    "sidebar__row-badge",
+  ]) {
+    expect(CSS).not.toContain(`.${name}`);
+  }
+  // The project's marker had no other owner.
+  expect(CSS).not.toContain("\n.dot {");
+});
+
+test("No chats yet. is a quiet line", () => {
+  const empty = rule(".sidebar__empty");
+  expect(empty).toContain("padding: 10px 12px");
+  expect(empty).toContain("font-size: 13px");
+  expect(empty).toContain("color: var(--muted)");
+});
+
+test("New chat is the filled accent", () => {
+  expect(rule(".sidebar__new-chat")).toContain("background: var(--accent)");
 });
 
 test("folded, New chat is a square holding only its plus", () => {

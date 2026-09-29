@@ -102,18 +102,12 @@ export default function App() {
   const openChat = (projectId, chatId, options) =>
     navigate(`/p/${projectId}/c/${chatId}`, options);
   const openDraft = () => navigate(`/p/${route.projectId}/c/new`);
-  // Where the naming screen was reached from, so Cancel and Escape go back there (Madde 361). Held
-  // here because the address is the only other memory, and /new says nothing about it; reached by
-  // its address or reloaded, there is no screen it came from, and All projects is where it opens.
-  const [namingFrom, setNamingFrom] = useState("/");
-  // Every + New project comes here: a project is born under a name the user chose.
-  const askForNewProject = () => {
-    setNamingFrom(window.location.pathname);
-    navigate("/new");
-  };
+  // Every + New project comes here: a project is born under a name the user chose. All projects is
+  // the one road in (Madde 362), so it is where Cancel goes back to.
+  const askForNewProject = () => navigate("/new");
   // Both ways off the naming screen write over it, so the back button never lands there to make a
   // second project.
-  const leaveNaming = () => navigate(namingFrom, { replace: true });
+  const leaveNaming = () => navigate("/", { replace: true });
   // Opened where a new project has something to do: its draft.
   const createNamed = async (name) => {
     const created = await createProject(name);
@@ -162,7 +156,7 @@ export default function App() {
       else if (reading.name) reading.close();
       // The naming screen's Escape is its Cancel, and like Cancel it is there only while a project
       // exists to go back to (the design's 195).
-      else if (route.view === "new" && projects.length) navigate(namingFrom, { replace: true });
+      else if (route.view === "new" && projects.length) navigate("/", { replace: true });
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -174,7 +168,6 @@ export default function App() {
     reading.close,
     route.view,
     projects.length,
-    namingFrom,
     navigate,
   ]);
 
@@ -242,13 +235,9 @@ export default function App() {
             items 135, 167, 169). */}
         {route.view === "root" || route.view === "new" ? null : (
           <Sidebar
-            projects={projects}
             chats={projectChats}
-            activeProjectId={route.projectId}
             activeChatId={route.chatId}
             onNewChat={openDraft}
-            onNewProject={askForNewProject}
-            onOpenProject={openProject}
             onOpenChat={(chatId) => openChat(route.projectId, chatId)}
             collapsed={sidebarCollapsed}
             onToggle={() => setSidebarCollapsed((folded) => !folded)}
