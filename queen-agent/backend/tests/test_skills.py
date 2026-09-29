@@ -43,8 +43,9 @@ def test_every_skill_in_the_menu_carries_an_instruction(skill):
 
 def test_the_menu_and_the_instructions_carry_the_same_names():
     # Two since Madde 101, and since Madde 186 they are the two halves of the work rather than two
-    # ways into it: one makes a scenario and finishes it, the other fixes what is already made. A
-    # name in the menu with no instruction here is a turn that quietly runs on the base text alone.
+    # ways into it: one makes a scenario and finishes it, the other fixes what is already made. Madde
+    # 370 adds a third, Improve, which checks what the two made. A name in the menu with no
+    # instruction here is a turn that quietly runs on the base text alone.
     assert sorted(INSTRUCTIONS) == sorted(ALL_SKILLS)
 
 

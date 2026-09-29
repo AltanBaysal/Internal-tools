@@ -159,9 +159,10 @@ it rather than in the function that appends it."""
 # producing something the moment the user typed "thanks". What to do comes from the user's own
 # sentence.
 #
-# Two texts since Madde 101. Five others stood beside them and were deleted in Madde 94: what they
-# said about how to work now sits in SYSTEM_PROMPT, where it holds whatever is selected. The picker
-# still has an empty state -- having no skill selected is ordinary.
+# Three texts since Madde 370: the flow, the editor, and Improve. Five others stood beside them and
+# were deleted in Madde 94: what they said about how to work now sits in SYSTEM_PROMPT, where it
+# holds whatever is selected. The picker still has an empty state -- having no skill selected is
+# ordinary.
 #
 # Since Madde 123 each opens as a persona, and a word cap in test_skills.py keeps it short; Madde
 # 367 raised the cap, and the test says why. From here a sentence enters only by deleting one.
@@ -175,6 +176,41 @@ THE_IMAGE_MODEL = (
 
 Written once and carried by each skill text right after its opening, because it is one fact and two
 copies of it is how one of them goes stale. Not in SYSTEM_PROMPT: that text names no task.
+"""
+
+THE_CHECKS = (
+    "- Run the checks below in order, each over every frame of the scenario.\n"
+    "- When a check starts, write in the plan which check it is: a long scenario can take more "
+    "than one turn, and when the user says continue, carry on from there.\n"
+    "- A check changes only the frames that fail it. Then call build_prompts, so every changed "
+    "frame's photo prompt is written again.\n"
+    "- Show what the check changed, frame by frame, and wait for their yes. A check ends when "
+    "they approve it. If no frame fails, say so and go on to the next check.\n"
+    "\n"
+    "Check 1 -- one moment\n"
+    "- A frame whose scene or action tells more than one moment fails. Bring it down to one "
+    "moment, or split it into one frame per moment.\n"
+    "- To bring it down, give update_frame the new scene and an empty action.\n"
+    "- To split, bring the frame down to its first moment, then write the others with add_scene, "
+    "before the next frame.\n"
+    "- Then write_missing_actions writes the emptied and the new frames, so each gets its own "
+    "action.\n"
+    "\n"
+    "When the checks are done, close by naming the file and saying it is ready. Do not print the "
+    "prompts back, offer nothing, and ask nothing: this is the last word."
+)
+"""The checks a built scenario is put through, written once (Madde 370).
+
+Start a scenario ends with them and Improve runs them alone. A skill cannot call another, so both
+texts carry this part -- as one constant, because the same rule written twice is how one copy drifts.
+No heading of its own: each skill puts its own step heading in front, since the step's number differs.
+The next checks (371 to 373) go in after Check 1, in front of the closing, which belongs to whatever
+check comes last.
+
+A changed frame's action is emptied rather than rewritten here, so the model kept for writing actions
+writes it again (Madde 176); the video's prompt is queen-editor's (v9-7), so only the photo prompt is
+refreshed. Where the checks stand goes into the plan when a check starts, not when a turn ends: the
+last round runs no tool (Madde 137), and a frame a check has fixed looks like one it never read.
 """
 
 EDIT_PROMPTS = (
@@ -208,7 +244,7 @@ EDIT_PROMPTS = (
 START_A_SCENARIO = (
     "You are an expert scenario writer, and everything here serves one end: image prompts, one "
     "per frame. You lay the ground and then build the prompts, in one flow, walking the user "
-    "through five steps in order, by asking.\n"
+    "through six steps in order, by asking.\n"
     "\n" + THE_IMAGE_MODEL + "\n"
     "\n"
     "How a step runs:\n"
@@ -252,8 +288,24 @@ START_A_SCENARIO = (
     "Step 5 -- the prompts\n"
     "- Fill the waiting frames with write_missing_actions, then write the list with "
     "build_prompts.\n"
-    "- Close by naming the file and saying it is ready. Do not print the prompts back, offer "
-    "nothing, and ask nothing: this is the last word."
+    "- This step waits for no approval. Go on to Step 6 in the same turn.\n"
+    "\n"
+    "Step 6 -- the checks\n" + THE_CHECKS
+)
+
+IMPROVE = (
+    "You are an expert SDXL prompt reviewer. The scenario you work on is already written and its "
+    "prompts are built, one per frame. You run the checks below on it, fix the frames that fail, "
+    "and the user approves each check before the next.\n"
+    "\n" + THE_IMAGE_MODEL + "\n"
+    "\n"
+    "Step 1 -- the scenario\n"
+    "- Read the scenario file the request names. If more than one could be it, ask which.\n"
+    "- If the project holds a plan for it, carry on from the check the plan names. If it holds "
+    "none, write one with create_file.\n"
+    "- This step waits for no approval. Go on to Step 2 in the same turn.\n"
+    "\n"
+    "Step 2 -- the checks\n" + THE_CHECKS
 )
 
 
