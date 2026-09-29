@@ -485,12 +485,18 @@ test("no failure, no card at all", () => {
   expect(screen.queryByText("Couldn't get a response.")).toBeNull();
 });
 
-test("a message that was never sent is not told as an answer that never came", () => {
-  // Two different failures: one has a request to retry, the other has a sentence to write again.
-  render(<ChatScreen project={PROJECT} chat={CHAT} refused="a message needs text" />);
-  expect(screen.getByText("a message needs text")).toBeTruthy();
-  expect(screen.queryByText("Couldn't get a response.")).toBeNull();
-  expect(screen.queryByRole("button", { name: "Try again" })).toBeNull();
+test("a refused message draws the failure card with the server's words", () => {
+  // Design item 193: a message the server refused and an answer that never came are one card --
+  // the same sentence, the server's own words under it, and Try again.
+  const onRetry = vi.fn();
+  const { container } = render(
+    <ChatScreen project={PROJECT} chat={CHAT} refused="a message needs text" onRetry={onRetry} />,
+  );
+  expect(screen.getByText("Couldn't get a response.")).toBeTruthy();
+  expect(container.querySelector(".failure__detail").textContent).toBe("a message needs text");
+  expect(container.querySelector(".refused")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(onRetry).toHaveBeenCalled();
 });
 
 test("Try again asks again", () => {
