@@ -65,13 +65,13 @@ aynı yere dokunmaz — aynı dosyanın ayrı yerlerine dokunabilirler, ve birle
 - **v9-3 Claude'un, subagent'sız:** v9-3a'nın ayarı yazılınca kullanıcı Claude Code'u yeniden açar, ve
   subagent'lar ondan sonra başlar *(kullanıcı, 29 Eylül — "ilk taskı subagetn olmadan sen yap sonra
   baştan açıp kapatayım sonra subagetna geçeriz olur mu")*. v9-3b de Claude'un, çünkü tarayıcı
-  Claude'da; 377 de Claude'un.
+  Claude'da.
 
 **Numaralar koşu açılırken verildi: 334–376**, 29 Eylül'de, tablonun sırasıyla; sayaçta en yüksek
 numara Queen Editor v7'nin 333'üydü. Belge yazılırken maddeler `v9-N` diye kendi numaralarını
 taşıyordu, ve metin parçaları hâlâ o adlarla anıyor; o yüzden tabloda ikisi yan yana duruyor.
 **377 koşu sırasında çıktı**, aynı gün: 334'ün testleri koşarken queen-editor'ün süitinde koşudan önceki
-bir kırmızı bulundu, ve kullanıcı onu Dalga 1'den önceye koydu.
+bir kırmızı bulundu, ve kullanıcı onu subagent'lara verdi: Dalga 1'de koşar.
 
 **Queen Editor'ün v8-3'ü önce biter:** v9-7a'nın çıkardığı listeyi bugünkü kutu okuyamaz, o yüzden v9
 main'e v8'den önce alınmaz.
@@ -86,7 +86,6 @@ main'e v8'den önce alınmaz.
 | # | İş | Bitti sayılır |
 |---|---|---|
 | 334 · v9-3a | `ALIGNED` **Playwright MCP bu depoda ayarlanır.** queen-design'daki gibi: ayar depoda durur, sürüm sabittir, tarayıcı arka planda açılır; cihazda nasıl kurulu olduğu koşuda bulunur. **Kullanıcıdan gereken:** ayar yazılınca Claude Code'un yeniden açılması. *Kararları: v9-3.* | Claude Code yeniden açılınca bu depoda Playwright araçları görünüyor, ve Claude bir sayfayı açıp ekran görüntüsünü alabiliyor. |
-| 377 | `ALIGNED` **Roadmap'lerin bağlantı testi internet adresini dosya saymaz.** queen-editor'ün `test_a_roadmap_can_still_reach_everything_it_links_to`'su bir roadmap'in `.md` ile biten her bağlantısını diskte arıyor. v9'un iki MiniMax rehberi internet adresi, ve süit 28 Eylül'den beri kırmızı *(`d9c2d6f5`)*. Test `https://` gibi bir adresi dosya saymaz; diskteki bağlantıları denetlemeye devam eder. **queen-editor'ün koduna dokunur.** *(Kullanıcı, 29 Eylül — Claude'un seçeneğini seçti: "Yeni madde 377 olarak açılır ve şimdi, dalga 1'den önce, subagent'sız ben yaparım. Test, https:// gibi adresleri dosya saymaz. queen-editor'ün koduna dokunduğu için roadmap'in başında öteki araca dokunan madde olarak yazılır.")* | queen-editor'ün arka uç süiti yeşil; bir roadmap'teki kırık bir yerel bağlantı yine kırmızı veriyor. |
 | 335 · v9-3b | `ALIGNED` **QueenAgent Playwright ile kontrol edilir.** Claude bu bilgisayarda yerel çalışan QueenAgent'ı açar ve kullanıcının yerine kullanır; gerçek AI çağrısı yapılabilir. Önünde bir engel çıkmazsa düzenleme yapılmadan kapanır. *Kararları: v9-3.* | Claude yerel QueenAgent'ı Playwright ile açıp bir skill'i baştan sona çalıştırabiliyor ve sonucu ekranda görüyor. |
 
 ### Dalga 1 — v9-3'ten sonra, aynı anda
@@ -104,6 +103,7 @@ Hepsi bugünkü kodun üstüne kurulur.
 | 342 · v9-2h | `ALIGNED` **Açık dosyanın başlığı.** Üst satırda solda çerçeveli bir `←`, sağda yazılı `Refresh` ve `Copy`; üçü aynı boyda. Dosyanın adı altında kendi satırında, kesilmeden, ve içerikten bir çizgiyle ayrı. Download kalkar. `Copy` basınca `Copied` ya da `Could not copy` der, sonra geri döner. `←` satırın ortasında durur *(tasarımın APP-BUGS.md'si, 48)*. *Kararları: v9-2; tasarım: 154, 155, 176, 186.* | Açık dosyada üst satırda `←` solda, `Refresh` ve `Copy` sağda, aynı boyda; ad altında tam; Download yok. |
 | 343 · v9-2i | `ALIGNED` **Çemberin sözü, ve dolmanın önceden duyurusu.** Çemberin ipucu `This chat is N% full`. Sohbet dörtte beşe, 40.000'e gelince çemberin yanında `N% full` yazar. Ölçü v9-1a'nın: yalnız mesajlar. Listede (5). *Kararları: v9-1 ve v9-2; tasarım: 146, 182.* | Çemberin üstüne gelince `This chat is N% full`; %80'i geçmiş sohbette çemberin yanında `N% full` yazıyor. |
 | 344 · v9-12 | `ALIGNED` **ChatScreen.jsx bölünür.** Mesajı çizen bileşenler kendi dosyalarına taşınır; ekran ve davranış değişmez. *(Claude önerdi, 29 Eylül — FOUNDATION'ın 4. ilkesi: "A file too big to hold comfortably in context is doing too much — split it"; v9'un dokuz parçası bu dosyaya dokunuyor. Kullanıcı — "Evet, v9-12 olarak eklensin".)* | Ekran önceki gibi, ve testler yeşil; ChatScreen.jsx'te ekranın kendisi kalıyor, mesajın parçaları kendi dosyalarında. |
+| 377 | `ALIGNED` **Roadmap'lerin bağlantı testi internet adresini dosya saymaz.** queen-editor'ün `test_a_roadmap_can_still_reach_everything_it_links_to`'su bir roadmap'in `.md` ile biten her bağlantısını diskte arıyor. v9'un iki MiniMax rehberi internet adresi, ve süit 28 Eylül'den beri kırmızı *(`d9c2d6f5`)*. Test `https://` gibi bir adresi dosya saymaz; diskteki bağlantıları denetlemeye devam eder. **queen-editor'ün koduna dokunur.** *(Kullanıcı, 29 Eylül — Claude'un seçeneğini seçti: "Yeni madde 377 olarak açılır … Test, https:// gibi adresleri dosya saymaz. queen-editor'ün koduna dokunduğu için roadmap'in başında öteki araca dokunan madde olarak yazılır."; sonra: "abi şimdi yapmıyorsun açıyorsun ve bekliyorsun bunuda suba agetnlar yapıcak roadmpe ekle aç ve bekle yani".)* **Kırmızı turu yazıldı** *(`11029a5d`)*: iki kırmızı — yeni iddia ve eskisi. Yeşil turu bir subagent'ın. | queen-editor'ün arka uç süiti yeşil; bir roadmap'teki kırık bir yerel bağlantı yine kırmızı veriyor. |
 
 ### Dalga 2 — dalga 1 birleşince
 
