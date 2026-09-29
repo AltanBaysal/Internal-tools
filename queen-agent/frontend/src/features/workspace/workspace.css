@@ -1730,6 +1730,26 @@
   margin: 0 0 24px;
 }
 
+/* The search's row; the Archived tab joins it on the right (Madde 363). */
+.all-projects__tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 28px;
+}
+
+.all-projects__search {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  padding: 8px 12px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
 .all-projects__section {
   margin: 0 0 28px;
 }

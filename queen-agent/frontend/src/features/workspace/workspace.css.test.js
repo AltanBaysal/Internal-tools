@@ -843,3 +843,19 @@ test("No projects yet. is the design's quiet line", () => {
   expect(empty).toContain("padding: 18px 12px");
   expect(empty).toContain("color: #a79e93");
 });
+
+test("the search's row stands under the head, as the design spaces it", () => {
+  const tools = rule(".all-projects__tools");
+  expect(tools).toContain("display: flex");
+  expect(tools).toContain("margin: 0 0 28px");
+});
+
+test("the search box is the design's field", () => {
+  const box = rule(".all-projects__search");
+  expect(box).toContain("flex: 1");
+  expect(box).toContain("border: 1px solid var(--line)");
+  expect(box).toContain("border-radius: var(--radius-control)");
+  expect(box).toContain("padding: 8px 12px");
+  expect(box).toContain("background: var(--surface)");
+  expect(box).toContain("font-size: 13.5px");
+});
