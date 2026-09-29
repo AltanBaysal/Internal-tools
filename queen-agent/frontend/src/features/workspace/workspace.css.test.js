@@ -600,6 +600,31 @@ test("no rule takes the ghost's frame off Refresh or Copy", () => {
   }
 });
 
+// Madde 350 (the design's item 175): the heading and Refresh share one row, and the 12 under the
+// heading is the row's now.
+test("the heading's row lays the heading and Refresh side by side", () => {
+  const row = rule(".rail__bar");
+  expect(row).toContain("display: flex");
+  expect(row).toContain("align-items: center");
+  expect(row).toContain("margin-bottom: 12px");
+});
+
+test("the heading takes what Refresh leaves of the row", () => {
+  const head = rule(".rail__head");
+  expect(head).toContain("flex: 1");
+  expect(head).not.toContain("width: 100%");
+  expect(head).not.toContain("margin-bottom");
+  expect(rule(".rail__head--still")).not.toContain("margin-bottom");
+});
+
+test("no rule takes the ghost's frame off the list's Refresh", () => {
+  for (const { selectors, body } of rulesSelecting([".file-list__refresh"])) {
+    expect(body).not.toContain("border: none");
+    expect(body).not.toContain("background: transparent");
+    expect(selectors).not.toContain(".file-list__refresh:hover");
+  }
+});
+
 test("a selected skill warms its button without borrowing the accent", () => {
   // One accent only: it marks the primary action, and a selection is a state rather than an action.
   const on = rule(".picker--on");
