@@ -55,13 +55,18 @@ def make_workspace_bp(project_store, chat_store, file_store, engine, stops, perm
     def patch_project(project_id):
         payload = request.get_json(silent=True) or {}
         try:
-            edit_project(project_store, project_id, name=payload.get("name"))
+            project = edit_project(
+                project_store,
+                project_id,
+                name=payload.get("name"),
+                pinned=payload.get("pinned"),
+                archived=payload.get("archived"),
+            )
         except ProjectNotFound:
             return jsonify({"error": "project not found"}), 404
         except InvalidProjectName:
             return jsonify({"error": "a project needs a name"}), 400
-        # Re-read so the counts in the answer come from the directories, exactly like the list does.
-        return jsonify(_project_json(project_store.get(project_id)))
+        return jsonify(_project_json(project))
 
     @workspace_bp.delete("/api/projects/<project_id>")
     def delete_project_route(project_id):
@@ -319,6 +324,8 @@ def _project_json(project):
         "createdAt": project.created_at,
         "chats": project.chat_count,
         "files": project.file_count,
+        "pinned": project.pinned,
+        "archived": project.archived,
     }
 
 

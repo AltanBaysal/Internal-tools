@@ -119,7 +119,8 @@ def test_a_description_in_the_body_is_simply_not_a_field(tmp_path):
 
 def test_the_answer_carries_neither_a_description_nor_a_colour(tmp_path):
     created = _client(tmp_path).post("/api/projects").get_json()
-    assert set(created) == {"id", "name", "createdAt", "chats", "files"}
+    # Madde 339 added the pin and the archive; neither a description nor a colour came back with them.
+    assert set(created) == {"id", "name", "createdAt", "chats", "files", "pinned", "archived"}
 
 
 def test_a_project_can_be_deleted(tmp_path):

@@ -23,6 +23,12 @@ class ProjectStore(Protocol):
     def delete(self, project_id: str) -> str | None:
         """Move the whole project to the trash and answer with the name it took, or None."""
 
+    def set_pinned(self, project_id: str, pinned: bool) -> None:
+        """Pin the project or let it go. Asking for what already stands changes nothing."""
+
+    def set_archived(self, project_id: str, archived: bool) -> None:
+        """Archive the project or bring it back. Asking for what already stands changes nothing."""
+
 
 class ChatStore(Protocol):
     def add(self, project_id: str, chat: Chat) -> None:
