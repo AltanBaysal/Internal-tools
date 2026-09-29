@@ -74,8 +74,8 @@ a:hover {
   background-clip: content-box;
 }
 
-/* The only motion the design allows: a 140-220ms opacity fade, and the rail's width transition.
-   One name, and it says what it does -- an element that has been laid out never moves. */
+/* Shared by every surface: an opacity fade, and the pulse of the three dots and the loading
+   skeleton. Neither moves anything -- an element that has been laid out stays where it was put. */
 @keyframes fadeIn {
   from {
     opacity: 0;
