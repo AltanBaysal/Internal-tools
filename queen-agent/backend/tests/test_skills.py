@@ -5,7 +5,7 @@ from backend.features.workspace.domain.skills import INSTRUCTIONS, instruction_f
 # Written out rather than imported: the picker's ids live in the frontend's skills.js and Python
 # cannot read it. If the two ever drift apart, a skill answers with no instruction at all -- so the
 # match is pinned here, in words.
-ALL_SKILLS = ["edit-prompts", "start-a-scenario"]
+ALL_SKILLS = ["edit-prompts", "improve", "start-a-scenario"]
 
 # Madde 94's deletion. The names live here because the proof of a deletion is an absence, and only a
 # test that looks for it sees one -- putting any of them back has to come past this line.
@@ -29,6 +29,11 @@ def _flow():
 def _edit():
     """Madde 186's skill: what is wrong with prompts that already exist."""
     return instruction_for("edit-prompts")
+
+
+def _improve():
+    """Madde 370's skill: the checks, run on a scenario that is already built."""
+    return instruction_for("improve")
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
@@ -253,6 +258,11 @@ def test_no_step_is_ticked_off_the_plan_at_all():
     # Madde 203 withdraws the rest, on correction 11's finding: the boxes are only a note, and what
     # says how far the work got is the project's files. Neither road back is offered -- not the
     # tool, and not edit_file, which is the hand-built anchor 126 was written against.
+    #
+    # Madde 370 writes into the plan once more, for the checks alone (the user, 28 September: where
+    # the checks stopped is kept in the plan). There the files cannot say how far the work got -- a
+    # frame a check has fixed looks the same as one it never read. Steps 1 to 5 still tick nothing,
+    # and which tool writes the plan is the base text's to say, not this one's.
     said = _flow()
     assert "mark_step_done" not in said
     assert "edit_file" not in said
@@ -329,23 +339,26 @@ STEPS = (
     "Step 3 -- the places",
     "Step 4 -- the scenes",
     "Step 5 -- the prompts",
+    "Step 6 -- the checks",
 )
 """The flow's steps, in the order they run (Madde 198, written this way by correction 9).
 
 Read by the two tests below and by the ones that place create_file, start_scenario and the build.
 Madde 186 had six of these and the first was the context; that question is gone, and the numbers
 moved with it. Numbered headings became named ones so that every step reads the same way -- a
-heading, then its rules as lines -- and so the loop above them is not read as one more step.
+heading, then its rules as lines -- and so the loop above them is not read as one more step. Madde
+370 adds the sixth: the checks, which the flow ends with.
 """
 
 
-def test_the_flow_runs_five_numbered_steps():
+def test_the_flow_runs_six_numbered_steps():
     # Madde 108: a stage outside the numbered list is a stage a weak model walks past, because it
     # stops when the list ends. Five since Madde 198 -- the context question in front of them was
-    # the one thing a user had to answer before any work could start.
+    # the one thing a user had to answer before any work could start -- and six since Madde 370,
+    # whose checks are the flow's last step.
     said = _flow().lower()
-    assert "five steps" in said
-    assert "six steps" not in said
+    assert "six steps" in said
+    assert "five steps" not in said
     for step in STEPS:
         assert step.lower() in said, step
 
@@ -512,6 +525,85 @@ def test_the_frame_writer_leaves_spoken_words_out_of_the_action_line():
     assert "speak" not in SDXL_PROMPT_RULES.lower()
 
 
+# --- the checks, and Improve (Madde 370) ----------------------------------------------------------
+#
+# 28 Sep, the user: the questions they ask the model by hand become checks, written in one place.
+# Improve runs them on a scenario that is already built, and Start a scenario ends with them -- a
+# skill cannot call another today, so both texts carry the same part, and it is one constant so it is
+# said once. 29 Sep: a check that changes a frame refreshes its photo prompt only; the video's prompt
+# is written in queen-editor.
+
+
+def _checks():
+    from backend.features.workspace.domain.prompt import THE_CHECKS
+
+    return THE_CHECKS
+
+
+def test_the_checks_are_written_once_and_both_skills_end_with_them():
+    checks = _checks()
+    assert checks.strip()
+    for said in (_flow(), _improve()):
+        assert said.endswith(checks)
+        assert said.count(checks) == 1
+
+
+def test_the_first_check_brings_a_frame_down_to_one_moment_or_splits_it():
+    checks = _checks()
+    assert "Check 1 -- one moment" in checks
+    assert "more than one moment" in checks
+    assert "split" in checks
+
+
+def test_a_changed_or_split_frame_gets_its_photo_prompt_written_again():
+    # A frame whose scene changed while its action stayed would build into the old picture, and a
+    # frame split off would have no action at all. The tools that exist already do both.
+    checks = _checks()
+    for tool in ("update_frame", "add_scene", "write_missing_actions", "build_prompts"):
+        assert tool in checks, tool
+    assert "photo prompt" in checks
+
+
+def test_each_check_shows_what_it_changed_and_waits_for_a_yes():
+    # The user: I want to see what was done -- at the end of every check step.
+    checks = _checks().lower()
+    assert "show what" in checks
+    assert "wait for their yes" in checks
+
+
+def test_a_long_scenario_carries_the_checks_over_turns_through_the_plan():
+    # The turn limit stays at 16 requests. Where the checks stopped is kept in the plan, and the
+    # user says continue.
+    checks = _checks().lower()
+    assert "plan" in checks
+    assert "continue" in checks
+
+
+def test_the_checks_write_no_video_prompt():
+    checks = _checks().lower()
+    # Asked after the presence, so the absence cannot pass on a text nobody wrote.
+    assert "photo prompt" in checks
+    assert "video" not in checks
+    assert "h3" not in checks
+
+
+def test_the_closing_word_comes_after_the_checks():
+    # The build is no longer the end: the checks follow it in the same flow, and the closing
+    # sentence goes with the last of them, so the checks still to come land in front of it.
+    said = _flow()
+    assert "offer nothing, and ask nothing" in _checks()
+    build = said[said.index(STEPS[4]) : said.index(STEPS[5])]
+    assert "waits for no approval" in build
+    assert "last word" not in build
+
+
+def test_improve_opens_as_a_persona_on_a_scenario_already_built():
+    said = _improve()
+    assert said.startswith("You are an expert")
+    assert "already" in said
+    assert "start_scenario" not in said
+
+
 def test_the_plan_no_longer_opens_with_a_line_of_context():
     # Madde 186 asked for that line and Madde 198 takes it back, with the question that fed it. The
     # claim is not dropped, it is turned around: with nobody asked what the work is for, a plan
@@ -627,5 +719,11 @@ def test_the_texts_stay_short_enough_to_be_read():
     # 373) are written once and the flow ends with them, Edit prompts ends with them too (374), and
     # 368 and 369 each add a sentence to the scenes step -- so both texts can roughly double. The
     # cap still guards: a text at its cap takes a sentence only by deleting one.
+    #
+    # Madde 370 gives Improve its own, 700, the editor's. Its own part is short -- the opening, the
+    # image model, and the step that finds the scenario -- and the rest is the checks. With all four
+    # written (370 to 373) that is about the editor's size. The checks ride in the flow as well, so
+    # the flow's 1000 is what binds them first; this one keeps Improve's own part from swelling.
     assert len(_flow().split()) <= 1000
     assert len(_edit().split()) <= 700
+    assert len(_improve().split()) <= 700
