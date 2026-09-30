@@ -23,6 +23,18 @@ test("open, it lists every skill under a label", () => {
   expect(screen.getByText(SKILLS[0].detail)).toBeTruthy();
 });
 
+test("open, Improve is the last row, right after Edit prompts", () => {
+  // Madde 394: the third row goes at the end, so the two that were there keep their places.
+  const { container } = render(<SkillPicker skill="" open />);
+  const names = [...container.querySelectorAll(".menu__item-name")].map(
+    (name) => name.textContent,
+  );
+  expect(names).toEqual(["Start a scenario", "Edit prompts", "Improve"]);
+  const detail =
+    "Check a scenario you already have, fix what fails, and write its negative list again.";
+  expect(screen.getByText(detail)).toBeTruthy();
+});
+
 test("choosing one hands the id over", () => {
   const onChange = vi.fn();
   render(<SkillPicker skill="" open onChange={onChange} />);

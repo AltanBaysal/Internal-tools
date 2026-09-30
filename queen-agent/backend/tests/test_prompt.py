@@ -88,6 +88,7 @@ MUST_BE_FULL = (
     "SDXL_PROMPT_RULES",
     "START_A_SCENARIO",
     "EDIT_PROMPTS",
+    "IMPROVE",
 )
 """The texts this app writes, and every one of them says something.
 

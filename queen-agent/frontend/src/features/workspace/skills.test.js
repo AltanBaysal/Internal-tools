@@ -3,13 +3,28 @@ import { expect, test } from "vitest";
 import { SKILLS, skillName } from "./skills.js";
 
 // Madde 94 deleted five of the six and said more rows would come. Madde 101 is the first of them.
-test("the menu offers the flow and the editor, in that order", () => {
+test("the menu offers the flow, the editor and Improve, in that order", () => {
   // The flow comes first: it is the road for somebody with nothing yet, and since Madde 186 it
-  // runs the whole way to the prompts. The second row is for somebody who has them already.
-  expect(SKILLS.map((skill) => skill.id)).toEqual(["start-a-scenario", "edit-prompts"]);
+  // runs the whole way to the prompts. The second row is for somebody who has them already, and
+  // the third, since Madde 394, checks a scenario that is already there.
+  expect(SKILLS.map((skill) => skill.id)).toEqual([
+    "start-a-scenario",
+    "edit-prompts",
+    "improve",
+  ]);
 });
 
-test("the two rows tell each other apart", () => {
+test("Improve stands last and says what it does", () => {
+  // Madde 394. Its steps wait for no yes, so the line promises none -- the designer's placeholder
+  // asked for one after each step, and that is not what happens.
+  expect(SKILLS[SKILLS.length - 1]).toEqual({
+    id: "improve",
+    name: "Improve",
+    detail: "Check a scenario you already have, fix what fails, and write its negative list again.",
+  });
+});
+
+test("the rows tell each other apart", () => {
   // A picker whose rows describe the same job is a picker that says nothing. The editor's line is
   // the one that has to name its condition: prompts that already exist.
   const editor = SKILLS.find((skill) => skill.id === "edit-prompts");
