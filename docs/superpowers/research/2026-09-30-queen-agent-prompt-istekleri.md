@@ -1,9 +1,9 @@
 # QueenAgent — prompt istekleri, kullanıcının sözleriyle
 
-**Tarih:** 2026-09-30 · **Madde:** [v9](../roadmaps/2026-09-25-queen-agent-v9-roadmap.md)'un 391'i
+**Tarih:** 2026-09-30 · **Maddeler:** [v9](../roadmaps/2026-09-25-queen-agent-v9-roadmap.md)'un 391 – 394'ü
 
 v9'un prompt maddeleri — 367 – 374, 385, 388 ve 390 — 30 Eylül'de geri alındı (`c75dd524`), ve modele
-giden metinler v9'dan önceki hâline döndü. Prompt'lar 391'de kullanıcıyla birlikte, cümle cümle
+giden metinler v9'dan önceki hâline döndü. Prompt'lar 391 – 394'te kullanıcıyla birlikte
 yazılacak. Bu belge o iş için: kullanıcının prompt'lar için söyledikleri, madde madde, kendi sözleriyle.
 Nasıl yazılacağı birlikte konuşulacak.
 
