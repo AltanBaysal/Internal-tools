@@ -20,6 +20,9 @@ class FakeClient:
 PHOTO = ("P0_0.png", b"PNGDATA")
 THRONE = "Kraliçe tahtında oturuyor; salon boş ve karanlık."
 
+# Madde 402: a linked video's writer sees the photo the video ends on too.
+NEXT = ("P1_0.png", b"NEXTDATA")
+
 
 class FakeVisionClient:
     """DeepSeek, without one: records each ask as (instruction, words, pictures)."""
@@ -188,15 +191,49 @@ def test_a_plain_video_is_asked_for_nothing_extra():
     assert client.calls[0][0] == instruction
 
 
-def test_a_linked_video_gets_the_h3_text_alone_for_now():
-    """Madde 402 adds what a linked video is asked for, with the next frame's photo; until then it
-    is asked what a plain one is."""
+def _linked_rule():
+    from backend.features.photo_generation.data import xai_prompt_writer
+    return xai_prompt_writer.LINKED_RULE
+
+
+def test_a_linked_video_shows_queen_ai_both_pictures_in_order():
+    """Madde 402: the video ends on the next frame's photo, so the model is shown where it has to
+    arrive -- this frame's photo first, as Picture 1, then the next one's, as Picture 2."""
     instruction, writer = _h3()
     client = FakeVisionClient()
 
-    writer(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO, scene="")
+    writer(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO, end=NEXT,
+                         scene=THRONE)
 
-    assert client.calls[0][0] == instruction
+    assert client.calls == [(instruction + _linked_rule(), f"Scenario: {THRONE}", [PHOTO, NEXT])]
+
+
+def test_the_linked_text_calls_the_next_photo_picture_2_and_ends_on_it():
+    rule = _linked_rule()
+
+    assert "call the second photo Picture 2" in rule
+    assert "Picture 2 is the last frame of the video." in rule
+
+
+def test_the_linked_text_asks_for_the_changes_in_detail():
+    """The user's words (v8-3, 29 Eylül): today a linked video joins "uc uca eklem gibi", and a
+    transition written in detail is what the video model follows."""
+    rule = _linked_rule()
+
+    assert "Write the changes in detail, so the video flows into Picture 2 and never jumps." in rule
+    assert "Never describe the two photos again." in rule
+
+
+def test_a_loop_video_shows_its_picture_once():
+    """A loop ends on its own photo -- the one already shown -- so it is not sent a second time, and
+    nothing of the linked text reaches it."""
+    instruction, writer = _h3()
+    client = FakeVisionClient()
+
+    writer(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO, end=PHOTO,
+                         scene="")
+
+    assert client.calls == [(instruction + _loop_rule(), "", [PHOTO])]
 
 
 def test_wan_asks_for_the_same_returning_motion():
@@ -256,11 +293,23 @@ def test_wan_is_asked_as_before_whatever_else_it_is_handed():
     assert client.calls == [(VIDEO_INSTRUCTION, "kırmızı elbiseli kadın")]
 
 
+def test_wan_never_hears_of_picture_2():
+    """The linked text names Picture 2, and WAN's writer is shown no picture at all: the text is
+    H3's alone. 404 moves WAN."""
+    client = FakeClient()
+
+    VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO,
+                                    end=NEXT, scene=THRONE)
+
+    assert client.calls == [(VIDEO_INSTRUCTION, "kırmızı elbiseli kadın")]
+
+
 def test_the_sound_is_asked_as_before_whatever_else_it_is_handed():
     client = FakeClient(answer="fabric rustling")
 
     AudioPromptWriter(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
-                                    "standard", source=("P0_0_V1_0.mp4", b"MP4"), scene=THRONE)
+                                    "standard", source=("P0_0_V1_0.mp4", b"MP4"), end=NEXT,
+                                    scene=THRONE)
 
     assert client.calls == [
         (AUDIO_INSTRUCTION, "Scene: kırmızı elbiseli kadın\nMotion: kadın dönüyor")]

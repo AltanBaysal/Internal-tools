@@ -1308,17 +1308,20 @@ class FakeWriter:
         self.blows_up = blows_up
         self.calls = []
         self.modes = []
-        # What the writer is shown besides the words (madde 400): the file the layer is made from,
-        # and the frame's scenario. Apart for the reason the modes are.
+        # What the writer is shown besides the words: the file the layer is made from and the
+        # frame's scenario (madde 400), and the picture a video arrives at (402). Apart for the
+        # reason the modes are.
         self.sources = []
+        self.ends = []
         self.scenes = []
 
-    def write(self, prompts, mode="standard", source=None, scene=""):
+    def write(self, prompts, mode="standard", source=None, end=None, scene=""):
         self.calls.append(prompts)
         # Kept apart from the words: which mode a job is in is a different question, and one list
         # holding both could not answer either (madde 307).
         self.modes.append(mode)
         self.sources.append(source)
+        self.ends.append(end)
         self.scenes.append(scene)
         if self.blows_up:
             raise self.blows_up
@@ -1814,6 +1817,50 @@ def test_a_linked_video_whose_target_lost_its_photo_turns_that_frame_red():
     assert generator.ends == []          # nothing was ever rendered for this job
     video = record.slots("düğün")["0_a"]["video"]
     assert video["status"] == queue.FAILED
+
+
+def write_one_video(mode, linked_to=None, numbers=(0, 1)):
+    """render_one_video with a writer to ask: the job carries no prompt and the photos have words,
+    so the writer is asked. Returns (writer, generator, record)."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(number) for number in numbers])
+    for number in numbers:
+        fid = f"{number}_a"
+        record.append("düğün", {"file": f"{fid}.png", "frame": fid, "layer": "photo",
+                                "status": "done", "prompt": "kırmızı elbiseli kadın"})
+        store.files[f"{fid}.png"] = f"{fid} bytes".encode()
+    job = {"id": "0_a", "type": "video", "number": 0, "variant": 0, "prompt": "", "negative": "",
+           "seed": None, "model": "", "mode": mode}
+    if linked_to is not None:
+        job["linkedTo"] = linked_to
+    plan_store.append("düğün", [job])
+    writer, generator = FakeWriter(), FakeGenerator()
+    make_job(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+             lambda: "t", "düğün", writers={layers.VIDEO: writer})()
+    return writer, generator, record
+
+
+@pytest.mark.parametrize("mode, linked_to, arrives_at", [
+    (production_mode.STANDARD, None, None),
+    (production_mode.LOOP, None, ("0_a.png", b"0_a bytes")),
+    (production_mode.LINKED, "1_a", ("1_a.png", b"1_a bytes")),
+])
+def test_the_writer_is_handed_the_picture_the_video_arrives_at(mode, linked_to, arrives_at):
+    """Madde 402: a linked video's prompt is written seeing the next frame's photo -- the very one
+    the producer ends on, read once for both."""
+    writer, generator, _record = write_one_video(mode, linked_to)
+
+    assert writer.ends == [arrives_at]
+    assert generator.ends == [arrives_at]
+
+
+def test_a_linked_video_with_nowhere_to_end_asks_the_writer_nothing():
+    """The frame it was told to end on lost its photo, so the video cannot be made and no prompt is
+    bought for it. The tile turns red as it always has."""
+    writer, _generator, record = write_one_video(production_mode.LINKED, "1_a", numbers=(0,))
+
+    assert writer.calls == []
+    assert record.slots("düğün")["0_a"]["video"]["status"] == queue.FAILED
 
 
 def video_row(record):
