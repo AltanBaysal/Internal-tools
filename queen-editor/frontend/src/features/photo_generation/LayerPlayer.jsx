@@ -80,7 +80,7 @@ function useWaveform(audioUrl) {
 //
 // A new frame or tab builds a new player (madde 232), so nothing that was playing carries over.
 // onReady and onFail say when the video has arrived or will not.
-export default function LayerPlayer({ videoUrl, audioUrl, onReady, onFail }) {
+export default function LayerPlayer({ videoUrl, audioUrl, onReady, onFail, children }) {
   const video = useRef(null);
   const audio = useRef(null);
   const [playing, setPlaying] = useState(false);
@@ -163,6 +163,9 @@ export default function LayerPlayer({ videoUrl, audioUrl, onReady, onFail }) {
           )}
           <Mono size={11} style={CLOCK}>{clock(length)}</Mono>
         </div>
+        {/* Whatever the page lays over the picture -- the scenario card (madde 401). Inside the
+            scene so it measures itself from the player's own edges. */}
+        {children}
       </div>
     </div>
   );

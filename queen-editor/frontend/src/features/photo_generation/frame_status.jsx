@@ -129,13 +129,16 @@ export function Making({ layer }) {
  * img's style says display block. Block is right for an img and wrong for this box -- it stops the
  * ring being a flex item, the ring falls back to inline, and width and height do not apply to an
  * inline span. The ring landed in the top left corner as a deformed arc.
+ *
+ * What it is handed lies over the holder: the frame page's scenario card (madde 401).
  */
-export function Rendering({ style }) {
+export function Rendering({ style, children }) {
   return (
     <div className="wf-img"
          style={{ ...style, backgroundImage: "none",
                   display: "flex", alignItems: "center", justifyContent: "center" }}>
       <span className="wf-spinner" />
+      {children}
     </div>
   );
 }

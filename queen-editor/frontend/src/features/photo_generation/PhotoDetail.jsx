@@ -7,7 +7,7 @@ import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
 import { Corner, Making, Pill, Rendering, StatusPill } from "./frame_status.jsx";
-import { CopyGlyph, PlayGlyph, SoundGlyph } from "./glyphs.jsx";
+import { CopyGlyph, PlayGlyph, ScenarioGlyph, SoundGlyph } from "./glyphs.jsx";
 import Arriving from "./Arriving.jsx";
 import { lostLayers } from "./layer_words.js";
 import LayerPlayer from "./LayerPlayer.jsx";
@@ -76,9 +76,9 @@ function Arrow({ glyph, side, onClick }) {
   );
 }
 
-// Madde 73's strip: three tabs over the stage, 8px apart so each reads as its own (Fark 85). A
-// layer the frame does not have stays disabled rather than hidden -- the user sees what a frame
-// could still become.
+// Madde 73's strip: three tabs over the stage, 8px apart so each reads as its own (Fark 85), and
+// after them, set apart, the scenario's switch (madde 401). A layer the frame does not have stays
+// disabled rather than hidden -- the user sees what a frame could still become.
 const TABS = [
   { id: "photo", label: "Foto" },
   { id: "video", label: "Video", Glyph: PlayGlyph },
@@ -92,6 +92,26 @@ const LAYER_LABEL = Object.fromEntries(TABS.map((row) => [row.id, row.label]));
 
 const STRIP = { position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
                 display: "flex", gap: 8, zIndex: 2 };
+
+// The frame's scenario over its picture (madde 401), in the design's bottom place (the owner's
+// pick): along the bottom edge of the picture's own box, so one rule fits a square photo, a tall
+// one, a wide one and the 16:9 player alike. On the player it stands above the clock and its line,
+// or the waveform, instead of covering them. The dark of the page's other boxes over a picture, and
+// deaf to clicks: the player takes a click on the picture to play and pause.
+const SCENARIO = { position: "absolute", left: 12, right: 12, zIndex: 3, boxSizing: "border-box",
+                   background: "rgba(10,8,7,.72)", borderRadius: 4, padding: "8px 12px",
+                   fontSize: 12.5, lineHeight: 1.5, textAlign: "center",
+                   textShadow: "0 1px 3px rgba(0,0,0,.6)", pointerEvents: "none" };
+
+function ScenarioCard({ scene, lifted }) {
+  return (
+    <div data-scenario style={{ ...SCENARIO, bottom: lifted ? 40 : 12,
+                                // An absence is a notice, not a sentence of the frame's own.
+                                color: scene ? "#fff" : "rgba(255,255,255,.55)" }}>
+      {scene || "Bu karenin senaryosu yok"}
+    </div>
+  );
+}
 
 /** Is this key being typed into something that writes text?
  *
@@ -124,7 +144,7 @@ const DANGER = { color: "var(--danger)", borderColor: "var(--danger)", backgroun
 // disabled button drops back to the ordinary outline (Fark 111).
 const bin = (off) => (off ? { justifyContent: "center" } : DANGER);
 
-function LayerTabs({ open, has, onOpen }) {
+function LayerTabs({ open, has, onOpen, sceneShown, onScene }) {
   return (
     <div data-strip style={STRIP}>
       {TABS.map(({ id, label, Glyph }) => (
@@ -140,6 +160,18 @@ function LayerTabs({ open, has, onOpen }) {
           <Mono size={10}>{label}</Mono>
         </button>
       ))}
+      {/* A switch rather than a fourth tab: it lays something over the picture instead of opening
+          a layer, so it wears no stroke box and no ground, behind a thin line of its own. */}
+      <span style={{ width: 1, alignSelf: "stretch", background: "var(--border)",
+                     margin: "0 2px" }} />
+      <button type="button" aria-pressed={sceneShown} onClick={onScene}
+              style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px",
+                       background: "none", border: "none", cursor: "pointer",
+                       transition: "color .12s",
+                       color: sceneShown ? "var(--accent)" : "var(--ink-3)" }}>
+        <ScenarioGlyph size={10} />
+        <Mono size={10}>Senaryo</Mono>
+      </button>
     </div>
   );
 }
@@ -310,6 +342,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Whether the frame's facts are unfolded. The user's press rather than the frame's: the arrows
   // and the tabs leave it as it was, so walking a run of frames with them open costs one press.
   const [unfolded, setUnfolded] = useState(false);
+  // Whether the frame's scenario lies over the picture (madde 401). The user's press rather than the
+  // frame's, like the details fold: checking a run of frames against their scenarios costs one press.
+  const [sceneShown, setSceneShown] = useState(false);
   // Only a removal of ours puts the card on screen: the hook's error is also where a failed poll
   // lands, and that one has nothing to do with this frame.
   const [refused, setRefused] = useState(false);
@@ -421,11 +456,15 @@ export default function PhotoDetail({ project, frame: fid }) {
   // What the stage's media belongs to. A new frame or tab builds new media under it, so nothing of
   // the one before can stay on screen while the next file is on its way (madde 232).
   const stageKey = `${fid}/${open}`;
+  // The card for whichever box holds the picture; `lifted` on the player, over its clock.
+  const scenarioCard = (lifted) => sceneShown
+    && <ScenarioCard scene={frame.scene} lifted={lifted} />;
 
   // The arrows swap the frame under a page that stays mounted, so anything said about the old one
   // has to go with it -- a refusal card from the previous frame would read as this one's.
   //
-  // The open tab stays, and so does the details fold (madde 399), which was never the frame's.
+  // The open tab stays, and so do the details fold (madde 399) and the scenario card (madde 401),
+  // neither of which was ever the frame's.
   // Stepping through a run of videos used to cost a press per frame, and dropping a tab the frame
   // that arrived does have buys nothing (madde 38). It only falls back when there is nowhere to fall
   // back from: a tab on a layer the frame never had would be a tab on nothing. Not by layer name --
@@ -537,7 +576,8 @@ export default function PhotoDetail({ project, frame: fid }) {
       ) : (
         <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
           <div data-stage style={STAGE}>
-            <LayerTabs open={open} has={has} onOpen={setOpen} />
+            <LayerTabs open={open} has={has} onOpen={setOpen} sceneShown={sceneShown}
+                       onScene={() => setSceneShown((was) => !was)} />
             {/* The corner label the gallery uses, with this page's own sentence. */}
             {sent.length > 0 ? (
               <Corner>
@@ -572,7 +612,9 @@ export default function PhotoDetail({ project, frame: fid }) {
                                audioUrl={open === "audio"
                                  ? fileUrl(project, frame.layers.audio)
                                  : null}
-                               onReady={onReady} onFail={onFail} />
+                               onReady={onReady} onFail={onFail}>
+                    {scenarioCard(true)}
+                  </LayerPlayer>
                 )}
               </Arriving>
             ) : openState === "running" ? (
@@ -585,12 +627,13 @@ export default function PhotoDetail({ project, frame: fid }) {
                       <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE}
                            onLoad={onReady} onError={onFail} />
                       <Making layer={open} />
+                      {scenarioCard(false)}
                     </div>
                   )}
                 </Arriving>
               ) : (
                 /* A photo being made has no picture to keep: this is the holder's own case. */
-                <Rendering style={HOLDER} />
+                <Rendering style={HOLDER}>{scenarioCard(false)}</Rendering>
               )
             ) : openState === "failed" ? (
               /* Madde 79: red border, red ground, and the renderer's own sentence under the two
@@ -607,6 +650,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                     {frame.errors[open]}
                   </Mono>
                 )}
+                {scenarioCard(false)}
               </div>
             ) : produced ? (
               /* The picture the frame holds -- its own, or its source's when this is a copy waiting
@@ -616,6 +660,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                   <div style={FRAMED}>
                     <img src={fileUrl(project, frame.file)} alt={frame.file} style={PICTURE}
                          onLoad={onReady} onError={onFail} />
+                    {scenarioCard(false)}
                   </div>
                 )}
               </Arriving>
@@ -627,6 +672,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                    style={{ ...HOLDER, borderStyle: "dashed", opacity: 0.45 }}>
                 <Mono size={14} style={{ color: "var(--ink-3)" }}>bekliyor</Mono>
                 <Note size={10} style={{ color: "var(--ink-4)" }}>henüz üretilmedi</Note>
+                {scenarioCard(false)}
               </div>
             )}
           </div>

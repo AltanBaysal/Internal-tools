@@ -99,3 +99,13 @@ export const CopyGlyph = ({ size }) => (
           strokeLinecap="round" strokeLinejoin="round" />
   </Glyph>
 );
+
+// A page with lines of text: the scenario is a written sentence, not a picture.
+export const ScenarioGlyph = ({ size }) => (
+  <Glyph name="scenario" size={size}>
+    <rect x="2.5" y="1.8" width="9" height="10.4" rx="1.3" stroke="currentColor"
+          strokeWidth="1.4" />
+    <path d="M4.7 5.2h4.6M4.7 7.4h4.6M4.7 9.6h2.6" stroke="currentColor" strokeWidth="1.3"
+          strokeLinecap="round" />
+  </Glyph>
+);
