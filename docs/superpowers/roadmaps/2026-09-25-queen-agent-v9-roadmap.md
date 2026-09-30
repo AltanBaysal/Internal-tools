@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 44/48
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 45/48
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -187,7 +187,7 @@ v9-2v v9-2s ile v9-2w'nin üstüne kurulur: arama, sohbet listesinin üstüne ve
 | 371 · v9-8c | ✅ **Kontrol: yalnız görünen parçalar.** Kamera açısından hangi karakterin hangi parçaları görünüyorsa prompt'a yalnız onlar girer; gerekirse görünürlük girdisi eklenir *(`man body no face`, kıyafetin `from behind` hâli gibi)*. *Kararları: v9-8.* | Improve'da ve Start a scenario'nun sonunda, açıdan görünmeyen özellikler prompt'tan çıkıyor. |
 | 372 · v9-8d | ✅ **Kontrol: zayıf model bunu çizebilir mi.** Son hâldeki prompt'a bakar, ve çizilemeyecek olanı sadeleştirir. *Kararları: v9-8.* | Improve'da ve Start a scenario'nun sonunda, zayıf modelin çizemeyeceği prompt sadeleşiyor. |
 | 373 · v9-8e | ✅ **Negatif prompt.** Senaryo başına tek liste, kadroya göre, kontrollerin en sonunda; prompt listesinin yanında ayrı bir dosyaya yazılır. Kullanıcının bulduğu dersler uygulanır. *Kararları: v9-8 ve v9-7.* | Start a scenario ve Improve bitince senaryonun negatif listesi kendi dosyasında duruyor. |
-| 374 · v9-8f | `ALIGNED` **Edit prompts kontrollerle biter.** Bitince yalnız değiştirdiği karelerin kontrollerini yapar, ve kadro değiştiyse negatif liste yeniden yazılır. *Kararları: v9-8.* | Edit prompts bir kareyi değiştirince iş yalnız o karelerin kontrolüyle bitiyor, ve kadro değiştiyse negatif liste yeniden yazılıyor. |
+| 374 · v9-8f | ✅ **Edit prompts kontrollerle biter.** Bitince yalnız değiştirdiği karelerin kontrollerini yapar, ve kadro değiştiyse negatif liste yeniden yazılır. *Kararları: v9-8.* | Edit prompts bir kareyi değiştirince iş yalnız o karelerin kontrolüyle bitiyor, ve kadro değiştiyse negatif liste yeniden yazılıyor. |
 
 ### En sonda
 
