@@ -9,7 +9,7 @@ forwards them untouched.
 """
 from backend.features.photo_generation.domain import catalog, layers
 from backend.features.photo_generation.domain.photo_name import frame_id
-from backend.features.photo_generation.domain.prompt_list import parse_prompts
+from backend.features.photo_generation.domain.prompt_list import parse_photo_list
 from backend.features.photo_generation.domain.usecases.run_queue import Busy, run_queue  # noqa: F401
 
 # Where the ceiling comes from: it was the alphabet's length while variants were letters, and it
@@ -30,7 +30,7 @@ class InvalidLora(Exception):
     """A lora the app does not list (message is user-facing)."""
 
 
-def plan_frames(start, prompts, negative, variants, new_seed, model="", lora=""):
+def plan_frames(start, entries, negative, variants, new_seed, model="", lora=""):
     """[{"id", "type", "number", "variant", "prompt", …}] photo jobs in prompt-major order.
 
     Prompt-major means P0_0 P0_1 … P1_0. Number = prompt, variant = which of its variants -- the
@@ -47,12 +47,16 @@ def plan_frames(start, prompts, negative, variants, new_seed, model="", lora="")
 
     Seeds are drawn here, when the frames are planned, rather than when a frame renders: the plan is
     what a resumed run reads back, so a frame has to produce the image it was planned to produce.
+
+    An entry is what the list said about one prompt (prompt_list.parse_photo_list): its words, and
+    the scene when QueenAgent wrote one. The scene goes on every variant's line; a flat list's entry
+    has none, and its line is the one it always was.
     """
     return [{"id": frame_id(start + index, variant), "type": layers.PHOTO,
              "number": start + index, "variant": variant,
-             "prompt": prompt, "negative": negative, "seed": new_seed(), "model": model,
+             **entry, "negative": negative, "seed": new_seed(), "model": model,
              "lora": lora}
-            for index, prompt in enumerate(prompts)
+            for index, entry in enumerate(entries)
             for variant in range(variants)]
 
 
@@ -78,7 +82,7 @@ def next_number(store, plan_store, record, project):
 def start_batch(runner, store, record, plan_store, producers, new_seed, now,
                 project, text, negative, variants, model="", log=None, order_store=None,
                 writers=None, lora="", stills=None, references=None):
-    prompts = parse_prompts(text)          # raises InvalidPrompts
+    entries = parse_photo_list(text)       # raises InvalidPrompts
     # bool is an int in Python, and True would silently mean "1 variant".
     if isinstance(variants, bool) or not isinstance(variants, int) \
             or not 1 <= variants <= MAX_VARIANTS:
@@ -94,7 +98,7 @@ def start_batch(runner, store, record, plan_store, producers, new_seed, now,
 
     # Neither the model nor the lora is checked against what is installed: whether they can be
     # loaded is the renderer's answer to give, at render time, in its own words (Madde 8's rule).
-    frames = plan_frames(next_number(store, plan_store, record, project), prompts, negative,
+    frames = plan_frames(next_number(store, plan_store, record, project), entries, negative,
                          variants, new_seed, model, lora)
     # Appended before the worker is asked to run: a run that dies leaves behind what it meant to
     # make, and a loop already in flight finds the frames on its next turn.

@@ -105,6 +105,9 @@ def regenerate(runner, store, record, plan_store, order_store, producers, new_se
         # Slime, with nothing on the page saying it changed (madde 237).
         "lora": source.get("lora", "") if kind == layers.PHOTO else "",
         **mark,
+        # The scene stays with the picture (madde 397). New words start a new prompt's family, and
+        # the gallery finds a scene by the family's number -- so the line that opens it says it.
+        **({"scene": source["scene"]} if source["scene"] else {}),
     }])
     order_store.write(project, placed([frame["id"] for frame in gallery], {source["id"]: [born]}))
     run_queue(runner, store, record, plan_store, producers, now, project, log,

@@ -17,7 +17,7 @@ speak for it is not drawn: boş kutu yaşamaz.
 """
 from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.gallery_order import apply_order
-from backend.features.photo_generation.domain.photo_name import photo_file
+from backend.features.photo_generation.domain.photo_name import number_of, photo_file
 from backend.features.photo_generation.domain.usecases.start_batch import ProjectMissing
 
 # What the gallery draws. A removed or deleted frame is gone from it entirely.
@@ -102,6 +102,11 @@ def list_frames(record, store, plan_store, order_store, project):
     planned = plan_store.read(project)["frames"]
     owed = _owed_layers(planned, slots)
     said = record.prompts(project)
+    # What each prompt's frames were written from (madde 397), found by the prompt's number. Every
+    # card holding the prompt's picture carries that number -- a video's variant, a twin, a card
+    # whose photo was deleted (photo_name._parts) -- so one scene answers for the family without
+    # being copied onto each of them. Every scene comes from QueenAgent's list.
+    scenes = {frame["number"]: frame["scene"] for frame in planned if frame.get("scene")}
 
     # The job that opened each card, read in the plan's own order. Nothing is written down for this:
     # the plan's sequence already says which job came first, and a field repeating it would be a
@@ -128,6 +133,8 @@ def list_frames(record, store, plan_store, order_store, project):
                 "errors": _reasons(cells), "modes": _per_layer(cells, "mode"),
                 "endsOn": _per_layer(cells, "endsOn"),
                 "prompts": _words(said.get(fid, {}), base.get("prompt"), kind),
+                # Read-only: no request can change it. Empty is a card with none.
+                "scene": scenes.get(number_of(fid), ""),
                 "status": status}
 
     frames = []
