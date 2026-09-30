@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 48/55
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 52/56
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -82,7 +82,8 @@ subagent'ın. **376 30 Eylül'de koşulmadan [backlog](../../../queen-agent/BACK
 v9-10'da duruyor. **382 ve 383 30 Eylül'de çıktı**, Claude'un koşu sırasında sorduğu iki sorudan; Dalga
 7'de birer subagent'ın. **384 – 389 da 30 Eylül'de çıktı**, Claude'un Dalga 7'den sonra saydığı küçük
 açıklardan: 385 – 389 Dalga 8'de ve ardındaki prompt'larda koşar; 384 hizalanmayı bekler *(kullanıcı —
-"bunu düzeltmek için roadmap ekle ve bekle")*.
+"bunu düzeltmek için roadmap ekle ve bekle")*. **390 aynı gün kullanıcıdan geldi:** v9'un prompt'ları
+öncekilerle aynı biçime getirilir, kullanıcı okur, ve 388 ondan sonra koşar.
 
 **Queen Editor'ün v8-3'ü önce biter:** v9-7a'nın çıkardığı listeyi bugünkü kutu okuyamaz, o yüzden v9
 main'e v8'den önce alınmaz.
@@ -213,11 +214,12 @@ yüzden onlarla aynı anda koşar; 388 aynı metne yazdığı için 385'in arkas
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 385 | `ALIGNED` **Edit prompts da konuşmayı sahne cümlesine yazar.** 369'un kuralı yalnız Start a scenario'da: bir karede konuşma istenince söz o karenin sahne cümlesine tırnak içinde yazılır, fotoğraf prompt'una girmez, ve cümle listeyle queen-editor'e gider. Edit prompts'ta bu kural yok, ve düzenlerken istenen konuşma ya fotoğraf prompt'una girer ya da hiç yazılmaz *(374 birleşirken bulundu, 30 Eylül; kullanıcı — "olur eklensin")*. | Edit prompts'ta bir karede konuşma istenince söz o karenin sahne cümlesine tırnak içinde yazılıyor, fotoğraf prompt'una girmiyor. |
-| 386 | `ALIGNED` **Kenar çubuğu okuyamadığı sohbet listesine "yok" demez.** Sohbet listesi okunamayınca bugün `No chats yet.` yazıyor, oysa sohbetler var. Proje listesindeki gibi okunamadığını söyler ve yeniden denetir *(Dalga 5'te bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | Sohbet listesi okunamayınca kenar çubuğunda `No chats yet.` değil, okunamadığını söyleyen satır ve yeniden deneme var. |
-| 387 | `ALIGNED` **Reddedilen yeniden adlandırma yazılan adı kaybetmez.** Sunucu yeni adı reddedince bugün yazılan ad siliniyor; yeni projede aynı durumda ad kalıyor, ikisi aynı davranır *(Dalga 5'te bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | Sunucu yeni adı reddedince satırda yazılan ad duruyor ve hata görünüyor. |
-| 389 | `ALIGNED` **Sohbet aramasında Esc yalnız aramayı boşaltır.** Bugün `Search chats` kutusunda Esc'e basınca, açık bir dosya varsa o da kapanıyor *(365 tarayıcıda denenirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | `Search chats`'te Esc aramayı boşaltıyor, açık dosya açık kalıyor. |
-| 388 | `ALIGNED` **Edit prompts olmayan negatif dosyayı söylemez.** Kapanış her zaman `-negative.txt`'yi adıyla anıyor; 373'ten önce yazılmış senaryolarda o dosya yok, ve model kullanıcıya olmayan bir dosyayı söyleyebiliyor *(374 birleşirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. **385'ten sonra.** | Edit prompts'un kapanışı negatif dosyayı yalnız o dosya varken anıyor. |
+| 385 | ✅ **Edit prompts da konuşmayı sahne cümlesine yazar.** 369'un kuralı yalnız Start a scenario'da: bir karede konuşma istenince söz o karenin sahne cümlesine tırnak içinde yazılır, fotoğraf prompt'una girmez, ve cümle listeyle queen-editor'e gider. Edit prompts'ta bu kural yok, ve düzenlerken istenen konuşma ya fotoğraf prompt'una girer ya da hiç yazılmaz *(374 birleşirken bulundu, 30 Eylül; kullanıcı — "olur eklensin")*. | Edit prompts'ta bir karede konuşma istenince söz o karenin sahne cümlesine tırnak içinde yazılıyor, fotoğraf prompt'una girmiyor. |
+| 386 | ✅ **Kenar çubuğu okuyamadığı sohbet listesine "yok" demez.** Sohbet listesi okunamayınca bugün `No chats yet.` yazıyor, oysa sohbetler var. Proje listesindeki gibi okunamadığını söyler ve yeniden denetir *(Dalga 5'te bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | Sohbet listesi okunamayınca kenar çubuğunda `No chats yet.` değil, okunamadığını söyleyen satır ve yeniden deneme var. |
+| 387 | ✅ **Reddedilen yeniden adlandırma yazılan adı kaybetmez.** Sunucu yeni adı reddedince bugün yazılan ad siliniyor; yeni projede aynı durumda ad kalıyor, ikisi aynı davranır *(Dalga 5'te bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | Sunucu yeni adı reddedince satırda yazılan ad duruyor ve hata görünüyor. |
+| 389 | ✅ **Sohbet aramasında Esc yalnız aramayı boşaltır.** Bugün `Search chats` kutusunda Esc'e basınca, açık bir dosya varsa o da kapanıyor *(365 tarayıcıda denenirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | `Search chats`'te Esc aramayı boşaltıyor, açık dosya açık kalıyor. |
+| 390 | `ALIGNED` **v9'da yazılan prompt'lar öncekilerle aynı biçimde.** Modele giden metinlerin v9'da eklenen ya da değişen her parçası, v9'dan önce yazılmış metinlerin biçimine bakılarak kontrol edilir; uymayan yer düzeltilir. Sonra kullanıcı hepsini okur, ve prompt'a dokunan sıradaki madde ondan sonra koşar *(kullanıcı, 30 Eylül — "abi bensiz promptları güncellemişsiz ben onları inceleycektim senden şunu işstiyorum promtplar önceki promtplarla aynı formatta yazılmış mı bu kontrol et yazılmadıysa düzeltbir task sonra ben okuycam onları")*. **385'ten sonra.** | v9'da yazılan her prompt parçası öncekilerle aynı biçimde; kullanıcı metinleri okudu. |
+| 388 | `ALIGNED` **Edit prompts olmayan negatif dosyayı söylemez.** Kapanış her zaman `-negative.txt`'yi adıyla anıyor; 373'ten önce yazılmış senaryolarda o dosya yok, ve model kullanıcıya olmayan bir dosyayı söyleyebiliyor *(374 birleşirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. **390'dan ve kullanıcı okuduktan sonra.** | Edit prompts'un kapanışı negatif dosyayı yalnız o dosya varken anıyor. |
 
 ### Bekliyor — hizalanınca
 
