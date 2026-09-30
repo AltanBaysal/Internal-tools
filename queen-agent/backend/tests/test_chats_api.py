@@ -429,7 +429,7 @@ def test_a_running_turn_reaches_the_browser_as_progress(tmp_path):
     _pid, _cid, body = _first_turn(client)
     assert "event: progress" in body
     said = json.loads(body.split("event: progress\ndata: ", 1)[1].splitlines()[0])
-    assert said == {"round": 1, "of": 16, "tokens": 0}
+    assert said == {"round": 1, "of": 32, "tokens": 0}
     # Ahead of the work it is reporting on, or the first thing the screen hears is that a round it
     # never saw begin has ended.
     assert body.index("event: progress") < body.index("event: call")

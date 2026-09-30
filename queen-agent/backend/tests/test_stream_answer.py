@@ -738,7 +738,7 @@ def test_no_instruction_stands_among_the_messages(tmp_path):
 
 
 def test_the_instruction_moves_to_the_end_of_every_round(tmp_path):
-    # An answer runs up to sixteen rounds and each sends its own request. Left where it was, the
+    # An answer runs up to thirty-two rounds and each sends its own request. Left where it was, the
     # block would sit behind the tool exchanges from the second round on -- and the reason this
     # item exists would stop holding after the first one.
     chats, files = _seeded(tmp_path)
@@ -802,8 +802,8 @@ def test_the_last_round_says_it_is_the_last(tmp_path):
 def test_the_notice_is_the_requests_last_word(tmp_path):
     # Madde 93 put the instruction at the end because what is fixed leads and what changes trails.
     # The instruction is fixed for the whole turn; this sentence shows up in one round out of
-    # sixteen. The same reasoning that gave 93 the last word takes it back here -- so the order is
-    # extended rather than broken, and the test names both to say which one moved.
+    # thirty-two. The same reasoning that gave 93 the last word takes it back here -- so the order
+    # is extended rather than broken, and the test names both to say which one moved.
     from backend.features.workspace.domain.prompt import LAST_ROUND
 
     chats, files = _seeded(tmp_path)

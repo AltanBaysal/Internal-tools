@@ -1252,9 +1252,11 @@ def test_the_edit_tool_asks_for_a_read_only_when_the_turn_has_not_seen_the_file(
 
 
 def test_the_round_limit_carries_the_longest_chain():
-    # list, read, a skeleton, several batches of frames, a self-check and the build. Pinned,
-    # because a limit that quietly cuts the chain short looks like a model that gave up.
-    assert MAX_ROUNDS == 16
+    # Start a scenario runs from Step 5 on in one turn: the frames and the build, then four checks
+    # that each read the built file and build again, then the negative list. 32 is the owner's
+    # number (Madde 396). Pinned, because a limit that quietly cuts the chain short looks like a
+    # model that gave up.
+    assert MAX_ROUNDS == 32
 
 
 def test_editing_changes_the_one_match_and_leaves_the_rest(tmp_path):
