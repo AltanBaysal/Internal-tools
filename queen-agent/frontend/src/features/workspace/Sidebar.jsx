@@ -83,12 +83,16 @@ export default function Sidebar({
   const shown = chats.filter((chat) => matches(chat.title, query));
 
   // The keys are the design's: Enter opens the first match -- the server lists the most recent
-  // first -- and hands its reply box the focus; Escape empties the box. Escape is the field's own,
-  // as a message being edited has it.
+  // first -- and hands its reply box the focus; Escape empties the box. Emptying it is that press's
+  // whole work, so it goes no further: App's listener on the window would also shut the open file
+  // (Madde 389). An empty box has nothing to empty, and Escape goes on to what App closes next.
   const onKeyDown = (event) => {
     if (event.key === "Enter") {
       if (shown.length) onOpenChat(shown[0].id, { focusReply: true });
-    } else if (event.key === "Escape") setQuery("");
+    } else if (event.key === "Escape" && query) {
+      event.stopPropagation();
+      setQuery("");
+    }
   };
 
   return (
