@@ -74,6 +74,10 @@ function Grip({ width, onResize, onDrag }) {
       aria-orientation="vertical"
       aria-label="Resize the file list"
       onMouseDown={(event) => {
+        // The browser's own answer to a press-and-drag is to select every text the pointer crosses,
+        // and a selection only ever starts on the press -- refused here, none starts for the whole
+        // drag, wherever the pointer goes or is let go (Madde 381).
+        event.preventDefault();
         // Nothing dragged yet means the stylesheet's width is the one on screen, so that is where
         // this drag starts from.
         drag.current = { x: event.clientX, width: width ?? DEFAULT_RAIL_WIDTH };
