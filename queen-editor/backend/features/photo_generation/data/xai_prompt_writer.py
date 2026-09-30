@@ -39,11 +39,10 @@ surrounding quotes, no numbering, no explanations, no markdown code fences, no e
 # Written for MiniMax H3 (madde 243), whose prompt is sectioned and whose sound comes out of the same
 # pass as the picture -- so the soundscape is this writer's too. The sections are the graph's own
 # examples' (collab-toolbox's minimax-h3/workflow.json). Queen AI reads it with the frame's photo in
-# front of it and the frame's scenario beside it (madde 400); Claude wrote the words on 2026-10-01
-# and the user reads them afterwards (v8 roadmap). The line saying which picture sits where is not
-# asked for: the producer writes it, because it is the graph's fact rather than the scene's. dynv2,
-# the word that wakes the Motion Booster lora, is not asked for either: the user adds it by hand to
-# the prompts that want it (madde 331), and the producer moves it in front (246).
+# front of it and the frame's scenario beside it (madde 400). The line saying which picture sits
+# where is not asked for: the producer writes it, because it is the graph's fact rather than the
+# scene's. dynv2, the word that wakes the Motion Booster lora, is not asked for either: the user adds
+# it by hand to the prompts that want it (madde 331), and the producer moves it in front (246).
 H3_VIDEO_INSTRUCTION = """
 You are an expert prompt writer for the MiniMax H3 video model.
 
