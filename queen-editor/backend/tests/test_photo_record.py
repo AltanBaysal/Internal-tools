@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from backend.features.photo_generation.data.photo_record import DrivePhotoRecord
 from backend.services.drive.storage import DriveStorage
 
@@ -303,3 +305,58 @@ def test_a_video_line_is_not_a_photo(tmp_path):
                             "status": "done"})
 
     assert [row["file"] for row in record.list("düğün")] == ["0_a.png"]
+
+
+# Madde 403: a prompt written for a layer still owed is kept on the card until the layer is made.
+def test_a_written_prompt_waits_for_the_layer_still_owed(tmp_path):
+    record = record_at(tmp_path)
+
+    record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "kadın dönüyor", "t")
+
+    assert record.written_prompts("düğün") == {"0_a": {"video": "kadın dönüyor"}}
+
+
+def test_the_frame_says_the_written_prompt_for_that_layer(tmp_path):
+    """What the detail page shows and what the sound's writer reads: the frame's words, layer by
+    layer -- a layer still owed says the words it will be made with."""
+    record = record_at(tmp_path)
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo",
+                            "status": "done", "prompt": "kırmızı elbise"})
+
+    record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "kadın dönüyor", "t")
+
+    assert record.prompts("düğün") == {"0_a": {"photo": "kırmızı elbise",
+                                                "video": "kadın dönüyor"}}
+
+
+def test_a_written_prompt_is_not_a_status_of_the_layer(tmp_path):
+    """The layer is exactly as owed as it was. A job never written about stays one and a job put
+    back in line stays put back -- the queue orders those two apart."""
+    record = record_at(tmp_path)
+    record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "kadın dönüyor", "t")
+    record.mark("düğün", "1_a", "video", "1_a_V1_0.mp4", "queued", "t")
+    record.prompt_written("düğün", "1_a", "video", "1_a_V1_0.mp4", "kadın eğiliyor", "t")
+
+    assert record.slots("düğün") == {
+        "1_a": {"video": {"status": "queued", "file": "1_a_V1_0.mp4"}}}
+
+
+@pytest.mark.parametrize("status", ["done", "failed", "removed", "queued", "deleted"])
+def test_the_next_line_about_the_layer_ends_its_written_prompt(tmp_path, status):
+    """Landed, blew up, pulled out, put back in line, deleted: whatever happens next, the prompt
+    was for the layer as it was queued. A layer queued again is written for again."""
+    record = record_at(tmp_path)
+    record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "kadın dönüyor", "t")
+
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", status, "t2")
+
+    assert record.written_prompts("düğün") == {}
+
+
+def test_a_written_prompt_is_about_its_own_layer_alone(tmp_path):
+    record = record_at(tmp_path)
+    record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "kadın dönüyor", "t")
+
+    record.mark("düğün", "0_a", "photo", "0_a.png", "deleted", "t2")
+
+    assert record.written_prompts("düğün") == {"0_a": {"video": "kadın dönüyor"}}

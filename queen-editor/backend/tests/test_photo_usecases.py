@@ -180,6 +180,10 @@ class FakeRecord:
             entry["error"] = error
         self.rows.append(entry)
 
+    def prompt_written(self, project, frame, layer, file, prompt, at):
+        self.rows.append({"frame": frame, "layer": layer, "file": file, "status": "written",
+                          "prompt": prompt, "at": at})
+
     def _frame_of(self, row):
         return row.get("frame") or frame_id_of(row["file"])
 
@@ -189,6 +193,9 @@ class FakeRecord:
     def slots(self, project):
         folded = {}
         for row in self.rows:
+            # A written prompt is not something that became of the layer (madde 403).
+            if row.get("status") == "written":
+                continue
             cell = {"status": row.get("status", "done"), "file": row["file"]}
             if isinstance(row.get("error"), str):
                 cell["error"] = row["error"]
@@ -206,6 +213,19 @@ class FakeRecord:
             if isinstance(prompt, str):
                 folded.setdefault(self._frame_of(row), {})[self._layer_of(row)] = prompt
         return folded
+
+    def written_prompts(self, project):
+        folded = {}
+        for row in self.rows:
+            slot = (self._frame_of(row), self._layer_of(row))
+            if row.get("status") == "written":
+                folded[slot] = row["prompt"]
+            else:
+                folded.pop(slot, None)
+        answer = {}
+        for (frame, layer), prompt in folded.items():
+            answer.setdefault(frame, {})[layer] = prompt
+        return answer
 
     def statuses(self, project):
         return {frame: cells["photo"]["status"]
@@ -1552,6 +1572,118 @@ def test_a_frame_from_the_flat_list_is_handed_no_scene():
                  lambda: "t", "düğün", writers={layers.VIDEO: writer})
 
     assert writer.scenes == [""]
+
+
+# Madde 403: a prompt is written as its layer is queued and put on the card; the producer uses it.
+def test_a_queued_video_s_prompt_is_on_its_card_before_it_is_made():
+    """Nobody can make the video in this session, so nothing is produced at all -- and the card
+    already says what the video will be made with."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0, prompt="kırmızı elbiseli kadın")])
+    record.append("düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
+                            "prompt": "kırmızı elbiseli kadın"})
+    runner = sync_runner()
+
+    queue_layer(runner, store, record, plan_store, FakeOrderStore(),
+                {layers.PHOTO: FakeGenerator()}, lambda: "t", "düğün", layers.VIDEO,
+                writers={layers.VIDEO: FakeWriter()})
+
+    assert runner.status()["status"] == "waiting"
+    card = list_frames(record, store, plan_store, FakeOrderStore(), "düğün")[0]
+    assert card["owed"] == ["video"]
+    assert card["prompts"]["video"] == "kadın başını yavaşça çeviriyor"
+
+
+def test_every_owed_prompt_is_written_before_anything_is_made():
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[frame(0), frame(1)])
+    for number in (0, 1):
+        record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
+                                "layer": "photo", "status": "done",
+                                "prompt": "kırmızı elbiseli kadın"})
+    plan_store.append("düğün", [{"id": f"{number}_a", "type": "video", "number": number,
+                                 "variant": 0, "prompt": "", "negative": "", "seed": None,
+                                 "model": ""} for number in (0, 1)])
+    writer, generator = FakeWriter(), FakeGenerator()
+    asked_by_then = []
+    original = generator.generate
+
+    def spy(*args, **kwargs):
+        asked_by_then.append(len(writer.calls))
+        return original(*args, **kwargs)
+
+    generator.generate = spy
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert asked_by_then == [2, 2]
+
+
+def test_a_prompt_already_on_the_card_is_not_bought_again():
+    """Written before the server went down: the run that picks the job up again makes the video
+    with the card's own words and asks nobody."""
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "elini kaldırıyor", "t")
+    generator, writer = FakeGenerator(), FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert writer.calls == []
+    assert [call[0] for call in generator.calls] == ["elini kaldırıyor"]
+    assert video_row(record)["prompt"] == "elini kaldırıyor"
+
+
+def test_a_sound_is_written_seeing_the_video_s_written_prompt():
+    """The sound's writer reads the video's prompt when there is one, and a written one is one."""
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    plan_store.frames.append({"id": "0_a", "type": "audio", "number": 0, "variant": 0,
+                              "prompt": "", "negative": "", "seed": None, "model": ""})
+    sound_writer = FakeWriter(answer="fabric rustling")
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.PHOTO: FakeGenerator()},
+                 lambda: "t", "düğün",
+                 writers={layers.VIDEO: FakeWriter(answer="kadın başını çeviriyor"),
+                          layers.AUDIO: sound_writer})
+
+    assert sound_writer.calls == [{"photo": "kırmızı elbiseli kadın",
+                                   "video": "kadın başını çeviriyor"}]
+
+
+def test_a_layer_sent_back_with_tekrar_dene_is_written_for_again():
+    """Put back in line is queued again: its prompt is written again, and the card shows the new
+    one before it is made."""
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    record.prompt_written("düğün", "0_a", "video", "0_a_V1_0.mp4", "eski prompt", "t")
+    record.mark("düğün", "0_a", "video", "0_a_V1_0.mp4", queue.FAILED, "t",
+                error="node 41 — 3 kez denendi")
+    generator, writer = FakeGenerator(), FakeWriter()
+
+    retry_frame(sync_runner(), store, record, plan_store, {layers.VIDEO: generator},
+                lambda: "t2", "düğün", "0_a", writers={layers.VIDEO: writer})
+
+    assert len(writer.calls) == 1
+    assert [call[0] for call in generator.calls] == ["kadın başını yavaşça çeviriyor"]
+
+
+def test_while_prompts_are_written_no_frame_is_reported_as_being_made():
+    """A prompt being written is not a layer being made: no tile says üretiliyor meanwhile."""
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    runner, writer = sync_runner(), FakeWriter()
+    seen = []
+    original = writer.write
+
+    def spy(*args, **kwargs):
+        seen.append(runner.status().get("current"))
+        return original(*args, **kwargs)
+
+    writer.write = spy
+
+    resume_batch(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert seen == [None]
 
 
 def video_project(*frames):

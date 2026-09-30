@@ -447,7 +447,7 @@ describe("PhotoDetail — the layer tabs", () => {
 
     fireEvent.click(tab("Video"));
 
-    expect(screen.getByText("Prompt yok — üretim sırası geldiğinde eklenecek.").style.textAlign)
+    expect(screen.getByText("Prompt yok — üretimden önce yazılacak.").style.textAlign)
       .toBe("center");
   });
 
@@ -1666,10 +1666,22 @@ describe("PhotoDetail — a copy frame waiting in the queue", () => {
 
     fireEvent.click(tab("Video"));
 
-    expect(screen.getByText("Prompt yok — üretim sırası geldiğinde eklenecek.")).toBeTruthy();
+    expect(screen.getByText("Prompt yok — üretimden önce yazılacak.")).toBeTruthy();
     // Nothing to make again and nothing to delete: the layer is not there yet.
     expect(screen.queryByText("Yeniden üret — yeni kare")).toBeNull();
     expect(screen.queryByText("Videoyu sil — kare kalır")).toBeNull();
+  });
+
+  it("shows the prompt written for the layer it is waiting for", async () => {
+    // Madde 403: the prompt is written as the layer is queued, so a waiting video already has its
+    // words -- and the box shows them rather than a notice.
+    await open("P0_1", { frames: [{ ...QUEUED_COPY,
+      prompts: { photo: "kırmızı elbise", video: "kadın başını çeviriyor" } }] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.getByText("kadın başını çeviriyor")).toBeTruthy();
+    expect(screen.queryByText("Prompt yok — üretimden önce yazılacak.")).toBeNull();
   });
 
   it("takes it out of the queue without asking", async () => {
