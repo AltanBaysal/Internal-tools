@@ -60,12 +60,15 @@ export default function AllProjectsScreen({
   onRenameProject,
   onPinProject,
   onArchiveProject,
+  onRestoreProject,
   onDeleteProject,
 }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("projects");
-  // The project Archive has just taken, while its Undo is on offer. It keeps its place on the list:
-  // the server moves no row for an archive, so where it stood is where the list still has it.
+  // The project Archive has just taken, while its Undo is on offer, and the pin it had then -- what
+  // Undo asks for back, as the design's undoing = { id, pinnedAt } holds it. The archive lets the
+  // pin go, but the server still lists the project where its pin had it (Madde 382), so where it
+  // stood is where the list still has it; the pin it had says whether that is Pinned or Recent.
   const [undoing, setUndoing] = useState(null);
 
   const archived = projects.filter((project) => project.archived);
@@ -73,7 +76,11 @@ export default function AllProjectsScreen({
   const shown =
     tab === "archived"
       ? archived
-      : projects.filter((project) => !project.archived || project.id === undoing);
+      : projects
+          .filter((project) => !project.archived || project.id === undoing?.id)
+          .map((project) =>
+            project.id === undoing?.id ? { ...project, pinned: undoing.pinned } : project,
+          );
 
   // The offer lasts until the next thing is done, as the design's settleUndoing reads it: every
   // action on a row starts from its ⋯, and so does another Archive.
@@ -82,14 +89,14 @@ export default function AllProjectsScreen({
     onOpenMenu?.(id);
   };
   const archive = (id, toArchive) => {
-    if (toArchive) setUndoing(id);
+    if (toArchive) setUndoing({ id, pinned: projects.find((project) => project.id === id).pinned });
     onArchiveProject?.(id, toArchive);
   };
-  const undo = async (id) => {
+  const undo = async ({ id, pinned }) => {
     // Held until the list has come back: let go sooner, the project would vanish for a moment.
-    await onArchiveProject?.(id, false);
+    await onRestoreProject?.(id, pinned);
     // Unless another project's offer began meanwhile.
-    setUndoing((current) => (current === id ? null : current));
+    setUndoing((current) => (current?.id === id ? null : current));
   };
   const switchTab = (next) => {
     setUndoing(null);
@@ -98,8 +105,8 @@ export default function AllProjectsScreen({
 
   // Built once here rather than handed down as eight props through the list and its sections.
   const row = (project) =>
-    project.id === undoing ? (
-      <UndoRow key={project.id} name={project.name} onUndo={() => undo(project.id)} />
+    project.id === undoing?.id ? (
+      <UndoRow key={project.id} name={project.name} onUndo={() => undo(undoing)} />
     ) : (
       <ProjectRow
         key={project.id}

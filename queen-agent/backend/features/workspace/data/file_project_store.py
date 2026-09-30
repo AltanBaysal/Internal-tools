@@ -13,7 +13,8 @@ FILES_DIR = "files"
 # with no project.json in it.
 TRASH_DIR = "trash"
 # Empty, and there or not there: each answers a question project.json does not (CODE-STANDARD). The
-# pin's mtime is when the project was pinned, which is why pinning twice leaves the file alone.
+# pin's mtime is when the project was pinned, which is why pinning twice leaves the file alone, and
+# why an archive leaves it too: it is the project's place among the pins, which Undo gives back.
 PINNED_FILE = "pinned"
 ARCHIVED_FILE = "archived"
 
