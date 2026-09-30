@@ -484,19 +484,18 @@ const ROWS = [
 ];
 
 // A server that keeps its own order -- the pinned first, in the order they were pinned, then the
-// most recently used (list_projects.py) -- so where a row stands after a pin or an unpin is the
-// server's answer rather than a guess made on the screen. A DELETE takes the project out of it.
-// The pin is kept as the server keeps its file (Madde 382): through an archive, where the row reads
-// unpinned but still stands in the pin's place, and gone on an Unarchive that does not ask for it.
+// most recently used (list_projects.py) -- so where a row stands after a pin, an unpin or an
+// archive is the server's answer rather than a guess made on the screen. The archive takes the pin
+// with it (Madde 384). A DELETE takes the project out of it.
 function serverForRows(projects) {
   let pins = 0;
-  let live = projects.map((project) => ({ ...project, pin: project.pinned ? ++pins : null }));
-  const row = ({ pin, ...project }) => ({ ...project, pinned: pin !== null && !project.archived });
+  let live = projects.map((project) => ({ ...project, pinnedAt: project.pinned ? ++pins : 0 }));
+  const row = ({ pinnedAt, ...project }) => project;
   const listed = () =>
     [
-      ...live.filter((project) => project.pin !== null).sort((a, b) => a.pin - b.pin),
+      ...live.filter((project) => project.pinned).sort((a, b) => a.pinnedAt - b.pinnedAt),
       ...live
-        .filter((project) => project.pin === null)
+        .filter((project) => !project.pinned)
         .sort((a, b) => b.lastActivity.localeCompare(a.lastActivity)),
     ].map(row);
   const fetch = vi.fn().mockImplementation((path, options) => {
@@ -509,12 +508,11 @@ function serverForRows(projects) {
       const changes = JSON.parse(options.body);
       live = live.map((project) => {
         if (project.id !== one[1]) return project;
-        let { pin } = project;
-        if (changes.pinned === false) pin = null;
+        const next = { ...project, ...changes };
         // A second pin leaves the first one's moment, as the pin file's mtime does.
-        if (changes.pinned === true && pin === null) pin = ++pins;
-        if (changes.archived === false && project.archived && changes.pinned !== true) pin = null;
-        return { ...project, ...changes, pin };
+        if (changes.pinned && !project.pinned) next.pinnedAt = ++pins;
+        if (changes.archived) next.pinned = false;
+        return next;
       });
       return ok(row(live.find((project) => project.id === one[1])));
     }
@@ -689,8 +687,8 @@ test("Unpin puts the project back where the server lists it", async () => {
 });
 
 // --- the archive (Madde 363; the design's items 135, 161, 190, 191) -----------------------------
-// serverForRows keeps the mark as it keeps any other: the archive moves no row in the server's
-// order, and lets the pin go while keeping its place for Undo (Madde 382).
+// serverForRows keeps the mark as it keeps any other, and takes the pin away with the archive
+// (Madde 384).
 
 const tab = (name) => screen.getByRole("button", { name: new RegExp(`^${name}\\b`) });
 const rowsOf = (section) =>
@@ -727,13 +725,13 @@ test("Undo puts the project back where it was", async () => {
   expect(screen.getByRole("button", { name: "Projects 2" })).toBeTruthy();
   expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
     ["/api/projects/p2", { archived: true }],
-    ["/api/projects/p2", { archived: false, pinned: false }],
+    ["/api/projects/p2", { archived: false }],
   ]);
 });
 
-test("Undo puts a pinned project back in its place among the pins", async () => {
-  // Madde 382: the archive lets the pin go, and Undo asks for it back -- where it stood, not as a
-  // new pin at the end of Pinned.
+test("a pinned project's Undo stands in Recent, and Undo brings it back unpinned", async () => {
+  // Madde 384: the server takes the pin away with the archive, and Undo asks only for the archive
+  // back -- the owner's choice over the design's restoreProject, which gave the pin back too.
   const HARBOUR = { id: "p4", name: "Harbour", chats: 0, files: 0, pinned: true, lastActivity: hoursAgo(40) };
   const fetch = serverForRows([PIER, HARBOUR, ...ROWS]);
   const { container } = render(<App />);
@@ -742,23 +740,28 @@ test("Undo puts a pinned project back in its place among the pins", async () => 
   actionsFor("Old pier");
   fireEvent.click(screen.getByRole("button", { name: "Archive" }));
   await screen.findByRole("button", { name: "Archived 1" });
-  const pinned = container.querySelector(".all-projects__section");
-  expect(rowsOf(pinned)).toEqual(["Old pier archived · Undo", expect.stringContaining("Harbour")]);
+  const [pinned, recent] = container.querySelectorAll(".all-projects__section");
+  expect(rowsOf(pinned)).toEqual([expect.stringContaining("Harbour")]);
+  expect(rowsOf(recent)).toEqual([
+    expect.stringContaining("Thesis"),
+    expect.stringContaining("Notes"),
+    "Old pier archived · Undo",
+  ]);
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
   await waitFor(() =>
     expect(sections(container)).toEqual({
-      Pinned: ["Old pier", "Harbour"],
-      Recent: ["Thesis", "Notes"],
+      Pinned: ["Harbour"],
+      Recent: ["Thesis", "Notes", "Old pier"],
     }),
   );
   expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
     ["/api/projects/p3", { archived: true }],
-    ["/api/projects/p3", { archived: false, pinned: true }],
+    ["/api/projects/p3", { archived: false }],
   ]);
 });
 
 test("a pinned project archived and then unarchived comes back under Recent", async () => {
-  // Madde 382: Unarchive does not bring the pin back. The rule is the server's; the browser asks
+  // Madde 384: Unarchive does not bring the pin back. The rule is the server's; the browser asks
   // for the project back and draws where the server lists it.
   const fetch = serverForRows([PIER, ...ROWS]);
   const { container } = render(<App />);

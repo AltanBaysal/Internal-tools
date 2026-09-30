@@ -16,8 +16,7 @@ class Project:
     last_chat_at: str = ""
     # Each read from a file of its own beside project.json (Madde 339): each answers a question of
     # its own and is written at a moment of its own. pinned_at is the pin file's mtime, empty when
-    # there is none. An archive leaves the file (Madde 382): its moment is the project's place among
-    # the pins, which Undo gives back -- but an archived project is not pinned.
+    # there is none.
     pinned_at: str = ""
     archived: bool = False
 
@@ -28,4 +27,6 @@ class Project:
 
     @property
     def pinned(self):
+        # An archived project is never pinned (Madde 384) -- not even one an archive made before
+        # that rule left its pin file beside.
         return bool(self.pinned_at) and not self.archived

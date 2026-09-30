@@ -311,34 +311,39 @@ test("once the server says it is archived, Undo still holds its place and the co
   expect(counts(container)).toEqual(["2", "1"]);
 });
 
-test("a pinned project's Undo stands under Pinned, in its place among the pins", () => {
-  // Madde 382: the archive lets the pin go, so the server lists the project unpinned -- but still
-  // where its pin had it, which is where the design's projectsWithUndo draws the line.
+test("a pinned project's Undo stands in Recent, where its last use puts it", () => {
+  // Madde 384: the server takes the pin away with the archive and lists the project by its last
+  // use, so its Undo line stands in Recent; the screen draws no order of its own.
   const SECOND = { id: "p6", name: "Second pin", chats: 0, files: 0, pinned: true, lastActivity: ago(40) };
   const { container, answer } = archiving([PINNED, SECOND, RECENT], "p1");
-  answer([{ ...PINNED, pinned: false, archived: true }, SECOND, RECENT]);
-  const [pinned] = container.querySelectorAll(".all-projects__section");
-  expect(pinned.querySelector(".all-projects__label").textContent).toBe("Pinned");
-  const rows = [...pinned.querySelectorAll(".all-projects__row")].map((row) => row.textContent);
-  expect(rows).toEqual(["Harbour at dusk archived · Undo", expect.stringContaining("Second pin")]);
+  answer([SECOND, { ...PINNED, pinned: false, archived: true }, RECENT]);
+  const [pinned, recent] = container.querySelectorAll(".all-projects__section");
+  expect(names(pinned)).toEqual(["Second pin"]);
+  expect(recent.querySelector(".all-projects__label").textContent).toBe("Recent");
+  const rows = [...recent.querySelectorAll(".all-projects__row")].map((row) => row.textContent);
+  expect(rows).toEqual(["Harbour at dusk archived · Undo", expect.stringContaining("Night market")]);
 });
 
-test("a pinned project's Undo asks for its pin back", () => {
-  // The design's restoreProject(id, pinnedAt): the pin the project had when Archive was pressed.
-  const { props, answer } = archiving([PINNED, RECENT], "p1", { onRestoreProject: vi.fn() });
+test("a pinned project's Undo asks only for the archive back", () => {
+  // Madde 384, the owner's choice: the pin went with the archive, and Undo does not ask for it.
+  const { props, answer } = archiving([PINNED, RECENT], "p1");
   answer([{ ...PINNED, pinned: false, archived: true }, RECENT]);
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-  expect(props.onRestoreProject).toHaveBeenCalledWith("p1", true);
-  expect(props.onArchiveProject.mock.calls).toEqual([["p1", true]]);
+  expect(props.onArchiveProject.mock.calls).toEqual([
+    ["p1", true],
+    ["p1", false],
+  ]);
 });
 
 test("Undo brings it back, and its line holds until the list does", async () => {
   let settle;
-  const onRestoreProject = vi.fn(() => new Promise((resolve) => (settle = resolve)));
-  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2", { onRestoreProject });
+  const onArchiveProject = vi.fn((id, archived) =>
+    archived ? undefined : new Promise((resolve) => (settle = resolve)),
+  );
+  const { container, answer } = archiving([PINNED, RECENT, OLDER], "p2", { onArchiveProject });
   answer([PINNED, { ...RECENT, archived: true }, OLDER]);
   fireEvent.click(screen.getByRole("button", { name: "Undo" }));
-  expect(onRestoreProject).toHaveBeenCalledWith("p2", false);
+  expect(onArchiveProject).toHaveBeenLastCalledWith("p2", false);
   // Let go before the list comes back, the project would vanish for a moment and then return.
   expect(undoRow(container)).toBeTruthy();
 
