@@ -17,6 +17,7 @@ from backend.features.workspace.data.memory_stops import MemoryStops
 from backend.features.workspace.domain.errors import ProjectNotFound
 from backend.features.workspace.domain.project import Project
 from backend.features.workspace.domain.usecases.edit_project import edit_project
+from backend.features.workspace.domain.usecases.list_projects import list_projects
 from backend.features.workspace.presentation.routes import make_workspace_bp
 from backend.services.store.store import Store
 from backend.web.app import create_app
@@ -106,22 +107,30 @@ def test_asking_for_what_already_stands_changes_nothing(tmp_path):
     assert os.path.getmtime(pinned) == 1_000_000_000, "İkinci sabitleme sabitlendiği anı kaydırdı"
 
 
-def test_the_archive_leaves_the_pin_alone(tmp_path):
-    # Two questions, two files: a pinned project comes back from the archive where it stood.
+def test_an_archived_project_is_not_pinned_and_its_pin_stays_on_disk(tmp_path):
+    # Madde 382: the archive lets the pin go, as the design does. The file stays: its mtime is the
+    # project's place among the pins, and Undo gives that place back.
     store = _born(tmp_path)
     store.set_pinned("pabc", True)
+    pinned = os.path.join(str(tmp_path), "pabc", "pinned")
+    os.utime(pinned, (1_000_000_000, 1_000_000_000))
     store.set_archived("pabc", True)
-    assert _reopened(tmp_path).pinned, "Arşiv sabitlemeyi kaldırdı"
-    store.set_archived("pabc", False)
-    assert _reopened(tmp_path).pinned, "Arşivden dönen proje sabitlemesini kaybetti"
+    assert not _reopened(tmp_path).pinned, "Arşivdeki proje hâlâ sabitli okunuyor"
+    assert os.path.getmtime(pinned) == 1_000_000_000, "Arşiv sabitlemenin yerini diskten sildi"
 
 
-# ---- The use case, with a fake port ----
+# ---- The use cases, with a fake port ----
+
+
+def _day(day):
+    return f"2026-08-{day:02d}T10:00:00.000+00:00"
 
 
 class FakeProjectStore:
-    def __init__(self):
-        self.project = Project(id="pabc", name="Thesis", created_at="2026-08-09T10:00:00+00:00")
+    def __init__(self, **fields):
+        self.project = Project(
+            id="pabc", name="Thesis", created_at="2026-08-09T10:00:00+00:00", **fields
+        )
         self.replaced = []
         self.marked = []
 
@@ -153,6 +162,54 @@ def test_an_unknown_project_cannot_be_pinned():
     with pytest.raises(ProjectNotFound):
         edit_project(store, "nope", pinned=True)
     assert store.marked == [], "Olmayan bir proje için işaret yazıldı"
+
+
+def test_unarchiving_lets_the_pin_go():
+    # Madde 382: Unarchive brings the project back into Recent, never into Pinned.
+    store = FakeProjectStore(pinned_at=_day(10), archived=True)
+    edit_project(store, "pabc", archived=False)
+    assert ("pinned", "pabc", False) in store.marked, "Unarchive sabitlemeyi bırakmadı"
+
+
+def test_undo_asks_for_the_pin_and_keeps_it():
+    # Undo sends the pin with the unarchive, and the pin file -- the project's place -- stays.
+    store = FakeProjectStore(pinned_at=_day(10), archived=True)
+    edit_project(store, "pabc", archived=False, pinned=True)
+    assert ("pinned", "pabc", False) not in store.marked, "Undo sabitlemeyi bıraktı"
+
+
+def test_bringing_back_what_is_not_archived_leaves_the_pin():
+    # Asking for what already stands changes nothing (Madde 339).
+    store = FakeProjectStore(pinned_at=_day(10))
+    edit_project(store, "pabc", archived=False)
+    assert ("pinned", "pabc", False) not in store.marked, (
+        "Arşivde olmayan projeye gelen archived=False sabitlemeyi bıraktı"
+    )
+
+
+class FakeListStore:
+    def __init__(self, projects):
+        self.projects = projects
+
+    def list_all(self):
+        return list(self.projects)
+
+
+def test_an_archived_project_keeps_its_place_among_the_pins():
+    # Where the Undo line stands, as the design's projectsWithUndo puts it: the screen draws no
+    # order of its own (FOUNDATION, Decision 4).
+    store = FakeListStore(
+        [
+            Project(id="a", name="a", created_at=_day(1), pinned_at=_day(10)),
+            Project(id="b", name="b", created_at=_day(2), pinned_at=_day(5), archived=True),
+            Project(id="c", name="c", created_at=_day(3)),
+        ]
+    )
+    projects = list_projects(store)
+    assert [project.id for project in projects] == ["b", "a", "c"], (
+        "Arşivdeki proje sabitlilerin arasındaki yerinde değil"
+    )
+    assert not projects[0].pinned, "Arşivdeki proje listede sabitli"
 
 
 # ---- The API ----
@@ -216,6 +273,56 @@ def test_the_list_says_both_and_a_fresh_app_says_the_same(tmp_path):
     assert rows == {first: (True, False), second: (False, True)}, (
         "Liste yeniden açılınca sabitlemeyi ve arşivi söylemiyor"
     )
+
+
+def test_archive_lets_the_pin_go_and_unarchive_does_not_bring_it_back(tmp_path):
+    # Madde 382: a pinned project that is archived comes back through Unarchive into Recent.
+    client = _client(tmp_path)
+    pid = client.post("/api/projects", json={"name": "Thesis"}).get_json()["id"]
+    client.patch(f"/api/projects/{pid}", json={"pinned": True})
+    archived = client.patch(f"/api/projects/{pid}", json={"archived": True}).get_json()
+    assert (archived["pinned"], archived["archived"]) == (False, True), (
+        "Arşive alınan proje sabitli kaldı"
+    )
+    listed = _client(tmp_path).get("/api/projects").get_json()[0]
+    assert listed["pinned"] is False, "Yeniden açılınca arşivdeki proje sabitli"
+    back = client.patch(f"/api/projects/{pid}", json={"archived": False}).get_json()
+    assert back["pinned"] is False, "Unarchive projeyi sabitlemesiyle geri getirdi"
+    listed = _client(tmp_path).get("/api/projects").get_json()[0]
+    assert (listed["pinned"], listed["archived"]) == (False, False), (
+        "Yeniden açılınca arşivden dönen proje sabitli ya da arşivde"
+    )
+    assert not Store(str(tmp_path)).exists(f"{pid}/pinned"), (
+        "Unarchive'dan sonra pinned dosyası duruyor"
+    )
+
+
+def test_undo_puts_a_pinned_project_back_in_its_place_among_the_pins(tmp_path):
+    # The design's restoreProject: Undo gives the pin back with its order, not a new pin at the end.
+    projects = FileProjectStore(Store(str(tmp_path)))
+    for day, pid in enumerate(("pa", "pb", "pc"), start=1):
+        projects.add(Project(id=pid, name=pid, created_at=f"2000-01-{day:02d}T00:00:00.000+00:00"))
+    projects.set_pinned("pa", True)
+    projects.set_pinned("pb", True)
+    # Pinned a hundred seconds apart, pa first, so the order is the pins' and never chance's.
+    pin_of_pa = os.path.join(str(tmp_path), "pa", "pinned")
+    os.utime(pin_of_pa, (1_000_000_000, 1_000_000_000))
+    os.utime(os.path.join(str(tmp_path), "pb", "pinned"), (1_000_000_100, 1_000_000_100))
+    client = _client(tmp_path)
+    client.patch("/api/projects/pa", json={"archived": True})
+    rows = client.get("/api/projects").get_json()
+    assert [row["id"] for row in rows] == ["pa", "pb", "pc"], (
+        "Arşivdeki proje sabitlilerin arasındaki yerini kaybetti"
+    )
+    assert rows[0]["pinned"] is False, "Arşivdeki proje listede sabitli"
+    back = client.patch("/api/projects/pa", json={"archived": False, "pinned": True}).get_json()
+    assert (back["pinned"], back["archived"]) == (True, False), (
+        "Undo projeyi sabitli geri getirmedi"
+    )
+    assert [row["id"] for row in client.get("/api/projects").get_json()] == ["pa", "pb", "pc"], (
+        "Undo projeyi sabitlilerin arasındaki eski yerine koymadı"
+    )
+    assert os.path.getmtime(pin_of_pa) == 1_000_000_000, "Undo sabitlendiği anı kaydırdı"
 
 
 # ---- The standard ----
