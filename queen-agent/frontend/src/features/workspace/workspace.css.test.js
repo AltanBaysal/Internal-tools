@@ -669,6 +669,26 @@ test("No chats yet. is a quiet line", () => {
   expect(empty).toContain("color: var(--muted)");
 });
 
+// Madde 386: a chat list that could not be read, in No chats yet.'s place and size, in the
+// failure's brown (364's .empty__error).
+test("Couldn't load chats. is the failure's brown, at No chats yet.'s size", () => {
+  const said = rule(".sidebar__error");
+  expect(said).toContain("margin: 0");
+  expect(said).toContain("font-size: 13px");
+  expect(said).toContain("color: #8a5237");
+});
+
+test("Try again and Copy stand side by side, and wrap at the narrowest sidebar", () => {
+  const actions = rule(".sidebar__actions");
+  expect(actions).toContain("display: flex");
+  expect(actions).toContain("flex-wrap: wrap");
+});
+
+test("the sidebar's Copy answers in Copy's own colours", () => {
+  expect(rule('.sidebar__copy[data-said="yes"]')).toContain("color: var(--accent)");
+  expect(rule('.sidebar__copy[data-said="no"]')).toContain("color: var(--destructive)");
+});
+
 test("New chat is the filled accent", () => {
   expect(rule(".sidebar__new-chat")).toContain("background: var(--accent)");
 });

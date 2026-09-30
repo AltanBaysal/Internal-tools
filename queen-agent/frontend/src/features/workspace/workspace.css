@@ -323,6 +323,35 @@
   line-height: 1.5;
 }
 
+/* A chat list that could not be read (Madde 386): 364's failure -- one plain sentence, Try again
+   and Copy -- in No chats yet.'s place and size. The design draws none for the sidebar. */
+.sidebar__failure {
+  padding: 10px 12px;
+}
+
+.sidebar__error {
+  margin: 0;
+  font-size: 13px;
+  color: #8a5237;
+  line-height: 1.5;
+}
+
+/* At the narrowest sidebar the two buttons are wider than the row, so they may wrap. */
+.sidebar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.sidebar__copy[data-said="yes"] {
+  color: var(--accent);
+}
+
+.sidebar__copy[data-said="no"] {
+  color: var(--destructive);
+}
+
 /* --- chat screen -------------------------------------------------------- */
 
 .chat-layout {

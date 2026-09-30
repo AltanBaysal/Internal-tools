@@ -285,3 +285,65 @@ test("folding and unfolding keeps what was typed", () => {
   expect(search().value).toBe("missing");
   expect(rows(container)).toEqual(["Missing values"]);
 });
+
+// --- A chat list that could not be read (Madde 386; 364's pattern, the design has none) ---------
+
+// What failure.js makes of a Flask 500 page: the code and the body, as they came.
+const RAW = "HTTP 500: <!doctype html>\n<title>500 Internal Server Error</title>";
+
+function stubClipboard(answer) {
+  const writeText = vi.fn(() => answer);
+  Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+  return writeText;
+}
+
+test("a chat list that could not be read says so, not that there are none", () => {
+  // The chats are on disk; only the read failed. The raw words are Copy's, not the sidebar's.
+  render(<Sidebar chats={[]} error={RAW} />);
+  const said = screen.getByText("Couldn't load chats.");
+  expect(said.className).toBe("sidebar__error");
+  expect(said.closest(".sidebar__chats")).toBeTruthy();
+  expect(screen.queryByText("No chats yet.")).toBeNull();
+  expect(screen.queryByText(/HTTP 500/)).toBeNull();
+});
+
+test("under the sentence stand Try again and Copy, and Try again asks for the list again", () => {
+  const onRetry = vi.fn();
+  const { container } = render(<Sidebar chats={[]} error={RAW} onRetry={onRetry} />);
+  const buttons = [...container.querySelectorAll(".sidebar__chats button")];
+  expect(buttons.map((one) => one.textContent)).toEqual(["Try again", "Copy"]);
+  expect(buttons[0].className).toBe("failure__retry");
+  expect(buttons[1].className).toBe("ghost sidebar__copy");
+  fireEvent.click(buttons[0]);
+  expect(onRetry).toHaveBeenCalled();
+});
+
+test("its Copy puts the error on the clipboard exactly as it came", async () => {
+  const writeText = stubClipboard(Promise.resolve());
+  render(<Sidebar chats={[]} error={RAW} />);
+  fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+  expect(writeText).toHaveBeenCalledWith(RAW);
+  expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy();
+});
+
+test("the failure stands in the rows' place, whatever was listed and whatever is typed", () => {
+  // A failed read leaves the last list standing -- another project's, maybe -- so it is not shown.
+  const { container } = render(<Sidebar chats={CHATS} error={RAW} />);
+  expect(rows(container)).toEqual([]);
+  type("zebra");
+  expect(screen.queryByText('No chats match "zebra".')).toBeNull();
+  expect(screen.getByText("Couldn't load chats.")).toBeTruthy();
+});
+
+test("with the list unread, Enter opens nothing", () => {
+  const onOpenChat = vi.fn();
+  render(<Sidebar chats={CHATS} error={RAW} onOpenChat={onOpenChat} />);
+  press("Enter");
+  expect(onOpenChat).not.toHaveBeenCalled();
+});
+
+test("the failure leaves the sidebar's rows where they were", () => {
+  const { container } = render(<Sidebar chats={[]} error={RAW} onToggle={vi.fn()} />);
+  const shape = [...container.querySelector(".sidebar").children].map((child) => child.className);
+  expect(shape).toEqual(["sidebar__new-chat", "sidebar__search", "sidebar__chats", "sidebar__foot"]);
+});
