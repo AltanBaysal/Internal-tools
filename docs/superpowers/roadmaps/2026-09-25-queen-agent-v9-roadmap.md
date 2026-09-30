@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 53/56
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 54/56
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -225,7 +225,7 @@ yüzden onlarla aynı anda koşar; 388 aynı metne yazdığı için 385'in arkas
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 384 | `ALIGNED` **Archived sekmesi yalnız son kullanıma göre sıralanır**, tasarımdaki gibi. 382'den beri eskiden sabitli olan bir proje o sekmede öteki arşivlilerin önünde duruyor: sabitleme dosyası, `Undo` projeyi sabitliler arasındaki yerine koyabilsin diye arşivde kalıyor. *(382 birleşirken bulundu; kullanıcı, 30 Eylül — "bunu düzeltmek için roadmap ekle ve bekle", "Önce undo yapıp sonra archive eklesen olmuyor mu?")* **Mantık sunucuda:** Undo'yu tarayıcı zamanlamaz; proje arşivlenince sunucu sabitlemesini kendiliğinden düşürür, ve Archived sekmesi yalnız son kullanıma göre sıralanır *(kullanıcı, 30 Eylül — "abi unfoyu frontent yapmasın bir şey arşivlenince backend otomaik pinini düşürsün logiciği backendde tut", "Archived sekmesi yalnız son kullanıma göre sıralansın mantıklı böyle olsun")*. **Undo sabitlemeyi geri getirmez:** sabitleme arşivle birlikte tamamen silinir, Undo yalnız arşivi geri alır ve proje Recent'e sabitlemesiz döner; Undo satırı arşivlenir arşivlenmez Recent'te görünür. Bu, 382'nin Undo'yu sabitlemesiyle geri koyan yarısını geri alır *(kullanıcı, 30 Eylül — Claude'un önerisini seçti: "Recent'e, sabitlemesiz dönsün")*. | Arşivlenen projenin sabitlemesini sunucu siliyor; Archived sekmesinde projeler yalnız son kullanıma göre sıralı; Undo projeyi Recent'e sabitlemesiz getiriyor. |
+| 384 | ✅ **Archived sekmesi yalnız son kullanıma göre sıralanır**, tasarımdaki gibi. 382'den beri eskiden sabitli olan bir proje o sekmede öteki arşivlilerin önünde duruyor: sabitleme dosyası, `Undo` projeyi sabitliler arasındaki yerine koyabilsin diye arşivde kalıyor. *(382 birleşirken bulundu; kullanıcı, 30 Eylül — "bunu düzeltmek için roadmap ekle ve bekle", "Önce undo yapıp sonra archive eklesen olmuyor mu?")* **Mantık sunucuda:** Undo'yu tarayıcı zamanlamaz; proje arşivlenince sunucu sabitlemesini kendiliğinden düşürür, ve Archived sekmesi yalnız son kullanıma göre sıralanır *(kullanıcı, 30 Eylül — "abi unfoyu frontent yapmasın bir şey arşivlenince backend otomaik pinini düşürsün logiciği backendde tut", "Archived sekmesi yalnız son kullanıma göre sıralansın mantıklı böyle olsun")*. **Undo sabitlemeyi geri getirmez:** sabitleme arşivle birlikte tamamen silinir, Undo yalnız arşivi geri alır ve proje Recent'e sabitlemesiz döner; Undo satırı arşivlenir arşivlenmez Recent'te görünür. Bu, 382'nin Undo'yu sabitlemesiyle geri koyan yarısını geri alır *(kullanıcı, 30 Eylül — Claude'un önerisini seçti: "Recent'e, sabitlemesiz dönsün")*. | Arşivlenen projenin sabitlemesini sunucu siliyor; Archived sekmesinde projeler yalnız son kullanıma göre sıralı; Undo projeyi Recent'e sabitlemesiz getiriyor. |
 
 ### En sonda
 
