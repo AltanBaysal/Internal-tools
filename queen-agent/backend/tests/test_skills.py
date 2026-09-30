@@ -343,6 +343,7 @@ STEPS = (
     "Step 7 -- fit each prompt into one photo",
     "Step 8 -- remove tags hidden by the camera angle",
     "Step 9 -- simplify prompts too hard to draw",
+    "Step 10 -- write the negative list",
 )
 """The flow's steps, in the order they run (Madde 198, written this way by correction 9).
 
@@ -350,19 +351,20 @@ Read by the tests below and by the ones that place the plan, the scenario file a
 Madde 186 had six of these and the first was the context; that question is gone, and the numbers
 moved with it. Numbered headings became named ones so that every step reads the same way -- a
 heading, then its rules as lines -- and so the loop above them is not read as one more step. Madde
-391 adds the last four: the checks the flow runs on the prompts it has just built.
+391 adds four: the checks the flow runs on the prompts it has just built. Madde 392 adds the last
+one: the negative list, written once the prompts are final.
 """
 
 
-def test_the_flow_runs_nine_numbered_steps():
+def test_the_flow_runs_ten_numbered_steps():
     # Madde 108: a stage outside the numbered list is a stage a weak model walks past, because it
     # stops when the list ends. Five since Madde 198 -- the context question in front of them was
-    # the one thing a user had to answer before any work could start -- and nine since Madde 391,
-    # whose checks follow the build.
+    # the one thing a user had to answer before any work could start -- nine since Madde 391, whose
+    # checks follow the build, and ten since Madde 392, whose negative list closes the flow.
     said = _flow().lower()
-    assert "nine steps" in said
+    assert "ten steps" in said
+    assert "nine steps" not in said
     assert "five steps" not in said
-    assert "eight steps" not in said
     for step in STEPS:
         assert step.lower() in said, step
 
@@ -418,7 +420,7 @@ def test_the_flow_builds_the_prompts_once_the_frames_are_written():
 # the day a field is added.
 
 CHECKS = [6, 7, 8, 9]
-LAST_WORD = "Build the prompts again, and tell the user the prompts are complete."
+LAST_WORD = "- Tell the user the prompts and the negative list are complete."
 
 
 def _step(number):
@@ -575,7 +577,7 @@ def test_no_check_reports_every_change():
     assert "Say the changed frames" not in _flow()
 
 
-@pytest.mark.parametrize("number", [5, 6, 7, 8])
+@pytest.mark.parametrize("number", [5, 6, 7, 8, 9])
 def test_the_build_and_the_checks_wait_for_no_approval(number):
     # How a step runs says every step waits for a yes, and Step 1 already says it does not. These
     # say it the same way, and each goes on in the same turn -- the owner: update directly.
@@ -585,12 +587,44 @@ def test_the_build_and_the_checks_wait_for_no_approval(number):
 
 
 def test_the_flow_ends_by_saying_the_prompts_are_complete():
-    # The owner: no closing section and no approval line at the end -- build the prompts, tell the
-    # user the prompts are complete, and that is all.
+    # The owner: no closing section and no approval line at the end -- tell the user the work is
+    # complete, and that is all. Since Madde 392 the negative list is the last thing written, so
+    # the closing line names the prompts and the negative list both.
     said = _flow()
     assert said.endswith(LAST_WORD)
     assert "Closing" not in said
-    assert "approval" not in _step(9)
+    assert "approval" not in _step(10)
+
+
+# --- the negative list the flow ends with (Madde 392) ---------------------------------------------
+#
+# 30 September, the owner: the last step of Start a scenario writes one negative list for the whole
+# scenario, into a file of its own holding only the tags, separated by commas -- the user copies it
+# into queen-editor by hand. The lessons are the owner's of 28 September: a negative tag works on
+# the whole photo, so a character's own feature written there is taken off that character too, and
+# what keeps a feature is the opposite tags.
+
+
+def test_the_negative_list_is_for_the_image_model():
+    # The owner: say so, it matters -- the scenes go to the video model, the negative to the photo.
+    assert "The negative list is for the image model, not the video model." in _step(10)
+
+
+def test_the_negative_list_keeps_the_characters_apart():
+    # The owner: characters' features mixing is the biggest problem, and the list is written for
+    # it, from every tag of every entry.
+    said = _step(10)
+    assert "The biggest problem is the features of the characters mixing" in said
+    assert "Read every tag of every entry of the scenario." in said
+    assert "Never write a feature of a character into the negative list." in said
+    assert "write the opposite tags instead" in said
+
+
+def test_the_negative_list_is_a_file_of_tags_alone():
+    said = _step(10)
+    assert "-negative.md" in said
+    assert "Write only the tags into the file, separated by commas." in said
+    assert "Nothing else goes into the file." in said
 
 
 def test_the_checks_are_written_in_the_flow_itself():
@@ -739,5 +773,9 @@ def test_the_texts_stay_short_enough_to_be_read():
     # The owner wrote Step 5 line by line so each frame comes out right before any check sees it:
     # six rules, one kind of entry to a rule so each stands alone, and the reason in front of them.
     # The editor's came down with the tool names and the rules the owner did not keep.
-    assert len(_flow().split()) <= 1570
+    #
+    # Madde 392 raises the flow's once more, on the owner's word: a tenth step writes the negative
+    # list, and its context carries the owner's own lessons -- what the list is for, what it must
+    # never hold, and what to write instead.
+    assert len(_flow().split()) <= 1830
     assert len(_edit().split()) <= 205
