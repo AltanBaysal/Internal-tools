@@ -25,6 +25,13 @@ azaltalım ztenc cahced yaparsak bunu o kadar malşyetide olmaz"; 29 Eylül — 
 ayna ekleme kısmınıda koyalım bunda yazar msıının bu taska çünkü aynayı çok kötü ekliyor kalite
 düşünyor user özellike sorarsa eklensin", "ayna eklenmemesi olucak".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+## Token kullanımı optimize edilecek
+
+*(Kullanıcı, 29 Eylül — "queen agentta token kullanımını optimize et", "bunu en son al beraber
+yaoarız"; 30 Eylül — "bunu backloga at şimdilik".)* v9'da 376 olarak hizalandı ve koşulmadı;
+konuşulanlar [v9'un](../docs/superpowers/roadmaps/2026-09-25-queen-agent-v9-roadmap.md) v9-10 bölümünde.
+**Ayrıntılar kullanıcıyla konuşulacak.**
+
 ## Start a scenario spicy skill'i açılacak
 
 *(Kullanıcı, 29 Eylül — "bir de start senrayo spicy diye bir ksill açıcaz ama şimdi değil ozaman

@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 45/48
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 45/49
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -39,8 +39,8 @@ aynı yere dokunmaz — aynı dosyanın ayrı yerlerine dokunabilirler, ve birle
   v9-8b – v9-8f. Hepsi modele giden aynı metne yazıyor, o yüzden aynı anda koşamaz. v9-9 ve v9-11
   v9-8a'nın hemen arkasında: ikisi de Start a scenario'nun sahneleri yazan adımına dokunuyor, ve
   metnin kelime tavanı v9-8a'da yükseliyor.
-- **v9-6 sona doğru** *(kullanıcı — "listenin en sonuna al bunu")*, **v9-10 en sonda** *(kullanıcı, 29
-  Eylül — "bunu en son al beraber yaoarız")*.
+- **v9-6 en sonda** *(kullanıcı — "listenin en sonuna al bunu")*. v9-10 onun da arkasındaydı *(kullanıcı,
+  29 Eylül — "bunu en son al beraber yaoarız")*, ve 30 Eylül'de backlog'a döndü.
 
 **Koşu: her parçayı bir subagent koşar, Claude yönetir** *(kullanıcı, 29 Eylül — yukarıdaki söz, ve
 "bir sıkıntı varsa senin çözemeyeceğin bana raise etmelisni")*.
@@ -76,14 +76,18 @@ bir kırmızı bulundu, ve kullanıcı onu subagent'lara verdi: Dalga 1'de koşa
 Claude yapar. **379 dalga 1'de çıktı:** 340'ın subagent'ı CODE-STANDARD'da koşudan önce de yanlış olan bir
 cümle buldu; Dalga 2'de bir subagent'ın. **380 dalga 2'de çıktı:** 349 tarayıcıda denenirken hata kartı
 yazma kutusunun altında yarım kaldı; Dalga 3'te bir subagent'ın. **381 dalga 3'te çıktı:** 356 tarayıcıda
-denenirken panelin kenarını çekmek sayfanın yazısını seçti; Dalga 4'te bir subagent'ın.
+denenirken panelin kenarını çekmek sayfanın yazısını seçti; kullanıcı 30 Eylül'de hizaladı, ve Dalga 7'de bir
+subagent'ın. **376 30 Eylül'de koşulmadan [backlog](../../../queen-agent/BACKLOG.md)'a döndü**
+*(kullanıcı — "bunu backloga at şimdilik")*, ve numarası başka maddeye verilmez; kararları aşağıda,
+v9-10'da duruyor. **382 ve 383 30 Eylül'de çıktı**, Claude'un koşu sırasında sorduğu iki sorudan; Dalga
+7'de birer subagent'ın.
 
 **Queen Editor'ün v8-3'ü önce biter:** v9-7a'nın çıkardığı listeyi bugünkü kutu okuyamaz, o yüzden v9
 main'e v8'den önce alınmaz.
 
 **Kullanıcıdan gerekenler, koşudan önce:** v9-3a'nın ayarı yazılınca Claude Code'un yeniden açılması.
-**Koşu sırasında:** 378'in ayarı yazılınca Claude Code'un bir kez daha yeniden açılması; v9-10'a gelince
-koşu durur, ve madde kullanıcıyla birlikte yapılır.
+**Koşu sırasında:** 378'in ayarı yazılınca Claude Code'un bir kez daha yeniden açılması; 375'i
+kullanıcı kendisi yazar.
 
 ---
 
@@ -153,7 +157,6 @@ kaldırır —; v9-2p, v9-2q ve v9-2r v9-2n'nin üstüne kurulur.
 | 358 · v9-4b | ✅ **Model seçici kalkar, ve model hiçbir yerde görünmez** *(29 Eylül'de değişti)*. **Mimari:** FOUNDATION'ın 6. kararı aynı parçada güncellenir: modellerin adlarını ve fiyatlarını `models.js`'ten okuyan kimse kalmıyor. Listede (7). *Kararları: v9-4; tasarım: 136, 157.* | Yazma kutusunda model seçici de modelin adı da yok. |
 | 359 · v9-2p | ✅ **Projelerde arama.** All projects'te `Search projects` projelerin adında arar; ekran açılınca odak onda. Eşleşme yoksa `No projects match "…".` *Kararları: v9-2; tasarım: 135, 142, 167.* | Arama kutusuna yazınca liste daralıyor; eşleşme yoksa `No projects match "…".` yazıyor. |
 | 360 · v9-2q | ✅ **Satırın `⋯` menüsü: Rename, Pin, Delete.** Her satırın `⋯`'sinde `Rename` — ad tarayıcının kutusunda değil, satırın yerinde düzenlenir —, `Pin` ya da `Unpin`, ve `Delete` — bugünkü onay penceresi, sohbet ve dosya sayısıyla. Projenin içinde hiç `⋯` yok. `Archive` v9-2t'de. *Kararları: v9-2; tasarım: 135, 161, 167.* | Satırın `⋯`'sinden proje yerinde yeniden adlandırılıyor, sabitlenip bırakılıyor, ve onayla siliniyor. |
-| 381 | `UNALIGNED` **Panelin kenarını çekmek yazı seçmez.** Yan panelin sol kenarı çekilince — liste de açık dosya da — fare sürüklendiği yerdeki bütün yazıyı mavi seçiyor: mesajlar, kart, yazma kutusu. Madde 50'den beri böyle; 356 aynı kenarı açık dosyaya da verdi. *(356 tarayıcıda denenirken bulundu, 29 Eylül.)* | Panelin kenarı çekilirken sayfada hiçbir yazı seçilmiyor. |
 | 361 · v9-2r | ✅ **Ad sorma ekranı.** Her `+ New project`'te ekranın ortasında ad sorulur: başlık `Name your project`, hiç proje yokken `Name your first project`. Enter ya da düğme projeyi yazılan adla açar ve boş sohbetine götürür; boş ad bir şey yapmaz. Bir proje varken üst çubuğun sağında `Cancel` durur, Esc de aynısını yapar: ikisi geldiği yere döner. Listede (3). *Kararları: v9-2; tasarım: 135, 153, 169, 195.* | `+ New project` ad soruyor; proje yazılan adla açılıyor ve boş sohbeti geliyor; `Cancel` ve Esc All projects'e dönüyor. |
 
 ### Dalga 5 — dalga 4 birleşince
@@ -189,12 +192,22 @@ v9-2v v9-2s ile v9-2w'nin üstüne kurulur: arama, sohbet listesinin üstüne ve
 | 373 · v9-8e | ✅ **Negatif prompt.** Senaryo başına tek liste, kadroya göre, kontrollerin en sonunda; prompt listesinin yanında ayrı bir dosyaya yazılır. Kullanıcının bulduğu dersler uygulanır. *Kararları: v9-8 ve v9-7.* | Start a scenario ve Improve bitince senaryonun negatif listesi kendi dosyasında duruyor. |
 | 374 · v9-8f | ✅ **Edit prompts kontrollerle biter.** Bitince yalnız değiştirdiği karelerin kontrollerini yapar, ve kadro değiştiyse negatif liste yeniden yazılır. *Kararları: v9-8.* | Edit prompts bir kareyi değiştirince iş yalnız o karelerin kontrolüyle bitiyor, ve kadro değiştiyse negatif liste yeniden yazılıyor. |
 
+### Dalga 7 — prompt'lardan sonra, aynı anda
+
+Hepsi dalın bugünkü ucunun üstüne kurulur, ve aynı yere dokunmaz: 381 panelin kenarına, 382 arşive,
+383 modeli çağıran sunucu tarafına.
+
+| # | İş | Bitti sayılır |
+|---|---|---|
+| 381 | `ALIGNED` **Panelin kenarını çekmek yazı seçmez.** Yan panelin sol kenarı çekilince — liste de açık dosya da — fare sürüklendiği yerdeki bütün yazıyı mavi seçiyor: mesajlar, kart, yazma kutusu. Madde 50'den beri böyle; 356 aynı kenarı açık dosyaya da verdi. *(356 tarayıcıda denenirken bulundu, 29 Eylül.)* Kenar çekilirken sayfada hiçbir yazı seçilmez *(kullanıcı, 30 Eylül — "bu da evet")*. | Panelin kenarı çekilirken sayfada hiçbir yazı seçilmiyor. |
+| 382 | `ALIGNED` **Arşive giden projenin sabitlemesi kalkar**, tasarımdaki gibi. 363 sabitlemeyi arşivde tuttu, tasarım kaldırıyor *(363 tarayıcıda denenirken bulundu, 29 Eylül; kullanıcı, 30 Eylül — "kalksın")*. Tasarımda `Undo` projeyi sabitlemesiyle eski yerine koyar; `Unarchive` sabitlemeyi geri getirmez *(tasarım: `data.js`'in `archiveProject`, `restoreProject` ve `unarchiveProject`'i; BEHAVIOUR.md)*. | Sabitli proje arşive alınınca `Unarchive`'la Recent'e dönüyor, Pinned'e değil; `Undo` ise onu Pinned'deki yerine koyuyor. |
+| 383 | `ALIGNED` **Grok ve xAI anahtarı kalkar.** 358'den beri hiçbir mesaj Grok'a gitmiyor, ama modellerin listesinde `grok-4.3` satırı, ortamda ve notebook'ta `XAI_API_KEY` duruyor *(358 birleşirken bulundu, 29 Eylül; kullanıcı, 30 Eylül — "kalksın")*. | QueenAgent `XAI_API_KEY` olmadan açılıyor ve notebook onu sormuyor; kodda, notebook'ta ve QueenAgent'ın belgelerinde Grok da xAI de geçmiyor. |
+
 ### En sonda
 
 | # | İş | Bitti sayılır |
 |---|---|---|
 | 375 · v9-6 | `ALIGNED` **Suffix system prompt'u güçlendirilecek.** *(Kullanıcı, 28 Eylül — "suffix system promptunu" güçlendirmek.)* **Kullanıcı kendisi yazar, ve madde en sonda durur** *(kullanıcı, 28 Eylül — "abi unu ben ypaıcam listenin en sonuna al bunu")*: koşu buraya geldiğinde spec, test ya da kod yazmaz; suffix'i kullanıcı değiştirir. | Kullanıcı yeni suffix'i yazdı. |
-| 376 · v9-10 | `ALIGNED` **Token kullanımı optimize edilir:** gönderilen token azalır, ve daha büyük kısmı önbellekten gelir; aynı iş daha az paraya, kalite düşmeden. **En sonda, kullanıcıyla birlikte:** koşu buraya gelince durur ve kullanıcıyı bekler. *Kararları ve bugünkü bulgular: v9-10.* | Kullanıcıyla birlikte seçilen iş, öncekinden daha az token harcıyor, ve harcadığının daha büyük kısmı önbellekten geliyor. |
 
 ---
 
@@ -288,7 +301,7 @@ Aşağıdaki metin 28 Eylül'ün hâli.
 
 `ALIGNED` **QueenAgent'ın tasarımı güncellenecek, özellikle projelenme düzeltilecek.** *(Kullanıcı, 25 Eylül — "queen agent tasarımı güncellenecek, özellikle projelenme düzeltilecek".)* **Tasarımı tasarımcı yapar, ve tasarım koşu başlamadan gelir** *(kullanıcı, 28 Eylül — "tasarımı sen yapmıcan desingera vericez", "tasarım koşu başlamdan gelecek sıkıntı yok")*. **Tasarımcıya buradan prompt gitmez, ihtiyaçlar gider** *(kullanıcı — "sen prompt verme ihtiacları belirt sadece")*. **Tasarıma dokunan her madde bu listeye girer**, liste koşudan önce tasarımcıya gider, ve koşu gelen yeni tasarımı kullanır *(kullanıcı — "tasarıma dokunan her şey gidicek roadmapten önce atıcaz isteklerimiz yeni tasarım gelicek alıcaz kullanıcaz")*. (2), (3), (4) ve (6) backlog'dan geldi *(kullanıcı kararı, 28 Eylül)*. **(1) Projelenme düzeltilecek** *(kullanıcı, 25 Eylül)*. **(2) Proje yönetimi geliştirilecek** *(kullanıcı, 18 Eylül)*: bugün bir proje için yalnız iki eylem var — yeniden adlandırmak ve silmek — ve ikisi de hem kenar çubuğunun menüsünde hem proje ekranında duruyor. **(3) Yeni proje ve yeni sohbet açmak karmaşık** *(kullanıcı, 11 Eylül — v8'in test geçişi)*: bugün üç ayrı yer var — kenar çubuğunda *Projects*'in yanındaki `+`, bir proje seçiliyken üstteki *New chat*, ve hiç proje yokken açılan ayrı ekran. **(4) Kalem ile saat alt alta duruyor** *(kullanıcı, 11 Eylül — v8'in test geçişi; 28 Eylül — "yan yanda durmaktansa alt alta duruyor bunu tasarım düzelticek diyleim")*: bir mesajın altında sürüm şeridi `‹ 1/2 ›` ile kalem `✎` bir satırda, saat ile jeton sayısı ayrı bir satırda. **(5) Dolan sohbette *burada devam et*** *(v9-1c)*: sohbet 50.000'e dolunca yeni sohbet açmanın yanında bir de *burada devam et* seçeneği; seçilince en eski mesajlar modele gitmez ama ekranda kalır. **(6) Sürüm adın yanında** *(kullanıcı, 11 Eylül — v8'in test geçişi; v9-5 olarak yazıldı, 28 Eylül'de buraya katıldı)*: Madde 209 sürümü adın altına, soluk ve küçük koydu, ve bir dipnot gibi okunmuyor. Kullanıcının kararı: adın yanında, adla aynı boyda ve kalın. **Ayrıntısı tasarımcıya bırakılır**, ve gelen tasarım uygulanır *(kullanıcı — "burda tasarımcıya bırak ordan gelen tasarımı uygula")*. [v8'in test listesindeki](../../2026-09-10-queenagent-v8-test-listesi.md) *"adın altında"* satırı bu kararla reddedildi. **(7) Model seçici kalkar** *(v9-4b)*: tek model kalıyor, *Queen Flash*; adı yalnız bir yazı olarak görünür. **(8) Skill seçicide Improve** *(v9-8b)*: seçiciye yeni bir satır gelir. **Kullanıcıdan gereken:** tasarımcının yeni tasarımı, koşu başlamadan.
 
-### v9-10 — Token kullanımı *(v9-10)*
+### v9-10 — Token kullanımı *(376, 30 Eylül'de backlog'a döndü)*
 
 `ALIGNED` **QueenAgent'ta token kullanımı optimize edilecek.** *(Kullanıcı, 29 Eylül — "queen agentta token kullanımını optimize et".)* **Hedef maliyet** *(kullanıcı, 29 Eylül — "abi dopru ve token chacede odaklanalım maliyete odaklanıyorum çünkü bir istek atıyorum 500k token harcıyor claudde subagetn açıyorum 15 dk çalışıyor 500k harcıyor bu büyük bir fark")*: aynı iş daha az paraya mal olur, ve cevapların kalitesi düşmez. **İki yandan:** gönderilen token azalır, ve daha büyük kısmı önbellekten gelir *(kullanıcı — "abi yani token kullanımıda optimöize edelim cache ile claude code nasıl 500k ile 30 dk çalışıyor biz tek istekte harcıyoruz mantıklı değil")*. **En sonda, kullanıcıyla birlikte yapılır** *(kullanıcı — "bunu en son al beraber yaoarız")*: koşu buraya gelince durur ve kullanıcıyı bekler. Nasıl yapılacağı, neyle ölçüleceği ve ekrandaki token sayıları o zaman birlikte konuşulur. **"read_file geliştirilecek" backlog'da kalır** *(kullanıcı, 29 Eylül — "evet ama bu backloga gidiyor")*.
 
