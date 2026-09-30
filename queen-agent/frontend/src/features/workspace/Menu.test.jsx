@@ -79,13 +79,13 @@ test("without one it draws no empty label", () => {
 });
 
 test("an item can say a second line about itself", () => {
-  render(<Menu items={[{ label: "Grok 4.6", detail: "$2 / $6 per 1M" }]} />);
+  render(<Menu items={[{ label: "Pro", detail: "$2 / $6 per 1M" }]} />);
   expect(screen.getByText("$2 / $6 per 1M")).toBeTruthy();
 });
 
 test("the one in use is the marked one", () => {
   const { container } = render(
-    <Menu items={[{ label: "Grok 4.6", checked: true }, { label: "Grok 4.5" }]} />,
+    <Menu items={[{ label: "Pro", checked: true }, { label: "Flash" }]} />,
   );
   const items = [...container.querySelectorAll(".menu__item")];
   expect(items[0].className).toContain("menu__item--checked");

@@ -159,7 +159,7 @@ def test_an_unknown_project_cannot_be_pinned():
 
 
 class FakeEngine:
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None):
         yield {"text": "Done."}
 
 

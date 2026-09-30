@@ -117,7 +117,7 @@ test("the gauge stands at the far end of the foot from Send", () => {
     <Composer
       action="Send"
       gauge={<span data-testid="gauge" />}
-      foot={<button type="button">Grok 4.5</button>}
+      foot={<button type="button">Flash</button>}
     />,
   );
   const foot = container.querySelector(".composer__foot");
