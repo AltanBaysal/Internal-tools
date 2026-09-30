@@ -16,6 +16,7 @@ import sys
 import pytest
 
 from backend import config
+from backend.features.photo_generation.domain import layers
 
 VIDEO_MODEL = "QE_VIDEO_MODEL"
 
@@ -84,3 +85,49 @@ def test_the_app_hands_a_reference_run_to_the_use_case(import_main, video_model)
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "Proje yok: m326-yok"}
+
+
+PHOTO = ("P0_0.png", b"PNG")
+
+
+def _refusal(main, kind):
+    """What the session's writer for `kind` says with no key -- the sentence of the model it would
+    have asked. No request leaves: a missing key is refused before one is built."""
+    with pytest.raises(RuntimeError) as refused:
+        main._writers[kind].write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
+                                  "standard", source=PHOTO, scene="")
+    return str(refused.value)
+
+
+def test_an_h3_session_s_video_prompt_is_queen_ai_s(import_main, monkeypatch):
+    """Madde 400: DeepSeek writes H3's prompt, looking at the photo."""
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
+    main = import_main("h3")
+
+    assert "DEEPSEEK_API_KEY" in _refusal(main, layers.VIDEO)
+
+
+def test_a_wan_session_s_video_prompt_is_still_grok_s(import_main, monkeypatch):
+    """404 moves WAN to Queen AI; until then grok writes it, as today."""
+    monkeypatch.setenv("QE_XAI_API_KEY", "")
+    main = import_main("")
+
+    assert "XAI_API_KEY" in _refusal(main, layers.VIDEO)
+
+
+def test_an_h3_session_s_sound_prompt_is_still_grok_s(import_main, monkeypatch):
+    monkeypatch.setenv("QE_XAI_API_KEY", "")
+    main = import_main("h3")
+
+    assert "XAI_API_KEY" in _refusal(main, layers.AUDIO)
+
+
+def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):
+    """The notebook hands it over as QE_DEEPSEEK_API_KEY, the way every setting of this app
+    travels. The model and its address are DeepSeek's own, the ones QueenAgent speaks to."""
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "ds-1")
+    import_main("h3")
+
+    assert config.DEEPSEEK_API_KEY == "ds-1"
+    assert config.DEEPSEEK_MODEL == "deepseek-flash"
+    assert config.DEEPSEEK_URL == "https://api.deepseek.com/chat/completions"

@@ -517,6 +517,25 @@ def test_the_key_is_trimmed_where_it_is_read():
         "Secret'tan okunan anahtar kırpılmıyor"
 
 
+def test_the_deepseek_key_is_read_from_secrets_and_trimmed():
+    """Madde 400: Queen AI writes H3's prompt. The secret is QueenAgent's own name, so the owner
+    keeps one secret for both tools -- trimmed where it is pasted, like the xAI key."""
+    assert 'DEEPSEEK_API_KEY = (userdata.get("DEEPSEEK_API_KEY") or "").strip()' in _source(), \
+        "DeepSeek anahtarı Secrets'tan kırpılarak okunmuyor"
+
+
+def test_the_deepseek_key_travels_to_the_app():
+    assert '"QE_DEEPSEEK_API_KEY": DEEPSEEK_API_KEY' in _cell("# === Start Flask"), \
+        "Defter DeepSeek anahtarını uygulamaya geçirmiyor"
+
+
+def test_the_setup_names_the_deepseek_secret():
+    """Colab hands a secret only to the notebooks it was opened to, so the person setting up has to
+    know its name."""
+    assert "DEEPSEEK_API_KEY" in _cell("🔑 Secrets"), \
+        "Kurulum anlatımı DeepSeek secret'ını saymıyor"
+
+
 def test_every_file_the_h3_group_counts_is_fetched_by_the_notebook():
     """The group names a file the way the graph loads it, MiniMaxH3/ included; the notebook names
     the file itself and puts it in that folder."""

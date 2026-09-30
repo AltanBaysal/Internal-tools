@@ -1308,12 +1308,18 @@ class FakeWriter:
         self.blows_up = blows_up
         self.calls = []
         self.modes = []
+        # What the writer is shown besides the words (madde 400): the file the layer is made from,
+        # and the frame's scenario. Apart for the reason the modes are.
+        self.sources = []
+        self.scenes = []
 
-    def write(self, prompts, mode="standard"):
+    def write(self, prompts, mode="standard", source=None, scene=""):
         self.calls.append(prompts)
         # Kept apart from the words: which mode a job is in is a different question, and one list
         # holding both could not answer either (madde 307).
         self.modes.append(mode)
+        self.sources.append(source)
+        self.scenes.append(scene)
         if self.blows_up:
             raise self.blows_up
         return self.answer
@@ -1475,6 +1481,74 @@ def test_a_model_that_will_not_answer_stops_the_run():
     assert "401" in state["error"]
     # Nothing written: the job is still owed once the key is fixed.
     assert [row for row in record.rows if row.get("layer") == "video"] == []
+
+
+# Madde 400: Queen AI writes H3's prompt looking at the photo and reading the frame's scenario.
+THRONE = "Kraliçe tahtında oturuyor; salon boş ve karanlık."
+GARDEN = "Kraliçe gece bahçede yürüyor, fenerler yanıyor."
+
+
+def test_the_writer_sees_the_photo_the_video_is_made_from():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    store.files["0_a.png"] = b"PNGDATA"
+    writer = FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert writer.sources == [("0_a.png", b"PNGDATA")]
+
+
+def test_the_writer_is_handed_the_frame_s_scene_by_its_prompt_s_number():
+    """397 wrote the scene on the photo lines the list opened, and the gallery finds it by the
+    prompt's number. The writer is handed that same one, and never another prompt's."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[
+        {**frame(0, prompt="taht"), "scene": THRONE},
+        {**frame(1, prompt="bahçe"), "scene": GARDEN},
+        {"id": "1_a", "type": "video", "number": 1, "variant": 0, "prompt": "",
+         "negative": "", "seed": None, "model": ""},
+    ])
+    for number, prompt in ((0, "taht"), (1, "bahçe")):
+        record.append("düğün", {"file": f"{number}_a.png", "frame": f"{number}_a",
+                                "layer": "photo", "status": "done", "prompt": prompt})
+    writer = FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert writer.scenes == [GARDEN]
+
+
+def test_a_twin_is_handed_its_source_s_scene():
+    """A twin holds its source's picture, so the scene is that picture's -- found by the number,
+    never copied onto the twin's own line."""
+    store, record = FakeStore(), FakeRecord()
+    plan_store = FakePlanStore(frames=[
+        {"id": "P0_0", "type": "photo", "number": 0, "variant": 0, "prompt": "taht",
+         "scene": THRONE, "negative": "", "seed": 1, "model": ""},
+        {"id": "C1_P0_0", "type": "video", "number": 0, "variant": 0, "prompt": "",
+         "negative": "", "seed": None, "model": ""},
+    ])
+    for fid in ("P0_0", "C1_P0_0"):
+        record.append("düğün", {"file": "P0_0.png", "frame": fid, "layer": "photo",
+                                "status": "done", "prompt": "taht"})
+    writer = FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert writer.scenes == [THRONE]
+
+
+def test_a_frame_from_the_flat_list_is_handed_no_scene():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    writer = FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                 lambda: "t", "düğün", writers={layers.VIDEO: writer})
+
+    assert writer.scenes == [""]
 
 
 def video_project(*frames):
