@@ -178,6 +178,19 @@ Written once and carried by each skill text right after its opening, because it 
 copies of it is how one of them goes stale. Not in SYSTEM_PROMPT: that text names no task.
 """
 
+SPEECH_IN_THE_SCENE = (
+    "- If the user wants someone to speak in a frame, write their words, in quotation marks, "
+    "into that frame's scene sentence: the video's prompt is written from it."
+)
+"""Where speech the user asks for is written (Madde 369), in both skills that write a scene (385).
+
+queen-editor's model reads each frame's scene sentence beside its photo and writes the video's
+prompt from it, so the words have to be in that sentence. The photo prompt is kept clear of them by
+the frame writer, which leaves speech out of the action line: the image model draws quoted words as
+text. Start a scenario says it while it writes the scenes and Edit prompts while it makes its fix --
+one sentence, so the two skills cannot come to disagree about where the words go.
+"""
+
 THE_CHECKS = (
     "- Run the checks in order, each over every frame of the scenario unless this step limits "
     "them.\n"
@@ -286,7 +299,7 @@ EDIT_PROMPTS = (
     "update_character, update_outfit or update_location -- one change reaches every frame "
     "naming it.\n"
     "- Who is in a frame, what they wear, or where it happens: update_frame, once for each frame "
-    "the request reaches.\n"
+    "the request reaches.\n" + SPEECH_IN_THE_SCENE + "\n"
     "\n"
     "Step 3 -- the prompts\n"
     "- Call build_prompts again: the prompt file is rebuilt rather than patched.\n"
@@ -336,8 +349,7 @@ START_A_SCENARIO = (
     "Step 4 -- the scenes\n"
     "- Ask how many scenes and which moments matter.\n"
     "- Write them with add_scene: one sentence each, in the language the user is writing in.\n"
-    "- If the user wants someone to speak in a frame, write their words, in quotation marks, "
-    "into that frame's scene sentence: the video's prompt is written from it.\n"
+    + SPEECH_IN_THE_SCENE + "\n"
     "- What someone wears can change from one scene to the next. The moment clothes are taken "
     "off or changed is not written as a scene unless the user asks for it: the model cannot "
     "draw it.\n"
