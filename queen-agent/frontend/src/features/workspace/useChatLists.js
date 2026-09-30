@@ -1,10 +1,15 @@
 import { getJson } from "../../shared/api.js";
 import { useList } from "../../shared/useList.js";
 
-// What this project holds, for the sidebar, which lists all of it (Madde 362).
+// What this project holds, for the sidebar, which lists all of it (Madde 362) -- and, when the read
+// failed, what came back instead (Madde 386), so the sidebar never takes a failure for no chats.
 export function useProjectChats(projectId) {
-  const { items, reload } = useList(`/api/projects/${projectId}/chats`, Boolean(projectId));
-  return { projectChats: projectId ? items : [], reloadProjectChats: reload };
+  const { items, reload, error } = useList(`/api/projects/${projectId}/chats`, Boolean(projectId));
+  return {
+    projectChats: projectId ? items : [],
+    projectChatsError: projectId ? error : null,
+    reloadProjectChats: reload,
+  };
 }
 
 // Starting a chat is not a separate call any more: since Madde 88 the draft sends through the same

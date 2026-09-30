@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import CopyButton from "./CopyButton.jsx";
 import { matches } from "./matches.js";
 
 // Inside a project the sidebar is the project's own (design 151, 152, 168): a filled + New chat
@@ -30,6 +31,8 @@ function Fold({ collapsed, onToggle }) {
 
 export default function Sidebar({
   chats = [],
+  error,
+  onRetry,
   activeChatId,
   onNewChat,
   onOpenChat,
@@ -80,7 +83,9 @@ export default function Sidebar({
   }
 
   const asked = query.trim();
-  const shown = chats.filter((chat) => matches(chat.title, query));
+  // A read that failed leaves the last list in hand -- another project's, maybe -- so with the
+  // list unknown nothing is listed, and Enter has nothing to open.
+  const shown = error ? [] : chats.filter((chat) => matches(chat.title, query));
 
   // The keys are the design's: Enter opens the first match -- the server lists the most recent
   // first -- and hands its reply box the focus; Escape empties the box. Escape is the field's own,
@@ -112,7 +117,19 @@ export default function Sidebar({
       />
 
       <div className="sidebar__chats">
-        {shown.length ? (
+        {error ? (
+          // Madde 386, in 364's shape: the chats are on disk and only the read failed, so this is
+          // no "No chats yet.". What came back is Copy's to hand over, not a sentence to read.
+          <div className="sidebar__failure">
+            <p className="sidebar__error">Couldn&apos;t load chats.</p>
+            <div className="sidebar__actions">
+              <button type="button" className="failure__retry" onClick={onRetry}>
+                Try again
+              </button>
+              <CopyButton text={error} className="sidebar__copy" />
+            </div>
+          </div>
+        ) : shown.length ? (
           shown.map((chat) => (
             <button
               key={chat.id}
