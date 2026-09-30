@@ -143,6 +143,16 @@ class PhotoRecord(Protocol):
         """Append a line for an event that produced no layer."""
         ...
 
+    def prompt_written(self, project: str, frame: str, layer: str, file: str, prompt: str,
+                       at: str) -> None:
+        """Keep the prompt a model wrote for a layer still owed, on the card, until it is made."""
+        ...
+
+    def written_prompts(self, project: str) -> dict:
+        """{frame: {layer: prompt}} -- the prompts written for layers still owed. A later line about
+        the layer -- produced, failed, removed, deleted or put back in line -- ends it."""
+        ...
+
     def slots(self, project: str) -> dict:
         """{frame: {slot: {"status", "file"[, "error"]}}} -- the latest line per (frame, slot).
 
@@ -151,7 +161,8 @@ class PhotoRecord(Protocol):
         ...
 
     def prompts(self, project: str) -> dict:
-        """{frame: {layer: prompt}} -- what each layer was made from; the latest line wins."""
+        """{frame: {layer: prompt}} -- what each layer was made from; the latest line wins. A layer
+        still owed says the prompt written for it."""
         ...
 
     def max_number(self, project: str) -> int | None:

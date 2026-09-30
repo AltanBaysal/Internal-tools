@@ -3,8 +3,9 @@
 This is the log of what happened to every layer of every planned frame: one JSON object per line,
 appended right after the event itself, never rewritten. Append-only is the point -- a session that
 dies mid-write loses at most the line it was adding, where rewriting the whole file could lose every
-earlier one. So a photo landing, a video landing, a deletion, a failed render and a frame pulled out
-of the queue are all lines; reading folds them and the latest line about a slot wins.
+earlier one. So a photo landing, a video landing, a deletion, a failed render, a frame pulled out of
+the queue and a prompt written for a layer still owed are all lines; reading folds them and the
+latest line about a slot wins.
 
 Folded per (frame, layer) rather than per file, because a file can be shared: a copy frame points at
 its source's picture, and closing one of them must not close the other.
@@ -16,6 +17,10 @@ from backend.features.photo_generation.domain import layers, queue
 from backend.features.photo_generation.domain.photo_name import frame_id_of, number_of
 
 FILE = "photos.jsonl"
+
+# A line saying a layer's prompt was written (madde 403). Nothing became of the layer: it is exactly
+# as owed as it was, so the status fold passes over the line.
+WRITTEN = "written"
 
 
 def _status_of(row):
@@ -86,6 +91,12 @@ class DrivePhotoRecord:
             entry["error"] = error
         self.append(project, entry)
 
+    def prompt_written(self, project, frame, layer, file, prompt, at):
+        """Write down the prompt a model wrote for a layer still owed -- the words it will be made
+        with (madde 403). `file` is the layer's own name, as on every other line about it."""
+        self.append(project, {"frame": frame, "layer": layer, "file": file, "status": WRITTEN,
+                              "prompt": prompt, "at": at})
+
     def _rows(self, project):
         """Every readable row, in the order it was written. Read from disk only once per change."""
         return self._cache.parsed(project, FILE, _parse)
@@ -98,9 +109,14 @@ class DrivePhotoRecord:
         under the red frame. A produced video's line carries the mode it was made in, and the
         picture it arrived at when it arrived at one. None of the three is on every line, so none
         of those keys is always there.
+
+        A written prompt's line is passed over: a job never written about has to stay one, and the
+        queue tells it apart from a job put back in line by exactly that.
         """
         folded = {}
         for row in self._rows(project):
+            if _status_of(row) == WRITTEN:
+                continue
             cell = {"status": _status_of(row), "file": row["file"]}
             if isinstance(row.get("error"), str):
                 cell["error"] = row["error"]
@@ -114,16 +130,34 @@ class DrivePhotoRecord:
         return folded
 
     def prompts(self, project):
-        """{frame: {layer: prompt}} -- what each layer was made from; the latest line wins.
+        """{frame: {layer: prompt}} -- what each layer was made from; the latest line wins. A layer
+        still owed says the prompt written for it, the one it will be made with (madde 403).
 
-        Read by whoever needs a frame's own words: a copy frame carries them over, and the model
-        that writes a video's or a sound's prompt starts from them.
+        Read by whoever needs a frame's own words: a copy frame carries them over, the detail page
+        shows them, and the model that writes a video's or a sound's prompt starts from them.
         """
         folded = {}
         for row in self._rows(project):
             prompt = row.get("prompt")
             if isinstance(prompt, str):
                 folded.setdefault(_frame_of(row), {})[_layer_of(row)] = prompt
+        return folded
+
+    def written_prompts(self, project):
+        """{frame: {layer: prompt}} -- the prompt a model wrote for a layer still owed.
+
+        It holds until the next line about that slot: the layer landing (its own row carries the
+        prompt from then on), blowing up, being pulled out, deleted, or put back in line -- a layer
+        queued again is written for again.
+        """
+        latest = {}
+        for row in self._rows(project):
+            latest[(_frame_of(row), _layer_of(row))] = (
+                row.get("prompt") if _status_of(row) == WRITTEN else None)
+        folded = {}
+        for (frame, layer), prompt in latest.items():
+            if isinstance(prompt, str):
+                folded.setdefault(frame, {})[layer] = prompt
         return folded
 
     def list(self, project):

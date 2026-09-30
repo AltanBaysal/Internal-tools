@@ -8,9 +8,10 @@ pauses and what "done" means exist in exactly one place.
 Which producer does the work is decided by the job's type. The loop knows none of them by name: it
 is handed a {type: producer} map and looks the job's own type up in it.
 
-Some jobs are produced with a prompt nobody typed: a video's own is written by a language model when
-its turn comes. Which model that is the loop does not know either -- it looks the job's type up in a
-second map, exactly the way it finds the producer.
+Some jobs are produced with a prompt nobody typed: a video's or a sound's own is written by a language
+model as soon as it is queued -- every turn writes the owed prompts before it makes anything -- and
+kept on the card until its turn comes (madde 403). Which model that is the loop does not know either
+-- it looks the job's type up in a second map, exactly the way it finds the producer.
 """
 import time
 
@@ -43,6 +44,23 @@ def _prompts_of(record, project, fid):
     rows are where its words live.
     """
     return record.prompts(project).get(fid, {})
+
+
+def _unwritten(owed, writers, record, project):
+    """The first owed job whose prompt a model still has to write, or None.
+
+    A job needs one when its type has a writer, it carries no prompt of its own,
+    none has been written for it yet, and the frame has words to write from -- asking with none
+    would buy an invented prompt, and I2V sees the picture itself. The record is asked only when
+    some job could need one: a run with no writers never asks it about words at all.
+    """
+    waiting = [job for job in owed if queue.type_of(job) in writers and not job["prompt"]]
+    if not waiting:
+        return None
+    said, written = record.prompts(project), record.written_prompts(project)
+    return next((job for job in waiting
+                 if queue.type_of(job) not in written.get(job["id"], {})
+                 and any(said.get(job["id"], {}).values())), None)
 
 
 # What a layer is made from: a video hangs on the frame's photo, a sound is laid over its video,
@@ -141,7 +159,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
 
     `writers` maps a job type to the thing that writes its prompt when the job carries none (see
     ports.PromptWriter). A type with no writer is produced with the prompt it has, which is what a
-    photo job -- whose prompt is the user's own -- always does.
+    photo job -- whose prompt is the user's own -- always does. What a writer wrote goes in the
+    record, where the card shows it and the producer finds it (madde 403).
 
     `order_store` is where the sequence comes from: the gallery's own order is the order work is
     done in, read from its foot up. Without one the plan's sequence stands, which is what a project
@@ -183,10 +202,10 @@ def make_job(runner, store, record, plan_store, producers, now, project,
         return {"status": status, **queue.counts(jobs, slots), **extra}
 
     def job():
-        # Attempts spent on the job in hand, which job they belong to, and the prompt written for
-        # it. Memory only: a dead process must leave no count behind, and a restarted run deserves
-        # three fresh tries.
-        attempts, holding, written, chosen = 0, None, None, None
+        # Attempts spent on the job in hand, which job they belong to, and the seed chosen for it.
+        # Memory only: a dead process must leave no count behind, and a restarted run deserves three
+        # fresh tries.
+        attempts, holding, chosen = 0, None, None
         while True:
             if runner.stop_requested():
                 return summary("paused")
@@ -197,10 +216,17 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             owed = queue.open_jobs(jobs, slots, order)
             if not owed:
                 return summary("done")
-            current = owed[0]
+            # A prompt nobody typed is written before anything is made (madde 403), so a layer
+            # queued while the engine is busy has its words on the card before its own turn -- and
+            # a job queued while the loop is idle has them at once. Every door into the queue ends
+            # in run_queue, so this one place covers them all. Written here rather than in the
+            # request that queued it: that request answers at once, and forty frames' worth of asks
+            # would hold it for minutes.
+            writing = _unwritten(owed, writers or {}, record, project)
+            current = writing or owed[0]
             kind = queue.type_of(current)
             producer = producers.get(kind)
-            if producer is None:
+            if writing is None and producer is None:
                 # Not a failure and not a pause: the work is fine, the engine for it is not here
                 # yet. No line is written, so the job stays owed -- installing the producer and
                 # starting the run again is all it takes, and cancelling that install throws
@@ -215,56 +241,57 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             name = layer_file(kind, fid, video=(slots.get(fid, {}).get(layers.VIDEO) or {}).get(
                 "file"))
             if name != holding:
-                # A different job: its predecessor's attempts, written prompt and seed are not its
-                # own.
-                holding, attempts, written, chosen = name, 0, None, None
-            if chosen is None:
+                # A different job: its predecessor's attempts and seed are not its own.
+                holding, attempts, chosen = name, 0, None
+            if writing is None and chosen is None:
                 # A layer job is planned with no seed (queue_layer). Picked before the render, and
                 # once per job rather than once per attempt: all three tries share it, so the row
                 # names the number every one of them used.
                 chosen = current["seed"] if current["seed"] is not None else new_seed()
             # pending is what the gallery draws as "bekliyor": the queue behind the job being done.
-            # failures names the tiles it draws red, each with its own Tekrar dene.
-            runner.report({**queue.counts(jobs, slots), "current": current,
-                           "pending": [photo_file(j["id"]) for j in owed[1:]]})
+            # failures names the tiles it draws red, each with its own Tekrar dene. While a prompt
+            # is written nothing is being made and every owed frame waits -- current is set to None
+            # rather than left out, because a report merges into the one before it.
+            runner.report({**queue.counts(jobs, slots),
+                           "current": None if writing else current,
+                           "pending": [photo_file(j["id"])
+                                       for j in (owed if writing else owed[1:])]})
             started = clock()
             try:
                 # Held in variables because each is asked for more than once: the writer is shown
                 # the file the layer is made from and the picture a video arrives at, the producer
                 # makes the layer from the one and ends on the other, and the row names the ending
-                # -- the detail page prints it for a linked video. Reading either again would be
-                # the same download from Drive. The ending is found before the writer is asked, so a
-                # linked video whose next frame lost its photo spends no request.
+                # -- the detail page prints it for a linked video. The ending is found before the
+                # writer is asked, so a linked video whose next frame lost its photo spends no
+                # request.
                 under = _source_for(kind, store, slots, project, fid)
                 ending = _end_for(current, store, slots, project, fid, under)
-                writer = (writers or {}).get(kind)
-                if writer and not current["prompt"] and written is None:
-                    # Asked here rather than when the job was queued: a job that waits hours would
-                    # otherwise be produced from a prompt written for a gallery that has changed,
-                    # and queueing 40 jobs would spend 40 requests before a single frame is made.
+                if writing:
                     # Inside the try on purpose -- a model that will not answer is a failure like
                     # any other, and the three attempts and the frame-fault rule already say what
-                    # happens next.
-                    words = _prompts_of(record, project, fid)
-                    # Nothing to convert: asking would buy an invented prompt. I2V sees the picture
-                    # itself, so producing with an empty prompt is a real answer here.
-                    if any(words.values()):
-                        # The mode goes with the words: a loop video has to be asked for a motion
-                        # that returns, and the frame's own prompts cannot say that (madde 307). The
-                        # picture and the scenario go too: H3's writer looks at the one and reads the
-                        # other (madde 400), and a linked video's writer sees where it ends (402).
-                        written = writer.write(words, production_mode.of(current), source=under,
-                                               end=ending,
-                                               scene=scene.of(scene.by_number(jobs), fid))
-                prompt = current["prompt"] or written or ""
-                # Only a job made of the pool has any, and it is asked for now rather than when
-                # the job was queued: the pool is the user's to change in between.
-                pool = (references(project)
-                        if references and production_mode.of(current) == production_mode.REFERENCE
-                        else ())
-                data = producer.generate(prompt, current["negative"], chosen,
-                                         current["model"], current.get("lora", ""),
-                                         source=under, end=ending, references=pool)
+                    # happens next. The mode goes with the words: a loop video has to be asked for
+                    # a motion that returns, and the frame's own prompts cannot say that (madde
+                    # 307). The picture and the scenario go too: H3's writer looks at the one and
+                    # reads the other (madde 400), and a linked video's writer sees where it ends
+                    # (402).
+                    words = writers[kind].write(_prompts_of(record, project, fid),
+                                                production_mode.of(current), source=under,
+                                                end=ending,
+                                                scene=scene.of(scene.by_number(jobs), fid))
+                else:
+                    # The card's prompt when the job carries none of its own. The record is asked
+                    # only then, so a job the user wrote for never reaches it.
+                    prompt = current["prompt"] or record.written_prompts(project).get(
+                        fid, {}).get(kind, "")
+                    # Only a job made of the pool has any, and it is asked for now rather than
+                    # when the job was queued: the pool is the user's to change in between.
+                    pool = (references(project)
+                            if references
+                            and production_mode.of(current) == production_mode.REFERENCE
+                            else ())
+                    data = producer.generate(prompt, current["negative"], chosen,
+                                             current["model"], current.get("lora", ""),
+                                             source=under, end=ending, references=pool)
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job
@@ -287,6 +314,15 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # run stops. Deliberately no line for the job -- it stays owed, and resuming starts
                 # from it rather than leaving a red tile the user has to rescue by hand.
                 return summary("error", error=f"{policy.stop_reason(attempts)}\n{exc}")
+            if writing:
+                # Under the gate, like the render's own line: the storage layer creates a folder it
+                # is missing, so a line that resolved the old name after a rename would leave a
+                # ghost project beside the real one.
+                with named.steady() as project:
+                    record.prompt_written(project, fid, kind, name, words, now())
+                # The attempts were the ask's; the render that follows gets three of its own.
+                attempts, holding = 0, None
+                continue
             rendered = clock()
             # Together and under the gate: the storage layer creates a folder it is missing, so a
             # save that resolved the old name after a rename would leave a ghost project beside the

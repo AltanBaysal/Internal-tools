@@ -245,7 +245,7 @@ function ModeRow({ label, active, disabled, onPick }) {
 }
 
 // Artboard: the photo panel's shape with a different subject. What it does not ask for is the
-// point -- the prompt is written by a language model when the job's turn comes, and the length is
+// point -- the prompt is written by a language model once the job is queued, and the length is
 // fixed, so the only questions left are which frames, and how many of each.
 // `job`, `busyElsewhere` and `error` are here for one sentence each, the way the photo panel takes
 // them: there is a single worker, so a run started from another project refuses this one, and until

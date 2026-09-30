@@ -38,7 +38,7 @@ def plan_reference_cards(start, prompts, variants, new_seed):
     to produce.
 
     The words ride on the line because the user wrote them. A video job usually carries none and a
-    language model writes one when its turn comes -- and that writer leaves a line that has one.
+    language model writes one as soon as it is queued -- and that writer leaves a line that has one.
     """
     return [{"id": frame_id(start + index, variant), "type": layers.VIDEO,
              "number": start + index, "variant": variant,

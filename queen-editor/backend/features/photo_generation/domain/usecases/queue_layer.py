@@ -70,8 +70,9 @@ def frames_in_scope(gallery, kind, files=None):
 def _job(kind, fid, number, variant, mark=()):
     """The plan line for one layer.
 
-    The prompt is empty on purpose: a language model writes it when the job's turn comes, and a box
-    the user was never shown must not pretend to hold their words.
+    The prompt is empty on purpose: a language model writes it as soon as the job is queued and it
+    goes on the card, in the record (madde 403) -- a box the user was never shown must not pretend
+    to hold their words.
 
     `mark` is what the production mode adds -- nothing at all for a layer that ends nowhere.
     """

@@ -728,11 +728,13 @@ export default function PhotoDetail({ project, frame: fid }) {
                 <TextBlock label={`${LAYER_LABEL[open]} prompt'u`} height={PROMPT_HEIGHT[open]}
                            text={(frame.prompts || {})[open]
                                  ?? (open === "photo" ? frame.prompt : "")}
-                           // A layer still in the queue has no words yet, and nobody typed the
-                           // missing ones. Not the photo's: those words are the user's own, so a
-                           // notice about a prompt nobody has written would be false there.
+                           // A layer still in the queue whose words a model has not written yet:
+                           // the queue writes every owed prompt before it makes anything (madde
+                           // 403), so this lasts while a render ahead of it ends. Not the photo's:
+                           // those words are the user's own, so a notice about a prompt nobody has
+                           // written would be false there.
                            hint={openState === "pending" && open !== "photo"
-                             ? "Prompt yok — üretim sırası geldiğinde eklenecek."
+                             ? "Prompt yok — üretimden önce yazılacak."
                              : null} />
               )}
               {/* The negative belongs to the photo alone: video and sound jobs carry none. It is
