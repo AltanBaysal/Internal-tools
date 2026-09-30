@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 48/49
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 48/55
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -80,7 +80,9 @@ denenirken panelin kenarını çekmek sayfanın yazısını seçti; kullanıcı 
 subagent'ın. **376 30 Eylül'de koşulmadan [backlog](../../../queen-agent/BACKLOG.md)'a döndü**
 *(kullanıcı — "bunu backloga at şimdilik")*, ve numarası başka maddeye verilmez; kararları aşağıda,
 v9-10'da duruyor. **382 ve 383 30 Eylül'de çıktı**, Claude'un koşu sırasında sorduğu iki sorudan; Dalga
-7'de birer subagent'ın.
+7'de birer subagent'ın. **384 – 389 da 30 Eylül'de çıktı**, Claude'un Dalga 7'den sonra saydığı küçük
+açıklardan: 385 – 389 Dalga 8'de ve ardındaki prompt'larda koşar; 384 hizalanmayı bekler *(kullanıcı —
+"bunu düzeltmek için roadmap ekle ve bekle")*.
 
 **Queen Editor'ün v8-3'ü önce biter:** v9-7a'nın çıkardığı listeyi bugünkü kutu okuyamaz, o yüzden v9
 main'e v8'den önce alınmaz.
@@ -202,6 +204,26 @@ Hepsi dalın bugünkü ucunun üstüne kurulur, ve aynı yere dokunmaz: 381 pane
 | 381 | ✅ **Panelin kenarını çekmek yazı seçmez.** Yan panelin sol kenarı çekilince — liste de açık dosya da — fare sürüklendiği yerdeki bütün yazıyı mavi seçiyor: mesajlar, kart, yazma kutusu. Madde 50'den beri böyle; 356 aynı kenarı açık dosyaya da verdi. *(356 tarayıcıda denenirken bulundu, 29 Eylül.)* Kenar çekilirken sayfada hiçbir yazı seçilmez *(kullanıcı, 30 Eylül — "bu da evet")*. | Panelin kenarı çekilirken sayfada hiçbir yazı seçilmiyor. |
 | 382 | ✅ **Arşive giden projenin sabitlemesi kalkar**, tasarımdaki gibi. 363 sabitlemeyi arşivde tuttu, tasarım kaldırıyor *(363 tarayıcıda denenirken bulundu, 29 Eylül; kullanıcı, 30 Eylül — "kalksın")*. Tasarımda `Undo` projeyi sabitlemesiyle eski yerine koyar; `Unarchive` sabitlemeyi geri getirmez *(tasarım: `data.js`'in `archiveProject`, `restoreProject` ve `unarchiveProject`'i; BEHAVIOUR.md)*. | Sabitli proje arşive alınınca `Unarchive`'la Recent'e dönüyor, Pinned'e değil; `Undo` ise onu Pinned'deki yerine koyuyor. |
 | 383 | ✅ **Grok ve xAI anahtarı kalkar.** 358'den beri hiçbir mesaj Grok'a gitmiyor, ama modellerin listesinde `grok-4.3` satırı, ortamda ve notebook'ta `XAI_API_KEY` duruyor *(358 birleşirken bulundu, 29 Eylül; kullanıcı, 30 Eylül — "kalksın")*. | QueenAgent `XAI_API_KEY` olmadan açılıyor ve notebook onu sormuyor; kodda, notebook'ta ve QueenAgent'ın belgelerinde Grok da xAI de geçmiyor. |
+
+### Dalga 8 — dalga 7 birleşince, aynı anda
+
+Hepsi dalın ucunun üstüne kurulur. 386 ile 389 kenar çubuğunun ayrı yerlerine dokunabilir; birleştirmeyi
+Claude yapar. 385 modele giden metne dokunuyor ve öteki iki arayüz maddesiyle aynı yere değmiyor, o
+yüzden onlarla aynı anda koşar; 388 aynı metne yazdığı için 385'in arkasında, tek başına.
+
+| # | İş | Bitti sayılır |
+|---|---|---|
+| 385 | `ALIGNED` **Edit prompts da konuşmayı sahne cümlesine yazar.** 369'un kuralı yalnız Start a scenario'da: bir karede konuşma istenince söz o karenin sahne cümlesine tırnak içinde yazılır, fotoğraf prompt'una girmez, ve cümle listeyle queen-editor'e gider. Edit prompts'ta bu kural yok, ve düzenlerken istenen konuşma ya fotoğraf prompt'una girer ya da hiç yazılmaz *(374 birleşirken bulundu, 30 Eylül; kullanıcı — "olur eklensin")*. | Edit prompts'ta bir karede konuşma istenince söz o karenin sahne cümlesine tırnak içinde yazılıyor, fotoğraf prompt'una girmiyor. |
+| 386 | `ALIGNED` **Kenar çubuğu okuyamadığı sohbet listesine "yok" demez.** Sohbet listesi okunamayınca bugün `No chats yet.` yazıyor, oysa sohbetler var. Proje listesindeki gibi okunamadığını söyler ve yeniden denetir *(Dalga 5'te bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | Sohbet listesi okunamayınca kenar çubuğunda `No chats yet.` değil, okunamadığını söyleyen satır ve yeniden deneme var. |
+| 387 | `ALIGNED` **Reddedilen yeniden adlandırma yazılan adı kaybetmez.** Sunucu yeni adı reddedince bugün yazılan ad siliniyor; yeni projede aynı durumda ad kalıyor, ikisi aynı davranır *(Dalga 5'te bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | Sunucu yeni adı reddedince satırda yazılan ad duruyor ve hata görünüyor. |
+| 389 | `ALIGNED` **Sohbet aramasında Esc yalnız aramayı boşaltır.** Bugün `Search chats` kutusunda Esc'e basınca, açık bir dosya varsa o da kapanıyor *(365 tarayıcıda denenirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | `Search chats`'te Esc aramayı boşaltıyor, açık dosya açık kalıyor. |
+| 388 | `ALIGNED` **Edit prompts olmayan negatif dosyayı söylemez.** Kapanış her zaman `-negative.txt`'yi adıyla anıyor; 373'ten önce yazılmış senaryolarda o dosya yok, ve model kullanıcıya olmayan bir dosyayı söyleyebiliyor *(374 birleşirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. **385'ten sonra.** | Edit prompts'un kapanışı negatif dosyayı yalnız o dosya varken anıyor. |
+
+### Bekliyor — hizalanınca
+
+| # | İş | Bitti sayılır |
+|---|---|---|
+| 384 | `UNALIGNED` **Archived sekmesi yalnız son kullanıma göre sıralanır**, tasarımdaki gibi. 382'den beri eskiden sabitli olan bir proje o sekmede öteki arşivlilerin önünde duruyor: sabitleme dosyası, `Undo` projeyi sabitliler arasındaki yerine koyabilsin diye arşivde kalıyor. *(382 birleşirken bulundu; kullanıcı, 30 Eylül — "bunu düzeltmek için roadmap ekle ve bekle", "Önce undo yapıp sonra archive eklesen olmuyor mu?")* | Archived sekmesinde projeler yalnız son kullanıma göre sıralı; `Undo` projeyi yine eski yerine koyuyor. |
 
 ### En sonda
 
