@@ -292,6 +292,17 @@ def test_a_listed_frame_carries_the_prompt_behind_it(tmp_path):
     assert row["status"] == "done"
 
 
+def test_a_listed_frame_carries_how_long_its_layers_took(tmp_path):
+    client, drive = make_client(tmp_path)
+    DrivePhotoRecord(DriveStorage(str(drive))).append(
+        "düğün", {"file": "0_a.png", "frame": "0_a", "layer": "photo", "status": "done",
+                  "renderSeconds": 46.3})
+
+    row = client.get("/api/projects/düğün/frames").get_json()["frames"][0]
+
+    assert row["renderSeconds"] == {"photo": 46.3}
+
+
 def test_frames_of_an_unknown_project_return_404(tmp_path):
     client, _ = make_client(tmp_path)
     assert client.get("/api/projects/yok/frames").status_code == 404

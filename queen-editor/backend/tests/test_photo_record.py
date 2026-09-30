@@ -216,6 +216,15 @@ def test_a_line_that_names_an_ending_picture_carries_it_into_the_slot(tmp_path):
     assert record.slots("düğün")["0_a"]["video"]["endsOn"] == "1_a.png"
 
 
+def test_a_line_that_names_its_render_time_carries_it_into_the_slot(tmp_path):
+    """What the card's production time is read from: the produced layer's own line (madde 405)."""
+    record = record_at(tmp_path)
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "renderSeconds": 46.3})
+
+    assert record.slots("düğün")["0_a"]["video"]["renderSeconds"] == 46.3
+
+
 def test_lines_written_before_the_status_field_still_read(tmp_path):
     # What the projects already on Drive look like: a photo row and a deletion row, no status.
     record = record_at(tmp_path)
