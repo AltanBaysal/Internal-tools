@@ -216,7 +216,7 @@ def test_an_archived_project_keeps_its_place_among_the_pins():
 
 
 class FakeEngine:
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None):
         yield {"text": "Done."}
 
 

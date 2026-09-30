@@ -10,6 +10,7 @@ line breaks instead of the code the cell runs.
 """
 import json
 import os
+import re
 
 TOOL = os.path.dirname(          # queen-agent
     os.path.dirname(             # backend
@@ -136,36 +137,24 @@ def test_a_missing_token_says_what_to_do():
     assert "Secrets" in said and "GITHUB_TOKEN" in said, "Ne yapılacağı söylenmiyor"
 
 
-def test_the_xai_key_comes_from_secrets():
-    """Madde 62: the same panel the token comes from, the same way queen-editor has always read it.
-    The Settings screen that used to hold it is gone -- it served the key back in plain text over a
-    link with no password."""
-    assert 'userdata.get("XAI_API_KEY")' in _source(), "xAI anahtarı Secrets'tan okunmuyor"
-
-
-def test_a_missing_xai_key_says_what_to_do():
-    """Colab has no second road for it: there is no screen to type it into later, so an app started
-    without one can do nothing at all. Stopping here beats failing on the first message."""
-    said = _cell("assert XAI_API_KEY")
-    assert said, "xAI anahtarı yokken defter sessizce devam ediyor"
-    assert "Secrets" in said and "XAI_API_KEY" in said, "Ne yapılacağı söylenmiyor"
-
-
-def test_the_xai_key_travels_to_the_app_in_the_environment():
-    """The same road QUEENAGENT_ROOT takes. config.py reads it at startup and nothing else does."""
-    assert '"XAI_API_KEY": XAI_API_KEY' in _cell(SERVE), "Anahtar uygulamaya geçirilmiyor"
+def test_the_notebook_asks_for_the_token_and_one_key():
+    """Madde 383: every turn and every action line goes to DeepSeek, so its key is the one the app
+    spends. A secret asked for and never spent is one more thing a user has to go and get."""
+    asked = set(re.findall(r'userdata\.get\("(\w+)"\)', _source()))
+    assert asked == {"GITHUB_TOKEN", "DEEPSEEK_API_KEY"}, f"Defter başka bir şey de soruyor: {asked}"
 
 
 def test_the_deepseek_key_comes_from_secrets():
-    """Madde 146: a second provider, and its key takes the road the first one's takes."""
+    """Madde 62: the same panel the token comes from, the same way queen-editor has always read its
+    own. The Settings screen that used to hold a key is gone -- it served the key back in plain
+    text over a link with no password."""
     assert 'userdata.get("DEEPSEEK_API_KEY")' in _source(), "DeepSeek anahtarı Secrets'tan okunmuyor"
 
 
 def test_a_missing_deepseek_key_says_what_to_do():
-    """Both keys are required rather than one of them (kullanıcı kararı, 2 Eylül).
-
-    Every turn and every action line goes to DeepSeek (config.DEFAULT_MODEL and PROMPT_MODEL), so a
-    run opened without this key answers nothing.
+    """Colab has no second road for it: there is no screen to type it into later, and every turn and
+    every action line goes to DeepSeek (config.DEFAULT_MODEL and PROMPT_MODEL), so a run opened
+    without this key answers nothing. Stopping here beats failing on the first message.
     """
     said = _cell("assert DEEPSEEK_API_KEY")
     assert said, "DeepSeek anahtarı yokken defter sessizce devam ediyor"
@@ -173,6 +162,7 @@ def test_a_missing_deepseek_key_says_what_to_do():
 
 
 def test_the_deepseek_key_travels_to_the_app_in_the_environment():
+    """The same road QUEENAGENT_ROOT takes. config.py reads it at startup and nothing else does."""
     assert '"DEEPSEEK_API_KEY": DEEPSEEK_API_KEY' in _cell(SERVE), (
         "DeepSeek anahtarı uygulamaya geçirilmiyor"
     )
@@ -188,19 +178,17 @@ def test_no_api_key_is_ever_printed():
     """The sibling of the rule that keeps the clone URL out of the output, and a lock rather than a
     test: nothing interpolates a key today, so it cannot fail yet.
 
-    Asked about the value, not the name. The first version banned the string XAI_API_KEY from any
-    print line and went red the moment the notebook told the user which secret to add -- which is a
+    Asked about the value, not the name. The first version banned the key's name from any print
+    line and went red the moment the notebook told the user which secret to add -- which is a
     sentence the user needs. The name belongs in the output; only the value must never reach it, and
     it can only get there by interpolation or as the argument itself.
-
-    Over both keys since Madde 146: a rule written for one of two is a rule the second one escapes.
     """
-    for name in ("XAI_API_KEY", "DEEPSEEK_API_KEY"):
-        for line in _source().splitlines():
-            if "print(" not in line:
-                continue
-            assert "{" + name not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
-            assert f"print({name}" not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
+    name = "DEEPSEEK_API_KEY"
+    for line in _source().splitlines():
+        if "print(" not in line:
+            continue
+        assert "{" + name not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
+        assert f"print({name}" not in line, f"Anahtarın değeri basılıyor: {line.strip()}"
 
 
 # --- Madde 56: the clone -------------------------------------------------------------------------

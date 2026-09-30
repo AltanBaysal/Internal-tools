@@ -1,4 +1,4 @@
-"""XaiClient -- HTTP transport for xAI's OpenAI-compatible chat completions.
+"""ModelClient -- HTTP transport for an OpenAI-compatible chat completions API.
 
 Knows no prompt, no chat and no file: it takes a message list and returns the assistant's message.
 Built on urllib rather than a third-party client because one POST and one SSE stream do not earn a
@@ -11,19 +11,16 @@ import urllib.error
 import urllib.request
 
 
-class XaiNotConfigured(Exception):
+class ModelNotConfigured(Exception):
     """No API key. The app still starts; only asking for an answer fails."""
 
 
-class XaiFailed(Exception):
+class ModelFailed(Exception):
     """The service answered with an error. Carries its own words, never a guessed cause."""
 
 
 _DATA = b"data: "
 _DONE = object()
-# What an xAI address looks like. The conversation header is that service's own, so the base URL is
-# asked before it is sent.
-_IS_XAI = "x.ai"
 
 
 def _parsed(raw):
@@ -105,8 +102,8 @@ def _fragments(frame):
 class _Calls:
     """Tool-call fragments, joined by index into whole calls (Madde 148).
 
-    xAI sends a function call whole in one chunk and documents that it does. DeepSeek fragments it
-    the way OpenAI does: the first piece names the tool, the rest only grow `arguments`. Forwarded
+    A call may come whole in one chunk, which the OpenAI-compatible protocol allows. DeepSeek
+    fragments it the way OpenAI does: the first piece names the tool, the rest only grow `arguments`. Forwarded
     raw, those later pieces reached the layers above as calls of their own and died on a missing
     name -- so the joining belongs here, where carrying the call is the job.
 
@@ -158,11 +155,11 @@ def _spent(frame):
     the difference is what was paid for a second time. Nothing here computes that difference: a
     number that restates two others goes stale on its own.
 
-    Two shapes since Madde 146, because the two services answer the same question differently: xAI
-    nests the figure under `prompt_tokens_details`, DeepSeek sends `prompt_cache_hit_tokens` flat
-    beside the total and no details object at all. `sent` and `answered` they name alike. Read
-    rather than chosen by provider: the frame says which shape it is, and asking it is one fact
-    where a lookup by address would be two.
+    Two shapes since Madde 146, because the same question is answered two ways: the
+    OpenAI-compatible shape nests the figure under `prompt_tokens_details`, DeepSeek sends
+    `prompt_cache_hit_tokens` flat beside the total and no details object at all. `sent` and
+    `answered` are named alike in both. Read rather than chosen by provider: the frame says which
+    shape it is, and asking it is one fact where a lookup by address would be two.
     """
     counts = frame.get("usage")
     if not counts:
@@ -178,7 +175,7 @@ def _spent(frame):
     }
 
 
-class XaiClient:
+class ModelClient:
     def __init__(self, read_key, model, base_url, opener=urllib.request.urlopen):
         # A function rather than a string: where the key comes from is the composition root's
         # decision, and this class is built so that changing it never reaches here. It has changed
@@ -198,8 +195,8 @@ class XaiClient:
         than onto a screen.
 
         The same _spent reads the bill here as in the stream, off the payload instead of off a
-        frame. Two services shape that figure two ways and one function knows both of them; a
-        second reading here would part from that one the day either service moved.
+        frame. The figure comes in two shapes and one function knows both of them; a second
+        reading here would part from that one the day either shape moved.
         """
         request = self._request({"messages": messages}, None)
         try:
@@ -209,15 +206,15 @@ class XaiClient:
             # The service's own words: a 401 is not necessarily an expired key, and a wrong model
             # name answers 404 too. Guessing a cause here would print a lie.
             body = failure.read().decode("utf-8", "replace")
-            raise XaiFailed(f"{failure.code} {body}") from failure
+            raise ModelFailed(f"{failure.code} {body}") from failure
         except urllib.error.URLError as failure:
-            raise XaiFailed(str(failure.reason)) from failure
+            raise ModelFailed(str(failure.reason)) from failure
         message = payload["choices"][0]["message"]
         # Always a dict, even from a service that mentioned nothing: the caller adds this to a
         # total, and a shape that comes and goes is one every caller has to ask about.
         return {"text": message.get("content") or "", "spent": _spent(payload) or {}}
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None):
         # The counts come only if asked for, and only to a stream -- so the ask sits beside the
         # stream flag rather than in _request, which serves both roads. Without it every frame's
         # usage field comes back null and the answer costs nothing that anyone can read.
@@ -228,7 +225,6 @@ class XaiClient:
                 "stream_options": {"include_usage": True},
             },
             tools,
-            conversation_id=conversation_id,
         )
         try:
             with self._opener(request) as response:
@@ -268,47 +264,35 @@ class XaiClient:
                     yield {"tool_calls": whole}
         except urllib.error.HTTPError as failure:
             body = failure.read().decode("utf-8", "replace")
-            raise XaiFailed(f"{failure.code} {body}") from failure
+            raise ModelFailed(f"{failure.code} {body}") from failure
         except urllib.error.URLError as failure:
-            raise XaiFailed(str(failure.reason)) from failure
+            raise ModelFailed(str(failure.reason)) from failure
         except http.client.IncompleteRead as failure:
             # A chunked body that stopped in the middle -- one of the two shapes a cut socket
             # leaves behind. Python's own words: who cut it is not something this layer knows.
-            raise XaiFailed(str(failure)) from failure
+            raise ModelFailed(str(failure)) from failure
         except OSError as failure:
             # The other shape: a handle closed under a read that was waiting on it. Also what a
             # connection dropping mid-answer looks like, and the two are not told apart here.
-            raise XaiFailed(str(failure)) from failure
+            raise ModelFailed(str(failure)) from failure
 
-    def _request(self, body, tools, conversation_id=""):
+    def _request(self, body, tools):
         api_key = self._read_key()
         # Not a guessed cause: there is nothing to send, and that is something known here rather
         # than read off a 401 from the other end.
         if not api_key:
-            raise XaiNotConfigured("No API key is set.")
+            raise ModelNotConfigured("No API key is set.")
         # One model, named once where this client is built. There used to be a per-call one that
         # won over it, back when a chat could pick its own.
         payload = {"model": self._model, **body}
         if tools:
             payload["tools"] = tools
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        # A header rather than a body field: the cache's key is the body's prefix, and an id inside
-        # the body would change the very thing it is meant to route to. Only a real name goes -- an
-        # empty one would file every caller with no conversation under the same entry.
-        #
-        # And only to xAI, since Madde 146: this is that service's own way of routing a request to
-        # its conversation's cache. DeepSeek matches prefixes by itself and documents nothing of the
-        # kind, so sending it there would be a made-up name on somebody else's wire. The address is
-        # what decides, because the address is already what says which service this is -- a flag
-        # beside it would be the same fact written twice.
-        if conversation_id and _IS_XAI in self._base_url:
-            headers["x-grok-conv-id"] = conversation_id
         return urllib.request.Request(
             f"{self._base_url}/chat/completions",
             data=json.dumps(payload).encode("utf-8"),
-            headers=headers,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
             method="POST",
         )

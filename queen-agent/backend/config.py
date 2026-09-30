@@ -19,10 +19,6 @@ ROOT = os.environ.get("QUEENAGENT_ROOT", os.path.join(os.path.expanduser("~"), "
 #
 # Empty rather than absent when it is unset: the app starts without a key and only asking for an
 # answer fails.
-XAI_API_KEY = os.environ.get("XAI_API_KEY", "")
-# The second provider's key, since Madde 146, and it travels the same road. The notebook demands
-# both: each spends a row of the table below, and a run opened on one key would have a model wired
-# that it cannot answer with.
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 
 # Which models exist, and what each id means to the transport. Nothing on the screen names one
@@ -33,13 +29,9 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 #
 # Madde 82 named one model here, Madde 146 made it three and put a picker in the composer, and
 # Madde 336 left DeepSeek one name. Madde 358 took the picker out: the two constants below say which
-# row answers what.
+# row answers what. Madde 383 took out the other provider's row, which nothing had pointed at since
+# Madde 202, and its key with it.
 MODELS = {
-    # Nothing points here since Madde 202 moved the writing to DeepSeek, and by Madde 183's own rule
-    # -- a row nobody will use is dead configuration -- this one would go. Kept knowingly: deleting
-    # it takes XAI_API_KEY and the notebook's third secret with it, and what the run was for was
-    # trying another writer. If the lines come out worse, going back is the constant below.
-    "grok-4.3": {"base_url": "https://api.x.ai/v1", "key": "XAI_API_KEY"},
     # No /v1: this is DeepSeek's own documented base, and the client appends /chat/completions to
     # whatever it is handed.
     #

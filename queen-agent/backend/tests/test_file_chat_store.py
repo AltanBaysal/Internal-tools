@@ -87,7 +87,7 @@ def test_the_two_model_fields_are_not_the_same_field(tmp_path):
     raw = Store(str(tmp_path))
     raw.write_text(
         "p1/chats/old.json",
-        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "model": "grok-4.3",'
+        '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "model": "deepseek-v4-pro",'
         ' "messages": [{"role": "user", "at": "2026-08-09T11:04:00+00:00", "text": "hi",'
         ' "model": "deepseek-v4-flash"}]}',
     )
@@ -115,7 +115,7 @@ def test_a_chat_that_still_carries_a_model_on_disk_is_read_without_it(tmp_path):
     raw.write_text(
         "p1/chats/old.json",
         '{"title": "Old", "createdAt": "2026-08-09T11:04:00+00:00", "messages": [],'
-        ' "model": "grok-4.3"}',
+        ' "model": "deepseek-v4-pro"}',
     )
     old = FileChatStore(raw).get("p1", "old")
     assert old.title == "Old"

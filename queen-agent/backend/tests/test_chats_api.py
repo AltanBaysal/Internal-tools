@@ -29,7 +29,7 @@ class FakeEngine:
 
     # No model (Madde 358): the engine answers with the one config.py names, so a route that still
     # handed one down would die here.
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None):
         if self.blow_up:
             raise RuntimeError(self.blow_up)
         self.seen = [dict(message) for message in messages]
@@ -49,7 +49,7 @@ class ScriptedEngine:
         # Which tools each round was offered. Since Madde 91 that is what a mode turns into.
         self.tools = []
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None):
         self.tools.append([spec["function"]["name"] for spec in tools or []])
         pieces = self.rounds.pop(0) if self.rounds else []
         for piece in pieces:
@@ -583,7 +583,7 @@ def test_a_model_sent_with_a_message_is_not_kept(tmp_path):
     pid = _project(client)
     cid = _named(
         client.post(
-            f"/api/projects/{pid}/messages", json={"text": "hello", "model": "grok-4.3"}
+            f"/api/projects/{pid}/messages", json={"text": "hello", "model": "deepseek-v4-pro"}
         ).get_data(as_text=True)
     )
     assert "model" not in _record(client, pid, cid)["messages"][0]

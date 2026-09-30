@@ -196,18 +196,15 @@ class ScriptedEngine:
         self.handed = []
         # Which tools each round was offered. Since Madde 91 that is the mode's whole consequence.
         self.tools = []
-        # Which conversation each round said it belonged to (Madde 124).
-        self.conversation_ids = []
 
     def write_once(self, system, user):
         """The other road (Madde 175), which one tool walks: one question, one answer, one bill."""
         self.written.append((system, user))
         return {"text": "she turns her head, close-up", "spent": self.tool_spends}
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None):
         self.seen.append(list(messages))
         self.tools.append([spec["function"]["name"] for spec in tools or []])
-        self.conversation_ids.append(conversation_id)
         if on_open:
             on_open(self._cut)
         if self.blow_up_after is not None and len(self.seen) > self.blow_up_after:
@@ -490,13 +487,6 @@ def test_a_chat_that_read_nothing_carries_no_box(tmp_path):
     # before finding out it is empty.
     _, _, engine, _ = _run(tmp_path, [[{"text": "hi"}]])
     assert _box(engine.seen[0]) == ""
-
-
-def test_the_engine_is_told_which_chat_is_asking(tmp_path):
-    # Madde 124: the chat is the conversation, and its id is the name the service's cache files
-    # this turn's prefix under. A request that never says whose it is starts cold every time.
-    _, _, engine, _ = _run(tmp_path, [[{"text": "hi"}]])
-    assert engine.conversation_ids == ["c1"]
 
 
 def _write_round(name="plan.md"):

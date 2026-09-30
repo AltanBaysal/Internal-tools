@@ -50,8 +50,8 @@ A service does one job, lives in its own folder, and knows **no feature**:
 
 - `store/` — read / write / list / move under one root. Knows nothing about projects, chats or files.
   Rejects any path that escapes the root.
-- `xai/` — Grok HTTP transport: a request, an SSE stream, a resolved tool call. Knows no prompt, no
-  filename, and nothing about what any tool does.
+- `model/` — HTTP transport to an OpenAI-compatible chat API: a request, an SSE stream, a resolved
+  tool call. Knows no prompt, no filename, and nothing about what any tool does.
 
 A service never imports a feature and never imports another service.
 
@@ -76,7 +76,7 @@ break `feature ↛ feature` on the first real use case. They are one aggregate.
 
 And it is the only one. **The app has no feature for its own configuration**: everything it is told
 from outside arrives in the environment and stops at `config.py`. There was a `settings` feature
-once, holding the xAI key — it was deleted because the endpoint that served the key back was written
+once, holding the API key — it was deleted because the endpoint that served the key back was written
 for a machine only its owner could reach, and Colab put the app behind a public address. The next
 setting goes in `config.py` too; a feature is what the user makes things in, not where the app keeps
 what it was told.

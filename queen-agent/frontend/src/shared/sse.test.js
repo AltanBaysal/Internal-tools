@@ -63,8 +63,8 @@ test("the stream reports what the server said, like every other request", async 
     vi.fn().mockResolvedValue({
       ok: false,
       status: 502,
-      text: async () => JSON.stringify({ error: "xai answered 401: bad key" }),
+      text: async () => JSON.stringify({ error: "the model answered 401: bad key" }),
     }),
   );
-  await expect(streamEvents("/api/x", () => {})).rejects.toThrow("xai answered 401: bad key");
+  await expect(streamEvents("/api/x", () => {})).rejects.toThrow("the model answered 401: bad key");
 });

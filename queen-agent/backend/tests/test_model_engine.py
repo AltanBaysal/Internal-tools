@@ -1,12 +1,12 @@
 import inspect
 
-from backend.features.workspace.data.xai_engine import XaiEngine
+from backend.features.workspace.data.model_engine import ModelEngine
 from backend.features.workspace.domain.prompt import SYSTEM_PROMPT
 
 CONVERSATION = [{"role": "user", "content": "a"}, {"role": "ai", "content": "b"}]
 
 
-DEFAULT = "grok-4.3"
+DEFAULT = "deepseek-flash"
 
 
 def _engine(client, prompt_writer=DEFAULT, **others):
@@ -18,7 +18,7 @@ def _engine(client, prompt_writer=DEFAULT, **others):
     The third name is Madde 175's: which of them writes a prompt when a tool asks for one. It
     defaults to the same client here so the tests that do not care about it can stay quiet.
     """
-    return XaiEngine({DEFAULT: client, **others}, default=DEFAULT, prompt_writer=prompt_writer)
+    return ModelEngine({DEFAULT: client, **others}, default=DEFAULT, prompt_writer=prompt_writer)
 
 
 class FakeClient:
@@ -27,16 +27,14 @@ class FakeClient:
     def __init__(self):
         self.seen = None
         self.on_open = None
-        self.conversation_id = None
 
     def write_once(self, messages):
         self.seen = messages
         return {"text": "hi", "spent": {"sent": 40, "cached": 0, "answered": 8}}
 
-    def stream(self, messages, tools=None, on_open=None, conversation_id=""):
+    def stream(self, messages, tools=None, on_open=None):
         self.seen = messages
         self.on_open = on_open
-        self.conversation_id = conversation_id
         return iter(["hi"])
 
 
@@ -48,7 +46,7 @@ def test_the_system_prompt_leads_and_the_roles_are_translated():
     # this app's own page is what comes first. Pinning the whole string would put this test in the
     # way of the one thing that madde exists for -- somebody writing that part.
     assert client.seen[0]["content"].startswith(SYSTEM_PROMPT)
-    # Disk keeps the design's own word; xAI is told OpenAI's.
+    # Disk keeps the design's own word; the model is told OpenAI's.
     assert [message["role"] for message in client.seen] == ["system", "user", "assistant"]
 
 
@@ -77,10 +75,10 @@ def test_write_once_goes_to_the_prompt_writer_rather_than_the_turns_model():
     # The whole point of the third name. The turn's model is the default; who writes a prompt is a
     # role of its own in config.py (the user's decision, 5 Sep), and either can move alone.
     agent, writer = FakeClient(), FakeClient()
-    engine = XaiEngine(
-        {"deepseek-v4-flash": agent, "grok-4.3": writer},
-        default="deepseek-v4-flash",
-        prompt_writer="grok-4.3",
+    engine = ModelEngine(
+        {"deepseek-flash": agent, "writer": writer},
+        default="deepseek-flash",
+        prompt_writer="writer",
     )
     engine.write_once("you write prompts", "frame 3")
     assert writer.seen is not None
@@ -120,27 +118,19 @@ def test_the_way_to_cut_the_answer_travels_down_to_the_client():
     assert client.on_open is handed
 
 
-def test_the_conversation_id_travels_down_to_the_client():
-    # Madde 124. The engine translates roles and nothing else -- the name a conversation goes to
-    # the cache under passes through it untouched.
-    client = FakeClient()
-    list(_engine(client).stream(CONVERSATION, conversation_id="c7"))
-    assert client.conversation_id == "c7"
-
-
 def test_the_turn_names_no_model():
     # Madde 358. One model, and config.py names it: the engine is not told which one to speak with.
-    assert "model" not in inspect.signature(XaiEngine.stream).parameters
+    assert "model" not in inspect.signature(ModelEngine.stream).parameters
 
 
 def test_every_turn_is_spoken_by_the_default():
-    # The map still holds more than one transport -- the prompt writer is one of them -- and a turn
+    # The map can hold more than one transport -- the prompt writer may be another -- and a turn
     # goes to the one the engine was built with as its default.
-    grok, flash = FakeClient(), FakeClient()
-    engine = _engine(grok, **{"deepseek-v4-flash": flash})
+    turns, other = FakeClient(), FakeClient()
+    engine = _engine(turns, **{"another-model": other})
     list(engine.stream(CONVERSATION))
-    assert grok.seen is not None
-    assert flash.seen is None
+    assert turns.seen is not None
+    assert other.seen is None
 
 
 # --- the second part of the system prompt (Madde 196) --------------------------------------------

@@ -14,12 +14,12 @@ def _reloaded():
     return importlib.reload(config)
 
 
-def test_the_api_key_comes_from_the_environment(monkeypatch):
+def test_the_deepseek_key_comes_from_the_environment(monkeypatch):
     # Madde 62: the one road. On Colab it arrives from Secrets through the notebook, locally from
     # the shell -- and the app cannot tell the two apart, which is the point.
-    monkeypatch.setenv("XAI_API_KEY", "xai-from-the-environment")
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds-from-the-environment")
     try:
-        assert _reloaded().XAI_API_KEY == "xai-from-the-environment"
+        assert _reloaded().DEEPSEEK_API_KEY == "ds-from-the-environment"
     finally:
         # Undone here rather than left to the fixture: monkeypatch restores the environment, but
         # the module reloaded under it would stay reloaded and every later test would read it.
@@ -30,20 +30,9 @@ def test_the_api_key_comes_from_the_environment(monkeypatch):
 def test_without_it_the_key_is_empty_rather_than_missing(monkeypatch):
     # Empty is the ordinary starting state: the app runs without a key and only asking for an answer
     # fails. A None here would turn that into a crash on the first request instead.
-    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
     try:
-        assert _reloaded().XAI_API_KEY == ""
-    finally:
-        monkeypatch.undo()
-        _reloaded()
-
-
-def test_the_deepseek_key_comes_from_the_environment(monkeypatch):
-    # The second provider's key travels the road the first one does, and the app cannot tell where
-    # either came from.
-    monkeypatch.setenv("DEEPSEEK_API_KEY", "ds-from-the-environment")
-    try:
-        assert _reloaded().DEEPSEEK_API_KEY == "ds-from-the-environment"
+        assert _reloaded().DEEPSEEK_API_KEY == ""
     finally:
         monkeypatch.undo()
         _reloaded()
@@ -58,43 +47,30 @@ def test_the_default_model_is_deepseek_flash():
     assert config.DEFAULT_MODEL == "deepseek-flash"
 
 
-def test_the_grok_row_is_kept_as_the_way_back():
-    # Madde 202 took the writing off it, so by Madde 183's own rule -- a row nobody will use is dead
-    # configuration -- this one would go. It stays, knowingly: deleting it would drag XAI_API_KEY and
-    # the notebook's three secrets along with it, and the way back is one constant either way. If the
-    # lines DeepSeek writes come out worse, the road is still here.
-    assert "grok-4.3" in config.MODELS
+def test_deepseek_is_the_one_row_in_the_table():
+    # Madde 336 left DeepSeek one name, the one the model has today. Madde 383 (the owner, 30
+    # September: "kalksın") took out the other provider's row, which nothing had pointed at since
+    # Madde 202, and its key with it.
+    assert set(config.MODELS) == {"deepseek-flash"}
 
 
-def test_deepseek_is_wired_under_the_one_name_it_has_today():
-    # Madde 336. DeepSeek closed deepseek-v4-pro on 14 September and answers it with Flash, and
-    # deepseek-v4-flash is only an alias now -- so the table holds the name the model has today and
-    # nothing else of DeepSeek's. Grok stays, knowingly (above).
-    assert set(config.MODELS) == {"grok-4.3", "deepseek-flash"}
-
-
-def test_the_writer_grok_4_3_replaced_is_gone_from_the_table():
-    # Madde 183. The proof of a deletion is an absence, and only a test that looks for it sees one --
-    # test_skills.py's DELETED list keeps the same watch over the skills Madde 94 removed.
-    #
-    # The new id first: on its own, a "not in" passes just as well over an empty table, and this run
-    # has already watched six tests go green because nothing had happened yet.
-    assert "grok-4.3" in config.MODELS
-    assert "grok-build-0.1" not in config.MODELS
-
-
-def test_the_two_models_resolve_to_their_provider():
-    assert config.MODELS["grok-4.3"]["base_url"] == "https://api.x.ai/v1"
-    # No /v1 on this one: it is DeepSeek's documented base, and the client appends
-    # /chat/completions to whatever it is given.
+def test_the_model_resolves_to_its_provider():
+    # No /v1: it is DeepSeek's documented base, and the client appends /chat/completions to
+    # whatever it is given.
     assert config.MODELS["deepseek-flash"]["base_url"] == "https://api.deepseek.com"
 
 
-def test_each_model_names_the_key_it_spends():
-    # Two providers, two keys. Which one a model costs is the model's own business rather than
-    # something the composition root is told twice.
-    assert config.MODELS["grok-4.3"]["key"] == "XAI_API_KEY"
+def test_the_model_names_the_key_it_spends():
+    # Which key a model costs is the model's own business rather than something the composition
+    # root is told.
     assert config.MODELS["deepseek-flash"]["key"] == "DEEPSEEK_API_KEY"
+
+
+@pytest.mark.parametrize("model", list(config.MODELS))
+def test_every_row_resolves_at_startup(model):
+    # main.py walks the table at startup, and engine_for looks each row's key up by name among
+    # config's own constants. A row naming a key config no longer holds stops the app there.
+    assert config.engine_for(model)[0] == model
 
 
 def test_the_prompt_writer_is_a_role_rather_than_a_choice():

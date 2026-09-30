@@ -5,10 +5,10 @@ from backend.features.workspace.data.file_file_store import FileFileStore
 from backend.features.workspace.data.file_project_store import FileProjectStore
 from backend.features.workspace.data.memory_permissions import MemoryPermissions
 from backend.features.workspace.data.memory_stops import MemoryStops
-from backend.features.workspace.data.xai_engine import XaiEngine
+from backend.features.workspace.data.model_engine import ModelEngine
 from backend.features.workspace.presentation.routes import make_workspace_bp
+from backend.services.model.client import ModelClient
 from backend.services.store.store import Store
-from backend.services.xai.client import XaiClient
 from backend.web.app import create_app
 
 store = Store(config.ROOT)
@@ -18,9 +18,9 @@ store = Store(config.ROOT)
 # Where the key comes from is still this file's decision, not the client's -- which is why it is
 # handed over as a function even though the value settles once, at startup. `engine_for` is asked
 # for each id in turn, so the address and the key a model spends stay its own.
-engine = XaiEngine(
+engine = ModelEngine(
     {
-        model: XaiClient(
+        model: ModelClient(
             lambda wiring=config.engine_for(model): wiring[2],
             model,
             config.engine_for(model)[1],

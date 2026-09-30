@@ -41,7 +41,7 @@ def test_an_answer_wakes_whoever_is_waiting():
 
 
 def test_a_wake_ends_the_wait_without_a_decision():
-    # How a stop gets out. There is no socket to cut while a turn waits here -- the xAI request
+    # How a stop gets out. There is no socket to cut while a turn waits here -- the model's request
     # closed before the tool call was ever read -- so the wait itself is what a stop has to reach.
     permissions = _registry()
     threading.Timer(TICK, lambda: permissions.wake("p1", "c1")).start()

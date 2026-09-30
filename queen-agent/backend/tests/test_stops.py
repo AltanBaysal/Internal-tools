@@ -37,7 +37,8 @@ def test_clearing_something_nobody_asked_about_is_quiet():
 
 def test_a_stop_cuts_the_connection_it_is_holding():
     # The item in one line: what is kept here is not a note saying somebody asked, it is the
-    # connection -- so the press lands on xAI rather than on a flag somebody may read later.
+    # connection -- so the press lands on the model's request rather than on a flag somebody may
+    # read later.
     cuts = []
     stops = MemoryStops()
     stops.hold("p1", "c1", lambda: cuts.append("cut"))

@@ -915,9 +915,9 @@ test("the rail is drawn at the width the app is holding, and reports a drag back
 
 test("a model an older message was sent with is not drawn", () => {
   // Madde 146 to 357 wrote it onto the message. It stays on disk as a record and is shown nowhere.
-  const old = { ...CHAT, messages: [{ ...CHAT.messages[0], model: "grok-4.3" }] };
+  const old = { ...CHAT, messages: [{ ...CHAT.messages[0], model: "deepseek-v4-pro" }] };
   render(<ChatScreen project={PROJECT} chat={old} />);
-  expect(screen.queryByText(/grok-4.3/)).toBeNull();
+  expect(screen.queryByText(/deepseek-v4-pro/)).toBeNull();
 });
 
 test("the foot carries the mode, Skills and Send, in that order", () => {

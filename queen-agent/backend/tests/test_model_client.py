@@ -6,9 +6,11 @@ import urllib.error
 
 import pytest
 
-from backend.services.xai.client import XaiClient, XaiFailed, XaiNotConfigured
+from backend.services.model.client import ModelClient, ModelFailed, ModelNotConfigured
 
 MESSAGES = [{"role": "user", "content": "hello"}]
+MODEL = "deepseek-flash"
+BASE_URL = "https://api.deepseek.com"
 
 
 class _Response:
@@ -28,12 +30,12 @@ class _Response:
 def _client(opener, api_key="key"):
     # A function rather than a string: where the key comes from is the composition root's decision,
     # and the client is built so that changing it never reaches here.
-    return XaiClient(lambda: api_key, "grok-4.5", "https://api.x.ai/v1", opener=opener)
+    return ModelClient(lambda: api_key, MODEL, BASE_URL, opener=opener)
 
 
 def test_no_key_is_reported_before_anything_is_sent():
     sent = []
-    with pytest.raises(XaiNotConfigured) as refused:
+    with pytest.raises(ModelNotConfigured) as refused:
         _client(lambda request: sent.append(request), api_key="").write_once(MESSAGES)
     assert sent == []
     # Deliberately does not name where a key would come from. The client is not told, and a sentence
@@ -50,7 +52,7 @@ def test_the_key_is_read_at_every_request():
         seen.append(request.headers["Authorization"])
         return _Response({"choices": [{"message": {"role": "assistant", "content": "hi"}}]})
 
-    client = XaiClient(lambda: keys.pop(0), "grok-4.5", "https://api.x.ai/v1", opener=opener)
+    client = ModelClient(lambda: keys.pop(0), MODEL, BASE_URL, opener=opener)
     client.write_once(MESSAGES)
     client.write_once(MESSAGES)
     # Read per request rather than held: the client stays out of the question of where the key comes
@@ -95,9 +97,9 @@ def test_the_request_carries_the_model_the_messages_and_the_bearer():
         return _Response({"choices": [{"message": {"content": "hi"}}]})
 
     _client(opener).write_once(MESSAGES)
-    assert seen["url"] == "https://api.x.ai/v1/chat/completions"
+    assert seen["url"] == "https://api.deepseek.com/chat/completions"
     assert seen["auth"] == "Bearer key"
-    assert seen["body"]["model"] == "grok-4.5"
+    assert seen["body"]["model"] == MODEL
     assert seen["body"]["messages"] == MESSAGES
     # Nothing empty is sent along: tools appear only when there are tools.
     assert "tools" not in seen["body"]
@@ -113,7 +115,7 @@ def test_a_stream_carries_the_configured_model_too():
         return io.BytesIO(b"data: [DONE]\n")
 
     list(_client(opener).stream(MESSAGES))
-    assert seen["body"]["model"] == "grok-4.5"
+    assert seen["body"]["model"] == MODEL
 
 
 def test_tools_are_sent_when_given():
@@ -148,7 +150,7 @@ def test_an_http_error_carries_the_services_own_words():
             request.full_url, 401, "Unauthorized", {}, io.BytesIO(b'{"error":"bad key"}')
         )
 
-    with pytest.raises(XaiFailed) as failure:
+    with pytest.raises(ModelFailed) as failure:
         _client(opener).write_once(MESSAGES)
     # A 401 is not necessarily an expired key, so the message repeats what came back.
     assert "401" in str(failure.value)
@@ -192,8 +194,8 @@ def test_a_broken_frame_is_skipped_rather_than_dropping_the_stream():
 
 
 def test_a_tool_call_arrives_whole_in_one_frame():
-    # xAI documents it plainly: a function call is returned in whole in a single chunk, so there is
-    # nothing to stitch back together here.
+    # The protocol allows a call to come whole in a single chunk, with no index beside it, and then
+    # there is nothing to stitch back together.
     call = {"id": "t1", "function": {"name": "list_files", "arguments": "{}"}}
     frame = json.dumps({"choices": [{"delta": {"tool_calls": [call]}}]}).encode("utf-8")
     lines = [b"data: " + frame, b"data: [DONE]"]
@@ -204,8 +206,8 @@ def test_a_tool_call_arrives_whole_in_one_frame():
 
 # --- a tool call that arrives in pieces (Madde 148) ----------------------------------------------
 #
-# The comment above says xAI sends one whole call in one chunk, and it does. DeepSeek does not: it
-# fragments the call the way OpenAI documents, and only the first piece carries the name. Forwarded
+# A call that comes whole is the easy case. DeepSeek does not send it that way: it fragments the
+# call the way OpenAI documents, and only the first piece carries the name. Forwarded
 # raw, the later pieces reached stream_answer as calls of their own and `call["function"]["name"]`
 # died with a bare KeyError -- which is the whole of what the user saw.
 #
@@ -284,12 +286,8 @@ def test_a_stream_that_called_nothing_says_nothing_about_tools():
 
 
 def _usage_line(prompt, cached, completion, text=None):
-    """One frame the way xAI really sends it: counts at the top, content beside them.
-
-    Verified against xAI's documentation (26 August) rather than written from memory -- usage rides
-    on every chunk, no stream_options is needed to ask for it, and cached_tokens sits inside
-    prompt_tokens_details.
-    """
+    """One frame in the OpenAI-compatible shape: counts at the top, content beside them, and
+    cached_tokens inside prompt_tokens_details."""
     frame = {
         "choices": [{"delta": {"content": text} if text else {}}],
         "usage": {
@@ -302,8 +300,8 @@ def _usage_line(prompt, cached, completion, text=None):
 
 
 def test_a_frame_carrying_counts_hands_them_over():
-    # xAI's names are transport; the words the rest of the app uses are decided here, exactly as
-    # delta.content already becomes "text".
+    # The service's names are transport; the words the rest of the app uses are decided here,
+    # exactly as delta.content already becomes "text".
     lines = [_usage_line(41, 12, 2), b"data: [DONE]"]
     assert list(_client(lambda request: _Lines(lines)).stream(MESSAGES)) == [
         {"usage": {"sent": 41, "cached": 12, "answered": 2}}
@@ -325,7 +323,7 @@ def _deepseek_usage_line(prompt, hit, miss, completion):
 
     Read off DeepSeek's own documentation (2 September) rather than written from memory: the two
     cache counts sit flat beside prompt_tokens rather than nested, and there is no
-    prompt_tokens_details at all. `sent` and `answered` are named the same by both.
+    prompt_tokens_details at all. `sent` and `answered` are named as in the shape above.
     """
     frame = {
         "choices": [{"delta": {}}],
@@ -421,59 +419,11 @@ def test_streaming_asks_for_a_stream():
     assert seen["body"]["stream"] is True
 
 
-# --- naming the conversation so the cache can find it (Madde 124) --------------------------------
-#
-# xAI's prefix cache is automatic, but the x-grok-conv-id header is what routes a request to the
-# cache its conversation has been building. Without it the Colab trial paid full price for the
-# same prefix, turn after turn.
-
-
-def test_a_stream_names_the_conversation_it_belongs_to():
-    seen = {}
-
-    def opener(request):
-        seen["conv"] = request.get_header("X-grok-conv-id")
-        return _Lines([b"data: [DONE]"])
-
-    list(_client(opener).stream(MESSAGES, conversation_id="c1"))
-    assert seen["conv"] == "c1"
-
-
-def test_an_empty_conversation_id_sends_no_header():
-    # A caller with no conversation to name sends nothing: an empty id is not a name, and the
-    # service should never be handed one to group requests under.
-    seen = {}
-
-    def opener(request):
-        seen["conv"] = request.get_header("X-grok-conv-id")
-        return _Lines([b"data: [DONE]"])
-
-    list(_client(opener).stream(MESSAGES, conversation_id=""))
-    assert seen["conv"] is None
-
-
-def test_deepseek_is_not_sent_the_grok_conversation_header():
-    # Madde 146. The header is xAI's own way of routing a request to its conversation's cache;
-    # DeepSeek matches prefixes by itself and documents nothing of the kind, so sending it there
-    # would be a made-up name on somebody else's wire.
-    seen = {}
-
-    def opener(request):
-        seen["conv"] = request.get_header("X-grok-conv-id")
-        return _Lines([b"data: [DONE]"])
-
-    client = XaiClient(
-        lambda: "key", "deepseek-v4-flash", "https://api.deepseek.com", opener=opener
-    )
-    list(client.stream(MESSAGES, conversation_id="c1"))
-    assert seen["conv"] is None
-
-
 def test_a_dead_connection_is_reported_too():
     def opener(request):
         raise urllib.error.URLError("connection refused")
 
-    with pytest.raises(XaiFailed) as failure:
+    with pytest.raises(ModelFailed) as failure:
         _client(opener).write_once(MESSAGES)
     assert "connection refused" in str(failure.value)
 
@@ -546,7 +496,7 @@ def _blocked_read():
     and the run still has to be able to finish and say so.
     """
     port, done = _silent_server()
-    client = XaiClient(lambda: "key", "grok-4.5", f"http://127.0.0.1:{port}")
+    client = ModelClient(lambda: "key", MODEL, f"http://127.0.0.1:{port}")
     outcome = {}
     opened = threading.Event()
 
@@ -588,4 +538,4 @@ def test_a_stream_cut_in_the_middle_comes_back_as_a_failure():
     reader, outcome = _blocked_read()
     outcome["cut"]()
     reader.join(5)
-    assert isinstance(outcome["ended"], XaiFailed)
+    assert isinstance(outcome["ended"], ModelFailed)
