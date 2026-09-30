@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 45/49
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 48/49
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -199,9 +199,9 @@ Hepsi dalın bugünkü ucunun üstüne kurulur, ve aynı yere dokunmaz: 381 pane
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 381 | `ALIGNED` **Panelin kenarını çekmek yazı seçmez.** Yan panelin sol kenarı çekilince — liste de açık dosya da — fare sürüklendiği yerdeki bütün yazıyı mavi seçiyor: mesajlar, kart, yazma kutusu. Madde 50'den beri böyle; 356 aynı kenarı açık dosyaya da verdi. *(356 tarayıcıda denenirken bulundu, 29 Eylül.)* Kenar çekilirken sayfada hiçbir yazı seçilmez *(kullanıcı, 30 Eylül — "bu da evet")*. | Panelin kenarı çekilirken sayfada hiçbir yazı seçilmiyor. |
-| 382 | `ALIGNED` **Arşive giden projenin sabitlemesi kalkar**, tasarımdaki gibi. 363 sabitlemeyi arşivde tuttu, tasarım kaldırıyor *(363 tarayıcıda denenirken bulundu, 29 Eylül; kullanıcı, 30 Eylül — "kalksın")*. Tasarımda `Undo` projeyi sabitlemesiyle eski yerine koyar; `Unarchive` sabitlemeyi geri getirmez *(tasarım: `data.js`'in `archiveProject`, `restoreProject` ve `unarchiveProject`'i; BEHAVIOUR.md)*. | Sabitli proje arşive alınınca `Unarchive`'la Recent'e dönüyor, Pinned'e değil; `Undo` ise onu Pinned'deki yerine koyuyor. |
-| 383 | `ALIGNED` **Grok ve xAI anahtarı kalkar.** 358'den beri hiçbir mesaj Grok'a gitmiyor, ama modellerin listesinde `grok-4.3` satırı, ortamda ve notebook'ta `XAI_API_KEY` duruyor *(358 birleşirken bulundu, 29 Eylül; kullanıcı, 30 Eylül — "kalksın")*. | QueenAgent `XAI_API_KEY` olmadan açılıyor ve notebook onu sormuyor; kodda, notebook'ta ve QueenAgent'ın belgelerinde Grok da xAI de geçmiyor. |
+| 381 | ✅ **Panelin kenarını çekmek yazı seçmez.** Yan panelin sol kenarı çekilince — liste de açık dosya da — fare sürüklendiği yerdeki bütün yazıyı mavi seçiyor: mesajlar, kart, yazma kutusu. Madde 50'den beri böyle; 356 aynı kenarı açık dosyaya da verdi. *(356 tarayıcıda denenirken bulundu, 29 Eylül.)* Kenar çekilirken sayfada hiçbir yazı seçilmez *(kullanıcı, 30 Eylül — "bu da evet")*. | Panelin kenarı çekilirken sayfada hiçbir yazı seçilmiyor. |
+| 382 | ✅ **Arşive giden projenin sabitlemesi kalkar**, tasarımdaki gibi. 363 sabitlemeyi arşivde tuttu, tasarım kaldırıyor *(363 tarayıcıda denenirken bulundu, 29 Eylül; kullanıcı, 30 Eylül — "kalksın")*. Tasarımda `Undo` projeyi sabitlemesiyle eski yerine koyar; `Unarchive` sabitlemeyi geri getirmez *(tasarım: `data.js`'in `archiveProject`, `restoreProject` ve `unarchiveProject`'i; BEHAVIOUR.md)*. | Sabitli proje arşive alınınca `Unarchive`'la Recent'e dönüyor, Pinned'e değil; `Undo` ise onu Pinned'deki yerine koyuyor. |
+| 383 | ✅ **Grok ve xAI anahtarı kalkar.** 358'den beri hiçbir mesaj Grok'a gitmiyor, ama modellerin listesinde `grok-4.3` satırı, ortamda ve notebook'ta `XAI_API_KEY` duruyor *(358 birleşirken bulundu, 29 Eylül; kullanıcı, 30 Eylül — "kalksın")*. | QueenAgent `XAI_API_KEY` olmadan açılıyor ve notebook onu sormuyor; kodda, notebook'ta ve QueenAgent'ın belgelerinde Grok da xAI de geçmiyor. |
 
 ### En sonda
 
