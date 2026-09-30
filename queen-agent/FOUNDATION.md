@@ -88,8 +88,8 @@ That promise was tested and held (Madde 146, 2 September): a second provider arr
 and the tools did not change — what changed was a table of ids, one map of transports, and two
 places where the two services genuinely differ (how a cache hit is reported, and a header that is
 one vendor's own). Madde 383 (30 September) took the first provider out again, with its key and
-its header, and the layer stayed as it was: one provider is behind it now. Consequence: which models exist is `config.py`'s table, and which one answers is
-`config.py`'s too — `DEFAULT_MODEL` for every turn, `PROMPT_MODEL` for the one question a tool asks.
+its header, and the layer stayed as it was: one provider is behind it now.
+Consequence: which models exist is `config.py`'s table, and which one answers is `config.py`'s too — `DEFAULT_MODEL` for every turn, `PROMPT_MODEL` for the one question a tool asks.
 Nothing on the screen names a model and the browser sends none (Madde 358, the owner's decision of
 28 September: one model is left, and it is not to be seen), so no name and no price is kept for a
 person to read. Madde 146 had made the model an input to each turn, picked in the composer and
