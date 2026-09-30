@@ -28,8 +28,8 @@ DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
 # engine_for is the one place that reads the environment.
 #
 # Madde 82 named one model here, Madde 146 made it three and put a picker in the composer, and
-# Madde 336 left DeepSeek one name. Madde 358 took the picker out: the two constants below say which
-# row answers what. Madde 383 took out the other provider's row, which nothing had pointed at since
+# Madde 336 left DeepSeek one name. Madde 358 took the picker out: the constant below says which
+# row answers. Madde 383 took out the other provider's row, which nothing had pointed at since
 # Madde 202, and its key with it.
 MODELS = {
     # No /v1: this is DeepSeek's own documented base, and the client appends /chat/completions to
@@ -45,18 +45,6 @@ MODELS = {
 # What answers every turn. The one place that says so since Madde 358: the screen names no model and
 # the browser sends none, so this line is the whole of the choice.
 DEFAULT_MODEL = "deepseek-flash"
-
-# Who writes a frame's action when a tool asks for one (Madde 175). A role of its own, by the user's
-# decision of 5 September. It is here because it is a wiring fact -- the same kind of fact as an
-# address or a key -- and because the model it names is chosen for what it will write rather than
-# for how it reasons.
-#
-# DeepSeek since Madde 202 (the user's decision, 8 September). The role was built on 175's finding
-# that the model running the conversation would not write that kind of sentence; it writes it now,
-# and a second provider for one line was buying nothing. It is the same id DEFAULT_MODEL carries,
-# and the two are still separate decisions: one says what runs the conversation, this one says who
-# writes an action, and either can move without the other.
-PROMPT_MODEL = "deepseek-flash"
 
 
 def engine_for(model_id):

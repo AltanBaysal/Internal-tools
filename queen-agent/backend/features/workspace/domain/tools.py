@@ -4,13 +4,12 @@ The rules live here rather than in data/ because what a file may be called is a 
 not a detail of how a directory works.
 
 What the model is TOLD is not here at all since Madde 189: every description below names a constant
-in prompt.py, and so does the writer's system prompt. What it is told BACK stays -- a ToolResult's
+in prompt.py. What it is told BACK stays -- a ToolResult's
 sentence is built from the values of the call that produced it, and there is nothing to gather.
 """
 import json
 import re
 from collections import namedtuple
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 
 from backend.features.workspace.domain import prompt
@@ -31,11 +30,7 @@ from backend.features.workspace.domain.errors import BadStructure
 #
 # `outcome` is a few words for a reader rather than for the model: what the call amounted to, said
 # in one line. Never the result itself -- a read's result is the file, and that is already on disk.
-#
-# `spent` is what the call cost, for a tool that asks a model something of its own (Madde 175).
-# None rather than zeroes: a tool that spent nothing and a tool that cannot spend are one thing to
-# the turn's stamp, and neither should add a row of noughts to it.
-ToolResult = namedtuple("ToolResult", "text created target outcome spent", defaults=("", "", None))
+ToolResult = namedtuple("ToolResult", "text created target outcome", defaults=("", ""))
 
 
 @dataclass(frozen=True)
@@ -55,15 +50,6 @@ class FileWritten:
 # a model that gave up.
 MAX_ROUNDS = 16
 DEFAULT_NAME = "note.md"
-
-# How many of one call's requests are in the air at once (Madde 185). Threads rather than anything
-# cleverer because what is waited on is a network, not a processor.
-#
-# Not the number of frames: a file of forty would open forty sockets at a service that answers a
-# burst like that with a rate limit, and the wall-clock difference between eight and forty is not
-# worth a round of retries. Not measured against any one service's published limit -- comfortably
-# under what any of them would object to.
-AT_ONCE = 8
 
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
 # here: the file was already there.
@@ -364,20 +350,6 @@ TOOL_SPECS = [
     {
         "type": "function",
         "function": {
-            "name": "write_missing_actions",
-            "description": prompt.WRITE_MISSING_ACTIONS,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE}
-                },
-                "required": ["file"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "build_prompts",
             "description": prompt.BUILD_PROMPTS,
             "parameters": {
@@ -436,12 +408,8 @@ def scenario_name(name):
     return f"{name.rsplit('.', 1)[0]}.json"
 
 
-def run_tool(file_store, project_id, name, arguments, engine=None):
-    """Run one call and answer the model in words. A miss is an answer, not a crash.
-
-    The engine is here for the one tool that answers out of a model rather than out of the file
-    store (Madde 175). Optional, because the other seventeen neither take it nor notice it.
-    """
+def run_tool(file_store, project_id, name, arguments):
+    """Run one call and answer the model in words. A miss is an answer, not a crash."""
     try:
         args = json.loads(arguments or "{}")
     except json.JSONDecodeError:
@@ -547,9 +515,6 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
 
     if name == "remove_frame":
         return _remove_frame(file_store, project_id, args)
-
-    if name == "write_missing_actions":
-        return _write_missing_actions(file_store, project_id, args, engine)
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
@@ -1234,137 +1199,6 @@ def _remove_frame(file_store, project_id, args):
         f"{counted(len(frames), 'frame')} left, renumbered from 1" if frames else "no frames left"
     )
     return ToolResult(f"Removed frame {number} from {source}; {left}.", None, source, "Removed")
-
-
-def _write_missing_actions(file_store, project_id, args, engine):
-    """Every frame still waiting, asked for at the same time (Madde 185).
-
-    The single-frame tool took one frame per call, and a scenario of twenty-one cost twenty-one
-    rounds of the main agent -- each of them resending the system prompt, the skill text and a
-    context box holding a structure that grew with every write. The writer's own requests were
-    never the expensive part.
-
-    What is waiting is what is empty. No range: the file already knows which frames those are, and
-    a from/to would put the answer in two places and make the model keep them agreeing. No note
-    either: a line that is already there is changed with update_frame, in the agent's own words.
-    """
-    if engine is None:
-        # A wiring fault rather than the model's doing, said the way the single-frame tool says it.
-        return ToolResult("There is no model to write with.", None, "", "Refused")
-
-    source, structure, refused = _opened(file_store, project_id, args)
-    if refused is not None:
-        return refused
-
-    # Numbered here, while the whole list is in front of us: what the answer says has to be the
-    # number the model will name next, and a frame's number is its place.
-    waiting, left = [], []
-    for place, frame in enumerate(structure["frames"], start=1):
-        if str(frame.get("action") or "").strip():
-            continue
-        if not str(frame.get("scene") or "").strip():
-            # Refused before the request, cheapest first: nothing is paid to be told there was no
-            # brief to write from.
-            left.append((place, "no scene to write from"))
-            continue
-        waiting.append((place, frame))
-
-    written, spent = [], {}
-    if waiting:
-        # Built once for the whole call: every request carries the same message, and building it in
-        # the loop would ask the module the same question once per frame.
-        said_to_the_writer = prompt.write_frame_system_prompt()
-        with ThreadPoolExecutor(max_workers=min(AT_ONCE, len(waiting))) as pool:
-            # _frame_seen runs here rather than inside a thread: it reads the structure, and the
-            # threads are handed two finished strings and nothing to reach into.
-            asked = {
-                pool.submit(
-                    engine.write_once,
-                    said_to_the_writer,
-                    _frame_seen(frame, structure),
-                ): (place, frame)
-                for place, frame in waiting
-            }
-            # Walked in the order they were sent, so the numbers in the answer come out ascending
-            # however the network chose to answer.
-            for future, (place, frame) in asked.items():
-                try:
-                    answer = future.result()
-                except Exception as failure:
-                    # The service's own words, and the frame left as it was. One that fell over
-                    # does not undo the ones that landed: they are paid for, and throwing an hour
-                    # of work away over one failure is a worse answer than naming it.
-                    left.append((place, str(failure)))
-                    continue
-                spent = _added(spent, answer.get("spent"))
-                said = str(answer.get("text") or "").strip()
-                if not said:
-                    # An empty action builds into a prompt with a hole where the sentence goes.
-                    # Its bill is counted all the same: that request was made and charged for.
-                    left.append((place, "answered with nothing"))
-                    continue
-                frame["action"] = said
-                written.append(place)
-
-    if not waiting and not left:
-        # Nothing was asked, so nothing was spent: a row of noughts on the turn's stamp says a
-        # request happened.
-        return ToolResult(
-            f"There are no frames waiting for an action in {source}.", None, source, "Nothing to do"
-        )
-
-    # One write, after every answer is in: a file caught half filled would be a state nothing else
-    # in here can produce.
-    if written:
-        _saved(file_store, project_id, source, structure)
-
-    said = f"Wrote {counted(len(written), 'frame')} of {source}"
-    said += f": {', '.join(str(place) for place in written)}." if written else "."
-    if left:
-        # Each with its own reason. One sentence for all of them would make the model guess which
-        # frame the reason belonged to.
-        why = "; ".join(f"{place} ({reason})" for place, reason in sorted(left))
-        said += f" {counted(len(left), 'frame')} not written: {why}."
-    return ToolResult(said, None, source, f"Wrote {len(written)}", spent or None)
-
-
-def _added(total, spent):
-    """One bill out of many, key by key (Madde 185).
-
-    Whatever the service named, rather than a fixed three: a figure this side has never heard of
-    is still a figure somebody paid, and dropping it would understate the call.
-    """
-    for key, amount in (spent or {}).items():
-        total[key] = total.get(key, 0) + amount
-    return total
-
-
-def _frame_seen(frame, structure):
-    """What the writer is shown: this frame, and nothing else in the file (Madde 176).
-
-    The user's decision of 5 September, and the reason this request stays cheap -- a file of forty
-    frames would otherwise send forty casts to write one sentence. Names as well as tags, because
-    the scene sentence calls people by name and the writer has to know whose tags are whose.
-
-    A name the maps do not hold is shown without tags rather than refused: add_scene refuses those
-    on the way in, so one here came from somebody editing the file by hand, and this tool is not
-    where that is punished.
-    """
-    characters = structure.get("characters") or {}
-    outfits = structure.get("outfits") or {}
-    locations = structure.get("locations") or {}
-
-    lines = [f"Scene: {frame['scene']}"]
-    cast = cast_of(frame)
-    if cast:
-        lines.append("In frame:")
-        for name, worn in cast:
-            lines.append(f"- {name}: {characters.get(name, '')}")
-            lines.extend(f"  wearing {outfit}: {outfits.get(outfit, '')}" for outfit in worn)
-    place = frame.get("location")
-    if place:
-        lines.append(f"Place: {place}: {locations.get(place, '')}")
-    return "\n".join(lines)
 
 
 def _and_joined(words):

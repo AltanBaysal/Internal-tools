@@ -61,7 +61,6 @@ def test_every_text_a_tool_carries_comes_from_the_prompt_module():
     "module,name",
     [
         ("tools", "SDXL_PROMPT_RULES"),
-        ("tools", "WRITE_FRAME_SYSTEM_PROMPT"),
         ("skills", "START_A_SCENARIO"),
         # Madde 186 renamed this one with the skill it belongs to. The guard keeps watching the
         # name it had when it moved as well: a text put back under the old name in skills.py is
@@ -87,7 +86,6 @@ MUST_BE_FULL = (
     "SYSTEM_PROMPT",
     "LAST_ROUND",
     "SDXL_PROMPT_RULES",
-    "WRITE_FRAME_SYSTEM_PROMPT",
     "START_A_SCENARIO",
     "EDIT_PROMPTS",
 )
@@ -314,31 +312,3 @@ def test_the_second_part_is_allowed_to_be_empty():
     suffix blank, which is every day until the user writes something.
     """
     assert "SYSTEM_PROMPT_SUFFIX" not in MUST_BE_FULL
-
-
-# --- the frame writer reads the second part too (Madde 202) ---------------------------------------
-
-
-def test_the_frame_writers_message_carries_the_second_part(monkeypatch):
-    """Madde 196 kept this text out of it, and Madde 202 turns that around.
-
-    The reason there was that the frame's writer was another service: the second part frames what
-    this workspace is for, and the model meeting the frames without any of it was the one being
-    asked in the composer. Since 202 both requests go to the same service, and the one meeting the
-    plainest sentences with no frame around them is this one.
-    """
-    from backend.features.workspace.domain import prompt
-
-    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", "This workspace is used for X.")
-    said = prompt.write_frame_system_prompt()
-    assert said.startswith(prompt.WRITE_FRAME_SYSTEM_PROMPT)
-    assert said.endswith("This workspace is used for X.")
-
-
-def test_an_empty_second_part_leaves_the_frame_writers_message_as_it_was(monkeypatch):
-    # 196's rule, over the second message it now reaches: an empty part adds neither a line nor a
-    # space, so a request made with nothing written is byte for byte the request made before it.
-    from backend.features.workspace.domain import prompt
-
-    monkeypatch.setattr(prompt, "SYSTEM_PROMPT_SUFFIX", "")
-    assert prompt.write_frame_system_prompt() == prompt.WRITE_FRAME_SYSTEM_PROMPT

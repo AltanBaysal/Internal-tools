@@ -51,18 +51,6 @@ class Engine(Protocol):
     is one, config.py names it, and nothing on the screen does.
     """
 
-    def write_once(self, system: str, user: str) -> dict:
-        """One question, answered once, for a tool that needs a model rather than a conversation.
-
-        No tools, no chat and no turn: `system` is the whole of what the model is told about its
-        job, and `user` is the whole of what it is being asked. Which model answers is not a
-        parameter -- it is a role of its own, named in config.py beside the one that runs the
-        conversation (Madde 175).
-
-        Answers {"text": str, "spent": {"sent": int, "cached": int, "answered": int}}. The bill is
-        an empty dict when the service said nothing about one; it is never absent.
-        """
-
     def stream(
         self,
         messages: list[dict],

@@ -185,22 +185,13 @@ it is a piece the engine refuses to get past.
 class ScriptedEngine:
     """Each round is a list of pieces the engine hands back."""
 
-    def __init__(self, rounds, blow_up_after=None, tool_spends=None):
+    def __init__(self, rounds, blow_up_after=None):
         self.rounds = list(rounds)
         self.blow_up_after = blow_up_after
-        # What a tool's own request costs, when a round asks for one (Madde 176).
-        self.tool_spends = tool_spends or {"sent": 300, "cached": 0, "answered": 60}
-        # Which questions a tool asked this engine, apart from the turn's own rounds.
-        self.written = []
         self.seen = []
         self.handed = []
         # Which tools each round was offered. Since Madde 91 that is the mode's whole consequence.
         self.tools = []
-
-    def write_once(self, system, user):
-        """The other road (Madde 175), which one tool walks: one question, one answer, one bill."""
-        self.written.append((system, user))
-        return {"text": "she turns her head, close-up", "spent": self.tool_spends}
 
     def stream(self, messages, tools=None, on_open=None):
         self.seen.append(list(messages))
@@ -1047,55 +1038,6 @@ def test_what_two_rounds_spent_is_added_up(tmp_path):
     assert _kept(chats).usage == Usage(2500, 1800, 30)
 
 
-def _with_a_frame(files):
-    """A scenario with one frame that has a scene and nothing written for it yet."""
-    files.write(
-        "p1",
-        "scene.json",
-        json.dumps(
-            {
-                "characters": {"aylin": "1girl"},
-                "outfits": {},
-                "locations": {},
-                "frames": [{"number": 1, "scene": "she opens the door"}],
-            }
-        ),
-    )
-
-
-def test_a_tools_own_request_is_added_to_what_the_turn_spent(tmp_path):
-    # Madde 176. The tool asks a second model a question of its own, and the user pays for it. The
-    # turn's stamp is the only place anybody would ever look for it.
-    chats, files = _seeded(tmp_path)
-    _with_a_frame(files)
-    rounds = [
-        [{"tool_calls": [call("write_missing_actions", file="scene.json")]},
-         spent(1000, 0, 10)],
-        [{"text": "done"}, spent(1500, 0, 20)],
-    ]
-    engine = ScriptedEngine(rounds, tool_spends={"sent": 300, "cached": 0, "answered": 60})
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    kept = _kept(chats).usage
-    assert kept.sent == 2800          # 1000 + 1500 rounds, and 300 the tool asked for
-    assert kept.answered == 90        # 10 + 20 + 60
-
-
-def test_the_turn_hands_its_engine_to_the_tool_that_needs_one(tmp_path):
-    # The tool cannot reach a model on its own, and a turn that kept the engine to itself would
-    # leave it answering "there is no model to write with" in a running app.
-    chats, files = _seeded(tmp_path)
-    _with_a_frame(files)
-    rounds = [
-        [{"tool_calls": [call("write_missing_actions", file="scene.json")]}],
-        [{"text": "done"}],
-    ]
-    engine = ScriptedEngine(rounds)
-    list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    assert len(engine.written) == 1
-    assert "she opens the door" in engine.written[0][1]
-    assert json.loads(files.read("p1", "scene.json"))["frames"][0]["action"]
-
-
 # --- what a running turn says about itself (Madde 194) -------------------------------------------
 #
 # The turn already ran its rounds one at a time and added up what they spent. What it never did was
@@ -1143,23 +1085,6 @@ def test_two_rounds_add_up_as_they_go(tmp_path):
     assert counted[0] == 0
     assert counted[-1] == 4330
     assert counted == sorted(counted)
-
-
-def test_a_tools_own_bill_moves_the_number_inside_the_round(tmp_path):
-    # Madde 176's second request, and the reason the number cannot only move between rounds:
-    # write_missing_actions can spend eight of these without the round ever ending.
-    chats, files = _seeded(tmp_path)
-    _with_a_frame(files)
-    rounds = [
-        [{"tool_calls": [call("write_missing_actions", file="scene.json")]}],
-        [{"text": "done"}],
-    ]
-    engine = ScriptedEngine(rounds, tool_spends={"sent": 300, "cached": 0, "answered": 60})
-    produced = list(stream_answer(chats, files, engine, "p1", "c1", NOW, NEVER, UNASKED, "edit"))
-    # The rounds themselves report no usage here, so 360 can only have come from the tool -- and it
-    # arrives while round one is still the round.
-    inside = [mark for mark in _progress(produced) if mark.round == 1]
-    assert [mark.tokens for mark in inside] == [0, 360]
 
 
 def test_counts_repeated_inside_one_round_are_not_added_twice(tmp_path):

@@ -238,8 +238,7 @@ START_A_SCENARIO = (
     "- Write no actions here.\n"
     "\n"
     "Step 5 -- build the prompts\n"
-    "- Fill the waiting frames with write_missing_actions, then write the list with "
-    "build_prompts.\n"
+    "- Write the list with build_prompts.\n"
     "- This step waits for no approval. Go on to Step 6 in the same turn.\n"
     "\n"
     "Step 6 -- fit each scene into four seconds\n"
@@ -340,11 +339,7 @@ START_A_SCENARIO = (
 # form it is no longer allowed to type. Nothing about the shape belongs here, or the dead half comes
 # back in a text that rides in every request.
 #
-# The other half split again, by author. What goes into a map entry is Queen's and is written here;
-# what goes into a frame's action is the prompt writer's, and lives in WRITE_FRAME_SYSTEM_PROMPT.
-# Carried together they would ride on six tools that never write an action.
-#
-# Correction 34 split Queen's half once more, by reader. What is left here is what all six tools
+# Correction 34 split the other half, by reader. What is left here is what all six tools
 # share; a rule that ruled on one field -- the count, solo, a pov_ entry, naming an outfit, nobody
 # in a location -- went down to that field's own description, where it is read while the value is
 # being written rather than six times over by five tools it says nothing to.
@@ -370,60 +365,6 @@ SDXL_PROMPT_RULES = (
     "- Never write the word or inside a tag. The model draws one picture and cannot toss a coin "
     "between two choices, so pick one and write only that."
 )
-
-WRITE_FRAME_SYSTEM_PROMPT = (
-    "You write the action line for one frozen frame. An SDXL-family image model draws it. You "
-    "are given three things: the scene in one sentence, who is in the frame, and where it "
-    "happens.\n"
-    "\n"
-    "- Output the action line and nothing else. Your whole answer is written into the frame "
-    "exactly as you send it, so a preamble, a quotation mark, or a comment about having written "
-    "it ends up inside the image prompt.\n"
-    "- Write one single moment. The model draws one picture, so a line that moves through "
-    "several moments cannot be drawn at all.\n"
-    "- Choose the shot yourself. There is no camera field, so write the framing and angle into "
-    "your line, as tags, the same way you write everything else.\n"
-    "- Write what the body is doing in this instant, and the expression on the face. You are the "
-    "only one who writes these two: nothing else in the prompt says what this person is doing or "
-    "feeling in this frame.\n"
-    "- Name what is visible of them directly: erect penis, penis penetrating vagina, mouth on "
-    "penis. Never use a euphemism. The model draws what you name and invents what you leave out, "
-    "and that is how a frame comes back with a melted body.\n"
-    "- Do not describe how anybody looks, what they wear, or what the place looks like. Other "
-    "text already puts all three into the prompt. A second description here contradicts the "
-    "first.\n"
-    "- Do not write that anybody is naked. Clothes are decided elsewhere: someone with no outfit "
-    "is already bare, so you never have to say it.\n"
-    "- Use what you are shown only to make your line fit it. If somebody wears a long coat, do "
-    "not write that they take it off.\n"
-    "\n" + SDXL_PROMPT_RULES
-)
-"""What the prompt writer is told about its job (Madde 176), with the rules above appended.
-
-The other half of the schema Madde 172 split. The half about writing a tag went to the tools that
-take tags; this half is about what happens in a frame and how it is shot, and it belongs to the one
-model that writes that -- read once per request, by a model that has nothing else to do.
-
-QueenAgent's own SYSTEM_PROMPT stays out. It is a page about tools, files, chats and how to talk to
-a user, and none of it is true here: this model calls nothing, opens nothing, and is not talking to
-anybody. The owner's second part is another matter, and write_frame_system_prompt below adds it.
-"""
-
-
-def write_frame_system_prompt():
-    """The frame writer's message as it goes out: its own page, then the owner's part (Madde 202).
-
-    Madde 196 left this text alone and said why: the frame's writer was a second service, and the
-    part frames what the workspace is for. Since 202 both requests go to the same service -- and of
-    the two, the one meeting the plainest sentences with nothing around them is this one.
-
-    A function rather than a constant, for system_prompt's reason: a part written today is in the
-    very next frame rather than in the next process. Empty, the message is the constant itself, byte
-    for byte.
-    """
-    if not SYSTEM_PROMPT_SUFFIX:
-        return WRITE_FRAME_SYSTEM_PROMPT
-    return f"{WRITE_FRAME_SYSTEM_PROMPT}\n\n{SYSTEM_PROMPT_SUFFIX}"
 
 
 # --- what more than one tool says -----------------------------------------------------------------
@@ -611,8 +552,7 @@ ADD_SCENE = (
     "the whole call is refused with it: nothing is written unless every scene in the call is "
     "good.\n"
     "- The answer names the frames it made, which is how you say which frame you mean next.\n"
-    "- A frame is born without its action. write_missing_actions writes every frame that is "
-    "still without one."
+    "- A frame is born without its action."
 )
 ADD_SCENE_BEFORE = (
     "Go in front of this frame, by its number, rather than at the end. The "
@@ -670,18 +610,6 @@ REMOVE_FRAME = (
     "are left. A number you were told before this call may not mean the same frame after it.\n"
     "- Nothing else is touched. A character or a place left in no frame at all stays where it "
     "is, and taking it out is the user's to ask for."
-)
-
-WRITE_MISSING_ACTIONS = (
-    "Write the action of every frame in a structure file that is still without one, in one "
-    "call.\n"
-    "- Each frame is asked of a model kept for writing those and nothing else, at the same time "
-    "as the others, and each is shown only its own scene, cast and place.\n"
-    "- Frames that already have an action are left exactly as they are. A line that is there is "
-    "changed with update_frame, in your own words.\n"
-    "- There is no range and nothing to say twice: what is waiting is what is empty.\n"
-    "- One request failing does not undo the rest. The answer names the frames it wrote and, for "
-    "any it could not, says why."
 )
 
 BUILD_PROMPTS = (

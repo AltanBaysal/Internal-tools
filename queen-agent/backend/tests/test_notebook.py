@@ -153,7 +153,7 @@ def test_the_deepseek_key_comes_from_secrets():
 
 def test_a_missing_deepseek_key_says_what_to_do():
     """Colab has no second road for it: there is no screen to type it into later, and every turn and
-    every action line goes to DeepSeek (config.DEFAULT_MODEL and PROMPT_MODEL), so a run opened
+    every action line goes to DeepSeek (config.DEFAULT_MODEL), so a run opened
     without this key answers nothing. Stopping here beats failing on the first message.
     """
     said = _cell("assert DEEPSEEK_API_KEY")

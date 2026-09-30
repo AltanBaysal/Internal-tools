@@ -1,8 +1,8 @@
 """ModelClient -- HTTP transport for an OpenAI-compatible chat completions API.
 
 Knows no prompt, no chat and no file: it takes a message list and returns the assistant's message.
-Built on urllib rather than a third-party client because one POST and one SSE stream do not earn a
-dependency, an install step and a version to keep up with.
+Built on urllib rather than a third-party client because one POST read as an SSE stream does not
+earn a dependency, an install step and a version to keep up with.
 """
 import http.client
 import json
@@ -187,37 +187,9 @@ class ModelClient:
         # The one line that reaches the network, and the one thing a test replaces.
         self._opener = opener
 
-    def write_once(self, messages):
-        """One question, answered in one piece: the words and what they cost (Madde 175).
-
-        No tools and no stream. The model on the other end has a sentence to write and nothing to
-        call, and there is nobody watching the words arrive -- the answer goes into a file rather
-        than onto a screen.
-
-        The same _spent reads the bill here as in the stream, off the payload instead of off a
-        frame. The figure comes in two shapes and one function knows both of them; a second
-        reading here would part from that one the day either shape moved.
-        """
-        request = self._request({"messages": messages}, None)
-        try:
-            with self._opener(request) as response:
-                payload = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as failure:
-            # The service's own words: a 401 is not necessarily an expired key, and a wrong model
-            # name answers 404 too. Guessing a cause here would print a lie.
-            body = failure.read().decode("utf-8", "replace")
-            raise ModelFailed(f"{failure.code} {body}") from failure
-        except urllib.error.URLError as failure:
-            raise ModelFailed(str(failure.reason)) from failure
-        message = payload["choices"][0]["message"]
-        # Always a dict, even from a service that mentioned nothing: the caller adds this to a
-        # total, and a shape that comes and goes is one every caller has to ask about.
-        return {"text": message.get("content") or "", "spent": _spent(payload) or {}}
-
     def stream(self, messages, tools=None, on_open=None):
-        # The counts come only if asked for, and only to a stream -- so the ask sits beside the
-        # stream flag rather than in _request, which serves both roads. Without it every frame's
-        # usage field comes back null and the answer costs nothing that anyone can read.
+        # The counts come only if asked for, and only to a stream. Without it every frame's usage
+        # field comes back null and the answer costs nothing that anyone can read.
         request = self._request(
             {
                 "messages": messages,
@@ -263,6 +235,8 @@ class ModelClient:
                 if whole:
                     yield {"tool_calls": whole}
         except urllib.error.HTTPError as failure:
+            # The service's own words: a 401 is not necessarily an expired key, and a wrong model
+            # name answers 404 too. Guessing a cause here would print a lie.
             body = failure.read().decode("utf-8", "replace")
             raise ModelFailed(f"{failure.code} {body}") from failure
         except urllib.error.URLError as failure:

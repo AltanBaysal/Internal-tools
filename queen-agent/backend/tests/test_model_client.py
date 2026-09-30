@@ -13,12 +13,12 @@ MODEL = "deepseek-flash"
 BASE_URL = "https://api.deepseek.com"
 
 
-class _Response:
-    def __init__(self, payload):
-        self._payload = json.dumps(payload).encode("utf-8")
+class _Lines:
+    def __init__(self, lines):
+        self._lines = lines
 
-    def read(self):
-        return self._payload
+    def __iter__(self):
+        return iter(self._lines)
 
     def __enter__(self):
         return self
@@ -36,7 +36,7 @@ def _client(opener, api_key="key"):
 def test_no_key_is_reported_before_anything_is_sent():
     sent = []
     with pytest.raises(ModelNotConfigured) as refused:
-        _client(lambda request: sent.append(request), api_key="").write_once(MESSAGES)
+        list(_client(lambda request: sent.append(request), api_key="").stream(MESSAGES))
     assert sent == []
     # Deliberately does not name where a key would come from. The client is not told, and a sentence
     # that guessed would have been wrong twice already -- once when Settings replaced the
@@ -50,41 +50,14 @@ def test_the_key_is_read_at_every_request():
 
     def opener(request):
         seen.append(request.headers["Authorization"])
-        return _Response({"choices": [{"message": {"role": "assistant", "content": "hi"}}]})
+        return _Lines([b"data: [DONE]"])
 
     client = ModelClient(lambda: keys.pop(0), MODEL, BASE_URL, opener=opener)
-    client.write_once(MESSAGES)
-    client.write_once(MESSAGES)
+    list(client.stream(MESSAGES))
+    list(client.stream(MESSAGES))
     # Read per request rather than held: the client stays out of the question of where the key comes
     # from, so a source that can change mid-run costs it nothing.
     assert seen == ["Bearer first", "Bearer second"]
-
-
-def test_the_answer_is_the_text_and_what_it_cost():
-    # Madde 175. The old road handed back the assistant's whole message, which the only caller then
-    # reached into for content. What a one-shot write needs is the words and the bill: the words are
-    # a tool's answer and the bill belongs on the turn's stamp, and nothing else in that payload was
-    # ever read.
-    payload = {
-        "choices": [{"message": {"role": "assistant", "content": "hi"}}],
-        "usage": {
-            "prompt_tokens": 41,
-            "completion_tokens": 2,
-            "prompt_tokens_details": {"cached_tokens": 12},
-        },
-    }
-    assert _client(lambda request: _Response(payload)).write_once(MESSAGES) == {
-        "text": "hi",
-        "spent": {"sent": 41, "cached": 12, "answered": 2},
-    }
-
-
-def test_an_answer_that_says_nothing_about_its_cost_still_has_the_shape():
-    # A service that mentions no usage leaves an empty bill rather than a missing key: the caller
-    # adds this to a total, and a shape that changes with the weather is one the caller has to ask
-    # about every time.
-    opener = lambda request: _Response({"choices": [{"message": {"content": "hi"}}]})
-    assert _client(opener).write_once(MESSAGES) == {"text": "hi", "spent": {}}
 
 
 def test_the_request_carries_the_model_the_messages_and_the_bearer():
@@ -94,9 +67,9 @@ def test_the_request_carries_the_model_the_messages_and_the_bearer():
         seen["url"] = request.full_url
         seen["auth"] = request.headers["Authorization"]
         seen["body"] = json.loads(request.data.decode("utf-8"))
-        return _Response({"choices": [{"message": {"content": "hi"}}]})
+        return _Lines([b"data: [DONE]"])
 
-    _client(opener).write_once(MESSAGES)
+    list(_client(opener).stream(MESSAGES))
     assert seen["url"] == "https://api.deepseek.com/chat/completions"
     assert seen["auth"] == "Bearer key"
     assert seen["body"]["model"] == MODEL
@@ -119,8 +92,6 @@ def test_a_stream_carries_the_configured_model_too():
 
 
 def test_tools_are_sent_when_given():
-    # Asked of the stream since Madde 175: it is the only road that carries tools now, and the
-    # shared request builder is what this measures.
     seen = {}
 
     def opener(request):
@@ -131,19 +102,6 @@ def test_tools_are_sent_when_given():
     assert seen["body"]["tools"] == [{"type": "function"}]
 
 
-def test_a_one_shot_write_sends_no_tools():
-    # The model on the other end has one sentence to write and nothing to call. A tool list in
-    # front of it is a page of text it has to read past.
-    seen = {}
-
-    def opener(request):
-        seen["body"] = json.loads(request.data.decode("utf-8"))
-        return _Response({"choices": [{"message": {"content": "hi"}}]})
-
-    _client(opener).write_once(MESSAGES)
-    assert "tools" not in seen["body"]
-
-
 def test_an_http_error_carries_the_services_own_words():
     def opener(request):
         raise urllib.error.HTTPError(
@@ -151,24 +109,10 @@ def test_an_http_error_carries_the_services_own_words():
         )
 
     with pytest.raises(ModelFailed) as failure:
-        _client(opener).write_once(MESSAGES)
+        list(_client(opener).stream(MESSAGES))
     # A 401 is not necessarily an expired key, so the message repeats what came back.
     assert "401" in str(failure.value)
     assert "bad key" in str(failure.value)
-
-
-class _Lines:
-    def __init__(self, lines):
-        self._lines = lines
-
-    def __iter__(self):
-        return iter(self._lines)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        return False
 
 
 def _delta_line(text):
@@ -368,19 +312,6 @@ def test_a_streaming_request_asks_for_the_counts():
     assert seen["body"]["stream_options"] == {"include_usage": True}
 
 
-def test_a_request_that_is_not_a_stream_does_not_ask():
-    # There is nothing to stream an extra chunk into, and an endpoint that does not know the option
-    # answers 400 rather than ignoring it. It belongs beside the stream flag, not above it.
-    seen = {}
-
-    def opener(request):
-        seen["body"] = json.loads(request.data.decode("utf-8"))
-        return _Response({"choices": [{"message": {"content": "hi"}}]})
-
-    _client(opener).write_once(MESSAGES)
-    assert "stream_options" not in seen["body"]
-
-
 def test_the_closing_counts_frame_does_not_bring_the_answer_down():
     # The counts arrive in one extra frame before [DONE], and that frame has nothing to say -- its
     # choices list is empty. Reading it as though a choice were there ends the whole answer, not
@@ -424,7 +355,7 @@ def test_a_dead_connection_is_reported_too():
         raise urllib.error.URLError("connection refused")
 
     with pytest.raises(ModelFailed) as failure:
-        _client(opener).write_once(MESSAGES)
+        list(_client(opener).stream(MESSAGES))
     assert "connection refused" in str(failure.value)
 
 

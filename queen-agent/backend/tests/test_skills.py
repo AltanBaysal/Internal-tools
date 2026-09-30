@@ -97,15 +97,6 @@ def test_no_instruction_names_a_tool_that_is_gone():
         assert named <= known, (skill, named - known)
 
 
-def test_the_flow_fills_every_waiting_frame_then_builds():
-    # Madde 185 made the actions one call, and Madde 186 gave that call to the flow: the job it
-    # used to hand over is now its last step. Twenty-one frames were twenty-one rounds, and a text
-    # saying "one at a time" is what sent the model round that loop.
-    said = _flow()
-    assert "write_missing_actions" in said
-    assert said.index("write_missing_actions") < said.rindex("build_prompts")
-
-
 def test_no_instruction_names_the_bulk_writer():
     # Madde 395, the owner's decision of 30 September: the main model writes each frame's action
     # itself, and the tool that handed them to a second model is gone.
@@ -431,31 +422,6 @@ def test_the_flow_asks_for_no_context_before_it_starts():
     said = _flow()
     assert "what it is for" not in said
     assert "The context" not in said
-
-
-def test_the_flow_writes_no_new_action_by_hand():
-    # It writes the frames, which it never did before Madde 173 -- but not their sentences. That
-    # is the whole reason this run has two models, and a flow writing one itself would be the way
-    # round the model kept for writing them.
-    #
-    # Madde 391's checks do change an action in their own words, and that is not the way round: the
-    # line is already written, the flow has read it in the built prompt, and what it writes is the
-    # same line cut to one photo or made simpler -- Madde 201's reason for the editor.
-    said = _flow()
-    assert "no action" in said
-    assert "write_missing_actions" in said
-
-
-def test_the_craft_rules_left_the_texts_with_the_work(_=None):
-    # Two rules used to live in prompt+: a scene sentence is a brief and not text to copy, and
-    # neighbouring frames must differ in framing. Both were about writing an action, and since
-    # Madde 176 the main model does not write one -- so they moved to the prompt writer's own
-    # system prompt, where they are read once by the model they are for.
-    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
-
-    assert "framing and angle" in WRITE_FRAME_SYSTEM_PROMPT
-    for skill, said in INSTRUCTIONS.items():
-        assert "framing" not in said, skill
 
 
 def test_a_delegation_answers_only_the_question_that_was_asked():

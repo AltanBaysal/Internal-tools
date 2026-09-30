@@ -59,10 +59,6 @@ _WITHOUT_ASKING = {
         # of these makes to a file the user is reading.
         "update_frame",
         "remove_frame",
-        # Madde 185, and since 208 the only tool here that spends the user's money at a second
-        # provider: one request for every frame still waiting, in one call. The widest single spend
-        # any of these makes, and the quieter modes keep their gate in front of it.
-        "write_missing_actions",
     ),
 }
 

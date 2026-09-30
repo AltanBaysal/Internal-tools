@@ -73,19 +73,6 @@ def test_every_row_resolves_at_startup(model):
     assert config.engine_for(model)[0] == model
 
 
-def test_the_prompt_writer_is_a_role_rather_than_a_choice():
-    # Madde 175, and the user's decision of 5 Sep: which model writes a frame's action is a role of
-    # its own. Madde 202 made it the same id DEFAULT_MODEL carries, and the role is unchanged by that:
-    # this line decides who writes an action, and either line can move without the other.
-    assert config.PROMPT_MODEL == "deepseek-flash"
-
-
-def test_the_prompt_writer_is_one_of_the_models_that_are_wired():
-    # A name outside the table would be a KeyError inside the engine, and it would land at the
-    # moment a prompt was asked for -- in a trial, in front of the user, rather than at startup.
-    assert config.PROMPT_MODEL in config.MODELS
-
-
 def test_no_model_is_kept_for_writing_actions():
     # Madde 395, the owner's decision of 30 September: the main model writes each frame's action
     # itself, so DEFAULT_MODEL is the one choice left.

@@ -41,13 +41,6 @@ def test_the_composition_root_reads_no_environment_of_its_own():
     assert "os.environ" not in _main(), "Bileşim kökü çevreyi kendisi okuyor"
 
 
-def test_the_prompt_writer_is_wired_from_config():
-    """Madde 175. Which model writes a prompt is a role, and the role is named in config.py -- so
-    this file passes the constant rather than repeating the id. Written out here it would be a
-    second place to change, and the two would part on the day either moved."""
-    assert "config.PROMPT_MODEL" in _main(), "Prompt yazan model config'ten bağlanmıyor"
-
-
 def test_no_prompt_writer_is_wired():
     """Madde 395, the owner's decision of 30 September: the main model writes each frame's action
     itself, so the engine is built with its default and nothing else."""

@@ -356,8 +356,8 @@ def test_a_record_holds_the_scene_and_the_photo_and_nothing_else():
 
 
 def test_a_frame_without_a_scene_goes_out_with_an_empty_one():
-    # A frame can be without its sentence -- write_missing_actions already passes such a frame by --
-    # and a missing sentence is no reason the list cannot be built.
+    # A frame can be without its sentence, and a missing sentence is no reason the list cannot be
+    # built.
     assert build_prompts(_structure())[0]["scene"] == ""
 
 
