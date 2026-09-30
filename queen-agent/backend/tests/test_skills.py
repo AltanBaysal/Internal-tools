@@ -993,3 +993,20 @@ def test_the_texts_stay_short_enough_to_be_read():
     assert len(_flow().split()) <= 1025
     assert len(_edit().split()) <= 856
     assert len(_improve().split()) <= 700
+
+
+# --- how the texts are written (Madde 390) --------------------------------------------------------
+#
+# 30 Sep, the user: the prompts written in v9 are to follow the format of the ones before them. Only
+# what v9 broke is pinned here; the conventions and the check of every part are in the madde's spec.
+
+
+@pytest.mark.parametrize("skill", ALL_SKILLS)
+def test_a_word_the_user_says_is_written_in_quotation_marks(skill):
+    # Before v9 the user's own words stand in double quotes -- "You decide", and the refusal's They
+    # said: "..." -- so the model reads them as the user's rather than as the text's own. Every
+    # skill carries the checks, which is where the phrase is.
+    said = instruction_for(skill)
+    assert "the user says " in said
+    for rest in said.split("the user says ")[1:]:
+        assert rest.startswith('"'), (skill, rest[:30])
