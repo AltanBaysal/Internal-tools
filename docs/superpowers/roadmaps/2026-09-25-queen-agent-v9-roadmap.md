@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 52/56
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 53/56
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -219,7 +219,7 @@ yüzden onlarla aynı anda koşar; 388 aynı metne yazdığı için 385'in arkas
 | 387 | ✅ **Reddedilen yeniden adlandırma yazılan adı kaybetmez.** Sunucu yeni adı reddedince bugün yazılan ad siliniyor; yeni projede aynı durumda ad kalıyor, ikisi aynı davranır *(Dalga 5'te bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | Sunucu yeni adı reddedince satırda yazılan ad duruyor ve hata görünüyor. |
 | 389 | ✅ **Sohbet aramasında Esc yalnız aramayı boşaltır.** Bugün `Search chats` kutusunda Esc'e basınca, açık bir dosya varsa o da kapanıyor *(365 tarayıcıda denenirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. | `Search chats`'te Esc aramayı boşaltıyor, açık dosya açık kalıyor. |
 | 390 | `ALIGNED` **v9'da yazılan prompt'lar öncekilerle aynı biçimde.** Modele giden metinlerin v9'da eklenen ya da değişen her parçası, v9'dan önce yazılmış metinlerin biçimine bakılarak kontrol edilir; uymayan yer düzeltilir. Sonra kullanıcı hepsini okur, ve prompt'a dokunan sıradaki madde ondan sonra koşar *(kullanıcı, 30 Eylül — "abi bensiz promptları güncellemişsiz ben onları inceleycektim senden şunu işstiyorum promtplar önceki promtplarla aynı formatta yazılmış mı bu kontrol et yazılmadıysa düzeltbir task sonra ben okuycam onları")*. **385'ten sonra.** | v9'da yazılan her prompt parçası öncekilerle aynı biçimde; kullanıcı metinleri okudu. |
-| 388 | `ALIGNED` **Edit prompts olmayan negatif dosyayı söylemez.** Kapanış her zaman `-negative.txt`'yi adıyla anıyor; 373'ten önce yazılmış senaryolarda o dosya yok, ve model kullanıcıya olmayan bir dosyayı söyleyebiliyor *(374 birleşirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. **390'dan sonra**, ve kullanıcı prompt'ları en sonda okur *(kullanıcı, 30 Eylül — "bunu yap ben en son okurum")*. | Edit prompts'un kapanışı negatif dosyayı yalnız o dosya varken anıyor. |
+| 388 | ✅ **Edit prompts olmayan negatif dosyayı söylemez.** Kapanış her zaman `-negative.txt`'yi adıyla anıyor; 373'ten önce yazılmış senaryolarda o dosya yok, ve model kullanıcıya olmayan bir dosyayı söyleyebiliyor *(374 birleşirken bulundu; kullanıcı, 30 Eylül — "bunlarıda düzelt")*. **390'dan sonra**, ve kullanıcı prompt'ları en sonda okur *(kullanıcı, 30 Eylül — "bunu yap ben en son okurum")*. | Edit prompts'un kapanışı negatif dosyayı yalnız o dosya varken anıyor. |
 
 ### 384 — hizalandı, 390 ile aynı anda
 
