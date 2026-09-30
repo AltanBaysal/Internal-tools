@@ -2220,6 +2220,49 @@ test("Escape closes the reading panel", async () => {
   expect(window.location.pathname).toBe("/p/p1/c/new");
 });
 
+// Madde 389: Escape closes one thing a press, innermost first. In Search chats with something typed,
+// that thing is the query -- trying 365 found the same press also shutting the file on the right.
+// With the box empty there is nothing of its own to close, so Escape goes on as it does elsewhere.
+async function openPlan() {
+  const file = { name: "plan.md", ext: "md", modifiedAt: new Date().toISOString() };
+  const fetch = vi.fn().mockImplementation((path) => {
+    if (path.endsWith("/files/plan.md")) {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ ...file, size: 4, text: "body" }),
+      });
+    }
+    if (path.endsWith("/files")) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => [file] });
+    }
+    return ok(path === "/api/projects" ? [PROJECT] : []);
+  });
+  vi.stubGlobal("fetch", fetch);
+  window.history.pushState(null, "", "/p/p1/c/new");
+
+  render(<App />);
+  await waitFor(() => expect(screen.getByText("plan.md")).toBeTruthy());
+  fireEvent.click(screen.getByText("plan.md"));
+  await waitFor(() => expect(screen.getByText("body")).toBeTruthy());
+}
+
+test("Escape in Search chats empties the search and leaves the open file open", async () => {
+  await openPlan();
+  fireEvent.change(chatSearch(), { target: { value: "intro" } });
+
+  fireEvent.keyDown(chatSearch(), { key: "Escape" });
+  expect(chatSearch().value).toBe("");
+  expect(screen.getByText("body")).toBeTruthy();
+});
+
+test("Escape in an empty Search chats goes on to close the open file", async () => {
+  await openPlan();
+
+  fireEvent.keyDown(chatSearch(), { key: "Escape" });
+  await waitFor(() => expect(screen.queryByText("body")).toBeNull());
+});
+
 test("nothing asks the server to search", async () => {
   const fetch = stubProjects([]);
 
