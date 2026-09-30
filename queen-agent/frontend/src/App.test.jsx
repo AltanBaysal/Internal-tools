@@ -1057,6 +1057,27 @@ test("a project with no chats yet says so in the sidebar", async () => {
   expect(await screen.findByText("No chats yet.", { selector: ".sidebar__empty" })).toBeTruthy();
 });
 
+test("a chat list that could not be read says so in the sidebar, and Try again reads it again", async () => {
+  // Madde 386: the chats are on disk, the read failed -- No chats yet. would be a false statement.
+  const fetch = serverWithProjects([THESIS], { p1: TWO_CHATS });
+  const answer = fetch.getMockImplementation();
+  let reads = 0;
+  fetch.mockImplementation((path, options) => {
+    if (path === "/api/projects/p1/chats" && ++reads === 1) {
+      return Promise.resolve({ ok: false, status: 500, text: async () => "" });
+    }
+    return answer(path, options);
+  });
+  window.history.pushState(null, "", "/p/p1/c/new");
+  render(<App />);
+  expect(await screen.findByText("Couldn't load chats.")).toBeTruthy();
+  expect(screen.queryByText("No chats yet.")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByText("Missing values", { selector: ".sidebar__chat" })).toBeTruthy();
+  expect(screen.queryByText("Couldn't load chats.")).toBeNull();
+});
+
 test("the first message in a draft creates the chat and takes its address", async () => {
   const chat = { id: "c1", title: "Write the intro", messages: [], lastActivity: "x" };
   const fetch = vi.fn().mockImplementation((path, options) => {
