@@ -229,10 +229,14 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                            "pending": [photo_file(j["id"]) for j in owed[1:]]})
             started = clock()
             try:
-                # Held in a variable because it is asked for more than once: the writer is shown the
-                # file the layer is made from, the producer makes the layer from it, and a loop ends
-                # on it too. Reading it again would be the same download from Drive.
+                # Held in variables because each is asked for more than once: the writer is shown
+                # the file the layer is made from and the picture a video arrives at, the producer
+                # makes the layer from the one and ends on the other, and the row names the ending
+                # -- the detail page prints it for a linked video. Reading either again would be
+                # the same download from Drive. The ending is found before the writer is asked, so a
+                # linked video whose next frame lost its photo spends no request.
                 under = _source_for(kind, store, slots, project, fid)
+                ending = _end_for(current, store, slots, project, fid, under)
                 writer = (writers or {}).get(kind)
                 if writer and not current["prompt"] and written is None:
                     # Asked here rather than when the job was queued: a job that waits hours would
@@ -248,8 +252,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                         # The mode goes with the words: a loop video has to be asked for a motion
                         # that returns, and the frame's own prompts cannot say that (madde 307). The
                         # picture and the scenario go too: H3's writer looks at the one and reads the
-                        # other (madde 400).
+                        # other (madde 400), and a linked video's writer sees where it ends (402).
                         written = writer.write(words, production_mode.of(current), source=under,
+                                               end=ending,
                                                scene=scene.of(scene.by_number(jobs), fid))
                 prompt = current["prompt"] or written or ""
                 # Only a job made of the pool has any, and it is asked for now rather than when
@@ -257,9 +262,6 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 pool = (references(project)
                         if references and production_mode.of(current) == production_mode.REFERENCE
                         else ())
-                # Held because the row names it too: the picture the video arrives at is what the
-                # detail page prints for a linked one.
-                ending = _end_for(current, store, slots, project, fid, under)
                 data = producer.generate(prompt, current["negative"], chosen,
                                          current["model"], current.get("lora", ""),
                                          source=under, end=ending, references=pool)

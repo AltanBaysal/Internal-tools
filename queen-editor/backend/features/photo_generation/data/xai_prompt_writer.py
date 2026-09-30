@@ -6,8 +6,8 @@ file at runtime -- the tools share knowledge, never imports. The sound instructi
 notebook asks the user for the audio prompt, so there was nothing to bring over.
 
 Two transports, one per model: H3's writer talks to Queen AI -- DeepSeek, services/deepseek/ -- and
-shows it the frame's photo (madde 400); WAN's and the sound's talk to xAI, services/xai/. This file
-only decides what to say.
+shows it the frame's photo (madde 400), and for a linked video the next frame's too (402); WAN's and
+the sound's talk to xAI, services/xai/. This file only decides what to say.
 """
 from backend.features.photo_generation.domain import production_mode
 
@@ -102,6 +102,19 @@ This video is a loop. The last frame is the first photo again, and the video pla
 """
 
 
+# What a linked video's prompt has to ask for, appended to H3's instruction alone (madde 402). The
+# model is shown the next frame's photo and asked for the way there in detail: a video written only
+# from where it starts reaches the next frame like a seam, and a transition written out is what the
+# video model follows. The text names Picture 2 and WAN's writer is shown no picture, so it is H3's.
+LINKED_RULE = """
+This video ends on the photo of the next frame. Two photos are given: the first photo is Picture 1, and the second photo is the photo of the next frame. In the prompt, call the second photo Picture 2. Picture 2 is the last frame of the video.
+- Write the path from Picture 1 to Picture 2, in this order: the state of Picture 1, the changes one by one, the differences growing smaller, and the state of Picture 2 at the end.
+- Never describe the two photos again. Write only the changes: how the bodies move, how the poses change, how the camera moves, how the light changes.
+- Write the changes in detail, so the video flows into Picture 2 and never jumps.
+- End with the pose, the spacing and the framing of Picture 2, as in "… and settles into the pose, spacing and framing of Picture 2."
+"""
+
+
 # Written for MMAudio, which takes a short list of what should be heard.
 AUDIO_INSTRUCTION = """
 You write the audio prompt for MMAudio, which adds sound to a short silent video clip.
@@ -135,12 +148,12 @@ class VideoPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts, mode=production_mode.STANDARD, source=None, scene=""):
+    def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
         """`prompts` is what the frame already says, layer by layer. A video is made from the photo,
         so that is the one this writer reads.
 
-        `source` and `scene` are taken and ignored: grok is asked the photo's words alone, and the
-        queue has one call shape for every writer.
+        `source`, `end` and `scene` are taken and ignored: grok is asked the photo's words alone, and
+        the queue has one call shape for every writer.
         """
         return self._client.complete(asked(VIDEO_INSTRUCTION, mode), prompts.get("photo", ""))
 
@@ -149,27 +162,31 @@ class H3VideoPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts, mode=production_mode.STANDARD, source=None, scene=""):
+    def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
         """Queen AI is shown the photo the video starts from and reads the frame's scenario
         (madde 400). The photo's own words are not sent: the model sees the picture they drew.
 
-        A linked video is asked what a plain one is -- asked() adds words for a loop alone.
+        A linked video is shown the photo it ends on too, after its own, and is asked for the way
+        between them (madde 402). A loop ends on its own photo, already shown, so it is not sent
+        twice.
         """
-        return self._client.complete(asked(H3_VIDEO_INSTRUCTION, mode),
-                                     f"Scenario: {scene}" if scene else "", [source])
+        instruction, pictures = asked(H3_VIDEO_INSTRUCTION, mode), [source]
+        if mode == production_mode.LINKED:
+            instruction, pictures = instruction + LINKED_RULE, [source, end]
+        return self._client.complete(instruction, f"Scenario: {scene}" if scene else "", pictures)
 
 
 class AudioPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts, mode=production_mode.STANDARD, source=None, scene=""):
+    def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
         """Sound is made from the whole frame: the scene is in the photo's prompt and what happens
         is in the video's, so both go in one message, each under its own label.
 
         `mode` is a video's business -- a sound is laid over the whole of one however it was made.
-        It is taken and ignored, like `source` and `scene`, because the queue has one call shape for
-        every writer.
+        It is taken and ignored, like `source`, `end` and `scene`, because the queue has one call
+        shape for every writer.
         """
         said = [f"Scene: {prompts.get('photo', '')}"]
         video = prompts.get("video")

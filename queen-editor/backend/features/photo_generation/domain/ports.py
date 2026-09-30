@@ -28,7 +28,7 @@ class PhotoGenerator(Protocol):
 
 class PromptWriter(Protocol):
     def write(self, prompts: dict, mode: str, source: tuple | None = None,
-              scene: str = "") -> str:
+              end: tuple | None = None, scene: str = "") -> str:
         """The prompt a job of this type should be produced with.
 
         `prompts` is what the frame already says: {"photo": …} today, plus the video's own when
@@ -43,6 +43,10 @@ class PromptWriter(Protocol):
         handed -- and `scene` is the frame's scenario, empty for a frame that has none. H3's writer
         shows the model both (madde 400); the others take them and ignore them, for the same one
         call shape.
+
+        `end` is the picture the video arrives at -- the one its producer is handed as `end` -- or
+        None. H3's writer shows it to the model for a linked video (madde 402); the others take it
+        and ignore it.
         """
         ...
 
