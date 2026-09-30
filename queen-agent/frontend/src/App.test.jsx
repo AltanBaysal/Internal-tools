@@ -898,15 +898,35 @@ const renameTo = (from, to) => {
   fireEvent.keyDown(field, { key: "Enter" });
 };
 
-test("a rename the server refuses leaves All projects standing, with the server's words", async () => {
+test("a rename the server refuses keeps the typed name in the row, with the server's words", async () => {
   // The list was read and is still known: a write that did not land is not a list that did not come.
+  // Madde 387: and the name typed stays where it was typed, as the naming screen keeps its own.
   refusingFirstWrite(ROWS);
   const { container } = render(<App />);
   await onAllProjects();
   renameTo("Thesis", "Dissertation");
   expect((await screen.findByText("the store is unreachable")).className).toBe("list-error");
-  expect(sections(container)).toEqual({ Recent: ["Thesis", "Notes"] });
+  expect(screen.getByRole("textbox", { name: "Project name" }).value).toBe("Dissertation");
+  // Thesis's row holds the field, so only Notes reads as a name; the list is still standing.
+  expect(sections(container)).toEqual({ Recent: ["Notes"] });
   expect(screen.queryByText("Couldn't load projects.")).toBeNull();
+});
+
+test("Enter again sends the kept name, and once it lands the row and the line follow", async () => {
+  const fetch = refusingFirstWrite(ROWS);
+  render(<App />);
+  await onAllProjects();
+  renameTo("Thesis", "Dissertation");
+  await screen.findByText("the store is unreachable");
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Project name" }), { key: "Enter" });
+  expect(
+    await screen.findByText("Dissertation", { selector: ".all-projects__row-name" }),
+  ).toBeTruthy();
+  expect(screen.queryByText("the store is unreachable")).toBeNull();
+  expect(patches(fetch).map(([path, options]) => [path, JSON.parse(options.body)])).toEqual([
+    ["/api/projects/p1", { name: "Dissertation" }],
+    ["/api/projects/p1", { name: "Dissertation" }],
+  ]);
 });
 
 test("a delete the server refuses leaves the project where it was", async () => {
@@ -926,6 +946,8 @@ test("the next write that lands takes the refusal's line away", async () => {
   await onAllProjects();
   renameTo("Thesis", "Dissertation");
   await screen.findByText("the store is unreachable");
+  // The refused name waits in its field; giving it up is not a write.
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Project name" }), { key: "Escape" });
   actionsFor("Notes");
   fireEvent.click(screen.getByRole("button", { name: "Pin" }));
   await waitFor(() =>

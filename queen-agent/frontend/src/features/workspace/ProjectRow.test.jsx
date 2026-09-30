@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { expect, test, vi } from "vitest";
 
 import ProjectRow from "./ProjectRow.jsx";
@@ -133,11 +133,15 @@ test("Rename turns the name into a field, in the row's own place", () => {
   expect(screen.getByRole("button", { name: "Actions for Night market" })).toBeTruthy();
 });
 
-test("Enter saves what was typed, once, and closes the field", () => {
-  const onRename = vi.fn();
+test("Enter saves what was typed, once, and closes the field once it has landed", async () => {
+  const onRename = vi.fn().mockResolvedValue(PROJECT);
   const field = renaming({ onRename });
   fireEvent.change(field, { target: { value: "  Harbour  " } });
-  fireEvent.keyDown(field, { key: "Enter" });
+  await act(async () => {
+    fireEvent.keyDown(field, { key: "Enter" });
+    // A second press while the first is on its way is not a second rename.
+    fireEvent.keyDown(field, { key: "Enter" });
+  });
   expect(onRename).toHaveBeenCalledTimes(1);
   expect(onRename).toHaveBeenCalledWith("p2", "Harbour");
   expect(screen.queryByRole("textbox", { name: "Project name" })).toBeNull();
@@ -154,14 +158,57 @@ test("Escape gives up: nothing is saved", () => {
   expect(screen.getByText("Night market")).toBeTruthy();
 });
 
-test("pressing anywhere else saves, as the design's settleRename does", () => {
+test("pressing anywhere else saves, as the design's settleRename does", async () => {
   // A rename the user walked away from is kept, never silently dropped.
-  const onRename = vi.fn();
+  const onRename = vi.fn().mockResolvedValue(PROJECT);
   const field = renaming({ onRename });
   fireEvent.change(field, { target: { value: "Harbour" } });
-  fireEvent.blur(field);
+  await act(async () => {
+    fireEvent.blur(field);
+  });
   expect(onRename).toHaveBeenCalledWith("p2", "Harbour");
   expect(screen.queryByRole("textbox", { name: "Project name" })).toBeNull();
+});
+
+// Madde 387: the name is the user's work, so the field waits for the server's answer and a refusal
+// leaves it where it was typed -- as the naming screen keeps the name it could not create.
+
+test("the field holds the name while it is on its way", () => {
+  const field = renaming({ onRename: vi.fn(() => new Promise(() => {})) });
+  fireEvent.change(field, { target: { value: "Harbour" } });
+  fireEvent.keyDown(field, { key: "Enter" });
+  expect(screen.getByRole("textbox", { name: "Project name" }).value).toBe("Harbour");
+});
+
+test("a refused name stays in the field, ready to send again", async () => {
+  const onRename = vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce(PROJECT);
+  const field = renaming({ onRename });
+  fireEvent.change(field, { target: { value: "Harbour" } });
+  await act(async () => {
+    fireEvent.keyDown(field, { key: "Enter" });
+  });
+  const kept = screen.getByRole("textbox", { name: "Project name" });
+  expect(kept.value).toBe("Harbour");
+  expect(document.activeElement).toBe(kept);
+  await act(async () => {
+    fireEvent.keyDown(kept, { key: "Enter" });
+  });
+  expect(onRename).toHaveBeenCalledTimes(2);
+  expect(onRename).toHaveBeenLastCalledWith("p2", "Harbour");
+  expect(screen.queryByRole("textbox", { name: "Project name" })).toBeNull();
+});
+
+test("Escape after a refusal gives the name up", async () => {
+  const onRename = vi.fn().mockResolvedValue(null);
+  const field = renaming({ onRename });
+  fireEvent.change(field, { target: { value: "Harbour" } });
+  await act(async () => {
+    fireEvent.keyDown(field, { key: "Enter" });
+  });
+  fireEvent.keyDown(screen.getByRole("textbox", { name: "Project name" }), { key: "Escape" });
+  expect(onRename).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole("textbox", { name: "Project name" })).toBeNull();
+  expect(screen.getByText("Night market")).toBeTruthy();
 });
 
 test("an empty name saves nothing", () => {
