@@ -476,7 +476,9 @@ def test_a_scene_longer_than_its_video_is_shortened_or_split():
     assert "with every event kept" in said
     assert "split the scene into two scenes of four seconds each" in said
     assert "right after the first scene" in said
-    assert "Write the action again for each changed frame and each new frame." in said
+    # Madde 393: a changed or new frame is written again whole, by Step 5's rules, not only its
+    # action -- a split scene's second frame needs its entries chosen for its own camera angle too.
+    assert "Update each changed frame and each new frame by the rules of Step 5." in said
     # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
     assert "important" not in said
     assert "main event" not in said

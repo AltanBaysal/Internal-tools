@@ -286,7 +286,7 @@ START_A_SCENARIO = (
     "scene again.\n"
     "- If not, split the scene into two scenes of four seconds each, and put the second scene "
     "right after the first scene.\n"
-    "- Write the action again for each changed frame and each new frame.\n"
+    "- Update each changed frame and each new frame by the rules of Step 5.\n"
     "- Build the prompts again.\n"
     "- This step waits for no approval. Go on to Step 7 in the same turn.\n"
     "\n"
