@@ -39,8 +39,9 @@ aynı yere dokunmaz — aynı dosyanın ayrı yerlerine dokunabilirler, ve birle
   v9-8b – v9-8f. Hepsi modele giden aynı metne yazıyor, o yüzden aynı anda koşamaz. v9-9 ve v9-11
   v9-8a'nın hemen arkasında: ikisi de Start a scenario'nun sahneleri yazan adımına dokunuyor, ve
   metnin kelime tavanı v9-8a'da yükseliyor.
-- **v9-6 en sonda** *(kullanıcı — "listenin en sonuna al bunu")*. v9-10 onun da arkasındaydı *(kullanıcı,
-  29 Eylül — "bunu en son al beraber yaoarız")*, ve 30 Eylül'de backlog'a döndü.
+- **v9-6 en sondaydı** *(kullanıcı — "listenin en sonuna al bunu")*, ve 30 Eylül'de koşulmadan
+  backlog'a döndü. v9-10 onun da arkasındaydı *(kullanıcı, 29 Eylül — "bunu en son al beraber
+  yaoarız")*, ve o da 30 Eylül'de backlog'a döndü.
 
 **Koşu: her parçayı bir subagent koşar, Claude yönetir** *(kullanıcı, 29 Eylül — yukarıdaki söz, ve
 "bir sıkıntı varsa senin çözemeyeceğin bana raise etmelisni")*.
@@ -83,7 +84,10 @@ v9-10'da duruyor. **382 ve 383 30 Eylül'de çıktı**, Claude'un koşu sırası
 7'de birer subagent'ın. **384 – 389 da 30 Eylül'de çıktı**, Claude'un Dalga 7'den sonra saydığı küçük
 açıklardan: 385 – 389 Dalga 8'de ve ardındaki prompt'larda koşar; 384 hizalanmayı bekler *(kullanıcı —
 "bunu düzeltmek için roadmap ekle ve bekle")*. **390 aynı gün kullanıcıdan geldi:** v9'un prompt'ları
-öncekilerle aynı biçime getirilir, kullanıcı okur, ve 388 ondan sonra koşar.
+öncekilerle aynı biçime getirilir, kullanıcı okur, ve 388 ondan sonra koşar. **375 de 30 Eylül'de
+koşulmadan [backlog](../../../queen-agent/BACKLOG.md)'a döndü** *(kullanıcı — "şuan son task olan suffix
+güncelelmesi backloga")*, ve numarası başka maddeye verilmez. **396 aynı anda kullanıcıdan geldi:** tur
+sınırı 16'dan 32'ye çıkar, ve 394'ten sonra koşar.
 
 **367 – 374, 385, 388 ve 390 30 Eylül'de geri alındı** *(`c75dd524`; kullanıcı — "abi yeni fieldlar
 açamı bepenemdim lütfen düzelt doğru yetlere ekle promtplarda ayrı fiedlar açma extra yazma şeklidne ai
@@ -256,13 +260,13 @@ commitlenecek")*.
 | 395 | ✅ **write_missing_actions kaldırılır.** *(Kullanıcı, 30 Eylül — "write_missing_actions bunu kadlrımayı backlgoa ekle"; aynı gün backlog'dan buraya, 391'in arkasına — "bunu bu roadmpte kaldrlaım olur mu tasktan sonra".)* Tool ve action'ı yazan ayrı model birlikte kalkar; action'ı artık ana model kendisi yazar *(kullanıcı — "evet ana model kendisi yazacak doğru anladın")*. Bu madde yalnız siler: modele giden metinlerden yalnız tool'un adı çıkar, yeni cümle yazılmaz — action'ı ana modele yazdıran metni kullanıcı 393'te yazar *(kullanıcı — "prompt silmek istiyorsan silebilirsin ama güncel promptları ben update'leyeceğim … ilk silme işlemini yap … sonraki taskta zaten promptları güncelleme var galiba orda güncelleriz")*. | Tool, ayrı yazıcı model ve onlara bağlı kod ve testler yok; dört satır yeşil. |
 | 393 | ✅ **Prompt'ların geliştirilmesi:** Kareler baştan doğru yazılır. *(Kullanıcı, 30 Eylül — "problemi çözmenin en iyi yolu onu hiö oluşturmamaktır dedik".)* 395'ten gelen: `write_missing_actions` kalktı, ve action'ı ana modele yazdıran metin burada kullanıcıyla yazılır. **392'den önce** *(kullanıcı, 30 Eylül — "negatifin önüne alalım promptları güncellemeyi")*. Metin kullanıcıyla satır satır yazıldı, subagent, spec ve plan olmadan *(kullanıcı — "sen yap sub agent kullanma spec ve plan yazma düz güncelle")*: iki skill de işin bir video olduğunu, fotoğrafın videonun ilk anı olduğunu ve görüntü modelinin zayıf olduğunu söyleyen bir Context'le açılır; skill metinlerinde tool adı, `pov_` ve SDXL yok. Sahneler İngilizce, konuşmalar tırnak içinde iyi bir İngilizceyle; mekâna ayna eklenmez. 5. adım kareleri tek tek sahneden günceller, altı kuralla — karakter, kıyafet ve mekân için kamera açısına uyan girdi, yoksa yenisi; tek fotoğraf; zayıf modele yetecek sadelik; NSFW'de parçanın açık adı — ve kuralların önünde en sık hata: gizli tag başka karaktere geçer. *(Kullanıcı — "tamam abi güzel bunu commitle taskı bitti işaretle".)* | Kullanıcı Changes'ten okudu ve onayladı. |
 | 392 | ✅ **Negatif:** Negatif liste yazılır. *(Kullanıcı, 30 Eylül — "negatif yazılmasıda bence ayrı bir amdde".)* Start a scenario'nun son adımı olur, senaryo başına tek liste, ayrı bir dosyada yalnız tag'ler, virgülle *(kullanıcı — "start senaryonun son maddesi negative yazma olacak … tek bir negatif yazacak ayrı bir dosyaya md dosyası olabilir ama sadece tagları içerecek", "virgül olacak")*. 393 gibi, subagent, spec ve plan olmadan satır satır yazıldı *(kullanıcı — "bunu da beraber yapalım spec plan vs yazma subagenta verme")*: liste fotoğraf modeli içindir; karakterlerin özelliklerinin karışması en büyük problemdir ve liste buna odaklanır, her girdinin her tag'i okunarak *(kullanıcı — "fotoğraf modeli için olduğunu söyle belirt bu önemli … karakterlerin özelliklerinin karışması en büyük problem buna odaklanması gerektiğini söyle")*; 28 Eylül'ün dersleri — karakterin kendi özelliği negatife girmez, yerine karşıt tag'ler. Edit prompts'a dokunulmadı. *(Kullanıcı — "tamamlandı commitleyebiliriz".)* | Kullanıcı Changes'ten okudu ve onayladı. |
-| 394 | `UNALIGNED` **Improve:** Ayrı bir skill olarak hazır senaryoyu kontrol eder. *(Kullanıcı, 30 Eylül — "imrpove ayrı skill olacak dedik".)* **Ayrıntılar kullanıcıyla konuşulacak.** | Kullanıcı Changes'ten okudu ve onayladı. |
+| 394 | `ALIGNED` **Improve:** Ayrı bir skill olarak hazır senaryoyu kontrol eder. *(Kullanıcı, 30 Eylül — "imrpove ayrı skill olacak dedik".)* Edit prompts gibi ayrı bir skill; metni Start a scenario'nun Step 6 – 10'unun birebir kopyası, yalnız baştaki Context farklı *(kullanıcı — "evet abi edit prompt gibi düşün ama birebir kopyalayalım textleri baştaki context farklı olsun ne dersin")*. Metin kullanıcıyla satır satır yazıldı; adımlar 1 – 5 diye numaralanır, Step 5'in altı kuralı Context'e girer, ve adımlardan önce prompt'lar bir kez kurulur. Kodu — skill'in kaydı, seçicide en sondaki `Improve` satırı, testler, dist — bir subagent tamamlar *(kullanıcı — "tamamdır commitle ve abi kod kısmını tamamla ve işaretle lütfen subagentla devam et")*. | Seçicide Edit prompts'tan sonra `Improve` var, ve seçilince modele Improve'un metni gidiyor; dört satır yeşil. |
 
-### En sonda
+### 394'ten sonra
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 375 · v9-6 | `ALIGNED` **Suffix system prompt'u güçlendirilecek.** *(Kullanıcı, 28 Eylül — "suffix system promptunu" güçlendirmek.)* **Kullanıcı kendisi yazar, ve madde en sonda durur** *(kullanıcı, 28 Eylül — "abi unu ben ypaıcam listenin en sonuna al bunu")*: koşu buraya geldiğinde spec, test ya da kod yazmaz; suffix'i kullanıcı değiştirir. | Kullanıcı yeni suffix'i yazdı. |
+| 396 | `UNALIGNED` **Tur sınırı 16'dan 32'ye çıkar.** *(Kullanıcı, 30 Eylül — "all tur sınırına 16 dan 32 ye çıakrlaım ona bir task aç bundan sonra koş".)* v9-8'deki 28 Eylül kararını — tur sınırı değişmez — değiştirir. | Bir tur en çok 32 istek yapıyor; dört satır yeşil. |
 
 ---
 

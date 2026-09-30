@@ -32,6 +32,12 @@ yaoarız"; 30 Eylül — "bunu backloga at şimdilik".)* v9'da 376 olarak hizala
 konuşulanlar [v9'un](../docs/superpowers/roadmaps/2026-09-25-queen-agent-v9-roadmap.md) v9-10 bölümünde.
 **Ayrıntılar kullanıcıyla konuşulacak.**
 
+## Suffix system prompt'u güçlendirilecek
+
+*(Kullanıcı, 28 Eylül — "suffix system promptunu" güçlendirmek, "abi unu ben ypaıcam listenin en
+sonuna al bunu"; 30 Eylül — "şuan son task olan suffix güncelelmesi backloga".)* v9'da 375 olarak
+hizalandı ve koşulmadı: suffix'i kullanıcı kendisi yazar. **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ## Start a scenario spicy skill'i açılacak
 
 *(Kullanıcı, 29 Eylül — "bir de start senrayo spicy diye bir ksill açıcaz ama şimdi değil ozaman
