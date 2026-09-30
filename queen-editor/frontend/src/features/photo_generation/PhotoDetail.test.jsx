@@ -120,6 +120,11 @@ const QUEUED_COPY = { id: "P0_1", file: "P0_0.png", status: "done", prompt: "kı
 
 const tab = (name) => screen.getByRole("button", { name });
 const regenButton = () => screen.getByText("Yeniden üret — yeni kare").closest("button");
+// The row that folds the frame's facts away (madde 399), and the facts' labels in the order the
+// column draws them -- the whole column's, or one part's.
+const details = () => screen.getByRole("button", { name: "Ayrıntılar" });
+const facts = (root = document) =>
+  [...root.querySelectorAll("[data-field]")].map((one) => one.textContent);
 
 // jsdom ships no clipboard, so the test supplies one and watches what it is handed. The answer is
 // made at the call and not before it: a page has to be opened between the stub and the press, and a
@@ -304,8 +309,10 @@ describe("PhotoDetail — the layer tabs", () => {
 
   it("keeps the frame's own name and its place on every tab", async () => {
     // The page's own header carries the project's name, not the frame's -- so if this row went,
-    // the identity would be nowhere on screen (karar 23).
+    // the identity would be nowhere on screen (karar 23). Behind the details row since madde 399,
+    // which stays open across the tabs.
     await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(details());
     expect(screen.getByText("Dosya adı")).toBeTruthy();
 
     fireEvent.click(tab("Video"));
@@ -317,21 +324,22 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.getByText("Dosya adı")).toBeTruthy();
   });
 
-  it("keeps nothing else in the top group", async () => {
+  it("keeps nothing else behind the row on the video tab", async () => {
     // Read as a list rather than one row at a time: naming the rows that went says nothing about
     // the rows that stayed, and what this item promises is the whole group.
     await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(details());
 
     fireEvent.click(tab("Video"));
 
-    expect([...document.querySelectorAll("[data-field]")].map((one) => one.textContent))
-      .toEqual(["Sıra", "Dosya adı"]);
+    expect(facts()).toEqual(["Sıra", "Dosya adı"]);
   });
 
   it("says which model the frame was made with", async () => {
     // Madde 140 made the checkpoint a choice, and three of them render into one gallery. Nothing on
     // screen said which one a frame came from, so a comparison could only be read from memory.
     await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(details());
 
     expect(screen.getByText("Model").parentElement.textContent).toContain("novaAnimeXL_ilV190");
     // Without this the line above would pass on the stored name as well: it is a prefix match, and
@@ -346,6 +354,7 @@ describe("PhotoDetail — the layer tabs", () => {
       frames: [{ ...LAYERED, model: "dasiwa" }],
       models: [{ value: "dasiwa", label: "DaSiWa Illustrious | Anime" }],
     });
+    fireEvent.click(details());
 
     expect(screen.getByText("Model").parentElement.textContent)
       .toContain("DaSiWa Illustrious | Anime");
@@ -355,6 +364,7 @@ describe("PhotoDetail — the layer tabs", () => {
     // The list is a fetch of its own and it can fail. Drawing nothing would lose a row the frame
     // really does carry; the stored value is worse than the label and better than silence.
     await open("P0_0", { frames: [{ ...LAYERED, model: "dasiwa" }], models: [] });
+    fireEvent.click(details());
 
     expect(screen.getByText("Model").parentElement.textContent).toContain("dasiwa");
   });
@@ -364,6 +374,7 @@ describe("PhotoDetail — the layer tabs", () => {
       frames: [{ ...LAYERED, model: "nova3dcg", lora: "slime" }],
       models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }],
     });
+    fireEvent.click(details());
 
     expect(screen.getByText("LoRA").parentElement.textContent).toContain("Slime");
   });
@@ -372,6 +383,7 @@ describe("PhotoDetail — the layer tabs", () => {
     "says the lora %s by the name it was picked by (madde 238)", async (value, label) => {
       await open("P0_0", { frames: [{ ...LAYERED, model: "nova3dcg", lora: value }],
                            models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }] });
+      fireEvent.click(details());
 
       expect(screen.getByText("LoRA").parentElement.textContent).toContain(label);
     });
@@ -382,6 +394,7 @@ describe("PhotoDetail — the layer tabs", () => {
     // rule for a frame that never carried a model (madde 238).
     await open("P0_0", { frames: [{ ...LAYERED, model: "nova3dcg", lora: "" }],
                          models: [{ value: "nova3dcg", label: "Nova 3DCG XL" }] });
+    fireEvent.click(details());
 
     expect(screen.getByText("Model")).toBeTruthy();
     expect(screen.queryByText("LoRA")).toBeNull();
@@ -392,6 +405,7 @@ describe("PhotoDetail — the layer tabs", () => {
     // the graph shipped that day. Naming one would be inventing it; the row is simply not drawn --
     // the rule "Üretim modu" already follows. Its lora goes with it for the same reason.
     await open("0_a", { frames: PHOTOS });
+    fireEvent.click(details());
 
     expect(screen.queryByText("Model")).toBeNull();
     expect(screen.queryByText("LoRA")).toBeNull();
@@ -401,6 +415,7 @@ describe("PhotoDetail — the layer tabs", () => {
     // Both are the photo's: video and sound jobs are planned with neither. On their tabs the names
     // would read as what made THAT layer.
     await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(details());
 
     fireEvent.click(tab("Video"));
     expect(screen.queryByText("Model")).toBeNull();
@@ -411,13 +426,13 @@ describe("PhotoDetail — the layer tabs", () => {
     expect(screen.queryByText("LoRA")).toBeNull();
   });
 
-  it("keeps the photo tab's top group to its four rows", async () => {
+  it("keeps the photo tab's facts to their four rows", async () => {
     // The video tab's own list is pinned above. This is the photo tab's, and it pins the order too:
     // the model and its lora go last, behind the two rows that say which frame this is.
     await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(details());
 
-    expect([...document.querySelectorAll("[data-field]")].map((one) => one.textContent))
-      .toEqual(["Sıra", "Dosya adı", "Model", "LoRA"]);
+    expect(facts()).toEqual(["Sıra", "Dosya adı", "Model", "LoRA"]);
   });
 
   it("centres the one line a waiting box holds", async () => {
@@ -477,7 +492,7 @@ describe("PhotoDetail — the layer tabs", () => {
     await settle();
 
     expect(tab("Video").getAttribute("aria-current")).toBe("page");
-    expect(screen.getByText("P1_0.png")).toBeTruthy();     // it really is the next frame
+    expect(screen.getByText("1 / 2")).toBeTruthy();         // it really is the next frame
   });
 
   it("falls back to the photo when the next frame has no such layer", async () => {
@@ -494,6 +509,82 @@ describe("PhotoDetail — the layer tabs", () => {
     // frame never had would be a tab on nothing.
     expect(tab("Foto").getAttribute("aria-current")).toBe("page");
     expect(tab("Video").disabled).toBe(true);
+  });
+});
+
+describe("PhotoDetail — the details section (madde 399)", () => {
+  // The owner found the column crowded: the counter stays on top, and what made the frame folds
+  // away behind one row that starts closed -- the design's own (tasarım 200).
+  it("opens the column with the counter alone and the section closed", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    expect(facts()).toEqual(["Sıra"]);
+    expect(details().getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByText("Dosya adı")).toBeNull();
+  });
+
+  it("opens the frame's facts under the row on a press, and folds them on the next", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    fireEvent.click(details());
+
+    expect(details().getAttribute("aria-expanded")).toBe("true");
+    // Under the row, in the order they always had -- not back in the counter's group.
+    expect(facts(document.querySelector('[data-group="details"]')))
+      .toEqual(["Dosya adı", "Model", "LoRA"]);
+
+    fireEvent.click(details());
+
+    expect(details().getAttribute("aria-expanded")).toBe("false");
+    expect(facts()).toEqual(["Sıra"]);
+  });
+
+  it("turns the caret up while the section is open", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+    const caret = () => details().querySelector("[data-caret]");
+
+    expect(caret().querySelector("svg")).toBeTruthy();
+    expect(caret().style.transform).not.toContain("rotate");
+
+    fireEvent.click(details());
+
+    expect(caret().style.transform).toBe("rotate(180deg)");
+  });
+
+  it("keeps the section open when the tab changes", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED, modes: { video: "loop" } }] });
+    fireEvent.click(details());
+
+    fireEvent.click(tab("Video"));
+
+    expect(details().getAttribute("aria-expanded")).toBe("true");
+    // The video tab's own facts, each under the condition it always had.
+    expect(facts()).toEqual(["Sıra", "Dosya adı", "Üretim modu"]);
+  });
+
+  it("keeps the section open while the arrows walk to another frame", async () => {
+    // The arrows swap the frame under a page that stays mounted. The press was the user's, not
+    // the frame's, so it walks on with them.
+    listFrames.mockResolvedValue([LAYERED, SECOND]);
+    getStatus.mockResolvedValue(IDLE);
+    listModels.mockResolvedValue({ models: [], loras: LORAS });
+    const { rerender } = render(<PhotoDetail project="düğün" frame="P0_0" />);
+    await settle();
+    fireEvent.click(details());
+
+    rerender(<PhotoDetail project="düğün" frame="P1_0" />);
+    await settle();
+
+    expect(details().getAttribute("aria-expanded")).toBe("true");
+    expect(screen.getByText("P1_0.png")).toBeTruthy();
+  });
+
+  it("draws the row as a label, with no box", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    // The column's own label face, and nothing drawn around it.
+    expect(details().style.background).toBe("none");
+    expect(screen.getByText("Ayrıntılar").style.textTransform).toBe("uppercase");
   });
 });
 
@@ -602,6 +693,7 @@ describe("PhotoDetail — how the video was made", () => {
 
   it("says which mode made this video", async () => {
     await open("P0_0", { frames: [LOOPED] });
+    fireEvent.click(details());
 
     fireEvent.click(tab("Video"));
 
@@ -614,6 +706,7 @@ describe("PhotoDetail — how the video was made", () => {
     // The file rather than the frame's number: the sequence can be dragged, and then the number
     // would be a lie about a video nobody touched.
     await open("P0_0", { frames: [LINKED] });
+    fireEvent.click(details());
 
     fireEvent.click(tab("Video"));
 
@@ -623,6 +716,7 @@ describe("PhotoDetail — how the video was made", () => {
   it("says it and nothing more -- there is nothing here to press", async () => {
     // Changing the mode is making the video again, and that is the form below.
     await open("P0_0", { frames: [LOOPED] });
+    fireEvent.click(details());
 
     fireEvent.click(tab("Video"));
 
@@ -634,6 +728,7 @@ describe("PhotoDetail — how the video was made", () => {
     // The sound tab shows the video's file name, because the sound was laid over it -- but the
     // video's mode is not a fact about the sound.
     await open("P0_0", { frames: [LOOPED] });
+    fireEvent.click(details());
 
     fireEvent.click(tab("Ses"));
 
@@ -642,6 +737,7 @@ describe("PhotoDetail — how the video was made", () => {
 
   it("never draws it on the photo tab either", async () => {
     await open("P0_0", { frames: [LOOPED] });
+    fireEvent.click(details());
 
     expect(screen.queryByText("Üretim modu")).toBeNull();
   });
@@ -650,6 +746,7 @@ describe("PhotoDetail — how the video was made", () => {
     // Videos already on Drive were produced before modes existed. An empty row would be a question
     // rather than an answer.
     await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(details());
 
     fireEvent.click(tab("Video"));
 
@@ -781,6 +878,7 @@ describe("PhotoDetail — the new mode", () => {
 describe("PhotoDetail", () => {
   it("shows the position, the file name and the prompt", async () => {
     await open("1_a");
+    fireEvent.click(details());
 
     expect(screen.getByText("2 / 3")).toBeTruthy();
     expect(screen.getByText("1_a.png")).toBeTruthy();
@@ -970,6 +1068,7 @@ describe("PhotoDetail — a frame that is not a photo yet", () => {
 
   it("calls the file name planned, and only for the frames that have no file", async () => {
     await open("3_a", { frames: MIXED });
+    fireEvent.click(details());
 
     expect(screen.getByText("Dosya adı (planlanan)")).toBeTruthy();
     expect(screen.queryByText("Dosya adı")).toBeNull();
@@ -977,6 +1076,7 @@ describe("PhotoDetail — a frame that is not a photo yet", () => {
 
   it("keeps the plain label on a produced photo", async () => {
     await open("0_a", { frames: MIXED });
+    fireEvent.click(details());
 
     expect(screen.getByText("Dosya adı")).toBeTruthy();
     expect(screen.queryByText("Dosya adı (planlanan)")).toBeNull();
@@ -1513,25 +1613,30 @@ describe("PhotoDetail — the right column", () => {
     expect(screen.getByLabelText("Video prompt'u — kopyala").disabled).toBe(true);
   });
 
-  it("splits the column into two groups with nothing between them", async () => {
+  it("splits the column into its facts, the section and what can be made of it", async () => {
     await open("P0_0", { frames: [LAYERED] });
 
     // Fark 91: what the frame is, then what can be made of it. No group heading and no rule
-    // between them -- the split is where the eye rests, not a line it reads.
+    // between them -- the split is where the eye rests, not a line it reads. Madde 399 folds what
+    // made the frame into a section of its own between the two.
     const side = document.querySelector("[data-side]");
     expect([...side.children].map((one) => one.getAttribute("data-group")))
-      .toEqual(["info", "production"]);
+      .toEqual(["info", "details", "production"]);
   });
 
   it("keeps one vertical rhythm down the column", async () => {
     await open("P0_0", { frames: [LAYERED] });
+    fireEvent.click(details());
 
     // Fark 91: three measures became two -- 16 between blocks, 6 between a label and what it
     // labels. The information group wraps on a 300px panel, so its own rows answer to the 16 too.
+    // The details section keeps its rows 12 under its own row, and they wrap by the same 16.
     const side = document.querySelector("[data-side]");
     expect(side.style.gap).toBe("16px");
     expect(side.children[0].style.rowGap).toBe("16px");
-    expect(side.children[1].style.gap).toBe("16px");
+    expect(side.children[1].style.gap).toBe("12px");
+    expect(side.children[1].children[1].style.rowGap).toBe("16px");
+    expect(side.children[2].style.gap).toBe("16px");
     expect(document.querySelector("[data-field]").parentElement.style.gap).toBe("6px");
   });
 
