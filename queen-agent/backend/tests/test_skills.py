@@ -696,6 +696,60 @@ def test_the_third_check_does_not_tell_the_model_is_weak_again():
     assert THE_IMAGE_MODEL not in _checks()
 
 
+# --- the fourth check: the negative prompt (Madde 373) --------------------------------------------
+#
+# 28 Sep, the user: a negative prompt of the scenario's and its characters' own, so the characters'
+# features do not mix. One list per scenario, from its cast, as the last of the checks; it goes into a
+# file of its own beside the prompt list, and the user copies it into queen-editor's negative field by
+# hand (v9-7). The user's lessons are the rules: a negative works on the whole picture, never on one
+# person, so a character's own feature never goes in -- dark skin there turned the man white -- and
+# tags that fit only the other one go in instead (pale male, white man). 374 writes the list again
+# when the cast changes, so it is written whole each time rather than added to.
+
+FOURTH_CHECK = "Check 4 -- the negative prompt"
+
+
+def _fourth_check():
+    checks = _checks()
+    start = checks.index(FOURTH_CHECK)
+    return checks[start : checks.index("\n\n", start)]
+
+
+def test_the_fourth_check_comes_after_the_third_and_before_the_closing():
+    checks = _checks()
+    assert FOURTH_CHECK in checks
+    assert checks.index(THIRD_CHECK) < checks.index(FOURTH_CHECK) < checks.index(CLOSING)
+
+
+def test_the_negative_prompt_is_one_list_written_whole_from_the_cast():
+    said = _fourth_check()
+    assert "one negative prompt" in said
+    assert "cast" in said
+    assert "write_negative" in said
+    assert "never added to" in said
+
+
+def test_the_negative_prompt_never_holds_a_characters_own_feature():
+    said = _fourth_check()
+    assert "whole picture" in said
+    assert "own feature" in said
+    assert "pale male" in said
+    assert "white man" in said
+
+
+def test_the_negative_check_changes_no_frame_and_waits_for_a_yes():
+    said = _fourth_check()
+    assert "no frame" in said
+    assert "wait for their yes" in said
+
+
+def test_the_closing_names_the_negative_file_too():
+    # Two files come out of the checks now, and the user copies the second by hand: a closing that
+    # named one would leave them looking for the other.
+    checks = _checks()
+    assert "negative file" in checks[checks.index(CLOSING) :]
+
+
 def test_the_plan_no_longer_opens_with_a_line_of_context():
     # Madde 186 asked for that line and Madde 198 takes it back, with the question that fed it. The
     # claim is not dropped, it is turned around: with nobody asked what the work is for, a plan
@@ -816,6 +870,10 @@ def test_the_texts_stay_short_enough_to_be_read():
     # image model, and the step that finds the scenario -- and the rest is the checks. With all four
     # written (370 to 373) that is about the editor's size. The checks ride in the flow as well, so
     # the flow's 1000 is what binds them first; this one keeps Improve's own part from swelling.
-    assert len(_flow().split()) <= 1000
+    #
+    # Madde 373 raises the flow's to 1025. The fourth check carries the user's own lessons about the
+    # negative prompt, and with them it does not fit in the hundred words the first three left; the
+    # closing names the second file as well. Improve carries the same block and stays inside its 700.
+    assert len(_flow().split()) <= 1025
     assert len(_edit().split()) <= 700
     assert len(_improve().split()) <= 700

@@ -34,6 +34,9 @@ WRITES = (
     # makes to a file the user is reading.
     "update_frame",
     "remove_frame",
+    # Madde 373. It writes a file beside the prompt list, and a file appearing is what the quieter
+    # modes gate.
+    "write_negative",
 )
 
 

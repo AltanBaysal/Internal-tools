@@ -63,6 +63,9 @@ _WITHOUT_ASKING = {
         # provider: one request for every frame still waiting, in one call. The widest single spend
         # any of these makes, and the quieter modes keep their gate in front of it.
         "write_missing_actions",
+        # Madde 373. A file appears beside the prompt list, and a file appearing is what the quieter
+        # modes gate.
+        "write_negative",
     ),
 }
 
