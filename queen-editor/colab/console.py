@@ -45,11 +45,15 @@ def run(cmd, label, cwd=None, timeout=3600):
     hand each one over as it is written. However this is left -- past the deadline, or the cell
     stopped by the user -- kill leaves nothing running behind the cell; a command that has ended is
     not signalled.
+
+    The reader is waited for only when the command ended by itself. A killed pip can leave a child
+    of its own holding the pipe, and waiting for that pipe to close would turn a timeout, or a
+    stopped cell, into a cell that never returns.
     """
     proc = subprocess.Popen(cmd, shell=isinstance(cmd, str), cwd=cwd, stdout=subprocess.PIPE,
                             stderr=subprocess.STDOUT, env={**os.environ, "PYTHONUNBUFFERED": "1"})
     tail = collections.deque(maxlen=5)
-    echo = threading.Thread(target=_echo, args=(proc.stdout, tail))
+    echo = threading.Thread(target=_echo, args=(proc.stdout, tail), daemon=True)
     echo.start()
     try:
         proc.wait(timeout=timeout)
@@ -58,7 +62,7 @@ def run(cmd, label, cwd=None, timeout=3600):
     finally:
         proc.kill()
         proc.wait()
-        echo.join()
+    echo.join()
     if proc.returncode != 0:
         raise RuntimeError(f"{label}: exit {proc.returncode}\n" + "\n".join(tail))
 
