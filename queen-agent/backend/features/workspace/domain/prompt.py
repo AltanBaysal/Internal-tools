@@ -195,7 +195,7 @@ THE_CHECKS = (
     "- Run the checks in order, each over every frame of the scenario unless this step limits "
     "them.\n"
     "- When a check starts, write in the plan which check it is: a long scenario can take more "
-    "than one turn, and when the user says continue, carry on from there.\n"
+    "than one turn, and when the user says \"continue\", carry on from there.\n"
     "- A check changes only the frames that fail it. Then call build_prompts, so every changed "
     "frame's photo prompt is written again.\n"
     "- Show what the check changed, frame by frame, and wait for their yes. A check ends when "
