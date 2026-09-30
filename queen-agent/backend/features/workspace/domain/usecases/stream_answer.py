@@ -139,7 +139,7 @@ def _asked(conversation, names, box, instruction, last=False):
     The closing notice goes behind the instruction, by the same measure that put the instruction
     last. Madde 93's rule is that what is fixed leads and what changes trails: the instruction is
     settled before the first round and holds for the whole turn, while this shows up in one round
-    out of sixteen. The order is extended rather than broken.
+    out of thirty-two. The order is extended rather than broken.
     """
     asked = conversation + [{"role": "system", "content": _named(names)}]
     if box:

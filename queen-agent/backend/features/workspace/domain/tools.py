@@ -43,12 +43,13 @@ class FileWritten:
     name: str
 
 
-# The longest sensible chain is the structured prompt run: read the pair, open the scenario, fill
-# the three maps, add the scenes, build. Fifteen rounds carry it and the sixteenth closes the
-# turn (Madde 137); an unbounded loop would burn both money and time. Reaching the limit is a stop,
-# not a failure -- which is why the number has to be generous: a chain cut short looks exactly like
-# a model that gave up.
-MAX_ROUNDS = 16
+# The longest chain is Start a scenario from Step 5 on, which runs in one turn: the frames and the
+# build, then four checks that each read the built file and build again, then the negative list.
+# 32 rounds is the owner's number (Madde 396), and the last of them closes the turn (Madde 137); an
+# unbounded loop would burn both money and time. Reaching the limit is a stop, not a failure --
+# which is why the number has to be generous: a chain cut short looks exactly like a model that
+# gave up.
+MAX_ROUNDS = 32
 DEFAULT_NAME = "note.md"
 
 # Which tools can bring a file into being. The chat draws a card for each, so an edit is not in
