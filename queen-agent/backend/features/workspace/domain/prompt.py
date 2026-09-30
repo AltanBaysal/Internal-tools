@@ -276,7 +276,9 @@ Edit prompts runs them after its change (Madde 374), on the frames that change r
 the whole scenario: the first line reads every frame unless the step in front limits them, so the
 limit is the editor's own sentence and the block stays one. Check 4's condition is the editor's for
 the same reason -- the flow and Improve always write the list, and after an edit it is written again
-only when the scenario's cast changed, since the list is written from it.
+only when the scenario's cast changed, since the list is written from it. So is the closing's: it
+names the negative file, and an edit that skipped Check 4 on a scenario written before 373 has none,
+so the editor's step says to name the prompt file alone (Madde 388).
 """
 
 EDIT_PROMPTS = (
@@ -309,7 +311,8 @@ EDIT_PROMPTS = (
     "Step 4 -- the checks\n"
     "- This step limits the checks to the frames your change reached.\n"
     "- Check 4 runs only if your change touched the scenario's cast: a character added, changed or "
-    "taken out. Otherwise skip it.\n" + THE_CHECKS
+    "taken out. Otherwise skip it. If the scenario has no negative file, close by naming the "
+    "prompt file alone.\n" + THE_CHECKS
 )
 
 START_A_SCENARIO = (
