@@ -994,12 +994,15 @@ def test_no_tool_text_names_the_bulk_writer():
         assert "write_missing_actions" not in json.dumps(function), function["name"]
 
 
-def test_add_scene_keeps_its_last_line_without_the_tools_name():
-    # Madde 395. Only the sentence naming the tool was taken out; the owner rewrites these texts
-    # himself, so what was left stands word for word.
+def test_add_scene_says_where_the_action_is_written():
+    # Madde 395 took out the sentence naming the bulk writer and left a frame born without its
+    # action with nowhere to get one. Madde 393 gives the line its second half: the action is
+    # written afterwards, with the tool that changes a frame.
     from backend.features.workspace.domain.prompt import ADD_SCENE
 
-    assert ADD_SCENE.endswith("next.\n- A frame is born without its action.")
+    assert ADD_SCENE.endswith(
+        "- A frame is born without its action. Write the action afterwards with update_frame."
+    )
 
 
 def test_the_runner_takes_no_engine():
@@ -2290,15 +2293,15 @@ def test_the_scene_tool_tells_the_model_a_place_can_be_named():
     assert "before" in said
 
 
-def test_an_entry_for_somebody_half_in_shot_carries_no_count():
-    # Madde 182. The count is the sharpest way the leak shows: a POV frame holds one person and the
-    # prompt asks for two, because every character entry carries its own count and both of them are
-    # in the cast. The exception is written where the count rule is -- since correction 34 that is
-    # the character's own field -- or it is a replacement rather than an exception.
+def test_the_character_field_names_no_pov_entry():
+    # Madde 182 wrote the pov_ entry's exception here, beside the count rule. Madde 393 takes pov_
+    # away: an entry for what a camera angle shows is Start a scenario's Step 5 rule now, for every
+    # kind of entry, and the count rule stands alone.
     from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
 
-    assert "carries no count" in ADD_CHARACTER_TAGS.lower()
-    assert "pov_" in ADD_CHARACTER_TAGS
+    assert "the count goes here and nowhere else" in ADD_CHARACTER_TAGS.lower()
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "pov_" not in ADD_CHARACTER_TAGS
 
 
 def test_the_map_tools_never_carry_a_frames_anatomy():

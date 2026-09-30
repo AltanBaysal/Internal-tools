@@ -78,23 +78,18 @@ def test_the_instruction_no_longer_carries_the_schema():
     assert '"frames"' not in said and '"outfits"' not in said
 
 
-def test_no_instruction_names_a_tool_that_is_gone():
-    # Madde 172, and the guard m127 cost a trial for the want of. A skill text naming a tool that
-    # does not exist tells the model to make a call that comes back "there is no tool called that",
-    # and the model has no way to find that out except by spending a round on it.
+def test_no_instruction_names_a_tool():
+    # Madde 393, the owner's decision of 30 September: a skill text says what to do, and the model
+    # is strong enough to pick the tool. A text naming no tool also cannot name one that is gone --
+    # Madde 172's guard, which m127 cost a trial for the want of, holds by this one.
     #
-    # Asked of every underscored word rather than of a list written here: a tool deleted later has
-    # to be caught by this test existing, not by somebody remembering to add its name.
-    from backend.features.workspace.domain.tools import TOOL_SPECS
-
-    # pov_ is not a tool, it is the prefix Madde 182 names a half-seen character by, and it is
-    # written as the bare prefix rather than pov_kyle so that what is exempt here is a naming rule
-    # and not somebody's name. The reason above survives it: a tool deleted later still has nowhere
-    # to hide, because this exemption is one word and it is not a tool's.
-    known = {spec["function"]["name"] for spec in TOOL_SPECS} | {"pov_"}
+    # Asked of every underscored word rather than of a list written here: a tool added later has to
+    # be caught by this test existing, not by somebody remembering to add its name. pov_ went in the
+    # same item, so nothing is exempt.
     for skill, said in INSTRUCTIONS.items():
-        named = {word.strip(".,;:") for word in said.split() if "_" in word}
-        assert named <= known, (skill, named - known)
+        assert "Build the prompts" in said, skill
+        # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+        assert not [word for word in said.split() if "_" in word], skill
 
 
 def test_no_instruction_names_the_bulk_writer():
@@ -104,10 +99,32 @@ def test_no_instruction_names_the_bulk_writer():
         assert "write_missing_actions" not in said, skill
 
 
-def test_the_build_step_only_builds():
-    # Madde 395. The owner's own line, word for word: only the tool's name was taken out, and the
-    # owner writes where the actions are asked for himself.
-    assert "Step 5 -- build the prompts\n- Write the list with build_prompts.\n" in _flow()
+def test_the_frames_are_updated_one_at_a_time_from_the_scene():
+    # Madde 393 turns Madde 124's sentence around. One frame at a time was dropped as the expensive
+    # road; the owner, 30 September, takes the cost on purpose -- Step 5 has to get each frame right
+    # before any check sees it. Each frame starts from its scene, whose first moment the photo is.
+    said = _step(5)
+    assert "- Update the frames one at a time.\n" in said
+    assert "first read the scene of the frame" in said
+    assert "the first moment of the scene" in said
+
+
+def test_the_frame_step_says_what_is_true_before_what_to_do():
+    # The owner: the rules are context, and the work sits under a heading of its own.
+    said = _step(5)
+    places = [said.index(part) for part in ("Context", "Rule 1:", "Rule 6:", "Work")]
+    assert places == sorted(places)
+    assert said.index("Work") < said.index("Update the frames")
+
+
+def test_the_frame_step_carries_the_rules_of_the_checks():
+    # Madde 393, the owner: the checks catch what slipped, and Step 5 writes the frame right in the
+    # first place -- one photo, simple enough for the image model, and every visible part of an NSFW
+    # scene named directly.
+    said = _step(5)
+    assert "The whole prompt of the frame must describe only one photo." in said
+    assert "must be simple enough for the weak image model" in said
+    assert "as in penis or vagina. Never use a euphemism." in said
 
 
 def test_the_flow_no_longer_offers_a_look_at_one_character():
@@ -121,93 +138,62 @@ def test_the_flow_no_longer_offers_a_look_at_one_character():
     assert "build_character_prompts" not in _flow()
 
 
-def test_no_instruction_walks_the_frames_one_at_a_time():
-    # The old sentence goes rather than standing beside the new one: two ways of doing one job in
-    # one text is the model choosing, and the expensive one reads as the careful one.
-    for skill, said in INSTRUCTIONS.items():
-        assert "one at a time" not in said, skill
-
-
-def test_a_wrong_line_is_corrected_in_the_editors_own_turn():
-    # Madde 201. The skill's reader has read the line and heard what the user said about it, and
-    # the road it used to take squeezed both of those into a note for somebody else to work from.
-    said = _edit()
-    assert "update_frame" in said
-    assert "yourself" in said
-
-
-def test_the_editor_sends_a_wrong_line_to_the_agent_itself():
-    # Madde 208. Both roads out of a wrong line lead to the same place now: correcting one, and
-    # wanting one afresh from the scene, are the agent's own writing. Neither goes back to a model
-    # that has not read the line -- which is the road 201 argued against and this madde closes.
-    said = _edit()
-    assert "write_frame_prompt" not in said
-    assert "update_frame" in said
+def test_the_editor_makes_the_change_itself():
+    # Madde 201 and 208: the editor has read the line and heard what the user said about it, so the
+    # change is its own writing rather than a note for a model that has read neither. Since Madde
+    # 393 the text says so without naming the tool.
+    assert "- Make the change in the scenario file.\n" in _edit()
 
 
 def test_the_editor_changes_the_structure_rather_than_the_prompt_by_hand():
-    # Without this the skill loses the only thing that makes it different. Correction 24: it was a
-    # prohibition -- do not assemble a prompt by hand -- and a prohibition says what not to do
-    # without saying what to do instead. Written as what is true, it carries the rule and answers
-    # the next question with it.
+    # Without this the skill loses the only thing that makes it different: the prompt file is
+    # derived, and patched by hand it stops matching the structure it came from. The owner, 30
+    # September: say the file is auto-generated, and that it is not edited by hand.
     said = _edit()
-    assert "the code builds every prompt from the structure file" in said.lower()
-    assert "build_prompts" in said
+    assert (
+        "The prompt file is auto-generated from the scenario file. Do not edit the prompt file."
+        in said
+    )
+    assert "Build the prompts again." in said
 
 
 def test_the_editor_is_about_what_already_exists():
     # Madde 186 split the work in two. This half never makes a scenario -- it is reached when one
     # is already built and something in it is wrong -- and the text has to say so, or it reads as
     # a second road into the same job.
-    said = _edit()
-    assert "already" in said
-    assert "build_prompts again" in said
+    assert "You change an existing scenario JSON." in _edit()
 
 
-def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
-    # The prompt file is derived: patched by hand it stops matching the structure it came from.
-    assert "rebuilt rather than patched" in _edit()
-
-
-# --- somebody the camera is standing in (Madde 182) -----------------------------------------------
+# --- what the camera shows only part of (Madde 182, widened by Madde 393) ------------------------
 #
-# Being in a frame's cast is all or nothing, and the builder writes the whole of an entry. In a POV
-# frame none of that person is in shot, and an SDXL-family model with no body to hang those tags on
-# hangs them on the one that is there -- the woman comes back with the man's hair, and a picture
-# holding one person is asked for 1girl and 1boy at once.
-#
-# The user's decision of 5 Sep is a rule rather than a field: a second character, pov_ and their
-# name, short and countless and wearing nothing, opened when the character is opened rather than
-# when a POV frame turns up. Nothing in the code moves -- add_character already takes that name and
-# a cast already names whoever it likes.
+# Being in a frame's cast is all or nothing, and the builder writes the whole of an entry. A tag the
+# camera angle hides has no body to hang on, and an SDXL-family model hangs it on the one that is
+# there -- the woman comes back with the man's hair. Madde 182 answered the POV frame alone, with a
+# pov_ entry opened beside each character. The owner, 30 September: every entry -- a character, an
+# outfit, a place -- can have a version for a camera angle that shows only part of it, and one made
+# for an earlier frame is used again. So pov_ is gone, and the rule sits in Step 5.
 
 
-def test_the_flow_opens_a_pov_entry_beside_each_character():
-    # Opened with the character, not when a frame needs one: needing one happens in the middle of a
-    # correction turn, which is the worst moment to send the model back to the maps.
-    said = _flow()
-    assert "pov_" in said
-    assert said.index("pov_") > said.index(STEPS[1])
+def test_the_frame_step_names_the_most_common_mistake():
+    # The owner: the biggest problem there is, so the reason stands in front of the rules.
+    said = _step(5)
+    assert "The most common mistake: a tag hidden by the camera angle goes onto another" in said
+    assert said.index("The most common mistake") < said.index("Rule 1:")
 
 
-def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
-    # Both are the leak. A count makes the picture claim a person it does not show, and an outfit
-    # dresses the frame with clothes nobody in it is wearing.
-    #
-    # Read off the field rather than off the flow: correction 34 moved both rules to the tool that
-    # writes an entry, and correction 12 took the copy out of the flow -- a flow says when a thing
-    # is written, and the rule for what goes in it belongs beside the parameter.
-    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
-
-    said = ADD_CHARACTER_TAGS.lower()
-    assert "no count" in said
-    assert "those are outfits" in said
+@pytest.mark.parametrize("kind", ["character", "outfit", "place"])
+def test_an_entry_is_used_only_when_the_camera_angle_shows_all_of_it(kind):
+    said = _step(5)
+    assert f"If one of the {kind}'s entries fits the camera angle, use the entry." in said
+    assert "An entry fits when every tag of the entry is meant to be in the photo." in said
+    assert "If no entry fits, add a new entry with only the tags meant to be in the photo." in said
 
 
-def test_a_pov_frame_names_the_pov_entry_in_its_cast():
-    # The other half, and it lives here because "make this one POV" arrives during a correction --
-    # this skill's turn, not the flow's.
-    assert "pov_" in _edit()
+def test_no_instruction_opens_a_pov_entry():
+    assert "can have more than one entry, for different camera angles" in _step(5)
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    for skill, said in INSTRUCTIONS.items():
+        assert "pov_" not in said, skill
 
 
 def test_no_instruction_carries_the_prompt_rules():
@@ -228,11 +214,9 @@ def test_the_flow_writes_the_plan_before_it_asks_anything():
     # Step one whatever the user's opening sentence was. Without it the flow starts somewhere
     # different every time, and has nowhere to keep its place.
     #
-    # Madde 207: the tool is create_file, and the step's own sentence is what says a plan is boxes.
-    said = _flow()
-    assert "create_file" in said
-    # Ordered against the next step rather than against the schema fetch, which Madde 172 retired.
-    assert said.index("create_file") < said.index(STEPS[1])
+    # Madde 207: the step's own sentence is what says a plan is boxes. Since Madde 393 it names no
+    # tool, only the file to write.
+    assert "write a plan file" in _step(1)
 
 
 def test_the_flow_carries_on_from_a_plan_that_is_already_there():
@@ -249,47 +233,49 @@ def test_where_the_work_stopped_is_read_off_the_files():
     #
     # Since Madde 203 this is the whole of the promise: no turn fills a box any more, so this
     # sentence is where a fresh chat learns where to carry on from.
-    #
-    # Lowered, because the sentence opens the bullet's second clause and starts with a capital:
-    # asked of the text as written, this claim could never be met by any text at all.
-    said = _flow().lower()
-    assert "the project's files are what say how far it got" in said
+    said = _flow()
+    assert "The files of the project show how far the work got." in said
     assert "the first step whose box is empty" not in said
 
 
 def test_a_step_ends_when_the_user_approves_it():
-    # Not when an answer is written. One of the flow's two rules, and the one that keeps a step
-    # from running away with the work.
-    assert "a step ends when they approve it" in _flow().lower()
+    # Not when an answer is written. One of the flow's rules, and the one that keeps a step from
+    # running away with the work.
+    assert "and wait for a yes." in _flow()
 
 
-def test_what_nobody_described_becomes_a_placeholder():
-    # K34. A flow that stops to ask for a description is a flow that never reaches the prompts.
+def test_what_nobody_described_is_asked_for():
+    # K34 turned around by Madde 393, the owner: a placeholder is a guess the user never made, and
+    # the flow asks for what is missing instead.
     said = _flow()
-    assert "placeholder" in said
-    assert "never stop the flow" in said.lower()
+    assert "Never write a placeholder. If something is missing, ask." in said
+    assert "never stop the flow" not in said.lower()
 
 
-def test_the_scenes_step_writes_a_readable_list_too():
-    # K33 turned around by K40: the list is no longer a copy of the frames, it is their source --
-    # and it follows the reader, because every neighbouring text is English and without a word the
-    # list would drift there too.
-    said = _flow()
-    assert "one sentence" in said
-    assert "in the language the user is writing in" in said
+def test_the_scenes_are_written_in_english_with_the_words_in_quotes():
+    # K33 and K40 wrote a scene as one sentence in the user's language. The owner, 30 September: the
+    # video prompt is written from the scene, so the scene is English, and it can carry what a
+    # character says -- in quotes, translated into good English -- which one sentence could not.
+    from backend.features.workspace.domain.prompt import ADD_SCENE_SCENE
+
+    said = _step(4)
+    assert "- Write each scene in English.\n" in said
+    assert "inside quotes, in natural, well-written English" in said
+    assert "one sentence" not in said
+    # The field the scene is written into says the same, or the two would disagree.
+    assert "in English" in ADD_SCENE_SCENE
+    assert "one sentence" not in ADD_SCENE_SCENE
 
 
-def test_the_scenario_is_opened_by_the_tool_that_opens_one():
+def test_the_scenario_is_opened_once_with_the_characters():
     # The observed failure wears two masks: everything gathered in chat and written at the end, or
-    # a new file per step. One birth rules out both, and since Madde 167 the tool enforces it --
-    # start_scenario refuses a name that is taken, so the text only has to say which step opens it.
+    # a new file per step. One birth rules out both, and since Madde 167 the tool enforces it by
+    # refusing a name that is taken, so the text only has to say which step opens it.
     #
     # Madde 186 moved that step from the characters to the plan, because what named the file was
     # the context. Madde 198 takes the context away, so the birth goes back where it was: the first
-    # character is what the file can be named after.
-    said = _flow()
-    assert "start_scenario" in said
-    assert said.index(STEPS[1]) < said.index("start_scenario") < said.index(STEPS[2])
+    # character is what the file can be named after. Since Madde 393 without the tool's name.
+    assert "Open the scenario file once" in _step(2)
 
 
 def test_no_step_is_ticked_off_the_plan_at_all():
@@ -305,22 +291,6 @@ def test_no_step_is_ticked_off_the_plan_at_all():
     said = _flow()
     assert "mark_step_done" not in said
     assert "edit_file" not in said
-
-
-def test_the_flow_fills_the_maps_with_the_tools_that_own_them():
-    # Madde 168 to 170. Three maps, three tools, and the text names them rather than describing a
-    # shape: the model knows a tool's signature and never the file's.
-    said = _flow()
-    assert "add_character" in said
-    assert "add_outfit" in said
-    assert "add_location" in said
-
-
-def test_the_flow_writes_the_frames_itself():
-    # Madde 173 gave it a tool that takes a scene whole, and since Madde 186 the frames it writes
-    # are finished in the same flow rather than handed to somebody else.
-    said = _flow()
-    assert "add_scene" in said
 
 
 def test_the_flow_hands_off_to_nobody():
@@ -350,9 +320,8 @@ def test_a_character_is_named_as_the_user_named_them():
     # Correction 17. Asked for a name, a model invents one -- and the user's own scenario comes back
     # holding somebody they never named. What the user said is the name; where they said nothing,
     # the name is English for what the person is, so it reads as a description rather than a person.
-    said = _flow()
-    assert "named as the user named them" in said
-    assert "in English for what they are" in said
+    said = _step(2)
+    assert "Use the name from the user. Without a name, use short English words" in said
 
 
 def test_no_instruction_writes_a_scene_list_file():
@@ -364,20 +333,12 @@ def test_no_instruction_writes_a_scene_list_file():
         assert "scene list" not in said, skill
 
 
-def test_the_editor_starts_from_a_complaint_rather_than_a_blank_page():
-    # What reaches this skill is a prompt file somebody has looked at and does not like. It never
-    # opens a scenario -- that road is the flow's, end to end, since Madde 186.
-    said = _edit()
-    assert "start_scenario" not in said
-    assert "wrong" in said
-
-
 STEPS = (
     "Step 1 -- write the plan",
     "Step 2 -- write the characters and outfits",
     "Step 3 -- write the places",
     "Step 4 -- write the scenes",
-    "Step 5 -- build the prompts",
+    "Step 5 -- update the frames and build the prompts",
     "Step 6 -- fit each scene into four seconds",
     "Step 7 -- fit each prompt into one photo",
     "Step 8 -- remove tags hidden by the camera angle",
@@ -385,7 +346,7 @@ STEPS = (
 )
 """The flow's steps, in the order they run (Madde 198, written this way by correction 9).
 
-Read by the tests below and by the ones that place create_file, start_scenario and the build.
+Read by the tests below and by the ones that place the plan, the scenario file and the build.
 Madde 186 had six of these and the first was the context; that question is gone, and the numbers
 moved with it. Numbered headings became named ones so that every step reads the same way -- a
 heading, then its rules as lines -- and so the loop above them is not read as one more step. Madde
@@ -428,30 +389,19 @@ def test_a_delegation_answers_only_the_question_that_was_asked():
     # 28 Aug: "you decide" arrived with the places answer and the flow read it as authority over
     # everything left -- the scenes question was never asked. A delegation is an answer, and an
     # answer belongs to its question.
-    said = _flow()
-    assert "covers that step only" in said
-    assert "as usual" in said
+    #
+    # Madde 393, the owner: one line says it. A delegated step still waits for the yes because every
+    # step does, and the plan needs no note of it, since the files are what say how far the work got.
+    assert '"You decide" is only for the current step.' in _flow()
 
 
-def test_a_delegated_step_still_ends_on_approval():
-    # The flow choosing for the user is not the user approving the choice: the step shows what
-    # was chosen and waits, like every other step.
-    assert "still wait for the yes" in _flow()
-
-
-def test_the_plan_records_a_delegation_with_the_step_it_closed():
-    # The plan wrote "user said you decide" with no step name, and the fresh chat that read it
-    # inherited an authority the user never gave.
-    assert "not permission for the rest" in _flow()
-
-
-def test_the_flow_finishes_with_the_build():
-    # Turned around by Madde 186. The text used to say build_prompts is never called here, because
-    # the file the flow left held no action to build from; now the step before it writes them all,
-    # and stopping short would leave the user one manual call from what they asked for.
-    said = _flow()
-    assert "build_prompts is never called here" not in said
-    assert said.rindex("build_prompts") > said.index(STEPS[4])
+def test_the_flow_builds_the_prompts_once_the_frames_are_written():
+    # Turned around by Madde 186. The text used to say the build is never done here, because the
+    # file the flow left held no action to build from; now the same step writes them all, and
+    # stopping short would leave the user one manual call from what they asked for. Madde 393: the
+    # build comes after the last frame, not after each.
+    assert "- After the last frame, build the prompts.\n" in _step(5)
+    assert "build_prompts is never called here" not in _flow()
 
 
 # --- the checks the flow ends with (Madde 391) ----------------------------------------------------
@@ -606,12 +556,13 @@ def test_the_checks_use_no_pronouns():
 def test_no_instruction_says_what_the_model_cannot_draw():
     # The owner, 30 September: told it cannot draw anything complex, the model really does go and
     # ask for only the simplest things. The last check asks the owner's question instead of making
-    # the claim.
+    # the claim, and Step 5 says what a complex prompt does -- breaks the image -- rather than what
+    # the model cannot do (the owner's own line).
     assert "can a weak image model draw" in _step(9)
+    assert "A complex prompt breaks the image." in _step(5)
     # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
     for skill, said in INSTRUCTIONS.items():
         said = said.lower()
-        assert "complex" not in said, skill
         assert "what is simple" not in said, skill
         assert "cannot draw" not in said, skill
 
@@ -643,6 +594,9 @@ def test_the_flow_ends_by_saying_the_prompts_are_complete():
 def test_the_checks_are_written_in_the_flow_itself():
     # The owner, 30 September: no separate fields. A line of these steps found in another of the
     # module's texts is a line kept somewhere else and joined in -- the shape that was taken back.
+    #
+    # The editor's text is left out: it is a skill of its own and joined into nothing, and since
+    # Madde 393 both skills close a change with the same plain line, build the prompts again.
     from backend.features.workspace.domain import prompt
 
     lines = [
@@ -650,7 +604,7 @@ def test_the_checks_are_written_in_the_flow_itself():
     ]
     assert lines
     for name, value in vars(prompt).items():
-        if isinstance(value, str) and name != "START_A_SCENARIO":
+        if isinstance(value, str) and name not in ("START_A_SCENARIO", "EDIT_PROMPTS"):
             for line in lines:
                 assert line not in value, (name, line)
 
@@ -660,10 +614,13 @@ def test_every_skill_says_what_the_prompts_are_for(skill):
     # 29 Aug, the user's own sentence: if we never give the model the context of what we are doing,
     # where would it know it from? Neither text said what the prompts are for.
     #
-    # Correction 22 shortened the editor's opening paragraph, so what is held here is the fact
-    # rather than one wording of it -- both texts still say in their first two sentences that these
-    # are SDXL prompts, one frame each.
-    assert "SDXL" in instruction_for(skill)
+    # Madde 393, the owner: what the work is for is a video now. Both texts open with a context that
+    # says the prompt makes a photo, the video starts from the photo, and the image model is weak.
+    # The owner took the model's name out -- the context says what the model is like instead.
+    said = instruction_for(skill)
+    assert "The prompt of the frame makes a photo. The video starts from the photo." in said
+    assert "The image model is weak." in said
+    assert "SDXL" not in said
 
 
 def test_the_plan_no_longer_opens_with_a_line_of_context():
@@ -682,29 +639,35 @@ def test_the_flow_opens_as_a_persona():
 
 
 def test_the_editor_opens_as_a_persona():
-    assert _edit().startswith("You are an expert SDXL prompt writer")
+    # Madde 393, the owner: the same writer as the flow -- only the context differs, a scenario that
+    # already exists rather than one to create.
+    assert _edit().startswith("You are an expert scenario writer and prompt writer.")
 
 
 # --- the ritual openings (Madde 107) --------------------------------------------------------------
 #
 # The same trial from the skills' side: every turn opened with list_files and write_plan, and the
-# schema was fetched again for every edit. The opening moves belong to a chat's first turn, and
+# schema was fetched again for every edit. The opening moves belong to the start of the work, and
 # the schema to the one turn that gives the file its shape.
 
 
-def test_the_opening_moves_belong_to_the_first_turn():
-    said = _flow()
-    assert "the chat's first turn only" in said
-    assert "later turns carry on" in said.lower()
+def test_the_flow_looks_for_a_plan_before_it_writes_one():
+    # Madde 107 tied the opening moves to the chat's first turn, and Madde 134 found the model
+    # writing a plan and then reading its own new plan as one from before. The owner, 30 September:
+    # which turn it is cannot be told reliably, so Step 1 looks for a plan first and writes one
+    # only when there is none.
+    said = _step(1)
+    assert said.index("Look for a plan in the project.") < said.index("If there is no plan")
+    assert "first turn" not in _flow()
 
 
 def test_no_instruction_reaches_for_the_listing_tool():
     # Madde 127: the tool is gone, and a text still naming it would send the model after something
-    # that cannot answer. The flow's first turn still writes the plan; the listing that stood before
-    # it is what the request now carries on its own.
+    # that cannot answer. The flow still starts by looking for the plan; the listing that stood
+    # before it is what the request now carries on its own.
+    assert "Look for a plan in the project." in _flow()
     for skill, said in INSTRUCTIONS.items():
         assert "list_files" not in said, skill
-    assert "first turn" in _flow()
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
@@ -728,10 +691,9 @@ def test_the_editor_writes_no_frames_at_all():
 def test_a_complaint_is_told_apart_by_where_the_fault_lives():
     # Two roads and the text names both, because they answer different complaints. One frame's
     # sentence is wrong: that is the frame's own line. Somebody looks wrong in every frame they are
-    # in: that is their entry, and one update reaches all of them.
-    said = _edit()
-    assert "update_frame" in said
-    assert "update_character" in said
+    # in: that is their entry, and one update reaches all of them. Since Madde 393 the text names
+    # the two places rather than the two tools.
+    assert "Find the frames or the entries the user means." in _edit()
 
 
 def test_no_instruction_touches_a_structure_file_as_text():
@@ -743,24 +705,12 @@ def test_no_instruction_touches_a_structure_file_as_text():
         assert "structure file's maps" not in said, skill
 
 
-def test_the_flow_reads_a_plan_it_found_rather_than_one_it_just_wrote():
-    # Madde 134. Step 1 says the first turn writes the plan, and two sentences later that a
-    # plan already there is the memory to read. The model did both: it wrote one, and then a plan
-    # really was already there -- its own. The sentence means a plan from before this chat and
-    # never said so, and the eighth trial paid a whole round for the gap.
-    said = _flow()
-    assert "if a plan is already there" in said.lower()
-    assert "A plan already there is that memory" not in said
-
-
 def test_the_editor_closes_with_the_file_rather_than_a_menu():
     # Madde 130. The base already forbids the closing menu (112), but the skill text is the last
     # thing in the request (93) and said nothing about closing -- so the trial's build turn read
     # its own output back, printed 25 prompts into the chat, and offered three choices over a file
     # already sitting in the project. A text that goes quiet is a text a weak model writes over.
-    said = _edit()
-    assert "The built file is the answer" in said
-    assert "never printed back" in said
+    assert "The built prompt file is the answer: never print the prompts back." in _edit()
 
 
 def test_the_texts_stay_short_enough_to_be_read():
@@ -782,5 +732,10 @@ def test_the_texts_stay_short_enough_to_be_read():
     # whole of itself since the owner wants them in the flow's own text rather than in a block they
     # share. Every heading also says what its step does now, rather than naming a topic. The owner
     # wrote the four steps line by line, and the count is what that text came to.
-    assert len(_flow().split()) <= 1220
-    assert len(_edit().split()) <= 260
+    #
+    # Madde 393 raises the flow's again and lowers the editor's, both on the same written decision.
+    # The owner wrote Step 5 line by line so each frame comes out right before any check sees it:
+    # six rules, one kind of entry to a rule so each stands alone, and the reason in front of them.
+    # The editor's came down with the tool names and the rules the owner did not keep.
+    assert len(_flow().split()) <= 1570
+    assert len(_edit().split()) <= 205
