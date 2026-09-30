@@ -369,28 +369,35 @@ def test_the_editor_starts_from_a_complaint_rather_than_a_blank_page():
 
 
 STEPS = (
-    "Step 1 -- the plan",
-    "Step 2 -- the characters",
-    "Step 3 -- the places",
-    "Step 4 -- the scenes",
-    "Step 5 -- the prompts",
+    "Step 1 -- write the plan",
+    "Step 2 -- write the characters and outfits",
+    "Step 3 -- write the places",
+    "Step 4 -- write the scenes",
+    "Step 5 -- build the prompts",
+    "Step 6 -- fit each scene into four seconds",
+    "Step 7 -- fit each prompt into one photo",
+    "Step 8 -- remove tags hidden by the camera angle",
+    "Step 9 -- simplify prompts too hard to draw",
 )
 """The flow's steps, in the order they run (Madde 198, written this way by correction 9).
 
-Read by the two tests below and by the ones that place create_file, start_scenario and the build.
+Read by the tests below and by the ones that place create_file, start_scenario and the build.
 Madde 186 had six of these and the first was the context; that question is gone, and the numbers
 moved with it. Numbered headings became named ones so that every step reads the same way -- a
-heading, then its rules as lines -- and so the loop above them is not read as one more step.
+heading, then its rules as lines -- and so the loop above them is not read as one more step. Madde
+391 adds the last four: the checks the flow runs on the prompts it has just built.
 """
 
 
-def test_the_flow_runs_five_numbered_steps():
+def test_the_flow_runs_nine_numbered_steps():
     # Madde 108: a stage outside the numbered list is a stage a weak model walks past, because it
     # stops when the list ends. Five since Madde 198 -- the context question in front of them was
-    # the one thing a user had to answer before any work could start.
+    # the one thing a user had to answer before any work could start -- and nine since Madde 391,
+    # whose checks follow the build.
     said = _flow().lower()
-    assert "five steps" in said
-    assert "six steps" not in said
+    assert "nine steps" in said
+    assert "five steps" not in said
+    assert "eight steps" not in said
     for step in STEPS:
         assert step.lower() in said, step
 
@@ -413,10 +420,14 @@ def test_the_flow_asks_for_no_context_before_it_starts():
     assert "The context" not in said
 
 
-def test_the_flow_never_writes_an_action_by_hand():
+def test_the_flow_writes_no_new_action_by_hand():
     # It writes the frames, which it never did before Madde 173 -- but not their sentences. That
     # is the whole reason this run has two models, and a flow writing one itself would be the way
     # round the model kept for writing them.
+    #
+    # Madde 391's checks do change an action in their own words, and that is not the way round: the
+    # line is already written, the flow has read it in the built prompt, and what it writes is the
+    # same line cut to one photo or made simpler -- Madde 201's reason for the editor.
     said = _flow()
     assert "no action" in said
     assert "write_missing_actions" in said
@@ -464,10 +475,205 @@ def test_the_flow_finishes_with_the_build():
     assert said.rindex("build_prompts") > said.index(STEPS[4])
 
 
-def test_the_closing_message_offers_nothing_and_asks_nothing():
-    # The closing message came back as an offer wearing a question mark. "It is the last word"
-    # was already pinned; this pins that no offer and no question ride on it.
-    assert "offer nothing, and ask nothing" in _flow()
+# --- the checks the flow ends with (Madde 391) ----------------------------------------------------
+#
+# 30 September, the owner: the questions they used to put to the model by hand once the prompts were
+# built -- does a scene fit its four-second video, does a prompt hold one photo, does it name only
+# what the angle shows, can the image model draw it -- are the flow's own last four steps. Each is
+# written in its own step of Start a scenario's text: the first try kept them in a block several
+# skills shared, and the owner took it back. Each says why it runs, reviews the built prompt file
+# and writes the failing frames down, then fixes only those; none waits for a yes.
+#
+# Written with the owner line by line: plain sentences, no pronouns, no tool names and no list of
+# the file's fields -- the model is strong enough to pick the tool, and a list of fields goes stale
+# the day a field is added.
+
+CHECKS = [6, 7, 8, 9]
+LAST_WORD = "Build the prompts again, and tell the user the prompts are complete."
+
+
+def _step(number):
+    """One step of the flow by its own number: from its heading to the next one, or to the end."""
+    said = _flow()
+    start = said.index(STEPS[number - 1])
+    if number == len(STEPS):
+        return said[start:]
+    return said[start : said.index(STEPS[number])]
+
+
+@pytest.mark.parametrize("number", CHECKS)
+def test_every_check_says_why_then_reviews_then_fixes(number):
+    # The owner, 30 September: the reason comes first, under a heading of its own, so the review
+    # says only what to do. The model reviews every frame and writes the list down before it fixes
+    # anything, and the fix touches the listed frames and nothing else.
+    said = _step(number)
+    places = [said.index(part) for part in ("Context", "Part 1 -- review", "Part 2 -- fix")]
+    assert places == sorted(places)
+    assert "Fix only the frames in the review file." in said
+
+
+@pytest.mark.parametrize("number", CHECKS)
+def test_every_check_tells_the_user_what_it_improves(number):
+    # The owner: at each check, one very short line saying what is being improved now -- and no
+    # report of every change at the end.
+    assert "Tell the user in one short line what the step improves." in _step(number)
+
+
+@pytest.mark.parametrize("number", CHECKS)
+def test_every_check_reads_the_built_prompt_file(number):
+    # The owner's question is asked of the prompts as build_prompts wrote them: what the image model
+    # is handed is the parts joined, and too much often shows only in the sum.
+    assert "in the built prompt file" in _step(number).lower()
+
+
+@pytest.mark.parametrize("number", CHECKS)
+def test_every_review_is_written_to_a_file_of_its_own(number):
+    # The list is on disk before the fix starts, so a turn that runs out loses nothing. A file for
+    # each check rather than one file added to: adding means edit_file, the hand-built anchor Madde
+    # 126 was written against, and the flow names no edit_file (Madde 203). A check that finds
+    # nothing writes no file at all (the owner, 30 September).
+    said = _step(number)
+    assert "the frame numbers and the reason for each frame in a review file" in said
+    assert f"-review-{number}.md" in said
+    assert "write no review file" in said
+
+
+def test_a_scene_longer_than_its_video_is_shortened_or_split():
+    # The owner: a scene becomes a video of exactly four seconds. A scene that can be written to fit
+    # with every event kept is written again; one that cannot is split in two. The model does not
+    # choose which events matter -- the owner took that reading out.
+    said = _step(6)
+    assert "video of exactly four seconds" in said
+    assert "with every event kept" in said
+    assert "split the scene into two scenes of four seconds each" in said
+    assert "right after the first scene" in said
+    assert "Write the action again for each changed frame and each new frame." in said
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "important" not in said
+    assert "main event" not in said
+
+
+def test_a_prompt_is_cut_to_one_photo_without_touching_the_scene():
+    # The owner's fourth question: the image model draws one photo, and a prompt describing more
+    # breaks the image. The scene stays as Step 6 left it, and no scene is added here.
+    said = _step(7)
+    assert "more than one photo can hold" in said
+    assert "Do not change the scene, and do not add a new scene." in said
+
+
+def test_a_tag_the_angle_hides_is_taken_out():
+    # The owner's second question, widened by the owner: not only a part of a character -- a hidden
+    # part of the room or of an outfit is drawn anyway too, and a tag with nowhere to go lands on
+    # somebody else. The hair is the owner's example.
+    said = _step(8)
+    assert "hidden by the camera angle" in said
+    assert "draws every tag in the prompt, hidden or not" in said
+    assert "another character" in said
+    assert "hair" in said
+
+
+def test_the_last_check_asks_the_owners_question():
+    # The owner's first question, asked as they ask it.
+    assert "can a weak image model draw the prompt as written?" in _step(9)
+
+
+@pytest.mark.parametrize("number", [7, 8, 9])
+def test_the_image_checks_say_the_model_is_weak(number):
+    # The owner: say at the head of each image check that the model is weak and draws every tag. Not
+    # in Step 6, which is about the length of the video rather than the image.
+    context = _step(number).split("Part 1 -- review")[0]
+    assert "The image model is weak and draws every tag in the prompt" in context
+
+
+def test_the_video_check_says_nothing_of_the_image_model():
+    assert "image model" not in _step(6)
+
+
+@pytest.mark.parametrize("number", [7, 8, 9])
+def test_a_fix_is_made_where_the_part_comes_from(number):
+    # The prompt file is rebuilt rather than patched, so a part is fixed in the scenario file where
+    # it comes from. An entry is shared by every frame naming it, so a change one frame needs alone
+    # goes into a new entry.
+    said = _step(number)
+    assert "comes from in the scenario file" in said
+    assert "If other frames use the same entry, add a new entry for the frame instead." in said
+
+
+@pytest.mark.parametrize("number", CHECKS)
+def test_the_checks_name_no_tool_and_no_field(number):
+    # The owner, 30 September: do not say which tool -- the model is strong enough to choose -- and do
+    # not list the file's fields one by one, or the list breaks the day a field is added.
+    said = _step(number)
+    assert "Build the prompts again" in said
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert not [word for word in said.split() if "_" in word]
+    assert "outfit" not in said
+    assert "location" not in said
+
+
+def test_the_checks_use_no_pronouns():
+    # The owner, 30 September: simple English, and no it, that and the like -- the noun is said
+    # again instead.
+    words = set()
+    for number in CHECKS:
+        words |= {word.strip('.,:;?"').lower() for word in _step(number).split()}
+    assert "frame" in words
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    for pronoun in ("it", "its", "that", "these", "those", "they", "them", "their", "which",
+                    "whose"):
+        assert pronoun not in words, pronoun
+
+
+def test_no_instruction_says_what_the_model_cannot_draw():
+    # The owner, 30 September: told it cannot draw anything complex, the model really does go and
+    # ask for only the simplest things. The last check asks the owner's question instead of making
+    # the claim.
+    assert "can a weak image model draw" in _step(9)
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    for skill, said in INSTRUCTIONS.items():
+        said = said.lower()
+        assert "complex" not in said, skill
+        assert "what is simple" not in said, skill
+        assert "cannot draw" not in said, skill
+
+
+def test_no_check_reports_every_change():
+    # The owner took the per-check report out: the short line at the start of each check is what the
+    # user is told.
+    assert "Say the changed frames" not in _flow()
+
+
+@pytest.mark.parametrize("number", [5, 6, 7, 8])
+def test_the_build_and_the_checks_wait_for_no_approval(number):
+    # How a step runs says every step waits for a yes, and Step 1 already says it does not. These
+    # say it the same way, and each goes on in the same turn -- the owner: update directly.
+    said = _step(number)
+    assert "This step waits for no approval." in said
+    assert f"Go on to Step {number + 1} in the same turn." in said
+
+
+def test_the_flow_ends_by_saying_the_prompts_are_complete():
+    # The owner: no closing section and no approval line at the end -- build the prompts, tell the
+    # user the prompts are complete, and that is all.
+    said = _flow()
+    assert said.endswith(LAST_WORD)
+    assert "Closing" not in said
+    assert "approval" not in _step(9)
+
+
+def test_the_checks_are_written_in_the_flow_itself():
+    # The owner, 30 September: no separate fields. A line of these steps found in another of the
+    # module's texts is a line kept somewhere else and joined in -- the shape that was taken back.
+    from backend.features.workspace.domain import prompt
+
+    lines = [
+        line for number in CHECKS for line in _step(number).splitlines() if line.startswith("- ")
+    ]
+    assert lines
+    for name, value in vars(prompt).items():
+        if isinstance(value, str) and name != "START_A_SCENARIO":
+            for line in lines:
+                assert line not in value, (name, line)
 
 
 @pytest.mark.parametrize("skill", ALL_SKILLS)
@@ -589,5 +795,13 @@ def test_the_texts_stay_short_enough_to_be_read():
     # Correction 20 gives sixty of them back, on the record: the step format the flow uses costs
     # lines, and what it buys is a text a weak model can follow. A cap that moves in a written
     # decision is not a cap that quietly took the old work back.
-    assert len(_flow().split()) <= 450
+    #
+    # Madde 391 raises the flow's to 1220, on the owner's decision of 28 September that the cap rises
+    # only in a written one. The questions the owner used to ask by hand once the prompts were built
+    # are four steps after the build now, each a reason, a review and a fix, each in plain sentences
+    # that say the noun again rather than a pronoun (the owner, 30 September), and each says the
+    # whole of itself since the owner wants them in the flow's own text rather than in a block they
+    # share. Every heading also says what its step does now, rather than naming a topic. The owner
+    # wrote the four steps line by line, and the count is what that text came to.
+    assert len(_flow().split()) <= 1220
     assert len(_edit().split()) <= 260

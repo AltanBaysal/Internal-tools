@@ -1,6 +1,6 @@
 # QueenAgent — Yol Haritası v9
 
-**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 44/49
+**Tarih:** 2026-09-25 · **Koşu dalı:** `feat/queenagent-v9` · **Durum:** 45/50
 **Öncesi:** [v8](2026-09-06-queen-agent-v8-roadmap.md) — kapandı ve `356d605` ile main'e alındı.
 **Öteki araca dokunan madde:** 377 — queen-editor'ün roadmap bağlantılarını denetleyen testi.
 **Kaynak:** v9-1 ve v9-2 kullanıcının 25 Eylül'deki sözlerinden doğdu. v9-3 ve v9-4
@@ -252,7 +252,8 @@ commitlenecek")*.
 
 | # | İş | Bitti sayılır |
 |---|---|---|
-| 391 | `UNALIGNED` **Senaryonun geliştirilmesi:** Start a scenario sonunda kontrolleri yapar. *(Kullanıcı, 30 Eylül — "senearyoya da kontrol yazdırmışım sana abi onlarda kalsın hatta scenryonun geliştirlmes diye aryrı task olsun".)* **Ayrıntılar kullanıcıyla konuşulacak.** | Kullanıcı Changes'ten okudu ve onayladı. |
+| 391 | ✅ **Senaryonun geliştirilmesi:** Start a scenario sonunda kontrolleri yapar. *(Kullanıcı, 30 Eylül — "senearyoya da kontrol yazdırmışım sana abi onlarda kalsın hatta scenryonun geliştirlmes diye aryrı task olsun".)* Metin kullanıcıyla satır satır yazıldı: build'den sonra dört kontrol — sahne dört saniyeye sığar, prompt tek fotoğrafa sığar, kamera açısının gizlediği tag'lar çıkar, zayıf modelin çizemeyeceği sadeleşir. Ne olduğu [uygulama spec'inin](../specs/2026-09-30-queenagent-m391-senaryonun-gelistirilmesi-uygulama-design.md) başında *(kullanıcı — "harika bunu commitleyebilirsin bu task bitti")*. | Kullanıcı Changes'ten okudu ve onayladı. |
+| 395 | `UNALIGNED` **write_missing_actions kaldırılır.** *(Kullanıcı, 30 Eylül — "write_missing_actions bunu kadlrımayı backlgoa ekle"; aynı gün backlog'dan buraya, 391'in arkasına — "bunu bu roadmpte kaldrlaım olur mu tasktan sonra".)* **Ayrıntılar kullanıcıyla konuşulacak.** | Kullanıcı Changes'ten okudu ve onayladı. |
 | 392 | `UNALIGNED` **Negatif:** Negatif liste yazılır. *(Kullanıcı, 30 Eylül — "negatif yazılmasıda bence ayrı bir amdde".)* **Ayrıntılar kullanıcıyla konuşulacak.** | Kullanıcı Changes'ten okudu ve onayladı. |
 | 393 | `UNALIGNED` **Prompt'ların geliştirilmesi:** Kareler baştan doğru yazılır. *(Kullanıcı, 30 Eylül — "problemi çözmenin en iyi yolu onu hiö oluşturmamaktır dedik".)* **Ayrıntılar kullanıcıyla konuşulacak.** | Kullanıcı Changes'ten okudu ve onayladı. |
 | 394 | `UNALIGNED` **Improve:** Ayrı bir skill olarak hazır senaryoyu kontrol eder. *(Kullanıcı, 30 Eylül — "imrpove ayrı skill olacak dedik".)* **Ayrıntılar kullanıcıyla konuşulacak.** | Kullanıcı Changes'ten okudu ve onayladı. |

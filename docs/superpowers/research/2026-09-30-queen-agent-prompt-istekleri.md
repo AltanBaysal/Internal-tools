@@ -51,6 +51,11 @@ açıklamaları.
 - *28 Eylül:* "burdada biliyor abi zayıf bir model yazdığını"
 - *28 Eylül:* "h3 e de şey bilgisini vermemiz lazım her video 4sn oluyor"
 - *30 Eylül:* "fotoğraf modeli bunu bilmesine gerek yok, 4 saniyelik video"
+- *30 Eylül, 391 yazılırken:* "abi senaryoa vs sahne video da oluşturdağı için bir frame olmaz
+  fotoğraf promptu bir frame olmalı? ve o sahnenin ilk karesi olmalı"
+- *30 Eylül, 391 yazılırken:* "bu işte 4 video onun ilk frame olayı bence yukarda anlatılacak sonrak i
+  tasklarda orayı karıştırmaylaım ama unutmama için bir md ye yaz bunu" — Start a scenario'nun
+  açılışına, sonraki bir maddede. 391'in kontrolleri bunu kendi içinde anlatmaz.
 
 ## 4. Negatif
 
