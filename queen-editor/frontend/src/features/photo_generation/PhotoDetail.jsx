@@ -210,6 +210,32 @@ function Field({ label, value, muted }) {
   );
 }
 
+// How the frame's facts sit: side by side while they fit, wrapping on the 16 of the column's
+// rhythm (Fark 91). The counter's group and the details' rows are drawn by the same rule.
+const FACTS = { display: "flex", flexWrap: "wrap", columnGap: 24, rowGap: 16 };
+
+// The row the frame's facts fold behind (madde 399): the owner found the column crowded, so what
+// made the frame waits under one press. The column's own label face with the kit's caret and no box
+// around it -- a heading that opens, not a button that does something.
+function Details({ shown, onToggle, children }) {
+  return (
+    <div data-group="details" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <button type="button" aria-expanded={shown} onClick={onToggle}
+              style={{ display: "flex", alignItems: "center", gap: 6, background: "none",
+                       border: "none", padding: 0, cursor: "pointer", width: "100%",
+                       color: "var(--ink-3)" }}>
+        <Mono size={10} style={LABEL}>Ayrıntılar</Mono>
+        {/* Down while closed, up while open: where the facts are, and where they go. */}
+        <span data-caret style={{ display: "flex", transition: "transform .12s",
+                                  transform: shown ? "rotate(180deg)" : undefined }}>
+          <Icon.Down />
+        </span>
+      </button>
+      {shown && <div style={FACTS}>{children}</div>}
+    </div>
+  );
+}
+
 // Prompt and negative are the same block twice, each at its own height and each scrolling inside
 // itself so a long text folds rather than growing the panel (Fark 89).
 //
@@ -281,6 +307,9 @@ export default function PhotoDetail({ project, frame: fid }) {
   // Which layer is open. The photo to begin with: it is the frame itself, and the others are what
   // was laid over it.
   const [open, setOpen] = useState("photo");
+  // Whether the frame's facts are unfolded. The user's press rather than the frame's: the arrows
+  // and the tabs leave it as it was, so walking a run of frames with them open costs one press.
+  const [unfolded, setUnfolded] = useState(false);
   // Only a removal of ours puts the card on screen: the hook's error is also where a failed poll
   // lands, and that one has nothing to do with this frame.
   const [refused, setRefused] = useState(false);
@@ -396,10 +425,11 @@ export default function PhotoDetail({ project, frame: fid }) {
   // The arrows swap the frame under a page that stays mounted, so anything said about the old one
   // has to go with it -- a refusal card from the previous frame would read as this one's.
   //
-  // The open tab is the one thing that stays. Stepping through a run of videos used to cost a press
-  // per frame, and dropping a tab the frame that arrived does have buys nothing (madde 38). It only
-  // falls back when there is nowhere to fall back from: a tab on a layer the frame never had would
-  // be a tab on nothing. Not by layer name -- the sound tab keeps its place by the same line.
+  // The open tab stays, and so does the details fold (madde 399), which was never the frame's.
+  // Stepping through a run of videos used to cost a press per frame, and dropping a tab the frame
+  // that arrived does have buys nothing (madde 38). It only falls back when there is nowhere to fall
+  // back from: a tab on a layer the frame never had would be a tab on nothing. Not by layer name --
+  // the sound tab keeps its place by the same line.
   //
   // Asked of React rather than read from `open`, because this effect sets other state around it and
   // a value read from the closure would depend on where in the list it sits. `has` is the arriving
@@ -604,11 +634,13 @@ export default function PhotoDetail({ project, frame: fid }) {
           <div data-side style={SIDE}>
             {/* What the frame is. No group heading and no rule under it: the split from what can be
                 made of it is where the eye rests, not a line it reads (Fark 91). */}
-            <div data-group="info"
-                 style={{ display: "flex", flexWrap: "wrap", columnGap: 24, rowGap: 16 }}>
+            <div data-group="info" style={FACTS}>
               {/* The same number the tile carries: the badge counts up from the bottom, so walking
                   down the gallery with › walks the counter down with it. */}
               <Field label="Sıra" value={`${frames.length - index} / ${frames.length}`} />
+            </div>
+
+            <Details shown={unfolded} onToggle={() => setUnfolded((was) => !was)}>
               {/* The frame's own name, on every tab. The design took this row away too; it was put
                   back because the page's header carries the project's name and not the frame's, so
                   this is the only place the identity appears at all (karar 23). The layers' own
@@ -634,7 +666,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                          ? `${labelOf(madeIn)} → ${arrivesAt}`
                          : labelOf(madeIn)} />
               )}
-            </div>
+            </Details>
 
             {/* What can be made of it. */}
             <div data-group="production"
