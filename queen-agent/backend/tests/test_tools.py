@@ -1045,7 +1045,7 @@ def test_the_rules_carry_nothing_that_belongs_to_one_field():
     # after its copy went down to a field is the same rule in two places, which is the shape every
     # drift in this app has had.
     said = _rules().lower()
-    for moved in ("solo", "outfit", "location"):
+    for moved in ("solo", "pov_", "outfit", "location"):
         assert moved not in said, moved
 
 
@@ -1168,9 +1168,6 @@ def test_every_tool_is_declared_to_the_model():
         # file store: the border between the agent that builds a scenario and the model that writes
         # its sentences, crossed once for every frame still waiting, in one round.
         "write_missing_actions",
-        # Madde 373. The scenario's negative prompt, in a file of its own beside the prompt list: the
-        # name is the code's, and the file is written whole every time.
-        "write_negative",
     }
 
 
@@ -1353,64 +1350,6 @@ def test_a_python_source_is_refused_so_it_is_not_written_over(tmp_path):
     files = _with(tmp_path, "frames.py", STRUCTURE)
     assert "frames.py" in _call(files, "build_prompts", name="frames.py")
     assert files.read("p1", "frames.py") == STRUCTURE
-
-
-# --- the scenario's negative prompt, in a file of its own (Madde 373) -----------------------------
-#
-# 28 Sep, the user: the negative list stays apart from the prompt list, and the user copies it into
-# queen-editor's negative field by hand. So the file holds the tags and nothing else -- the panel's
-# Copy takes a file whole (Madde 193) -- and its name is the code's, beside the prompt list, so it
-# comes out the same every time. Written over rather than refused when it is there: 374 writes it
-# again when the cast changes, and that is a rewrite, not an edit of the old list.
-
-
-def _negative(files, **arguments):
-    return run_tool(files, "p1", "write_negative", json.dumps(arguments))
-
-
-def test_the_negative_list_is_written_beside_the_prompt_list(tmp_path):
-    from backend.features.workspace.domain.tools import WRITES_FILES
-
-    files = _with(tmp_path, "bar-scene.json", STRUCTURE)
-    written = _negative(files, file="bar-scene.json", tags="pale male, white man")
-    assert written.created == "bar-scene-negative.txt"
-    assert files.read("p1", "bar-scene-negative.txt") == "pale male, white man"
-    assert "write_negative" in WRITES_FILES
-
-
-def test_writing_the_negative_again_replaces_it(tmp_path):
-    files = _with(tmp_path, "bar-scene.json", STRUCTURE)
-    _negative(files, file="bar-scene.json", tags="pale male")
-    _negative(files, file="bar-scene.json", tags="white man")
-    assert sorted(files.list_names("p1")) == ["bar-scene-negative.txt", "bar-scene.json"]
-    assert files.read("p1", "bar-scene-negative.txt") == "white man"
-
-
-def test_a_negative_for_a_scenario_that_is_not_there_is_refused(tmp_path):
-    files = _with(tmp_path, "plan.md", "one")
-    assert "no file by that name" in _negative(files, file="ghost.json", tags="pale male").text
-    assert files.list_names("p1") == ["plan.md"]
-
-
-def test_a_negative_with_no_tags_is_refused(tmp_path):
-    files = _with(tmp_path, "bar-scene.json", STRUCTURE)
-    assert "needs tags" in _negative(files, file="bar-scene.json", tags="  ").text
-    assert files.list_names("p1") == ["bar-scene.json"]
-
-
-def test_the_negative_call_reports_the_structure_and_says_it_wrote(tmp_path):
-    # The structure rather than the output, as a build does: the card already names what was written.
-    files = _with(tmp_path, "bar-scene.json", STRUCTURE)
-    written = _negative(files, file="bar-scene.json", tags="pale male")
-    assert written.target == "bar-scene.json"
-    assert written.outcome == "Written"
-
-
-def test_the_negative_tool_says_the_file_is_one_list_to_copy_whole():
-    said = _said_by("write_negative").lower()
-    assert "negative" in said
-    assert "copy" in said
-    assert "replaces" in said
 
 
 # --- what a call reports about itself (Madde 66) -------------------------------------------------
@@ -2471,12 +2410,15 @@ def test_the_clothes_rule_madde_176_wrote_is_still_there():
     assert "clothes" in said
 
 
-def test_the_frame_writer_knows_the_image_model_is_weak():
-    # Madde 367. Not a skill, but the text that writes the action line of every photo prompt -- which
-    # is where a frame grows more complex than the model at the far end can draw.
-    from backend.features.workspace.domain.prompt import WRITE_FRAME_SYSTEM_PROMPT
+def test_an_entry_for_somebody_half_in_shot_carries_no_count():
+    # Madde 182. The count is the sharpest way the leak shows: a POV frame holds one person and the
+    # prompt asks for two, because every character entry carries its own count and both of them are
+    # in the cast. The exception is written where the count rule is -- since correction 34 that is
+    # the character's own field -- or it is a replacement rather than an exception.
+    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
 
-    assert "weak" in WRITE_FRAME_SYSTEM_PROMPT.lower()
+    assert "carries no count" in ADD_CHARACTER_TAGS.lower()
+    assert "pov_" in ADD_CHARACTER_TAGS
 
 
 def test_the_map_tools_never_carry_the_words_this_madde_adds():

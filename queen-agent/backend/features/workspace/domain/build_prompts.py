@@ -113,17 +113,8 @@ def render_module(records):
 
 def prompts_name(source):
     """The output is the source under a new extension, so a project can hold several scenarios."""
-    return f"{_stem(source)}.py"
-
-
-def negative_name(source):
-    """The scenario's negative prompt, beside its prompt list under the same stem (Madde 373)."""
-    return f"{_stem(source)}-negative.txt"
-
-
-def _stem(source):
     stem, dot, _ = source.rpartition(".")
-    return stem if dot else source
+    return f"{stem if dot else source}.py"
 
 
 def cast_of(frame):

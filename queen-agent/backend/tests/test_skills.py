@@ -5,7 +5,7 @@ from backend.features.workspace.domain.skills import INSTRUCTIONS, instruction_f
 # Written out rather than imported: the picker's ids live in the frontend's skills.js and Python
 # cannot read it. If the two ever drift apart, a skill answers with no instruction at all -- so the
 # match is pinned here, in words.
-ALL_SKILLS = ["edit-prompts", "improve", "start-a-scenario"]
+ALL_SKILLS = ["edit-prompts", "start-a-scenario"]
 
 # Madde 94's deletion. The names live here because the proof of a deletion is an absence, and only a
 # test that looks for it sees one -- putting any of them back has to come past this line.
@@ -31,11 +31,6 @@ def _edit():
     return instruction_for("edit-prompts")
 
 
-def _improve():
-    """Madde 370's skill: the checks, run on a scenario that is already built."""
-    return instruction_for("improve")
-
-
 @pytest.mark.parametrize("skill", ALL_SKILLS)
 def test_every_skill_in_the_menu_carries_an_instruction(skill):
     assert instruction_for(skill).strip()
@@ -43,9 +38,8 @@ def test_every_skill_in_the_menu_carries_an_instruction(skill):
 
 def test_the_menu_and_the_instructions_carry_the_same_names():
     # Two since Madde 101, and since Madde 186 they are the two halves of the work rather than two
-    # ways into it: one makes a scenario and finishes it, the other fixes what is already made. Madde
-    # 370 adds a third, Improve, which checks what the two made. A name in the menu with no
-    # instruction here is a turn that quietly runs on the base text alone.
+    # ways into it: one makes a scenario and finishes it, the other fixes what is already made. A
+    # name in the menu with no instruction here is a turn that quietly runs on the base text alone.
     assert sorted(INSTRUCTIONS) == sorted(ALL_SKILLS)
 
 
@@ -93,7 +87,11 @@ def test_no_instruction_names_a_tool_that_is_gone():
     # to be caught by this test existing, not by somebody remembering to add its name.
     from backend.features.workspace.domain.tools import TOOL_SPECS
 
-    known = {spec["function"]["name"] for spec in TOOL_SPECS}
+    # pov_ is not a tool, it is the prefix Madde 182 names a half-seen character by, and it is
+    # written as the bare prefix rather than pov_kyle so that what is exempt here is a naming rule
+    # and not somebody's name. The reason above survives it: a tool deleted later still has nowhere
+    # to hide, because this exemption is one word and it is not a tool's.
+    known = {spec["function"]["name"] for spec in TOOL_SPECS} | {"pov_"}
     for skill, said in INSTRUCTIONS.items():
         named = {word.strip(".,;:") for word in said.split() if "_" in word}
         assert named <= known, (skill, named - known)
@@ -165,6 +163,47 @@ def test_the_editor_is_about_what_already_exists():
 def test_a_change_goes_through_the_file_rather_than_the_prompt_list():
     # The prompt file is derived: patched by hand it stops matching the structure it came from.
     assert "rebuilt rather than patched" in _edit()
+
+
+# --- somebody the camera is standing in (Madde 182) -----------------------------------------------
+#
+# Being in a frame's cast is all or nothing, and the builder writes the whole of an entry. In a POV
+# frame none of that person is in shot, and an SDXL-family model with no body to hang those tags on
+# hangs them on the one that is there -- the woman comes back with the man's hair, and a picture
+# holding one person is asked for 1girl and 1boy at once.
+#
+# The user's decision of 5 Sep is a rule rather than a field: a second character, pov_ and their
+# name, short and countless and wearing nothing, opened when the character is opened rather than
+# when a POV frame turns up. Nothing in the code moves -- add_character already takes that name and
+# a cast already names whoever it likes.
+
+
+def test_the_flow_opens_a_pov_entry_beside_each_character():
+    # Opened with the character, not when a frame needs one: needing one happens in the middle of a
+    # correction turn, which is the worst moment to send the model back to the maps.
+    said = _flow()
+    assert "pov_" in said
+    assert said.index("pov_") > said.index(STEPS[1])
+
+
+def test_a_pov_entry_carries_neither_a_count_nor_an_outfit():
+    # Both are the leak. A count makes the picture claim a person it does not show, and an outfit
+    # dresses the frame with clothes nobody in it is wearing.
+    #
+    # Read off the field rather than off the flow: correction 34 moved both rules to the tool that
+    # writes an entry, and correction 12 took the copy out of the flow -- a flow says when a thing
+    # is written, and the rule for what goes in it belongs beside the parameter.
+    from backend.features.workspace.domain.prompt import ADD_CHARACTER_TAGS
+
+    said = ADD_CHARACTER_TAGS.lower()
+    assert "no count" in said
+    assert "those are outfits" in said
+
+
+def test_a_pov_frame_names_the_pov_entry_in_its_cast():
+    # The other half, and it lives here because "make this one POV" arrives during a correction --
+    # this skill's turn, not the flow's.
+    assert "pov_" in _edit()
 
 
 def test_no_instruction_carries_the_prompt_rules():
@@ -259,11 +298,6 @@ def test_no_step_is_ticked_off_the_plan_at_all():
     # Madde 203 withdraws the rest, on correction 11's finding: the boxes are only a note, and what
     # says how far the work got is the project's files. Neither road back is offered -- not the
     # tool, and not edit_file, which is the hand-built anchor 126 was written against.
-    #
-    # Madde 370 writes into the plan once more, for the checks alone (the user, 28 September: where
-    # the checks stopped is kept in the plan). There the files cannot say how far the work got -- a
-    # frame a check has fixed looks the same as one it never read. Steps 1 to 5 still tick nothing,
-    # and which tool writes the plan is the base text's to say, not this one's.
     said = _flow()
     assert "mark_step_done" not in said
     assert "edit_file" not in said
@@ -340,26 +374,23 @@ STEPS = (
     "Step 3 -- the places",
     "Step 4 -- the scenes",
     "Step 5 -- the prompts",
-    "Step 6 -- the checks",
 )
 """The flow's steps, in the order they run (Madde 198, written this way by correction 9).
 
 Read by the two tests below and by the ones that place create_file, start_scenario and the build.
 Madde 186 had six of these and the first was the context; that question is gone, and the numbers
 moved with it. Numbered headings became named ones so that every step reads the same way -- a
-heading, then its rules as lines -- and so the loop above them is not read as one more step. Madde
-370 adds the sixth: the checks, which the flow ends with.
+heading, then its rules as lines -- and so the loop above them is not read as one more step.
 """
 
 
-def test_the_flow_runs_six_numbered_steps():
+def test_the_flow_runs_five_numbered_steps():
     # Madde 108: a stage outside the numbered list is a stage a weak model walks past, because it
     # stops when the list ends. Five since Madde 198 -- the context question in front of them was
-    # the one thing a user had to answer before any work could start -- and six since Madde 370,
-    # whose checks are the flow's last step.
+    # the one thing a user had to answer before any work could start.
     said = _flow().lower()
-    assert "six steps" in said
-    assert "five steps" not in said
+    assert "five steps" in said
+    assert "six steps" not in said
     for step in STEPS:
         assert step.lower() in said, step
 
@@ -450,421 +481,6 @@ def test_every_skill_says_what_the_prompts_are_for(skill):
     assert "SDXL" in instruction_for(skill)
 
 
-# --- the image model at the far end (Madde 367) ---------------------------------------------------
-#
-# 28 Sep, the user: the model does not know its prompts go to a weak SDXL model, so it writes things
-# too complex for it to draw -- and fixes them the moment it is told. Parametrised by ALL_SKILLS,
-# which a test above holds equal to INSTRUCTIONS, so the next skill cannot arrive without this.
-
-
-@pytest.mark.parametrize("skill", ALL_SKILLS)
-def test_every_skill_knows_the_image_model_is_weak(skill):
-    assert "weak" in instruction_for(skill).lower()
-
-
-@pytest.mark.parametrize("skill", ALL_SKILLS)
-def test_every_skill_knows_a_frame_is_one_moment_and_a_4_second_video(skill):
-    # The user again: every video is four seconds. A frame is one picture, and the picture is where
-    # the video starts, so a scene holding two moments can be neither.
-    said = instruction_for(skill)
-    assert "one moment" in said
-    assert "4-second video" in said
-
-
-# --- what the scenes step leaves out (Madde 368) --------------------------------------------------
-#
-# 29 Sep, the user: when the outfit changes between two scenes, the flow writes the frames in between
-# -- the garment coming off -- and the weak model cannot draw them. A dress in one scene and another
-# in the next it draws fine. The rule belongs to the scenes step alone (the user: in the scenario is
-# enough), which is where it is read while the scenes are being written.
-
-
-def test_the_scenes_step_writes_no_frame_of_clothes_coming_off_unless_asked():
-    said = _flow()
-    start, end = said.index(STEPS[3]), said.index(STEPS[4])
-    step = said[start:end].lower()
-    assert "from one scene to the next" in step
-    assert "taken off" in step
-    assert "unless the user asks" in step
-    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
-    assert "taken off" not in (said[:start] + said[end:]).lower()
-    assert "taken off" not in _edit().lower()
-
-
-# --- speech rides in the scene sentence (Madde 369) -----------------------------------------------
-#
-# 29 Sep, the user: speech wanted in a frame has to be written inside the scenario, so queen-editor's
-# model, which reads each frame's scene sentence beside its photo (Queen Editor v8-3b), can put it into
-# the video prompt. Only speech. The scenes step is where it is read while the sentence is written.
-#
-# The same sentence has a second reader: the frame writer turns it into the photo prompt's action line.
-# The weak image model cannot draw speech, and quoted words come back drawn as text -- so that reader is
-# told to leave the words out, or the first half of this madde would break every frame it touches.
-
-
-def test_the_scenes_step_writes_wanted_speech_into_the_frames_scene_sentence():
-    said = _flow()
-    start, end = said.index(STEPS[3]), said.index(STEPS[4])
-    step = said[start:end].lower()
-    assert "speak" in step
-    assert "that frame's scene sentence" in step
-    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
-    assert "speak" not in (said[:start] + said[end:]).lower()
-
-
-def test_the_frame_writer_leaves_spoken_words_out_of_the_action_line():
-    from backend.features.workspace.domain.prompt import (
-        SDXL_PROMPT_RULES,
-        WRITE_FRAME_SYSTEM_PROMPT,
-    )
-
-    said = WRITE_FRAME_SYSTEM_PROMPT.lower()
-    assert "speaks" in said
-    assert "leave their words out" in said
-    # Not in the rules the six map tools carry too: none of them writes an action.
-    assert "speak" not in SDXL_PROMPT_RULES.lower()
-
-
-# --- the checks, and Improve (Madde 370) ----------------------------------------------------------
-#
-# 28 Sep, the user: the questions they ask the model by hand become checks, written in one place.
-# Improve runs them on a scenario that is already built, and Start a scenario ends with them -- a
-# skill cannot call another today, so both texts carry the same part, and it is one constant so it is
-# said once. 29 Sep: a check that changes a frame refreshes its photo prompt only; the video's prompt
-# is written in queen-editor.
-
-
-def _checks():
-    from backend.features.workspace.domain.prompt import THE_CHECKS
-
-    return THE_CHECKS
-
-
-def test_the_checks_are_written_once_and_both_skills_end_with_them():
-    checks = _checks()
-    assert checks.strip()
-    for said in (_flow(), _improve()):
-        assert said.endswith(checks)
-        assert said.count(checks) == 1
-
-
-def test_the_first_check_brings_a_frame_down_to_one_moment_or_splits_it():
-    checks = _checks()
-    assert "Check 1 -- one moment" in checks
-    assert "more than one moment" in checks
-    assert "split" in checks
-
-
-def test_a_changed_or_split_frame_gets_its_photo_prompt_written_again():
-    # A frame whose scene changed while its action stayed would build into the old picture, and a
-    # frame split off would have no action at all. The tools that exist already do both.
-    checks = _checks()
-    for tool in ("update_frame", "add_scene", "write_missing_actions", "build_prompts"):
-        assert tool in checks, tool
-    assert "photo prompt" in checks
-
-
-def test_each_check_shows_what_it_changed_and_waits_for_a_yes():
-    # The user: I want to see what was done -- at the end of every check step.
-    checks = _checks().lower()
-    assert "show what" in checks
-    assert "wait for their yes" in checks
-
-
-def test_a_long_scenario_carries_the_checks_over_turns_through_the_plan():
-    # The turn limit stays at 16 requests. Where the checks stopped is kept in the plan, and the
-    # user says continue.
-    checks = _checks().lower()
-    assert "plan" in checks
-    assert "continue" in checks
-
-
-def test_the_checks_write_no_video_prompt():
-    checks = _checks().lower()
-    # Asked after the presence, so the absence cannot pass on a text nobody wrote.
-    assert "photo prompt" in checks
-    assert "video" not in checks
-    assert "h3" not in checks
-
-
-def test_the_closing_word_comes_after_the_checks():
-    # The build is no longer the end: the checks follow it in the same flow, and the closing
-    # sentence goes with the last of them, so the checks still to come land in front of it.
-    said = _flow()
-    assert "offer nothing, and ask nothing" in _checks()
-    build = said[said.index(STEPS[4]) : said.index(STEPS[5])]
-    assert "waits for no approval" in build
-    assert "last word" not in build
-
-
-def test_improve_opens_as_a_persona_on_a_scenario_already_built():
-    said = _improve()
-    assert said.startswith("You are an expert")
-    assert "already" in said
-    assert "start_scenario" not in said
-
-
-# --- the second check: only what the angle shows (Madde 371) --------------------------------------
-#
-# 29 Sep, the user: from the angle a frame is seen at, write only the parts of each character that
-# show -- a weak model hands a part it cannot place to the other characters. The angle is written into
-# the action (Step 5), and a frame names whole entries, so a part is left out by an entry of its own
-# (the roadmap's examples: man body no face, an outfit from behind) that the frame's cast then names.
-
-SECOND_CHECK = "Check 2 -- visible parts"
-CLOSING = "When the checks are done"
-
-
-def _second_check():
-    # Ends at the blank line that closes its own block, so a check written after it (372) is not
-    # read as part of this one.
-    checks = _checks()
-    start = checks.index(SECOND_CHECK)
-    return checks[start : checks.index("\n\n", start)]
-
-
-def test_the_second_check_comes_after_the_first_and_before_the_closing():
-    checks = _checks()
-    assert SECOND_CHECK in checks
-    assert checks.index("Check 1 -- one moment") < checks.index(SECOND_CHECK)
-    assert checks.index(SECOND_CHECK) < checks.index(CLOSING)
-
-
-def test_the_second_check_reads_what_the_angle_shows():
-    said = _second_check()
-    assert "angle" in said
-    assert "no face" in said
-    assert "from behind" in said
-
-
-def test_a_part_the_angle_hides_goes_through_an_entry_of_its_own():
-    # The whole entry stays as it is: other frames show the same person whole, and one change to it
-    # reaches every frame naming it.
-    said = _second_check()
-    for tool in ("add_character", "add_outfit", "update_frame"):
-        assert tool in said, tool
-    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
-    assert "update_character" not in said
-    assert "update_outfit" not in said
-
-
-# --- the third check: can the model draw it (Madde 372) -------------------------------------------
-#
-# 29 Sep, the user: the image model is very weak -- could it draw the prompt you wrote? The check
-# reads the prompts in their final form, after the first two, and simplifies what cannot be drawn.
-# A photo prompt is put together by build_prompts from a frame's action and the entries it names, so
-# a part is simplified where it comes from: the action through update_frame, an entry through its own
-# update_ tool. THE_IMAGE_MODEL already says the model is weak; the check does not say it again.
-
-THIRD_CHECK = "Check 3 -- can it be drawn"
-
-
-def _third_check():
-    checks = _checks()
-    start = checks.index(THIRD_CHECK)
-    return checks[start : checks.index("\n\n", start)]
-
-
-def test_the_third_check_comes_after_the_second_and_before_the_closing():
-    checks = _checks()
-    assert THIRD_CHECK in checks
-    assert checks.index(SECOND_CHECK) < checks.index(THIRD_CHECK) < checks.index(CLOSING)
-
-
-def test_the_third_check_reads_the_prompts_in_their_final_form():
-    said = _third_check()
-    assert "build_prompts" in said
-    assert "final" in said
-    assert "photo prompt" in said
-
-
-def test_the_third_check_simplifies_the_part_where_it_comes_from():
-    said = _third_check()
-    assert "simplif" in said.lower()
-    for tool in ("update_frame", "update_character", "update_outfit", "update_location"):
-        assert tool in said, tool
-
-
-def test_the_third_check_does_not_tell_the_model_is_weak_again():
-    from backend.features.workspace.domain.prompt import THE_IMAGE_MODEL
-
-    said = _third_check()
-    # Asked after the block is found, so the absence cannot pass on a text nobody wrote.
-    assert said.startswith(THIRD_CHECK)
-    assert "weak" not in said.lower()
-    assert THE_IMAGE_MODEL not in _checks()
-
-
-# --- the fourth check: the negative prompt (Madde 373) --------------------------------------------
-#
-# 28 Sep, the user: a negative prompt of the scenario's and its characters' own, so the characters'
-# features do not mix. One list per scenario, from its cast, as the last of the checks; it goes into a
-# file of its own beside the prompt list, and the user copies it into queen-editor's negative field by
-# hand (v9-7). The user's lessons are the rules: a negative works on the whole picture, never on one
-# person, so a character's own feature never goes in -- dark skin there turned the man white -- and
-# tags that fit only the other one go in instead (pale male, white man). 374 writes the list again
-# when the cast changes, so it is written whole each time rather than added to.
-
-FOURTH_CHECK = "Check 4 -- the negative prompt"
-
-
-def _fourth_check():
-    checks = _checks()
-    start = checks.index(FOURTH_CHECK)
-    return checks[start : checks.index("\n\n", start)]
-
-
-def test_the_fourth_check_comes_after_the_third_and_before_the_closing():
-    checks = _checks()
-    assert FOURTH_CHECK in checks
-    assert checks.index(THIRD_CHECK) < checks.index(FOURTH_CHECK) < checks.index(CLOSING)
-
-
-def test_the_negative_prompt_is_one_list_written_whole_from_the_cast():
-    said = _fourth_check()
-    assert "one negative prompt" in said
-    assert "cast" in said
-    assert "write_negative" in said
-    assert "never added to" in said
-
-
-def test_the_negative_prompt_never_holds_a_characters_own_feature():
-    said = _fourth_check()
-    assert "whole picture" in said
-    assert "own feature" in said
-    assert "pale male" in said
-    assert "white man" in said
-
-
-def test_the_negative_check_changes_no_frame_and_waits_for_a_yes():
-    said = _fourth_check()
-    assert "no frame" in said
-    assert "wait for their yes" in said
-
-
-def test_the_closing_names_the_negative_file_too():
-    # Two files come out of the checks now, and the user copies the second by hand: a closing that
-    # named one would leave them looking for the other.
-    checks = _checks()
-    assert "negative file" in checks[checks.index(CLOSING) :]
-
-
-# --- Edit prompts ends with the checks (Madde 374) ------------------------------------------------
-#
-# 28 Sep, the user: when Edit prompts is done, it should call Improve too. A skill cannot call another,
-# so the editor carries the same checks the flow does -- the one constant. Two things differ, and both
-# are written in the editor's own step: the checks read only the frames its change reached, and the
-# negative prompt is written again only if the scenario's cast changed (the user's decision of 28
-# September). 29 Sep: a changed frame gets its photo prompt again, never a video prompt.
-
-EDIT_STEPS = (
-    "Step 1 -- what the request is about",
-    "Step 2 -- the fix",
-    "Step 3 -- the prompts",
-    "Step 4 -- the checks",
-)
-
-
-def _edits_checks_step():
-    # From the step's heading to where the shared checks start: what the editor adds of its own.
-    said = _edit()
-    return said[said.index(EDIT_STEPS[3]) : said.index(_checks())]
-
-
-def test_edit_prompts_ends_with_the_checks():
-    checks = _checks()
-    said = _edit()
-    assert said.endswith(checks)
-    assert said.count(checks) == 1
-
-
-def test_edit_prompts_runs_its_steps_in_order():
-    said = _edit()
-    places = [said.index(step) for step in EDIT_STEPS]
-    assert places == sorted(places)
-
-
-def test_edit_prompts_goes_on_to_the_checks_in_the_same_turn():
-    # The build is no longer the end, as in the flow: the change is said, and the checks follow it.
-    said = _edit()
-    step = said[said.index(EDIT_STEPS[2]) : said.index(EDIT_STEPS[3])]
-    assert "build_prompts again" in step
-    assert "which frames it reached" in step
-    assert "waits for no approval" in step
-    assert "Step 4" in step
-    assert "last word" not in step
-
-
-def test_after_an_edit_the_checks_read_only_the_frames_it_reached():
-    # The checks read every frame by default and the step narrows them, so the flow and Improve read
-    # the same block unchanged.
-    assert "limits the checks to the frames your change reached" in _edits_checks_step()
-    assert "every frame of the scenario unless this step limits them" in _checks()
-    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
-    assert "your change reached" not in _flow()
-    assert "your change reached" not in _improve()
-
-
-def test_after_an_edit_the_negative_is_written_again_only_if_the_cast_changed():
-    # The list is written from the scenario's cast (373), so an edit that left the cast alone left the
-    # list true. The frame's cast is another thing (Check 2), so the step names the scenario's.
-    step = _edits_checks_step()
-    assert "Check 4 runs only if" in step
-    assert "the scenario's cast" in step
-    assert "added, changed or taken out" in step
-    # In the flow and in Improve the negative is always written: the condition is the editor's alone.
-    assert "runs only if" not in _checks()
-
-
-def test_after_an_edit_the_closing_names_the_negative_file_only_if_there_is_one():
-    # Madde 388 (30 Sep, the user: "bunlarıda düzelt"). The closing names both files, and Check 4
-    # writes the negative one -- but after an edit that left the cast alone Check 4 is skipped, and a
-    # scenario written before 373 has no negative file at all. The case is born only there, so the
-    # editor says it beside the skip, and the shared closing stays true for the flow and Improve.
-    step = _edits_checks_step()
-    assert "no negative file" in step
-    assert "the prompt file alone" in step
-    assert step.index("Otherwise skip it") < step.index("no negative file")
-    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
-    assert "no negative file" not in _checks()
-
-
-# --- Edit prompts writes speech where the flow does (Madde 385) -----------------------------------
-#
-# 30 Sep, the user: "olur eklensin". 369's rule stood in the flow alone, so speech asked for while
-# editing went into the photo prompt or nowhere. The same sentence goes into the editor's fix step,
-# where it makes its change -- one constant, so the two cannot drift apart.
-
-
-def _edits_fix_step():
-    said = _edit()
-    return said[said.index(EDIT_STEPS[1]) : said.index(EDIT_STEPS[2])]
-
-
-def test_edit_prompts_writes_wanted_speech_into_the_frames_scene_sentence():
-    step = _edits_fix_step()
-    assert "speak" in step
-    assert "quotation marks" in step
-    assert "that frame's scene sentence" in step
-    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
-    assert "speak" not in _edit().replace(step, "").lower()
-
-
-def test_the_speech_sentence_is_written_once_and_both_skills_carry_it():
-    from backend.features.workspace.domain.prompt import SPEECH_IN_THE_SCENE
-
-    assert "speak" in SPEECH_IN_THE_SCENE
-    assert "that frame's scene sentence" in SPEECH_IN_THE_SCENE
-    flow = _flow()
-    scenes = flow[flow.index(STEPS[3]) : flow.index(STEPS[4])]
-    assert scenes.count(SPEECH_IN_THE_SCENE) == 1
-    assert flow.count(SPEECH_IN_THE_SCENE) == 1
-    assert _edits_fix_step().count(SPEECH_IN_THE_SCENE) == 1
-    assert _edit().count(SPEECH_IN_THE_SCENE) == 1
-    # Improve writes no scene the user asks for, so it carries no speech.
-    assert "speak" not in _improve().lower()
-
-
 def test_the_plan_no_longer_opens_with_a_line_of_context():
     # Madde 186 asked for that line and Madde 198 takes it back, with the question that fed it. The
     # claim is not dropped, it is turned around: with nobody asked what the work is for, a plan
@@ -919,12 +535,8 @@ def test_the_editor_writes_no_frames_at_all():
     # job. The frames arrive written -- what this skill does to a file is correct it. A text still
     # naming the adding tools would have two skills writing frames into one file, each from a
     # different idea of what is already there.
-    #
-    # Madde 374 ends the editor with the checks, and the first of them splits a frame with add_scene.
-    # That is the checks' own road, so the editor's part is asked without them.
     said = _edit()
-    own = said.removesuffix(_checks())
-    assert "add_scene" not in own
+    assert "add_scene" not in said
     assert "add_frames" not in said
 
 
@@ -961,12 +573,9 @@ def test_the_editor_closes_with_the_file_rather_than_a_menu():
     # thing in the request (93) and said nothing about closing -- so the trial's build turn read
     # its own output back, printed 25 prompts into the chat, and offered three choices over a file
     # already sitting in the project. A text that goes quiet is a text a weak model writes over.
-    #
-    # Madde 374 moves the closing to the checks the editor now ends with. It names the files and
-    # prints no prompt back, which is what this test held of the editor's own last step.
-    checks = _checks()
-    assert _edit().endswith(checks)
-    assert "Do not print the prompts back" in checks[checks.index(CLOSING) :]
+    said = _edit()
+    assert "The built file is the answer" in said
+    assert "never printed back" in said
 
 
 def test_the_texts_stay_short_enough_to_be_read():
@@ -980,50 +589,5 @@ def test_the_texts_stay_short_enough_to_be_read():
     # Correction 20 gives sixty of them back, on the record: the step format the flow uses costs
     # lines, and what it buys is a text a weak model can follow. A cap that moves in a written
     # decision is not a cap that quietly took the old work back.
-    #
-    # Madde 367 raises both, on the user's decision of 28 September. Madde 123 set them for the
-    # model of that day, which stopped reading the middle of a long text; the texts are read by a
-    # stronger model now. The new numbers leave room for what comes next: the four checks (370 to
-    # 373) are written once and the flow ends with them, Edit prompts ends with them too (374), and
-    # 368 and 369 each add a sentence to the scenes step -- so both texts can roughly double. The
-    # cap still guards: a text at its cap takes a sentence only by deleting one.
-    #
-    # Madde 370 gives Improve its own, 700, the editor's. Its own part is short -- the opening, the
-    # image model, and the step that finds the scenario -- and the rest is the checks. With all four
-    # written (370 to 373) that is about the editor's size. The checks ride in the flow as well, so
-    # the flow's 1000 is what binds them first; this one keeps Improve's own part from swelling.
-    #
-    # Madde 373 raises the flow's to 1025. The fourth check carries the user's own lessons about the
-    # negative prompt, and with them it does not fit in the hundred words the first three left; the
-    # closing names the second file as well. Improve carries the same block and stays inside its 700.
-    #
-    # Madde 374 raises the editor's to 830. It ends with the checks now, as the flow does, and its own
-    # part gains the step that says which frames they read and when the negative is written again.
-    # That part stays near 300 words; the rest is the block the flow's cap already binds.
-    #
-    # Madde 385 raises the editor's to 856. Its fix step carries 369's sentence about speech, the one
-    # the flow's scenes step carries, written once for both; the flow's own count does not move.
-    #
-    # Madde 388 raises the editor's to 870. Its checks step says what the closing names when Check 4
-    # was skipped and the scenario has no negative file -- a case the flow and Improve never meet,
-    # since they always write the list, so the sentence is the editor's and the flow's count stays.
-    assert len(_flow().split()) <= 1025
-    assert len(_edit().split()) <= 870
-    assert len(_improve().split()) <= 700
-
-
-# --- how the texts are written (Madde 390) --------------------------------------------------------
-#
-# 30 Sep, the user: the prompts written in v9 are to follow the format of the ones before them. Only
-# what v9 broke is pinned here; the conventions and the check of every part are in the madde's spec.
-
-
-@pytest.mark.parametrize("skill", ALL_SKILLS)
-def test_a_word_the_user_says_is_written_in_quotation_marks(skill):
-    # Before v9 the user's own words stand in double quotes -- "You decide", and the refusal's They
-    # said: "..." -- so the model reads them as the user's rather than as the text's own. Every
-    # skill carries the checks, which is where the phrase is.
-    said = instruction_for(skill)
-    assert "the user says " in said
-    for rest in said.split("the user says ")[1:]:
-        assert rest.startswith('"'), (skill, rest[:30])
+    assert len(_flow().split()) <= 450
+    assert len(_edit().split()) <= 260

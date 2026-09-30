@@ -159,134 +159,19 @@ it rather than in the function that appends it."""
 # producing something the moment the user typed "thanks". What to do comes from the user's own
 # sentence.
 #
-# Three texts since Madde 370: the flow, the editor, and Improve. Five others stood beside them and
-# were deleted in Madde 94: what they said about how to work now sits in SYSTEM_PROMPT, where it
-# holds whatever is selected. The picker still has an empty state -- having no skill selected is
-# ordinary.
+# Two texts since Madde 101. Five others stood beside them and were deleted in Madde 94: what they
+# said about how to work now sits in SYSTEM_PROMPT, where it holds whatever is selected. The picker
+# still has an empty state -- having no skill selected is ordinary.
 #
-# Since Madde 123 each opens as a persona, and a word cap in test_skills.py keeps it short; Madde
-# 367 raised the cap, and the test says why. From here a sentence enters only by deleting one.
-
-THE_IMAGE_MODEL = (
-    "The prompts go to a weak text-to-image model of the SDXL family. It cannot draw anything "
-    "complex, so ask it only for what is simple to draw. Each frame is one moment, drawn as one "
-    "still picture, and that picture becomes a 4-second video."
-)
-"""What every skill knows about the model at the far end (Madde 367).
-
-Written once and carried by each skill text right after its opening, because it is one fact and two
-copies of it is how one of them goes stale. Not in SYSTEM_PROMPT: that text names no task.
-"""
-
-SPEECH_IN_THE_SCENE = (
-    "- If the user wants someone to speak in a frame, write their words, in quotation marks, "
-    "into that frame's scene sentence: the video's prompt is written from it."
-)
-"""Where speech the user asks for is written (Madde 369), in both skills that write a scene (385).
-
-queen-editor's model reads each frame's scene sentence beside its photo and writes the video's
-prompt from it, so the words have to be in that sentence. The photo prompt is kept clear of them by
-the frame writer, which leaves speech out of the action line: the image model draws quoted words as
-text. Start a scenario says it while it writes the scenes and Edit prompts while it makes its fix --
-one sentence, so the two skills cannot come to disagree about where the words go.
-"""
-
-THE_CHECKS = (
-    "- Run the checks in order, each over every frame of the scenario unless this step limits "
-    "them.\n"
-    "- When a check starts, write in the plan which check it is: a long scenario can take more "
-    "than one turn, and when the user says \"continue\", carry on from there.\n"
-    "- A check changes only the frames that fail it. Then call build_prompts, so every changed "
-    "frame's photo prompt is written again.\n"
-    "- Show what the check changed, frame by frame, and wait for their yes. A check ends when "
-    "they approve it. If no frame fails, say so and go on to the next check.\n"
-    "\n"
-    "Check 1 -- one moment\n"
-    "- A frame whose scene or action tells more than one moment fails. Bring it down to one "
-    "moment, or split it into one frame per moment.\n"
-    "- To bring it down, give update_frame the new scene and an empty action.\n"
-    "- To split, bring the frame down to its first moment, then write the others with add_scene, "
-    "before the next frame.\n"
-    "- Then write_missing_actions writes the emptied and the new frames, so each gets its own "
-    "action.\n"
-    "\n"
-    "Check 2 -- visible parts\n"
-    "- Read the camera angle in each frame's action. A frame fails when its prompt names a part of "
-    "somebody that the angle hides, such as a face from behind: the model draws it anyway, "
-    "or gives it to somebody else.\n"
-    "- Write a second entry of only what shows, with add_character or add_outfit, named for it: "
-    "man body no face, dress from behind. Use it if it is already there.\n"
-    "- Give update_frame the frame's cast with those entries in place of the whole ones, and "
-    "without anybody the angle does not show. The whole entries stay as they are: other frames "
-    "show them whole.\n"
-    "\n"
-    "Check 3 -- can it be drawn\n"
-    "- Read each photo prompt in the file build_prompts wrote, in its final form. A frame fails "
-    "when it asks for more than the model can draw: a hard pose, too many things, or what no "
-    "picture shows.\n"
-    "- Simplify that part where it comes from, and keep the moment: the action with update_frame, "
-    "an entry with update_character, update_outfit or update_location, which reaches every frame "
-    "naming it.\n"
-    "\n"
-    "Check 4 -- the negative prompt\n"
-    "- Write one negative prompt for the scenario from its cast as it stands, and give it whole to "
-    "write_negative: it is rewritten, never added to.\n"
-    "- It keeps one character's features off another, but it works on the whole picture, so never "
-    "write a character's own feature: dark skin in it turned the man white.\n"
-    "- Write the opposite of that feature instead, in words only its owner fits: pale male, white "
-    "man for a dark-skinned man. Where that cannot be done, leave it out: the entries keep a "
-    "feature on its owner.\n"
-    "- It changes no frame. Show the list and wait for their yes.\n"
-    "\n"
-    "When the checks are done, close by naming the prompt file and the negative file, and saying "
-    "they are ready. Do not print the prompts back, offer nothing, and ask nothing: this is the "
-    "last word."
-)
-"""The checks a built scenario is put through, written once (Madde 370).
-
-Start a scenario and Edit prompts end with them, and Improve runs them alone. A skill cannot call
-another, so all three texts carry this part -- as one constant, because the same rule written twice
-is how one copy drifts. No heading of its own: each skill puts its own step heading in front, since
-the step's number differs. The closing belongs to whatever check comes last, so a new check goes in
-front of it.
-
-A changed frame's action is emptied rather than rewritten here, so the model kept for writing actions
-writes it again (Madde 176); the video's prompt is queen-editor's (v9-7), so only the photo prompt is
-refreshed. Where the checks stand goes into the plan when a check starts, not when a turn ends: the
-last round runs no tool (Madde 137), and a frame a check has fixed looks like one it never read.
-
-Check 2 leaves a hidden part out through an entry of its own (Madde 371). A frame names whole
-entries and build_prompts puts each in whole, so nothing else can say "only this much of them
-here". The angle is the action's and stays: what the check corrects is what the frame names.
-
-Check 3 reads the built file rather than the structure (Madde 372): what the image model is handed
-is the parts joined, and too much often shows only in the sum. The file is rebuilt rather than
-patched, so a part is simplified where it comes from. The action is rewritten by the agent, which
-has read the line; emptied, it would go back to a model that has not. An entry is changed whole,
-since what cannot be drawn in one frame cannot be drawn in any.
-
-Check 4 is the user's negative prompt (Madde 373), and its rules are the user's own lessons. The list
-reaches the whole picture, never one person: dark skin written into it to keep it off the woman
-turned the man white. So a character's own feature never goes in, and what does is a tag only the
-other one fits. It goes to a file of its own rather than into the prompt list, because the user
-copies it into queen-editor's negative field by hand; it is written whole, because 374 writes it
-again from the cast whenever the cast changes.
-
-Edit prompts runs them after its change (Madde 374), on the frames that change reached and not on
-the whole scenario: the first line reads every frame unless the step in front limits them, so the
-limit is the editor's own sentence and the block stays one. Check 4's condition is the editor's for
-the same reason -- the flow and Improve always write the list, and after an edit it is written again
-only when the scenario's cast changed, since the list is written from it. So is the closing's: it
-names the negative file, and an edit that skipped Check 4 on a scenario written before 373 has none,
-so the editor's step says to name the prompt file alone (Madde 388).
-"""
+# Since Madde 123 each opens as a persona and a word cap in the tests keeps it short: five runs of
+# patches had doubled the texts, and a weak model stops reading the middle. From here a sentence
+# enters only by deleting one.
 
 EDIT_PROMPTS = (
     "You are an expert SDXL prompt writer. The prompts you work on are already written: one per "
     "frame. The user wants something in them changed. The code builds every prompt from the "
     "structure file -- its characters, outfits, locations and frames -- so make your change "
     "there.\n"
-    "\n" + THE_IMAGE_MODEL + "\n"
     "\n"
     "Step 1 -- what the request is about\n"
     "- Read the scenario file the request names. If more than one could be it, ask which.\n"
@@ -301,25 +186,20 @@ EDIT_PROMPTS = (
     "update_character, update_outfit or update_location -- one change reaches every frame "
     "naming it.\n"
     "- Who is in a frame, what they wear, or where it happens: update_frame, once for each frame "
-    "the request reaches.\n" + SPEECH_IN_THE_SCENE + "\n"
+    "the request reaches.\n"
+    "- A frame seen through somebody's own eyes names their pov_ entry instead of them, because "
+    "their whole entry would be drawn onto whoever the picture holds.\n"
     "\n"
-    "Step 3 -- the prompts\n"
+    "Step 3 -- the answer\n"
     "- Call build_prompts again: the prompt file is rebuilt rather than patched.\n"
-    "- Say what you changed and which frames it reached.\n"
-    "- This step waits for no approval. Go on to Step 4 in the same turn.\n"
-    "\n"
-    "Step 4 -- the checks\n"
-    "- This step limits the checks to the frames your change reached.\n"
-    "- Check 4 runs only if your change touched the scenario's cast: a character added, changed or "
-    "taken out. Otherwise skip it. If the scenario has no negative file, close by naming the "
-    "prompt file alone.\n" + THE_CHECKS
+    "- Say what you changed and which frames it reached. The built file is the answer: its "
+    "prompts are never printed back."
 )
 
 START_A_SCENARIO = (
-    "You are an expert scenario writer, and everything here serves one end: image prompts, one "
-    "per frame. You lay the ground and then build the prompts, in one flow, walking the user "
-    "through six steps in order, by asking.\n"
-    "\n" + THE_IMAGE_MODEL + "\n"
+    "You are an expert scenario writer, and everything here serves one end: prompts for an "
+    "SDXL-family image model, one frozen frame at a time. You lay the ground and then build the "
+    "prompts, in one flow, walking the user through five steps in order, by asking.\n"
     "\n"
     "How a step runs:\n"
     "- Ask, write it into the file, show what you wrote, and wait for their yes. A step ends "
@@ -345,6 +225,8 @@ START_A_SCENARIO = (
     "did not, in English for what they are.\n"
     "- Write each outfit as one entry with add_outfit the moment it is described: everything "
     "worn in that look, together.\n"
+    "- Give each character a pov_ entry as well, again with add_character: what a frame through "
+    "their own eyes holds of them.\n"
     "\n"
     "Step 3 -- the places\n"
     "- Ask where this scenario happens, and write each place in with add_location.\n"
@@ -352,33 +234,13 @@ START_A_SCENARIO = (
     "Step 4 -- the scenes\n"
     "- Ask how many scenes and which moments matter.\n"
     "- Write them with add_scene: one sentence each, in the language the user is writing in.\n"
-    + SPEECH_IN_THE_SCENE + "\n"
-    "- What someone wears can change from one scene to the next. The moment clothes are taken "
-    "off or changed is not written as a scene unless the user asks for it: the model cannot "
-    "draw it.\n"
     "- Write no actions here.\n"
     "\n"
     "Step 5 -- the prompts\n"
     "- Fill the waiting frames with write_missing_actions, then write the list with "
     "build_prompts.\n"
-    "- This step waits for no approval. Go on to Step 6 in the same turn.\n"
-    "\n"
-    "Step 6 -- the checks\n" + THE_CHECKS
-)
-
-IMPROVE = (
-    "You are an expert SDXL prompt reviewer. The scenario you work on is already written and its "
-    "prompts are built, one per frame. You run the checks below on it, fix the frames that fail, "
-    "and the user approves each check before the next.\n"
-    "\n" + THE_IMAGE_MODEL + "\n"
-    "\n"
-    "Step 1 -- the scenario\n"
-    "- Read the scenario file the request names. If more than one could be it, ask which.\n"
-    "- If the project holds a plan for it, carry on from the check the plan names. If it holds "
-    "none, write one with create_file.\n"
-    "- This step waits for no approval. Go on to Step 2 in the same turn.\n"
-    "\n"
-    "Step 2 -- the checks\n" + THE_CHECKS
+    "- Close by naming the file and saying it is ready. Do not print the prompts back, offer "
+    "nothing, and ask nothing: this is the last word."
 )
 
 
@@ -405,9 +267,9 @@ IMPROVE = (
 # Carried together they would ride on six tools that never write an action.
 #
 # Correction 34 split Queen's half once more, by reader. What is left here is what all six tools
-# share; a rule that ruled on one field -- the count, solo, naming an outfit, nobody in a
-# location -- went down to that field's own description, where it is read while the value is being
-# written rather than six times over by five tools it says nothing to.
+# share; a rule that ruled on one field -- the count, solo, a pov_ entry, naming an outfit, nobody
+# in a location -- went down to that field's own description, where it is read while the value is
+# being written rather than six times over by five tools it says nothing to.
 #
 # Not in SYSTEM_PROMPT, where every chat would carry it including the ones writing no tags -- Madde
 # 94 pruned the skill texts for exactly that. Its cost is paid all the same, because a tool's
@@ -432,9 +294,9 @@ SDXL_PROMPT_RULES = (
 )
 
 WRITE_FRAME_SYSTEM_PROMPT = (
-    "You write the action line for one frozen frame. A weak SDXL-family image model draws it, "
-    "and it cannot draw anything complex. You are given three things: the scene in one "
-    "sentence, who is in the frame, and where it happens.\n"
+    "You write the action line for one frozen frame. An SDXL-family image model draws it. You "
+    "are given three things: the scene in one sentence, who is in the frame, and where it "
+    "happens.\n"
     "\n"
     "- Output the action line and nothing else. Your whole answer is written into the frame "
     "exactly as you send it, so a preamble, a quotation mark, or a comment about having written "
@@ -456,8 +318,6 @@ WRITE_FRAME_SYSTEM_PROMPT = (
     "is already bare, so you never have to say it.\n"
     "- Use what you are shown only to make your line fit it. If somebody wears a long coat, do "
     "not write that they take it off.\n"
-    "- If somebody speaks in the scene, leave their words out of your line. The model cannot "
-    "draw speech, and quoted words come back drawn as text in the picture.\n"
     "\n" + SDXL_PROMPT_RULES
 )
 """What the prompt writer is told about its job (Madde 176), with the rules above appended.
@@ -573,7 +433,8 @@ ADD_CHARACTER_TAGS = (
     "Write the character as tags: how many people this entry draws, their age, body, hair and "
     "face. The count goes here and nowhere else, because this is the one place a count sits next "
     "to the person it counts. Do not write solo: the same character stands alone in one frame "
-    "and next to somebody in the next, so an entry claiming solo is wrong in half of them. Do not "
+    "and next to somebody in the next, so an entry claiming solo is wrong in half of them. A "
+    "pov_ entry shows only hands and arms and no face, so it carries no count at all. Do not "
     "write clothes here -- those are outfits."
 )
 
@@ -753,12 +614,3 @@ BUILD_PROMPTS = (
     "- This tool writes a Python file named after the structure, replacing what it wrote last "
     "time."
 )
-
-WRITE_NEGATIVE = (
-    "Write a scenario's negative prompt into a text file of its own, beside the prompt list.\n"
-    "- One list for the whole scenario. The file holds the tags and nothing else, so the user can "
-    "copy it whole.\n"
-    "- The file is named after the structure, and each call replaces what it wrote last time: give "
-    "the whole list."
-)
-WRITE_NEGATIVE_TAGS = "The whole negative prompt, as comma-separated tags."

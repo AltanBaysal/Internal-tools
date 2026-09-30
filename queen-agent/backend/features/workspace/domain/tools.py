@@ -17,7 +17,6 @@ from backend.features.workspace.domain import prompt
 from backend.features.workspace.domain.build_prompts import (
     build_prompts,
     cast_of,
-    negative_name,
     prompts_name,
     render_module,
 )
@@ -72,7 +71,6 @@ WRITES_FILES = {
     "create_file",
     "start_scenario",
     "build_prompts",
-    "write_negative",
 }
 
 # What a scenario is on the day it is born (Madde 167). The one place this shape is written down:
@@ -391,21 +389,6 @@ TOOL_SPECS = [
             },
         },
     },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_negative",
-            "description": prompt.WRITE_NEGATIVE,
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "file": {"type": "string", "description": prompt.THE_STRUCTURES_FILE},
-                    "tags": {"type": "string", "description": prompt.WRITE_NEGATIVE_TAGS},
-                },
-                "required": ["file", "tags"],
-            },
-        },
-    },
 ]
 
 
@@ -457,7 +440,7 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
     """Run one call and answer the model in words. A miss is an answer, not a crash.
 
     The engine is here for the one tool that answers out of a model rather than out of the file
-    store (Madde 175). Optional, because the other eighteen neither take it nor notice it.
+    store (Madde 175). Optional, because the other seventeen neither take it nor notice it.
     """
     try:
         args = json.loads(arguments or "{}")
@@ -570,9 +553,6 @@ def run_tool(file_store, project_id, name, arguments, engine=None):
 
     if name == "build_prompts":
         return _build(file_store, project_id, args)
-
-    if name == "write_negative":
-        return _write_negative(file_store, project_id, args)
 
     return ToolResult(f"There is no tool called {name}.", None, "", "Unknown tool")
 
@@ -1433,22 +1413,3 @@ def _build(file_store, project_id, args):
         source,
         counted(len(prompts), "prompt"),
     )
-
-
-def _write_negative(file_store, project_id, args):
-    """The scenario's negative prompt, in a file of its own beside the prompt list (Madde 373).
-
-    The file holds the tags and nothing else: the user copies it whole into queen-editor's negative
-    field. Written over rather than refused when it is there, because the list is rewritten from the
-    cast whenever the cast changes (374). The structure has to exist -- a list beside nothing is a
-    name somebody mistyped -- but it is not opened: nothing in it is read.
-    """
-    source = safe_name(args.get("file"))
-    if file_store.read(project_id, source) is None:
-        return ToolResult("There is no file by that name.", None, source, "No file by that name")
-    tags = str(args.get("tags") or "").strip()
-    if not tags:
-        return ToolResult("A negative prompt needs tags.", None, source, "Refused")
-    written = file_store.write(project_id, negative_name(source), tags)
-    # The source as the target, as a build does: the card already names what was written.
-    return ToolResult(f"Wrote {written}.", written, source, "Written")
