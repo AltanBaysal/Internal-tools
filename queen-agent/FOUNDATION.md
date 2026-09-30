@@ -46,7 +46,7 @@ there is no GPU to borrow and Colab's one benefit still does not apply. What set
 was sharing — which this file used to call a decision we had not made. Handing the app to someone
 else meant either an executable, rebuilt and re-sent by hand on every change, or a notebook that
 clones this repo; and the app was already shaped for the notebook, since everything it is told from
-outside travels in the environment — the root in `QUEENAGENT_ROOT`, the key in `XAI_API_KEY` — and
+outside travels in the environment — the root in `QUEENAGENT_ROOT`, the key in `DEEPSEEK_API_KEY` — and
 the only third-party dependency is Flask.
 Consequence: Colab is a second surface, never a replacement, and its costs are paid where they land.
 Drive holds the work, and the address is a public tunnel — Colab's own kernel proxy would have been
@@ -87,7 +87,8 @@ tools are the product; the vendor behind them should be replaceable without touc
 That promise was tested and held (Madde 146, 2 September): a second provider arrived and the loop
 and the tools did not change — what changed was a table of ids, one map of transports, and two
 places where the two services genuinely differ (how a cache hit is reported, and a header that is
-one vendor's own). Consequence: which models exist is `config.py`'s table, and which one answers is
+one vendor's own). Madde 383 (30 September) took the first provider out again, with its key and
+its header, and the layer stayed as it was: one provider is behind it now. Consequence: which models exist is `config.py`'s table, and which one answers is
 `config.py`'s too — `DEFAULT_MODEL` for every turn, `PROMPT_MODEL` for the one question a tool asks.
 Nothing on the screen names a model and the browser sends none (Madde 358, the owner's decision of
 28 September: one model is left, and it is not to be seen), so no name and no price is kept for a

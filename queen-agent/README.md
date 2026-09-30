@@ -12,8 +12,8 @@ npm install
 npm run build           # dist is committed, so this is only needed after a source change
 
 cd ..
-export XAI_API_KEY=...  # or set it however your shell does
-python main.py          # http://127.0.0.1:8100
+export DEEPSEEK_API_KEY=...  # or set it however your shell does
+python main.py               # http://127.0.0.1:8100
 ```
 
 The bundle is committed because this is no longer the only place the app runs: sharing it means a
