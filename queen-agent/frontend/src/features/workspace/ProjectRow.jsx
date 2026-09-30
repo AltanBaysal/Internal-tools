@@ -43,15 +43,24 @@ export function UndoRow({ name, onUndo }) {
 
 // The name corrected in the row's own place rather than in the browser's box (the design's 170).
 // The draft is the field's, as a message edit's is (EditMessage): only the finished name leaves.
-function RenameField({ name, onDone }) {
+// The field stays until the server has answered, and a refusal leaves the name where it was typed,
+// ready to send again -- as the naming screen keeps the name it could not create (Madde 387).
+function RenameField({ name, onSave, onClose }) {
   const [draft, setDraft] = useState(name);
-  // Enter closes the field, and a field that goes can take its focus with it -- a blur that must
-  // not save the same name a second time.
+  // Enter's field can take its focus with it, and a second press can come before the answer --
+  // neither may send the same name a second time.
   const done = useRef(false);
-  const finish = (save) => {
+  const finish = async (save) => {
     if (done.current) return;
     done.current = true;
-    onDone(save ? draft.trim() : "");
+    const typed = draft.trim();
+    // An empty name, or one given up on, asks the server nothing.
+    if (!save || !typed) {
+      onClose();
+      return;
+    }
+    if (await onSave(typed)) onClose();
+    else done.current = false;
   };
   return (
     <input
@@ -111,11 +120,8 @@ export default function ProjectRow({
     body = (
       <RenameField
         name={project.name}
-        onDone={(name) => {
-          setRenaming(false);
-          // An empty name, or one given up on, asks the server nothing.
-          if (name) onRename?.(project.id, name);
-        }}
+        onSave={(name) => onRename?.(project.id, name)}
+        onClose={() => setRenaming(false)}
       />
     );
   } else if (project.archived) {
