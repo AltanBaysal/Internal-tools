@@ -123,6 +123,12 @@ def test_the_turn_names_no_model():
     assert "model" not in inspect.signature(ModelEngine.stream).parameters
 
 
+def test_the_engine_is_told_of_no_prompt_writer():
+    # Madde 395, the owner's decision of 30 September: the main model writes each frame's action
+    # itself, so the role that wrote them for a tool is gone.
+    assert "prompt_writer" not in inspect.signature(ModelEngine).parameters
+
+
 def test_every_turn_is_spoken_by_the_default():
     # The map can hold more than one transport -- the prompt writer may be another -- and a turn
     # goes to the one the engine was built with as its default.

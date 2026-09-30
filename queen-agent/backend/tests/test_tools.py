@@ -972,6 +972,56 @@ def test_the_single_frame_tools_texts_are_gone():
     assert not hasattr(prompt, "WRITE_FRAME_PROMPT_NOTE")
 
 
+def test_the_bulk_writer_is_gone(tmp_path):
+    # Madde 395, the owner's decision of 30 September: the main model writes each frame's action
+    # itself, so the tool that asked a second model for them goes.
+    assert "write_missing_actions" not in {spec["function"]["name"] for spec in TOOL_SPECS}
+    said = run_tool(_files(tmp_path), "p1", "write_missing_actions", '{"file": "scene.json"}').text
+    assert "no tool called" in said
+
+
+def test_the_bulk_writers_texts_are_gone():
+    # Madde 395. The description and the second model's own page went with the tool: a text kept
+    # for a reader that no longer exists is paid for by nobody and read by nobody.
+    from backend.features.workspace.domain import prompt
+
+    assert not hasattr(prompt, "WRITE_MISSING_ACTIONS")
+    assert not hasattr(prompt, "WRITE_FRAME_SYSTEM_PROMPT")
+    assert not hasattr(prompt, "write_frame_system_prompt")
+
+
+def test_no_tool_text_names_the_bulk_writer():
+    # Madde 395. A description naming a tool that is gone tells the model to make a call that comes
+    # back "there is no tool called that".
+    for spec in TOOL_SPECS:
+        function = spec["function"]
+        assert "write_missing_actions" not in json.dumps(function), function["name"]
+
+
+def test_add_scene_keeps_its_last_line_without_the_tools_name():
+    # Madde 395. Only the sentence naming the tool was taken out; the owner rewrites these texts
+    # himself, so what was left stands word for word.
+    from backend.features.workspace.domain.prompt import ADD_SCENE
+
+    assert ADD_SCENE.endswith("next.\n- A frame is born without its action.")
+
+
+def test_the_runner_takes_no_engine():
+    # Madde 395. The engine came down with every call for the one tool that asked a model a question
+    # of its own; with that tool gone, every tool answers out of the file store alone.
+    import inspect
+
+    assert "engine" not in inspect.signature(run_tool).parameters
+
+
+def test_a_result_carries_no_bill():
+    # Madde 395. Only the bulk writer ever spent anything inside a tool, so the field that carried
+    # its bill to the turn's stamp goes with it.
+    from backend.features.workspace.domain.tools import ToolResult
+
+    assert "spent" not in ToolResult._fields
+
+
 @pytest.mark.parametrize("tool", TAG_TOOLS)
 def test_the_rules_ride_with_every_tool_that_takes_tags(tool):
     spec = next(s for s in TOOL_SPECS if s["function"]["name"] == tool)

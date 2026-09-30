@@ -106,6 +106,19 @@ def test_the_flow_fills_every_waiting_frame_then_builds():
     assert said.index("write_missing_actions") < said.rindex("build_prompts")
 
 
+def test_no_instruction_names_the_bulk_writer():
+    # Madde 395, the owner's decision of 30 September: the main model writes each frame's action
+    # itself, and the tool that handed them to a second model is gone.
+    for skill, said in INSTRUCTIONS.items():
+        assert "write_missing_actions" not in said, skill
+
+
+def test_the_build_step_only_builds():
+    # Madde 395. The owner's own line, word for word: only the tool's name was taken out, and the
+    # owner writes where the actions are asked for himself.
+    assert "Step 5 -- build the prompts\n- Write the list with build_prompts.\n" in _flow()
+
+
 def test_the_flow_no_longer_offers_a_look_at_one_character():
     # Madde 206, and the reading's 18th correction before it: the second step offered a preview of
     # one character and carried on if it was declined, which is a side door written into a flow --

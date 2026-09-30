@@ -123,6 +123,15 @@ def test_no_mode_lets_the_single_frame_tool_through():
         assert "write_frame_prompt" not in allowed, mode
 
 
+def test_no_mode_lets_the_bulk_writer_through():
+    # Madde 395 (the owner, 30 September: the main model writes each action itself), read off the
+    # lists for 206's reason: needs_permission answers False for a tool nobody knows.
+    from backend.features.workspace.domain.modes import _WITHOUT_ASKING
+
+    for mode, allowed in _WITHOUT_ASKING.items():
+        assert "write_missing_actions" not in allowed, mode
+
+
 def test_no_mode_lets_the_step_ticking_tool_through():
     # Madde 203, read off the lists for 206's reason: needs_permission answers False for a tool
     # nobody knows, so a leftover entry claims nothing and passes green.

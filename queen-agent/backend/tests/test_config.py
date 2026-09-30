@@ -86,6 +86,12 @@ def test_the_prompt_writer_is_one_of_the_models_that_are_wired():
     assert config.PROMPT_MODEL in config.MODELS
 
 
+def test_no_model_is_kept_for_writing_actions():
+    # Madde 395, the owner's decision of 30 September: the main model writes each frame's action
+    # itself, so DEFAULT_MODEL is the one choice left.
+    assert not hasattr(config, "PROMPT_MODEL")
+
+
 def test_a_known_model_resolves_to_its_own_wiring():
     model, base_url, _ = config.engine_for("deepseek-flash")
     assert (model, base_url) == ("deepseek-flash", "https://api.deepseek.com")

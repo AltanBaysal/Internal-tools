@@ -27,6 +27,13 @@ def test_nothing_is_left_of_the_complete_road(layer):
 
 
 @pytest.mark.parametrize("layer", [Engine, ModelEngine, ModelClient])
+def test_nothing_is_left_of_the_one_question_road(layer):
+    # Madde 395, the owner's decision of 30 September: the main model writes each frame's action
+    # itself, so the one tool that asked a model a question of its own took this road with it.
+    assert not hasattr(layer, "write_once")
+
+
+@pytest.mark.parametrize("layer", [Engine, ModelEngine, ModelClient])
 def test_a_turn_names_no_conversation(layer):
     # Madde 383. The id only ever reached one provider's own cache header, and that provider is
     # gone: DeepSeek matches prefixes by itself.

@@ -48,6 +48,12 @@ def test_the_prompt_writer_is_wired_from_config():
     assert "config.PROMPT_MODEL" in _main(), "Prompt yazan model config'ten bağlanmıyor"
 
 
+def test_no_prompt_writer_is_wired():
+    """Madde 395, the owner's decision of 30 September: the main model writes each frame's action
+    itself, so the engine is built with its default and nothing else."""
+    assert "prompt_writer" not in _main(), "Prompt yazan model hâlâ bağlanıyor"
+
+
 def test_no_settings_feature_is_wired_in():
     """The engine used to read the key out of a saved settings file. That file was served back in
     plain text over a link with no password, which is why it is gone rather than merely unused."""
