@@ -130,6 +130,20 @@ test("while the reader's edge is being pulled the rail says so", () => {
   expect(rail.className).toBe("rail rail--open");
 });
 
+// Madde 381: the browser's own answer to a press-and-drag is to select text, and the pointer leaves
+// the 6px grip on the first frame -- so every message, card and composer it crossed turned blue. A
+// selection only ever starts on the press, so a press that refuses it keeps the whole drag clean,
+// wherever the pointer goes and wherever it is let go.
+test("pressing the list's grip starts no text selection", () => {
+  render(<FileRail files={FILES} width={320} onResize={vi.fn()} />);
+  expect(fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 500 })).toBe(false);
+});
+
+test("pressing the reader's grip starts no text selection either", () => {
+  render(<FileRail files={FILES} width={320} onResize={vi.fn()} reading={READING} />);
+  expect(fireEvent.mouseDown(screen.getByRole("separator"), { clientX: 500 })).toBe(false);
+});
+
 test("a rail folded because the window is narrow has a label, not a control", () => {
   // There is nowhere to open into, so a button that opens would be a lie. The same sentence the rail
   // already says while it is showing a document.
