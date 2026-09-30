@@ -34,7 +34,7 @@ The store follows the same rule, and it is why there is no file-index file:
 | `chats/<id>.json` | what was said in this conversation, and what it answers with | after each message, on opening a version, and on a trim |
 | `files/<name>` | what did QueenAgent produce | when a file is created |
 | `trash/<name>` | what did the user just delete | on a file's delete |
-| `pinned` | is this project pinned, and since when | on pin; removed on unpin |
+| `pinned` | is this project pinned, and since when | on pin; removed on unpin and on unarchive — an archive leaves it as the place Undo gives back, and an archived project reads as unpinned |
 | `archived` | is this project archived | on archive; removed on unarchive |
 
 **No file repeats another's answer.** The file list is the directory listing itself: the name is the

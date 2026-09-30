@@ -280,6 +280,7 @@ export default function App() {
               onRenameProject={(id, name) => editProject(id, { name })}
               onPinProject={(id, pinned) => editProject(id, { pinned })}
               onArchiveProject={(id, archived) => editProject(id, { archived })}
+              onRestoreProject={(id, pinned) => editProject(id, { archived: false, pinned })}
               onDeleteProject={askToDelete}
             />
           ) : null}

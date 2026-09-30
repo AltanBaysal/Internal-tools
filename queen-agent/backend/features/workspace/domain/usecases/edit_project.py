@@ -23,5 +23,9 @@ def edit_project(store, project_id, name=None, pinned=None, archived=None) -> Pr
         store.set_pinned(project_id, pinned)
     if archived is not None:
         store.set_archived(project_id, archived)
+    # The archive left the pin file as the project's place (Madde 382). Undo asks for the pin with
+    # the unarchive and keeps that place; Unarchive does not, and the project comes back unpinned.
+    if archived is False and current.archived and not pinned:
+        store.set_pinned(project_id, False)
     # Read back rather than assembled here: the counts and the two marks are the disk's answer.
     return store.get(project_id)
