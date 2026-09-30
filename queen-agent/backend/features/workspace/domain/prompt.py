@@ -179,7 +179,8 @@ copies of it is how one of them goes stale. Not in SYSTEM_PROMPT: that text name
 """
 
 THE_CHECKS = (
-    "- Run the checks below in order, each over every frame of the scenario.\n"
+    "- Run the checks in order, each over every frame of the scenario unless this step limits "
+    "them.\n"
     "- When a check starts, write in the plan which check it is: a long scenario can take more "
     "than one turn, and when the user says continue, carry on from there.\n"
     "- A check changes only the frames that fail it. Then call build_prompts, so every changed "
@@ -198,7 +199,7 @@ THE_CHECKS = (
     "\n"
     "Check 2 -- visible parts\n"
     "- Read the camera angle in each frame's action. A frame fails when its prompt names a part of "
-    "somebody that the angle hides, such as a face seen from behind: the model draws it anyway, "
+    "somebody that the angle hides, such as a face from behind: the model draws it anyway, "
     "or gives it to somebody else.\n"
     "- Write a second entry of only what shows, with add_character or add_outfit, named for it: "
     "man body no face, dress from behind. Use it if it is already there.\n"
@@ -230,10 +231,11 @@ THE_CHECKS = (
 )
 """The checks a built scenario is put through, written once (Madde 370).
 
-Start a scenario ends with them and Improve runs them alone. A skill cannot call another, so both
-texts carry this part -- as one constant, because the same rule written twice is how one copy drifts.
-No heading of its own: each skill puts its own step heading in front, since the step's number differs.
-The closing belongs to whatever check comes last, so a new check goes in front of it.
+Start a scenario and Edit prompts end with them, and Improve runs them alone. A skill cannot call
+another, so all three texts carry this part -- as one constant, because the same rule written twice
+is how one copy drifts. No heading of its own: each skill puts its own step heading in front, since
+the step's number differs. The closing belongs to whatever check comes last, so a new check goes in
+front of it.
 
 A changed frame's action is emptied rather than rewritten here, so the model kept for writing actions
 writes it again (Madde 176); the video's prompt is queen-editor's (v9-7), so only the photo prompt is
@@ -256,6 +258,12 @@ turned the man white. So a character's own feature never goes in, and what does 
 other one fits. It goes to a file of its own rather than into the prompt list, because the user
 copies it into queen-editor's negative field by hand; it is written whole, because 374 writes it
 again from the cast whenever the cast changes.
+
+Edit prompts runs them after its change (Madde 374), on the frames that change reached and not on
+the whole scenario: the first line reads every frame unless the step in front limits them, so the
+limit is the editor's own sentence and the block stays one. Check 4's condition is the editor's for
+the same reason -- the flow and Improve always write the list, and after an edit it is written again
+only when the scenario's cast changed, since the list is written from it.
 """
 
 EDIT_PROMPTS = (
@@ -280,10 +288,15 @@ EDIT_PROMPTS = (
     "- Who is in a frame, what they wear, or where it happens: update_frame, once for each frame "
     "the request reaches.\n"
     "\n"
-    "Step 3 -- the answer\n"
+    "Step 3 -- the prompts\n"
     "- Call build_prompts again: the prompt file is rebuilt rather than patched.\n"
-    "- Say what you changed and which frames it reached. The built file is the answer: its "
-    "prompts are never printed back."
+    "- Say what you changed and which frames it reached.\n"
+    "- This step waits for no approval. Go on to Step 4 in the same turn.\n"
+    "\n"
+    "Step 4 -- the checks\n"
+    "- This step limits the checks to the frames your change reached.\n"
+    "- Check 4 runs only if your change touched the scenario's cast: a character added, changed or "
+    "taken out. Otherwise skip it.\n" + THE_CHECKS
 )
 
 START_A_SCENARIO = (
