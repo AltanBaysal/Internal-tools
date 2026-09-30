@@ -816,6 +816,19 @@ def test_after_an_edit_the_negative_is_written_again_only_if_the_cast_changed():
     assert "runs only if" not in _checks()
 
 
+def test_after_an_edit_the_closing_names_the_negative_file_only_if_there_is_one():
+    # Madde 388 (30 Sep, the user: "bunlarıda düzelt"). The closing names both files, and Check 4
+    # writes the negative one -- but after an edit that left the cast alone Check 4 is skipped, and a
+    # scenario written before 373 has no negative file at all. The case is born only there, so the
+    # editor says it beside the skip, and the shared closing stays true for the flow and Improve.
+    step = _edits_checks_step()
+    assert "no negative file" in step
+    assert "the prompt file alone" in step
+    assert step.index("Otherwise skip it") < step.index("no negative file")
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "no negative file" not in _checks()
+
+
 # --- Edit prompts writes speech where the flow does (Madde 385) -----------------------------------
 #
 # 30 Sep, the user: "olur eklensin". 369's rule stood in the flow alone, so speech asked for while
@@ -990,8 +1003,12 @@ def test_the_texts_stay_short_enough_to_be_read():
     #
     # Madde 385 raises the editor's to 856. Its fix step carries 369's sentence about speech, the one
     # the flow's scenes step carries, written once for both; the flow's own count does not move.
+    #
+    # Madde 388 raises the editor's to 870. Its checks step says what the closing names when Check 4
+    # was skipped and the scenario has no negative file -- a case the flow and Improve never meet,
+    # since they always write the list, so the sentence is the editor's and the flow's count stays.
     assert len(_flow().split()) <= 1025
-    assert len(_edit().split()) <= 856
+    assert len(_edit().split()) <= 870
     assert len(_improve().split()) <= 700
 
 
