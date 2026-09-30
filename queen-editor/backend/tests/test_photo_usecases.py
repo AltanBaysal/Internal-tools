@@ -262,7 +262,8 @@ def run_batch(runner, store, generator, project="düğün", text='["a", "b"]', n
 
 def test_plan_frames_is_prompt_major():
     seeds = iter([11, 22, 33, 44])
-    assert plan_frames(3, ["ilk", "ikinci"], "neg", 2, lambda: next(seeds), "nova.safetensors") == [
+    assert plan_frames(3, [{"prompt": "ilk"}, {"prompt": "ikinci"}], "neg", 2,
+                       lambda: next(seeds), "nova.safetensors") == [
         {"id": "P3_0", "type": "photo", "number": 3, "variant": 0, "prompt": "ilk",
          "negative": "neg", "seed": 11, "model": "nova.safetensors", "lora": ""},
         {"id": "P3_1", "type": "photo", "number": 3, "variant": 1, "prompt": "ilk",
@@ -3756,7 +3757,8 @@ def test_the_lora_box_offers_usnr_slime_and_none_in_that_order():
 def test_a_planned_frame_carries_the_lora_it_was_submitted_under():
     """Like the model and the negative, and for the same reason: a live queue holds batches sent
     under different settings, and a frame renders with its own."""
-    frames = plan_frames(0, ["kraliçe"], "", 1, lambda: 7, model="nova3dcg", lora="slime")
+    frames = plan_frames(0, [{"prompt": "kraliçe"}], "", 1, lambda: 7, model="nova3dcg",
+                         lora="slime")
 
     assert frames[0]["model"] == "nova3dcg"
     assert frames[0]["lora"] == "slime"

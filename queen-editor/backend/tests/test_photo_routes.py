@@ -1007,3 +1007,96 @@ def test_a_broken_order_file_does_not_hide_the_gallery(tmp_path):
     generate(client, prompts='["a"]', variants=1)
     (drive / "düğün" / "order.json").write_text("{yarım", encoding="utf-8")
     assert files_of(client) == ["P0_0.png"]
+
+
+# Madde 397: the photo panel's box reads QueenAgent's list. Its shape is QueenAgent's own
+# (build_prompts.render_module): a record per frame, each value in triple quotes.
+THRONE = "Kraliçe tahtında oturuyor; salon boş ve karanlık."
+GARDEN = "Kraliçe gece bahçede yürüyor, fenerler yanıyor."
+QUEEN_AGENT_LIST = '''PROMPTS = [
+    {
+        "scene": """Kraliçe tahtında oturuyor; salon boş ve karanlık.""",
+        "photo": """score_9_up, 1girl, queen, crown BREAK sitting on a throne, throne room""",
+    },
+    {
+        "scene": """Kraliçe gece bahçede yürüyor, fenerler yanıyor.""",
+        "photo": """score_9_up, 1girl, queen BREAK walking, night garden, lanterns""",
+    },
+]
+'''
+
+
+def scenes_of(client, project="düğün"):
+    """{card: its scene} -- what the frames API hands out."""
+    return {row["id"]: row["scene"]
+            for row in client.get(f"/api/projects/{project}/frames").get_json()["frames"]}
+
+
+def test_queen_agent_s_list_opens_a_card_per_frame(tmp_path):
+    generator = FakeGenerator()
+    client, _ = make_client(tmp_path, generator=generator)
+
+    resp = generate(client, prompts=QUEEN_AGENT_LIST, variants=1)
+
+    assert resp.status_code == 202
+    assert resp.get_json()["added"] == 2
+    # The photo prompt is the record's photo, and the negative is the panel's own: the list brings
+    # none (v8-3).
+    assert [(prompt, negative) for prompt, negative, _seed, _model in generator.calls] == [
+        ("score_9_up, 1girl, queen, crown BREAK sitting on a throne, throne room", "blurry"),
+        ("score_9_up, 1girl, queen BREAK walking, night garden, lanterns", "blurry"),
+    ]
+
+
+def test_the_frames_api_hands_out_each_card_s_scene(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    generate(client, prompts=QUEEN_AGENT_LIST, variants=1)
+
+    assert scenes_of(client) == {"P0_0": THRONE, "P1_0": GARDEN}
+
+
+def test_a_card_from_the_flat_list_has_no_scene(tmp_path):
+    client, _ = make_client(tmp_path)
+
+    generate(client, prompts='["a"]', variants=1)
+
+    assert scenes_of(client) == {"P0_0": ""}
+
+
+def test_a_video_variant_keeps_the_scene_of_the_frame_it_was_copied_from(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts=QUEEN_AGENT_LIST, variants=1)
+
+    client.post("/api/projects/düğün/layers/video", json={"variants": 2})
+
+    assert scenes_of(client)["P0_1"] == THRONE
+
+
+def test_a_twin_keeps_its_sources_scene(tmp_path):
+    client, _ = make_client(tmp_path)
+    generate(client, prompts=QUEEN_AGENT_LIST, variants=1)
+
+    copy_frames_request(client, ["P0_0"])
+
+    assert scenes_of(client)["C1_P0_0"] == THRONE
+
+
+def test_a_frame_made_again_with_new_words_keeps_the_scene(tmp_path):
+    # New words start a new prompt's family, but the picture is still this frame's.
+    client, _ = make_client(tmp_path)
+    generate(client, prompts=QUEEN_AGENT_LIST, variants=1)
+
+    frame = regenerate_request(client, "P0_0", prompt="başka").get_json()["frame"]
+
+    assert scenes_of(client)[frame] == THRONE
+
+
+def test_a_card_whose_photo_is_deleted_keeps_its_scene(tmp_path):
+    client, drive = make_client(tmp_path)
+    generate(client, prompts=QUEEN_AGENT_LIST, variants=1)
+    give_it_a_video(drive)
+
+    delete_layer_request(client, ["P0_0"], layer="photo")
+
+    assert scenes_of(client)["P0_0"] == THRONE
