@@ -510,7 +510,6 @@ def test_the_scenes_step_writes_wanted_speech_into_the_frames_scene_sentence():
     assert "that frame's scene sentence" in step
     # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
     assert "speak" not in (said[:start] + said[end:]).lower()
-    assert "speak" not in _edit().lower()
 
 
 def test_the_frame_writer_leaves_spoken_words_out_of_the_action_line():
@@ -817,6 +816,42 @@ def test_after_an_edit_the_negative_is_written_again_only_if_the_cast_changed():
     assert "runs only if" not in _checks()
 
 
+# --- Edit prompts writes speech where the flow does (Madde 385) -----------------------------------
+#
+# 30 Sep, the user: "olur eklensin". 369's rule stood in the flow alone, so speech asked for while
+# editing went into the photo prompt or nowhere. The same sentence goes into the editor's fix step,
+# where it makes its change -- one constant, so the two cannot drift apart.
+
+
+def _edits_fix_step():
+    said = _edit()
+    return said[said.index(EDIT_STEPS[1]) : said.index(EDIT_STEPS[2])]
+
+
+def test_edit_prompts_writes_wanted_speech_into_the_frames_scene_sentence():
+    step = _edits_fix_step()
+    assert "speak" in step
+    assert "quotation marks" in step
+    assert "that frame's scene sentence" in step
+    # Asked after the presence above, so the absence cannot pass on a text nobody wrote.
+    assert "speak" not in _edit().replace(step, "").lower()
+
+
+def test_the_speech_sentence_is_written_once_and_both_skills_carry_it():
+    from backend.features.workspace.domain.prompt import SPEECH_IN_THE_SCENE
+
+    assert "speak" in SPEECH_IN_THE_SCENE
+    assert "that frame's scene sentence" in SPEECH_IN_THE_SCENE
+    flow = _flow()
+    scenes = flow[flow.index(STEPS[3]) : flow.index(STEPS[4])]
+    assert scenes.count(SPEECH_IN_THE_SCENE) == 1
+    assert flow.count(SPEECH_IN_THE_SCENE) == 1
+    assert _edits_fix_step().count(SPEECH_IN_THE_SCENE) == 1
+    assert _edit().count(SPEECH_IN_THE_SCENE) == 1
+    # Improve writes no scene the user asks for, so it carries no speech.
+    assert "speak" not in _improve().lower()
+
+
 def test_the_plan_no_longer_opens_with_a_line_of_context():
     # Madde 186 asked for that line and Madde 198 takes it back, with the question that fed it. The
     # claim is not dropped, it is turned around: with nobody asked what the work is for, a plan
@@ -952,6 +987,9 @@ def test_the_texts_stay_short_enough_to_be_read():
     # Madde 374 raises the editor's to 830. It ends with the checks now, as the flow does, and its own
     # part gains the step that says which frames they read and when the negative is written again.
     # That part stays near 300 words; the rest is the block the flow's cap already binds.
+    #
+    # Madde 385 raises the editor's to 856. Its fix step carries 369's sentence about speech, the one
+    # the flow's scenes step carries, written once for both; the flow's own count does not move.
     assert len(_flow().split()) <= 1025
-    assert len(_edit().split()) <= 830
+    assert len(_edit().split()) <= 856
     assert len(_improve().split()) <= 700
