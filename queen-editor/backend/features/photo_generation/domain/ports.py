@@ -27,7 +27,8 @@ class PhotoGenerator(Protocol):
 
 
 class PromptWriter(Protocol):
-    def write(self, prompts: dict, mode: str) -> str:
+    def write(self, prompts: dict, mode: str, source: tuple | None = None,
+              scene: str = "") -> str:
         """The prompt a job of this type should be produced with.
 
         `prompts` is what the frame already says: {"photo": …} today, plus the video's own when
@@ -37,6 +38,11 @@ class PromptWriter(Protocol):
         `mode` is how the job is being produced (domain/production_mode.py). A loop video has to be
         asked for a motion that returns (madde 307); a sound takes the argument and ignores it, the
         way every producer takes `references`.
+
+        `source` is the file the layer is made from as (name, bytes) -- the one its producer is
+        handed -- and `scene` is the frame's scenario, empty for a frame that has none. H3's writer
+        shows the model both (madde 400); the others take them and ignore them, for the same one
+        call shape.
         """
         ...
 

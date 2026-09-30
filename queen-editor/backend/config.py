@@ -72,3 +72,14 @@ XAI_API_KEY = os.environ.get("QE_XAI_API_KEY", "")
 XAI_MODEL = os.environ.get("QE_XAI_MODEL", "grok-4.3")
 XAI_URL = os.environ.get("QE_XAI_URL", "https://api.x.ai/v1/chat/completions")
 XAI_TIMEOUT = 120          # seconds per request; one prompt is a short answer
+
+# Queen AI: the model that writes H3's video prompt looking at the frame's photo (madde 400). The key
+# comes from Colab Secrets through the notebook, under the name QueenAgent's notebook reads too;
+# without one the app still starts, and only an H3 video job's turn stops the run with the client's
+# own sentence.
+DEEPSEEK_API_KEY = os.environ.get("QE_DEEPSEEK_API_KEY", "")
+# Not read from the environment, unlike xAI's two: those travel so the notebook's key probe asks
+# exactly what the app asks, and nothing probes DeepSeek.
+DEEPSEEK_MODEL = "deepseek-flash"
+DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
+DEEPSEEK_TIMEOUT = 120     # seconds per request; one prompt is a short answer

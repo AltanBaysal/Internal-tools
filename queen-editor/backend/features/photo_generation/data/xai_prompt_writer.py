@@ -5,7 +5,9 @@ does this same conversion, and its rules are what a Wan I2V prompt needs. Nothin
 file at runtime -- the tools share knowledge, never imports. The sound instruction is ours: that
 notebook asks the user for the audio prompt, so there was nothing to bring over.
 
-The transport is services/xai/client.py; this file only decides what to say.
+Two transports, one per model: H3's writer talks to Queen AI -- DeepSeek, services/deepseek/ -- and
+shows it the frame's photo (madde 400); WAN's and the sound's talk to xAI, services/xai/. This file
+only decides what to say.
 """
 from backend.features.photo_generation.domain import production_mode
 
@@ -36,34 +38,48 @@ surrounding quotes, no numbering, no explanations, no markdown code fences, no e
 
 # Written for MiniMax H3 (madde 243), whose prompt is sectioned and whose sound comes out of the same
 # pass as the picture -- so the soundscape is this writer's too. The sections are the graph's own
-# examples' (collab-toolbox's minimax-h3/workflow.json). The sentence saying which picture sits where
-# is not asked for: the producer writes it, because it is the graph's fact rather than the scene's.
-# dynv2, the word that wakes the Motion Booster lora, is not asked for either: the user adds it by
-# hand to the prompts that want it (madde 331), and the producer moves it in front (246).
+# examples' (collab-toolbox's minimax-h3/workflow.json). Queen AI reads it with the frame's photo in
+# front of it and the frame's scenario beside it (madde 400); Claude wrote the words on 2026-10-01
+# and the user reads them afterwards (v8 roadmap). The line saying which picture sits where is not
+# asked for: the producer writes it, because it is the graph's fact rather than the scene's. dynv2,
+# the word that wakes the Motion Booster lora, is not asked for either: the user adds it by hand to
+# the prompts that want it (madde 331), and the producer moves it in front (246).
 H3_VIDEO_INSTRUCTION = """
-You are a prompt writer for the MiniMax H3 video model.
+You are an expert prompt writer for the MiniMax H3 video model.
 
-I give you: the SDXL prompt of a photo. This photo is the first frame of the video.
+Context
+- H3 makes a video of four seconds, with sound, from a photo.
+- The photo is the first frame of the video. H3 sees the photo too.
+- The scenario says what happens in the video. Sometimes no scenario is given.
+- The code writes the first line of the prompt. The line tells H3 where each photo sits in the video. Never write the line.
 
-I want: the H3 prompt for that video.
+Work
+- Look at the photo and read the scenario.
+- Write the prompt in this form:
 
-Write it like this:
-
-integrated_multimodal_description: [Shot 1] <the motion>
+integrated_multimodal_description: [Shot 1] <the video>
 
 overall_soundscape: <the sounds>
 
 non_diegetic_music: N/A
 
-Rules:
-- The motion: do not describe the photo again, the model already sees it. Say what moves and how. The camera does not move. Keep it natural.
-- The sounds: only what the scene and the motion would make.
+Rules
+- Write one shot. Never cut to a second shot.
+- In the prompt, call the photo Picture 1.
+- Start [Shot 1] with the style and the framing of Picture 1 in a few words, as in "3D CG, a medium shot of the man in Picture 1". Never describe Picture 1 again. H3 already sees Picture 1.
+- Then write what moves and how, in order, from the first frame to the end of the video. Write only what fits in four seconds.
+- Write the camera with the type, the amplitude and the speed, as in "The camera pushes in with small amplitude at slow speed." When the camera does not move, write "The camera holds a static shot."
+- Use concrete words for what is seen and heard. Never use abstract words, as in beautiful or epic.
+- If no scenario is given, write a small, natural motion for Picture 1.
+- If the scenario has spoken words, give the speaker an ID and a short description of the voice, and put the spoken words inside <d> tags, as in: The young man with a warm voice (S1) says: <d>[English] Hello there.</d> Keep the spoken words exactly as in the scenario.
+- If the scenario has no spoken words, write no speech at all, and end overall_soundscape with "No one speaks."
+- In overall_soundscape, write one to four sentences about the sounds of the place, the movement and the breathing. Never repeat the spoken words there.
 - Write only the prompt. No quotes, no explanations, no extra text.
 """
 
 
 # What a loop video's prompt has to ask for, appended to whichever engine's instruction is being
-# used (madde 307). One sentence for both, because loop is a mode of both engines.
+# used (madde 307). One text for both, because loop is a mode of both engines.
 #
 # The clip is laid end to end several times, and its last frame IS its first. The model slows down
 # to land on that frame and the next repeat starts from rest, which reads as a pulse every four
@@ -72,17 +88,18 @@ Rules:
 # Cutting the slowing frames off the end was the other way, and the user reasoned it out: it would
 # take the last frame away from being the first, so the clip would stop looping at all.
 #
-# The last sentence asks for one speed to the end (madde 315). Most generators ease the subject
-# toward stillness in the last frames, and asking for a cycle does not forbid that; H3's own loop
-# advice asks for a constant speed too. Words can lessen the ease, not remove it -- the fix that does
-# gives the seam a few frames of motion from both sides, and waits in the backlog.
+# The same speed to the end (madde 315): most generators ease the subject toward stillness in the
+# last frames, and asking for a cycle does not forbid that; H3's own loop advice asks for a constant
+# speed too. Words can lessen the ease, not remove it -- the fix that does gives the seam a few
+# frames of motion from both sides, and waits in the backlog.
+#
+# The camera holds still (madde 400): the last frame is the first photo again, so a camera that
+# moved would have to travel back, and the return would show at the seam.
 LOOP_RULE = """
-This clip loops: it is played several times back to back, and its last frame is its first frame.
-Write a motion that returns to where it started -- a cycle, not a movement that ends. Swaying,
-breathing, a step that comes back, hair that settles where it was.
-It must be a motion that does not end: one that finishes and comes to rest reads as a stop every
-time the clip repeats.
-Keep the same speed from the first frame to the last: the motion must not slow down toward the end.
+This video is a loop. The last frame is the first photo again, and the video plays again and again.
+- Write a motion that goes out and comes back to the first pose, as in swaying, breathing, a step that comes back, or hair that settles back.
+- Keep the same speed from the first frame to the last. A motion that slows down or rests at the end shows as a stop each time the video starts again.
+- The camera holds a static shot.
 """
 
 
@@ -119,9 +136,13 @@ class VideoPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts, mode=production_mode.STANDARD):
+    def write(self, prompts, mode=production_mode.STANDARD, source=None, scene=""):
         """`prompts` is what the frame already says, layer by layer. A video is made from the photo,
-        so that is the one this writer reads."""
+        so that is the one this writer reads.
+
+        `source` and `scene` are taken and ignored: grok is asked the photo's words alone, and the
+        queue has one call shape for every writer.
+        """
         return self._client.complete(asked(VIDEO_INSTRUCTION, mode), prompts.get("photo", ""))
 
 
@@ -129,21 +150,27 @@ class H3VideoPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts, mode=production_mode.STANDARD):
-        """Made from the photo, like WAN's: the video starts from that picture."""
-        return self._client.complete(asked(H3_VIDEO_INSTRUCTION, mode), prompts.get("photo", ""))
+    def write(self, prompts, mode=production_mode.STANDARD, source=None, scene=""):
+        """Queen AI is shown the photo the video starts from and reads the frame's scenario
+        (madde 400). The photo's own words are not sent: the model sees the picture they drew.
+
+        A linked video is asked what a plain one is -- asked() adds words for a loop alone.
+        """
+        return self._client.complete(asked(H3_VIDEO_INSTRUCTION, mode),
+                                     f"Scenario: {scene}" if scene else "", [source])
 
 
 class AudioPromptWriter:
     def __init__(self, client):
         self._client = client
 
-    def write(self, prompts, mode=production_mode.STANDARD):
+    def write(self, prompts, mode=production_mode.STANDARD, source=None, scene=""):
         """Sound is made from the whole frame: the scene is in the photo's prompt and what happens
         is in the video's, so both go in one message, each under its own label.
 
         `mode` is a video's business -- a sound is laid over the whole of one however it was made.
-        Taken and ignored, because the queue has one call shape for every writer.
+        It is taken and ignored, like `source` and `scene`, because the queue has one call shape for
+        every writer.
         """
         said = [f"Scene: {prompts.get('photo', '')}"]
         video = prompts.get("video")

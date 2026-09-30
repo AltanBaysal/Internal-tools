@@ -14,7 +14,14 @@ second map, exactly the way it finds the producer.
 """
 import time
 
-from backend.features.photo_generation.domain import layers, policy, production_mode, queue, seed
+from backend.features.photo_generation.domain import (
+    layers,
+    policy,
+    production_mode,
+    queue,
+    scene,
+    seed,
+)
 from backend.features.photo_generation.domain.photo_name import layer_file, photo_file
 
 
@@ -222,6 +229,10 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                            "pending": [photo_file(j["id"]) for j in owed[1:]]})
             started = clock()
             try:
+                # Held in a variable because it is asked for more than once: the writer is shown the
+                # file the layer is made from, the producer makes the layer from it, and a loop ends
+                # on it too. Reading it again would be the same download from Drive.
+                under = _source_for(kind, store, slots, project, fid)
                 writer = (writers or {}).get(kind)
                 if writer and not current["prompt"] and written is None:
                     # Asked here rather than when the job was queued: a job that waits hours would
@@ -230,17 +241,17 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     # Inside the try on purpose -- a model that will not answer is a failure like
                     # any other, and the three attempts and the frame-fault rule already say what
                     # happens next.
-                    source = _prompts_of(record, project, fid)
+                    words = _prompts_of(record, project, fid)
                     # Nothing to convert: asking would buy an invented prompt. I2V sees the picture
                     # itself, so producing with an empty prompt is a real answer here.
-                    if any(source.values()):
+                    if any(words.values()):
                         # The mode goes with the words: a loop video has to be asked for a motion
-                        # that returns, and the frame's own prompts cannot say that (madde 307).
-                        written = writer.write(source, production_mode.of(current))
+                        # that returns, and the frame's own prompts cannot say that (madde 307). The
+                        # picture and the scenario go too: H3's writer looks at the one and reads the
+                        # other (madde 400).
+                        written = writer.write(words, production_mode.of(current), source=under,
+                                               scene=scene.of(scene.by_number(jobs), fid))
                 prompt = current["prompt"] or written or ""
-                # Held in a variable because a loop ends on the very file it is made from: reading
-                # it twice would be the same download from Drive twice, once per video.
-                under = _source_for(kind, store, slots, project, fid)
                 # Only a job made of the pool has any, and it is asked for now rather than when
                 # the job was queued: the pool is the user's to change in between.
                 pool = (references(project)
