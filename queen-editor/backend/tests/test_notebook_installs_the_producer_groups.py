@@ -447,6 +447,28 @@ def test_the_freshly_installed_library_is_reachable_from_the_running_kernel():
     assert "sys.path.insert(0, MMAUDIO_DIR)" in _source()
 
 
+def test_the_sound_engine_cell_says_each_stage_as_it_starts():
+    """The user's words (madde 398): "burda takıldı, output'ta bir şey de yok". A line as each stage
+    starts -- the clone, the pip install -- says which one the cell is in, and its time says since
+    when."""
+    cell = _cell("# === Ses motoru — MMAudio kütüphanesi ===")
+    lines = [line.strip() for line in cell.splitlines() if line.strip()]
+    stages = [i for i, line in enumerate(lines) if line.startswith("run(")]
+
+    assert stages, "Ses motoru hücresi hiçbir komut çalıştırmıyor"
+    for i in stages:
+        assert lines[i - 1].startswith("log("), f"Bu aşama başlarken bir satır yazılmıyor: {lines[i]}"
+
+
+def test_the_sound_engine_s_pip_is_not_silenced():
+    """pip -q hides every line up to an error, and the install can take thirty minutes (madde 398)."""
+    pip = re.search(r'run\(\["pip", "install"[^\]]*\]',
+                    _cell("# === Ses motoru — MMAudio kütüphanesi ==="))
+
+    assert pip, "Ses motoru hücresi MMAudio'yu pip ile kurmuyor"
+    assert '"-q"' not in pip.group(0), f"Ses motorunun pip'i susturulmuş: {pip.group(0)}"
+
+
 def test_the_app_is_told_where_the_notebook_installed():
     """The notebook owns the model tree now, so it is the side that names the path -- rather than
     both sides writing /content/ComfyUI and hoping they stay equal."""
