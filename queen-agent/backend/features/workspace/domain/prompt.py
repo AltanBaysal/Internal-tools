@@ -214,16 +214,26 @@ THE_CHECKS = (
     "an entry with update_character, update_outfit or update_location, which reaches every frame "
     "naming it.\n"
     "\n"
-    "When the checks are done, close by naming the file and saying it is ready. Do not print the "
-    "prompts back, offer nothing, and ask nothing: this is the last word."
+    "Check 4 -- the negative prompt\n"
+    "- Write one negative prompt for the scenario from its cast as it stands, and give it whole to "
+    "write_negative: it is rewritten, never added to.\n"
+    "- It keeps one character's features off another, but it works on the whole picture, so never "
+    "write a character's own feature: dark skin in it turned the man white.\n"
+    "- Write the opposite of that feature instead, in words only its owner fits: pale male, white "
+    "man for a dark-skinned man. Where that cannot be done, leave it out: the entries keep a "
+    "feature on its owner.\n"
+    "- It changes no frame. Show the list and wait for their yes.\n"
+    "\n"
+    "When the checks are done, close by naming the prompt file and the negative file, and saying "
+    "they are ready. Do not print the prompts back, offer nothing, and ask nothing: this is the "
+    "last word."
 )
 """The checks a built scenario is put through, written once (Madde 370).
 
 Start a scenario ends with them and Improve runs them alone. A skill cannot call another, so both
 texts carry this part -- as one constant, because the same rule written twice is how one copy drifts.
 No heading of its own: each skill puts its own step heading in front, since the step's number differs.
-The next check (373) goes in after Check 3, in front of the closing, which belongs to whatever check
-comes last.
+The closing belongs to whatever check comes last, so a new check goes in front of it.
 
 A changed frame's action is emptied rather than rewritten here, so the model kept for writing actions
 writes it again (Madde 176); the video's prompt is queen-editor's (v9-7), so only the photo prompt is
@@ -239,6 +249,13 @@ is the parts joined, and too much often shows only in the sum. The file is rebui
 patched, so a part is simplified where it comes from. The action is rewritten by the agent, which
 has read the line; emptied, it would go back to a model that has not. An entry is changed whole,
 since what cannot be drawn in one frame cannot be drawn in any.
+
+Check 4 is the user's negative prompt (Madde 373), and its rules are the user's own lessons. The list
+reaches the whole picture, never one person: dark skin written into it to keep it off the woman
+turned the man white. So a character's own feature never goes in, and what does is a tag only the
+other one fits. It goes to a file of its own rather than into the prompt list, because the user
+copies it into queen-editor's negative field by hand; it is written whole, because 374 writes it
+again from the cast whenever the cast changes.
 """
 
 EDIT_PROMPTS = (
@@ -708,3 +725,12 @@ BUILD_PROMPTS = (
     "- This tool writes a Python file named after the structure, replacing what it wrote last "
     "time."
 )
+
+WRITE_NEGATIVE = (
+    "Write a scenario's negative prompt into a text file of its own, beside the prompt list.\n"
+    "- One list for the whole scenario. The file holds the tags and nothing else, so the user can "
+    "copy it whole.\n"
+    "- The file is named after the structure, and each call replaces what it wrote last time: give "
+    "the whole list."
+)
+WRITE_NEGATIVE_TAGS = "The whole negative prompt, as comma-separated tags."
