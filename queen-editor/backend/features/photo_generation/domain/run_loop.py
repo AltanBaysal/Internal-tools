@@ -174,7 +174,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
 
     `log` is where the per-frame timing line goes -- None means nobody asked for one. What the line
     says is decided here; where it lands is main.py's to choose, so the loop can be tested without
-    capturing output and the clock can be faked instead of waited on.
+    capturing output and the clock can be faked instead of waited on. The render's seconds on that
+    line are the ones written on the produced layer's row, which the card shows (madde 405).
 
     `stills` is what pulls a picture out of a video (see ports.Stills). None means no picture is
     pulled at all, which is what the loop did before madde 296 and what a run with no ffmpeg does.
@@ -256,7 +257,6 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                            "current": None if writing else current,
                            "pending": [photo_file(j["id"])
                                        for j in (owed if writing else owed[1:])]})
-            started = clock()
             try:
                 # Held in variables because each is asked for more than once: the writer is shown
                 # the file the layer is made from and the picture a video arrives at, the producer
@@ -289,6 +289,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                             if references
                             and production_mode.of(current) == production_mode.REFERENCE
                             else ())
+                    # The model's own seconds and nothing else: no wait in the queue, no prompt
+                    # being written, no Drive read of what the layer is made from (madde 405).
+                    started = clock()
                     data = producer.generate(prompt, current["negative"], chosen,
                                              current["model"], current.get("lora", ""),
                                              source=under, end=ending, references=pool)
@@ -334,6 +337,9 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                                         "status": queue.DONE,
                                         "prompt": prompt, "negative": current["negative"],
                                         "seed": chosen, "createdAt": now(),
+                                        # The attempt that made the layer, not the ones that fell:
+                                        # those made nothing.
+                                        "renderSeconds": round(rendered - started, 1),
                                         **_made_with(current, ending)})
                 # The one job that fills two slots: a card whose picture is missing takes the
                 # video's first frame as its own, so the gallery and the export both find one

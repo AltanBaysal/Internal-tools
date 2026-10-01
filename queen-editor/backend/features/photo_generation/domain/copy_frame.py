@@ -80,8 +80,9 @@ def placed(gallery, born):
 
 # What a carried layer keeps about how it was made: the frame's own map, and the field the row
 # takes. One file, two frames holding it -- without these the twin's tile would read video while the
-# original reads loop, and its detail page could not say where the video arrived.
-CARRIED = (("modes", "mode"), ("endsOn", "endsOn"))
+# original reads loop, its detail page could not say where the video arrived, and it would show no
+# production time where the original shows one.
+CARRIED = (("modes", "mode"), ("endsOn", "endsOn"), ("renderSeconds", "renderSeconds"))
 
 
 def _carry(record, project, copy, frame, slots, now):

@@ -86,9 +86,10 @@ def _reasons(cells):
 def _per_layer(cells, field):
     """{layer: the field's value} -- only the layers whose line carried it.
 
-    Both of this shape's users answer the same kind of question about one layer at a time: which
-    mode made it, and which picture it arrived at. Written as maps rather than fields named for the
-    video, because both would have to be renamed the day a second layer gains a mode.
+    Its users answer the same kind of question about one layer at a time: which mode made it, which
+    picture it arrived at, and how long the model worked on it. Written as maps rather than fields
+    named for one layer, because they would have to be renamed the day a second layer gains one. A
+    layer whose line carried nothing is absent -- an old layer, or a red one.
     """
     return {slot: cell[field] for slot, cell in cells.items() if cell.get(field)}
 
@@ -130,6 +131,10 @@ def list_frames(record, store, plan_store, order_store, project):
                 "owed": owed.get(fid, []), "failed": _failed_layers(cells),
                 "errors": _reasons(cells), "modes": _per_layer(cells, "mode"),
                 "endsOn": _per_layer(cells, "endsOn"),
+                # How long the model worked on each layer (madde 405). After `base` on purpose: a
+                # card read from the record is spread from a produced row, and that row's own
+                # single number must not reach the screen as the card's answer.
+                "renderSeconds": _per_layer(cells, "renderSeconds"),
                 "prompts": _words(said.get(fid, {}), base.get("prompt"), kind),
                 # Read-only: no request can change it. Empty is a card with none.
                 "scene": scene.of(scenes, fid),

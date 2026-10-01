@@ -154,9 +154,11 @@ class PhotoRecord(Protocol):
         ...
 
     def slots(self, project: str) -> dict:
-        """{frame: {slot: {"status", "file"[, "error"]}}} -- the latest line per (frame, slot).
+        """{frame: {slot: {"status", "file"[, "error"][, "renderSeconds"]}}} -- the latest line per
+        (frame, slot).
 
         "error" is there only where the line carried one, which is only on a failure.
+        "renderSeconds" only on a layer produced since madde 405: the seconds the model worked on it.
         """
         ...
 
