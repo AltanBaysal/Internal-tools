@@ -353,8 +353,8 @@ function PromptBox({ label, value, changed, height, onChange }) {
 // opens here -- produced, waiting, being rendered or failed -- and the page is live, so the one the
 // worker is holding turns into its photo without a reload.
 export default function PhotoDetail({ project, frame: fid }) {
-  const { frames, current, currentLayer, startedAt, error, removePhotos, removeLayer, regenerate,
-          retry } = useGeneration(project);
+  const { frames, current, batch, currentLayer, startedAt, error, removePhotos, removeLayer,
+          regenerate, retry } = useGeneration(project);
   // The rows the renderer offers, for two lines in the column on the right: a frame stores its
   // model and its lora as ids -- the names they were picked by are in these lists and nowhere else.
   // The hook remembers the answer for the visit, so opening frames costs nothing.
@@ -404,9 +404,11 @@ export default function PhotoDetail({ project, frame: fid }) {
     backwards.current = back;
     navigate(photoPath(project, to.id));
   }
-  // Which layer the worker is holding on THIS frame, if any -- the one thing about a frame that
-  // has no state on disk.
-  const running = frame && frame.id === current ? (currentLayer || "photo") : null;
+  // Which layer the worker is holding on THIS frame, if any -- alone or in a batch with others of
+  // its prompt (madde 411). The one thing about a frame that has no state on disk.
+  const running = frame && (frame.id === current || batch.includes(frame.id))
+    ? (currentLayer || "photo")
+    : null;
   // The photo layer's state is the frame's own: it is the frame.
   const state = running === "photo" ? "running" : frame?.status;
   const produced = state === "done";

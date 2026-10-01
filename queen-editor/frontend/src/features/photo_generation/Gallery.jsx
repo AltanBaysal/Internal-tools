@@ -171,8 +171,8 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
 // Artboard 03/04/05: five columns, one sequence. Every frame stands in its own place whatever
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
-export default function Gallery({ project, frames, current, currentLayer, startedAt, running,
-                                  onReorder, onDelete, onCopy, onRemoveLayer, onRetry,
+export default function Gallery({ project, frames, current, batch = [], currentLayer, startedAt,
+                                  running, onReorder, onDelete, onCopy, onRemoveLayer, onRetry,
                                   onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
@@ -186,6 +186,9 @@ export default function Gallery({ project, frames, current, currentLayer, starte
   // Derived rather than a flag of its own, because the two drifting apart is exactly what left a
   // gallery covered in rings after its bar had already gone.
   const selecting = selected.length > 0;
+  // Every frame the worker is making: the one it holds and the rest of its batch (madde 411). None
+  // of them can be chosen, and each draws the live time.
+  const making = (fid) => fid === current || batch.includes(fid);
   // Where a shift-press measures its run from: the last card pressed without shift, the way a file
   // list picks. Drawn nowhere, so a ref (madde 231).
   const anchor = useRef(null);
@@ -243,7 +246,7 @@ export default function Gallery({ project, frames, current, currentLayer, starte
     if (event.shiftKey && selecting && from >= 0) {
       const to = ids.indexOf(fid);
       const run = ids.slice(Math.min(from, to), Math.max(from, to) + 1)
-        .filter((id) => id !== current);
+        .filter((id) => !making(id));
       setSelected((chosen) => [...chosen, ...run.filter((id) => !chosen.includes(id))]);
       return;
     }
@@ -314,9 +317,9 @@ export default function Gallery({ project, frames, current, currentLayer, starte
     );
   }
 
-  // Everything but the frame the worker is holding can be selected: a disabled ring would raise
+  // Everything but the frames the worker is making can be selected: a disabled ring would raise
   // "why can I not select this?", and a ring that is simply not there raises nothing.
-  const selectable = frames.filter((frame) => frame.id !== current);
+  const selectable = frames.filter((frame) => !making(frame.id));
   // Three windows, because a pending frame is not a produced one: telling someone that 5 frames
   // will be deleted when 3 of them do not exist yet would be a lie, and "cannot be undone" is only
   // true of the ones that do. The mixed one is the title alone -- with both halves named there, a
@@ -378,7 +381,7 @@ export default function Gallery({ project, frames, current, currentLayer, starte
           // taking it away would say the photo went somewhere.
           // Which layer of this frame the worker is holding, if any -- not to be confused with
           // `running`, the prop above, which says whether the queue is moving at all.
-          const rendering = frame.id === current ? (currentLayer || "photo") : null;
+          const rendering = making(frame.id) ? (currentLayer || "photo") : null;
           const state = rendering === "photo" ? "running" : frame.status;
           const produced = state === "done";
           const owns = owned(frame);

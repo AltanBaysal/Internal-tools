@@ -22,6 +22,7 @@ from backend.features.photo_generation.domain import (
     queue,
     scene,
     seed,
+    variant_batch,
 )
 from backend.features.photo_generation.domain.photo_name import layer_file, photo_file
 
@@ -157,6 +158,27 @@ def _made_with(job, end):
     return made
 
 
+def _made_together(owed, jobs, slots, producer):
+    """The jobs this turn's render makes: the head of the queue, and the variants of its prompt that
+    go with it in one batch (madde 411).
+
+    Together only when the producer can make a batch at all -- a photo's can, a video's and a
+    sound's cannot -- and the card holds every variant the prompt was asked for. Asked with that
+    count rather than with what is left of it: a prompt too big for the card is made one by one to
+    its end, as before, not one by one until the rest happens to fit.
+    """
+    group = variant_batch.together(owed, slots)
+    if len(group) > 1 and hasattr(producer, "fits_batch") \
+            and producer.fits_batch(variant_batch.asked(jobs, group[0])):
+        return group
+    return group[:1]
+
+
+def _files(name, together):
+    """Each made job's file, in order: the head's own name, then the other pictures of its batch."""
+    return [name] + [photo_file(other["id"]) for other in together[1:]]
+
+
 def make_job(runner, store, record, plan_store, producers, now, project,
              clock=time.monotonic, log=None, order_store=None, writers=None,
              new_seed=seed.random_seed, named=None, stills=None, references=None):
@@ -263,13 +285,16 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             # is written nothing is being made and every owed frame waits -- current is set to None
             # rather than left out, because a report merges into the one before it. startedAt is
             # cleared for the same reason: no model is working on anything until the render below
-            # says so, and a cleared one is what makes a retried attempt's counter start again.
+            # says so, and a cleared one is what makes a retried attempt's counter start again. So
+            # is batch: which frames the render makes with this one is the render's to say.
             progress = {**queue.counts(jobs, slots),
                         "current": None if writing else current,
                         "pending": [photo_file(j["id"])
                                     for j in (owed if writing else owed[1:])],
-                        "startedAt": None}
+                        "startedAt": None, "batch": None}
             runner.report(progress)
+            # What this turn makes: the job in hand alone, unless its prompt's variants go with it.
+            together = [current]
             try:
                 # Held in variables because each is asked for more than once: the writer is shown
                 # the file the layer is made from and the picture a video arrives at, the producer
@@ -302,16 +327,26 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                             if references
                             and production_mode.of(current) == production_mode.REFERENCE
                             else ())
+                    together = _made_together(owed, jobs, slots, producer)
                     # The model's own seconds and nothing else: no wait in the queue, no prompt
                     # being written, no Drive read of what the layer is made from (madde 405).
                     # The same moment goes to the screen as wall time, the one clock a browser can
                     # count on from: its live counter and the recorded seconds measure one thing
-                    # (madde 408). The progress travels with it so every report reads whole.
-                    runner.report({**progress, "startedAt": now()})
+                    # (madde 408). The progress travels with it so every report reads whole, and
+                    # names the batch's other frames, which are being made as much as this one.
+                    runner.report({**progress, "startedAt": now(),
+                                   "batch": [other["id"] for other in together[1:]],
+                                   "pending": [photo_file(j["id"])
+                                               for j in owed[len(together):]]})
                     started = clock()
-                    data = producer.generate(prompt, current["negative"], chosen,
-                                             current["model"], current.get("lora", ""),
-                                             source=under, end=ending, references=pool)
+                    if len(together) > 1:
+                        made = producer.generate_batch(prompt, current["negative"], chosen,
+                                                       len(together), current["model"],
+                                                       current.get("lora", ""))
+                    else:
+                        made = [producer.generate(prompt, current["negative"], chosen,
+                                                  current["model"], current.get("lora", ""),
+                                                  source=under, end=ending, references=pool)]
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job
@@ -324,10 +359,12 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     continue
                 if policy.is_frame_fault(exc):
                     # The renderer answered three times that this one job is what failed. The queue
-                    # owes the rest nothing, so the tile turns red where it stands and work goes on.
+                    # owes the rest nothing, so the tile turns red where it stands and work goes on
+                    # -- every tile of a batch, which failed as one job.
                     with named.steady() as project:
-                        record.mark(project, fid, kind, name, queue.FAILED, now(),
-                                    error=policy.frame_reason(exc, attempts))
+                        for failed, file in zip(together, _files(name, together)):
+                            record.mark(project, failed["id"], kind, file, queue.FAILED, now(),
+                                        error=policy.frame_reason(exc, attempts))
                     attempts, holding = 0, None
                     continue
                 # No answer came at all, three times: the next job would fall the same way, so the
@@ -344,27 +381,32 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 attempts, holding = 0, None
                 continue
             rendered = clock()
+            # The attempt that made the layer, not the ones that fell: those made nothing. A batch's
+            # seconds are shared out, so a picture's time reads like one made alone (madde 411).
+            seconds = round((rendered - started) / len(together), 1)
+            files = []
             # Together and under the gate: the storage layer creates a folder it is missing, so a
             # save that resolved the old name after a rename would leave a ghost project beside the
             # real one with this single file in it.
             with named.steady() as project:
-                filename = store.save(project, name, data)
-                # Only after the file exists: the line is what "this layer is here" means.
-                record.append(project, {"file": filename, "frame": fid, "layer": kind,
-                                        "status": queue.DONE,
-                                        "prompt": prompt, "negative": current["negative"],
-                                        "seed": chosen, "createdAt": now(),
-                                        # The attempt that made the layer, not the ones that fell:
-                                        # those made nothing.
-                                        "renderSeconds": round(rendered - started, 1),
-                                        **_made_with(current, ending)})
+                for landed, file, data in zip(together, _files(name, together), made):
+                    filename = store.save(project, file, data)
+                    files.append(filename)
+                    # Only after the file exists: the line is what "this layer is here" means. Every
+                    # picture of a batch names the seed the batch was made from.
+                    record.append(project, {"file": filename, "frame": landed["id"], "layer": kind,
+                                            "status": queue.DONE,
+                                            "prompt": prompt, "negative": current["negative"],
+                                            "seed": chosen, "createdAt": now(),
+                                            "renderSeconds": seconds,
+                                            **_made_with(current, ending)})
                 # The one job that fills two slots: a card whose picture is missing takes the
                 # video's first frame as its own, so the gallery and the export both find one
                 # (madde 296). Under the same gate as the video, for the same reason. Whether the
                 # slot is free is layers' rule, not a second reading of it here -- a red picture
-                # holds its slot and is rescued by Tekrar dene alone.
+                # holds its slot and is rescued by Tekrar dene alone. A video is always made alone.
                 if kind == layers.VIDEO and layers.can_produce(_held(slots, fid), layers.PHOTO):
-                    picture = _first_frame(stills, data, log)
+                    picture = _first_frame(stills, made[0], log)
                     if picture is not None:
                         written = store.save(project, photo_file(fid), picture)
                         # No words on the row: nobody wrote this picture, and the video's own
@@ -376,7 +418,7 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             if log:
                 # Two numbers, never one: the render is the GPU's share and the writes are the
                 # pipeline's, and speed decisions need to tell them apart.
-                log(f"⏱ {filename} · render {rendered - started:.1f} sn"
+                log(f"⏱ {', '.join(files)} · render {rendered - started:.1f} sn"
                     f" · drive {clock() - rendered:.1f} sn")
             # No attempt counter to clear here: the next turn holds a different job, and that is
             # the one place the count resets.

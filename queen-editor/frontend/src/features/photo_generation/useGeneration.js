@@ -342,15 +342,20 @@ export function useGeneration(project) {
   // The wall moment the model started on that layer, as the server read it -- null until it has,
   // and for another project's run. The screen counts from it, so a reload keeps the count.
   const startedAt = current ? job.startedAt || null : null;
+  // The other frames made in the same render, when a prompt's variants go to ComfyUI as one batch
+  // (madde 411): each of them is being made as much as `current` is. The worker names none between
+  // two renders.
+  const batch = current ? job.batch || [] : [];
   // What the queue still owes and what blew up, layer by layer -- read off the gallery, because
   // each frame already says which of its layers are still coming and which failed. The job being
-  // made comes out of the owed count: it is not waiting, it is being made. Pause puts it back --
-  // the worker stops reporting it and the half-done job is owed again.
+  // made comes out of the owed count, and so does the rest of its batch: they are not waiting, they
+  // are being made. Pause puts them back -- the worker stops reporting them and the half-done job is
+  // owed again.
   const owedByKind = { photo: 0, video: 0, audio: 0 };
   const failedByKind = { photo: 0, video: 0, audio: 0 };
   shown.forEach((frame) => {
     (frame.owed || []).forEach((layer) => {
-      if (frame.id === current && layer === currentLayer) return;
+      if ((frame.id === current || batch.includes(frame.id)) && layer === currentLayer) return;
       owedByKind[layer] += 1;
     });
     (frame.failed || []).forEach((layer) => { failedByKind[layer] += 1; });
@@ -363,7 +368,7 @@ export function useGeneration(project) {
     .filter((card) => card.count > 0);
 
   return { job: told, known, frames, error, errorField, stopping, queue, failures,
-           current, currentLayer, startedAt,
+           current, currentLayer, startedAt, batch,
            retryAll, queueLayer, regenerate, removeLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos, copyPhotos };
 }

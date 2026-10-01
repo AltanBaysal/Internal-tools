@@ -1,4 +1,5 @@
-"""ComfyUI transport -- submit a graph, wait for it, pull the produced file.
+"""ComfyUI transport -- submit a graph, wait for it, pull the files it produced, say how much memory
+the card it renders on has.
 
 Media-agnostic on purpose: no node id, no prompt, no seed, no photo/video concept. Whoever calls
 this decides what the graph means. `http`, `websocket`, `sleep` and `now` are injected so tests need
@@ -149,14 +150,23 @@ class ComfyClient:
     def fetch_output(self, history_entry, extensions=None):
         """Download THE produced file over /view and return its bytes.
 
-        type=="output" drops temp previews (a preview node registers temp files). Exactly one real
-        output is the contract: silently picking one of N would hide a graph whose batch size is
-        not 1, so the raw outputs are printed and the render stops.
+        Exactly one real output is the contract: silently picking one of N would hide a graph whose
+        batch size is not 1, so the raw outputs are printed and the render stops.
 
         `extensions` is how a caller says which medium it came for: a video graph often carries an
         image node as well, so the file is chosen by its own name rather than by which key it
         landed in -- which key that is (images, gifs, videos, audio) is the node's own business.
         No extensions means the images a photo graph makes.
+        """
+        return self.fetch_outputs(history_entry, 1, extensions)[0]
+
+    def fetch_outputs(self, history_entry, count, extensions=None):
+        """Download the `count` produced files over /view, in the order the graph listed them -- a
+        batch's pictures in the batch's order (madde 411).
+
+        type=="output" drops temp previews (a preview node registers temp files). Any other number
+        of real outputs stops the render with the raw outputs printed: taking what came would hand
+        a frame a picture that is not its own, or none.
         """
         outputs = []
         for node_output in history_entry.get("outputs", {}).values():
@@ -175,10 +185,13 @@ class ComfyClient:
         if not outputs:
             wanted = ", ".join(extensions) if extensions else "görsel"
             raise RuntimeError(f"{wanted} çıktısı gelmedi — gelenler:\n{came}")
-        if len(outputs) > 1:
-            raise RuntimeError(
-                f"1 çıktı bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n{came}")
-        item = outputs[0]
+        if len(outputs) != count:
+            raise RuntimeError(f"{count} çıktı bekleniyordu, {len(outputs)} geldi — grafikte "
+                               f"Batch Size {count} mi?\n{came}")
+        return [self._view(item) for item in outputs]
+
+    def _view(self, item):
+        """One produced file's bytes."""
         resp = self._send("get", f"{self.base}/view", timeout=300, params={
             "filename": item["filename"],
             "subfolder": item.get("subfolder", ""),
@@ -186,6 +199,14 @@ class ComfyClient:
         })
         resp.raise_for_status()
         return resp.content
+
+    def vram_total(self):
+        """The memory of the card ComfyUI renders on, in bytes, as /system_stats reports it -- it
+        lists that device first. What decides whether a prompt's variants fit in one batch
+        (madde 411)."""
+        resp = self._send("get", f"{self.base}/system_stats", timeout=30)
+        resp.raise_for_status()
+        return resp.json()["devices"][0]["vram_total"]
 
     def interrupt(self):
         """Cut whatever ComfyUI is rendering right now; harmless when nothing runs."""

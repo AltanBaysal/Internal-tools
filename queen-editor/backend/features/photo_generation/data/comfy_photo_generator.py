@@ -3,6 +3,7 @@
 Node ids come from our own export (queen-editor/workflow_api.json):
   "3"  ImpactWildcardProcessor, _meta.title "POSITIVE"
   "4"  ImpactWildcardProcessor, _meta.title "NEGATIVE"
+  "23" easy int "Batch Size" -> EmptyLatentImage's batch_size: how many pictures one job makes
   "27" Power Lora Loader (rgthree) -> which loras are switched on, and how strongly
   "40" Seed (rgthree) -> KSampler, FaceDetailer and both wildcard processors read it
   "45" CheckpointLoaderSimple -> which model renders the frame
@@ -15,9 +16,24 @@ from backend.features.photo_generation.domain import catalog
 
 PROMPT_NODE = "3"
 NEGATIVE_NODE = "4"
+BATCH_NODE = "23"
 LORA_NODE = "27"
 SEED_NODE = "40"
 MODEL_NODE = "45"
+
+# What one batch of this graph asks of the card, by ComfyUI's own memory rules (madde 411) -- the
+# card is weighed the way ComfyUI weighs it, not by a number of ours.
+# The weights: SDXL's UNet, 2.6 billion parameters (the SDXL paper) at two bytes each in fp16.
+WEIGHT_BYTES = 2.6e9 * 2
+# What ComfyUI keeps back whatever the batch: minimum_inference_memory(), 0.8 GiB, plus the 400 MiB
+# EXTRA_RESERVED_VRAM it holds on Linux (comfy/model_management.py).
+RESERVED_BYTES = 0.8 * 1024 ** 3 + 400 * 1024 ** 2
+# One picture's share of sampling: memory_required() -- latent area x 2 bytes x 0.01 x SDXL's
+# memory_usage_factor 0.8, in MiB (comfy/model_base.py, supported_models.py) -- for this graph's
+# 1024 x 1536, a 128 x 192 latent, doubled by cfg (sampler_helpers.py), and 1.5 times that, which
+# _calc_cond_batch wants free before it runs cond and uncond together (samplers.py). A new size in
+# nodes "1" and "11" changes this line.
+PICTURE_BYTES = 1.5 * 2 * (128 * 192) * 2 * 0.01 * 0.8 * 1024 ** 2
 
 
 class ComfyPhotoGenerator:
@@ -32,6 +48,35 @@ class ComfyPhotoGenerator:
         arrives nowhere. Both are taken because the queue has one call shape for every producer --
         see ports.PhotoGenerator.
         """
+        workflow = self._graph(prompt, negative, seed, model, lora)
+        prompt_id = self._client.submit(workflow)
+        history = self._client.wait(prompt_id, self._timeout)
+        return self._client.fetch_output(history)
+
+    def generate_batch(self, prompt, negative, seed, count, model="", lora=""):
+        """`count` pictures of one prompt in one ComfyUI job, their noise drawn from one seed
+        (madde 411), in the batch's order. The count goes into the graph's own Batch Size node,
+        the one its latent reads.
+
+        The stall guard is a photo's, so a batch gets one per picture: seven on a T4 take about as
+        long as seven made one by one, and a single photo's guard would call that a stall.
+        """
+        workflow = self._graph(prompt, negative, seed, model, lora)
+        if BATCH_NODE not in workflow:
+            raise RuntimeError(f"Workflow'da {BATCH_NODE} node yok — grafik yeniden export edilmiş "
+                               "olabilir, Batch Size node'unun id'sini güncelle")
+        workflow[BATCH_NODE]["inputs"]["value"] = count
+        prompt_id = self._client.submit(workflow)
+        history = self._client.wait(prompt_id, self._timeout * count)
+        return self._client.fetch_outputs(history, count)
+
+    def fits_batch(self, count):
+        """Whether the card ComfyUI renders on holds `count` pictures of this graph in one batch."""
+        needed = WEIGHT_BYTES + RESERVED_BYTES + count * PICTURE_BYTES
+        return self._client.vram_total() >= needed
+
+    def _graph(self, prompt, negative, seed, model, lora):
+        """The shipped graph with this picture's words, seed, model and lora written in."""
         workflow = self._load()
         model, lora = catalog.LEGACY.get(model, (model, lora))
         chosen = self._model(model)
@@ -59,10 +104,7 @@ class ComfyPhotoGenerator:
             # a lora, and a frame planned that way keeps rendering the way it did -- with the
             # export's own USNR, which is the default anyway.
             workflow[MODEL_NODE]["inputs"]["ckpt_name"] = model
-
-        prompt_id = self._client.submit(workflow)
-        history = self._client.wait(prompt_id, self._timeout)
-        return self._client.fetch_output(history)
+        return workflow
 
     def _load(self):
         """Fresh copy per render -- patching is never written back to the shipped file."""

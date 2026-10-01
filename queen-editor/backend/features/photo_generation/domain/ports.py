@@ -26,6 +26,21 @@ class PhotoGenerator(Protocol):
         ...
 
 
+class BatchPhotoGenerator(PhotoGenerator, Protocol):
+    """A photo producer that can also make a prompt's variants in one job (madde 411). The loop asks
+    these only of a producer that has them -- a video's and a sound's do not -- and makes the
+    variants one by one otherwise."""
+
+    def fits_batch(self, count: int) -> bool:
+        """Whether the card holds `count` pictures of one prompt in one batch."""
+        ...
+
+    def generate_batch(self, prompt: str, negative: str, seed: int, count: int, model: str = "",
+                       lora: str = "") -> list:
+        """`count` pictures of one prompt from one seed, as bytes, in the batch's order."""
+        ...
+
+
 class PromptWriter(Protocol):
     def write(self, prompts: dict, mode: str, source: tuple | None = None,
               end: tuple | None = None, scene: str = "") -> str:
