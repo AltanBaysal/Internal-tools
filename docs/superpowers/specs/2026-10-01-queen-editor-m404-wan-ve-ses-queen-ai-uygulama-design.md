@@ -46,7 +46,9 @@ said.get(job["id"], {}))` sorar; docstring'i sesi anar. Başka satır değişmez
 Tek `_queen_ai = DeepSeekClient(...)`; H3 dalı `H3VideoPromptWriter(_queen_ai)`, WAN dalı
 `VideoPromptWriter(_queen_ai)`, `_writers` sesi `AudioPromptWriter(_queen_ai)` ile. `_xai` ve
 `XaiClient` içe aktarması kalkar: kurulmuş ama kullanılmayan istemci yanlış bir şey söylerdi. xAI
-istemcisinin dosyası, `config`'teki xAI satırları ve defter yerinde kalır *(406)*.
+istemcisinin dosyası, `config`'teki xAI satırları ve defter yerinde kalır *(406)*; `config`'in xAI ve
+DeepSeek yorumları şimdi doğru olanı söyler — xAI'a artık hiçbir şey sorulmuyor, DeepSeek her video ve
+ses prompt'unu yazıyor.
 
 ### 4. README — Secrets satırları
 
