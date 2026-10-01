@@ -1,7 +1,7 @@
 """DeepSeek chat transport -- an instruction, words and pictures in, the answer's text back.
 
 Knows nothing about video, prompts or frames: what to ask is the caller's business (see
-features/photo_generation/data/xai_prompt_writer.py). `http` is injected so tests need no network.
+features/photo_generation/data/prompt_writer.py). `http` is injected so tests need no network.
 """
 import base64
 import mimetypes

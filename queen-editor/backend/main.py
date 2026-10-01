@@ -13,7 +13,7 @@ from backend.features.photo_generation.data.mmaudio_generator import MMAudioGene
 from backend.features.photo_generation.data.mmaudio_sampler import MMAudioSampler
 from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
-from backend.features.photo_generation.data.xai_prompt_writer import (
+from backend.features.photo_generation.data.prompt_writer import (
     AudioPromptWriter,
     H3VideoPromptWriter,
     VideoPromptWriter,
