@@ -1351,3 +1351,46 @@ describe("Gallery — what a frame owns", () => {
     expect(screen.getByText("foto üretiliyor")).toBeTruthy();
   });
 });
+
+describe("Gallery — the live time on the tile (madde 408)", () => {
+  const AGO_46 = "2026-10-01T09:59:14+00:00";
+  const pillOf = (name) => tileOf(name).querySelector("[data-pill]");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-01T10:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("puts the time under the words of the tile being made", () => {
+    renderGallery({ frames: [pending("P0_0.png")], current: "P0_0", currentLayer: "photo",
+                    running: true, startedAt: AGO_46 });
+
+    expect(pillOf("P0_0.png").textContent).toBe("foto üretiliyor0:46");
+    expect(pillOf("P0_0.png").style.flexDirection).toBe("column");
+  });
+
+  it("moves the time on every second", () => {
+    renderGallery({ frames: [pending("P0_0.png")], current: "P0_0", currentLayer: "photo",
+                    running: true, startedAt: AGO_46 });
+
+    act(() => { vi.advanceTimersByTime(1000); });
+
+    expect(pillOf("P0_0.png").textContent).toBe("foto üretiliyor0:47");
+  });
+
+  it("keeps one line until the model has started", () => {
+    renderGallery({ frames: [done("P0_0.png", { owed: ["video"] })], current: "P0_0",
+                    currentLayer: "video", running: true });
+
+    expect(pillOf("P0_0.png").textContent).toBe("video üretiliyor");
+  });
+
+  it("shows no time on a finished or a queued tile", () => {
+    // Only the live time is the gallery's; a recorded one is the frame page's.
+    renderGallery({ frames: [done("1_a.png", { renderSeconds: { photo: 46.3 } }),
+                             done("0_a.png", { owed: ["video"] })], running: true });
+
+    expect(document.body.textContent).not.toMatch(/\d:\d\d/);
+  });
+});

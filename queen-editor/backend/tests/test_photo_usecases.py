@@ -4100,6 +4100,120 @@ def test_a_retried_layer_carries_the_time_of_the_attempt_that_made_it():
     assert rows_of(record, "photo")[0]["renderSeconds"] == 10.0
 
 
+def watched():
+    """A runner whose every report is kept, in order, and still reaches the runner itself."""
+    runner, reports = sync_runner(), []
+    original = runner.report
+    runner.report = lambda patch: (reports.append(patch), original(patch))[1]
+    return runner, reports
+
+
+def merged(reports):
+    """The status as the runner holds it: each report laid over the ones before it."""
+    state = {}
+    for patch in reports:
+        state.update(patch)
+    return state
+
+
+def ticking():
+    """A wall clock that says t1, t2, ... -- so a test can name which reading went where."""
+    said = []
+
+    def now():
+        said.append(f"t{len(said) + 1}")
+        return said[-1]
+    return now
+
+
+def test_the_report_names_when_the_model_started_and_clears_it_for_the_next_job():
+    # t2 is the first row's createdAt; each job's first report clears the start before its own.
+    runner, reports = watched()
+    plan_store = FakePlanStore(frames=[frame(0), frame(1)])
+
+    make_job(runner, FakeStore(), FakeRecord(), plan_store, {layers.PHOTO: FakeGenerator()},
+             ticking(), "düğün")()
+
+    assert [patch["startedAt"] for patch in reports] == [None, "t1", None, "t3"]
+
+
+class Peeking(FakeStore):
+    """Drive, noting what the status said at the moment each file came off it."""
+
+    def __init__(self, reports):
+        super().__init__()
+        self.reports, self.seen = reports, []
+
+    def read(self, project, filename):
+        self.seen.append(merged(self.reports))
+        return super().read(project, filename)
+
+
+def test_no_start_is_reported_while_the_layers_source_is_read():
+    # The video is the job in hand, but the model is not working yet.
+    _store, record, plan_store = video_job_project(job_prompt="kamera yaklaşır")
+    runner, reports = watched()
+    store = Peeking(reports)
+    store.files["0_a.png"] = b"PNG"
+
+    make_job(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()}, ticking(),
+             "düğün")()
+
+    assert store.seen[0]["current"]["type"] == "video"
+    assert store.seen[0]["startedAt"] is None
+
+
+class PeekingWriter(FakeWriter):
+    """A language model noting what the status said while it was asked."""
+
+    def __init__(self, reports):
+        super().__init__()
+        self.reports, self.seen = reports, []
+
+    def write(self, prompts, mode="standard", source=None, end=None, scene=""):
+        self.seen.append(merged(self.reports))
+        return super().write(prompts, mode, source, end, scene)
+
+
+def test_no_start_is_reported_while_a_prompt_is_written():
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    runner, reports = watched()
+    writer = PeekingWriter(reports)
+
+    make_job(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()}, ticking(),
+             "düğün", writers={layers.VIDEO: writer})()
+
+    assert writer.seen[0]["current"] is None
+    assert writer.seen[0]["startedAt"] is None
+
+
+class Glancing(FakeGenerator):
+    """A producer noting the start the status gave each attempt; the first `fails` blow up."""
+
+    def __init__(self, reports, fails=0):
+        super().__init__()
+        self.reports, self.fails, self.seen = reports, fails, []
+
+    def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
+                 references=()):
+        super().generate(prompt, negative, seed, model, lora, source, end, references)
+        self.seen.append(merged(self.reports).get("startedAt"))
+        if len(self.calls) <= self.fails:
+            raise FrameFault(f"node 41: {prompt}")
+        return b"PNG"
+
+
+def test_each_attempt_at_a_layer_reports_its_own_start():
+    # The live counter starts again with the attempt, as the recorded time does (madde 405).
+    runner, reports = watched()
+    producer = Glancing(reports, fails=2)
+
+    make_job(runner, FakeStore(), FakeRecord(), FakePlanStore(frames=[frame(0)]),
+             {layers.PHOTO: producer}, ticking(), "düğün")()
+
+    assert producer.seen == ["t1", "t2", "t3"]
+
+
 def test_a_job_whose_type_has_no_producer_makes_the_run_wait():
     # Never silently skipped: skipping would drop work the user asked for. And not an error either
     # -- nothing failed, the engine for it is simply not installed yet.

@@ -65,6 +65,28 @@ describe("useGeneration", () => {
     expect(result.current.currentLayer).toBe("video");
   });
 
+  it("says when the model started on the layer it is making (madde 408)", async () => {
+    getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P0_0", type: "video" },
+                                  startedAt: "2026-10-01T10:00:00+00:00" });
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.startedAt).toBe("2026-10-01T10:00:00+00:00");
+  });
+
+  it("says no start for another project's run", async () => {
+    getStatus.mockResolvedValue({ ...RUNNING, project: "komşu", current: { id: "P0_0" },
+                                  startedAt: "2026-10-01T10:00:00+00:00" });
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.startedAt).toBeNull();
+  });
+
   it("counts what is owed for each kind of job, not one lump", async () => {
     // Three frames with no line on disk; one of them is the one the worker is on right now.
     getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P0_0" } });

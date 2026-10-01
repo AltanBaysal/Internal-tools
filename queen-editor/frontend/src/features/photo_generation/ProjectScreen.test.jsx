@@ -536,3 +536,24 @@ describe("ProjectScreen — the queue panel before the first answer", () => {
     expect(screen.queryByText("Kuyruk boş")).toBeNull();
   });
 });
+
+describe("ProjectScreen — the tile being made shows its time (madde 408)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-01T10:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("hands the gallery the moment the model started", async () => {
+    listFrames.mockResolvedValue([{ id: "P0_0", file: "P0_0.png", status: "pending", layers: {},
+                                    owed: ["photo"], failed: [] }]);
+    getStatus.mockResolvedValue({ status: "running", project: "süre",
+                                  current: { id: "P0_0", type: "photo" },
+                                  startedAt: "2026-10-01T09:59:14+00:00" });
+    renderScreen("süre");
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+
+    expect(document.getElementById("tile-P0_0").querySelector("[data-pill]").textContent)
+      .toContain("0:46");
+  });
+});

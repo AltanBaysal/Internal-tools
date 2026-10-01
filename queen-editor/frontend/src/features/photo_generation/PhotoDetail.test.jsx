@@ -1913,3 +1913,107 @@ describe("PhotoDetail — the keyboard while a prompt is being typed", () => {
     expect(navigate).toHaveBeenCalledWith("/projects/düğün/photos/2_a");
   });
 });
+
+describe("PhotoDetail — the production time (madde 408)", () => {
+  // The fake clock's wall time, and starts measured back from it.
+  const NOW = new Date("2026-10-01T10:00:00Z");
+  const AGO_46 = "2026-10-01T09:59:14+00:00";
+  const timeShown = () => document.querySelector("[data-time]");
+  const infoFacts = () => facts(document.querySelector('[data-group="info"]'));
+  const making = (extra = {}) => ({ status: "running", project: "düğün",
+                                    current: { id: "P0_0", type: "video" }, ...extra });
+
+  beforeEach(() => { vi.setSystemTime(NOW); });
+
+  it("puts the open layer's recorded time beside the counter, with no layer word", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED, renderSeconds: { photo: 46.3 } }] });
+
+    expect(infoFacts()).toEqual(["Sıra", "Üretim süresi"]);
+    expect(timeShown().textContent).toBe("0:46");
+  });
+
+  it("says the time of the layer whose tab is open", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED,
+                                    renderSeconds: { photo: 46.3, video: 212.0, audio: 19.4 } }] });
+
+    fireEvent.click(tab("Video"));
+    expect(timeShown().textContent).toBe("3:32");
+
+    fireEvent.click(tab("Ses"));
+    expect(timeShown().textContent).toBe("0:19");
+  });
+
+  it("draws no field for a frame made before times were recorded", async () => {
+    await open("P0_0", { frames: [LAYERED] });
+
+    expect(infoFacts()).toEqual(["Sıra"]);
+    expect(screen.queryByText("Üretim süresi")).toBeNull();
+  });
+
+  it("draws no field for a layer that failed", async () => {
+    await open("P0_0", { frames: [{ ...LAYERED, layers: { photo: "P0_0.png" },
+                                    failed: ["video"], errors: { video: "node 41: OOM" },
+                                    renderSeconds: { photo: 46.3 } }] });
+    expect(timeShown().textContent).toBe("0:46");
+
+    fireEvent.click(tab("Video"));
+
+    expect(screen.queryByText("Üretim süresi")).toBeNull();
+  });
+
+  it("says a queued layer has not started yet", async () => {
+    await open("P0_1", { frames: [QUEUED_COPY] });
+
+    fireEvent.click(tab("Video"));
+
+    expect(timeShown().textContent).toBe("henüz başlamadı");
+  });
+
+  it("counts the layer being made, live", async () => {
+    await open("P0_0", { frames: [RENDERING], status: making({ startedAt: AGO_46 }) });
+    fireEvent.click(tab("Video"));
+
+    expect(timeShown().textContent).toBe("0:46");
+    expect(timeShown().style.color).toBe("var(--accent)");
+
+    await settle(2000);
+
+    expect(timeShown().textContent).toBe("0:48");
+  });
+
+  it("picks up from the server's start when the page is opened mid-render", async () => {
+    // A reload must not start the count again from nothing.
+    await open("P0_0", { frames: [RENDERING],
+                         status: making({ startedAt: "2026-10-01T09:57:00+00:00" }) });
+    fireEvent.click(tab("Video"));
+
+    expect(timeShown().textContent).toBe("3:00");
+  });
+
+  it("says 0:00 while the model has not been handed the layer yet", async () => {
+    await open("P0_0", { frames: [RENDERING], status: making() });
+    fireEvent.click(tab("Video"));
+
+    expect(timeShown().textContent).toBe("0:00");
+  });
+
+  it("never counts below zero when the two clocks disagree", async () => {
+    await open("P0_0", { frames: [RENDERING],
+                         status: making({ startedAt: "2026-10-01T10:00:05+00:00" }) });
+    fireEvent.click(tab("Video"));
+
+    expect(timeShown().textContent).toBe("0:00");
+  });
+
+  it("keeps the recorded time once the layer lands", async () => {
+    await open("P0_0", { frames: [RENDERING], status: making({ startedAt: AGO_46 }) });
+    fireEvent.click(tab("Video"));
+    listFrames.mockResolvedValue([{ ...LAYERED, renderSeconds: { photo: 46.3, video: 47.2 } }]);
+    getStatus.mockResolvedValue({ status: "done", project: "düğün" });
+
+    await settle(2000);
+
+    expect(timeShown().textContent).toBe("0:47");
+    expect(timeShown().style.color).not.toBe("var(--accent)");
+  });
+});
