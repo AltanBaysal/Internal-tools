@@ -1480,7 +1480,7 @@ def test_a_photo_is_made_from_its_prompt_alone():
     assert generator.sources == [None]
 
 
-def test_a_sound_job_is_written_from_the_frames_two_prompts():
+def test_a_sound_job_s_writer_is_handed_the_frame_s_words():
     store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
     record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
                             "status": "done", "prompt": "kadın başını çeviriyor"})
@@ -1544,6 +1544,43 @@ def test_a_model_that_will_not_answer_stops_the_run():
     assert "401" in state["error"]
     # Nothing written: the job is still owed once the key is fixed.
     assert [row for row in record.rows if row.get("layer") == "video"] == []
+
+
+# Madde 404: a sound is written from its video's prompt alone.
+def test_a_sound_whose_video_has_no_prompt_is_not_worth_an_ask():
+    """The photo's words are not what a sound is written from, so they buy no ask: the sound is made
+    with no prompt, like a frame with no words at all."""
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
+    record.append("düğün", {"file": "0_a_V1_0.mp4", "frame": "0_a", "layer": "video",
+                            "status": "done", "prompt": ""})
+    store.files["0_a_V1_0.mp4"] = b"MP4DATA"
+    plan_store.frames.append({"id": "0_a", "type": "audio", "number": 0, "variant": 0,
+                              "prompt": "", "negative": "", "seed": None, "model": ""})
+    sound, writer = FakeGenerator(), FakeWriter()
+
+    resume_batch(sync_runner(), store, record, plan_store,
+                 {layers.VIDEO: FakeGenerator(), layers.AUDIO: sound},
+                 lambda: "t", "düğün", writers={layers.AUDIO: writer})
+
+    assert writer.calls == []
+    assert [call[0] for call in sound.calls] == [""]
+
+
+def test_a_sound_is_written_once_its_video_s_own_prompt_is_on_the_card():
+    """A video that carries the user's words has them in the record only once it is made, so the
+    sound waits for them rather than being written from nothing."""
+    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın",
+                                                  job_prompt="elini kaldırıyor")
+    plan_store.frames.append({"id": "0_a", "type": "audio", "number": 0, "variant": 0,
+                              "prompt": "", "negative": "", "seed": None, "model": ""})
+    sound, writer = FakeGenerator(), FakeWriter(answer="fabric rustling")
+
+    resume_batch(sync_runner(), store, record, plan_store,
+                 {layers.VIDEO: FakeGenerator(), layers.AUDIO: sound},
+                 lambda: "t", "düğün", writers={layers.AUDIO: writer})
+
+    assert writer.calls == [{"photo": "kırmızı elbiseli kadın", "video": "elini kaldırıyor"}]
+    assert [call[0] for call in sound.calls] == ["fabric rustling"]
 
 
 # Madde 400: Queen AI writes H3's prompt looking at the photo and reading the frame's scenario.

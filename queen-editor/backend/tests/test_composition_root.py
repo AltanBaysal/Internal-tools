@@ -107,19 +107,24 @@ def test_an_h3_session_s_video_prompt_is_queen_ai_s(import_main, monkeypatch):
     assert "DEEPSEEK_API_KEY" in _refusal(main, layers.VIDEO)
 
 
-def test_a_wan_session_s_video_prompt_is_still_grok_s(import_main, monkeypatch):
-    """404 moves WAN to Queen AI; until then grok writes it, as today."""
+def test_a_wan_session_s_video_prompt_is_queen_ai_s(import_main, monkeypatch):
+    """Madde 404: DeepSeek writes WAN's prompt too. Both keys are empty, so the sentence names the
+    model the writer asks -- and no request leaves either way."""
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
     monkeypatch.setenv("QE_XAI_API_KEY", "")
     main = import_main("")
 
-    assert "XAI_API_KEY" in _refusal(main, layers.VIDEO)
+    assert "DEEPSEEK_API_KEY" in _refusal(main, layers.VIDEO)
 
 
-def test_an_h3_session_s_sound_prompt_is_still_grok_s(import_main, monkeypatch):
+@pytest.mark.parametrize("video_model", ["", "h3"])
+def test_every_session_s_sound_prompt_is_queen_ai_s(import_main, monkeypatch, video_model):
+    """Madde 404: the sound is written by Queen AI in a session of either video model."""
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
     monkeypatch.setenv("QE_XAI_API_KEY", "")
-    main = import_main("h3")
+    main = import_main(video_model)
 
-    assert "XAI_API_KEY" in _refusal(main, layers.AUDIO)
+    assert "DEEPSEEK_API_KEY" in _refusal(main, layers.AUDIO)
 
 
 def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):

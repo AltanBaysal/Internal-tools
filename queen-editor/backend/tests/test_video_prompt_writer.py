@@ -6,16 +6,6 @@ from backend.features.photo_generation.data.xai_prompt_writer import (
 )
 
 
-class FakeClient:
-    def __init__(self, answer="she turns her head"):
-        self.answer = answer
-        self.calls = []
-
-    def complete(self, system, user):
-        self.calls.append((system, user))
-        return self.answer
-
-
 # Madde 400: Queen AI is shown the frame's photo and reads its scenario.
 PHOTO = ("P0_0.png", b"PNGDATA")
 THRONE = "Kraliçe tahtında oturuyor; salon boş ve karanlık."
@@ -36,41 +26,59 @@ class FakeVisionClient:
         return self.answer
 
 
-def test_the_photo_prompt_is_what_the_model_is_asked_to_convert():
-    client = FakeClient()
+def test_the_wan_writer_shows_queen_ai_the_photo_and_the_scenario():
+    """Madde 404: WAN's prompt is written the way H3's is -- the model sees the picture the tags
+    drew, so the tags themselves are not sent."""
+    client = FakeVisionClient(answer="she turns her head")
 
-    written = VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"})
+    written = VideoPromptWriter(client).write({"photo": "score_9_up, 1girl, queen"}, "standard",
+                                              source=PHOTO, scene=THRONE)
 
     assert written == "she turns her head"
-    assert client.calls == [(VIDEO_INSTRUCTION, "kırmızı elbiseli kadın")]
+    assert client.calls == [(VIDEO_INSTRUCTION, f"Scenario: {THRONE}", [PHOTO])]
 
 
-def test_the_instruction_says_what_wan_needs_and_what_to_leave_out():
-    # The rules are the whole value of this file: a drifted instruction is a wrong prompt.
-    assert "image-to-video" in VIDEO_INSTRUCTION
-    assert "Keep the camera static" in VIDEO_INSTRUCTION
-    assert "Output only the motion prompt itself" in VIDEO_INSTRUCTION
+def test_a_wan_frame_with_no_scenario_sends_the_photo_alone():
+    client = FakeVisionClient()
+
+    VideoPromptWriter(client).write({"photo": "score_9_up, 1girl, queen"}, "standard",
+                                    source=PHOTO, scene="")
+
+    assert client.calls == [(VIDEO_INSTRUCTION, "", [PHOTO])]
 
 
-def test_the_sound_is_written_from_both_prompts():
-    client = FakeClient(answer="fabric rustling, footsteps on stone")
+def test_the_wan_text_asks_for_the_motion_alone_with_the_camera_still():
+    assert "Never describe the photo again." in VIDEO_INSTRUCTION
+    assert "Keep the camera static: no camera movement, no zoom, no pan." in VIDEO_INSTRUCTION
+
+
+def test_the_wan_text_leaves_the_sound_out():
+    """The user's words (1 Ekim): "wan değişsin sesi katma" -- WAN makes no sound, and the sound
+    has a prompt of its own."""
+    assert "Wan makes no sound." in VIDEO_INSTRUCTION
+    assert "Write no sounds and no spoken words." in VIDEO_INSTRUCTION
+
+
+def test_the_wan_text_says_what_to_do_without_a_scenario():
+    assert ("If no scenario is given, write a small, natural motion for the photo."
+            in VIDEO_INSTRUCTION)
+
+
+def test_the_sound_is_written_from_the_video_s_prompt_alone():
+    """The user's words (1 Ekim): "mmaudio da video promptundan alsın". No picture and none of the
+    photo's words: the video's prompt already says what happens."""
+    client = FakeVisionClient(answer="fabric rustling, footsteps on stone")
 
     written = AudioPromptWriter(client).write({"photo": "kırmızı elbiseli kadın",
                                               "video": "kadın başını çeviriyor"})
 
     assert written == "fabric rustling, footsteps on stone"
-    instruction, said = client.calls[0]
-    assert instruction == AUDIO_INSTRUCTION
-    # Both, labelled: the model has to know which is the scene and which is the motion.
-    assert said.index("kırmızı elbiseli kadın") < said.index("kadın başını çeviriyor")
+    assert client.calls == [(AUDIO_INSTRUCTION, "Video prompt: kadın başını çeviriyor", [])]
 
 
-def test_a_frame_with_no_video_prompt_still_sends_what_it_has():
-    client = FakeClient()
-
-    AudioPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"})
-
-    assert "kırmızı elbiseli kadın" in client.calls[0][1]
+def test_the_sound_text_writes_from_the_video_prompt():
+    assert "The video prompt says what happens in the video." in AUDIO_INSTRUCTION
+    assert "Write only the sounds the video prompt implies." in AUDIO_INSTRUCTION
 
 
 def test_the_sound_instruction_asks_for_the_scenes_own_sounds():
@@ -238,11 +246,12 @@ def test_a_loop_video_shows_its_picture_once():
 
 def test_wan_asks_for_the_same_returning_motion():
     # Loop is a mode of both engines, so the rule belongs to both writers -- as one sentence.
-    client = FakeClient()
+    client = FakeVisionClient()
 
-    VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "loop")
+    VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO,
+                                    scene="")
 
-    assert _loop_rule() in client.calls[0][0]
+    assert client.calls == [(VIDEO_INSTRUCTION + _loop_rule(), "", [PHOTO])]
 
 
 def test_the_loop_rule_says_what_it_wants_and_what_it_refuses():
@@ -274,7 +283,7 @@ def test_the_loop_rule_holds_the_camera_still():
 def test_the_sound_writer_takes_the_mode_and_ignores_it():
     """One call shape: the loop hands every writer the same arguments, and a sound is laid over the
     whole of a video however that video was made."""
-    client = FakeClient(answer="fabric rustling")
+    client = FakeVisionClient(answer="fabric rustling")
 
     written = AudioPromptWriter(client).write({"photo": "a", "video": "b"}, "loop")
 
@@ -282,34 +291,23 @@ def test_the_sound_writer_takes_the_mode_and_ignores_it():
     assert "loop" not in client.calls[0][0].lower()
 
 
-def test_wan_is_asked_as_before_whatever_else_it_is_handed():
-    """The loop hands every writer the frame's photo and scenario -- one call shape -- and grok,
-    which reads no picture, is asked exactly what it was asked before. 404 moves WAN."""
-    client = FakeClient()
-
-    VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "standard",
-                                    source=PHOTO, scene=THRONE)
-
-    assert client.calls == [(VIDEO_INSTRUCTION, "kırmızı elbiseli kadın")]
-
-
 def test_wan_never_hears_of_picture_2():
-    """The linked text names Picture 2, and WAN's writer is shown no picture at all: the text is
-    H3's alone. 404 moves WAN."""
-    client = FakeClient()
+    """The linked text names Picture 2 and is H3's alone: WAN is shown its own photo and nothing
+    else, whatever the mode."""
+    client = FakeVisionClient()
 
     VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO,
                                     end=NEXT, scene=THRONE)
 
-    assert client.calls == [(VIDEO_INSTRUCTION, "kırmızı elbiseli kadın")]
+    assert client.calls == [(VIDEO_INSTRUCTION, f"Scenario: {THRONE}", [PHOTO])]
 
 
-def test_the_sound_is_asked_as_before_whatever_else_it_is_handed():
-    client = FakeClient(answer="fabric rustling")
+def test_the_sound_is_shown_no_picture_whatever_it_is_handed():
+    """The loop hands every writer the same arguments; the sound's takes the video's prompt alone."""
+    client = FakeVisionClient(answer="fabric rustling")
 
     AudioPromptWriter(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
                                     "standard", source=("P0_0_V1_0.mp4", b"MP4"), end=NEXT,
                                     scene=THRONE)
 
-    assert client.calls == [
-        (AUDIO_INSTRUCTION, "Scene: kırmızı elbiseli kadın\nMotion: kadın dönüyor")]
+    assert client.calls == [(AUDIO_INSTRUCTION, "Video prompt: kadın dönüyor", [])]
