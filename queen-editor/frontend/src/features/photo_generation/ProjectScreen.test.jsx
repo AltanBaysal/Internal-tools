@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateBatch, getStatus, listFrames, listProducers, listReferences, produceFromReferences,
          resumeBatch, saveReferenceSettings, uploadReferences } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
+import { VERSION } from "../../shared/version.js";
 import ProjectScreen from "./ProjectScreen.jsx";
 
 vi.mock("../../shared/router.js", () => ({
@@ -214,10 +215,13 @@ describe("ProjectScreen — what stops a run from the pool (madde 324)", () => {
 
 describe("ProjectScreen app bar", () => {
   it("puts the version next to the name", () => {
-    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    // The module's value, not a pattern: the number is shared/version.js's to say (madde 248), and
+    // a number typed into this screen would pass a pattern just as well (madde 412, as 285 did for
+    // the export screen). The value itself is not pinned here: it is a decision, and pinning it
+    // would put one decision in two places.
     renderScreen();
 
-    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+    expect(screen.getByText(`Queen Editor ${VERSION}`)).toBeTruthy();
   });
 
   it("opens the export screen instead of downloading a file", () => {
