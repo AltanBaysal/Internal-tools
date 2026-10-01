@@ -2021,3 +2021,21 @@ describe("PhotoDetail — the production time (madde 408)", () => {
     expect(timeShown().style.color).not.toBe("var(--accent)");
   });
 });
+
+describe("PhotoDetail — a frame its batch is making (madde 411)", () => {
+  const AGO_46 = "2026-10-01T09:59:14+00:00";
+  const timeShown = () => document.querySelector("[data-time]");
+
+  beforeEach(() => { vi.setSystemTime(new Date("2026-10-01T10:00:00Z")); });
+
+  it("counts the batch's time live on every frame it is making", async () => {
+    await open("P0_1", {
+      frames: [waiting("P0_1.png", "kırmızı elbise"), waiting("P0_0.png", "kırmızı elbise")],
+      status: { status: "running", project: "düğün", current: { id: "P0_0", type: "photo" },
+                batch: ["P0_1"], startedAt: AGO_46 },
+    });
+
+    expect(timeShown().textContent).toBe("0:46");
+    expect(timeShown().style.color).toBe("var(--accent)");
+  });
+});

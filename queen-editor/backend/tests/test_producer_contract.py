@@ -239,3 +239,44 @@ def test_each_layer_is_made_from_the_one_below_it(tmp_path):
 
     assert video_comfy.uploaded == [("P0_0.png", b"PNG")]   # the video hangs on the frame's photo
     assert ffmpeg.saw == b"MP4"                             # the sound is laid over that video
+
+
+class BatchComfy(PhotoComfy):
+    """The photo graph's server on an A100: it holds the batch, and answers with as many pictures
+    as the graph asked for."""
+
+    def __init__(self):
+        self.graphs = []
+
+    def submit(self, workflow):
+        self.graphs.append(workflow)
+        return "p1"
+
+    def vram_total(self):
+        return round(39.56 * 1024 ** 3)
+
+    def fetch_outputs(self, history, count):
+        return [f"PNG{index}".encode() for index in range(count)]
+
+
+# One prompt's two variants, the way plan_frames writes them.
+VARIANTS = [{"id": f"P0_{variant}", "type": "photo", "number": 0, "variant": variant,
+             "prompt": "kraliçe tahtta", "negative": "blurry", "seed": 1, "model": "", "lora": ""}
+            for variant in range(2)]
+
+
+def test_a_prompts_variants_go_through_the_real_photo_producer_as_one_batch():
+    """Madde 411 on the shipped graph: the node the count is written into is the one its latent
+    reads the batch size from, so ComfyUI really makes both pictures in one job."""
+    store, comfy = Store(), BatchComfy()
+
+    make_job(Runner(), store, Record(), Plan(VARIANTS),
+             {layers.PHOTO: ComfyPhotoGenerator(comfy, PHOTO_GRAPH, timeout=60)},
+             lambda: "2026-10-01T00:00:00+00:00", "düğün")()
+
+    assert len(comfy.graphs) == 1
+    graph = comfy.graphs[0]
+    assert graph["23"]["inputs"]["value"] == 2
+    assert graph["25"]["class_type"] == "EmptyLatentImage"
+    assert graph["25"]["inputs"]["batch_size"] == ["23", 0]
+    assert store.saved == ["P0_0.png", "P0_1.png"]

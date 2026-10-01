@@ -515,3 +515,56 @@ def test_the_stall_guard_still_stops_a_prompt_that_never_ends():
 
     assert str(stalled.value) == "prompt p1: 12s içinde bitmedi"
     assert run.socket.closed
+
+
+# --- Madde 411: a prompt's variants in one batch -------------------------------------------------
+
+def test_fetch_outputs_downloads_every_output_in_order():
+    # SaveImage lists a batch's files in batch order; the comparer's previews are temp files under
+    # keys of their own (rgthree's image_comparer.py).
+    entry = {"outputs": {
+        "50": {"images": [{"filename": "ComfyUI_00001_.png", "subfolder": "", "type": "output"},
+                          {"filename": "ComfyUI_00002_.png", "subfolder": "", "type": "output"},
+                          {"filename": "ComfyUI_00003_.png", "subfolder": "", "type": "output"}]},
+        "57": {"a_images": [{"filename": "rgthree.compare._temp_00001_.png", "type": "temp"}],
+               "b_images": [{"filename": "rgthree.compare._temp_00002_.png", "type": "temp"}]}}}
+    http = FakeHttp(gets=[FakeResponse(content=b"ONE"), FakeResponse(content=b"TWO"),
+                          FakeResponse(content=b"THREE")])
+
+    assert client_with(http).fetch_outputs(entry, 3) == [b"ONE", b"TWO", b"THREE"]
+    assert [params["filename"] for _url, params in http.get_calls] == [
+        "ComfyUI_00001_.png", "ComfyUI_00002_.png", "ComfyUI_00003_.png"]
+
+
+def test_fetch_outputs_stops_when_the_count_is_not_what_was_asked():
+    entry = {"outputs": {"50": {"images": [{"filename": "a.png", "type": "output"},
+                                           {"filename": "b.png", "type": "output"}]}}}
+
+    with pytest.raises(RuntimeError) as exc:
+        client_with(FakeHttp()).fetch_outputs(entry, 3)
+
+    assert "3 çıktı bekleniyordu, 2 geldi" in str(exc.value)
+    assert "b.png" in str(exc.value)
+
+
+# What ComfyUI's /system_stats answers on Colab's T4 (server.py, system_stats).
+STATS = {"system": {"os": "linux"},
+         "devices": [{"name": "cuda:0 Tesla T4 : cudaMallocAsync", "type": "cuda", "index": 0,
+                      "vram_total": 15828320256, "vram_free": 15512174592,
+                      "torch_vram_total": 0, "torch_vram_free": 0}]}
+
+
+def test_vram_total_is_the_card_comfyui_renders_on():
+    http = FakeHttp(gets=[FakeResponse(STATS)])
+
+    assert client_with(http).vram_total() == 15828320256
+    assert http.get_calls[0][0] == "http://comfy:8188/system_stats"
+
+
+def test_asking_about_the_card_names_an_unreachable_server_too(tmp_path):
+    client = client_with(FakeHttp(refuse=True), log_path=_comfy_log(tmp_path))
+
+    with pytest.raises(Exception) as exc:
+        client.vram_total()
+
+    assert str(exc.value).splitlines()[0] == "ComfyUI'ye bağlanılamadı — http://comfy:8188"

@@ -1394,3 +1394,33 @@ describe("Gallery — the live time on the tile (madde 408)", () => {
     expect(document.body.textContent).not.toMatch(/\d:\d\d/);
   });
 });
+
+describe("Gallery — a prompt's variants made in one batch (madde 411)", () => {
+  const AGO_46 = "2026-10-01T09:59:14+00:00";
+  const pillOf = (name) => tileOf(name).querySelector("[data-pill]");
+  const VARIANTS = [pending("P0_3.png"), pending("P0_2.png"), pending("P0_1.png"),
+                    pending("P0_0.png")];
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-01T10:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("says every tile of the batch is being made, with the batch's live time", () => {
+    renderGallery({ frames: VARIANTS, current: "P0_0", batch: ["P0_1", "P0_2", "P0_3"],
+                    currentLayer: "photo", running: true, startedAt: AGO_46 });
+
+    ["P0_0.png", "P0_1.png", "P0_2.png", "P0_3.png"].forEach((name) => {
+      expect(pillOf(name).textContent).toBe("foto üretiliyor0:46");
+    });
+  });
+
+  it("offers no ring on a tile the batch is making", () => {
+    renderGallery({ frames: [pending("P1_0.png"), ...VARIANTS], current: "P0_0",
+                    batch: ["P0_1"], currentLayer: "photo", running: true });
+
+    expect(checkOf("P0_1.png")).toBeNull();
+    expect(checkOf("P1_0.png")).not.toBeNull();
+  });
+});

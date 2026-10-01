@@ -6,9 +6,12 @@ from backend.features.photo_generation.data.comfy_photo_generator import ComfyPh
 
 
 class FakeClient:
-    def __init__(self):
+    def __init__(self, vram=0):
         self.submitted = None
         self.waited = None
+        self.fetched = None
+        # What /system_stats says the card holds, in bytes (madde 411).
+        self.vram = vram
 
     def submit(self, workflow):
         self.submitted = workflow
@@ -20,6 +23,13 @@ class FakeClient:
 
     def fetch_output(self, history):
         return b"PNG"
+
+    def fetch_outputs(self, history, count):
+        self.fetched = count
+        return [f"PNG{index}".encode() for index in range(count)]
+
+    def vram_total(self):
+        return self.vram
 
 
 # The lora loader as the real export ships it: one slot, switched on, carrying the style lora the
@@ -35,6 +45,7 @@ def write_graph(tmp_path, graph=None):
               "class_type": "ImpactWildcardProcessor"},
         "4": {"inputs": {"wildcard_text": "eski negatif", "populated_text": "eski negatif"},
               "class_type": "ImpactWildcardProcessor"},
+        "23": {"inputs": {"value": 1}, "class_type": "easy int", "_meta": {"title": "Batch Size"}},
         "27": {"inputs": dict(SHIPPED_LORAS), "class_type": "Power Lora Loader (rgthree)"},
         "40": {"inputs": {"seed": -1}, "class_type": "Seed (rgthree)"},
         "45": {"inputs": {"ckpt_name": "export.safetensors"},
@@ -307,3 +318,83 @@ def test_missing_node_is_reported(tmp_path, missing):
     with pytest.raises(RuntimeError) as exc:
         generator.generate("x", "", 1)
     assert missing in str(exc.value)
+
+
+# --- Madde 411: a prompt's variants in one batch -------------------------------------------------
+
+def test_a_batch_writes_its_count_into_the_batch_size_node(tmp_path):
+    client, generator = generator_at(tmp_path)
+
+    assert generator.generate_batch("kraliçe tahtta", "blurry", 12345, 4) == [
+        b"PNG0", b"PNG1", b"PNG2", b"PNG3"]
+
+    assert client.submitted["23"]["inputs"]["value"] == 4
+    assert client.fetched == 4
+    # Everything else is the single render's: the same words, the same negative, one seed.
+    assert client.submitted["3"]["inputs"]["populated_text"] == "kraliçe tahtta"
+    assert client.submitted["4"]["inputs"]["populated_text"] == "blurry"
+    assert client.submitted["40"]["inputs"]["seed"] == 12345
+    # The stall guard is a photo's: four pictures in one job get four of them.
+    assert client.waited == ("p1", 240)
+
+
+def test_a_batch_carries_the_model_and_the_lora_like_a_single_render(tmp_path):
+    client, generator = generator_at(tmp_path)
+
+    generator.generate_batch("kraliçe tahtta", "", 1, 2, "nova3dcg", "slime")
+
+    assert client.submitted["45"]["inputs"]["ckpt_name"] == "nova3DCGXL_ilV90.safetensors"
+    assert lora_slots(client.submitted["27"]["inputs"]) == SLIME
+    assert client.submitted["3"]["inputs"]["populated_text"] == \
+        "translucent penetration, kraliçe tahtta"
+
+
+def test_a_single_render_leaves_the_batch_size_as_the_export_ships_it(tmp_path):
+    client, generator = generator_at(tmp_path)
+
+    generator.generate("kraliçe", "", 1)
+
+    assert client.submitted["23"]["inputs"]["value"] == 1
+
+
+def test_a_batch_does_not_mutate_the_file_on_disk(tmp_path):
+    path = write_graph(tmp_path)
+
+    ComfyPhotoGenerator(FakeClient(), path, timeout=60).generate_batch("yeni", "", 1, 3)
+
+    with open(path, encoding="utf-8") as f:
+        assert json.load(f)["23"]["inputs"]["value"] == 1
+
+
+def test_a_batch_on_a_graph_with_no_batch_size_node_says_which_node_is_missing(tmp_path):
+    """A re-export can renumber the graph. Asked for only when a batch needs it: a single render
+    never touches the node."""
+    graph = {
+        "3": {"inputs": {"wildcard_text": "", "populated_text": ""}},
+        "4": {"inputs": {"wildcard_text": "", "populated_text": ""}},
+        "40": {"inputs": {"seed": -1}},
+        "45": {"inputs": {"ckpt_name": "export.safetensors"}},
+    }
+    _client, generator = generator_at(tmp_path, graph)
+
+    with pytest.raises(RuntimeError) as exc:
+        generator.generate_batch("kraliçe", "", 1, 2)
+
+    assert "23" in str(exc.value)
+
+
+# The cards' total memory as PyTorch reports it on Colab: "GPU 0 has a total capacity of ...".
+T4 = round(14.74 * 1024 ** 3)
+A100 = round(39.56 * 1024 ** 3)
+SMALL = 8 * 1024 ** 3
+
+
+@pytest.mark.parametrize("vram, count, fits", [
+    (T4, 4, True), (T4, 7, True), (T4, 8, False), (A100, 26, True), (SMALL, 2, False),
+], ids=["t4-4", "t4-7", "t4-8", "a100-26", "8gib-2"])
+def test_the_card_is_weighed_by_comfyuis_own_memory_rules(tmp_path, vram, count, fits):
+    """Decision 4: a card whose memory is not enough for the batch makes the variants one by one.
+    The numbers behind the line are ComfyUI's own -- see comfy_photo_generator.py."""
+    generator = ComfyPhotoGenerator(FakeClient(vram=vram), write_graph(tmp_path), timeout=60)
+
+    assert generator.fits_batch(count) is fits

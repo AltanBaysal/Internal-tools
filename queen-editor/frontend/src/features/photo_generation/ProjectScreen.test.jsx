@@ -561,3 +561,24 @@ describe("ProjectScreen — the tile being made shows its time (madde 408)", () 
       .toContain("0:46");
   });
 });
+
+describe("ProjectScreen — the tiles of a batch show its time (madde 411)", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-01T10:00:00Z"));
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it("hands the gallery the frames made in one batch with the one it is on", async () => {
+    listFrames.mockResolvedValue(["P0_1", "P0_0"].map((id) => (
+      { id, file: `${id}.png`, status: "pending", layers: {}, owed: ["photo"], failed: [] })));
+    getStatus.mockResolvedValue({ status: "running", project: "toplu",
+                                  current: { id: "P0_0", type: "photo" }, batch: ["P0_1"],
+                                  startedAt: "2026-10-01T09:59:14+00:00" });
+    renderScreen("toplu");
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+
+    expect(document.getElementById("tile-P0_1").querySelector("[data-pill]").textContent)
+      .toContain("0:46");
+  });
+});

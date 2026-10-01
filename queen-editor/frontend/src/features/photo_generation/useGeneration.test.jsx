@@ -87,6 +87,39 @@ describe("useGeneration", () => {
     expect(result.current.startedAt).toBeNull();
   });
 
+  it("names the frames made in one batch with the one it is on (madde 411)", async () => {
+    getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P0_0", type: "photo" },
+                                  batch: ["P0_1", "P0_2"] });
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.batch).toEqual(["P0_1", "P0_2"]);
+  });
+
+  it("names no batch for another project's run", async () => {
+    getStatus.mockResolvedValue({ ...RUNNING, project: "komşu", current: { id: "P0_0" },
+                                  batch: ["P0_1"] });
+    listFrames.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.batch).toEqual([]);
+  });
+
+  it("does not count the frames a batch is making as waiting", async () => {
+    getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P0_0" }, batch: ["P0_1", "P0_2"] });
+    listFrames.mockResolvedValue(["P0_0", "P0_1", "P0_2", "P0_3"].map((id) => (
+      { id, file: `${id}.png`, status: "pending", owed: ["photo"], failed: [] })));
+
+    const { result } = renderHook(() => useGeneration("düğün"));
+    await settle();
+
+    expect(result.current.queue).toEqual([{ layer: "photo", owed: 1 }]);
+  });
+
   it("counts what is owed for each kind of job, not one lump", async () => {
     // Three frames with no line on disk; one of them is the one the worker is on right now.
     getStatus.mockResolvedValue({ ...RUNNING, current: { id: "P0_0" } });
