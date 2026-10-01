@@ -266,6 +266,12 @@ ekrandaki kartlar kadar hareket ettirebiliyoruz".)* **Ayrıntılar kullanıcıyl
 promtplarada tekrar eden bir hata varsa onu günellemek olsu mesela", "queen editore tarafını
 backloga alalım kalsın şimdilik".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### Varyantlar tek işte üretilecek
+
+*(Kullanıcı, 1 Ekim — "varyantları tek işte üretmek", "411 i şimdilik bacloga koy ilk ondan önceki
+hız farkını görelim".)* **v8'de madde 411 olarak yol haritasındaydı, koşulmadan backlog'a döndü.**
+Numara 411 olarak kalır; geri gelirse aynı numarayla gelir. **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler
