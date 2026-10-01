@@ -108,10 +108,9 @@ def test_an_h3_session_s_video_prompt_is_queen_ai_s(import_main, monkeypatch):
 
 
 def test_a_wan_session_s_video_prompt_is_queen_ai_s(import_main, monkeypatch):
-    """Madde 404: DeepSeek writes WAN's prompt too. Both keys are empty, so the sentence names the
-    model the writer asks -- and no request leaves either way."""
+    """Madde 404: DeepSeek writes WAN's prompt too. With no key the sentence names the model the
+    writer asks -- and no request leaves."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
-    monkeypatch.setenv("QE_XAI_API_KEY", "")
     main = import_main("")
 
     assert "DEEPSEEK_API_KEY" in _refusal(main, layers.VIDEO)
@@ -121,7 +120,6 @@ def test_a_wan_session_s_video_prompt_is_queen_ai_s(import_main, monkeypatch):
 def test_every_session_s_sound_prompt_is_queen_ai_s(import_main, monkeypatch, video_model):
     """Madde 404: the sound is written by Queen AI in a session of either video model."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "")
-    monkeypatch.setenv("QE_XAI_API_KEY", "")
     main = import_main(video_model)
 
     assert "DEEPSEEK_API_KEY" in _refusal(main, layers.AUDIO)

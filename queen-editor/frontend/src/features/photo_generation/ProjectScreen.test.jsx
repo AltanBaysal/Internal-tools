@@ -447,8 +447,8 @@ describe("ProjectScreen — a stopped queue does not look like a moving one", ()
   });
 
   it("says waiting once an error has stopped the queue", async () => {
-    // 2026-08-13: a dead xAI key stopped the run and every frame went on saying it was queued.
-    await open({ status: "error", project: "duran", error: "xAI HTTP 400" }, "duran");
+    // 2026-08-13: a dead key stopped the run and every frame went on saying it was queued.
+    await open({ status: "error", project: "duran", error: "DeepSeek HTTP 400" }, "duran");
 
     expect(screen.getByText("video bekliyor")).toBeTruthy();
   });

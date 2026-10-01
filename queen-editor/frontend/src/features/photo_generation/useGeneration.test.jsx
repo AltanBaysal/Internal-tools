@@ -36,7 +36,7 @@ async function settle(ms = 0) {
 
 const RUNNING = { status: "running", project: "düğün", done: 1, failed: 0, total: 4 };
 const DONE = { status: "done", project: "düğün", done: 4, failed: 0, total: 4 };
-const STOPPED = { status: "error", project: "düğün", error: "xAI HTTP 400" };
+const STOPPED = { status: "error", project: "düğün", error: "DeepSeek HTTP 400" };
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -453,7 +453,7 @@ describe("useGeneration — whose report is this", () => {
     await settle(2000);
 
     expect(result.current.job.status).toBe("error");
-    expect(result.current.job.error).toBe("xAI HTTP 400");
+    expect(result.current.job.error).toBe("DeepSeek HTTP 400");
   });
 
   it("takes nothing but the report away", async () => {

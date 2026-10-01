@@ -1534,7 +1534,7 @@ def test_a_model_that_will_not_answer_stops_the_run():
     # No answer is not this frame's fault: the next job would fall exactly the same way.
     store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
     runner = sync_runner()
-    writer = FakeWriter(blows_up=RuntimeError("xAI HTTP 401\ninvalid key"))
+    writer = FakeWriter(blows_up=RuntimeError("DeepSeek HTTP 401\ninvalid key"))
 
     resume_batch(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()},
                  lambda: "t", "düğün", writers={layers.VIDEO: writer})

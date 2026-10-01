@@ -1,4 +1,4 @@
-from backend.features.photo_generation.data.xai_prompt_writer import (
+from backend.features.photo_generation.data.prompt_writer import (
     AUDIO_INSTRUCTION,
     VIDEO_INSTRUCTION,
     AudioPromptWriter,
@@ -89,8 +89,8 @@ def test_the_sound_instruction_asks_for_the_scenes_own_sounds():
 def _h3():
     """Imported where it is used: a name that is not there yet would fail collection and take the
     WAN and sound questions above down with it."""
-    from backend.features.photo_generation.data import xai_prompt_writer
-    return xai_prompt_writer.H3_VIDEO_INSTRUCTION, xai_prompt_writer.H3VideoPromptWriter
+    from backend.features.photo_generation.data import prompt_writer
+    return prompt_writer.H3_VIDEO_INSTRUCTION, prompt_writer.H3VideoPromptWriter
 
 
 def test_the_h3_writer_shows_queen_ai_the_photo_and_the_scenario():
@@ -174,8 +174,8 @@ def test_the_h3_text_says_what_to_do_without_a_scenario():
 
 
 def _loop_rule():
-    from backend.features.photo_generation.data import xai_prompt_writer
-    return xai_prompt_writer.LOOP_RULE
+    from backend.features.photo_generation.data import prompt_writer
+    return prompt_writer.LOOP_RULE
 
 
 def test_a_loop_video_is_asked_for_a_motion_that_returns():
@@ -200,8 +200,8 @@ def test_a_plain_video_is_asked_for_nothing_extra():
 
 
 def _linked_rule():
-    from backend.features.photo_generation.data import xai_prompt_writer
-    return xai_prompt_writer.LINKED_RULE
+    from backend.features.photo_generation.data import prompt_writer
+    return prompt_writer.LINKED_RULE
 
 
 def test_a_linked_video_shows_queen_ai_both_pictures_in_order():
