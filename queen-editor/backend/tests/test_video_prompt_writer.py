@@ -1,9 +1,19 @@
+import importlib.util
+import os
+
+from backend.features.photo_generation.data import prompt_writer
 from backend.features.photo_generation.data.prompt_writer import (
     AUDIO_INSTRUCTION,
     VIDEO_INSTRUCTION,
     AudioPromptWriter,
     VideoPromptWriter,
 )
+
+TOOL = os.path.dirname(          # queen-editor
+    os.path.dirname(             # backend
+        os.path.dirname(os.path.abspath(__file__))))  # tests
+QUEEN_AGENT_PROMPT = os.path.join(os.path.dirname(TOOL), "queen-agent", "backend", "features",
+                                  "workspace", "domain", "prompt.py")
 
 
 # Madde 400: Queen AI is shown the frame's photo and reads its scenario.
@@ -26,6 +36,24 @@ class FakeVisionClient:
         return self.answer
 
 
+def _sent(instruction):
+    """What a writer hands Queen AI as its system message: its own text, then the suffix (madde
+    407)."""
+    return instruction + prompt_writer.SYSTEM_PROMPT_SUFFIX
+
+
+def _queen_agent_suffix():
+    """QueenAgent's suffix, the value QueenAgent sends.
+
+    Its module is loaded rather than parsed, so the value is read however the owner writes it. The
+    module imports nothing, by its own rule, so loading it brings nothing else of QueenAgent's here.
+    """
+    spec = importlib.util.spec_from_file_location("queen_agent_prompt", QUEEN_AGENT_PROMPT)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.SYSTEM_PROMPT_SUFFIX
+
+
 def test_the_wan_writer_shows_queen_ai_the_photo_and_the_scenario():
     """Madde 404: WAN's prompt is written the way H3's is -- the model sees the picture the tags
     drew, so the tags themselves are not sent."""
@@ -35,7 +63,7 @@ def test_the_wan_writer_shows_queen_ai_the_photo_and_the_scenario():
                                               source=PHOTO, scene=THRONE)
 
     assert written == "she turns her head"
-    assert client.calls == [(VIDEO_INSTRUCTION, f"Scenario: {THRONE}", [PHOTO])]
+    assert client.calls == [(_sent(VIDEO_INSTRUCTION), f"Scenario: {THRONE}", [PHOTO])]
 
 
 def test_a_wan_frame_with_no_scenario_sends_the_photo_alone():
@@ -44,7 +72,7 @@ def test_a_wan_frame_with_no_scenario_sends_the_photo_alone():
     VideoPromptWriter(client).write({"photo": "score_9_up, 1girl, queen"}, "standard",
                                     source=PHOTO, scene="")
 
-    assert client.calls == [(VIDEO_INSTRUCTION, "", [PHOTO])]
+    assert client.calls == [(_sent(VIDEO_INSTRUCTION), "", [PHOTO])]
 
 
 def test_the_wan_text_asks_for_the_motion_alone_with_the_camera_still():
@@ -73,7 +101,8 @@ def test_the_sound_is_written_from_the_video_s_prompt_alone():
                                               "video": "kadın başını çeviriyor"})
 
     assert written == "fabric rustling, footsteps on stone"
-    assert client.calls == [(AUDIO_INSTRUCTION, "Video prompt: kadın başını çeviriyor", [])]
+    assert client.calls == [(_sent(AUDIO_INSTRUCTION), "Video prompt: kadın başını çeviriyor",
+                             [])]
 
 
 def test_the_sound_text_writes_from_the_video_prompt():
@@ -102,7 +131,7 @@ def test_the_h3_writer_shows_queen_ai_the_photo_and_the_scenario():
                                    source=PHOTO, scene=THRONE)
 
     assert written == "integrated_multimodal_description: [Shot 1] she turns"
-    assert client.calls == [(instruction, f"Scenario: {THRONE}", [PHOTO])]
+    assert client.calls == [(_sent(instruction), f"Scenario: {THRONE}", [PHOTO])]
 
 
 def test_a_frame_with_no_scenario_sends_the_photo_alone():
@@ -113,7 +142,7 @@ def test_a_frame_with_no_scenario_sends_the_photo_alone():
     writer(client).write({"photo": "score_9_up, 1girl, queen"}, "standard", source=PHOTO,
                          scene="")
 
-    assert client.calls == [(instruction, "", [PHOTO])]
+    assert client.calls == [(_sent(instruction), "", [PHOTO])]
 
 
 def test_the_h3_instruction_says_the_photo_is_the_first_frame():
@@ -186,7 +215,7 @@ def test_a_loop_video_is_asked_for_a_motion_that_returns():
 
     writer(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO, scene="")
 
-    assert client.calls[0][0] == instruction + _loop_rule()
+    assert client.calls[0][0] == _sent(instruction + _loop_rule())
 
 
 def test_a_plain_video_is_asked_for_nothing_extra():
@@ -196,7 +225,8 @@ def test_a_plain_video_is_asked_for_nothing_extra():
     writer(client).write({"photo": "kırmızı elbiseli kadın"}, "standard", source=PHOTO,
                          scene="")
 
-    assert client.calls[0][0] == instruction
+    # The suffix rides on every mode (madde 407); a plain video adds no rule of its own.
+    assert client.calls[0][0] == _sent(instruction)
 
 
 def _linked_rule():
@@ -213,7 +243,8 @@ def test_a_linked_video_shows_queen_ai_both_pictures_in_order():
     writer(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO, end=NEXT,
                          scene=THRONE)
 
-    assert client.calls == [(instruction + _linked_rule(), f"Scenario: {THRONE}", [PHOTO, NEXT])]
+    assert client.calls == [(_sent(instruction + _linked_rule()), f"Scenario: {THRONE}",
+                             [PHOTO, NEXT])]
 
 
 def test_the_linked_text_calls_the_next_photo_picture_2_and_ends_on_it():
@@ -241,7 +272,7 @@ def test_a_loop_video_shows_its_picture_once():
     writer(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO, end=PHOTO,
                          scene="")
 
-    assert client.calls == [(instruction + _loop_rule(), "", [PHOTO])]
+    assert client.calls == [(_sent(instruction + _loop_rule()), "", [PHOTO])]
 
 
 def test_wan_asks_for_the_same_returning_motion():
@@ -251,7 +282,7 @@ def test_wan_asks_for_the_same_returning_motion():
     VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO,
                                     scene="")
 
-    assert client.calls == [(VIDEO_INSTRUCTION + _loop_rule(), "", [PHOTO])]
+    assert client.calls == [(_sent(VIDEO_INSTRUCTION + _loop_rule()), "", [PHOTO])]
 
 
 def test_the_loop_rule_says_what_it_wants_and_what_it_refuses():
@@ -299,7 +330,7 @@ def test_wan_never_hears_of_picture_2():
     VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO,
                                     end=NEXT, scene=THRONE)
 
-    assert client.calls == [(VIDEO_INSTRUCTION, f"Scenario: {THRONE}", [PHOTO])]
+    assert client.calls == [(_sent(VIDEO_INSTRUCTION), f"Scenario: {THRONE}", [PHOTO])]
 
 
 def test_the_sound_is_shown_no_picture_whatever_it_is_handed():
@@ -310,4 +341,32 @@ def test_the_sound_is_shown_no_picture_whatever_it_is_handed():
                                     "standard", source=("P0_0_V1_0.mp4", b"MP4"), end=NEXT,
                                     scene=THRONE)
 
-    assert client.calls == [(AUDIO_INSTRUCTION, "Video prompt: kadın dönüyor", [])]
+    assert client.calls == [(_sent(AUDIO_INSTRUCTION), "Video prompt: kadın dönüyor", [])]
+
+
+def test_the_suffix_is_queen_agent_s_word_for_word():
+    """Madde 407: the same text QueenAgent ends its system prompt with -- the user's "evet" (30
+    Eylül). A copy, pinned: the owner rewrites QueenAgent's suffix by hand, and this goes red that
+    day until the copy follows."""
+    assert prompt_writer.SYSTEM_PROMPT_SUFFIX == _queen_agent_suffix(), (
+        "Queen Editor'ün suffix'i QueenAgent'ınkiyle aynı değil: queen-agent/backend/features/"
+        "workspace/domain/prompt.py'deki SYSTEM_PROMPT_SUFFIX, queen-editor/backend/features/"
+        "photo_generation/data/prompt_writer.py'ye aynen kopyalanmalı"
+    )
+
+
+def test_every_writer_s_system_prompt_ends_with_queen_agent_s_suffix():
+    """Madde 407, as its done-sentence says it: whichever prompt Queen AI writes -- H3, WAN or the
+    sound -- and in whichever mode, the system prompt it is handed ends with QueenAgent's suffix.
+    Asked of QueenAgent's text rather than the copy."""
+    _instruction, h3 = _h3()
+    client = FakeVisionClient()
+
+    for writer in (VideoPromptWriter, h3, AudioPromptWriter):
+        for mode in ("standard", "loop", "linked"):
+            writer(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
+                                 mode, source=PHOTO, end=NEXT, scene=THRONE)
+
+    suffix = _queen_agent_suffix()
+    for sent, _words, _pictures in client.calls:
+        assert sent.endswith(suffix), f"System prompt suffix'le bitmiyor:\n{sent}"
