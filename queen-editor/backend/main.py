@@ -90,7 +90,6 @@ from backend.features.projects.presentation.routes import make_projects_blueprin
 from backend.services.comfy.client import ComfyClient
 from backend.services.deepseek.client import DeepSeekClient
 from backend.services.drive.storage import DriveStorage
-from backend.services.xai.client import XaiClient
 from backend.web.app import create_app
 
 # One storage, shared by both features: they are separate features over the same Drive root.
@@ -104,23 +103,22 @@ _photo_store = DrivePhotoStore(_storage)
 _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL,
                             log_path=config.COMFY_LOG)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
-# grok writes WAN's video prompt and every sound's.
-_xai = XaiClient(config.XAI_API_KEY, config.XAI_MODEL, config.XAI_URL, timeout=config.XAI_TIMEOUT)
+# Queen AI writes every prompt nobody typed (madde 400, 404): a video's looking at the frame's
+# photo, a sound's from its video's prompt.
+_queen_ai = DeepSeekClient(config.DEEPSEEK_API_KEY, config.DEEPSEEK_MODEL, config.DEEPSEEK_URL,
+                           timeout=config.DEEPSEEK_TIMEOUT)
 # One video model per session (madde 243): the notebook installs WAN or H3, never both, and says
-# which. Each comes with the writer that knows its prompt; H3's is Queen AI, which looks at the
-# photo (madde 400).
+# which. Each comes with the writer that knows its prompt.
 if config.VIDEO_MODEL == "h3":
     _video_generator = ComfyH3VideoGenerator(_comfy_client, config.H3_VIDEO_WORKFLOW_PATH,
                                              config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH,
                                              config.VIDEO_TIMEOUT)
-    _video_writer = H3VideoPromptWriter(DeepSeekClient(config.DEEPSEEK_API_KEY,
-                                                       config.DEEPSEEK_MODEL, config.DEEPSEEK_URL,
-                                                       timeout=config.DEEPSEEK_TIMEOUT))
+    _video_writer = H3VideoPromptWriter(_queen_ai)
 else:
     _video_generator = ComfyVideoGenerator(_comfy_client, config.VIDEO_WORKFLOW_PATH,
                                            config.VIDEO_FIRST_LAST_WORKFLOW_PATH,
                                            config.VIDEO_TIMEOUT)
-    _video_writer = VideoPromptWriter(_xai)
+    _video_writer = VideoPromptWriter(_queen_ai)
 # Sound is the one producer that is not a ComfyUI graph: MMAudio runs inside this process. Where
 # its weights live is the producers feature's answer, so the path is taken from the group it
 # installs rather than spelled out here a second time.
@@ -131,7 +129,7 @@ _audio_generator = MMAudioGenerator(MMAudioSampler(audio_weights(_model_files)),
 _producers = {layers.PHOTO: _photo_generator, layers.VIDEO: _video_generator,
               layers.AUDIO: _audio_generator}
 # Who writes a job's prompt when it carries none. Photo has no writer: its prompt is the user's own.
-_writers = {layers.VIDEO: _video_writer, layers.AUDIO: AudioPromptWriter(_xai)}
+_writers = {layers.VIDEO: _video_writer, layers.AUDIO: AudioPromptWriter(_queen_ai)}
 # What a card with no picture gets when its video lands (madde 296). ffmpeg is already on the
 # machine -- the sound engine cuts with it, and the export joins with it.
 _stills = FfmpegStills()

@@ -63,23 +63,21 @@ RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so th
 VIDEO_TIMEOUT = 30 * 60    # seconds for one video; 5s of WAN takes minutes, so this is a stall guard
 POLL_INTERVAL = 5          # seconds between /history polls
 
-# The language model that writes a video's prompt (design v3, madde 27). The key comes from Colab
-# Secrets through the notebook; without one the app still starts and photos still render -- only a
-# video job's turn stops the run, with the client's own sentence.
+# xAI writes no prompt any more (madde 404) and nothing in the app reads these; the notebook still
+# hands them over and probes the key.
 XAI_API_KEY = os.environ.get("QE_XAI_API_KEY", "")
-# The notebook decides both and passes them in, so its key probe asks exactly what the app asks.
-# The literals below are the fallback for a local run.
+# The notebook decides both and passes them in; the literals below are the fallback for a local run.
 XAI_MODEL = os.environ.get("QE_XAI_MODEL", "grok-4.3")
 XAI_URL = os.environ.get("QE_XAI_URL", "https://api.x.ai/v1/chat/completions")
 XAI_TIMEOUT = 120          # seconds per request; one prompt is a short answer
 
-# Queen AI: the model that writes H3's video prompt looking at the frame's photo (madde 400). The key
-# comes from Colab Secrets through the notebook, under the name QueenAgent's notebook reads too;
-# without one the app still starts, and only an H3 video job's turn stops the run with the client's
-# own sentence.
+# Queen AI: the model that writes every video's prompt looking at the frame's photo, and every
+# sound's from its video's prompt (madde 400, 404). The key comes from Colab Secrets through the
+# notebook, under the name QueenAgent's notebook reads too; without one the app still starts and
+# photos still render, and a video or sound job stops the run with the client's own sentence.
 DEEPSEEK_API_KEY = os.environ.get("QE_DEEPSEEK_API_KEY", "")
-# Not read from the environment, unlike xAI's two: those travel so the notebook's key probe asks
-# exactly what the app asks, and nothing probes DeepSeek.
+# Not read from the environment, unlike xAI's two: nothing probes DeepSeek, so nothing outside the
+# app has to ask what the app asks.
 DEEPSEEK_MODEL = "deepseek-flash"
 DEEPSEEK_URL = "https://api.deepseek.com/chat/completions"
 DEEPSEEK_TIMEOUT = 120     # seconds per request; one prompt is a short answer

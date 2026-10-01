@@ -1,38 +1,37 @@
 """What the language model is asked when a job needs a prompt nobody typed.
 
-The video instruction is inherited knowledge, not code: collab-toolbox's prompt_converter notebook
-does this same conversion, and its rules are what a Wan I2V prompt needs. Nothing is read from that
-file at runtime -- the tools share knowledge, never imports. The sound instruction is ours: that
-notebook asks the user for the audio prompt, so there was nothing to bring over.
-
-Two transports, one per model: H3's writer talks to Queen AI -- DeepSeek, services/deepseek/ -- and
-shows it the frame's photo (madde 400), and for a linked video the next frame's too (402); WAN's and
-the sound's talk to xAI, services/xai/. This file only decides what to say.
+One transport for all three: every writer talks to Queen AI -- DeepSeek, services/deepseek/. A
+video's writer is shown the frame's photo and reads its scenario (madde 400, 404), and H3's is shown
+the next frame's photo too for a linked video (402); the sound's writer reads the video's prompt
+alone (404). Each prompt is its own ask. This file only decides what to say.
 """
 from backend.features.photo_generation.domain import production_mode
 
 # English, and it stays English: it is written for the model, not for a reader of the screen. Wan's
-# own prompts are English too.
+# own prompts are English too. Queen AI reads it with the frame's photo in front of it and the
+# frame's scenario beside it, the way H3's writer does (madde 404). No sound: Wan makes none, and
+# MMAudio's prompt is written in an ask of its own.
 VIDEO_INSTRUCTION = """
-You are an expert prompt engineer specializing in image-to-video generation with the Wan model.
-I will give you one SDXL prompt that was used to generate a still image. Convert it into an
-optimized Wan image-to-video (I2V) positive prompt.
+You are an expert prompt writer for the Wan image-to-video model.
 
-Follow these rules:
+Context
+- Wan makes a short video from a photo. Wan makes no sound.
+- The photo is the first frame of the video. Wan sees the photo too.
+- The scenario says what happens in the video. Sometimes no scenario is given.
 
-Don't re-describe the static scene in detail — Wan already receives the actual image as input. The
-image defines the appearance; your job is to define motion.
-Keep the camera static — no camera movement, no zoom, no pan.
-Focus primarily on the action in the image — bring the subject's main activity to life as natural,
-continuous movement. Build the motion around what the subject is actively doing.
-Add subtle secondary motion to support the main action (hair, clothing, breathing, environmental
-details like wind or water).
-Keep it natural and physically plausible — realistic motion looks better than exaggerated movement
-that breaks the image.
-Specify pacing and mood.
+Work
+- Look at the photo and read the scenario.
+- Write the motion of the video.
 
-Output only the motion prompt itself, as one concise paragraph of plain text. No list, no
-surrounding quotes, no numbering, no explanations, no markdown code fences, no extra text.
+Rules
+- Never describe the photo again. Wan already sees the photo. Write only what moves and how.
+- Build the motion around the main action of the scenario, as natural, continuous movement.
+- Add small motion around the main action, as in hair, clothes, breathing, wind or water.
+- Keep the motion natural and physically possible. Too much motion breaks the image.
+- Keep the camera static: no camera movement, no zoom, no pan.
+- If no scenario is given, write a small, natural motion for the photo.
+- Write no sounds and no spoken words.
+- Write only the prompt, as one short paragraph of plain text. No list, no quotes, no explanations.
 """
 
 
@@ -105,7 +104,8 @@ This video is a loop. The last frame is the first photo again, and the video pla
 # What a linked video's prompt has to ask for, appended to H3's instruction alone (madde 402). The
 # model is shown the next frame's photo and asked for the way there in detail: a video written only
 # from where it starts reaches the next frame like a seam, and a transition written out is what the
-# video model follows. The text names Picture 2 and WAN's writer is shown no picture, so it is H3's.
+# video model follows. The text names Picture 2 and WAN's writer is shown its own photo alone, so it
+# is H3's.
 LINKED_RULE = """
 This video ends on the photo of the next frame. Two photos are given: the first photo is Picture 1, and the second photo is the photo of the next frame. In the prompt, call the second photo Picture 2. Picture 2 is the last frame of the video.
 - Write the path from Picture 1 to Picture 2, in this order: the state of Picture 1, the changes one by one, the differences growing smaller, and the state of Picture 2 at the end.
@@ -115,23 +115,21 @@ This video ends on the photo of the next frame. Two photos are given: the first 
 """
 
 
-# Written for MMAudio, which takes a short list of what should be heard.
+# Written for MMAudio, which takes a short list of what should be heard. Queen AI reads the video's
+# prompt alone (madde 404): it already says what happens, and the sound is laid over that video.
 AUDIO_INSTRUCTION = """
-You write the audio prompt for MMAudio, which adds sound to a short silent video clip.
+You are an expert prompt writer for MMAudio. MMAudio adds sound to a short silent video.
 
-You are given the prompt the still image was generated from (the scene) and the prompt the motion
-was generated from (what happens). Write what would be heard.
+Context
+- The video prompt says what happens in the video.
 
-Follow these rules:
-
-Name the sounds themselves, as a short comma-separated list — fabric rustling, distant traffic,
-water lapping.
-Stay with what the scene and the motion imply; invent no event that is not in them.
-No music: the scene's own sounds are what is wanted, not a soundtrack.
-No speech, no singing, no voice-over: the lips in the video would not match.
-Keep it to one line, no more than about fifteen words.
-
-Output only the audio prompt itself, as plain text. No list markers, no quotes, no explanations.
+Rules
+- Write the sounds of the video as a short list, separated by commas, as in fabric rustling, distant traffic, water lapping.
+- Write only the sounds the video prompt implies. Never add an event.
+- No music.
+- No speech, no singing, no voice-over. The lips in the video would not match.
+- Keep the list to one line of about fifteen words.
+- Write only the sound prompt. No list markers, no quotes, no explanations.
 """
 
 
@@ -144,18 +142,25 @@ def asked(instruction, mode):
     return instruction + LOOP_RULE if mode == production_mode.LOOP else instruction
 
 
+def _scenario(scene):
+    """How both video writers say the frame's scenario: labelled, and nothing at all when there is
+    none -- their texts say what to do then."""
+    return f"Scenario: {scene}" if scene else ""
+
+
 class VideoPromptWriter:
     def __init__(self, client):
         self._client = client
 
     def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
-        """`prompts` is what the frame already says, layer by layer. A video is made from the photo,
-        so that is the one this writer reads.
+        """Queen AI is shown the photo the video starts from and reads the frame's scenario, the way
+        H3's writer is (madde 404). The photo's own words are not sent: the model sees the picture
+        they drew.
 
-        `source`, `end` and `scene` are taken and ignored: grok is asked the photo's words alone, and
-        the queue has one call shape for every writer.
+        `end` is taken and ignored, because the queue has one call shape for every writer: a loop
+        ends on the photo already shown, and the way into a next frame is H3's text alone.
         """
-        return self._client.complete(asked(VIDEO_INSTRUCTION, mode), prompts.get("photo", ""))
+        return self._client.complete(asked(VIDEO_INSTRUCTION, mode), _scenario(scene), [source])
 
 
 class H3VideoPromptWriter:
@@ -173,7 +178,7 @@ class H3VideoPromptWriter:
         instruction, pictures = asked(H3_VIDEO_INSTRUCTION, mode), [source]
         if mode == production_mode.LINKED:
             instruction, pictures = instruction + LINKED_RULE, [source, end]
-        return self._client.complete(instruction, f"Scenario: {scene}" if scene else "", pictures)
+        return self._client.complete(instruction, _scenario(scene), pictures)
 
 
 class AudioPromptWriter:
@@ -181,15 +186,13 @@ class AudioPromptWriter:
         self._client = client
 
     def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
-        """Sound is made from the whole frame: the scene is in the photo's prompt and what happens
-        is in the video's, so both go in one message, each under its own label.
+        """A sound is written from its video's prompt alone (madde 404): that prompt says what
+        happens, so neither the photo's words nor a picture are sent. The loop asks only when the
+        video has one (run_loop._has_words).
 
         `mode` is a video's business -- a sound is laid over the whole of one however it was made.
         It is taken and ignored, like `source`, `end` and `scene`, because the queue has one call
         shape for every writer.
         """
-        said = [f"Scene: {prompts.get('photo', '')}"]
-        video = prompts.get("video")
-        if video:
-            said.append(f"Motion: {video}")
-        return self._client.complete(AUDIO_INSTRUCTION, "\n".join(said))
+        return self._client.complete(AUDIO_INSTRUCTION,
+                                     f"Video prompt: {prompts.get('video', '')}")

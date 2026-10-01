@@ -51,8 +51,10 @@ def _unwritten(owed, writers, record, project):
 
     A job needs one when its type has a writer, it carries no prompt of its own,
     none has been written for it yet, and the frame has words to write from -- asking with none
-    would buy an invented prompt, and I2V sees the picture itself. The record is asked only when
-    some job could need one: a run with no writers never asks it about words at all.
+    would buy an invented prompt, and I2V sees the picture itself. A sound waits for its video's
+    prompt: a video that carries the user's words has them in the record only once it is made. The
+    record is asked only when some job could need one: a run with no writers never asks it about
+    words at all.
     """
     waiting = [job for job in owed if queue.type_of(job) in writers and not job["prompt"]]
     if not waiting:
@@ -60,7 +62,14 @@ def _unwritten(owed, writers, record, project):
     said, written = record.prompts(project), record.written_prompts(project)
     return next((job for job in waiting
                  if queue.type_of(job) not in written.get(job["id"], {})
-                 and any(said.get(job["id"], {}).values())), None)
+                 and _has_words(queue.type_of(job), said.get(job["id"], {}))), None)
+
+
+def _has_words(kind, said):
+    """Whether the frame says anything this job's prompt can be written from. A sound is written
+    from its video's prompt alone (madde 404), so the photo's words give it nothing; a video is
+    written from whatever the frame says."""
+    return bool(said.get(layers.VIDEO)) if kind == layers.AUDIO else any(said.values())
 
 
 # What a layer is made from: a video hangs on the frame's photo, a sound is laid over its video,
