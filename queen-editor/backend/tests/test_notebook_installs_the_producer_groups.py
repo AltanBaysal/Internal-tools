@@ -27,9 +27,6 @@ NOTEBOOK = os.path.join(TOOL, "queeneditor.ipynb")
 # Which CONFIG checkbox owns which producer.
 SWITCH = {"photo": "INSTALL_PHOTO", "video": "INSTALL_VIDEO", "audio": "INSTALL_AUDIO"}
 
-# The heading SageAttention's box sits under, after the video models (madde 409).
-SAGE_HEADING = "#@markdown ### SageAttention"
-
 
 def _catalog():
     """The app's models and loras. Imported where it is used rather than at the top: a module that
@@ -222,16 +219,11 @@ def test_the_form_leaves_the_model_section_at_its_heading():
 
     Measured by what is left rather than by what is gone: a test naming the removed lines would
     stay green on a form that grew three different ones.
-
-    The model sections end at the divider of SageAttention's (madde 409): its sentences say what the
-    box changes in the output, which nothing in the run can say before the run.
     """
     drawn = _drawn(_cell("# === CONFIG ===")).splitlines()
 
     assert "#@markdown ---" in drawn, "Formda iki grubu ayıran çizgi yok"
-    start = drawn.index("#@markdown ---")
-    end = drawn.index(SAGE_HEADING) - 1 if SAGE_HEADING in drawn else len(drawn)
-    tail = drawn[start:end]
+    tail = drawn[drawn.index("#@markdown ---"):]
 
     assert tail == ["#@markdown ---", "#@markdown ### Fotoğraf modelleri",
                     "#@markdown ---", "#@markdown ### Video modelleri"], \
@@ -679,56 +671,3 @@ def test_the_tunnel_is_opened_over_tcp_rather_than_quic():
 
     assert '"--protocol", "http2"' in flask_cell, \
         "cloudflared varsayılan QUIC ile açılıyor — Colab'ın ağı UDP'yi kısıyor"
-
-
-def test_config_has_a_sage_attention_box_ticked_by_default():
-    """The owner's call (madde 409): "a100 check box olsun dediğin gibi defaultu açık olsun test edelim
-    iyi çalışmıyorsa silicem". Unlike the producer boxes it costs no disk and starts nothing heavy, so
-    it comes ticked."""
-    assert 'SAGE_ATTENTION = True  #@param {type:"boolean"}' in _cell("# === CONFIG ==="), \
-        "CONFIG'de işaretli gelen bir SageAttention kutusu yok"
-
-
-def test_the_sage_attention_box_has_a_section_of_its_own_after_the_video_models():
-    """Pinned by position, like the model sections: its own divider and heading under the video
-    boxes, so it does not read as one more video model."""
-    config = _cell("# === CONFIG ===")
-    video_box = config.find("VIDEO_H3 = ")
-    heading = config.find(SAGE_HEADING)
-    divider = config.rfind("#@markdown ---", 0, heading)
-    box = config.find("SAGE_ATTENTION = ")
-
-    assert heading != -1, "SageAttention başlığı yok"
-    assert -1 < video_box < divider < heading < box, \
-        "SageAttention kutusu kendi ayracı ve başlığıyla video modellerinin altında değil"
-
-
-def test_the_sage_attention_section_says_what_it_changes():
-    """The box changes what comes out: a photo and a WAN video from the same seed come out very close
-    rather than identical, and a T4 is left as it was. The owner reads that in the form, before the
-    run -- the run cannot say it in time. The words stay free; the two facts cannot quietly go."""
-    config = _cell("# === CONFIG ===")
-    section = _drawn(config[config.find(SAGE_HEADING):config.find("SAGE_ATTENTION = ")])
-
-    assert section, "SageAttention bölümü yok"
-    for fact in ("T4", "WAN"):
-        assert fact in section, f"SageAttention bölümü {fact}'ı anmıyor:\n{section}"
-
-
-def test_comfyui_starts_with_the_flags_the_install_handed_back():
-    """The flag is decided in colab/attention.py, where it runs under test: the ComfyUI cell asks for
-    it with the box, and the start cell adds what came back."""
-    imported = [name for module, names in _imports_from_code() if module == "colab.attention"
-                for name in names]
-
-    assert "SAGE_FLAGS = sage_attention_flags(SAGE_ATTENTION)" in \
-        _cell("# === System deps + ComfyUI ==="), "ComfyUI hücresi bayrakları kutuyla istemiyor"
-    assert '["python", "main.py", "--listen", "127.0.0.1", "--port", str(COMFY_PORT)] + SAGE_FLAGS' \
-        in _cell("# === Start ComfyUI ==="), "ComfyUI dönen bayraklarla başlamıyor"
-    assert "sage_attention_flags" in imported, "Defter sage_attention_flags'i klondan import etmiyor"
-
-
-def test_the_notebook_never_names_the_flag_itself():
-    """Given --use-sage-attention without the package, ComfyUI exits while it starts. The flag comes
-    only from the function, which hands it over after pip said yes."""
-    assert "--use-sage-attention" not in _source(), "Defter SageAttention bayrağını kendisi yazıyor"

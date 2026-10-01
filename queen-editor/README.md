@@ -29,10 +29,6 @@ Pick the runtime for what you install: video wants more disk than a T4 has. Ever
 and the notebook stops if nothing is chosen, because an app with no producer opens fine and renders
 nothing.
 
-`SAGE_ATTENTION` comes ticked: the owner's trial of SageAttention, to be taken out if it does not
-pay (madde 409). Which cards get it and what it changes: [colab/attention.py](colab/attention.py).
-Untick it and ComfyUI starts as before.
-
 Then **Runtime → Run all** and grant Drive access in the popup. Open the printed link: the
 **Üreticiler** panel says what is on the machine, and anything missing is installed by running the
 notebook again with that box ticked — never from the app. **+ Yeni proje** creates a folder under

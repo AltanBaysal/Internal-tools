@@ -91,8 +91,7 @@ like `health.py`. No `features/` folder is created until a real feature exists.
 
 ## Notebook code (`colab/`)
 The notebook's own code: what `queeneditor.ipynb` imports from its clone — the console helpers
-(`console.py`), the model downloads (`downloads.py`), the custom node installs (`nodes.py`) and
-SageAttention (`attention.py`). It
+(`console.py`), the model downloads (`downloads.py`) and the custom node installs (`nodes.py`). It
 sits outside `backend/` because the app downloads nothing ([FOUNDATION 9](FOUNDATION.md)): the app
 never imports `colab/`, and `colab/` imports nothing from the app. The lists stay in the notebook:
 what to download next to the boxes that choose it, which nodes to install in the ComfyUI cell. Why a
