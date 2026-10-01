@@ -42,3 +42,32 @@ hizalandı ve koşulmadı: suffix'i kullanıcı kendisi yazar. **Ayrıntılar ku
 
 *(Kullanıcı, 29 Eylül — "bir de start senrayo spicy diye bir ksill açıcaz ama şimdi değil ozaman
 konuşurz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Arşivden undo özelliği kalkacak
+
+*(Kullanıcı, 1 Ekim — "arşivden undo özeeliği kaldır".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Arşivdeki projeler açılır hale gelecek
+
+*(Kullanıcı, 1 Ekim — "arşivdeki projeler açılmıyor açılır hale getir".)* **Ayrıntılar kullanıcıyla
+konuşulacak.**
+
+## Arşivleme hızlanacak: proje yerinden oynamayacak, işaretlenecek
+
+*(Kullanıcı, 1 Ekim — "arşivlenme yavaş oluyor galiba nedeni şu sen drivede yerini değitşriiyrosun
+projenin değiştirme sadece projeyi işaretle pinli gibi".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Sürüm numarası V9 olacak
+
+*(Kullanıcı, 1 Ekim — "bir de queen agentın numarsını v9 günçelemmişiz galiba dıoğru mu ?", "bunuda
+backloga ekle queen agentın".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Yapı basitleşecek
+
+*(Kullanıcı, 1 Ekim — "queen agent backlogun yapıyı basitleştiriceyğimizde ekler msini".)*
+**Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Copy'ye basınca düğme komple yeşil olacak
+
+*(Kullanıcı, 1 Ekim — "bir cpyu basın cpied kırmızı geliyor buton komple yşeil olsun yleişi görmek
+sitiyorum bunlarıda backloga ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
