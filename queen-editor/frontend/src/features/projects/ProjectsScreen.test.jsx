@@ -10,6 +10,7 @@ import {
   restoreProject,
 } from "../../shared/api.js";
 import { navigate } from "../../shared/router.js";
+import { VERSION } from "../../shared/version.js";
 import ProjectsScreen from "./ProjectsScreen.jsx";
 
 vi.mock("../../shared/api.js", () => ({
@@ -62,10 +63,13 @@ beforeEach(() => {
 
 describe("ProjectsScreen header", () => {
   it("puts the version next to the name", async () => {
-    // The shape, not the value: the number is shared/version.js's to say (madde 248).
+    // The module's value, not a pattern: the number is shared/version.js's to say (madde 248), and
+    // a number typed into this screen would pass a pattern just as well (madde 412, as 285 did for
+    // the export screen). The value itself is not pinned here: it is a decision, and pinning it
+    // would put one decision in two places.
     await openScreen();
 
-    expect(screen.getByText(/^Queen Editor V\d+$/)).toBeTruthy();
+    expect(screen.getByText(`Queen Editor ${VERSION}`)).toBeTruthy();
   });
 });
 
