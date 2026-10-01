@@ -109,9 +109,12 @@ function RetryButton({ frame, sent, ground = "transparent", onRetry }) {
  * `flowing` is the queue's own state, not this frame's: an owed layer reads as queued while the
  * worker is moving through the list and as waiting once it has stopped. The debt is the same
  * either way; only the promise differs.
+ *
+ * `startedAt` is when the model started on the layer being made: its tile carries the live time
+ * (madde 408). A finished layer's recorded time is the frame page's to say, not the grid's.
  */
-function statusOf(frame, rendering, flowing) {
-  if (rendering) return [{ layer: rendering, state: "running" }];
+function statusOf(frame, rendering, flowing, startedAt) {
+  if (rendering) return [{ layer: rendering, state: "running", since: startedAt }];
   const failed = (frame.failed || [])[0];
   if (failed) return [{ layer: failed, state: "failed" }];
   return (frame.owed || []).map((layer) => ({ layer, state: flowing ? "pending" : "waiting" }));
@@ -168,8 +171,9 @@ function Tile({ name, muted, danger, badge, pill, owns, veil, selected, onCheck,
 // Artboard 03/04/05: five columns, one sequence. Every frame stands in its own place whatever
 // became of it -- waiting, rendering, failed or produced -- and a frame turns into a photo without
 // moving. Its state changes how it looks, never where it is.
-export default function Gallery({ project, frames, current, currentLayer, running, onReorder,
-                                  onDelete, onCopy, onRemoveLayer, onRetry, onSelectionChange }) {
+export default function Gallery({ project, frames, current, currentLayer, startedAt, running,
+                                  onReorder, onDelete, onCopy, onRemoveLayer, onRetry,
+                                  onSelectionChange }) {
   // Drag state belongs to the grid, not to a tile: only the grid knows what "before this one"
   // means. Indexes, not file names, because the drop slot is a position.
   const [dragIndex, setDragIndex] = useState(null);
@@ -421,7 +425,8 @@ export default function Gallery({ project, frames, current, currentLayer, runnin
               ) : (
                 <Tile name={frame.file} badge={badge} muted={!produced}
                       danger={state === "failed"}
-                      pill={<StatusPills states={statusOf(frame, rendering, running)} />}
+                      pill={<StatusPills states={statusOf(frame, rendering, running,
+                                                          startedAt)} />}
                       owns={owns}
                       veil={brokenLayer && (
                         <div data-veil className="qe-veil" style={VEIL}>

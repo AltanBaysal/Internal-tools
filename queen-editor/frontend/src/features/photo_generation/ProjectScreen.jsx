@@ -29,7 +29,7 @@ const HINT = { position: "absolute", top: "calc(100% + 8px)", right: 0, width: 3
 export default function ProjectScreen({ project, settings, settingsError, onRetrySettings,
                                         onSaveSettings }) {
   const { job, known, frames, error, errorField, stopping, queue, failures, current, currentLayer,
-          retryAll, queueLayer,
+          startedAt, retryAll, queueLayer,
           generate, stop, resume, cancel, retry, clearError,
           reorder, removePhotos, copyPhotos, removeLayer } = useGeneration(project);
   // Asked here rather than in the hook every screen shares: looking at a photo has no use for it.
@@ -118,7 +118,7 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
               global, so a neighbour's batch moves nothing here. */}
           <div hidden={poolShown}>
             <Gallery project={project} frames={frames} current={current}
-                     currentLayer={currentLayer} running={running}
+                     currentLayer={currentLayer} startedAt={startedAt} running={running}
                      onReorder={reorder} onDelete={removePhotos} onCopy={copyPhotos}
                      onRemoveLayer={removeLayer} onRetry={retry}
                      onSelectionChange={setSelected} />

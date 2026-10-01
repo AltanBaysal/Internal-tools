@@ -6,7 +6,7 @@ import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
-import { Corner, Making, Pill, Rendering, StatusPill } from "./frame_status.jsx";
+import { Corner, LiveClock, Making, Pill, Rendering, StatusPill, clock } from "./frame_status.jsx";
 import { CopyGlyph, PlayGlyph, ScenarioGlyph, SoundGlyph } from "./glyphs.jsx";
 import Arriving from "./Arriving.jsx";
 import { lostLayers } from "./layer_words.js";
@@ -242,6 +242,33 @@ function Field({ label, value, muted }) {
   );
 }
 
+/** What the open layer's production time says, or null when it has nothing to say (madde 408).
+ *
+ * The tab already names the layer, so the value carries no layer word (tasarım 201). Live while the
+ * model works on it, a notice while it waits its turn, and the recorded seconds once it landed. A
+ * failed layer made nothing, and a layer made before times were recorded has none -- for both the
+ * field is not drawn at all rather than drawn empty.
+ */
+function productionTime(state, seconds, since) {
+  if (state === "running") {
+    return (
+      <span data-time style={{ display: "flex", alignItems: "center", gap: 5,
+                               color: "var(--accent)" }}>
+        <span aria-hidden="true" className="qe-dot qe-dot--alive"
+              style={{ background: "currentColor", width: 5, height: 5 }} />
+        <LiveClock since={since} />
+      </span>
+    );
+  }
+  if (state === "pending") {
+    return <span data-time style={{ color: "var(--ink-3)" }}>henüz başlamadı</span>;
+  }
+  if (state === "done" && typeof seconds === "number") {
+    return <span data-time>{clock(seconds)}</span>;
+  }
+  return null;
+}
+
 // How the frame's facts sit: side by side while they fit, wrapping on the 16 of the column's
 // rhythm (Fark 91). The counter's group and the details' rows are drawn by the same rule.
 const FACTS = { display: "flex", flexWrap: "wrap", columnGap: 24, rowGap: 16 };
@@ -326,7 +353,7 @@ function PromptBox({ label, value, changed, height, onChange }) {
 // opens here -- produced, waiting, being rendered or failed -- and the page is live, so the one the
 // worker is holding turns into its photo without a reload.
 export default function PhotoDetail({ project, frame: fid }) {
-  const { frames, current, currentLayer, error, removePhotos, removeLayer, regenerate,
+  const { frames, current, currentLayer, startedAt, error, removePhotos, removeLayer, regenerate,
           retry } = useGeneration(project);
   // The rows the renderer offers, for two lines in the column on the right: a frame stores its
   // model and its lora as ids -- the names they were picked by are in these lists and nowhere else.
@@ -400,6 +427,8 @@ export default function PhotoDetail({ project, frame: fid }) {
   const openState = stateOf(open);
   // Only a layer that is really there can be made again, and only it can be edited.
   const holds = openState === "done";
+  // The open layer's own time. The start is the worker's, and only the layer it is on is running.
+  const timeShown = productionTime(openState, (frame?.renderSeconds || {})[open], startedAt);
   // Does removing this frame take a file off the disk? Only when the picture is its own: a copy
   // frame holds its source's, and a frame with nothing produced holds nothing at all (madde 101).
   const ownsItsPhoto = produced && frame.file === `${frame.id}.png`;
@@ -684,6 +713,9 @@ export default function PhotoDetail({ project, frame: fid }) {
               {/* The same number the tile carries: the badge counts up from the bottom, so walking
                   down the gallery with › walks the counter down with it. */}
               <Field label="Sıra" value={`${frames.length - index} / ${frames.length}`} />
+              {/* Beside the counter and outside the fold: the owner asked for the number and the
+                  time on top and nothing else (madde 399, 408). */}
+              {timeShown && <Field label="Üretim süresi" value={timeShown} />}
             </div>
 
             <Details shown={unfolded} onToggle={() => setUnfolded((was) => !was)}>

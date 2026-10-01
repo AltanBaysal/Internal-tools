@@ -339,6 +339,9 @@ export function useGeneration(project) {
   // must not, because the frame's picture is still there -- so the screen needs the job's type as
   // well as its frame. A job planned before the queue knew types can only be a photo.
   const currentLayer = current ? (job.current.type || "photo") : null;
+  // The wall moment the model started on that layer, as the server read it -- null until it has,
+  // and for another project's run. The screen counts from it, so a reload keeps the count.
+  const startedAt = current ? job.startedAt || null : null;
   // What the queue still owes and what blew up, layer by layer -- read off the gallery, because
   // each frame already says which of its layers are still coming and which failed. The job being
   // made comes out of the owed count: it is not waiting, it is being made. Pause puts it back --
@@ -360,7 +363,7 @@ export function useGeneration(project) {
     .filter((card) => card.count > 0);
 
   return { job: told, known, frames, error, errorField, stopping, queue, failures,
-           current, currentLayer,
+           current, currentLayer, startedAt,
            retryAll, queueLayer, regenerate, removeLayer,
            generate, stop, resume, cancel, retry, clearError, reorder, removePhotos, copyPhotos };
 }

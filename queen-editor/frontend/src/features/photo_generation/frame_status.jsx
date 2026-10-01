@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+
 // How a frame's state is drawn. One mould for every layer: the pill says "<layer> <state>", so the
 // video and audio rows below are the whole of what Blok 5-6 has to add here.
 //
@@ -54,28 +56,71 @@ export function Corner({ children }) {
  * Exported so a page that has its own sentence to put in that corner gets the same label rather
  * than a second one that looks almost like it.
  */
-export function Pill({ color, alive, children }) {
-  return (
-    <span data-pill className="qe-pill wf-mono" style={{ ...PILL, color }}>
+export function Pill({ color, alive, below, children }) {
+  const words = (
+    <>
       {alive && (
         <span aria-hidden="true" className="qe-dot qe-dot--alive"
               style={{ background: "currentColor", width: 5, height: 5 }} />
       )}
       {children}
+    </>
+  );
+  if (!below) {
+    return <span data-pill className="qe-pill wf-mono" style={{ ...PILL, color }}>{words}</span>;
+  }
+  // A second line rather than a longer first one: words and number on one line wrapped mid-word
+  // on a narrow tile, and nothing in the corner wraps on its own (madde 408, tasarım 197).
+  return (
+    <span data-pill className="qe-pill wf-mono"
+          style={{ ...PILL, color, flexDirection: "column", alignItems: "flex-start", gap: 2,
+                   whiteSpace: "nowrap" }}>
+      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>{words}</span>
+      {below}
     </span>
   );
+}
+
+/** m:ss -- the only shape a production time needs. Never below zero: a start that reads as the
+ * future is two machines' clocks disagreeing, not time running backwards. */
+export function clock(seconds) {
+  const whole = Math.max(0, Math.floor(seconds || 0));
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
+}
+
+/** The time since `since` (the server's wall moment the model started), moving every second.
+ *
+ * Its own component so the second's redraw is its own: a page that redrew itself every second would
+ * take the prompt being typed on it along. The moment comes from the server rather than from when
+ * this was mounted, so a reloaded page picks the count up where it was. No moment yet -- the layer
+ * is in hand but the model has not started on it -- reads 0:00 and stands still.
+ */
+export function LiveClock({ since }) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!since) return undefined;
+    const timer = setInterval(() => tick((count) => count + 1), 1000);
+    return () => clearInterval(timer);
+  }, [since]);
+  return clock(since ? (Date.now() - Date.parse(since)) / 1000 : 0);
 }
 
 /** The state pill, or nothing at all.
  *
  * A produced frame has no pill: the photo itself is the answer, and what it owns is said by the
  * badges in the opposite corner.
+ *
+ * `since` puts the live time under a running layer's words (madde 408). Only the gallery hands it:
+ * the frame's own page says the time in its column instead.
  */
-export function StatusPill({ layer, state }) {
+export function StatusPill({ layer, state, since }) {
   const shown = STATE[state];
   if (!shown) return null;
   return (
-    <Pill color={shown.color} alive={shown.alive}>{LAYER_WORD[layer]} {shown.word}</Pill>
+    <Pill color={shown.color} alive={shown.alive}
+          below={shown.alive && since ? <LiveClock since={since} /> : null}>
+      {LAYER_WORD[layer]} {shown.word}
+    </Pill>
   );
 }
 
@@ -88,7 +133,9 @@ export function StatusPills({ states }) {
   if (!states.length) return null;
   return (
     <Corner>
-      {states.map(({ layer, state }) => <StatusPill key={layer} layer={layer} state={state} />)}
+      {states.map(({ layer, state, since }) => (
+        <StatusPill key={layer} layer={layer} state={state} since={since} />
+      ))}
     </Corner>
   );
 }

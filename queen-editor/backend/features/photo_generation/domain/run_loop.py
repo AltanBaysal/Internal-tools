@@ -261,11 +261,15 @@ def make_job(runner, store, record, plan_store, producers, now, project,
             # pending is what the gallery draws as "bekliyor": the queue behind the job being done.
             # failures names the tiles it draws red, each with its own Tekrar dene. While a prompt
             # is written nothing is being made and every owed frame waits -- current is set to None
-            # rather than left out, because a report merges into the one before it.
-            runner.report({**queue.counts(jobs, slots),
-                           "current": None if writing else current,
-                           "pending": [photo_file(j["id"])
-                                       for j in (owed if writing else owed[1:])]})
+            # rather than left out, because a report merges into the one before it. startedAt is
+            # cleared for the same reason: no model is working on anything until the render below
+            # says so, and a cleared one is what makes a retried attempt's counter start again.
+            progress = {**queue.counts(jobs, slots),
+                        "current": None if writing else current,
+                        "pending": [photo_file(j["id"])
+                                    for j in (owed if writing else owed[1:])],
+                        "startedAt": None}
+            runner.report(progress)
             try:
                 # Held in variables because each is asked for more than once: the writer is shown
                 # the file the layer is made from and the picture a video arrives at, the producer
@@ -300,6 +304,10 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                             else ())
                     # The model's own seconds and nothing else: no wait in the queue, no prompt
                     # being written, no Drive read of what the layer is made from (madde 405).
+                    # The same moment goes to the screen as wall time, the one clock a browser can
+                    # count on from: its live counter and the recorded seconds measure one thing
+                    # (madde 408). The progress travels with it so every report reads whole.
+                    runner.report({**progress, "startedAt": now()})
                     started = clock()
                     data = producer.generate(prompt, current["negative"], chosen,
                                              current["model"], current.get("lora", ""),
