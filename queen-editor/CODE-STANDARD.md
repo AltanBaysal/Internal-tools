@@ -69,9 +69,9 @@ exactly when the photo record has its row, and that row is appended only after t
 written. Reading two places to decide one thing is what this rule exists to prevent.
 
 ## Services (`backend/services/`)
-A service does one job, lives in its own folder, and knows **no feature**: `comfy/` (ComfyUI HTTP
-transport — submit a graph, wait for it, fetch the produced file; no node id, no prompt, no media
-concept), `drive/` (read/write/list files under one root).
+A service does one job, lives in its own folder, and knows **no feature**: `comfy/` (ComfyUI
+transport — HTTP, and its socket for the done notice: submit a graph, wait for it, fetch the
+produced file; no node id, no prompt, no media concept), `drive/` (read/write/list files under one root).
 A service never imports a feature and never imports another service.
 
 ## Features (`backend/features/<name>/`)
