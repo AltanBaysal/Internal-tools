@@ -61,7 +61,7 @@ DISCLAIMER_PATH = os.path.join(_ASSETS_DIR, "disclaimer.png")
 
 RENDER_TIMEOUT = 15 * 60   # seconds for one photo; a T4 render is ~1 min, so this is a stall guard
 VIDEO_TIMEOUT = 30 * 60    # seconds for one video; 5s of WAN takes minutes, so this is a stall guard
-POLL_INTERVAL = 5          # seconds between /history polls
+POLL_INTERVAL = 5          # longest gap between /history looks; ComfyUI's done notice cuts it short
 
 # Queen AI: the model that writes every video's prompt looking at the frame's photo, and every
 # sound's from its video's prompt (madde 400, 404). The key comes from Colab Secrets through the

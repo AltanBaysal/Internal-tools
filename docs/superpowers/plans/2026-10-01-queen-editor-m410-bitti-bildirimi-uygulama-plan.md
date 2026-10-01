@@ -1,3 +1,34 @@
+# Madde 410 — ComfyUI'nin bitti bildirimi, uygulama turunun planı
+
+> **Koşum:** bu oturumda, satır satır. Alt ajan yok *(CLAUDE.md, Gotchas)*.
+
+**Hedef:** `ComfyClient.wait` bakışlar arasında uyumak yerine ComfyUI'nin soketini dinlesin, ve bu
+prompt'un bitti bildirimi gelince hemen `/history`'ye baksın; `9faf41ab`'deki 34 test yeşile dönsün.
+
+**Yaklaşım:** Kütüphane `websocket=` ile enjekte edilir, verilmezse ilk `wait`'te içe aktarılır. Soket
+ilk bakıştan önce açılır, en çok bir aralık dinlenir, kopunca bırakılır, her durumda kapanır.
+
+**Araçlar:** websocket-client (Colab'da kurulu; burada yalnız sahtesi), stdlib `json`.
+
+**Spec:** [m410 uygulama turu](../specs/2026-10-01-queen-editor-m410-bitti-bildirimi-uygulama-design.md)
+· [test turu](../specs/2026-10-01-queen-editor-m410-bitti-bildirimi-testler-design.md)
+
+## Her yere geçerli kurallar
+
+- Testlere dokunulmaz; suite kodla yeşile döner. `skip` / `xfail` yok.
+- `websocket` modülün başında içe aktarılmaz — `test_requirements.py` ve bu makinedeki toplama düşer.
+- Hata mesajları aynen kalır; yorumlar yalnız neden'i ve bugün doğru olanı söyler.
+- Defter, ekran, `dist`, `main.py`, yol haritası değişmez.
+
+---
+
+## Görev 1: `client.py`
+
+**Dosya:** Değiştir: `queen-editor/backend/services/comfy/client.py`
+
+- [ ] **Adım 1: Modülün docstring'i ve iki modül fonksiyonu.**
+
+```python
 """ComfyUI transport -- submit a graph, wait for it, pull the produced file.
 
 Media-agnostic on purpose: no node id, no prompt, no seed, no photo/video concept. Whoever calls
@@ -34,56 +65,21 @@ def _is_done(message, prompt_id):
     notice = json.loads(message)
     return (notice.get("type") == "executing" and notice["data"].get("node") is None
             and notice["data"].get("prompt_id") == prompt_id)
+```
 
+- [ ] **Adım 2: `__init__` `websocket=` alır.**
 
-class ComfyClient:
+```python
     def __init__(self, base_url, http=requests, poll_interval=5, sleep=time.sleep,
                  now=time.monotonic, log_path="", websocket=None):
-        self.base = base_url.rstrip("/")
-        self.client_id = str(uuid.uuid4())
-        self._http = http
-        self._poll_interval = poll_interval
-        self._sleep = sleep
-        self._now = now
-        # ComfyUI's own log, read only when it cannot be reached (madde 230).
-        self._log_path = log_path
+        ...
         # The websocket-client module or a stand-in; None is the library itself, at the first wait.
         self._websocket = websocket
+```
 
-    def _send(self, method, url, **kwargs):
-        """Every request goes through here, so none of them can forget what a refusal means."""
-        try:
-            return getattr(self._http, method)(url, **kwargs)
-        except requests.ConnectionError as exc:
-            raise ComfyUnreachable(self.base, exc, self._log_path) from exc
+- [ ] **Adım 3: `wait` ve iki yardımcı.**
 
-    def upload_image(self, name, data):
-        """Put an image in ComfyUI's input folder and return the name the server kept it under.
-
-        The graph runs on the server's own disk while the picture lives on Drive, so the bytes
-        travel over HTTP. overwrite=true because the name is the frame's own: uploading the same
-        frame again has to replace it, not become "P0_0 (1).png" that LoadImage never looks at.
-        """
-        resp = self._send("post", f"{self.base}/upload/image",
-                               files={"image": (name, data)},
-                               data={"overwrite": "true"}, timeout=120)
-        if resp.status_code >= 400:
-            raise RuntimeError(f"POST /upload/image -> HTTP {resp.status_code}\n{resp.text}")
-        return resp.json()["name"]
-
-    def submit(self, workflow):
-        """Queue the graph; returns ComfyUI's prompt_id."""
-        resp = self._send("post", f"{self.base}/prompt",
-                               json={"prompt": workflow, "client_id": self.client_id}, timeout=30)
-        if resp.status_code >= 400:
-            # The server's own body, not a summary of it.
-            raise RuntimeError(f"POST /prompt -> HTTP {resp.status_code}\n{resp.text}")
-        data = resp.json()
-        if data.get("node_errors"):
-            raise RuntimeError("POST /prompt -> node_errors\n"
-                               + json.dumps(data["node_errors"], indent=2, ensure_ascii=False))
-        return data["prompt_id"]
-
+```python
     def wait(self, prompt_id, timeout):
         """Look in /history until the prompt is there. Raises ComfyExecutionError if it failed.
 
@@ -145,49 +141,41 @@ class ComfyClient:
             if _is_done(message, prompt_id):
                 return True
         return True
+```
 
-    def fetch_output(self, history_entry, extensions=None):
-        """Download THE produced file over /view and return its bytes.
+## Görev 2: `config.py` ve `requirements.txt`
 
-        type=="output" drops temp previews (a preview node registers temp files). Exactly one real
-        output is the contract: silently picking one of N would hide a graph whose batch size is
-        not 1, so the raw outputs are printed and the render stops.
+**Dosyalar:** Değiştir: `queen-editor/backend/config.py`, `queen-editor/backend/requirements.txt`
 
-        `extensions` is how a caller says which medium it came for: a video graph often carries an
-        image node as well, so the file is chosen by its own name rather than by which key it
-        landed in -- which key that is (images, gifs, videos, audio) is the node's own business.
-        No extensions means the images a photo graph makes.
-        """
-        outputs = []
-        for node_output in history_entry.get("outputs", {}).values():
-            groups = node_output.values() if extensions else [node_output.get("images", [])]
-            for group in groups:
-                if not isinstance(group, list):
-                    continue
-                for item in group:
-                    if not isinstance(item, dict) or item.get("type", "output") != "output":
-                        continue
-                    if extensions and not item.get("filename", "").lower().endswith(
-                            tuple(extensions)):
-                        continue
-                    outputs.append(item)
-        came = json.dumps(history_entry.get("outputs", {}), indent=2, ensure_ascii=False)
-        if not outputs:
-            wanted = ", ".join(extensions) if extensions else "görsel"
-            raise RuntimeError(f"{wanted} çıktısı gelmedi — gelenler:\n{came}")
-        if len(outputs) > 1:
-            raise RuntimeError(
-                f"1 çıktı bekleniyordu, {len(outputs)} geldi — grafikte Batch Size 1 mi?\n{came}")
-        item = outputs[0]
-        resp = self._send("get", f"{self.base}/view", timeout=300, params={
-            "filename": item["filename"],
-            "subfolder": item.get("subfolder", ""),
-            "type": "output",
-        })
-        resp.raise_for_status()
-        return resp.content
+- [ ] **Adım 1: `POLL_INTERVAL`'ın yorumu.**
 
-    def interrupt(self):
-        """Cut whatever ComfyUI is rendering right now; harmless when nothing runs."""
-        resp = self._send("post", f"{self.base}/interrupt", timeout=30)
-        resp.raise_for_status()
+```python
+POLL_INTERVAL = 5          # longest gap between /history looks; ComfyUI's done notice cuts it short
+```
+
+- [ ] **Adım 2: `requirements.txt`'e `websocket-client>=1.8`** — `requests>=2.32`'nin altına.
+
+## Görev 3: Koşu ve commit
+
+- [ ] **Adım 1: Dört satırı koş**, paralel, yazıldığı gibi:
+
+```
+python -m pytest queen-agent -q
+npm test --prefix queen-agent/frontend
+python -m pytest queen-editor -q
+npm test --prefix queen-editor/frontend
+```
+
+Beklenen: dördü de yeşil; `test_comfy_client.py`'nin 34 testi geçer, `test_composition_root.py` ve
+`test_requirements.py` yeşil kalır.
+
+- [ ] **Adım 2: Commit** — kod, uygulama spec'i ve bu plan:
+
+```powershell
+git add queen-editor/backend/services/comfy/client.py queen-editor/backend/config.py queen-editor/backend/requirements.txt docs/superpowers/specs/2026-10-01-queen-editor-m410-bitti-bildirimi-uygulama-design.md docs/superpowers/plans/2026-10-01-queen-editor-m410-bitti-bildirimi-uygulama-plan.md
+git commit -m @'
+feat(queen-editor): 410 -- ComfyClient.wait listens on ComfyUI's socket between looks at /history and looks again the moment executing with no node comes for its prompt, instead of sleeping five seconds; /history still says what happened, the socket is listened to for one interval at most, a dropped or refused socket leaves the five second looks as they were, and it is closed however the wait ends; websocket-client, which Colab ships, is imported at the first wait and declared in requirements.txt; the notebook, the graphs and what is submitted are unchanged
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+'@
+```
