@@ -272,6 +272,11 @@ backloga alalım kalsın şimdilik".)* **Ayrıntılar kullanıcıyla konuşulaca
 error: CAS Client Error: Request middleware error: error sending request for url
 (https://us.gcp.cdn.hf.co/xorbs/…)`.)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### Video prompt'ları üretilirken kullanıcı bir geri bildirim görecek
+
+*(Kullanıcı, 2 Ekim — "queen editorde videoların promptları üretilriken usera bir feedback verelim
+dondur snaıyor user".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler
