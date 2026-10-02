@@ -71,3 +71,8 @@ backloga ekle queen agentın".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
 *(Kullanıcı, 1 Ekim — "bir cpyu basın cpied kırmızı geliyor buton komple yşeil olsun yleişi görmek
 sitiyorum bunlarıda backloga ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
+## Elbiselerde karışıyor
+
+*(Kullanıcı, 2 Ekim — "queen agent backloga elbiselerde karışıyor ekler misin".)* **Ayrıntılar
+kullanıcıyla konuşulacak.**
