@@ -266,6 +266,12 @@ ekrandaki kartlar kadar hareket ettirebiliyoruz".)* **Ayrıntılar kullanıcıyl
 promtplarada tekrar eden bir hata varsa onu günellemek olsu mesela", "queen editore tarafını
 backloga alalım kalsın şimdilik".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### HF indirmesi arada yarıda düşüyor
+
+*(Kullanıcı, 2 Ekim — "arada oluyor"; H3 Eros Max beta5 %97'de düştü: `File reconstruction
+error: CAS Client Error: Request middleware error: error sending request for url
+(https://us.gcp.cdn.hf.co/xorbs/…)`.)* **Ayrıntılar kullanıcıyla konuşulacak.**
+
 ---
 
 ## Hedefler
