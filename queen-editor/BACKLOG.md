@@ -277,6 +277,11 @@ error: CAS Client Error: Request middleware error: error sending request for url
 *(Kullanıcı, 2 Ekim — "queen editorde videoların promptları üretilriken usera bir feedback verelim
 dondur snaıyor user".)* **Ayrıntılar kullanıcıyla konuşulacak.**
 
+### Referans havuzunda 2. karta yüklenen resim 1. karta gidiyor
+
+*(Kullanıcı, 2 Ekim — "2 kartı seçim yüklsede kadını 1 karta gidiyor".)* **Ayrıntılar kullanıcıyla
+konuşulacak.**
+
 ---
 
 ## Hedefler
