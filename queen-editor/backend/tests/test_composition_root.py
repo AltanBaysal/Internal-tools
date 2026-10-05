@@ -14,9 +14,12 @@ import os
 import sys
 
 import pytest
+import requests
 
 from backend import config
 from backend.features.photo_generation.domain import layers
+from backend.tests.test_deepseek_box import Answers
+from backend.tests.test_deepseek_client import FakeResponse, answering
 
 VIDEO_MODEL = "QE_VIDEO_MODEL"
 
@@ -134,3 +137,23 @@ def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):
     assert config.DEEPSEEK_API_KEY == "ds-1"
     assert config.DEEPSEEK_MODEL == "deepseek-flash"
     assert config.DEEPSEEK_URL == "https://api.deepseek.com/chat/completions"
+
+
+@pytest.mark.parametrize("video_model, kind", [
+    ("h3", layers.VIDEO), ("", layers.VIDEO), ("h3", layers.AUDIO), ("", layers.AUDIO),
+], ids=["h3-video", "wan-video", "h3-sound", "wan-sound"])
+def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch, video_model, kind):
+    """Madde 416: H3's, WAN's and the sound's writer, as main.py wires them, have a failed request
+    sent again -- four HTTP errors, and the fifth try's answer is the prompt. requests.post is the
+    one the client sends with, so no request leaves this machine."""
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
+    main = import_main(video_model)
+    http = Answers([FakeResponse(status_code=500, text="iç hata")] * 4 + [answering("she turns")])
+    monkeypatch.setattr(requests, "post", http.post)
+
+    written = main._writers[kind].write({"photo": "kırmızı elbiseli kadın",
+                                         "video": "kadın dönüyor"},
+                                        "standard", source=PHOTO, scene="")
+
+    assert written == "she turns"
+    assert len(http.calls) == 5

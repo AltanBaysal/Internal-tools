@@ -88,6 +88,7 @@ from backend.features.projects.presentation.reference_settings_routes import (
 )
 from backend.features.projects.presentation.routes import make_projects_blueprint
 from backend.services.comfy.client import ComfyClient
+from backend.services.deepseek.box import Box
 from backend.services.deepseek.client import DeepSeekClient
 from backend.services.drive.storage import DriveStorage
 from backend.web.app import create_app
@@ -104,9 +105,10 @@ _comfy_client = ComfyClient(config.COMFY_URL, poll_interval=config.POLL_INTERVAL
                             log_path=config.COMFY_LOG)
 _photo_generator = ComfyPhotoGenerator(_comfy_client, config.WORKFLOW_PATH, config.RENDER_TIMEOUT)
 # Queen AI writes every prompt nobody typed (madde 400, 404): a video's looking at the frame's
-# photo, a sound's from its video's prompt.
-_queen_ai = DeepSeekClient(config.DEEPSEEK_API_KEY, config.DEEPSEEK_MODEL, config.DEEPSEEK_URL,
-                           timeout=config.DEEPSEEK_TIMEOUT)
+# photo, a sound's from its video's prompt. Every ask goes through the box, which sends a failed
+# request again (madde 416).
+_queen_ai = Box(DeepSeekClient(config.DEEPSEEK_API_KEY, config.DEEPSEEK_MODEL,
+                               config.DEEPSEEK_URL, timeout=config.DEEPSEEK_TIMEOUT))
 # One video model per session (madde 243): the notebook installs WAN or H3, never both, and says
 # which. Each comes with the writer that knows its prompt.
 if config.VIDEO_MODEL == "h3":
