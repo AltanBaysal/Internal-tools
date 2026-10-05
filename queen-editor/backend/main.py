@@ -5,6 +5,9 @@ from datetime import datetime, timezone
 from functools import partial
 
 from backend import config
+from backend.features.agent.data.chat_record import DriveChatRecord
+from backend.features.agent.domain.usecases.chats import list_chats, new_chat, open_chat
+from backend.features.agent.presentation.routes import make_chats_blueprint
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
 from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
@@ -92,7 +95,8 @@ from backend.services.deepseek.client import DeepSeekClient
 from backend.services.drive.storage import DriveStorage
 from backend.web.app import create_app
 
-# One storage, shared by both features: they are separate features over the same Drive root.
+# One storage, shared by every feature that keeps files: they are separate features over the same
+# Drive root.
 _storage = DriveStorage(config.DRIVE_ROOT)
 
 _project_store = DriveProjectStore(_storage)
@@ -287,8 +291,14 @@ _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
                                           config.VIDEO_MODEL))
 
+# The agent's chats: one record per project, kept in the project's own folder (madde 417).
+_chat_record = DriveChatRecord(_storage)
+_chats_bp = make_chats_blueprint(new_chat=partial(new_chat, _chat_record),
+                                 list_chats=partial(list_chats, _chat_record),
+                                 open_chat=partial(open_chat, _chat_record))
+
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
-                             _producers_bp])
+                             _producers_bp, _chats_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")
