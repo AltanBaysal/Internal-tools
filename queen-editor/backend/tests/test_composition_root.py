@@ -90,6 +90,18 @@ def test_the_app_hands_a_reference_run_to_the_use_case(import_main, video_model)
     assert response.get_json() == {"error": "Proje yok: m326-yok"}
 
 
+@pytest.mark.parametrize("video_model", ["", "h3"])
+def test_the_app_serves_the_agents_chats(import_main, video_model):
+    """Madde 417: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
+    project that does not exist answers in the door's words -- a door never hung would not."""
+    main = import_main(video_model)
+
+    response = main.app.test_client().get("/api/projects/m417-yok/chats")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Proje yok: m417-yok"}
+
+
 PHOTO = ("P0_0.png", b"PNG")
 
 
