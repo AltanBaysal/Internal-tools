@@ -78,8 +78,10 @@ def placed(order, rows):
     That is the numbering H3 reads, since it packs the references tight and numbers them by order:
     a prompt's <Picture 2> is the second picture that is really there.
 
-    A file the order has never heard of waits at the end, among those by name: that is a fresh
-    upload, and it is also what a pool with no stored order at all reads as.
+    A file the order has never heard of waits at the end, among those by name: one put in the
+    folder by hand from Drive, or any file of a row nothing has written down yet -- a pool from
+    before uploads wrote their place. An upload is never one of them: it writes its row
+    (add_references, madde 414).
     """
     out = []
     for kind in LIMITS:
