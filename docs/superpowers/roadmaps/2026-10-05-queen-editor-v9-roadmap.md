@@ -10,7 +10,8 @@ gelenleri kullanıcı 5 Ekim'de getirdi. **v9-8 backlog'dan geldi ve koşudan ö
 değişmedi.
 **QueenAgent'ta da:** v9-3'ün aynısı [QueenAgent v10](2026-10-05-queen-agent-v10-roadmap.md)'un
 v10-1'i *(kullanıcı, 5 Ekim — "quuenagentıada roadmap aç onada yaz deepseek kontrol katmanı
-olayını")*.
+olayını")*. **Bu koşu önce biter, QueenAgent v10 ondan sonra koşar** *(kullanıcı, 5 Ekim — "önce
+queen editoru koşucaz bitiricez sonra queen agnetı koşucaz")*.
 
 **v9-1, v9-3 ve v9-4 parçalara bölündü** *(kullanıcı, 5 Ekim — "böl ama koşma")*, ve v9-1'le v9-4
 bir subagent'ın incelemesinden sonra bir daha *(kullanıcı — "bundan sen emin miisn bir subagenta sor
@@ -37,6 +38,11 @@ aynı dosyanın aynı yerine dokunmaz; dalga, öncekiler birleşince başlar.
   v9-4b'ye.
 - **Dalga 8:** v9-2, en sonda, kullanıcıyla *(kullanıcı, 5 Ekim — "bunu en sona al")*. v9-1a –
   v9-1b ve v9-5 karara bağlanmış olur: v9-2 aynı grafiklere ve metinlere dokunur.
+
+**DeepSeek'e giden yeni metinleri Claude yazar ve commit'ler, kullanıcı sonra okur** — v8'deki gibi
+*(kullanıcı, 5 Ekim — Claude'un önerisini seçti: "böyle olsun")*: v9-3b'nin kontrol metni, v9-4b'nin
+agent talimatı. v9-1a'nın H3 metni bunun dışında: çıktıyı değiştirdiği için commit'lenmeden
+kullanıcının onayını bekler.
 
 **Tasarıma dokunan her madde tasarımcının listesine girer**, liste koşudan önce tasarımcıya gider,
 ve koşu gelen yeni tasarımı kullanır — v8'deki kural *(kullanıcı, 5 Ekim, v9-1 için — "Evet
