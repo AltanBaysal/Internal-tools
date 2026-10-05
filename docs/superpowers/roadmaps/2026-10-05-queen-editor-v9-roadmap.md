@@ -47,7 +47,8 @@ kullanıcının onayını bekler.
 **Tasarıma dokunan her madde tasarımcının listesine girer**, liste koşudan önce tasarımcıya gider,
 ve koşu gelen yeni tasarımı kullanır — v8'deki kural *(kullanıcı, 5 Ekim, v9-1 için — "Evet
 göndericez")*. **Liste:** (1) H3 videosunun uzunluk seçimi, video panelinde — v9-1d; (2) agent'ın
-sohbeti — v9-4c.
+sohbeti — v9-4c. Tasarımcıya giden belge:
+[v9 tasarım ihtiyaçları](../design-needs/2026-10-05-queen-editor-v9-tasarim-ihtiyaclari.md).
 
 ---
 
