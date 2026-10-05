@@ -1,3 +1,47 @@
+# Madde 418 — Kutunun ret kontrolü, test turunun planı
+
+> **Koşum:** bu oturumda, satır satır, madde 418'in kendi dalında. Testler yazılır, dört satır
+> koşulur, yeni testlerin kırmızısı görülür, ve kırmızı hâliyle commit'lenir.
+
+**Hedef:** Kutunun her düzgün cevabı ayrı bir istekle, birebir DeepSeek'e kontrol ettirdiğini; yalnız
+onayın geçirdiğini; ret ve kontrolün kendi hatasında asıl isteğin aynen yeniden gittiğini; hepsinin
+416'nın beşinden düştüğünü; beşi de olmazsa son denemenin türüne göre cümlenin ya da hatanın kendi
+metninin döndüğünü; ve hep reddeden bir Queen AI'da üretimin cümleyle bugünkü yoldan durduğunu anlatan
+testler.
+
+**Yaklaşım:** 416'nın testleri gibi: kutu gerçek istemciyle ve `Answers`'la — kontrolün isteği de aynı
+listeden cevap alır; zincir `test_photo_usecases`'in sahteleri ve `resume_batch`'le; `main.py`'nin
+kurduğu yazarlar `requests.post` sahteyle değiştirilerek.
+
+**Araçlar:** pytest (`parametrize`, `monkeypatch`).
+
+**Spec:** [m418 test turu](../specs/2026-10-06-queen-editor-m418-ret-kontrolu-testler-design.md)
+
+## Her yere geçerli kurallar
+
+- Test adları ve docstring'ler **İngilizce**; kullanıcının gördüğü metin Türkçe.
+- Testler dört satırla koşulur; `skip` / `xfail` yok. Bu turda kaynak kod değişmiyor.
+- Hiçbir test ağa çıkmaz.
+- `CHECK_INSTRUCTION` kullanıldığı yerde içe aktarılır: toplanamayan bir modül pytest'in bütün
+  oturumunu durdurur.
+- Cümle testlerde harfi harfine durur: `Model hata döndü, farklı şekilde dene.`
+
+**Arayüz — uygulama turunun vereceği:**
+- `backend/services/deepseek/box.py`: `CHECK_INSTRUCTION` (str). `Box(client).ask(system, text="",
+  images=()) -> Answer` aynen; her düzgün cevaptan sonra `client.complete(CHECK_INSTRUCTION, cevap)`,
+  ve yalnız tam olarak `APPROVED` cevabı geçirir.
+- `Answer(text, failed=False)` aynen.
+
+---
+
+## Görev 1: `backend/tests/test_deepseek_box.py`
+
+**Dosya:** Değiştir: `queen-editor/backend/tests/test_deepseek_box.py`
+
+- [ ] **Adım 1: Modül belgesi, içe aktarmalar ve sabitler.** Belge 418'i anar; `import pytest`
+  `import requests`'in üstüne; `PHOTO`'nun altına:
+
+```python
 """The box every request to Queen AI goes through (madde 416), and the check it puts every answer
 through (madde 418).
 
@@ -10,14 +54,9 @@ fail collection, and pytest stops the whole session on a collection error.
 """
 import pytest
 import requests
+```
 
-from backend.features.photo_generation.data.prompt_writer import H3VideoPromptWriter
-from backend.features.photo_generation.domain import layers
-from backend.features.photo_generation.domain.usecases.resume_batch import resume_batch
-from backend.services.deepseek.client import DeepSeekClient
-from backend.tests.test_deepseek_client import URL, FakeResponse, answering
-from backend.tests.test_photo_usecases import FakeGenerator, sync_runner, video_job_project
-
+```python
 PHOTO = ("P0_0.png", b"PNGDATA")
 
 # What the check says of an answer it lets through, and of one it does not (madde 418).
@@ -27,36 +66,19 @@ REFUSAL = answering("REFUSAL")
 SORRY = answering("I'm sorry, I can't help with that.")
 # What the box tells its caller when the last try was refused (v9-3), letter for letter.
 SENTENCE = "Model hata döndü, farklı şekilde dene."
+```
 
+- [ ] **Adım 2: `asking`'in altına kontrolün metnini okuyan yardımcı.**
 
-class Answers:
-    """DeepSeek's server, answering each request with the next of `answers` -- a response, or an
-    exception the transport raises -- and with the last one again once they run out. Records every
-    request."""
-
-    def __init__(self, answers):
-        self.answers = list(answers)
-        self.calls = []
-
-    def post(self, url, headers=None, json=None, timeout=None):
-        self.calls.append({"url": url, "headers": headers, "body": json, "timeout": timeout})
-        answer = self.answers[min(len(self.calls), len(self.answers)) - 1]
-        if isinstance(answer, Exception):
-            raise answer
-        return answer
-
-
-def asking(http, api_key="k-1"):
-    """Queen AI as main.py builds it: the box around the one-request client."""
-    from backend.services.deepseek.box import Box
-    return Box(DeepSeekClient(api_key, "deepseek-flash", URL, http=http, timeout=120))
-
-
+```python
 def _check_instruction():
     from backend.services.deepseek.box import CHECK_INSTRUCTION
     return CHECK_INSTRUCTION
+```
 
+- [ ] **Adım 3: 416'nın düzgün cevap bekleyen beş testi kontrolün onayını da bekler.**
 
+```python
 def test_a_good_answer_comes_back_as_it_is_once_the_check_approves_it():
     http = Answers([answering(" she turns "), APPROVED])
 
@@ -110,63 +132,13 @@ def test_no_answer_at_all_sends_the_request_again():
 
     assert answer.text == "she turns" and answer.failed is False
     assert len(http.calls) == 3
+```
 
+Altı, yedi, sekiz ve dokuzuncu testler aynen: hiçbirinde cevap gelmiyor, yani kontrol de yok.
 
-def test_five_tries_at_most_then_the_last_error_s_own_text():
-    """The box never raises: a caller that loops must not be broken by it (v9-3). What it says is
-    the service's own words -- no cause is guessed."""
-    busy = [FakeResponse(status_code=503, text=f"meşgul {n}") for n in range(1, 6)]
-    http = Answers(busy + [answering("she turns")])
+- [ ] **Adım 4: Dosyanın sonuna 418'in testleri.**
 
-    answer = asking(http).ask("talimat", "", [PHOTO])
-
-    assert len(http.calls) == 5
-    assert answer.failed is True
-    assert answer.text == "DeepSeek HTTP 503\nmeşgul 5"
-
-
-def test_when_the_last_try_found_no_server_its_own_words_come_back():
-    lost = requests.ConnectionError("Max retries exceeded with url: /chat/completions")
-    http = Answers([FakeResponse(status_code=500, text="iç hata")] * 4 + [lost])
-
-    answer = asking(http).ask("talimat", "", [PHOTO])
-
-    assert answer.failed is True
-    assert answer.text == str(lost)
-
-
-def test_without_a_key_nothing_is_sent_and_the_sentence_comes_back_as_a_failure():
-    http = Answers([answering("she turns")])
-
-    answer = asking(http, api_key="").ask("talimat", "", [PHOTO])
-
-    assert http.calls == []
-    assert answer.failed is True
-    assert "DEEPSEEK_API_KEY" in answer.text and "Colab Secrets" in answer.text
-
-
-def test_a_run_whose_queen_ai_keeps_failing_stops_as_today_after_fifteen_requests():
-    """Madde 416 as its done-sentence says it: the run loop's three attempts stay, each holding the
-    box's five, and when they are spent the run stops the way it always did -- with the box's text
-    on the error line, and the job still owed."""
-    store, record, plan_store = video_job_project(prompt="kırmızı elbiseli kadın")
-    store.files["0_a.png"] = b"PNGDATA"
-    http = Answers([FakeResponse(status_code=503, text="meşgul")])
-    runner, generator = sync_runner(), FakeGenerator()
-
-    resume_batch(runner, store, record, plan_store, {layers.VIDEO: generator}, lambda: "t",
-                 "düğün", writers={layers.VIDEO: H3VideoPromptWriter(asking(http))})
-
-    assert len(http.calls) == 15
-    state = runner.status()
-    assert state["status"] == "error"
-    assert state["error"] == ("Aynı kare 3 kez denendi — üretim durduruldu\n"
-                              "DeepSeek HTTP 503\nmeşgul")
-    assert generator.calls == []
-    assert record.written_prompts("düğün") == {}
-    assert [row for row in record.rows if row.get("layer") == "video"] == []
-
-
+```python
 # --- Madde 418: the check ------------------------------------------------------------------------
 
 def test_the_answer_is_checked_word_for_word_in_a_request_of_its_own():
@@ -288,3 +260,57 @@ def test_a_run_whose_queen_ai_keeps_refusing_stops_as_today_with_the_sentence():
     assert generator.calls == []
     assert record.written_prompts("düğün") == {}
     assert [row for row in record.rows if row.get("layer") == "video"] == []
+```
+
+## Görev 2: `backend/tests/test_composition_root.py`
+
+**Dosya:** Değiştir: `queen-editor/backend/tests/test_composition_root.py`
+
+- [ ] **Adım 1: 416'nın kapı testi kontrolün onayını da bekler** — adı aynı, dört durumu aynı:
+
+```python
+def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch, video_model, kind):
+    """Madde 416 and 418: H3's, WAN's and the sound's writer, as main.py wires them, have a failed
+    request sent again and the answer checked -- four HTTP errors, then the fifth try's answer and
+    the check's approval, and that answer is the prompt. requests.post is the one the client sends
+    with, so no request leaves this machine."""
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
+    main = import_main(video_model)
+    http = Answers([FakeResponse(status_code=500, text="iç hata")] * 4
+                   + [answering("she turns"), answering("APPROVED")])
+    monkeypatch.setattr(requests, "post", http.post)
+
+    written = main._writers[kind].write({"photo": "kırmızı elbiseli kadın",
+                                         "video": "kadın dönüyor"},
+                                        "standard", source=PHOTO, scene="")
+
+    assert written == "she turns"
+    assert len(http.calls) == 6
+```
+
+## Görev 3: Koşu — kırmızı, commit
+
+- [ ] **Adım 1: Dört satırı koş**, paralel, yazıldığı gibi:
+
+```
+python -m pytest queen-agent -q
+npm test --prefix queen-agent/frontend
+python -m pytest queen-editor -q
+npm test --prefix queen-editor/frontend
+```
+
+Beklenen: `queen-editor` pytest'inde kırmızı — `test_deepseek_box.py`'de 416'nın değişen beşi ve
+418'in on biri (parametreliyle); `test_composition_root.py`'nin kapı testinin dört durumu. Öteki her
+şey yeşil. İki vitest satırı bu çalışma ağacında başlayamaz — `node_modules` yok; bu madde ekrana
+dokunmuyor.
+
+- [ ] **Adım 2: Commit** — testler, spec ve bu plan, kırmızı hâliyle:
+
+```powershell
+git add docs/superpowers/specs/2026-10-06-queen-editor-m418-ret-kontrolu-testler-design.md docs/superpowers/plans/2026-10-06-queen-editor-m418-ret-kontrolu-testler-plan.md queen-editor/backend/tests/test_deepseek_box.py queen-editor/backend/tests/test_composition_root.py
+git commit -m @'
+test(queen-editor): Madde 418 red -- the box has every answer checked by DeepSeek word for word in a request of its own, and only an approval lets it through; a refusal or the check's own error sends the request again within the same five tries; five failed tries return the refusal sentence when the last was a refusal and the error's own text when it was technical; a run whose Queen AI keeps refusing stops as today with that sentence on the error line
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+'@
+```
