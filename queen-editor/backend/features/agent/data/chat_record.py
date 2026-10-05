@@ -8,8 +8,15 @@ The file is only ever added to, the photo record's rule: a session that dies mid
 the line it was adding, where rewriting a chat could lose all of it. Each line is one event about
 one chat, and reading folds them in the order they were written. Nothing is held in memory, so a
 restart loses nothing.
+
+One record writes every chat of every project (main.py), from the doors' threads and from every
+agent's own (madde 420). Two appends at once can tear a line or lose one, so lines are added one at a
+time.
 """
 import json
+import threading
+
+from backend.features.agent.domain.usecases.chats import ProjectMissing
 
 FILE = "chats.jsonl"
 
@@ -54,22 +61,35 @@ def _fold(rows):
 
 
 def _land(question, row):
-    """Steps and outcomes belong to the question being worked on, which is the chat's latest."""
+    """Steps and outcomes belong to the question being worked on, which is the chat's latest.
+
+    The agent keeps a step going while the model reads what it brought, so the outcome settles the
+    last one (BEHAVIOUR.md, Agent panel): an answer or a failure finishes it, and a stop drops it,
+    since it did not finish.
+    """
     event = row.get("event")
     if event == STEP:
         question["steps"].append({"running": row.get("running"), "done": row.get("done"),
                                   "finished": False})
-    elif event == STEP_DONE and question["steps"]:
-        question["steps"][-1]["finished"] = True
+    elif event == STEP_DONE:
+        _finish_last(question)
     elif event in (ANSWER, FAILURE):
+        _finish_last(question)
         question["outcome"] = {"kind": event, "text": row.get("text")}
     elif event == STOPPED:
+        question["steps"] = [step for step in question["steps"] if step["finished"]]
         question["outcome"] = {"kind": STOPPED}
+
+
+def _finish_last(question):
+    if question["steps"]:
+        question["steps"][-1]["finished"] = True
 
 
 class DriveChatRecord:
     def __init__(self, storage):
         self._storage = storage
+        self._lock = threading.Lock()
 
     def project_exists(self, project):
         return self._storage.dir_exists(project)
@@ -100,4 +120,9 @@ class DriveChatRecord:
 
     def _add(self, project, chat_id, event, **fields):
         line = json.dumps({"chat": chat_id, "event": event, **fields}, ensure_ascii=False)
-        self._storage.append_line(project, FILE, line)
+        with self._lock:
+            # The folder is the project, and writing would make it: an agent still at work when its
+            # project was renamed or deleted must not bring the old folder back as a project.
+            if not self._storage.dir_exists(project):
+                raise ProjectMissing(f"Proje yok: {project}")
+            self._storage.append_line(project, FILE, line)

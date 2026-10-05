@@ -6,8 +6,17 @@ from functools import partial
 
 from backend import config
 from backend.features.agent.data.chat_record import DriveChatRecord
-from backend.features.agent.domain.usecases.chats import list_chats, new_chat, open_chat
-from backend.features.agent.presentation.routes import make_chats_blueprint
+from backend.features.agent.domain.usecases.answer_question import answer_question
+from backend.features.agent.domain.usecases.chats import (
+    ask_question,
+    list_chats,
+    new_chat,
+    open_chat,
+    stop_agent,
+    working_chats,
+)
+from backend.features.agent.presentation.routes import make_agent_blueprint, make_chats_blueprint
+from backend.features.agent.runner import AgentRunner
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.ffmpeg_audio import FfmpegAudio
 from backend.features.photo_generation.data.ffmpeg_clips import FfmpegClips
@@ -293,14 +302,30 @@ _producers_bp = make_producers_blueprint(
     list_producers=lambda: list_producers(groups_for(config.VIDEO_MODEL), _model_files,
                                           config.VIDEO_MODEL))
 
-# The agent's chats: one record per project, kept in the project's own folder (madde 417).
+# The agent's chats: one record per project, kept in the project's own folder (madde 417). One
+# object for every writer -- the doors and every agent -- so its lock keeps all their lines whole
+# (madde 420).
 _chat_record = DriveChatRecord(_storage)
 _chats_bp = make_chats_blueprint(new_chat=partial(new_chat, _chat_record),
                                  list_chats=partial(list_chats, _chat_record),
                                  open_chat=partial(open_chat, _chat_record))
 
+# The agent (madde 420): Queen AI reading the open project through the box. It reads what the gallery
+# shows -- the photo feature's own answer, handed in here because a feature never imports another --
+# and a frame's photo, and nothing it is handed can write.
+_agent = partial(answer_question, _queen_ai,
+                 partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
+                 _photo_store.read)
+# Which chats' agents are working: in this process alone, so a restart ends them all.
+_agent_runner = AgentRunner(_chat_record)
+_agent_bp = make_agent_blueprint(
+    ask_question=partial(ask_question, _chat_record, _agent_runner, _agent,
+                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
+    stop_agent=partial(stop_agent, _chat_record, _agent_runner),
+    working_chats=partial(working_chats, _chat_record, _agent_runner))
+
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
-                             _producers_bp, _chats_bp])
+                             _producers_bp, _chats_bp, _agent_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

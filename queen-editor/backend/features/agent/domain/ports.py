@@ -44,3 +44,37 @@ class ChatRecord(Protocol):
 
     def stop(self, project: str, chat_id: int) -> None:
         ...
+
+
+class QueenAI(Protocol):
+    """The box every request to DeepSeek goes through (services/deepseek/box.py, madde 419).
+
+    Its answer never raises: `text`, `tool_calls`, and `failed` with the refusal's sentence or the
+    error's own words in `text`.
+    """
+
+    def converse(self, messages: list, tools=()):
+        ...
+
+
+class Run(Protocol):
+    """One question being answered, as the agent writes it to its chat (madde 420).
+
+    The runner implements it: once the question is stopped, whatever is written lands nowhere, and
+    `stopped()` says so.
+    """
+
+    def stopped(self) -> bool:
+        ...
+
+    def add_step(self, running: str, done: str) -> None:
+        ...
+
+    def finish_step(self) -> None:
+        ...
+
+    def answer(self, text: str) -> None:
+        ...
+
+    def fail(self, text: str) -> None:
+        ...
