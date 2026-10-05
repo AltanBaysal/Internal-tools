@@ -163,8 +163,8 @@ def test_a_reference_for_a_project_that_does_not_exist_is_refused():
 
 
 def test_the_pool_lists_in_one_stable_order():
-    """Kind by kind, and by name inside a kind while nobody has dragged anything: a slot is a place
-    inside a row, so the pool is read a row at a time (madde 300)."""
+    """Kind by kind: a slot is a place inside a row, so the pool is read a row at a time
+    (madde 300)."""
     clips = FakeClips()
     store, pool = FakeStore(), FakeReferenceStore(clips)
 
@@ -265,9 +265,10 @@ def test_removing_something_that_is_not_there_is_not_an_error():
 
 
 def test_the_pool_carries_the_slot_each_reference_stands_in():
-    orders = FakeOrderStore({"düğün": {references.PICTURE: ["kuş.png", "kedi.png"]}})
+    orders = FakeOrderStore()
     store, pool = FakeStore(), FakeReferenceStore()
     added(store, pool, [("kedi.png", b"ONE"), ("kuş.png", b"TWO")], orders=orders)
+    orders.write("düğün", {references.PICTURE: ["kuş.png", "kedi.png"]})
 
     assert [(row["name"], row["slot"]) for row in pool_of(store, pool, orders)] == [
         ("kuş.png", 1), ("kedi.png", 2)]
@@ -297,6 +298,21 @@ def test_a_removed_name_uploaded_again_goes_to_the_end():
 
     assert [(row["name"], row["slot"]) for row in again] == [
         ("bir.png", 1), ("üç.png", 2), ("iki.png", 3)]
+
+
+def test_an_upload_joins_the_end_of_its_row():
+    """Madde 414: what is in the row keeps its slot, whatever the new file is called -- the Ekle card
+    stands after the row's last reference, and that is where the file was picked (madde 320)."""
+    orders = FakeOrderStore()
+    store, pool = FakeStore(), FakeReferenceStore()
+    added(store, pool, [("zeynep.png", b"ONE")], orders=orders)
+
+    answer = add_references(store, pool, orders, FakeClips(), "düğün", [("ayse.png", b"TWO")],
+                            row=references.PICTURE)
+
+    assert [(row["name"], row["slot"]) for row in answer] == [("zeynep.png", 1), ("ayse.png", 2)]
+    assert [(row["name"], row["slot"]) for row in pool_of(store, pool, orders)] == [
+        ("zeynep.png", 1), ("ayse.png", 2)]
 
 
 def test_the_order_the_user_dragged_is_stored():
