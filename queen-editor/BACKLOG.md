@@ -207,3 +207,6 @@ bölünerek yapılacak. Buraya yazılmasının sebebi bu.
 **QueenAgent'la ilişkisi** *(onun taşınması mı, yanına ayrı bir şey mi, ikisinin konuşması mı)*; ve
 parçalanmanın nereden başlayacağı. Üçü de sırası gelince detaylandırılacak, ve buraya bir tahmin
 yazılmıyor.
+
+**İlk parça:** [v9-4](../docs/superpowers/roadmaps/2026-10-05-queen-editor-v9-roadmap.md) — salt
+okunur sohbet *(kullanıcı, 5 Ekim)*.
