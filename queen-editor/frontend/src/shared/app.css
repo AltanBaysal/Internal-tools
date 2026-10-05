@@ -122,3 +122,196 @@ a.wf-btn {
 .qe-thin-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--border-active);
 }
+
+/* The AI agent panel's chat (madde 425), as the design's kit.css draws it: the conversation and the
+   box under it fill what the panel's heading row leaves, and only the conversation scrolls. */
+.qe-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* Relative, so that a long answer's steps are measured from the top of the conversation. */
+.qe-chat-log {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.qe-chat-empty {
+  margin: auto;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.qe-chat-q {
+  align-self: flex-end;
+  max-width: 85%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  background: var(--bg-3);
+  border-radius: var(--r-md);
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.qe-chat-a {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* The agent's steps, one line each: a finished step has a still grey dot, the one in progress
+   breathes in the accent. Tighter than the 14px between a question and an answer, so the steps read
+   as one block. */
+.qe-chat-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.qe-chat-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+.qe-chat-step > span:last-child {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* Half the difference between the 18px line and the 7px dot, so the dot sits on the first line. */
+.qe-chat-step .qe-dot {
+  margin-top: 5px;
+  background: var(--ink-4);
+}
+.qe-chat-step.is-live .qe-dot {
+  background: var(--accent);
+}
+.qe-chat-stopped {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.qe-chat-err {
+  border: 1px solid var(--danger);
+  background: var(--danger-bg);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.qe-chat-compose {
+  position: relative;
+}
+/* The button sits inside the box, so the box's focus edge surrounds it too. The textarea is a block,
+   so the wrapper is exactly as tall as the box and the button's 10px is measured from the box's
+   edge, not from a line-box gap under it. Its bottom padding is the button's 28px, its 10px and a
+   6px gap, so the last line never runs beneath the button. */
+.qe-chat-compose textarea {
+  display: block;
+  padding-bottom: 44px;
+}
+.qe-chat-go {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 999px;
+  justify-content: center;
+}
+.qe-chat-go svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+/* The panel's heading row with the chat's two buttons, and the list of chats. */
+.qe-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.qe-chat-tools {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+/* At rest the two buttons are quiet, so the pressed one reads at a glance: it takes the selected
+   look of a segment button. */
+.qe-chat-tools .wf-btn {
+  white-space: nowrap;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--ink-2);
+}
+.qe-chat-tools .wf-btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+.qe-chat-tools .wf-btn.is-on {
+  background: var(--bg-3);
+  border-color: var(--border-strong);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  color: var(--ink);
+}
+.qe-chat-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.qe-chat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font: inherit;
+  transition: background 120ms;
+}
+.qe-chat-row:hover {
+  background: var(--bg-hover);
+}
+.qe-chat-row.is-on {
+  background: var(--bg-3);
+}
+.qe-chat-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* The first question whole from the server, cut to one line here. */
+.qe-chat-row-q {
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qe-chat-row-date {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-3);
+}

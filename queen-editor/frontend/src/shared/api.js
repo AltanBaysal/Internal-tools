@@ -316,6 +316,44 @@ export function referenceUrl(project, name) {
   return `/references/${encodeURIComponent(project)}/${encodeURIComponent(name)}`;
 }
 
+// The agent's chats (madde 417, 420): a chat is named by its number inside the project. The empty
+// chat waiting comes back rather than a new one -- the server never makes a second.
+export async function newChat(project) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats`, { method: "POST" });
+}
+
+// Only the chats with a question, the newest last question first, each first question whole.
+export async function listChats(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/chats`);
+  return body.chats;
+}
+
+export async function openChat(project, chat) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats/${chat}`);
+}
+
+// Answers at once with the chat, the question last and no outcome yet: the agent goes on on the
+// server.
+export async function askQuestion(project, chat, text) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats/${chat}/questions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function stopAgent(project, chat) {
+  return request(`/api/projects/${encodeURIComponent(project)}/chats/${chat}/stop`,
+                 { method: "POST" });
+}
+
+// Which chats' agents work now. It lives in the server's memory, not in the chats' record, so it is
+// a door of its own.
+export async function workingChats(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/chats/working`);
+  return body.working;
+}
+
 // What an export would write: how many videos, how long they run, and the folder they would land
 // in. Nothing is created by asking -- the export screen is the step that asks before it runs.
 export async function getExportSummary(project) {

@@ -51,6 +51,16 @@ function recordServer() {
     options?.method === "PUT" ? "" : JSON.stringify({ prompts: "", variants: null }))));
 }
 
+// The agent panel's first look at a project with nothing asked yet: an empty list, nobody working,
+// and the empty chat waiting.
+function chatServer() {
+  const answer = (body) => ({ ok: true, status: 200, statusText: "OK",
+                              text: async () => JSON.stringify(body) });
+  return vi.fn((path, options) => Promise.resolve(answer(
+    options?.method === "POST" ? { id: 1, questions: [] }
+      : path.endsWith("/working") ? { working: [] } : { chats: [] })));
+}
+
 describe("SidePanel — the icon rail", () => {
   it("opens on the form panel", () => {
     renderColumn();
@@ -105,13 +115,21 @@ describe("SidePanel — the icon rail", () => {
     expect(screen.queryByText("Duraklat")).toBeNull();
   });
 
-  it("opens the agent panel and leaves it deliberately empty", () => {
-    renderColumn();
+  it("opens the agent panel: its heading and the chat's two buttons in one row, the chat under it",
+     async () => {
+       vi.stubGlobal("fetch", chatServer());
+       renderColumn();
 
-    fireEvent.click(screen.getByLabelText("AI agent"));
+       fireEvent.click(screen.getByLabelText("AI agent"));
 
-    expect(screen.getByText("Agent buradan çalışacak.")).toBeTruthy();
-  });
+       // The column hands its heading to the chat, which puts its own buttons beside it (madde 425).
+       const row = screen.getByRole("heading", { name: "AI agent" }).parentElement;
+       expect(row.className).toContain("qe-chat-head");
+       expect(row.contains(screen.getByRole("button", { name: "Yeni sohbet" }))).toBe(true);
+       expect(row.contains(screen.getByRole("button", { name: "Sohbetler" }))).toBe(true);
+       expect(await screen.findByText("Projeyle ilgili bir şey sor.")).toBeTruthy();
+       expect(screen.queryByText("Agent buradan çalışacak.")).toBeNull();
+     });
 
   it("marks the photo panel with its own layer's glyph, not a plus", () => {
     renderColumn();
