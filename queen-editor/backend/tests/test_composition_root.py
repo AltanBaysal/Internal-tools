@@ -155,12 +155,14 @@ def test_the_deepseek_key_comes_from_the_environment(import_main, monkeypatch):
     ("h3", layers.VIDEO), ("", layers.VIDEO), ("h3", layers.AUDIO), ("", layers.AUDIO),
 ], ids=["h3-video", "wan-video", "h3-sound", "wan-sound"])
 def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch, video_model, kind):
-    """Madde 416: H3's, WAN's and the sound's writer, as main.py wires them, have a failed request
-    sent again -- four HTTP errors, and the fifth try's answer is the prompt. requests.post is the
-    one the client sends with, so no request leaves this machine."""
+    """Madde 416 and 418: H3's, WAN's and the sound's writer, as main.py wires them, have a failed
+    request sent again and the answer checked -- four HTTP errors, then the fifth try's answer and
+    the check's approval, and that answer is the prompt. requests.post is the one the client sends
+    with, so no request leaves this machine."""
     monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
     main = import_main(video_model)
-    http = Answers([FakeResponse(status_code=500, text="iç hata")] * 4 + [answering("she turns")])
+    http = Answers([FakeResponse(status_code=500, text="iç hata")] * 4
+                   + [answering("she turns"), answering("APPROVED")])
     monkeypatch.setattr(requests, "post", http.post)
 
     written = main._writers[kind].write({"photo": "kırmızı elbiseli kadın",
@@ -168,4 +170,4 @@ def test_every_queen_ai_prompt_goes_through_the_box(import_main, monkeypatch, vi
                                         "standard", source=PHOTO, scene="")
 
     assert written == "she turns"
-    assert len(http.calls) == 5
+    assert len(http.calls) == 6

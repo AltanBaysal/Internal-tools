@@ -1,3 +1,40 @@
+# Madde 418 — Kutunun ret kontrolü, uygulama turunun planı
+
+> **Koşum:** bu oturumda, satır satır, madde 418'in kendi dalında. Testlere dokunulmaz.
+
+**Hedef:** Test turunun kırmızı testlerini kodla yeşile çevirmek — testlerin anlattığı kadar, fazlası
+değil.
+
+**Yaklaşım:** Kutunun `try`'ının içinde, asıl cevaptan sonra aynı istemciye ikinci bir `complete`:
+kontrolün metni sistem mesajı, cevap sözler. Yalnız tam olarak `APPROVED` geçirir; ret ve iki isteğin
+hatası aynı beş denemeden düşer; sonda son denemenin türü konuşur.
+
+**Spec:** [m418 uygulama turu](../specs/2026-10-06-queen-editor-m418-ret-kontrolu-uygulama-design.md)
+· [m418 test turu](../specs/2026-10-06-queen-editor-m418-ret-kontrolu-testler-design.md)
+
+**Test turunun kırmızısı** (`e7d57e4c`): queen-editor `19 failed, 1296 passed` — kutunun değişen beşi,
+418'in on testi (parametreliyle), kapı testinin dört durumu · queen-agent `989 passed` · iki vitest
+satırı başlayamadı: `'vitest' is not recognized` — bu çalışma ağacında `node_modules` yok.
+
+## Her yere geçerli kurallar
+
+- Kod, yorum, docstring İngilizce; kullanıcının gördüğü metin Türkçe. Yorum neden'i söyler.
+- CODE-STANDARD: kutu bir servis, hiçbir özelliği bilmez — suffix'i de, video'yu da.
+- Cümle harfi harfine: `Model hata döndü, farklı şekilde dene.`
+- Yalnız `box.py` değişir.
+
+---
+
+## Görev 1: `services/deepseek/box.py`
+
+**Dosya:** Değiştir: `queen-editor/backend/services/deepseek/box.py`
+
+**Üretir:** `CHECK_INSTRUCTION` (str), `REFUSED` (str); `Box(client).ask(system, text="", images=())
+-> Answer` aynı imzayla. `TRIES` ve `Answer` aynen.
+
+- [ ] **Adım 1: Dosyanın tamamı.**
+
+```python
 """The black box every request to Queen AI goes through (madde 416, 418).
 
 The caller asks once and always gets an Answer back, never an exception. A request that came back
@@ -72,3 +109,34 @@ class Box:
                 said = str(exc)
         # Every try rewrites `said`, so what the caller is told is the last try's.
         return Answer(said, failed=True)
+```
+
+## Görev 2: Koşu — yeşil, commit
+
+- [ ] **Adım 1: Dört satır**, paralel, yazıldığı gibi:
+
+```
+python -m pytest queen-agent -q
+npm test --prefix queen-agent/frontend
+python -m pytest queen-editor -q
+npm test --prefix queen-editor/frontend
+```
+
+Beklenen: iki pytest satırı yeşil — queen-editor `1315 passed`, queen-agent `989 passed`. İki vitest
+satırı bu çalışma ağacında başlayamaz — `node_modules` yok; bu madde ekrana dokunmuyor.
+
+**Koşuldu:** queen-editor `1315 passed` · queen-agent `989 passed` · iki vitest satırı:
+`'vitest' is not recognized`.
+
+- [ ] **Adım 2:** Fark FOUNDATION, CODE-STANDARD ve *Bitti sayılır*'a karşı okunur.
+
+- [ ] **Adım 3: Commit** — kod, uygulama spec'i ve bu plan:
+
+```powershell
+git add queen-editor/backend/services/deepseek/box.py docs/superpowers/specs/2026-10-06-queen-editor-m418-ret-kontrolu-uygulama-design.md docs/superpowers/plans/2026-10-06-queen-editor-m418-ret-kontrolu-uygulama-plan.md
+git commit -m @'
+feat(queen-editor): 418 -- the box in services/deepseek has every answer checked by DeepSeek: the answer goes word for word, in a request of its own, with a new check text asking for one word, and only APPROVED lets it through; a refusal or an error of either request spends one of the same five tries and sends the request again unchanged; when all five failed the box returns the refusal sentence if the last try was refused and the error's own text if it was technical, so a run whose Queen AI keeps refusing stops as today with that sentence on the error line
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+'@
+```
