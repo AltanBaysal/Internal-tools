@@ -24,6 +24,20 @@ const HEADER = {
 const HINT = { position: "absolute", top: "calc(100% + 8px)", right: 0, width: 300, padding: 14,
                display: "flex", flexDirection: "column", gap: 6, textAlign: "left", zIndex: 20 };
 
+// A card dragged near an edge of the gallery's box carries the box with it, a step at a time
+// (madde 415). The browser repeats dragover while a drag is held still, so the box goes on moving
+// for as long as the card stays at the edge -- and nothing is left running once the drag ends.
+// Measured from the box's own edges on screen: the header's foot and the window's.
+const EDGE = 80;
+const STEP = 20;
+
+function scrollAtEdge(event) {
+  const box = event.currentTarget;
+  const { top, bottom } = box.getBoundingClientRect();
+  if (event.clientY < top + EDGE) box.scrollTop -= STEP;
+  else if (event.clientY > bottom - EDGE) box.scrollTop += STEP;
+}
+
 // Artboard 03/04: gallery on the left (the content), the 320px panel on the right (the controls).
 // The panel stays put while a batch runs -- only its bottom block swaps (see GeneratePanel).
 export default function ProjectScreen({ project, settings, settingsError, onRetrySettings,
@@ -109,8 +123,10 @@ export default function ProjectScreen({ project, settings, settingsError, onRetr
 
       <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
         {/* The artboard can clip its gallery because it is a fixed-height frame; a real page
-            has to scroll, otherwise most of a 48-photo run is unreachable. */}
-        <div data-scroll ref={box} style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
+            has to scroll, otherwise most of a 48-photo run is unreachable. Over the cards only:
+            the pool's rows were left as they are (madde 415). */}
+        <div data-scroll ref={box} onDragOver={poolShown ? undefined : scrollAtEdge}
+             style={{ flex: 1, minWidth: 0, overflowY: "auto" }}>
           {poolShown && <ReferencePanel project={project} onPool={setPool} />}
           {/* Hidden rather than taken down: the gallery keeps its own selection. Whether the queue
               is moving is the gallery's business too: an owed layer reads as queued while it flows
