@@ -9,7 +9,9 @@ What is asserted is what the notebook waits for: the module comes up, and its ap
 /api/health. Nothing is faked because nothing in the graph reaches out at construction -- paths are
 joined, weights are loaded on the first render, and torch is imported inside it.
 """
+import base64
 import importlib
+import json
 import os
 import sys
 
@@ -18,7 +20,7 @@ import requests
 
 from backend import config
 from backend.features.photo_generation.domain import layers
-from backend.tests.test_deepseek_box import Answers
+from backend.tests.test_deepseek_box import Answers, calling
 from backend.tests.test_deepseek_client import FakeResponse, answering
 
 VIDEO_MODEL = "QE_VIDEO_MODEL"
@@ -100,6 +102,86 @@ def test_the_app_serves_the_agents_chats(import_main, video_model):
 
     assert response.status_code == 404
     assert response.get_json() == {"error": "Proje yok: m417-yok"}
+
+
+@pytest.mark.parametrize("video_model", ["", "h3"])
+@pytest.mark.parametrize("method, url", [("post", "/api/projects/m420-yok/chats/1/questions"),
+                                         ("post", "/api/projects/m420-yok/chats/1/stop"),
+                                         ("get", "/api/projects/m420-yok/chats/working")],
+                         ids=["ask", "stop", "working"])
+def test_the_app_serves_the_agents_doors(import_main, video_model, method, url):
+    """Madde 420: the doors' own tests wire them by hand, so only this one reads main.py's wiring. A
+    project that does not exist answers in the doors' words -- a door never hung would not."""
+    main = import_main(video_model)
+
+    response = getattr(main.app.test_client(), method)(url, json={"text": "Kaç kare var?"})
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Proje yok: m420-yok"}
+
+
+class FakeRun:
+    """The question being answered: writes down what the agent writes to the chat."""
+
+    def __init__(self):
+        self.wrote = []
+
+    def stopped(self):
+        return False
+
+    def add_step(self, running, done):
+        self.wrote.append(("step", running, done))
+
+    def finish_step(self):
+        self.wrote.append(("stepDone",))
+
+    def answer(self, text):
+        self.wrote.append(("answer", text))
+
+    def fail(self, text):
+        self.wrote.append(("failure", text))
+
+
+def test_the_agent_reads_the_open_project_through_the_box_and_changes_nothing(
+        import_main, monkeypatch, tmp_path):
+    """Madde 420, as main.py wires it: the agent reads the gallery's cards and a frame's photo out of
+    the open project, asks Queen AI through the box -- the tool calls go unchecked, the words are
+    checked -- and writes nothing into the project ("yani bir değişilik yapamasın"). requests.post is
+    the one the client sends with, so no request leaves this machine."""
+    project = tmp_path / "düğün"
+    project.mkdir()
+    (project / "P0_0.png").write_bytes(b"PNG")
+    row = {"file": "P0_0.png", "frame": "P0_0", "layer": "photo", "status": "done",
+           "prompt": "kırmızı elbiseli kadın"}
+    (project / "photos.jsonl").write_text(json.dumps(row, ensure_ascii=False) + "\n",
+                                          encoding="utf-8")
+    before = {path.name: path.read_bytes() for path in project.iterdir()}
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+    monkeypatch.setenv("QE_DEEPSEEK_API_KEY", "k-1")
+    main = import_main("h3")
+    read = {"id": "call_1", "type": "function",
+            "function": {"name": "read_frame", "arguments": '{"frame": 1}'}}
+    look = {"id": "call_2", "type": "function",
+            "function": {"name": "look_at_frame", "arguments": '{"frame": 1}'}}
+    http = Answers([calling(read, look), answering("Projede tek kare var: kırmızı elbiseli kadın."),
+                    answering("APPROVED")])
+    monkeypatch.setattr(requests, "post", http.post)
+    run = FakeRun()
+
+    main._agent(run, "düğün", [], "Projede ne var?")
+
+    assert run.wrote[-1] == ("answer", "Projede tek kare var: kırmızı elbiseli kadın.")
+    first, second, _check = http.calls
+    assert [tool["function"]["name"] for tool in first["body"]["tools"]] == ["read_frame",
+                                                                             "look_at_frame"]
+    told = second["body"]["messages"]
+    assert any(message["role"] == "tool" and "kırmızı elbiseli kadın" in message["content"]
+               for message in told)
+    pictures = [part["image_url"]["url"] for message in told
+                if message["role"] == "user" and isinstance(message["content"], list)
+                for part in message["content"] if part["type"] == "image_url"]
+    assert pictures == ["data:image/png;base64," + base64.b64encode(b"PNG").decode()]
+    assert {path.name: path.read_bytes() for path in project.iterdir()} == before
 
 
 PHOTO = ("P0_0.png", b"PNG")

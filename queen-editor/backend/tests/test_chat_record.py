@@ -8,6 +8,7 @@ The new module is imported inside the tests: it is written after this file, and 
 top would stop the whole collection instead of failing these questions.
 """
 import os
+import threading
 
 import pytest
 
@@ -116,7 +117,8 @@ def test_steps_and_outcomes_land_on_the_chats_latest_question(record):
 
 
 def test_two_chats_written_at_the_same_time_stay_apart(record):
-    """Two chats may run at once (BEHAVIOUR.md, Agent panel), so their lines interleave."""
+    """Two chats may run at once (BEHAVIOUR.md, Agent panel), so their lines interleave. Each
+    outcome finishes its own chat's step and no other (madde 420)."""
     record.add_chat("düğün", 1)
     record.add_chat("düğün", 2)
     record.add_question("düğün", 1, "Birinci", ASKED)
@@ -128,10 +130,10 @@ def test_two_chats_written_at_the_same_time_stay_apart(record):
 
     one, two = record.chats("düğün")
     assert one == {"id": 1, "questions": [{
-        "text": "Birinci", "askedAt": ASKED, "steps": [step(READING, False)],
+        "text": "Birinci", "askedAt": ASKED, "steps": [step(READING, True)],
         "outcome": {"kind": "answer", "text": "Bir."}}]}
     assert two == {"id": 2, "questions": [{
-        "text": "İkinci", "askedAt": LATER, "steps": [step(LOOKING, False)],
+        "text": "İkinci", "askedAt": LATER, "steps": [step(LOOKING, True)],
         "outcome": {"kind": "failure", "text": REFUSED}}]}
 
 
@@ -183,3 +185,99 @@ def test_a_fresh_record_reads_what_an_earlier_one_wrote(tmp_path, record):
 def test_a_project_is_its_folder(record):
     assert record.project_exists("düğün") is True
     assert record.project_exists("yok") is False
+
+
+# --- Madde 420: what the agent writes ------------------------------------------------------------
+
+@pytest.mark.parametrize("end, outcome", [
+    (lambda record: record.answer("düğün", 1, "12 kare."), {"kind": "answer", "text": "12 kare."}),
+    (lambda record: record.fail("düğün", 1, REFUSED), {"kind": "failure", "text": REFUSED}),
+], ids=["answer", "failure"])
+def test_an_answer_or_a_failure_finishes_the_step_going_on(record, end, outcome):
+    """BEHAVIOUR.md, Agent panel: "An answer or a failure finishes the last step." The agent keeps a
+    step going while the model reads what it brought."""
+    asked(record)
+    record.add_step("düğün", 1, *READING)
+    record.finish_step("düğün", 1)
+    record.add_step("düğün", 1, *LOOKING)
+
+    end(record)
+
+    question = record.chats("düğün")[0]["questions"][0]
+    assert question["steps"] == [step(READING, True), step(LOOKING, True)]
+    assert question["outcome"] == outcome
+
+
+def test_a_stop_drops_the_step_going_on_and_keeps_the_finished_ones(record):
+    """BEHAVIOUR.md, Agent panel: "Stopping keeps the finished steps and drops the one that was going
+    on, since it did not finish." """
+    asked(record)
+    record.add_step("düğün", 1, *READING)
+    record.finish_step("düğün", 1)
+    record.add_step("düğün", 1, *LOOKING)
+
+    record.stop("düğün", 1)
+
+    question = record.chats("düğün")[0]["questions"][0]
+    assert question["steps"] == [step(READING, True)]
+    assert question["outcome"] == {"kind": "stopped"}
+
+
+def test_a_line_for_a_project_whose_folder_is_gone_is_refused_and_makes_no_folder(tmp_path,
+                                                                                    record):
+    """An agent still at work when its project was renamed or deleted must not bring the folder back:
+    every folder under the root is a project (madde 417)."""
+    from backend.features.agent.domain.usecases.chats import ProjectMissing
+
+    with pytest.raises(ProjectMissing) as refused:
+        record.answer("taşındı", 1, "12 kare.")
+
+    assert str(refused.value) == "Proje yok: taşındı"
+    assert not (tmp_path / "taşındı").exists()
+
+
+class HeldStorage:
+    """A storage that holds the first line it is given half-written until the test lets it go, and
+    notes whether a second line began while the first was still being written."""
+
+    def __init__(self):
+        self.lines = []
+        self.writing = False
+        self.overlapped = False
+        self.first_in = threading.Event()
+        self.let_go = threading.Event()
+
+    def dir_exists(self, subdir):
+        return True
+
+    def append_line(self, subdir, name, line):
+        if self.writing:
+            self.overlapped = True
+        self.writing = True
+        if not self.first_in.is_set():
+            self.first_in.set()
+            self.let_go.wait(5)
+        self.lines.append(line)
+        self.writing = False
+
+
+def test_two_writers_never_add_a_line_at_the_same_time():
+    """Two agents, the door that asks and the door that stops all write to one chats.jsonl from
+    their own threads; two appends at once can tear a line or lose one. The second writer is given a
+    fifth of a second to start while the first line is held -- proving that it waited takes a wait."""
+    from backend.features.agent.data.chat_record import DriveChatRecord
+    storage = HeldStorage()
+    record = DriveChatRecord(storage)
+    first = threading.Thread(target=record.answer, args=("düğün", 1, "Bir."))
+    first.start()
+    assert storage.first_in.wait(5)
+    second = threading.Thread(target=record.answer, args=("düğün", 2, "İki."))
+    second.start()
+    second.join(0.2)
+
+    storage.let_go.set()
+    first.join(5)
+    second.join(5)
+
+    assert storage.overlapped is False
+    assert len(storage.lines) == 2
