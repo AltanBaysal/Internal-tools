@@ -1,9 +1,10 @@
 """What the language model is asked when a job needs a prompt nobody typed.
 
-One transport for all three: every writer talks to Queen AI -- DeepSeek, services/deepseek/. A
-video's writer is shown the frame's photo and reads its scenario (madde 400, 404), and H3's is shown
-the next frame's photo too for a linked video (402); the sound's writer reads the video's prompt
-alone (404). Each prompt is its own ask. This file only decides what to say.
+Every writer asks Queen AI -- DeepSeek -- through the box in services/deepseek/box.py, which sends a
+failed request again (madde 416). A video's writer is shown the frame's photo and reads its scenario
+(madde 400, 404), and H3's is shown the next frame's photo too for a linked video (402); the sound's
+writer reads the video's prompt alone (404). Each prompt is its own ask. This file only decides what
+to say.
 """
 from backend.features.photo_generation.domain import production_mode
 
@@ -162,9 +163,18 @@ def _scenario(scene):
     return f"Scenario: {scene}" if scene else ""
 
 
+def _prompt(answer):
+    """The box's answer as the prompt. A failure is raised instead, in the box's own words, so it
+    takes the path every failed ask takes -- the run loop's three attempts, then the error line --
+    and is never written on the card (madde 416)."""
+    if answer.failed:
+        raise RuntimeError(answer.text)
+    return answer.text
+
+
 class VideoPromptWriter:
-    def __init__(self, client):
-        self._client = client
+    def __init__(self, queen_ai):
+        self._queen_ai = queen_ai
 
     def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
         """Queen AI is shown the photo the video starts from and reads the frame's scenario, the way
@@ -174,13 +184,13 @@ class VideoPromptWriter:
         `end` is taken and ignored, because the queue has one call shape for every writer: a loop
         ends on the photo already shown, and the way into a next frame is H3's text alone.
         """
-        return self._client.complete(asked(VIDEO_INSTRUCTION, mode) + SYSTEM_PROMPT_SUFFIX,
-                                     _scenario(scene), [source])
+        return _prompt(self._queen_ai.ask(asked(VIDEO_INSTRUCTION, mode) + SYSTEM_PROMPT_SUFFIX,
+                                          _scenario(scene), [source]))
 
 
 class H3VideoPromptWriter:
-    def __init__(self, client):
-        self._client = client
+    def __init__(self, queen_ai):
+        self._queen_ai = queen_ai
 
     def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
         """Queen AI is shown the photo the video starts from and reads the frame's scenario
@@ -193,13 +203,13 @@ class H3VideoPromptWriter:
         instruction, pictures = asked(H3_VIDEO_INSTRUCTION, mode), [source]
         if mode == production_mode.LINKED:
             instruction, pictures = instruction + LINKED_RULE, [source, end]
-        return self._client.complete(instruction + SYSTEM_PROMPT_SUFFIX, _scenario(scene),
-                                     pictures)
+        return _prompt(self._queen_ai.ask(instruction + SYSTEM_PROMPT_SUFFIX, _scenario(scene),
+                                          pictures))
 
 
 class AudioPromptWriter:
-    def __init__(self, client):
-        self._client = client
+    def __init__(self, queen_ai):
+        self._queen_ai = queen_ai
 
     def write(self, prompts, mode=production_mode.STANDARD, source=None, end=None, scene=""):
         """A sound is written from its video's prompt alone (madde 404): that prompt says what
@@ -210,5 +220,5 @@ class AudioPromptWriter:
         It is taken and ignored, like `source`, `end` and `scene`, because the queue has one call
         shape for every writer.
         """
-        return self._client.complete(AUDIO_INSTRUCTION + SYSTEM_PROMPT_SUFFIX,
-                                     f"Video prompt: {prompts.get('video', '')}")
+        return _prompt(self._queen_ai.ask(AUDIO_INSTRUCTION + SYSTEM_PROMPT_SUFFIX,
+                                          f"Video prompt: {prompts.get('video', '')}"))
