@@ -1,6 +1,8 @@
 import importlib.util
 import os
 
+import pytest
+
 from backend.features.photo_generation.data import prompt_writer
 from backend.features.photo_generation.data.prompt_writer import (
     AUDIO_INSTRUCTION,
@@ -24,16 +26,22 @@ THRONE = "Kraliçe tahtında oturuyor; salon boş ve karanlık."
 NEXT = ("P1_0.png", b"NEXTDATA")
 
 
-class FakeVisionClient:
-    """DeepSeek, without one: records each ask as (instruction, words, pictures)."""
+class FakeQueenAI:
+    """Queen AI's box, without DeepSeek: records each ask as (instruction, words, pictures) and
+    answers with what the test set up -- a prompt, or the failure the box gave up with."""
 
-    def __init__(self, answer="integrated_multimodal_description: [Shot 1] she turns"):
+    def __init__(self, answer="integrated_multimodal_description: [Shot 1] she turns",
+                 failed=False):
         self.answer = answer
+        self.failed = failed
         self.calls = []
 
-    def complete(self, system, text="", images=()):
+    def ask(self, system, text="", images=()):
+        # Imported here rather than at the top: a module that cannot be imported would fail
+        # collection, and pytest stops the whole session on a collection error.
+        from backend.services.deepseek.box import Answer
         self.calls.append((system, text, list(images)))
-        return self.answer
+        return Answer(self.answer, failed=self.failed)
 
 
 def _sent(instruction):
@@ -57,7 +65,7 @@ def _queen_agent_suffix():
 def test_the_wan_writer_shows_queen_ai_the_photo_and_the_scenario():
     """Madde 404: WAN's prompt is written the way H3's is -- the model sees the picture the tags
     drew, so the tags themselves are not sent."""
-    client = FakeVisionClient(answer="she turns her head")
+    client = FakeQueenAI(answer="she turns her head")
 
     written = VideoPromptWriter(client).write({"photo": "score_9_up, 1girl, queen"}, "standard",
                                               source=PHOTO, scene=THRONE)
@@ -67,7 +75,7 @@ def test_the_wan_writer_shows_queen_ai_the_photo_and_the_scenario():
 
 
 def test_a_wan_frame_with_no_scenario_sends_the_photo_alone():
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     VideoPromptWriter(client).write({"photo": "score_9_up, 1girl, queen"}, "standard",
                                     source=PHOTO, scene="")
@@ -95,7 +103,7 @@ def test_the_wan_text_says_what_to_do_without_a_scenario():
 def test_the_sound_is_written_from_the_video_s_prompt_alone():
     """The user's words (1 Ekim): "mmaudio da video promptundan alsın". No picture and none of the
     photo's words: the video's prompt already says what happens."""
-    client = FakeVisionClient(answer="fabric rustling, footsteps on stone")
+    client = FakeQueenAI(answer="fabric rustling, footsteps on stone")
 
     written = AudioPromptWriter(client).write({"photo": "kırmızı elbiseli kadın",
                                               "video": "kadın başını çeviriyor"})
@@ -125,7 +133,7 @@ def _h3():
 def test_the_h3_writer_shows_queen_ai_the_photo_and_the_scenario():
     """The model sees the picture the tags drew, so the tags themselves are not sent."""
     instruction, writer = _h3()
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     written = writer(client).write({"photo": "score_9_up, 1girl, queen"}, "standard",
                                    source=PHOTO, scene=THRONE)
@@ -137,7 +145,7 @@ def test_the_h3_writer_shows_queen_ai_the_photo_and_the_scenario():
 def test_a_frame_with_no_scenario_sends_the_photo_alone():
     """The H3 text says what to do then: a small, natural motion for the picture."""
     instruction, writer = _h3()
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     writer(client).write({"photo": "score_9_up, 1girl, queen"}, "standard", source=PHOTO,
                          scene="")
@@ -158,7 +166,7 @@ def test_the_h3_instruction_never_asks_for_dynv2():
     included, so no rule appended to the instruction can bring the word back. Adding it by hand still
     works: the producer puts a leading dynv2 first (test_comfy_h3_video_generator)."""
     _instruction, writer = _h3()
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     for mode in ("standard", "loop", "linked"):
         writer(client).write({"photo": "kırmızı elbiseli kadın"}, mode, source=PHOTO,
@@ -211,7 +219,7 @@ def test_a_loop_video_is_asked_for_a_motion_that_returns():
     """Madde 307: the clip is played several times back to back, and the model slowing down to land
     on the last frame is what reads as a pulse. A motion that returns arrives by its own rhythm."""
     instruction, writer = _h3()
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     writer(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO, scene="")
 
@@ -220,7 +228,7 @@ def test_a_loop_video_is_asked_for_a_motion_that_returns():
 
 def test_a_plain_video_is_asked_for_nothing_extra():
     instruction, writer = _h3()
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     writer(client).write({"photo": "kırmızı elbiseli kadın"}, "standard", source=PHOTO,
                          scene="")
@@ -238,7 +246,7 @@ def test_a_linked_video_shows_queen_ai_both_pictures_in_order():
     """Madde 402: the video ends on the next frame's photo, so the model is shown where it has to
     arrive -- this frame's photo first, as Picture 1, then the next one's, as Picture 2."""
     instruction, writer = _h3()
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     writer(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO, end=NEXT,
                          scene=THRONE)
@@ -267,7 +275,7 @@ def test_a_loop_video_shows_its_picture_once():
     """A loop ends on its own photo -- the one already shown -- so it is not sent a second time, and
     nothing of the linked text reaches it."""
     instruction, writer = _h3()
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     writer(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO, end=PHOTO,
                          scene="")
@@ -277,7 +285,7 @@ def test_a_loop_video_shows_its_picture_once():
 
 def test_wan_asks_for_the_same_returning_motion():
     # Loop is a mode of both engines, so the rule belongs to both writers -- as one sentence.
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "loop", source=PHOTO,
                                     scene="")
@@ -314,7 +322,7 @@ def test_the_loop_rule_holds_the_camera_still():
 def test_the_sound_writer_takes_the_mode_and_ignores_it():
     """One call shape: the loop hands every writer the same arguments, and a sound is laid over the
     whole of a video however that video was made."""
-    client = FakeVisionClient(answer="fabric rustling")
+    client = FakeQueenAI(answer="fabric rustling")
 
     written = AudioPromptWriter(client).write({"photo": "a", "video": "b"}, "loop")
 
@@ -325,7 +333,7 @@ def test_the_sound_writer_takes_the_mode_and_ignores_it():
 def test_wan_never_hears_of_picture_2():
     """The linked text names Picture 2 and is H3's alone: WAN is shown its own photo and nothing
     else, whatever the mode."""
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     VideoPromptWriter(client).write({"photo": "kırmızı elbiseli kadın"}, "linked", source=PHOTO,
                                     end=NEXT, scene=THRONE)
@@ -335,7 +343,7 @@ def test_wan_never_hears_of_picture_2():
 
 def test_the_sound_is_shown_no_picture_whatever_it_is_handed():
     """The loop hands every writer the same arguments; the sound's takes the video's prompt alone."""
-    client = FakeVisionClient(answer="fabric rustling")
+    client = FakeQueenAI(answer="fabric rustling")
 
     AudioPromptWriter(client).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
                                     "standard", source=("P0_0_V1_0.mp4", b"MP4"), end=NEXT,
@@ -360,7 +368,7 @@ def test_every_writer_s_system_prompt_ends_with_queen_agent_s_suffix():
     sound -- and in whichever mode, the system prompt it is handed ends with QueenAgent's suffix.
     Asked of QueenAgent's text rather than the copy."""
     _instruction, h3 = _h3()
-    client = FakeVisionClient()
+    client = FakeQueenAI()
 
     for writer in (VideoPromptWriter, h3, AudioPromptWriter):
         for mode in ("standard", "loop", "linked"):
@@ -370,3 +378,19 @@ def test_every_writer_s_system_prompt_ends_with_queen_agent_s_suffix():
     suffix = _queen_agent_suffix()
     for sent, _words, _pictures in client.calls:
         assert sent.endswith(suffix), f"System prompt suffix'le bitmiyor:\n{sent}"
+
+
+# --- Madde 416: the box's failure ----------------------------------------------------------------
+
+@pytest.mark.parametrize("kind", ["wan", "h3", "sound"])
+def test_a_failed_answer_is_never_a_prompt(kind):
+    """When the box gave up it says why in its text, and that text goes the way any failure goes --
+    raised into the run loop, never written on the card as the prompt."""
+    writer = {"wan": VideoPromptWriter, "h3": _h3()[1], "sound": AudioPromptWriter}[kind]
+    queen_ai = FakeQueenAI(answer="DeepSeek HTTP 503\nmeşgul", failed=True)
+
+    with pytest.raises(RuntimeError) as failed:
+        writer(queen_ai).write({"photo": "kırmızı elbiseli kadın", "video": "kadın dönüyor"},
+                               "standard", source=PHOTO, scene=THRONE)
+
+    assert str(failed.value) == "DeepSeek HTTP 503\nmeşgul"
