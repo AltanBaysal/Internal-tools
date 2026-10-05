@@ -1,5 +1,5 @@
-"""The box every request to Queen AI goes through (madde 416), and the check it puts every answer
-through (madde 418).
+"""The box every request to Queen AI goes through (madde 416), the check it puts every answer
+through (madde 418), and the conversation with tools it carries for the agent (madde 419).
 
 Tried with the real one-request client underneath, so the failures the box sees are the very ones the
 client raises: the server answers each request with the next of a list -- the check's request among
@@ -288,3 +288,180 @@ def test_a_run_whose_queen_ai_keeps_refusing_stops_as_today_with_the_sentence():
     assert generator.calls == []
     assert record.written_prompts("düğün") == {}
     assert [row for row in record.rows if row.get("layer") == "video"] == []
+
+
+# --- Madde 419: the conversation with tools ------------------------------------------------------
+
+# A conversation the way the agent's loop holds it (madde 420): its instruction, the user's question,
+# a tool call the model made and what the tool said back.
+READ_FRAME = {"id": "call_1", "type": "function",
+              "function": {"name": "read_frame", "arguments": '{"frame": 3}'}}
+HISTORY = [{"role": "system", "content": "talimat"},
+           {"role": "user", "content": "3 numaralı karede ne var?"},
+           {"role": "assistant", "content": "", "tool_calls": [READ_FRAME]},
+           {"role": "tool", "tool_call_id": "call_1", "content": "Kare 3: kırmızı elbiseli kadın"}]
+TOOLS = [{"type": "function",
+          "function": {"name": "read_frame", "description": "Reads one frame of the open project.",
+                       "parameters": {"type": "object",
+                                      "properties": {"frame": {"type": "integer"}},
+                                      "required": ["frame"]}}}]
+# The calls the model makes next.
+LOOK = {"id": "call_2", "type": "function",
+        "function": {"name": "look_at_frame", "arguments": '{"frame": 3}'}}
+READ_NEXT = {"id": "call_3", "type": "function",
+             "function": {"name": "read_frame", "arguments": '{"frame": 4}'}}
+SAID = "Kare 3'te kırmızı elbiseli bir kadın var."
+
+
+def calling(*calls, text=None):
+    """DeepSeek answering with tool calls, the way it sends them: with no words, the content is
+    null."""
+    return FakeResponse({"choices": [{"message": {"role": "assistant", "content": text,
+                                                  "tool_calls": list(calls)}}]})
+
+
+def test_the_conversation_and_the_tools_go_to_deepseek_as_they_are():
+    http = Answers([answering(SAID), APPROVED])
+
+    asking(http).converse(HISTORY, TOOLS)
+
+    asked = http.calls[0]
+    assert asked["url"] == URL
+    assert asked["headers"]["Authorization"] == "Bearer k-1"
+    assert asked["timeout"] == 120
+    assert asked["body"] == {"model": "deepseek-flash", "messages": HISTORY, "tools": TOOLS}
+
+
+def test_without_tools_the_request_offers_none():
+    """QueenAgent's last round is offered nothing to call, and 420 does what QueenAgent does at the
+    step limit (v9-4)."""
+    http = Answers([answering(SAID), APPROVED])
+
+    asking(http).converse(HISTORY)
+
+    assert http.calls[0]["body"] == {"model": "deepseek-flash", "messages": HISTORY}
+
+
+def test_a_tool_call_comes_back_whole_and_unchecked():
+    """Only words are checked (v9-3): an answer that calls a tool goes back with no check request."""
+    http = Answers([calling(LOOK)])
+
+    answer = asking(http).converse(HISTORY, TOOLS)
+
+    assert answer.tool_calls == [LOOK]
+    assert answer.text == ""
+    assert answer.failed is False and answer.refused is False
+    assert len(http.calls) == 1
+
+
+def test_words_beside_tool_calls_come_back_with_them_unchecked():
+    http = Answers([calling(LOOK, READ_NEXT, text=" Kareye bakıyorum. ")])
+
+    answer = asking(http).converse(HISTORY, TOOLS)
+
+    assert answer.text == "Kareye bakıyorum."
+    assert answer.tool_calls == [LOOK, READ_NEXT]
+    assert len(http.calls) == 1
+
+
+def test_a_text_answer_is_checked_the_way_a_prompt_is():
+    http = Answers([answering(SAID), APPROVED])
+
+    answer = asking(http).converse(HISTORY, TOOLS)
+
+    assert answer.text == SAID and answer.tool_calls == []
+    assert answer.failed is False and answer.refused is False
+    asked, check = http.calls
+    assert check["url"] == asked["url"]
+    assert check["headers"] == asked["headers"]
+    assert check["timeout"] == asked["timeout"]
+    assert check["body"] == {
+        "model": "deepseek-flash",
+        "messages": [{"role": "system", "content": _check_instruction()},
+                     {"role": "user", "content": [{"type": "text", "text": SAID}]}],
+    }
+
+
+def test_a_refused_text_answer_sends_the_same_conversation_again():
+    http = Answers([SORRY, REFUSAL, calling(LOOK)])
+
+    answer = asking(http).converse(HISTORY, TOOLS)
+
+    assert answer.tool_calls == [LOOK]
+    assert answer.failed is False and answer.refused is False
+    assert len(http.calls) == 3
+    assert http.calls[2] == http.calls[0]
+
+
+@pytest.mark.parametrize("failure", [
+    FakeResponse(status_code=500, text="iç hata"),
+    FakeResponse({"choices": []}, text='{"choices": []}'),
+    FakeResponse({"choices": [{"message": {"role": "assistant", "content": None}}]},
+                 text='{"choices": [{"message": {"role": "assistant", "content": null}}]}'),
+    requests.ConnectionError("Max retries exceeded with url: /chat/completions"),
+], ids=["http-error", "malformed", "neither-words-nor-calls", "no-answer-at-all"])
+def test_a_failed_request_sends_the_same_conversation_again(failure):
+    http = Answers([failure, calling(LOOK)])
+
+    answer = asking(http).converse(HISTORY, TOOLS)
+
+    assert answer.tool_calls == [LOOK] and answer.failed is False
+    assert len(http.calls) == 2
+    assert http.calls[1] == http.calls[0]
+
+
+def test_five_refused_text_answers_come_back_as_the_sentence_marked_as_a_refusal():
+    """The screen draws a refusal and a technical failure as two different error cards (madde 425),
+    so the box says which one it gave up on."""
+    http = Answers([SORRY, REFUSAL] * 5 + [calling(LOOK)])
+
+    answer = asking(http).converse(HISTORY, TOOLS)
+
+    assert len(http.calls) == 10
+    assert answer.failed is True and answer.refused is True
+    assert answer.text == SENTENCE
+    assert answer.tool_calls == []
+
+
+def test_five_technical_failures_come_back_in_their_own_words_and_not_as_a_refusal():
+    busy = [FakeResponse(status_code=503, text=f"meşgul {n}") for n in range(1, 6)]
+    http = Answers(busy + [calling(LOOK)])
+
+    answer = asking(http).converse(HISTORY, TOOLS)
+
+    assert len(http.calls) == 5
+    assert answer.failed is True and answer.refused is False
+    assert answer.text == "DeepSeek HTTP 503\nmeşgul 5"
+    assert answer.tool_calls == []
+
+
+def test_a_last_try_that_failed_on_the_wire_is_not_a_refusal_after_refusals():
+    lost = requests.ConnectionError("Max retries exceeded with url: /chat/completions")
+    http = Answers([SORRY, REFUSAL] * 4 + [lost, calling(LOOK)])
+
+    answer = asking(http).converse(HISTORY, TOOLS)
+
+    assert len(http.calls) == 9
+    assert answer.failed is True and answer.refused is False
+    assert answer.text == str(lost)
+
+
+def test_without_a_key_nothing_is_sent_and_the_failure_is_technical():
+    http = Answers([calling(LOOK)])
+
+    answer = asking(http, api_key="").converse(HISTORY, TOOLS)
+
+    assert http.calls == []
+    assert answer.failed is True and answer.refused is False
+    assert "DEEPSEEK_API_KEY" in answer.text
+
+
+@pytest.mark.parametrize("answers, refused", [
+    ([SORRY, REFUSAL] * 5, True),
+    ([FakeResponse(status_code=503, text="meşgul")] * 5, False),
+], ids=["refusal", "technical"])
+def test_a_prompt_s_failure_says_whether_it_was_a_refusal_too(answers, refused):
+    answer = asking(Answers(answers)).ask("talimat", "", [PHOTO])
+
+    assert answer.failed is True
+    assert answer.refused is refused
