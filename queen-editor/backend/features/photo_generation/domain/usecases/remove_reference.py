@@ -2,9 +2,8 @@
 
 The name leaves the order with its file, so the ones after it move up and their slot numbers change
 (madde 321) -- which is what a prompt's <Picture N> means from then on, because H3 packs the
-references tight and numbers them by order. A name left in the order would not show as a hole (the
-pool counts only what is there), but a file uploaded under it later would slip back into its old
-place rather than join the end of its row.
+references tight and numbers them by order. The order names only references that are there, the
+way a dragged one does (save_reference_order).
 
 A name the pool does not have is not an error: another tab can get there first, and deleting twice
 has to end where deleting once ends.
