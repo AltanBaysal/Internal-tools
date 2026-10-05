@@ -34,51 +34,6 @@ süresi, adım başına süre ve GPU elde yok. Geri gelirse oradan başlar — �
 - Hyper-SDXL'in **8-step CFG** LoRA'sı CFG 5–8'i koruyor: negative prompt ve yüz düzeltici bugünkü
   gibi çalışır, kazanç daha az. Denenmedi.
 
-### Fotoğrafta NSFW detailer
-
-*(Kullanıcı, 16 Eylül.)* Fotoğraf grafiğinde NSFW detailer açılacak.
-
-**v5'te madde 219 olarak yol haritasındaydı, koşulmadan backlog'a döndü** *(kullanıcı, 17 Eylül)*.
-Numara 219 olarak kalır; geri gelirse aynı numarayla gelir.
-
-**Bilinenler:** Bugün üretim grafiğinde **tek** dedektör var, o da yüz: `bbox/face_yolov9c.pt`,
-`workflow_api.json`'da iki yerde *(94 ve 446)*. Creator'ın tam grafiğinde üç dal daha duruyor ve
-**bypass'lı oldukları için export'a hiç girmemişler**: NSFW
-*(`segm/ntd11_anime_nsfw_segm_v5-variant1.pt`)*, el *(`bbox/hand_yolov9c.pt`)* ve göz
-*(`bbox/Eyeful_v2-Individual.pt`)*. **Üç dosya da depoda hiçbir yerde inmiyor**, ne defterde ne
-`model_groups`'ta; yani bugün o dal açılsa "model bulunamadı" ile düşer. Detailer, FaceDetailer'ın
-başka bölgeye uygulanmış hâli: bölgeyi buluyor, kırpıp tam çözünürlükte yeniden render ediyor ve
-düşük denoise ile geri yapıştırıyor. **Bedeli** her fotoğrafta bir kırpma render'ı daha, kabaca
-**%20-40 süre**.
-
-**Kararlaşmadı:** Yalnız NSFW mi açılacak, yoksa el ve göz de mi *(üçü de ayrı dedektör, ayrı
-süre)*? Dedektörlerin kaynağı da henüz bulunmadı. **Kullanıcıdan gereken:** dalı ComfyUI'da açıp
-çıkana bakması, beğenirse de **Export (API)**'yi yeniden vermesi. Dal bizim dosyada olmadığı için
-grafik yeniden export edilmeden koda giremez.
-
-### Kare başına negatif prompt alınacak
-
-*(Kullanıcı, 17 Eylül.)* Kareler kendi negatif prompt'larıyla gelebilecek, gerekiyorsa her kare
-için ayrı. Üç katmanın her biri kendi başlığında:
-
-#### Fotoğraf
-
-Fotoğraf karesi kendi negatif prompt'unu alır ve onunla üretilir.
-
-#### Video
-
-Video katmanı kendi negatif prompt'unu alır ve onunla üretilir.
-
-#### Ses
-
-Ses katmanı kendi negatif prompt'unu alır ve onunla üretilir.
-
-**Kararlaşmadı:** Negatif gelmeyen kare ya da katman ne olacak? Bugünkü varsayılanla mı üretilecek?
-
-**Başlamadan önce kullanıcıyla ayrıntılı konuşulur** *(kullanıcı, 17 Eylül)*. Madde sırası gelince
-koşulacak, ama ilk turun spec'i yazılmadan önce üç başlığın her biri kullanıcıyla tek tek konuşulur.
-Varılan kararlar da buraya ya da maddenin satırına yazılır.
-
 ### Video LoRA denemesi — anatomik hatalar
 
 Video üretiminde anatomik hatalar çıkıyor; üretim tarifinin LoRA'ları değiştirilip denenecek.
@@ -117,43 +72,7 @@ saçma şeyler ortaya çıkıyor".)* **v7'nin ilk maddesi olarak yazıldı, koş
   olduğundan kare başına ~$0.0008'den ~$0.0030'a çıkar; **1000 kare $0.75 yerine $3.00**.
   Küçültülmüş bir kopya *(448×672 ≈ 768 token)* bunu yarıdan aza indirir.
 
-### Queen Editor Playwright MCP ile kontrol edilebilecek
-
-*(Kullanıcı, 23 Eylül — "queen agent playwright mcp ile kontrol edilebilmek için düzenleme
-gerekiyorsa onu da ekle", "queen editor olanları bakloga ekle".)* **Ayrıntılar kullanıcıyla
-konuşulacak.**
-
-### H3 için üretilen video seçme özelliği
-
-*(Kullanıcı, 24 Eylül — "h3 için üretilen video seçme özelliği ekleyelim backloga önemliye
-ekle".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
 ## Diğer
-
-### Cumshot güncellemesi — video LoRA'ları
-
-*(Kullanıcı, 17 Eylül.)* Video tarafında cumshot için LoRA'lar denenecek. Kullanıcının sakladığı
-bağlantılar aşağıda. Açıklamalar yalnız bağlantının kendi adından okunuyor, sayfalar henüz
-açılmadı.
-
-**Modeller:**
-- [HMCumshot — MiniMax H3 için](https://civitai.red/models/2857340/hmcumshot-cumshot-lora-for-minimax-h3?modelVersionId=3238531)
-  *(sürüm 3238531)*. MiniMax H3 için olduğundan v5'in 213. maddesiyle ilgili.
-- [Epic Cumshots](https://civitai.red/models/2621242/epic-cumshots?modelVersionId=2946870)
-  *(sürüm 2946870)*
-- [CumFacial — WAN 2.2](https://civitai.red/models/1962545/cumfacial-wan22?modelVersionId=3112727)
-  *(sürüm 3112727)*
-- [F4C3SPL4SH — WAN 2.2 i2v](https://civitai.red/models/1922973/f4c3spl4sh-cumshot-i2v-wan-22-video-lora-k3nk?modelVersionId=2176450)
-  *(sürüm 2176450)*
-
-**Örnek görseller:**
-[141692376](https://civitai.red/images/141692376),
-[142849014](https://civitai.red/images/142849014),
-[142760376](https://civitai.red/images/142760376),
-[140992432](https://civitai.red/images/140992432)
-
-**Kararlaşmadı:** hangi LoRA'nın kullanılacağı, hangi video modeliyle (bugünkü WAN 2.2 mi, MiniMax
-H3 mü) ve uygulamada nasıl seçileceği.
 
 ### Karakter LoRA'sı eklenecek
 
@@ -171,11 +90,6 @@ yetenek değil, modelin kendi eğilimi.
 
 **Kararlaşmadı:** çözümün yeni bir fotoğraf modeli eklemek mi *(bugünkünün yanına, kare bazında
 seçilebilir)*, bugünküyü değiştirmek mi, yoksa LoRA ya da prompt tarafında kalmak mı olduğu.
-
-### Video prompt'larında daha fazla kontrol
-
-*(Kullanıcı, 19 Eylül — "video promptlarında daha fazla kontrol kazanmak".)* **Başlamadan önce
-kullanıcıyla konuşulacak; ayrıntılar o konuşmada netleşecek.**
 
 ### Export hızı — çözme ve filtreler de karta
 
@@ -255,17 +169,6 @@ böyle face detailer tarzı şeyler var mı"; H3'ün referanslı test videoları
 çok iyi, uzakta sıkıntı", "backloga atalım bunu şimdilik".)* **Ayrıntılar kullanıcıyla
 konuşulacak.**
 
-### Uzun listelerde kart taşımak zor
-
-*(Kullanıcı, 25 Eylül — "uzun listelerde kart taşımak zor", "sürükleyince aşağı kaymıyor ekran, ve
-ekrandaki kartlar kadar hareket ettirebiliyoruz".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
-### queen-editor'e bir AI chat gelecek
-
-*(Kullanıcı, 28 Eylül — "ekstra ai chateı queen editore getireli mama tek işlevi şuanda mesela
-promtplarada tekrar eden bir hata varsa onu günellemek olsu mesela", "queen editore tarafını
-backloga alalım kalsın şimdilik".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
 ### HF indirmesi arada yarıda düşüyor
 
 *(Kullanıcı, 2 Ekim — "arada oluyor"; H3 Eros Max beta5 %97'de düştü: `File reconstruction
@@ -276,11 +179,6 @@ error: CAS Client Error: Request middleware error: error sending request for url
 
 *(Kullanıcı, 2 Ekim — "queen editorde videoların promptları üretilriken usera bir feedback verelim
 dondur snaıyor user".)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
-### Referans havuzunda 2. karta yüklenen resim 1. karta gidiyor
-
-*(Kullanıcı, 2 Ekim — "2 kartı seçim yüklsede kadını 1 karta gidiyor".)* **Ayrıntılar kullanıcıyla
-konuşulacak.**
 
 ### Export'u Drive'da bulmak zor
 
