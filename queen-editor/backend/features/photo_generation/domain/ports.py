@@ -5,7 +5,7 @@ from typing import Protocol
 class PhotoGenerator(Protocol):
     def generate(self, prompt: str, negative: str, seed: int, model: str = "", lora: str = "",
                  source: tuple | None = None, end: tuple | None = None,
-                 references: tuple = ()) -> bytes:
+                 references: tuple = (), seconds: int | None = None) -> bytes:
         """Render one layer and return its bytes -- nothing else, and no name.
 
         `source` is the file this layer is made from as (name, bytes): a video's photo, a sound's
@@ -22,6 +22,10 @@ class PhotoGenerator(Protocol):
 
         An empty model means the graph's own default, and an empty lora means the default lora.
         Only a photo has either; a video and a sound take both and ignore them, like `end`.
+
+        `seconds` is how long a video should run, from its job (madde 422). Only an H3 video job
+        carries one, and only H3's producer uses it; the others take it and ignore it, like `end`.
+        None is a job that carries none, and its graph's own length stands.
         """
         ...
 
@@ -194,4 +198,17 @@ class OrderStore(Protocol):
 
     def write(self, project: str, order: list) -> None:
         """Replace the project's gallery order."""
+        ...
+
+
+class VideoLengthStore(Protocol):
+    def project_exists(self, project: str) -> bool:
+        ...
+
+    def read(self, project: str) -> int | None:
+        """How long the project's H3 videos run, in seconds; None when nothing usable is saved."""
+        ...
+
+    def write(self, project: str, seconds: int) -> None:
+        """Replace the saved length."""
         ...

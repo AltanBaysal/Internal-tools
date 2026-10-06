@@ -241,6 +241,32 @@ def test_each_layer_is_made_from_the_one_below_it(tmp_path):
     assert ffmpeg.saw == b"MP4"                             # the sound is laid over that video
 
 
+def test_a_producer_that_makes_no_video_takes_a_length_anyway(tmp_path):
+    """Madde 422: a video job carries how long it is, and the queue hands it to whichever producer
+    it calls -- one call shape. A photo and a sound take it and ignore it."""
+    photo = ComfyPhotoGenerator(PhotoComfy(), PHOTO_GRAPH, timeout=60).generate(
+        "kraliçe tahtta", "blurry", 1, seconds=8)
+    sound = MMAudioGenerator(Sampler(), Ffmpeg(), tmp_dir=str(tmp_path)).generate(
+        "dalga sesi", "", 4242, source=("P0_0_V1_0.mp4", b"MP4"), seconds=8)
+
+    assert photo == b"PNG"
+    assert sound == b"RIFFwav"
+
+
+def test_the_queue_hands_the_real_producers_a_video_job_that_carries_its_length(tmp_path):
+    """The real loop, the real producers: WAN takes the job's length and keeps its own, and the
+    run goes through."""
+    store, video_comfy, ffmpeg = Store(), VideoComfy(), Ffmpeg()
+    timed = [{**job, "seconds": 8} if job["type"] == "video" else job for job in FRAMES]
+
+    state = make_job(Runner(), store, Record(), Plan(timed),
+                     producers_over(video_comfy, ffmpeg, tmp_path),
+                     lambda: "2026-10-06T00:00:00+00:00", "düğün")()
+
+    assert state["status"] == "done"
+    assert store.saved == ["P0_0.png", "P0_0_V1_0.mp4", "P0_0_V1_0_S1_0.wav"]
+
+
 class BatchComfy(PhotoComfy):
     """The photo graph's server on an A100: it holds the batch, and answers with as many pictures
     as the graph asked for."""

@@ -13,7 +13,7 @@ to hang anything on. What a layer needs UNDER it is layers.NEEDS' answer -- a vi
 the extra one becomes a frame of its own, sharing what is under it and taking the next variant of
 its source's number (madde 25, 102).
 """
-from backend.features.photo_generation.domain import layers, production_mode, queue
+from backend.features.photo_generation.domain import layers, production_mode, queue, video_length
 from backend.features.photo_generation.domain.copy_frame import (
     carry_layers,
     family,
@@ -101,8 +101,12 @@ def _mark(kind, mode, gallery, fid):
 
 def queue_layer(runner, store, record, plan_store, order_store, producers, now, project, kind,
                 files=None, variants=1, log=None, writers=None,
-                mode=production_mode.STANDARD, stills=None, references=None):
-    """Returns how many jobs of this kind the queue took."""
+                mode=production_mode.STANDARD, stills=None, references=None, length=None):
+    """Returns how many jobs of this kind the queue took.
+
+    `length` answers how long the project's H3 videos run now (madde 422); None in a session whose
+    video model takes no length.
+    """
     if files is not None and (not isinstance(files, list)
                               or any(not isinstance(name, str) for name in files)):
         raise InvalidScope("Seçim listesi metin dizisi olmalı.")
@@ -117,6 +121,9 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         # Nothing owed and nothing started: an empty scope is a result, not a failure.
         return 0
 
+    # Asked once per press, and only of a video: every job this press puts in the queue carries the
+    # length of this moment (madde 422).
+    timed = video_length.carried(length, project) if kind == layers.VIDEO else {}
     taken = known_ids(record, plan_store, project)
     # What the log last said about each slot. Read once: the only cells consulted below belong to
     # frames that already exist, and the rows written during the loop are about other slots.
@@ -130,6 +137,7 @@ def queue_layer(runner, store, record, plan_store, order_store, producers, now, 
         mark = _mark(kind, mode, gallery, fid)
         if mark is None:
             continue
+        mark = {**mark, **timed}
         number, variant = family(frame)
         held = frame.get("layers", {})
         owed = variants

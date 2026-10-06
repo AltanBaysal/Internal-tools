@@ -43,10 +43,10 @@ class ComfyPhotoGenerator:
         self._timeout = timeout
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=()):
-        """`source` and `end` are nobody's business here: a picture is made from its words alone and
-        arrives nowhere. Both are taken because the queue has one call shape for every producer --
-        see ports.PhotoGenerator.
+                 references=(), seconds=None):
+        """`source`, `end` and `seconds` are nobody's business here: a picture is made from its
+        words alone, arrives nowhere and runs no length. They are taken because the queue has one
+        call shape for every producer -- see ports.PhotoGenerator.
         """
         workflow = self._graph(prompt, negative, seed, model, lora)
         prompt_id = self._client.submit(workflow)

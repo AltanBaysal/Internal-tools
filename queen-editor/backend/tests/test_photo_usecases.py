@@ -115,10 +115,13 @@ class FakeGenerator:
         # run is made of the pool and a plain video of the frame under it, and one list holding
         # both could not answer either.
         self.references = []
+        # How long each render was asked to run (madde 422). Apart for the reason the others are, and
+        # not called seconds: a subclass keeps how long its batch works under that name.
+        self.lengths = []
         self.fail_on = list(fail_on)
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=()):
+                 references=(), seconds=None):
         self.calls.append((prompt, negative, seed, model))
         self.references.append(list(references))
         # Apart from calls, like sources: the tuple's shape is read by a hundred tests that never
@@ -126,6 +129,7 @@ class FakeGenerator:
         self.loras.append(lora)
         self.sources.append(source)
         self.ends.append(end)
+        self.lengths.append(seconds)
         if prompt in self.fail_on:
             raise FrameFault(f"node 41: {prompt}")
         return b"PNG"
@@ -325,9 +329,10 @@ def test_progress_is_reported_before_each_frame():
     seen = []
     original = generator.generate
 
-    def spy(prompt, negative, seed, model="", lora="", source=None, end=None, references=()):
+    def spy(prompt, negative, seed, model="", lora="", source=None, end=None, references=(),
+            seconds=None):
         seen.append(runner.status())
-        return original(prompt, negative, seed, model, lora, source, end, references)
+        return original(prompt, negative, seed, model, lora, source, end, references, seconds)
 
     generator.generate = spy
     run_batch(runner, store, generator, text='["a"]', variants=2)
@@ -346,7 +351,7 @@ def test_a_failed_frame_is_skipped_and_the_batch_continues():
             self.calls = 0
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             self.calls += 1
             if self.calls <= 3:
                 raise FrameFault("node 41: OOM")
@@ -365,7 +370,7 @@ def test_a_job_the_producer_drops_is_tried_three_times_before_it_turns_red():
             self.calls = 0
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             self.calls += 1
             if prompt == "patlak":
                 raise FrameFault("node 41: OOM")
@@ -385,7 +390,7 @@ def test_a_dropped_job_writes_nothing_until_its_attempts_run_out():
             self.calls = 0
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             self.calls += 1
             if self.calls == 1:
                 raise FrameFault("node 41: OOM")
@@ -404,7 +409,7 @@ def test_each_job_gets_its_own_three_drops():
             self.calls = 0
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             self.calls += 1
             raise FrameFault("node 41: OOM")
 
@@ -420,7 +425,7 @@ def test_frames_that_fail_one_after_another_still_do_not_stop_the_queue():
     so a queue of bad prompts turns red to the end instead of stopping partway."""
     class AlwaysBroken:
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             raise FrameFault("node 41: OOM")
 
     store, runner = FakeStore(), sync_runner()
@@ -434,7 +439,7 @@ def test_a_loader_failure_is_no_longer_special():
     """It used to stop the run on the first frame. ComfyUI answered, so it is now the frame's."""
     class BrokenLoader:
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             raise FrameFault("node 9 (CheckpointLoaderSimple): dosya yok")
 
     runner = sync_runner()
@@ -449,7 +454,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
             self.calls = []
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             self.calls.append(prompt)
             raise RuntimeError("Connection refused")
 
@@ -469,7 +474,7 @@ def test_the_same_frame_is_tried_three_times_when_nothing_answers():
 def test_a_frame_the_run_gave_up_on_is_still_owed():
     class Unreachable:
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             raise RuntimeError("Connection refused")
 
     record, plan_store = FakeRecord(), FakePlanStore()
@@ -486,7 +491,7 @@ def test_an_attempt_that_lands_costs_the_frame_nothing():
             self.calls = 0
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             self.calls += 1
             if self.calls <= 2:
                 raise RuntimeError("Connection refused")
@@ -507,7 +512,7 @@ def test_every_frame_gets_its_own_three_attempts():
             self.calls = []
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             self.calls.append(prompt)
             if prompt not in self.failed:
                 self.failed.add(prompt)
@@ -530,7 +535,7 @@ def test_stop_request_ends_the_batch_between_frames():
             self.calls = 0
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             self.calls += 1
             runner.request_stop()
             return b"PNG"
@@ -548,7 +553,7 @@ def test_frame_killed_by_user_stop_is_not_a_failure():
 
     class StoppingGenerator:
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             runner.request_stop()          # the user's stop lands mid-render
             raise RuntimeError("interrupted")
 
@@ -1395,7 +1400,7 @@ class FailsTwice:
         self.calls = []
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=()):
+                 references=(), seconds=None):
         self.calls.append((prompt, negative, seed, model))
         if len(self.calls) < 3:
             raise FrameFault(f"node 41: {prompt}")
@@ -3652,7 +3657,7 @@ def test_the_plan_is_appended_before_the_first_frame_renders():
 
     class ChecksThePlan:
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             assert plan_store.appended, "the batch started before the plan was appended to"
             return b"PNG"
 
@@ -3746,12 +3751,13 @@ def test_frames_added_while_the_loop_runs_are_produced_in_the_same_run():
     plan_store, record, generator, seen = FakePlanStore(), FakeRecord(), FakeGenerator(), []
     rendering = generator.generate
 
-    def spy(prompt, negative, seed, model="", lora="", source=None, end=None, references=()):
+    def spy(prompt, negative, seed, model="", lora="", source=None, end=None, references=(),
+            seconds=None):
         seen.append(prompt)
         if prompt == "ilk":
             plan_store.append("düğün", [{"number": 9, "letter": "a", "prompt": "sonradan",
                                          "negative": "", "seed": 7, "model": ""}])
-        return rendering(prompt, negative, seed, model, lora, source, end, references)
+        return rendering(prompt, negative, seed, model, lora, source, end, references, seconds)
 
     generator.generate = spy
     run_batch(sync_runner(), FakeStore(), generator, text='["ilk"]', variants=1,
@@ -4006,7 +4012,7 @@ class Takes(FakeGenerator):
         self.clock, self.seconds, self.fails = clock, list(seconds), fails
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=()):
+                 references=(), seconds=None):
         super().generate(prompt, negative, seed, model, lora, source, end, references)
         self.clock.passes(self.seconds.pop(0) if len(self.seconds) > 1 else self.seconds[0])
         if len(self.calls) <= self.fails:
@@ -4195,7 +4201,7 @@ class Glancing(FakeGenerator):
         self.reports, self.fails, self.seen = reports, fails, []
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=()):
+                 references=(), seconds=None):
         super().generate(prompt, negative, seed, model, lora, source, end, references)
         self.seen.append(merged(self.reports).get("startedAt"))
         if len(self.calls) <= self.fails:
@@ -4237,7 +4243,7 @@ def test_the_loop_finishes_photos_before_it_starts_videos():
             self.kind = kind
 
         def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                     references=()):
+                     references=(), seconds=None):
             done.append(self.kind)
             return b"X"
 

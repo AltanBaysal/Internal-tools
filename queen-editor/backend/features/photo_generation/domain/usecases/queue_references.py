@@ -13,7 +13,12 @@ taught it that a card is a box rather than a photo.
 """
 from functools import partial
 
-from backend.features.photo_generation.domain import layers, production_mode, references
+from backend.features.photo_generation.domain import (
+    layers,
+    production_mode,
+    references,
+    video_length,
+)
 from backend.features.photo_generation.domain.photo_name import frame_id
 from backend.features.photo_generation.domain.prompt_list import parse_prompts
 from backend.features.photo_generation.domain.usecases.list_references import list_references
@@ -54,8 +59,9 @@ class NoReferenceProducer(Exception):
 
 def queue_references(runner, store, record, plan_store, order_store, pool, orders, producers,
                      new_seed, now, has_h3, project, prompts, variants,
-                     log=None, writers=None, stills=None):
-    """Returns how many cards the queue took."""
+                     log=None, writers=None, stills=None, length=None):
+    """Returns how many cards the queue took. `length` answers how long the project's H3 videos
+    run now (madde 422)."""
     if not store.project_exists(project):
         raise ProjectMissing(f"Proje yok: {project}")
     if not has_h3:
@@ -71,8 +77,11 @@ def queue_references(runner, store, record, plan_store, order_store, pool, order
     if not held:
         raise references.PoolLimit(
             "Havuzda referans yok — önce en az bir referans ekle.")
-    cards = plan_reference_cards(next_number(store, plan_store, record, project),
-                                 written, variants, new_seed)
+    # Every card is an H3 video, made at the project's length of this moment (madde 422).
+    timed = video_length.carried(length, project)
+    cards = [{**card, **timed}
+             for card in plan_reference_cards(next_number(store, plan_store, record, project),
+                                              written, variants, new_seed)]
     # Appended before the worker is asked to run, the way a photo batch does it: a run that dies
     # leaves behind what it meant to make, and a loop already in flight finds the cards on its next
     # turn.

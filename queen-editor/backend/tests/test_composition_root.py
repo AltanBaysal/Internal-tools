@@ -120,6 +120,37 @@ def test_the_app_serves_the_agents_doors(import_main, video_model, method, url):
     assert response.get_json() == {"error": "Proje yok: m420-yok"}
 
 
+@pytest.mark.parametrize("video_model", ["", "h3"])
+def test_the_app_serves_the_projects_video_length(import_main, video_model):
+    """Madde 422: the door's own tests wire it by hand, so only this one reads main.py's wiring. A
+    project that does not exist answers in the door's words -- a door never hung would not."""
+    main = import_main(video_model)
+
+    response = main.app.test_client().get("/api/projects/m422-yok/video-length")
+
+    assert response.status_code == 404
+    assert response.get_json() == {"error": "Proje yok: m422-yok"}
+
+
+def test_an_h3_session_queues_its_videos_at_the_projects_length(import_main, monkeypatch,
+                                                                tmp_path):
+    """The queue's doors read the length the door saved: one store behind both."""
+    (tmp_path / "düğün").mkdir()
+    monkeypatch.setenv("QE_DRIVE_ROOT", str(tmp_path))
+    main = import_main("h3")
+
+    assert main._video_length("düğün") == 8
+    main.app.test_client().put("/api/projects/düğün/video-length", json={"seconds": 12})
+    assert main._video_length("düğün") == 12
+
+
+def test_a_wan_session_queues_its_videos_with_no_length(import_main):
+    """"h3e özel": a WAN video runs as long as its graph says."""
+    main = import_main("")
+
+    assert main._video_length is None
+
+
 class FakeRun:
     """The question being answered: writes down what the agent writes to the chat."""
 

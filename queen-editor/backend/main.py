@@ -39,6 +39,7 @@ from backend.features.photo_generation.data.reference_order_store import (
     DriveReferenceOrderStore,
 )
 from backend.features.photo_generation.data.reference_store import DriveReferenceStore
+from backend.features.photo_generation.data.video_length_store import DriveVideoLengthStore
 from backend.features.photo_generation.domain.usecases.add_references import add_references
 from backend.features.photo_generation.domain.usecases.copy_frames import copy_frames
 from backend.features.photo_generation.domain.usecases.list_references import list_references
@@ -68,10 +69,17 @@ from backend.features.photo_generation.domain.usecases.list_models import list_l
 from backend.features.photo_generation.domain.usecases.save_order import save_order
 from backend.features.photo_generation.domain.usecases.start_batch import start_batch
 from backend.features.photo_generation.domain.usecases.stop_generation import stop_generation
+from backend.features.photo_generation.domain.usecases.video_length import (
+    get_video_length,
+    save_video_length,
+)
 from backend.features.photo_generation.presentation.reference_routes import (
     make_reference_blueprint,
 )
 from backend.features.photo_generation.presentation.routes import make_photo_generation_blueprint
+from backend.features.photo_generation.presentation.video_length_routes import (
+    make_video_length_blueprint,
+)
 from backend.features.photo_generation.runner import PhotoRunner
 from backend.features.projects.data.project_store import DriveProjectStore
 from backend.features.projects.data.reference_settings_store import DriveReferenceSettingsStore
@@ -219,6 +227,13 @@ _reference_orders = DriveReferenceOrderStore(_storage)
 # queue carries it, because any run can reach a card that was made of the pool.
 _reference_files = partial(reference_files, _photo_store, _reference_store, _reference_orders)
 
+# How long the project's H3 videos run (madde 422): a file of its own in the project, behind a door of
+# its own. Only H3's length is chosen ("h3e özel"), so only an H3 session's queue reads it -- a WAN
+# video runs as long as its graph says, and its job carries no length at all.
+_video_lengths = DriveVideoLengthStore(_storage)
+_video_length = (partial(get_video_length, _video_lengths) if config.VIDEO_MODEL == "h3"
+                 else None)
+
 _photo_bp = make_photo_generation_blueprint(
     start_batch=partial(start_batch, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _producers, seed.random_seed,
@@ -239,22 +254,22 @@ _photo_bp = make_photo_generation_blueprint(
                         _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
-                        references=_reference_files),
+                        references=_reference_files, length=_video_length),
     retry_failed=partial(retry_failed, _photo_runner, _photo_store, _photo_record, _plan_store,
                          _producers,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                          log=_timing, order_store=_order_store, writers=_writers, stills=_stills,
-                        references=_reference_files),
+                        references=_reference_files, length=_video_length),
     queue_layer=partial(queue_layer, _photo_runner, _photo_store, _photo_record, _plan_store,
                         _order_store, _producers,
                         lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                         log=_timing, writers=_writers, stills=_stills,
-                        references=_reference_files),
+                        references=_reference_files, length=_video_length),
     regenerate=partial(regenerate, _photo_runner, _photo_store, _photo_record, _plan_store,
                        _order_store, _producers, seed.random_seed,
                        lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                        log=_timing, writers=_writers, stills=_stills,
-                       references=_reference_files),
+                       references=_reference_files, length=_video_length),
     remove_layer=partial(remove_layer, _photo_record, _photo_store, _plan_store, _order_store,
                          lambda: datetime.now(timezone.utc).isoformat(timespec="seconds")),
     list_frames=partial(list_frames, _photo_record, _photo_store, _plan_store, _order_store),
@@ -291,9 +306,15 @@ _references_bp = make_reference_blueprint(
                              _producers, seed.random_seed,
                              lambda: datetime.now(timezone.utc).isoformat(timespec="seconds"),
                              config.VIDEO_MODEL == "h3",
-                             log=_timing, writers=_writers, stills=_stills),
+                             log=_timing, writers=_writers, stills=_stills,
+                             length=_video_length),
     reference_dir=_reference_store.dir_path,
 )
+
+# The project's video length: the panel saves and reads it here, the queue reads it above.
+_video_length_bp = make_video_length_blueprint(
+    get_video_length=partial(get_video_length, _video_lengths),
+    save_video_length=partial(save_video_length, _video_lengths))
 
 # Every producer is judged by its own model group: installed means those files are on this machine.
 # Nothing is installed from here -- the notebook does that before this process starts
@@ -325,7 +346,7 @@ _agent_bp = make_agent_blueprint(
     working_chats=partial(working_chats, _chat_record, _agent_runner))
 
 app = create_app(blueprints=[_projects_bp, _reference_settings_bp, _photo_bp, _references_bp,
-                             _producers_bp, _chats_bp, _agent_bp])
+                             _video_length_bp, _producers_bp, _chats_bp, _agent_bp])
 
 if __name__ == "__main__":
     print(f"Proje kökü: {config.DRIVE_ROOT}")

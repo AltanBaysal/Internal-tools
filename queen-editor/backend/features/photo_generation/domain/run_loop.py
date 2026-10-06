@@ -142,7 +142,8 @@ def _first_frame(stills, video, log):
 def _made_with(job, end):
     """What the produced row says about how it was made, beyond its words and its seed.
 
-    The mode, and the name of the picture the video arrived at -- each only when there is one.
+    The mode, the name of the picture the video arrived at, and how long it was made -- each only
+    when there is one.
 
     Which jobs carry a mode is the queue's rule (queue_layer puts the field on video jobs alone) and
     it is not written a second time here, where the two could drift apart. A photo row saying
@@ -155,6 +156,9 @@ def _made_with(job, end):
     made = {"mode": production_mode.of(job)} if job.get("mode") else {}
     if end:
         made["endsOn"] = end[0]
+    if job.get("seconds"):
+        # How long the video was made, so the export can add up each one's own (madde 422).
+        made["seconds"] = job["seconds"]
     return made
 
 
@@ -346,7 +350,8 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                     else:
                         made = [producer.generate(prompt, current["negative"], chosen,
                                                   current["model"], current.get("lora", ""),
-                                                  source=under, end=ending, references=pool)]
+                                                  source=under, end=ending, references=pool,
+                                                  seconds=current.get("seconds"))]
             except Exception as exc:
                 if runner.stop_requested():
                     # The user's own pause killed this render -- that is not a failure. The job

@@ -205,3 +205,18 @@ def test_a_seed_the_job_never_carried_leaves_the_graphs_own(tmp_path):
     generator(tmp_path, client).generate("prompt", "", None, source=("P0_0.png", b"PNG"))
 
     assert client.submitted["210"]["inputs"]["seed"] == -1
+
+
+# --- Madde 422: WAN keeps its own length ------------------------------------------------------------
+
+@pytest.mark.parametrize("asked, node, own", [
+    ({"source": ("P0_0.png", b"PNG")}, "178", 5),
+    ({"source": ("P0_0.png", b"PNG"), "end": ("P1_0.png", b"END")}, "335", 9),
+], ids=["standard", "first-last"])
+def test_wan_takes_a_length_and_runs_as_long_as_its_graph_says(tmp_path, asked, node, own):
+    """"h3e özel": the queue hands every producer the job's length, and WAN keeps its graph's own."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("kadın dönüyor", "", 42, seconds=12, **asked)
+
+    assert client.submitted[node]["inputs"]["value"] == own

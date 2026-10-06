@@ -55,7 +55,7 @@ class ComfyVideoGenerator:
         self._timeout = timeout
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=()):
+                 references=(), seconds=None):
         """`source` is the frame's photo as (name, bytes) -- an I2V render hangs on a picture.
 
         `end` is the picture the video arrives at, same shape, and giving one is the whole of the
@@ -65,7 +65,8 @@ class ComfyVideoGenerator:
         never reaches this layer.
 
         `negative`, `model` and `lora` belong to the port rather than to these graphs: all three are
-        baked into the exports, and a video job carries none of them.
+        baked into the exports, and a video job carries none of them. So does `seconds`: only H3's
+        length is chosen ("h3e özel", madde 422), and a WAN video runs as long as its graph says.
         """
         if not source:
             # The ending frame is where the video arrives, not what it is built on.

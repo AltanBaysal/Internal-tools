@@ -3,7 +3,7 @@ like.
 
 Two graphs, the same seam as WAN's producer: with an ending frame the FL2VA graph runs, without one
 the I2VA graph. Both are our own exports (madde 242):
-  "2730"  MiniMaxH3Director   -> the pictures and the prompt
+  "2730"  MiniMaxH3Director   -> the pictures, the prompt and the length
   "2739"  DaSiWa_SeedControl  -> the sampler's noise seed
 
 The Director keeps its pictures and its prompt inside its own JSON rather than in wired inputs. The
@@ -11,6 +11,11 @@ pictures are items of `timeline_data`, written in by position; the prompt sits i
 `prompt`, the timeline's `simple_prompt` and `resolved_prompt`, and `builder_state`'s
 `simple_prompt`. Which of them the node reads cannot be told without running it, so all four carry
 the same text.
+
+The length is the Director's `duration`, in seconds (madde 422): the graph's own note says to set it
+there, and nothing else in the graph counts frames -- the latent comes out of the Director's guide,
+and the Combine takes its frame rate from the Director. It sits in three places for the same reason
+the prompt sits in four: the input, and the `duration` of both builder states.
 
 Which picture sits where is the graph's fact, not the scene's, so this file opens the prompt with it
 rather than the writer. The sentences are the graph's own examples ("Example: FL2VA First Frame" and
@@ -55,6 +60,15 @@ BOTH_HALVES = "video_audio"
 VIDEO_EXTENSIONS = (".mp4",)
 
 
+def _director(workflow, seconds):
+    """The Director's inputs, set to run `seconds`. A job with no length leaves the graph's own --
+    every one queued before madde 422."""
+    director = workflow[DIRECTOR_NODE]["inputs"]
+    if seconds is not None:
+        director["duration"] = seconds
+    return director
+
+
 class ComfyH3VideoGenerator:
     def __init__(self, client, workflow_path, first_last_path, timeout):
         self._client = client
@@ -63,7 +77,7 @@ class ComfyH3VideoGenerator:
         self._timeout = timeout
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
-                 references=()):
+                 references=(), seconds=None):
         """`source` is the frame's photo as (name, bytes); `end`, when given, is the picture the video
         arrives at, and giving one is the whole of the choice between the two graphs.
 
@@ -73,15 +87,19 @@ class ComfyH3VideoGenerator:
 
         `negative`, `model` and `lora` belong to the port rather than to these graphs: the lora and
         its strength are baked into the exports (madde 213), and a video job carries none of them.
+
+        `seconds` is how long the video runs, from its job (madde 422), in every mode; None leaves
+        the graph's own.
         """
         if references:
-            return self._from_pool(prompt, seed, references)
+            return self._from_pool(prompt, seed, references, seconds)
         if not source:
             # The ending frame is where the video arrives, not what it is built on.
             raise RuntimeError("Video için kaynak foto verilmedi")
         path = self._first_last_path if end else self._workflow_path
         workflow = self._load(path)
-        director = workflow[DIRECTOR_NODE]["inputs"]
+        # Set before the FL2VA sentence reads it: the second picture sits at the video's end.
+        director = _director(workflow, seconds)
 
         names = [self._client.upload_image(*source)]
         if end:
@@ -107,7 +125,7 @@ class ComfyH3VideoGenerator:
             written = f"{opening}\n\n{prompt}"
         return self._render(workflow, director, timeline, written, seed)
 
-    def _from_pool(self, prompt, seed, references):
+    def _from_pool(self, prompt, seed, references, seconds):
         """The same graph, run in REF2VA: the timeline is the pool rather than the frame.
 
         The I2VA export is what is loaded, because the mode is a string and the node's ref2va_model
@@ -118,7 +136,7 @@ class ComfyH3VideoGenerator:
         sections and nothing is put in front of it.
         """
         workflow = self._load(self._workflow_path)
-        director = workflow[DIRECTOR_NODE]["inputs"]
+        director = _director(workflow, seconds)
         director["mode"] = REF2VA
         timeline = json.loads(director["timeline_data"])
         # Ordered rows, because H3 numbers references by their order and a prompt's <Picture 2>
@@ -139,13 +157,16 @@ class ComfyH3VideoGenerator:
                 **({"media_mode": BOTH_HALVES} if row_type == "video" else {})}
 
     def _render(self, workflow, director, timeline, written, seed):
-        """Write the prompt in all four places the node may read it, and run the graph."""
+        """Write the prompt in all four places the node may read it, the length in all three, and
+        run the graph."""
         director["prompt"] = written
         timeline["builder_state"]["simple_prompt"] = written
+        timeline["builder_state"]["duration"] = director["duration"]
         timeline["resolved_prompt"] = written
         director["timeline_data"] = json.dumps(timeline, ensure_ascii=False)
         state = json.loads(director["builder_state"])
         state["simple_prompt"] = written
+        state["duration"] = director["duration"]
         director["builder_state"] = json.dumps(state, ensure_ascii=False)
 
         if seed is not None:
@@ -157,8 +178,9 @@ class ComfyH3VideoGenerator:
         return self._client.fetch_output(history, extensions=VIDEO_EXTENSIONS)
 
     def seconds(self):
-        """How long one render runs, as the I2VA graph's Director has it. One number is quoted for
-        every video; that the two graphs agree is held by test_workflow_asset."""
+        """The graph's own length, as the I2VA graph's Director has it: what a video whose job
+        carries no length is made at. The export summary quotes it for every video; that the two
+        graphs agree is held by test_workflow_asset."""
         standard = self._load(self._workflow_path)
         return float(standard[DIRECTOR_NODE]["inputs"]["duration"])
 

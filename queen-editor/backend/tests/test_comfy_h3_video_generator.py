@@ -23,7 +23,8 @@ def fl2va_sentence(seconds):
 def director(mode, pictures, duration=4):
     """The Director as the export carries it: the pictures and the prompt live inside two JSON
     strings, and the prompt a third and a fourth time besides."""
-    state = {"version": 2, "mode": mode, "prompt_mode": "simple", "simple_prompt": ""}
+    state = {"version": 2, "mode": mode, "duration": duration, "prompt_mode": "simple",
+             "simple_prompt": ""}
     timeline = {"version": 1,
                 "items": [{"id": f"image-{slot}", "slot": slot, "start": slot, "type": "image",
                            "value": "example.png"} for slot in range(pictures)],
@@ -441,3 +442,53 @@ def test_no_h3_video_is_rendered_with_mystic_xxx(asked):
     stack = json.loads(client.submitted[STACK_NODE]["inputs"]["stack_data"])
     named = [slot["lora"] for slot in stack if slot["lora"] != "None"]
     assert "MysticXXX_MMH3-V4.safetensors" not in named, f"Yığının adı olan yuvaları: {named}"
+
+
+# --- Madde 422: the length the video is made at ----------------------------------------------------
+
+def durations(client):
+    """Every place the Director keeps how long the video runs: its own input, and the two builder
+    states. Which one the node reads cannot be told without running it, so all three are asked."""
+    said = sent_director(client)
+    return (said["duration"], json.loads(said["builder_state"])["duration"],
+            json.loads(said["timeline_data"])["builder_state"]["duration"])
+
+
+@every_mode
+def test_an_h3_video_is_made_at_the_length_it_is_handed(tmp_path, asked):
+    """The graph's own note: "set duration (s)" on the Director. Nothing else in the graph counts
+    frames -- the latent comes out of the Director's guide."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, seconds=12, **asked)
+
+    assert durations(client) == (12, 12, 12)
+
+
+def test_an_fl2va_prompt_says_the_video_arrives_at_the_end_of_its_length(tmp_path):
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, source=("P0_0.png", b"PNG"),
+                                         end=("P1_0.png", b"END"), seconds=8)
+
+    assert sent_director(client)["prompt"] == f"{fl2va_sentence('8.00')}\n\nmotion"
+
+
+@every_mode
+def test_a_video_handed_no_length_keeps_the_graphs_own(tmp_path, asked):
+    """Every job queued before madde 422, and every one a WAN session queued, comes out at the
+    length it was added with: the graph's own four seconds."""
+    client = FakeClient()
+
+    generator(tmp_path, client).generate("motion", "", 42, **asked)
+
+    assert durations(client) == (4, 4, 4)
+
+
+@every_mode
+def test_every_h3_video_of_the_shipped_graphs_is_made_at_the_length_it_is_handed(asked):
+    client = FakeClient()
+
+    shipped_generator(client).generate("motion", "", 42, seconds=8, **asked)
+
+    assert durations(client) == (8, 8, 8)
