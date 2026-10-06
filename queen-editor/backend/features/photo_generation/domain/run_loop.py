@@ -284,7 +284,6 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                 # once per job rather than once per attempt: all three tries share it, so the row
                 # names the number every one of them used.
                 chosen = current["seed"] if current["seed"] is not None else new_seed()
-            # pending is what the gallery draws as "bekliyor": the queue behind the job being done.
             # While a prompt is written nothing is being made and every owed frame waits -- current
             # is set to None rather than left out, because a report merges into the one before it.
             # startedAt is cleared for the same reason: no model is working on anything until the
