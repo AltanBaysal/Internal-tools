@@ -42,3 +42,41 @@ frontend ve `dist`.
 ## Doğrulama
 
 Dört satır. Test turunun 7 kırmızısı yeşile döner; öteki her şey yeşil kalır.
+
+## İnceleme turu — satır üretilen videonun uzunluğunu söyler *(koordinatör, 6 Ekim)*
+
+Kararlar ve testler test spec'inin *İnceleme turu* bölümünde. Kırmızı suite: `2ea4ebed`, 4 kırmızı.
+
+### Yaklaşımlar
+
+- **Seçilen — üreticinin bugünkü `seconds()`'ı `seconds(asked=None)` olur**, ve döngü video
+  satırına onun cevabını yazar. Özetin sorduğu argümansız hâli aynı kalır: grafiğin uzunluğu. Tek
+  yöntem, tek soru: *"bu üretici, şu kadar istenen videoyu kaç saniye yapar?"*
+- **Elenen — ayrı bir yöntem adı** (`length(asked)`): bugünkü `seconds()` aynı sorunun istenmemiş
+  hâli; iki yöntem aynı soruya iki kapı olurdu.
+- **Elenen — döngüde `hasattr(producer, "seconds")`:** her gerçek video üreticisinde var; koruma
+  yalnız sahteler için olurdu.
+
+### Birimler — değişen
+
+- **`domain/ports.py`:** yeni `VideoGenerator(PhotoGenerator, Protocol)` — `seconds(asked=None)`:
+  bir videonun kaç saniye çıktığı; H3 isteneni yapar, WAN grafiğinin kendisini. `PhotoGenerator.
+  generate`'in `seconds` paragrafı: videonun kaç saniye çıktığını üreticinin `seconds`'ı söyler.
+  `slots`'un belgesi: `"seconds"` her videoda, 423'ten beri.
+- **`data/comfy_h3_video_generator.py`:** `seconds(asked=None)` — `asked` verildiyse o (Director'a
+  o yazılır), verilmediyse I2VA grafiğinin `duration`'ı.
+- **`data/comfy_video_generator.py`:** `seconds(asked=None)` — her zaman grafiğin `"178"`'i;
+  `asked` alınır ve görmezden gelinir (*"h3e özel"*).
+- **`domain/run_loop.py` — yalnız `_made_with` ve çağrıldığı yer:** `_made_with(job, end, kind,
+  producer)`; video satırına `"seconds": producer.seconds(job.get("seconds"))`. İşin sayısı artık
+  satıra kopyalanmaz.
+- **Belgeler:** `photo_record.slots`'un yorumu, `list_frames`'in `lengths` yorumu,
+  `export_summary`'nin modül ve fonksiyon belgesi, `main.py`'nin yorumu — uzunluk söylemeyen satır
+  artık yalnız bu değişiklikten önce yazılmış satır.
+
+**Değişmeyen:** özetin imzası ve kodu; `main.py`'nin bağlantısı (`_video_generator.seconds`
+argümansız çağrılır); ekran ve `dist`.
+
+### Doğrulama — inceleme turu
+
+Dört satır. 4 kırmızı yeşile döner; öteki her şey yeşil kalır.

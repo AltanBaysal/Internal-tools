@@ -96,9 +96,11 @@ class ComfyVideoGenerator:
         history = self._client.wait(prompt_id, self._timeout)
         return self._client.fetch_output(history, extensions=VIDEO_EXTENSIONS)
 
-    def seconds(self):
-        """How long one render runs, as the graph has it. Float on purpose: the field is one, and
-        rounding it here would be a second version of the truth as surely as a copy would be."""
+    def seconds(self, asked=None):
+        """How long a render runs, as the graph has it -- whatever it is asked: only H3's length is
+        chosen ("h3e özel"), so a job an H3 session queued at a length comes out here at the graph's
+        (madde 423). Float on purpose: the field is one, and rounding it here would be a second
+        version of the truth as surely as a copy would be."""
         standard = self._load(self._workflow_path, STANDARD_NODES)
         return float(standard[DURATION_NODE]["inputs"]["value"])
 

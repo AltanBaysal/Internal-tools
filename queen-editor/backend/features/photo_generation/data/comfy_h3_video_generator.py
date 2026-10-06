@@ -177,10 +177,14 @@ class ComfyH3VideoGenerator:
         history = self._client.wait(prompt_id, self._timeout)
         return self._client.fetch_output(history, extensions=VIDEO_EXTENSIONS)
 
-    def seconds(self):
-        """The graph's own length, as the I2VA graph's Director has it: what a video whose job
-        carries no length is made at. The export summary counts every video whose line says no
-        length at it; that the two graphs agree is held by test_workflow_asset."""
+    def seconds(self, asked=None):
+        """How long a video asked to run `asked` seconds comes out: what it is asked, since that is
+        what the Director is told (madde 422); asked none, the graph's own, as the I2VA graph's
+        Director has it. The loop writes the answer on the video's row (madde 423), and the export
+        summary counts a row that says no length at the graph's own. That the two graphs agree is
+        held by test_workflow_asset."""
+        if asked is not None:
+            return asked
         standard = self._load(self._workflow_path)
         return float(standard[DIRECTOR_NODE]["inputs"]["duration"])
 

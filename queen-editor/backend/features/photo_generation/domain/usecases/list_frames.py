@@ -135,8 +135,8 @@ def list_frames(record, store, plan_store, order_store, project):
                 # card read from the record is spread from a produced row, and that row's own
                 # single number must not reach the screen as the card's answer.
                 "renderSeconds": _per_layer(cells, "renderSeconds"),
-                # How long each layer runs, where its line says (madde 423): a video made at a
-                # chosen length. Not "seconds" -- renderSeconds beside it is another length.
+                # How long each layer runs, where its line says: a video produced since madde 423.
+                # Not "seconds" -- renderSeconds beside it is another length.
                 "lengths": _per_layer(cells, "seconds"),
                 "prompts": _words(said.get(fid, {}), base.get("prompt"), kind),
                 # Read-only: no request can change it. Empty is a card with none.

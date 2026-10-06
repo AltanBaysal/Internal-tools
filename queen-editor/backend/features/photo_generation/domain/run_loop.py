@@ -139,10 +139,10 @@ def _first_frame(stills, video, log):
         return None
 
 
-def _made_with(job, end):
+def _made_with(job, end, kind, producer):
     """What the produced row says about how it was made, beyond its words and its seed.
 
-    The mode, the name of the picture the video arrived at, and how long it was made -- each only
+    The mode, the name of the picture the video arrived at, and how long a video runs -- each only
     when there is one.
 
     Which jobs carry a mode is the queue's rule (queue_layer puts the field on video jobs alone) and
@@ -152,13 +152,16 @@ def _made_with(job, end):
     The ending picture is named by the file the render was actually handed, not by the target's
     identity. The detail page prints that name, and an identity resolved later can resolve to
     nothing: the frame a video ends on can be deleted while the video stays.
+
+    A video's length is its producer's answer, not the job's: the job carries the length it was
+    queued with, and the model that makes it may not make that length -- an H3 session's job made in
+    a later WAN session comes out at WAN's own (madde 423). The export adds these up.
     """
     made = {"mode": production_mode.of(job)} if job.get("mode") else {}
     if end:
         made["endsOn"] = end[0]
-    if job.get("seconds"):
-        # How long the video was made, so the export can add up each one's own (madde 422).
-        made["seconds"] = job["seconds"]
+    if kind == layers.VIDEO:
+        made["seconds"] = producer.seconds(job.get("seconds"))
     return made
 
 
@@ -404,7 +407,7 @@ def make_job(runner, store, record, plan_store, producers, now, project,
                                             "prompt": prompt, "negative": current["negative"],
                                             "seed": chosen, "createdAt": now(),
                                             "renderSeconds": seconds,
-                                            **_made_with(current, ending)})
+                                            **_made_with(current, ending, kind, producer)})
                 # The one job that fills two slots: a card whose picture is missing takes the
                 # video's first frame as its own, so the gallery and the export both find one
                 # (madde 296). Under the same gate as the video, for the same reason. Whether the
