@@ -1192,7 +1192,7 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
     const segment = lengthButton(8).parentElement;
     expect(segment.className).toContain("wf-segment");
     expect([...segment.children].map((one) => one.textContent))
-      .toEqual(["4 sn", "8 sn", "12 sn"]);
+      .toEqual(["4\u00a0sn", "8\u00a0sn", "12\u00a0sn"]);
     expect(chosen()).toEqual([false, true, false]);
     expect(getVideoLength).toHaveBeenCalledWith(project);
   });
@@ -1332,7 +1332,7 @@ describe("LayerPanel — the H3 video length (madde 424)", () => {
     fireEvent.click(screen.getByText(mode).closest("button"));
 
     // The space is unbreakable: the number never ends a line with its unit alone on the next.
-    expect(screen.getByText(line).textContent.endsWith(" 8 sn.")).toBe(true);
+    expect(screen.getByText(line).textContent.endsWith(" 8\u00a0sn.")).toBe(true);
   });
 
   it("ends the copy warning with the length too", async () => {
