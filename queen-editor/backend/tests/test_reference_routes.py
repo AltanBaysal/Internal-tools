@@ -33,6 +33,9 @@ class FakeGenerator:
     def generate(self, *_args, **_kwargs):
         return b"MP4"
 
+    def seconds(self, asked=None):
+        return 4 if asked is None else asked
+
 
 def fixed_length(seconds=4.0):
     """ffprobe's answer, without ffprobe: the test machine has no such tool, and how long a clip

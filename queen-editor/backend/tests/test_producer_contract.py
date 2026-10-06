@@ -11,7 +11,10 @@ contract in practice.
 """
 import os
 
+import pytest
+
 from backend import config
+from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator
 from backend.features.photo_generation.data.comfy_photo_generator import ComfyPhotoGenerator
 from backend.features.photo_generation.data.comfy_video_generator import ComfyVideoGenerator
 from backend.features.photo_generation.data.mmaudio_generator import MMAudioGenerator
@@ -306,3 +309,46 @@ def test_a_prompts_variants_go_through_the_real_photo_producer_as_one_batch():
     assert graph["25"]["class_type"] == "EmptyLatentImage"
     assert graph["25"]["inputs"]["batch_size"] == ["23", 0]
     assert store.saved == ["P0_0.png", "P0_1.png"]
+
+
+# --- Madde 423: a video's row says how long the video that was made runs ---------------------------
+
+def wan():
+    return ComfyVideoGenerator(VideoComfy(), VIDEO_GRAPH, FIRST_LAST_GRAPH, timeout=60)
+
+
+def h3():
+    return ComfyH3VideoGenerator(VideoComfy(), config.H3_VIDEO_WORKFLOW_PATH,
+                                 config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
+
+
+def video_row(video, asked, tmp_path):
+    """One frame's three layers under the real loop, its video made by `video` and its job asked at
+    `asked` seconds (None: asked none) -- the row the video left."""
+    record = Record()
+    jobs = [{**job, "seconds": asked} if job["type"] == "video" and asked is not None else job
+            for job in FRAMES]
+    producers = {**producers_over(VideoComfy(), Ffmpeg(), tmp_path), layers.VIDEO: video}
+    make_job(Runner(), Store(), record, Plan(jobs), producers,
+             lambda: "2026-10-06T00:00:00+00:00", "düğün")()
+    return next(row for row in record.rows if row["layer"] == layers.VIDEO)
+
+
+def test_a_video_queued_for_h3_and_made_by_wan_says_wans_length(tmp_path):
+    """An H3 session queued it at 12 seconds; a later session installed WAN, which makes its graph's
+    5 whatever it is asked. The row says what was made -- the export adds these up (madde 423)."""
+    assert video_row(wan(), 12, tmp_path)["seconds"] == 5
+
+
+def test_a_wan_video_says_its_graphs_length(tmp_path):
+    assert video_row(wan(), None, tmp_path)["seconds"] == 5
+
+
+@pytest.mark.parametrize("asked", [4, 8, 12])
+def test_an_h3_video_says_the_length_it_was_asked(tmp_path, asked):
+    assert video_row(h3(), asked, tmp_path)["seconds"] == asked
+
+
+def test_an_h3_video_asked_no_length_says_its_graphs_own(tmp_path):
+    """Every H3 job queued before madde 422: the Director keeps the graph's 4."""
+    assert video_row(h3(), None, tmp_path)["seconds"] == 4

@@ -25,7 +25,8 @@ class PhotoGenerator(Protocol):
 
         `seconds` is how long a video should run, from its job (madde 422). Only an H3 video job
         carries one, and only H3's producer uses it; the others take it and ignore it, like `end`.
-        None is a job that carries none, and its graph's own length stands.
+        None is a job that carries none, and its graph's own length stands. How long the video then
+        runs is the producer's to say (VideoGenerator.seconds).
         """
         ...
 
@@ -42,6 +43,18 @@ class BatchPhotoGenerator(PhotoGenerator, Protocol):
     def generate_batch(self, prompt: str, negative: str, seed: int, count: int, model: str = "",
                        lora: str = "") -> list:
         """`count` pictures of one prompt from one seed, as bytes, in the batch's order."""
+        ...
+
+
+class VideoGenerator(PhotoGenerator, Protocol):
+    """A video producer: it also says how long the videos it makes run (madde 423). The loop asks it
+    of the video producer alone, and writes the answer on the video's row."""
+
+    def seconds(self, asked: int | None = None) -> float:
+        """How long a video asked to run `asked` seconds comes out. H3 makes what it is asked; WAN
+        makes its graph's own whatever it is asked ("h3e özel"). None -- a job that asked for no
+        length -- is the graph's own, which is also what the export summary counts a row that says
+        no length at."""
         ...
 
 
@@ -173,11 +186,12 @@ class PhotoRecord(Protocol):
         ...
 
     def slots(self, project: str) -> dict:
-        """{frame: {slot: {"status", "file"[, "error"][, "renderSeconds"]}}} -- the latest line per
-        (frame, slot).
+        """{frame: {slot: {"status", "file"[, "error"][, "renderSeconds"][, "seconds"]}}} -- the
+        latest line per (frame, slot).
 
         "error" is there only where the line carried one, which is only on a failure.
         "renderSeconds" only on a layer produced since madde 405: the seconds the model worked on it.
+        "seconds" on a video produced since madde 423 (an H3 one since 422): how long it runs.
         """
         ...
 
