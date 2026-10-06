@@ -341,6 +341,28 @@ def test_a_sent_order_keeps_only_the_names_the_pool_holds():
     assert orders.read("düğün") == {references.PICTURE: ["bir.png", "üç.png"]}
 
 
+def test_a_dragged_row_leaves_every_other_row_as_it_was_saved():
+    """Madde 427: a drag sends its own row alone, and the rows it did not touch keep the order they
+    were saved in. Each row is saved against its name order, so a row that fell back to reading by
+    name would show."""
+    orders = FakeOrderStore({"düğün": {references.PICTURE: ["zeynep.png", "ayse.png"],
+                                       references.VIDEO: ["iki.mp4", "bir.mp4"],
+                                       references.AUDIO: ["rüzgar.wav", "kuş.wav"]}})
+    store, pool = FakeStore(), FakeReferenceStore()
+    for name in ("zeynep.png", "ayse.png", "bir.mp4", "iki.mp4", "rüzgar.wav", "kuş.wav"):
+        pool.save("düğün", name, b"FILE")
+
+    left = save_reference_order(store, pool, orders,
+                                "düğün", {references.VIDEO: ["bir.mp4", "iki.mp4"]})
+
+    assert orders.read("düğün") == {references.PICTURE: ["zeynep.png", "ayse.png"],
+                                    references.VIDEO: ["bir.mp4", "iki.mp4"],
+                                    references.AUDIO: ["rüzgar.wav", "kuş.wav"]}
+    assert [(row["name"], row["slot"]) for row in left] == [
+        ("zeynep.png", 1), ("ayse.png", 2), ("bir.mp4", 1), ("iki.mp4", 2),
+        ("rüzgar.wav", 1), ("kuş.wav", 2)]
+
+
 @pytest.mark.parametrize("order", ["kedi.png", {"picture": "kedi.png"}, {"picture": [7]}])
 def test_an_order_that_is_not_lists_of_names_is_refused(order):
     store, pool = FakeStore(), FakeReferenceStore()

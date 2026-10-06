@@ -88,11 +88,11 @@ def slots_of(body):
     return [(row["name"], row["slot"]) for row in body["references"]]
 
 
-def pick(client, name, data=b"PNG"):
-    """One file through the Fotoğraflar row's Ekle card, the way the screen sends it: one file, and
-    the row it was picked into (madde 320)."""
+def pick(client, name, data=b"PNG", kind="picture"):
+    """One file through a row's Ekle card, the way the screen sends it: one file, and the row it was
+    picked into (madde 320)."""
     return client.post("/api/projects/düğün/references",
-                       data={"files": [(BytesIO(data), name)], "kind": "picture"},
+                       data={"files": [(BytesIO(data), name)], "kind": kind},
                        content_type="multipart/form-data")
 
 
@@ -217,6 +217,28 @@ def test_the_same_picture_picked_again_lands_in_slot_two(tmp_path):
     added = pick(client, "kadin.png", b"TWO")
 
     assert slots_of(added.get_json()) == [("kadin.png", 1), ("kadin-2.png", 2)]
+
+
+def test_dragging_the_videos_leaves_the_pictures_where_they_stood(tmp_path):
+    """Madde 427, the user's path: photos whose saved order is not their name order -- the second
+    one sorts first -- and then a drag in the videos row. The screen sends the dragged row alone, and
+    the photos stay where they stood."""
+    client, drive, dist = make_client(tmp_path)
+    pick(client, "zeynep.png", b"ONE")
+    pick(client, "ayse.png", b"TWO")
+    pick(client, "bir.mp4", b"MP4", kind="video")
+    pick(client, "iki.mp4", b"MP4", kind="video")
+
+    dragged = client.put("/api/projects/düğün/references/order",
+                         json={"order": {"video": ["iki.mp4", "bir.mp4"]}})
+
+    assert dragged.status_code == 200
+    assert slots_of(dragged.get_json()) == [
+        ("zeynep.png", 1), ("ayse.png", 2), ("iki.mp4", 1), ("bir.mp4", 2)]
+    # The restart: the order is on the disk, not in the process.
+    again = client_over(drive, dist).get("/api/projects/düğün/references")
+    assert slots_of(again.get_json()) == [
+        ("zeynep.png", 1), ("ayse.png", 2), ("iki.mp4", 1), ("bir.mp4", 2)]
 
 
 def test_a_reference_that_passes_a_limit_is_a_400(tmp_path):
