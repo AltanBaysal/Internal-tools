@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import re
 
 import pytest
 
@@ -208,6 +209,42 @@ def test_the_h3_text_says_what_to_do_without_a_scenario():
     instruction, _writer = _h3()
 
     assert "If no scenario is given, write a small, natural motion for Picture 1." in instruction
+
+
+# --- Madde 421: the H3 text says no length -------------------------------------------------------
+
+# A length said in seconds: a number -- in figures or in words -- before "second(s)" or "sec(s)", or
+# the word "seconds" on its own. "one to four sentences" is a count of sentences and "the second
+# photo" an order, so neither is one.
+LENGTH = re.compile(r"\b(?:\d+(?:\.\d+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven"
+                    r"|twelve)[\s-]*(?:seconds?|secs?)\b|\bseconds\b", re.IGNORECASE)
+
+
+def test_the_h3_text_says_no_length_in_any_mode():
+    """The user's words (v9-1, 5 Ekim): "bence videoda uzunluk belirtemyelim h3 te olur mu bu kritik
+    bir bilg idğeil gerekirse geri getirirz". How long the video runs is the project's choice alone
+    (madde 422). Asked of what the writer actually sends, so no rule appended to the text can bring a
+    length back."""
+    _instruction, writer = _h3()
+    client = FakeQueenAI()
+
+    for mode in ("standard", "loop", "linked"):
+        writer(client).write({"photo": "kırmızı elbiseli kadın"}, mode, source=PHOTO, end=NEXT,
+                             scene=THRONE)
+
+    for sent, _words, _pictures in client.calls:
+        said = LENGTH.findall(sent)
+        assert said == [], f"H3 metni hâlâ bir uzunluk söylüyor: {said}"
+
+
+def test_the_two_sentences_that_said_a_length_keep_the_rest_of_their_words():
+    """Madde 421 takes the length out and nothing else: the context still says what H3 makes, and the
+    rule still says how far to write -- to the end of the video, however long the project makes
+    it."""
+    instruction, _writer = _h3()
+
+    assert "- H3 makes a video, with sound, from a photo.\n" in instruction
+    assert "from the first frame to the end of the video.\n" in instruction
 
 
 def _loop_rule():

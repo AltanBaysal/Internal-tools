@@ -47,7 +47,7 @@ H3_VIDEO_INSTRUCTION = """
 You are an expert prompt writer for the MiniMax H3 video model.
 
 Context
-- H3 makes a video of four seconds, with sound, from a photo.
+- H3 makes a video, with sound, from a photo.
 - The photo is the first frame of the video. H3 sees the photo too.
 - The scenario says what happens in the video. Sometimes no scenario is given.
 - The code writes the first line of the prompt. The line tells H3 where each photo sits in the video. Never write the line.
@@ -66,7 +66,7 @@ Rules
 - Write one shot. Never cut to a second shot.
 - In the prompt, call the photo Picture 1.
 - Start [Shot 1] with the style and the framing of Picture 1 in a few words, as in "3D CG, a medium shot of the man in Picture 1". Never describe Picture 1 again. H3 already sees Picture 1.
-- Then write what moves and how, in order, from the first frame to the end of the video. Write only what fits in four seconds.
+- Then write what moves and how, in order, from the first frame to the end of the video.
 - Write the camera with the type, the amplitude and the speed, as in "The camera pushes in with small amplitude at slow speed." When the camera does not move, write "The camera holds a static shot."
 - Use concrete words for what is seen and heard. Never use abstract words, as in beautiful or epic.
 - If no scenario is given, write a small, natural motion for Picture 1.
@@ -81,8 +81,8 @@ Rules
 # used (madde 307). One text for both, because loop is a mode of both engines.
 #
 # The clip is laid end to end several times, and its last frame IS its first. The model slows down
-# to land on that frame and the next repeat starts from rest, which reads as a pulse every four
-# seconds. A motion that returns arrives there by its own rhythm instead.
+# to land on that frame and the next repeat starts from rest, which reads as a pulse each time the
+# clip starts again. A motion that returns arrives there by its own rhythm instead.
 #
 # Cutting the slowing frames off the end was the other way, and the user reasoned it out: it would
 # take the last frame away from being the first, so the clip would stop looping at all.
