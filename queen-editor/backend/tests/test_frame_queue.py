@@ -1,6 +1,16 @@
 """The queue rule: the plan minus the jobs that already settled, type by type."""
-from backend.features.photo_generation.domain import layers, queue
+from backend.features.photo_generation.domain import layers, production_mode, queue
 from backend.features.photo_generation.domain.photo_name import frame_id
+from backend.features.photo_generation.domain.usecases.retry_frame import retry_frame
+from backend.tests.test_photo_usecases import (
+    FakeGenerator,
+    ask_again,
+    drop_the_video,
+    frame_with_a_photo,
+    idle_runner,
+    sync_runner,
+)
+from backend.tests.test_video_length import at, red_videos
 
 
 def job(number, kind=layers.PHOTO, variant=0):
@@ -125,3 +135,65 @@ def test_counts_are_read_from_the_slots():
     taken = slots(photo_P0_0="done", photo_P1_0="failed")
     assert queue.counts(jobs, taken) == {"total": 3, "done": 1, "failed": 1,
                                          "failures": ["P1_0.png"]}
+
+
+# --- Each job counted once (madde 429) -----------------------------------------------------------
+
+def test_a_job_planned_twice_is_counted_once():
+    """Madde 429: a layer dropped and asked for again (madde 211), or a red video sent back at a new
+    length (422), leaves two plan lines for one job. The engine makes it once, from its latest line,
+    and the numbers count it once too. A frame's photo and its video stay two jobs."""
+    jobs = [job(0), job(0, layers.VIDEO), job(0, layers.VIDEO)]
+    taken = slots(photo_P0_0="done", video_P0_0="done")
+
+    assert queue.counts(jobs, taken) == {"total": 2, "done": 2, "failed": 0, "failures": []}
+
+
+def test_a_failed_job_planned_twice_is_one_failure():
+    jobs = [job(0), job(0, layers.VIDEO), job(0, layers.VIDEO)]
+    taken = slots(photo_P0_0="done", video_P0_0="failed")
+
+    assert queue.counts(jobs, taken) == {"total": 2, "done": 1, "failed": 1,
+                                         "failures": ["P0_0.png"]}
+
+
+def numbers(runner):
+    """What the queue panel is told once the run is through."""
+    state = runner.status()
+    return {key: state[key] for key in ("total", "done", "failed", "failures")}
+
+
+def test_a_video_dropped_and_asked_for_again_is_counted_once():
+    """Madde 211's steps: a video asked for, dropped while still owed, and a loop asked for in its
+    place. The plan keeps the dropped one's line beside the new one."""
+    store, record, plan_store = frame_with_a_photo()
+    ask_again(store, record, plan_store, layers.VIDEO, FakeGenerator(), runner=idle_runner())
+    drop_the_video(store, record, plan_store)
+    runner = sync_runner()
+
+    ask_again(store, record, plan_store, layers.VIDEO, FakeGenerator(),
+              mode=production_mode.LOOP, runner=runner)
+
+    assert numbers(runner) == {"total": 2, "done": 2, "failed": 0, "failures": []}
+
+
+def test_a_red_video_sent_back_at_a_new_length_is_counted_once():
+    """Madde 422: Tekrar dene writes a red video's line again at the project's length now."""
+    store, record, plan_store = red_videos(0, seconds=4)
+    runner = sync_runner()
+
+    retry_frame(runner, store, record, plan_store, {layers.VIDEO: FakeGenerator()},
+                lambda: "t", "düğün", "0_a", length=at(12))
+
+    assert numbers(runner) == {"total": 2, "done": 2, "failed": 0, "failures": []}
+
+
+def test_a_red_video_that_fails_again_at_a_new_length_is_one_failure():
+    store, record, plan_store = red_videos(0, seconds=4)
+    runner = sync_runner()
+
+    retry_frame(runner, store, record, plan_store,
+                {layers.VIDEO: FakeGenerator(fail_on=["kadın dönüyor"])},
+                lambda: "t", "düğün", "0_a", length=at(12))
+
+    assert numbers(runner) == {"total": 2, "done": 1, "failed": 1, "failures": ["0_a.png"]}
