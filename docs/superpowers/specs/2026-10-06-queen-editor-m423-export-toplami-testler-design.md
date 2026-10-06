@@ -57,20 +57,73 @@ taşımıyor.
    kartında uzunluk yok — tahmin edilmiş bir sayı değil —, ve özet onu grafiğin uzunluğuyla sayar.
 
 **Değişmeyen:** özetin kapısı ve cevabının biçimi (`videos`, `seconds`, `silent`, `withoutVideo`,
-`folder`); `main.py`'nin bağlantısı (özet bugünkü gibi `_video_generator.seconds`'ı alır); döngü ve
-422'nin satırı; üreticiler; ekran.
+`folder`); `main.py`'nin bağlantısı (özet bugünkü gibi `_video_generator.seconds`'ı alır); ekran.
+Döngü, 422'nin satırı ve üreticiler ilk turda değişmedi; inceleme turu onları değiştirdi — aşağıda.
 
 ## Bilinen sonuçlar
 
-- **Satırı uzunluk söylemeyen video oturumun grafiğiyle sayılır**, bugünkü gibi: H3 oturumunda bir
-  WAN videosu 4, WAN oturumunda 422'den önceki bir H3 videosu 5 saniye sayılır. Satır videoyu hangi
-  modelin yaptığını söylemiyor; doğrusu yalnız dosyanın kendisinden okunur, ve o yukarıda elendi.
-  Tasarımın *karışık uzunluklar*ındaki 5 saniyelik WAN videoları H3 oturumunda 4 sayılır; H3'ün
-  4, 8, 12'si doğru toplanır.
-- **H3 oturumunda kuyruğa girip WAN oturumunda üretilen video** WAN'ın 5 saniyesiyle çıkar, ama
-  satırı işin uzunluğunu söyler (422'nin *Bilinen sonuçlar*ı); özet onu satırındaki sayıyla sayar.
-  Bir oturum tek video modeli kurar (madde 243); bekleyen işler model değişen bir oturuma taşınırsa
-  olur.
+*(İnceleme turundan sonraki hâli — aşağıda.)*
+
+- **Bu değişiklikten önce yazılmış, uzunluk söylemeyen satır oturumun grafiğiyle sayılır**, bugünkü
+  gibi: H3 oturumunda eski bir WAN videosu 4, WAN oturumunda 422'den önceki bir H3 videosu 5 saniye
+  sayılır. O satır videoyu hangi modelin yaptığını söylemiyor; doğrusu yalnız dosyanın kendisinden
+  okunur, ve o yukarıda elendi. Bundan sonra üretilen her video — WAN'ınki de — uzunluğunu satırında
+  söyler, ve her oturumda doğru sayılır.
+- **422 ile bu değişiklik arasında yazılmış H3 satırı** işin istediği uzunluğu söyler; video bir WAN
+  oturumuna taşınmadıysa o, videonun gerçek uzunluğu.
+
+## İnceleme turu — satır üretilen videonun uzunluğunu söyler *(koordinatör, 6 Ekim)*
+
+**Bulgu:** 422'den beri döngü (`run_loop._made_with`) satıra işin `seconds`'ını yazıyor, üretici ne
+yaparsa yapsın. H3 oturumunda 12 saniyeyle kuyruğa girip sonraki bir WAN oturumunda üretilen video
+WAN'ın 5 saniyesiyle çıkar, ama satırı 12 der: kayıt doğru olmayan bir şey söylüyor, ve 423'ten beri
+export ona güveniyor. Önce doğruluk (FOUNDATION 3): satır, yapılan videonun ne kadar sürdüğünü
+söyler.
+
+**Kararlar:**
+
+1. **Video üreticisi, bir uzunlukla istenen videonun kaç saniye çıktığını söyler:**
+   `seconds(asked=None)`. H3 istenen uzunluğu yapar — `asked` verildiyse o, verilmediyse grafiğinin
+   kendi 4'ü. WAN her zaman grafiğinin kendi 5'ini yapar, ne istenirse istensin. Bugünkü `seconds()`
+   aynı yöntem: argümansız hâli grafiğin uzunluğu, özetin sorduğu da o.
+2. **Döngü her üretilen video satırına bu cevabı yazar** — `producer.seconds(job.get("seconds"))`,
+   işin sayısını değil. Fotoğraf ve ses satırı uzunluk taşımaz.
+3. **Özetin grafik yedeği yalnız uzunluk söylemeyen satır için kalır** — bu değişiklikten önce
+   yapılan videolar.
+4. **Porta yeni bir protokol:** `VideoGenerator(PhotoGenerator)` — `seconds(asked)`. Toplu üretim
+   (`BatchPhotoGenerator`) gibi: yalnız video üreticisinin cevap verdiği bir soru.
+
+**Sahteler:** döngü artık her video üreticisine bu soruyu sorduğu için, testlerde video yapan
+sahteler cevap verir — `FakeGenerator` (ve alt sınıfları), `FakeVideoGenerator`, `FailsTwice`,
+`Records` (`test_photo_usecases.py`), `test_reference_routes.py`'nin `FakeGenerator`'ı. Cevapları H3
+gibi: istenen, istenmediyse 4. İki alt sınıf bir grubun ne kadar çalıştığını `self.seconds`'ta
+tutuyordu ve yöntemi örtüyordu: `Takes` (`test_photo_usecases.py`) ve `BatchGenerator`
+(`test_variant_batch.py`) onu `self.works`'te tutar; kurucularının argümanı aynı.
+
+**Kanıt:** gerçek üreticiler gerçek döngüde, `test_producer_contract.py`'de — sözleşmeyi koşan tek
+yer; grafikler gönderilen grafikler.
+
+### `backend/tests/test_producer_contract.py`
+
+11. **H3 için kuyruğa girip WAN'ın yaptığı video WAN'ın uzunluğunu söyler** — iş 12; WAN: satır 5.
+12. **WAN oturumunun videosu grafiğinin uzunluğunu söyler** — iş uzunluk taşımıyor; WAN: satır 5.
+13. **H3'ün videosu istendiği uzunluğu söyler** — parametreli 4, 8, 12; H3: satır o sayı.
+    *(Bugün de yeşil: döngü işin sayısını yazıyor, ve H3'te ikisi aynı. Değişiklikten sonra da aynı
+    kaldığını tutar.)*
+14. **Uzunluk istemeyen H3 videosu grafiğin kendi uzunluğunu söyler** — iş uzunluk taşımıyor; H3:
+    satır 4.
+
+### `backend/tests/test_video_length.py`
+
+15. **422'nin `test_a_job_that_carries_no_length_is_made_at_the_graphs_own`'u:** satırda `seconds`
+    yok demiyordu artık doğru değil; satır üreticinin cevabını söyler — sahte üretici için 4.
+    Üreticiye `None` gittiği yerinde.
+
+### Kırmızı beklenen — inceleme turu
+
+- 11: 12 ≠ 5; 12 ve 14: `KeyError: 'seconds'`; 15: `KeyError: 'seconds'`.
+- 13 (3 durum) yeşil. Sahtelerin cevabı ve iki adın değişmesi bugün de yeşil: döngü henüz sormuyor.
+- Toplam 4 kırmızı; öteki her şey yeşil.
 
 ## Nasıl kanıtlanıyor
 

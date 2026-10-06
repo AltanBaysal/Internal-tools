@@ -290,11 +290,12 @@ def test_a_video_is_made_at_the_length_its_job_carries():
 
 def test_a_job_that_carries_no_length_is_made_at_the_graphs_own():
     """Every video queued before madde 422, and every one a WAN session queued: the producer is told
-    nothing, and its graph says how long the video runs."""
+    nothing, and its graph says how long the video runs. The row says what was made -- the
+    producer's answer, this fake's graph 4 (madde 423)."""
     generator, row = made({})
 
     assert generator.lengths == [None]
-    assert "seconds" not in row
+    assert row["seconds"] == 4
 
 
 def test_a_waiting_video_comes_out_at_the_length_it_was_added_with():

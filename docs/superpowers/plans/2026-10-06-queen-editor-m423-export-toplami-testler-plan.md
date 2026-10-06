@@ -213,3 +213,138 @@ def test_a_video_made_at_a_chosen_length_counts_at_it(tmp_path):
 git add docs/superpowers/specs/2026-10-06-queen-editor-m423-export-toplami-testler-design.md docs/superpowers/plans/2026-10-06-queen-editor-m423-export-toplami-testler-plan.md queen-editor/backend/tests/test_export_total.py queen-editor/frontend/src/features/photo_generation/ExportScreen.test.jsx
 git commit -m 'test(queen-editor): Madde 423 red -- the export total adds up each video own length' -m 'Seven new tests red in test_export_total.py; the old-lines, one-length and screen tests green, and every other test green.' -m 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
 ```
+
+---
+
+# İnceleme turu — satır üretilen videonun uzunluğunu söyler
+
+**Hedef:** Gerçek üreticilerin gerçek döngüde yazdığı video satırının, yapılan videonun uzunluğunu
+söylediğini anlatan testler; ve döngü video üreticisine soru sormaya başlayınca sahtelerin cevap
+vermesi.
+
+**Arayüz — uygulama turunun vereceği:**
+- Her video üreticisi: `seconds(asked=None) -> sayı` — H3 `asked` ya da grafiğinin 4'ü; WAN her
+  zaman grafiğinin 5'i.
+- Döngü her üretilen video satırına `"seconds": producer.seconds(job.get("seconds"))` yazar.
+
+## Görev 5: Sahteler cevap verir
+
+**Dosyalar:** Değiştir: `queen-editor/backend/tests/test_photo_usecases.py`,
+`queen-editor/backend/tests/test_variant_batch.py`, `queen-editor/backend/tests/test_reference_routes.py`
+
+- [ ] **Adım 1:** `test_photo_usecases.py`'nin `FakeGenerator`'ına, `generate`'in altına:
+
+```python
+    def seconds(self, asked=None):
+        """How long a video asked at `asked` comes out -- the loop asks every video producer and
+        writes the answer on the row (madde 423). This one makes what it is asked, and its graph's 4
+        when asked none, the way H3 does."""
+        return 4 if asked is None else asked
+```
+
+- [ ] **Adım 2:** Aynı dosyada `FakeVideoGenerator`, `FailsTwice` ve `test_a_layer_type_is_made…`'deki
+  `Records`'a aynı cevap (belgesiz):
+
+```python
+    def seconds(self, asked=None):
+        return 4 if asked is None else asked
+```
+
+- [ ] **Adım 3:** `Takes` saniyelerini `self.works`'te tutar — `self.seconds` yöntemi örtüyordu:
+  `self.clock, self.works, self.fails = clock, list(seconds), fails` ve
+  `self.clock.passes(self.works.pop(0) if len(self.works) > 1 else self.works[0])`.
+- [ ] **Adım 4:** `test_variant_batch.py`'nin `BatchGenerator`'ı aynı sebeple:
+  `self.fits, self.clock, self.works, self.stop = fits, clock, seconds, stop` ve
+  `self.clock.passes(self.works)`. Kurucunun `seconds=` argümanı aynı.
+- [ ] **Adım 5:** `test_reference_routes.py`'nin `FakeGenerator`'ına:
+
+```python
+    def seconds(self, asked=None):
+        return 4 if asked is None else asked
+```
+
+## Görev 6: Gerçek üreticiler gerçek döngüde
+
+**Dosyalar:** Değiştir: `queen-editor/backend/tests/test_producer_contract.py`
+
+- [ ] **Adım 1:** İçe aktarmalar: `import pytest`, ve
+  `from backend.features.photo_generation.data.comfy_h3_video_generator import ComfyH3VideoGenerator`.
+- [ ] **Adım 2:** Dosyanın sonuna:
+
+```python
+# --- Madde 423: a video's row says how long the video that was made runs ---------------------------
+
+def wan():
+    return ComfyVideoGenerator(VideoComfy(), VIDEO_GRAPH, FIRST_LAST_GRAPH, timeout=60)
+
+
+def h3():
+    return ComfyH3VideoGenerator(VideoComfy(), config.H3_VIDEO_WORKFLOW_PATH,
+                                 config.H3_VIDEO_FIRST_LAST_WORKFLOW_PATH, timeout=60)
+
+
+def video_row(video, asked, tmp_path):
+    """One frame's three layers under the real loop, its video made by `video` and its job asked at
+    `asked` seconds (None: asked none) -- the row the video left."""
+    record = Record()
+    jobs = [{**job, "seconds": asked} if job["type"] == "video" and asked is not None else job
+            for job in FRAMES]
+    producers = {**producers_over(VideoComfy(), Ffmpeg(), tmp_path), layers.VIDEO: video}
+    make_job(Runner(), Store(), record, Plan(jobs), producers,
+             lambda: "2026-10-06T00:00:00+00:00", "düğün")()
+    return next(row for row in record.rows if row["layer"] == layers.VIDEO)
+
+
+def test_a_video_queued_for_h3_and_made_by_wan_says_wans_length(tmp_path):
+    """An H3 session queued it at 12 seconds; a later session installed WAN, which makes its graph's
+    5 whatever it is asked. The row says what was made -- the export adds these up (madde 423)."""
+    assert video_row(wan(), 12, tmp_path)["seconds"] == 5
+
+
+def test_a_wan_video_says_its_graphs_length(tmp_path):
+    assert video_row(wan(), None, tmp_path)["seconds"] == 5
+
+
+@pytest.mark.parametrize("asked", [4, 8, 12])
+def test_an_h3_video_says_the_length_it_was_asked(tmp_path, asked):
+    assert video_row(h3(), asked, tmp_path)["seconds"] == asked
+
+
+def test_an_h3_video_asked_no_length_says_its_graphs_own(tmp_path):
+    """Every H3 job queued before madde 422: the Director keeps the graph's 4."""
+    assert video_row(h3(), None, tmp_path)["seconds"] == 4
+```
+
+## Görev 7: 422'nin testi satırın yeni cevabını söyler
+
+**Dosyalar:** Değiştir: `queen-editor/backend/tests/test_video_length.py`
+
+- [ ] **Adım 1:** `test_a_job_that_carries_no_length_is_made_at_the_graphs_own`:
+
+```python
+def test_a_job_that_carries_no_length_is_made_at_the_graphs_own():
+    """Every video queued before madde 422, and every one a WAN session queued: the producer is told
+    nothing, and its graph says how long the video runs. The row says what was made -- the
+    producer's answer, this fake's graph 4 (madde 423)."""
+    generator, row = made({})
+
+    assert generator.lengths == [None]
+    assert row["seconds"] == 4
+```
+
+- [ ] **Adım 2:** `test_export_total.py`'nin belgeleri: modülün ikinci paragrafı ve
+  `…counts_at_the_graphs_own`'un belgesi "uzunluk söylemeyen satır = bu değişiklikten önce yapılan
+  video" der.
+
+## Görev 8: Dört satır, kırmızı, commit
+
+- [ ] **Adım 1:** Dört satır, paralel. Beklenen: `queen-editor`'ün pytest'inde **4 kırmızı** —
+  `…made_by_wan_says_wans_length` (12 ≠ 5), `…wan_video_says_its_graphs_length`,
+  `…asked_no_length_says_its_graphs_own` ve 422'nin `…made_at_the_graphs_own`'u
+  (`KeyError: 'seconds'`). `…says_the_length_it_was_asked` (3 durum) yeşil. Öteki her şey yeşil.
+- [ ] **Adım 2:**
+
+```powershell
+git add docs/superpowers/specs/2026-10-06-queen-editor-m423-export-toplami-testler-design.md docs/superpowers/plans/2026-10-06-queen-editor-m423-export-toplami-testler-plan.md queen-editor/backend/tests/test_photo_usecases.py queen-editor/backend/tests/test_variant_batch.py queen-editor/backend/tests/test_reference_routes.py queen-editor/backend/tests/test_producer_contract.py queen-editor/backend/tests/test_video_length.py queen-editor/backend/tests/test_export_total.py
+git commit -m 'test(queen-editor): Madde 423 red -- a video row says how long the made video runs' -m 'Four red: WAN-made rows say the job length or none, an H3 row asked none says none, and 422 test now expects the producer answer. The H3 asked-length cases green; every other test green.' -m 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>'
+```

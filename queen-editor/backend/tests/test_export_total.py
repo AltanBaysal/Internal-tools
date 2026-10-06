@@ -1,8 +1,8 @@
 """Madde 423: the export's total is added up from each video's own length.
 
-Since madde 422 an H3 video's line in the photo record says how long it was made ("seconds"). A video
-whose line says nothing -- every one made before 422, and every WAN video -- runs as long as its
-graph says, which the summary asks of the session's video producer, as it always did.
+A video's line in the photo record says how long it runs ("seconds") -- its producer's answer for
+the video it made. A line that says nothing was written before that, and its video ran as long as
+its graph says, which the summary asks of the session's video producer, as it always did.
 
 The record is the real one over a folder: what is proved is the whole road from a line on Drive to
 the number on the export screen, the fold included.
@@ -26,7 +26,7 @@ from backend.tests.test_photo_usecases import (
 
 def project(tmp_path, *videos):
     """Frames 0_a, 1_a, … each with its photo and a produced video. `videos` is the length each
-    video's line says, None for a line that says none -- what every line before madde 422 is."""
+    video's line says, None for a line that says none -- what the lines already on Drive are."""
     record = DrivePhotoRecord(DriveStorage(str(tmp_path)))
     plan_store = FakePlanStore(frames=[frame(number) for number in range(len(videos))])
     for number, seconds in enumerate(videos):
@@ -53,8 +53,8 @@ def test_a_videos_line_that_says_its_length_carries_it_into_the_slot(tmp_path):
 
 
 def test_a_line_written_before_lengths_carries_none_into_the_slot(tmp_path):
-    # Every video on Drive before madde 422. Absent is the honest answer; the summary decides what
-    # to do with it.
+    # The videos already on Drive. Absent is the honest answer; the summary decides what to do with
+    # it.
     _store, record, _plan = project(tmp_path, None)
 
     assert "seconds" not in record.slots("düğün")["0_a"]["video"]
@@ -92,7 +92,7 @@ def test_the_total_adds_up_each_videos_own_length(tmp_path):
 
 
 def test_a_video_whose_line_says_no_length_counts_at_the_graphs_own(tmp_path):
-    """Every video made before madde 422, and every WAN video: its graph said how long it runs."""
+    """A video made before its line said its length: its graph said how long it runs."""
     store, record, plan_store = project(tmp_path, 12, None)
 
     assert summary(store, record, plan_store, graph=5)["seconds"] == 17

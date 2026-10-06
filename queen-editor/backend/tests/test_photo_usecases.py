@@ -134,6 +134,12 @@ class FakeGenerator:
             raise FrameFault(f"node 41: {prompt}")
         return b"PNG"
 
+    def seconds(self, asked=None):
+        """How long a video asked at `asked` comes out -- the loop asks every video producer and
+        writes the answer on the row (madde 423). This one makes what it is asked, and its graph's 4
+        when asked none, the way H3 does."""
+        return 4 if asked is None else asked
+
 
 class FakePlanStore:
     def __init__(self, reserved=None, frames=None, negative=""):
@@ -1406,6 +1412,9 @@ class FailsTwice:
             raise FrameFault(f"node 41: {prompt}")
         return b"MP4"
 
+    def seconds(self, asked=None):
+        return 4 if asked is None else asked
+
 
 def video_job_project(prompt="p", job_prompt=""):
     """A produced photo and one video job owed on it."""
@@ -1910,6 +1919,9 @@ class FakeVideoGenerator:
 
     def generate(self, *_args, **_kwargs):
         return b"MP4"
+
+    def seconds(self, asked=None):
+        return 4 if asked is None else asked
 
 
 def render_a_video(record, store, stills=None, log=None):
@@ -4009,12 +4021,12 @@ class Takes(FakeGenerator):
 
     def __init__(self, clock, *seconds, fails=0):
         super().__init__()
-        self.clock, self.seconds, self.fails = clock, list(seconds), fails
+        self.clock, self.works, self.fails = clock, list(seconds), fails
 
     def generate(self, prompt, negative, seed, model="", lora="", source=None, end=None,
                  references=(), seconds=None):
         super().generate(prompt, negative, seed, model, lora, source, end, references)
-        self.clock.passes(self.seconds.pop(0) if len(self.seconds) > 1 else self.seconds[0])
+        self.clock.passes(self.works.pop(0) if len(self.works) > 1 else self.works[0])
         if len(self.calls) <= self.fails:
             raise FrameFault(f"node 41: {prompt}")
         return b"DATA"
@@ -4246,6 +4258,9 @@ def test_the_loop_finishes_photos_before_it_starts_videos():
                      references=(), seconds=None):
             done.append(self.kind)
             return b"X"
+
+        def seconds(self, asked=None):
+            return 4 if asked is None else asked
 
     done = []
     make_job(sync_runner(), store, record, plan_store,
