@@ -102,14 +102,14 @@ class DrivePhotoRecord:
         return self._cache.parsed(project, FILE, _parse)
 
     def slots(self, project):
-        """{frame: {slot: {"status", "file"[, "error"][, "mode"][, "endsOn"][, "renderSeconds"]}}}
-        -- the latest line per (frame, slot) wins.
+        """{frame: {slot: {"status", "file"[, "error"][, "mode"][, "endsOn"][, "renderSeconds"]
+        [, "seconds"]}}} -- the latest line per (frame, slot) wins.
 
         A failure line also carries why: the renderer's own sentence, which the detail page prints
         under the red frame. A produced video's line carries the mode it was made in, and the
         picture it arrived at when it arrived at one. A produced layer's line says how many seconds
-        the model worked on it. None of the four is on every line, so none of those keys is always
-        there.
+        the model worked on it. A video made at a chosen length says how long it runs. None of the
+        five is on every line, so none of those keys is always there.
 
         A written prompt's line is passed over: a job never written about has to stay one, and the
         queue tells it apart from a job put back in line by exactly that.
@@ -131,6 +131,10 @@ class DrivePhotoRecord:
                 # Only a layer produced since madde 405 says how long it took; nothing is filled in
                 # for the lines before it.
                 cell["renderSeconds"] = row["renderSeconds"]
+            if isinstance(row.get("seconds"), (int, float)):
+                # Only an H3 video made since madde 422 says how long it runs; the export counts any
+                # other at its graph's own length (madde 423).
+                cell["seconds"] = row["seconds"]
             folded.setdefault(_frame_of(row), {})[_layer_of(row)] = cell
         return folded
 

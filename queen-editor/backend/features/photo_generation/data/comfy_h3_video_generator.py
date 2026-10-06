@@ -179,8 +179,8 @@ class ComfyH3VideoGenerator:
 
     def seconds(self):
         """The graph's own length, as the I2VA graph's Director has it: what a video whose job
-        carries no length is made at. The export summary quotes it for every video; that the two
-        graphs agree is held by test_workflow_asset."""
+        carries no length is made at. The export summary counts every video whose line says no
+        length at it; that the two graphs agree is held by test_workflow_asset."""
         standard = self._load(self._workflow_path)
         return float(standard[DIRECTOR_NODE]["inputs"]["duration"])
 

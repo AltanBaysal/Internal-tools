@@ -276,8 +276,9 @@ _photo_bp = make_photo_generation_blueprint(
     list_models=partial(list_models, config.PHOTO_MODELS),
     list_loras=list_loras,
     save_order=partial(save_order, _photo_record, _photo_store, _plan_store, _order_store),
-    # How long one video runs is the video graph's own setting, so the producer that owns that
-    # graph is who answers it -- the summary keeps no number of its own.
+    # How long a video made at its graph's own length runs is that graph's setting, so the producer
+    # that owns the graph answers it; a video made at a chosen length says its own on its line
+    # (madde 423).
     export_summary=partial(export_summary, _photo_record, _photo_store, _plan_store, _order_store,
                            _video_generator.seconds),
     export_state=_export_runner.state,
