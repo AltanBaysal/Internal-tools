@@ -6,6 +6,7 @@ import ConfirmModal from "../../shared/ConfirmModal.jsx";
 import { StatusErrorCard } from "../../shared/StatusErrorCard.jsx";
 import { VERSION } from "../../shared/version.js";
 import { Btn, Hand, Icon, Mono, Note } from "../../vendor/kit.jsx";
+import { useProducers } from "../producers/useProducers.js";
 import { Corner, LiveClock, Making, Pill, Rendering, StatusPill, clock } from "./frame_status.jsx";
 import { CopyGlyph, PlayGlyph, ScenarioGlyph, SoundGlyph } from "./glyphs.jsx";
 import Arriving from "./Arriving.jsx";
@@ -14,6 +15,7 @@ import LayerPlayer from "./LayerPlayer.jsx";
 import { LINKED, MODES, STANDARD, labelOf, nounOf } from "./production_modes.js";
 import { useGeneration } from "./useGeneration.js";
 import { useModels } from "./useModels.js";
+import { useVideoLength } from "./useVideoLength.js";
 
 // minmax(0, …) rather than plain columns: a long project or file name would otherwise widen the
 // bar past the window and take the whole page sideways with it (madde 107).
@@ -359,6 +361,13 @@ export default function PhotoDetail({ project, frame: fid }) {
   // model and its lora as ids -- the names they were picked by are in these lists and nowhere else.
   // The hook remembers the answer for the visit, so opening frames costs nothing.
   const { models, loras } = useModels();
+  // Which video model the session has, for the one thing this page says about it: the length a new
+  // video gets (madde 424). The answer is remembered for the visit, so stepping in costs nothing.
+  const { producers } = useProducers();
+  const { seconds: length } =
+    useVideoLength(project, (producers || []).find((row) => row.id === "video"));
+  // The video panel's own ending: unbreakable, so the number keeps its unit on its line.
+  const lengthSaid = length === null ? "" : ` ${length}\u00a0sn.`;
   // Which window is open, not merely that one is: a failed layer's way out deletes the FRAME while
   // a layer tab is open, and deciding from the open tab would show it the layer's words.
   const [asking, setAsking] = useState(null);              // "frame" | "layer" | null
@@ -821,7 +830,7 @@ export default function PhotoDetail({ project, frame: fid }) {
                 /* What one press opens, in the mode's own words: a copy frame beside this one,
                    never a video written over the one that is here (madde 77). */
                 <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
-                  Yeni bir kare açılır — {frame.id} kopyası, {nounOf(picked, "video")}.
+                  Yeni bir kare açılır — {frame.id} kopyası, {nounOf(picked, "video")}.{lengthSaid}
                 </Note>
               )}
               {openState === "failed" && (
@@ -832,6 +841,13 @@ export default function PhotoDetail({ project, frame: fid }) {
                      style={{ justifyContent: "center" }}>
                   {wasSent(open) ? "Kuyruğa eklendi" : <><Icon.Regen /> Tekrar dene — bu kareye</>}
                 </Btn>
+              )}
+              {openState === "failed" && open === "video" && length !== null && (
+                /* The red video is made again at the project's length now, and this is the one
+                   place a retry can say so (madde 424). */
+                <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
+                  Aynı kare yeniden denenir.{lengthSaid}
+                </Note>
               )}
 
               {refusedAct && <StatusErrorCard text={refusedAct} raw={error} />}

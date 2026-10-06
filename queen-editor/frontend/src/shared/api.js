@@ -115,6 +115,22 @@ export async function saveReferenceSettings(project, { prompts, variants }) {
   });
 }
 
+// How long the project's H3 videos run (madde 422, 424): 4, 8 or 12 seconds. With nothing saved the
+// server answers 8 -- the default is its to say, not the screen's.
+export async function getVideoLength(project) {
+  const body = await request(`/api/projects/${encodeURIComponent(project)}/video-length`);
+  return body.seconds;
+}
+
+// 204 with no body: the screen already shows what it sent.
+export async function saveVideoLength(project, seconds) {
+  return request(`/api/projects/${encodeURIComponent(project)}/video-length`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ seconds }),
+  });
+}
+
 export async function generateBatch(project, { prompts, negative, variants, model, lora }) {
   return request(`/api/projects/${encodeURIComponent(project)}/generate`, {
     method: "POST",

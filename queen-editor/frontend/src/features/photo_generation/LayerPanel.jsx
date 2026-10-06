@@ -14,6 +14,7 @@ import {
   STANDARD,
   nounOf,
 } from "./production_modes.js";
+import { useVideoLength } from "./useVideoLength.js";
 
 const LABEL = { color: "var(--ink-2)", letterSpacing: ".08em", textTransform: "uppercase" };
 // Long enough to be read after the eyes have moved to the gallery (the same number the photo
@@ -27,6 +28,10 @@ const CONFIRM_MS = 10000;
 const DRAFTS = new Map();
 
 const MAX_VARIANTS = 26;
+
+// The lengths an H3 video can be made at, in seconds (madde 422). The server refuses any other, so
+// this is only what the segment offers.
+const LENGTHS = [4, 8, 12];
 
 // What each layer calls itself. The panel is one component because the design asks for one --
 // "video panelinin birebir aynısı" -- so only these words and the scope rule differ between them.
@@ -245,8 +250,8 @@ function ModeRow({ label, active, disabled, onPick }) {
 }
 
 // Artboard: the photo panel's shape with a different subject. What it does not ask for is the
-// point -- the prompt is written by a language model once the job is queued, and the length is
-// fixed, so the only questions left are which frames, and how many of each.
+// point -- the prompt is written by a language model once the job is queued, so the questions left
+// are which frames, how many of each, and -- for an H3 video -- how long.
 // `job`, `busyElsewhere` and `error` are here for one sentence each, the way the photo panel takes
 // them: there is a single worker, so a run started from another project refuses this one, and until
 // madde 215 this panel was told none of it -- the press went out, came back 409, and the answer
@@ -371,6 +376,24 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
   // The server's name first -- it knows which model the notebook installed. Until it answers the
   // box stays empty rather than guessing.
   const model = producer?.model || words.model || "";
+  // The project's setting, not this panel's: it is read and written through the project, and only a
+  // video has one -- the sound panel is handed no video row (madde 424).
+  const { seconds: length, choose: chooseLength } =
+    useVideoLength(project, layer === "video" ? producer : null);
+  // What a video will be, said once at the end of whichever sentence is on show. The space is
+  // unbreakable so the number never ends a line with its unit alone on the next.
+  const lengthSaid = length === null ? "" : ` ${length}\u00a0sn.`;
+
+  // A press of its own, so its answer takes the slot under the button: nothing when it is written,
+  // the sentence that came back when it is not -- where the panel says its other failures.
+  function handleLength(seconds) {
+    setRefused(null);
+    chooseLength(seconds).catch((err) => {
+      setAdded(null);
+      clearTimeout(fade.current);
+      setRefused(err.message);
+    });
+  }
 
   function handleAdd() {
     const why = refusalOf(words, can, scope, scoped, shownVariants, fromPool);
@@ -437,6 +460,24 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           <option value={model}>{model}</option>
         </select>
       </div>
+
+      {length !== null && (
+        /* Under the Model box and above everything a tab has of its own, so changing tab leaves it
+           where it is (madde 424). Not drawn until there is a length to show: under WAN, while the
+           model or the length is not read yet, nothing stands in for it. */
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Mono size={11} data-label style={LABEL}>Video uzunluğu</Mono>
+          <div className="wf-segment" style={{ display: "flex" }}>
+            {LENGTHS.map((one) => (
+              <button key={one} type="button" aria-label={`${one} saniye`}
+                      className={length === one ? "is-on" : ""} style={{ flex: 1 }}
+                      onClick={() => handleLength(one)}>
+                {`${one}\u00a0sn`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!fromPool && (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -577,7 +618,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           listed ? (
             <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
               {`${listed} prompt × ${Number(shownVariants) || 0} varyant = `
-                + `${listed * (Number(shownVariants) || 0)} kart`}
+                + `${listed * (Number(shownVariants) || 0)} kart.${lengthSaid}`}
             </Note>
           ) : null
         ) : owed ? (
@@ -586,7 +627,7 @@ export default function LayerPanel({ layer, project, frames, selected, producer,
           <Note size={12} style={{ color: "var(--ink-3)", textAlign: "center" }}>
             {owed} {said.noun} üretilecek — {copies
               ? `${words.held} ${copies} kare için yeniler kopya kare olur, eskisi durur.`
-              : said.tail}
+              : said.tail}{lengthSaid}
           </Note>
         ) : null}
       </div>
