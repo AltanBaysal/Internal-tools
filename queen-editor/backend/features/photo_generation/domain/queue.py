@@ -48,7 +48,7 @@ def _status(slots, job):
 
 
 def _latest_per_frame(jobs):
-    """One line per frame: the last one written for it, in the plan's own order.
+    """One line per frame and layer: the last one written for it, in the plan's own order.
 
     The status lives per (frame, layer) while the plan may hold several lines for that pair -- a
     layer asked for, dropped, and asked for again appends a line each time and the old ones stay.
@@ -58,13 +58,16 @@ def _latest_per_frame(jobs):
 
     The plan is not corrected -- it records what was asked for, and it was asked for three times.
     What is single here is the debt, because the status that settles it is single.
+
+    Keyed by the layer as well as the frame: the counter reads the whole plan at once, where a
+    frame's photo and its video are two jobs (madde 429).
     """
     latest = {}
     for job in jobs:
-        latest[job["id"]] = job
+        latest[(job["id"], type_of(job))] = job
     # Rebuilt by walking the plan rather than the dict, so each surviving line keeps the place its
     # own line stands in and the gallery's order still decides ties.
-    return [job for job in jobs if latest[job["id"]] is job]
+    return [job for job in jobs if latest[(job["id"], type_of(job))] is job]
 
 
 def open_jobs(jobs, slots, order=()):
@@ -107,9 +110,13 @@ def counts(jobs, slots):
     """The numbers the status endpoint publishes -- read from disk rather than from a run's memory,
     so they are still right after the server restarts.
 
+    Each job once, however many lines the plan holds for it: the engine makes it once, from its
+    latest line, and counting lines said one more for every layer asked for again (madde 429).
+
     Looked up by identity, published as file names: the screen marks its red tiles by file.
     """
-    failures = [photo_file(j["id"]) for j in jobs if _status(slots, j) == FAILED]
+    jobs = _latest_per_frame(jobs)
+    failures =[photo_file(j["id"]) for j in jobs if _status(slots, j) == FAILED]
     return {"total": len(jobs),
             "done": sum(1 for j in jobs if _status(slots, j) == DONE),
             "failed": len(failures),
