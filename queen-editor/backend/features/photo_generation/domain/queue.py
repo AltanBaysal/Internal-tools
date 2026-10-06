@@ -112,11 +112,9 @@ def counts(jobs, slots):
 
     Each job once, however many lines the plan holds for it: the engine makes it once, from its
     latest line, and counting lines said one more for every layer asked for again (madde 429).
-
-    Looked up by identity, published as file names: the screen marks its red tiles by file.
     """
     jobs = _latest_per_frame(jobs)
-    failures =[photo_file(j["id"]) for j in jobs if _status(slots, j) == FAILED]
+    failures = [photo_file(j["id"]) for j in jobs if _status(slots, j) == FAILED]
     return {"total": len(jobs),
             "done": sum(1 for j in jobs if _status(slots, j) == DONE),
             "failed": len(failures),
