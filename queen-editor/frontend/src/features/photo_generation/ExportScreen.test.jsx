@@ -79,6 +79,14 @@ describe("ExportScreen", () => {
     expect(screen.getByText("22 video export edilecek · 1:50 dk")).toBeTruthy();
   });
 
+  it("writes a total of mixed lengths the way the design does", async () => {
+    // Designer's 206, karışık uzunluklar: 6 × 4 + 4 × 5 + 6 × 8 + 8 × 12 = 188 seconds. The total
+    // is the server's; the screen only writes it, its seconds always padded.
+    await open({ ...SUMMARY, videos: 24, seconds: 188 });
+
+    expect(screen.getByText("24 video export edilecek · 3:08 dk")).toBeTruthy();
+  });
+
   it("names the folder the export would be written to", async () => {
     await open();
 
