@@ -25,8 +25,8 @@ TOOL = os.path.dirname(          # queen-editor
         os.path.dirname(os.path.abspath(__file__))))  # tests
 REPO = os.path.dirname(TOOL)
 
-ROADMAPS = os.path.join(REPO, "docs", "superpowers", "roadmaps")
-PLANS = os.path.join(REPO, "docs", "superpowers", "plans")
+ROADMAPS = os.path.join(REPO, "docs", "roadmaps")
+PLANS = os.path.join(REPO, "docs", "plans")
 DOCS = os.path.join(REPO, "docs")
 CLAUDE = os.path.join(REPO, "CLAUDE.md")
 
@@ -295,7 +295,7 @@ def test_roadmaps_live_in_their_own_folder():
     left = sorted(os.path.basename(p) for p in glob.glob(os.path.join(PLANS, "*-roadmap*.md")))
 
     assert not left, f"plans/ altında kalan yol haritası: {left}"
-    assert os.path.isdir(ROADMAPS), "docs/superpowers/roadmaps/ yok"
+    assert os.path.isdir(ROADMAPS), "docs/roadmaps/ yok"
 
 
 def test_claude_md_no_longer_calls_the_newest_document_the_current_version():

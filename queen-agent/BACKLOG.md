@@ -29,7 +29,7 @@ düşünyor user özellike sorarsa eklensin", "ayna eklenmemesi olucak".)* **Ayr
 
 *(Kullanıcı, 29 Eylül — "queen agentta token kullanımını optimize et", "bunu en son al beraber
 yaoarız"; 30 Eylül — "bunu backloga at şimdilik".)* v9'da 376 olarak hizalandı ve koşulmadı;
-konuşulanlar [v9'un](../docs/superpowers/roadmaps/2026-09-25-queen-agent-v9-roadmap.md) v9-10 bölümünde.
+konuşulanlar [v9'un](../docs/roadmaps/2026-09-25-queen-agent-v9-roadmap.md) v9-10 bölümünde.
 **Ayrıntılar kullanıcıyla konuşulacak.**
 
 ## Suffix system prompt'u güçlendirilecek
