@@ -14,6 +14,10 @@ olayını")*. **Bu koşu önce biter, QueenAgent v10 ondan sonra koşar** *(kull
 queen editoru koşucaz bitiricez sonra queen agnetı koşucaz")*.
 **collab-toolbox'a da dokundu:** 219 — denemenin notebook'u, `photo_generator/nova-3dcg/manual.ipynb`:
 el ve göz dedektörleri denemeye eklendi, ve detailer'lar kullanılmayınca NSFW'ninkiyle birlikte çıktı.
+**Deneme için notebook bu dalı çekiyor** *(Claude sordu, 7 Ekim; kullanıcı — "yap tabiki")*:
+`queeneditor.ipynb`'nin ve `test_notebook_clones_its_branch.py`'ın `BRANCH`'i `feat/queen-editor-v9`.
+O güne kadar ikisi de `feat/queen-editor-v8` diyordu. **İkisi de bu dal main'e girmeden önce
+`main`'e döner.**
 
 **Tasarım geldi, 5 Ekim:** queen-design'ın `queen-editor-v2` dalından (`ec6ab57`), tasarımcının
 205 – 212'si. `git -C D:\Github\queen-design diff origin/main...origin/queen-editor-v2` ile okunur;
