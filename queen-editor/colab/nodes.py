@@ -10,9 +10,8 @@ from colab.console import log, run
 
 # Impact-Pack's list ends with sam2 straight from GitHub. It has no ready package: pip builds it on the
 # machine, and its build asks for torch, which pip installs again -- CUDA libraries and all -- in a
-# build environment of its own. Impact-Pack took 3 dk 13 sn of a 6 dk 2 sn cell on the user's run. Our
-# photo graph loads SAM's first version through segment-anything, and Impact-Pack imports sam2 only
-# when it is installed.
+# build environment of its own. Impact-Pack took 3 dk 13 sn of a 6 dk 2 sn cell on the user's run. No
+# graph of ours loads a SAM, and Impact-Pack imports sam2 only when it is installed.
 SKIPPED = {"git+https://github.com/facebookresearch/sam2"}
 
 

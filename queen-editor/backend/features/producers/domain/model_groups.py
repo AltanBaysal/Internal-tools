@@ -15,10 +15,9 @@ the graphs load by, so a rename here has to follow the graph rather than the sou
 HF_MMAUDIO_NSFW = "mmaudio_large_44k_nsfw_gold_8.5k_final_fp16.safetensors"
 
 GROUPS = {
-    # What the photo graph reads. The checkpoint and the lora are the render itself; the other
-    # three are branches of the same graph -- the default-on FaceDetailer loads the detector and
-    # SAM at startup, and the bypassed Ultimate SD Upscale reads Remacri the moment it is switched
-    # on. Two of five would make "the photo producer is installed" a lie.
+    # What the photo graph reads. The checkpoint and the loras are the render itself, and Remacri
+    # is read by the bypassed Ultimate SD Upscale the moment it is switched on. The graph runs no
+    # detailer (madde 430), so no detector and no SAM is counted.
     "photo": [
         # Which checkpoint is here is the user's pick since Madde 140 -- the notebook draws a box
         # per model and every one of them is empty by default. So the row names a kind rather than
@@ -32,9 +31,6 @@ GROUPS = {
         {"folder": "loras", "name": "USNR_STYLE_ILL_V1_lokr3-000024.safetensors"},
         {"folder": "loras", "name": "translucent_penetration_v5.safetensors"},
         {"folder": "upscale_models", "name": "4x_foolhardy_Remacri.pth"},
-        # UltralyticsDetectorProvider lists this one as "bbox/<name>", so the folder is nested.
-        {"folder": "ultralytics/bbox", "name": "face_yolov9c.pt"},
-        {"folder": "sams", "name": "sam_vit_b_01ec64.pth"},
     ],
     "video": [
         # The name is what the graph's VAELoader asks for, which is not what the file is called at

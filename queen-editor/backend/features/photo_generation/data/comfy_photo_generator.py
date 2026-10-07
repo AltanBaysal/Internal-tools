@@ -5,7 +5,7 @@ Node ids come from our own export (queen-editor/workflow_api.json):
   "4"  ImpactWildcardProcessor, _meta.title "NEGATIVE"
   "23" easy int "Batch Size" -> EmptyLatentImage's batch_size: how many pictures one job makes
   "27" Power Lora Loader (rgthree) -> which loras are switched on, and how strongly
-  "40" Seed (rgthree) -> KSampler, FaceDetailer and both wildcard processors read it
+  "40" Seed (rgthree) -> KSampler and both wildcard processors read it
   "45" CheckpointLoaderSimple -> which model renders the frame
 
 A new export can renumber these; then this file changes and nothing else does.
