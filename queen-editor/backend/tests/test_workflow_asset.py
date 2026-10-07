@@ -32,8 +32,7 @@ def test_the_positive_encoder_understands_break():
     is written -- but only for an encoder that knows the word. A plain CLIPTextEncode encodes it as
     a word instead, which does not separate anything, it pollutes.
 
-    Only this node changes. Both KSampler and ToDetailerPipe read the positive from its output, so
-    one swap covers the detailer too.
+    Only this node changes, and KSampler reads the positive from its output.
     """
     with open(config.WORKFLOW_PATH, encoding="utf-8") as f:
         workflow = json.load(f)
@@ -176,6 +175,52 @@ def test_every_graph_makes_a_portrait_frame():
     for graph, node_id in ((standard, "208"), (first_last, "328")):
         width, height = _video_size(graph, node_id)
         assert width < height
+
+
+def test_the_photo_graph_runs_no_detailer():
+    """Madde 430: the user tried every detailer the graph's author ships -- NSFW, hand, eyes -- and
+    none did meaningful work (219), then asked for none at all, the face one included: "abi hiç bir
+    detailer açık olmasın direkt". Asked by class rather than by id, so a detailer coming back
+    under a new id still turns this red."""
+    photo = _graphs()[0]
+
+    found = sorted({node["class_type"] for node in photo.values()
+                    if "Detailer" in node["class_type"] or "Detector" in node["class_type"]
+                    or node["class_type"] == "SAMLoader"})
+    assert not found, f"Fotoğraf grafiğinde detailer düğümü var: {found}"
+
+
+def test_the_photo_graph_saves_the_decoded_picture():
+    """With the detailer gone the picture is saved as the sampler made it: straight out of VAE
+    Decode, the way the user's own export reads with the detailer groups switched off."""
+    photo = _graphs()[0]
+    savers = [node for node in photo.values() if node["class_type"] == "SaveImage"]
+
+    assert len(savers) == 1, f"Grafikte {len(savers)} Save Image var"
+    source = savers[0]["inputs"]["images"][0]
+    assert photo[source]["class_type"] == "VAEDecode", \
+        f"Save Image resmi VAE Decode'dan değil {photo[source]['class_type']}'dan alıyor"
+
+
+def test_every_node_of_the_photo_graph_feeds_the_saved_picture():
+    """What a removed branch leaves behind carries no detailer in its name: the settings it read,
+    the model patch only it used, the panel that compared its before and after. An export with the
+    branch switched off has none of them, so walking back from the saved picture has to reach
+    every node there is."""
+    photo = _graphs()[0]
+    saver = next(node_id for node_id, node in photo.items() if node["class_type"] == "SaveImage")
+
+    reached, waiting = set(), [saver]
+    while waiting:
+        node_id = waiting.pop()
+        if node_id in reached:
+            continue
+        reached.add(node_id)
+        waiting += [value[0] for value in photo[node_id]["inputs"].values()
+                    if isinstance(value, list) and len(value) == 2 and isinstance(value[0], str)]
+
+    hanging = sorted(set(photo) - reached)
+    assert not hanging, f"Kaydedilen resme ulaşmayan düğümler: {hanging}"
 
 
 def _model_files(node):

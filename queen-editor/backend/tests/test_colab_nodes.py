@@ -75,8 +75,8 @@ def _github(monkeypatch, nodes, repos):
 def test_impact_pack_is_installed_without_sam2(nodes, monkeypatch, tmp_path):
     """sam2 has no ready package to take: pip fetches it from GitHub and builds it on the machine, and
     its build asks for torch, which pip sets up again -- CUDA libraries and all -- in a build
-    environment of its own. Our graph loads SAM's first version, sam_vit_b, through
-    segment-anything, and Impact-Pack imports sam2 only when it is installed (madde 314)."""
+    environment of its own. No graph of ours loads a SAM (madde 430), and Impact-Pack imports sam2
+    only when it is installed (madde 314)."""
     _, installed = _github(monkeypatch, nodes, {IMPACT: {"requirements.txt": IMPACT_REQUIREMENTS}})
 
     nodes.install_node("ComfyUI-Impact-Pack", IMPACT, str(tmp_path))

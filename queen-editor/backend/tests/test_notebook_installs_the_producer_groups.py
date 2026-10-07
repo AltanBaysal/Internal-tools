@@ -370,8 +370,8 @@ def test_an_unticked_model_costs_no_bytes():
 
 
 def test_the_photo_estimate_counts_only_what_the_group_always_takes():
-    """The base is the files every photo run takes whatever was ticked -- both loras, the upscaler,
-    the detector, the SAM. The checkpoints come from the model boxes, so counting one of them into
+    """The base is the files every photo run takes whatever was ticked -- both loras and the
+    upscaler. The checkpoints come from the model boxes, so counting one of them into
     the base would warn a single-model run about disk it was never going to use."""
     assert "(INSTALL_PHOTO, PHOTO_GIB," in _cell("SIZES = ["), \
         "SIZES foto için hâlâ sabit bir sayı taşıyor"
@@ -537,6 +537,18 @@ def test_the_retired_dasiwa_h3_checkpoint_is_gone_from_the_notebook():
     for leftover in ("dasiwa_minimax_h3_ref2va_v2_pruned_hybrid_turbo_int8_"
                      "row-wise_convrot_runtime_mixed.safetensors", "3314686"):
         assert leftover not in source, f"Defterde DaSiWa H3'ten iz kaldı: {leftover}"
+
+
+def test_the_face_detailer_s_files_are_gone_from_the_notebook():
+    """The photo graph runs no detailer since madde 430. A row left behind would still bring the
+    detector and SAM down on every photo run, and the Subpack's install with them -- the package
+    gives the graph nothing but the detector node. The folders go too: a cell making them and a
+    summary listing them would be the same leftover."""
+    source = _source()
+
+    for leftover in ("face_yolov9c.pt", "sam_vit_b_01ec64.pth", "Bingsu/adetailer",
+                     "ComfyUI-Impact-Subpack", "ultralytics", "models/sams"):
+        assert leftover not in source, f"Defterde yüz detailer'ından iz kaldı: {leftover}"
 
 
 def test_the_notebook_fetches_mystic_xxx_by_its_version_into_the_loras():

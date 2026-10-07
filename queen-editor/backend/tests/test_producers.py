@@ -99,7 +99,8 @@ def test_a_row_says_nothing_about_installing_because_the_app_does_not():
 def test_the_photo_group_carries_everything_the_graph_reads():
     """The checkpoint is the one row naming a kind rather than a file: which model is on the machine
     is the user's pick since Madde 140, and the graph renders with whichever it was handed. The
-    other four are branches of the graph, and each is loaded by its own name."""
+    other three are named by the file itself. The face detector and SAM left with the detailer
+    (madde 430): a group naming them would call the producer uninstalled over files nothing loads."""
     rows = model_groups.GROUPS["photo"]
 
     assert rows[0] == {"folder": "checkpoints", "suffix": ".safetensors"}
@@ -110,8 +111,6 @@ def test_the_photo_group_carries_everything_the_graph_reads():
         # different per machine.
         ("loras", "translucent_penetration_v5.safetensors"),
         ("upscale_models", "4x_foolhardy_Remacri.pth"),
-        ("ultralytics/bbox", "face_yolov9c.pt"),
-        ("sams", "sam_vit_b_01ec64.pth"),
     ]
 
 
