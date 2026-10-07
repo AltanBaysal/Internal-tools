@@ -81,22 +81,6 @@ test("the rail folds by its width", () => {
   expect(WORKSPACE).toContain("transition: width 220ms ease");
 });
 
-// Madde 379: the standard's paragraph on motion says what moves today and forbids nothing. Read
-// from the file, so an animation added without a word there fails here instead of leaving the
-// paragraph untrue -- the animation itself is never refused.
-const STANDARD = read("../CODE-STANDARD.md");
-
-test("the standard names every keyframe the frontend defines", () => {
-  const names = [...`${APP}${WORKSPACE}`.matchAll(/@keyframes ([\w-]+)/g)].map(([, name]) => name);
-  expect(names.length).toBeGreaterThan(0);
-  for (const name of names) expect(STANDARD).toContain(`\`${name}\``);
-});
-
-test("the standard forbids no animation, and calls no motion the only one", () => {
-  expect(STANDARD).not.toContain("never invents");
-  expect(STANDARD).not.toContain("The only motion");
-});
-
 // The page itself never scrolls -- only inner regions do. The shell is what holds that line.
 test("the shell is the height of the visible window and no less", () => {
   // A 600px floor is exactly what makes a short window scroll the page.

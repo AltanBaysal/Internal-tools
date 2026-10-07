@@ -1,7 +1,8 @@
 """The sound engine moved out of ComfyUI; these guard the parts a unit test cannot see.
 
-A leftover reference is not a broken import -- it is a document telling somebody to export a graph
-that nothing reads, and that only shows up when they try.
+A leftover reference is not a broken import -- it is a name in a string, a path in the code or a
+notebook cell, asking for a graph that nothing reads, and that only shows up when it runs. Documents
+are not swept: tests test only code (madde 431).
 """
 import os
 
@@ -19,8 +20,8 @@ def _mentions():
     for folder, dirs, files in os.walk(ROOT):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for name in files:
-            if name in SKIP_FILES or not name.endswith((".py", ".md", ".json", ".ipynb", ".jsx",
-                                                        ".js", ".txt")):
+            if name in SKIP_FILES or not name.endswith((".py", ".json", ".ipynb", ".jsx", ".js",
+                                                        ".txt")):
                 continue
             path = os.path.join(folder, name)
             with open(path, encoding="utf-8", errors="ignore") as handle:
