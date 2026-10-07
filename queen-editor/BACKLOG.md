@@ -119,7 +119,7 @@ kartın kodladığı doğrulandı. **Kalan aday, kodlamanın etrafındaki CPU zi
 **Kararlaşmadı:** zincirin karta taşınıp taşınmayacağı. Taşımanın iki bilinen bedeli var —
 `overlay_cuda` saydam PNG'de bozabiliyor *(girdinin `yuva420p`'ye çevrilip `hwupload` ile
 yüklenmesi gerekiyor)*, ve yarım taşımak tam CPU'dan kötü. Kaldıraçların tamamı
-[2026-09-21 export hızı araştırmasında](../docs/superpowers/research/2026-09-21-queen-editor-export-hizi.md).
+[2026-09-21 export hızı araştırmasında](../docs/research/2026-09-21-queen-editor-export-hizi.md).
 
 ### Loop'larda sona doğru tempo düşmesi — asıl çözüm
 
@@ -169,12 +169,6 @@ böyle face detailer tarzı şeyler var mı"; H3'ün referanslı test videoları
 çok iyi, uzakta sıkıntı", "backloga atalım bunu şimdilik".)* **Ayrıntılar kullanıcıyla
 konuşulacak.**
 
-### HF indirmesi arada yarıda düşüyor
-
-*(Kullanıcı, 2 Ekim — "arada oluyor"; H3 Eros Max beta5 %97'de düştü: `File reconstruction
-error: CAS Client Error: Request middleware error: error sending request for url
-(https://us.gcp.cdn.hf.co/xorbs/…)`.)* **Ayrıntılar kullanıcıyla konuşulacak.**
-
 ### Video prompt'ları üretilirken kullanıcı bir geri bildirim görecek
 
 *(Kullanıcı, 2 Ekim — "queen editorde videoların promptları üretilriken usera bir feedback verelim
@@ -208,5 +202,5 @@ bölünerek yapılacak. Buraya yazılmasının sebebi bu.
 parçalanmanın nereden başlayacağı. Üçü de sırası gelince detaylandırılacak, ve buraya bir tahmin
 yazılmıyor.
 
-**İlk parça:** [v9-4](../docs/superpowers/roadmaps/2026-10-05-queen-editor-v9-roadmap.md) — salt
+**İlk parça:** [v9-4](../docs/roadmaps/2026-10-05-queen-editor-v9-roadmap.md) — salt
 okunur sohbet *(kullanıcı, 5 Ekim)*.
