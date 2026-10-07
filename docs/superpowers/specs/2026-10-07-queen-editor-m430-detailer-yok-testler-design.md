@@ -68,3 +68,16 @@ defterin ne indirdiğini değil indiricinin nasıl indirdiğini soruyor. Olduğu
 ## Beklenen sonuç
 
 **Beş kırmızı:** 1, 2, 3, 4 ve fotoğraf grubunun listesi. Geri kalan her şey yeşil.
+
+## Ek — uygulama turu yazılırken görüldü
+
+SAM, notebook'un doğrudan bir adresten indirdiği tek dosyaydı (`OPEN_PHOTO`); o gidince liste boş
+kalır, ve `open_jobs` döngüsü hiçbir şey indirmez. Boş bir liste ve döngü tutmak yerine ikisi de
+çıkar. İki test onları istiyordu, ve ikinci bir test commit'iyle düzeldi:
+
+- `test_an_unticked_group_costs_no_bytes` fotoğrafın listelerinden `OPEN_PHOTO`'yu artık aramıyor.
+- `test_the_models_cell_ends_with_the_download_summary` açık adresli döngünün satırını artık
+  aramıyor.
+- 4. test `OPEN_PHOTO` ve `open_jobs`'u da artıklar arasında sayıyor.
+
+Kırmızı sayısı aynı kalıyor: beş.

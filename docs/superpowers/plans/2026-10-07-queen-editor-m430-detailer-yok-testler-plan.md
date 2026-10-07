@@ -138,6 +138,19 @@ def test_the_face_detailer_s_files_are_gone_from_the_notebook():
     only when it is installed (madde 314)."""
 ```
 
+### Görev 3b: Açık adresli indirme de gidiyor *(spec'in eki)*
+
+**Dosya:** `queen-editor/backend/tests/test_notebook_installs_the_producer_groups.py`
+
+- [ ] `test_an_unticked_group_costs_no_bytes`: `("CIVITAI_PHOTO", "OPEN_PHOTO", "HF_PHOTO")` yerine
+  `("CIVITAI_PHOTO", "HF_PHOTO")`.
+- [ ] `test_the_models_cell_ends_with_the_download_summary`: `open_jobs` döngüsünü arayan assert
+  çıkar.
+- [ ] `test_the_face_detailer_s_files_are_gone_from_the_notebook`: artıklara `"OPEN_PHOTO"` ve
+  `"open_jobs"` eklenir; docstring'e: `SAM was the one file fetched by a plain address, so the list
+  of those and its loop go with it.`
+- [ ] Ayrı bir kırmızı commit: `test(queen-editor): Madde 430 red, second part -- …`.
+
 ### Görev 4: Takımı koş ve commit'le
 
 - [ ] Dört satır, paralel:

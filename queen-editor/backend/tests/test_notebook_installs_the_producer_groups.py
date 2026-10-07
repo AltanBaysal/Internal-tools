@@ -276,7 +276,7 @@ def test_an_unticked_group_costs_no_bytes():
     """The whole point of the checkboxes: a group's list is only reached through its own switch."""
     source = _source()
 
-    for names, switch in ((("CIVITAI_PHOTO", "OPEN_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
+    for names, switch in ((("CIVITAI_PHOTO", "HF_PHOTO"), SWITCH["photo"]),
                           (("CIVITAI_VIDEO", "HF_VIDEO"), 'VIDEO_MODEL == "wan"'),
                           (("CIVITAI_H3", "HF_H3"), 'VIDEO_MODEL == "h3"'),
                           (("HF_AUDIO",), SWITCH["audio"])):
@@ -543,11 +543,13 @@ def test_the_face_detailer_s_files_are_gone_from_the_notebook():
     """The photo graph runs no detailer since madde 430. A row left behind would still bring the
     detector and SAM down on every photo run, and the Subpack's install with them -- the package
     gives the graph nothing but the detector node. The folders go too: a cell making them and a
-    summary listing them would be the same leftover."""
+    summary listing them would be the same leftover. SAM was the one file fetched by a plain
+    address, so the list of those and its loop go with it."""
     source = _source()
 
     for leftover in ("face_yolov9c.pt", "sam_vit_b_01ec64.pth", "Bingsu/adetailer",
-                     "ComfyUI-Impact-Subpack", "ultralytics", "models/sams"):
+                     "ComfyUI-Impact-Subpack", "ultralytics", "models/sams", "OPEN_PHOTO",
+                     "open_jobs"):
         assert leftover not in source, f"Defterde yüz detailer'ından iz kaldı: {leftover}"
 
 
@@ -594,8 +596,6 @@ def test_the_models_cell_ends_with_the_download_summary():
 
     assert -1 < cell.find("landed = []") < cell.find("in hf_jobs:"), \
         "Satır listesi döngülerden önce açılmıyor"
-    assert re.search(r"for [^\n]+ in open_jobs:\n\s+landed\.append\(fetch\(", cell), \
-        "Açık adresli indirmelerin satırı tutulmuyor"
     assert cell.find("download_summary(landed)") > cell.find("in civitai_jobs:") > -1, \
         "Özet tablosu indirmelerden sonra basılmıyor"
     assert "download_summary" in imported, "Defter özet tablosunu klondan import etmiyor"
