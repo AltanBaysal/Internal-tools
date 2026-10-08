@@ -295,12 +295,20 @@ def test_the_h3_graphs_are_one_per_mode_with_room_for_their_pictures():
     assert len(json.loads(fl2va["2730"]["inputs"]["timeline_data"])["items"]) == 2
 
 
-def test_both_h3_graphs_render_four_seconds_at_512_by_768():
-    """The user's settings from 213's trial. One number is quoted for every video, and one export
-    joins both kinds -- two lengths or two sizes there would be a lie and a broken file."""
+def test_both_h3_graphs_render_four_seconds_at_576_by_864():
+    """Madde 434: 540p, up from 480p's 512 x 768. 576 x 864 is not the Director panel's 540p size --
+    the panel rounds each side to its 32px grid on its own and gets 576 x 896 for 2:3, 3.6% off the
+    photo -- but exact 2:3 with both sides on that grid, the user's pick over the panel's ("bu
+    olsun"). The aspect stays auto, so the video follows the photo: a photo of another shape came
+    out stretched in an earlier trial.
+
+    One number is quoted for every video, and one export joins both kinds -- two lengths or two
+    sizes there would be a lie and a broken file."""
     for graph in _h3_graphs():
         director = graph["2730"]["inputs"]
-        assert (director["duration"], director["width"], director["height"]) == (4, 512, 768)
+        assert (director["duration"], director["width"], director["height"]) == (4, 576, 864)
+        resolution = json.loads(director["timeline_data"])["resolution"]
+        assert (resolution["aspect"], resolution["resolution"]) == ("auto", "540p")
 
 
 def test_the_photo_and_the_h3_video_agree_on_the_shape_of_the_frame():

@@ -57,11 +57,11 @@
     "inputs": {
       "mode": "I2VA",
       "prompt": "",
-      "width": 512,
-      "height": 768,
+      "width": 576,
+      "height": 864,
       "duration": 4,
       "ref_image_size": "match",
-      "timeline_data": "{\"version\":1,\"items\":[{\"id\":\"image-1789737579788-0\",\"enabled\":true,\"order\":0,\"slot\":0,\"start\":0,\"duration\":1,\"type\":\"image\",\"value\":\"example.png\",\"thumbnail\":null,\"source_width\":1024,\"source_height\":1536}],\"prompt_blocks\":[],\"builder_state\":{\"version\":2,\"mode\":\"I2VA\",\"duration\":4,\"ref\":{\"subject_definitions\":\"\",\"summary\":\"\",\"retention_analysis\":\"\",\"detailed_description\":\"\",\"soundscape\":\"\",\"music\":\"\"},\"prompt_mode\":\"simple\",\"simple_prompt\":\"\"},\"resolution\":{\"aspect\":\"auto\",\"resolution\":\"480p\",\"input_scaling\":\"Auto\",\"custom_aspect_w\":16,\"custom_aspect_h\":9,\"custom_mp\":1,\"custom_width\":1344,\"custom_height\":768},\"resolved_prompt\":\"\",\"field_heights\":{\"simple_prompt\":538,\"ref_detailed_description\":208.5}}",
+      "timeline_data": "{\"version\":1,\"items\":[{\"id\":\"image-1789737579788-0\",\"enabled\":true,\"order\":0,\"slot\":0,\"start\":0,\"duration\":1,\"type\":\"image\",\"value\":\"example.png\",\"thumbnail\":null,\"source_width\":1024,\"source_height\":1536}],\"prompt_blocks\":[],\"builder_state\":{\"version\":2,\"mode\":\"I2VA\",\"duration\":4,\"ref\":{\"subject_definitions\":\"\",\"summary\":\"\",\"retention_analysis\":\"\",\"detailed_description\":\"\",\"soundscape\":\"\",\"music\":\"\"},\"prompt_mode\":\"simple\",\"simple_prompt\":\"\"},\"resolution\":{\"aspect\":\"auto\",\"resolution\":\"540p\",\"input_scaling\":\"Auto\",\"custom_aspect_w\":16,\"custom_aspect_h\":9,\"custom_mp\":1,\"custom_width\":1344,\"custom_height\":768},\"resolved_prompt\":\"\",\"field_heights\":{\"simple_prompt\":538,\"ref_detailed_description\":208.5}}",
       "builder_state": "{\"version\":2,\"mode\":\"I2VA\",\"duration\":4,\"ref\":{\"subject_definitions\":\"\",\"summary\":\"\",\"retention_analysis\":\"\",\"detailed_description\":\"\",\"soundscape\":\"\",\"music\":\"\"},\"prompt_mode\":\"simple\",\"simple_prompt\":\"\"}",
       "frame_rate": 24,
       "fl2va_model": [
