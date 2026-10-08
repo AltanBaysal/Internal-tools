@@ -161,11 +161,57 @@ def fetch(url, target_dir, filename, label, *, parallel, headers=None, floor=Non
                    time.perf_counter() - start, msg)
 
 
+# A download from HF sometimes drops halfway -- H3 Eros Max beta5 at 97%, a request to its chunk store
+# failing (madde 432) -- and is tried again: three attempts in all, thirty seconds before each retry.
+ATTEMPTS = 3
+WAIT = 30
+# HF's answer about the file itself: missing, or not ours. Asked again, HF answers the same, and the
+# mirror's 404 is how civitai_fetch learns a file is not there (madde 311), which stays instant.
+FINAL = (401, 403, 404)
+
+
+def _chain(error):
+    """The error and those it was raised from, the raised one first, linked the way Python prints
+    them. huggingface_hub puts some of HF's answers under a sentence of its own, which carries no
+    response; the answer is underneath. A chain that loops back ends there, and none runs past five."""
+    chain = []
+    while error is not None and error not in chain and len(chain) < 5:
+        chain.append(error)
+        error = error.__cause__ or (None if error.__suppress_context__ else error.__context__)
+    return chain
+
+
+def _response(error):
+    """HF's response: the first one riding on an error of the chain, or None."""
+    return next((e.response for e in _chain(error) if getattr(e, "response", None) is not None), None)
+
+
+def _raw(error):
+    """Each error of the chain as it was raised, its type and its whole message, and under them HF's
+    response when one came: the status and the body, as sent (madde 432). A streamed body nobody read
+    raises when asked for, and what it raised stands in its place: raised here, it would stop the
+    cell with the reader's error instead of the drop's."""
+    text = "\n".join(f"{type(e).__name__}: {e}" for e in _chain(error))
+    response = _response(error)
+    if response is not None:
+        try:
+            body = response.text or "(boş gövde)"
+        except Exception as e:
+            body = f"(gövde okunamadı — {type(e).__name__}: {e})"
+        text += f"\n--- response: HTTP {response.status_code} ---\n{body}"
+    return text
+
+
 def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
     """A file by its repo and path, through Hugging Face's own downloader. With hf_xet behind it the
     file's Xet chunks come straight from storage in parallel; an address went through HF's bridge,
     which cuts a plain download to 8.7 MB/s on most of its servers (xet-core #821). Its row for the
-    summary, or None when the file was already in place."""
+    summary, or None when the file was already in place.
+
+    A download that drops is tried again, up to ATTEMPTS, and each drop prints what was raised.
+    Neither HF's answer about the file (FINAL) nor a file that came down whole but bad is asked for
+    again: both would come back the same. The error that stops the cell carries what the last attempt
+    raised, and HF's response with it."""
     # Imported here: Colab ships it, and this module has to import where it is not installed.
     from huggingface_hub import hf_hub_download
 
@@ -176,10 +222,17 @@ def hf_fetch(repo, path, target_dir, filename, label, *, floor=None):
 
     log(f"{label}: iniyor (HF)")
     start = time.perf_counter()
-    try:
-        got = hf_hub_download(repo, path, local_dir=STAGE)
-    except Exception as e:
-        raise RuntimeError(f"{label}: HF {repo}/{path} — {type(e).__name__}: {e}") from None
+    for attempt in range(1, ATTEMPTS + 1):
+        try:
+            got = hf_hub_download(repo, path, local_dir=STAGE)
+            break
+        except Exception as e:
+            where = f"{label}: HF {repo}/{path}, deneme {attempt}/{ATTEMPTS}"
+            answer = getattr(_response(e), "status_code", None)
+            if answer in FINAL or attempt == ATTEMPTS:
+                raise RuntimeError(f"{where}\n{_raw(e)}") from None
+            log(f"{where} — {WAIT} sn sonra yeniden\n{_raw(e)}", "WARN")
+        time.sleep(WAIT)
     msg = _settled(got, label, floor)
     os.replace(got, target)
     return _landed(label, "HF", os.path.getsize(target), time.perf_counter() - start, msg)
